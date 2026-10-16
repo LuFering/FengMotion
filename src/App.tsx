@@ -18,7 +18,7 @@ import { TechniqueLibrary } from '@/views/TechniqueLibrary'
 import { VideoLibrary } from '@/views/VideoLibrary'
 import { KnowledgeSources } from '@/views/KnowledgeSources'
 import { RuleCases } from '@/views/RuleCases'
-import { MethodsFlow } from '@/views/MethodsFlow'
+import { WorkflowGallery } from '@/views/WorkflowGallery'
 import { TooltipProvider } from '@/components/ui/tooltip'
 
 /**
@@ -48,8 +48,8 @@ type View = ViewId | 'home'
 const TABS: Array<{ id: View; label: string; icon: string }> = [
   { id: 'overview',   label: '首页',   icon: 'house' },
   { id: 'production', label: '工作台', icon: 'clapperboard' },
-  { id: 'assets',     label: '资产',   icon: 'image' },
-  { id: 'knowledge',  label: '技法',   icon: 'panels-top-left' },
+  { id: 'assets',     label: '素材',   icon: 'image' },
+  { id: 'knowledge',  label: '特效',   icon: 'panels-top-left' },
   { id: 'render',     label: '交付',   icon: 'upload' },
 ]
 
@@ -201,8 +201,8 @@ export default function App() {
         {/* 其余视图 */}
         {!isHome && !isFlow && !isCatalog && (
           <>
-            {/* 项目指挥中心 / 创作资产 / 时序校验：单顶栏或全幅复刻页，这层标题栏不渲染 */}
-            {view !== 'project' && view !== 'assets' && view !== 'audio' && (
+            {/* 项目指挥中心 / 创作资产 / 时序校验 / 工作流广场：全幅复刻页，这层标题栏不渲染 */}
+            {view !== 'project' && view !== 'assets' && view !== 'audio' && view !== 'methods' && (
             <header className="app-header">
               <span className="logo">
                 <img src="/assets/brand/fengmotion-mark.png" alt="" width={22} height={22} />
@@ -239,7 +239,7 @@ export default function App() {
                 {view === 'knowledge' && <TechniqueLibrary onOpen={go} />}
                 {view === 'reference' && <VideoLibrary onOpen={go} />}
                 {view === 'rules' && <RuleCases />}
-                {view === 'methods' && <MethodsFlow />}
+                {view === 'methods' && <WorkflowGallery />}
               </div>
             </div>
           </>

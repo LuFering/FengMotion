@@ -586,3 +586,12 @@
 
 /* 卡库：显示已停用的开关（与资产中心同一形态） */
 .kn-showoff { margin-right: 2px }
+
+/* ══ 复刻页装载器（工作流广场 = iframe 全区，同 .acr/.atr 做法）══════════ */
+.wgr { height: 100vh }
+.wgr-frame {
+  display: block; width: 100%; height: 100%; border: 0;
+  border-radius: 0; overflow: hidden; background: #151515;
+}
+.hm-main:has(.wgr) { margin: 0 0 0 var(--hm-sidebar, 68px) !important; padding: 0 !important }
+.hm-content:has(.wgr) { padding: 0 !important; margin: 0 !important; max-width: none !important }
