@@ -1,0 +1,329 @@
+/* ══ 我的素材（原生素材管理器）═══════════════════════════════════
+   词表纪律：只用 paba 现行变量（--bg/--surf/--hole/--line/--fg/--dim/
+   --hint/--ph/--acc/--acc-d/--on-accent/--ok/--warn/--bad/--soft）。
+   按钮语言：主操作 = 胶囊（.mya-import），工具 = 6px 方框（.mya-tool / .mini 同族）。 */
+
+.mya { display: flex; flex-direction: column; gap: 16px; padding-bottom: 40px }
+
+/* ── 头部 ─────────────────────────────────────────────────── */
+.mya-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; flex-wrap: wrap }
+.mya-head-copy { display: flex; flex-direction: column; gap: 4px }
+.mya-eyebrow { font-family: var(--font-mono, monospace); font-size: 10px; letter-spacing: .18em; color: var(--ph) }
+.mya-head-copy h2 { margin: 0; font-size: 16px; font-weight: 600 }
+.mya-head-copy p { margin: 0; font-size: 11px; color: var(--dim) }
+.mya-head-acts { display: flex; align-items: center; gap: 8px }
+
+.mya-search {
+  display: flex; align-items: center; gap: 6px;
+  height: 32px; padding: 0 10px; min-width: 260px;
+  background: var(--surf); border: 1px solid var(--line); border-radius: 6px;
+  color: var(--ph);
+}
+.mya-search:focus-within { border-color: var(--acc) }
+.mya-search .ui-icon { width: 13px; height: 13px; flex: 0 0 auto }
+.mya-search input {
+  flex: 1; min-width: 0; border: 0; background: transparent; outline: 0;
+  font: inherit; font-size: 12px; color: var(--fg);
+}
+.mya-search input::placeholder { color: var(--ph) }
+.mya-search-x { display: grid; place-items: center; border: 0; background: transparent; color: var(--ph); cursor: pointer; padding: 2px }
+.mya-search-x:hover { color: var(--fg) }
+.mya-search-x .ui-icon { width: 12px; height: 12px }
+
+.mya-import {
+  font: inherit; font-size: 12px; font-weight: 550;
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 32px; padding: 0 14px;
+  border: 1px solid var(--acc); border-radius: 999px;
+  background: var(--acc); color: var(--on-accent); cursor: pointer;
+  transition: background-color .14s, transform .14s;
+}
+.mya-import:hover { background: var(--acc-d); border-color: var(--acc-d); transform: translateY(-1px) }
+.mya-import .ui-icon { width: 14px; height: 14px }
+
+/* ── 三栏 ─────────────────────────────────────────────────── */
+.mya-body { display: flex; align-items: flex-start; gap: 18px }
+
+.mya-tree { width: 196px; flex: 0 0 auto; position: sticky; top: 16px; display: flex; flex-direction: column; gap: 16px }
+.mya-tree-group { display: flex; flex-direction: column; gap: 2px }
+.mya-tree-title {
+  display: flex; align-items: center; gap: 6px;
+  padding: 0 8px 6px; font-size: 10.5px; font-weight: 600; letter-spacing: .08em;
+  color: var(--ph); text-transform: uppercase;
+}
+.mya-folder-add {
+  display: grid; place-items: center; width: 18px; height: 18px; margin-left: auto;
+  border: 0; border-radius: 4px; background: transparent; color: var(--ph); cursor: pointer;
+}
+.mya-folder-add:hover { background: var(--hole); color: var(--fg) }
+.mya-folder-add .ui-icon { width: 12px; height: 12px }
+.mya-tree-empty { margin: 0; padding: 2px 8px; font-size: 10.5px; color: var(--ph) }
+
+.mya-node {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  padding: 6px 8px; border: 1px solid transparent; border-radius: 6px;
+  background: transparent; color: var(--dim); font: inherit; font-size: 12px;
+  text-align: left; cursor: pointer; transition: background-color .12s, color .12s;
+}
+.mya-node:hover { background: var(--hole); color: var(--fg) }
+.mya-node[data-on] { background: var(--hole); color: var(--fg) }
+.mya-node[data-on] .ui-icon { color: var(--acc) }
+.mya-node .ui-icon { width: 14px; height: 14px; flex: 0 0 auto; color: var(--ph) }
+.mya-node-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.mya-node-count { font-family: var(--font-mono, monospace); font-size: 10px; color: var(--ph) }
+
+/* ── 中栏 ─────────────────────────────────────────────────── */
+.mya-center { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 12px }
+.mya-toolbar { display: flex; align-items: center; gap: 10px }
+.mya-sort { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--dim) }
+.mya-sort select {
+  height: 28px; padding: 0 8px; border: 1px solid var(--line); border-radius: 6px;
+  background: var(--surf); color: var(--fg); font: inherit; font-size: 11.5px; outline: 0;
+}
+.mya-sort select option { background: var(--surf); color: var(--fg) }
+.mya-count { font-size: 11px; color: var(--ph) }
+.mya-spacer { flex: 1 }
+
+.mya-tool {
+  display: grid; place-items: center; width: 28px; height: 28px;
+  border: 1px solid var(--line); border-radius: 6px;
+  background: var(--surf); color: var(--hint); cursor: pointer;
+  transition: color .12s, border-color .12s;
+}
+.mya-tool:hover { color: var(--fg); border-color: var(--acc) }
+.mya-tool[data-on] { color: var(--acc); border-color: var(--acc); background: var(--hole) }
+.mya-tool .ui-icon { width: 14px; height: 14px }
+
+/* ── 批量操作栏 ───────────────────────────────────────────── */
+.mya-batch {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px;
+  background: var(--surf);
+}
+.mya-batch-n { font-size: 11.5px; font-weight: 600; color: var(--acc) }
+.mya-batch button {
+  font: inherit; font-size: 11px; padding: 4px 9px;
+  border: 1px solid var(--line); border-radius: 6px;
+  background: transparent; color: var(--hint); cursor: pointer;
+}
+.mya-batch button:hover { color: var(--acc-d); border-color: var(--acc) }
+.mya-batch-sep { width: 1px; height: 14px; background: var(--line); margin: 0 4px }
+.mya-danger { color: var(--bad) !important }
+.mya-batch button.mya-danger:hover { border-color: var(--bad) }
+
+/* ── 网格卡片 ─────────────────────────────────────────────── */
+.mya-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 12px }
+.mya-card {
+  overflow: hidden; border: 1px solid var(--line); border-radius: 10px;
+  background: var(--surf); cursor: pointer;
+  transition: border-color .14s, transform .14s;
+}
+.mya-card:hover { border-color: var(--acc); transform: translateY(-1px) }
+.mya-card[data-on] { border-color: var(--acc); box-shadow: 0 0 0 1px var(--acc) }
+.mya-thumb { position: relative; aspect-ratio: 16 / 10; background: var(--hole); overflow: hidden }
+.mya-thumb img { width: 100%; height: 100%; object-fit: cover; display: block }
+.mya-thumb-ph { position: absolute; inset: 0; display: grid; place-items: center; color: var(--ph) }
+.mya-thumb-ph .ui-icon { width: 22px; height: 22px }
+.mya-badge {
+  position: absolute; left: 6px; bottom: 6px;
+  padding: 2px 7px; border-radius: 999px; font-size: 9.5px;
+  background: color-mix(in srgb, var(--bg) 72%, transparent);
+  color: var(--fg); backdrop-filter: blur(3px);
+}
+.mya-check { position: absolute; left: 6px; top: 6px; display: grid; place-items: center }
+.mya-check input { width: 14px; height: 14px; margin: 0; accent-color: var(--acc); cursor: pointer }
+.mya-star {
+  position: absolute; right: 6px; top: 6px; display: grid; place-items: center;
+  width: 24px; height: 24px; border: 0; border-radius: 6px;
+  background: color-mix(in srgb, var(--bg) 60%, transparent);
+  color: var(--ph); cursor: pointer; opacity: 0; transition: opacity .12s, color .12s;
+}
+.mya-card:hover .mya-star { opacity: 1 }
+.mya-star[data-on] { opacity: 1; color: var(--warn) }
+.mya-star:hover { color: var(--warn) }
+.mya-star .ui-icon { width: 13px; height: 13px }
+.mya-card-body { padding: 8px 10px 9px; display: flex; flex-direction: column; gap: 4px }
+.mya-card-name { font-size: 12px; font-weight: 550; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.mya-card-meta { display: flex; gap: 4px; font-size: 10px; color: var(--ph); white-space: nowrap; overflow: hidden }
+.mya-card-foot { display: flex; gap: 5px; margin-top: 2px }
+
+.mya-lic, .mya-rev {
+  padding: 1px 6px; border-radius: 4px; font-size: 9.5px;
+  border: 1px solid var(--line); color: var(--dim);
+}
+.mya-lic[data-s="allowed"] { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 45%, transparent) }
+.mya-lic[data-s="attribution_required"] { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 45%, transparent) }
+.mya-lic[data-s="restricted"] { color: var(--bad); border-color: color-mix(in srgb, var(--bad) 45%, transparent) }
+.mya-rev[data-s="approved"] { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 45%, transparent) }
+.mya-rev[data-s="needs_review"] { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 45%, transparent) }
+
+/* ── 列表 ─────────────────────────────────────────────────── */
+.mya-list { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 10px; overflow: hidden }
+.mya-list-head, .mya-row {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) 56px 76px 96px 64px 84px;
+  align-items: center; gap: 8px; padding: 0 10px;
+}
+.mya-list-head {
+  height: 30px; font-size: 10px; letter-spacing: .06em; color: var(--ph);
+  background: var(--hole); text-transform: uppercase;
+}
+.mya-row { height: 40px; font-size: 11.5px; color: var(--dim); cursor: pointer; border-top: 1px solid color-mix(in srgb, var(--line) 60%, transparent) }
+.mya-row:hover { background: var(--hole); color: var(--fg) }
+.mya-row[data-on] { background: var(--soft) }
+.mya-col-check { display: grid; place-items: center }
+.mya-col-check input { width: 13px; height: 13px; margin: 0; accent-color: var(--acc) }
+.mya-col-name { display: flex; align-items: center; gap: 7px; min-width: 0 }
+.mya-row-ic { display: grid; place-items: center; color: var(--ph) }
+.mya-row-ic .ui-icon { width: 13px; height: 13px }
+.mya-row-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--fg) }
+.mya-row-star { width: 11px; height: 11px; color: var(--warn); flex: 0 0 auto }
+.mya-col-size, .mya-col-dim { font-size: 10.5px }
+.mya-col-lic .mya-lic { display: inline-block }
+
+/* ── 详情抽屉 ─────────────────────────────────────────────── */
+.mya-drawer {
+  width: 336px; flex: 0 0 auto; position: sticky; top: 16px;
+  max-height: calc(100vh - 40px); overflow-y: auto;
+  border: 1px solid var(--line); border-radius: 12px; background: var(--surf);
+  padding: 12px 14px 16px; display: flex; flex-direction: column; gap: 12px;
+}
+.mya-drawer-head { display: flex; align-items: center; gap: 8px }
+.mya-drawer-title { flex: 1; min-width: 0; font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.mya-preview {
+  border: 1px solid var(--line); border-radius: 8px; overflow: hidden;
+  background: var(--hole); aspect-ratio: 16 / 10; display: grid; place-items: center;
+}
+.mya-preview img, .mya-preview video { width: 100%; height: 100%; object-fit: contain; display: block; background: #000 }
+.mya-preview-ph { color: var(--ph) }
+.mya-preview-ph .ui-icon { width: 26px; height: 26px }
+.mya-audio { display: flex; flex-direction: column; align-items: center; gap: 10px; color: var(--ph); width: 100%; padding: 0 14px }
+.mya-audio .ui-icon { width: 22px; height: 22px }
+.mya-audio audio { width: 100% }
+.mya-font { padding: 14px 16px; text-align: left; width: 100%; display: flex; flex-direction: column; gap: 8px }
+.mya-font-big { font-size: 24px }
+.mya-font-sm { font-size: 12px; color: var(--dim) }
+.mya-doc { display: flex; flex-direction: column; align-items: center; gap: 8px; color: var(--dim); font-size: 11.5px }
+.mya-doc .ui-icon { width: 24px; height: 24px; color: var(--ph) }
+.mya-doc a { color: var(--acc) }
+
+.mya-drawer-acts { display: flex; flex-wrap: wrap; gap: 6px }
+.mya-drawer-acts button {
+  font: inherit; font-size: 11px; display: inline-flex; align-items: center; gap: 5px;
+  padding: 5px 9px; border: 1px solid var(--line); border-radius: 6px;
+  background: transparent; color: var(--hint); cursor: pointer;
+}
+.mya-drawer-acts button:hover { color: var(--acc-d); border-color: var(--acc) }
+.mya-drawer-acts button[data-on] { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 45%, transparent) }
+.mya-drawer-acts .ui-icon { width: 12px; height: 12px }
+
+.mya-sec { border-top: 1px solid color-mix(in srgb, var(--line) 70%, transparent); padding-top: 10px; display: flex; flex-direction: column; gap: 8px }
+.mya-sec h4 { margin: 0; font-size: 10.5px; font-weight: 600; letter-spacing: .08em; color: var(--ph); text-transform: uppercase }
+.mya-kv { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 5px 10px; margin: 0; font-size: 11px }
+.mya-kv dt { color: var(--ph) }
+.mya-kv dd { margin: 0; color: var(--fg); overflow-wrap: anywhere }
+.mya-mono { font-family: var(--font-mono, monospace); font-size: 10px; color: var(--dim) }
+.mya-dim { color: var(--dim) }
+.mya-note { margin: 0; font-size: 10px; color: var(--ph) }
+
+.mya-select {
+  width: 100%; height: 26px; padding: 0 6px;
+  border: 1px solid var(--line); border-radius: 6px;
+  background: var(--hole); color: var(--fg); font: inherit; font-size: 11px; outline: 0;
+}
+.mya-select option { background: var(--surf); color: var(--fg) }
+
+.mya-tags { display: flex; flex-wrap: wrap; gap: 5px }
+.mya-tag {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 4px 2px 8px; border: 1px solid var(--line); border-radius: 999px;
+  font-size: 10.5px; color: var(--hint);
+}
+.mya-tag button { display: grid; place-items: center; border: 0; background: transparent; color: var(--ph); cursor: pointer; padding: 1px }
+.mya-tag button:hover { color: var(--bad) }
+.mya-tag button .ui-icon { width: 10px; height: 10px }
+.mya-tag-input {
+  width: 72px; height: 22px; padding: 0 8px; border: 1px dashed var(--line); border-radius: 999px;
+  background: transparent; color: var(--fg); font: inherit; font-size: 10.5px; outline: 0;
+}
+.mya-tag-input:focus { border-style: solid; border-color: var(--acc) }
+
+.mya-refs { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 5px; font-size: 11.5px }
+.mya-refs li { display: flex; align-items: center; gap: 6px }
+.mya-refs .ui-icon { width: 12px; height: 12px; color: var(--ph) }
+
+/* ── 空态 / 加载 ──────────────────────────────────────────── */
+.mya-state {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 10px; min-height: 340px; text-align: center; color: var(--dim);
+  border: 1px dashed var(--line); border-radius: 12px; padding: 30px;
+}
+.mya-state h3 { margin: 0; font-size: 14px; font-weight: 600; color: var(--fg) }
+.mya-state p { margin: 0; font-size: 11.5px; line-height: 1.7 }
+.mya-empty-icon { width: 28px; height: 28px; color: var(--ph) }
+.mya-spin {
+  width: 16px; height: 16px; border-radius: 50%;
+  border: 2px solid var(--line); border-top-color: var(--acc);
+  animation: mya-spin .8s linear infinite;
+}
+@keyframes mya-spin { to { transform: rotate(360deg) } }
+
+/* ── 导入队列 / 拖放 / 弹窗 ───────────────────────────────── */
+.mya-queue {
+  position: fixed; right: 18px; bottom: 18px; z-index: 60; width: 320px;
+  border: 1px solid var(--line); border-radius: 12px; background: var(--surf);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, .4); overflow: hidden;
+}
+.mya-queue-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px; border-bottom: 1px solid var(--line);
+  font-size: 11.5px; font-weight: 600;
+}
+.mya-queue-head .mya-dim { font-weight: 400 }
+.mya-queue-head .mya-tool { margin-left: auto; width: 22px; height: 22px }
+.mya-queue-list { max-height: 200px; overflow-y: auto; padding: 4px 0 }
+.mya-queue-row { display: flex; align-items: center; gap: 8px; padding: 5px 10px; font-size: 11px }
+.mya-queue-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.mya-queue-st { flex: 0 0 auto; color: var(--dim); font-size: 10.5px }
+.mya-queue-row[data-s="done"] .mya-queue-st { color: var(--ok) }
+.mya-queue-row[data-s="error"] .mya-queue-st { color: var(--bad) }
+.mya-queue-retry {
+  font: inherit; font-size: 10.5px; padding: 2px 8px;
+  border: 1px solid var(--line); border-radius: 6px; background: transparent;
+  color: var(--hint); cursor: pointer;
+}
+.mya-queue-retry:hover { color: var(--acc-d); border-color: var(--acc) }
+
+.mya-drop {
+  position: fixed; inset: 0; z-index: 70; pointer-events: none;
+  display: grid; place-items: center;
+  background: color-mix(in srgb, var(--bg) 78%, transparent);
+}
+.mya-drop-card {
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  padding: 34px 54px; border: 2px dashed var(--acc); border-radius: 16px;
+  background: var(--surf); color: var(--fg);
+}
+.mya-drop-card .ui-icon { width: 26px; height: 26px; color: var(--acc) }
+.mya-drop-card strong { font-size: 14px }
+.mya-drop-card span { font-size: 11px; color: var(--dim) }
+
+.mya-modal { position: fixed; inset: 0; z-index: 80; display: grid; place-items: center; background: color-mix(in srgb, var(--bg) 70%, transparent) }
+.mya-modal-card {
+  width: 320px; padding: 16px; border: 1px solid var(--line); border-radius: 12px;
+  background: var(--surf); display: flex; flex-direction: column; gap: 12px;
+}
+.mya-modal-card h4 { margin: 0; font-size: 13px }
+.mya-modal-card input {
+  height: 30px; padding: 0 10px; border: 1px solid var(--line); border-radius: 6px;
+  background: var(--hole); color: var(--fg); font: inherit; font-size: 12px; outline: 0;
+}
+.mya-modal-card input:focus { border-color: var(--acc) }
+.mya-modal-acts { display: flex; justify-content: flex-end; gap: 8px }
+.mya-modal-acts button {
+  font: inherit; font-size: 11.5px; padding: 6px 12px;
+  border: 1px solid var(--line); border-radius: 6px;
+  background: transparent; color: var(--hint); cursor: pointer;
+}
+.mya-modal-acts button:hover { color: var(--fg) }
+.mya-modal-acts .mya-import { border-radius: 999px }
