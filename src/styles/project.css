@@ -1,0 +1,615 @@
+/* ═══════════════════════════════════════════════════════════════
+   项目总览 / 项目条 / 选择项目 —— 纸层（首页同一套 token：--ht-*）
+   「列表 → 项目 → 子视图」中间那一层就住在这里。
+   形态沿用首页的纸规矩：区块之间一条通栏细线、不加面板框、数字用 mono。
+   ═══════════════════════════════════════════════════════════════ */
+
+.pj-head {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 10px;
+  margin: 0 0 18px;
+}
+.pj-back {
+  display: flex; align-items: center; gap: 5px;
+  padding: 0; border: 0; background: 0 0; font: inherit;
+  color: var(--dim); font-size: 11.5px; cursor: pointer; transition: color .14s;
+}
+.pj-back:hover { color: var(--fg) }
+.pj-back .ui-icon { width: 14px; height: 14px }
+
+.pj-name { margin: 0; font-size: 20px; font-weight: 600; letter-spacing: .01em }
+
+.pj-stage {
+  padding: 2px 7px; border-radius: 4px;
+  background: var(--hole); color: var(--dim); font-size: 10.5px;
+}
+.pj-stage[data-s="done"] { color: var(--ok) }
+.pj-stage[data-s="editing"] { color: var(--acc) }
+.pj-stage[data-s="rendering"] { color: var(--warn) }
+/* 演示新建：内存里有、磁盘上还没有 —— 虚线框如实标出来 */
+.pj-planned {
+  padding: 2px 7px; border-radius: 4px;
+  border: 1px dashed color-mix(in srgb, var(--warn) 55%, var(--line));
+  color: var(--warn); font-size: 10.5px;
+}
+
+.pj-acts { display: flex; gap: 2px }
+.pj-acts > button {
+  padding: 5px 9px; border: 0; border-radius: 5px; background: 0 0;
+  color: var(--dim); font: inherit; font-size: 11.5px; cursor: pointer;
+  transition: background-color .14s, color .14s;
+}
+.pj-acts > button:hover { background: var(--hole); color: var(--fg) }
+.pj-acts > button[data-danger] { color: color-mix(in srgb, var(--bad) 72%, var(--dim)) }
+.pj-acts > button[data-danger]:hover { background: color-mix(in srgb, var(--bad) 14%, transparent); color: var(--bad) }
+.pj-acts > button.pj-primary {
+  display: inline-flex; align-items: center; gap: 6px; margin-right: 4px;
+  background: var(--acc); color: var(--on-accent); font-weight: 600;
+  border-radius: 999px; padding: 6px 14px;
+}
+.pj-acts > button.pj-primary:hover:not(:disabled) { background: var(--acc-d); color: var(--on-accent) }
+.pj-acts > button.pj-primary:disabled { background: var(--hole); color: var(--ph) }
+.pj-acts > button.pj-primary .ui-icon { width: 14px; height: 14px }
+.pj-acts > button.danger {
+  background: color-mix(in srgb, var(--bad) 18%, transparent); color: var(--bad);
+}
+
+.pj-rename { display: flex; align-items: center; gap: 6px }
+.pj-rename input {
+  width: 240px; min-height: 30px; padding: 4px 9px;
+  border: 1px solid var(--ht-edge); border-radius: 6px;
+  background: var(--ht-paper-back); color: var(--fg); font: inherit; font-size: 14px;
+}
+.pj-rename input:focus-visible { outline: 0; border-color: var(--ht-ink) }
+
+.pj-hero {
+  display: grid; grid-template-columns: 208px minmax(0, 1fr);
+  gap: 20px; align-items: center; margin-bottom: 24px;
+}
+.pj-cover {
+  display: grid; place-items: center; aspect-ratio: 16 / 10;
+  border-radius: 8px; overflow: hidden; background: var(--hole);
+  box-shadow: var(--ht-raised);
+}
+.pj-cover img { width: 100%; height: 100%; object-fit: cover; display: block }
+.pj-tagline { margin: 0 0 7px; font-size: 14px; line-height: 1.5 }
+.pj-path { margin: 0 0 4px; font-size: 11px; color: var(--dim); overflow-wrap: anywhere }
+.pj-src { margin: 0; font-size: 10.5px; color: var(--ph) }
+
+.pj-stats {
+  display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 18px;
+  padding: 14px 0; margin-bottom: 24px;
+  border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
+}
+.pj-stat { display: flex; flex-direction: column; gap: 3px }
+.pj-stat > em { font-style: normal; font-size: 10.5px; color: var(--dim) }
+.pj-stat > b { font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums }
+.pj-stat > b[data-warn] { color: var(--warn) }
+
+.pj-entries {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px; margin-bottom: 30px;
+}
+.pj-entry {
+  position: relative;
+  display: grid; grid-template-columns: 22px minmax(0, 1fr) 16px;
+  column-gap: 12px; row-gap: 2px; align-items: center;
+  padding: 12px 14px; text-align: left;
+  border: 1px solid var(--ht-edge); border-radius: 10px;
+  background: var(--ht-paper); color: var(--fg);
+  font: inherit; cursor: pointer;
+  box-shadow: var(--ht-raised);
+  transition: border-color .16s, transform .16s;
+}
+.pj-entry:hover:not(:disabled) { border-color: var(--acc); transform: translateY(-1px) }
+/* 未实现的那几张：压暗、不抬、箭头灰 —— 一眼看出"这条还没通" */
+.pj-entry[data-todo] { background: var(--ht-paper-back); box-shadow: none }
+.pj-entry[data-todo] > .ui-icon, .pj-entry[data-todo] > b { color: var(--dim) }
+.pj-entry[data-todo]:hover { border-color: var(--ht-edge); transform: none }
+.pj-entry:disabled { opacity: .55; cursor: default }
+.pj-entry > .ui-icon { grid-row: span 2; width: 18px; height: 18px; color: var(--acc) }
+.pj-entry > b { font-size: 13px; font-weight: 600 }
+.pj-entry > span { grid-column: 2; font-size: 11px; color: var(--dim) }
+.pj-entry > .pj-go { grid-row: span 2; width: 15px; height: 15px; color: var(--ph); justify-self: end }
+.pj-entry:hover:not(:disabled) > .pj-go { color: var(--acc) }
+.pj-entry-work { grid-column: span 2 }
+.pj-todo {
+  position: absolute; right: 38px; top: 50%; transform: translateY(-50%);
+  padding: 1px 6px; border-radius: 4px; font-style: normal; font-size: 10px;
+  background: var(--hole); color: var(--dim);
+}
+
+.pj-activity { border-top: 1px solid var(--line); padding-top: 16px }
+.pj-activity > h2 {
+  margin: 0 0 10px; font-size: 12px; font-weight: 600; color: var(--dim); letter-spacing: .02em;
+}
+.pj-empty { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin: 0; font-size: 11.5px; color: var(--dim) }
+.pj-empty-go {
+  padding: 5px 10px; border: 1px solid var(--line); border-radius: 999px; background: 0 0;
+  color: var(--acc); font: inherit; font-size: 11.5px; cursor: pointer;
+}
+.pj-empty-go:hover:not(:disabled) { border-color: var(--acc) }
+.pj-empty-go:disabled { color: var(--ph); cursor: default }
+.pj-task {
+  display: flex; align-items: baseline; gap: 10px;
+  padding: 8px 0; border-bottom: 1px solid color-mix(in srgb, var(--line) 55%, transparent);
+}
+.pj-task > b { font-size: 12px; font-weight: 550 }
+.pj-task > span { margin-left: auto; font-size: 10.5px; color: var(--dim) }
+
+.pj-notice {
+  position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%);
+  max-width: 70vw; padding: 9px 14px;
+  border: 1px solid var(--ht-edge); border-radius: 8px;
+  background: var(--ht-paper); color: var(--fg);
+  font: inherit; font-size: 11.5px; cursor: pointer; box-shadow: var(--ht-raised);
+}
+
+/* ── 项目条：子视图顶上的上下文条 ───────────────────────────── */
+.pj-bar {
+  display: flex; align-items: center; gap: 9px;
+  margin: 0 0 18px; padding: 0 0 12px;
+  border-bottom: 1px solid var(--line);
+}
+.pj-bar-back, .pj-bar-name {
+  display: flex; align-items: center; gap: 5px;
+  padding: 0; border: 0; background: 0 0; font: inherit; cursor: pointer;
+  color: var(--dim); font-size: 11.5px; transition: color .14s;
+}
+.pj-bar-name { color: var(--fg); font-size: 13px; font-weight: 600 }
+.pj-bar-back:hover { color: var(--fg) }
+.pj-bar-name:hover { color: var(--acc) }
+.pj-bar-back .ui-icon { width: 14px; height: 14px }
+.pj-tabs { display: flex; align-items: center; flex-wrap: wrap; gap: 2px }
+.pj-tabs > button {
+  display: inline-flex; align-items: center; gap: 3px;
+  padding: 5px 10px; border: 0; border-radius: 5px; background: 0 0;
+  color: var(--dim); font: inherit; font-size: 11.5px; cursor: pointer;
+  transition: background-color .14s, color .14s;
+}
+.pj-tabs > button:hover { color: var(--fg) }
+.pj-tabs > button[aria-pressed="true"] { background: var(--hole); color: var(--fg); font-weight: 600 }
+.pj-tabs > button > i { font-style: normal; color: var(--ph) }
+
+/* ── 没选项目时的兜底 ───────────────────────────────────────── */
+.pj-pick { display: grid; place-items: center; gap: 6px; padding: 64px 0; text-align: center }
+.pj-pick > .ui-icon { width: 28px; height: 28px; color: var(--ph) }
+.pj-pick > h2 { margin: 6px 0 0; font-size: 15px; font-weight: 600 }
+.pj-pick > p { margin: 0 0 8px; max-width: 42ch; font-size: 11.5px; color: var(--dim); line-height: 1.6 }
+
+@media (max-width: 900px) {
+  .pj-hero { grid-template-columns: minmax(0, 1fr) }
+  .pj-cover { max-width: 320px }
+  .pj-entries { grid-template-columns: minmax(0, 1fr) }
+  .pj-entry-work { grid-column: auto }
+}
+
+/* ═══ 项目卡上的动作菜单（fm-components 里的 .fm-project-act 的延伸）═══ */
+.fm-project-planned {
+  position: absolute; left: 8px; top: 8px; z-index: 1;
+  padding: 2px 6px; border-radius: 4px; font-size: 10px;
+  background: #14161ac4; color: var(--warn);
+  border: 1px solid color-mix(in srgb, var(--warn) 45%, transparent);
+}
+.fm-pmenu {
+  position: absolute; right: 8px; bottom: 8px; z-index: 3;
+  display: flex; flex-direction: column; gap: 1px;
+  min-width: 168px; padding: 4px;
+  border: 1px solid var(--ht-edge); border-radius: 8px;
+  background: var(--ht-paper); box-shadow: var(--ht-raised);
+}
+.fm-pmenu > button {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 9px; border: 0; border-radius: 5px; background: 0 0;
+  color: var(--dim); font: inherit; font-size: 11.5px; text-align: left; cursor: pointer;
+  transition: background-color .12s, color .12s;
+}
+.fm-pmenu > button:hover { background: var(--hole); color: var(--fg) }
+.fm-pmenu > button.danger { color: var(--bad) }
+.fm-pmenu > button.danger:hover { background: color-mix(in srgb, var(--bad) 16%, transparent) }
+.fm-pmenu > button .ui-icon { width: 14px; height: 14px }
+.fm-pmenu-rename { display: flex; gap: 5px; padding: 3px }
+.fm-pmenu-rename input {
+  flex: 1; min-width: 0; min-height: 28px; padding: 3px 8px;
+  border: 1px solid var(--ht-edge); border-radius: 5px;
+  background: var(--ht-paper-back); color: var(--fg); font: inherit; font-size: 12px;
+}
+.fm-pmenu-rename input:focus-visible { outline: 0; border-color: var(--ht-ink) }
+
+/* ═══ 新建项目对话卡 ══════════════════════════════════════════ */
+.pj-scrim {
+  position: fixed; inset: 0; z-index: 60;
+  display: grid; place-items: center;
+  background: #05070aa8; backdrop-filter: blur(2px);
+}
+.pj-modal {
+  width: min(520px, calc(100vw - 48px));
+  border: 1px solid var(--ht-edge); border-radius: 12px;
+  background: var(--ht-paper); box-shadow: var(--ht-raised);
+}
+.pj-modal-hd {
+  display: flex; align-items: center; gap: 9px;
+  padding: 12px 14px; border-bottom: 1px solid var(--line);
+}
+.pj-modal-hd > .ui-icon { width: 16px; height: 16px; color: var(--acc) }
+.pj-modal-hd > h2 { margin: 0; font-size: 14px; font-weight: 600 }
+.pj-modal-body { display: flex; flex-direction: column; gap: 14px; padding: 14px }
+.pj-field { display: flex; flex-direction: column; gap: 6px }
+.pj-field > span { font-size: 11px; color: var(--dim) }
+.pj-field > span > em { font-style: normal; color: var(--ph); margin-left: 6px }
+.pj-field input {
+  min-height: 34px; padding: 6px 10px;
+  border: 1px solid var(--ht-edge); border-radius: 7px;
+  background: var(--ht-paper-back); color: var(--fg); font: inherit; font-size: 13px;
+}
+.pj-field input:focus-visible { outline: 0; border-color: var(--ht-ink) }
+.pj-genomes, .pj-durs { display: flex; flex-wrap: wrap; gap: 5px }
+.pj-genomes > button, .pj-durs > button {
+  padding: 5px 10px; border: 1px solid var(--line); border-radius: 6px; background: 0 0;
+  color: var(--dim); font: inherit; font-size: 11.5px; cursor: pointer;
+  transition: border-color .14s, color .14s, background-color .14s;
+}
+.pj-genomes > button:hover, .pj-durs > button:hover { color: var(--fg); border-color: var(--acc) }
+.pj-genomes > button[aria-pressed="true"], .pj-durs > button[aria-pressed="true"] {
+  background: var(--soft); border-color: var(--acc); color: var(--acc); font-weight: 600;
+}
+.pj-durs > button > b { font-weight: 600 }
+.pj-preview { margin: 0; font-size: 11px; color: var(--dim); overflow-wrap: anywhere }
+.pj-preview > em { font-style: normal; color: var(--ph) }
+.pj-demo {
+  display: flex; align-items: flex-start; gap: 7px; margin: 0;
+  padding: 8px 10px; border-radius: 6px;
+  border: 1px solid color-mix(in srgb, var(--warn) 32%, var(--line));
+  background: color-mix(in srgb, var(--warn) 7%, transparent);
+  color: var(--dim); font-size: 10.5px; line-height: 1.6;
+}
+.pj-demo > .ui-icon { flex: 0 0 auto; width: 14px; height: 14px; margin-top: 1px; color: var(--warn) }
+.pj-modal-ft { display: flex; justify-content: flex-end; gap: 8px; padding-top: 2px }
+
+/* ═══ 脚本与口播（纸层）═══════════════════════════════════════
+   一条合计行 + 左右两栏：左=段列表（按幕分组），右=这一段的口播与读数。
+   红色只用在"超时"，其余都是灰 —— 一屏里只有真正要处理的东西是彩色的。 */
+.sv-head { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin: 0 0 14px }
+.sv-head > h2 { margin: 0; font-size: 16px; font-weight: 600 }
+.sv-modes { display: flex; gap: 2px }
+.sv-modes > button {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 5px 10px; border: 1px solid var(--line); border-radius: 6px; background: 0 0;
+  color: var(--dim); font: inherit; font-size: 11.5px; cursor: pointer;
+  transition: color .14s, border-color .14s, background-color .14s;
+}
+.sv-modes > button:hover { color: var(--fg) }
+.sv-modes > button[aria-selected="true"] { background: var(--soft); border-color: var(--acc); color: var(--acc); font-weight: 600 }
+.sv-modes > button > em { font-style: normal; font-size: 10.5px; color: var(--ph) }
+
+.sv-total {
+  display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 16px;
+  padding: 12px 0; margin-bottom: 16px;
+  border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
+}
+.sv-total > span { display: flex; flex-direction: column; gap: 2px }
+.sv-total em { font-style: normal; font-size: 10.5px; color: var(--dim) }
+.sv-total b { font-size: 15px; font-weight: 600 }
+.sv-total > span[data-warn] b { color: var(--warn) }
+
+.sv-body { display: grid; grid-template-columns: minmax(0, 380px) minmax(0, 1fr); gap: 22px; align-items: start }
+.sv-list { max-height: 62vh; overflow-y: auto; overscroll-behavior: contain }
+.sv-list > section { margin-bottom: 6px }
+.sv-mu {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  padding: 6px 4px; border: 0; background: 0 0; border-radius: 5px;
+  color: var(--dim); font: inherit; font-size: 11px; font-weight: 600; text-align: left; cursor: pointer;
+}
+.sv-mu:hover { color: var(--fg); background: var(--hole) }
+.sv-mu > em { margin-left: auto; font-style: normal; font-weight: 400; color: var(--ph) }
+.sv-row {
+  display: grid; grid-template-columns: 26px minmax(0, 1fr) 44px;
+  align-items: center; gap: 8px; width: 100%;
+  padding: 7px 8px; border: 1px solid transparent; border-radius: 7px; background: 0 0;
+  color: var(--fg); font: inherit; text-align: left; cursor: pointer;
+  transition: background-color .14s, border-color .14s;
+}
+.sv-row:hover { background: var(--hole) }
+.sv-row[aria-current="true"] { background: var(--hole); border-color: var(--acc) }
+.sv-row > i:first-child { font-style: normal; font-size: 10.5px; color: var(--ph); text-align: right }
+.sv-row-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0 }
+.sv-row-txt > b { font-size: 11.5px; font-weight: 450; line-height: 1.5;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden }
+.sv-row-txt > em { font-style: normal; font-size: 10px; color: var(--ph) }
+.sv-flag { font-style: normal; font-size: 10px; text-align: right; color: var(--ph) }
+.sv-flag[data-state="over"] { color: var(--warn) }
+.sv-none { padding: 20px 4px; font-size: 11.5px; color: var(--dim) }
+.sv-filter {
+  margin: 0 0 8px; padding: 4px 9px; border: 1px solid var(--line); border-radius: 999px;
+  background: 0 0; color: var(--acc); font: inherit; font-size: 11px; cursor: pointer;
+}
+.sv-filter > em { font-style: normal; margin-left: 5px; color: var(--ph) }
+
+.sv-detail { min-width: 0 }
+.sv-detail-hd { display: flex; align-items: center; gap: 10px; margin-bottom: 12px }
+.sv-seg { font-size: 11.5px; font-weight: 600; color: var(--acc) }
+.sv-detail-hd > .num { font-size: 11px; color: var(--dim) }
+.sv-mu-tag { font-size: 10.5px; color: var(--ph) }
+.sv-line {
+  margin: 0 0 16px; font-size: 18px; line-height: 1.7; font-weight: 500;
+  text-wrap: pretty;
+}
+.sv-diag {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 18px;
+  padding: 12px 0; margin-bottom: 16px;
+  border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
+}
+.sv-diag > span { display: flex; align-items: baseline; gap: 6px }
+.sv-diag em { font-style: normal; font-size: 10.5px; color: var(--dim) }
+.sv-diag b { font-size: 13px; font-weight: 600 }
+.sv-diag > span[data-warn] b { color: var(--warn) }
+.sv-bar { position: relative; flex: 1 1 160px; height: 8px; min-width: 120px; border-radius: 4px; background: var(--hole); overflow: hidden }
+.sv-bar > i { position: absolute; top: 0; bottom: 0; left: 0 }
+.sv-bar-shot { background: color-mix(in srgb, var(--fg) 32%, transparent) }
+.sv-bar-need { background: color-mix(in srgb, var(--ok) 55%, transparent) }
+.sv-bar-need[data-over] { background: color-mix(in srgb, var(--warn) 70%, transparent) }
+.sv-meta { display: grid; gap: 10px; margin: 0 }
+.sv-meta > div { display: grid; grid-template-columns: 46px minmax(0, 1fr); gap: 10px }
+.sv-meta dt { font-size: 11px; color: var(--dim) }
+.sv-meta dd { margin: 0; font-size: 12px; line-height: 1.7; color: var(--fg) }
+.sv-map-note { color: var(--ph) }
+
+.sv-legacy-note { margin: 0 0 14px; font-size: 11.5px; color: var(--dim); line-height: 1.7 }
+.sv-legacy-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px }
+.sv-shot {
+  display: grid; grid-template-columns: 92px minmax(0, 1fr) 10px;
+  gap: 11px; align-items: start;
+  padding: 9px 11px; border: 1px solid var(--line); border-radius: 8px; background: var(--ht-paper);
+}
+.sv-shot-frame { display: grid; place-items: center; aspect-ratio: 16/10; border-radius: 6px; overflow: hidden; background: var(--hole) }
+.sv-shot-frame img { width: 100%; height: 100%; object-fit: cover; display: block }
+.sv-shot-frame > em { font-style: normal; font-size: 10px; color: var(--ph) }
+.sv-shot-txt { display: flex; flex-direction: column; gap: 3px; min-width: 0 }
+.sv-shot-txt > b { font-size: 11.5px; font-weight: 550 }
+.sv-shot-txt > em { font-style: normal; font-size: 10px; color: var(--ph) }
+.sv-shot-note { font-size: 10.5px; color: var(--dim); line-height: 1.6 }
+.sv-shot-map {
+  align-self: start; margin-top: 2px; padding: 3px 7px; text-align: left;
+  border: 1px solid var(--line); border-radius: 5px; background: 0 0;
+  color: var(--acc); font: inherit; font-size: 10px; cursor: pointer;
+}
+.sv-shot-map:hover { border-color: var(--acc) }
+.sv-shot-map.is-none { border: 0; color: var(--ph); padding: 3px 0 }
+
+@media (max-width: 1100px) {
+  .sv-body { grid-template-columns: minmax(0, 1fr) }
+  .sv-list { max-height: none }
+  .sv-legacy-grid { grid-template-columns: minmax(0, 1fr) }
+  .sv-total { grid-template-columns: repeat(2, minmax(0, 1fr)) }
+}
+
+/* 语速三挡：写在合计行里（假设就摆在被它影响的那一排数字旁边） */
+.sv-rate { display: inline-flex; gap: 1px; margin: 0 2px; vertical-align: baseline }
+.sv-rate > button {
+  padding: 0 4px; border: 0; border-radius: 3px; background: 0 0;
+  color: var(--ph); font: inherit; font-size: 10.5px; cursor: pointer;
+}
+.sv-rate > button[aria-pressed="true"] { background: var(--hole); color: var(--acc); font-weight: 600 }
+.sv-onlyover {
+  margin-left: 6px; padding: 1px 6px; border: 1px solid var(--line); border-radius: 999px;
+  background: 0 0; color: var(--dim); font: inherit; font-size: 10px; cursor: pointer;
+}
+.sv-onlyover[aria-pressed="true"] { border-color: var(--acc); color: var(--acc) }
+.sv-mu-over { color: var(--warn) !important }
+.sv-total b > i { font-style: normal; font-size: 10.5px; color: var(--ph) }
+
+/* 对照条 + 图例：颜色必须有名字 */
+.sv-bar-wrap { display: flex; flex-direction: column; gap: 5px; flex: 1 1 200px; min-width: 160px }
+.sv-bar-legend { display: flex; align-items: center; gap: 6px; font-size: 10px; color: var(--dim) }
+.sv-bar-legend > i { width: 8px; height: 8px; border-radius: 2px; display: inline-block }
+.sv-bar-legend > i:not(:first-child) { margin-left: 8px }
+.sv-lg-shot { background: color-mix(in srgb, var(--fg) 32%, transparent) }
+.sv-lg-need { background: color-mix(in srgb, var(--ok) 55%, transparent) }
+.sv-lg-need[data-over] { background: color-mix(in srgb, var(--warn) 70%, transparent) }
+
+/* ═══ 音频与时间（纸层）═══════════════════════════════════════
+   音轨 → 两条并排的时间轴（成片 / V3 脚本）→ 对齐表 → 空档清单。
+   V3 的时间码是自己的草稿轴（253.2s），和成片（152s）不是同一条，所以**并排不叠**。 */
+.at-head { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin: 0 0 14px }
+.at-head > h2 { margin: 0; font-size: 16px; font-weight: 600 }
+.at-meta { font-size: 11px; color: var(--dim) }
+.at-rate { display: inline-flex; align-items: center; gap: 2px; font-size: 11px; color: var(--dim) }
+.at-rate > button {
+  padding: 2px 6px; border: 1px solid transparent; border-radius: 4px; background: 0 0;
+  color: var(--ph); font: inherit; font-size: 11px; cursor: pointer;
+}
+.at-rate > button:hover { color: var(--fg) }
+.at-rate > button[aria-pressed="true"] { background: var(--hole); border-color: var(--line); color: var(--acc); font-weight: 600 }
+
+.at-player {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 10px 12px; margin-bottom: 20px;
+  border: 1px solid var(--ht-edge); border-radius: 10px; background: var(--ht-paper);
+  box-shadow: var(--ht-raised);
+}
+.at-play {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 13px; border: 0; border-radius: 999px;
+  background: var(--acc); color: var(--on-accent); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer;
+}
+.at-play:hover { background: var(--acc-d) }
+.at-play .ui-icon { width: 14px; height: 14px }
+.at-time { font-size: 12px; color: var(--fg); font-variant-numeric: tabular-nums }
+.at-seek { flex: 1 1 240px; min-width: 160px; accent-color: var(--acc) }
+.at-src { font-size: 10.5px; color: var(--ph) }
+
+.at-axis { display: flex; flex-direction: column; gap: 10px; margin-bottom: 22px }
+.at-lane { display: grid; grid-template-columns: 118px minmax(0, 1fr); gap: 12px; align-items: center }
+.at-lane-label { font-size: 11px; color: var(--dim) }
+.at-lane-label > em { font-style: normal; color: var(--ph) }
+.at-lane-track {
+  position: relative; height: 30px; border-radius: 6px; background: var(--hole);
+}
+.at-lane-track-v3 { height: 16px }
+.at-playhead {
+  position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; z-index: 4;
+  background: var(--fg); box-shadow: 0 0 0 1px #000000a0; pointer-events: none;
+}
+.at-clip {
+  position: absolute; top: 2px; bottom: 2px; padding: 0 4px; overflow: hidden;
+  border: 0; border-radius: 4px; background: color-mix(in srgb, var(--fg) 14%, transparent);
+  color: var(--dim); font: inherit; font-size: 9.5px; font-family: var(--font-mono);
+  text-align: left; cursor: pointer; white-space: nowrap;
+}
+.at-clip:hover { background: color-mix(in srgb, var(--acc) 34%, transparent); color: var(--fg) }
+.at-clip[data-s="done"] { background: color-mix(in srgb, var(--ok) 22%, transparent); color: color-mix(in srgb, var(--ok) 80%, var(--fg)) }
+.at-clip[data-s="running"], .at-clip[data-s="waiting"] { background: color-mix(in srgb, var(--warn) 26%, transparent); color: var(--warn) }
+.at-clip[data-s="untracked"], .at-clip[data-s="idle"] { background: color-mix(in srgb, var(--fg) 9%, transparent) }
+.at-gap {
+  position: absolute; top: 2px; bottom: 2px; z-index: 1;
+  background: repeating-linear-gradient(45deg, #ffffff0f 0 3px, transparent 3px 6px);
+}
+.at-seg {
+  position: absolute; top: 3px; bottom: 3px; min-width: 1px;
+  background: color-mix(in srgb, var(--fg) 18%, transparent);
+}
+.at-seg[data-mapped] { background: var(--acc); z-index: 2 }
+.at-seg[data-over] { background: color-mix(in srgb, var(--warn) 62%, transparent) }
+.at-seg[data-mapped][data-over] { background: linear-gradient(var(--acc), color-mix(in srgb, var(--warn) 70%, var(--acc))) }
+.at-target { position: absolute; top: -2px; bottom: -2px; width: 1px; background: var(--ph) }
+
+.at-board { overflow-x: auto; margin-bottom: 24px }
+.at-table { width: 100%; border-collapse: collapse; font-size: 11.5px }
+.at-table th {
+  padding: 7px 8px; text-align: left; font-size: 10.5px; font-weight: 600; color: var(--dim);
+  border-bottom: 1px solid var(--line); white-space: nowrap;
+}
+.at-table td { padding: 7px 8px; border-bottom: 1px solid color-mix(in srgb, var(--line) 55%, transparent); vertical-align: top }
+.at-table tr[data-current] { background: color-mix(in srgb, var(--acc) 9%, transparent) }
+.at-table td > b { font-family: var(--font-mono); font-weight: 600 }
+.at-table td > span { color: var(--dim) }
+.at-line { max-width: 340px; color: var(--fg); line-height: 1.6 }
+.at-none { font-style: normal; color: var(--ph) }
+.at-read { color: var(--dim) }
+.at-read[data-state="over"] { color: var(--warn) }
+.at-read > em { font-style: normal; font-weight: 600 }
+
+.at-gaps > h3 { margin: 0 0 10px; font-size: 12px; font-weight: 600; color: var(--dim) }
+.at-gaps > h3 > em { font-style: normal; color: var(--ph) }
+.at-gap-row {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 12px;
+  padding: 9px 0; border-bottom: 1px solid color-mix(in srgb, var(--line) 55%, transparent);
+  font-size: 11.5px;
+}
+.at-gap-row > b { font-family: var(--font-mono) }
+.at-gap-row > span { color: var(--dim) }
+.at-gap-go {
+  margin-left: auto; padding: 4px 10px; border: 1px solid var(--line); border-radius: 999px;
+  background: 0 0; color: var(--acc); font: inherit; font-size: 11px; cursor: pointer;
+}
+.at-gap-go:hover { border-color: var(--acc) }
+.at-tail { margin: 14px 0 0; font-size: 10.5px; color: var(--ph); line-height: 1.7 }
+
+@media (max-width: 1100px) {
+  .at-lane { grid-template-columns: minmax(0, 1fr); gap: 4px }
+}
+
+/* ═══ 渲染与交付（纸层）═══════════════════════════════════════
+   能交的 / 还不能交的并排；能力清单直说"哪些没接"；下面是任务记录与合成清单。 */
+.rd-head { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin: 0 0 16px }
+.rd-head > h2 { margin: 0; font-size: 16px; font-weight: 600 }
+.rd-meta { font-size: 11px; color: var(--dim) }
+
+.rd-deliver { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 20px }
+.rd-card {
+  display: flex; flex-direction: column; gap: 6px;
+  padding: 13px 15px; border: 1px solid var(--ht-edge); border-radius: 10px;
+  background: var(--ht-paper); box-shadow: var(--ht-raised);
+}
+.rd-card[data-state="pending"] { background: var(--ht-paper-back); box-shadow: none }
+.rd-card-kind {
+  align-self: flex-start; padding: 2px 7px; border-radius: 4px;
+  background: var(--hole); color: var(--dim); font-size: 10px;
+}
+.rd-card[data-state="ready"] .rd-card-kind { color: var(--ok) }
+.rd-card > b { font-size: 13.5px; font-weight: 600 }
+.rd-card > span.num { font-size: 10.5px; color: var(--dim); line-height: 1.6 }
+.rd-card-acts { display: flex; align-items: center; gap: 10px; margin-top: 4px }
+.rd-dl {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 13px; border-radius: 999px; text-decoration: none;
+  background: var(--acc); color: var(--on-accent); font-size: 12px; font-weight: 600;
+}
+.rd-dl:hover { background: var(--acc-d) }
+.rd-dl .ui-icon { width: 14px; height: 14px }
+.rd-open { font-size: 11px; color: var(--dim); text-decoration: none }
+.rd-open:hover { color: var(--acc) }
+.rd-todo { font-size: 11px; color: var(--ph) }
+
+.rd-caps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 24px }
+.rd-cap { display: grid; grid-template-columns: 16px minmax(0, 1fr); gap: 2px 7px; align-items: center; font-size: 11px }
+.rd-cap > .ui-icon { grid-row: span 2; width: 14px; height: 14px; color: var(--ph) }
+.rd-cap[data-on] > .ui-icon { color: var(--ok) }
+.rd-cap > b { font-weight: 550 }
+.rd-cap > em { font-style: normal; color: var(--dim); font-size: 10.5px; line-height: 1.5 }
+
+.rd-tasks { border-top: 1px solid var(--line); padding-top: 14px; margin-bottom: 24px }
+.rd-tasks > h3, .rd-list > h3 { margin: 0 0 10px; font-size: 12px; font-weight: 600; color: var(--dim) }
+.rd-tasks > h3 > em, .rd-list > h3 > em { font-style: normal; color: var(--ph); font-weight: 400 }
+.rd-task {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 10px;
+  padding: 9px 0; border-bottom: 1px solid color-mix(in srgb, var(--line) 55%, transparent);
+  font-size: 11.5px;
+}
+.rd-task[data-active] { color: var(--fg) }
+.rd-task > b { font-weight: 550 }
+.rd-task > span.num { color: var(--dim) }
+.rd-task-line { flex: 1 1 260px; color: var(--dim) }
+
+.rd-list { border-top: 1px solid var(--line); padding-top: 14px }
+.rd-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px 14px }
+.rd-item {
+  display: grid; grid-template-columns: 28px minmax(0, 1fr) auto 10px;
+  gap: 8px; align-items: center; padding: 5px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 40%, transparent);
+  font-size: 11px;
+}
+.rd-item > i:first-child { font-style: normal; color: var(--ph); font-size: 10.5px }
+.rd-item > b { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.rd-item > em { font-style: normal; color: var(--dim); font-size: 10px }
+.rd-tail { margin: 12px 0 0; font-size: 10.5px; color: var(--ph); line-height: 1.7 }
+
+@media (max-width: 1100px) {
+  .rd-deliver, .rd-caps { grid-template-columns: minmax(0, 1fr) }
+  .rd-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) }
+}
+
+/* 标尺 + 图例 + 结束线（两条轴共用一个比例尺之后，这些才有意义） */
+.at-lane-ruler .at-lane-track { height: 16px; background: 0 0 }
+.at-track-ruler { border-bottom: 1px solid var(--line) }
+.at-tick {
+  position: absolute; bottom: 2px; font-family: var(--font-mono); font-size: 9.5px; color: var(--ph);
+  white-space: nowrap;
+}
+.at-tick > i { position: absolute; left: 0; bottom: -3px; width: 1px; height: 4px; background: var(--line) }
+.at-film-end { position: absolute; top: 0; bottom: 0; width: 1px; background: color-mix(in srgb, var(--fg) 34%, transparent) }
+.at-clip[data-wide] { }
+.at-clip:not([data-wide]) { padding: 0 }
+.at-legend { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 16px; margin-top: 4px; font-size: 10.5px; color: var(--dim) }
+.at-legend > span { display: inline-flex; align-items: center; gap: 5px }
+.at-lg { width: 10px; height: 10px; border-radius: 3px; display: inline-block }
+.at-lg[data-s="done"] { background: color-mix(in srgb, var(--ok) 55%, transparent) }
+.at-lg[data-s="running"] { background: color-mix(in srgb, var(--warn) 55%, transparent) }
+.at-lg[data-s="untracked"] { background: color-mix(in srgb, var(--fg) 14%, transparent) }
+.at-lg-map { background: var(--acc) }
+.at-lg-over { background: color-mix(in srgb, var(--warn) 62%, transparent) }
+.at-lg-gap { background: repeating-linear-gradient(45deg, #ffffff22 0 3px, transparent 3px 6px) }
+.at-lg-end { background: color-mix(in srgb, var(--fg) 34%, transparent); width: 2px }
+.at-ovl b { color: var(--warn) }
+.at-lane-track-v3 { overflow: hidden }
+
+/* 映射连线：两轴之间的真实对应（斜线 = 同一段在两个时间轴上的位置不同） */
+.at-lanes { position: relative; display: flex; flex-direction: column; gap: 10px }
+.at-links { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 3 }
+.at-links line { stroke: color-mix(in srgb, var(--acc) 55%, transparent); stroke-width: 1 }
+
+/* 两轴的结束标记：轴到哪结束要能核对 */
+.at-end-label {
+  position: absolute; top: 1px; margin-left: 4px; white-space: nowrap;
+  font-size: 9.5px; color: var(--ph); pointer-events: none;
+}
+.at-end-v3 { top: -13px }

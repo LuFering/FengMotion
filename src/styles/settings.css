@@ -1,0 +1,155 @@
+/* ═══════════════════════════════════════════════════════════════
+   设置弹窗 —— 复用 paba 的 .delete-dialog（原生 <dialog> + ::backdrop），
+   只补内容区的排版。不引入新颜色，全部走 paba 的 token。
+   ═══════════════════════════════════════════════════════════════ */
+
+#settings-dialog { width: min(560px, calc(100vw - 32px)) }
+
+/* ── 分组 ─────────────────────────────────────────────────── */
+.settings-body {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  margin-top: 20px;
+}
+.settings-section { display: flex; flex-direction: column; gap: 4px }
+.settings-section > h3 {
+  margin: 0 0 2px;
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--fg);
+  letter-spacing: .02em;
+}
+.settings-hint {
+  margin: 0 0 10px;
+  color: var(--dim);
+  font-size: 11.5px;
+  line-height: 1.6;
+}
+
+/* ── 逐行设置项 ───────────────────────────────────────────── */
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 52px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+.settings-row:last-child { border-bottom: 0 }
+.settings-row-label { display: flex; flex-direction: column; gap: 3px; min-width: 0 }
+.settings-row-label b { font-size: 13px; font-weight: 550; color: var(--fg) }
+.settings-row-label em { font-size: 11px; font-style: normal; color: var(--dim); line-height: 1.5 }
+.settings-row-control { flex: 0 0 auto; display: flex; align-items: center; gap: 8px }
+
+.settings-input {
+  width: 240px;
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--hole);
+  color: var(--fg);
+  font: inherit;
+  font-size: 12px;
+  outline: 0;
+  transition: border-color .15s;
+}
+.settings-input:focus { border-color: var(--acc) }
+
+/* ── 开关 ─────────────────────────────────────────────────── */
+.settings-toggle {
+  position: relative;
+  width: 40px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--hole);
+  cursor: pointer;
+  transition: background-color .16s, border-color .16s;
+}
+.settings-toggle > span {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--dim);
+  transition: transform .16s, background-color .16s;
+}
+.settings-toggle[data-on] { background: var(--acc); border-color: var(--acc) }
+.settings-toggle[data-on] > span { transform: translateX(18px); background: var(--on-accent) }
+
+/* ── Harness 卡片 ─────────────────────────────────────────── */
+.harness-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 6px 0 14px;
+}
+.harness-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surf);
+  color: var(--fg);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color .15s, background-color .15s;
+}
+.harness-card:hover { border-color: color-mix(in srgb, var(--acc) 50%, var(--line)) }
+.harness-card[data-active] {
+  border-color: var(--acc);
+  background: color-mix(in srgb, var(--acc) 10%, var(--surf));
+}
+.harness-check {
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  margin-top: 1px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  color: var(--acc);
+}
+.harness-card[data-active] .harness-check { border-color: var(--acc) }
+.harness-check .ui-icon { width: 12px; height: 12px }
+.harness-text { display: flex; flex-direction: column; gap: 3px; min-width: 0 }
+.harness-text b { font-size: 12.5px; font-weight: 600 }
+.harness-text em { font-size: 11px; font-style: normal; color: var(--dim); line-height: 1.45 }
+
+/* ── 底部提示 ─────────────────────────────────────────────── */
+.settings-note {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--warn) 34%, transparent);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--warn) 10%, transparent);
+  color: var(--warn);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+/* ── 次要按钮（paba 的 .delete-dialog-actions 只定义了 confirm）── */
+.settings-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: 0 0;
+  color: var(--fg);
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color .15s, border-color .15s;
+}
+.settings-btn:hover { background: var(--hole); border-color: var(--dim) }

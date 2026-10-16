@@ -1,0 +1,458 @@
+/* ═══════════════════════════════════════════════════════════════
+   FengMotion 组件（衍生自 paba 的设计语言）
+
+   ⚠️ 这里的每一条都遵守 paba 的规则，见规则出处标注：
+     [R1] 表面只有三档：--bg 页底 / --surf 面板 / --hole 凹陷
+     [R2] --soft 是「选中的底」；--line 是唯一边线
+     [R3] 圆角：容器 8px（--r）/ 动作 999px 胶囊 / 纸片 24px
+     [R4] 阴影全局只有一个：--shadow
+     [R5] 强调色上的字用 --on-accent（深色），不是白字
+     [R6] 字号：11 / 12 / 13 / 17 / 27
+     [R7] 数字（时间码/编号）用等宽
+     [R8] 悬停 = 边线变 --acc，不加阴影、不变形
+
+   下面每个组件都标注它衍生自 paba 的哪个组件。
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── 1 · 制作单元列表项 ──────────────────────────────────────
+   衍生自 .hm-project（项目卡的形态：[R1] surf 底 + [R8] 悬停变强调边）
+   差异：项目卡是竖版（封面在上），单元是横版（缩略在左）——
+        这是**同一语言下的新排布**，不是新语言。 */
+.fm-unit {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  padding: 9px 11px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);              /* [R3] 容器 8px */
+  background: var(--surf);              /* [R1] */
+  color: var(--fg);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color .14s, background-color .14s, transform .12s;
+}
+.fm-unit:hover { border-color: var(--acc) }           /* [R8] */
+.fm-unit:active { transform: translateY(1px) }
+.fm-unit[aria-current="true"] {
+  border-color: var(--acc);
+  background: var(--soft);              /* [R2] 选中的底 */
+}
+
+/* 缩略帧：16:9 小图，用 --hole 作底（图片没加载时不闪白） */
+.fm-unit-frame {
+  position: relative;
+  width: 56px;
+  height: 32px;
+  flex: 0 0 56px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--hole);              /* [R1] 凹陷 */
+}
+.fm-unit-frame img { width: 100%; height: 100%; object-fit: cover; display: block }
+
+.fm-unit-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px }
+.fm-unit-body > b {
+  font-size: 12px;                      /* [R6] */
+  font-weight: 550;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.fm-unit-body > span {
+  display: flex; align-items: center; gap: 7px;
+  font-family: var(--font-mono);        /* [R7] 数字等宽 */
+  font-size: 11px;
+  color: var(--dim);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 圆点状态：paba 的 .dot 用法（顶栏 #svc 那个） */
+.fm-dot { width: 5px; height: 5px; border-radius: 50%; flex: 0 0 5px; background: var(--dim) }
+.fm-dot[data-s="done"]    { background: var(--ok) }
+.fm-dot[data-s="running"] { background: var(--acc) }
+.fm-dot[data-s="waiting"] { background: var(--warn) }
+.fm-dot[data-s="failed"]  { background: var(--bad) }
+
+/* ── 2 · 状态标签 ────────────────────────────────────────────
+   衍生自 .hm-categories > button / .hm-import 的「小字 + 描边」
+   但它是**状态不是动作**，所以用胶囊（[R3] 动作用胶囊）+ 描边，
+   填充只在需要强调时出现。 */
+.fm-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 20px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;                 /* [R3] */
+  background: 0 0;
+  color: var(--dim);
+  font-size: 11px;                      /* [R6] */
+  white-space: nowrap;
+}
+.fm-tag[data-s="done"]    { border-color: color-mix(in srgb, var(--ok) 42%, transparent);   color: var(--ok) }
+.fm-tag[data-s="running"] { border-color: color-mix(in srgb, var(--acc) 42%, transparent);  color: var(--acc) }
+.fm-tag[data-s="waiting"] { border-color: color-mix(in srgb, var(--warn) 42%, transparent); color: var(--warn) }
+.fm-tag[data-s="failed"]  { border-color: color-mix(in srgb, var(--bad) 42%, transparent);  color: var(--bad) }
+
+/* ── 3 · 时间码 ──────────────────────────────────────────────
+   衍生自 paba 的 .num 用法（等宽 + tabular-nums）。
+   新的是它承载语义：用 --hole 做底，像仪表读数窗。 */
+.fm-tc {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 3px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: var(--hole);              /* [R1] 凹陷 = 读数窗 */
+  font-family: var(--font-mono);        /* [R7] */
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--fg);
+  letter-spacing: .01em;
+}
+.fm-tc > i { font-style: normal; color: var(--dim) }
+
+/* ── 4 · 进度槽 ──────────────────────────────────────────────
+   衍生自 paba 的 .hm-project-cover 那种「容器」形态，
+   但改成细槽 —— 底用 --hole（凹陷），填充用 --acc。 */
+.fm-slot {
+  height: 3px;
+  border-radius: 2px;
+  background: var(--hole);              /* [R1] */
+  overflow: hidden;
+}
+.fm-slot > i {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--acc);               /* [R5] 强调色填充 */
+  transition: width .3s ease;
+}
+
+/* ── 5 · 空状态 ──────────────────────────────────────────────
+   直接沿用 paba 的 .hm-empty（上下边线 + 居中文字 + 24px 图标） */
+.fm-empty {
+  min-height: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 24px 12px;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  color: var(--dim);
+  font-size: 13px;                      /* [R6] */
+  text-align: center;
+}
+.fm-empty .ui-icon { width: 24px; height: 24px }
+
+/* ── 6 · 面板（工作台左/右栏）────────────────────────────────
+   衍生自 paba 的 .hm-sidebar / .fw-library：
+   面板 = --surf 底 + 一条 --line 边线，**不加圆角**（它是区域不是卡片）。 */
+.fm-pane {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--surf);
+}
+.fm-pane-bar {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  height: 42px;
+  flex: 0 0 42px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--line);
+}
+.fm-pane-bar > b {
+  font-size: 12px;                      /* [R6] */
+  font-weight: 550;
+  color: var(--fg);
+}
+.fm-pane-bar > .fm-spacer { flex: 1 }
+.fm-pane-scroll { flex: 1; min-height: 0; overflow-y: auto }
+
+/* ── 7 · 图标按钮 ────────────────────────────────────────────
+   沿用 paba 的 .iconbtn（34px 方，悬停 --hole 底） */
+.fm-iconbtn {
+  display: grid;
+  place-items: center;
+  width: 30px; height: 30px;
+  flex: 0 0 30px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: 0 0;
+  color: var(--dim);
+  cursor: pointer;
+  transition: background-color .14s, color .14s, transform .12s;
+}
+.fm-iconbtn:hover { background: var(--hole); color: var(--fg) }
+.fm-iconbtn:active { background: var(--line); transform: translateY(1px) }  /* paba .iconbtn:active */
+.fm-iconbtn .ui-icon { width: 16px; height: 16px }
+
+/* ── 8 · 纸片（对话输入区 / 大输入框）────────────────────────
+   直接用 paba 的纸片规格：[R3] 24px 圆角 + [R4] 唯一阴影 */
+.fm-sheet {
+  padding: 16px 18px 13px;
+  border: 1px solid var(--line);
+  border-radius: 20px;                  /* [R3] */
+  background: var(--surf);
+  box-shadow: var(--shadow);            /* [R4] */
+  transition: border-color .16s, box-shadow .16s;
+}
+.fm-sheet:focus-within { border-color: var(--acc) }   /* [R8] */
+
+/* ── 12 · 行尾箭头 ──────────────────────────────────────────
+   衍生自 paba `.ncc-starters button:hover>.ui-icon:last-child`：
+   悬停时箭头**淡入并右移 2px** —— 一个 2px 的位移就说明了"可以进去"。 */
+.fm-go-arrow {
+  flex: 0 0 auto;
+  color: var(--dim);
+  opacity: .5;
+  transition: opacity .16s, transform .16s, color .16s;
+}
+:is(.fm-cand, .fm-unit, .fm-heading > button, .fm-heading > a):hover .fm-go-arrow {
+  opacity: 1; transform: translateX(2px); color: var(--acc);
+}
+
+/* ── 9 · 消息气泡（对话）─────────────────────────────────────
+   衍生自 paba 聊天面板：用户消息用 --soft（选中的底），AI 消息不用气泡。
+   这是 paba 已有的做法，直接沿用。 */
+.fm-msg-user {
+  align-self: flex-end;
+  max-width: 86%;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: var(--soft);              /* [R2] */
+  font-size: 12.5px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.fm-msg-ai {
+  font-size: 12.5px;
+  line-height: 1.65;
+  color: var(--fg);
+  overflow-wrap: anywhere;
+}
+
+/* ── 10 · 候选对比卡（三方案）────────────────────────────────
+   衍生自 paba 的 .hm-show（图 + 标题 + 说明）。
+   差异：候选要能**选中**，所以加 [R2] 的 --soft 选中底。 */
+.fm-cand {
+  display: flex;                        /* 图在上、字在下，纵向堆叠 */
+  flex-direction: column;
+  width: 100%;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--r);              /* [R3] */
+  background: var(--surf);
+  color: var(--fg);
+  font: inherit;                        /* 作 <button> 用时也要继承字 */
+  overflow: hidden;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color .14s, transform .12s, box-shadow .14s;
+}
+.fm-cand:hover { border-color: var(--acc) }           /* [R8] */
+.fm-cand:active {
+  transform: translateY(1px);           /* paba .hm-new:active 的按下回弹 */
+  box-shadow: var(--ht-pressed, inset 0 2px 4px #00000040);
+}
+.fm-cand[aria-pressed="true"] {
+  border-color: var(--acc);
+  background: var(--soft);              /* [R2] */
+}
+.fm-cand-art {
+  position: relative;
+  aspect-ratio: 16 / 9;                 /* 同尺寸同裁切 —— 只比方案差异 */
+  background: var(--hole);              /* [R1] */
+  overflow: hidden;
+}
+.fm-cand-art img {
+  width: 100%; height: 100%; object-fit: cover; display: block;
+  transition: transform .18s;           /* paba .hm-show-art>img */
+}
+.fm-cand:hover .fm-cand-art img { transform: scale(1.025) }   /* [R8] 悬停微放大 */
+.fm-cand-body { padding: 10px 11px 11px; display: flex; flex-direction: column; gap: 4px }
+.fm-cand-body > b { font-size: 12px; font-weight: 550; line-height: 1.45 }
+.fm-cand-body > span { font-size: 11px; color: var(--dim); line-height: 1.45 }
+/* 判例编号：条目身份的等宽小标 [R7] */
+.fm-rule-id {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--acc);
+  margin-right: 5px;
+}
+
+/* ── 11 · 卡点行（制作流程）──────────────────────────────────
+   衍生自 paba 的 .hm-todo 那类「行」：图标 + 文本 + 右侧状态。
+   状态用 [R1] --hole 底的小方块承载图标。 */
+.fm-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line);
+}
+.fm-step:last-child { border-bottom: 0 }
+.fm-step-mark {
+  display: grid;
+  place-items: center;
+  width: 16px; height: 16px;
+  flex: 0 0 16px;
+  margin-top: 1px;
+  border-radius: 4px;
+  background: var(--hole);              /* [R1] */
+  color: var(--dim);
+}
+.fm-step-mark .ui-icon { width: 10px; height: 10px }
+.fm-step[data-s="passed"]  .fm-step-mark { color: var(--ok) }
+.fm-step[data-s="running"] .fm-step-mark { color: var(--acc) }
+.fm-step[data-s="waiting"] .fm-step-mark { color: var(--warn); background: color-mix(in srgb, var(--warn) 16%, var(--hole)) }
+.fm-step[data-s="failed"]  .fm-step-mark { color: var(--bad) }
+.fm-step-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px }
+.fm-step-body > b { font-size: 11.5px; font-weight: 500; line-height: 1.4 }
+.fm-step-body > span { font-size: 11px; color: var(--dim); line-height: 1.45 }
+
+/* ── 13 · 项目卡（一级目录）──────────────────────────────────
+   骨架用 paba .hm-project（封面 16:9 → 名 → 时间 → 悬停浮出操作），
+   **内容按本产品衍生**：
+     · 封面压一条进度槽（复用已有的 .fm-slot）
+     · 元数据行换成「镜数 · 时长」（工作台关心活儿多大，不是相对时间）
+     · 悬停操作用「打开 / 更多」（这里不删项目）
+     · 打开中态沿用 paba 的 .hm-opening（真实间隔需要它） */
+.fm-project-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  transition: opacity .15s;
+}
+/* paba #hm-projects[aria-busy] .hm-project:not(.hm-opening) { opacity:.55 } */
+.fm-project-grid[aria-busy] .fm-project:not([data-opening]) { opacity: .55 }
+
+.fm-project-card { position: relative; min-width: 0 }
+
+.fm-project {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;                   /* [R3] 容器 */
+  background: var(--surf);              /* [R1] */
+  color: var(--fg);
+  font: inherit;
+  text-align: left;
+  overflow: hidden;
+  cursor: pointer;
+  transition: border-color .14s, outline-color .14s;
+  outline: 1px solid transparent;
+  outline-offset: -1px;
+}
+/* 打开中：paba .hm-project.hm-opening —— 强调色描边 + 右上角转环
+   ⚠️ 这条必须在 :hover 之后 —— 同权重，靠后者生效 */
+.fm-project[data-opening] { outline-color: var(--acc); border-color: var(--acc) }
+.fm-project:hover { border-color: var(--acc) }           /* [R8] */
+.fm-project:hover[data-opening] { border-color: var(--acc); outline-color: var(--acc) }
+.fm-project[data-opening]::after {
+  content: "";
+  position: absolute; top: 14px; right: 14px;
+  width: 16px; height: 16px;
+  border: 2px solid var(--line);
+  border-top-color: var(--acc);
+  border-radius: 50%;
+  animation: fm-spin 1s linear infinite;
+}
+@keyframes fm-spin { to { transform: rotate(360deg) } }
+.fm-project[data-opening] + .fm-project-actions { display: none }
+
+.fm-project-cover {
+  position: relative;                   /* 进度槽的定位上下文 */
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  max-height: 170px;
+  background: var(--hole);              /* [R1] */
+  color: var(--dim);
+  overflow: hidden;
+  border-bottom: 1px solid var(--line);
+}
+.fm-project-cover img {
+  display: block; width: 100%; height: 100%; object-fit: cover;
+  transition: transform .25s;           /* paba .hm-feature:hover img */
+}
+.fm-project:hover .fm-project-cover img { transform: scale(1.035) }
+.fm-project-cover > .ui-icon { width: 32px; height: 32px; opacity: .55 }
+/* 衍生的进度槽：压在封面底边，不占文字位 */
+.fm-project-slot {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  height: 2px; border-radius: 0;
+  background: #00000059;                /* 压在图上要能看清，所以不纯用 --hole */
+}
+
+.fm-project-text {
+  display: flex; flex-direction: column; gap: 5px;
+  width: 100%; padding: 13px 15px; overflow: hidden;
+}
+.fm-project-text > b {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 13px; font-weight: 550;    /* [R6] */
+}
+/* 衍生：一行装镜数 · 时长 · (未完成时的阶段) · 时间 */
+.fm-project-meta {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  font-size: 11px; color: var(--dim);   /* [R6] */
+}
+.fm-project-meta > time { margin-left: auto; color: var(--ph) }
+
+/* 悬停浮出的操作条（paba .hm-project-actions） */
+.fm-project-actions {
+  position: absolute; top: 9px; right: 9px;
+  display: flex; gap: 2px; padding: 3px;
+  border: 1px solid var(--line); border-radius: 5px;
+  background: var(--surf);
+  opacity: 0; pointer-events: none;
+  transition: opacity .12s;
+}
+.fm-project-card:focus-within .fm-project-actions,
+.fm-project-card:hover .fm-project-actions { opacity: 1; pointer-events: auto }
+.fm-project-act {
+  display: grid; place-items: center;
+  width: 28px; height: 28px; padding: 0;
+  border: 0; border-radius: 3px; background: 0 0;
+  color: var(--dim); cursor: pointer;
+  transition: background-color .12s, color .12s;
+}
+.fm-project-act:hover { background: var(--hole); color: var(--fg) }
+.fm-project-act .ui-icon { width: 15px; height: 15px }
+
+/* 搜索框（paba .hm-search 规格） */
+.fm-search {
+  display: flex; align-items: center; gap: 8px;
+  width: 190px; flex-shrink: 0;
+  min-height: 34px; padding: 6px 10px;
+  border: 1px solid var(--line); border-radius: 5px;
+  background: var(--surf); color: var(--dim);
+  transition: border-color .14s;
+}
+.fm-search:focus-within { border-color: var(--acc) }     /* [R8] */
+.fm-search input {
+  width: 100%; background: 0 0; border: 0; outline: 0;
+  color: var(--fg); font-size: 12px;                    /* [R6] */
+}
+.fm-search .ui-icon { width: 15px; height: 15px }
+
+/* 响应式：按容器断，理由同首页 */
+@container fmhome (max-width: 1100px) { .fm-project-grid { grid-template-columns: repeat(3, minmax(0,1fr)) } }
+@container fmhome (max-width: 820px)  { .fm-project-grid { grid-template-columns: repeat(2, minmax(0,1fr)) } }
+@container fmhome (max-width: 520px)  { .fm-project-grid { grid-template-columns: minmax(0,1fr) } }
+
+@media (prefers-reduced-motion: reduce) {
+  .fm-project[data-opening]::after { animation: none }
+  .fm-project-cover img, .fm-project-grid { transition: none }
+}

@@ -1,0 +1,795 @@
+/* ═══════════════════════════════════════════════════════════════
+   工作台（二级）—— paba 的工具面板语言
+
+   ⚠️ 工作台**不该用首页那套**。
+      paba 自己分成两套：
+        首页        .hm-*     纸 + 墨（--ht-*）
+        工作台      .wb-* / .fw-*   工具面板（--surf / --hole / --line）
+
+      工作台是**干活的地方**，面板要平、要密、要能长时间盯着 ——
+      所以用灰阶而不是纸层，用 6px 小圆角而不是 24px 纸片。
+
+   下面每条都来自 paba 的 app.css（原样搬，不是衍生），
+   只删掉画布/拖拽相关的（fw-stage / fw-world / fw-link —— 本产品不做画布）。
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── 顶栏 ──────────────────────────────────────────────────── */
+.wb-projectbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  padding: 8px 16px;
+  min-height: 49px;
+  background: var(--surf);
+  border-bottom: 1px solid var(--line);
+}
+.wb-projectbar > .ui-icon { color: var(--dim) }
+.wb-projectbar select {
+  width: 190px; max-width: 26%; height: 32px;
+  padding: 4px 26px 4px 9px;
+  font-size: 12px;
+}
+.wb-projectbar .mini { height: 32px; font-size: 12px }
+.wb-projectbar .iconbtn { width: 30px; height: 32px }
+
+/* ── 三栏骨架 ──────────────────────────────────────────────── */
+.fw {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: var(--library-width, 272px) minmax(0, 1fr) var(--panel-width, 372px);
+  /* 三栏各自成卡片（对齐首页：卡片浮在 --bg 上，不靠紧贴的平版分隔） */
+  gap: 8px;
+  padding: 8px;
+}
+.fw-canvas {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--surf);
+  border: 1px solid var(--ht-edge);
+  border-radius: 10px;
+}
+
+/* 右栏（对话 / 设置）——同一种卡片 */
+.fw-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--surf);
+  border: 1px solid var(--ht-edge);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+/* ── 左栏（镜头列表）─────────────────────────────────────── */
+.fw-ing {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 0 16px;
+  gap: 16px;
+  background: var(--surf);
+  border: 1px solid var(--ht-edge);
+  border-radius: 10px;
+}
+.fw-ing-hd {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+  flex-shrink: 0;
+  color: var(--dim);
+}
+.fw-ing-hd h2, .fw-toolbar h2 {
+  font-size: 13px; font-weight: 600; margin: 0; color: var(--fg);
+}
+.fw-ing-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 2px;
+  overscroll-behavior: contain;
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 18px), transparent);
+}
+.fw-ing-empty {
+  width: 100%;
+  padding: 36px 8px;
+  display: flex; flex-direction: column; align-items: center; gap: 12px;
+  color: var(--ph); font-size: 12px; text-align: center;
+}
+.fw-ing-empty .ui-icon { width: 30px; height: 30px; opacity: .7 }
+.fw-ing-footer {
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+  font-size: 11px; color: var(--dim);
+  flex-shrink: 0;
+}
+.fw-ing-btns { display: flex; gap: 6px; flex-shrink: 0 }
+.fw-ing-btns .mini { flex: 1; min-width: 0 }
+
+/* 镜头卡在左栏里的约束 —— 缩略图固定，文字可截断 */
+.fw-ing-list .fm-unit { padding: 7px 9px; gap: 9px }
+.fw-ing-list .fm-unit-frame { width: 52px; height: 30px; flex: 0 0 52px }
+.fw-ing-list .fm-unit-body { min-width: 0 }
+.fw-ing-list .fm-unit-body > b { font-size: 11.5px; font-weight: 500 }
+
+/* ── 中栏工具条 ────────────────────────────────────────────── */
+.fw-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 48px;
+  padding: 0 20px;
+  background: var(--surf);
+  border-bottom: 1px solid var(--line);
+}
+.fw-count {
+  min-width: 20px; padding: 0 5px;
+  border-radius: 4px; text-align: center;
+  color: var(--dim); background: var(--hole);
+  font-size: 11px; font-variant-numeric: tabular-nums;
+}
+.fw-divider { width: 1px; height: 16px; background: var(--line); margin: 0 5px }
+.fw-zoom {
+  display: flex; align-items: center; gap: 2px;
+  font-size: 11px; color: var(--dim);
+}
+.fw-zoom button {
+  width: 30px; height: 30px; padding: 0;
+  border: 1px solid color-mix(in srgb, var(--line) 80%, var(--fg) 8%);
+  border-radius: 5px;
+  display: grid; place-items: center;
+  background: var(--hole); color: var(--dim); cursor: pointer;
+  transition: color .14s, border-color .14s, background-color .14s;
+}
+.fw-zoom button:hover:not(:disabled) { color: var(--acc); border-color: var(--acc); background: var(--hole) }
+.fw-zoom button:disabled { opacity: .35; cursor: default }
+
+/* ── 舞台（paba .fw-stage）────────────────────────────────────
+   监看器容器。paba 的 stage 是画布，带径向点阵底 ——
+   本产品不做画布（那是拖拽编辑器），但**底纹保留**：
+   它让「这里是画面区」一眼可辨，而不是一块纯黑。 */
+.fw-stage {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+  outline: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  background-color: var(--bg);
+  background-image: radial-gradient(circle at 1px 1px, var(--grid) 1px, transparent 0);
+  background-size: 22px 22px;
+}
+.fw-stage:focus-visible { box-shadow: inset 0 0 0 2px var(--acc) }
+.fw-stage > * { min-width: 0 }
+/* 画面本身给一条边：暗场里也能看出"帧"的范围（工具面板不加阴影，只描边） */
+.fw-stage > .relative.size-full {
+  outline: 1px solid var(--line); outline-offset: -1px; border-radius: 8px;
+}
+
+/* ── 右栏（对话 / 设置）────────────────────────────────────── */
+.fw-bar {
+  flex: 0 0 auto;
+  padding: 16px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--surf);
+}
+.fw-bar:focus-within { border-color: color-mix(in srgb, var(--acc) 50%, var(--line)) }
+/* 场景/上下文条：paba 用它标「你现在在改哪一镜」 */
+.fw-demo {
+  display: flex; gap: 8px; align-items: flex-start;
+  margin-left: 32px; padding: 8px 10px;
+  border: 1px solid color-mix(in srgb, var(--warn) 34%, var(--line));
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--warn) 8%, transparent);
+  color: var(--dim); font-size: 10.5px; line-height: 1.6;
+}
+.fw-demo > svg { flex: 0 0 auto; margin-top: 2px; color: var(--warn) }
+.fw-demo b { display: block; color: var(--warn); font-weight: 600; font-size: 11px }
+.fw-ctx {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 10px; padding: 8px 11px;
+  border-radius: 6px;
+  font-size: 11.5px; color: var(--dim);
+  background: color-mix(in srgb, var(--acc) 9%, transparent);
+  border: 1px solid color-mix(in srgb, var(--acc) 28%, transparent);
+}
+.fw-ctx img {
+  width: 56px; height: 32px; object-fit: cover;
+  border-radius: 7px; flex: 0 0 auto; background: var(--hole);
+}
+.fw-ctx b { color: var(--acc); font-weight: 650 }
+.fw-ctx .spacer { flex: 1 }
+.fw-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 9px }
+.fw-chips:empty { display: none }
+.fw-chips.off .fw-chip { opacity: .38 }
+.fw-scene { flex: 0 0 auto; padding: 9px 14px; border-radius: 8px }
+.fw-scene-hd {
+  display: flex; align-items: center; gap: 9px;
+  margin-bottom: 9px;
+  font-size: 12px; color: var(--dim); font-weight: 600;
+}
+.fw-scene-hd .hint { font-weight: 400; color: var(--ph); font-size: 11.5px }
+.fw-scene-hd .spacer { flex: 1 }
+.fw-scene-hd button {
+  font: inherit; font-size: 11px; padding: 4px 8px;
+  border-radius: 5px; cursor: pointer; color: var(--dim);
+  background: color-mix(in srgb, var(--hole) 45%, transparent);
+  border: 1px solid color-mix(in srgb, var(--line) 60%, transparent);
+}
+.fw-scene-hd button:hover:not(:disabled) { color: var(--bad) }
+.fw-scene-hd button:disabled { opacity: .45 }
+
+/* ── 按钮（paba .mini）────────────────────────────────────────
+   工作台的小按钮 —— 6px 圆角、描边、悬停变强调字。
+   不是首页的胶囊（那是动作层），这是工具层的常规按钮。 */
+.mini {
+  font: inherit;
+  font-size: 12px;
+  font-weight: 550;
+  padding: 7px 11px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  color: var(--hint);
+  background: var(--surf);
+  cursor: pointer;
+  transition: color .14s, background-color .14s, border-color .14s;
+}
+.mini:hover:not(:disabled) { color: var(--acc-d); border-color: var(--acc) }
+.mini:disabled { color: var(--ph); cursor: default }
+.mini .ui-icon { width: 14px; height: 14px }
+/* 主按钮：胶囊 + 深色字（对齐首页 .hm-partner-submit / .fm-pill-go）。
+   工具按钮保持 6px 方框 —— 胶囊只留给「主操作」。 */
+.mini-strong {
+  border-radius: 999px;
+  background: var(--acc);
+  border-color: var(--acc);
+  color: var(--on-accent);            /* [R5] 深色字 */
+}
+.mini-strong:hover:not(:disabled) {
+  background: var(--acc-d);
+  border-color: var(--acc-d);
+  color: var(--on-accent);
+  transform: translateY(-1px);      /* 首页主按钮的手感 */
+}
+/* 禁用态：主按钮**收起填充** —— 蓝底灰字会读成「能按但坏了」，
+   退成 --hole 底 + 灰字才读成「还不能按」。 */
+.mini-strong:disabled {
+  background: var(--hole);
+  border-color: var(--line);
+  color: var(--ph);
+}
+
+.spacer { flex: 1 }
+
+/* ── flow 模式下的外壳（paba body.flowon）───────────────────
+   ⚠️ 工作台要占满整个视口高度，且**自己滚**（面板各自滚），
+      不能让页面整体滚 —— 所以锁 overflow。
+
+   关键：`#pane-flow` 必须 flex:1 + min-height:0。
+   `min-height:0` 是必须的 —— flex 子项默认 min-height:auto，
+   内容会把容器顶破（表现：pane 比视口还高）。 */
+body.flowon { overflow: hidden }
+body.flowon #app { height: 100vh; height: 100dvh; display: flex; flex-direction: column }
+body.flowon header { position: static; flex: 0 0 auto }
+body.flowon .tabbar { flex: 0 0 auto }
+body.flowon #pane-flow {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  /* ⚠️ .hm-sidebar 是 position:fixed，不占文档流 ——
+     工作台 pane 必须自己让开 68px 图标轨，否则内容钻到侧栏底下
+     （表现：镜头缩略图和行首文字被侧栏盖住）。 */
+  margin-left: var(--hm-sidebar);
+}
+body.flowon #pane-flow > * { flex: 1; min-height: 0 }
+
+/* ── 窄屏：左栏变抽屉（paba .fw-mobile / .fw-scrim）───────── */
+.fw-mobile, .fw-scrim { display: none }
+
+@media (max-width: 1200px) {
+  .fw { grid-template-columns: minmax(0, 1fr) var(--panel-width, 340px) }
+  .fw-ing {
+    position: absolute; inset: 8px auto 8px 8px; z-index: 31;
+    width: min(300px, calc(100% - 48px));
+    display: none;
+    box-shadow: 8px 0 28px rgba(0, 0, 0, .28);
+  }
+  .fw-ing[data-open] { display: flex }
+  .fw-scrim {
+    display: block; position: absolute; inset: 0; z-index: 30;
+    border: 0; border-radius: 0;
+    background: rgba(0, 0, 0, .28);
+    cursor: pointer;
+  }
+  .fw-mobile { display: grid }
+}
+
+@media (max-width: 860px) {
+  .fw { grid-template-columns: minmax(0, 1fr) }
+  .wb-projectbar select { width: 150px; max-width: none }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mini, .fw-zoom button { transition: none }
+}
+
+/* ── 进度条（paba .nc-pp-range）───────────────────────────────
+   ⚠️ 不用 shadcn Slider —— 那个是圆头灰轨的通用控件，
+      paba 有自己的进度条：**填充用 --acc，4px 轨，16px 白色滑块**。
+      用 input[type=range] + CSS 变量 --fill 控制填充比例。 */
+.pp-range {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex: 1;
+  min-width: 0;
+}
+.pp-range input[type=range] {
+  --fill: 0%;
+  flex: 1;
+  min-width: 0;
+  height: 20px;
+  margin: 0;
+  padding: 0;
+  background: 0 0;
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+}
+.pp-range input[type=range]::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(to right, var(--acc) var(--fill), var(--hole) var(--fill));
+}
+.pp-range input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px; height: 16px;
+  margin-top: -6px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 4px #00000066;
+  transition: transform .12s;
+}
+.pp-range input[type=range]:active::-webkit-slider-thumb { transform: scale(1.15) }
+.pp-range input[type=range]::-moz-range-track { height: 4px; border-radius: 2px; background: var(--hole) }
+.pp-range input[type=range]::-moz-range-progress { height: 4px; border-radius: 2px; background: var(--acc) }
+.pp-range input[type=range]::-moz-range-thumb {
+  width: 16px; height: 16px; border: 0; border-radius: 50%;
+  background: #fff; box-shadow: 0 1px 4px #00000066;
+}
+.pp-range input[type=range]:focus-visible { outline: 0 }
+.pp-range input[type=range]:focus-visible::-webkit-slider-thumb {
+  outline: 2px solid color-mix(in srgb, var(--fg) 45%, transparent);
+  outline-offset: 2px;
+}
+
+/* ── 选中态标记（顶栏/右栏的 tab）────────────────────────────
+   paba 用 --soft 底表示「这项被选中」，不是下划线。
+   下划线是 shadcn/Web 的习惯，paba 没有。 */
+.mini[aria-pressed="true"] {
+  background: var(--soft);
+  border-color: var(--acc);
+  color: var(--acc);
+}
+
+/* ── 时间轴（paba 没有独立时间轴，这块是本产品特有的）────────
+   但**规格要跟 .fw-toolbar 一致**：48px 头 + 内容区，不用 shadcn。 */
+.tl-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 30px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--line);
+  font-size: 11px;
+  color: var(--dim);
+}
+.tl-head > b { font-size: 12px; font-weight: 600; color: var(--fg) }
+.tl-head .mini { height: 22px; padding: 0 8px; font-size: 10.5px }
+/* 底部读数行 / V3 提示行 */
+.tl-note {
+  margin-top: 8px; padding: 6px 8px 0;
+  border-top: 1px solid var(--line);
+  font-size: 10px; line-height: 1.5;
+  color: var(--warn);
+}
+.tl-meta {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 4px 8px;
+  font-size: 10px; color: var(--dim);
+}
+/* 时间轴体：只允许横向滚 —— 纵向滚会让右端冒出一条多余的竖条 */
+.tl-body { flex: 1; min-height: 0; overflow-x: auto; overflow-y: hidden; position: relative }
+.tl-ruler {
+  position: relative;
+  height: 16px;
+  border-bottom: 1px solid var(--line);
+}
+.tl-ruler > span {
+  position: absolute; bottom: 3px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--dim);
+}
+.tl-ruler > span::after {
+  content: ""; position: absolute; right: -1px; bottom: -3px; width: 1px; height: 4px; background: var(--line);
+}
+.tl-track { position: relative; height: 44px; margin-top: 4px }
+/* 片段：paba 的容器语言 —— 8px 圆角、--hole 底、悬停变强调边 */
+.tl-clip {
+  position: absolute;
+  top: 0; bottom: 0;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--hole);
+  overflow: hidden;
+  cursor: pointer;
+  transition: border-color .14s;
+}
+.tl-clip:hover { border-color: var(--acc) }
+.tl-clip[aria-current="true"] { border-color: var(--acc); box-shadow: 0 0 0 1px var(--acc) }
+.tl-clip img { width: 100%; height: 100%; object-fit: cover; display: block; opacity: .78 }
+.tl-clip > i {
+  position: absolute; left: 0; bottom: 0;
+  padding: 0 4px;
+  background: #000000c4;
+  color: #fff;
+  font-family: var(--font-mono);
+  font-style: normal;
+  font-size: 9px; line-height: 1.5;
+}
+.tl-clip[aria-current="true"] > i { background: var(--acc); color: var(--on-accent) }
+/* 已播区：从 0 到播放头铺一条半透明带 */
+.tl-played {
+  position: absolute; left: 0; top: 0; bottom: 0; z-index: 1; pointer-events: none;
+  /* 已播区要比"没播"明显一截：抽帧本身很暗，16% 的染在截图里几乎看不出 */
+  background: color-mix(in srgb, var(--acc) 14%, transparent);
+  border-right: 1px solid color-mix(in srgb, var(--acc) 62%, transparent);
+  box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--acc) 72%, transparent);   /* 已播区底部一条强调线 */
+}
+/* 未播区：压一层暗，左右一对比就看得出演到哪了 */
+.tl-future {
+  position: absolute; top: 0; bottom: 0; right: 0; z-index: 1; pointer-events: none;
+  background: color-mix(in srgb, var(--bg) 74%, transparent);
+}
+/* 播放头 */
+.tl-playhead {
+  position: absolute; top: 0; bottom: 0;
+  width: 2px; margin-left: -1px;
+  background: var(--acc);
+  box-shadow: 0 0 0 1px #000000a6;          /* 压在抽帧上也读得出 */
+  pointer-events: none;
+  z-index: 3;
+}
+.tl-playhead::before {                     /* 顶部把手：伸进刻度尺，0 秒也看得到 */
+  content: "";
+  position: absolute; top: -10px; left: -4px;
+  width: 10px; height: 10px;
+  background: var(--acc);
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   以下为工作台补齐的零件（上一轮改动只换了类名，规格要在这里）
+
+   规则不变：工具面板 = --surf 底 / 一条 --line 边 / 6px 圆角，
+   悬停变强调色，不加阴影、不做变形。
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── 状态点（paba .dot）───────────────────────────────────────
+   6px 圆点，颜色只是**辅助** —— 点旁边必须有文字（工作台上的
+   「Agent 未连接」「未排入剪辑」都带着文字，不允许只有点）。
+   ⚠️ paba 只在 header 下定义了尺寸，工作台在 projectbar 里 ——
+      之前这里的点全是 0×0 看不见。 */
+.dot {
+  width: 6px; height: 6px;
+  flex: 0 0 6px;
+  border-radius: 50%;
+  background: var(--dim);
+}
+.dot.off  { background: var(--ph) }
+.dot.warn { background: var(--warn) }
+.dot.ok   { background: var(--ok) }
+.dot.bad  { background: var(--bad) }
+.dot.acc  { background: var(--acc) }
+
+/* ── 等宽数字（时间码 / 编号 / 时长）────────────────────────
+   paba 里数字都走等宽 + tabular-nums，保证跳动时不抖。
+   ⚠️ 这个类之前没有任何定义 —— 工作台所有时间码都落在系统字体上。 */
+.num {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: .01em;
+}
+
+/* ── 工具条主标题 ────────────────────────────────────────────
+   镜头工具条里「s01 · Token 出现」的镜名部分。 */
+.t-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg);
+}
+
+/* ── 播放条（舞台 ↔ 时间轴之间）──────────────────────────────
+   与 .fw-toolbar 同规格：48px、--surf 底、一条 --line 边。
+   ⚠️ 之前这里没有规则，div 退化成竖直堆叠 —— 传输控件全在左边缘排成一列。 */
+.fw-playbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 48px;
+  padding: 0 12px;
+  background: var(--surf);
+  border-top: 1px solid var(--line);
+}
+.fw-playbar .iconbtn { width: 30px; height: 30px }
+/* 时间读数：等宽 + 固定宽，避免数字跳动时进度条左右晃 */
+.fw-playbar .time {
+  width: 118px;
+  margin-left: 4px;
+  color: var(--dim);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── 时间轴容器 ──────────────────────────────────────────────
+   固定高度：头 30px + 刻度 16 + 轨道 44 + 底部读数行。 */
+.tl-wrap {
+  flex: 0 0 124px;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--line);
+}
+
+/* ── 底部任务面板开关行（paba 小行高 34px）────────────────── */
+.fw-subbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 34px;
+  padding: 0 12px;
+  background: var(--surf);
+  border-top: 1px solid var(--line);
+  font-size: 11px;
+  color: var(--dim);
+}
+.fw-subbar .mini { height: 26px; padding: 0 9px; font-size: 11px }
+
+/* ── 输入槽（右栏对话输入框）─────────────────────────────────
+   规格直接来自 paba 的 .fw-modal-body textarea：
+   --bg 底（凹陷）/ 一条 --line 边 / 聚焦变强调色。不用纸片那套。 */
+.wb-input {
+  display: block;
+  width: 100%;
+  min-height: 68px;
+  padding: 9px 11px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.65;
+  resize: vertical;
+  outline: 0;
+  transition: border-color .14s;
+}
+.wb-input::placeholder { color: var(--ph) }
+.wb-input:focus { border-color: var(--acc) }
+
+/* ── 勾选行（「保留条件」）───────────────────────────────────
+   自绘 checkbox：--bg 凹底方框，选中 = 强调色底 + 白勾。
+   不用 shadcn Checkbox（那是圆角细边的通用控件，和工具面板不同语言）。 */
+.wb-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+  font-size: 11.5px;
+  color: var(--dim);
+  cursor: pointer;
+}
+.wb-check:hover { color: var(--fg) }
+.wb-check input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 14px; height: 14px;
+  flex: 0 0 14px;
+  margin: 0;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--bg);
+  cursor: pointer;
+  transition: background-color .14s, border-color .14s;
+}
+.wb-check input[type="checkbox"]::after {
+  content: "";
+  width: 8px; height: 4px;
+  border-left: 2px solid var(--on-accent);
+  border-bottom: 2px solid var(--on-accent);
+  transform: rotate(-45deg) translate(0, -1px);
+  opacity: 0;
+  transition: opacity .12s;
+}
+.wb-check input[type="checkbox"]:checked {
+  background: var(--acc);
+  border-color: var(--acc);
+}
+.wb-check input[type="checkbox"]:checked::after { opacity: 1 }
+.wb-check input[type="checkbox"]:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--acc) 55%, transparent);
+  outline-offset: 2px;
+}
+
+/* ── 分隔线（右栏区块之间）────────────────────────────────── */
+.wb-sep { height: 1px; background: var(--line) }
+
+/* ── 滚动区（替代 shadcn ScrollArea）─────────────────────────
+   工具面板的滚动容器是**区域**不是组件：一条细滚动条即可，
+   不引 shadcn（那是另一套语言）。 */
+.fw-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+
+/* ── 对话消息 ────────────────────────────────────────────────
+   气泡规则来自 fm-components §9：AI 消息不用气泡，用户消息用 --soft 底。
+   AI 头标是 20px 小圆 —— 工具面板里的存在感要低。 */
+.fw-msg { display: flex; align-items: flex-start; gap: 8px }
+.fw-msg-avatar {
+  display: grid;
+  place-items: center;
+  width: 20px; height: 20px;
+  flex: 0 0 20px;
+  margin-top: 1px;
+  border-radius: 50%;
+  background: var(--hole);
+  color: var(--dim);
+  font-size: 9px;
+  letter-spacing: .02em;
+}
+.fw-msg .fm-msg-ai { flex: 1; min-width: 0; color: var(--fg) }
+
+/* ── 底部任务面板（.fw-tray）──────────────────────────────── */
+.fw-tray {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  height: 172px;
+  background: var(--surf);
+  border-top: 1px solid var(--line);
+}
+.fw-tray-hd {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 38px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--line);
+}
+.fw-tray-hd .mini { height: 26px; padding: 0 9px; font-size: 11px }
+.tray-note { color: var(--warn) }   /* 「演示数据」是提醒，用等待色 */
+.fw-tray-body { padding: 8px 10px }
+.fw-tray-empty {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  padding: 8px;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--dim);
+}
+.fw-tray-row {
+  display: grid;
+  grid-template-columns: 70px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+.fw-tray-row:hover { background: var(--hole) }
+.fw-tray-row > .num { font-size: 10px; color: var(--dim) }
+.fw-tray-row .iconbtn { width: 26px; height: 26px }
+.tray-msg {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11.5px;
+}
+.fw-tray-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px }
+/* 版本卡：paba 的容器语言（--hole 底 + 一条 --line 边 + 6px 圆角） */
+.fw-card {
+  padding: 10px 11px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--hole);
+}
+.fw-card-hd { display: flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 550 }
+.fw-card-note { margin-top: 4px; font-size: 10.5px; line-height: 1.55; color: var(--dim) }
+.fw-card-src { margin-top: 4px; font-size: 10px; color: var(--ph) }
+.mini-s { height: 24px; padding: 0 9px; font-size: 10.5px; margin-top: 7px }
+
+/* ── 对话输入：与首页同一张「纸片」──────────────────────────
+   首页的创作输入是 24px 纸片（--ht-paper + --ht-raised，focus 变墨色）。
+   工作台的 AI 输入是**同一个动作**，所以用同一张纸 —— 只是窄一些。
+   工具面板本身不套纸，但「向 AI 提要求」这一处必须同源。 */
+.fw-compose { flex: 0 0 auto; padding: 10px }
+.fw-sheet {
+  padding: 12px 14px 10px;
+  border: 1px solid var(--ht-edge);
+  border-radius: 18px;
+  background: var(--ht-paper);
+  box-shadow: var(--ht-raised);
+  transition: border-color .16s, box-shadow .16s;
+}
+.fw-sheet:focus-within {
+  border-color: var(--ht-ink);
+  box-shadow: var(--ht-pressed), 0 0 0 2px var(--soft);
+}
+.fw-sheet .wb-input {
+  min-height: 56px;
+  padding: 0;
+  border: 0;
+  background: 0 0;
+  font-size: 13px;
+  resize: none;
+}
+.fw-sheet .wb-input:focus { border-color: transparent }
+.fw-sheet .mini-strong { min-height: 32px; padding: 0 16px }
+
+/* ── 项目切换器（顶栏）────────────────────────────────────────
+   原来是个只有一个 option 的假 select；这里换成工具面板语言的真菜单。 */
+.wb-switch { position: relative }
+.wb-switch-btn {
+  display: flex; align-items: center; gap: 6px; max-width: 260px;
+  min-height: 30px; padding: 0 9px;
+  border: 1px solid color-mix(in srgb, var(--line) 80%, var(--fg) 8%);
+  border-radius: 6px; background: var(--hole);
+  color: var(--fg); font: inherit; font-size: 12.5px; font-weight: 550; cursor: pointer;
+  transition: border-color .14s, color .14s;
+}
+.wb-switch-btn:hover, .wb-switch[data-open] .wb-switch-btn { border-color: var(--acc) }
+.wb-switch-btn > .truncate { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.wb-caret { width: 14px; height: 14px; color: var(--dim); flex: 0 0 auto; transition: transform .16s }
+.wb-switch[data-open] .wb-caret { transform: rotate(180deg) }
+.wb-switch-menu {
+  position: absolute; left: 0; top: calc(100% + 6px); z-index: 20;
+  display: flex; flex-direction: column; gap: 1px;
+  min-width: 240px; padding: 4px;
+  border: 1px solid var(--line); border-radius: 8px;
+  background: var(--surf); box-shadow: 0 12px 32px #00000066;
+}
+.wb-switch-menu > button {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 9px; border: 0; border-radius: 5px; background: 0 0;
+  color: var(--dim); font: inherit; font-size: 12px; text-align: left; cursor: pointer;
+  transition: background-color .12s, color .12s;
+}
+.wb-switch-menu > button:hover { background: var(--hole); color: var(--fg) }
+.wb-switch-menu > button[aria-current="true"] { color: var(--acc); font-weight: 600 }
+.wb-switch-menu > button > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.wb-switch-menu > button > em { margin-left: auto; font-style: normal; font-size: 10.5px; color: var(--ph) }
+.wb-switch-all { margin-top: 3px; border-top: 1px solid var(--line) !important; border-radius: 0 0 5px 5px !important }

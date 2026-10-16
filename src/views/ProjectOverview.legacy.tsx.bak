@@ -1,0 +1,502 @@
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import {
+  ArrowUp, ChevronDown, ChevronRight, Clapperboard, Cloud, FolderOpen,
+  Grid3x3, Maximize, Pause, Play, Plus, Repeat, Sparkle, VolumeX,
+} from 'lucide-react'
+import { UNITS } from '@/data/productionData'
+import { ACTIVE_DURATION } from '@/data/timeline'
+import { statusOf, fmtDuration } from '@/shell/status'
+import { PROJECT_SUBVIEWS, STAGE_LABEL, type ProjectSummary } from '@/data/projects'
+import type { TaskRecord } from '@/hooks/useAgentTasks'
+
+function Icon({ name, className = 'ui-icon' }: { name: string; className?: string }) {
+  return (
+    <svg className={className} aria-hidden="true">
+      <use href={`/assets/paba-icons.svg#${name}`} />
+    </svg>
+  )
+}
+
+type FilterKey = 'all' | 'done' | 'pending' | 'untracked'
+
+/* ═══════════════════════════════════════════════════════════════
+   项目指挥中心 —— 按《项目总览示范 6》的参考实现（callour-studio）
+   一比一复刻：1440×827 定版画布 + 整体缩放适配（坐标照搬参考源码），
+   内容全部换成本项目真实数据：
+   · 左栏 = 单元筛选 / 子视图导览 / 项目（真实分组与计数）
+   · 中栏 = 成片真视频播放器（152s，无音轨）+ 单元合集卡 + 单元网格
+   · 右栏 = 单元摘要（分镜表 note）+ 备注流（只读，落盘未接入）
+   数据边界：s24/s25 无关键帧 → 占位写明；成片没有音频流 → 音量钮
+   置灰说明；备注不能写 → 输入框置灰写明；协作光标/邀请/上传等
+   参考图里没有真实对应的元素一律不画。
+   ═══════════════════════════════════════════════════════════════ */
+
+const W = 1440
+const H = 827
+
+/** 00.54 式时间码（参考实现同款 mm.ss） */
+const fmtT = (t: number) => {
+  const m = Math.floor(t / 60)
+  const s = Math.floor(t % 60)
+  return `${String(m).padStart(2, '0')}.${String(s).padStart(2, '0')}`
+}
+
+function Abs({ x, y, w, h, className, style, children }: {
+  x: number; y: number; w?: number; h?: number
+  className?: string; style?: CSSProperties; children?: ReactNode
+}) {
+  return (
+    <div className={className} style={{ position: 'absolute', left: x, top: y, width: w, height: h, ...style }}>
+      {children}
+    </div>
+  )
+}
+
+/** 参考实现的自绘文件夹图标（21×18） */
+const FolderIcon = ({ open }: { open?: boolean }) => (
+  <svg width="21" height="18" viewBox="0 0 19 16" className="pjz-fico" style={{ color: open ? '#fff' : '#a7a9aa' }}>
+    <path d="M1.5 2.2c0-.7.5-1.2 1.2-1.2h4.4l1.8 1.9h7.4c.7 0 1.2.5 1.2 1.2v.6H1.5z" fill="currentColor" opacity=".85" />
+    <path d="M.8 5.2c0-.6.5-1 1-1h15.4c.6 0 1 .4 1 1v8.6c0 .7-.5 1.2-1.2 1.2H2c-.7 0-1.2-.5-1.2-1.2z" fill="currentColor" />
+  </svg>
+)
+
+export function ProjectOverview({ project: p, onBack, onOpenView, onOpenWorkbench }: {
+  project: ProjectSummary
+  records: TaskRecord[]
+  onBack: () => void
+  onOpenView: (id: string) => void
+  onOpenWorkbench: () => void
+}) {
+  const [filter, setFilter] = useState<FilterKey>('all')
+  const [selId, setSelId] = useState(UNITS[0].id)
+  const firstSelRun = useRef(true)
+  // 左栏可折叠分组（参考图 COLLECTIONS/SHARES 的 ⌄）
+  const [closed, setClosed] = useState<Set<string>>(new Set())
+  const toggleSec = (k: string) =>
+    setClosed((v) => { const n = new Set(v); n.has(k) ? n.delete(k) : n.add(k); return n })
+
+  // 画布缩放：1440×827 整体适配容器（参考实现同款 scale 机制）
+  const wrapRef = useRef<HTMLDivElement | null>(null)
+  const [scale, setScale] = useState(1)
+  useLayoutEffect(() => {
+    const el = wrapRef.current
+    if (!el) return
+    const f = () => setScale(Math.min(el.clientWidth / W, el.clientHeight / H))
+    f()
+    const ro = new ResizeObserver(f)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+
+  // 预览台 = 成片整片（真实视频）；点单元卡/摘要卡跳到该单元起点
+  const videoRef = useRef<HTMLVideoElement | null>(null)
+  const stageRef = useRef<HTMLElement | null>(null)
+  const [vt, setVt] = useState(0)
+  const [vp, setVp] = useState(false)
+  useEffect(() => {
+    const v = videoRef.current
+    if (!v) return
+    const on = () => setVt(v.currentTime)
+    const end = () => setVp(false)
+    v.addEventListener('timeupdate', on)
+    v.addEventListener('ended', end)
+    return () => { v.removeEventListener('timeupdate', on); v.removeEventListener('ended', end) }
+  }, [])
+  useEffect(() => {
+    const v = videoRef.current
+    const u = UNITS.find((x) => x.id === selId)
+    if (v && u?.start != null) { v.currentTime = u.start; setVt(u.start) }
+  }, [selId])
+  const togglePlay = () => {
+    const v = videoRef.current
+    if (!v) return
+    if (v.paused) { void v.play(); setVp(true) } else { v.pause(); setVp(false) }
+  }
+  // 播放器真控件：循环 / 倍速 / 全屏（音量置灰：成片没有音频流）
+  const [loop, setLoop] = useState(false)
+  const [pRate, setPRate] = useState(1)
+  useEffect(() => { if (videoRef.current) videoRef.current.loop = loop }, [loop])
+  useEffect(() => { if (videoRef.current) videoRef.current.playbackRate = pRate }, [pRate])
+  const goFull = () => {
+    const el = stageRef.current
+    if (!el) return
+    if (document.fullscreenElement) { void document.exitFullscreen() } else { void el.requestFullscreen?.() }
+  }
+  // 进度条：整条可点可拖（绿色细条 + 白色播放头，参考实现同款）
+  const barRef = useRef<HTMLDivElement | null>(null)
+  const scrubbing = useRef(false)
+  const seekTo = (clientX: number) => {
+    const el = barRef.current
+    const v = videoRef.current
+    if (!el || !v) return
+    const r = el.getBoundingClientRect()
+    const t = Math.min(1, Math.max(0, (clientX - r.left) / r.width)) * (v.duration || ACTIVE_DURATION)
+    v.currentTime = t
+    setVt(t)
+  }
+  const pct = Math.min(100, (vt / (videoRef.current?.duration || ACTIVE_DURATION)) * 100)
+
+  // 选中变化后把对应卡片滚进视口（首帧不滚动）
+  useEffect(() => {
+    if (firstSelRun.current) { firstSelRun.current = false; return }
+    document.querySelector('.pjz-fcard[data-sel]')?.scrollIntoView({ block: 'nearest' })
+  }, [selId])
+
+  const doneUnits = useMemo(() => UNITS.filter((u) => u.status === 'done'), [])
+  const pendingUnits = useMemo(() => UNITS.filter((u) => u.status !== 'done'), [])
+  const untrackedUnits = useMemo(() => UNITS.filter((u) => !u.inTimeline), [])
+  const totalDur = useMemo(() => UNITS.reduce((a, u) => a + u.duration, 0), [])
+  const notesAll = UNITS.filter((u) => u.note).length
+
+  /** 合集卡封面：该分组第一张有关键帧且不是近黑片头的帧（s01 是真实数据但看着像加载失败） */
+  const coverOf = (list: typeof UNITS) =>
+    list.map((u) => u.frame).find((f) => f && !f.includes('/u01.')) ?? null
+
+  /** FOLDERS 式合集卡：与左栏筛选同源（同一个 FilterKey），计数同源 */
+  const GROUPS: { k: FilterKey; label: string; n: number; cover: string | null }[] = [
+    { k: 'all', label: '全部单元', n: UNITS.length, cover: coverOf(UNITS) },
+    { k: 'done', label: '已定稿', n: doneUnits.length, cover: coverOf(doneUnits) },
+    { k: 'pending', label: '待做', n: pendingUnits.length, cover: coverOf(pendingUnits) },
+    { k: 'untracked', label: '未进时间轴', n: untrackedUnits.length, cover: coverOf(untrackedUnits) },
+  ]
+  const FILTERS = GROUPS
+
+  const shown = filter === 'all' ? UNITS
+    : filter === 'done' ? doneUnits
+      : filter === 'pending' ? pendingUnits : untrackedUnits
+
+  function selectUnit(id: string) {
+    setSelId(id)
+    if (!shown.some((u) => u.id === id)) setFilter('all')
+  }
+  function pickFilter(k: FilterKey) {
+    setFilter(k)
+    const next = k === 'all' ? UNITS
+      : k === 'done' ? doneUnits
+        : k === 'pending' ? pendingUnits : untrackedUnits
+    if (!next.some((u) => u.id === selId)) setSelId(next[0]?.id ?? selId)
+  }
+
+  const sel = UNITS.find((u) => u.id === selId) ?? UNITS[0]
+  const donePct = Math.round((doneUnits.length / UNITS.length) * 100)
+
+  return (
+    <div ref={wrapRef} className="pjz-wrap">
+      <div className="pjz" style={{ transform: `scale(${scale})` }}>
+
+        {/* ══ 左栏：单元筛选 / 子视图 / 项目（参考图侧栏同位同宽） ══ */}
+        <Abs x={13} y={65} w={235} h={753} className="pjz-panel pjz-side">
+          <div className="pjz-side-in">
+            <section className="pjz-sec">
+              <button type="button" className="pjz-sechd" onClick={() => toggleSec('filters')}>
+                <ChevronDown size={13} strokeWidth={1.6} className={`pjz-sechd-c${closed.has('filters') ? '' : ' is-open'}`} />
+                单元
+              </button>
+              {!closed.has('filters') && FILTERS.map((f) => (
+                <button key={f.k} type="button" className="pjz-tree" aria-pressed={filter === f.k}
+                        onClick={() => pickFilter(f.k)}>
+                  <FolderIcon open={filter === f.k} />
+                  <span>{f.label}</span>
+                </button>
+              ))}
+            </section>
+
+            <i className="pjz-hr" />
+
+            <section className="pjz-sec">
+              <button type="button" className="pjz-sechd" onClick={() => toggleSec('sub')}>
+                <ChevronDown size={13} strokeWidth={1.6} className={`pjz-sechd-c${closed.has('sub') ? '' : ' is-open'}`} />
+                子视图
+              </button>
+              {!closed.has('sub') && PROJECT_SUBVIEWS.map((v) => (
+                <button key={v.id} type="button" className="pjz-row" title={v.hint}
+                        onClick={() => onOpenView(v.id)}>
+                  <Icon name={v.icon} className="ui-icon pjz-row-ic" />
+                  <span>{v.label}</span>
+                  <ChevronRight size={13} strokeWidth={1.8} className="pjz-row-go" />
+                </button>
+              ))}
+            </section>
+
+            <i className="pjz-hr" />
+
+            <section className="pjz-sec">
+              <button type="button" className="pjz-sechd" onClick={() => toggleSec('proj')}>
+                <ChevronDown size={13} strokeWidth={1.6} className={`pjz-sechd-c${closed.has('proj') ? '' : ' is-open'}`} />
+                项目
+              </button>
+              {!closed.has('proj') && (<>
+                <button type="button" className="pjz-row" onClick={onBack}>
+                  <Icon name="folder-open" className="ui-icon pjz-row-ic" />
+                  <span>全部项目</span>
+                </button>
+                <button type="button" className="pjz-row" disabled={!!p.planned}
+                        title={p.planned ? '还没有落盘的项目目录' : '进工作台做修改'}
+                        onClick={onOpenWorkbench}>
+                  <Icon name="clapperboard" className="ui-icon pjz-row-ic" />
+                  <span>进工作台</span>
+                </button>
+              </>)}
+            </section>
+          </div>
+
+          {/* 底部：项目名 + 已定稿进度（真实计数；参考图这里是存储容量） */}
+          <footer className="pjz-side-ft">
+            <span className="pjz-side-ft-row">
+              <Cloud size={18} strokeWidth={1.5} className="pjz-ft-ic" />
+              <span className="pjz-ft-name">{p.name} · {doneUnits.length}/{UNITS.length} 已定稿</span>
+            </span>
+            <i className="pjz-ft-bar"><b style={{ width: `${donePct}%` }} /></i>
+          </footer>
+        </Abs>
+
+        {/* ══ 中栏上：成片播放器（真视频，黑底面板 757×297） ══ */}
+        <Abs x={252} y={65} w={757} h={297}>
+          <section ref={stageRef} className="pjz-panel pjz-stage">
+            <video ref={videoRef} className="pjz-video" src="/media/token-full-legacy.mp4"
+                   poster={sel.frame ?? '/frames/film/s13.jpg'} preload="metadata" playsInline
+                   onClick={togglePlay} aria-label="成片预览" />
+            <div ref={barRef} className="pjz-pbar" role="slider" aria-label="成片进度"
+                 aria-valuemin={0} aria-valuemax={Math.round(ACTIVE_DURATION)} aria-valuenow={Math.round(vt)}
+                 tabIndex={0}
+                 onPointerDown={(e) => { scrubbing.current = true; e.currentTarget.setPointerCapture(e.pointerId); seekTo(e.clientX) }}
+                 onPointerMove={(e) => { if (scrubbing.current) seekTo(e.clientX) }}
+                 onPointerUp={() => { scrubbing.current = false }}
+                 onPointerCancel={() => { scrubbing.current = false }}>
+              <i className="pjz-pbar-track"><b style={{ width: `${pct}%` }} /></i>
+              <em className="pjz-playhead" style={{ left: `calc(${pct}% - 3px)` }} />
+            </div>
+            <div className="pjz-ctl">
+              <button type="button" className="pjz-ctlbtn" onClick={togglePlay} aria-label={vp ? '暂停' : '播放'}>
+                {vp ? <Pause size={15} fill="white" strokeWidth={1} /> : <Play size={17} fill="white" strokeWidth={1} />}
+              </button>
+              <button type="button" className="pjz-ctlbtn" aria-pressed={loop} title="循环播放"
+                      onClick={() => setLoop((v) => !v)}>
+                <Repeat size={16} strokeWidth={1.8} />
+              </button>
+              {/* 成片没有音频流（ffmpeg 核对过）：音量钮置灰 + 说明，不做假开关 */}
+              <span className="pjz-vol" title="成片没有音频流（还没配音/配乐）">
+                <VolumeX size={17} strokeWidth={1.6} />
+              </span>
+              <span className="pjz-time num">{fmtT(vt)}<em> / {fmtT(ACTIVE_DURATION)}</em></span>
+              <span className="spacer" />
+              <button type="button" className="pjz-rate num" title="播放速度"
+                      onClick={() => setPRate((r) => (r === 1 ? 1.5 : r === 1.5 ? 2 : 1))}>
+                {pRate.toFixed(1)}x
+              </button>
+              {/* 成片真实分辨率 1920×1080：写 1080P，不照抄参考图的 4K */}
+              <span className="pjz-res">1080P</span>
+              <button type="button" className="pjz-ctlbtn" title="全屏" onClick={goFull} aria-label="全屏">
+                <Maximize size={13} strokeWidth={2} />
+              </button>
+            </div>
+          </section>
+        </Abs>
+
+        {/* ══ 中栏下：单元合集 + 单元网格（参考图 Browser 面板同位同宽） ══ */}
+        <Abs x={252} y={366} w={757} h={452} className="pjz-panel pjz-browser">
+          <div className="pjz-tools">
+            <Grid3x3 size={16} strokeWidth={1.6} className="pjz-tool-ic" />
+            <span className="spacer" />
+            <button type="button" className="pjz-addbtn" onClick={() => onOpenView('assets')}
+                    title="素材的导入与管理在「创作资产」">
+              <Plus size={13} strokeWidth={1.8} />Add Asset
+            </button>
+          </div>
+
+          <header className="pjz-ghead" style={{ top: 50 }}>
+            <ChevronDown size={11} strokeWidth={2} className="pjz-ghead-c" />
+            <span className="pjz-ghead-t">单元合集</span>
+            <span className="pjz-badge">{GROUPS.length}</span>
+            <span className="pjz-ghead-sub num">{ACTIVE_DURATION.toFixed(1)}s 成片</span>
+          </header>
+          <div className="pjz-folders">
+            {GROUPS.map((f) => (
+              <button key={f.k} type="button" className="pjz-foldcard" aria-pressed={filter === f.k}
+                      onClick={() => pickFilter(f.k)}>
+                <span className="pjz-foldcover">
+                  {f.cover
+                    ? <img src={f.cover} alt="" loading="lazy" />
+                    : <i className="pjz-fold-ph">无关键帧</i>}
+                </span>
+                <b>{f.label}</b>
+                <em className="num">{f.n} 单元</em>
+              </button>
+            ))}
+          </div>
+
+          <header className="pjz-ghead" style={{ top: 264 }}>
+            <ChevronDown size={11} strokeWidth={2} className="pjz-ghead-c" />
+            <span className="pjz-ghead-t">单元</span>
+            <span className="pjz-badge">{shown.length}</span>
+            <span className="pjz-ghead-sub num">共 {UNITS.length} · {totalDur.toFixed(1)}s</span>
+          </header>
+          <div className="pjz-fscroll">
+            <div className="pjz-fgrid">
+              {shown.map((u) => {
+                const uu = statusOf(u.status)
+                return (
+                  <button key={u.id} type="button" className="pjz-fcard" data-sel={u.id === selId ? '' : undefined}
+                          title={`${u.id.toUpperCase()} ${u.label}${u.note ? ` —— ${u.note}` : ''}`}
+                          onClick={() => setSelId(u.id)}>
+                    <span className="pjz-fthumb">
+                      {u.frame
+                        ? <img src={u.frame} loading="lazy" alt="" />
+                        : <i className="pjz-fthumb-ph">无关键帧</i>}
+                      <em className="pjz-check">{u.id === selId ? '✓' : ''}</em>
+                    </span>
+                    <b>{u.id.toUpperCase()} {u.label}</b>
+                    <span className="pjz-fmeta num">{fmtDuration(u.duration)} · {uu.label}{u.inTimeline ? ' · 在成片时间轴' : ' · 未进时间轴'}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        </Abs>
+
+        {/* ══ 右上：单元摘要（参考图 AI SUMMARY 同位同宽，内容=分镜表 note） ══ */}
+        <Abs x={1013} y={65} w={368} h={370} className="pjz-panel pjz-ai">
+          <header className="pjz-ai-hd">
+            <Sparkle size={14} fill="currentColor" strokeWidth={1} className="pjz-ai-spark" />
+            <b>单元摘要</b>
+            <span className="pjz-ai-src">来自分镜表</span>
+          </header>
+          <div className="pjz-ai-list">
+            {UNITS.map((u) => {
+              const uu = statusOf(u.status)
+              return (
+                <button key={u.id} type="button" className="pjz-ai-item" data-cur={u.id === selId ? '' : undefined}
+                        onClick={() => selectUnit(u.id)}>
+                  <span className="pjz-ai-top">
+                    <span className="pjz-ai-thumb">
+                      {u.frame ? <img src={u.frame} loading="lazy" alt="" /> : <i>无关键帧</i>}
+                    </span>
+                    <span className="pjz-ai-hd">
+                      <b>{u.label}</b>
+                      <span className="pjz-chips num">
+                        {u.start != null
+                          ? <><i>{fmtT(u.start)}</i><i>{fmtT(u.start + u.duration)}</i></>
+                          : <i>{fmtDuration(u.duration)}</i>}
+                      </span>
+                    </span>
+                  </span>
+                  {u.note && <p>{u.note}</p>}
+                  <span className="pjz-tags">
+                    <i className="pjz-tag">{uu.label}</i>
+                    {!u.inTimeline && <i className="pjz-tag pjz-tag-warn">未进时间轴</i>}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+          <i className="pjz-ai-fade" aria-hidden="true" />
+        </Abs>
+
+        {/* ══ 右下：备注（参考图 COMMENTS 同位同宽；只读，落盘未接入） ══ */}
+        <Abs x={1013} y={440} w={368} h={378} className="pjz-panel pjz-cmt">
+          <header className="pjz-cmt-hd">
+            <b>备注</b>
+            <span className="pjz-badge">{notesAll}</span>
+            <span className="spacer" />
+            <span className="pjz-cmt-src">来自分镜表 · 只读</span>
+          </header>
+          <div className="pjz-cmt-list">
+            {UNITS.filter((u) => u.note).map((u) => (
+              <button key={u.id} type="button" className="pjz-cmt-item" onClick={() => selectUnit(u.id)}>
+                <i className="pjz-ava num">{u.id.toUpperCase()}</i>
+                <span className="pjz-cmt-body">
+                  <span className="pjz-cmt-name">{u.id.toUpperCase()} · 分镜表
+                    <em className="num">{u.start != null ? ` ${fmtT(u.start)}` : ''}</em>
+                  </span>
+                  <span className="pjz-cmt-text">
+                    <i className="pjz-chip num">{u.start != null ? fmtT(u.start) : fmtDuration(u.duration)}</i>
+                    {u.note}
+                  </span>
+                </span>
+              </button>
+            ))}
+          </div>
+          <div className="pjz-cmt-input">
+            <input disabled placeholder="添加备注需要落盘（未接入）" aria-label="添加备注（未接入）" />
+            <button type="button" disabled title="落盘未接入" aria-label="发送（未接入）">
+              <ArrowUp size={13} strokeWidth={2} />
+            </button>
+          </div>
+        </Abs>
+
+        {/* ══ 最右：图标工具栏（参考图同位；每个按钮都是真动作） ══ */}
+        <aside className="pjz-rail">
+          <button type="button" className="pjz-rail-go" disabled={!!p.planned}
+                  title={p.planned ? '还没有落盘的项目目录' : '进工作台继续制作'}
+                  onClick={onOpenWorkbench}>
+            <Clapperboard size={18} strokeWidth={2} />
+          </button>
+          <i className="pjz-rail-sep" />
+          <button type="button" title={vp ? '暂停' : '播放'} onClick={togglePlay} aria-label={vp ? '暂停' : '播放'}>
+            {vp ? <Pause size={17} fill="currentColor" strokeWidth={1} /> : <Play size={17} fill="currentColor" strokeWidth={1} />}
+          </button>
+          <button type="button" aria-pressed={loop} title="循环播放" onClick={() => setLoop((v) => !v)}>
+            <Repeat size={18} strokeWidth={1.8} />
+          </button>
+          <button type="button" title="全屏预览" onClick={goFull}>
+            <Maximize size={18} strokeWidth={2} />
+          </button>
+          <i className="pjz-rail-sep" />
+          <button type="button" title="回项目列表" onClick={onBack}>
+            <FolderOpen size={18} strokeWidth={2} />
+          </button>
+        </aside>
+
+      </div>
+    </div>
+  )
+}
+
+/** 子视图顶上的**项目条**：哪个项目 + 四个子视图 + 进制工作台。
+ *  这是「项目」这一层唯一的上下文条 —— 子视图本身不需要知道项目从哪来。 */
+export function ProjectBar({ project: p, view, onNav, onBack, onOpenWorkbench }: {
+  project: ProjectSummary
+  view: string
+  onNav: (id: string) => void
+  onBack: () => void
+  onOpenWorkbench: () => void
+}) {
+  return (
+    <div className="pj-bar">
+      <button className="pj-bar-back" type="button" onClick={onBack} title="回项目列表">
+        <Icon name="folder-open" />全部项目
+      </button>
+      <button className="pj-bar-name" type="button" onClick={() => onNav('project')} title="回项目指挥中心">
+        {p.name}
+      </button>
+      <span className="pj-stage" data-s={p.stage}>{STAGE_LABEL[p.stage]}</span>
+      <span className="spacer" />
+      <nav className="pj-tabs" aria-label="项目子视图">
+        <button type="button" aria-pressed={view === 'project'}
+                onClick={() => onNav('project')}>项目指挥中心</button>
+        {PROJECT_SUBVIEWS.map((v) => (
+          <button key={v.id} type="button" aria-pressed={view === v.id}
+                  onClick={() => onNav(v.id)}>
+            {v.label}{v.state === 'todo' && <i title="未实现">·</i>}
+          </button>
+        ))}
+      </nav>
+      <span className="chip"><span className="dot off" />Agent 未连接</span>
+      <button className="mini" type="button" onClick={onOpenWorkbench} disabled={!!p.planned}>
+        <Icon name="clapperboard" />进工作台
+      </button>
+    </div>
+  )
+}
+
+/** 没有项目时的兜底：项目管理组里的子视图都要"当前项目" */
+export function PickProject({ onBack }: { onBack: () => void }) {
+  return (
+    <div className="pj-pick">
+      <Icon name="folder-open" />
+      <h2>先选一个项目</h2>
+      <p>这几个视图都是"某个项目的"素材 / 脚本 / 音频 / 渲染 —— 从项目列表里挑一个再进来。</p>
+      <button className="mini mini-strong" type="button" onClick={onBack}>去项目列表</button>
+    </div>
+  )
+}

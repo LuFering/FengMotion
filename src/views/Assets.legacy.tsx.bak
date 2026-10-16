@@ -1,0 +1,359 @@
+import { useMemo, useState } from 'react'
+import { ASSETS, type Asset } from '@/data/mock'
+import { UNITS } from '@/data/productionData'
+
+/**
+ * 创作资产中心 —— 回答「有哪些可用资源、它们适合用在哪、还缺什么」。
+ *
+ * 排版照《素材库示范》逐项复刻：
+ *   ① 项目横幅（背景图 + 渐变 + 标题 + 一行统计 + 右上两个胶囊按钮）
+ *   ② 工具条（图标+文字：全部素材 / 类型 / 只看未使用 / 显示已停用 / 分组 / 排序）
+ *   ③ 分组条（折叠箭头 + 字段名 + 彩色字段值 + 计数）
+ *   ④ 卡片网格（5 列）：缩略图（左下类型胶囊 / 右下"无预览"胶囊 / 左上选择框）
+ *      → 文件名 → 元数据行（来源 · 许可 + ⋯ 菜单）→ 授权字段行 → 用在字段行
+ *   ⑤ 吸底计数栏
+ * 示范图里没有右侧检查栏，这里也不放 —— 卡片自带字段行，决定所需信息全在卡上。
+ *
+ * ⚠️ 数据真实性：
+ *   · 素材台账是真实数据（名称/类型/来源/许可/署名/商用/使用位置）。
+ *   · 仓库里没有这些素材的预览文件 → 一律类型占位，不拿别的图冒充缩略图。
+ *   · usedIn 是旧编号（u09）→ 按数字对齐当前单元（s09），详情用 title 给出两种编号。
+ *   · 导入需要后端 → 按钮置灰写明原因；停用只改内存 → 明说"仅本次会话"。
+ */
+
+function Icon({ name, className = 'ui-icon' }: { name: string; className?: string }) {
+  return (
+    <svg className={className} aria-hidden="true">
+      <use href={`/assets/paba-icons.svg#${name}`} />
+    </svg>
+  )
+}
+
+const KIND: Record<Asset['kind'], { cn: string; icon: string }> = {
+  image: { cn: '图片', icon: 'image' },
+  font: { cn: '字体', icon: 'pilcrow' },
+  audio: { cn: '音频', icon: 'audio-lines' },
+  video: { cn: '视频', icon: 'film' },
+  doc: { cn: '文档', icon: 'file-text' },
+}
+
+/** 授权结论：台账里能推出的唯一真实判断 —— 能不能商用于这个片子 */
+type Right = 'ok' | 'attn' | 'blocked'
+function rightOf(a: Asset): Right {
+  if (!a.commercial) return 'blocked'
+  if (a.attribution) return 'attn'
+  return 'ok'
+}
+const RIGHT: Record<Right, { cn: string; hint: string }> = {
+  ok: { cn: '可商用', hint: '可直接用于商业交付' },
+  attn: { cn: '需署名', hint: '可商用，但交付物里必须保留署名' },
+  blocked: { cn: '不可商用', hint: '许可不允许用于商业交付' },
+}
+const RIGHT_ORDER: Right[] = ['attn', 'ok', 'blocked']
+
+/** usedIn 的旧编号 u09 → 当前单元 s09（按数字对齐） */
+function unitOf(raw: string) {
+  if (raw === '全部') return { id: '全部', label: '全片通用', frame: null as string | null, note: '台账编号 全部' }
+  const n = parseInt(raw.replace(/\D/g, ''), 10)
+  const u = n ? (UNITS.find((x) => x.index === n) ?? UNITS[n - 1]) : undefined
+  if (!u) return { id: raw, label: raw, frame: null as string | null, note: `台账编号 ${raw}` }
+  return { id: u.id, label: u.title, frame: u.frame, note: `${u.id} · 台账编号 ${raw}` }
+}
+
+type GroupBy = 'right' | 'kind' | 'used'
+type SortBy = 'default' | 'name' | 'most'
+
+export function Assets({ projectName }: { projectName?: string } = {}) {
+  const [q, setQ] = useState('')
+  const [group, setGroup] = useState<GroupBy>('right')
+  const [sortBy, setSortBy] = useState<SortBy>('default')
+  const [kind, setKind] = useState<'all' | Asset['kind']>('all')
+  const [onlyUnused, setOnlyUnused] = useState(false)
+  const [showOff, setShowOff] = useState(false)
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
+  const [off, setOff] = useState<Set<string>>(new Set())
+  const [sel, setSel] = useState<Set<string>>(new Set())
+  const [menuId, setMenuId] = useState<string | null>(null)
+  const [notice, setNotice] = useState('')
+
+  const say = (msg: string) => {
+    setNotice(msg)
+    window.setTimeout(() => setNotice(''), 3200)
+  }
+
+  const list = useMemo(() => {
+    const key = q.trim().toLowerCase()
+    const arr = ASSETS.filter((a) => {
+      if (off.has(a.id) && !showOff) return false
+      if (kind !== 'all' && a.kind !== kind) return false
+      if (onlyUnused && a.usedIn.length > 0) return false
+      if (!key) return true
+      return a.name.toLowerCase().includes(key) || a.source.includes(key) ||
+        a.license.toLowerCase().includes(key)
+    })
+    if (sortBy === 'name') return [...arr].sort((a, b) => a.name.localeCompare(b.name))
+    if (sortBy === 'most') return [...arr].sort((a, b) => b.usedIn.length - a.usedIn.length)
+    return arr
+  }, [q, kind, onlyUnused, off, showOff, sortBy])
+
+  const usedN = list.filter((a) => a.usedIn.length > 0).length
+  const unusedN = list.length - usedN
+  const attnN = list.filter((a) => rightOf(a) === 'attn').length
+  const blockedN = list.filter((a) => rightOf(a) === 'blocked').length
+
+  const groups = useMemo(() => {
+    const keyOf = (a: Asset) =>
+      group === 'right' ? rightOf(a) : group === 'kind' ? a.kind : (a.usedIn.length ? 'used' : 'unused')
+    const m = new Map<string, Asset[]>()
+    for (const a of list) {
+      const k = keyOf(a)
+      if (!m.has(k)) m.set(k, [])
+      m.get(k)!.push(a)
+    }
+    const entries = [...m.entries()]
+    if (group === 'right') entries.sort((x, y) => RIGHT_ORDER.indexOf(x[0] as Right) - RIGHT_ORDER.indexOf(y[0] as Right))
+    return entries.map(([k, v]) => ({
+      key: k,
+      field: group === 'right' ? '许可' : group === 'kind' ? '类型' : '使用情况',
+      cn: group === 'right' ? RIGHT[k as Right].cn
+        : group === 'kind' ? KIND[k as Asset['kind']].cn
+          : k === 'used' ? '已使用' : '未使用',
+      tone: group === 'right' ? k : group === 'kind' ? 'kind' : k,
+      items: v,
+    }))
+  }, [list, group])
+
+  // 选择：示范图缩略图左上角的选择框
+  const allSelected = list.length > 0 && list.every((a) => sel.has(a.id))
+  const toggleSel = (id: string) =>
+    setSel((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n })
+  const toggleAll = () =>
+    setSel(allSelected ? new Set() : new Set(list.map((a) => a.id)))
+
+  const toggleGroup = (k: string) =>
+    setCollapsed((p) => { const n = new Set(p); n.has(k) ? n.delete(k) : n.add(k); return n })
+
+  async function copyList(ids?: Set<string>) {
+    const target = ids && ids.size ? list.filter((a) => ids.has(a.id)) : list
+    const rows = target.map((a) => [
+      a.name, KIND[a.kind].cn, a.source, a.license,
+      a.usedIn.length ? `用在 ${a.usedIn.length} 处` : '未使用',
+    ].join('\t'))
+    try {
+      await navigator.clipboard?.writeText(rows.join('\n'))
+      say(`已复制 ${target.length} 行清单（名称 / 类型 / 来源 / 许可 / 使用情况）到剪贴板`)
+    } catch {
+      say('复制失败：浏览器没有给剪贴板权限')
+    }
+  }
+
+  return (
+    <div className="ac" data-view="assets"
+         onPointerDown={(e) => {
+           const t = e.target as HTMLElement
+           if (!t.closest('.ac-menu') && !t.closest('.ac-more')) setMenuId(null)
+         }}>
+      {/* ── 面包屑：示范图顶部的「分组 › 项目」路径 ── */}
+      <div className="ac-crumbs">
+        <Icon name="folder-open" />
+        <span>{projectName ?? '全部项目'}</span>
+        <Icon name="chevron-right" />
+        <b>创作资产</b>
+        <span className="num">{list.length} 项</span>
+      </div>
+
+      {/* ── ① 项目横幅：照示范图（背景图 + 渐变遮罩 + 标题 + 统计行 + 右上胶囊） ── */}
+      <header className="ac-banner">
+        {projectName && <img className="ac-banner-bg" src="/frames/film/s09.jpg" alt="" />}
+        <span className="ac-banner-logo"><img src="/assets/brand/fengmotion-mark.png" alt="" width={30} height={30} /></span>
+        <div className="ac-banner-copy">
+          <h2>{projectName ?? '全部项目的素材'}</h2>
+          <p className="num">
+            <Icon name="image" />
+            <span>
+              {projectName ? '本项目' : '全部项目'}素材 {list.length} 项 · 已用 {usedN} · 未用 {unusedN}
+              {attnN > 0 && <> · 需署名 {attnN}</>}
+              {blockedN > 0 && <> · 不可商用 {blockedN}</>}
+            </span>
+          </p>
+        </div>
+        <div className="ac-banner-acts">
+          <button className="ac-pill ac-pill-ghost" type="button" disabled title="素材导入需要后端（未接入）">
+            <Icon name="upload" />导入素材
+          </button>
+          <button className="ac-pill ac-pill-ghost" type="button" onClick={() => void copyList()}>
+            <Icon name="copy" />复制清单
+          </button>
+          <span className="ac-pill-note">导入未接入</span>
+        </div>
+      </header>
+
+      {/* ── ② 工具条：照示范图（图标 + 文字，一条排开） ── */}
+      <div className="ac-toolbar">
+        <button className="ac-tool" type="button" data-on={kind === 'all' ? '' : undefined}
+                onClick={() => setKind('all')}>
+          <Icon name="layout-grid" />全部素材
+        </button>
+        <span className="ac-tool-sep" />
+        <label className="ac-tool ac-tool-field">
+          <Icon name="image" />类型
+          <select value={kind} onChange={(e) => setKind(e.target.value as typeof kind)} aria-label="按类型筛选">
+            <option value="all">全部</option>
+            {(['image', 'font', 'audio', 'video', 'doc'] as Asset['kind'][]).map((k) => (
+              <option key={k} value={k}>{KIND[k].cn}</option>
+            ))}
+          </select>
+        </label>
+        <label className="ac-tool ac-tool-check">
+          <input type="checkbox" checked={onlyUnused} onChange={(e) => setOnlyUnused(e.target.checked)} />
+          只看未使用
+        </label>
+        <label className="ac-tool ac-tool-check">
+          <input type="checkbox" checked={showOff} onChange={(e) => setShowOff(e.target.checked)} />
+          显示已停用
+        </label>
+        <span className="ac-tool-sep" />
+        <label className="ac-tool ac-tool-field">
+          <Icon name="panels-top-left" />分组
+          <select value={group} onChange={(e) => setGroup(e.target.value as GroupBy)} aria-label="分组方式">
+            <option value="right">许可</option>
+            <option value="kind">类型</option>
+            <option value="used">使用情况</option>
+          </select>
+        </label>
+        <label className="ac-tool ac-tool-field">
+          <Icon name="list" />排序
+          <select value={sortBy} onChange={(e) => setSortBy(e.target.value as SortBy)} aria-label="排序方式">
+            <option value="default">默认顺序</option>
+            <option value="name">名称 A–Z</option>
+            <option value="most">使用最多</option>
+          </select>
+        </label>
+
+        <span className="spacer" />
+        <label className="fm-search ac-search">
+          <Icon name="search" />
+          <input value={q} placeholder="搜文件名 / 来源 / 许可" aria-label="搜索素材"
+                 onChange={(e) => setQ(e.target.value)} />
+        </label>
+      </div>
+
+      {/* ── ③④ 分组条 + 卡片网格 ── */}
+      <div className="ac-groups">
+        {groups.map((g) => (
+          <section key={g.key} className="ac-group">
+            <button className="ac-gbar" type="button" onClick={() => toggleGroup(g.key)}
+                    aria-expanded={!collapsed.has(g.key)}>
+              <Icon name="chevron-right" className={`ui-icon ac-chev${collapsed.has(g.key) ? '' : ' is-open'}`} />
+              <span className="ac-gbar-field">{g.field}</span>
+              <span className="ac-gbar-value" data-tone={g.tone}>{g.cn}</span>
+              <em className="num ac-gbar-n">{g.items.length}</em>
+              <span className="spacer" />
+              {group === 'right' && <span className="ac-gbar-hint">{RIGHT[g.key as Right]?.hint}</span>}
+            </button>
+
+            {!collapsed.has(g.key) && (
+              <div className="ac-grid">
+                {g.items.map((a) => {
+                  const r = rightOf(a)
+                  const units = a.usedIn.map(unitOf)
+                  const title = units.length
+                    ? `用在：${units.map((u) => `${u.label}（${u.note}）`).join('；')}`
+                    : '还没有被任何制作单元使用'
+                  return (
+                    <article key={a.id} className="ac-card"
+                             data-sel={sel.has(a.id) ? '' : undefined}
+                             data-off={off.has(a.id) ? '' : undefined}>
+                      <span className="ac-thumb" data-kind={a.kind}>
+                        <Icon name={KIND[a.kind].icon} className="ui-icon ac-thumb-ico" />
+                        <em className="ac-thumb-ph">仓库内无预览文件</em>
+                        <span className="ac-thumb-kind"><Icon name={KIND[a.kind].icon} />{KIND[a.kind].cn}</span>
+                        <span className="ac-thumb-noprev">无预览</span>
+                        <label className="ac-pick" title="选择该项">
+                          <input type="checkbox" checked={sel.has(a.id)}
+                                 onChange={() => toggleSel(a.id)} aria-label={`选择 ${a.name}`} />
+                        </label>
+                        {off.has(a.id) && <span className="ac-thumb-off">已停用</span>}
+                      </span>
+
+                      <div className="ac-card-body">
+                        <b className="ac-card-name num" title={a.name}>{a.name}</b>
+                        <div className="ac-card-meta">
+                          <span title={`${a.source} · ${a.license}`}>{a.source} · {a.license}</span>
+                          <button className="ac-more" type="button" aria-label={`${a.name} 的更多操作`}
+                                  aria-expanded={menuId === a.id}
+                                  onClick={() => setMenuId(menuId === a.id ? null : a.id)}>
+                            <Icon name="ellipsis" />
+                          </button>
+                          {menuId === a.id && (
+                            <span className="ac-menu" role="menu">
+                              <button type="button" role="menuitem"
+                                      onClick={() => { setMenuId(null); void navigator.clipboard?.writeText(a.name); say(`已复制文件名：${a.name}`) }}>
+                                <Icon name="copy" />复制文件名
+                              </button>
+                              <button type="button" role="menuitem"
+                                      onClick={() => { setMenuId(null); void copyList(new Set([a.id])) }}>
+                                <Icon name="file-text" />复制台账行
+                              </button>
+                              <button type="button" role="menuitem"
+                                      onClick={() => {
+                                        setMenuId(null)
+                                        setOff((p) => { const n = new Set(p); n.has(a.id) ? n.delete(a.id) : n.add(a.id); return n })
+                                        say(off.has(a.id) ? `已恢复「${a.name}」（仅本次会话）` : `已停用「${a.name}」（仅本次会话，刷新后恢复）`)
+                                      }}>
+                                <Icon name={off.has(a.id) ? 'play' : 'pause'} />{off.has(a.id) ? '恢复' : '停用'}
+                              </button>
+                            </span>
+                          )}
+                        </div>
+
+                        <span className="ac-field ac-field-inline" title={RIGHT[r].hint}>
+                          <i><Icon name="circle-check" />许可</i>
+                          <span className="ac-chip" data-r={r}><span className="ac-dot" />{RIGHT[r].cn}</span>
+                        </span>
+                        <span className="ac-field" title={title}>
+                          <i><Icon name="film" />用在</i>
+                          {a.usedIn.length
+                            ? <span className="ac-used num">{a.usedIn.length === 1 && a.usedIn[0] === '全部' ? '全片通用' : `${a.usedIn.length} 处`}</span>
+                            : <span className="ac-used is-none">未使用</span>}
+                        </span>
+                      </div>
+                    </article>
+                  )
+                })}
+              </div>
+            )}
+          </section>
+        ))}
+        {!list.length && (
+          <p className="ac-none">没有符合条件的素材 —— 换个筛选，或关掉「只看未使用」。</p>
+        )}
+      </div>
+
+      {/* ── ⑤ 吸底计数栏：照示范图（左计数，右边给会话说明） ── */}
+      <footer className="ac-statusbar">
+        <span className="num">{list.length} 项{itemCountSuffix(list, usedN, unusedN)}</span>
+        {sel.size > 0 && (
+          <>
+            <span className="ac-tool-sep" />
+            <span className="num">已选 {sel.size}</span>
+            <button className="ac-bar-btn" type="button" onClick={() => void copyList(sel)}>复制所选</button>
+            <button className="ac-bar-btn" type="button" onClick={() => setSel(new Set())}>清除选择</button>
+          </>
+        )}
+        <span className="spacer" />
+        {notice
+          ? <span className="ac-bar-notice">{notice}</span>
+          : <span className="ac-bar-note">授权结论由台账的许可 / 署名 / 商用字段推出；停用仅在本次会话生效</span>}
+        <button className="ac-bar-btn" type="button" onClick={toggleAll}>
+          {allSelected ? '取消全选' : '全选'}
+        </button>
+      </footer>
+    </div>
+  )
+}
+
+function itemCountSuffix(list: Asset[], usedN: number, unusedN: number) {
+  if (!list.length) return ''
+  return ` · 已用 ${usedN} · 未用 ${unusedN}`
+}

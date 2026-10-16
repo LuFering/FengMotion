@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>设计方向对照</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0 }
+  body {
+    background: #0a0a0c; color: #e8e8ea;
+    font: 13px/1.5 -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    padding: 24px;
+  }
+  h1 { font-size: 15px; font-weight: 600; margin-bottom: 4px }
+  .lead { color: #7a7a85; font-size: 12px; margin-bottom: 20px }
+  .row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px }
+  .col > .label {
+    font-size: 12px; font-weight: 650; margin-bottom: 3px;
+    display: flex; align-items: baseline; gap: 8px;
+  }
+  .col > .label span { font-size: 10.5px; font-weight: 400; color: #6a6a75 }
+  .col > .desc { font-size: 10.5px; color: #6a6a75; margin-bottom: 10px; line-height: 1.6 }
+  .canvas { border-radius: 8px; padding: 14px; min-height: 380px }
+
+  /* ═══ A · 电影黑 ════════════════════════════════ */
+  .A { background: #000; border: 1px solid #1a1a1a }
+  .A .hero { border: 1px solid #262626; padding: 16px; margin-bottom: 14px }
+  .A .hero .t { font-size: 15px; font-weight: 600; letter-spacing: -.01em; margin-bottom: 8px }
+  .A .hero .inp { color: #4a4a4a; font-size: 12px; padding: 10px 0 22px; border-bottom: 1px solid #1f1f1f }
+  .A .hero .row2 { display: flex; gap: 8px; margin-top: 12px; align-items: center }
+  .A .chip { font-size: 11px; color: #8a8a8a; padding: 4px 10px; border: 1px solid #262626 }
+  .A .go { margin-left: auto; font-size: 11.5px; font-weight: 600; color: #000; background: #fff; padding: 6px 14px }
+  .A .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px }
+  .A .card { border: 1px solid #1f1f1f; overflow: hidden }
+  .A .card .art { height: 62px; background: #131313; display: grid; place-items: center; color: #3a3a3a; font: 10px ui-monospace, monospace }
+  .A .card .m { padding: 8px 9px }
+  .A .card .m b { font-size: 11.5px; font-weight: 500; display: block }
+  .A .card .m i { font-size: 10px; font-style: normal; color: #5a5a5a; font-family: ui-monospace, monospace }
+
+  /* ═══ B · 仪器面板 ══════════════════════════════ */
+  .B { background: #0e1116; border: 1px solid #1c222c;
+       background-image: linear-gradient(#151b24 1px, transparent 1px), linear-gradient(90deg, #151b24 1px, transparent 1px);
+       background-size: 22px 22px }
+  .B .hero { background: #12161d; border: 1px solid #222a36; margin-bottom: 14px }
+  .B .hero .hd { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid #222a36;
+                 font: 10px ui-monospace, monospace; color: #6b7686; letter-spacing: .06em }
+  .B .hero .hd .dot { width: 5px; height: 5px; border-radius: 50%; background: #3B8CF8 }
+  .B .hero .bd { padding: 14px 12px }
+  .B .hero .inp { color: #4e5866; font-size: 12px; font-family: ui-monospace, monospace; padding-bottom: 18px }
+  .B .hero .row2 { display: flex; gap: 6px; align-items: center; margin-top: 12px }
+  .B .chip { font: 10.5px ui-monospace, monospace; color: #7b8798; padding: 4px 9px; border: 1px solid #222a36; background: #0e1116 }
+  .B .go { margin-left: auto; font-size: 11.5px; font-weight: 600; color: #fff; background: #3B8CF8; padding: 6px 14px; border-radius: 3px }
+  .B .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px }
+  .B .card { background: #12161d; border: 1px solid #222a36 }
+  .B .card .art { height: 62px; background: #090c11; display: grid; place-items: center; color: #2f3846;
+                  font: 10px ui-monospace, monospace; border-bottom: 1px solid #1a212b }
+  .B .card .m { padding: 7px 9px; display: flex; justify-content: space-between; align-items: center }
+  .B .card .m b { font-size: 11px; font-weight: 500; font-family: ui-monospace, monospace }
+  .B .card .m i { font-size: 9.5px; font-style: normal; color: #5b6676; font-family: ui-monospace, monospace }
+
+  /* ═══ C · 柔光产品 ══════════════════════════════ */
+  .C { background: #101218; }
+  .C .hero { background: #191d27; border: 1px solid #262c3a; border-radius: 14px; padding: 18px;
+             box-shadow: 0 8px 28px rgba(0,0,0,.45); margin-bottom: 16px }
+  .C .hero .t { font-size: 14px; font-weight: 600; margin-bottom: 9px }
+  .C .hero .inp { color: #545c6e; font-size: 12.5px; padding-bottom: 22px }
+  .C .hero .row2 { display: flex; gap: 8px; align-items: center; margin-top: 14px }
+  .C .chip { font-size: 11.5px; color: #98a1b3; padding: 6px 12px; border-radius: 999px; background: #12151c; border: 1px solid #262c3a }
+  .C .go { margin-left: auto; font-size: 12px; font-weight: 600; color: #fff; background: #3B8CF8; padding: 8px 18px; border-radius: 999px;
+           box-shadow: 0 4px 14px rgba(59,140,248,.4) }
+  .C .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 11px }
+  .C .card { background: #191d27; border: 1px solid #262c3a; border-radius: 12px; overflow: hidden;
+             box-shadow: 0 2px 10px rgba(0,0,0,.35) }
+  .C .card .art { height: 62px; background: #0d0f15; display: grid; place-items: center; color: #3e4657; font: 10px ui-monospace, monospace }
+  .C .card .m { padding: 10px 11px }
+  .C .card .m b { font-size: 12px; font-weight: 550; display: block; margin-bottom: 3px }
+  .C .card .m i { font-size: 10.5px; font-style: normal; color: #6b748a }
+
+  .mark { font: 10px ui-monospace, monospace; color: #55555f }
+</style>
+</head>
+<body>
+  <h1>三套设计方向 · 同一个界面</h1>
+  <p class="lead">同样的内容（创作区 + 项目卡片），三种完全不同的视觉语言。选一个，我按它统一整站。</p>
+
+  <div class="row">
+
+    <!-- ═══ A ═══ -->
+    <div class="col">
+      <div class="label">A · 电影黑 <span>Cinematic</span></div>
+      <p class="desc">纯黑底、零圆角、零阴影。靠留白和字号拉层级。
+      气质冷静、专业，像片头字幕。<b>图片是唯一的主角。</b></p>
+      <div class="canvas A">
+        <div class="hero">
+          <div class="t">做一支片子</div>
+          <div class="inp">描述你想要的片子…</div>
+          <div class="row2">
+            <span class="chip">科普口播</span>
+            <span class="chip">产品宣传</span>
+            <span class="go">开始制作</span>
+          </div>
+        </div>
+        <div class="grid">
+          <div class="card"><div class="art">00:00 / 152.0s</div><div class="m"><b>Token 科普视频</b><i>25 段 · 23 定稿</i></div></div>
+          <div class="card"><div class="art">NEW</div><div class="m"><b>新建项目</b><i>尚未连接</i></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ B ═══ -->
+    <div class="col">
+      <div class="label">B · 仪器面板 <span>Instrument</span></div>
+      <p class="desc">深蓝底 + 网格纹理 + 等宽字。所有数字用 tabular。靠 1px 细线切分区。
+      气质精密、工程感，<b>像调色台 / NLE 的时间码面板。</b></p>
+      <div class="canvas B">
+        <div class="hero">
+          <div class="hd"><span class="dot"></span>NEW SEQUENCE<span style="margin-left:auto">0/4000</span></div>
+          <div class="bd">
+            <div class="inp">描述你想要的片子…</div>
+            <div class="row2">
+              <span class="chip">EXPLAIN</span>
+              <span class="chip">PROMO</span>
+              <span class="go">开始制作</span>
+            </div>
+          </div>
+        </div>
+        <div class="grid">
+          <div class="card"><div class="art">00:00 / 152.0s</div><div class="m"><b>Token 科普视频</b><i>25 CLIPS</i></div></div>
+          <div class="card"><div class="art">EMPTY</div><div class="m"><b>新建项目</b><i>OFFLINE</i></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ C ═══ -->
+    <div class="col">
+      <div class="label">C · 柔光产品 <span>Soft Product</span></div>
+      <p class="desc">大圆角 + 柔和阴影 + 胶囊按钮。层级靠"浮起的高度"。
+      气质亲和、现代，<b>和你 logo 的圆润形态最一致。</b></p>
+      <div class="canvas C">
+        <div class="hero">
+          <div class="t">做一支片子</div>
+          <div class="inp">描述你想要的片子…</div>
+          <div class="row2">
+            <span class="chip">科普口播</span>
+            <span class="chip">产品宣传</span>
+            <span class="go">开始制作</span>
+          </div>
+        </div>
+        <div class="grid">
+          <div class="card"><div class="art">00:00 / 152.0s</div><div class="m"><b>Token 科普视频</b><i>25 段 · 23 定稿</i></div></div>
+          <div class="card"><div class="art">NEW</div><div class="m"><b>新建项目</b><i>尚未连接</i></div></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</body>
+</html>

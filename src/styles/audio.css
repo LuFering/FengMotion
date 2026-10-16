@@ -1,0 +1,290 @@
+/* ── 时序校验（原音频与时间）──────────────────────────────
+   版式照《音频示范》复刻，四段式纵向排布：
+     ① 顶部工具栏 ② 左列表 + 右预览 ③ 时间线 ④ 底部状态栏
+   整页占满内容区高度（min-height），列表与时间线各自滚动，像一台"设备"。
+   词表纪律：只用 paba 现行变量（见 assets.css 顶部注释）。 */
+
+.atl {
+  display: flex; flex-direction: column; gap: 12px;
+  height: calc(100vh - 172px); min-height: 560px;
+}
+
+/* ── ① 顶部工具栏 ───────────────────────────────────────── */
+.atl-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; flex: 0 0 auto }
+.atl-bar h2 { margin: 0; font-size: 15px; font-weight: 650 }
+.atl-sub { font-size: 10.5px; color: var(--ph) }
+.atl-sep { width: 1px; height: 16px; background: var(--line) }
+.atl-pill {
+  display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 11px;
+  border: 1px solid var(--line); border-radius: 999px;
+  background: transparent; color: var(--ph); font: inherit; font-size: 11.5px; cursor: pointer;
+}
+.atl-pill .ui-icon { width: 12px; height: 12px }
+.atl-pill:hover { color: var(--dim) }
+.atl-pill[aria-pressed="true"] { background: var(--hole); color: var(--fg) }
+.atl-rate { display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; color: var(--ph) }
+.atl-rate button {
+  padding: 2px 7px; border: 0; border-radius: 5px; background: transparent;
+  color: var(--dim); font: inherit; font-size: 10.5px; cursor: pointer;
+}
+.atl-rate button[aria-pressed="true"] { background: var(--soft); color: var(--fg) }
+.atl-cta {
+  display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 13px;
+  border: 0; border-radius: 7px; background: var(--acc); color: var(--on-accent);
+  font: inherit; font-size: 12px; font-weight: 550; cursor: pointer;
+}
+.atl-cta .ui-icon { width: 13px; height: 13px }
+.atl-cta:hover { background: var(--acc-d) }
+
+/* ── ② 工作区：列表 + 预览 ──────────────────────────────── */
+.atl-work {
+  flex: 1 1 auto; min-height: 0;
+  display: grid; grid-template-columns: minmax(0, 1.06fr) minmax(0, 1fr); gap: 16px;
+}
+.atl-listwrap { display: flex; flex-direction: column; gap: 10px; min-height: 0 }
+.atl-warn {
+  display: flex; align-items: center; gap: 8px; flex: 0 0 auto;
+  padding: 7px 10px; border-radius: 7px; font-size: 11.5px; color: var(--fg);
+  background: color-mix(in srgb, var(--warn) 9%, var(--surf));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--warn) 38%, transparent);
+}
+.atl-warn[data-ok] {
+  background: color-mix(in srgb, var(--ok) 8%, var(--surf));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ok) 34%, transparent);
+}
+.atl-warn .ui-icon { width: 14px; height: 14px; flex: 0 0 auto; color: var(--warn) }
+.atl-warn[data-ok] .ui-icon { color: var(--ok) }
+.atl-warn > span { flex: 1; min-width: 0 }
+.atl-warn b { font-weight: 600 }
+.atl-fix {
+  flex: 0 0 auto; height: 24px; padding: 0 11px;
+  border: 1px solid color-mix(in srgb, var(--acc) 60%, transparent); border-radius: 999px;
+  background: transparent; color: var(--acc); font: inherit; font-size: 10.5px; cursor: pointer;
+}
+.atl-fix:hover { background: color-mix(in srgb, var(--acc) 12%, transparent) }
+
+.atl-list { flex: 1 1 auto; min-height: 0; overflow: auto; margin: 0; padding: 0; list-style: none }
+.atl-item {
+  display: flex; flex-direction: column; gap: 4px; width: 100%;
+  padding: 8px 10px; margin-bottom: 2px;
+  border: 0; border-radius: 8px; background: transparent; color: var(--fg);
+  font: inherit; text-align: left; cursor: pointer;
+  box-shadow: inset 0 0 0 1px transparent;
+}
+.atl-item:hover { background: var(--surf) }
+.atl-item[data-cur] { background: var(--soft) }
+.atl-item[data-sel] { box-shadow: inset 0 0 0 1px var(--acc) }
+.atl-item-head { display: flex; align-items: center; gap: 8px; min-width: 0 }
+.atl-n { font-style: normal; font-size: 10px; color: var(--ph) }
+.atl-dot { flex: 0 0 auto }
+.atl-item-head > b { font-size: 11.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.atl-tc { margin-left: auto; flex: 0 0 auto; font-size: 10px; color: var(--dim) }
+.atl-item-body {
+  font-size: 11px; line-height: 1.6; color: var(--dim);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.atl-none { font-style: normal; color: var(--ph) }
+.atl-item-meta { display: flex; align-items: center; gap: 6px; font-size: 10px; color: var(--ph) }
+.atl-over { font-style: normal; padding: 0 6px; border-radius: 999px; color: var(--warn); background: color-mix(in srgb, var(--warn) 12%, transparent) }
+
+/* 右：预览 */
+.atl-preview { display: flex; flex-direction: column; gap: 8px; min-height: 0 }
+.atl-screen { position: relative; margin: 0 }
+.atl-screen video {
+  display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: contain;
+  border-radius: 10px; background: #000; box-shadow: inset 0 0 0 1px var(--line);
+  cursor: pointer;
+}
+.atl-bigplay {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  display: grid; place-items: center; width: 54px; height: 54px;
+  border: 0; border-radius: 50%; background: color-mix(in srgb, var(--bg) 62%, transparent);
+  color: var(--fg); cursor: pointer; backdrop-filter: blur(4px);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.atl-bigplay .ui-icon { width: 20px; height: 20px; margin-left: 2px }
+.atl-bigplay:hover { background: color-mix(in srgb, var(--bg) 80%, transparent) }
+.atl-ctl { display: flex; align-items: center; gap: 9px }
+.atl-play {
+  display: grid; place-items: center; width: 30px; height: 30px; flex: 0 0 auto;
+  border: 0; border-radius: 8px; background: var(--hole); color: var(--fg); cursor: pointer;
+}
+.atl-play:hover { background: var(--line) }
+.atl-play .ui-icon { width: 14px; height: 14px }
+.atl-seek { flex: 1; min-width: 0; accent-color: var(--acc); height: 20px }
+.atl-time { font-size: 10.5px; color: var(--dim); flex: 0 0 auto }
+.atl-preview-note { margin: 0; font-size: 10px; line-height: 1.6; color: var(--ph) }
+
+/* ── ③ 时间线 ───────────────────────────────────────────── */
+.atl-timeline { flex: 0 0 auto; display: flex; flex-direction: column; gap: 8px }
+.atl-tools { display: flex; align-items: center; gap: 3px; flex-wrap: wrap }
+.atl-tool {
+  display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 9px;
+  border: 0; border-radius: 6px; background: transparent; color: var(--dim);
+  font: inherit; font-size: 11px; cursor: pointer;
+}
+.atl-tool .ui-icon { width: 12px; height: 12px }
+.atl-tool:hover { background: var(--hole); color: var(--fg) }
+.atl-zoom { font-size: 10px; color: var(--ph) }
+
+.atl-scroll { overflow-x: auto; overflow-y: hidden; border-radius: 8px; background: color-mix(in srgb, var(--hole) 34%, transparent) }
+.atl-inner { position: relative; min-width: 100%; padding: 6px 0 10px }
+
+.atl-ruler { position: relative; height: 22px; margin: 0 0 2px; cursor: crosshair }
+.atl-ruck { position: absolute; top: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 2px }
+.atl-ruck > i { display: block; width: 1px; height: 5px; background: var(--line) }
+.atl-ruck { font-size: 9px; color: var(--ph); transform: translateX(1px) }
+.atl-filmend {
+  position: absolute; top: 0; bottom: -104px; width: 0;
+  border-left: 1px dashed color-mix(in srgb, var(--warn) 70%, transparent);
+  z-index: 3; pointer-events: none;
+}
+.atl-endlbl {
+  position: absolute; top: 6px; transform: translateX(4px);
+  font-size: 9px; color: var(--warn); white-space: nowrap; pointer-events: none;
+}
+.atl-endlbl-v3 { color: var(--ph) }
+
+.atl-links {
+  position: absolute; left: 0; right: 0; top: 24px; height: 84px;
+  width: 100%; pointer-events: none; z-index: 3;
+}
+.atl-links line { stroke: color-mix(in srgb, var(--dim) 52%, transparent); stroke-width: 1 }
+
+.atl-lane { position: relative; z-index: 1; display: flex; gap: 8px; height: 40px; margin: 0 0 4px }
+.atl-lanelbl {
+  flex: 0 0 auto; width: 92px; display: flex; align-items: center; gap: 5px;
+  padding-left: 8px; font-size: 10.5px; color: var(--dim);
+}
+.atl-lanelbl em { font-style: normal; color: var(--ph); font-size: 9.5px }
+.atl-track { position: relative; flex: 1; border-radius: 6px; background: color-mix(in srgb, var(--bg) 62%, transparent); cursor: crosshair }
+
+.atl-clip {
+  position: absolute; top: 7px; bottom: 7px; min-width: 2px;
+  border: 0; border-radius: 5px; padding: 0 4px; cursor: pointer;
+  font: inherit; font-size: 9px; color: var(--fg); text-align: left;
+  overflow: hidden; white-space: nowrap;
+}
+.atl-clip[data-s="done"]      { background: color-mix(in srgb, var(--ok) 30%, var(--bg)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ok) 36%, transparent) }
+.atl-clip[data-s="running"]   { background: color-mix(in srgb, var(--acc) 38%, var(--bg)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--acc) 44%, transparent) }
+.atl-clip[data-s="waiting"]   { background: color-mix(in srgb, var(--warn) 32%, var(--bg)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--warn) 40%, transparent) }
+.atl-clip[data-s="failed"]    { background: color-mix(in srgb, var(--bad) 32%, var(--bg)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--bad) 40%, transparent) }
+.atl-clip[data-s="idle"]      { background: color-mix(in srgb, var(--dim) 24%, var(--bg)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--dim) 30%, transparent) }
+.atl-clip:hover { filter: brightness(1.25) }
+.atl-gapblk {
+  position: absolute; top: 7px; bottom: 7px; border-radius: 4px;
+  background: repeating-linear-gradient(135deg,
+    color-mix(in srgb, var(--warn) 22%, transparent) 0 4px, transparent 4px 8px);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--warn) 34%, transparent);
+}
+
+.atl-track-v3 { background: color-mix(in srgb, var(--bg) 44%, transparent) }
+.atl-seg {
+  position: absolute; top: 13px; bottom: 13px; min-width: 1.5px; border-radius: 3px;
+  background: color-mix(in srgb, var(--dim) 26%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--bg) 88%, transparent);
+}
+.atl-seg[data-mapped] { background: color-mix(in srgb, var(--ok) 48%, transparent) }
+.atl-seg[data-over] { background: color-mix(in srgb, var(--warn) 44%, transparent) }
+.atl-target {
+  position: absolute; top: 2px; bottom: 2px; width: 0; border-left: 1px solid var(--acc);
+  opacity: .8;
+}
+.atl-track-v3 .atl-endlbl { top: 3px }
+
+.atl-head {
+  position: absolute; top: 0; bottom: 4px; width: 0; z-index: 5;
+  border-left: 1px solid var(--fg); pointer-events: none;
+}
+.atl-head > i {
+  position: absolute; left: -8px; top: -1px;
+  min-width: 17px; padding: 0 4px; border-radius: 4px;
+  background: var(--fg); color: var(--bg); font-size: 9px; font-style: normal;
+  text-align: center; line-height: 14px;
+}
+.atl-tail { margin: 0; font-size: 10px; line-height: 1.7; color: var(--ph) }
+
+/* ── ④ 底部状态栏 ───────────────────────────────────────── */
+.atl-status {
+  flex: 0 0 auto; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 6px 2px; border-top: 1px solid var(--line);
+}
+.atl-stbtn {
+  display: grid; place-items: center; width: 26px; height: 26px;
+  border: 0; border-radius: 6px; background: transparent; color: var(--dim); cursor: pointer;
+}
+.atl-stbtn .ui-icon { width: 14px; height: 14px }
+.atl-stbtn:hover:not([disabled]) { background: var(--hole); color: var(--fg) }
+.atl-stbtn[disabled] { color: var(--ph); cursor: not-allowed }
+.atl-issues { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: var(--warn) }
+.atl-issues[data-ok] { color: var(--ok) }
+.atl-issue-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--warn) }
+.atl-issues[data-ok] .atl-issue-dot { background: var(--ok) }
+.atl-notice {
+  padding: 4px 9px; border: 0; border-radius: 6px;
+  background: var(--soft); color: var(--fg); font: inherit; font-size: 10.5px; cursor: pointer;
+}
+.atl-vi { width: 13px; height: 13px; color: var(--dim) }
+.atl-vol { width: 92px; accent-color: var(--acc); height: 18px }
+.atl-vlabel { font-size: 10px; color: var(--ph) }
+
+/* ══ 一比一复刻《音频示范》：取色自原图 ══════════════════════
+   中性灰工具：顶栏深藏青 #0f1422 · 面板 #1d1d20 · 选中紫 #4c3c60 ·
+   按钮纯蓝 #0f68fc · 片段青灰 · 播放头纯白。 */
+.atl {
+  --bg: #141416; --surf: #1d1d20; --hole: #26262a; --line: #303036;
+  --acc: #0f68fc; --acc-d: #0d55cc; --soft: #1c2740;
+  --fg: #f2f2f4; --dim: #a0a0a8; --ph: #6e6e76;
+  --ok: #4fae7d; --warn: #e0a64b; --bad: #e5484d;
+}
+.atl-bar { background: var(--surf); border-radius: 10px; padding: 9px 12px }
+.atl-pill[aria-pressed="true"] { background: var(--hole); border-color: var(--line) }
+/* 转写列表：选中/正在播 = 紫色块（示范图的 Speaker 选中态） */
+.atl-item { border-radius: 10px }
+.atl-item:hover { background: var(--surf) }
+.atl-item[data-cur] { background: #332a4a }
+.atl-item[data-sel] { background: #3a2f52; box-shadow: inset 0 0 0 1px #6b5a8a }
+.atl-item[data-sel] .atl-item-head > b, .atl-item[data-cur] .atl-item-head > b { color: #efeaff }
+/* 时间线：片段换成示范图的青灰系 */
+.atl-clip[data-s="done"]    { background: #35494f; box-shadow: inset 0 0 0 1px #45606988 }
+.atl-clip[data-s="running"] { background: color-mix(in srgb, var(--acc) 34%, #101014); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--acc) 46%, transparent) }
+.atl-clip[data-s="waiting"] { background: #4a3d22; box-shadow: inset 0 0 0 1px #6b5a2e88 }
+.atl-clip[data-s="failed"]  { background: #4a2528; box-shadow: inset 0 0 0 1px #6b303488 }
+.atl-clip[data-s="idle"]    { background: #26262b; box-shadow: inset 0 0 0 1px #34343a88 }
+.atl-seg[data-mapped] { background: #35494f }
+.atl-seg[data-over] { background: #57431f }
+.atl-scroll { background: #101013 }
+
+/* ── 对比反馈第二轮：深色警示条、Speaker 胶囊、真波形轨 ── */
+.atl-warn {
+  background: #1e2530; border-left: 3px solid var(--warn);
+  box-shadow: none; border-radius: 6px;
+}
+.atl-item { padding: 9px 12px }
+.atl-chip {
+  display: inline-flex; align-items: center; flex: 0 0 auto;
+  padding: 1px 9px; border-radius: 999px; font-size: 10px; font-weight: 600;
+  font-style: normal; font-family: var(--font-mono, monospace);
+}
+.atl-chip[data-s="done"]    { background: color-mix(in srgb, var(--ok) 18%, transparent); color: var(--ok) }
+.atl-chip[data-s="running"] { background: color-mix(in srgb, var(--acc) 20%, transparent); color: var(--acc) }
+.atl-chip[data-s="waiting"] { background: color-mix(in srgb, var(--warn) 18%, transparent); color: var(--warn) }
+.atl-chip[data-s="failed"]  { background: color-mix(in srgb, var(--bad) 18%, transparent); color: var(--bad) }
+.atl-chip[data-s="idle"]    { background: color-mix(in srgb, var(--dim) 16%, transparent); color: var(--dim) }
+/* 真波形轨（WebAudio 解码成片音轨得到的峰值，不是装饰） */
+.atl-wave { position: relative; flex: 1; height: 44px; border-radius: 6px; background: #101013; overflow: hidden }
+.atl-wave canvas { position: absolute; inset: 0; width: 100%; height: 100% ; display: block }
+.atl-wave-note {
+  position: absolute; inset: 0; display: grid; place-items: center;
+  font-size: 10px; color: var(--ph); padding: 0 10px; text-align: center;
+}
+.atl-wave-none { border: 1px dashed var(--line) }
+
+/* ══ 复刻页装载器（时序校验 = iframe 全区，同 .acr 做法）══════════ */
+.atr { height: 100vh }
+.atr-frame {
+  display: block; width: 100%; height: 100%; border: 0;
+  border-radius: 0; overflow: hidden; background: #09090b;
+}
+.hm-main:has(.atr) { margin: 0 0 0 var(--hm-sidebar, 68px) !important; padding: 0 !important }
+.hm-content:has(.atr) { padding: 0 !important; margin: 0 !important; max-width: none !important }

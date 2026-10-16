@@ -1,0 +1,115 @@
+/* ═══════════════════════════════════════════════════════════════
+   可展开的导航树 —— paba 没有这一层。
+
+   paba 的导航是扁平的（一级项 + 静态分组标签）。
+   本产品改成：一级项可点击展开/收缩子项。
+
+   复用 paba 的视觉 token（--hm-hover / --acc / --hole / --line），
+   不引入新颜色。
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── 一级叶子（首页 / 制作工作台）─────────────────────────── */
+.nav-leaf,
+.nav-parent {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  height: 44px;
+  margin: 0;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: 20px;
+  background: 0 0;
+  color: var(--dim);
+  font-size: 13px;
+  font-weight: 550;
+  line-height: 1.3;
+  white-space: nowrap;
+  text-align: left;
+  overflow: hidden;
+  cursor: pointer;
+  transition: background-color .15s, color .15s;
+}
+.nav-leaf:hover,
+.nav-parent:hover { background: var(--hm-hover); color: var(--fg) }
+.nav-leaf[aria-current="page"] {
+  background: color-mix(in srgb, var(--acc) 15%, transparent);
+  color: var(--acc);
+  font-weight: 600;
+}
+.nav-leaf .ui-icon,
+.nav-parent .ui-icon { width: 20px; height: 20px; flex: 0 0 20px }
+
+/* 侧栏收起时，一级项与 paba 一样是 40px 圆点导航 */
+body:not(.hm-nav-expanded) .nav-leaf,
+body:not(.hm-nav-expanded) .nav-parent { height: 40px }
+
+/* ── 可展开的分组 ─────────────────────────────────────────── */
+.nav-group { display: flex; flex-direction: column; gap: 2px }
+
+/* 分组本身被选中（子项命中）时，父项也给一点提示 */
+.nav-parent[data-active] { color: var(--fg) }
+
+/* chevron：靠右，展开时旋转 90° */
+.nav-chevron {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 15px;
+  margin-left: auto;
+  opacity: .55;
+  transition: transform .18s ease, opacity .15s;
+}
+.nav-parent:hover .nav-chevron { opacity: .9 }
+.nav-group[data-open] .nav-chevron { transform: rotate(90deg) }
+
+/* 二级项：缩进 + 左侧竖线，体现从属 */
+.nav-children {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 2px 0 4px;
+  padding-left: 20px;
+  border-left: 1px solid var(--line);
+  margin-left: 19px;
+  /* 展开/收起：paba 用 --hm-nav-ms 统一侧栏动效时长 */
+  animation: nav-open var(--hm-nav-ms, .18s) var(--hm-ease, ease) both;
+}
+@keyframes nav-open {
+  from { opacity: 0; transform: translateY(-4px) }
+  to   { opacity: 1; transform: none }
+}
+.nav-children > a {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 34px;
+  padding: 0 10px;
+  border-radius: 14px;
+  color: var(--dim);
+  font-size: 12.5px;
+  font-weight: 450;
+  white-space: nowrap;
+  overflow: hidden;
+  transition: background-color .15s, color .15s, transform .12s;
+}
+.nav-children > a:hover { background: var(--hm-hover); color: var(--fg) }
+.nav-children > a:active { transform: translateX(1px) }   /* 按下微移 */
+.nav-children > a[aria-current="page"] {
+  background: color-mix(in srgb, var(--acc) 15%, transparent);
+  color: var(--acc);
+  font-weight: 600;
+}
+.nav-children > a .ui-icon { width: 16px; height: 16px; flex: 0 0 16px }
+
+/* ── 收起态（68px 图标轨）───────────────────────────────────
+   只显示一级项的图标；二级项与 chevron 隐藏。 */
+body:not(.hm-nav-expanded) .nav-chevron,
+body:not(.hm-nav-expanded) .nav-children { display: none }
+body:not(.hm-nav-expanded) .nav-parent[data-active] {
+  background: color-mix(in srgb, var(--acc) 15%, transparent);
+  color: var(--acc);
+}
+

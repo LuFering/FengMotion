@@ -1,0 +1,135 @@
+/* ── 参考片库：左侧导入/案例/画像，右侧按选中对象检查 ── */
+.rf { display: flex; flex-direction: column; gap: 12px; min-width: 0 }
+.rf-head { display: flex; align-items: center; flex-wrap: wrap; gap: 12px }
+.rf-head-copy { display: flex; flex-direction: column; gap: 3px }
+.rf-head-copy h2 { margin: 0; font-size: 16px; font-weight: 600 }
+.rf-head-copy p { margin: 0; color: var(--dim); font-size: 11px }
+.rf-summary { display: flex; align-items: center; gap: 10px; color: var(--dim); font-size: 10.5px }
+.rf-summary b { color: var(--fg); font-weight: 600 }
+.rf-summary > i { width: 1px; height: 13px; background: var(--line) }
+.rf-capability { display: flex; align-items: center; gap: 9px; padding: 7px 10px; background: color-mix(in srgb, var(--warn) 8%, var(--hole)); border-radius: 7px; color: var(--dim); font-size: 11px }
+.rf-capability > .ui-icon { width: 15px; height: 15px; flex: 0 0 auto; color: var(--warn) }
+.rf-capability > span { flex: 1 }
+.rf-capability > span b { color: var(--warn); font-weight: 600 }
+.rf-disabled, .rf-actions .mini[disabled] { opacity: 1; cursor: not-allowed; background: var(--hole); color: var(--ph); border: 1px dashed var(--line) }
+.rf-notice { padding: 7px 10px; background: var(--hole); color: var(--dim); border-radius: 6px; font-size: 11px }
+.rf-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, 370px); gap: 22px; align-items: start }
+.rf-library { min-width: 0 }
+.rf-section { padding: 12px 0 14px; border-top: 1px solid var(--line) }
+.rf-section-title { display: flex; align-items: center; gap: 9px; min-height: 24px; margin-bottom: 9px }
+.rf-section-title > b { font-size: 12px; font-weight: 600; color: var(--fg) }
+.rf-section-title > em { font-style: normal; font-size: 10.5px; color: var(--dim) }
+.rf-title-action { margin-left: auto }
+.rf-session-label, .rf-readonly { font-size: 10px; color: var(--ph) }
+.rf-toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 9px }
+.rf-filters { display: flex; gap: 3px }
+.rf-filters > button { display: inline-flex; align-items: center; gap: 5px; padding: 4px 8px; border: 0; border-radius: 5px; background: transparent; color: var(--dim); font: inherit; font-size: 10.5px; cursor: pointer }
+.rf-filters > button:hover { color: var(--fg); background: var(--hole) }
+.rf-filters > button[aria-pressed="true"] { color: var(--fg); background: var(--hole) }
+.rf-filters > button em { font-style: normal; font-size: 10px; color: var(--ph) }
+.rf-search { display: flex; align-items: center; gap: 6px; width: min(220px, 100%); padding: 5px 8px; background: var(--hole); border-radius: 6px; color: var(--ph) }
+.rf-search .ui-icon { width: 13px; height: 13px; flex: 0 0 auto }
+.rf-search input { min-width: 0; width: 100%; border: 0; outline: 0; color: var(--fg); background: transparent; font: inherit; font-size: 10.5px }
+.rf-search input::placeholder { color: var(--ph) }
+.rf-upload-zone { min-height: 76px; background: var(--hole); border-radius: 7px; transition: background .15s, outline-color .15s }
+.rf-upload-zone.is-drag { outline: 1px dashed var(--acc); outline-offset: 2px; background: color-mix(in srgb, var(--acc) 8%, var(--hole)) }
+.rf-upload-empty { display: flex; align-items: center; gap: 12px; min-height: 76px; padding: 12px 14px }
+.rf-upload-icon { display: grid; place-items: center; width: 30px; height: 30px; flex: 0 0 auto; border-radius: 6px; background: var(--hole); color: var(--dim) }
+.rf-upload-icon .ui-icon { width: 15px; height: 15px }
+.rf-upload-empty > div { flex: 1; min-width: 0 }
+.rf-upload-empty > div > b { font-size: 11.5px; font-weight: 600 }
+.rf-upload-empty > div > p { margin: 3px 0 0; color: var(--dim); font-size: 10.5px; line-height: 1.55 }
+.rf-upload-empty > .mini { flex: 0 0 auto }
+.rf-import-list { display: flex; flex-direction: column; gap: 2px; padding: 5px }
+.rf-import-row { display: grid; grid-template-columns: 92px minmax(0, 1fr) auto; align-items: center; gap: 10px; width: 100%; padding: 5px; border: 1px solid transparent; border-radius: 6px; background: transparent; color: var(--fg); text-align: left; cursor: pointer }
+.rf-import-row:hover, .rf-import-row[aria-current="true"] { background: var(--surf); border-color: var(--line) }
+.rf-import-thumb { position: relative; display: block; aspect-ratio: 16/9; overflow: hidden; border-radius: 4px; background: var(--bg) }
+.rf-import-thumb video { width: 100%; height: 100%; display: block; object-fit: cover }
+.rf-import-thumb i { position: absolute; left: 4px; bottom: 3px; padding: 1px 4px; border-radius: 3px; background: #0c0c0ccc; color: var(--dim); font-size: 8.5px; font-style: normal }
+.rf-import-copy { display: flex; flex-direction: column; gap: 3px; min-width: 0 }
+.rf-import-copy b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; font-weight: 550 }
+.rf-import-copy em { color: var(--ph); font-size: 10px; font-style: normal }
+.rf-state { white-space: nowrap; color: var(--warn); font-size: 10px }
+.rf-state[data-state="停用"] { color: var(--ph) }
+.rf-add-more { display: flex; align-items: center; justify-content: center; gap: 5px; width: 100%; min-height: 29px; margin-top: 3px; border: 1px dashed var(--line); border-radius: 5px; background: transparent; color: var(--dim); font: inherit; font-size: 10.5px; cursor: pointer }
+.rf-add-more .ui-icon { width: 12px; height: 12px }
+.rf-count { padding: 5px 2px 0; color: var(--ph); font-size: 10px }
+.rf-section-note { margin: -3px 0 8px; color: var(--dim); font-size: 10.5px; line-height: 1.55 }
+.rf-case-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px }
+.rf-case-card { display: flex; flex-direction: column; min-width: 0; padding: 0; overflow: hidden; border: 1px solid transparent; border-radius: 7px; background: var(--hole); color: var(--fg); text-align: left; cursor: pointer }
+.rf-case-card:hover, .rf-case-card[aria-current="true"] { border-color: var(--acc); background: var(--surf) }
+.rf-case-poster { position: relative; display: block; aspect-ratio: 16/9; overflow: hidden; background: var(--bg) }
+.rf-case-poster img { width: 100%; height: 100%; display: block; object-fit: cover }
+.rf-case-poster > em { position: absolute; left: 6px; top: 6px; padding: 2px 5px; border-radius: 3px; background: #0c0c0cd9; color: var(--fg); font-size: 9px; font-style: normal }
+.rf-case-body { display: flex; flex-direction: column; gap: 3px; min-width: 0; padding: 7px 8px 8px }
+.rf-case-body > b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11.5px; font-weight: 600 }
+.rf-case-body > em, .rf-case-body > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--dim); font-size: 9.5px; font-style: normal }
+.rf-case-body > i { color: var(--ok); font-size: 9.5px; font-style: normal }
+.rf-case-empty { padding: 12px; color: var(--dim); font-size: 10.5px }
+.rf-profile-list { display: flex; flex-direction: column; gap: 2px }
+.rf-profile-row { display: grid; grid-template-columns: 28px minmax(130px, 1fr) minmax(0, 1.3fr) 14px; align-items: center; gap: 9px; width: 100%; padding: 7px 8px; border: 1px solid transparent; border-radius: 5px; background: transparent; color: var(--fg); text-align: left; cursor: pointer }
+.rf-profile-row:hover, .rf-profile-row[aria-current="true"] { background: var(--hole); border-color: var(--line) }
+.rf-profile-mark { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 5px; background: var(--hole); color: var(--dim) }
+.rf-profile-mark .ui-icon { width: 14px; height: 14px }
+.rf-profile-copy { display: flex; flex-direction: column; gap: 2px; min-width: 0 }
+.rf-profile-copy b { font-size: 10.5px; font-weight: 600 }
+.rf-profile-copy em { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--dim); font-size: 9.5px; font-style: normal }
+.rf-profile-metrics { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ph); font-size: 9.5px }
+.rf-chevron { width: 13px; height: 13px; color: var(--ph) }
+.rf-inspector { position: sticky; top: 0; display: flex; flex-direction: column; gap: 9px; min-width: 0; max-height: calc(100vh - 92px); overflow: auto; padding: 11px 12px; background: var(--hole); border-radius: 8px; scrollbar-width: thin }
+.rf-inspector > .rf-section-title { border-bottom: 1px solid var(--line); padding-bottom: 8px; margin-bottom: 0 }
+.rf-inspector-title { margin: 2px 0 0; font-size: 14px; font-weight: 600; overflow-wrap: anywhere }
+.rf-source-line { margin: -5px 0 2px; color: var(--dim); font-size: 10px }
+.rf-video-preview { position: relative; display: grid; place-items: center; width: 100%; aspect-ratio: 16/9; overflow: hidden; border-radius: 6px; background: var(--bg) }
+.rf-video-preview > video, .rf-video-preview > img { width: 100%; height: 100%; object-fit: contain; display: block }
+.rf-case-preview > img { object-fit: cover }
+.rf-case-preview > em { position: absolute; left: 7px; bottom: 6px; padding: 2px 5px; border-radius: 4px; background: #0c0c0cd9; color: var(--fg); font-size: 9px; font-style: normal }
+.rf-facts, .rf-metric-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px 10px; margin: 0 }
+.rf-facts > div, .rf-metric-list > div { display: flex; flex-direction: column; gap: 2px; min-width: 0 }
+.rf-facts dt, .rf-metric-list dt { color: var(--ph); font-size: 9.5px }
+.rf-facts dd, .rf-metric-list dd { margin: 0; overflow-wrap: anywhere; color: var(--fg); font-size: 10.5px; line-height: 1.4 }
+.rf-inline-note { margin: -3px 0 0; color: var(--ph); font-size: 9.5px; line-height: 1.5 }
+.rf-projects { display: flex; flex-direction: column; gap: 6px; border-top: 1px solid var(--line); padding-top: 8px }
+.rf-projects-hd { display: flex; align-items: baseline; justify-content: space-between; gap: 7px }
+.rf-projects-hd b { font-size: 10.5px; font-weight: 600 }
+.rf-projects-hd span { color: var(--ph); font-size: 9px }
+.rf-projects-list { display: flex; flex-wrap: wrap; gap: 4px }
+.rf-projects-list button { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; padding: 3px 6px; border: 1px solid var(--line); border-radius: 4px; background: transparent; color: var(--dim); font: inherit; font-size: 9px; cursor: pointer }
+.rf-projects-list button[aria-pressed="true"] { border-color: var(--acc); color: var(--fg); background: color-mix(in srgb, var(--acc) 9%, transparent) }
+.rf-projects-list button:disabled { cursor: not-allowed; opacity: .5 }
+.rf-projects-list .ui-icon { width: 11px; height: 11px }
+.rf-actions { display: flex; flex-wrap: wrap; gap: 5px; border-top: 1px solid var(--line); padding-top: 8px }
+.rf-inspector-section { display: flex; flex-direction: column; gap: 7px; border-top: 1px solid var(--line); padding-top: 8px }
+.rf-inspector-section .rf-section-title { margin: 0 }
+.rf-inspector-section .rf-section-title b { font-size: 10.5px }
+.rf-evidence-link { display: grid; grid-template-columns: 62px minmax(0, 1fr) 12px; align-items: center; gap: 7px; color: var(--fg); text-decoration: none; font-size: 9.5px }
+.rf-evidence-link img { width: 62px; height: 42px; object-fit: cover; border-radius: 4px; background: var(--bg) }
+.rf-evidence-link .ui-icon { width: 12px; height: 12px; color: var(--dim) }
+.rf-method-lead { margin: 0; color: var(--dim); font-size: 10px; line-height: 1.45 }
+.rf-method-steps { display: flex; flex-direction: column; gap: 5px; margin: 0; padding: 0; list-style: none }
+.rf-method-steps li { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 6px; align-items: start }
+.rf-method-steps li > i { color: var(--acc); font-size: 9.5px; font-style: normal }
+.rf-method-steps li > span { display: flex; flex-direction: column; gap: 1px }
+.rf-method-steps b { font-size: 9.5px; font-weight: 600 }
+.rf-method-steps em { color: var(--dim); font-size: 9px; font-style: normal; line-height: 1.4 }
+.rf-profile-cover { display: flex; align-items: center; justify-content: center; gap: 10px; aspect-ratio: 16/7; background: var(--bg); color: var(--dim); font-size: 10px; text-align: center }
+.rf-profile-cover .ui-icon { width: 22px; height: 22px }
+.rf-traits { margin: 0; padding-left: 15px; color: var(--dim); font-size: 10px; line-height: 1.6 }
+.rf-inspector-empty { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 20px 3px; color: var(--dim) }
+.rf-inspector-empty .ui-icon { width: 20px; height: 20px }
+.rf-inspector-empty b { color: var(--fg); font-size: 11.5px }
+.rf-inspector-empty p { margin: 0; font-size: 10px; line-height: 1.5 }
+@media (max-width: 1180px) { .rf-layout { grid-template-columns: minmax(0, 1fr) } .rf-inspector { position: static; max-height: none } }
+
+.rf-local-tabs { display: flex; gap: 4px; padding: 3px; margin: 0 0 10px; width: fit-content; border-radius: 7px; background: var(--hole) }
+.rf-local-tabs > button { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border: 0; border-radius: 5px; background: transparent; color: var(--dim); font: inherit; font-size: 10.5px; cursor: pointer }
+.rf-local-tabs > button[aria-selected="true"] { background: var(--hole); color: var(--fg) }
+.rf-local-tabs > button > em { font-style: normal; color: var(--ph); font-size: 9.5px }
+.rf-import-footer { margin-top: 12px; color: var(--ph); font-size: 10px }
+.rf-head > .mini-strong { white-space: nowrap; flex: 0 0 auto; min-width: max-content; padding-inline: 12px }
+.rf-head > .mini-strong > .ui-icon { flex: 0 0 auto }
+.rf-import-footer { color: var(--dim) }
+.rf-inspector-empty { min-height: 150px; justify-content: center }
+.rf-facts + .rf-inspector-section { margin-top: 2px }
+@media (max-width: 1180px) { .rf-layout { grid-template-columns: minmax(0, 1fr) } .rf-inspector { position: static; max-height: none } }
+@media (max-width: 720px) { .rf-case-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) } .rf-summary { flex-wrap: wrap } .rf-profile-row { grid-template-columns: 28px minmax(0, 1fr) 14px } .rf-profile-metrics { grid-column: 2 / 3 } }

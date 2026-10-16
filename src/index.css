@@ -1,0 +1,100 @@
+@import "tailwindcss";
+@import "./styles/paba/app-slim.css";
+@import "./styles/nav-tree.css";
+@import "./styles/settings.css";
+@import "./styles/brand.css";
+@import "./styles/fm-components.css";
+@import "./styles/home.css";
+@import "./styles/workbench.css";
+@import "./styles/project.css";
+@import "./styles/center.css";
+@import "./styles/release.css";
+@import "./styles/audio.css";
+@import "./styles/knowledge.css";
+@import "./styles/assets.css";
+@import "./styles/technique.css";
+@import "./styles/reference.css";
+@import "./styles/reference-empty.css";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fontsource-variable/geist";
+
+@custom-variant dark (&:is(.dark *));
+
+/* ═══════════════════════════════════════════════════════════════
+   FengMotion · 设计系统
+
+   直接取自 paba.tv 的真实样式表（已抓到源码，非猜测）。
+
+   ── 两套 token ──────────────────────────────────────────────
+   ① 基础层：--bg / --surf / --hole / --line / --fg / --dim
+      用于工作台这类「工具面板」界面。
+
+   ② 纸层 --ht-*：首页用。它不是「面板 + 边框」，
+      而是**纸 + 墨 + 凸起/压下**：
+        --ht-paper      纸面
+        --ht-paper-back 纸背（更深）
+        --ht-edge       纸边（比普通 line 亮）
+        --ht-ink        墨色（首页是紫的，即「笔」的颜色）
+        --ht-raised     纸浮起（外阴影 + 内高光双层）
+        --ht-pressed    按下去（内凹阴影）
+        --ht-rim        纸边高光
+      ⚠️ 这是上一版抄漏的核心。卡片必须有阴影层次，
+         按钮必须是胶囊，主按钮的字必须是深色（--on-accent）。
+   ═══════════════════════════════════════════════════════════════ */
+
+/* 变量全部来自 paba 的 app.css（:root 浅色 / html[data-theme=dark] 深色）。
+   本文件不再自造变量 —— 上一版自造的那套与 paba 冲突，已删除。 */
+
+@theme inline {
+  --font-sans: -apple-system, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  --font-mono: ui-monospace, Consolas, monospace;
+  --font-serif: "Songti SC", SimSun, serif;
+
+  /* 全部指向 paba app.css 的变量 */
+  --color-bg:     var(--bg);
+  --color-surf:   var(--surf);
+  --color-hole:   var(--hole);
+  --color-soft:   var(--soft);
+  --color-line:   var(--line);
+  --color-fg:     var(--fg);
+  --color-dim:    var(--dim);
+  --color-hint:   var(--hint);
+  --color-ph:     var(--ph);
+  --color-acc:    var(--acc);
+  --color-accd:   var(--acc-d);
+  --color-warn:   var(--warn);
+  --color-bad:    var(--bad);
+  --color-good:   var(--ok);
+  --color-htviolet: var(--ht-violet);
+  --color-htgreen:  var(--ht-green);
+  --color-htgold:   var(--ht-gold);
+  --color-htblue:   var(--ht-blue);
+  --color-htred:    var(--ht-red);
+
+  /* shadcn 映射 */
+  --color-background:         var(--bg);
+  --color-foreground:         var(--fg);
+  --color-card:               var(--surf);
+  --color-card-foreground:    var(--fg);
+  --color-popover:            var(--surf);
+  --color-popover-foreground: var(--fg);
+  --color-primary:            var(--acc);
+  --color-primary-foreground: var(--on-accent);
+  --color-secondary:          var(--hole);
+  --color-secondary-foreground: var(--fg);
+  --color-muted:              var(--hole);
+  --color-muted-foreground:   var(--dim);
+  --color-accent:             var(--soft);
+  --color-accent-foreground:  var(--fg);
+  --color-border:             var(--line);
+  --color-input:              var(--line);
+  --color-ring:               var(--acc);
+  --color-destructive:        var(--bad);
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+}
+

@@ -1,0 +1,16 @@
+<!doctype html>
+<!-- ⚠️ data-theme 必须静态写在 <html> 上：
+     paba 的变量选择器是 html[data-theme=dark]，
+     用 React useEffect 设置会在首屏 CSS 求值之后才生效。 -->
+<html lang="zh-CN" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FengMotion · 创作空间</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

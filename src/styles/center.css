@@ -1,0 +1,341 @@
+/* ═══════════════════════════════════════════════════════════════
+   项目指挥中心 —— 一比一复刻《项目总览示范 6》参考实现（callour-studio）
+   结构：1440×827 定版画布 + 整体 scale 适配；面板/卡片/文字规格全部
+   取自参考源码（app 底 #000801 · 面板 #121617 · 卡 #272b2c · 酸绿 #a0f27a）。
+   词表纪律：本文件自带色值（画布是独立皮肤），不混用 paba 变量。
+   ═══════════════════════════════════════════════════════════════ */
+
+/* 该视图全出血：hm-main/hm-content 的默认内边距归零，ProjectBar 成为
+   画布上方的唯一顶栏（同 assets.css 的 :has 全出血先例） */
+.hm-main:has(.pjz-wrap) { padding: 0 !important; background: #000801 }
+.hm-content[data-view="project"] { padding: 0 !important; max-width: none; margin: 0 }
+.hm-content[data-view="project"] .pj-bar {
+  margin: 0; padding: 9px 18px;
+  border-bottom: 1px solid #1d2122;
+  background: #000801;
+}
+
+.pjz-wrap {
+  flex: 1 1 0; min-height: 420px;
+  position: relative; overflow: hidden;
+  display: grid; place-items: center;
+  background: #000801;
+}
+.pjz {
+  position: relative; flex: none;
+  width: 1440px; height: 827px;
+  background: #000801; color: #fff;
+  font-family: 'Geist Variable', ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+.pjz, .pjz * { box-sizing: border-box }
+.pjz .spacer { flex: 1 1 auto }
+
+/* 通用面板（参考实现 rounded-[10px] bg-panel） */
+.pjz-panel {
+  position: relative; border-radius: 10px;
+  background: #121617; overflow: hidden;
+}
+
+/* ── 左栏（235×753 @ 13,65）────────────────────────────────── */
+.pjz-side-in { position: absolute; left: 8px; right: 8px; top: 20px; bottom: 70px; overflow: hidden auto; scrollbar-width: none }
+.pjz-side-in::-webkit-scrollbar { display: none }
+.pjz-sec { margin-bottom: 10px }
+.pjz-sechd {
+  display: flex; align-items: center; gap: 6px;
+  height: 14px; margin: 0 0 12px; padding: 0 0 0 12px;
+  border: 0; background: 0 0; cursor: pointer; user-select: none;
+  font: inherit; font-size: 11px; line-height: 14px; letter-spacing: .2px;
+  text-transform: uppercase; color: #a3a6a8;
+}
+.pjz-sechd:hover { color: #c4c6c7 }
+.pjz-sechd-c { transition: transform .15s }
+.pjz-sechd-c.is-open { transform: rotate(0deg) }
+.pjz-sechd-c:not(.is-open) { transform: rotate(-90deg) }
+.pjz-hr { display: block; height: 1px; margin: 12px 4px; background: #1d2122 }
+
+/* 树行（单元筛选）：选中 = 参考图同款 #2a2e30 圆角条 */
+.pjz-tree {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%; height: 31px; padding: 0 10px 0 14px;
+  border: 0; border-radius: 8px; background: 0 0; cursor: pointer;
+  font: inherit; font-size: 13px; line-height: 18px; color: #c4c6c7; text-align: left;
+}
+.pjz-tree:hover { background: #202425; color: #fff }
+.pjz-tree[aria-pressed="true"] { background: #2a2e30; color: #fff }
+.pjz-tree > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.pjz-fico { flex: 0 0 auto }
+
+/* 普通行（子视图 / 项目）：paba 图标 + 右侧 go 箭头 */
+.pjz-row {
+  display: flex; align-items: center; gap: 9px;
+  width: 100%; height: 31px; padding: 0 10px 0 14px;
+  border: 0; border-radius: 8px; background: 0 0; cursor: pointer;
+  font: inherit; font-size: 13px; line-height: 18px; color: #c4c6c7; text-align: left;
+}
+.pjz-row:hover { background: #202425; color: #fff }
+.pjz-row[disabled] { color: #66716b; cursor: not-allowed }
+.pjz-row[disabled]:hover { background: 0 0 }
+.pjz-row > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.pjz-row-ic { width: 17px; height: 17px; color: #a3a6a8 }
+.pjz-row:hover .pjz-row-ic { color: #c4c6c7 }
+.pjz-row-go { color: #9a9c9e }
+
+/* 左栏底部：项目名 + 已定稿进度（真实计数；参考图此处是存储容量） */
+.pjz-side-ft { position: absolute; left: 15px; right: 17px; bottom: 16px }
+.pjz-side-ft-row { display: flex; align-items: center; gap: 9px; min-width: 0 }
+.pjz-ft-ic { color: #a3a6a8; flex: 0 0 auto }
+.pjz-ft-name {
+  font-size: 12.5px; line-height: 18px; color: #b4b6b8;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.pjz-ft-bar { display: block; height: 4px; margin-top: 8px; border-radius: 999px; background: #2d3133; overflow: hidden }
+.pjz-ft-bar > b { display: block; height: 100%; border-radius: 999px; background: #7d8183 }
+
+/* ── 播放器（757×297 @ 252,65）─────────────────────────────── */
+.pjz-stage { cursor: default }
+.pjz-video {
+  position: absolute; left: 0; top: 0;
+  width: 100%; height: 257px;
+  object-fit: contain; background: #000; display: block; cursor: pointer;
+}
+/* 进度条：4px 绿条 + 白色 6×8 播放头（上下留 18px 命中区，可点可拖） */
+.pjz-pbar { position: absolute; left: 0; right: 0; top: 250px; height: 18px; cursor: pointer; touch-action: none }
+.pjz-pbar-track { position: absolute; left: 0; right: 0; bottom: 5px; height: 4px; background: #3b3d3d }
+.pjz-pbar-track > b { display: block; height: 100%; background: #a0f27a }
+.pjz-playhead {
+  position: absolute; bottom: 3px; width: 6px; height: 8px;
+  border-radius: 3px; background: #fff; pointer-events: none;
+}
+.pjz-ctl {
+  position: absolute; left: 12px; right: 12px; top: 271px; height: 22px;
+  display: flex; align-items: center; gap: 11px;
+}
+.pjz-ctlbtn {
+  display: grid; place-items: center; width: 20px; height: 22px; padding: 0;
+  border: 0; background: 0 0; color: #fff; cursor: pointer;
+}
+.pjz-ctlbtn:hover { color: #a0f27a }
+.pjz-ctlbtn[aria-pressed="true"] { color: #a0f27a }
+.pjz-vol { display: grid; place-items: center; width: 20px; height: 22px; color: #7c8082; cursor: not-allowed }
+.pjz-time { font-size: 15px; line-height: 20px; color: #fff; font-variant-numeric: tabular-nums; white-space: nowrap }
+.pjz-time > em { font-style: normal; color: #7c8082 }
+.pjz-rate {
+  border: 0; background: 0 0; padding: 0; cursor: pointer;
+  font: inherit; font-size: 15px; line-height: 20px; color: #fff; font-variant-numeric: tabular-nums;
+}
+.pjz-rate:hover { color: #a0f27a }
+.pjz-res {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 24px; height: 11px; padding: 0 2px;
+  border-radius: 2px; background: #fff; color: #000;
+  font-size: 7px; font-weight: 700; line-height: 10px; letter-spacing: .2px;
+}
+
+/* ── 中栏下：单元合集 + 单元网格（757×452 @ 252,366）────────── */
+.pjz-tools { position: absolute; left: 12px; right: 12px; top: 13px; display: flex; align-items: center; gap: 8px }
+.pjz-tool-ic { color: #d9dbdc }
+.pjz-addbtn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+  height: 29px; padding: 0 13px;
+  border: 0; border-radius: 9px; background: #25292a; cursor: pointer;
+  font: inherit; font-size: 12.5px; color: #fff;
+}
+.pjz-addbtn:hover { background: #303536 }
+
+/* 分组头（参考图 FOLDERS/FOOTAGE 行） */
+.pjz-ghead { position: absolute; left: 13px; right: 12px; display: flex; align-items: center; gap: 7px }
+.pjz-ghead-c { color: #a3a6a8 }
+.pjz-ghead-t { font-size: 11px; line-height: 14px; letter-spacing: .3px; text-transform: uppercase; color: #a3a6a8 }
+.pjz-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 15px; height: 13px; padding: 0 4px;
+  border-radius: 999px; background: #383c3d;
+  font-size: 9.5px; line-height: 13px; font-weight: 500; color: #c9cbcc;
+}
+.pjz-ghead-sub { margin-left: 4px; font-size: 11px; line-height: 14px; color: #6b6f71 }
+
+/* 合集卡（4 张 176×163，封面 116 + 名称 + 计数） */
+.pjz-folders { position: absolute; left: 10px; right: 12px; top: 78px; display: flex; gap: 10px }
+.pjz-foldcard {
+  position: relative; flex: 0 0 auto; width: 176px; height: 163px;
+  border: 0; border-radius: 9px; background: #272b2c; overflow: hidden;
+  cursor: pointer; text-align: left; padding: 0; font: inherit;
+}
+.pjz-foldcard:hover { background: #2d3233 }
+.pjz-foldcard[aria-pressed="true"] { outline: 1.5px solid #a0f27a; outline-offset: -1.5px }
+.pjz-foldcover { position: absolute; left: 0; top: 0; width: 100%; height: 116px; background: #000 }
+.pjz-foldcover img { width: 100%; height: 100%; object-fit: cover; display: block }
+.pjz-fold-ph {
+  display: grid; place-items: center; width: 100%; height: 100%;
+  background: repeating-linear-gradient(135deg, #10141a 0 7px, #171b21 7px 8px);
+  font-style: normal; font-size: 10px; color: #6b6f71;
+}
+.pjz-foldcard > b {
+  position: absolute; left: 8px; top: 119px; right: 8px;
+  font-size: 14px; font-weight: 600; line-height: 18px; color: #fff;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.pjz-foldcard > em { position: absolute; left: 8px; top: 140px; font-style: normal; font-size: 12px; line-height: 16px; color: #8b8f91 }
+
+/* 单元网格：4 列 173px，超出面板高度内部滚动 */
+.pjz-fscroll {
+  position: absolute; left: 12px; right: 12px; top: 286px; bottom: 6px;
+  overflow-y: auto; scrollbar-width: thin; scrollbar-color: #2f3436 transparent;
+}
+.pjz-fscroll::-webkit-scrollbar { width: 8px }
+.pjz-fscroll::-webkit-scrollbar-thumb { border-radius: 4px; background: #2f3436 }
+.pjz-fscroll::-webkit-scrollbar-track { background: transparent }
+.pjz-fgrid { display: flex; flex-wrap: wrap; column-gap: 13px; row-gap: 10px; padding: 2px }
+.pjz-fcard {
+  position: relative; flex: 0 0 auto; width: 173px; height: 160px;
+  border: 0; border-radius: 9px; background: #282c2d; overflow: hidden;
+  cursor: pointer; text-align: left; padding: 0; font: inherit;
+  scroll-margin: 12px;
+}
+.pjz-fcard:hover { background: #2e3334 }
+.pjz-fcard[data-sel] { outline: 1.5px solid #9fe57a; outline-offset: -1.5px }
+.pjz-fthumb { position: absolute; left: 0; top: 0; width: 100%; height: 98px; background: #000 }
+.pjz-fthumb img { width: 100%; height: 100%; object-fit: cover; display: block }
+.pjz-fthumb-ph {
+  display: grid; place-items: center; width: 100%; height: 100%;
+  background: repeating-linear-gradient(135deg, #10141a 0 7px, #171b21 7px 8px);
+  font-style: normal; font-size: 10px; color: #6b6f71;
+}
+.pjz-check {
+  position: absolute; left: 8px; top: 8px;
+  display: grid; place-items: center; width: 16px; height: 16px;
+  border: 1.5px solid rgba(201, 203, 204, .8); border-radius: 4px;
+  background: rgba(0, 0, 0, .28); color: #0a130a;
+  font-style: normal; font-size: 10px; font-weight: 700; line-height: 1;
+  opacity: 0; transition: opacity .12s;
+}
+.pjz-fcard:hover .pjz-check { opacity: .9 }
+.pjz-fcard[data-sel] .pjz-check { opacity: 1; background: #a0f27a; border-color: #a0f27a }
+.pjz-fcard > b {
+  position: absolute; left: 6px; top: 111px; width: 166px;
+  font-size: 11px; font-weight: 600; line-height: 16px; color: #fff;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.pjz-fmeta {
+  position: absolute; left: 6px; top: 134px; width: 166px;
+  font-size: 11px; line-height: 16px; color: #8b8f91;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* ── 右上：单元摘要（368×370 @ 1013,65）────────────────────── */
+.pjz-ai-hd { position: absolute; left: 16px; top: 15px; display: flex; align-items: center; gap: 6px }
+.pjz-ai-spark { color: #a0f27a }
+.pjz-ai-hd > b { font-size: 11px; font-weight: 500; line-height: 14px; letter-spacing: .2px; text-transform: uppercase; color: #a0f27a }
+.pjz-ai-src { margin-left: 4px; font-size: 10px; color: #66716b }
+.pjz-ai-list {
+  position: absolute; left: 10px; right: 4px; top: 43px; bottom: 8px;
+  overflow-y: auto; scrollbar-width: thin; scrollbar-color: #2f3436 transparent;
+  padding: 2px 6px 60px 2px;
+}
+.pjz-ai-list::-webkit-scrollbar { width: 8px }
+.pjz-ai-list::-webkit-scrollbar-thumb { border-radius: 4px; background: #2f3436 }
+.pjz-ai-list::-webkit-scrollbar-track { background: transparent }
+.pjz-ai-item {
+  display: block; width: 100%; padding: 9px 8px 10px;
+  border: 0; border-radius: 8px; background: 0 0; cursor: pointer;
+  font: inherit; color: inherit; text-align: left;
+}
+.pjz-ai-item:hover { background: #191d1e }
+.pjz-ai-item[data-cur] { background: #1d2122 }
+.pjz-ai-top { display: flex; gap: 9px }
+.pjz-ai-thumb {
+  display: grid; place-items: center; flex: 0 0 auto;
+  width: 71px; height: 40px; border-radius: 4px; overflow: hidden; background: #000;
+}
+.pjz-ai-thumb img { width: 100%; height: 100%; object-fit: cover; display: block }
+.pjz-ai-thumb > i { font-style: normal; font-size: 9px; color: #6b6f71 }
+.pjz-ai-hd { display: flex; flex-direction: column; gap: 4px; min-width: 0 }
+.pjz-ai-hd > b { font-size: 14px; font-weight: 500; line-height: 18px; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.pjz-chips { display: flex; gap: 6px }
+.pjz-chips > i, .pjz-chip {
+  display: inline-block; padding: 0 4px; border-radius: 4px; background: #25292a;
+  font-style: normal; font-size: 12px; line-height: 17px; color: #e2e3e4;
+  font-variant-numeric: tabular-nums;
+}
+.pjz-ai-item > p {
+  margin: 9px 0 0;
+  font-size: 12px; line-height: 16px; color: #b9bbbd;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
+.pjz-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 9px }
+.pjz-tag {
+  display: inline-block; padding: 0 3px; border: 1px solid #3a3e40; border-radius: 4px;
+  font-style: normal; font-size: 10px; line-height: 14px; letter-spacing: -.2px; color: #a3a6a8;
+}
+.pjz-tag-warn { color: #e0a64b; border-color: color-mix(in srgb, #e0a64b 45%, transparent) }
+.pjz-ai-fade {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 55px;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(18, 22, 23, 0) 0%, rgba(18, 22, 23, .92) 82%);
+}
+
+/* ── 右下：备注（368×378 @ 1013,440）───────────────────────── */
+.pjz-cmt-hd { position: absolute; left: 12px; right: 12px; top: 12px; display: flex; align-items: center; gap: 7px }
+.pjz-cmt-hd > b { font-size: 11.5px; font-weight: 500; line-height: 14px; letter-spacing: .2px; text-transform: uppercase; color: #a3a6a8 }
+.pjz-cmt-src { font-size: 10px; color: #66716b }
+.pjz-cmt-list {
+  position: absolute; left: 6px; right: 6px; top: 40px; bottom: 78px;
+  overflow-y: auto; scrollbar-width: thin; scrollbar-color: #2f3436 transparent;
+  padding: 0 6px;
+}
+.pjz-cmt-list::-webkit-scrollbar { width: 8px }
+.pjz-cmt-list::-webkit-scrollbar-thumb { border-radius: 4px; background: #2f3436 }
+.pjz-cmt-list::-webkit-scrollbar-track { background: transparent }
+.pjz-cmt-item {
+  display: flex; gap: 9px; width: 100%; padding: 8px;
+  border: 0; border-radius: 8px; background: 0 0; cursor: pointer;
+  font: inherit; color: inherit; text-align: left;
+}
+.pjz-cmt-item:hover { background: #191d1e }
+.pjz-ava {
+  display: grid; place-items: center; flex: 0 0 auto; margin-top: 2px;
+  width: 27px; height: 27px; border-radius: 50%; background: #383c3d;
+  font-style: normal; font-size: 8.5px; font-weight: 600; color: #cfd1d2;
+}
+.pjz-cmt-body { display: flex; flex-direction: column; min-width: 0 }
+.pjz-cmt-name { font-size: 13px; line-height: 18px; color: #e6e7e8 }
+.pjz-cmt-name > em { font-style: normal; font-size: 11px; color: #76797b }
+.pjz-cmt-text { margin-top: 3px; font-size: 13px; line-height: 20px; color: #eeefef; overflow-wrap: anywhere }
+.pjz-cmt-text .pjz-chip { margin-right: 6px }
+/* 备注输入：需要落盘（未接入）→ 整块置灰写明，不做假输入 */
+.pjz-cmt-input {
+  position: absolute; left: 6px; right: 6px; bottom: 7px; height: 56px;
+  display: flex; align-items: center; gap: 8px; padding: 0 6px 0 12px;
+  border: 1px solid #1c2021; border-radius: 8px; background: #030605;
+}
+.pjz-cmt-input > input {
+  flex: 1; min-width: 0; border: 0; background: 0 0; outline: 0;
+  font: inherit; font-size: 11px; color: #8a8d8f; cursor: not-allowed;
+}
+.pjz-cmt-input > input::placeholder { color: #8a8d8f }
+.pjz-cmt-input > button {
+  display: grid; place-items: center; flex: 0 0 auto;
+  width: 26px; height: 26px; border-radius: 50%;
+  border: 1px solid #3a3e40; background: #25292a; color: #d9dbdc; opacity: .45;
+}
+
+/* ── 最右图标工具栏（@ right 13, top 67；每个按钮都是真动作）── */
+.pjz-rail {
+  position: absolute; right: 13px; top: 67px; z-index: 5;
+  display: flex; flex-direction: column; align-items: center; gap: 11px;
+}
+.pjz-rail > button {
+  display: grid; place-items: center; flex: 0 0 auto;
+  width: 31px; height: 31px; padding: 0;
+  border: 0; border-radius: 8px; background: #252928; color: #e9eaea; cursor: pointer;
+}
+.pjz-rail > button:hover { background: #303536; color: #fff }
+.pjz-rail > button[aria-pressed="true"] { color: #a0f27a }
+.pjz-rail-go { background: #a0f57d !important; color: #08110a !important }
+.pjz-rail-go:hover:not(:disabled) { background: #b1f98f !important; color: #08110a !important }
+.pjz-rail-go:disabled {
+  background: #1d2122 !important; color: #66716b !important;
+  border: 1px dashed #3a3e40; cursor: not-allowed;
+}
+.pjz-rail-sep { width: 27px; height: 1px; background: #1f2422 }

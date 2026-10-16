@@ -1,0 +1,443 @@
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { PRODUCTION_FACTS, STORYBOARD } from '@/data/productionData'
+import { ACTIVE_DURATION, ACTIVE_TIMELINE } from '@/data/timeline'
+import { statusOf } from '@/shell/status'
+import { RATES, charsOf, durOf, readout } from '@/data/voiceTiming'
+import type { ProjectSummary } from '@/data/projects'
+
+function Icon({ name, className = 'ui-icon' }: { name: string; className?: string }) {
+  return (
+    <svg className={className} aria-hidden="true">
+      <use href={`/assets/paba-icons.svg#${name}`} />
+    </svg>
+  )
+}
+
+/**
+ * 时序校验（原「音频与时间」）—— 版式照《音频示范》复刻，四段式：
+ *   ① 顶部工具栏：项目名 + 轨开关胶囊 + 语速 + 右侧蓝色实心按钮
+ *   ② 工作区：左 = 转写式列表（成片剪辑逐条，含时间码 / 旁白 / 口播读数）
+ *             右 = 成片预览（真实视频：播放/进度/音量，点击列表条目会跳过去）
+ *   ③ 时间线：工具行（开头/末尾/空档导航/缩放）+ 刻度 + 成片轨 + V3 脚本轨 + 播放头
+ *   ④ 底部状态栏：撤消/重做（无栈可撤 → 置灰）+ 警告计数 + 音量/缩放
+ *
+ * ⚠️ 数据真实性：
+ *   · 视频 = 成片本身 /media/token-full-legacy.mp4（152s，能真切能播）。
+ *   · 两轴同比例尺（0→273.6s）：成片占前 152s，V3 脚本铺到 253s —— 并排看，不硬叠。
+ *   · 波形需要解码音频，浏览器端没做 → 片段不画波形，不拿假波形凑。
+ *   · ASR 未接入：不做"念没念错"的判断，只做时长读数（需 vs 给）。
+ */
+const FILM = '/media/token-full-legacy.mp4'
+
+function fmt(t: number) {
+  const m = Math.floor(t / 60), s = t % 60
+  return `${String(m).padStart(2, '0')}:${s.toFixed(1).padStart(4, '0')}`
+}
+
+export function AudioTime({ project }: { project: ProjectSummary }) {
+  const [play, setPlay] = useState(false)
+  const [t, setT] = useState(0)
+  const [rate, setRate] = useState<number>(4.5)
+  const [zoom, setZoom] = useState(1)
+  const [vol, setVol] = useState(1)
+  const [muted, setMuted] = useState(false)
+  const [showFilm, setShowFilm] = useState(true)
+  const [showV3, setShowV3] = useState(true)
+  const [selId, setSelId] = useState<string | null>(null)
+  const [notice, setNotice] = useState('')
+  const video = useRef<HTMLVideoElement | null>(null)
+
+  const say = (msg: string) => {
+    setNotice(msg)
+    window.setTimeout(() => setNotice(''), 3200)
+  }
+
+  useEffect(() => {
+    const v = video.current
+    if (!v) return
+    const onTime = () => setT(v.currentTime)
+    const onEnd = () => setPlay(false)
+    v.addEventListener('timeupdate', onTime)
+    v.addEventListener('ended', onEnd)
+    return () => { v.removeEventListener('timeupdate', onTime); v.removeEventListener('ended', onEnd) }
+  }, [project.planned])
+
+  useEffect(() => { if (video.current) video.current.volume = vol }, [vol])
+  useEffect(() => { if (video.current) video.current.muted = muted }, [muted])
+  // ⚠️ 数据事实：成片文件（token-full-legacy.mp4）里没有音频流（ffmpeg -vn 后无任何流，
+  //    2026-10-16 核对）。所以这条页面不画波形 —— 没有音频，画了就是假的。
+
+  const toggle = () => {
+    const v = video.current
+    if (!v) return
+    if (v.paused) { void v.play(); setPlay(true) } else { v.pause(); setPlay(false) }
+  }
+  const seek = (x: number) => {
+    const v = video.current
+    setT(x)
+    if (v) v.currentTime = x
+  }
+
+  /** 共用横轴：取「V3 目标 273.6s」当右端 —— 两条轴同比例尺才谈得上对齐 */
+  const AXIS = PRODUCTION_FACTS.v3TargetDuration
+  const pct = (x: number) => `${(x / AXIS) * 100}%`
+
+  /** 成片空档：相邻剪辑之间 > 0.3s 的空缺 */
+  const gaps = useMemo(() => {
+    const clips = [...ACTIVE_TIMELINE].sort((a, b) => a.start - b.start)
+    const out: { from: number; to: number; len: number }[] = []
+    for (let i = 1; i < clips.length; i++) {
+      const prevEnd = clips[i - 1].start + clips[i - 1].duration
+      const len = clips[i].start - prevEnd
+      if (len > 0.3) out.push({ from: prevEnd, to: clips[i].start, len })
+    }
+    return out
+  }, [])
+
+  /** 重叠：后一个开始得比前一个结束早（分镜表里的真问题） */
+  const overlaps = useMemo(() => {
+    const clips = [...ACTIVE_TIMELINE].sort((a, b) => a.start - b.start)
+    const out: { a: string; b: string; from: number; to: number; len: number }[] = []
+    for (let i = 1; i < clips.length; i++) {
+      const prevEnd = clips[i - 1].start + clips[i - 1].duration
+      const len = prevEnd - clips[i].start
+      if (len > 0.2) out.push({ a: clips[i - 1].id, b: clips[i].id, from: clips[i].start, to: prevEnd, len })
+    }
+    return out
+  }, [])
+
+  /** V3 脚本轴：每段一个刻度（自己的 253.2s 时间轴） */
+  const v3Total = useMemo(() => STORYBOARD.reduce((n, e) => n + durOf(e), 0), [])
+  const v3Cum = useMemo(() => {
+    let acc = 0
+    return STORYBOARD.map((e) => { const from = acc; acc += durOf(e); return { 段: e.段, from, to: acc, e } })
+  }, [])
+  const v3OverSegs = useMemo(() => STORYBOARD.filter((e) => readout(e, rate).state === 'over'), [rate])
+
+  const segById = useMemo(() => {
+    const m = new Map<string, (typeof STORYBOARD)[number]>()
+    STORYBOARD.forEach((e) => m.set(e.段, e))
+    return m
+  }, [])
+  const segOf = (storyboardId: string | null) => (storyboardId ? segById.get(storyboardId) ?? null : null)
+  const mappedIds = useMemo(
+    () => new Set(ACTIVE_TIMELINE.map((c) => c.storyboardId).filter(Boolean) as string[]), [])
+
+  const issues = gaps.length + overlaps.length + v3OverSegs.length
+  const clipsSorted = useMemo(() => [...ACTIVE_TIMELINE].sort((a, b) => a.start - b.start), [])
+  const curClip = clipsSorted.find((c) => t >= c.start && t < c.start + c.duration)
+
+  function navGap(dir: 1 | -1) {
+    const pts = gaps.map((g) => g.from).sort((a, b) => a - b)
+    const next = dir === 1 ? pts.find((p) => t + 0.05 < p) : [...pts].reverse().find((p) => p < t - 0.05)
+    if (next == null) { say(dir === 1 ? '后面没有空档了' : '前面没有空档了'); return }
+    seek(next)
+  }
+
+  /** 点刻度尺 / 轨道 = 跳到对应时间（成片之后的区域钳到成片末尾） */
+  const seekXY = (e: { currentTarget: HTMLElement; clientX: number }) => {
+    const r = e.currentTarget.getBoundingClientRect()
+    const x = Math.min(Math.max((e.clientX - r.left) / r.width, 0), 1)
+    seek(Math.min(x * AXIS, ACTIVE_DURATION))
+  }
+
+  function copyDiff() {
+    const lines = [
+      `${project.name} · 时序差异清单`,
+      `成片 ${ACTIVE_DURATION.toFixed(1)}s · ${ACTIVE_TIMELINE.length} 段剪辑；V3 脚本 ${STORYBOARD.length} 段 · ${v3Total.toFixed(1)}s`,
+      `空档 ${gaps.length} 处：${gaps.map((g) => `${g.from.toFixed(1)}–${g.to.toFixed(1)}s(${g.len.toFixed(1)}s)`).join('、') || '无'}`,
+      `重叠 ${overlaps.length} 处：${overlaps.map((o) => `${o.a}×${o.b} ${o.from.toFixed(1)}–${o.to.toFixed(1)}s`).join('、') || '无'}`,
+      `口播会超（按 ${rate} 字/秒）${v3OverSegs.length} 段：${v3OverSegs.map((e) => `段 ${e.段}`).join('、') || '无'}`,
+    ]
+    void navigator.clipboard?.writeText(lines.join('\n'))
+    say('差异清单已复制到剪贴板')
+  }
+
+  return (
+    <div className="atl">
+      {/* ══ ① 顶部工具栏 ═════════════════════════════════════ */}
+      <header className="atl-bar">
+        <h2>{project.planned ? '时序校验' : project.name}</h2>
+        <span className="atl-sub num">
+          {project.planned
+            ? '没有成片，无法校验'
+            : `成片 ${ACTIVE_DURATION.toFixed(1)}s · ${ACTIVE_TIMELINE.length} 段剪辑 · V3 脚本 ${STORYBOARD.length} 段`}
+        </span>
+
+        {!project.planned && (
+          <>
+            <span className="spacer" />
+            <button className="atl-pill" type="button" aria-pressed={showFilm}
+                    onClick={() => setShowFilm((v) => !v)}>
+              <Icon name="film" />成片轨
+            </button>
+            <button className="atl-pill" type="button" aria-pressed={showV3}
+                    onClick={() => setShowV3((v) => !v)}>
+              <Icon name="list" />V3 脚本轨
+            </button>
+            <span className="atl-sep" />
+            <span className="atl-rate" title="口播读数的语速基准 —— 改它会重算所有「需 Xs」">
+              语速
+              {RATES.map((r) => (
+                <button key={r} type="button" aria-pressed={rate === r}
+                        onClick={() => setRate(r)}>{r}</button>
+              ))}
+              字/秒
+            </span>
+            <button className="atl-cta" type="button" onClick={copyDiff}>
+              <Icon name="copy" />复制差异清单
+            </button>
+          </>
+        )}
+      </header>
+
+      {project.planned ? (
+        <div className="pj-pick">
+          <h2>这个项目还没有音轨</h2>
+          <p>「{project.name}」是演示新建的项目，磁盘上还没有成片，所以没有可播放的音轨，
+            也没有两版时间轴可以对齐。</p>
+        </div>
+      ) : (
+        <>
+          {/* ══ ② 工作区：列表 + 预览 ═════════════════════════ */}
+          <div className="atl-work">
+            <section className="atl-listwrap">
+              <div className="atl-warn" data-ok={issues === 0 ? '' : undefined}>
+                <Icon name={issues === 0 ? 'circle-check' : 'circle-alert'} className="ui-icon atl-warn-ico" />
+                <span>
+                  {issues === 0
+                    ? '两条时间轴之间没有发现空档、重叠或口播超时。'
+                    : <>成片有 <b className="num">{gaps.length}</b> 处空档、<b className="num">{overlaps.length}</b> 处重叠；V3 脚本按 {rate} 字/秒 有 <b className="num">{v3OverSegs.length}</b> 段口播会超。</>}
+                </span>
+                {gaps.length > 0 && (
+                  <button className="atl-fix" type="button" onClick={() => seek(gaps[0].from)}
+                          title="跳到第一处空档，听那一段在放什么">定位第一处</button>
+                )}
+              </div>
+
+              <ul className="atl-list">
+                {clipsSorted.map((c, i) => {
+                  const st = statusOf(c.status)
+                  const seg = segOf(c.storyboardId)
+                  const r = seg ? readout(seg, rate) : null
+                  const isCur = curClip?.id === c.id && curClip.start === c.start
+                  return (
+                    <li key={`${c.id}-${c.start}`}>
+                      <button type="button" className="atl-item"
+                              data-cur={isCur ? '' : undefined}
+                              data-sel={selId === `${c.id}-${c.start}` ? '' : undefined}
+                              onClick={() => { setSelId(`${c.id}-${c.start}`); seek(c.start) }}>
+                        <span className="atl-item-head">
+                          <i className="num atl-n">{i + 1}</i>
+                          <i className="atl-chip" data-s={st.s}>{c.id}</i>
+                          <b>{c.title}</b>
+                          <em className="num atl-tc">{c.start.toFixed(1)} → {(c.start + c.duration).toFixed(1)}s</em>
+                        </span>
+                        <span className="atl-item-body">
+                          {seg
+                            ? seg.旁白
+                            : <em className="atl-none">— 未映射到 V3 段（成片独有素材）</em>}
+                        </span>
+                        {seg && r && (
+                          <span className="atl-item-meta num">
+                            段 {seg.段} · {charsOf(seg.旁白)} 字 · 需 {r.need.toFixed(1)}s · V3 段给 {r.d.toFixed(1)}s
+                            {r.state === 'over' && <i className="atl-over">超 {r.diff.toFixed(1)}s</i>}
+                          </span>
+                        )}
+                      </button>
+                    </li>
+                  )
+                })}
+              </ul>
+            </section>
+
+            <section className="atl-preview">
+              <figure className="atl-screen">
+                <video ref={video} src={FILM} poster="/frames/film/s13.jpg" preload="metadata"
+                       playsInline onClick={toggle} aria-label="成片预览" />
+                {!play && (
+                  <button className="atl-bigplay" type="button" onClick={toggle} aria-label="播放成片">
+                    <Icon name="play" />
+                  </button>
+                )}
+              </figure>
+              <div className="atl-ctl">
+                <button className="atl-play" type="button" onClick={toggle} aria-label={play ? '暂停' : '播放'}>
+                  <Icon name={play ? 'pause' : 'play'} />
+                </button>
+                <input className="atl-seek" type="range" min={0} max={ACTIVE_DURATION} step={0.05}
+                       value={Math.min(t, ACTIVE_DURATION)} aria-label="成片进度"
+                       onChange={(e) => seek(Number(e.target.value))} />
+                <span className="num atl-time">{fmt(t)} / {fmt(ACTIVE_DURATION)}</span>
+                <button className="atl-play" type="button" onClick={() => setMuted((m) => !m)}
+                        aria-label={muted ? '取消静音' : '静音'}>
+                  <Icon name={muted || vol === 0 ? 'volume-x' : 'volume-2'} />
+                </button>
+              </div>
+              <p className="atl-preview-note">
+                预览就是成片本身（{FILM.split('/').pop()}）· 点左侧条目会跳到对应时间 · 波形需要解码音频，未做
+              </p>
+            </section>
+          </div>
+
+          {/* ══ ③ 时间线 ══════════════════════════════════════ */}
+          <div className="atl-timeline">
+            <div className="atl-tools">
+              <button className="atl-tool" type="button" title="回到开头" onClick={() => seek(0)}>
+                <Icon name="skip-back" />开头
+              </button>
+              <button className="atl-tool" type="button" title="跳到成片结束" onClick={() => seek(ACTIVE_DURATION)}>
+                <Icon name="arrow-right" />成片末尾
+              </button>
+              <span className="atl-sep" />
+              <button className="atl-tool" type="button" onClick={() => navGap(-1)}>
+                <Icon name="arrow-left" />上一处空档
+              </button>
+              <button className="atl-tool" type="button" onClick={() => navGap(1)}>
+                下一处空档<Icon name="arrow-right" />
+              </button>
+              <span className="spacer" />
+              <button className="atl-tool" type="button" title="缩小时间线"
+                      onClick={() => setZoom((z) => Math.max(1, +(z - 0.25).toFixed(2)))}>
+                <Icon name="minus" />缩小
+              </button>
+              <button className="atl-tool" type="button" title="放大时间线"
+                      onClick={() => setZoom((z) => Math.min(3, +(z + 0.25).toFixed(2)))}>
+                <Icon name="plus" />放大
+              </button>
+              <button className="atl-tool" type="button" title="缩放到适配整条轴"
+                      onClick={() => setZoom(1)}>适配</button>
+              <span className="num atl-zoom">×{zoom.toFixed(2)}</span>
+            </div>
+
+            <div className="atl-scroll">
+              <div className="atl-inner" style={{ width: `${zoom * 100}%` }}>
+                {/* 刻度 */}
+                <div className="atl-ruler" onClick={seekXY} title="点这里跳到对应时间">
+                  {Array.from({ length: Math.ceil(AXIS / 30) + 1 }, (_, i) => i * 30).map((x) => (
+                    <span key={x} className="atl-ruck" style={{ left: pct(x) }}>
+                      <i />{x}s
+                    </span>
+                  ))}
+                  <span className="atl-filmend" style={{ left: pct(ACTIVE_DURATION) }}
+                        title={`成片到此结束（${ACTIVE_DURATION.toFixed(0)}s）`} />
+                  <span className="atl-endlbl" style={{ left: pct(ACTIVE_DURATION) }}>成片结束 {ACTIVE_DURATION.toFixed(0)}s</span>
+                </div>
+
+                {/* 连线层：真实映射（V3 草稿里的位置 → 成片里的位置，是斜的） */}
+                <svg className="atl-links" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                  {showFilm && showV3 && ACTIVE_TIMELINE.filter((c) => c.storyboardId).map((c) => {
+                    const v = v3Cum.find((x) => x.段 === c.storyboardId)
+                    if (!v) return null
+                    return (
+                      <line key={`${c.id}-${c.storyboardId}`}
+                            x1={(v.from / AXIS) * 100} y1="80"
+                            x2={(c.start / AXIS) * 100} y2="16"
+                            vectorEffect="non-scaling-stroke" />
+                    )
+                  })}
+                </svg>
+
+                {/* 成片轨 */}
+                {showFilm && (
+                  <div className="atl-lane">
+                    <span className="atl-lanelbl">成片 <em className="num">{ACTIVE_DURATION.toFixed(0)}s</em></span>
+                    <div className="atl-track" onClick={seekXY} title="点这里跳到对应时间">
+                      {gaps.map((g) => (
+                        <span key={g.from} className="atl-gapblk"
+                              style={{ left: pct(g.from), width: pct(g.len) }}
+                              title={`空档 ${g.from.toFixed(1)}–${g.to.toFixed(1)}s（${g.len.toFixed(1)}s）没有排画面`} />
+                      ))}
+                      {clipsSorted.map((c) => {
+                        const st = statusOf(c.status)
+                        const wide = (c.duration / AXIS) * 100 > 1.6
+                        return (
+                          <button key={`${c.id}-${c.start}`} type="button"
+                                  className="atl-clip" data-s={st.s}
+                                  style={{ left: pct(c.start), width: pct(c.duration) }}
+                                  title={`${c.id} · ${c.title} · ${c.start.toFixed(1)}–${(c.start + c.duration).toFixed(1)}s`}
+                                  onClick={(e) => { e.stopPropagation(); seek(c.start) }}>
+                            {wide ? c.id : ''}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* V3 脚本轨 */}
+                {showV3 && (
+                  <div className="atl-lane">
+                    <span className="atl-lanelbl">V3 脚本 <em className="num">{v3Total.toFixed(0)}s</em></span>
+                    <div className="atl-track atl-track-v3" onClick={seekXY} title="点这里跳到对应时间">
+                      <span className="atl-target" style={{ left: pct(PRODUCTION_FACTS.v3TargetDuration) }}
+                            title={`V3 目标 ${PRODUCTION_FACTS.v3TargetDuration}s`} />
+                      <span className="atl-endlbl atl-endlbl-v3" style={{ left: pct(v3Total) }}>
+                        V3 脚本结束 {v3Total.toFixed(0)}s
+                      </span>
+                      {v3Cum.map((v) => (
+                        <span key={v.段} className="atl-seg"
+                              data-mapped={mappedIds.has(v.段) ? '' : undefined}
+                              data-over={readout(v.e, rate).state === 'over' ? '' : undefined}
+                              style={{ left: pct(v.from), width: pct(v.to - v.from) }}
+                              title={`段 ${v.段} · ${v.e.时间码}s · ${v.e.旁白.slice(0, 24)}${mappedIds.has(v.段) ? ' · 已排进成片' : ''}`} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 音轨：成片文件里真的没有音频流 —— 如实说明，不画假波形 */}
+                <div className="atl-lane">
+                  <span className="atl-lanelbl">音轨 <em className="num">无</em></span>
+                  <div className="atl-wave atl-wave-none">
+                    <span className="atl-wave-note">
+                      成片文件里没有音频流 —— 这条片子还没配音 / 配乐，波形无从画起
+                    </span>
+                  </div>
+                </div>
+
+                {/* 播放头（跟着视频时间走） */}
+                <span className="atl-head" style={{ left: pct(t) }}>
+                  <i className="num">{Math.floor(t)}</i>
+                </span>
+              </div>
+            </div>
+
+            <p className="atl-tail num">
+              两轴同一比例尺（0→{AXIS}s）：成片占前 {ACTIVE_DURATION.toFixed(0)}s，V3 脚本铺到 {v3Total.toFixed(0)}s。
+              V3 时间码是草稿时间轴，和成片不是同一条 —— 斜线 = 同一段被挪到了哪里。ASR 未接入，不做"念没念错"的判断。
+            </p>
+          </div>
+
+          {/* ══ ④ 底部状态栏 ══════════════════════════════════ */}
+          <footer className="atl-status">
+            <button className="atl-stbtn" type="button" disabled title="没有可撤销的操作（本页只读）">
+              <Icon name="undo-2" />
+            </button>
+            <button className="atl-stbtn" type="button" disabled title="没有可重做的操作（本页只读）">
+              <Icon name="redo-2" />
+            </button>
+            <span className="atl-sep" />
+            <span className="atl-issues" data-ok={issues === 0 ? '' : undefined}>
+              <i className="atl-issue-dot" />
+              <span className="num">{issues} 处警告</span>
+            </span>
+            <span className="spacer" />
+            {notice && <button className="atl-notice" type="button" onClick={() => setNotice('')}>{notice}</button>}
+            <Icon name={muted || vol === 0 ? 'volume-x' : 'volume-2'} className="ui-icon atl-vi" />
+            <input className="atl-vol" type="range" min={0} max={1} step={0.01} value={vol}
+                   aria-label="音量" onChange={(e) => { setVol(Number(e.target.value)); setMuted(false) }} />
+            <span className="atl-sep" />
+            <span className="atl-vlabel num">缩放</span>
+            <input className="atl-vol" type="range" min={1} max={3} step={0.05} value={zoom}
+                   aria-label="时间线缩放" onChange={(e) => setZoom(Number(e.target.value))} />
+            <button className="atl-stbtn" type="button" title="放大时间线"
+                    onClick={() => setZoom((z) => Math.min(3, +(z + 0.25).toFixed(2)))}>
+              <Icon name="plus" />
+            </button>
+          </footer>
+        </>
+      )}
+    </div>
+  )
+}
