@@ -14,7 +14,7 @@ import { NewProjectDialog } from '@/shell/NewProjectDialog'
 import { ScriptVoice } from '@/views/ScriptVoice'
 import { AudioTime } from '@/views/AudioTime'
 import { RenderDelivery } from '@/views/RenderDelivery'
-import { TechniqueLibrary } from '@/views/TechniqueLibrary'
+import { FxLibrary } from '@/views/FxLibrary'
 import { VideoLibrary } from '@/views/VideoLibrary'
 import { KnowledgeSources } from '@/views/KnowledgeSources'
 import { RuleCases } from '@/views/RuleCases'
@@ -202,7 +202,7 @@ export default function App() {
         {!isHome && !isFlow && !isCatalog && (
           <>
             {/* 项目指挥中心 / 创作资产 / 时序校验 / 工作流广场：全幅复刻页，这层标题栏不渲染 */}
-            {view !== 'project' && view !== 'assets' && view !== 'audio' && view !== 'methods' && (
+            {view !== 'project' && view !== 'assets' && view !== 'audio' && view !== 'methods' && view !== 'knowledge' && (
             <header className="app-header">
               <span className="logo">
                 <img src="/assets/brand/fengmotion-mark.png" alt="" width={22} height={22} />
@@ -236,7 +236,7 @@ export default function App() {
                   <RenderDelivery project={current} tasks={tasks} />
                 )}
                 {view === 'sources' && <KnowledgeSources onOpen={go} />}
-                {view === 'knowledge' && <TechniqueLibrary onOpen={go} />}
+                {view === 'knowledge' && <FxLibrary />}
                 {view === 'reference' && <VideoLibrary onOpen={go} />}
                 {view === 'rules' && <RuleCases />}
                 {view === 'methods' && <WorkflowGallery />}
