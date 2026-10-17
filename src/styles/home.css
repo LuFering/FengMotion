@@ -64,6 +64,7 @@
 .fm-new-foot { display: flex; align-items: center; gap: 12px; flex-wrap: wrap }
 .fm-new-presets { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; flex: 1 1 300px }
 .fm-new-actions { display: flex; align-items: center; gap: 9px; margin-left: auto }
+.fm-new-hint { font-size: 10.5px; color: var(--ph) }
 
 /* 预设 / 分类：paba .hm-partner-presets 的「小字 + 悬停变强调色」
    —— 不用胶囊、不加底（它是一排可选项，不是按钮） */
@@ -124,32 +125,24 @@
   border-top: 1px solid color-mix(in srgb, var(--line) 74%, var(--fg) 10%);
 }
 .fm-sec:first-of-type { margin-top: 44px; padding-top: 0; border-top: 0 }
+/* 视频类型 → 制作方法 是一对（先看特征、再看做法）：间距减半、不要横线 */
+.fm-sec-pair + .fm-sec { margin-top: 22px; padding-top: 22px }
 .fm-heading {
   display: flex; align-items: center; gap: 10px;
   margin: 0 0 16px; min-height: 22px;
 }
 .fm-hd-idx {
-  display: flex; align-items: center; gap: 5px;
+  display: flex; align-items: center;
   color: var(--dim); transition: color .2s;
 }
 .fm-hd-idx > .ui-icon {
   width: 14px; height: 14px;
   color: color-mix(in srgb, var(--acc) 74%, var(--fg));   /* 区块记号：常显强调色 */
 }
-.fm-hd-idx > i {
-  font-family: var(--font-mono); font-size: 10.5px; font-style: normal;
-  letter-spacing: .08em; font-variant-numeric: tabular-nums;
-}
 .fm-heading > h2 {
-  margin: 0; min-width: 172px;      /* 标题簇留定宽：四行的那一小段破折号因此对齐 */
-  white-space: nowrap;
+  margin: 0; white-space: nowrap;
   font-size: 16px; font-weight: 600; line-height: 1.4; letter-spacing: .01em;
   color: var(--fg);
-}
-.fm-hd-slug {
-  margin-left: 9px; font-family: var(--font-mono); font-style: normal;
-  font-size: 10px; font-weight: 500; letter-spacing: .15em;
-  color: var(--dim); opacity: .88; vertical-align: 2px;
 }
 .fm-hd-rule {
   flex: 0 1 26px; min-width: 18px; height: 1px;      /* 标题后一小段破折号（不是通栏线，
@@ -198,46 +191,35 @@
    列数按「内容宽 ÷ 每格最小可读宽」定，不是拍脑袋：
      来源 3 列 · 视频类型 3 列（媒体 118px + 指纹条） */
 
-/* ═══ 3b · 动效来源（无框 logo 墙）═════════════════════════════
-   照 paba `.hm-tool-launchers`：**只有 logo + 名称，没有卡框、没有底**。
-   悬停：logo 上浮 3px 并恢复彩色（静止时压一点灰），名称转正文色；
-   按下：回弹 1px —— 有"按到了"的物理感。
-   色用各自的品牌色（--tone）。 */
-/* 三列横条：和上面「视频类型」、下面「制作方法」的列节奏接上 ——
-   一颗 logo 领一行字，说明（what/count）默认藏着，指着才出（少字）。 */
-.fm-srcs {
-  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 18px 22px;
+/* ═══ 3b · 动效来源 —— 页脚一行 ═══════════════════════════════
+   它解释「动效从哪来」，是脚注不是展区：一行小 logo + 名字收住整页。
+   之前三个名字铺满一整行，读起来像赞助商墙，也把「视频类型」挤到第二屏。 */
+.fm-src-line {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8px 18px;
+  margin-top: 40px; padding-top: 18px;
+  border-top: 1px solid color-mix(in srgb, var(--line) 74%, var(--fg) 10%);
 }
-.fm-src {
-  display: flex; align-items: center; gap: 12px; min-width: 0;
-  padding: 8px 6px 2px; border-radius: 7px;
-  color: var(--dim); text-decoration: none; text-align: left;
-  transition: color .15s, background-color .15s;
+.fm-src-line-label {
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: .12em;
+  color: var(--ph);
 }
-.fm-src:hover { color: var(--fg) }
-.fm-src-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0 }
-.fm-src-what {
-  display: flex; align-items: baseline; gap: 6px;
-  font-style: normal; font-size: 10.5px; color: var(--dim);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  opacity: 0; transform: translateY(2px);
-  transition: opacity .18s ease, transform .18s ease;
+.fm-src-mini {
+  display: inline-flex; align-items: center; gap: 7px;
+  color: var(--dim); text-decoration: none;
+  transition: color .14s;
 }
-.fm-src:hover .fm-src-what, .fm-src:focus-visible .fm-src-what { opacity: 1; transform: none }
-.fm-src-what > i { font-style: normal; opacity: .55; margin-left: auto }
-.fm-src-logo {
-  display: block; width: 34px; height: 34px; object-fit: contain; flex: 0 0 auto;
-  filter: grayscale(.45) brightness(.88);
-  transition: transform .18s var(--hm-ease, ease), filter .2s;
+.fm-src-mini img {
+  width: 18px; height: 18px; object-fit: contain; display: block;
+  filter: grayscale(.4) brightness(.9);
+  transition: transform .16s ease, filter .16s ease;
 }
-.fm-src:hover .fm-src-logo {
-  transform: translateY(-5px) scale(1.07);
-  /* 点亮成自己的品牌色 + 一圈它自己的辉光（悬停要一眼看得出来） */
-  filter: drop-shadow(0 8px 18px color-mix(in srgb, var(--tone, var(--acc)) 45%, transparent));
+.fm-src-mini b { font-size: 11.5px; font-weight: 500; color: var(--fg) }
+.fm-src-mini:hover { color: var(--fg) }
+.fm-src-mini:hover img {
+  transform: translateY(-2px);
+  filter: drop-shadow(0 6px 12px color-mix(in srgb, var(--tone, var(--acc)) 40%, transparent));
 }
-.fm-src:active .fm-src-logo { transform: translateY(1px); filter: none }
-.fm-src-name { font-size: 13px; font-weight: 550; letter-spacing: .01em; color: var(--fg) }
+.fm-src-line-note { margin-left: auto; font-size: 10.5px; color: var(--ph) }
 
 /* ═══ 4 · 镜头卡 = .fm-cand + 动作预览 ════════════════════════
    .fm-cand 已经给了「图 16:9 + 标题 + 说明」和悬停边线。
@@ -261,78 +243,44 @@
   border-color: transparent; background: #14161Ad9; color: #fff;
 }
 
-/* ═══ 4b · 视频类型 —— 紧凑横卡 ════════════════════════════════
-   440×440 的方卡压成 104px 高的一条：图在左（118px），右边只有
-   名字 + 三个能数的数 + 一句「看做法」。判据仍然是**能数的数**，
-   但压成一行小字，指着才逐条浮出（不铺说明、不占版面）。
-   指着某一张 → 下面胶片带里对应那一格同时亮起来（两段联动）。 */
-.fm-taxa {
-  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 22px;
+/* ═══ 4b · 视频类型 —— 文字索引行 ═════════════════════════════
+   名称 + 三条可数指纹 + 入口；不放缩略图（画面留给下面的胶片带）。
+   行与行之间用发丝线分隔 —— 它读起来像一张索引表，而不是又一组卡片。 */
+.fm-types {
+  display: flex; flex-direction: column;
+  border-top: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
 }
-.fm-taxon {
-  display: grid; grid-template-columns: 118px minmax(0, 1fr);
-  gap: 14px; align-items: start; min-width: 0; padding-bottom: 6px;
-  padding: 0; border: 0; background: 0 0; font: inherit; text-align: left;
-  color: var(--fg); white-space: normal; cursor: pointer;
-  animation: fm-fp-in .26s ease backwards;
+.fm-type {
+  display: grid; grid-template-columns: 148px minmax(0, 1fr) auto;
+  align-items: center; gap: 16px;
+  padding: 9px 2px; border: 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 55%, transparent);
+  background: 0 0; font: inherit; text-align: left; color: var(--fg);
+  cursor: pointer; transition: background-color .14s;
 }
-.fm-taxon-art {
-  position: relative; display: block; height: 74px;
-  border-radius: 6px; overflow: hidden; background: var(--hole);
+.fm-type:hover { background: color-mix(in srgb, var(--hole) 55%, transparent) }
+.fm-type > b { display: flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 550 }
+/* 「实测」小标：三种来自参考拆解实测的片型 —— 让 meta 里那句话可核验 */
+.fm-type-real {
+  padding: 1px 4px; border-radius: 3px;
+  border: 1px solid color-mix(in srgb, var(--ok) 40%, transparent);
+  color: var(--ok); font-size: 9px; font-style: normal; font-weight: 500;
+  letter-spacing: .02em;
 }
-.fm-taxon-art > img {
-  position: absolute; inset: 0; width: 100%; height: 100%;
-  object-fit: cover; display: block;
+.fm-type-fp {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 2px 18px;
+  font-size: 10.5px; color: var(--dim); min-width: 0;
 }
-/* 一条内描边：深底的图也能看出自己的边界（否则显得宽窄不一） */
-.fm-taxon-art::after, .fm-mcard-art::after {
-  content: ""; position: absolute; inset: 0; z-index: 3; pointer-events: none;
-  border-radius: inherit; box-shadow: inset 0 0 0 1px #ffffff14;
+.fm-type-fp > i { font-style: normal; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+.fm-type-fp em { font-style: normal; margin-left: 4px; color: var(--fg) }
+.fm-type-do {
+  display: flex; align-items: center; gap: 3px;
+  font-size: 11px; color: var(--acc); opacity: .9; white-space: nowrap;
+  transition: gap .16s, opacity .16s;
 }
-.fm-taxon-motion {
-  position: absolute; inset: 0; width: 100%; height: 100%;
-  object-fit: cover; display: block; pointer-events: none;
-  opacity: 0; transition: opacity .35s ease;
-}
-.fm-taxon-motion.is-playing { opacity: 1 }
-.fm-taxon-art > .fm-tag {
-  position: absolute; left: 6px; bottom: 6px; z-index: 1;
-  padding: 2px 5px; border-radius: 3px;
-  background: #14161Ab8; color: #fff; font-size: 9.5px;
-  opacity: 0; transition: opacity .18s;
-}
-.fm-taxon:hover .fm-taxon-art > .fm-tag,
-.fm-taxon[data-over] .fm-taxon-art > .fm-tag { opacity: 1 }
-.fm-taxon-body {
-  display: grid; grid-template-columns: minmax(0, 1fr) auto;
-  column-gap: 10px; row-gap: 3px; align-items: baseline; min-width: 0;
-}
-.fm-taxon-body > b { grid-area: 1 / 1; font-size: 12.5px; font-weight: 550 }
-.fm-taxon-fp {
-  grid-area: 2 / 1 / 3 / 3;
-  display: flex; flex-wrap: wrap; gap: 1px 14px;
-  font-size: 10.5px; color: var(--dim);
-}
-.fm-taxon-fp > i {
-  font-style: normal; opacity: 0; transform: translateY(3px);
-  transition: opacity .2s ease, transform .2s ease;
-  transition-delay: calc(var(--row, 0) * 55ms + 60ms);
-}
-.fm-taxon:hover .fm-taxon-fp > i,
-.fm-taxon:focus-visible .fm-taxon-fp > i,
-.fm-taxon[data-over] .fm-taxon-fp > i { opacity: 1; transform: none }
-.fm-taxon-fp em { font-style: normal; color: var(--fg); margin-left: 4px }
-.fm-taxon-do {
-  grid-area: 1 / 2;
-  display: flex; align-items: center; gap: 2px;
-  font-size: 11px; color: var(--acc); opacity: .9;   /* 之前 10.5px/.75 偏小偏暗 */
-  transition: opacity .16s, gap .16s;
-}
-.fm-taxon:hover .fm-taxon-do,
-.fm-taxon:focus-visible .fm-taxon-do { opacity: 1; gap: 4px }
-.fm-taxon:focus-visible { outline: 0 }
-.fm-taxon:focus-visible .fm-taxon-art { outline: 2px solid var(--acc); outline-offset: 3px }
+.fm-type:hover .fm-type-do,
+.fm-type:focus-visible .fm-type-do { gap: 5px; opacity: 1 }
+.fm-type:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px }
 
 /* ═══ 6 · 制作方法 —— 一条「片型胶片带」═══════════════════════════
    六格并排、一格一个片型。指着其中一格：
@@ -438,12 +386,11 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .fm-taxon, .fm-taxon-fp > i, .fm-mcard, .fm-mcard-art > img, .fm-mcard-motion,
-  .fm-mcard-track, .fm-mcard-track > i, .fm-src, .fm-src-logo {
+  .fm-mcard, .fm-mcard-art > img, .fm-mcard-motion,
+  .fm-mcard-track, .fm-mcard-track > i, .fm-src-mini img {
     transition: none !important; animation: none !important;
     opacity: 1 !important; transform: none !important;
   }
-  .fm-taxon-fp > i { opacity: 1; transform: none }
   .fm-strip:hover .fm-mcard:not(:hover) { opacity: 1 }
 }
 
@@ -456,11 +403,11 @@
   .fm-strip { flex-wrap: wrap }
   .fm-mcard { flex: 1 1 30% }
 }
-@container fmhome (max-width: 940px) {
-  .fm-srcs { gap: 20px 40px }
-}
 @container fmhome (max-width: 900px) {
-  .fm-taxa { grid-template-columns: minmax(0, 1fr); gap: 16px }
+  .fm-type { grid-template-columns: minmax(0, 1fr) auto; gap: 4px 14px; align-items: start }
+  .fm-type > b { grid-area: 1 / 1 }
+  .fm-type-do { grid-area: 1 / 2 }
+  .fm-type-fp { grid-area: 2 / 1 / 3 / 3 }
 }
 @container fmhome (max-width: 760px) {
   .fm-strip { gap: 12px }
@@ -482,7 +429,11 @@
   --reel-ms: .7s;                        /* 撑开/收窄的时长 */
   --reel-ease: cubic-bezier(.45, 0, .2, 1);
   position: relative;
-  margin: 0;                                  /* 下面那 44px 死空档会让这一段的"距离"比别处大 */
+  margin: 0;
+  /* 内边距给两侧淡出留位：卡片从淡出之后开始，首卡不再被吃成残影；
+     负外边距让整条仍与内容列左右对齐。 */
+  padding-inline: 46px;
+  margin-inline: -46px;
   overflow: hidden;
 }
 
@@ -584,7 +535,7 @@
 /* 两侧边缘淡出 */
 .fm-reel::before, .fm-reel::after {
   content: ""; position: absolute; z-index: 4;
-  top: 0; bottom: 0; width: 64px; pointer-events: none;
+  top: 0; bottom: 0; width: 44px; pointer-events: none;
 }
 .fm-reel::before { left: 0;  background: linear-gradient(90deg, var(--bg), transparent) }
 .fm-reel::after  { right: 0; background: linear-gradient(270deg, var(--bg), transparent) }
@@ -624,22 +575,17 @@
   .fm-reel-video, .fm-reel-info { transition: none !important }
 }
 
-/* ═══ 0 · 品牌页头 ════════════════════════════════════════════
-   首页是最外层 —— 先亮身份，再谈内容。
-   用 logo 的**完整锁定版**（图标 + 字标一体），不拆成「图标 + 手打文字」：
-   字标是大写高度的小字，手打对不齐光学基线。
-
-   ⚠️ 尺寸要**克制** —— 它是身份标记，不是主视觉。
-      居中，高度略高于区块标题但远小于标题级排版。 */
+/* ═══ 0 · 页头 —— 身份 + 一句承诺，左对齐 ═════════════════════
+   之前居中放一个 logo：只报名字，还和下面左对齐的内容形成两条轴。
+   现在锁定版贴内容左缘（与所有区块同一条轴），旁边直接接产品承诺 ——
+   首屏第一眼读到的是「这产品替你做哪件事」，而不是一个标志。
+   logo 压到 30px：它是身份标记，不是主视觉。 */
 .fm-hero {
-  display: flex;
-  align-items: center;
-  justify-content: center;               /* 居中 */
-  margin: 6px 0 30px;
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  margin: 2px 0 18px;
 }
-.fm-hero-lockup {
-  display: block;
-  height: 38px;
-  width: auto;
-  filter: brightness(1.06);              /* 图是给浅底做的，深底上提一点亮 */
+.fm-hero-lockup { display: block; height: 26px; width: auto; filter: brightness(1.06) }
+.fm-hero-line {
+  margin: 0; font-size: 16px; font-weight: 600; line-height: 1.4;
+  letter-spacing: .01em; color: var(--fg);
 }

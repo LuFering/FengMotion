@@ -32,20 +32,19 @@ function Icon({ name, className = 'ui-icon' }: { name: string; className?: strin
   )
 }
 
-/** 区块头：图标 + 两位编号 + 标题 —————— 数据 + 入口
-    规格还是 paba 那一套（标题 + 小字 + 右侧入口），但四块之间加了自己的
-    节奏件：左下角一个图标和编号，标题后面拉一条细线到数据 —— 四个区块的头
-    因此长在同一条视觉线上，指针进哪一块，那一块的图标/编号就转强调色。 */
-function Heading({ n, icon, slug, title, meta, action }:
-  { n: string; icon: string; slug: string; title: string
+/** 区块头：图标 + 标题 —————— 数据 + 入口
+    编号（01–04）与大写英文副标都去掉了：四块是并列的知识面，不是步骤序列，
+    编号只会假装有先后。图标留作索引（它确实指代内容），标题后一小段线把
+    视线牵到右侧的数据/入口 —— 四个头仍在同一条视觉线上，但不再套同一副模板。 */
+function Heading({ icon, title, meta, action }:
+  { icon: string; title: string
     meta?: React.ReactNode; action?: React.ReactNode }) {
   return (
     <div className="fm-heading">
       <span className="fm-hd-idx" aria-hidden="true">
         <Icon name={icon} className="ui-icon" />
-        <i>{n}</i>
       </span>
-      <h2>{title}<em className="fm-hd-slug" aria-hidden="true">{slug}</em></h2>
+      <h2>{title}</h2>
       <span className="fm-hd-rule" aria-hidden="true" />
       {meta ? <span className="fm-hd-meta num">{meta}</span> : null}
       {meta && action ? <span className="fm-hd-sep" aria-hidden="true" /> : null}
@@ -69,7 +68,10 @@ const BY_ID = new Map(CARDS.map((c) => [c.id, c]))
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo), hi)
 
-export function Home({ onOpenProject }: { onOpenProject: (view: string) => void }) {
+export function Home({ onOpenProject, onStart }:
+  { onOpenProject: (view: string) => void
+    /** 带着输入框里的想法进工作台（不再只是跳转 —— 想法要真的落进对话输入框） */
+    onStart?: (prompt: string) => void }) {
   const [prompt, setPrompt] = useState('')
   const [preset, setPreset] = useState('idea')
   const taRef = useRef<HTMLTextAreaElement>(null)
@@ -124,21 +126,29 @@ export function Home({ onOpenProject }: { onOpenProject: (view: string) => void 
   return (
     <div className="hm-content" data-view="home">
 
-      {/* ═══ ⓪ 品牌页头 —— 首页是最外层，先亮身份再谈内容 ═══════
-          用 logo 的完整锁定版（图标 + 字标），不做「图标 + 手打文字」——
-          字标是大写高度的小字，手打对不齐。 */}
+      {/* ═══ ⓪ 页头 —— 身份 + 一句承诺，左对齐 ══════════════════
+          之前居中放一个 logo：它只报名字，和下面左对齐的内容形成两条轴。
+          现在锁定版贴内容左缘，旁边直接接这句产品承诺 —— 首屏第一眼读到的是
+          「这产品替你做哪件事」，而不是一个标志。 */}
       <header className="fm-hero">
         <img className="fm-hero-lockup" src="/assets/brand/fengmotion-lockup.png"
              alt="FengMotion" width={1040} height={237} />
+        <p className="fm-hero-line">把一个想法，拆成镜头、动效和成片。</p>
       </header>
 
       {/* ═══ ① 创作入口（.fm-sheet 纸片）════════════════════════ */}
-      <form className="fm-sheet" onSubmit={(e) => { e.preventDefault(); onOpenProject('production') }}>
+      <form className="fm-sheet" onSubmit={(e) => {
+        e.preventDefault()
+        const v = prompt.trim()
+        if (!v) return
+        if (onStart) onStart(v)
+        else onOpenProject('production')
+      }}>
         <div className="fm-new-top">
           <label htmlFor="fm-prompt">创作想法</label>
-          <span className="num" data-empty={prompt.length ? undefined : ''}>
-            {prompt.length} / 4000
-          </span>
+          {/* 空态只留「示例句」一个信号：0/4000 和示例句并置，会让人分不清
+              现在到底有没有内容。有输入才出现计数。 */}
+          {prompt.length > 0 && <span className="num">{prompt.length} / 4000</span>}
         </div>
 
         <div className="fm-new-editor">
@@ -163,7 +173,7 @@ export function Home({ onOpenProject }: { onOpenProject: (view: string) => void 
                     aria-hidden="true">{example}</span>
             </div>
           )}
-          <textarea id="fm-prompt" rows={3} maxLength={4000} required
+          <textarea id="fm-prompt" rows={2} maxLength={4000} required
                     aria-label="创作想法" ref={taRef}
                     value={prompt}
                     onChange={(e) => setPrompt(e.target.value)} />
@@ -180,17 +190,20 @@ export function Home({ onOpenProject }: { onOpenProject: (view: string) => void 
             ))}
           </div>
           <div className="fm-new-actions">
+            {!prompt.trim() && <span className="fm-new-hint">先写一句想法</span>}
+            {/* 「生成」说得太满（这里并不生成，是把想法交给工作台分镜）；
+                换成「开始分镜」，按下的结果和按钮上的字一致。 */}
             <button type="submit" className="fm-pill-go" disabled={!prompt.trim()}>
-              <Icon name="sparkles" /><span>生成</span>
+              <Icon name="clapperboard" /><span>开始分镜</span>
             </button>
           </div>
         </div>
       </form>
 
-      {/* ═══ ② 镜头卡库（轮播 + 网格）═══════════════════════════ */}
+      {/* ═══ ① 镜头卡库（轮播）═══════════════════════════════════
+          全页唯一的「大胆」：一整条会动的镜头带。其余区块都为它让路。 */}
       <section className="fm-sec">
-        <Heading n="01" icon="clapperboard" title="镜头卡库"
-                 slug="SHOTS"
+        <Heading icon="clapperboard" title="镜头卡库"
                  meta={<>{CARDS.length} 张 · {CATS.length - 1} 类</>}
                  action={
                    <button onClick={() => onOpenProject('knowledge')}>
@@ -202,53 +215,30 @@ export function Home({ onOpenProject }: { onOpenProject: (view: string) => void 
         <Reel cards={reelCards} onOpen={() => onOpenProject('knowledge')} />
       </section>
 
-      {/* ═══ ③ 动效来源 —— 库都在外网：点开就是它的在线画廊 ═══════
-          卡面只留 logo + 名称（字少、认脸），说明放 title，鼠标停上去才出。 */}
-      <section className="fm-sec">
-        <Heading n="02" icon="link" title="动效来源"
-                 slug="SOURCES"
-                 meta={<>{SOURCES.length} 个库 · 全部开源</>} />
-
-        <div className="fm-srcs">
-          {SOURCES.map((s) => (
-            <a key={s.id} className="fm-src" href={s.url} target="_blank" rel="noreferrer noopener"
-               style={{ ['--tone' as string]: s.tone }}
-               title={`${s.name} · ${s.what}（${s.count}）`}>
-              <img className="fm-src-logo" src={s.logo} alt="" loading="lazy" />
-              <span className="fm-src-txt">
-                <b className="fm-src-name">{s.name}</b>
-                <em className="fm-src-what">{s.what}<i>{s.count}</i></em>
-              </span>
-            </a>
-          ))}
-        </div>
-      </section>
-
-      {/* ═══ ③ 视频类型（各带可量指纹）══════════════════════════ */}
-      <section className="fm-sec">
-        <Heading n="03" icon="shapes" title="视频类型"
-                 slug="GENOMES"
-                 meta={<>{GENOMES.filter((g) => g.from === '实测').length} 种来自参考拆解实测</>}
+      {/* ═══ ② 视频类型 —— 文字索引，不放缩略图 ═══════════════════
+          和下面「制作方法」是同一批片型：这里回答「有哪几种、各自什么特征」，
+          用可数的指纹说话；画面留给胶片带 —— 两段不再各铺一遍图。 */}
+      <section className="fm-sec fm-sec-pair">
+        <Heading icon="shapes" title="视频类型"
+                 meta={<>{GENOMES.length} 种 · {GENOMES.filter((g) => g.from === '实测').length} 种来自参考拆解实测</>}
                  action={
                    <button onClick={() => onOpenProject('reference')}>
                      看拆解<Icon name="chevron-right" className="ui-icon fm-go-arrow" />
                    </button>
                  } />
 
-        <div className="fm-taxa">
-          {GENOMES.slice(0, 3).map((g) => (
-            /* 紧凑横卡：左边一张媒体（指着播这个片型的动作预览），右边名字 + 一条指纹 */
-            <TaxonCard key={g.id} g={g} onOpen={showMethod} />
+        <div className="fm-types">
+          {GENOMES.map((g) => (
+            <TypeRow key={g.id} g={g} onOpen={showMethod} />
           ))}
         </div>
       </section>
 
-      {/* ═══ ⑤ 制作方法 —— 一个片型一张媒体卡（衍生自 paba .hm-show-grid）
-         卡 = 媒体（16:10，悬停播动作预览）+ 角标 + 箭头 + 标题 + 一行小字；
-         没有面板、没有步骤列表、没有 tab —— 六个片型平铺，图说话。 */}
+      {/* ═══ ③ 制作方法 —— 片型胶片带（媒体在这一段）═════════════
+          卡 = 媒体（16:10，悬停播动作预览 + 拖动擦洗）+ 角标 + 标题 + 一行小字；
+          没有面板、没有步骤列表、没有 tab —— 六个片型平铺，图说话。 */}
       <section className="fm-sec" ref={methodRef}>
-        <Heading n="04" icon="workflow" title="制作方法"
-                 slug="METHODS"
+        <Heading icon="workflow" title="制作方法"
                  meta={<>{GENOMES.length} 种片型 · 各一套做法</>}
                  action={
                    <button onClick={() => onOpenProject('methods')}>
@@ -262,6 +252,22 @@ export function Home({ onOpenProject }: { onOpenProject: (view: string) => void 
           ))}
         </div>
       </section>
+
+      {/* ═══ ④ 动效来源 —— 页尾一行，不再单独占一块 ══════════════
+          它解释「动效从哪来」，是脚注不是展区：一行小 logo + 名字收住整页，
+          页尾因此不再断在卡片后面留一块死白。 */}
+      <footer className="fm-src-line">
+        <span className="fm-src-line-label">动效来源</span>
+        {SOURCES.map((s) => (
+          <a key={s.id} className="fm-src-mini" href={s.url} target="_blank" rel="noreferrer noopener"
+             style={{ ['--tone' as string]: s.tone }}
+             title={`${s.name} · ${s.what}（${s.count}）`}>
+            <img src={s.logo} alt="" loading="lazy" />
+            <b>{s.name}</b>
+          </a>
+        ))}
+        <span className="fm-src-line-note">全部开源 · 点开是各自的在线画廊</span>
+      </footer>
     </div>
   )
 }
@@ -292,38 +298,21 @@ function HoverVideo({ src, poster, live, className, videoRef }:
   )
 }
 
-/* ── 视频类型的一张横卡 ══════════════════════════════════════════
-   状态**只有它自己的悬停/聚焦**：指着才浮出指纹与人设角标、才播动作预览。
-   和下面的胶片带没有任何关联 —— 指着它，带子那边一动不动。 */
-function TaxonCard({ g, onOpen }: { g: Genome; onOpen: () => void }) {
-  const [over, setOver] = useState(false)
+/* ── 视频类型的一行（文字索引）────────────────────────────────
+   名称 + 三条可数的指纹 + 入口。没有缩略图：媒体归下面的胶片带，
+   这一行只负责把「有哪几种、各自什么特征」讲清楚。 */
+function TypeRow({ g, onOpen }: { g: Genome; onOpen: () => void }) {
   return (
-    <button className="fm-taxon" type="button"
-            data-over={over ? '' : undefined}
-            onClick={onOpen}
-            onPointerEnter={(e) => { if (e.pointerType !== 'touch') setOver(true) }}
-            onPointerLeave={() => setOver(false)}
-            onFocus={() => setOver(true)} onBlur={() => setOver(false)}
+    <button className="fm-type" type="button" onClick={onOpen}
             aria-label={`看${g.name}怎么做`}>
-      <span className="fm-taxon-art">
-        {g.img && <img src={g.img} alt="" loading="lazy" />}
-        <HoverVideo src={g.method.mediaMotion} poster={g.method.media}
-                    live={over} className="fm-taxon-motion" />
-        <span className="fm-tag">{g.persona}</span>
+      <b>{g.name}{g.from === '实测' && <i className="fm-type-real">实测</i>}</b>
+      <span className="fm-type-fp">
+        {g.fp.slice(0, 3).map((f) => (
+          <i key={f.k}>{f.k.split(' ')[0]}<em>{f.v}</em></i>
+        ))}
       </span>
-      <span className="fm-taxon-body">
-        <b>{g.name}</b>
-        <span className="fm-taxon-fp">
-          {g.fp.slice(0, 3).map((f, n) => (
-            <i key={f.k} style={{ ['--row' as string]: n }}>
-              {f.k.split(' ')[0]}<em>{f.v}</em>
-            </i>
-          ))}
-        </span>
-        <span className="fm-taxon-do">
-          看做法 · {g.method.name}
-          <Icon name="chevron-right" className="ui-icon fm-go-arrow" />
-        </span>
+      <span className="fm-type-do">
+        {g.method.name}<Icon name="chevron-right" className="ui-icon fm-go-arrow" />
       </span>
     </button>
   )

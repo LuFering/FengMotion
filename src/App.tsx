@@ -161,7 +161,14 @@ export default function App() {
         {/* 首页 */}
         {isHome && (
           <main id="pane-home" className="hm-main">
-            <Home onOpenProject={go} />
+            <Home onOpenProject={go} onStart={(p) => {
+              // 想法先落进工作台的对话输入框，再打开一个项目 ——
+              // 没有当前项目时用最近的一个；一个都没有就落到项目列表（那里能新建）。
+              chat.setDraft(p)
+              const pid = openProject ?? projects.list[0]?.id ?? null
+              if (pid) setOpenProject(pid)
+              setView('production')
+            }} />
           </main>
         )}
 
