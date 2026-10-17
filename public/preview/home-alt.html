@@ -1,0 +1,490 @@
+<!doctype html>
+<!-- Hallmark · macrostructure: Workbench · tone: utilitarian · anchor hue: blue
+     theme: project tokens (paba dark) · studied: no · 预览文件，不进生产 -->
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>FengMotion · 首页（Workbench 预览）</title>
+<style>
+/* ── tokens：直接沿用应用壳层，不新增颜色 ───────────────────── */
+:root{
+  --bg:#0E1116; --surf:#161A21; --hole:#1E222B; --line:#2A2F38;
+  --fg:#E9ECF1; --dim:#99A2AE; --ph:#6A7380; --hint:#89929E;
+  --acc:#3B8CF8; --acc-d:#2E6FD9; --on-accent:#fff;
+  --ok:#3FBF8F; --warn:#E0A64B;
+  --soft:#17273C;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --ease-out:cubic-bezier(.2,.7,.3,1);
+  --ease-in-out:cubic-bezier(.4,0,.2,1);
+  --dur:180ms;
+}
+*{box-sizing:border-box}
+html,body{overflow-x:clip}
+body{
+  margin:0;background:var(--bg);color:var(--fg);
+  font-family:-apple-system,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  font-size:13px;line-height:1.6;-webkit-font-smoothing:antialiased;
+}
+img,video{display:block}
+button{font:inherit;color:inherit}
+a{color:inherit;text-decoration:none}
+:focus-visible{outline:2px solid var(--acc);outline-offset:2px;border-radius:4px}
+
+.page{max-width:1180px;margin:0 auto;padding:26px 28px 64px}
+
+/* ── 区块头：图标 + 标题 ———— 数据 + 入口（无编号、无大写眉标）── */
+.sec{margin-top:40px}
+.sec-head{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.sec-head .ic{width:15px;height:15px;color:color-mix(in srgb,var(--acc) 72%,var(--fg));flex:0 0 auto}
+.sec-head h2{margin:0;font-size:16px;font-weight:600;line-height:1.4;white-space:nowrap}
+.sec-head .rule{flex:0 1 26px;min-width:16px;height:1px;background:var(--line)}
+.sec-head .meta{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--dim);white-space:nowrap}
+.sec-head .go{display:flex;align-items:center;gap:4px;flex:0 0 auto;white-space:nowrap;font-size:12px;color:var(--dim);padding:4px 2px;border:0;background:0 0;cursor:pointer;transition:color var(--dur)}
+.sec-head .go:hover{color:var(--acc)}
+.sec-head .go svg{width:13px;height:13px;opacity:.6;transition:transform var(--dur),opacity var(--dur)}
+.sec-head .go:hover svg{transform:translateX(2px);opacity:1}
+
+/* ═══ 1 · 作品在工作 —— 真帧 + 镜头带 ═══════════════════════════ */
+.wb-frame{
+  position:relative;margin:0;border-radius:12px;overflow:hidden;
+  background:var(--hole);aspect-ratio:16/9;
+  box-shadow:inset 0 0 0 1px #ffffff10;
+}
+.wb-frame>img{width:100%;height:100%;object-fit:cover}
+.wb-frame::after{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(180deg,transparent 62%,#000000b8);
+}
+.wb-frame figcaption{
+  position:absolute;left:16px;right:16px;bottom:12px;z-index:1;
+  display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;
+}
+.wb-frame .now{font-size:12.5px;font-weight:550;color:#fff}
+.wb-frame .tc{font-family:var(--mono);font-size:11px;color:#ffffffc4;font-variant-numeric:tabular-nums}
+.wb-frame .live{
+  display:inline-flex;align-items:center;gap:6px;margin-left:auto;
+  font-size:11px;color:#ffffffd0;
+}
+.wb-frame .live i{width:6px;height:6px;border-radius:50%;background:var(--ok);flex:0 0 auto}
+
+.wb-head{display:flex;align-items:flex-start;gap:16px;margin:16px 0 14px;flex-wrap:wrap}
+.wb-head h1{margin:0;font-size:18px;font-weight:650;line-height:1.35;letter-spacing:.01em}
+.wb-head .tagline{margin:4px 0 0;font-size:12.5px;color:var(--dim)}
+.wb-acts{margin-left:auto;display:flex;align-items:center;gap:14px}
+.wb-acts .facts{font-family:var(--mono);font-size:11px;color:var(--dim);font-variant-numeric:tabular-nums;white-space:nowrap}
+.btn{
+  display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 14px;
+  border:1px solid var(--acc);border-radius:999px;background:var(--acc);color:var(--on-accent);
+  font-size:12.5px;font-weight:600;cursor:pointer;
+  transition:background-color var(--dur),transform var(--dur);
+}
+.btn:hover{background:var(--acc-d);border-color:var(--acc-d);transform:translateY(-1px)}
+.btn.ghost{background:0 0;color:var(--fg);border-color:var(--line)}
+.btn.ghost:hover{background:var(--hole);border-color:var(--dim);transform:none}
+.btn:active{transform:translateY(0)}
+.btn svg{width:14px;height:14px}
+
+/* 镜头带：8 个真实抽帧 + 时间码 */
+.strip-wrap{position:relative;display:flex;align-items:center;gap:10px}
+.strip{
+  flex:1;min-width:0;display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;
+  scrollbar-width:thin;scrollbar-color:var(--line) transparent;
+  -webkit-mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 40px),transparent 100%);
+          mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 40px),transparent 100%);
+}
+.strip-all{
+  flex:0 0 auto;display:inline-flex;align-items:center;gap:4px;white-space:nowrap;
+  padding:6px 10px;border:1px solid var(--line);border-radius:999px;
+  font-size:11px;color:var(--dim);transition:color var(--dur),border-color var(--dur);
+}
+.strip-all:hover{color:var(--fg);border-color:var(--dim)}
+.strip-all svg{width:12px;height:12px;opacity:.7}
+.strip::-webkit-scrollbar{height:6px}
+.strip::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px}
+.shot{
+  flex:0 0 auto;width:104px;padding:0;border:0;background:0 0;text-align:left;cursor:pointer;
+}
+.shot .ph{position:relative;border-radius:6px;overflow:hidden;aspect-ratio:16/9;background:var(--hole)}
+.shot img{width:100%;height:100%;object-fit:cover;opacity:.72;transition:opacity var(--dur),transform 220ms var(--ease-out)}
+.shot:hover img,.shot[aria-current="true"] img{opacity:1;transform:scale(1.04)}
+.shot .ph::after{content:"";position:absolute;inset:0;border-radius:inherit;box-shadow:inset 0 0 0 1px #ffffff14;pointer-events:none}
+.shot[aria-current="true"] .ph{box-shadow:0 0 0 2px var(--acc)}
+.shot[aria-current="true"] .id{color:var(--fg)}
+.shot .ph .no{
+  position:absolute;left:4px;top:4px;z-index:1;padding:1px 4px;border-radius:3px;
+  background:#0E1116cc;color:#fff;font-family:var(--mono);font-size:9px;font-style:normal;
+  letter-spacing:.04em;font-variant-numeric:tabular-nums;
+}
+.shot[aria-current="true"] .ph .no{background:var(--acc);color:var(--on-accent)}
+.shot .id{display:flex;justify-content:space-between;gap:6px;margin-top:5px;font-size:11px;color:var(--dim)}
+.shot .id time{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.shot[aria-current="true"] .id{color:var(--acc)}
+.shot .nm{margin-top:1px;font-size:11px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.shot[aria-current="true"] .nm{color:var(--fg)}
+.shot:hover .nm{color:var(--fg)}
+
+/* ═══ 2 · 导演笔记 —— 一句想法，一条命令栏 ═══════════════════════ */
+.note{
+  display:flex;align-items:center;gap:10px;margin-top:22px;
+  padding:8px 8px 8px 14px;border:1px solid var(--line);border-radius:10px;
+  background:var(--surf);transition:border-color var(--dur),box-shadow var(--dur);
+}
+.note:focus-within{border-color:var(--acc);box-shadow:0 0 0 3px color-mix(in srgb,var(--acc) 14%,transparent)}
+.note-tag{
+  flex:0 0 auto;padding:2px 7px;border-radius:5px;background:var(--hole);
+  border:1px solid var(--line);color:var(--dim);font-size:10.5px;font-weight:600;letter-spacing:.04em;
+}
+.note input{
+  flex:1;min-width:0;height:34px;border:0;background:0 0;outline:0;
+  color:var(--fg);font:inherit;font-size:13px;caret-color:var(--acc);
+}
+.note input::placeholder{color:var(--ph)}
+.note-chips{display:flex;gap:4px;flex:0 0 auto}
+.note-chips button{
+  height:26px;padding:0 9px;border:1px solid transparent;border-radius:999px;
+  background:0 0;color:var(--ph);font-size:11px;cursor:pointer;white-space:nowrap;
+  transition:color var(--dur),border-color var(--dur),background-color var(--dur);
+}
+.note-chips button:hover{color:var(--fg);border-color:var(--line)}
+.note-chips button[aria-pressed="true"]{color:var(--fg);border-color:var(--line);background:var(--hole)}
+.note-go{
+  flex:0 0 auto;height:34px;padding:0 14px;border:1px solid var(--line);border-radius:8px;
+  background:0 0;color:var(--dim);font-size:12px;font-weight:600;cursor:not-allowed;
+  transition:background-color var(--dur),color var(--dur),border-color var(--dur);
+}
+.note-go[data-ready]{background:var(--acc);border-color:var(--acc);color:var(--on-accent);cursor:pointer}
+.note-go[data-ready]:hover{background:var(--acc-d)}
+.note-state{margin:8px 2px 0;font-size:11px;color:var(--ph);min-height:16px}
+.note-state b{color:var(--ok);font-weight:550}
+
+/* ═══ 3 · 镜头卡库 —— 悬停变宽 + 播动作预览 ════════════════════ */
+.reel{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 8px;scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+.reel::-webkit-scrollbar{height:6px}
+.reel::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px}
+.card{
+  position:relative;flex:0 0 auto;width:104px;height:168px;border:0;border-radius:8px;
+  overflow:hidden;background:var(--hole);padding:0;cursor:pointer;text-align:left;
+  transition:width 320ms var(--ease-out),opacity var(--dur);
+}
+.card img,.card video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.card video{opacity:0;transition:opacity 260ms}
+.card video.is-on{opacity:1}
+.card::after{content:"";position:absolute;inset:0;box-shadow:inset 0 0 0 1px #ffffff12;border-radius:inherit;pointer-events:none;z-index:2}
+.card .kind{
+  position:absolute;left:6px;top:6px;z-index:1;padding:1px 5px;border-radius:3px;
+  background:#0E1116b8;color:#fff;font-size:9.5px;font-style:normal;letter-spacing:.02em;
+}
+.card .cap{
+  position:absolute;left:0;right:0;bottom:0;z-index:1;
+  padding:22px 10px 9px;background:linear-gradient(transparent,#000000d0);
+  opacity:0;transform:translateY(4px);transition:opacity 200ms,transform 200ms;
+}
+.card .cap b{display:block;font-size:12px;font-weight:550;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card .cap span{display:block;margin-top:2px;font-family:var(--mono);font-size:10px;color:#ffffffb8}
+.reel:hover .card:not(:hover){opacity:.5}
+.card:hover{width:268px}
+.card:hover .cap{opacity:1;transform:none}
+
+/* ═══ 4 · 制作方法 —— 六格胶片带 ═══════════════════════════════ */
+.methods{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px}
+.m{position:relative;padding:0;border:0;background:0 0;text-align:left;cursor:pointer;min-width:0}
+.m .art{position:relative;display:block;border-radius:7px;overflow:hidden;aspect-ratio:16/10;background:var(--hole)}
+.m .art img,.m .art video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.m .art video{opacity:0;transition:opacity 260ms}
+.m .art video.is-on{opacity:1}
+.m .art::after{content:"";position:absolute;inset:0;box-shadow:inset 0 0 0 1px #ffffff12;border-radius:inherit;pointer-events:none;z-index:2}
+.m .art img{opacity:.85;transition:opacity var(--dur),transform 320ms var(--ease-out)}
+.m:hover .art img{opacity:1;transform:scale(1.03)}
+.m .txt{margin-top:8px;min-width:0}
+.m .txt b{display:block;font-size:12.5px;font-weight:550;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.m .txt em{display:block;margin-top:1px;font-style:normal;font-size:11px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.m:hover .txt em{color:var(--fg)}
+
+/* ═══ 5 · 视频类型 —— 索引表 ══════════════════════════════════ */
+.types{border-top:1px solid color-mix(in srgb,var(--line) 70%,transparent)}
+.types-note{margin:10px 2px 0;font-size:11px;line-height:1.65;color:var(--dim)}
+.tr{
+  display:grid;grid-template-columns:148px minmax(0,1fr) auto;align-items:center;gap:16px;
+  padding:9px 2px;border-bottom:1px solid color-mix(in srgb,var(--line) 55%,transparent);
+  background:0 0;border-left:0;border-right:0;border-top:0;width:100%;text-align:left;cursor:pointer;
+  transition:background-color var(--dur);
+}
+.tr:hover{background:color-mix(in srgb,var(--hole) 55%,transparent)}
+.tr .nm{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:550}
+.tr .real{padding:1px 4px;border:1px solid color-mix(in srgb,var(--ok) 40%,transparent);border-radius:3px;color:var(--ok);font-size:9px;font-weight:500}
+.tr .fp{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:2px 18px;font-size:11px;color:var(--dim)}
+.tr .fp i{font-style:normal;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tr .fp em{font-style:normal;margin-left:4px;color:var(--fg)}
+.tr .do{display:flex;align-items:center;gap:3px;font-size:11px;color:var(--acc);white-space:nowrap;opacity:.9}
+.tr:hover .do{opacity:1;gap:5px}
+.tr .do svg{width:12px;height:12px}
+
+/* ═══ 6 · 页脚：动效来源 ═════════════════════════════════════ */
+.foot{
+  display:flex;align-items:center;flex-wrap:wrap;gap:8px 18px;
+  margin-top:44px;padding-top:16px;border-top:1px solid var(--line);
+}
+.foot .lbl{font-family:var(--mono);font-size:10px;letter-spacing:.12em;color:var(--ph)}
+.foot a{display:inline-flex;align-items:center;gap:7px;color:var(--dim);transition:color var(--dur)}
+.foot a img{width:18px;height:18px;object-fit:contain;filter:grayscale(.4) brightness(.9);transition:transform var(--dur),filter var(--dur)}
+.foot a b{font-size:11.5px;font-weight:500;color:var(--fg)}
+.foot a:hover img{transform:translateY(-2px);filter:none}
+.foot .note{margin-left:auto;font-size:11px;color:var(--dim)}
+
+@media (prefers-reduced-motion:reduce){
+  *{transition:none!important;animation:none!important}
+}
+@media (max-width:980px){
+  .methods{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+@media (max-width:760px){
+  .page{padding:20px 18px 48px}
+  .sec-head{flex-wrap:wrap;gap:8px}
+  .sec-head .rule{display:none}
+  .sec-head .meta{margin-left:0;order:3;flex:1 1 100%;white-space:normal}
+  .sec-head .go{margin-left:auto}
+  .wb-head h1{font-size:17px}
+  .wb-acts{margin-left:0;width:100%;justify-content:space-between}
+  .note{flex-wrap:wrap}
+  .note input{flex:1 1 100%;order:-1;height:38px}
+  .note-chips{flex:1 1 auto;overflow-x:auto}
+  .tr{grid-template-columns:minmax(0,1fr) auto;gap:3px 14px;align-items:start}
+  .tr .nm{grid-area:1/1}
+  .tr .do{grid-area:1/2}
+  .tr .fp{grid-area:2/1/3/3}
+  .methods{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+</style>
+</head>
+<body>
+<main class="page">
+
+  <!-- ═══ 作品在工作：真帧 + 镜头带 ═════════════════════════════ -->
+  <section aria-label="当前作品">
+    <figure class="wb-frame">
+      <img src="/frames/film/s09.jpg" alt="Token 科普视频 第 9 镜画面" />
+      <figcaption>
+        <span class="now">Token 科普视频 · 第 9 镜 · 黄仁勋</span>
+        <span class="tc">00:46 / 02:32</span>
+        <span class="live"><i></i>9 天前更新</span>
+      </figcaption>
+    </figure>
+
+    <div class="wb-head">
+      <div>
+        <h1>Token 科普视频</h1>
+        <p class="tagline">黄仁勋两小时反复提的那个词，到底是什么</p>
+      </div>
+      <div class="wb-acts">
+        <span class="facts">25 镜 · 23 已出片 · 2:32</span>
+        <a class="btn" href="#">
+          继续制作
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 3.5l7 4.5-7 4.5z"/></svg>
+        </a>
+      </div>
+    </div>
+
+    <div class="strip-wrap">
+      <div class="strip" role="list" aria-label="镜头">
+        <!-- 8 个真实抽帧；点击切换主画面 -->
+      </div>
+      <a class="strip-all" href="#">全部 25 镜
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 3l5 5-5 5"/></svg>
+      </a>
+    </div>
+  </section>
+
+  <!-- ═══ 导演笔记：一句想法 = 一条命令 ═════════════════════════ -->
+  <form class="note" id="note">
+    <span class="note-tag">新片</span>
+    <input id="idea" placeholder="写一句想法，开一部新片 —— 例如：雨夜车站，两位多年未见的朋友重逢，拆成三个镜头。" autocomplete="off" />
+    <div class="note-chips" role="group" aria-label="示例">
+      <button type="button" data-ex="雨夜车站，两位多年未见的朋友重逢。写一段故事，再拆成三个镜头。" aria-pressed="true">短片构思</button>
+      <button type="button" data-ex="给一台便携咖啡机做 15 秒广告：开场拍水流特写，中间拆三个卖点，最后落版。">产品广告</button>
+      <button type="button" data-ex="把《静夜思》改成 6 个镜头的分镜：从空镜一路推到人物特写，节奏先慢后快。">故事分镜</button>
+    </div>
+    <button class="note-go" id="go" type="submit">开始分镜</button>
+  </form>
+  <p class="note-state" id="noteState"></p>
+
+  <!-- ═══ 镜头卡库 ═════════════════════════════════════════════ -->
+  <section class="sec" aria-label="镜头卡库">
+    <div class="sec-head">
+      <svg class="ic" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1.5" y="3.5" width="13" height="9" rx="1.5"/><path d="M1.5 6.5h13M5 3.5v3M9 3.5v3"/></svg>
+      <h2>镜头卡库</h2>
+      <span class="rule"></span>
+      <span class="meta">157 张 · 10 类</span>
+      <button class="go">全部 <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 3l5 5-5 5"/></svg></button>
+    </div>
+    <div class="reel" id="reel"></div>
+  </section>
+
+  <!-- ═══ 制作方法 ═════════════════════════════════════════════ -->
+  <section class="sec" aria-label="制作方法">
+    <div class="sec-head">
+      <svg class="ic" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M2 4h5v8H2zM9 4h5v8H9z"/><path d="M7 8h2"/></svg>
+      <h2>制作方法</h2>
+      <span class="rule"></span>
+      <span class="meta">6 种片型 · 各一套做法</span>
+      <button class="go">完整流程 <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 3l5 5-5 5"/></svg></button>
+    </div>
+    <div class="methods" id="methods"></div>
+  </section>
+
+  <!-- ═══ 视频类型 ═════════════════════════════════════════════ -->
+  <section class="sec" aria-label="视频类型">
+    <div class="sec-head">
+      <svg class="ic" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 1.8l2.4 4.2 4.6.7-3.3 3.3.8 4.6L8 12.4l-4.5 2.2.8-4.6L1 6.7l4.6-.7z"/></svg>
+      <h2>视频类型</h2>
+      <span class="rule"></span>
+      <span class="meta">6 种 · 3 种来自参考拆解实测</span>
+      <button class="go">看拆解 <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 3l5 5-5 5"/></svg></button>
+    </div>
+    <div class="types" id="types"></div>
+    <p class="types-note">另外三类（产品宣传 / 短视频 / 长视频）是规格类片型，指标不是节奏而是画幅、时长与钩子 —— 在参考片库里看完整拆解。</p>
+  </section>
+
+  <!-- ═══ 页脚 ═════════════════════════════════════════════════ -->
+  <footer class="foot">
+    <span class="lbl">动效来源</span>
+    <a href="#"><img src="/assets/partners/shotcraft.svg" alt=""><b>镜刻</b></a>
+    <a href="#"><img src="/assets/partners/scenes.svg" alt=""><b>Remotion Scenes</b></a>
+    <a href="#"><img src="/assets/partners/rve.svg" alt=""><b>React Video Editor</b></a>
+    <span class="note">全部开源 · 点开是各自的在线画廊</span>
+  </footer>
+</main>
+
+<script>
+/* ── 数据：全部来自仓库真实文件 ─────────────────────────────── */
+const SHOTS = [
+  { id:'s01', n:'Token 出现',   t:'0:00', f:'/frames/film/s01.jpg' },
+  { id:'s02', n:'无数科技大佬', t:'0:04', f:'/frames/film/s02.jpg' },
+  { id:'s03', n:'词元',         t:'0:12', f:'/frames/film/s03.jpg' },
+  { id:'s06', n:'人民币类比',   t:'0:29', f:'/frames/film/s06.jpg' },
+  { id:'s09', n:'黄仁勋',       t:'0:46', f:'/frames/film/s09.jpg' },
+  { id:'s11', n:'AI 时代的石油', t:'1:00', f:'/frames/film/s11.jpg' },
+  { id:'s13', n:'打开手机',     t:'1:14', f:'/frames/film/s13.jpg' },
+  { id:'s15', n:'因为免费',     t:'1:27', f:'/frames/film/s15.jpg' },
+];
+const REEL = [
+  { n:'magician-card-flourish', c:'开场',     d:'4.2s', p:'/cards/posters/magician-card-flourish.jpg', m:'/cards/motion/magician-card-flourish.mp4' },
+  { n:'card-stack',             c:'界面入场', d:'4.2s', p:'/cards/posters/card-stack.jpg',             m:'/cards/motion/card-stack.mp4' },
+  { n:'cursor-flyover',         c:'运镜',     d:'6.0s', p:'/cards/posters/cursor-flyover.jpg',         m:'/cards/motion/cursor-flyover.mp4' },
+  { n:'circle-match-iris',      c:'转场',     d:'4.7s', p:'/cards/posters/circle-match-iris.jpg',      m:'/cards/motion/circle-match-iris.mp4' },
+  { n:'counter-confetti',       c:'数据',     d:'4.6s', p:'/cards/posters/counter-confetti.jpg',       m:'/cards/motion/counter-confetti.mp4' },
+  { n:'flying-words',           c:'文字',     d:'6.0s', p:'/cards/posters/flying-words.jpg',           m:'/cards/motion/flying-words.mp4' },
+  { n:'carousel-3d',            c:'界面入场', d:'5.6s', p:'/cards/posters/carousel-3d.jpg',            m:'/cards/motion/carousel-3d.mp4' },
+  { n:'mosaic-reframe',         c:'转场',     d:'6.0s', p:'/cards/posters/mosaic-reframe.jpg',         m:'/cards/motion/mosaic-reframe.mp4' },
+  { n:'terminal-3d',            c:'运镜',     d:'6.0s', p:'/cards/posters/terminal-3d.jpg',            m:'/cards/motion/terminal-3d.mp4' },
+  { n:'cube-navigation',        c:'转场',     d:'5.2s', p:'/cards/posters/cube-navigation.jpg',        m:'/cards/motion/cube-navigation.mp4' },
+];
+const METHODS = [
+  { n:'口播科普', m:'按镜头制作', lead:'一句话一个镜头', p:'/cards/posters/cursor-flyover.jpg',        mo:'/cards/motion/cursor-flyover.mp4' },
+  { n:'对话访谈', m:'按话轮制作', lead:'先切话轮，再配画面', p:'/cards/posters/avatar-bracket-carousel.jpg', mo:'/cards/motion/avatar-bracket-carousel.mp4' },
+  { n:'讲书解读', m:'按页制作',   lead:'一页一个论点，不做实拍', p:'/cards/posters/word-relay-filmstrip.jpg', mo:'/cards/motion/word-relay-filmstrip.mp4' },
+  { n:'产品宣传', m:'按卖点制作', lead:'一个卖点一条镜头', p:'/cards/posters/cube-navigation.jpg',     mo:'/cards/motion/cube-navigation.mp4' },
+  { n:'短视频',   m:'按钩子制作', lead:'前三秒定生死', p:'/cards/posters/counter-confetti.jpg',       mo:'/cards/motion/counter-confetti.mp4' },
+  { n:'长视频',   m:'按章节制作', lead:'两到四分钟一章', p:'/cards/posters/carousel-3d.jpg',           mo:'/cards/motion/carousel-3d.mp4' },
+];
+const TYPES = [
+  { n:'口播科普', fp:[['平均镜长','2.0–2.6s'],['出镜占比','27%'],['锚点回归','每 5.0s']], m:'按镜头制作' },
+  { n:'对话访谈', fp:[['平均镜长','2.0–2.4s'],['出镜占比','57%'],['锚点回归','每 3.0s']], m:'按话轮制作' },
+  { n:'讲书解读', fp:[['平均镜长','4.3–5.5s'],['出镜占比','0%'], ['锚点回归','无']],      m:'按页制作' },
+];
+
+const $ = (s, r = document) => r.querySelector(s);
+const el = (t, c, h) => { const n = document.createElement(t); if (c) n.className = c; if (h != null) n.innerHTML = h; return n; };
+
+/* ── 镜头带 ─────────────────────────────────────────────────── */
+const strip = $('.strip');
+const heroImg = $('.wb-frame img');
+const heroNow = $('.wb-frame .now');
+const heroTc  = $('.wb-frame .tc');
+SHOTS.forEach((s, i) => {
+  const b = el('button', 'shot');
+  b.type = 'button'; b.setAttribute('role', 'listitem');
+  b.setAttribute('aria-current', s.id === 's09' ? 'true' : 'false');
+  b.innerHTML = `<span class="ph"><img src="${s.f}" alt="" loading="lazy"><i class="no">${s.id.toUpperCase()}</i></span>
+    <span class="id"><span>${s.n}</span><time>${s.t}</time></span>`;
+  b.addEventListener('click', () => {
+    strip.querySelectorAll('.shot').forEach(x => x.setAttribute('aria-current', 'false'));
+    b.setAttribute('aria-current', 'true');
+    heroImg.src = s.f;
+    heroNow.textContent = `Token 科普视频 · 第 ${i + 1} 镜`;
+    heroTc.textContent = `${s.t} / 02:32`;
+  });
+  strip.appendChild(b);
+});
+
+/* ── 镜头卡库：悬停变宽 + 赋 src 播动作预览 ──────────────────── */
+const reel = $('#reel');
+REEL.forEach(c => {
+  const b = el('button', 'card');
+  b.type = 'button';
+  b.innerHTML = `<img src="${c.p}" alt="" loading="lazy">
+    <video muted loop playsinline preload="none"></video>
+    <i class="kind">${c.c}</i>
+    <span class="cap"><b>${c.n}</b><span>${c.c} · ${c.d}</span></span>`;
+  const v = $('video', b);
+  b.addEventListener('pointerenter', () => {
+    if (!v.src) v.src = c.m;
+    v.play().then(() => v.classList.add('is-on')).catch(() => {});
+  });
+  b.addEventListener('pointerleave', () => {
+    v.pause(); v.classList.remove('is-on'); v.currentTime = 0;
+  });
+  reel.appendChild(b);
+});
+
+/* ── 制作方法 ───────────────────────────────────────────────── */
+const methods = $('#methods');
+METHODS.forEach(x => {
+  const b = el('button', 'm');
+  b.type = 'button';
+  b.innerHTML = `<span class="art"><img src="${x.p}" alt="" loading="lazy"><video muted loop playsinline preload="none"></video></span>
+    <span class="txt"><b>${x.n} · ${x.m}</b><em>${x.lead}</em></span>`;
+  const v = $('video', b);
+  b.addEventListener('pointerenter', () => {
+    if (!v.src) v.src = x.mo;
+    v.play().then(() => v.classList.add('is-on')).catch(() => {});
+  });
+  b.addEventListener('pointerleave', () => {
+    v.pause(); v.classList.remove('is-on'); v.currentTime = 0;
+  });
+  methods.appendChild(b);
+});
+
+/* ── 视频类型表 ─────────────────────────────────────────────── */
+const types = $('#types');
+TYPES.forEach(t => {
+  const b = el('button', 'tr');
+  b.type = 'button';
+  b.innerHTML = `<span class="nm">${t.n}<i class="real">实测</i></span>
+    <span class="fp">${t.fp.map(([k, v]) => `<i>${k}<em>${v}</em></i>`).join('')}</span>
+    <span class="do">${t.m}<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 3l5 5-5 5"/></svg></span>`;
+  types.appendChild(b);
+});
+
+/* ── 导演笔记：输入即就绪；提交给出真实结果说明 ──────────────── */
+const idea = $('#idea'), go = $('#go'), state = $('#noteState');
+const chips = document.querySelectorAll('.note-chips button');
+const sync = () => { go.toggleAttribute('data-ready', !!idea.value.trim()); };
+idea.addEventListener('input', sync);
+chips.forEach(ch => ch.addEventListener('click', () => {
+  chips.forEach(x => x.setAttribute('aria-pressed', 'false'));
+  ch.setAttribute('aria-pressed', 'true');
+  idea.value = ch.dataset.ex;
+  idea.focus();
+  sync();
+}));
+$('#note').addEventListener('submit', e => {
+  e.preventDefault();
+  const v = idea.value.trim();
+  if (!v) { idea.focus(); return; }
+  state.innerHTML = `<b>已记下</b> · 「${v.length > 26 ? v.slice(0, 26) + '…' : v}」正式版会把这句话带进工作台的输入框`;
+});
+sync();
+</script>
+</body>
+</html>
