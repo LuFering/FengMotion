@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1440">
+<title>FengMotion · 从一句话到一条片子</title>
+<style>
+:root{
+  --ink:#000; --paper:#F4F1EA; --dim:#9A9A9A; --faint:#6A6A6A;
+  --line:#262626; --line-2:#171717; --blue:#3B8CF8;
+  --serif:"Noto Serif CJK SC","思源宋体",Songti SC,serif;
+  --sans:"Noto Sans CJK SC","思源黑体",system-ui,sans-serif;
+  --mono:"Noto Sans Mono CJK SC",ui-monospace,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--ink);color:var(--paper);font-family:var(--sans);
+  -webkit-font-smoothing:antialiased}
+body{width:1440px;margin:0 auto;overflow-x:hidden;overflow-anchor:none}
+::selection{background:var(--blue);color:#fff}
+html.lenis,html.lenis body{height:auto}
+.lenis.lenis-smooth{scroll-behavior:auto!important}
+
+/* 顶栏 */
+.nav{position:fixed;top:0;left:50%;transform:translateX(-50%);width:1440px;z-index:50;
+  display:flex;align-items:center;gap:30px;height:82px;padding:0 56px;mix-blend-mode:difference}
+.nav img{height:34px;width:auto;display:block}
+.nav .sp{margin-left:auto}
+.nav a{font-size:12px;color:#d2d2d2;text-decoration:none;letter-spacing:.02em}
+.nav a:hover{color:#fff}
+.nav .gh{display:inline-flex;align-items:center;gap:7px;font-size:12px;color:#D2D2D2;
+  text-decoration:none;letter-spacing:.02em}
+.nav .gh svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.4;
+  stroke-linecap:round;stroke-linejoin:round}
+.nav .ic{width:32px;height:32px;display:grid;place-items:center;border-radius:50%;
+  color:#D2D2D2;text-decoration:none;transition:background .2s,color .2s}
+.nav .ic:hover{color:#fff;background:rgba(255,255,255,.10)}
+.nav .ic svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.5;
+  stroke-linecap:round;stroke-linejoin:round}
+.nav .go{display:inline-flex;align-items:center;height:32px;padding:0 14px;border:1px solid #ffffff73;
+  border-radius:999px;color:#fff;font-size:12px}
+
+.scene{position:relative;height:100vh;min-height:820px;overflow:hidden}
+.cut{height:0;background:#000}
+.kicker{font:10px var(--mono);letter-spacing:.34em;color:#7A7A7A;text-transform:uppercase}
+
+/* ═══ 1 首屏：左取景器 / 右文字 ═══ */
+.hero{display:grid;grid-template-columns:50% 50%;height:100vh;min-height:820px;background:#000}
+.hero .media{position:relative;display:flex;align-items:center;justify-content:center;background:#000;
+  padding-bottom:22px}
+.vf{position:relative;width:640px;height:400px}
+.vf .win{position:absolute;inset:0;overflow:hidden;background:#050505}
+.vf .win video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+  filter:brightness(.88) contrast(1.06)}
+.vf .grid{position:absolute;inset:0;pointer-events:none;filter:drop-shadow(0 0 2px rgba(0,0,0,.75));
+  background:
+    linear-gradient(to right,transparent calc(33.33% - .5px),#ffffff3d calc(33.33% - .5px),#ffffff3d calc(33.33% + .5px),transparent calc(33.33% + .5px)),
+    linear-gradient(to right,transparent calc(66.66% - .5px),#ffffff3d calc(66.66% - .5px),#ffffff3d calc(66.66% + .5px),transparent calc(66.66% + .5px)),
+    linear-gradient(to bottom,transparent calc(33.33% - .5px),#ffffff3d calc(33.33% - .5px),#ffffff3d calc(33.33% + .5px),transparent calc(33.33% + .5px)),
+    linear-gradient(to bottom,transparent calc(66.66% - .5px),#ffffff3d calc(66.66% - .5px),#ffffff3d calc(66.66% + .5px),transparent calc(66.66% + .5px))}
+.vf .cn{position:absolute;width:30px;height:30px;border:2px solid #fff;opacity:.9;
+  filter:drop-shadow(0 0 2px rgba(0,0,0,.6))}
+.vf .cn.tl{left:0;top:0;border-right:0;border-bottom:0}
+.vf .cn.tr{right:0;top:0;border-left:0;border-bottom:0}
+.vf .cn.bl{left:0;bottom:0;border-right:0;border-top:0}
+.vf .cn.br{right:0;bottom:0;border-left:0;border-top:0}
+.vf .cross{position:absolute;left:50%;top:50%;width:26px;height:26px;
+  transform:translate(-50%,-50%);filter:drop-shadow(0 0 2px rgba(0,0,0,.7));
+  background:radial-gradient(circle,rgba(0,0,0,.42) 0 46%,rgba(0,0,0,0) 72%);border-radius:50%}
+.vf .rec{position:absolute;left:14px;top:12px;display:flex;align-items:center;gap:7px;
+  font:9px var(--mono);letter-spacing:.24em;color:#ffffffd0;text-shadow:0 1px 2px #000}
+.vf .rec i{width:6px;height:6px;border-radius:50%;background:#F0553F;box-shadow:0 0 8px #F0553F}
+.vf .cap{position:absolute;left:0;bottom:-42px;display:flex;align-items:center;gap:12px;
+  font:10px var(--mono);letter-spacing:.2em;color:#9C9C9C}
+.vf .cap i{width:34px;height:1px;background:#3A3A3A}
+.vf .cap b{color:var(--blue);font-weight:400}
+
+.hero .copy{position:relative;display:flex;flex-direction:column;justify-content:center;
+  padding:0 72px 0 76px}
+.hero h1{position:relative;margin:0;font:500 78px/1.2 var(--serif);letter-spacing:-.015em}
+.hero h1 .l1,.hero h1 .l2{display:block;position:relative;z-index:1}
+.hero h1 .l2{padding-left:118px;margin-top:6px}
+.hero h1 i{font-style:normal;display:inline-block;opacity:0;transform:translateY(.18em)}
+.hero h1 i.on{opacity:1;transform:none;transition:opacity .18s,transform .28s cubic-bezier(.2,.7,.2,1)}
+.hero h1 .kw{color:var(--blue)}
+.hero svg.ink{position:absolute;left:0;top:0;overflow:visible;pointer-events:none;z-index:0}
+.hero svg.ink path{fill:none;stroke:var(--blue);stroke-width:1.4;stroke-linecap:round}
+.hero svg.ink path.under{stroke-width:2.2}
+.hero .seal{position:absolute;right:8px;top:-6px;width:54px;height:54px;opacity:0;transform:rotate(-8deg)}
+.hero .seal.on{opacity:.85;transition:opacity .6s}
+.hero .seal svg{width:100%;height:100%}
+.hero .seal text{fill:#7FA9F5;font:7px var(--mono);letter-spacing:.18em}
+
+.hero .lead,.hero .ask-wrap,.hero .hint{opacity:0;transform:translateY(14px)}
+.hero .lead{margin:34px 0 0;font-size:16px;line-height:1.9;color:#DCDCDC;max-width:468px}
+.ask-wrap{position:relative;margin-top:42px;width:520px;max-width:100%}
+.ask-wrap::before{content:"";position:absolute;inset:-40px -60px;border-radius:50%;
+  background:radial-gradient(55% 65% at 24% 50%,rgba(255,255,255,.055),transparent 72%);
+  filter:blur(12px);pointer-events:none}
+.ask{position:relative;display:flex;align-items:center;gap:12px;height:62px;padding:0 9px 0 22px;
+  border-radius:999px;overflow:hidden;
+  background:linear-gradient(180deg,rgba(255,255,255,.16),rgba(255,255,255,.05));
+  backdrop-filter:blur(18px) saturate(180%);-webkit-backdrop-filter:blur(18px) saturate(180%);
+  border:1px solid rgba(255,255,255,.26);
+  box-shadow:0 24px 48px rgba(0,0,0,.5),0 2px 6px rgba(0,0,0,.35),
+             inset 0 1px 0 rgba(255,255,255,.42),inset 0 -1px 0 rgba(255,255,255,.08)}
+.ask::before{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+  background:radial-gradient(140px 70px at var(--mx,28%) var(--my,0%),rgba(255,255,255,.34),transparent 62%)}
+.ask::after{content:"";position:absolute;inset:1px;border-radius:inherit;pointer-events:none;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.10)}
+.ask input{flex:1;min-width:0;border:0;background:0 0;outline:0;color:#fff;
+  font:15px var(--sans);caret-color:var(--blue);position:relative;z-index:2}
+.ask input::placeholder{color:#A6A6A6}
+.ask .go{position:relative;z-index:2;width:44px;height:44px;border-radius:50%;flex:0 0 auto;
+  border:1px solid rgba(255,255,255,.35);background:rgba(255,255,255,.10);
+  color:#fff;display:grid;place-items:center;cursor:pointer;
+  transition:background .2s,border-color .2s,transform .2s;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.5)}
+.ask .go:hover{background:var(--blue);border-color:var(--blue);transform:translateY(-1px)}
+.ask .go svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8}
+.hero .hint{margin-top:16px;font:10.5px var(--mono);letter-spacing:.16em;color:#8A8A8A}
+
+/* ═══ 2 视频类型 ═══ */
+.genres{display:flex;flex-direction:column;justify-content:center;gap:54px;
+  height:100vh;min-height:820px;background:#000;padding:0 56px}
+.genres .bars{display:flex;gap:2px;width:100%}
+.genres .bar{position:relative;flex:1 1 0;cursor:pointer;
+  transition:flex-grow .9s cubic-bezier(.2,.7,.2,1)}
+.genres .bar:hover{flex-grow:1.9}
+.genres .bar .vid{position:relative;height:248px;overflow:hidden;background:#050505;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.07)}
+.genres .bar video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+  filter:brightness(.78) saturate(.92);transition:filter .9s,transform 1.2s;transform:scale(1.03)}
+.genres .bar:hover video{filter:brightness(1.06) saturate(1.02);transform:scale(1)}
+.genres .bar:nth-child(1) video{filter:brightness(.62) saturate(.92)}
+.genres .bar:nth-child(3) video{filter:brightness(.95) contrast(1.02) saturate(.95)}
+.genres .bar .scrim{position:absolute;inset:0;pointer-events:none;z-index:1;
+  background:linear-gradient(to top,rgba(0,0,0,.85) 0%,rgba(0,0,0,.45) 34%,rgba(0,0,0,0) 62%),
+             linear-gradient(to right,rgba(0,0,0,.5),rgba(0,0,0,0) 45%)}
+.genres .bar .tc{position:absolute;left:20px;bottom:16px;z-index:2}
+.genres .bar .tc .t{position:absolute;left:0;bottom:calc(100% + 7px);display:flex;align-items:center;gap:7px;
+  font:9.5px var(--mono);letter-spacing:.16em;color:#B4B4B4;font-variant-numeric:tabular-nums;
+  opacity:0;transition:opacity .3s;white-space:nowrap}
+.genres .bar:hover .tc .t{opacity:1}
+.genres .bar .tc .t i{width:5px;height:5px;border-radius:50%;background:#F0553F;box-shadow:0 0 8px #F0553F}
+.genres .bar .neon{position:relative;display:inline-flex;align-items:center;height:26px;padding:0 11px;
+  background:rgba(8,14,26,.72);border:1px solid rgba(59,140,248,.85);border-radius:3px;
+  color:#fff;font:500 10px var(--mono);letter-spacing:.18em;
+  box-shadow:0 0 12px rgba(59,140,248,.55),inset 0 0 10px rgba(59,140,248,.25)}
+.genres .bar .neon span{text-shadow:0 0 5px rgba(120,180,255,.85),0 0 12px rgba(59,140,248,.6)}
+.genres .vfx{position:absolute;inset:0;z-index:3;opacity:0;transition:opacity .3s;pointer-events:none}
+.genres .bar:hover .vfx{opacity:1}
+.genres .vfx .grid{position:absolute;inset:0;
+  background:
+    linear-gradient(to right,transparent calc(33.33% - .5px),#ffffff26 calc(33.33% - .5px),#ffffff26 calc(33.33% + .5px),transparent calc(33.33% + .5px)),
+    linear-gradient(to right,transparent calc(66.66% - .5px),#ffffff26 calc(66.66% - .5px),#ffffff26 calc(66.66% + .5px),transparent calc(66.66% + .5px)),
+    linear-gradient(to bottom,transparent calc(33.33% - .5px),#ffffff26 calc(33.33% - .5px),#ffffff26 calc(33.33% + .5px),transparent calc(33.33% + .5px)),
+    linear-gradient(to bottom,transparent calc(66.66% - .5px),#ffffff26 calc(66.66% - .5px),#ffffff26 calc(66.66% + .5px),transparent calc(66.66% + .5px))}
+.genres .vfx .cross{position:absolute;left:50%;top:50%;width:26px;height:26px;
+  transform:translate(-50%,-50%);filter:drop-shadow(0 0 2px rgba(0,0,0,.75));
+  background:radial-gradient(circle,rgba(0,0,0,.42) 0 46%,rgba(0,0,0,0) 72%);border-radius:50%}
+.genres .vfx .cn{position:absolute;width:22px;height:22px;border:2px solid #fff;opacity:.92;
+  filter:drop-shadow(0 0 2px rgba(0,0,0,.65))}
+.genres .vfx .cn.tl{left:0;top:0;border-right:0;border-bottom:0}
+.genres .vfx .cn.tr{right:0;top:0;border-left:0;border-bottom:0}
+.genres .vfx .cn.bl{left:0;bottom:0;border-right:0;border-top:0}
+.genres .vfx .cn.br{right:0;bottom:0;border-left:0;border-top:0}
+.genres .bar .copy{height:82px;padding-top:16px;opacity:0;transform:translateY(10px);
+  transition:opacity .45s .04s,transform .45s cubic-bezier(.2,.7,.2,1) .04s}
+.genres .bar:hover .copy{opacity:1;transform:none}
+.genres .bar .copy h3{margin:0 0 10px;font:500 30px/1.3 var(--serif);letter-spacing:-.01em}
+.genres .bar .copy p{margin:0;font-size:13px;line-height:1.9;color:#A6A6A6;max-width:330px}
+.genres .head .kicker .no{color:var(--blue)}
+.genres .head h2{margin:12px 0 0;font:500 30px/1.4 var(--serif)}
+
+/* ═══ 3 镜头卡库：紧凑扇形轮盘 ═══ */
+.cards{position:relative;display:flex;flex-direction:column;justify-content:flex-start;gap:44px;
+  height:100vh;min-height:820px;background:#000;overflow:hidden;padding:96px 44px 0}
+.cards .hd{position:relative;z-index:4;padding-left:12px}
+.cards .hd h2{margin:12px 0 0;font:500 30px/1.4 var(--serif)}
+.cards::after{content:"";position:absolute;inset:0;pointer-events:none;z-index:3;
+  background:linear-gradient(90deg,rgba(0,0,0,.85),transparent 26%,transparent 74%,rgba(0,0,0,.85))}
+.stage3d{position:relative;display:flex;flex-direction:column;gap:56px;padding:0}
+.wheel{position:relative;flex:1;height:296px}
+.ring{position:absolute;inset:0}
+.wc{position:absolute;left:50%;top:50%;width:360px;height:216px;margin:-108px 0 0 -180px;
+  overflow:hidden;background:#060606;will-change:transform,opacity;
+  box-shadow:0 30px 64px rgba(0,0,0,.78),0 0 0 1px rgba(255,255,255,.13)}
+.wc video{width:100%;height:100%;object-fit:cover;filter:brightness(.92)}
+.wc .cvf{position:absolute;inset:0;z-index:2;pointer-events:none;opacity:0;transition:opacity .28s}
+.wc.is-front .cvf{opacity:1}
+.wc .cvf .cn{position:absolute;width:22px;height:22px;border:2px solid #fff;opacity:.95;
+  filter:drop-shadow(0 0 2px rgba(0,0,0,.65))}
+.wc .cvf .cn.tl{left:0;top:0;border-right:0;border-bottom:0}
+.wc .cvf .cn.tr{right:0;top:0;border-left:0;border-bottom:0}
+.wc .cvf .cn.bl{left:0;bottom:0;border-right:0;border-top:0}
+.wc .cvf .cn.br{right:0;bottom:0;border-left:0;border-top:0}
+.wc .cvf .grid{position:absolute;inset:0;
+  background:
+    linear-gradient(to right,transparent calc(33.33% - .5px),#ffffff30 calc(33.33% - .5px),#ffffff30 calc(33.33% + .5px),transparent calc(33.33% + .5px)),
+    linear-gradient(to right,transparent calc(66.66% - .5px),#ffffff30 calc(66.66% - .5px),#ffffff30 calc(66.66% + .5px),transparent calc(66.66% + .5px)),
+    linear-gradient(to bottom,transparent calc(33.33% - .5px),#ffffff30 calc(33.33% - .5px),#ffffff30 calc(33.33% + .5px),transparent calc(33.33% + .5px)),
+    linear-gradient(to bottom,transparent calc(66.66% - .5px),#ffffff30 calc(66.66% - .5px),#ffffff30 calc(66.66% + .5px),transparent calc(66.66% + .5px))}
+.wc .cvf .cross{position:absolute;left:50%;top:50%;width:26px;height:26px;transform:translate(-50%,-50%);
+  filter:drop-shadow(0 0 2px rgba(0,0,0,.7));
+  background:radial-gradient(circle,rgba(0,0,0,.42) 0 46%,rgba(0,0,0,0) 72%);border-radius:50%}
+.wc .cvf .rec{position:absolute;left:34px;top:12px;display:flex;align-items:center;gap:6px;
+  font:8px var(--mono);letter-spacing:.22em;color:#fff;text-shadow:0 1px 2px #000}
+.wc .cvf .rec i{width:5px;height:5px;border-radius:50%;background:#F0553F;box-shadow:0 0 8px #F0553F}
+.wbtn{position:relative;z-index:5;width:46px;height:46px;border-radius:50%;flex:0 0 auto;
+  border:1px solid rgba(255,255,255,.28);background:rgba(255,255,255,.04);color:#fff;
+  display:grid;place-items:center;cursor:pointer;transition:.2s;backdrop-filter:blur(8px)}
+.wbtn:hover{background:var(--blue);border-color:var(--blue);transform:scale(1.06)}
+.wbtn svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.6}
+.wrow{display:flex;align-items:center;justify-content:space-between;width:100%}
+.wcap{position:relative;display:flex;flex-wrap:wrap;align-items:baseline;row-gap:8px;
+  justify-content:center;column-gap:20px;font:15px var(--mono);letter-spacing:.2em;color:#9A9A9A;z-index:5}
+.wcap b{color:var(--blue);font-weight:400;font-size:15px}
+.wcap span{color:#F2F2F2;letter-spacing:.16em;font-size:17px}
+.wcap i{flex:0 0 100%;text-align:center;color:#7A7A7A;font-style:normal;font-size:14px}
+
+/* ═══ 4 制作方法 ═══ */
+.methods{display:flex;flex-direction:column;justify-content:flex-start;padding:112px 56px 0;background:#000;
+  position:relative}
+.mprev{position:absolute;right:56px;top:50%;transform:translateY(-50%);width:430px;height:242px;
+  overflow:hidden;background:#060606;pointer-events:none;
+  box-shadow:0 30px 70px rgba(0,0,0,.75),0 0 0 1px rgba(255,255,255,.12);
+  opacity:.45;transition:opacity .35s}
+.mprev.on{opacity:1}
+.mprev img{width:100%;height:100%;object-fit:cover;filter:brightness(.92);
+  transition:opacity .18s}
+.mprev .mcap{position:absolute;left:14px;bottom:12px;display:flex;align-items:baseline;gap:10px;
+  font:10px var(--mono);letter-spacing:.18em;color:#EDEDED;text-shadow:0 1px 3px #000}
+.mprev .mcap b{color:var(--blue);font-weight:400}
+.mprev .mcap i{color:#B4B4B4;font-style:normal;font-size:9px;letter-spacing:.14em}
+
+.methods .kicker{margin-bottom:34px}
+.methods ol{list-style:none;margin:0;padding:0}
+.methods li{display:flex;align-items:center;gap:26px;padding:16px 0;
+  border-top:1px solid var(--line-2)}
+.methods li:last-child{border-bottom:1px solid var(--line-2)}
+.methods li .no{font:10px var(--mono);color:#4d4d4d;letter-spacing:.1em;width:30px;flex:0 0 auto}
+.methods li .name{font:500 46px/1.2 var(--serif);letter-spacing:-.01em;transition:color .4s}
+.methods li .say{margin-left:auto;font-size:12px;color:#8a8a8a;max-width:300px;text-align:right;
+  opacity:0;transform:translateX(8px);transition:.5s}
+/* 右侧内嵌缩略图：占位固定，不改变行高 */
+.methods li .mimg{position:relative;flex:0 0 152px;width:152px;height:64px;overflow:hidden;
+  opacity:0;transform:translateX(6px);transition:opacity .35s,transform .35s;
+  box-shadow:0 0 0 1px rgba(255,255,255,.12)}
+.methods li:hover .mimg{opacity:1;transform:none}
+.methods li .mimg img{width:100%;height:100%;object-fit:cover;filter:brightness(.9)}
+.methods li .mimg i{position:absolute;left:8px;bottom:6px;font:8px var(--mono);
+  letter-spacing:.18em;color:#ffffffd0;font-style:normal;text-shadow:0 1px 3px #000}
+.methods li:hover .name{color:var(--blue)}
+.methods li:hover .say{opacity:1;transform:none}
+
+/* ═══ 5 动效来源：双行反向跑马灯 ═══ */
+.sources{display:flex;flex-direction:column;justify-content:center;gap:52px;
+  padding:0 0;background:#000;overflow:hidden}
+.sources .kicker{padding-left:56px}
+.marq{display:flex;flex-direction:column;gap:30px;overflow:hidden;
+  -webkit-mask-image:linear-gradient(90deg,transparent 0,#000 11%,#000 89%,transparent 100%);
+  mask-image:linear-gradient(90deg,transparent 0,#000 11%,#000 89%,transparent 100%)}
+.mrow{display:flex;overflow:hidden}
+.track{display:flex;gap:0;flex:0 0 auto;
+  animation:marqL 46s linear infinite;will-change:transform}
+.mrow.rev .track{animation:marqR 54s linear infinite}
+.marq:hover .track{animation-play-state:paused}
+@keyframes marqL{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+@keyframes marqR{from{transform:translateX(-50%)}to{transform:translateX(0)}}
+.pill{display:flex;align-items:center;gap:16px;height:88px;margin-right:20px;padding:0 34px;border-radius:999px;
+  background:#0C0C0C;border:1px solid #1F1F1F;white-space:nowrap;transition:.25s}
+.pill:hover{border-color:rgba(59,140,248,.65);background:#0F1620}
+.pill img{height:30px;width:auto;filter:grayscale(1) brightness(1.7);opacity:.85;transition:.25s}
+.pill:hover img{filter:none;opacity:1}
+.pill b{font:500 21px/1 var(--serif);letter-spacing:-.01em;color:#EDEDED}
+.sources .note{margin:0;padding-left:56px;font:10px var(--mono);letter-spacing:.22em;color:#7A7A7A}
+
+/* ═══ 6 结尾 ═══ */
+.end{display:flex;flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;background:#000;padding:0 56px}
+.end h2{margin:0;font:500 62px/1.25 var(--serif);letter-spacing:-.01em}
+.end p{margin:18px 0 0;font-size:13px;color:#8f8f8f}
+.end a{display:inline-flex;align-items:center;gap:10px;margin-top:38px;height:48px;padding:0 26px;
+  background:var(--blue);color:#fff;text-decoration:none;font-size:13px;font-weight:500;
+  border-radius:999px;transition:.2s}
+.end a:hover{background:#2E6FD9}
+.end .foot{position:absolute;left:56px;right:56px;bottom:34px;display:flex;gap:20px;
+  font:10px var(--mono);letter-spacing:.16em;color:#454545;border-top:1px solid #141414;padding-top:14px}
+.end .foot span:last-child{margin-left:auto}
+
+.pager{position:fixed;right:28px;top:50%;transform:translateY(-50%);z-index:60;
+  display:flex;flex-direction:column;gap:15px}
+.pager button{position:relative;width:8px;height:8px;padding:0;border-radius:50%;cursor:pointer;
+  border:1px solid #ffffff5c;background:transparent;transition:.3s}
+.pager button.on{background:var(--blue);border-color:var(--blue);box-shadow:0 0 10px #3B8CF8aa}
+.pager button span{position:absolute;right:18px;top:50%;transform:translateY(-50%);
+  font:9px var(--mono);letter-spacing:.18em;color:#B0B0B0;opacity:0;transition:.25s;white-space:nowrap}
+.pager button:hover span{opacity:1}
+.scene{transition:opacity .55s ease}
+
+body.is-moving .scene:not(.is-active){opacity:.62}
+.progress{position:fixed;left:0;top:0;height:1px;width:100%;transform:scaleX(0);
+  transform-origin:0 50%;background:var(--blue);z-index:60;opacity:.9}
+</style>
+</head>
+<body>
+
+<div class="progress" id="progress"></div>
+<div class="pager" id="pager">
+  <button data-i="0" class="on" aria-label="首页"><span>首页</span></button>
+  <button data-i="1" aria-label="视频类型"><span>视频类型</span></button>
+  <button data-i="2" aria-label="镜头卡库"><span>镜头卡库</span></button>
+  <button data-i="3" aria-label="制作方法"><span>制作方法</span></button>
+  <button data-i="4" aria-label="动效来源"><span>动效来源</span></button>
+  <button data-i="5" aria-label="结尾"><span>结尾</span></button>
+</div>
+
+<nav class="nav">
+  <img src="assets/brand/fengmotion-lockup.png" alt="FengMotion">
+  <span class="sp"></span>
+
+
+  <!-- TODO: 四个平台链接，接入 up 主主页 -->
+  <a class="ic" href="#" aria-label="小红书" title="小红书">
+    <svg viewBox="0 0 24 24"><path d="M5 4.5h9.5A2.5 2.5 0 0 1 17 7v12.5H7.5A2.5 2.5 0 0 1 5 17z"/><path d="M17 8.5h2v11h-2"/><path d="M8.5 8.5h5M8.5 11.5h5"/></svg>
+  </a>
+  <a class="ic" href="#" aria-label="抖音" title="抖音">
+    <svg viewBox="0 0 24 24"><path d="M14 3v11.2a3.4 3.4 0 1 1-3-3.4"/><path d="M14 3c.4 2.6 2.1 4.2 4.7 4.4"/></svg>
+  </a>
+  <a class="ic" href="#" aria-label="快手" title="快手">
+    <svg viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="4"/><path d="M9.5 8.5v7M9.5 12l4-3.5M9.5 12l4 3.5"/></svg>
+  </a>
+  <a class="ic" href="#" aria-label="B站" title="B站">
+    <svg viewBox="0 0 24 24"><rect x="3" y="6.5" width="18" height="12.5" rx="3"/><path d="M7.5 3.5 10 6M16.5 3.5 14 6"/><path d="M9 11.5v2.5M15 11.5v2.5"/></svg>
+  </a>
+
+  <a class="gh" href="https://github.com/LuFering/FengMotion" target="_blank" rel="noopener">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 19c-4 1.2-4-2-5.5-2.5M15 21v-3.4a3 3 0 0 0-.9-2.4c3-.3 6.1-1.5 6.1-6.7a5.2 5.2 0 0 0-1.4-3.6 4.8 4.8 0 0 0-.1-3.6s-1.1-.3-3.6 1.4a12.4 12.4 0 0 0-6.4 0C6.2 1.2 5.1 1.5 5.1 1.5a4.8 4.8 0 0 0-.1 3.6A5.2 5.2 0 0 0 3.6 8.7c0 5.2 3.1 6.4 6.1 6.7a3 3 0 0 0-.9 2.3V21"/></svg>
+    GitHub 仓库
+  </a>
+
+  <a class="go" href="#">开始创作</a>
+</nav>
+
+<!-- 1 · 首屏 -->
+<section class="scene hero" id="top">
+  <div class="media">
+    <div class="vf">
+      <div class="win">
+        <video id="heroVideo" src="assets/hero-cards.mp4" autoplay muted loop playsinline></video>
+      </div>
+      <div class="grid"></div>
+      <span class="cn tl"></span><span class="cn tr"></span>
+      <span class="cn bl"></span><span class="cn br"></span>
+      <svg class="cross" viewBox="0 0 24 24" aria-hidden="true">
+        <g stroke="#000" stroke-width="3.2" opacity=".5"><path d="M12 0v24M0 12h24"/></g>
+        <g stroke="#fff" stroke-width="1"><path d="M12 1.5v21M1.5 12h21"/></g>
+        <circle cx="12" cy="12" r="1.7" fill="#fff"/>
+      </svg>
+      <div class="rec"><i></i>REC</div>
+      <div class="cap"><i></i><b>01</b><span>镜头卡库 · 实时预览</span></div>
+    </div>
+  </div>
+
+  <div class="copy">
+    <h1 id="heroTitle">
+      <span class="l1" id="l1">从一句话，</span>
+      <span class="l2"><span id="l2pre">到一条</span><span class="kw" id="kw">片子</span></span>
+      <svg class="ink" id="ink" width="640" height="240" aria-hidden="true">
+        <path id="curve"></path>
+        <path class="under" id="under"></path>
+      </svg>
+      <span class="seal" id="seal" aria-hidden="true">
+        <svg viewBox="0 0 54 54">
+          <circle cx="27" cy="27" r="25" fill="none" stroke="#7FA9F5" stroke-width=".8" opacity=".7"/>
+          <circle cx="27" cy="27" r="21" fill="none" stroke="#7FA9F5" stroke-width=".4" opacity=".45"/>
+          <text x="27" y="25" text-anchor="middle">FENG</text>
+          <text x="27" y="34" text-anchor="middle">MOTION</text>
+        </svg>
+      </span>
+    </h1>
+
+    <p class="lead" id="lead">写一句想法，拆成镜头、接上动效和素材，在一个工作台里出片。</p>
+
+    <div class="ask-wrap">
+      <div class="ask" id="ask">
+        <input placeholder="描述你想要的画面，比如：雨夜车站，两个人重逢">
+        <button class="go" aria-label="开始"><svg viewBox="0 0 24 24"><path d="M5 12h13M13 6l6 6-6 6"/></svg></button>
+      </div>
+    </div>
+    <div class="hint" id="hint">回车开始 · 不需要写分镜</div>
+  </div>
+</section>
+
+<div class="cut"></div>
+
+<!-- 2 · 视频类型 -->
+<section class="scene genres" id="genres">
+  <div class="head" data-fade>
+    <div class="kicker"><span class="no">02</span> · 视频类型</div>
+    <h2>三种片型，三种镜头节奏</h2>
+  </div>
+  <div class="bars">
+    <div class="bar">
+      <div class="vid">
+        <video src="media/motion/mosaic-reframe.mp4" autoplay muted loop playsinline></video>
+        <span class="scrim"></span>
+        <div class="tc"><div class="t"><i></i><span class="tcv">00:00:00:00</span></div>
+          <div class="neon"><span>口播科普</span></div></div>
+        <div class="vfx"><span class="grid"></span>
+          <svg class="cross" viewBox="0 0 24 24" aria-hidden="true">
+            <g stroke="#000" stroke-width="3.2" opacity=".5"><path d="M12 0v24M0 12h24"/></g>
+            <g stroke="#fff" stroke-width="1"><path d="M12 1.5v21M1.5 12h21"/></g>
+            <circle cx="12" cy="12" r="1.7" fill="#fff"/>
+          </svg>
+          <span class="cn tl"></span><span class="cn tr"></span>
+          <span class="cn bl"></span><span class="cn br"></span>
+        </div>
+      </div>
+      <div class="copy"><h3>镜头跟着句子走</h3><p>说完一句，画面换一次，不靠转场硬切。</p></div>
+    </div>
+
+    <div class="bar">
+      <div class="vid">
+        <video src="media/motion/carousel-3d.mp4" autoplay muted loop playsinline></video>
+        <span class="scrim"></span>
+        <div class="tc"><div class="t"><i></i><span class="tcv">00:00:00:00</span></div>
+          <div class="neon"><span>对话访谈</span></div></div>
+        <div class="vfx"><span class="grid"></span>
+          <svg class="cross" viewBox="0 0 24 24" aria-hidden="true">
+            <g stroke="#000" stroke-width="3.2" opacity=".5"><path d="M12 0v24M0 12h24"/></g>
+            <g stroke="#fff" stroke-width="1"><path d="M12 1.5v21M1.5 12h21"/></g>
+            <circle cx="12" cy="12" r="1.7" fill="#fff"/>
+          </svg>
+          <span class="cn tl"></span><span class="cn tr"></span>
+          <span class="cn bl"></span><span class="cn br"></span>
+        </div>
+      </div>
+      <div class="copy"><h3>先切话轮，再配画面</h3><p>谁开口镜头给谁，两个人来回有呼吸。</p></div>
+    </div>
+
+    <div class="bar">
+      <div class="vid">
+        <video src="media/motion/scanline-annotate-focus.mp4" autoplay muted loop playsinline></video>
+        <span class="scrim"></span>
+        <div class="tc"><div class="t"><i></i><span class="tcv">00:00:00:00</span></div>
+          <div class="neon"><span>讲书解读</span></div></div>
+        <div class="vfx"><span class="grid"></span>
+          <svg class="cross" viewBox="0 0 24 24" aria-hidden="true">
+            <g stroke="#000" stroke-width="3.2" opacity=".5"><path d="M12 0v24M0 12h24"/></g>
+            <g stroke="#fff" stroke-width="1"><path d="M12 1.5v21M1.5 12h21"/></g>
+            <circle cx="12" cy="12" r="1.7" fill="#fff"/>
+          </svg>
+          <span class="cn tl"></span><span class="cn tr"></span>
+          <span class="cn bl"></span><span class="cn br"></span>
+        </div>
+      </div>
+      <div class="copy"><h3>不用拍，用版式讲</h3><p>一页一个论点，图、字、线就是全部镜头。</p></div>
+    </div>
+  </div>
+</section>
+
+<div class="cut"></div>
+
+<!-- 3 · 镜头卡库 -->
+<section class="scene cards" id="cards">
+  <div class="hd" data-fade>
+    <div class="kicker">03 · 镜头卡库</div>
+    <h2>每一张卡，都是一段能用的动作</h2>
+  </div>
+
+  <div class="stage3d">
+   <div class="wrow">
+    <button class="wbtn prev" id="wPrev" aria-label="上一张">
+      <svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>
+    </button>
+    <div class="wheel">
+      <div class="ring" id="ring">
+        <figure class="wc"><div class="cvf"><span class="grid"></span><svg class="cross" viewBox="0 0 24 24" aria-hidden="true"><g stroke="#000" stroke-width="3.2" opacity=".5"><path d="M12 0v24M0 12h24"/></g><g stroke="#fff" stroke-width="1"><path d="M12 1.5v21M1.5 12h21"/></g><circle cx="12" cy="12" r="1.7" fill="#fff"/></svg><span class="cn tl"></span><span class="cn tr"></span><span class="cn bl"></span><span class="cn br"></span><div class="rec"><i></i>REC</div></div><video muted loop playsinline preload="metadata" src="media/motion/card-stack.mp4"></video></figure>
+        <figure class="wc"><div class="cvf"><span class="grid"></span><svg class="cross" viewBox="0 0 24 24" aria-hidden="true"><g stroke="#000" stroke-width="3.2" opacity=".5"><path d="M12 0v24M0 12h24"/></g><g stroke="#fff" stroke-width="1"><path d="M12 1.5v21M1.5 12h21"/></g><circle cx="12" cy="12" r="1.7" fill="#fff"/></svg><span class="cn tl"></span><span class="cn tr"></span><span class="cn bl"></span><span class="cn br"></span><div class="rec"><i></i>REC</div></div><video muted loop playsinline preload="metadata" src="media/motion/carousel-3d.mp4"></video></figure>
+        <figure class="wc"><div class="cvf"><span class="grid"></span><svg class="cross" viewBox="0 0 24 24" aria-hidden="true"><g stroke="#000" stroke-width="3.2" opacity=".5"><path d="M12 0v24M0 12h24"/></g><g stroke="#fff" stroke-width="1"><path d="M12 1.5v21M1.5 12h21"/></g><circle cx="12" cy="12" r="1.7" fill="#fff"/></svg><span class="cn tl"></span><span class="cn tr"></span><span class="cn bl"></span><span class="cn br"></span><div class="rec"><i></i>REC</div></div><video muted loop playsinline preload="metadata" src="media/motion/mosaic-reframe.mp4"></video></figure>
+        <figure class="wc"><div class="cvf"><span class="grid"></span><svg class="cross" viewBox="0 0 24 24" aria-hidden="true"><g stroke="#000" stroke-width="3.2" opacity=".5"><path d="M12 0v24M0 12h24"/></g><g stroke="#fff" stroke-width="1"><path d="M12 1.5v21M1.5 12h21"/></g><circle cx="12" cy="12" r="1.7" fill="#fff"/></svg><span class="cn tl"></span><span class="cn tr"></span><span class="cn bl"></span><span class="cn br"></span><div class="rec"><i></i>REC</div></div><video muted loop playsinline preload="metadata" src="media/motion/magician-card-flourish.mp4"></video></figure>
+        <figure class="wc"><div class="cvf"><span class="grid"></span><svg class="cross" viewBox="0 0 24 24" aria-hidden="true"><g stroke="#000" stroke-width="3.2" opacity=".5"><path d="M12 0v24M0 12h24"/></g><g stroke="#fff" stroke-width="1"><path d="M12 1.5v21M1.5 12h21"/></g><circle cx="12" cy="12" r="1.7" fill="#fff"/></svg><span class="cn tl"></span><span class="cn tr"></span><span class="cn bl"></span><span class="cn br"></span><div class="rec"><i></i>REC</div></div><video muted loop playsinline preload="metadata" src="media/motion/flying-words.mp4"></video></figure>
+        <figure class="wc"><div class="cvf"><span class="grid"></span><svg class="cross" viewBox="0 0 24 24" aria-hidden="true"><g stroke="#000" stroke-width="3.2" opacity=".5"><path d="M12 0v24M0 12h24"/></g><g stroke="#fff" stroke-width="1"><path d="M12 1.5v21M1.5 12h21"/></g><circle cx="12" cy="12" r="1.7" fill="#fff"/></svg><span class="cn tl"></span><span class="cn tr"></span><span class="cn bl"></span><span class="cn br"></span><div class="rec"><i></i>REC</div></div><video muted loop playsinline preload="metadata" src="media/motion/blur-slide.mp4"></video></figure>
+        <figure class="wc"><div class="cvf"><span class="grid"></span><svg class="cross" viewBox="0 0 24 24" aria-hidden="true"><g stroke="#000" stroke-width="3.2" opacity=".5"><path d="M12 0v24M0 12h24"/></g><g stroke="#fff" stroke-width="1"><path d="M12 1.5v21M1.5 12h21"/></g><circle cx="12" cy="12" r="1.7" fill="#fff"/></svg><span class="cn tl"></span><span class="cn tr"></span><span class="cn bl"></span><span class="cn br"></span><div class="rec"><i></i>REC</div></div><video muted loop playsinline preload="metadata" src="media/motion/scanline-annotate-focus.mp4"></video></figure>
+        <figure class="wc"><div class="cvf"><span class="grid"></span><svg class="cross" viewBox="0 0 24 24" aria-hidden="true"><g stroke="#000" stroke-width="3.2" opacity=".5"><path d="M12 0v24M0 12h24"/></g><g stroke="#fff" stroke-width="1"><path d="M12 1.5v21M1.5 12h21"/></g><circle cx="12" cy="12" r="1.7" fill="#fff"/></svg><span class="cn tl"></span><span class="cn tr"></span><span class="cn bl"></span><span class="cn br"></span><div class="rec"><i></i>REC</div></div><video muted loop playsinline preload="metadata" src="media/motion/cursor-flyover.mp4"></video></figure>
+        <figure class="wc"><div class="cvf"><span class="grid"></span><svg class="cross" viewBox="0 0 24 24" aria-hidden="true"><g stroke="#000" stroke-width="3.2" opacity=".5"><path d="M12 0v24M0 12h24"/></g><g stroke="#fff" stroke-width="1"><path d="M12 1.5v21M1.5 12h21"/></g><circle cx="12" cy="12" r="1.7" fill="#fff"/></svg><span class="cn tl"></span><span class="cn tr"></span><span class="cn bl"></span><span class="cn br"></span><div class="rec"><i></i>REC</div></div><video muted loop playsinline preload="metadata" src="media/motion/chip-lift-to-user-pill.mp4"></video></figure>
+        <figure class="wc"><div class="cvf"><span class="grid"></span><svg class="cross" viewBox="0 0 24 24" aria-hidden="true"><g stroke="#000" stroke-width="3.2" opacity=".5"><path d="M12 0v24M0 12h24"/></g><g stroke="#fff" stroke-width="1"><path d="M12 1.5v21M1.5 12h21"/></g><circle cx="12" cy="12" r="1.7" fill="#fff"/></svg><span class="cn tl"></span><span class="cn tr"></span><span class="cn bl"></span><span class="cn br"></span><div class="rec"><i></i>REC</div></div><video muted loop playsinline preload="metadata" src="media/motion/circle-match-iris.mp4"></video></figure>
+        <figure class="wc"><div class="cvf"><span class="grid"></span><svg class="cross" viewBox="0 0 24 24" aria-hidden="true"><g stroke="#000" stroke-width="3.2" opacity=".5"><path d="M12 0v24M0 12h24"/></g><g stroke="#fff" stroke-width="1"><path d="M12 1.5v21M1.5 12h21"/></g><circle cx="12" cy="12" r="1.7" fill="#fff"/></svg><span class="cn tl"></span><span class="cn tr"></span><span class="cn bl"></span><span class="cn br"></span><div class="rec"><i></i>REC</div></div><video muted loop playsinline preload="metadata" src="media/motion/radial-wave.mp4"></video></figure>
+        <figure class="wc"><div class="cvf"><span class="grid"></span><svg class="cross" viewBox="0 0 24 24" aria-hidden="true"><g stroke="#000" stroke-width="3.2" opacity=".5"><path d="M12 0v24M0 12h24"/></g><g stroke="#fff" stroke-width="1"><path d="M12 1.5v21M1.5 12h21"/></g><circle cx="12" cy="12" r="1.7" fill="#fff"/></svg><span class="cn tl"></span><span class="cn tr"></span><span class="cn bl"></span><span class="cn br"></span><div class="rec"><i></i>REC</div></div><video muted loop playsinline preload="metadata" src="media/motion/terminal-3d.mp4"></video></figure>
+      </div>
+    </div>
+    <button class="wbtn next" id="wNext" aria-label="下一张">
+      <svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
+    </button>
+   </div>
+   <div class="wcap">
+     <b id="wIdx">01</b>
+     <span id="wName">card-stack</span>
+     <i>← → 换卡</i>
+   </div>
+  </div>
+</section>
+
+<div class="cut"></div>
+
+<!-- 4 · 制作方法 -->
+<section class="scene methods" id="methods">
+  <div class="kicker" data-fade>04 · 制作方法</div>
+  <ol>
+    <li><span class="no">一</span><span class="name">按镜头制作</span>
+      <span class="say">一句话一个镜头，读到哪拍到哪。</span><div class="mimg"><img src="media/frames/s01.jpg" alt=""><i>FRAME 01</i></div></li>
+    <li><span class="no">二</span><span class="name">按话轮制作</span>
+      <span class="say">先切话轮，再配画面，来回有呼吸。</span><div class="mimg"><img src="media/frames/s13.jpg" alt=""><i>FRAME 12</i></div></li>
+    <li><span class="no">三</span><span class="name">按页制作</span>
+      <span class="say">一页一个论点，不做实拍。</span><div class="mimg"><img src="media/frames/s20.jpg" alt=""><i>FRAME 20</i></div></li>
+    <li><span class="no">四</span><span class="name">按卖点制作</span>
+      <span class="say">一个卖点一条镜头，不堆功能。</span><div class="mimg"><img src="media/frames/s23.jpg" alt=""><i>FRAME 24</i></div></li>
+    <li><span class="no">五</span><span class="name">按钩子制作</span>
+      <span class="say">前三秒定生死，先给结果。</span><div class="mimg"><img src="media/frames/s28.jpg" alt=""><i>FRAME 28</i></div></li>
+    <li><span class="no">六</span><span class="name">按章节制作</span>
+      <span class="say">两到四分钟一章，一章一件事。</span><div class="mimg"><img src="media/frames/s30.jpg" alt=""><i>FRAME 30</i></div></li>
+  </ol>
+</section>
+
+<div class="cut"></div>
+
+<!-- 5 · 动效来源 -->
+<section class="scene sources" id="sources">
+  <div class="kicker" data-fade>05 · 动效来源</div>
+  <div class="marq" data-fade>
+    <div class="mrow"><div class="track"><div class="pill"><img src="assets/partners/shotcraft.svg" alt=""><b>镜刻</b></div><div class="pill"><img src="assets/partners/scenes.svg" alt=""><b>Remotion Scenes</b></div><div class="pill"><img src="assets/partners/rve.svg" alt=""><b>React Video Editor</b></div><div class="pill"><img src="assets/partners/shotcraft.svg" alt=""><b>镜刻</b></div><div class="pill"><img src="assets/partners/scenes.svg" alt=""><b>Remotion Scenes</b></div><div class="pill"><img src="assets/partners/rve.svg" alt=""><b>React Video Editor</b></div><div class="pill"><img src="assets/partners/shotcraft.svg" alt=""><b>镜刻</b></div><div class="pill"><img src="assets/partners/scenes.svg" alt=""><b>Remotion Scenes</b></div><div class="pill"><img src="assets/partners/rve.svg" alt=""><b>React Video Editor</b></div><div class="pill"><img src="assets/partners/shotcraft.svg" alt=""><b>镜刻</b></div><div class="pill"><img src="assets/partners/scenes.svg" alt=""><b>Remotion Scenes</b></div><div class="pill"><img src="assets/partners/rve.svg" alt=""><b>React Video Editor</b></div></div></div>
+    <div class="mrow rev"><div class="track"><div class="pill"><img src="assets/partners/scenes.svg" alt=""><b>Remotion Scenes</b></div><div class="pill"><img src="assets/partners/rve.svg" alt=""><b>React Video Editor</b></div><div class="pill"><img src="assets/partners/shotcraft.svg" alt=""><b>镜刻</b></div><div class="pill"><img src="assets/partners/scenes.svg" alt=""><b>Remotion Scenes</b></div><div class="pill"><img src="assets/partners/rve.svg" alt=""><b>React Video Editor</b></div><div class="pill"><img src="assets/partners/shotcraft.svg" alt=""><b>镜刻</b></div><div class="pill"><img src="assets/partners/scenes.svg" alt=""><b>Remotion Scenes</b></div><div class="pill"><img src="assets/partners/rve.svg" alt=""><b>React Video Editor</b></div><div class="pill"><img src="assets/partners/shotcraft.svg" alt=""><b>镜刻</b></div><div class="pill"><img src="assets/partners/scenes.svg" alt=""><b>Remotion Scenes</b></div><div class="pill"><img src="assets/partners/rve.svg" alt=""><b>React Video Editor</b></div><div class="pill"><img src="assets/partners/shotcraft.svg" alt=""><b>镜刻</b></div></div></div>
+  </div>
+  <div class="note" data-fade>全部开源 · 接进同一个卡库</div>
+</section>
+
+<!-- 6 · 结尾 -->
+<section class="scene end">
+  <h2 data-fade>现在写第一句。</h2>
+  <p data-fade>剩下的，交给镜头。</p>
+  <a data-fade href="#">开始创作 →</a>
+  <div class="foot"><span>FENGMOTION</span><span>创作空间</span><span>© 2026</span></div>
+</section>
+
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/gsap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/ScrollTrigger.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/lenis@1.1.18/dist/lenis.min.js"></script>
+<script>
+gsap.registerPlugin(ScrollTrigger);
+gsap.ticker.lagSmoothing(0);
+
+/* ═══ 整页吸附：滚一次滑一屏 ═══ */
+const pages = [...document.querySelectorAll('.scene')];
+let pageIdx = 0, pageLocked = false, lastUnlock = 0, wheelAcc = 0, lastWheel = 0;
+const easePage = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;  // easeInOutCubic，中段不拖
+
+function setActive(i) {
+  pageIdx = i;
+  pages.forEach((p, k) => p.classList.toggle('is-active', k === i));
+  document.querySelectorAll('.pager button').forEach((b, k) => b.classList.toggle('on', k === i));
+}
+function goPage(i) {
+  i = Math.max(0, Math.min(pages.length - 1, i));
+  if (i === pageIdx || pageLocked) return;
+  pageLocked = true;
+  document.body.classList.add('is-moving');
+  const from = window.scrollY;
+  const target = pages[i];
+  const t0 = performance.now(), dur = 900;
+  (function step(now) {
+    const t = Math.min(1, (now - t0) / dur);
+    const e = easePage(t);
+    // 每帧重算目标：布局有变化也不会落错位置
+    const to = target.offsetTop;
+    window.scrollTo(0, from + (to - from) * e);
+    // 位移/缩放随进度归零，结束那一刻正好是 0，不会“跳一下”
+    target.style.transform = `translateY(${(16 * (1 - e)).toFixed(2)}px) scale(${(0.996 + 0.004 * e).toFixed(4)})`;
+    if (t < 1) requestAnimationFrame(step);
+    else {
+      window.scrollTo(0, target.offsetTop);
+      target.style.transform = '';
+      pageLocked = false;
+      lastUnlock = performance.now();
+      document.body.classList.remove('is-moving');
+    }
+  })(t0);
+  setActive(i);
+}
+
+/* 滚轮：归一化 deltaMode、累积阈值、翻页后冷却，避免惯性连翻 */
+window.addEventListener('wheel', e => {
+  e.preventDefault();
+  if (pageLocked) { wheelAcc = 0; return; }
+  if (performance.now() - lastUnlock < 280) { wheelAcc = 0; return; }
+  const d = e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? window.innerHeight : 1);
+  const now = performance.now();
+  if (now - lastWheel > 220) wheelAcc = 0;
+  lastWheel = now;
+  wheelAcc += d;
+  if (Math.abs(wheelAcc) < 26) return;
+  const dir = wheelAcc > 0 ? 1 : -1;
+  wheelAcc = 0;
+  goPage(pageIdx + dir);
+}, { passive: false });
+
+/* 键盘 */
+window.addEventListener('keydown', e => {
+  if (['ArrowDown', 'PageDown', ' '].includes(e.key)) { e.preventDefault(); goPage(pageIdx + 1); }
+  if (['ArrowUp', 'PageUp'].includes(e.key)) { e.preventDefault(); goPage(pageIdx - 1); }
+});
+
+/* 触屏：阻止原生滚动，只用手势翻页 */
+let touchY = null;
+window.addEventListener('touchstart', e => { touchY = e.touches[0].clientY; }, { passive: true });
+window.addEventListener('touchmove', e => { e.preventDefault(); }, { passive: false });
+window.addEventListener('touchend', e => {
+  if (touchY === null) return;
+  const dy = touchY - e.changedTouches[0].clientY;
+  if (Math.abs(dy) > 40) goPage(pageIdx + (dy > 0 ? 1 : -1));
+  touchY = null;
+});
+
+/* 页码点 */
+document.querySelectorAll('.pager button').forEach(b => {
+  b.addEventListener('click', () => goPage(Number(b.dataset.i)));
+});
+
+/* 导航锚点：接管，走同一套动画 */
+document.querySelectorAll('.nav a[href^="#"]').forEach(a => {
+  a.addEventListener('click', e => {
+    e.preventDefault();
+    const id = a.getAttribute('href').slice(1);
+    const i = pages.findIndex(p => p.id === id || (id === 'top' && p.id === 'top'));
+    if (i >= 0) goPage(i);
+  });
+});
+
+/* 滚动条拖动/浏览器恢复位置后，把页码拉回正确的那一页 */
+let syncTimer = null;
+window.addEventListener('scroll', () => {
+  if (pageLocked) return;
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(() => {
+    const y = window.scrollY;
+    let near = 0, best = 1e9;
+    pages.forEach((p, k) => { const d = Math.abs(p.offsetTop - y); if (d < best) { best = d; near = k; } });
+    if (best < 40 && near !== pageIdx) setActive(near);
+  }, 120);
+}, { passive: true });
+
+/* 首屏带 hash / 尺寸变化时同步 */
+function syncFromScroll() {
+  const y = window.scrollY;
+  let near = 0, best = 1e9;
+  pages.forEach((p, k) => { const d = Math.abs(p.offsetTop - y); if (d < best) { best = d; near = k; } });
+  setActive(near);
+}
+if (location.hash) {
+  const el = document.querySelector(location.hash);
+  if (el) { window.scrollTo(0, el.offsetTop); }
+}
+window.addEventListener('resize', () => { syncFromScroll(); window.scrollTo(0, pages[pageIdx].offsetTop); });
+setActive(0);
+if (location.hash) syncFromScroll();
+
+gsap.to('#progress', { scaleX: 1, ease: 'none',
+  scrollTrigger: { start: 0, end: 'max', scrub: .3 } });
+
+/* ═══ 首屏：打字 → 牵线 → 续写 → 下划线 → 印章 ═══ */
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+function splitChars(el) {
+  const text = el.textContent;
+  el.textContent = '';
+  return [...text].map(ch => {
+    const i = document.createElement('i');
+    i.textContent = ch === ' ' ? '\u00A0' : ch;
+    el.appendChild(i);
+    return i;
+  });
+}
+
+async function runHero() {
+  const l1 = document.getElementById('l1');
+  const pre = document.getElementById('l2pre');
+  const kw = document.getElementById('kw');
+  const c1 = splitChars(l1);
+  const c2 = splitChars(pre).concat(splitChars(kw));
+
+  for (const ch of c1) { ch.classList.add('on'); await sleep(95); }
+  await sleep(220);
+
+  const ink = document.getElementById('ink');
+  const curve = document.getElementById('curve');
+  const rWord = c1[c1.length - 2].getBoundingClientRect();
+  const host = document.getElementById('heroTitle').getBoundingClientRect();
+  const x1 = rWord.right - host.left + 4;
+  const y1 = rWord.top - host.top + rWord.height * .62;
+
+  c2.forEach(ch => ch.style.opacity = 1);
+  const r2 = c2[0].getBoundingClientRect();
+  const x2 = r2.left - host.left - 8;
+  const y2 = r2.top - host.top + r2.height * .62;
+  c2.forEach(ch => ch.style.opacity = '');
+
+  curve.setAttribute('d', `M ${x1} ${y1} C ${x1 + 78} ${y1 + 30}, ${x2 - 70} ${y2 - 40}, ${x2} ${y2}`);
+  const len = curve.getTotalLength();
+  curve.style.strokeDasharray = len;
+  curve.style.strokeDashoffset = len;
+  ink.setAttribute('viewBox', `0 0 ${host.width} ${host.height}`);
+  ink.style.width = host.width + 'px';
+  ink.style.height = host.height + 'px';
+
+  await new Promise(res => gsap.to(curve, {
+    strokeDashoffset: 0, duration: .62, ease: 'power2.inOut', onComplete: res
+  }));
+
+  for (const ch of c2) { ch.classList.add('on'); await sleep(95); }
+  await sleep(260);
+
+  const under = document.getElementById('under');
+  const kr = kw.getBoundingClientRect();
+  const ux1 = kr.left - host.left;
+  const ux2 = kr.right - host.left;
+  const uy = kr.bottom - host.top + 6;
+  under.setAttribute('d', `M ${ux1} ${uy} C ${ux1 + 14} ${uy + 7}, ${ux2 - 16} ${uy + 9}, ${ux2} ${uy + 2}`);
+  const ulen = under.getTotalLength();
+  under.style.strokeDasharray = ulen;
+  under.style.strokeDashoffset = ulen;
+  await new Promise(res => gsap.to(under, { strokeDashoffset: 0, duration: .5, ease: 'power2.out', onComplete: res }));
+
+  document.getElementById('seal').classList.add('on');
+  gsap.to(['.hero .lead', '.hero .ask-wrap', '.hero .hint'],
+    { y: 0, opacity: 1, duration: .8, stagger: .1, ease: 'power3.out' });
+}
+document.fonts.ready.then(runHero);
+
+/* 玻璃输入框：高光跟随指针 */
+const ask = document.getElementById('ask');
+ask.addEventListener('pointermove', e => {
+  const r = ask.getBoundingClientRect();
+  ask.style.setProperty('--mx', ((e.clientX - r.left) / r.width * 100).toFixed(1) + '%');
+  ask.style.setProperty('--my', ((e.clientY - r.top) / r.height * 100).toFixed(1) + '%');
+});
+
+/* 视频类型：时间码跟播放进度（30fps） */
+const fmtTC = (t, fps = 30) => {
+  const p = n => String(n).padStart(2, '0');
+  const h = Math.floor(t / 3600), m = Math.floor(t / 60) % 60,
+        sec = Math.floor(t) % 60, f = Math.floor((t % 1) * fps);
+  return `${p(h)}:${p(m)}:${p(sec)}:${p(f)}`;
+};
+const tcs = [...document.querySelectorAll('.genres .bar')]
+  .map(b => ({ v: b.querySelector('video'), o: b.querySelector('.tcv') }))
+  .filter(x => x.v && x.o);
+tcs.forEach(({ v }, i) => {
+  v.addEventListener('loadedmetadata', () => { v.currentTime = (i * 1.4) % (v.duration || 1); }, { once: true });
+});
+(function tickTC() {
+  for (const { v, o } of tcs) o.textContent = fmtTC(v.currentTime || 0);
+  requestAnimationFrame(tickTC);
+})();
+
+/* 镜头卡库：紧凑扇形轮盘 */
+const ring = document.getElementById('ring');
+const cardEls = [...ring.querySelectorAll('.wc')];
+const N = cardEls.length;
+let pos = 0, cur = 0, animating = false;
+const wIdx = document.getElementById('wIdx');
+const wName = document.getElementById('wName');
+
+function layout(p) {
+  cardEls.forEach((c, i) => {
+    let d = i - p;
+    d = ((d % N) + N) % N;
+    if (d > N / 2) d -= N;
+    const ad = Math.abs(d);
+    if (ad > 3.8) { c.style.opacity = 0; return; }
+    c.style.transform = `translate(${d * 172}px,${ad * 18}px) rotate(${d * 4.8}deg) scale(${1.06 - ad * 0.17})`;
+    c.style.opacity = String(Math.max(0, 1 - ad * 0.235));
+    c.style.zIndex = String(100 - Math.round(ad * 10));
+  });
+}
+function go(dir) {
+  if (animating) return;
+  animating = true;
+  cardEls.forEach(c => c.classList.remove('is-front'));
+  const from = pos, to = pos + dir;
+  const t0 = performance.now(), dur = 640;
+  const c1 = 1.05, c3 = c1 + 1;
+  const ease = t => 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
+  (function frame(now) {
+    const t = Math.min(1, (now - t0) / dur);
+    pos = from + (to - from) * ease(t);
+    layout(pos);
+    if (t < 1) requestAnimationFrame(frame);
+    else {
+      pos = to;
+      animating = false;
+      cur = (cur + dir + N) % N;
+      wIdx.textContent = String(cur + 1).padStart(2, '0');
+      wName.textContent = cardEls[cur].querySelector('video').getAttribute('src').split('/').pop().replace('.mp4', '');
+      setFront(cur);
+    }
+  })(t0);
+}
+function setFront(i) {
+  cardEls.forEach((c, idx) => {
+    const v = c.querySelector('video');
+    if (!v) return;
+    if (idx === i) { v.play().catch(() => {}); c.classList.add('is-front'); }
+    else { v.pause(); }
+  });
+}
+layout(0);
+setFront(0);
+document.getElementById('wPrev').addEventListener('click', () => go(-1));
+document.getElementById('wNext').addEventListener('click', () => go(1));
+window.addEventListener('keydown', e => {
+  if (e.key === 'ArrowLeft') go(-1);
+  if (e.key === 'ArrowRight') go(1);
+});
+
+
+/* ═══ 其余区块 ═══ */
+gsap.from('.genres .bar', {
+  yPercent: 10, opacity: 0, duration: 1, ease: 'power3.out', stagger: .12,
+  scrollTrigger: { trigger: '.genres', start: 'top 70%', once: true }
+});
+
+const rows = gsap.utils.toArray('.methods li');
+gsap.set(rows, { y: 28, opacity: 0 });
+gsap.to(rows, { y: 0, opacity: 1, duration: .7, ease: 'power2.out', stagger: .1,
+  scrollTrigger: { trigger: '.methods', start: 'top 72%', once: true } });
+
+ScrollTrigger.batch('[data-fade]', {
+  start: 'top 82%', once: true,
+  onEnter: b => gsap.to(b, { y: 0, opacity: 1, duration: .9, stagger: .1, ease: 'power3.out' })
+});
+gsap.set('[data-fade]', { y: 22, opacity: 0 });
+window.addEventListener('load', () => ScrollTrigger.refresh());
+</script>
+</body>
+</html>
