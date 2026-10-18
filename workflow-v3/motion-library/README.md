@@ -5,6 +5,23 @@
 
 ---
 
+## 0. 从现有库导入
+
+不要从零开始。先看这三处：
+
+| 来源 | 路径 | 导入方式 |
+|---|---|---|
+| 157 张镜头卡 | `~/AIremotion-skill/02-镜头卡库/video-shotcraft/gallery/source/<卡名>.md` | 读 demo，抽成组件，标 `origin: card` |
+| 282 个组件 | `~/AIremotion-skill/03-动效组件库/06-动效库/00-跨库总索引.md` | 复制结构 + 参数，标 `origin: component` |
+| 参考视频 | `~/Videos/下载*.mp4` + `search-craft.py --only ref` | 抽帧学手法，标 `origin: ref` |
+
+- 导入时先标 `candidate`，**不许直接标 `verified`**；
+- 只有在真实片子里用过、通过编译/渲染/确定性/视觉审片，才升 `verified`；
+- `origin` 和 `originPath` 必须写，否则不知道它从哪来；
+- 卡名必须真实存在；编卡名 = 退回。
+
+---
+
 ## 1. 一个可复用组件包含什么
 
 | 项 | 内容 |
@@ -52,8 +69,10 @@
   "performance": "60fps / 1920x1080 / <8ms per frame",
   "status": "verified",
   "verifiedAt": "2026-10-18",
+  "origin": "card",
+  "originPath": "02-镜头卡库/video-shotcraft/gallery/source/path-reveal.md",
   "limitations": ["不支持填充路径", "不处理交叉路径"],
-  "source": "自研"
+  "source": "现有卡库"
 }
 ```
 

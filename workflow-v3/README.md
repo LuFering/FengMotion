@@ -39,7 +39,7 @@ v3 不删除创意，也不要求所有画面都用代码画。
 2. **关键画面**：先出 2–3 张，用户选一张；没确认不许写组件。
 3. **定契约**：`REMOTION_CONTRACT.md`（帧单位、注册入口、确定性、资源规则）。
 4. **场景规格 + 资产策略**：`SCENE_SPEC.md` + `ASSET_WORKFLOW.md`；复杂动作写 `motionPlan`。
-5. **组件实现**：`COMPONENT_CONTRACT.md`；一个组件一个文件，能单独渲染。
+5. **组件实现**：先搜 282 组件 / 157 卡 / 参考视频，再自研；`COMPONENT_CONTRACT.md`；一个组件一个文件。
 6. **Studio 迭代**：`ITERATION_WORKFLOW.md`——真实预览、暴露参数、快照、局部返工。
 7. **自动验收 + 视觉审片**：`RENDER_QA.md` 七层自动检查 + 第八层人工审片。
 8. **沉淀组件**：通过验证的进 `motion-library/`；没验证的只能算 experiment。
@@ -61,13 +61,30 @@ workflow-v3/
   REFERENCE_ANALYSIS.md  参考片分析 / 视觉探索 / 关键画面确认
   ASSET_WORKFLOW.md      资产策略 / 记录 / 边界（资产可以是主体）
   ITERATION_WORKFLOW.md  Studio 预览 / 参数 / 快照 / 局部返工
-  motion-library/        已验证组件库（registry + 门槛）
+  motion-library/
+    README.md            入库门槛 / 从现有库导入
+    registry.json        候选与已验证组件索引
   templates/
     scene.spec.json      场景规格样例
     component.contract.md 组件合同空模板
   examples/
     seed-growth/         端到端试验：规格 → 组件 → 编译 → 渲染 → 逐帧验收
 ```
+
+---
+
+## 现有资产（直接可用，不要从零造）
+
+| 资产 | 位置 / 命令 |
+|---|---|
+| 157 张镜头卡 | `python3 ~/AIremotion-skill/03-工具/search-craft.py --index` |
+| 卡源码 | `~/AIremotion-skill/02-镜头卡库/video-shotcraft/gallery/source/<卡名>.md` |
+| 282 个组件 | `~/AIremotion-skill/03-动效组件库/06-动效库/00-跨库总索引.md` |
+| 3 个参考视频 | `~/Videos/下载.mp4` / `下载 2.mp4` / `下载1.mp4` |
+| 参考视频检索 | `python3 ~/AIremotion-skill/03-工具/search-craft.py <关键词> --only ref` |
+| 候选组件索引 | `motion-library/registry.json` |
+
+> 先搜库、再自研；自研必须举证看过哪 2 张卡/组件，写不出 = 没搜。
 
 ---
 

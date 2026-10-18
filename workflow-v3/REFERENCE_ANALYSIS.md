@@ -12,6 +12,34 @@
 - 每条参考写清：**喜欢什么、不喜欢什么、为什么**；
 - 截图/抽帧存 `refs/<来源>-<时间码>.png`，不放 `/tmp`。
 
+### 1.1 现有参考视频（直接可用）
+
+| 文件 | 用途 |
+|---|---|
+| `~/Videos/下载.mp4` | 叙事/访谈类参考 |
+| `~/Videos/下载 2.mp4` | 动效/节奏类参考 |
+| `~/Videos/下载1.mp4` | 风格/构图类参考 |
+
+按语义搜时间码：
+
+```bash
+python3 ~/AIremotion-skill/03-工具/search-craft.py 算力 成本 --only ref
+```
+
+命中会给时间码和抽帧命令；抽帧存 `refs/<文件>-<时间码>.png`。
+
+### 1.2 现有卡库 / 组件库（先搜再自研）
+
+| 资产 | 路径 / 命令 |
+|---|---|
+| 157 张镜头卡 | `python3 ~/AIremotion-skill/03-工具/search-craft.py --index` |
+| 卡源码 | `~/AIremotion-skill/02-镜头卡库/video-shotcraft/gallery/source/<卡名>.md` |
+| 282 个组件 | `~/AIremotion-skill/03-动效组件库/06-动效库/00-跨库总索引.md` |
+| 按动作搜卡 | `python3 ~/AIremotion-skill/03-工具/search-craft.py 视差 分层 --only cards` |
+
+> **参考分析不是只写文字**：至少打开 1 个参考视频时间码 + 3 张卡/组件，
+> 把“看到的动作/参数”写进分析表；只写“高级感”“电影感”不算。
+
 ---
 
 ## 2. 分析表

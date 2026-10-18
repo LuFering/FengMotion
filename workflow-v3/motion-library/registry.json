@@ -1,0 +1,79 @@
+{
+  "components": [
+    {
+      "name": "DepthLayerMoves",
+      "version": "0.0.0",
+      "origin": "card",
+      "originPath": "02-镜头卡库/video-shotcraft/gallery/source/depth-layer-moves.md",
+      "preview": "",
+      "contract": "",
+      "props": ["layers", "speed", "blur", "saturate"],
+      "useCases": ["分层纵深", "横移", "平面截图做出厚度"],
+      "notFor": ["没有分层素材的镜头", "需要真实 3D 空间时"],
+      "performance": "待测",
+      "status": "candidate",
+      "limitations": ["尚未组件化", "参数未在真实片子里验证"],
+      "source": "现有卡库"
+    },
+    {
+      "name": "LightPlayMoves",
+      "version": "0.0.0",
+      "origin": "card",
+      "originPath": "02-镜头卡库/video-shotcraft/gallery/source/light-play-moves.md",
+      "preview": "",
+      "contract": "",
+      "props": ["lightSource", "amplitude", "period", "revealFrame"],
+      "useCases": ["光效揭示", "聚光扫字", "暗部提亮"],
+      "notFor": ["用光效代替主体事件的镜头"],
+      "performance": "待测",
+      "status": "candidate",
+      "limitations": ["尚未组件化", "光效容易变成装饰"],
+      "source": "现有卡库"
+    },
+    {
+      "name": "ShotTransitions",
+      "version": "0.0.0",
+      "origin": "card",
+      "originPath": "02-镜头卡库/video-shotcraft/gallery/source/shot-transitions.md",
+      "preview": "",
+      "contract": "",
+      "props": ["from", "to", "direction", "durationInFrames", "blur"],
+      "useCases": ["场景衔接", "遮罩转场", "穿暗场"],
+      "notFor": ["用转场掩盖节奏问题", "没有共同元素的硬接"],
+      "performance": "待测",
+      "status": "candidate",
+      "limitations": ["尚未组件化", "转场不是叙事"],
+      "source": "现有卡库"
+    },
+    {
+      "name": "MontageRhythmMoves",
+      "version": "0.0.0",
+      "origin": "card",
+      "originPath": "02-镜头卡库/video-shotcraft/gallery/source/montage-rhythm-moves.md",
+      "preview": "",
+      "contract": "",
+      "props": ["beat", "durationInFrames", "stagger", "blackoutFrames"],
+      "useCases": ["节奏剪辑", "黑场蓄力", "多元素错峰"],
+      "notFor": ["没有节拍依据的段落"],
+      "performance": "待测",
+      "status": "candidate",
+      "limitations": ["尚未组件化", "需要音乐/节拍输入"],
+      "source": "现有卡库"
+    },
+    {
+      "name": "TextAsMask",
+      "version": "0.0.0",
+      "origin": "card",
+      "originPath": "02-镜头卡库/video-shotcraft/gallery/source/text-as-mask.md",
+      "preview": "",
+      "contract": "",
+      "props": ["text", "content", "scale", "fontSize"],
+      "useCases": ["文字遮罩", "开场", "内容在字内漂移"],
+      "notFor": ["长文案", "需要逐字阅读的段落"],
+      "performance": "待测",
+      "status": "candidate",
+      "limitations": ["尚未组件化", "字体依赖未固定"],
+      "source": "现有卡库"
+    }
+  ]
+}
