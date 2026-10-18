@@ -14,8 +14,10 @@ cp -r workflow-v3/films/_template workflow-v3/films/<片名>
 3. `reference-log.json`：搜过哪些词、打开哪 3 张卡/组件、抽了哪 1 帧参考；
 4. `02-scene.spec.json`：`filmId` 必须等于目录名；每场 `source` / `assetStrategy` / `motionPlan` / `eventFrames`；
 5. `03-component-contracts.md`：每个组件的 props、来源、事件、验收帧；
-6. `keyframes/`：2–3 张关键画面；
-7. `approved.md`：用户对关键画面的原话。
+6. `style-fingerprint.json`：底色/构图/运动机制/主体/密度（和上一片重合 ≥3 项要写 `style-diversity.md`）；
+7. `keyframes/`：2–3 张关键画面；
+8. `approved.md`：用户对关键画面的原话；
+9. 成片后填 `04-acceptance.md` / `05-visual-review.md` / `deliver.json`。
 
 ## 门 0
 
@@ -29,6 +31,7 @@ node workflow-v3/tools/check-precode.mjs --film workflow-v3/films/<片名>
 
 ```bash
 node workflow-v3/tools/validate-scene.mjs --film workflow-v3/films/<片名>
+node workflow-v3/tools/check-deliver.mjs --film workflow-v3/films/<片名>
 npx tsc --noEmit
 npx remotion still <entry> <CompositionId> out/f.png --frame=<N>
 npx remotion render <entry> <CompositionId> out/preview.mp4 --scale=0.5

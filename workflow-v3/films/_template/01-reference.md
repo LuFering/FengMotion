@@ -38,3 +38,9 @@
 - 关键画面：`keyframes/01.png` / `keyframes/02.png`
 
 > 关键画面没确认，不许写组件。
+
+## 5. 风格指纹
+
+- 已填 `style-fingerprint.json`：是 / 否
+- 与上一片重合维度：____
+- 若 ≥3 项：`style-diversity.md` 已写：是 / 否

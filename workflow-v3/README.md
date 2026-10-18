@@ -45,8 +45,9 @@ v3 不删除创意，也不要求所有画面都用代码画。
 6. **组件实现**：先搜 282 组件 / 157 卡 / 参考视频，再自研；`COMPONENT_CONTRACT.md`；一个组件一个文件。
 7. **Studio 迭代**：`ITERATION_WORKFLOW.md`——真实预览、暴露参数、快照、局部返工。
 8. **自动验收 + 视觉审片**：`RENDER_QA.md` 七层自动检查 + 第八层人工审片。
-9. **沉淀组件**：通过验证的进 `motion-library/`；没验证的只能算 experiment。
-10. **最后改编辑器**：节点语义按「场景 / 组件 / 资源 / 预览 / 渲染」设计，不照搬剪辑轨。
+9. **交付门**：`tools/check-deliver.mjs`——成片规格、验收记录、视觉审片都要对上。
+10. **沉淀组件**：通过验证的进 `motion-library/`；没验证的只能算 experiment。
+11. **最后改编辑器**：节点语义按「场景 / 组件 / 资源 / 预览 / 渲染」设计，不照搬剪辑轨。
 
 ---
 
@@ -70,8 +71,9 @@ workflow-v3/
   tools/
     check-precode.mjs    门 0：写代码前的顺序/产物检查
     validate-scene.mjs   唯一场景规格校验器（不要每片复制）
+    check-deliver.mjs    交付门：成片规格 / 验收记录 / 视觉审片
   films/
-    _template/           新片模板（开工/参考/规格/合同/验收/审片）
+    _template/           新片模板（开工/参考/规格/合同/风格/验收/审片/交付）
   templates/
     scene.spec.json      场景规格样例
     component.contract.md 组件合同空模板
@@ -108,7 +110,10 @@ node workflow-v3/tools/check-precode.mjs --film workflow-v3/films/<片名>
 - 门 0 不过，不许写组件；
 - 校验器只用 `tools/validate-scene.mjs`，**不要每片复制一份**（复制品会被改松）；
 - 关键画面没用户原话（`approved.md`），不算确认；
-- 首次视觉方向用强模型；弱模型只做模板复刻。记录模型，别把模型差异算成流程效果。
+- 首次视觉方向用强模型；弱模型只做模板复刻。记录模型，别把模型差异算成流程效果；
+- 先填 `style-fingerprint.json`；和上一片重合 ≥3 项要写 `style-diversity.md`；
+- 和上一片风格重合 ≥3 项（底色/构图/主体/密度/运动），要写 `style-diversity.md` 说明理由；
+- **交付门不过，不算完成**。
 
 ## 硬规则
 

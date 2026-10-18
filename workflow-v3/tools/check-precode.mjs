@@ -54,6 +54,7 @@ const required = [
   specFile,
   contractFile,
   'reference-log.json',
+  'style-fingerprint.json',
   'approved.md',
 ];
 for (const f of required) {
@@ -184,6 +185,51 @@ if (exists(path.join(film, 'approved.md'))) {
   const s = read(path.join(film, 'approved.md')).trim();
   need(s.length >= 10, 'approved.md 太短：要写用户对关键画面的原话');
   need(!/待确认|待用户|TODO/i.test(s), 'approved.md 还是“待确认”：用户还没看关键画面');
+}
+
+// 8.5 风格指纹：和已有片子重合 ≥3 项，必须写差异说明
+const stylePath = path.join(film, 'style-fingerprint.json');
+if (exists(stylePath)) {
+  try {
+    const cur = JSON.parse(read(stylePath));
+    const allowed = {
+      palette: ['dark', 'light', 'warm', 'cool', 'mono', 'mixed'],
+      composition: ['centered', 'off-center', 'layered', 'minimal', 'grid'],
+      subject: ['city', 'people', 'nature', 'object', 'abstract', 'data', 'text'],
+      density: ['sparse', 'medium', 'dense'],
+    };
+    for (const [k, vals] of Object.entries(allowed)) {
+      need(vals.includes(cur[k]), `style-fingerprint.${k}=${cur[k]} 不合法（${vals.join('/')}）`);
+    }
+    need(Array.isArray(cur.motion) && cur.motion.length > 0, 'style-fingerprint.motion 不能为空');
+
+    const filmsDir = path.dirname(film);
+    const prev = fs
+      .readdirSync(filmsDir, { withFileTypes: true })
+      .filter((d) => d.isDirectory() && d.name !== '_template' && path.join(filmsDir, d.name) !== film)
+      .map((d) => path.join(filmsDir, d.name))
+      .filter((d) => exists(path.join(d, 'style-fingerprint.json')));
+
+    const overlaps = [];
+    for (const dir of prev) {
+      const p = JSON.parse(read(path.join(dir, 'style-fingerprint.json')));
+      let match = ['palette', 'composition', 'subject', 'density'].filter((k) => p[k] === cur[k]).length;
+      const inter = (cur.motion ?? []).filter((m) => (p.motion ?? []).includes(m)).length;
+      if (inter >= 2) match += 1;
+      if (match >= 3) overlaps.push(`${path.basename(dir)}（${match}/5）`);
+    }
+
+    if (overlaps.length) {
+      const divPath = path.join(film, 'style-diversity.md');
+      const div = exists(divPath) ? read(divPath).trim() : '';
+      need(
+        div.length >= 20 && !/待填写|TODO/i.test(div),
+        `与 ${overlaps.join('、')} 风格重合 ≥3 项；要写 style-diversity.md 说明为什么还要同一套语法`,
+      );
+    }
+  } catch (e) {
+    errors.push(`style-fingerprint.json 不是合法 JSON：${e.message}`);
+  }
 }
 
 // 9. 用唯一校验器做完整 spec 检查（跳过组件存在性）

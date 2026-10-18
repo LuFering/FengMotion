@@ -91,5 +91,7 @@ npx remotion render <entry> <CompositionId> out/final.mp4
 | 关键帧 | 每个 `acceptanceFrames` 都有对应截图和判定 | 未验证，不算通过 |
 | 运动 | 中间帧连续，无跳变/直接完成 | 返工组件 |
 | 成片 | 1× 看完，声音同步，无黑帧/空场 | 人工审片 |
+| 交付门 | 成片规格 / 验收记录 / 视觉审片 / `deliver.json` | 不许交付 |
+| 风格差异 | 与上一片重合 ≥3 项时，有 `style-diversity.md` | 退回重选方向 |
 
 > 没有脚本的门禁 = 没有门禁。文档只能解释，不能阻止。

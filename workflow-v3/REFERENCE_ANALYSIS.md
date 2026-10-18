@@ -121,3 +121,23 @@ python3 ~/AIremotion-skill/03-工具/search-craft.py 算力 成本 --only ref
 2. 每个方向说清主视觉媒介和运动机制；
 3. 先出关键画面，再写代码；
 4. 不许用“找不到参考”当借口直接回到图片轮播。
+
+---
+
+## 7. 风格指纹（防复读）
+
+选定方向后，填 `style-fingerprint.json`：
+
+```json
+{
+  "palette": "dark",
+  "composition": "centered",
+  "motion": ["path", "procedural"],
+  "subject": "abstract",
+  "density": "sparse"
+}
+```
+
+- 和已有片子重合 ≥3 项（底色 / 构图 / 主体 / 密度 / 运动），必须写 `style-diversity.md` 说明为什么还要同一套语法；
+- 不写 = 门 0 不过；
+- 这不是禁题材，是防止模型默认风格复读。
