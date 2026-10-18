@@ -7,6 +7,8 @@
 
 ## 1. 字段
 
+**顶层字段**：`schemaVersion`（固定 `1`）、`filmId`、`fps`、`width`、`height`、`durationInFrames`。
+
 | 字段 | 类型 | 必填 | 说明 |
 |---|---|---|---|
 | `sceneId` | string | 是 | 唯一；与组件文件名对应 |
@@ -16,6 +18,8 @@
 | `eventFrames` | [int, int] | 是 | **事件窗口**（起, 止，含）；事件必须在这段内完成；可以短于 `durationInFrames`，剩余时间是“保持结果” |
 | `component` | string | 是 | 实际组件名；必须在组件合同里存在 |
 | `props` | object | 是 | 组件输入；必须可 JSON 序列化 |
+| `source` | object | 是 | `type`（card/component/ref/self）+ `id` + `proof`；self 必须举证看过哪 2 张 |
+| `assetStrategy` | string | 是 | `procedural` / `svg-asset` / `generated-image` / `video-footage` / `3d-scene` |
 | `motion` | string[] | 是 | 运动机制（path / mask / procedural / layered / transform…） |
 | `motionPlan` | object[] | 复杂动作必填 | 每个运动对象：`target` / `from` / `to` / `start` / `end` / `easing` / `dependsOn` |
 | `layers` | string[] | 否 | 前景 / 主体 / 背景 / 叠加关系 |
@@ -35,6 +39,8 @@
 - `component` 必须能在 `components/` 找到；找不到 = 规格无效。
 - `props` 里不许塞函数、JSX、文件句柄；只放数据。
 - `acceptanceFrames` 至少 3 个：起点、中点、终点；复杂运动加中间帧；**必须落在 `eventFrames` 内**。
+- **每一场都必须有 `source`**：`ref` 写参考文件+时间码，`card` 写卡名+demo，`self` 写看过哪 2 张卡/组件、为什么不适用。`ref: None` 不算填了。
+- **每一场都必须有 `assetStrategy`**：哪怕结论是 `procedural`，也要显式写；不许空着让 AI 自己猜。
 - `motion` 只是标签；**多对象、路径/遮罩/程序化生长、或有时序依赖的动作，必须写 `motionPlan`**。
 - `motionPlan` 的 `start` / `end` 必须落在 `eventFrames` 内；`acceptanceCriteria` 要能对应到阶段。
 - 一个场景一个 `sceneId`；重名 = 规格无效。
@@ -70,7 +76,34 @@
 
 ---
 
+## 2.2 source / assetStrategy 示例
+
+```json
+"source": {
+  "type": "card",
+  "id": "depth-layer-moves",
+  "proof": "demo: gallery/source/depth-layer-moves.md；抄三层视差 0.35/0.7/1.4"
+},
+"assetStrategy": "procedural"
+```
+
+```json
+"source": {
+  "type": "self",
+  "id": "self",
+  "proof": "看过 depth-layer-moves / text-as-mask；都是 UI 包装语法，不适用城市叙事；自写楼群窗光"
+},
+"assetStrategy": "procedural"
+```
+
+> `ref` 类型示例：`{"type":"ref","id":"下载 2.mp4@118.73","proof":"refs/下载2-118.73.png"}`。
+
+---
+
 ## 3. 样例（种子生长，仅规格，不含代码）
+
+> 下面为了读起来短，省略了部分 `source` / `assetStrategy` / `motionPlan`；
+> 完整字段以 `templates/scene.spec.json` 为准。
 
 ```json
 {

@@ -10,8 +10,7 @@ seed-growth/
 ├── index.ts               Remotion 入口（registerRoot）
 ├── Root.tsx               唯一 Composition：SeedGrowth / 540f / 60fps / 1920×1080
 ├── SeedGrowth.tsx         组件树（四个 Sequence 可重叠）
-├── scene.spec.json        场景规格（含 eventFrames / motionPlan）
-├── validate-scene.mjs     schema / 组件映射 / 帧覆盖 / Root 一致性校验
+├── scene.spec.json        场景规格（含 eventFrames / motionPlan / source）
 └── components/
     ├── Stage.tsx          天空 + 土壤（静态）
     ├── SeedShell.tsx      两半外壳 + 裂纹 path + 内芯
@@ -26,8 +25,8 @@ seed-growth/
 ```bash
 cd ~/remotion/electron
 
-# 1. 规格校验
-node workflow-v3/examples/seed-growth/validate-scene.mjs
+# 1. 规格校验（唯一校验器，不要复制）
+node workflow-v3/tools/validate-scene.mjs --film workflow-v3/examples/seed-growth
 
 # 2. 类型检查
 npx tsc --noEmit
@@ -65,6 +64,7 @@ npx remotion render workflow-v3/examples/seed-growth/index.ts SeedGrowth out/v3/
 ## 取材
 
 本示例是手写参考实现，没有使用卡库/参考视频；按 v3 规则，真实项目自研必须举证看过 2 张卡/组件，写不出 = 没搜。
+示例不跑门 0（它是代码样例，不是新片流程）。
 
 ---
 

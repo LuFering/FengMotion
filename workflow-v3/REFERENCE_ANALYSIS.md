@@ -40,6 +40,24 @@ python3 ~/AIremotion-skill/03-工具/search-craft.py 算力 成本 --only ref
 > **参考分析不是只写文字**：至少打开 1 个参考视频时间码 + 3 张卡/组件，
 > 把“看到的动作/参数”写进分析表；只写“高级感”“电影感”不算。
 
+### 1.3 参考日志（机器可查）
+
+在片目录写 `reference-log.json`：
+
+```json
+{
+  "queries": [{"tool": "search-craft", "args": "--index"}],
+  "cards": [{"name": "depth-layer-moves", "openedAt": "2026-10-18T17:00:00"}],
+  "refs": [{"file": "下载 2.mp4", "timecode": 118.73, "frame": "refs/下载2-118.73.png"}],
+  "directions": [{"id": "A", "summary": "窗格"}],
+  "selected": "A"
+}
+```
+
+- `cards` 至少 3 条，`refs` 至少 1 条，`selected` 不能空；
+- 每条都要有时间戳/路径，证明是**写代码前**看的；
+- 每场的 `source` 要能对上这里的一条。
+
 ---
 
 ## 2. 分析表

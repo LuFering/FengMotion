@@ -77,7 +77,7 @@
 |---|---|---|
 | `Root.tsx` | 总控 | 只加 Composition，不改别人的 |
 | `scene.spec.json` | 总控 / 动画设计 | 单一事实来源 |
-| `components/<Name>.tsx` | 组件负责人 | 一个组件一个文件；props 类型导出 |
+| `films/<id>/components/<Name>.tsx` | 组件负责人 | 一个组件一个文件；props 类型导出；**不要放到 `remotion/<片>/`，门 0 看不到** |
 | `primitives/` | 总控 | 共享原语（path、mask、粒子、文字） |
 | `assets/` | 总控 | 资源清单 + 授权 |
 

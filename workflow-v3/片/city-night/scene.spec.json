@@ -1,0 +1,664 @@
+{
+  "filmId": "city-night",
+  "fps": 30,
+  "width": 1920,
+  "height": 1080,
+  "durationInFrames": 2134,
+  "audio": "public/city-night/mix.m4a",
+  "scenes": [
+    {
+      "sceneId": "skyline-title",
+      "intent": "城市逐栋亮起，标题被写出；最后镜头压向地铁口，把观众带进地下",
+      "from": 0,
+      "durationInFrames": 377,
+      "eventFrames": [
+        0,
+        376
+      ],
+      "component": "SkylineTitle",
+      "props": {
+        "horizon": 700,
+        "seed": "city-night-s1",
+        "title": "当城市进入夜晚"
+      },
+      "motion": [
+        "procedural",
+        "mask",
+        "transform"
+      ],
+      "motionPlan": [
+        {
+          "target": "city-windows",
+          "from": "lit 0",
+          "to": "lit 1",
+          "start": 0,
+          "end": 55,
+          "easing": "easeOutCubic",
+          "dependsOn": []
+        },
+        {
+          "target": "title",
+          "from": "clip inset 100%",
+          "to": "clip inset 0%",
+          "start": 38,
+          "end": 88,
+          "easing": "easeOutCubic",
+          "dependsOn": [
+            "city-windows"
+          ]
+        },
+        {
+          "target": "camera",
+          "from": "scale 1.0",
+          "to": "scale 1.10",
+          "start": 0,
+          "end": 376,
+          "easing": "easeInOutQuad then easeInCubic",
+          "dependsOn": []
+        },
+        {
+          "target": "title-exit",
+          "from": "opacity 1",
+          "to": "opacity 0",
+          "start": 180,
+          "end": 220,
+          "easing": "easeInQuad",
+          "dependsOn": [
+            "title"
+          ]
+        }
+      ],
+      "layers": [
+        "sky",
+        "far-city",
+        "near-city",
+        "street",
+        "subway-entrance",
+        "title"
+      ],
+      "acceptanceFrames": [
+        12,
+        60,
+        150,
+        300,
+        370
+      ],
+      "acceptanceCriteria": [
+        "12 帧：左侧窗光已亮，右侧仍暗，亮起有方向",
+        "60 帧：标题完整可读，城市窗光已基本铺满",
+        "150 帧：出租车与反向车流经过，画面有活物",
+        "300 帧：标题已退场，地铁口成为画面下缘焦点",
+        "370 帧：镜头压到地铁口，画面接近黑场"
+      ]
+    },
+    {
+      "sceneId": "metro-cross-section",
+      "intent": "地铁载人穿过地下；镜头沿楼梯井从隧道升到街面，同时交代写字楼和咖啡店",
+      "from": 377,
+      "durationInFrames": 287,
+      "eventFrames": [
+        377,
+        663
+      ],
+      "component": "MetroCrossSection",
+      "props": {
+        "stageHeight": 2500,
+        "ground": 900,
+        "trainStartX": 180
+      },
+      "motion": [
+        "layered",
+        "transform",
+        "procedural"
+      ],
+      "motionPlan": [
+        {
+          "target": "train",
+          "from": "x=180",
+          "to": "x=-1900",
+          "start": 377,
+          "end": 487,
+          "easing": "easeInOutQuad",
+          "dependsOn": []
+        },
+        {
+          "target": "camera",
+          "from": "camY=1420",
+          "to": "camY=0",
+          "start": 431,
+          "end": 629,
+          "easing": "easeInOutCubic",
+          "dependsOn": [
+            "train"
+          ]
+        },
+        {
+          "target": "platform-people",
+          "from": "waiting",
+          "to": "still waiting",
+          "start": 377,
+          "end": 663,
+          "easing": "linear",
+          "dependsOn": []
+        }
+      ],
+      "layers": [
+        "street",
+        "office-tower",
+        "cafe",
+        "earth",
+        "tunnel",
+        "train",
+        "stair-shaft"
+      ],
+      "acceptanceFrames": [
+        377,
+        437,
+        557,
+        647,
+        663
+      ],
+      "acceptanceCriteria": [
+        "377 帧：列车车窗亮着，站台有人，隧道顶灯可见",
+        "437 帧：列车向左掠过，楼梯井底光可见",
+        "557 帧：镜头升到楼梯井中段，上方街面开始露出",
+        "647 帧：街面完整，写字楼窗光仍亮，咖啡店暖窗可辨",
+        "663 帧：停在街面，准备硬切三联窗"
+      ]
+    },
+    {
+      "sceneId": "triptych",
+      "intent": "三扇窗三种夜：工作结束、新生活开始、凌晨三点还在改未来",
+      "from": 664,
+      "durationInFrames": 321,
+      "eventFrames": [
+        664,
+        984
+      ],
+      "component": "Triptych",
+      "props": {
+        "windowWidth": 500,
+        "windowHeight": 660,
+        "focus": [
+          400,
+          960,
+          1520
+        ]
+      },
+      "motion": [
+        "mask",
+        "transform",
+        "procedural",
+        "path"
+      ],
+      "motionPlan": [
+        {
+          "target": "camera-focus",
+          "from": "x=400",
+          "to": "x=1520 then back to 960",
+          "start": 664,
+          "end": 984,
+          "easing": "easeInOutCubic",
+          "dependsOn": []
+        },
+        {
+          "target": "office-monitor",
+          "from": "screen on",
+          "to": "screen off",
+          "start": 690,
+          "end": 710,
+          "easing": "easeOutQuad",
+          "dependsOn": []
+        },
+        {
+          "target": "picture-frame",
+          "from": "y=540",
+          "to": "y=304",
+          "start": 722,
+          "end": 776,
+          "easing": "easeOutCubic",
+          "dependsOn": []
+        },
+        {
+          "target": "idea-burst",
+          "from": "scale 0",
+          "to": "scale 1",
+          "start": 814,
+          "end": 860,
+          "easing": "spring(damping 13, stiffness 90)",
+          "dependsOn": [
+            "code-screen"
+          ]
+        }
+      ],
+      "layers": [
+        "wall",
+        "window-1-office",
+        "window-2-newlife",
+        "window-3-threeam",
+        "glass"
+      ],
+      "acceptanceFrames": [
+        684,
+        754,
+        834,
+        914,
+        979
+      ],
+      "acceptanceCriteria": [
+        "684 帧：左窗显示器亮，人物在屏幕前，右两窗仍暗",
+        "754 帧：中窗暖光亮起，画框正在上墙",
+        "834 帧：右窗屏幕代码可见，人物位于屏幕前，03:00 可读",
+        "914 帧：右窗炸出光点，三窗同时成立",
+        "979 帧：镜头拉回三窗全景，等待切光球"
+      ]
+    },
+    {
+      "sceneId": "grand-orb",
+      "intent": "把‘宏大的开始’拍得过分宏大：巨大光球升起，镜头一路推进去",
+      "from": 985,
+      "durationInFrames": 172,
+      "eventFrames": [
+        985,
+        1156
+      ],
+      "component": "GrandOrb",
+      "props": {
+        "orbX": 1090,
+        "orbYStart": 1040,
+        "orbYEnd": 420,
+        "orbR": 270
+      },
+      "motion": [
+        "procedural",
+        "transform"
+      ],
+      "motionPlan": [
+        {
+          "target": "orb",
+          "from": "y=1040 r=80",
+          "to": "y=420 r=270",
+          "start": 985,
+          "end": 1080,
+          "easing": "easeOutCubic",
+          "dependsOn": []
+        },
+        {
+          "target": "camera",
+          "from": "scale 1",
+          "to": "scale 1.55",
+          "start": 1040,
+          "end": 1145,
+          "easing": "easeInCubic",
+          "dependsOn": [
+            "orb"
+          ]
+        },
+        {
+          "target": "whiteout",
+          "from": "opacity 0",
+          "to": "opacity 1",
+          "start": 1125,
+          "end": 1156,
+          "easing": "easeInQuad",
+          "dependsOn": [
+            "camera"
+          ]
+        }
+      ],
+      "layers": [
+        "sky",
+        "orb",
+        "skyline",
+        "foreground-roof",
+        "whiteout"
+      ],
+      "acceptanceFrames": [
+        1000,
+        1040,
+        1100,
+        1150
+      ],
+      "acceptanceCriteria": [
+        "1000 帧：光球只露出上缘，城市被压成剪影",
+        "1040 帧：光球完整升起，高于大部分楼顶",
+        "1100 帧：镜头推进，光球占据画面中心，射线可见",
+        "1150 帧：画面接近全白，为台灯灯泡做匹配剪辑"
+      ]
+    },
+    {
+      "sceneId": "desk-light",
+      "intent": "宏大光球其实是一盏台灯：一个光点长出三组光枝，最后汇成一条穿窗而出的路",
+      "from": 1157,
+      "durationInFrames": 307,
+      "eventFrames": [
+        1157,
+        1463
+      ],
+      "component": "DeskLight",
+      "props": {
+        "lamp": [
+          620,
+          400
+        ],
+        "seed": [
+          880,
+          714
+        ],
+        "branches": 3
+      },
+      "motion": [
+        "path",
+        "mask",
+        "procedural"
+      ],
+      "motionPlan": [
+        {
+          "target": "camera",
+          "from": "scale 2.9",
+          "to": "scale 1.0",
+          "start": 1157,
+          "end": 1215,
+          "easing": "easeOutCubic",
+          "dependsOn": []
+        },
+        {
+          "target": "branch-a",
+          "from": "pathLength 0",
+          "to": "pathLength 1",
+          "start": 1163,
+          "end": 1217,
+          "easing": "easeOutCubic",
+          "dependsOn": [
+            "seed"
+          ]
+        },
+        {
+          "target": "branch-b",
+          "from": "pathLength 0",
+          "to": "pathLength 1",
+          "start": 1249,
+          "end": 1303,
+          "easing": "easeOutCubic",
+          "dependsOn": [
+            "branch-a"
+          ]
+        },
+        {
+          "target": "branch-c",
+          "from": "pathLength 0",
+          "to": "pathLength 1",
+          "start": 1299,
+          "end": 1343,
+          "easing": "easeOutCubic",
+          "dependsOn": [
+            "branch-b"
+          ]
+        },
+        {
+          "target": "exit-path",
+          "from": "pathLength 0",
+          "to": "pathLength 1",
+          "start": 1363,
+          "end": 1440,
+          "easing": "easeOutCubic",
+          "dependsOn": [
+            "branch-c"
+          ]
+        }
+      ],
+      "layers": [
+        "room",
+        "corkboard",
+        "desk",
+        "lamp",
+        "notebook",
+        "light-branches",
+        "window"
+      ],
+      "acceptanceFrames": [
+        1165,
+        1220,
+        1300,
+        1400,
+        1450
+      ],
+      "acceptanceCriteria": [
+        "1165 帧：画面仍在灯泡特写，白光正在退去",
+        "1220 帧：拉回桌面，第一组光枝已长出",
+        "1300 帧：第二、三组光枝分叉，桌面被暖光照亮",
+        "1400 帧：光枝汇成一条，朝右侧窗户延伸",
+        "1450 帧：光路穿窗而出，窗外一团暖光"
+      ]
+    },
+    {
+      "sceneId": "possibility-wave",
+      "intent": "城市窗光成波前亮起；真正发生的是屋顶上一个人往前走的一步",
+      "from": 1464,
+      "durationInFrames": 210,
+      "eventFrames": [
+        1464,
+        1673
+      ],
+      "component": "PossibilityWave",
+      "props": {
+        "figureStartX": 220,
+        "walkStart": 38,
+        "speed": 5.4,
+        "footprintEvery": 18
+      },
+      "motion": [
+        "procedural",
+        "path",
+        "transform"
+      ],
+      "motionPlan": [
+        {
+          "target": "city-windows",
+          "from": "lit 0.06",
+          "to": "lit 1.0",
+          "start": 1474,
+          "end": 1614,
+          "easing": "easeInOutCubic",
+          "dependsOn": []
+        },
+        {
+          "target": "figure",
+          "from": "x=220",
+          "to": "x=1148",
+          "start": 1502,
+          "end": 1673,
+          "easing": "linear",
+          "dependsOn": [
+            "city-windows"
+          ]
+        },
+        {
+          "target": "footprints",
+          "from": "none",
+          "to": "one per 18 frames",
+          "start": 1502,
+          "end": 1673,
+          "easing": "linear",
+          "dependsOn": [
+            "figure"
+          ]
+        }
+      ],
+      "layers": [
+        "sky",
+        "skyline",
+        "rooftop",
+        "figure",
+        "footprints"
+      ],
+      "acceptanceFrames": [
+        1500,
+        1560,
+        1600,
+        1660
+      ],
+      "acceptanceCriteria": [
+        "1500 帧：城市开始成片亮起，人物刚起步",
+        "1560 帧：人物有明显步幅，身后脚印可数",
+        "1600 帧：城市基本全亮，脚印连成一条线",
+        "1660 帧：人物走到画面右侧，脚印留在身后"
+      ]
+    },
+    {
+      "sceneId": "dawn",
+      "intent": "同一座城市天亮：窗光反向熄灭，太阳从近排楼后升起，鸟群过场",
+      "from": 1674,
+      "durationInFrames": 257,
+      "eventFrames": [
+        1674,
+        1930
+      ],
+      "component": "Dawn",
+      "props": {
+        "horizon": 700,
+        "seed": "city-night-s1",
+        "sun": [
+          1010,
+          600
+        ],
+        "sunR": 76
+      },
+      "motion": [
+        "procedural",
+        "mask",
+        "transform"
+      ],
+      "motionPlan": [
+        {
+          "target": "sky",
+          "from": "night gradient",
+          "to": "dawn gradient",
+          "start": 1674,
+          "end": 1844,
+          "easing": "easeInOutCubic",
+          "dependsOn": []
+        },
+        {
+          "target": "city-windows",
+          "from": "lit 1.0",
+          "to": "lit 0.16",
+          "start": 1684,
+          "end": 1864,
+          "easing": "easeInOutQuad",
+          "dependsOn": [
+            "sky"
+          ]
+        },
+        {
+          "target": "birds",
+          "from": "x=320",
+          "to": "x>1900",
+          "start": 1794,
+          "end": 1930,
+          "easing": "linear",
+          "dependsOn": [
+            "sky"
+          ]
+        }
+      ],
+      "layers": [
+        "sky",
+        "sun",
+        "skyline",
+        "near-row",
+        "rooftop",
+        "birds"
+      ],
+      "acceptanceFrames": [
+        1700,
+        1760,
+        1830,
+        1900,
+        1920
+      ],
+      "acceptanceCriteria": [
+        "1700 帧：天空仍是深蓝，城市窗光还多",
+        "1760 帧：地平线转暖，窗光开始成片熄灭",
+        "1830 帧：太阳可见，被近排楼挡住下缘，鸟群已入场",
+        "1900 帧：天空明显转亮，城市只剩少量窗光",
+        "1920 帧：屋顶前景压住画面下缘，准备切窗前"
+      ]
+    },
+    {
+      "sceneId": "ending",
+      "intent": "清晨窗前，一个人背对镜头向前迈一步；黑场收片名",
+      "from": 1931,
+      "durationInFrames": 203,
+      "eventFrames": [
+        1931,
+        2133
+      ],
+      "component": "Ending",
+      "props": {
+        "window": [
+          300,
+          110,
+          1320,
+          710
+        ],
+        "figureX": 800,
+        "stepPx": 26
+      },
+      "motion": [
+        "transform",
+        "path"
+      ],
+      "motionPlan": [
+        {
+          "target": "camera",
+          "from": "scale 1.0",
+          "to": "scale 1.06",
+          "start": 1931,
+          "end": 2081,
+          "easing": "easeOutCubic",
+          "dependsOn": []
+        },
+        {
+          "target": "figure",
+          "from": "x=800",
+          "to": "x=826",
+          "start": 2027,
+          "end": 2069,
+          "easing": "easeOutCubic",
+          "dependsOn": []
+        },
+        {
+          "target": "end-card",
+          "from": "opacity 0",
+          "to": "opacity 1",
+          "start": 2079,
+          "end": 2115,
+          "easing": "easeOutQuad",
+          "dependsOn": [
+            "figure"
+          ]
+        }
+      ],
+      "layers": [
+        "room",
+        "window",
+        "dawn-city",
+        "figure",
+        "end-card"
+      ],
+      "acceptanceFrames": [
+        1970,
+        2040,
+        2110,
+        2125
+      ],
+      "acceptanceCriteria": [
+        "1970 帧：人物背对镜头，窗外城市与暖光可读",
+        "2040 帧：人物向前迈出，剪影仍完整",
+        "2110 帧：画面已黑，片名与英文副标居中可读",
+        "2125 帧：片名卡即将淡出"
+      ]
+    }
+  ]
+}

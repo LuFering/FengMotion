@@ -35,15 +35,18 @@ v3 不删除创意，也不要求所有画面都用代码画。
 
 ## 执行顺序（不要跳）
 
-1. **参考分析**：`REFERENCE_ANALYSIS.md`——把参考拆成构图/材质/运动/节奏；出 2–3 个方向。
-2. **关键画面**：先出 2–3 张，用户选一张；没确认不许写组件。
-3. **定契约**：`REMOTION_CONTRACT.md`（帧单位、注册入口、确定性、资源规则）。
-4. **场景规格 + 资产策略**：`SCENE_SPEC.md` + `ASSET_WORKFLOW.md`；复杂动作写 `motionPlan`。
-5. **组件实现**：先搜 282 组件 / 157 卡 / 参考视频，再自研；`COMPONENT_CONTRACT.md`；一个组件一个文件。
-6. **Studio 迭代**：`ITERATION_WORKFLOW.md`——真实预览、暴露参数、快照、局部返工。
-7. **自动验收 + 视觉审片**：`RENDER_QA.md` 七层自动检查 + 第八层人工审片。
-8. **沉淀组件**：通过验证的进 `motion-library/`；没验证的只能算 experiment。
-9. **最后改编辑器**：节点语义按「场景 / 组件 / 资源 / 预览 / 渲染」设计，不照搬剪辑轨。
+1. **复制模板 + 门 0**：`cp -r films/_template films/<id>`；填完参考/规格/合同/关键画面后跑
+   `node workflow-v3/tools/check-precode.mjs --film workflow-v3/films/<id>`。
+   **门 0 不过，`components/` 里不许有 `.tsx`。**
+2. **参考分析**：`REFERENCE_ANALYSIS.md`——把参考拆成构图/材质/运动/节奏；出 2–3 个方向。
+3. **关键画面**：先出 2–3 张，用户选一张；没确认不许写组件。
+4. **定契约**：`REMOTION_CONTRACT.md`（帧单位、注册入口、确定性、资源规则）。
+5. **场景规格 + 资产策略**：`SCENE_SPEC.md` + `ASSET_WORKFLOW.md`；复杂动作写 `motionPlan`。
+6. **组件实现**：先搜 282 组件 / 157 卡 / 参考视频，再自研；`COMPONENT_CONTRACT.md`；一个组件一个文件。
+7. **Studio 迭代**：`ITERATION_WORKFLOW.md`——真实预览、暴露参数、快照、局部返工。
+8. **自动验收 + 视觉审片**：`RENDER_QA.md` 七层自动检查 + 第八层人工审片。
+9. **沉淀组件**：通过验证的进 `motion-library/`；没验证的只能算 experiment。
+10. **最后改编辑器**：节点语义按「场景 / 组件 / 资源 / 预览 / 渲染」设计，不照搬剪辑轨。
 
 ---
 
@@ -57,13 +60,18 @@ workflow-v3/
   SCENE_SPEC.md          场景规格：字段、schema、校验
   COMPONENT_CONTRACT.md  组件合同：接口、帧行为、验收
   VISUAL_DESIGN.md       风格系统：色板、字体、构图、层级
-  RENDER_QA.md           七层验收与门禁
+  RENDER_QA.md           七层自动验收 + 第八层视觉审片
   REFERENCE_ANALYSIS.md  参考片分析 / 视觉探索 / 关键画面确认
   ASSET_WORKFLOW.md      资产策略 / 记录 / 边界（资产可以是主体）
   ITERATION_WORKFLOW.md  Studio 预览 / 参数 / 快照 / 局部返工
   motion-library/
     README.md            入库门槛 / 从现有库导入
     registry.json        候选与已验证组件索引
+  tools/
+    check-precode.mjs    门 0：写代码前的顺序/产物检查
+    validate-scene.mjs   唯一场景规格校验器（不要每片复制）
+  films/
+    _template/           新片模板（开工/参考/规格/合同/验收/审片）
   templates/
     scene.spec.json      场景规格样例
     component.contract.md 组件合同空模板
@@ -88,8 +96,23 @@ workflow-v3/
 
 ---
 
+## 新片开工
+
+```bash
+cd ~/remotion/electron
+cp -r workflow-v3/films/_template workflow-v3/films/<片名>
+# 填 00-开工 / 01-reference / reference-log / 02-scene.spec / 03-contracts / keyframes / approved
+node workflow-v3/tools/check-precode.mjs --film workflow-v3/films/<片名>
+```
+
+- 门 0 不过，不许写组件；
+- 校验器只用 `tools/validate-scene.mjs`，**不要每片复制一份**（复制品会被改松）；
+- 关键画面没用户原话（`approved.md`），不算确认；
+- 首次视觉方向用强模型；弱模型只做模板复刻。记录模型，别把模型差异算成流程效果。
+
 ## 硬规则
 
+- **先跑门 0，再写代码**；`components/` 先有 `.tsx` = 顺序违规。
 - **没有 component / props / frame 映射的交付物，执行层不接收。**
 - **能编译、能渲染、能逐帧验收**，才算完成；只交分镜图和时间段不算。
 - **资产可以是主体**，但必须有设计目的、参与构图/运动/合成/叙事；禁止的是无设计的素材轮播。

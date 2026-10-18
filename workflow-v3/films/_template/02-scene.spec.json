@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "filmId": "<film-id>",
+  "fps": 60,
+  "width": 1920,
+  "height": 1080,
+  "durationInFrames": 600,
+  "scenes": [
+    {
+      "sceneId": "scene-01",
+      "intent": "<这一场让观众多知道了什么>",
+      "from": 0,
+      "durationInFrames": 600,
+      "eventFrames": [0, 599],
+      "component": "Scene01",
+      "props": {},
+      "motion": ["path"],
+      "motionPlan": [
+        {
+          "target": "<对象>",
+          "from": "<起始状态>",
+          "to": "<结束状态>",
+          "start": 0,
+          "end": 120,
+          "easing": "easeOutCubic",
+          "dependsOn": []
+        }
+      ],
+      "source": {
+        "type": "self",
+        "id": "<卡名 / 参考时间码 / self>",
+        "proof": "<看过哪 2 张卡/组件、为什么不适用、新写什么>"
+      },
+      "assetStrategy": "procedural",
+      "layers": ["background", "subject"],
+      "acceptanceFrames": [0, 300, 599],
+      "acceptanceCriteria": [
+        "0 帧：<看到什么>",
+        "300 帧：<看到什么>",
+        "599 帧：<看到什么>"
+      ]
+    }
+  ]
+}

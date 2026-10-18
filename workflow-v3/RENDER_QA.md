@@ -83,6 +83,7 @@ npx remotion render <entry> <CompositionId> out/final.mp4
 
 | 门禁 | 判据 | 不通过 |
 |---|---|---|
+| 门 0 产物 | `00-开工` / `01-reference` / `reference-log` / `02-scene.spec` / `03-contracts` / `keyframes` / `approved` | 不许写组件 |
 | 编译 | `tsc --noEmit` 0 error | 不许渲染 |
 | 接口 | scene spec 的 `component` 都存在，props 必填项齐全 | 不许渲染 |
 | 注册 | Composition id 存在，fps/尺寸/时长与契约一致 | 不许交付 |

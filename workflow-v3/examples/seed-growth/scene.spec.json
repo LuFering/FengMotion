@@ -1,4 +1,5 @@
 {
+  "schemaVersion": 1,
   "filmId": "seed-growth",
   "fps": 60,
   "width": 1920,
@@ -39,7 +40,13 @@
         "0 帧：种子在画面上方，未入土",
         "58 帧：种子接触地面，出现压扁",
         "89 帧：种子停在 y=700，形变回弹结束"
-      ]
+      ],
+      "source": {
+        "type": "self",
+        "id": "seed-growth-example",
+        "proof": "手写参考实现；真实项目自研需举证看过 2 张卡/组件"
+      },
+      "assetStrategy": "procedural"
     },
     {
       "sceneId": "seed-crack",
@@ -81,6 +88,12 @@
           ]
         }
       ],
+      "source": {
+        "type": "self",
+        "id": "seed-growth-example",
+        "proof": "手写参考实现；真实项目自研需举证看过 2 张卡/组件"
+      },
+      "assetStrategy": "procedural",
       "layers": [
         "seed-shell-left",
         "seed-shell-right",
@@ -140,6 +153,12 @@
           ]
         }
       ],
+      "source": {
+        "type": "self",
+        "id": "seed-growth-example",
+        "proof": "手写参考实现；真实项目自研需举证看过 2 张卡/组件"
+      },
+      "assetStrategy": "procedural",
       "layers": [
         "soil",
         "main-roots",
@@ -198,6 +217,12 @@
           ]
         }
       ],
+      "source": {
+        "type": "self",
+        "id": "seed-growth-example",
+        "proof": "手写参考实现；真实项目自研需举证看过 2 张卡/组件"
+      },
+      "assetStrategy": "procedural",
       "layers": [
         "soil",
         "stem",

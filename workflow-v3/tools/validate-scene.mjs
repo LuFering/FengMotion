@@ -1,17 +1,42 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 
-const root = path.dirname(fileURLToPath(import.meta.url));
-const spec = JSON.parse(fs.readFileSync(path.join(root, 'scene.spec.json'), 'utf8'));
+/**
+ * 场景规格校验（唯一版本，不许每片复制一份）。
+ *
+ * 用法：
+ *   node workflow-v3/tools/validate-scene.mjs --film workflow-v3/films/<id>
+ *   node workflow-v3/tools/validate-scene.mjs --film workflow-v3/examples/seed-growth
+ */
 
+const args = process.argv.slice(2);
+const filmArg = args.includes('--film') ? args[args.indexOf('--film') + 1] : null;
+const specOnly = args.includes('--spec-only');
+if (!filmArg) {
+  console.error('用法：node workflow-v3/tools/validate-scene.mjs --film <片目录>');
+  process.exit(2);
+}
+
+const film = path.resolve(process.cwd(), filmArg);
+const specPath = ['02-scene.spec.json', 'scene.spec.json']
+  .map((f) => path.join(film, f))
+  .find((p) => fs.existsSync(p));
+
+if (!specPath) {
+  console.error(`✗ 找不到 02-scene.spec.json 或 scene.spec.json：${film}`);
+  process.exit(1);
+}
+
+const spec = JSON.parse(fs.readFileSync(specPath, 'utf8'));
 const errors = [];
 const isInt = (v) => Number.isInteger(v);
 const need = (cond, msg) => {
   if (!cond) errors.push(msg);
 };
 
+need(spec.schemaVersion === 1, 'schemaVersion 必须是 1');
 need(typeof spec.filmId === 'string' && spec.filmId.length > 0, 'filmId 缺失');
+need(spec.filmId === path.basename(film), `filmId=${spec.filmId} 与目录名 ${path.basename(film)} 不一致`);
 for (const k of ['fps', 'width', 'height', 'durationInFrames']) {
   need(isInt(spec[k]) && spec[k] > 0, `${k} 必须是正整数`);
 }
@@ -54,8 +79,8 @@ for (const [i, s] of spec.scenes.entries()) {
   }
 
   need(typeof s.component === 'string' && s.component.length > 0, `${tag} component 缺失`);
-  if (typeof s.component === 'string') {
-    const comp = path.join(root, 'components', `${s.component}.tsx`);
+  if (!specOnly && typeof s.component === 'string') {
+    const comp = path.join(film, 'components', `${s.component}.tsx`);
     need(fs.existsSync(comp), `${tag} 组件文件不存在：components/${s.component}.tsx`);
   }
 
@@ -76,6 +101,15 @@ for (const [i, s] of spec.scenes.entries()) {
     }
   }
 
+  need(s.source && ['card', 'component', 'ref', 'self'].includes(s.source.type), `${tag} 缺 source.type`);
+  need(s.source && typeof s.source.id === 'string' && s.source.id.length > 0, `${tag} 缺 source.id`);
+  need(s.source && typeof s.source.proof === 'string' && s.source.proof.length >= 6, `${tag} 缺 source.proof`);
+
+  need(
+    ['procedural', 'svg-asset', 'generated-image', 'video-footage', '3d-scene'].includes(s.assetStrategy),
+    `${tag} assetStrategy 不合法`,
+  );
+
   for (let f = s.from; f < s.from + s.durationInFrames; f++) {
     if (f >= 0 && f < covered.length) covered[f] = true;
   }
@@ -85,8 +119,8 @@ for (let f = 0; f < covered.length; f++) {
   if (!covered[f]) errors.push(`第 ${f} 帧没有被任何场景覆盖`);
 }
 
-const rootPath = path.join(root, 'Root.tsx');
-if (fs.existsSync(rootPath)) {
+const rootPath = path.join(film, 'Root.tsx');
+if (!specOnly && fs.existsSync(rootPath)) {
   const src = fs.readFileSync(rootPath, 'utf8');
   const num = (re) => {
     const m = src.match(re);
@@ -101,16 +135,12 @@ if (fs.existsSync(rootPath)) {
   need(fps === spec.fps, `Root.tsx fps=${fps} 与 spec=${spec.fps} 不一致`);
   need(w === spec.width, `Root.tsx width=${w} 与 spec=${spec.width} 不一致`);
   need(h === spec.height, `Root.tsx height=${h} 与 spec=${spec.height} 不一致`);
-} else {
-  errors.push('Root.tsx 不存在');
 }
 
 if (errors.length) {
-  console.error(`✗ scene.spec.json 未通过（${errors.length} 项）：`);
+  console.error(`✗ scene.spec 未通过（${errors.length} 项）：`);
   for (const e of errors) console.error('  - ' + e);
   process.exit(1);
 }
 
-console.log(
-  `✓ scene.spec.json 通过：${spec.scenes.length} 个场景，${spec.durationInFrames} 帧 @ ${spec.fps}fps`,
-);
+console.log(`✓ scene.spec 通过：${spec.scenes.length} 个场景，${spec.durationInFrames} 帧 @ ${spec.fps}fps`);
