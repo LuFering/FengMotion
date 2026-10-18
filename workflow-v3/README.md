@@ -55,6 +55,8 @@ workflow-v3/
   templates/
     scene.spec.json      场景规格样例
     component.contract.md 组件合同空模板
+  examples/
+    seed-growth/         端到端试验：规格 → 组件 → 编译 → 渲染 → 逐帧验收
 ```
 
 ---

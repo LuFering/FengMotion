@@ -12,7 +12,8 @@
 | `sceneId` | string | 是 | 唯一；与组件文件名对应 |
 | `intent` | string | 是 | 叙事/视觉目标；一句话说清“这一下让观众多知道了什么” |
 | `from` | int | 是 | 起始帧（含） |
-| `durationInFrames` | int | 是 | 持续帧数；结束帧 = `from + duration - 1` |
+| `durationInFrames` | int | 是 | 组件在画面上的持续帧数；结束帧 = `from + duration - 1` |
+| `eventFrames` | [int, int] | 是 | **事件窗口**（起, 止，含）；事件必须在这段内完成；可以短于 `durationInFrames`，剩余时间是“保持结果” |
 | `component` | string | 是 | 实际组件名；必须在组件合同里存在 |
 | `props` | object | 是 | 组件输入；必须可 JSON 序列化 |
 | `motion` | string[] | 是 | 运动机制（path / mask / procedural / layered / transform…） |
@@ -27,10 +28,12 @@
 
 - 所有帧字段是**整数**；不允许秒、毫秒混用。
 - 场景**可以重叠**（根系还在长，嫩芽已经开始），不是一条顺序播放的剪辑轨。
+- `durationInFrames` 是“组件在不在画面上”，`eventFrames` 是“事件什么时候发生”。
+  开壳在 209 帧完成、种壳留到 539 帧，是合法的：`eventFrames` 到 209，`durationInFrames` 到 539。
 - 场景必须覆盖 `0 … durationInFrames-1`，不许有空洞。
 - `component` 必须能在 `components/` 找到；找不到 = 规格无效。
 - `props` 里不许塞函数、JSX、文件句柄；只放数据。
-- `acceptanceFrames` 至少 3 个：起点、中点、终点；复杂运动加中间帧。
+- `acceptanceFrames` 至少 3 个：起点、中点、终点；复杂运动加中间帧；**必须落在 `eventFrames` 内**。
 - 一个场景一个 `sceneId`；重名 = 规格无效。
 
 ---
@@ -50,6 +53,7 @@
       "intent": "种子从画外落下，落地压扁，建立‘它要在这里发生’的期待",
       "from": 0,
       "durationInFrames": 90,
+      "eventFrames": [0, 89],
       "component": "SeedFall",
       "props": { "fromY": -140, "toY": 700, "impactFrame": 58 },
       "motion": ["transform", "spring"],
@@ -66,6 +70,7 @@
       "intent": "外壳沿裂纹打开，观众第一次看到‘里面活着’",
       "from": 90,
       "durationInFrames": 450,
+      "eventFrames": [90, 209],
       "component": "SeedCrack",
       "props": { "crackFrames": 55, "openDelay": 50 },
       "motion": ["path", "spring"],
@@ -83,6 +88,7 @@
       "intent": "根系向下生长，建立‘它在往下扎根’的空间感",
       "from": 210,
       "durationInFrames": 330,
+      "eventFrames": [210, 389],
       "component": "RootGrowth",
       "props": { "rootCount": 5, "growFrames": 110, "stagger": 12 },
       "motion": ["path", "procedural"],
@@ -100,6 +106,7 @@
       "intent": "嫩芽破土、叶片展开，完成‘从种子到生命’的闭环",
       "from": 390,
       "durationInFrames": 150,
+      "eventFrames": [390, 539],
       "component": "Sprout",
       "props": { "stemFrames": 80, "leafDelay": 60 },
       "motion": ["path", "spring"],
