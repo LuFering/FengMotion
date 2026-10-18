@@ -59,6 +59,28 @@
         "path",
         "spring"
       ],
+      "motionPlan": [
+        {
+          "target": "crack-path",
+          "from": "strokeDashoffset = 1",
+          "to": "strokeDashoffset = 0",
+          "start": 90,
+          "end": 145,
+          "easing": "easeInOutCubic",
+          "dependsOn": []
+        },
+        {
+          "target": "shell-left / shell-right",
+          "from": "closed",
+          "to": "rotate ±17°, translate ±13px",
+          "start": 140,
+          "end": 209,
+          "easing": "spring(damping 11, stiffness 90)",
+          "dependsOn": [
+            "crack-path"
+          ]
+        }
+      ],
       "layers": [
         "seed-shell-left",
         "seed-shell-right",
@@ -96,6 +118,28 @@
         "path",
         "procedural"
       ],
+      "motionPlan": [
+        {
+          "target": "main-roots",
+          "from": "pathLength 0",
+          "to": "pathLength 1",
+          "start": 210,
+          "end": 320,
+          "easing": "easeOutCubic",
+          "dependsOn": []
+        },
+        {
+          "target": "branches",
+          "from": "pathLength 0",
+          "to": "pathLength 1",
+          "start": 260,
+          "end": 389,
+          "easing": "easeOutCubic",
+          "dependsOn": [
+            "main-roots"
+          ]
+        }
+      ],
       "layers": [
         "soil",
         "main-roots",
@@ -131,6 +175,28 @@
       "motion": [
         "path",
         "spring"
+      ],
+      "motionPlan": [
+        {
+          "target": "stem",
+          "from": "pathLength 0",
+          "to": "pathLength 1",
+          "start": 390,
+          "end": 470,
+          "easing": "easeOutCubic",
+          "dependsOn": []
+        },
+        {
+          "target": "leaves",
+          "from": "scale 0",
+          "to": "scale 1",
+          "start": 450,
+          "end": 539,
+          "easing": "spring(damping 12)",
+          "dependsOn": [
+            "stem"
+          ]
+        }
       ],
       "layers": [
         "soil",

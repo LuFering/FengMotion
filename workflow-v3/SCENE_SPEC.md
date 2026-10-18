@@ -17,6 +17,7 @@
 | `component` | string | 是 | 实际组件名；必须在组件合同里存在 |
 | `props` | object | 是 | 组件输入；必须可 JSON 序列化 |
 | `motion` | string[] | 是 | 运动机制（path / mask / procedural / layered / transform…） |
+| `motionPlan` | object[] | 复杂动作必填 | 每个运动对象：`target` / `from` / `to` / `start` / `end` / `easing` / `dependsOn` |
 | `layers` | string[] | 否 | 前景 / 主体 / 背景 / 叠加关系 |
 | `transitions` | object | 否 | 与相邻场景的衔接机制（不是“转场特效”） |
 | `acceptanceFrames` | int[] | 是 | 必须检查的采样帧；必须落在本场景区间内 |
@@ -34,7 +35,38 @@
 - `component` 必须能在 `components/` 找到；找不到 = 规格无效。
 - `props` 里不许塞函数、JSX、文件句柄；只放数据。
 - `acceptanceFrames` 至少 3 个：起点、中点、终点；复杂运动加中间帧；**必须落在 `eventFrames` 内**。
+- `motion` 只是标签；**多对象、路径/遮罩/程序化生长、或有时序依赖的动作，必须写 `motionPlan`**。
+- `motionPlan` 的 `start` / `end` 必须落在 `eventFrames` 内；`acceptanceCriteria` 要能对应到阶段。
 - 一个场景一个 `sceneId`；重名 = 规格无效。
+
+---
+
+## 2.1 motionPlan 示例（SeedCrack）
+
+```json
+"motionPlan": [
+  {
+    "target": "crack-path",
+    "from": "strokeDashoffset = 1",
+    "to": "strokeDashoffset = 0",
+    "start": 90,
+    "end": 145,
+    "easing": "easeInOutCubic",
+    "dependsOn": []
+  },
+  {
+    "target": "shell-left / shell-right",
+    "from": "closed",
+    "to": "rotate ±17°, translate ±13px",
+    "start": 140,
+    "end": 209,
+    "easing": "spring(damping 11, stiffness 90)",
+    "dependsOn": ["crack-path"]
+  }
+]
+```
+
+> 只写 `"motion": ["path", "spring"]` 不算设计；上面这段才说明“谁、从什么、到什么、什么时候、依赖谁”。
 
 ---
 

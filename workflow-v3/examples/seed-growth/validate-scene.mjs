@@ -62,6 +62,20 @@ for (const [i, s] of spec.scenes.entries()) {
   need(s.props && typeof s.props === 'object' && !Array.isArray(s.props), `${tag} props 必须是对象`);
   need(Array.isArray(s.motion) && s.motion.length > 0, `${tag} motion 不能为空`);
 
+  const complexMotion = Array.isArray(s.motion) && s.motion.some((m) => ['path', 'mask', 'procedural'].includes(m));
+  need(!complexMotion || (Array.isArray(s.motionPlan) && s.motionPlan.length > 0), `${tag} 复杂运动缺少 motionPlan`);
+  if (Array.isArray(s.motionPlan)) {
+    for (const [j, m] of s.motionPlan.entries()) {
+      need(typeof m.target === 'string' && m.target.length > 0, `${tag} motionPlan[${j}] target 缺失`);
+      need(typeof m.from === 'string' && typeof m.to === 'string', `${tag} motionPlan[${j}] from/to 缺失`);
+      need(isInt(m.start) && isInt(m.end) && m.start <= m.end, `${tag} motionPlan[${j}] start/end 无效`);
+      if (Array.isArray(s.eventFrames)) {
+        const [a, b] = s.eventFrames;
+        need(m.start >= a && m.end <= b, `${tag} motionPlan[${j}] 不在 eventFrames [${a},${b}] 内`);
+      }
+    }
+  }
+
   for (let f = s.from; f < s.from + s.durationInFrames; f++) {
     if (f >= 0 && f < covered.length) covered[f] = true;
   }

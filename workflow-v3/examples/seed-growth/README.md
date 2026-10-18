@@ -10,7 +10,7 @@ seed-growth/
 ├── index.ts               Remotion 入口（registerRoot）
 ├── Root.tsx               唯一 Composition：SeedGrowth / 540f / 60fps / 1920×1080
 ├── SeedGrowth.tsx         组件树（四个 Sequence 可重叠）
-├── scene.spec.json        场景规格（含 eventFrames）
+├── scene.spec.json        场景规格（含 eventFrames / motionPlan）
 ├── validate-scene.mjs     schema / 组件映射 / 帧覆盖 / Root 一致性校验
 └── components/
     ├── Stage.tsx          天空 + 土壤（静态）
@@ -48,7 +48,8 @@ npx remotion render workflow-v3/examples/seed-growth/index.ts SeedGrowth out/v3/
 | root-growth | 210 | 330 | 210–389 | RootGrowth（事件结束后保持） |
 | sprout | 390 | 150 | 390–539 | Sprout |
 
-> `durationInFrames` 是组件在不在画面上；`eventFrames` 是事件什么时候发生。
+> `durationInFrames` 是组件在不在画面上；`eventFrames` 是事件什么时候发生；
+> `motionPlan` 写清谁、从什么、到什么、什么时候、依赖谁。
 > 开壳在 209 帧完成、种壳留到 539 帧，是合法的。
 
 ## 已验证
