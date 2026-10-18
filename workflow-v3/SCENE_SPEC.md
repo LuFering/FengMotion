@@ -20,6 +20,7 @@
 | `props` | object | 是 | 组件输入；必须可 JSON 序列化 |
 | `source` | object | 是 | `type`（card/component/ref/self）+ `id` + `proof`；self 必须举证看过哪 2 张 |
 | `assetStrategy` | string | 是 | `procedural` / `svg-asset` / `generated-image` / `video-footage` / `3d-scene` |
+| `tempo` | object | 是 | 场内节奏纪律：`phases` / `firstDelayFrames` / `eases` / `durationRange` / `staggerTotalFrames` / `entranceExitRatio` / `ambient` / `heroFrame` |
 | `motion` | string[] | 是 | 运动机制（path / mask / procedural / layered / transform…） |
 | `motionPlan` | object[] | 复杂动作必填 | 每个运动对象：`target` / `from` / `to` / `start` / `end` / `easing` / `dependsOn` |
 | `layers` | string[] | 否 | 前景 / 主体 / 背景 / 叠加关系 |
@@ -41,9 +42,34 @@
 - `acceptanceFrames` 至少 3 个：起点、中点、终点；复杂运动加中间帧；**必须落在 `eventFrames` 内**。
 - **每一场都必须有 `source`**：`ref` 写参考文件+时间码，`card` 写卡名+demo，`self` 写看过哪 2 张卡/组件、为什么不适用。`ref: None` 不算填了。
 - **每一场都必须有 `assetStrategy`**：哪怕结论是 `procedural`，也要显式写；不许空着让 AI 自己猜。
+- **每一场都必须有 `tempo`**：三段结构、缓动多样性、速度差、stagger、入退场不对称、环境动效、hero frame；判据见 `MOTION_RULES.md` 1.5 节。
+- `heroFrame` 必须落在 `eventFrames` 内，并且 `keyframes/<sceneId>-<heroFrame>.png` 要存在（静态 layout 图）。
 - `motion` 只是标签；**多对象、路径/遮罩/程序化生长、或有时序依赖的动作，必须写 `motionPlan`**。
 - `motionPlan` 的 `start` / `end` 必须落在 `eventFrames` 内；`acceptanceCriteria` 要能对应到阶段。
 - 一个场景一个 `sceneId`；重名 = 规格无效。
+
+---
+
+## 2.0 tempo 示例
+
+```json
+"tempo": {
+  "phases": [
+    {"name": "build", "from": 0, "to": 30},
+    {"name": "breathe", "from": 30, "to": 70},
+    {"name": "resolve", "from": 70, "to": 100}
+  ],
+  "firstDelayFrames": 9,
+  "eases": ["easeOutCubic", "easeOutCubic", "easeInQuad"],
+  "durationRange": {"fastest": 0.3, "slowest": 0.9},
+  "staggerTotalFrames": 18,
+  "entranceExitRatio": 1.5,
+  "ambient": "none",
+  "heroFrame": 300
+}
+```
+
+> 这里的数不是风格，是纪律：三段结构、最慢 ≥ 最快 ×3、同一缓动 ≤2 次、错峰 <500ms、入场比退场长。
 
 ---
 

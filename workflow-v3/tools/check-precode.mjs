@@ -28,6 +28,7 @@ const expand = (p) => (p.startsWith('~') ? path.join(os.homedir(), p.slice(1)) :
 const need = (cond, msg) => {
   if (!cond) errors.push(msg);
 };
+const isInt = (v) => Number.isInteger(v);
 const read = (p) => fs.readFileSync(p, 'utf8');
 const exists = (p) => fs.existsSync(p);
 
@@ -55,6 +56,7 @@ const required = [
   contractFile,
   'reference-log.json',
   'style-fingerprint.json',
+  'visual-identity.md',
   'approved.md',
 ];
 for (const f of required) {
@@ -136,6 +138,18 @@ if (exists(path.join(film, '01-reference.md'))) {
   need((s.match(/方向/g) ?? []).length >= 2, '01-reference.md 至少写 2 个方向');
 }
 
+// 5.5 视觉身份：3 个问题 + 默认清单自查
+if (exists(path.join(film, 'visual-identity.md'))) {
+  const s = read(path.join(film, 'visual-identity.md'));
+  need(/情绪|mood/i.test(s), 'visual-identity.md 没写“情绪”');
+  need(/画布|canvas|暗底|亮底|明暗/i.test(s), 'visual-identity.md 没写“画布明暗”');
+  need(/品牌|参考|字体/i.test(s), 'visual-identity.md 没写“品牌色/字体/参考”');
+  need(/默认清单自查/.test(s), 'visual-identity.md 没有“默认清单自查”一节');
+  const rows = (s.match(/^\|.*\|$/gm) ?? []).length;
+  need(rows >= 8, `默认清单自查要 6 行表，现在只有 ${rows} 行`);
+  need(!/待填|TODO|<问题>/.test(s), 'visual-identity.md 还有占位符');
+}
+
 // 6. 开工记录：模型 + 读过什么
 if (exists(path.join(film, '00-开工.md'))) {
   const s = read(path.join(film, '00-开工.md'));
@@ -166,6 +180,22 @@ if (exists(path.join(film, specFile))) {
         }
       }
     }
+    // hero frame：每场必须在 keyframes/ 里有静态 layout 图
+    const heroFiles = exists(keyframesDir)
+      ? new Set(fs.readdirSync(keyframesDir).filter((f) => /\.(png|jpe?g|webp)$/i.test(f)))
+      : new Set();
+    for (const sc of spec.scenes ?? []) {
+      const hero = sc?.tempo?.heroFrame;
+      need(isInt(hero), `scenes[${sc.sceneId}] tempo.heroFrame 不是整数`);
+      if (isInt(hero)) {
+        const names = [`${sc.sceneId}-${hero}.png`, `${sc.sceneId}-${hero}.jpg`, `${sc.sceneId}-${hero}.webp`];
+        need(
+          names.some((n) => heroFiles.has(n)),
+          `缺 hero frame：keyframes/${sc.sceneId}-${hero}.png（先定静态 layout，再写动画）`,
+        );
+      }
+    }
+
     // 每个组件都要在 03-component-contracts.md 里出现
     if (exists(path.join(film, contractFile))) {
       const contracts = read(path.join(film, contractFile));

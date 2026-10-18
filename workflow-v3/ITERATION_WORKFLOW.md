@@ -5,6 +5,17 @@
 
 ---
 
+## 0. 先定 hero frame（layout before animation）
+
+每场先指定一帧作为 **hero frame**：所有元素都在最终位置、还没开始退场的那一帧。
+
+1. 在 `scene.spec` 里写 `tempo.heroFrame`；
+2. 出一张**静态 layout 图**：`keyframes/<sceneId>-<heroFrame>.png`（不是渲染帧，是设计稿）；
+3. 用户在 `approved.md` 认可后，才写运动；
+4. 运动只描述“从哪到哪”，**不负责修布局**。
+
+> 跳过这步 = 在代码里猜布局；重叠、溢出、错位要到渲染才看得见。
+
 ## 1. 先分类，再动手
 
 | 问题 | 先改什么 | 不要做什么 |

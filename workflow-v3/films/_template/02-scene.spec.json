@@ -11,10 +11,15 @@
       "intent": "<这一场让观众多知道了什么>",
       "from": 0,
       "durationInFrames": 600,
-      "eventFrames": [0, 599],
+      "eventFrames": [
+        0,
+        599
+      ],
       "component": "Scene01",
       "props": {},
-      "motion": ["path"],
+      "motion": [
+        "path"
+      ],
       "motionPlan": [
         {
           "target": "<对象>",
@@ -26,14 +31,54 @@
           "dependsOn": []
         }
       ],
+      "tempo": {
+        "phases": [
+          {
+            "name": "build",
+            "from": 0,
+            "to": 30
+          },
+          {
+            "name": "breathe",
+            "from": 30,
+            "to": 70
+          },
+          {
+            "name": "resolve",
+            "from": 70,
+            "to": 100
+          }
+        ],
+        "firstDelayFrames": 9,
+        "eases": [
+          "easeOutCubic",
+          "easeOutCubic",
+          "easeInQuad"
+        ],
+        "durationRange": {
+          "fastest": 0.3,
+          "slowest": 0.9
+        },
+        "staggerTotalFrames": 18,
+        "entranceExitRatio": 1.5,
+        "ambient": "none",
+        "heroFrame": 300
+      },
       "source": {
         "type": "self",
         "id": "<卡名 / 参考时间码 / self>",
         "proof": "<看过哪 2 张卡/组件、为什么不适用、新写什么>"
       },
       "assetStrategy": "procedural",
-      "layers": ["background", "subject"],
-      "acceptanceFrames": [0, 300, 599],
+      "layers": [
+        "background",
+        "subject"
+      ],
+      "acceptanceFrames": [
+        0,
+        300,
+        599
+      ],
       "acceptanceCriteria": [
         "0 帧：<看到什么>",
         "300 帧：<看到什么>",

@@ -38,10 +38,10 @@ v3 不删除创意，也不要求所有画面都用代码画。
 1. **复制模板 + 门 0**：`cp -r films/_template films/<id>`；填完参考/规格/合同/关键画面后跑
    `node workflow-v3/tools/check-precode.mjs --film workflow-v3/films/<id>`。
    **门 0 不过，`components/` 里不许有 `.tsx`。**
-2. **参考分析**：`REFERENCE_ANALYSIS.md`——把参考拆成构图/材质/运动/节奏；出 2–3 个方向。
-3. **关键画面**：先出 2–3 张，用户选一张；没确认不许写组件。
+2. **参考分析 + 视觉身份**：`REFERENCE_ANALYSIS.md` + `visual-identity.md`（没有参考就问 3 个问题：情绪 / 画布明暗 / 品牌色字体参考）；出 2–3 个方向。
+3. **关键画面（hero frame）**：每场指定 `tempo.heroFrame`，出静态 layout 图 `keyframes/<sceneId>-<heroFrame>.png`，用户确认后才写组件。
 4. **定契约**：`REMOTION_CONTRACT.md`（帧单位、注册入口、确定性、资源规则）。
-5. **场景规格 + 资产策略**：`SCENE_SPEC.md` + `ASSET_WORKFLOW.md`；复杂动作写 `motionPlan`。
+5. **场景规格 + 资产策略**：`SCENE_SPEC.md` + `ASSET_WORKFLOW.md`；复杂动作写 `motionPlan`，每场必写 `tempo`（节奏纪律）。
 6. **组件实现**：先搜 282 组件 / 157 卡 / 参考视频，再自研；`COMPONENT_CONTRACT.md`；一个组件一个文件。
 7. **Studio 迭代**：`ITERATION_WORKFLOW.md`——真实预览、暴露参数、快照、局部返工。
 8. **自动验收 + 视觉审片**：`RENDER_QA.md` 七层自动检查 + 第八层人工审片。
@@ -73,7 +73,7 @@ workflow-v3/
     validate-scene.mjs   唯一场景规格校验器（不要每片复制）
     check-deliver.mjs    交付门：成片规格 / 验收记录 / 视觉审片
   films/
-    _template/           新片模板（开工/参考/规格/合同/风格/验收/审片/交付）
+    _template/           新片模板（开工/参考/视觉身份/规格/合同/风格/验收/审片/交付）
   templates/
     scene.spec.json      场景规格样例
     component.contract.md 组件合同空模板
@@ -118,6 +118,8 @@ node workflow-v3/tools/check-precode.mjs --film workflow-v3/films/<片名>
 ## 硬规则
 
 - **先跑门 0，再写代码**；`components/` 先有 `.tsx` = 顺序违规。
+- **不许默认色板开写**：没有 `visual-identity.md`（三问 + 默认清单自查）不许进规格。
+- **每场必须有 `tempo` 和 hero frame**：三段结构、缓动多样性、速度差、stagger、入退场不对称；hero frame 要有静态 layout 图。
 - **没有 component / props / frame 映射的交付物，执行层不接收。**
 - **能编译、能渲染、能逐帧验收**，才算完成；只交分镜图和时间段不算。
 - **资产可以是主体**，但必须有设计目的、参与构图/运动/合成/叙事；禁止的是无设计的素材轮播。
