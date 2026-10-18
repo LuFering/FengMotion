@@ -192,6 +192,7 @@ python3 ~/AIremotion-skill/03-工具/check-gate.py --film workflow-v2/片/<片�
 - 五个概念没出、没选 → 不许写剧本；
 - 事件合同答不出（起态/事件/止态/证据）→ 不许进 Storyboard；
 - Storyboard 里素材可得性写"没有"→ 不许进制作；
+- **关键镜素材没"已取得"（只是"可生成/需拍"）→ 不许进正式制作**，只能留在 Animatic；
 - Animatic 三个问题任一"否"→ 回 Storyboard 或概念，不许进制作；
 - 素材静默降级（视频→照片）→ 锁画判失败；
 - 没 1× 看完 → 只能写"未验证"；
