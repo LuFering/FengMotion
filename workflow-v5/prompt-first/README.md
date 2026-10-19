@@ -14,6 +14,7 @@
   lookdev-brief.md       # 首帧视觉定标：媒介/构图/光/材质/文字/运动/参考
   quality-bar.md         # 首帧与首版动画的最低质量门槛
   film-plan.md           # 全片编排：节奏弧/关键事件/连续性/转场/结尾/可选声音
+  shot-plan.json         # 机器可读时间线：Shot/Event/Caption/状态交接
   references/            # 参考图/视频/链接清单
   qa/
     passes/NN/           # 每轮渲染：视频、抽帧、观察记录
@@ -36,7 +37,8 @@ node tools/init-project.mjs <project-dir> --film-id <id> --prompt-file <原始�
 - `prompt.original.md` 逐字复制，不做摘要；已存在时默认不覆盖。
 - 之后把用户纠正追加到 `corrections.md`，关键决定写入 `decisions.md`。
 - 写代码前先填 `lookdev-brief.md` 和 `quality-bar.md`：先定媒介/构图/光/材质，再写动画。
-- 多镜头/长片作品，在完整动画前填 `film-plan.md`：先排节奏、关键事件、跨镜头连续性和结尾。
+- 多镜头/长片作品，在完整动画前填 `film-plan.md` 和 `shot-plan.json`：先排节奏、事件、镜头、字幕、连续性和结尾。
+- `shot-plan.json` 写完后运行 `node tools/validate-shot-plan.mjs shot-plan.json`。
 - 不需要先创建 `intent-brief.json`、方向、Gate、蓝图或 `scene.spec`；按任务复杂度按需使用。
 
 ## 上下文优先级
@@ -49,33 +51,38 @@ node tools/init-project.mjs <project-dir> --film-id <id> --prompt-file <原始�
 
 原文不能被摘要替代。上下文变长时，完整原文留在项目文件中，创作阶段注入相关原句、纠正、硬约束与最近决定。
 
-## 创作闭环（still-first）
+## 创作闭环（animatic-first + still-first）
 
 ```text
 原文/参考/素材
   → 媒介适配 + lookdev-brief（构图/光/材质/文字/运动）
-  → 多镜头：film-plan（节奏弧/关键事件/连续性/转场/结尾）
-  → 先渲 1–3 张静帧（开场/核心动作/结尾），过 quality-bar
-  → 静帧不过：改媒介/构图/光/材质，不写动画
-  → 静帧通过：3–5 秒关键动作 proof
-  → 多镜头：额外 6–10 秒连续片段（动作 + 镜头转换）
-  → proof 通过：写完整动画
-  → 渲染真实视频/片段
-  → 看连续画面 + 关键帧 + 节奏/声音
-  → 每轮只修 1 个主要问题；能静帧/短片段验证就不重渲全片
-  ↺ 直到问题解决或预算用尽
-  → 技术 QA + 视觉审片（对照 film-plan）
+  → 多镜头：film-plan（叙事/节奏/事件/连续性/结尾）
+  → 多镜头：shot-plan.json（Shot/Event/Caption/状态交接）
+  → 全片低保真 animatic（覆盖全部切点）
+  → animatic 通过：静帧（开场/核心动作/结尾）
+  → 3–5 秒关键动作 proof；多镜头额外 6–10 秒连续片段
+  → 完整视觉实现
+  → 渲染 → 看连续画面 → 逐切点证据 → 修改
+  → 技术 QA + 视觉审片（对照 film-plan/shot-plan）
 ```
 
-### 全片编排（v5.1）
+### 全片编排（v5.2）
 
-多镜头/长片，局部 proof 不能证明全片成立。`film-plan.md` 在完整动画前回答五件事：
+多镜头/长片，局部 proof 不能证明全片成立。v5.2 把规划拆成两层：
 
-1. **节奏弧**：开场、第一个明显变化、视觉重点、后半段深化、结尾；不机械地一句字幕一镜。
-2. **关键事件**：开始状态、触发、可见中间过程、结束状态、如何衔接下一镜。
-3. **跨镜头连续性**：主体/道具/材质/空间/光源的身份与状态，避免同一主体/道具无故变形。
-4. **镜头关系**：`continuityIn` / `continuityOut` / `transitionIntent`，说明为什么在这里切。
-5. **结尾设计**：最后视觉状态、最后一个动作、与开场呼应、停留时长。
+- `film-plan.md`：叙事/节奏/事件/连续性/结尾，是导演地图；
+- `shot-plan.json`：机器可读时间线，定义 Shot、Event、Caption、状态交接。
+
+层级必须分开：
+
+- **Event** 可以跨多个 Shot；
+- **Shot** 是时间/观看单位，不等于一句文本；
+- **Scene** 是空间单位，可以包含多个 Shot；
+- **Caption** 是独立轨道，不因字幕换行自动创建 Shot。
+
+每个 Shot 记录 `continuityIn/out`、`transitionIntent`、主体 `stateIn/stateOut`。执行层必须继承 `stateIn`，不能默认从初始状态重新开始。
+
+全片 animatic 是完整视觉制作前的门槛：用占位形状覆盖全部切点，先证明时间线连贯；如果去掉精细外观后像幻灯片，就回改 Shot Plan，不进入完整视觉制作。
 
 声音是可选段：用户要求无声则跳过，不作为阻塞项。
 
@@ -102,12 +109,13 @@ node tools/init-project.mjs <project-dir> --film-id <id> --prompt-file <原始�
 
 ### 省 token 规则
 
-1. 多镜头没有 `film-plan.md`，不写完整动画。
-2. 静帧不过，不写完整动画；静帧覆盖开场/核心/结尾，不只做开场。
-3. 首版只做关键动作 proof；多镜头额外做 6–10 秒连续片段，不直接全片。
-4. 每轮只修 1 个主要问题；用静帧/短片段验证，不重渲全片。
-5. 连续两轮修同一层无改善 → 换镜头组织/媒介/视觉目标，而不是继续调参数。
-6. 复用已确认的构图/光/材质/道具身份，不每轮重新决定风格。
+1. 多镜头没有 `film-plan.md` + `shot-plan.json`，不写完整动画。
+2. 全片 animatic 未通过，不做完整视觉制作。
+3. 静帧不过，不写完整动画；静帧覆盖开场/核心/结尾，不只做开场。
+4. 首版只做关键动作 proof；多镜头额外做 6–10 秒连续片段，不直接全片。
+5. 每轮只修 1 个主要问题；用 animatic/静帧/短片段验证，不重渲全片。
+6. 连续两轮修同一层无改善 → 换镜头组织/媒介/视觉目标，而不是继续调参数。
+7. 复用已确认的构图/光/材质/主体身份和状态交接，不每轮重新决定风格。
 
 - `sketch` / `prototype` 允许在正式门禁前渲染，但必须标记为非交付；不能伪装成最终素材/授权/成片。
 - 预览、proof、正式渲染必须能追溯到同一份代码/配置/素材；使用 `buildHash`/`renderHash` 时不得伪造。
@@ -129,7 +137,7 @@ node tools/init-project.mjs <project-dir> --film-id <id> --prompt-file <原始�
 workflow-v5/prompt-first/
 ├── README.md
 ├── prompts/creator.md
-├── templates/{prompt.original.md,corrections.md,decisions.md,lookdev-brief.md,quality-bar.md,film-plan.md}
-├── tools/init-project.mjs
-└── examples/
+├── templates/{prompt.original.md,corrections.md,decisions.md,lookdev-brief.md,quality-bar.md,film-plan.md,shot-plan.json}
+├── tools/{init-project.mjs,validate-shot-plan.mjs}
+└── examples/（含 continuity-reference 结构参考）
 ```

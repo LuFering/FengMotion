@@ -27,7 +27,8 @@
 ## 当前实现
 
 - 默认：`prompt-first/` 已实现原始提示词/纠正/决定持久化与创作闭环入口。
-- v5.1：Prompt-first 增加 `film-plan.md` 全片编排（节奏弧/关键事件/连续性/转场/结尾）与 6–10 秒连续片段 proof；QA 对照 film-plan 检查连续性；硬校验器未改。
+- v5.1：Prompt-first 增加 `film-plan.md` 全片编排（节奏弧/关键事件/连续性/转场/结尾）与 6–10 秒连续片段 proof。
+- v5.2：拆分 Event/Shot/Scene/Caption；新增 `shot-plan.json` 与结构校验；全片低保真 animatic 前移；执行层继承 `stateIn`；QA 增加逐切点 `cut-evidence`。硬校验器只做结构/时间线校验，不评价审美。
 - 0–2：`intent/`、`director/`、`reference/` 已实现；导演/动画校验器支持 creative/strict profile。
 - Gate A/B：`gates/` 已实现（当前示例未确认：Gate A recommended 且缺 Look-dev，Gate B 0/6 当前版本 approved）。
 - 5 动画设计：`animation/` 已实现蓝图/实现计划/草稿规格/四道门校验；当前 6 场均为 draft，组件/资产 candidate，Gate 3/4 blocked。

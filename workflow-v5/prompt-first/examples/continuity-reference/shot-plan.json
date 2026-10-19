@@ -1,0 +1,100 @@
+{
+  "schemaVersion": "1.0",
+  "type": "shot-plan",
+  "filmId": "continuity-reference",
+  "fps": 30,
+  "durationInFrames": 300,
+  "timelinePolicy": "contiguous",
+  "events": [
+    {
+      "id": "E1",
+      "description": "光进入空间并建立主体/空间关系",
+      "startState": "空间暗，主体轮廓弱",
+      "endState": "光稳定，主体可识别，空间层次清楚"
+    },
+    {
+      "id": "E2",
+      "description": "主体从位置 A 移动到位置 B 并稳定",
+      "startState": "主体在 A，光已建立",
+      "endState": "主体在 B，接触后稳定，光/空间关系保持"
+    }
+  ],
+  "captions": [
+    {
+      "id": "C1",
+      "sourceUnitId": "L1",
+      "text": "第一段字幕：建立空间。",
+      "from": 0,
+      "durationInFrames": 90
+    },
+    {
+      "id": "C2",
+      "sourceUnitId": "L2",
+      "text": "第二段字幕：动作跨镜头继续。",
+      "from": 90,
+      "durationInFrames": 210
+    }
+  ],
+  "shots": [
+    {
+      "id": "SH01",
+      "sceneId": "SC01",
+      "spaceId": "SPACE-A",
+      "from": 0,
+      "durationInFrames": 90,
+      "eventIds": ["E1"],
+      "captionIds": ["C1"],
+      "transitionIntent": "建立空间；光向与空间布局必须交给下一镜",
+      "continuityIn": { "fromShot": null, "carriedState": [] },
+      "continuityOut": { "toShot": "SH02", "carriedState": ["光向", "空间布局", "主体初始位置"] },
+      "subjects": [
+        {
+          "id": "subject-a",
+          "identity": "深色剪影主体，带暖色边缘光",
+          "stateIn": { "position": "A", "pose": "静止", "motion": "none", "spatialRelation": "左侧台面" },
+          "stateOut": { "position": "A", "pose": "静止", "motion": "none", "spatialRelation": "左侧台面，已受光" }
+        }
+      ]
+    },
+    {
+      "id": "SH02",
+      "sceneId": "SC01",
+      "spaceId": "SPACE-A",
+      "from": 90,
+      "durationInFrames": 120,
+      "eventIds": ["E1", "E2"],
+      "captionIds": ["C2"],
+      "transitionIntent": "动作接续：不重置主体位置，直接开始移动",
+      "continuityIn": { "fromShot": "SH01", "carriedState": ["光向", "空间布局", "主体初始位置"] },
+      "continuityOut": { "toShot": "SH03", "carriedState": ["主体位置", "运动状态", "光向"] },
+      "subjects": [
+        {
+          "id": "subject-a",
+          "identity": "深色剪影主体，带暖色边缘光",
+          "stateIn": { "position": "A", "pose": "静止", "motion": "none", "spatialRelation": "左侧台面，已受光" },
+          "stateOut": { "position": "B", "pose": "接触", "motion": "decelerating", "spatialRelation": "右侧窗边" }
+        }
+      ]
+    },
+    {
+      "id": "SH03",
+      "sceneId": "SC01",
+      "spaceId": "SPACE-A",
+      "from": 210,
+      "durationInFrames": 90,
+      "eventIds": ["E2"],
+      "captionIds": ["C2"],
+      "transitionIntent": "收束：延续 SH02 的最终位置与光向，不重新开始",
+      "continuityIn": { "fromShot": "SH02", "carriedState": ["主体位置", "运动状态", "光向"] },
+      "continuityOut": { "toShot": null, "carriedState": [] },
+      "subjects": [
+        {
+          "id": "subject-a",
+          "identity": "深色剪影主体，带暖色边缘光",
+          "stateIn": { "position": "B", "pose": "接触", "motion": "decelerating", "spatialRelation": "右侧窗边" },
+          "stateOut": { "position": "B", "pose": "稳定", "motion": "none", "spatialRelation": "右侧窗边，光落边缘" }
+        }
+      ]
+    }
+  ]
+}

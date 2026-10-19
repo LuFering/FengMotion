@@ -79,7 +79,7 @@ const BLUEPRINT_SCENE_KEYS = new Set([
   'acceptance',
   'staticIntent',
 ]);
-const SPEC_KEYS = ['sceneId', 'component', 'props', 'from', 'durationInFrames', 'eventFrames', 'heroFrame', 'motion', 'motionPlan', 'motionCheckFrames', 'acceptanceFrames', 'assetStrategy', 'layers', 'eventWindows'];
+const SPEC_KEYS = ['sceneId', 'component', 'props', 'from', 'durationInFrames', 'eventFrames', 'heroFrame', 'motion', 'motionPlan', 'motionCheckFrames', 'acceptanceFrames', 'assetStrategy', 'layers', 'eventWindows', 'shotId', 'eventIds', 'stateIn', 'stateOut', 'continuityIn', 'continuityOut'];
 
 // ---------------- 蓝图 ----------------
 let directionConfirmed = false;
@@ -346,6 +346,12 @@ if (spec) {
         need(isInt(f) && f >= s.from && f < s.from + s.durationInFrames, `${p}.acceptanceFrames[${j}] 必须在场景可见区间内（含保持段）`);
       }
     }
+    if (s.shotId !== undefined) need(isStr(s.shotId), `${p}.shotId 必须是非空字符串`);
+    if (s.eventIds !== undefined) need(isArr(s.eventIds) && s.eventIds.every(isStr), `${p}.eventIds 必须是字符串数组`);
+    if (s.stateIn !== undefined) need(isObj(s.stateIn), `${p}.stateIn 必须是对象`);
+    if (s.stateOut !== undefined) need(isObj(s.stateOut), `${p}.stateOut 必须是对象`);
+    if (s.continuityIn !== undefined) need(isObj(s.continuityIn), `${p}.continuityIn 必须是对象`);
+    if (s.continuityOut !== undefined) need(isObj(s.continuityOut), `${p}.continuityOut 必须是对象`);
     const strategies = Array.isArray(s.assetStrategy) ? s.assetStrategy : [s.assetStrategy];
     need(strategies.length >= 1 && strategies.every((x) => ['procedural', 'svg-asset', 'generated-image', 'video-footage', '3d-scene'].includes(x)), `${p}.assetStrategy 必须是 v3 枚举（字符串或数组，支持混合素材）`);
     for (const k of Object.keys(s)) {

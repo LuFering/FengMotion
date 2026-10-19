@@ -6,6 +6,7 @@
 ## 输入
 
 - `animation-blueprint.json`（创意/运动门已通过）
+- `film-plan.md` / `shot-plan.json`（多镜头必须读取；Shot/Event/Caption/状态交接以 shot-plan 为准）
 - 已确认的视觉系统、场景布局/Gate B
 - 组件库、资产清单、参考分析
 - Remotion 工程契约（帧单位、注册入口、确定性、资源规则）
@@ -17,10 +18,13 @@
    - `assets[]`：`available | candidate | missing` + note
    - `components[]`：`available | candidate | missing` + purpose/source/verification
    - `mechanisms[]`：sceneId / selected / candidates / reason / risk
-   - `sceneMap[]`：sceneId / component / mechanism / assetIds
+   - `sceneMap[]`：sceneId / shotIds / component / mechanism / assetIds
+   - `stateHandoff[]`：shotId / subjectId / stateOut → 下一镜 stateIn / 继承方式
 2. `scene.spec.json`
    - 整数帧：from / durationInFrames / eventFrames / heroFrame / motionCheckFrames / acceptanceFrames
    - component / props / motion / motionPlan / assetStrategy
+   - 多镜头扩展：`shotId` / `eventIds` / `stateIn` / `stateOut` / `continuityIn` / `continuityOut`
+   - 同一主体跨镜头沿用同一 subjectId；组件接收上一镜 stateOut 作为本镜 stateIn
 3. `component-contracts.md`
    - 接口、运动状态、视觉实现理由、工程限制、验收要求
 
@@ -31,15 +35,18 @@
 - `acceptanceFrames` 检查整个场景（含保持段），可以落在事件结束之后。
 - `heroFrame` 验证整体构图，可位于保持阶段。
 - 复杂运动（形态/位置/状态变化）必须有 `motionPlan`；简单场景不强制。
+- 事件、镜头、场景、字幕不是同一单位：一个 Shot 可以包含多个 Event，Caption 可以跨 Shot。
+- 切镜头时明确：动作是继续、结束还是被中断；哪些状态继承、哪些重置。不要默认重置全部状态。
+- 同一镜头内的连续动作不要拆成多个组件；跨镜头状态交接写入 `stateHandoff[]` 和 `scene.spec` 的 `stateIn/stateOut`。
 - 组件/资产必须真实：`candidate` 不能写成 `available`；`missing` 不能假装已取得。
 - 实现不了就写 blocked 并说明原因，不要为了过校验伪造组件/素材。
 - 不直接写 Remotion 组件代码；合同定义接口与验收，执行层再实现。
 
 ## 自检
 
-1. 每个场景都映射到组件/机制/资产了吗？
+1. 每个 Shot 都映射到组件/机制/资产了吗？事件/字幕是否按 Shot 正确归属？
 2. 组件和资产状态是真的吗？有没有把 candidate 当 available？
-3. 帧窗口/事件窗口/验收窗口关系正确吗？
+3. 帧窗口/事件窗口/验收窗口关系正确吗？切点前后的 stateOut→stateIn 是否接得上？
 4. 时间只换算了一次吗？
 5. 合同是否足以让执行层实现，而没有提前写实现？
 

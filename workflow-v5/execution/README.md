@@ -151,6 +151,8 @@ workflow-v5/execution/
 │   └── qa-reviewer.md
 ├── tools/
 │   ├── preflight.mjs
+│   ├── build-manifest.mjs
+│   ├── cut-evidence.mjs
 │   └── validate-execution.mjs
 └── examples/seven-oh-five/
     ├── execution.config.json
@@ -168,6 +170,8 @@ node tools/build-manifest.mjs examples/seven-oh-five/execution.config.json --out
 node tools/preflight.mjs examples/seven-oh-five/execution.config.json --out qa/preflight-report.json
 node tools/validate-execution.mjs examples/seven-oh-five
 # sketch 项目：同一命令会走 sketch 分支，校验 buildHash + 输出 SHA-256
+# 多镜头审片前生成切点前后帧：
+node tools/cut-evidence.mjs --video <mp4> --shot-plan <shot-plan.json> --out qa/cuts
 ```
 
 当前示例是 **blocked**：Gate A/B/C 未确认、组件/资产 candidate、无组件代码、无正式渲染。
