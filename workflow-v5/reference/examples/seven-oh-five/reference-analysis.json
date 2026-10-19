@@ -1,0 +1,30 @@
+{
+  "schemaVersion": "1.0",
+  "type": "reference-analysis",
+  "mode": "reference-free",
+  "references": [],
+  "designHypotheses": [
+    {
+      "id": "H-01",
+      "hypothesis": "光先进入空间，再出现人物动作",
+      "basis": "L1 的先后关系；没有可迁移参考，属于自主设计假设",
+      "risk": "容易退化成通用晨光滤镜，失去“光先到”的关系",
+      "confidence": "medium"
+    },
+    {
+      "id": "H-02",
+      "hypothesis": "液体变化用路径/遮罩表现，而不是整体缩放",
+      "basis": "L3/L4 的变化关系；没有参考可复现",
+      "risk": "Remotion 实现成本与素材质量；容易做成假流动",
+      "confidence": "medium"
+    },
+    {
+      "id": "H-03",
+      "hypothesis": "文字参与构图，但不抢事件焦点",
+      "basis": "六行原文必须保留；用户未指定文字视觉角色",
+      "risk": "文字与画面争夺注意力；需要关键画面验证",
+      "confidence": "high"
+    }
+  ],
+  "notes": "没有合适参考，按 reference-free 记录真实检索结果；不把通用咖啡广告当参考复现。"
+}

@@ -1,0 +1,7 @@
+{
+  "schemaVersion": "1.0",
+  "type": "approvals",
+  "filmId": "seven-oh-five",
+  "records": [],
+  "notes": "方向与场景布局尚未由用户确认；确认后写入 records，并绑定 artifactId + version。"
+}

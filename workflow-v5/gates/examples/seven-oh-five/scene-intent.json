@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "1.0",
+  "type": "scene-intent",
+  "filmId": "seven-oh-five",
+  "sceneId": "01-opening",
+  "basedOn": {
+    "intentBrief": "../../../intent/examples/seven-oh-five/intent-brief.json"
+  },
+  "sourceUnitIds": ["L1"],
+  "intent": "让观众先注意到“光进入空间”，而不是先看到一间漂亮的咖啡馆。",
+  "event": "卷帘门只拉起一半，晨光先落进吧台。",
+  "attention": "焦点从半开的卷帘门移到吧台边缘的光；人物尚未成为焦点。",
+  "motionIntent": "光带缓慢扩大，灰尘在光里漂移；卷帘门有轻微机械停顿；不出现与原文无关的装饰动作。",
+  "staticIntent": false,
+  "assets": [
+    { "id": "space-layers", "status": "placeholder", "note": "吧台/卷帘门/窗的分层资产尚未取得，先用设计稿验证空间关系" },
+    { "id": "light-band", "status": "placeholder", "note": "光带方向与范围待关键画面确认" }
+  ],
+  "notThis": [
+    "单张咖啡店照片 + 缓慢推近 + 字幕淡入",
+    "与原文无关的拉花特写或蒸汽粒子",
+    "用通用暖色 LUT 代替具体光线方向"
+  ]
+}

@@ -1,0 +1,37 @@
+# workflow-v5 · 从创作意图到执行验收
+
+> v3 冻结；v5 是并行新管线。核心不是“更长的提示词”，而是让每一层只回答自己的问题，
+> 每个决定都有状态、来源、确认范围，未确认不得进入下一层。
+
+## 层级
+
+| 层 | 回答的问题 | 目录 |
+|---|---|---|
+| 0 意图编译 | 用户想表达什么？ | `intent/` |
+| 1 导演与视觉方向 | 这条片应该如何表达？ | `director/` |
+| 2 参考分析 | 哪些手法值得借鉴/不能复现？ | `reference/` |
+| Gate A/B | 方向是否成立、场景布局是否成立？ | `gates/` |
+| 动画设计 | 发生什么变化、如何编译成执行规格？ | `animation/` |
+| 执行与验收 | 能否正确生成、是否值得看？ | `execution/` |
+
+完整架构见 `DESIGN.md`，阶段摘要见 `PLAN.md`。
+
+## 校验
+
+```bash
+node intent/tools/validate-intent.mjs intent/examples/seven-oh-five/intent-brief.json
+node director/tools/validate.mjs director/examples/seven-oh-five
+node reference/tools/validate-reference.mjs reference/examples/seven-oh-five
+node gates/tools/validate-gates.mjs gates/examples/seven-oh-five
+node animation/tools/validate-animation.mjs animation/examples/seven-oh-five
+node execution/tools/preflight.mjs execution/examples/seven-oh-five/execution.config.json --out qa/preflight-report.json
+node execution/tools/validate-execution.mjs execution/examples/seven-oh-five
+```
+
+## 当前状态
+
+- 示例《七点零五分》停在未确认/阻塞状态：Gate A recommended、Gate B pending、
+  动画蓝图 draft、组件/资产 candidate、preflight blocked。
+- 没有伪造成片、审片或用户确认；这是有意的门禁状态。
+- v3 不修改；v5 复用 v3 的执行层思路（scene.spec / 组件合同 / Remotion / 渲染验收），
+  但重写前置门禁与确认机制。

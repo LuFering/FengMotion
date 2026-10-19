@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
+  <defs>
+    <radialGradient id="lampC" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#ffd9a0" stop-opacity="0.8"/>
+      <stop offset="1" stop-color="#ffd9a0" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1600" height="900" fill="#0b0a09"/>
+  <!-- 舞台层：后墙 / 窗 / 吧台 / 前景 -->
+  <rect x="100" y="80" width="1400" height="520" fill="#14110d" stroke="#2a241c" stroke-width="3"/>
+  <rect x="1080" y="140" width="320" height="360" fill="#2b1f14" stroke="#3a2d1e" stroke-width="6"/>
+  <rect x="1100" y="160" width="280" height="320" fill="#4a3724"/>
+  <rect x="100" y="600" width="1400" height="90" fill="#1c1711"/>
+  <rect x="180" y="690" width="1240" height="80" fill="#241c13"/>
+  <!-- 杯子与光 -->
+  <circle cx="420" cy="620" r="70" fill="#e8dcc8"/>
+  <circle cx="420" cy="620" r="48" fill="#5a3a22"/>
+  <circle cx="760" cy="620" r="60" fill="#e8dcc8" opacity="0.9"/>
+  <circle cx="760" cy="620" r="40" fill="#6b4528"/>
+  <circle cx="560" cy="160" r="220" fill="url(#lampC)"/>
+  <path d="M1060 120 L1400 700" stroke="#ffd9a0" stroke-width="2" opacity="0.35"/>
+  <!-- 层标注 -->
+  <g font-family="'Noto Sans CJK SC', sans-serif" font-size="20" fill="#8d8272">
+    <text x="1180" y="560">窗 / 光层</text>
+    <text x="1180" y="590">中景</text>
+    <text x="220" y="660">吧台层</text>
+    <text x="640" y="790">前景层</text>
+  </g>
+  <text x="120" y="820" font-family="'Noto Serif CJK SC', serif" font-size="56" fill="#f2e7d3" letter-spacing="6">C · 微型舞台</text>
+  <text x="120" y="866" font-family="'Noto Sans CJK SC', sans-serif" font-size="20" fill="#7d7365" letter-spacing="2">方向样稿 · 设计示意，非最终关键帧 / placeholder assets</text>
+</svg>

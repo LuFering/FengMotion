@@ -1,0 +1,369 @@
+{
+  "version": 1,
+  "film": "seven-oh-five",
+  "mode": "directed",
+  "brief": "brief.ready.json",
+  "carrier": {
+    "options": [
+      {
+        "name": "吧台长卷",
+        "oneLine": "一条横移的长卷，六个事件沿同一张吧台从左到右排开。",
+        "why": "同一空间里的先后事件可以连续发生；每个物件都能被看清；光可以当时间刻度。",
+        "risk": "侧立面容易读成插画或信息图，需要景深、接触阴影和真实材质。"
+      },
+      {
+        "name": "光的穿行",
+        "oneLine": "摄影机贴着晨光从卷帘缝进入，掠过每个物件。",
+        "why": "最贴近第一句的'光先落进吧台'，运动感强。",
+        "risk": "物件只剩局部，磨豆机、门和窗边很难同时成立；容易变成纯光效。"
+      },
+      {
+        "name": "俯视时间轴",
+        "oneLine": "正俯视吧台，像一条摊开的时间轴。",
+        "why": "六个事件可以排成一条清楚的线。",
+        "risk": "空间被压平，拉花以外的动作都看不清；会变成图形设计。"
+      }
+    ],
+    "chosen": "吧台长卷",
+    "whyChosen": "六行诗是同一空间里的先后事件；长卷保住空间连续性，每个物件都能被看清，光可以当时间刻度。另两个方向要么让物件只剩局部，要么把空间压平，都装不下磨豆机、门和窗边这三件事。",
+    "risk": "侧立面容易读成插画或信息图；必须靠景深、接触阴影、真实材质和足够多的可见动作把空间立起来。"
+  },
+  "beats": [
+    {
+      "order": 1,
+      "mustAchieve": "观众一眼知道店还没开门，但光已经先进来了。",
+      "options": [
+        {
+          "name": "门缝的光带",
+          "how": "只拍半开的卷帘门和地上的一条光，尘埃在光里漂，店里没有人。",
+          "why": "不靠人，先把'还没开门'说清。"
+        },
+        {
+          "name": "空店全景",
+          "how": "从店内向门口退，看到空吧台、椅子和还没翻开的牌子。",
+          "why": "空间更大，能交代店的样子。"
+        }
+      ],
+      "chosen": "门缝的光带",
+      "whyChosen": "第一句的主语是光，不是店。门缝的光带能把'只拉起一半'和'先落进吧台'同时说清。",
+      "rejected": "空店全景会把注意力分散到家具上，第一句的重点是光。"
+    },
+    {
+      "order": 2,
+      "mustAchieve": "观众能感到这一声很短，短到把安静衬得更明显。",
+      "options": [
+        {
+          "name": "一次短震",
+          "how": "磨豆机短促震动，豆子跳、粉落进小杯，灯罩和墙上的光带跟着晃一下，然后停。",
+          "why": "用画面里的连锁反应表现'响了一声'，不靠声音。"
+        },
+        {
+          "name": "出粉口特写",
+          "how": "只拍出粉口和落下的粉雾。",
+          "why": "更近，粉的质感更清楚。"
+        }
+      ],
+      "chosen": "一次短震",
+      "whyChosen": "这句的重点是'整条街的安静被磨碎'，需要机器、灯罩、光带一起动一下再停，才能让安静被看见。",
+      "rejected": "出粉口特写看不到连锁反应，会把这句话缩成产品特写。"
+    },
+    {
+      "order": 3,
+      "mustAchieve": "观众看见水真的穿过粉，咖啡的颜色真的在变深。",
+      "options": [
+        {
+          "name": "细水柱与液面",
+          "how": "细口壶倾斜，水柱落进滤杯，粉层鼓起，玻璃壶里的咖啡变深变高。",
+          "why": "颜色变化是这句的主语，玻璃壶能同时给出液位和颜色。"
+        },
+        {
+          "name": "滤杯剖面",
+          "how": "切开滤杯，看水穿过粉层滴下去。",
+          "why": "最直观。"
+        }
+      ],
+      "chosen": "细水柱与液面",
+      "whyChosen": "剖面会把温暖的手作感变成示意图；玻璃壶里的液面和颜色变化已经足够说清'穿过'和'变深'。",
+      "rejected": "剖面太像教学图，和全片的安静质感冲突。"
+    },
+    {
+      "order": 4,
+      "mustAchieve": "观众看清白色在褐色里卷成花，而不是只看到一杯做好的咖啡。",
+      "options": [
+        {
+          "name": "杯口近景画花",
+          "how": "杯口占满画面，白色奶流落下去，叶片一层层展开，最后拉出细茎。",
+          "why": "观众要看的是花纹形成的过程。"
+        },
+        {
+          "name": "侧面倒奶",
+          "how": "从侧面看奶流落进杯子，保留吧台空间。",
+          "why": "不打断空间连续性。"
+        }
+      ],
+      "chosen": "杯口近景画花",
+      "whyChosen": "侧面看不清花纹怎么形成，这句就只剩一杯咖啡；近景能把'卷'这个动作说清。",
+      "rejected": "侧面倒奶保住了空间，但牺牲了这句唯一的奇观。"
+    },
+    {
+      "order": 5,
+      "mustAchieve": "观众知道时间到了七点零五分，门开了，光和风是同时进来的。",
+      "options": [
+        {
+          "name": "钟门光连动",
+          "how": "墙上的钟走到七点零五分，玻璃门向内开，门铃晃，光和风一起把地上的一块光推到杯沿。",
+          "why": "时间、门、光在同一画面里，因果清楚。"
+        },
+        {
+          "name": "门缝扫光",
+          "how": "门开一条缝，一道光像刀一样扫过吧台。",
+          "why": "更戏剧，运动更大。"
+        }
+      ],
+      "chosen": "钟门光连动",
+      "whyChosen": "这句有三个信息：七点零五分、门被推开、风把光推到杯沿。钟和光能把时间与因果都放在画面里。",
+      "rejected": "扫光会抢掉'推到杯沿'的具体动作，也容易变成廉价光效。"
+    },
+    {
+      "order": 6,
+      "mustAchieve": "观众看见第一杯被放到窗边，并且感到这是一件每天都做的事。",
+      "options": [
+        {
+          "name": "一只手放杯",
+          "how": "一只手从画面右侧把杯子放下、扶正、松开、退出，蒸汽在窗光里升起。",
+          "why": "不露脸也能让人出现，'像每天一样'靠动作的熟练感。"
+        },
+        {
+          "name": "只拍杯子和蒸汽",
+          "how": "手留在画外，杯子已经放在窗边。",
+          "why": "更安全，不会画出假手。"
+        }
+      ],
+      "chosen": "一只手放杯",
+      "whyChosen": "第一杯是'他'放的；没有手，这句就变成空镜。先做手，做不好再退回第二种。",
+      "rejected": "只拍杯子能保底，但会丢掉'人每天做同一件事'的意思。"
+    }
+  ],
+  "timing": {
+    "status": "measured",
+    "hardAnchors": [],
+    "sections": [
+      {
+        "name": "片名：卷帘门与晨光",
+        "seconds": 4.2,
+        "why": "片名压在半开的卷帘门旁，先把空间和光立住。"
+      },
+      {
+        "name": "第一句：晨光落进吧台",
+        "seconds": 9.0,
+        "why": "门缝的光带、尘埃和空吧台需要时间被看清。"
+      },
+      {
+        "name": "第二句：磨豆机",
+        "seconds": 9.0,
+        "why": "一次短震加连锁晃动，然后要留出'更静'的空白。"
+      },
+      {
+        "name": "第三句：热水与咖啡",
+        "seconds": 10.0,
+        "why": "注水、鼓粉、液面上升和变深是一个连续过程。"
+      },
+      {
+        "name": "第四句：牛奶拉花",
+        "seconds": 11.0,
+        "why": "六层叶片加拉茎需要时间，前后还要留出进入和退出近景的余量。"
+      },
+      {
+        "name": "第五句：门开与风",
+        "seconds": 10.0,
+        "why": "钟、门、门铃、光被推到杯沿，四个动作有先后。"
+      },
+      {
+        "name": "第六句：窗边第一杯",
+        "seconds": 9.8,
+        "why": "手入画、放杯、扶正、退出，再加蒸汽升起后的停留。"
+      },
+      {
+        "name": "收尾：片名与黑场",
+        "seconds": 3.0,
+        "why": "让最后一口蒸汽落下，再收黑。"
+      }
+    ],
+    "totalSeconds": 66,
+    "paddingCheck": "没有空镜或慢推填时间：每段都有一个必须完成的动作，门缝变宽、磨豆机短震、液面升高、拉花成形、门开、杯子落台。animatic 实测 66.17s，与计划 66.0s 一致。",
+    "animatic": "animatic.mp4"
+  },
+  "director": {
+    "buildabilityRisks": [
+      "侧立面容易读成插画：必须靠景深、接触阴影、光带和材质避免扁平。",
+      "磨豆、注水、拉花都是小尺度动作，全景里可能看不清；拉花需要一次真实的近景插入，其他物件要画得足够大。",
+      "玻璃、蒸汽、咖啡液面在 SVG 里容易脏；先渲三张 still 验证材质，再写全片。",
+      "66 秒横移容易变成幻灯片；每个事件必须有可见的因果动作，不能只靠字幕。"
+    ],
+    "questionsForBuilder": [
+      "磨豆机的震动幅度在 1080p 下能不能读出来？",
+      "拉花近景的杯口直径要多大才不糊？",
+      "窗边的手会不会看起来假？如果假，是否退回只拍杯子和蒸汽？"
+    ],
+    "pushbackRule": "如果某个事件在 SVG 里做不出来，例如手或玻璃，先写 pushback 回导演，换承载方式或改 beat；不许删掉事件只留字幕。"
+  },
+  "scenes": [
+    {
+      "id": "title",
+      "component": "SevenOhFive",
+      "from": 0,
+      "duration": 126,
+      "file": "../../../remotion/seven-oh-five/SevenOhFive.tsx",
+      "acceptance": ["片名压在卷帘门旁的墙上，门外是虚化的街道，黑场淡入。"]
+    },
+    {
+      "id": "s1-shutter",
+      "component": "SevenOhFive",
+      "from": 126,
+      "duration": 270,
+      "file": "../../../remotion/seven-oh-five/SevenOhFive.tsx",
+      "acceptance": ["卷帘门只拉起一半，光带落在空吧台，尘埃可见，第一句字幕与画面同时成立。"]
+    },
+    {
+      "id": "s2-grinder",
+      "component": "SevenOhFive",
+      "from": 396,
+      "duration": 270,
+      "file": "../../../remotion/seven-oh-five/SevenOhFive.tsx",
+      "acceptance": ["磨豆机短促震动，豆子跳、粉落进杯，灯罩和光带跟着晃一下，然后更静。"]
+    },
+    {
+      "id": "s3-brew",
+      "component": "SevenOhFive",
+      "from": 666,
+      "duration": 300,
+      "file": "../../../remotion/seven-oh-five/SevenOhFive.tsx",
+      "acceptance": ["细口壶倾斜，水柱落进滤杯，粉层鼓起，玻璃壶里的咖啡变高变深。"]
+    },
+    {
+      "id": "s4-latte",
+      "component": "SevenOhFive",
+      "from": 966,
+      "duration": 330,
+      "file": "../../../remotion/seven-oh-five/SevenOhFive.tsx",
+      "acceptance": ["杯口占满画面，白色奶流落下去，叶片一层层展开，最后拉出细茎。"]
+    },
+    {
+      "id": "s5-door",
+      "component": "SevenOhFive",
+      "from": 1296,
+      "duration": 300,
+      "file": "../../../remotion/seven-oh-five/SevenOhFive.tsx",
+      "acceptance": ["钟走到七点零五分，玻璃门向内开，门铃晃，光和风把一块亮带推到杯沿。"]
+    },
+    {
+      "id": "s6-window",
+      "component": "SevenOhFive",
+      "from": 1596,
+      "duration": 294,
+      "file": "../../../remotion/seven-oh-five/SevenOhFive.tsx",
+      "acceptance": ["窗边台面先空着，轻虚焦后杯子落稳，蒸汽在窗光里升起。"]
+    },
+    {
+      "id": "coda",
+      "component": "SevenOhFive",
+      "from": 1890,
+      "duration": 90,
+      "file": "../../../remotion/seven-oh-five/SevenOhFive.tsx",
+      "acceptance": ["杯子留在窗边，片名与蒸汽一起收黑。"]
+    }
+  ],
+  "probes": [
+    {
+      "name": "opening",
+      "path": "probe/f60.png",
+      "what": "开场第 2 秒：半开卷帘门、门外虚化街道、片名、光带落进空吧台。"
+    },
+    {
+      "name": "grinder",
+      "path": "probe/f510.png",
+      "what": "第 17 秒：磨豆机、粉杯、吊灯和墙面光带；检查机身比例与接触阴影。"
+    },
+    {
+      "name": "latte",
+      "path": "probe/f1110.png",
+      "what": "第 37 秒：拉花近景，检查杯口、奶流、叶片层次和木色背景是否同一空间。"
+    },
+    {
+      "name": "window",
+      "path": "probe/f1740.png",
+      "what": "第 58 秒：窗边第一杯，检查落稳、蒸汽、窗光与字幕关系。"
+    },
+    {
+      "name": "contact-sheet",
+      "path": "probe/contact-sheet.png",
+      "what": "八帧接触表：片名、晨光、磨豆、注水、拉花、门开、窗边、收尾。"
+    }
+  ],
+  "pushback": {
+    "from": "Builder",
+    "what": "第六拍原计划用一只手把杯子放到窗边；SVG 手在 1080p 下两次试做都像深色色块，指节糊、握杯关系不可信，继续加细节只会更像假肢。",
+    "evidence": "probe/hand-attempt.png（放杯后收手的失败版本）：手是袖状剪影，读不出指节和握持。",
+    "replacement": "按 brief.acceptance 第 5 条预授权的退路：手留在画外；56.6 到 58.0 秒做一次轻虚焦，杯子在虚焦中落稳，焦点回来时杯子和蒸汽已经在窗边。",
+    "status": "applied",
+    "resolution": "最后一拍不出现手；1.4 秒轻虚焦过渡；杯子落稳后蒸汽升起，字幕与动作仍然对得上。",
+    "approvedBy": "brief.acceptance 第 5 条（用户预授权：手做不到就留在画外）"
+  },
+  "library": {
+    "searched": [
+      "grain",
+      "light",
+      "steam",
+      "subtitle",
+      "parallax",
+      "vignette",
+      "coffee",
+      "window",
+      "typewriter"
+    ],
+    "decision": "rejected",
+    "reason": "模板都是自带背景和文案的整屏 demo：noise-grain 用三万多颗 rect 做颗粒，1080p 每帧重建会拖垮渲染；vignette-pulse 是呼吸式暗角，和清晨自然光冲突；cinematic-title-intro、typewriter-subtitle、parallax-pan 都要先拆掉演示层才能用。与其把模板改成另一部片，不如按镜头卡 grain-dissolve、light-play-moves、type-entrance-moves 的语言自建颗粒、光带和字幕入场。"
+  },
+  "qa": {
+    "frames": [
+      "qa/frames/01-title-a.png",
+      "qa/frames/02-title-b.png",
+      "qa/frames/03-s1-a.png",
+      "qa/frames/04-s1-b.png",
+      "qa/frames/05-s2-a.png",
+      "qa/frames/06-s2-b.png",
+      "qa/frames/07-s3-a.png",
+      "qa/frames/08-s3-b.png",
+      "qa/frames/09-s4-a.png",
+      "qa/frames/10-s4-b.png",
+      "qa/frames/11-s5-a.png",
+      "qa/frames/12-s5-b.png",
+      "qa/frames/13-s6-a.png",
+      "qa/frames/14-s6-b.png",
+      "qa/frames/15-coda-a.png",
+      "qa/frames/16-coda-b.png"
+    ],
+    "motionClips": [
+      "qa/motion/s1-shutter.mp4",
+      "qa/motion/s2-grinder.mp4",
+      "qa/motion/s3-brew.mp4",
+      "qa/motion/s4-latte.mp4",
+      "qa/motion/s5-door.mp4",
+      "qa/motion/s6-window.mp4"
+    ],
+    "issues": [
+      "手的方案被放弃：按 brief 预授权改为 1.4 秒轻虚焦放杯；单帧里看不到“放”的过程，只有落稳后的杯子和蒸汽。",
+      "拉花近景是风格化微距：奶流和叶片边缘仍偏矢量，1080p 单帧能看出是插画，不是实拍。",
+      "门外街景只做到“虚化的街道语义”：路面、路缘、建筑底、自行车和行人剪影可辨，但不是具体可读的街。",
+      "全片无音频：用户没有给音乐或旁白，成片是静默片。"
+    ],
+    "acceptance": [
+      "成立：静音观看能按顺序读出店刚醒、磨豆、注水、拉花、门开、第一杯放到窗边。",
+      "成立：每条字幕出现时，画面里都有对应事件，字幕没有替画面讲故事。",
+      "成立：七点零五分的钟先走、门再开、光带后到杯沿，先后因果清楚。",
+      "成立：没有黑帧或死帧；只有片头片尾各一次黑场淡入淡出；字幕没有被主体压住。",
+      "成立：最后一拍按预授权不出现手，杯子落稳、蒸汽升起，与“他把第一杯放在窗边”对得上。"
+    ],
+    "finalVideo": "../../../out/seven-oh-five.mp4"
+  }
+}

@@ -1,0 +1,215 @@
+{
+  "schemaVersion": "1.0",
+  "type": "implementation-plan",
+  "filmId": "seven-oh-five",
+  "basedOn": "animation-blueprint.json",
+  "timingCompile": {
+    "fps": 30,
+    "durationSec": 30,
+    "totalFrames": 900,
+    "status": "proposed",
+    "note": "30s/30fps 仍为候选；用户确认全片时长后才可标记 confirmed。"
+  },
+  "assets": [
+    {
+      "id": "space-layers",
+      "status": "candidate",
+      "note": "吧台/卷帘门/窗分层资产待取得或制作"
+    },
+    {
+      "id": "light-band",
+      "status": "candidate",
+      "note": "光带方向与范围待关键画面确认"
+    },
+    {
+      "id": "grinder",
+      "status": "candidate",
+      "note": "真实机械动作素材或可验证局部运动方案"
+    },
+    {
+      "id": "coffee-liquid",
+      "status": "candidate",
+      "note": "连续液体变化素材/遮罩方案待验证"
+    },
+    {
+      "id": "coffee-surface",
+      "status": "candidate",
+      "note": "咖啡表面与奶纹形成素材/路径方案待验证"
+    },
+    {
+      "id": "door-and-light",
+      "status": "candidate",
+      "note": "门/外部光/杯沿素材待验证"
+    },
+    {
+      "id": "cup-and-hand",
+      "status": "candidate",
+      "note": "杯子/手/窗边素材待验证"
+    }
+  ],
+  "components": [
+    {
+      "id": "Scene01LightReveal",
+      "status": "candidate",
+      "purpose": "光带进入并分层揭示空间",
+      "source": "new-development",
+      "verification": "需 10s 证明与关键画面验证"
+    },
+    {
+      "id": "Scene02Grinder",
+      "status": "candidate",
+      "purpose": "一次磨豆机机械动作",
+      "source": "new-development",
+      "verification": "需素材可行性验证"
+    },
+    {
+      "id": "Scene03Extraction",
+      "status": "candidate",
+      "purpose": "液体流动与杯壁颜色变化",
+      "source": "new-development",
+      "verification": "需连续液体方案验证"
+    },
+    {
+      "id": "Scene04LatteArt",
+      "status": "candidate",
+      "purpose": "白褐交汇与花朵纹路形成",
+      "source": "new-development",
+      "verification": "需形态形成方案验证"
+    },
+    {
+      "id": "Scene05DoorLight",
+      "status": "candidate",
+      "purpose": "开门、外部光进入、光落杯沿",
+      "source": "new-development",
+      "verification": "需空间连续性验证"
+    },
+    {
+      "id": "Scene06CupPlacement",
+      "status": "candidate",
+      "purpose": "放杯动作的开始/接触/结束",
+      "source": "new-development",
+      "verification": "需动作与停留状态验证"
+    }
+  ],
+  "mechanisms": [
+    {
+      "sceneId": "S01",
+      "selected": "layered-light+mask",
+      "candidates": [
+        "layered-light",
+        "mask",
+        "video-footage"
+      ],
+      "reason": "先用分层光带验证“光先到”，再决定是否换实拍素材",
+      "risk": "容易变成均匀晨光滤镜"
+    },
+    {
+      "sceneId": "S02",
+      "selected": "video-footage-or-local-transform",
+      "candidates": [
+        "video-footage",
+        "local-transform",
+        "mask"
+      ],
+      "reason": "一次机械动作需要可辨的动作峰值",
+      "risk": "没有可用磨豆机素材时只能做局部运动，真实感不足"
+    },
+    {
+      "sceneId": "S03",
+      "selected": "layered-mask+path",
+      "candidates": [
+        "video-footage",
+        "layered-mask",
+        "path"
+      ],
+      "reason": "液体连续变化优先用遮罩/路径控制；有实拍素材则优先实拍",
+      "risk": "假流动/颜色跳变"
+    },
+    {
+      "sceneId": "S04",
+      "selected": "mask+path",
+      "candidates": [
+        "video-footage",
+        "mask",
+        "path"
+      ],
+      "reason": "必须表现从无到有的形态形成，而不是直接显示结果",
+      "risk": "纹路变成装饰动画，失去事件感"
+    },
+    {
+      "sceneId": "S05",
+      "selected": "layered-light+mask",
+      "candidates": [
+        "video-footage",
+        "layered-light",
+        "mask"
+      ],
+      "reason": "用光把门外与杯沿接起来，保持空间连续",
+      "risk": "空间关系断裂成两个画面"
+    },
+    {
+      "sceneId": "S06",
+      "selected": "layered-transform+path",
+      "candidates": [
+        "video-footage",
+        "layered-transform",
+        "path"
+      ],
+      "reason": "放杯动作需要清楚开始/接触/结束与停留",
+      "risk": "杯子瞬移或动作结束立即切走"
+    }
+  ],
+  "sceneMap": [
+    {
+      "sceneId": "S01",
+      "component": "Scene01LightReveal",
+      "mechanism": "layered-light+mask",
+      "assetIds": [
+        "space-layers",
+        "light-band"
+      ]
+    },
+    {
+      "sceneId": "S02",
+      "component": "Scene02Grinder",
+      "mechanism": "video-footage-or-local-transform",
+      "assetIds": [
+        "grinder"
+      ]
+    },
+    {
+      "sceneId": "S03",
+      "component": "Scene03Extraction",
+      "mechanism": "layered-mask+path",
+      "assetIds": [
+        "coffee-liquid"
+      ]
+    },
+    {
+      "sceneId": "S04",
+      "component": "Scene04LatteArt",
+      "mechanism": "mask+path",
+      "assetIds": [
+        "coffee-surface"
+      ]
+    },
+    {
+      "sceneId": "S05",
+      "component": "Scene05DoorLight",
+      "mechanism": "layered-light+mask",
+      "assetIds": [
+        "door-and-light"
+      ]
+    },
+    {
+      "sceneId": "S06",
+      "component": "Scene06CupPlacement",
+      "mechanism": "layered-transform+path",
+      "assetIds": [
+        "cup-and-hand"
+      ]
+    }
+  ],
+  "notes": "组件与资产均为 candidate，不能当成 available；Gate C 之前不能进入执行层。",
+  "status": "draft"
+}

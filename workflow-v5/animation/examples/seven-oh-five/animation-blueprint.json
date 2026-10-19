@@ -1,0 +1,409 @@
+{
+  "schemaVersion": "1.0",
+  "type": "animation-blueprint",
+  "filmId": "seven-oh-five",
+  "directionId": "morning-continuity",
+  "basedOn": {
+    "intentBrief": "../../../intent/examples/seven-oh-five/intent-brief.json",
+    "visualDirection": "../../../director/examples/seven-oh-five/visual-direction.json",
+    "referenceDecision": "../../../reference/examples/seven-oh-five/reference-decision.json",
+    "directionGate": "../../../gates/examples/seven-oh-five/direction-gate.json"
+  },
+  "timingPolicy": {
+    "durationCandidateSec": 30,
+    "status": "proposed",
+    "fps": null,
+    "note": "全片时长仅为候选；进入执行规格前必须与导演层/用户确认，不在本层写死帧率。"
+  },
+  "scenes": [
+    {
+      "sceneId": "S01",
+      "sourceUnitIds": [
+        "L1"
+      ],
+      "intent": "让观众先注意光进入空间，而不是先看到一间漂亮的咖啡馆。",
+      "event": {
+        "type": "space-reveal",
+        "target": "space-and-light",
+        "initialState": "卷帘门只拉起一半，店内偏暗，吧台轮廓不清楚",
+        "trigger": "晨光从卷帘门与窗的方向进入",
+        "progression": [
+          "光带出现在吧台边缘",
+          "光带扩大，灰尘在光里可见",
+          "空间层次被光分开"
+        ],
+        "finalState": "吧台与卷帘门的关系清楚，光成为第一焦点",
+        "failureConditions": [
+          "第一帧就出现完整空间和所有元素",
+          "光只是均匀滤镜，没有方向与落点"
+        ]
+      },
+      "motionIntent": {
+        "purpose": "让光的进入成为可观察事件",
+        "priority": "primary",
+        "motionCandidates": [
+          "layered-light",
+          "mask",
+          "video-footage"
+        ],
+        "selectionStatus": "pending-implementation-review"
+      },
+      "timing": {
+        "relativeOrder": 1,
+        "durationCandidateSec": 5,
+        "eventDurationCandidateSec": 3.5,
+        "holdDurationCandidateSec": 1.5,
+        "status": "proposed"
+      },
+      "layers": [
+        "space",
+        "light",
+        "text"
+      ],
+      "dependencies": [],
+      "assetRequirements": [
+        {
+          "role": "space-layers",
+          "status": "candidate",
+          "note": "吧台/卷帘门/窗的分层资产尚未取得"
+        },
+        {
+          "role": "light-band",
+          "status": "candidate",
+          "note": "光带方向与范围待关键画面确认"
+        }
+      ],
+      "acceptance": [
+        "开场时空间偏暗、卷帘门只开一半",
+        "光带先出现在吧台边缘",
+        "结束时空间层次清楚且光仍是焦点"
+      ]
+    },
+    {
+      "sceneId": "S02",
+      "sourceUnitIds": [
+        "L2"
+      ],
+      "intent": "用一次明确的机械动作改变此前的安静。",
+      "event": {
+        "type": "mechanical-action",
+        "target": "grinder-and-space",
+        "initialState": "空间安静，光线稳定",
+        "trigger": "磨豆机启动一次",
+        "progression": [
+          "磨豆机开始动作",
+          "机械动作与声音达到峰值",
+          "动作停止，安静回来"
+        ],
+        "finalState": "一次动作完成，空间恢复稳定",
+        "failureConditions": [
+          "只有声音没有可见动作",
+          "动作持续太久变成背景噪音"
+        ]
+      },
+      "motionIntent": {
+        "purpose": "让一次动作成为节奏上的明确变化",
+        "priority": "primary",
+        "motionCandidates": [
+          "video-footage",
+          "local-transform",
+          "mask"
+        ],
+        "selectionStatus": "pending-implementation-review"
+      },
+      "timing": {
+        "relativeOrder": 2,
+        "durationCandidateSec": 3,
+        "eventDurationCandidateSec": 1.5,
+        "holdDurationCandidateSec": 1.5,
+        "status": "proposed"
+      },
+      "layers": [
+        "space",
+        "grinder",
+        "text"
+      ],
+      "dependencies": [
+        {
+          "type": "visual-continuity",
+          "from": "S01",
+          "note": "保持同一空间与光线方向"
+        }
+      ],
+      "assetRequirements": [
+        {
+          "role": "grinder",
+          "status": "candidate",
+          "note": "需要真实机械动作或可验证的局部运动素材"
+        }
+      ],
+      "acceptance": [
+        "动作前空间保持安静",
+        "磨豆机有一次清楚可见的动作",
+        "动作结束后空间重新稳定"
+      ]
+    },
+    {
+      "sceneId": "S03",
+      "sourceUnitIds": [
+        "L3"
+      ],
+      "intent": "通过水与咖啡粉的关系表现液体运动和杯壁颜色变化。",
+      "event": {
+        "type": "liquid-extraction",
+        "target": "coffee-bed-and-carafe",
+        "initialState": "咖啡粉干燥，杯壁颜色较浅",
+        "trigger": "热水开始穿过咖啡粉",
+        "progression": [
+          "水接触咖啡粉",
+          "液体滴落并汇聚",
+          "杯壁颜色逐渐变深"
+        ],
+        "finalState": "液体完成萃取，杯壁颜色明显变深",
+        "failureConditions": [
+          "用整体缩放假装液体流动",
+          "颜色变化突然跳变"
+        ]
+      },
+      "motionIntent": {
+        "purpose": "让萃取过程与颜色变化可以被观察",
+        "priority": "primary",
+        "motionCandidates": [
+          "video-footage",
+          "layered-mask",
+          "path"
+        ],
+        "selectionStatus": "pending-implementation-review"
+      },
+      "timing": {
+        "relativeOrder": 3,
+        "durationCandidateSec": 5,
+        "eventDurationCandidateSec": 4,
+        "holdDurationCandidateSec": 1,
+        "status": "proposed"
+      },
+      "layers": [
+        "space",
+        "carafe",
+        "coffee-liquid",
+        "text"
+      ],
+      "dependencies": [
+        {
+          "type": "visual-continuity",
+          "from": "S02",
+          "note": "从磨豆机动作接续到冲煮"
+        }
+      ],
+      "assetRequirements": [
+        {
+          "role": "coffee-liquid",
+          "status": "candidate",
+          "note": "需要可连续变化的液体素材或分层遮罩方案"
+        }
+      ],
+      "acceptance": [
+        "开始时咖啡粉干燥、杯壁颜色浅",
+        "过程中能看到液体流动与颜色逐渐变化",
+        "结束时杯壁颜色明显变深且保持稳定"
+      ]
+    },
+    {
+      "sceneId": "S04",
+      "sourceUnitIds": [
+        "L4"
+      ],
+      "intent": "让观众看见白色液体进入咖啡后，逐渐形成花朵状纹路。",
+      "event": {
+        "type": "shape-formation",
+        "target": "coffee-surface",
+        "initialState": "褐色咖啡表面，尚未形成清晰花纹",
+        "trigger": "牛奶开始进入咖啡表面",
+        "progression": [
+          "白色液体进入",
+          "白褐两色交汇",
+          "纹路逐渐扩展并形成花朵状形态"
+        ],
+        "finalState": "形成可辨认的花朵状纹路",
+        "failureConditions": [
+          "直接显示已经完成的花朵图案",
+          "纹路没有从无到有的过程"
+        ]
+      },
+      "motionIntent": {
+        "purpose": "让形态的形成过程可被观察，而不是直接展示结果",
+        "priority": "primary",
+        "motionCandidates": [
+          "video-footage",
+          "mask",
+          "path"
+        ],
+        "selectionStatus": "pending-implementation-review"
+      },
+      "timing": {
+        "relativeOrder": 4,
+        "durationCandidateSec": 5,
+        "eventDurationCandidateSec": 3.5,
+        "holdDurationCandidateSec": 1.5,
+        "status": "proposed"
+      },
+      "layers": [
+        "cup",
+        "coffee-surface",
+        "milk-pattern",
+        "text"
+      ],
+      "dependencies": [
+        {
+          "type": "visual-continuity",
+          "from": "S03",
+          "note": "保持杯子与咖啡表面的连续性"
+        }
+      ],
+      "assetRequirements": [
+        {
+          "role": "coffee-surface",
+          "status": "candidate",
+          "note": "须验证所选媒介能否连续呈现形态变化"
+        }
+      ],
+      "acceptance": [
+        "开始时没有完整花纹",
+        "过程中能看出白褐两色交汇及形态变化",
+        "结束时花朵状纹路可辨认并保持稳定"
+      ]
+    },
+    {
+      "sceneId": "S05",
+      "sourceUnitIds": [
+        "L5"
+      ],
+      "intent": "连接门外环境与杯沿的光线，让空间关系发生变化。",
+      "event": {
+        "type": "spatial-connection",
+        "target": "door-and-cup-rim",
+        "initialState": "室内局部空间，门关闭",
+        "trigger": "门被推开",
+        "progression": [
+          "门缝出现外部光",
+          "风与光进入室内",
+          "光落到杯沿"
+        ],
+        "finalState": "门外空间通过光与杯沿发生联系",
+        "failureConditions": [
+          "只加一个无方向的扫光",
+          "空间关系断裂成两个画面"
+        ]
+      },
+      "motionIntent": {
+        "purpose": "用一次开门把局部动作重新接回空间",
+        "priority": "primary",
+        "motionCandidates": [
+          "video-footage",
+          "layered-light",
+          "mask"
+        ],
+        "selectionStatus": "pending-implementation-review"
+      },
+      "timing": {
+        "relativeOrder": 5,
+        "durationCandidateSec": 5,
+        "eventDurationCandidateSec": 3,
+        "holdDurationCandidateSec": 2,
+        "status": "proposed"
+      },
+      "layers": [
+        "space",
+        "door",
+        "light",
+        "cup",
+        "text"
+      ],
+      "dependencies": [
+        {
+          "type": "visual-continuity",
+          "from": "S04",
+          "note": "从咖啡局部动作接回空间"
+        }
+      ],
+      "assetRequirements": [
+        {
+          "role": "door-and-light",
+          "status": "candidate",
+          "note": "需要门/外部光/杯沿的可用素材或分层方案"
+        }
+      ],
+      "acceptance": [
+        "开始时门关闭、空间局限在室内",
+        "开门后外部光进入并改变空间关系",
+        "结束时杯沿接住光且画面稳定"
+      ]
+    },
+    {
+      "sceneId": "S06",
+      "sourceUnitIds": [
+        "L6"
+      ],
+      "intent": "完成放杯动作，并让日常的安静重新出现。",
+      "event": {
+        "type": "object-placement",
+        "target": "cup-and-windowsill",
+        "initialState": "杯子在吧台，窗边空着",
+        "trigger": "手把杯子拿向窗边",
+        "progression": [
+          "杯子离开吧台",
+          "杯子接触窗边",
+          "手离开，画面停留"
+        ],
+        "finalState": "杯子稳定在窗边，安静重新出现",
+        "failureConditions": [
+          "杯子瞬移",
+          "动作刚结束就立即切走"
+        ]
+      },
+      "motionIntent": {
+        "purpose": "用明确的开始/接触/结束完成日常动作",
+        "priority": "primary",
+        "motionCandidates": [
+          "video-footage",
+          "layered-transform",
+          "path"
+        ],
+        "selectionStatus": "pending-implementation-review"
+      },
+      "timing": {
+        "relativeOrder": 6,
+        "durationCandidateSec": 7,
+        "eventDurationCandidateSec": 3,
+        "holdDurationCandidateSec": 4,
+        "status": "proposed"
+      },
+      "layers": [
+        "space",
+        "cup",
+        "hand",
+        "text"
+      ],
+      "dependencies": [
+        {
+          "type": "visual-continuity",
+          "from": "S05",
+          "note": "从杯沿的光接续到放杯动作"
+        }
+      ],
+      "assetRequirements": [
+        {
+          "role": "cup-and-hand",
+          "status": "candidate",
+          "note": "需要杯子/手/窗边的可用素材或分层方案"
+        }
+      ],
+      "acceptance": [
+        "杯子从吧台开始移动",
+        "杯子与窗边有清楚的接触状态",
+        "动作结束后画面停留，安静回来"
+      ]
+    }
+  ],
+  "status": "draft"
+}

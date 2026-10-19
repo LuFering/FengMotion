@@ -1,0 +1,93 @@
+{
+  "schemaVersion": "1.0",
+  "type": "visual-direction",
+  "directionId": "A-morning-continuity",
+  "status": "proposed",
+  "basedOn": {
+    "intentBrief": "../../../intent/examples/seven-oh-five/intent-brief.json",
+    "directions": "creative-directions.json",
+    "decision": "direction-decision.json",
+    "sourceUnits": ["L1", "L2", "L3", "L4", "L5", "L6"]
+  },
+  "creativeThesis": {
+    "premise": "让观众在一个连续的清晨空间里观察日常动作，而不是看六张配字幕的咖啡图片。",
+    "viewerExperience": [
+      "进入安静的空间，先看见光和半开的卷帘门",
+      "注意到声音、器具和液体的细小变化",
+      "回到日常的平静，不需要解释"
+    ]
+  },
+  "visualGrammar": {
+    "spaceModel": "continuous-space",
+    "primaryFocus": "narrative-event",
+    "depthModel": "layered-spatial-composition",
+    "textRole": "preserved-poetic-text",
+    "materialDirection": "naturalistic",
+    "paletteLogic": ["morning-light", "coffee-brown", "milk-white"],
+    "motionPrinciples": ["causal-object-motion", "localized-shape-change", "intentional-stillness"],
+    "transitionPrinciple": "preserve-spatial-or-attentional-continuity"
+  },
+  "contentMapping": [
+    { "sourceUnitId": "L1", "visualPurpose": "建立清晨空间与光线先出现的关系" },
+    { "sourceUnitId": "L2", "visualPurpose": "用一次声音事件改变观众的注意力" },
+    { "sourceUnitId": "L3", "visualPurpose": "表现液体运动和可见的颜色变化" },
+    { "sourceUnitId": "L4", "visualPurpose": "表现两种液体交汇形成的新形态" },
+    { "sourceUnitId": "L5", "visualPurpose": "建立门外环境与杯沿光线的关系" },
+    { "sourceUnitId": "L6", "visualPurpose": "完成放杯动作，允许观众停留在最终状态" }
+  ],
+  "feasibility": {
+    "candidateMediums": ["layered-image-assets", "selected-video-footage", "procedural-motion"],
+    "requiresAssetValidation": true,
+    "knownRisks": ["spatial-continuity", "liquid-motion-quality", "character-consistency"]
+  },
+  "visualSystem": {
+    "composition": {
+      "principle": "每个关键时刻原则上只有一个主焦点；清晨的光、磨豆机动作、咖啡液变化、放杯动作依次获得注意力，辅助元素不与核心动作竞争。",
+      "holdsDuringMotion": true
+    },
+    "palette": {
+      "principle": "色彩逻辑来自清晨自然光、咖啡褐色与牛奶白色的关系；最终色值结合关键画面确定，不提前套用通用橙棕 LUT。",
+      "holdsDuringMotion": true
+    },
+    "typography": {
+      "principle": "六行原文逐字保留；文字与画面动作保持阅读节奏协调，但不强制每行同一动效，不预先决定每行位置和时长。",
+      "holdsDuringMotion": true
+    },
+    "materiality": {
+      "principle": "保留咖啡器具、玻璃、液体等对象的可辨认质感；允许分层合成，但不把不同空间伪装成同一连续场景。",
+      "holdsDuringMotion": true
+    },
+    "depth": {
+      "principle": "背景、吧台、器具与人物形成可辨认的前后层级；空间关系稳定，局部动作在层级内发生。",
+      "holdsDuringMotion": true
+    },
+    "motionGrammar": {
+      "principle": "环境变化克制，但核心动作必须可辨：光线不只闪烁，液体不只靠缩放假装流动，放杯有清楚开始/接触/结束。",
+      "holdsDuringMotion": true
+    },
+    "transitions": {
+      "principle": "转场继承前一场的光线、形态、对象或注意力，而不是每次切场加一个视觉特效。",
+      "holdsDuringMotion": true
+    }
+  },
+  "decisions": {
+    "durationSec": "unresolved",
+    "aspectRatio": "unresolved",
+    "fps": "unresolved",
+    "audio": "unresolved",
+    "sceneTimeline": "not-designed",
+    "componentContracts": "not-designed"
+  },
+  "heroFrameBrief": "hero-frame-brief.md",
+  "handoff": {
+    "nextStage": "hero-frame",
+    "instruction": "先验证关键画面是否成立：卷帘门/吧台/晨光能否形成清晰空间，观众是否先注意到光而不是漂亮的咖啡馆，运动开始时焦点是否仍明确。关键画面通过并由用户确认后，才进入动画设计。",
+    "requiredOutput": [
+      "hero-frame-brief",
+      "direction-confirmation",
+      "asset-feasibility-check"
+    ]
+  },
+  "confirmation": null,
+  "notes": "示例方案，尚未用户确认。视觉规则是设计原则，不是最终场景规格；色值、画幅、时长、帧数、组件与时间轴仍未决定。"
+}

@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "1.0",
+  "type": "execution-config",
+  "filmId": "seven-oh-five",
+  "paths": {
+    "animation": "../../../animation/examples/seven-oh-five",
+    "gates": "../../../gates/examples/seven-oh-five",
+    "director": "../../../director/examples/seven-oh-five",
+    "reference": "../../../reference/examples/seven-oh-five",
+    "components": "components",
+    "assets": "assets",
+    "qa": "qa",
+    "out": "out"
+  },
+  "output": {
+    "composition": "SevenOhFive",
+    "width": 1920,
+    "height": 1080,
+    "fps": 30,
+    "durationInFrames": 900
+  }
+}

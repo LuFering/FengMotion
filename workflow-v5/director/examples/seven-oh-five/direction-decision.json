@@ -1,0 +1,66 @@
+{
+  "schemaVersion": "1.0",
+  "type": "direction-decision",
+  "basedOn": {
+    "diagnosis": "creative-diagnosis.json",
+    "directions": "creative-directions.json"
+  },
+  "mode": "collaborative",
+  "status": "recommended",
+  "recommendedDirectionId": "A-morning-continuity",
+  "rationale": [
+    "原文的叙事依赖具体的物理动作、时间先后和空间关系；A 以连续空间和因果动作为单位，最直接地保留这些关系。",
+    "B 的视觉语言更独立、实现风险更低，但容易把“做咖啡”的日常过程转成隐喻，削弱原文的日常感。",
+    "C 在 Remotion 中较可控，但空间模型容易读成玩具展示；需要额外的材质与比例控制才能避免。",
+    "推荐 A 不等于确认；A 的素材与合成成本最高，必须先做关键画面与素材可行性验证。"
+  ],
+  "criteria": [
+    {
+      "dimension": "contentFit",
+      "assessments": {
+        "A-morning-continuity": { "level": "strong", "evidence": "连续空间与因果动作直接承载六行中的时间推进、工序和空间动线。" },
+        "B-text-and-matter": { "level": "workable", "evidence": "文字可承载诗，但液体/动作的日常因果关系会被排版语言弱化。" },
+        "C-breathing-miniature": { "level": "workable", "evidence": "舞台空间能保留空间关系，但人物与液体的真实动作会被模型化。" }
+      }
+    },
+    {
+      "dimension": "distinctiveness",
+      "assessments": {
+        "A-morning-continuity": { "level": "strong", "evidence": "以空间连续性和观察性运动为核心，与 B 的排版空间、C 的舞台空间明显不同。" },
+        "B-text-and-matter": { "level": "strong", "evidence": "文字是视觉主体，空间是排版空间，与 A/C 的空间逻辑完全不同。" },
+        "C-breathing-miniature": { "level": "strong", "evidence": "分层舞台与视差/遮挡运动，和实拍连续空间、排版空间都不同。" }
+      }
+    },
+    {
+      "dimension": "implementability",
+      "assessments": {
+        "A-morning-continuity": { "level": "workable", "evidence": "Remotion 可做分层合成与局部运动，但液体/人物真实感依赖素材质量。" },
+        "B-text-and-matter": { "level": "strong", "evidence": "字体、遮罩、形态变化在 Remotion 中可控，主要成本在设计与动效语言。" },
+        "C-breathing-miniature": { "level": "strong", "evidence": "分层 2.5D、视差和遮挡在 Remotion 中成熟，主要成本在资产分层。" }
+      }
+    },
+    {
+      "dimension": "assetRisk",
+      "assessments": {
+        "A-morning-continuity": { "level": "weak", "evidence": "需要同一空间、同一人物、可用的液体/器具素材；当前无用户实拍素材，风险最高。" },
+        "B-text-and-matter": { "level": "strong", "evidence": "可主要依赖程序化排版与生成静帧，不依赖同一空间实拍。" },
+        "C-breathing-miniature": { "level": "workable", "evidence": "需要一致的分层插画/2.5D 资产，但比实拍人物/液体更容易控制。" }
+      }
+    },
+    {
+      "dimension": "recognizability",
+      "assessments": {
+        "A-morning-continuity": { "level": "strong", "evidence": "空间、光线和动作能形成可辨识的导演语言；风险是落入通用咖啡广告模板。" },
+        "B-text-and-matter": { "level": "strong", "evidence": "文字与物质的视觉语言辨识度高；风险是过度设计。" },
+        "C-breathing-miniature": { "level": "workable", "evidence": "微缩舞台有辨识度，但容易接近通用 3D 模型展示。" }
+      }
+    }
+  ],
+  "alternatives": ["B-text-and-matter", "C-breathing-miniature"],
+  "unselectedReasons": {
+    "B-text-and-matter": "保留为备选：如果 A 的素材可行性验证失败，或用户更希望降低写实依赖，B 是最稳的替代方向。",
+    "C-breathing-miniature": "保留为备选：如果用户希望更强的视觉个性、且接受舞台化空间，C 可在 Remotion 内实现。"
+  },
+  "confirmation": null,
+  "notes": "协作模式：推荐 A，但未替用户确认。下一步先做 A 的关键画面验证与素材可行性检查，再请用户确认方向。"
+}

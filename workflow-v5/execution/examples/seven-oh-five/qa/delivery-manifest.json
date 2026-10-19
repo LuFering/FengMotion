@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "1.0",
+  "type": "delivery-manifest",
+  "filmId": "seven-oh-five",
+  "status": "blocked",
+  "reasons": [
+    "preflight blocked：Gate A/B/C 未确认、组件与资产均为 candidate、无 components/*.tsx",
+    "没有正式 render-manifest / acceptance-report / visual-review"
+  ],
+  "output": null,
+  "createdAt": "2026-10-19T12:10:00+08:00"
+}

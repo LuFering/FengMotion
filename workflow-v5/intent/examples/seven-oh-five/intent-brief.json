@@ -1,0 +1,148 @@
+{
+  "schemaVersion": "2.0",
+  "type": "creative-intent-brief",
+  "sources": [
+    {
+      "id": "primary-text",
+      "kind": "poem",
+      "role": "primary-content",
+      "origin": "user",
+      "file": "input.md",
+      "textIntegrity": "verbatim"
+    }
+  ],
+  "request": {
+    "deliverable": "以六行原文字幕制作一条视频；时长、画幅、声音等制作参数未定。",
+    "decisionPolicy": "未指定的制作参数由后续阶段提出方案并决定；未提供不等于禁止，也不等于必须采用某个默认值。",
+    "constraints": [
+      "六行字幕逐字保留，保持原有顺序。",
+      "不要向用户逐项追问未指定参数；由后续阶段提出可比较、可撤回的方案。"
+    ]
+  },
+  "content": {
+    "units": [
+      {
+        "id": "L1",
+        "order": 1,
+        "text": "七点，卷帘门只拉起一半，晨光先落进吧台。",
+        "event": "卷帘门只拉起一半，晨光先进入吧台",
+        "relations": ["卷帘门尚未完全打开", "光先于人物动作出现"],
+        "sourceRef": "primary-text"
+      },
+      {
+        "id": "L2",
+        "order": 2,
+        "text": "磨豆机响了一声，像把整条街的安静磨碎。",
+        "event": "磨豆机发出一声响",
+        "relations": ["声音打破原有的安静", "从环境状态转向具体动作"],
+        "sourceRef": "primary-text"
+      },
+      {
+        "id": "L3",
+        "order": 3,
+        "text": "热水穿过咖啡粉，杯壁一点点变深。",
+        "event": "热水穿过咖啡粉，杯壁颜色逐渐变深",
+        "relations": ["液体流动", "颜色随过程逐渐变化"],
+        "sourceRef": "primary-text"
+      },
+      {
+        "id": "L4",
+        "order": 4,
+        "text": "牛奶落下去，白色在褐色里卷成一朵花。",
+        "event": "牛奶进入咖啡，形成花朵状纹路",
+        "relations": ["白色与褐色交汇", "液体运动形成新的形态"],
+        "sourceRef": "primary-text"
+      },
+      {
+        "id": "L5",
+        "order": 5,
+        "text": "七点零五分，门被推开，风把光推到杯沿。",
+        "event": "门被推开，风与光抵达杯沿的意象同时出现",
+        "relations": ["故事时间推进到七点零五分", "门外环境与杯子所在空间发生联系"],
+        "sourceRef": "primary-text"
+      },
+      {
+        "id": "L6",
+        "order": 6,
+        "text": "他把第一杯放在窗边，像每天一样，没有说话。",
+        "event": "第一杯咖啡被放在窗边",
+        "relations": ["动作完成", "日常重复感", "人物没有开口说话"],
+        "sourceRef": "primary-text"
+      }
+    ],
+    "invariants": [
+      {
+        "id": "text-preservation",
+        "rule": "六行字幕逐字保留，保持原有顺序",
+        "status": "locked",
+        "sourceRef": "user-request"
+      },
+      {
+        "id": "story-chronology",
+        "rule": "保留六行内容的原始先后关系",
+        "status": "locked",
+        "sourceRef": "primary-text"
+      },
+      {
+        "id": "story-time",
+        "rule": "七点与七点零五分是故事时间，不是视频播放时间码",
+        "status": "interpretive-guardrail",
+        "sourceRef": "primary-text"
+      }
+    ],
+    "interpretations": [
+      {
+        "id": "INT-01",
+        "claim": "作品的核心体验是清晨开店前的安静、惯性与微小变化",
+        "status": "inferred",
+        "evidence": ["L1", "L2", "L6"],
+        "confidence": "high"
+      },
+      {
+        "id": "INT-02",
+        "claim": "作品的注意力应更多落在动作和变化上，而不是咖啡知识的解释",
+        "status": "inferred",
+        "evidence": ["L2", "L3", "L4", "L6"],
+        "confidence": "high"
+      }
+    ],
+    "creativeCues": [
+      {
+        "id": "CUE-01",
+        "cue": "关注光线先出现、声音打破安静、颜色变深和纹路形成等变化",
+        "purpose": "为后续视觉设计提供可以转化为事件的内容线索",
+        "status": "suggestion",
+        "binding": false
+      },
+      {
+        "id": "CUE-02",
+        "cue": "避免仅展示一组咖啡物件，而应让动作、时间关系和空间变化共同形成叙事",
+        "purpose": "提出视觉设计需要解决的核心问题",
+        "status": "directional-guidance",
+        "binding": false
+      }
+    ]
+  },
+  "productionDecisions": {
+    "visualDirection": { "status": "unresolved", "decisionOwner": "creative-direction" },
+    "visualMedium": { "status": "unresolved", "decisionOwner": "creative-direction" },
+    "durationSec": { "status": "unresolved", "decisionOwner": "creative-direction" },
+    "aspectRatio": { "status": "unresolved", "decisionOwner": "creative-direction" },
+    "fps": { "status": "unresolved", "decisionOwner": "execution" },
+    "audio": { "status": "unresolved", "decisionOwner": "sound-design" },
+    "references": { "status": "not-provided", "decisionOwner": "reference-analysis" }
+  },
+  "handoff": {
+    "nextStage": "creative-direction",
+    "instruction": "基于已锁定内容和创作线索提出不同的视觉方案，不要把推断、建议和未决定参数自动升级为硬性要求。",
+    "requiredOutput": [
+      "distinct-visual-directions",
+      "visual-medium",
+      "motion-concept",
+      "asset-requirements",
+      "rhythm-concept",
+      "implementation-risks"
+    ]
+  },
+  "openQuestions": []
+}

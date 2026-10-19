@@ -1,0 +1,35 @@
+{
+  "schemaVersion": "1.0",
+  "type": "creative-diagnosis",
+  "basedOn": {
+    "intentBrief": "../../../intent/examples/seven-oh-five/intent-brief.json"
+  },
+  "coreExpression": "通过一次看似平常的开店过程，表现被重复的日常和细微的时间变化，而不是讲述一个强情节故事。",
+  "audienceExperience": [
+    "先进入清晨的安静，注意力落在空间和光线上",
+    "再注意到声音、器具和液体的具体动作",
+    "最后回到一种不需要解释的平静"
+  ],
+  "attentionHierarchy": [
+    "空间与光线先被看见",
+    "声音与制作咖啡的动作接管注意力",
+    "第一杯咖啡被放到窗边，动作收束"
+  ],
+  "narrativeMechanism": "由光线进入、声音打断安静、液体形态变化、开门与放杯构成的连续事件链，而不是六句并列的字幕。",
+  "creativeProblem": "怎样让静态对象之间的关系和动作本身构成叙事，而不是输出六张配字幕的咖啡图片？",
+  "userConstraints": [
+    "六行原文逐字保留、保持顺序",
+    "故事时间（七点/七点零五分）不是视频播放时间码",
+    "人物“他”不补充外貌、年龄、服装"
+  ],
+  "unresolvedFromIntent": [
+    "visualDirection",
+    "visualMedium",
+    "durationSec",
+    "aspectRatio",
+    "fps",
+    "audio",
+    "references"
+  ],
+  "notes": "本诊断只提出创作问题与注意力结构，不决定媒介、镜头、色板、时长或画幅；这些留给方向探索与后续阶段。"
+}

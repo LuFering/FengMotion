@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "1.0",
+  "type": "reference-log",
+  "mode": "reference-free",
+  "queries": [
+    {
+      "tool": "local-motion-library",
+      "args": "晨光 窗 遮罩 液体",
+      "outcome": "none",
+      "why": "本地镜头卡以抽象图形/视差为主，没有连续空间与液体形态的可迁移手法"
+    },
+    {
+      "tool": "web-reference-search",
+      "args": "cinematic cafe morning natural light",
+      "outcome": "partial",
+      "why": "命中的都是实拍广告/短片，依赖同店同人实拍素材；当前没有可用素材，不能作为可执行参考"
+    },
+    {
+      "tool": "web-reference-search",
+      "args": "typographic poem film ink light",
+      "outcome": "partial",
+      "why": "有文字与物质结合的例子，但多为成品视觉系统，缺少可拆解的过程证据"
+    }
+  ],
+  "cards": [],
+  "refs": [],
+  "directions": ["A-morning-continuity", "B-text-and-matter", "C-breathing-miniature"],
+  "selected": "A-morning-continuity"
+}

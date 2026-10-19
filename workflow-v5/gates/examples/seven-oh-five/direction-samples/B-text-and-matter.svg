@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
+  <defs>
+    <linearGradient id="bgB" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0e0b08"/>
+      <stop offset="1" stop-color="#17110c"/>
+    </linearGradient>
+  </defs>
+  <rect width="1600" height="900" fill="url(#bgB)"/>
+  <!-- 排版空间：字与物质 -->
+  <text x="120" y="300" font-family="'Noto Serif CJK SC', serif" font-size="250" fill="#f3e9d6" letter-spacing="18">七点</text>
+  <text x="120" y="420" font-family="'Noto Serif CJK SC', serif" font-size="64" fill="#b98b58" letter-spacing="22">卷帘门只拉起一半</text>
+  <rect x="120" y="470" width="720" height="150" fill="#3a2416"/>
+  <rect x="120" y="470" width="720" height="150" fill="url(#bgB)" opacity="0.35"/>
+  <circle cx="420" cy="545" r="58" fill="#f3e9d6" opacity="0.85"/>
+  <path d="M120 640 C 360 560, 620 720, 900 620" stroke="#f3e9d6" stroke-width="3" fill="none" opacity="0.5"/>
+  <rect x="980" y="120" width="500" height="660" fill="none" stroke="#e6b27a" stroke-width="2" opacity="0.4"/>
+  <text x="1010" y="200" font-family="'Noto Serif CJK SC', serif" font-size="46" fill="#f3e9d6" letter-spacing="10">字即物质</text>
+  <text x="1010" y="260" font-family="'Noto Sans CJK SC', sans-serif" font-size="24" fill="#b9ad9a">文字占据画面主体；褐色/白色从字形之间出现</text>
+  <text x="120" y="820" font-family="'Noto Serif CJK SC', serif" font-size="56" fill="#f2e7d3" letter-spacing="6">B · 文字与物质</text>
+  <text x="120" y="866" font-family="'Noto Sans CJK SC', sans-serif" font-size="20" fill="#7d7365" letter-spacing="2">方向样稿 · 设计示意，非最终关键帧 / placeholder assets</text>
+</svg>

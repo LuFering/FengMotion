@@ -1,0 +1,160 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fengmotion.local/workflow-v5/intent-brief.schema.json",
+  "title": "Creative Intent Brief (v5 stage 0)",
+  "description": "创作意图编译器的输出。只表达：来源事实、用户约束、推断、创作线索、未决制作决策。不输出最终分镜、视觉方案、Remotion 代码或视频提示词。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "type", "sources", "request", "content", "productionDecisions", "handoff"],
+  "properties": {
+    "schemaVersion": { "const": "2.0" },
+    "type": { "const": "creative-intent-brief" },
+    "sources": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "kind", "role", "origin", "textIntegrity"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "kind": { "enum": ["poem", "script", "prompt", "doc", "image", "video", "audio", "reference", "mixed"] },
+          "role": { "type": "string", "minLength": 2 },
+          "origin": { "enum": ["user", "asset-analysis", "inferred"] },
+          "file": { "type": "string" },
+          "textIntegrity": { "enum": ["verbatim", "paraphrase", "summary", "not-applicable"] },
+          "observed": { "type": "string" }
+        }
+      }
+    },
+    "request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["deliverable", "decisionPolicy"],
+      "properties": {
+        "deliverable": { "type": "string", "minLength": 6 },
+        "decisionPolicy": { "type": "string", "minLength": 10 },
+        "constraints": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "content": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["units", "invariants", "interpretations", "creativeCues"],
+      "properties": {
+        "units": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "order", "text", "event", "relations", "sourceRef"],
+            "properties": {
+              "id": { "type": "string", "minLength": 1 },
+              "order": { "type": "integer", "minimum": 1 },
+              "text": { "type": "string", "minLength": 1 },
+              "event": { "type": "string", "minLength": 4 },
+              "relations": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 2 } },
+              "sourceRef": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        "invariants": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "rule", "status", "sourceRef"],
+            "properties": {
+              "id": { "type": "string", "minLength": 1 },
+              "rule": { "type": "string", "minLength": 4 },
+              "status": { "enum": ["locked", "interpretive-guardrail"] },
+              "sourceRef": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        "interpretations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "claim", "status", "evidence", "confidence"],
+            "properties": {
+              "id": { "type": "string", "minLength": 1 },
+              "claim": { "type": "string", "minLength": 6 },
+              "status": { "const": "inferred" },
+              "evidence": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+              "confidence": { "enum": ["low", "medium", "high"] }
+            }
+          }
+        },
+        "creativeCues": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "cue", "purpose", "status", "binding"],
+            "properties": {
+              "id": { "type": "string", "minLength": 1 },
+              "cue": { "type": "string", "minLength": 6 },
+              "purpose": { "type": "string", "minLength": 4 },
+              "status": { "enum": ["suggestion", "directional-guidance"] },
+              "binding": { "const": false }
+            }
+          }
+        }
+      }
+    },
+    "productionDecisions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["visualDirection", "visualMedium", "durationSec", "aspectRatio", "fps", "audio", "references"],
+      "properties": {
+        "visualDirection": { "$ref": "#/$defs/decision" },
+        "visualMedium": { "$ref": "#/$defs/decision" },
+        "durationSec": { "$ref": "#/$defs/decision" },
+        "aspectRatio": { "$ref": "#/$defs/decision" },
+        "fps": { "$ref": "#/$defs/decision" },
+        "audio": { "$ref": "#/$defs/decision" },
+        "references": { "$ref": "#/$defs/decision" }
+      }
+    },
+    "handoff": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["nextStage", "instruction", "requiredOutput"],
+      "properties": {
+        "nextStage": { "type": "string", "minLength": 2 },
+        "instruction": { "type": "string", "minLength": 10 },
+        "requiredOutput": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 2 } }
+      }
+    },
+    "openQuestions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["question"],
+        "properties": {
+          "question": { "type": "string", "minLength": 4 },
+          "why": { "type": "string" }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "decisionOwner"],
+      "properties": {
+        "value": {},
+        "status": { "enum": ["locked", "inferred", "proposed", "unresolved", "not-provided"] },
+        "decisionOwner": { "type": "string", "minLength": 2 },
+        "rationale": { "type": "string" },
+        "sourceRef": { "type": "string" }
+      }
+    }
+  }
+}

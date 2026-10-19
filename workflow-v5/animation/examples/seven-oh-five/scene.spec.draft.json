@@ -1,0 +1,203 @@
+{
+  "schemaVersion": "1.0",
+  "type": "scene-spec",
+  "status": "draft",
+  "filmId": "seven-oh-five",
+  "fps": 30,
+  "durationInFrames": 900,
+  "scenes": [
+    {
+      "sceneId": "S01",
+      "from": 0,
+      "durationInFrames": 150,
+      "eventFrames": [
+        0,
+        105
+      ],
+      "heroFrame": 130,
+      "component": "Scene01LightReveal",
+      "props": {},
+      "motion": [
+        "layered-light",
+        "mask"
+      ],
+      "motionPlan": [],
+      "motionCheckFrames": [
+        0,
+        60,
+        105
+      ],
+      "acceptanceFrames": [
+        0,
+        75,
+        105,
+        149
+      ],
+      "assetStrategy": "layered-assets"
+    },
+    {
+      "sceneId": "S02",
+      "from": 150,
+      "durationInFrames": 90,
+      "eventFrames": [
+        150,
+        195
+      ],
+      "heroFrame": 220,
+      "component": "Scene02Grinder",
+      "props": {},
+      "motion": [
+        "local-transform"
+      ],
+      "motionPlan": [],
+      "motionCheckFrames": [
+        150,
+        175,
+        195
+      ],
+      "acceptanceFrames": [
+        150,
+        195,
+        239
+      ],
+      "assetStrategy": "video-or-layered"
+    },
+    {
+      "sceneId": "S03",
+      "from": 240,
+      "durationInFrames": 150,
+      "eventFrames": [
+        240,
+        360
+      ],
+      "heroFrame": 375,
+      "component": "Scene03Extraction",
+      "props": {},
+      "motion": [
+        "layered-mask",
+        "path"
+      ],
+      "motionPlan": [
+        {
+          "target": "coffee-liquid",
+          "from": 240,
+          "to": 360,
+          "mechanism": "mask+path",
+          "note": "液体沿路径落下，杯壁颜色随进度变深"
+        }
+      ],
+      "motionCheckFrames": [
+        240,
+        300,
+        360
+      ],
+      "acceptanceFrames": [
+        240,
+        330,
+        389
+      ],
+      "assetStrategy": "layered-assets"
+    },
+    {
+      "sceneId": "S04",
+      "from": 390,
+      "durationInFrames": 150,
+      "eventFrames": [
+        390,
+        495
+      ],
+      "heroFrame": 510,
+      "component": "Scene04LatteArt",
+      "props": {},
+      "motion": [
+        "mask",
+        "path"
+      ],
+      "motionPlan": [
+        {
+          "target": "milk-pattern",
+          "from": 390,
+          "to": 495,
+          "mechanism": "mask+path",
+          "note": "白色纹路从无到有扩展，结束时保持"
+        }
+      ],
+      "motionCheckFrames": [
+        390,
+        450,
+        495
+      ],
+      "acceptanceFrames": [
+        390,
+        460,
+        539
+      ],
+      "assetStrategy": "layered-assets"
+    },
+    {
+      "sceneId": "S05",
+      "from": 540,
+      "durationInFrames": 150,
+      "eventFrames": [
+        540,
+        630
+      ],
+      "heroFrame": 660,
+      "component": "Scene05DoorLight",
+      "props": {},
+      "motion": [
+        "layered-light",
+        "mask"
+      ],
+      "motionPlan": [],
+      "motionCheckFrames": [
+        540,
+        590,
+        630
+      ],
+      "acceptanceFrames": [
+        540,
+        600,
+        689
+      ],
+      "assetStrategy": "layered-assets"
+    },
+    {
+      "sceneId": "S06",
+      "from": 690,
+      "durationInFrames": 210,
+      "eventFrames": [
+        690,
+        780
+      ],
+      "heroFrame": 840,
+      "component": "Scene06CupPlacement",
+      "props": {},
+      "motion": [
+        "layered-transform",
+        "path"
+      ],
+      "motionPlan": [
+        {
+          "target": "cup",
+          "from": 690,
+          "to": 780,
+          "mechanism": "path",
+          "note": "杯子离开吧台、接触窗边、手离开"
+        }
+      ],
+      "motionCheckFrames": [
+        690,
+        735,
+        780
+      ],
+      "acceptanceFrames": [
+        690,
+        780,
+        899
+      ],
+      "assetStrategy": "layered-assets"
+    }
+  ],
+  "notes": "draft：组件与资产均为 candidate，Gate C 未过；不得进入执行层。"
+}

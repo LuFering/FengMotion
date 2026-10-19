@@ -1,0 +1,37 @@
+{
+  "schemaVersion": "1.0",
+  "type": "design-review",
+  "filmId": "seven-oh-five",
+  "status": "blocked",
+  "gates": {
+    "creativeCompleteness": {
+      "status": "pass",
+      "notes": [
+        "6 场均有目的、事件和原文来源；没有纯装饰场景。"
+      ]
+    },
+    "motionCompleteness": {
+      "status": "pass",
+      "notes": [
+        "核心运动均有初始/触发/进程/结束状态；S03/S04/S06 有 motionPlan。"
+      ]
+    },
+    "implementationFeasibility": {
+      "status": "blocked",
+      "issues": [
+        "Gate A 方向未确认；动画蓝图与执行规格均为 draft",
+        "6 个组件均为 candidate，尚未开发或验证",
+        "液体/人物/空间关键素材尚未取得",
+        "30s/30fps 仍为 proposed，未确认"
+      ]
+    },
+    "handoff": {
+      "status": "blocked",
+      "issues": [
+        "Gate A 方向未确认，不能进入执行层",
+        "Gate C 未过：scene.spec 仅为 draft，不能交给 Remotion 执行层。"
+      ]
+    }
+  },
+  "notes": "蓝图与运动设计已通过；阻塞在实现可行性与交接，不在创意阶段。"
+}

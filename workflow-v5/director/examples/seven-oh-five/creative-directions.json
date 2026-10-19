@@ -1,0 +1,144 @@
+{
+  "schemaVersion": "1.0",
+  "type": "creative-directions",
+  "basedOn": {
+    "intentBrief": "../../../intent/examples/seven-oh-five/intent-brief.json",
+    "diagnosis": "creative-diagnosis.json"
+  },
+  "directions": [
+    {
+      "id": "A-morning-continuity",
+      "title": "清晨的连续空间",
+      "status": "candidate",
+      "creativeThesis": "让观众像提前走进一家咖啡馆，在同一个连续空间里观察开店前几分钟的日常动作。",
+      "firstImpression": "半开的卷帘门与晨光先进入画面，空间先于人物被看见。",
+      "method": "narrative-observation",
+      "spaceModel": "continuous-space",
+      "primaryFocus": "narrative-event",
+      "textRole": "preserved-poetic-text",
+      "motionGrammar": [
+        "light-reveals-space",
+        "causal-object-motion",
+        "liquid-path-change",
+        "intentional-stillness"
+      ],
+      "materialDirection": "naturalistic",
+      "contentMapping": [
+        { "sourceUnitId": "L1", "visualPurpose": "建立清晨空间与光线先出现的关系" },
+        { "sourceUnitId": "L2", "visualPurpose": "用一次声音事件改变观众的注意力" },
+        { "sourceUnitId": "L3", "visualPurpose": "表现液体运动和可见的颜色变化" },
+        { "sourceUnitId": "L4", "visualPurpose": "表现两种液体交汇形成的新形态" },
+        { "sourceUnitId": "L5", "visualPurpose": "建立门外环境与杯沿光线的关系" },
+        { "sourceUnitId": "L6", "visualPurpose": "完成放杯动作，允许观众停留在最终状态" }
+      ],
+      "candidateMediums": ["layered-image-assets", "selected-video-footage", "procedural-motion"],
+      "requiresAssetValidation": true,
+      "knownRisks": ["spatial-continuity", "liquid-motion-quality", "character-consistency"],
+      "whyDistinct": "以连续空间和因果动作作为叙事单位，而不是以文字或图形作为画面主体。",
+      "avoidTemplates": ["single-photo-push-in-with-subtitle", "unrelated-stock-footage-montage"]
+    },
+    {
+      "id": "B-text-and-matter",
+      "title": "文字与物质的诗",
+      "status": "candidate",
+      "creativeThesis": "让文字、液体与光线共享一套视觉语言，用排版和形态变化承载诗，而不是用画面解释诗。",
+      "firstImpression": "字先占据画面，液体的褐色与牛奶的白色从字的缝隙里长出来。",
+      "method": "graphic-poem",
+      "spaceModel": "typographic-space",
+      "primaryFocus": "text-and-material-relation",
+      "textRole": "text-as-visual-subject",
+      "motionGrammar": ["type-construction", "mask-reveal", "form-transformation", "layout-rhythm"],
+      "materialDirection": "graphic-organic",
+      "contentMapping": [
+        { "sourceUnitId": "L1", "visualPurpose": "文字与光的关系先建立" },
+        { "sourceUnitId": "L2", "visualPurpose": "用字形/节奏制造一次声音般的断裂" },
+        { "sourceUnitId": "L3", "visualPurpose": "颜色渐变作为文字与液体的共同变化" },
+        { "sourceUnitId": "L4", "visualPurpose": "两种颜色在字形间交汇成形态" },
+        { "sourceUnitId": "L5", "visualPurpose": "文字空间被门外光线推开" },
+        { "sourceUnitId": "L6", "visualPurpose": "排版落定，回到留白" }
+      ],
+      "candidateMediums": ["typography-vector", "paper-texture", "procedural-graphics", "generated-stills"],
+      "requiresAssetValidation": true,
+      "knownRisks": ["over-metaphor", "legibility", "text-image-balance"],
+      "whyDistinct": "文字是视觉主体，空间是排版空间，而不是写实的店内空间。",
+      "avoidTemplates": ["subtitle-at-bottom-over-photo", "kinetic-type-only"]
+    },
+    {
+      "id": "C-breathing-miniature",
+      "title": "一座会呼吸的微型咖啡馆",
+      "status": "candidate",
+      "creativeThesis": "把店铺做成一个精细的微型舞台，让所有动作在可辨认的空间模型里发生。",
+      "firstImpression": "像俯身看一个会动的模型：卷帘门、吧台、窗和杯子各有层级。",
+      "method": "miniature-stage",
+      "spaceModel": "layered-stage-space",
+      "primaryFocus": "spatial-object-relations",
+      "textRole": "preserved-poetic-text",
+      "motionGrammar": ["parallax", "occlusion-change", "local-object-motion", "procedural-path"],
+      "materialDirection": "illustrated-model",
+      "contentMapping": [
+        { "sourceUnitId": "L1", "visualPurpose": "模型空间里光先穿过窗" },
+        { "sourceUnitId": "L2", "visualPurpose": "局部机械动作打破静" },
+        { "sourceUnitId": "L3", "visualPurpose": "液体在模型容器中变化" },
+        { "sourceUnitId": "L4", "visualPurpose": "两种材质在模型杯里交汇" },
+        { "sourceUnitId": "L5", "visualPurpose": "门/风/光在舞台层级间移动" },
+        { "sourceUnitId": "L6", "visualPurpose": "杯子落到窗边层级" }
+      ],
+      "candidateMediums": ["layered-2.5d-assets", "illustration-assets", "procedural-motion"],
+      "requiresAssetValidation": true,
+      "knownRisks": ["toy-like", "static-model-display", "scale-consistency"],
+      "whyDistinct": "空间是分层舞台，运动来自视差与遮挡，而不是写实摄影或纯排版。",
+      "avoidTemplates": ["toy-animation", "cute-3d-model-showcase"]
+    }
+  ],
+  "comparison": [
+    {
+      "dimension": "观众主要看什么",
+      "values": {
+        "A-morning-continuity": "空间里发生的事件",
+        "B-text-and-matter": "文字与形态的关系",
+        "C-breathing-miniature": "同一空间中的局部变化"
+      }
+    },
+    {
+      "dimension": "主要视觉媒介",
+      "values": {
+        "A-morning-continuity": "分层实拍或高质量空间资产",
+        "B-text-and-matter": "字体、形状、路径",
+        "C-breathing-miniature": "插画或分层 2.5D 资产"
+      }
+    },
+    {
+      "dimension": "空间逻辑",
+      "values": {
+        "A-morning-continuity": "连续的店内空间",
+        "B-text-and-matter": "排版空间与抽象形态",
+        "C-breathing-miniature": "结构明确的舞台空间"
+      }
+    },
+    {
+      "dimension": "运动来源",
+      "values": {
+        "A-morning-continuity": "光线、液体、器物、人物",
+        "B-text-and-matter": "文字构建、遮罩、形态变化",
+        "C-breathing-miniature": "视差、遮挡、物体与路径运动"
+      }
+    },
+    {
+      "dimension": "文字的角色",
+      "values": {
+        "A-morning-continuity": "逐字保留的叙事字幕，与动作节奏协调",
+        "B-text-and-matter": "文字参与构图、揭示、遮挡，是视觉主体",
+        "C-breathing-miniature": "逐字保留的字幕，作为舞台旁白"
+      }
+    },
+    {
+      "dimension": "主要代价",
+      "values": {
+        "A-morning-continuity": "素材与合成成本",
+        "B-text-and-matter": "设计与动效语言的构建成本",
+        "C-breathing-miniature": "资产分层与空间一致性成本"
+      }
+    }
+  ],
+  "notes": "三个方向共享同一份原文和事件，但改变的是视觉表达逻辑（空间/媒介/运动/文字角色），不是颜色、字体或形容词。"
+}

@@ -1,0 +1,10 @@
+{
+  "schemaVersion": "1.0",
+  "type": "reference-decision",
+  "mode": "reference-free",
+  "selected": [],
+  "selectedHypotheses": ["H-01", "H-02", "H-03"],
+  "excluded": [],
+  "rationale": "检索后没有可迁移的参考；采用三条自主设计假设，先做方向样稿/关键画面验证，再决定是否补参考。",
+  "affects": ["visual-direction", "direction-samples", "scene-layout"]
+}

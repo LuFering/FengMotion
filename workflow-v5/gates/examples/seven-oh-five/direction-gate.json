@@ -1,0 +1,33 @@
+{
+  "schemaVersion": "1.0",
+  "type": "direction-gate",
+  "basedOn": {
+    "creativeDirections": "../../../director/examples/seven-oh-five/creative-directions.json",
+    "referenceDecision": "../../../reference/examples/seven-oh-five/reference-decision.json"
+  },
+  "status": "recommended",
+  "samples": [
+    {
+      "directionId": "A-morning-continuity",
+      "file": "direction-samples/A-morning-continuity.svg",
+      "designNotes": "连续空间：窗光先进入，吧台与卷帘门保持稳定空间关系；人物只作为局部动作出现。",
+      "provisionalAssets": true
+    },
+    {
+      "directionId": "B-text-and-matter",
+      "file": "direction-samples/B-text-and-matter.svg",
+      "designNotes": "排版空间：文字占据画面主体，褐色/白色从字形之间出现；不追求真实店内连续空间。",
+      "provisionalAssets": true
+    },
+    {
+      "directionId": "C-breathing-miniature",
+      "file": "direction-samples/C-breathing-miniature.svg",
+      "designNotes": "分层舞台：吧台、窗、杯子形成可抽换的层级；运动来自视差与遮挡。",
+      "provisionalAssets": true
+    }
+  ],
+  "selectedDirectionId": "A-morning-continuity",
+  "recommendation": "推荐 A：原文依赖具体物理动作、时间先后与空间关系，A 最直接保留这些关系；但 A 的素材与合成成本最高，必须先做关键画面和素材可行性验证。推荐不等于确认。",
+  "confirmation": null,
+  "notes": "方向样稿是设计示意，不是最终关键帧；用户确认后才进入视觉系统与场景布局。"
+}

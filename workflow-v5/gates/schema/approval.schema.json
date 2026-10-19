@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fengmotion.local/workflow-v5/approval.schema.json",
+  "title": "Approval Record (v5)",
+  "description": "关键画面确认必须绑定版本与范围；validFor 表示确认了什么，notApproved 表示没有确认什么。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["artifactId", "stage", "status", "version", "sourceUnits", "validFor", "notApproved"],
+  "properties": {
+    "artifactId": { "type": "string", "minLength": 1 },
+    "stage": { "enum": ["direction", "scene-layout"] },
+    "status": { "enum": ["pending", "approved", "approved-with-changes", "rejected"] },
+    "version": { "type": "integer", "minimum": 1 },
+    "sourceUnits": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+    "validFor": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "enum": [
+          "visual-language",
+          "direction-fit",
+          "distinctiveness",
+          "sample-look",
+          "composition",
+          "visual-hierarchy",
+          "focus",
+          "text-placement",
+          "scene-intent"
+        ]
+      }
+    },
+    "notApproved": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "enum": [
+          "animation-timing",
+          "final-assets",
+          "final-duration",
+          "scene-layout",
+          "component-contracts",
+          "motion-quality"
+        ]
+      }
+    },
+    "confirmedBy": { "enum": ["user", "autopilot"] },
+    "confirmedAt": { "type": "string" },
+    "userFeedback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["quote", "changes"],
+      "properties": {
+        "quote": { "type": "string", "minLength": 5 },
+        "changes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["target", "instruction"],
+            "properties": {
+              "target": { "type": "string", "minLength": 1 },
+              "instruction": { "type": "string", "minLength": 4 }
+            }
+          }
+        }
+      }
+    }
+  }
+}
