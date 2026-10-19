@@ -44,6 +44,13 @@ const readJson = (rel) => {
 const config = readJson('execution.config.json');
 need(!!config, '缺少 execution.config.json');
 const out = config?.output ?? {};
+const animDir = path.resolve(dir, config?.paths?.animation ?? '.');
+const readAbs = (p) => {
+  if (!p || !fs.existsSync(p)) return null;
+  try { return JSON.parse(fs.readFileSync(p, 'utf8')); } catch { return null; }
+};
+const implementation = readAbs(path.join(animDir, 'implementation-plan.json'));
+const spec = readAbs(path.join(animDir, 'scene.spec.json')) ?? readAbs(path.join(animDir, 'scene.spec.draft.json'));
 
 const preflight = readJson('qa/preflight-report.json');
 need(!!preflight, '缺少 qa/preflight-report.json（先跑 preflight）');
@@ -62,6 +69,8 @@ if (preflight) {
     }
     const final = readJson('qa/render-manifest.json');
     if (final) need(final.status !== 'passed', 'preflight blocked 时不能有 passed 的正式 render-manifest');
+    const proof = readJson('qa/motion-proof.json');
+    if (proof) need(proof.status !== 'passed', 'preflight blocked 时不能有 passed 的 motion-proof');
     if (errors.length) {
       console.error(`✗ 执行链 blocked 状态记录不合法（${errors.length} 项）：`);
       for (const e of errors) console.error('  - ' + e);
@@ -75,6 +84,17 @@ if (preflight) {
 }
 
 // 以下只在 preflight passed 时检查
+const proof = readJson('qa/motion-proof.json');
+need(!!proof, '缺少 qa/motion-proof.json（Gate C）');
+if (proof) {
+  need(proof.type === 'motion-proof', 'motion-proof.type 非法');
+  need(proof.status === 'passed', 'motion-proof.status 必须是 passed');
+  need(existsRel(proof.video), `motion-proof.video 不存在：${proof.video}`);
+  need(isStr(proof.specHash) && proof.specHash === preflight?.hashes?.specHash, 'motion-proof.specHash 必须与当前 scene.spec 一致');
+  need(isStr(proof.configHash) && proof.configHash === preflight?.hashes?.configHash, 'motion-proof.configHash 必须与当前 execution.config 一致');
+  need(['user', 'autopilot'].includes(proof.approvedBy), 'motion-proof.approvedBy 非法');
+}
+
 const componentReport = readJson('qa/component-test-report.json');
 need(!!componentReport, '缺少 qa/component-test-report.json');
 if (componentReport) {
@@ -90,6 +110,9 @@ if (componentReport) {
     need(isArr(c.evidence) && c.evidence.length >= 1, `components[${i}].evidence 至少 1 张证据`);
     for (const e of c.evidence ?? []) need(existsRel(e), `components[${i}] 证据不存在：${e}`);
   }
+  const requiredComps = new Set((implementation?.components ?? []).filter((c) => (implementation?.sceneMap ?? []).some((m) => m.component === c.id)).map((c) => c.id));
+  const tested = new Set((componentReport.components ?? []).map((c) => c.id));
+  for (const id of requiredComps) need(tested.has(id), `component-test-report 缺少组件 ${id} 的独立测试`);
 }
 
 const preview = readJson('qa/preview-report.json');
@@ -109,6 +132,11 @@ if (preview) {
   need(existsRel(preview.fullPreview), 'preview-report.fullPreview 不存在');
   need(isStr(preview.specHash), 'preview-report.specHash 不能为空');
   need(isStr(preview.configHash), 'preview-report.configHash 不能为空');
+  need(preview.specHash === preflight?.hashes?.specHash, 'preview.specHash 必须与 preflight 的当前 spec 一致');
+  need(preview.configHash === preflight?.hashes?.configHash, 'preview.configHash 必须与 preflight 的当前 config 一致');
+  const requiredScenes = new Set((spec?.scenes ?? []).map((x) => x.sceneId));
+  const previewed = new Set((preview.scenes ?? []).map((x) => x.sceneId));
+  for (const id of requiredScenes) need(previewed.has(id), `preview-report 缺少场景 ${id} 的预览`);
 }
 
 const manifest = readJson('qa/render-manifest.json');
@@ -123,6 +151,8 @@ if (manifest) {
   for (const k of ['codeVersion', 'specHash', 'assetManifestHash', 'configHash']) {
     need(isStr(manifest[k]), `render-manifest.${k} 不能为空（可追溯）`);
   }
+  need(manifest.specHash === preflight?.hashes?.specHash, '正式渲染的 specHash 必须与当前 spec 一致');
+  need(manifest.configHash === preflight?.hashes?.configHash, '正式渲染的 configHash 必须与当前 config 一致');
   if (preview) {
     need(manifest.specHash === preview.specHash, '正式渲染与预览的 specHash 不一致（不是同一份规格）');
     need(manifest.configHash === preview.configHash, '正式渲染与预览的 configHash 不一致（不是同一套配置）');

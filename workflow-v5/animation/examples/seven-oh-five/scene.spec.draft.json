@@ -1,203 +1,123 @@
 {
-  "schemaVersion": "1.0",
+  "schemaVersion": 1,
   "type": "scene-spec",
   "status": "draft",
   "filmId": "seven-oh-five",
   "fps": 30,
+  "width": 1920,
+  "height": 1080,
   "durationInFrames": 900,
+  "captionTrack": [
+    { "id": "cap-L1", "sourceUnitId": "L1", "text": "七点，卷帘门只拉起一半，晨光先落进吧台。", "sceneId": "S01", "from": 0, "durationInFrames": 150, "readingTimeSec": 4.5 },
+    { "id": "cap-L2", "sourceUnitId": "L2", "text": "磨豆机响了一声，像把整条街的安静磨碎。", "sceneId": "S02", "from": 150, "durationInFrames": 90, "readingTimeSec": 3.0 },
+    { "id": "cap-L3", "sourceUnitId": "L3", "text": "热水穿过咖啡粉，杯壁一点点变深。", "sceneId": "S03", "from": 240, "durationInFrames": 150, "readingTimeSec": 4.5 },
+    { "id": "cap-L4", "sourceUnitId": "L4", "text": "牛奶落下去，白色在褐色里卷成一朵花。", "sceneId": "S04", "from": 390, "durationInFrames": 150, "readingTimeSec": 4.5 },
+    { "id": "cap-L5", "sourceUnitId": "L5", "text": "七点零五分，门被推开，风把光推到杯沿。", "sceneId": "S05", "from": 540, "durationInFrames": 150, "readingTimeSec": 4.0 },
+    { "id": "cap-L6", "sourceUnitId": "L6", "text": "他把第一杯放在窗边，像每天一样，没有说话。", "sceneId": "S06", "from": 690, "durationInFrames": 210, "readingTimeSec": 5.0 }
+  ],
   "scenes": [
     {
       "sceneId": "S01",
       "from": 0,
       "durationInFrames": 150,
-      "eventFrames": [
-        0,
-        105
-      ],
+      "eventFrames": [0, 104],
       "heroFrame": 130,
       "component": "Scene01LightReveal",
       "props": {},
-      "motion": [
-        "layered-light",
-        "mask"
+      "layers": ["space", "light-band", "text"],
+      "motion": ["layered-light", "mask"],
+      "motionPlan": [
+        { "target": "light-band", "from": "暗空间，光带尚未出现", "to": "光带扩大，吧台边缘被照亮", "start": 0, "end": 104, "easing": "easeInOutCubic", "dependsOn": [] }
       ],
-      "motionPlan": [],
-      "motionCheckFrames": [
-        0,
-        60,
-        105
-      ],
-      "acceptanceFrames": [
-        0,
-        75,
-        105,
-        149
-      ],
-      "assetStrategy": "layered-assets"
+      "motionCheckFrames": [0, 60, 104],
+      "acceptanceFrames": [0, 75, 104, 149],
+      "assetStrategy": "procedural"
     },
     {
       "sceneId": "S02",
       "from": 150,
       "durationInFrames": 90,
-      "eventFrames": [
-        150,
-        195
-      ],
+      "eventFrames": [150, 194],
       "heroFrame": 220,
       "component": "Scene02Grinder",
       "props": {},
-      "motion": [
-        "local-transform"
+      "layers": ["space", "grinder", "text"],
+      "motion": ["local-transform"],
+      "motionPlan": [
+        { "target": "grinder", "from": "静止，空间安静", "to": "一次机械动作完成并停止", "start": 150, "end": 194, "easing": "easeOutCubic", "dependsOn": [] }
       ],
-      "motionPlan": [],
-      "motionCheckFrames": [
-        150,
-        175,
-        195
-      ],
-      "acceptanceFrames": [
-        150,
-        195,
-        239
-      ],
-      "assetStrategy": "video-or-layered"
+      "motionCheckFrames": [150, 175, 194],
+      "acceptanceFrames": [150, 195, 239],
+      "assetStrategy": "video-footage"
     },
     {
       "sceneId": "S03",
       "from": 240,
       "durationInFrames": 150,
-      "eventFrames": [
-        240,
-        360
-      ],
+      "eventFrames": [240, 359],
       "heroFrame": 375,
       "component": "Scene03Extraction",
       "props": {},
-      "motion": [
-        "layered-mask",
-        "path"
-      ],
+      "layers": ["space", "carafe", "coffee-liquid", "text"],
+      "motion": ["layered-mask", "path"],
       "motionPlan": [
-        {
-          "target": "coffee-liquid",
-          "from": 240,
-          "to": 360,
-          "mechanism": "mask+path",
-          "note": "液体沿路径落下，杯壁颜色随进度变深"
-        }
+        { "target": "coffee-liquid", "from": "咖啡粉干燥，杯壁颜色浅", "to": "液体完成萃取，杯壁明显变深", "start": 240, "end": 359, "easing": "easeInOutCubic", "dependsOn": [] }
       ],
-      "motionCheckFrames": [
-        240,
-        300,
-        360
-      ],
-      "acceptanceFrames": [
-        240,
-        330,
-        389
-      ],
-      "assetStrategy": "layered-assets"
+      "motionCheckFrames": [240, 300, 359],
+      "acceptanceFrames": [240, 330, 389],
+      "assetStrategy": "svg-asset"
     },
     {
       "sceneId": "S04",
       "from": 390,
       "durationInFrames": 150,
-      "eventFrames": [
-        390,
-        495
-      ],
+      "eventFrames": [390, 494],
       "heroFrame": 510,
       "component": "Scene04LatteArt",
       "props": {},
-      "motion": [
-        "mask",
-        "path"
-      ],
+      "layers": ["cup", "coffee-surface", "milk-pattern", "text"],
+      "motion": ["mask", "path"],
       "motionPlan": [
-        {
-          "target": "milk-pattern",
-          "from": 390,
-          "to": 495,
-          "mechanism": "mask+path",
-          "note": "白色纹路从无到有扩展，结束时保持"
-        }
+        { "target": "milk-pattern", "from": "褐色表面，无清晰花纹", "to": "花朵状纹路形成并保持", "start": 390, "end": 494, "easing": "easeInOutCubic", "dependsOn": [] }
       ],
-      "motionCheckFrames": [
-        390,
-        450,
-        495
-      ],
-      "acceptanceFrames": [
-        390,
-        460,
-        539
-      ],
-      "assetStrategy": "layered-assets"
+      "motionCheckFrames": [390, 450, 494],
+      "acceptanceFrames": [390, 460, 539],
+      "assetStrategy": "svg-asset"
     },
     {
       "sceneId": "S05",
       "from": 540,
       "durationInFrames": 150,
-      "eventFrames": [
-        540,
-        630
-      ],
+      "eventFrames": [540, 629],
       "heroFrame": 660,
       "component": "Scene05DoorLight",
       "props": {},
-      "motion": [
-        "layered-light",
-        "mask"
+      "layers": ["space", "door", "light", "cup", "text"],
+      "motion": ["layered-light", "mask"],
+      "motionPlan": [
+        { "target": "light", "from": "门关闭，外部光未进入", "to": "外部光进入并落到杯沿", "start": 540, "end": 629, "easing": "easeInOutCubic", "dependsOn": [] }
       ],
-      "motionPlan": [],
-      "motionCheckFrames": [
-        540,
-        590,
-        630
-      ],
-      "acceptanceFrames": [
-        540,
-        600,
-        689
-      ],
-      "assetStrategy": "layered-assets"
+      "motionCheckFrames": [540, 590, 629],
+      "acceptanceFrames": [540, 600, 689],
+      "assetStrategy": "procedural"
     },
     {
       "sceneId": "S06",
       "from": 690,
       "durationInFrames": 210,
-      "eventFrames": [
-        690,
-        780
-      ],
+      "eventFrames": [690, 779],
       "heroFrame": 840,
       "component": "Scene06CupPlacement",
       "props": {},
-      "motion": [
-        "layered-transform",
-        "path"
-      ],
+      "layers": ["space", "cup", "hand", "text"],
+      "motion": ["layered-transform", "path"],
       "motionPlan": [
-        {
-          "target": "cup",
-          "from": 690,
-          "to": 780,
-          "mechanism": "path",
-          "note": "杯子离开吧台、接触窗边、手离开"
-        }
+        { "target": "cup", "from": "杯子在吧台，窗边空着", "to": "杯子稳定在窗边，手离开", "start": 690, "end": 779, "easing": "easeInOutCubic", "dependsOn": [] }
       ],
-      "motionCheckFrames": [
-        690,
-        735,
-        780
-      ],
-      "acceptanceFrames": [
-        690,
-        780,
-        899
-      ],
-      "assetStrategy": "layered-assets"
+      "motionCheckFrames": [690, 735, 779],
+      "acceptanceFrames": [690, 780, 899],
+      "assetStrategy": "svg-asset"
     }
   ],
-  "notes": "draft：组件与资产均为 candidate，Gate C 未过；不得进入执行层。"
+  "notes": "draft：组件与资产均为 candidate，Gate C 未过；schemaVersion=1，与 v3 执行契约对齐。"
 }

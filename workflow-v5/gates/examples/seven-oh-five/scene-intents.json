@@ -1,0 +1,80 @@
+{
+  "schemaVersion": "1.0",
+  "type": "scene-intents",
+  "filmId": "seven-oh-five",
+  "basedOn": {
+    "intentBrief": "../../../intent/examples/seven-oh-five/intent-brief.json",
+    "animationBlueprint": "../../../animation/examples/seven-oh-five/animation-blueprint.json"
+  },
+  "scenes": [
+    {
+      "sceneId": "S01",
+      "sourceUnitIds": ["L1"],
+      "intent": "让观众先注意光进入空间，而不是先看到一间漂亮的咖啡馆。",
+      "event": "卷帘门只拉起一半，晨光先落进吧台。",
+      "attention": "焦点从半开的卷帘门移到吧台边缘的光；人物尚未成为焦点。",
+      "motionIntent": "光带缓慢扩大，灰尘在光里漂移；卷帘门有轻微机械停顿。",
+      "staticIntent": false,
+      "assets": [
+        { "id": "space-layers", "status": "placeholder", "note": "分层资产尚未取得" },
+        { "id": "light-band", "status": "placeholder", "note": "光带方向待关键画面确认" }
+      ],
+      "notThis": ["单张咖啡店照片 + 缓慢推近 + 字幕淡入", "与原文无关的拉花特写或蒸汽粒子"]
+    },
+    {
+      "sceneId": "S02",
+      "sourceUnitIds": ["L2"],
+      "intent": "用一次明确的机械动作改变此前的安静。",
+      "event": "磨豆机响了一声，像把整条街的安静磨碎。",
+      "attention": "焦点从空间光线收拢到磨豆机的一次动作。",
+      "motionIntent": "启动、峰值、停止；动作结束后空间恢复稳定。",
+      "staticIntent": false,
+      "assets": [{ "id": "grinder", "status": "placeholder", "note": "真实机械动作素材待验证" }],
+      "notThis": ["只有声音没有可见动作", "动作持续太久变成背景噪音"]
+    },
+    {
+      "sceneId": "S03",
+      "sourceUnitIds": ["L3"],
+      "intent": "通过水与咖啡粉的关系表现液体运动和杯壁颜色变化。",
+      "event": "热水穿过咖啡粉，杯壁一点点变深。",
+      "attention": "焦点从粉层移到液体流动与杯壁颜色。",
+      "motionIntent": "水接触粉层、液体汇聚、颜色逐渐变深。",
+      "staticIntent": false,
+      "assets": [{ "id": "coffee-liquid", "status": "placeholder", "note": "连续液体变化素材待验证" }],
+      "notThis": ["整体缩放假装液体流动", "颜色突然跳变"]
+    },
+    {
+      "sceneId": "S04",
+      "sourceUnitIds": ["L4"],
+      "intent": "让观众看见白色液体进入咖啡后，逐渐形成花朵状纹路。",
+      "event": "牛奶落下去，白色在褐色里卷成一朵花。",
+      "attention": "焦点落在白褐交汇与纹路形成。",
+      "motionIntent": "白色进入、两色交汇、纹路扩展并保持。",
+      "staticIntent": false,
+      "assets": [{ "id": "coffee-surface", "status": "placeholder", "note": "形态形成方案待验证" }],
+      "notThis": ["直接显示完成图案", "纹路没有从无到有的过程"]
+    },
+    {
+      "sceneId": "S05",
+      "sourceUnitIds": ["L5"],
+      "intent": "连接门外环境与杯沿的光线，让空间关系发生变化。",
+      "event": "七点零五分，门被推开，风把光推到杯沿。",
+      "attention": "焦点从局部咖啡动作回到门口与杯沿的空间关系。",
+      "motionIntent": "门缝出现光、外部光进入、光落到杯沿。",
+      "staticIntent": false,
+      "assets": [{ "id": "door-and-light", "status": "placeholder", "note": "门/外部光/杯沿素材待验证" }],
+      "notThis": ["无方向扫光", "空间关系断裂成两个画面"]
+    },
+    {
+      "sceneId": "S06",
+      "sourceUnitIds": ["L6"],
+      "intent": "完成放杯动作，并让日常的安静重新出现。",
+      "event": "他把第一杯放在窗边，像每天一样，没有说话。",
+      "attention": "焦点落在放杯动作的开始、接触和结束。",
+      "motionIntent": "杯子离开吧台、接触窗边、手离开、画面停留。",
+      "staticIntent": false,
+      "assets": [{ "id": "cup-and-hand", "status": "placeholder", "note": "杯子/手/窗边素材待验证" }],
+      "notThis": ["杯子瞬移", "动作结束立即切走"]
+    }
+  ]
+}

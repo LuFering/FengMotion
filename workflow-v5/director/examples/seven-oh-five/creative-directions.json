@@ -24,18 +24,47 @@
       ],
       "materialDirection": "naturalistic",
       "contentMapping": [
-        { "sourceUnitId": "L1", "visualPurpose": "建立清晨空间与光线先出现的关系" },
-        { "sourceUnitId": "L2", "visualPurpose": "用一次声音事件改变观众的注意力" },
-        { "sourceUnitId": "L3", "visualPurpose": "表现液体运动和可见的颜色变化" },
-        { "sourceUnitId": "L4", "visualPurpose": "表现两种液体交汇形成的新形态" },
-        { "sourceUnitId": "L5", "visualPurpose": "建立门外环境与杯沿光线的关系" },
-        { "sourceUnitId": "L6", "visualPurpose": "完成放杯动作，允许观众停留在最终状态" }
+        {
+          "sourceUnitId": "L1",
+          "visualPurpose": "建立清晨空间与光线先出现的关系"
+        },
+        {
+          "sourceUnitId": "L2",
+          "visualPurpose": "用一次声音事件改变观众的注意力"
+        },
+        {
+          "sourceUnitId": "L3",
+          "visualPurpose": "表现液体运动和可见的颜色变化"
+        },
+        {
+          "sourceUnitId": "L4",
+          "visualPurpose": "表现两种液体交汇形成的新形态"
+        },
+        {
+          "sourceUnitId": "L5",
+          "visualPurpose": "建立门外环境与杯沿光线的关系"
+        },
+        {
+          "sourceUnitId": "L6",
+          "visualPurpose": "完成放杯动作，允许观众停留在最终状态"
+        }
       ],
-      "candidateMediums": ["layered-image-assets", "selected-video-footage", "procedural-motion"],
+      "candidateMediums": [
+        "layered-image-assets",
+        "selected-video-footage",
+        "procedural-motion"
+      ],
       "requiresAssetValidation": true,
-      "knownRisks": ["spatial-continuity", "liquid-motion-quality", "character-consistency"],
+      "knownRisks": [
+        "spatial-continuity",
+        "liquid-motion-quality",
+        "character-consistency"
+      ],
       "whyDistinct": "以连续空间和因果动作作为叙事单位，而不是以文字或图形作为画面主体。",
-      "avoidTemplates": ["single-photo-push-in-with-subtitle", "unrelated-stock-footage-montage"]
+      "avoidTemplates": [
+        "single-photo-push-in-with-subtitle",
+        "unrelated-stock-footage-montage"
+      ]
     },
     {
       "id": "B-text-and-matter",
@@ -47,21 +76,56 @@
       "spaceModel": "typographic-space",
       "primaryFocus": "text-and-material-relation",
       "textRole": "text-as-visual-subject",
-      "motionGrammar": ["type-construction", "mask-reveal", "form-transformation", "layout-rhythm"],
+      "motionGrammar": [
+        "type-construction",
+        "mask-reveal",
+        "form-transformation",
+        "layout-rhythm"
+      ],
       "materialDirection": "graphic-organic",
       "contentMapping": [
-        { "sourceUnitId": "L1", "visualPurpose": "文字与光的关系先建立" },
-        { "sourceUnitId": "L2", "visualPurpose": "用字形/节奏制造一次声音般的断裂" },
-        { "sourceUnitId": "L3", "visualPurpose": "颜色渐变作为文字与液体的共同变化" },
-        { "sourceUnitId": "L4", "visualPurpose": "两种颜色在字形间交汇成形态" },
-        { "sourceUnitId": "L5", "visualPurpose": "文字空间被门外光线推开" },
-        { "sourceUnitId": "L6", "visualPurpose": "排版落定，回到留白" }
+        {
+          "sourceUnitId": "L1",
+          "visualPurpose": "文字与光的关系先建立"
+        },
+        {
+          "sourceUnitId": "L2",
+          "visualPurpose": "用字形/节奏制造一次声音般的断裂"
+        },
+        {
+          "sourceUnitId": "L3",
+          "visualPurpose": "颜色渐变作为文字与液体的共同变化"
+        },
+        {
+          "sourceUnitId": "L4",
+          "visualPurpose": "两种颜色在字形间交汇成形态"
+        },
+        {
+          "sourceUnitId": "L5",
+          "visualPurpose": "文字空间被门外光线推开"
+        },
+        {
+          "sourceUnitId": "L6",
+          "visualPurpose": "排版落定，回到留白"
+        }
       ],
-      "candidateMediums": ["typography-vector", "paper-texture", "procedural-graphics", "generated-stills"],
+      "candidateMediums": [
+        "typography-vector",
+        "paper-texture",
+        "procedural-graphics",
+        "generated-stills"
+      ],
       "requiresAssetValidation": true,
-      "knownRisks": ["over-metaphor", "legibility", "text-image-balance"],
+      "knownRisks": [
+        "over-metaphor",
+        "legibility",
+        "text-image-balance"
+      ],
       "whyDistinct": "文字是视觉主体，空间是排版空间，而不是写实的店内空间。",
-      "avoidTemplates": ["subtitle-at-bottom-over-photo", "kinetic-type-only"]
+      "avoidTemplates": [
+        "subtitle-at-bottom-over-photo",
+        "kinetic-type-only"
+      ]
     },
     {
       "id": "C-breathing-miniature",
@@ -73,21 +137,55 @@
       "spaceModel": "layered-stage-space",
       "primaryFocus": "spatial-object-relations",
       "textRole": "preserved-poetic-text",
-      "motionGrammar": ["parallax", "occlusion-change", "local-object-motion", "procedural-path"],
+      "motionGrammar": [
+        "parallax",
+        "occlusion-change",
+        "local-object-motion",
+        "procedural-path"
+      ],
       "materialDirection": "illustrated-model",
       "contentMapping": [
-        { "sourceUnitId": "L1", "visualPurpose": "模型空间里光先穿过窗" },
-        { "sourceUnitId": "L2", "visualPurpose": "局部机械动作打破静" },
-        { "sourceUnitId": "L3", "visualPurpose": "液体在模型容器中变化" },
-        { "sourceUnitId": "L4", "visualPurpose": "两种材质在模型杯里交汇" },
-        { "sourceUnitId": "L5", "visualPurpose": "门/风/光在舞台层级间移动" },
-        { "sourceUnitId": "L6", "visualPurpose": "杯子落到窗边层级" }
+        {
+          "sourceUnitId": "L1",
+          "visualPurpose": "模型空间里光先穿过窗"
+        },
+        {
+          "sourceUnitId": "L2",
+          "visualPurpose": "局部机械动作打破静"
+        },
+        {
+          "sourceUnitId": "L3",
+          "visualPurpose": "液体在模型容器中变化"
+        },
+        {
+          "sourceUnitId": "L4",
+          "visualPurpose": "两种材质在模型杯里交汇"
+        },
+        {
+          "sourceUnitId": "L5",
+          "visualPurpose": "门/风/光在舞台层级间移动"
+        },
+        {
+          "sourceUnitId": "L6",
+          "visualPurpose": "杯子落到窗边层级"
+        }
       ],
-      "candidateMediums": ["layered-2.5d-assets", "illustration-assets", "procedural-motion"],
+      "candidateMediums": [
+        "layered-2.5d-assets",
+        "illustration-assets",
+        "procedural-motion"
+      ],
       "requiresAssetValidation": true,
-      "knownRisks": ["toy-like", "static-model-display", "scale-consistency"],
+      "knownRisks": [
+        "toy-like",
+        "static-model-display",
+        "scale-consistency"
+      ],
       "whyDistinct": "空间是分层舞台，运动来自视差与遮挡，而不是写实摄影或纯排版。",
-      "avoidTemplates": ["toy-animation", "cute-3d-model-showcase"]
+      "avoidTemplates": [
+        "toy-animation",
+        "cute-3d-model-showcase"
+      ]
     }
   ],
   "comparison": [
@@ -140,5 +238,6 @@
       }
     }
   ],
-  "notes": "三个方向共享同一份原文和事件，但改变的是视觉表达逻辑（空间/媒介/运动/文字角色），不是颜色、字体或形容词。"
+  "notes": "三个方向共享同一份原文和事件，但改变的是视觉表达逻辑（空间/媒介/运动/文字角色），不是颜色、字体或形容词。",
+  "mode": "exploration"
 }

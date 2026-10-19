@@ -14,37 +14,44 @@
     {
       "id": "space-layers",
       "status": "candidate",
-      "note": "吧台/卷帘门/窗分层资产待取得或制作"
+      "note": "吧台/卷帘门/窗分层资产待取得或制作",
+      "path": "assets/space-layers.png"
     },
     {
       "id": "light-band",
       "status": "candidate",
-      "note": "光带方向与范围待关键画面确认"
+      "note": "光带方向与范围待关键画面确认",
+      "path": "assets/light-band.png"
     },
     {
       "id": "grinder",
       "status": "candidate",
-      "note": "真实机械动作素材或可验证局部运动方案"
+      "note": "真实机械动作素材或可验证局部运动方案",
+      "path": "assets/grinder.mp4"
     },
     {
       "id": "coffee-liquid",
       "status": "candidate",
-      "note": "连续液体变化素材/遮罩方案待验证"
+      "note": "连续液体变化素材/遮罩方案待验证",
+      "path": "assets/coffee-liquid.png"
     },
     {
       "id": "coffee-surface",
       "status": "candidate",
-      "note": "咖啡表面与奶纹形成素材/路径方案待验证"
+      "note": "咖啡表面与奶纹形成素材/路径方案待验证",
+      "path": "assets/coffee-surface.png"
     },
     {
       "id": "door-and-light",
       "status": "candidate",
-      "note": "门/外部光/杯沿素材待验证"
+      "note": "门/外部光/杯沿素材待验证",
+      "path": "assets/door-and-light.png"
     },
     {
       "id": "cup-and-hand",
       "status": "candidate",
-      "note": "杯子/手/窗边素材待验证"
+      "note": "杯子/手/窗边素材待验证",
+      "path": "assets/cup-and-hand.png"
     }
   ],
   "components": [
@@ -53,42 +60,48 @@
       "status": "candidate",
       "purpose": "光带进入并分层揭示空间",
       "source": "new-development",
-      "verification": "需 10s 证明与关键画面验证"
+      "verification": "需 10s 证明与关键画面验证",
+      "path": "components/Scene01LightReveal.tsx"
     },
     {
       "id": "Scene02Grinder",
       "status": "candidate",
       "purpose": "一次磨豆机机械动作",
       "source": "new-development",
-      "verification": "需素材可行性验证"
+      "verification": "需素材可行性验证",
+      "path": "components/Scene02Grinder.tsx"
     },
     {
       "id": "Scene03Extraction",
       "status": "candidate",
       "purpose": "液体流动与杯壁颜色变化",
       "source": "new-development",
-      "verification": "需连续液体方案验证"
+      "verification": "需连续液体方案验证",
+      "path": "components/Scene03Extraction.tsx"
     },
     {
       "id": "Scene04LatteArt",
       "status": "candidate",
       "purpose": "白褐交汇与花朵纹路形成",
       "source": "new-development",
-      "verification": "需形态形成方案验证"
+      "verification": "需形态形成方案验证",
+      "path": "components/Scene04LatteArt.tsx"
     },
     {
       "id": "Scene05DoorLight",
       "status": "candidate",
       "purpose": "开门、外部光进入、光落杯沿",
       "source": "new-development",
-      "verification": "需空间连续性验证"
+      "verification": "需空间连续性验证",
+      "path": "components/Scene05DoorLight.tsx"
     },
     {
       "id": "Scene06CupPlacement",
       "status": "candidate",
       "purpose": "放杯动作的开始/接触/结束",
       "source": "new-development",
-      "verification": "需动作与停留状态验证"
+      "verification": "需动作与停留状态验证",
+      "path": "components/Scene06CupPlacement.tsx"
     }
   ],
   "mechanisms": [

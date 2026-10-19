@@ -14,6 +14,13 @@
 | 5 正式渲染 + 自动 QA | 成片 + 媒体规格/完整性/复现记录 | `qa/render-manifest.json` + `qa/acceptance-report.json` | 渲染配置 / 实现 |
 | 6 视觉审片 + 交付 | 真实成片的问题定位、返工、批准 | `qa/visual-review.json` + `qa/iteration-log.json` + `qa/delivery-manifest.json` | 按问题类型路由 |
 
+## 两种模式
+
+- `prototype`：允许 candidate 组件/资产，用于生成 10s 运动证明；仍要求文件路径真实存在、规格合法。
+- `production`：要求 Gate A/B/C 通过、组件/资产 `available`、证明与当前 spec/config 哈希一致；才允许全片预览与正式成片。
+
+Gate C 产物是 `qa/motion-proof.json`：10s 证明视频、使用的 specHash/configHash、验收条件、问题与批准结果。正式 preflight 必须核对版本一致。
+
 ## 关键规则
 
 - **同一份代码、同一套配置、同一份 spec、同一组 props** 生成预览与正式成片；低分辨率只降渲染负担，不换逻辑。
@@ -130,7 +137,8 @@ workflow-v5/execution/
 └── examples/seven-oh-five/
     ├── execution.config.json
     └── qa/
-        ├── preflight-report.json   # blocked：10 项前置未满足
+        ├── preflight-report.json   # blocked：11 项前置未满足
+        ├── motion-proof.json       # blocked：尚无 10s 运动证明
         └── delivery-manifest.json  # blocked，不伪造交付
 ```
 
@@ -143,6 +151,6 @@ node tools/validate-execution.mjs examples/seven-oh-five
 ```
 
 当前示例是 **blocked**：Gate A/B/C 未确认、组件/资产 candidate、无组件代码、无正式渲染。
-preflight 会明确列出 10 项阻塞，而不是让渲染引擎报错或让模型“先渲了再说”。
+preflight 会明确列出 11 项阻塞，而不是让渲染引擎报错或让模型“先渲了再说”。
 
 正式渲染与视觉审片要在组件/资产可用后执行；本层不伪造成片或审片结果。

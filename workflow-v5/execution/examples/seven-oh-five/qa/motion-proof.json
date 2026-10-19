@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "1.0",
+  "type": "motion-proof",
+  "filmId": "seven-oh-five",
+  "status": "blocked",
+  "mode": "production",
+  "video": null,
+  "specHash": null,
+  "configHash": null,
+  "criteria": [],
+  "issues": [
+    "组件与资产均为 candidate，尚未实现；未生成 10s 运动证明"
+  ],
+  "approvedBy": null
+}

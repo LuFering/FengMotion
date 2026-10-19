@@ -2,22 +2,28 @@
   "schemaVersion": "1.0",
   "type": "preflight-report",
   "filmId": "seven-oh-five",
+  "mode": "production",
   "status": "blocked",
   "checks": [
     {
-      "id": "design-handoff/direction-gate",
-      "status": "blocked",
-      "detail": "Gate A 方向状态为 recommended，需先确认方向"
+      "id": "config/mode",
+      "status": "pass",
+      "detail": "mode=production"
     },
     {
-      "id": "design-handoff/scene-layout",
+      "id": "design-handoff/gate-a",
       "status": "blocked",
-      "detail": "Gate B 场景布局未批准（approvals 中没有 scene-layout 记录）"
+      "detail": "Gate A 状态=recommended / 确认=无 / lookDev=missing，需当前版本 approved 且写实方向有 Look-dev"
+    },
+    {
+      "id": "design-handoff/gate-b",
+      "status": "blocked",
+      "detail": "6/6 个场景没有当前版本 approved 布局（S01, S02, S03, S04, S05, S06）"
     },
     {
       "id": "design-handoff/animation-blueprint",
       "status": "blocked",
-      "detail": "动画蓝图状态为 draft，需先通过动画设计门"
+      "detail": "动画蓝图状态为 draft"
     },
     {
       "id": "design-handoff/implementation-plan",
@@ -25,19 +31,19 @@
       "detail": "实现计划状态为 draft"
     },
     {
-      "id": "spec/components-available",
+      "id": "spec/components",
       "status": "blocked",
-      "detail": "6/6 个组件仍为 candidate/missing"
+      "detail": "6/6 个组件仍为 candidate/missing（production 不允许）"
     },
     {
-      "id": "spec/assets-available",
+      "id": "spec/assets",
       "status": "blocked",
-      "detail": "7/7 项资产仍为 candidate/missing"
+      "detail": "7/7 项资产仍为 candidate/missing（production 不允许）"
     },
     {
       "id": "spec/scene-spec-approved",
       "status": "blocked",
-      "detail": "scene.spec 状态为 draft，需先通过动画设计审查"
+      "detail": "scene.spec 状态为 draft"
     },
     {
       "id": "spec/component-contracts",
@@ -47,22 +53,27 @@
     {
       "id": "timing/compile-confirmed",
       "status": "blocked",
-      "detail": "timingCompile 状态为 proposed，30s/30fps 仍为候选"
+      "detail": "timingCompile 状态为 proposed"
     },
     {
       "id": "timing/spec-config-match",
       "status": "pass",
-      "detail": "scene.spec 与 execution.config 的 fps/帧数一致"
+      "detail": "spec/config/fps/帧数一致"
     },
     {
-      "id": "engineering/components-exist",
+      "id": "gate-c/motion-proof",
       "status": "blocked",
-      "detail": "components/ 没有 .tsx（执行层尚未实现组件）"
+      "detail": "Gate C 未通过：proof=blocked，video=无，hash 需匹配当前 spec/config"
+    },
+    {
+      "id": "engineering/components-dir",
+      "status": "blocked",
+      "detail": "components/ 没有 .tsx"
     },
     {
       "id": "engineering/assets-dir",
       "status": "blocked",
-      "detail": "assets/ 不存在，资产未落盘"
+      "detail": "assets/ 不存在"
     },
     {
       "id": "output/config",
@@ -71,17 +82,22 @@
     }
   ],
   "blocking": [
-    "design-handoff/direction-gate: Gate A 方向状态为 recommended，需先确认方向",
-    "design-handoff/scene-layout: Gate B 场景布局未批准（approvals 中没有 scene-layout 记录）",
-    "design-handoff/animation-blueprint: 动画蓝图状态为 draft，需先通过动画设计门",
+    "design-handoff/gate-a: Gate A 状态=recommended / 确认=无 / lookDev=missing，需当前版本 approved 且写实方向有 Look-dev",
+    "design-handoff/gate-b: 6/6 个场景没有当前版本 approved 布局（S01, S02, S03, S04, S05, S06）",
+    "design-handoff/animation-blueprint: 动画蓝图状态为 draft",
     "design-handoff/implementation-plan: 实现计划状态为 draft",
-    "spec/components-available: 6/6 个组件仍为 candidate/missing",
-    "spec/assets-available: 7/7 项资产仍为 candidate/missing",
-    "spec/scene-spec-approved: scene.spec 状态为 draft，需先通过动画设计审查",
-    "timing/compile-confirmed: timingCompile 状态为 proposed，30s/30fps 仍为候选",
-    "engineering/components-exist: components/ 没有 .tsx（执行层尚未实现组件）",
-    "engineering/assets-dir: assets/ 不存在，资产未落盘"
+    "spec/components: 6/6 个组件仍为 candidate/missing（production 不允许）",
+    "spec/assets: 7/7 项资产仍为 candidate/missing（production 不允许）",
+    "spec/scene-spec-approved: scene.spec 状态为 draft",
+    "timing/compile-confirmed: timingCompile 状态为 proposed",
+    "gate-c/motion-proof: Gate C 未通过：proof=blocked，video=无，hash 需匹配当前 spec/config",
+    "engineering/components-dir: components/ 没有 .tsx",
+    "engineering/assets-dir: assets/ 不存在"
   ],
+  "hashes": {
+    "specHash": "27d66447287d4e8581983dbc15c4214d4d9b582a8772b27aea2b7d903449e4c0",
+    "configHash": "5f184a7cae0fc8b817414748d6cbea4720873b64be48d8922b21fbc906455a69"
+  },
   "config": {
     "composition": "SevenOhFive",
     "width": 1920,
@@ -89,5 +105,5 @@
     "fps": 30,
     "durationInFrames": 900
   },
-  "createdAt": "2026-10-19T04:06:42.633Z"
+  "createdAt": "2026-10-19T04:37:28.125Z"
 }

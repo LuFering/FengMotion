@@ -9,7 +9,7 @@
 - 已确认的 `visual-direction.json`（Gate A 通过后）
 - `reference-decision.json` / `reference-analysis.json`
 - `intent-brief.json` 的原文单元
-- `scene-intent.json` / 场景布局（如已有，作为约束，不替代事件设计）
+- `scene-intents.json` / 场景布局（如已有，作为约束，不替代事件设计）
 
 ## 输出
 

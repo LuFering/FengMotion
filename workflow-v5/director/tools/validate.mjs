@@ -132,12 +132,16 @@ function checkDiagnosis(doc, dir) {
 
 // ---------------- creative-directions ----------------
 function checkDirections(doc, dir) {
-  const allowed = new Set(['schemaVersion', 'type', 'basedOn', 'directions', 'comparison', 'notes']);
+  const allowed = new Set(['schemaVersion', 'type', 'mode', 'basedOn', 'directions', 'comparison', 'notes']);
   checkTopKeys(doc, allowed, 'creative-directions');
   scanKeys(doc, new Set([...SCENE_KEYS, ...VISUAL_SPEC_KEYS]));
 
   need(doc.schemaVersion === '1.0', 'directions.schemaVersion 必须是 "1.0"');
-  need(isArr(doc.directions) && doc.directions.length >= 2 && doc.directions.length <= 3, 'directions 需要 2–3 个方向');
+  const mode = doc.mode ?? 'exploration';
+  need(['exploration', 'direct'].includes(mode), 'directions.mode 必须是 exploration/direct');
+  const minDirs = mode === 'direct' ? 1 : 2;
+  const maxDirs = mode === 'direct' ? 2 : 3;
+  need(isArr(doc.directions) && doc.directions.length >= minDirs && doc.directions.length <= maxDirs, `directions 在 ${mode} 模式需要 ${minDirs}–${maxDirs} 个方向`);
   const ids = new Set();
   for (const [i, d] of (doc.directions ?? []).entries()) {
     const p = `directions[${i}]`;
@@ -172,20 +176,26 @@ function checkDirections(doc, dir) {
     }
   }
 
-  // 差异规则：5 个维度里至少 3 个不同（不能只换颜色/字体/形容词）
+  // 差异规则：探索模式下用于评审，不是所有项目的硬门禁
   const dims = ['method', 'spaceModel', 'primaryFocus', 'textRole', 'materialDirection'];
   const motion = (d) => (d.motionGrammar ?? []).map(String).sort().join('|');
-  for (let i = 0; i < (doc.directions ?? []).length; i++) {
-    for (let j = i + 1; j < (doc.directions ?? []).length; j++) {
-      const a = doc.directions[i];
-      const b = doc.directions[j];
-      let diff = dims.filter((k) => a[k] !== b[k]).length;
-      if (motion(a) !== motion(b)) diff += 1;
-      need(diff >= 3, `${a.id} 与 ${b.id} 差异不足（5 维中仅 ${diff} 维不同）；不能只靠颜色/字体/形容词制造方向差异`);
+  if (mode === 'exploration') {
+    for (let i = 0; i < (doc.directions ?? []).length; i++) {
+      for (let j = i + 1; j < (doc.directions ?? []).length; j++) {
+        const a = doc.directions[i];
+        const b = doc.directions[j];
+        let diff = dims.filter((k) => a[k] !== b[k]).length;
+        if (motion(a) !== motion(b)) diff += 1;
+        need(diff >= 3, `${a.id} 与 ${b.id} 差异不足（5 维中仅 ${diff} 维不同）；不能只靠颜色/字体/形容词制造方向差异`);
+      }
     }
   }
 
-  need(isArr(doc.comparison) && doc.comparison.length >= 4, 'comparison 至少 4 个比较维度');
+  if ((doc.directions ?? []).length >= 2) {
+    need(isArr(doc.comparison) && doc.comparison.length >= 4, '多方向时 comparison 至少 4 个比较维度');
+  } else {
+    need(doc.comparison === undefined || isArr(doc.comparison), 'comparison 必须是数组');
+  }
   for (const [i, row] of (doc.comparison ?? []).entries()) {
     need(isStr(row.dimension), `comparison[${i}].dimension 不能为空`);
     need(isObj(row.values), `comparison[${i}].values 必须是对象`);
@@ -237,8 +247,11 @@ function checkDecision(doc, dir) {
       }
     }
   }
+  const directionsDoc = readJson(dir, doc.basedOn?.directions, 'basedOn.directions');
+  const dirMode = directionsDoc?.mode ?? 'exploration';
   const rec = (doc.criteria ?? []).filter((c) => c.assessments?.[doc.recommendedDirectionId]?.level === 'strong').length;
-  need(rec >= 3, `推荐方向至少要有 3 个维度评为 strong（当前 ${rec}）`);
+  if (dirMode === 'exploration') need(rec >= 3, `探索模式推荐方向至少 3 个维度 strong（当前 ${rec}）`);
+  else need(rec >= 1, `direct 模式推荐方向至少 1 个维度 strong（当前 ${rec}）`);
 
   need(isArr(doc.alternatives), 'alternatives 必须是数组');
   for (const [i, id] of (doc.alternatives ?? []).entries()) {

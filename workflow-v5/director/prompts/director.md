@@ -37,7 +37,9 @@
 
 ### STEP 2 · 视觉方向探索 → `creative-directions.json`
 
-提出 **2–3 个实质不同的方向**。每个方向必须改变以下至少三个维度，而不是只换颜色/字体/形容词：
+先判断 `mode`：
+- `exploration`（默认）：提出 **2–3 个实质不同的方向**；每个方向改变至少三个维度，而不是只换颜色/字体/形容词。
+- `direct`：输入/提示词已明确方向时，允许 **1 个主方向** + 少量实现比较；不要为了凑数制造不必要方向。
 
 1. 表达方法（真实空间/图形隐喻/文字构建/舞台模型…）
 2. 空间组织（连续空间/独立画面/排版空间/分层舞台…）
@@ -68,7 +70,7 @@
 - 模式：`collaborative`（用户选）或 `autopilot`（模型选并记录理由）。
 - 比较维度至少：`contentFit / distinctiveness / implementability / assetRisk / recognizability`。
 - 每项评估写 `strong/workable/weak` + 证据；**不要用没有证据的精确分数**制造客观性。
-- 推荐一个方向（至少 3 个维度 strong），保留替代方案与不选理由。
+- 推荐一个方向；`exploration` 模式至少 3 个维度 strong，`direct` 模式至少 1 个维度 strong；保留替代方案/不选理由。
 - `status: recommended` ≠ 用户已确认；只有 `confirmed` 才代表确认。推荐和确认必须分开。
 
 ### STEP 4 · 视觉系统建立 → `visual-direction.json`

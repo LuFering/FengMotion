@@ -65,12 +65,14 @@ const BLUEPRINT_SCENE_KEYS = new Set([
   'dependencies',
   'assetRequirements',
   'acceptance',
+  'staticIntent',
 ]);
-const SPEC_KEYS = ['sceneId', 'component', 'props', 'from', 'durationInFrames', 'eventFrames', 'heroFrame', 'motion', 'motionPlan', 'motionCheckFrames', 'acceptanceFrames', 'assetStrategy'];
+const SPEC_KEYS = ['sceneId', 'component', 'props', 'from', 'durationInFrames', 'eventFrames', 'heroFrame', 'motion', 'motionPlan', 'motionCheckFrames', 'acceptanceFrames', 'assetStrategy', 'layers'];
 
 // ---------------- 蓝图 ----------------
 let directionConfirmed = false;
 let blueprintScenes = [];
+let intentUnits = [];
 if (blueprint) {
   need(blueprint.schemaVersion === '1.0', 'blueprint.schemaVersion 必须是 "1.0"');
   need(blueprint.type === 'animation-blueprint', 'blueprint.type 必须是 animation-blueprint');
@@ -81,6 +83,16 @@ if (blueprint) {
     const p = blueprint.basedOn?.[k];
     need(isStr(p), `blueprint.basedOn.${k} 不能为空`);
     if (isStr(p)) need(fs.existsSync(path.resolve(dir, p)), `blueprint.basedOn.${k} 不存在：${p}`);
+  }
+  intentUnits = [];
+  if (isStr(blueprint.basedOn?.intentBrief)) {
+    const ip = path.resolve(dir, blueprint.basedOn.intentBrief);
+    if (fs.existsSync(ip)) {
+      try {
+        const ib = JSON.parse(fs.readFileSync(ip, 'utf8'));
+        intentUnits = (ib.content?.units ?? []).map((u) => u.id);
+      } catch {}
+    }
   }
   if (isStr(blueprint.basedOn?.directionGate)) {
     const p = path.resolve(dir, blueprint.basedOn.directionGate);
@@ -97,12 +109,13 @@ if (blueprint) {
   const tp = blueprint.timingPolicy ?? {};
   need(typeof tp.durationCandidateSec === 'number' && tp.durationCandidateSec > 0, 'timingPolicy.durationCandidateSec 必须是正数');
   need(['proposed', 'confirmed'].includes(tp.status), 'timingPolicy.status 必须是 proposed/confirmed');
+  need(['sequential', 'overlapping'].includes(tp.overlapPolicy ?? 'sequential'), 'timingPolicy.overlapPolicy 必须是 sequential/overlapping');
   need(tp.fps === null || isInt(tp.fps), 'timingPolicy.fps 必须是 null 或整数（蓝图不写死帧率）');
   if (tp.status === 'confirmed') need(isInt(tp.fps), 'timingPolicy.status=confirmed 时必须确认 fps');
   need(isStr(tp.note), 'timingPolicy.note 不能为空');
 
   blueprintScenes = blueprint.scenes ?? [];
-  need(isArr(blueprintScenes) && blueprintScenes.length >= 1 && blueprintScenes.length <= 8, 'blueprint.scenes 需要 1–8 场');
+  need(isArr(blueprintScenes) && blueprintScenes.length >= 1 && blueprintScenes.length <= 12, 'blueprint.scenes 需要 1–12 场（数量是建议，不是创作硬门禁）');
   const sceneIds = new Set();
   let sumDur = 0;
   for (const [i, s] of blueprintScenes.entries()) {
@@ -113,22 +126,30 @@ if (blueprint) {
       sceneIds.add(s.sceneId);
     }
     need(isArr(s.sourceUnitIds) && s.sourceUnitIds.length >= 1, `${p}.sourceUnitIds 至少 1 个`);
+    need(typeof s.staticIntent === 'boolean', `${p}.staticIntent 必须是布尔值（静止/阅读场景显式声明）`);
+    const isStatic = s.staticIntent === true;
+    for (const [j, u] of (s.sourceUnitIds ?? []).entries()) {
+      if (intentUnits.length) need(intentUnits.includes(u), `${p}.sourceUnitIds[${j}] 不在 intent-brief：${u}`);
+    }
     need(isStr(s.intent) && s.intent.length >= 8, `${p}.intent 必须写清这一场为什么存在`);
     const e = s.event ?? {};
     need(isStr(e.type), `${p}.event.type 不能为空`);
     need(isStr(e.target), `${p}.event.target 不能为空`);
     need(isStr(e.initialState) && e.initialState.length >= 4, `${p}.event.initialState 不能为空`);
     need(isStr(e.trigger) && e.trigger.length >= 4, `${p}.event.trigger 不能为空`);
-    need(isArr(e.progression) && e.progression.length >= 2 && e.progression.length <= 4, `${p}.event.progression 需要 2–4 个可观察阶段`);
+    if (isStatic) need(isArr(e.progression) && e.progression.length >= 1, `${p}.event.progression 静止场景至少 1 条说明`);
+    else need(isArr(e.progression) && e.progression.length >= 2 && e.progression.length <= 4, `${p}.event.progression 需要 2–4 个可观察阶段（动态事件）`);
     for (const [j, x] of (e.progression ?? []).entries()) need(isStr(x), `${p}.event.progression[${j}] 不能为空`);
     need(isStr(e.finalState) && e.finalState.length >= 4, `${p}.event.finalState 不能为空`);
-    need(e.initialState !== e.finalState, `${p}.event.initialState 与 finalState 不能相同（没有变化）`);
+    if (!isStatic) need(e.initialState !== e.finalState, `${p}.event.initialState 与 finalState 不能相同（动态事件必须有变化）`);
     need(isArr(e.failureConditions) && e.failureConditions.length >= 1, `${p}.event.failureConditions 至少 1 条（什么算没实现）`);
     const mi = s.motionIntent ?? {};
     need(isStr(mi.purpose) && mi.purpose.length >= 4, `${p}.motionIntent.purpose 不能为空`);
     need(['primary', 'secondary'].includes(mi.priority), `${p}.motionIntent.priority 非法`);
-    need(isArr(mi.motionCandidates) && mi.motionCandidates.length >= 1, `${p}.motionIntent.motionCandidates 至少 1 个候选机制`);
-    need(mi.selectionStatus === 'pending-implementation-review', `${p}.motionIntent.selectionStatus 必须是 pending-implementation-review（蓝图不锁实现）`);
+    if (!isStatic) need(isArr(mi.motionCandidates) && mi.motionCandidates.length >= 1, `${p}.motionIntent.motionCandidates 至少 1 个候选机制（动态事件）`);
+    else need(isArr(mi.motionCandidates), `${p}.motionIntent.motionCandidates 必须是数组`);
+    need(['pending-implementation-review', 'not-applicable'].includes(mi.selectionStatus), `${p}.motionIntent.selectionStatus 非法`);
+    if (!isStatic) need(mi.selectionStatus === 'pending-implementation-review', `${p}.motionIntent.selectionStatus 必须是 pending-implementation-review（蓝图不锁实现）`);
 
     const tm = s.timing ?? {};
     need(isInt(tm.relativeOrder) && tm.relativeOrder >= 1, `${p}.timing.relativeOrder 必须是 >=1 的整数`);
@@ -163,8 +184,8 @@ if (blueprint) {
       if (!BLUEPRINT_SCENE_KEYS.has(k)) errors.push(`${p} 不允许的字段：${k}（蓝图不写组件/帧数/执行规格）`);
     }
   }
-  if (typeof tp.durationCandidateSec === 'number' && Math.abs(sumDur - tp.durationCandidateSec) > 0.51) {
-    errors.push(`各场候选时长合计 ${sumDur}s 与 timingPolicy ${tp.durationCandidateSec}s 不一致（蓝图阶段应大致对齐）`);
+  if ((tp.overlapPolicy ?? 'sequential') === 'sequential' && typeof tp.durationCandidateSec === 'number' && Math.abs(sumDur - tp.durationCandidateSec) > 0.51) {
+    errors.push(`顺序模式下各场候选时长合计 ${sumDur}s 与 timingPolicy ${tp.durationCandidateSec}s 不一致；重叠/并行模式请声明 overlapPolicy`);
   }
 }
 
@@ -229,11 +250,13 @@ if (implementation) {
 
 // ---------------- scene.spec ----------------
 if (spec) {
-  need(spec.schemaVersion === '1.0', 'scene.spec.schemaVersion 必须是 "1.0"');
+  need(spec.schemaVersion === 1, 'scene.spec.schemaVersion 必须是数字 1（与 v3 执行契约一致）');
   need(spec.type === 'scene-spec', 'scene.spec.type 必须是 scene-spec');
   need(['draft', 'approved'].includes(spec.status), 'scene.spec.status 必须是 draft/approved');
   need(isStr(spec.filmId), 'scene.spec.filmId 不能为空');
   need(isInt(spec.fps) && spec.fps > 0, 'scene.spec.fps 必须是正整数');
+  need(isInt(spec.width) && spec.width > 0, 'scene.spec.width 必须是正整数');
+  need(isInt(spec.height) && spec.height > 0, 'scene.spec.height 必须是正整数');
   need(isInt(spec.durationInFrames) && spec.durationInFrames > 0, 'scene.spec.durationInFrames 必须是正整数');
   need(isArr(spec.scenes) && spec.scenes.length === blueprintScenes.length, 'scene.spec.scenes 数量必须与 blueprint 一致');
 
@@ -250,22 +273,39 @@ if (spec) {
     need(isInt(s.from) && s.from >= 0, `${p}.from 必须是 >=0 的整数`);
     need(isInt(s.durationInFrames) && s.durationInFrames > 0, `${p}.durationInFrames 必须是正整数`);
     if (isInt(s.from)) {
-      need(s.from >= prevEnd, `${p}.from 与上一场重叠`);
+      need(s.from === prevEnd, `${p}.from 必须等于上一场结束帧（不能留空白或重叠）`);
       if (isInt(s.durationInFrames)) prevEnd = s.from + s.durationInFrames;
     }
     need(isArr(s.eventFrames) && s.eventFrames.length === 2, `${p}.eventFrames 必须是 [start,end]`);
+    let evStart = null;
+    let evEnd = null;
     if (isArr(s.eventFrames) && isInt(s.from) && isInt(s.durationInFrames)) {
       const [a, b] = s.eventFrames;
-      need(isInt(a) && isInt(b) && a >= s.from && b <= s.from + s.durationInFrames && a <= b, `${p}.eventFrames 必须落在场景内`);
+      evStart = a;
+      evEnd = b;
+      need(isInt(a) && isInt(b) && a >= s.from && b <= s.from + s.durationInFrames - 1 && a <= b, `${p}.eventFrames 必须落在场景可见帧内（含端点为最后一帧）`);
     }
     need(isInt(s.heroFrame) && isInt(s.from) && isInt(s.durationInFrames) && s.heroFrame >= s.from && s.heroFrame < s.from + s.durationInFrames, `${p}.heroFrame 必须落在场景可见区间`);
     need(isStr(s.component) && componentStatus.has(s.component), `${p}.component 不在 implementation.components`);
     need(isObj(s.props), `${p}.props 必须是对象`);
     need(isArr(s.motion) && s.motion.length >= 1, `${p}.motion 至少 1 项`);
-    need(isArr(s.motionPlan), `${p}.motionPlan 必须是数组`);
-    const bp = blueprintScenes.find((x) => x.sceneId === s.sceneId);
-    if (['liquid-extraction', 'shape-formation', 'object-placement'].includes(bp?.event?.type)) {
-      need((s.motionPlan ?? []).length >= 1, `${p} 复杂运动必须有 motionPlan`);
+    const bpScene = blueprintScenes.find((x) => x.sceneId === s.sceneId);
+    if (bpScene?.staticIntent === true) {
+      need(isArr(s.motionPlan), `${p}.motionPlan 必须是数组（静止场景可为空）`);
+    } else {
+      need(isArr(s.motionPlan) && s.motionPlan.length >= 1, `${p}.motionPlan 至少 1 条（动态场景要写清状态变化）`);
+    }
+    for (const [j, m] of (s.motionPlan ?? []).entries()) {
+      need(isObj(m), `${p}.motionPlan[${j}] 必须是对象`);
+      if (!isObj(m)) continue;
+      need(isStr(m.target) && (s.layers ?? []).includes(m.target), `${p}.motionPlan[${j}].target 必须在 layers 中`);
+      need(isStr(m.from) && isStr(m.to), `${p}.motionPlan[${j}] 必须写 from/to 状态`);
+      need(isInt(m.start) && isInt(m.end) && m.start <= m.end, `${p}.motionPlan[${j}] start/end 必须是整数且 start<=end`);
+      if (isInt(m.start) && isInt(m.end) && evStart !== null && evEnd !== null) {
+        need(m.start >= evStart && m.end <= evEnd, `${p}.motionPlan[${j}] 必须落在 eventFrames 内`);
+      }
+      need(isStr(m.easing), `${p}.motionPlan[${j}].easing 不能为空`);
+      need(isArr(m.dependsOn), `${p}.motionPlan[${j}].dependsOn 必须是数组`);
     }
     need(isArr(s.motionCheckFrames) && s.motionCheckFrames.length >= 2, `${p}.motionCheckFrames 至少 2 帧`);
     if (isArr(s.eventFrames) && isArr(s.motionCheckFrames)) {
@@ -279,12 +319,54 @@ if (spec) {
         need(isInt(f) && f >= s.from && f < s.from + s.durationInFrames, `${p}.acceptanceFrames[${j}] 必须在场景可见区间内（含保持段）`);
       }
     }
-    need(isStr(s.assetStrategy), `${p}.assetStrategy 不能为空`);
+    need(['procedural', 'svg-asset', 'generated-image', 'video-footage', '3d-scene'].includes(s.assetStrategy), `${p}.assetStrategy 必须是 v3 执行层支持的枚举`);
     for (const k of Object.keys(s)) {
       if (!SPEC_KEYS.includes(k)) errors.push(`${p} 不允许的字段：${k}`);
     }
   }
-  need(prevEnd <= spec.durationInFrames, 'scene.spec 场景总长度超过 durationInFrames');
+  const sceneById = new Map((spec.scenes ?? []).map((s) => [s.sceneId, s]));
+  const cap = spec.captionTrack;
+  need(isArr(cap) && cap.length >= 1, 'scene.spec.captionTrack 至少 1 条（字幕必须有执行规格）');
+  const capIds = new Set();
+  const capUnits = new Set();
+  for (const [i, c] of (cap ?? []).entries()) {
+    need(isStr(c.id), `captionTrack[${i}].id 不能为空`);
+    if (isStr(c.id)) {
+      need(!capIds.has(c.id), `captionTrack[${i}].id 重复`);
+      capIds.add(c.id);
+    }
+    need(isStr(c.sourceUnitId), `captionTrack[${i}].sourceUnitId 不能为空`);
+    if (isStr(c.sourceUnitId)) {
+      need(!capUnits.has(c.sourceUnitId), `captionTrack 重复引用 ${c.sourceUnitId}`);
+      capUnits.add(c.sourceUnitId);
+      if (intentUnits.length) need(intentUnits.includes(c.sourceUnitId), `captionTrack[${i}].sourceUnitId 不在 intent-brief`);
+    }
+    need(isStr(c.text), `captionTrack[${i}].text 不能为空`);
+    if (isStr(c.sourceUnitId) && isStr(c.text) && intentUnits.length) {
+      const ip = path.resolve(dir, blueprint.basedOn.intentBrief);
+      if (fs.existsSync(ip)) {
+        try {
+          const ib = JSON.parse(fs.readFileSync(ip, 'utf8'));
+          const u = (ib.content?.units ?? []).find((x) => x.id === c.sourceUnitId);
+          if (u) need(u.text.replace(/\s+/g, '') === c.text.replace(/\s+/g, ''), `captionTrack[${i}].text 必须与原文逐字一致`);
+        } catch {}
+      }
+    }
+    const sc = sceneById.get(c.sceneId);
+    need(!!sc, `captionTrack[${i}].sceneId 不在 scene.spec`);
+    if (sc && isInt(c.from) && isInt(c.durationInFrames)) {
+      need(c.from >= sc.from && c.from + c.durationInFrames <= sc.from + sc.durationInFrames, `captionTrack[${i}] 必须落在对应场景内`);
+    }
+    need(typeof c.readingTimeSec === 'number' && c.readingTimeSec > 0, `captionTrack[${i}].readingTimeSec 必须是正数`);
+    if (isStr(c.text) && typeof c.readingTimeSec === 'number') {
+      need(c.readingTimeSec >= c.text.length / 10, `captionTrack[${i}] 阅读时间不足（至少 ${(c.text.length / 10).toFixed(1)}s）`);
+    }
+  }
+  if (intentUnits.length) {
+    for (const u of intentUnits) need(capUnits.has(u), `captionTrack 缺少原文单元 ${u}（不能漏字幕）`);
+  }
+
+  need(prevEnd === spec.durationInFrames, `场景必须连续覆盖到 durationInFrames（当前覆盖到 ${prevEnd} / ${spec.durationInFrames}）`);
   if (implementationBlocked) need(spec.status === 'draft', '实现可行性未通过时，scene.spec 必须是 draft');
   if (spec.status === 'approved') {
     need(!implementationBlocked, 'scene.spec 不能在与 implementation 未通过时标记 approved');

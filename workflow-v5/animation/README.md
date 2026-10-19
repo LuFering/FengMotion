@@ -22,6 +22,14 @@
 5. **场景规格与组件合同**：蓝图通过后，映射组件、props、整数帧、motionPlan、验收帧。
 6. **设计验收与交接**：四道门；未通过不得进入执行层。
 
+## 执行规格（与 v3 对齐）
+
+- `schemaVersion: 1`（数字，与 v3 一致）；`width` / `height` 必填。
+- `captionTrack`：每条字幕引用 `sourceUnitId`，逐字 `text`、`sceneId`、`from` / `durationInFrames` / `readingTimeSec`；六行原文必须全覆盖。
+- `motionPlan`：`target` / `from`（状态） / `to`（状态） / `start` / `end`（帧） / `easing` / `dependsOn`；`target` 必须在 `layers` 里，`start/end` 必须在 `eventFrames` 内。
+- `assetStrategy` 使用 v3 枚举：`procedural` / `svg-asset` / `generated-image` / `video-footage` / `3d-scene`。
+- 场景必须从 0 连续覆盖到 `durationInFrames`，不能留空白帧。
+
 ## 场景设计卡（蓝图里的每一场）
 
 - `intent`：这一场为什么存在；
@@ -42,7 +50,9 @@
 
 ## 关键规则
 
-- 运动机制由事件决定，不设“每场必须几种动画”的配额；静止/阅读场景可以明确静止。
+- 运动机制由事件决定，不设“每场必须几种动画”的配额；静止/阅读场景用 `staticIntent: true` 显式声明，允许状态不变、motionPlan 为空。
+- 动态事件才要求 progression 2–4 阶段、初始≠结束、候选机制；静态场景不受这些硬规则约束。
+- 顺序剪辑可用 `timingPolicy.overlapPolicy: "sequential"` 校验时长合计；有重叠/并行时声明 `overlapping`，不强行让各场时长等于总时长。
 - `candidate` / `missing` 不是可用资产；不能为了过规格假装组件已存在。
 - 组件合同定义接口、运动状态、验收，不是提前写实现代码。
 - `acceptanceFrames` 可以落在场景保持段；`motionCheckFrames` 必须在 `eventFrames` 内。
