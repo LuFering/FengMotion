@@ -12,6 +12,7 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
+import crypto from 'node:crypto';
 
 const target = process.argv[2];
 if (!target) {
@@ -32,6 +33,7 @@ const isStr = (v) => typeof v === 'string' && v.trim().length > 0;
 const isArr = (v) => Array.isArray(v);
 const isObj = (v) => v && typeof v === 'object' && !Array.isArray(v);
 const isInt = (v) => Number.isInteger(v);
+const sha256 = (p) => crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex');
 
 const read = (name) => {
   const p = path.join(dir, name);
@@ -65,6 +67,7 @@ function checkApproval(a, label) {
   need(['direction', 'scene-layout'].includes(a.stage), `${label}.stage 必须是 direction/scene-layout`);
   need(['pending', 'approved', 'approved-with-changes', 'rejected'].includes(a.status), `${label}.status 非法`);
   need(isInt(a.version) && a.version >= 1, `${label}.version 必须是 >=1 的整数`);
+  need(isStr(a.contentHash) && /^[a-f0-9]{64}$/.test(a.contentHash), `${label}.contentHash 必须是 sha256（批准绑定文件内容）`);
   need(isArr(a.sourceUnits) && a.sourceUnits.length >= 1, `${label}.sourceUnits 至少 1 个`);
   need(isArr(a.validFor) && a.validFor.length >= 1, `${label}.validFor 不能为空`);
   need(isArr(a.notApproved) && a.notApproved.length >= 1, `${label}.notApproved 不能为空`);
@@ -128,14 +131,26 @@ if (gate) {
     need(typeof s.provisionalAssets === 'boolean', `samples[${i}].provisionalAssets 必须是布尔值`);
     need(['structure', 'look-dev'].includes(s.sampleType), `samples[${i}].sampleType 必须是 structure/look-dev`);
   }
+  const selectedDir = (directions?.directions ?? []).find((d) => d.id === gate.selectedDirectionId);
+  const needsLookDev =
+    selectedDir?.materialDirection === 'naturalistic' ||
+    (selectedDir?.candidateMediums ?? []).includes('selected-video-footage');
   const lookDev = gate.lookDev;
   need(isObj(lookDev), 'direction-gate.lookDev 必须存在（结构示意与 Look-dev 分开）');
+  if (needsLookDev) {
+    const waived = lookDev?.required === false && lookDev?.waiver?.by === 'user' && isStr(lookDev.waiver.reason);
+    need(lookDev?.required === true || waived, '写实/真实素材方向必须 Look-dev；模型不能自填 required=false 绕过，除非用户明确豁免并记录理由');
+  }
   if (isObj(lookDev)) {
     need(typeof lookDev.required === 'boolean', 'direction-gate.lookDev.required 必须是布尔值');
     need(['missing', 'passed'].includes(lookDev.status), 'direction-gate.lookDev.status 必须是 missing/passed');
     if (lookDev.required && lookDev.status === 'passed') {
       need(isArr(lookDev.evidence) && lookDev.evidence.length >= 1, 'lookDev.required 且 passed 时必须有证据文件');
-      for (const [i, e] of (lookDev.evidence ?? []).entries()) need(fs.existsSync(path.resolve(dir, e)), `lookDev.evidence[${i}] 不存在：${e}`);
+      need(['remotion-still', 'reference-frame', 'generated-image', 'photographic'].includes(lookDev.source), 'lookDev.source 必须是 remotion-still/reference-frame/generated-image/photographic');
+      for (const [i, e] of (lookDev.evidence ?? []).entries()) {
+        need(fs.existsSync(path.resolve(dir, e)), `lookDev.evidence[${i}] 不存在：${e}`);
+        need(/\.(png|jpe?g|webp|mp4|mov)$/i.test(e), `lookDev.evidence[${i}] 必须是图片/视频，SVG 结构示意不能冒充 Look-dev`);
+      }
     }
   }
   need(isStr(gate.selectedDirectionId) && sampleIds.has(gate.selectedDirectionId), 'selectedDirectionId 必须在 samples 里');
@@ -149,6 +164,11 @@ if (gate) {
       need(gate.confirmation.status === 'approved', '方向确认必须是 approved；approved-with-changes 需新版本重新确认');
       need(gate.confirmation.version === gate.version, `方向确认版本 ${gate.confirmation.version} 与 direction-gate.version ${gate.version} 不一致`);
       need((gate.confirmation.validFor ?? []).includes('visual-language'), '方向确认的 validFor 必须包含 visual-language');
+      const selectedSample = (gate.samples ?? []).find((x) => x.directionId === gate.selectedDirectionId);
+      if (selectedSample?.file) {
+        const p = path.resolve(dir, selectedSample.file);
+        need(fs.existsSync(p) && gate.confirmation.contentHash === sha256(p), '方向确认 contentHash 必须匹配当前选中的样稿文件');
+      }
       const lookDevOk = !gate.lookDev?.required || gate.lookDev?.status === 'passed';
       gateAApproved = gate.confirmation.status === 'approved' && gate.confirmation.version === gate.version && lookDevOk;
     }
@@ -260,6 +280,8 @@ for (const sceneId of blueprintIds) {
     continue;
   }
   if (latest.status === 'approved' && latest.version === layout.version) {
+    const lp = path.join(layoutDir, layout.file);
+    need(latest.contentHash === sha256(lp), `${sceneId} 的布局批准 contentHash 与当前布局文件不一致（文件已变更，旧批准失效）`);
     sceneStatus.push({ sceneId, status: 'approved', detail: `布局 v${layout.version} 已确认` });
   } else if (latest.status === 'approved-with-changes') {
     if (!(layout.version > latest.version)) {

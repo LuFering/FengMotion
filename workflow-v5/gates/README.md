@@ -21,6 +21,11 @@
 写实方向（naturalistic / 依赖真实素材/自然光）必须有 `lookDev.required: true` 且至少一张 Look-dev 样稿通过；
 结构示意通过不能证明最终质感。
 
+`lookDev.required` 由方向的 `materialDirection`/`candidateMediums` 推导，模型不能自填 `false` 绕过；关闭必须由用户明确豁免并记录理由。
+Look-dev 证据必须是图片/视频（SVG 结构示意不算），并记录 `source`（remotion-still / reference-frame / generated-image / photographic）。
+
+所有批准记录必须带 `contentHash`（被批准文件的 sha256）；文件内容变更后旧批准失效。
+
 - 每个方向尽量用同一个内容节点（如 L1）；
 - 比较画布用相同临时尺寸，但不锁定最终画幅；
 - **允许各方向使用自己的字体、配色、材质、空间组织**——这些正是要比较的差异；
@@ -107,6 +112,7 @@
   "artifactId": "layout-S01-v1",
   "stage": "scene-layout",
   "sceneId": "S01",
+  "contentHash": "<layout-file-sha256>",
   "status": "approved-with-changes",
   "version": 1,
   "sourceUnits": ["L1"],

@@ -194,7 +194,8 @@ for (const [i, inv] of invariants.entries()) {
 need(hasLocked, 'content.invariants 至少要有 1 条 locked（哪些不能改必须说清）');
 
 // 故事时间 vs 播放时间
-const hasStoryTime = units.some((u) => isStr(u.text) && /[零一二三四五六七八九十百两\d]+点/.test(u.text));
+// 只匹配“七点/7点/七点零五分”，不误伤“一点点/有一点/这一点”
+const hasStoryTime = units.some((u) => isStr(u.text) && /(?<![一这有])[零一二三四五六七八九十百两\d]+点(?!点)/.test(u.text));
 if (hasStoryTime) {
   need(
     invariants.some((x) => isStr(x.rule) && /(故事时间|播放时间|story\s*time)/i.test(x.rule)),
@@ -281,7 +282,7 @@ for (const [i, q] of (doc.openQuestions ?? []).entries()) {
 // ---------- 占位/空话 ----------
 const text = JSON.stringify(doc);
 need(!/待定|TODO|TBD|占位符|xxx|待补充/i.test(text), '还有占位符/待定');
-need(!/<[^>]+>/.test(text.replace(/https?:\/\/[^\s"]+/g, '')), '还有尖括号占位');
+need(!/<[^>]*(占位|placeholder|TODO|TBD)[^>]*>/i.test(text), '还有尖括号占位标记');
 
 if (errors.length) {
   console.error(`✗ intent-brief 未通过（${errors.length} 项）：`);

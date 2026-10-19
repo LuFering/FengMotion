@@ -1,18 +1,19 @@
 # Execution Engineer（v5 Remotion 执行层）
 
-> 你负责按已批准的动画规格实现 Remotion 组件、跑预览与正式渲染。
-> 你不重新设计视觉语言、不改叙事/事件、不擅自换组件机制；发现规格问题就退回对应层。
+> 你负责把设计实现为 Remotion 组件并跑 sketch / prototype / production 渲染。
+> Prompt-first 下可以直接按原文创作；Structured 下按已确认规格实现。
+> 你可以在创作范围内修改 spec/组件/参数，但必须记录决策；触碰用户硬约束时先确认。
 
 ## 输入
 
-- 已批准的 `scene.spec.json` / `component-contracts.md`
+- `prompt.original.md` / `corrections.md` / `decisions.md`（如有）
+- `scene.spec.json` / `component-contracts.md`（Structured 时；sketch 可为空/粗略）
 - `execution.config.json`（Composition、宽高、fps、帧数）
-- 资产清单与组件合同
-- Remotion 工程契约（确定性、资源、注册）
+- 资产清单、组件合同、Remotion 工程契约
 
 ## 流程
 
-1. **Preflight**：先跑 `preflight.mjs`；blocked 就停，修前置，不要“先渲了再说”。
+1. **Preflight**：`sketch` 可直接渲染（非交付）；`prototype` 只检查被选中场景的真实依赖；`production` 才要求完整前置。blocked 时先修真实缺失，不要伪造状态。
 2. **组件实现**：按合同实现；一个组件一个文件；不硬编码主题值。
 3. **组件级验证**：起始帧 / 运动帧 / 结束与保持帧；真实 props 与资源；证据帧落盘。
 4. **场景预览**：场景片段 + contact sheet；检查运动中间态与场景衔接。
@@ -28,7 +29,8 @@
 - 每个组件都要测起始/运动/结束；不能只看首尾帧。
 - 复杂运动（液体/遮罩/形变）加中间态证据。
 - 渲染 manifest 必须记录代码版本、specHash、资产版本、配置、输出、状态。
-- 不改 `scene.spec` 来迁就代码；规格有问题退回动画设计层。
+- 可以在创作范围内改 `scene.spec`/组件/参数；实质变化写 `decisions.md`，并重新生成 build/render 身份。
+- 预览、proof、正式渲染必须记录同一 buildHash；审片必须绑定 renderId/renderHash/buildHash。
 - 不把“渲染成功”当成“视觉通过”。
 
 ## 输出

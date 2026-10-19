@@ -13,13 +13,24 @@ import path from 'node:path';
 
 const target = process.argv[2];
 if (!target) {
-  console.error('用法：node tools/validate.mjs <file.json | film-dir>');
+  console.error('用法：node tools/validate.mjs <file.json | film-dir> [--profile creative|strict]');
   process.exit(2);
 }
-
+const profileArg = process.argv.find((a) => a.startsWith('--profile='));
+const profile = profileArg ? profileArg.split('=')[1] : 'creative';
+if (!['creative', 'strict'].includes(profile)) {
+  console.error('--profile 必须是 creative 或 strict');
+  process.exit(2);
+}
+const strict = profile === 'strict';
 const errors = [];
+const warnings = [];
 const need = (cond, msg) => {
   if (!cond) errors.push(msg);
+};
+// 创意配额：默认只警告；strict 才当失败
+const soft = (cond, msg) => {
+  if (!cond) (strict ? errors : warnings).push(msg);
 };
 const isStr = (v) => typeof v === 'string' && v.trim().length > 0;
 const isArr = (v) => Array.isArray(v);
@@ -27,20 +38,8 @@ const isObj = (v) => v && typeof v === 'object' && !Array.isArray(v);
 const isBool = (v) => typeof v === 'boolean';
 
 const SCENE_KEYS = ['sceneSpec', 'shotList', 'storyboard', 'componentProps', 'frames'];
-const VISUAL_SPEC_KEYS = [
-  'palette',
-  'typography',
-  'camera',
-  'lens',
-  'lighting',
-  'shotPlan',
-  'mechanism',
-  'procedural',
-  'acceptance',
-  'durationSec',
-  'aspectRatio',
-  'fps',
-];
+// 方向层允许写具体 palette/lighting/camera/typography；仍禁止提前写场景规格与时长/fps
+const VISUAL_SPEC_KEYS = ['shotPlan', 'mechanism', 'procedural', 'acceptance', 'durationSec', 'aspectRatio', 'fps'];
 
 function scanKeys(obj, banned, p = '$') {
   if (Array.isArray(obj)) {
@@ -141,7 +140,7 @@ function checkDirections(doc, dir) {
   need(['exploration', 'direct'].includes(mode), 'directions.mode 必须是 exploration/direct');
   const minDirs = mode === 'direct' ? 1 : 2;
   const maxDirs = mode === 'direct' ? 2 : 3;
-  need(isArr(doc.directions) && doc.directions.length >= minDirs && doc.directions.length <= maxDirs, `directions 在 ${mode} 模式需要 ${minDirs}–${maxDirs} 个方向`);
+  soft(isArr(doc.directions) && doc.directions.length >= minDirs && doc.directions.length <= maxDirs, `directions 在 ${mode} 模式建议 ${minDirs}–${maxDirs} 个方向`);
   const ids = new Set();
   for (const [i, d] of (doc.directions ?? []).entries()) {
     const p = `directions[${i}]`;
@@ -171,7 +170,7 @@ function checkDirections(doc, dir) {
   if (units.length) {
     for (const [i, d] of (doc.directions ?? []).entries()) {
       const mapped = (d.contentMapping ?? []).map((m) => m.sourceUnitId);
-      for (const u of units) need(mapped.includes(u), `directions[${i}] 没有映射 ${u}`);
+      for (const u of units) soft(mapped.includes(u), `directions[${i}] 没有映射 ${u}（默认只警告；用户要求完整呈现时才必须）`);
       need(new Set(mapped).size === mapped.length, `directions[${i}].contentMapping 有重复 unit`);
     }
   }
@@ -186,13 +185,13 @@ function checkDirections(doc, dir) {
         const b = doc.directions[j];
         let diff = dims.filter((k) => a[k] !== b[k]).length;
         if (motion(a) !== motion(b)) diff += 1;
-        need(diff >= 3, `${a.id} 与 ${b.id} 差异不足（5 维中仅 ${diff} 维不同）；不能只靠颜色/字体/形容词制造方向差异`);
+        soft(diff >= 3, `${a.id} 与 ${b.id} 差异不足（5 维中仅 ${diff} 维不同）；建议增加实质差异，但不阻断创作`);
       }
     }
   }
 
   if ((doc.directions ?? []).length >= 2) {
-    need(isArr(doc.comparison) && doc.comparison.length >= 4, '多方向时 comparison 至少 4 个比较维度');
+    soft(isArr(doc.comparison) && doc.comparison.length >= 4, '多方向时建议 comparison 至少 4 个比较维度');
   } else {
     need(doc.comparison === undefined || isArr(doc.comparison), 'comparison 必须是数组');
   }
@@ -250,8 +249,8 @@ function checkDecision(doc, dir) {
   const directionsDoc = readJson(dir, doc.basedOn?.directions, 'basedOn.directions');
   const dirMode = directionsDoc?.mode ?? 'exploration';
   const rec = (doc.criteria ?? []).filter((c) => c.assessments?.[doc.recommendedDirectionId]?.level === 'strong').length;
-  if (dirMode === 'exploration') need(rec >= 3, `探索模式推荐方向至少 3 个维度 strong（当前 ${rec}）`);
-  else need(rec >= 1, `direct 模式推荐方向至少 1 个维度 strong（当前 ${rec}）`);
+  if (dirMode === 'exploration') soft(rec >= 3, `探索模式推荐方向建议至少 3 个维度 strong（当前 ${rec}）`);
+  else soft(rec >= 1, `direct 模式推荐方向建议至少 1 个维度 strong（当前 ${rec}）`);
 
   need(isArr(doc.alternatives), 'alternatives 必须是数组');
   for (const [i, id] of (doc.alternatives ?? []).entries()) {
@@ -318,7 +317,7 @@ function checkVisual(doc, dir) {
 
   const units = intentUnits(dir, doc.basedOn?.intentBrief, 'basedOn.intentBrief');
   const mapped = (doc.contentMapping ?? []).map((m) => m.sourceUnitId);
-  for (const u of units) need(mapped.includes(u), `contentMapping 缺少 ${u}`);
+  for (const u of units) soft(mapped.includes(u), `contentMapping 缺少 ${u}（默认只警告；用户要求完整呈现时才必须）`);
   need(new Set(mapped).size === mapped.length, 'contentMapping 有重复 unit');
   for (const [i, m] of (doc.contentMapping ?? []).entries()) {
     need(isStr(m.sourceUnitId), `contentMapping[${i}].sourceUnitId 不能为空`);
@@ -342,9 +341,12 @@ function checkVisual(doc, dir) {
   }
 
   const decisions = doc.decisions ?? {};
+  const intent = readJson(dir, doc.basedOn?.intentBrief, 'basedOn.intentBrief');
   for (const k of ['durationSec', 'aspectRatio', 'fps', 'audio', 'sceneTimeline', 'componentContracts']) {
     const v = decisions[k];
-    need(v === 'unresolved' || v === 'not-designed', `decisions.${k} 只能是 unresolved/not-designed（不能在方向层写死）`);
+    const locked = intent?.productionDecisions?.[k]?.status === 'locked';
+    if (locked) need(v !== 'unresolved' && v !== 'not-designed', `intent 已锁定 ${k}，方向层必须带下去，不能写成未决`);
+    else need(v === 'unresolved' || v === 'not-designed', `decisions.${k} 只能是 unresolved/not-designed（未锁定前不能在方向层写死）`);
   }
 
   need(isStr(doc.heroFrameBrief), 'heroFrameBrief 必须写关键画面 brief 的路径');
@@ -389,10 +391,12 @@ function validateOne(file) {
   else if (doc.type === 'direction-decision') checkDecision(doc, dir);
   else if (doc.type === 'visual-direction') checkVisual(doc, dir);
   else errors.push(`${path.basename(file)} 未知 type：${doc.type}`);
+  docsText.push(JSON.stringify(doc));
   const n = errors.length - before;
   console.log(`${n === 0 ? '✓' : '✗'} ${path.basename(file)}${n ? `（${n} 项）` : ''}`);
 }
 
+const docsText = [];
 const abs = path.resolve(process.cwd(), target);
 if (!fs.existsSync(abs)) {
   console.error(`路径不存在：${target}`);
@@ -410,12 +414,16 @@ if (st.isDirectory()) {
   validateOne(abs);
 }
 
-const text = JSON.stringify(errors);
+const text = docsText.join('\n');
 need(!/TODO|TBD|占位符|待补充/i.test(text), '输出里还有占位符/待定');
 
+if (warnings.length) {
+  console.warn(`\n⚠ 创意建议（${warnings.length} 项，不阻断；--profile=strict 才失败）：`);
+  for (const w of warnings) console.warn('  - ' + w);
+}
 if (errors.length) {
   console.error(`\n✗ 导演/视觉方向层未通过（${errors.length} 项）：`);
   for (const e of errors) console.error('  - ' + e);
   process.exit(1);
 }
-console.log('\n✓ 导演/视觉方向层通过：方向差异、决策状态、关键画面交接均符合边界。');
+console.log(`\n✓ 导演/视觉方向层通过（profile=${profile}）：技术契约与边界合法。`);

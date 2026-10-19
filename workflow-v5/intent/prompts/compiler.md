@@ -12,6 +12,7 @@
 - 不读：旧片、旧 workflow、其他 film 的 brief、production 代码、聊天记录。
 - 不继承上一次任务的视觉结论；每次从用户输入重新开始。
 - 输出只有 JSON，不写最终分镜、不写 Remotion 代码、不写视频生成提示词。
+- 用户原始输入保存在 `prompt.original.md`（Prompt-first 项目）；本层的 `intent-brief.json` 是约束账本，**不能替代原文**，下游创作/审片必须能读取原文。
 
 ## 五类信息必须分开
 

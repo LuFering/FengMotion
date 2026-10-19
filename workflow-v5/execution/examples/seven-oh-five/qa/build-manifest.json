@@ -1,0 +1,36 @@
+{
+  "schemaVersion": "1.0",
+  "type": "build-manifest",
+  "filmId": "seven-oh-five",
+  "createdAt": "2026-10-19T05:37:03.397Z",
+  "root": "examples/seven-oh-five",
+  "fileCount": 5,
+  "buildHash": "3f739a1d7570d43c42767915c216a87bd9f2580cb0ecd1cd974aa152ec23935c",
+  "files": [
+    {
+      "path": "../../../animation/examples/seven-oh-five/animation-blueprint.json",
+      "sha256": "ade29451d7eef174a1c44731c92a6d07abf0c81a52f6e25c920730965f328a89",
+      "size": 12410
+    },
+    {
+      "path": "../../../animation/examples/seven-oh-five/component-contracts.md",
+      "sha256": "c0927d4a23987111b1f68016a0c222a8879b94722d9bd95cf81af2e9a1f09d01",
+      "size": 2588
+    },
+    {
+      "path": "../../../animation/examples/seven-oh-five/implementation-plan.json",
+      "sha256": "c0ed8354f76c3d7faeaeae4329d25668fdd3d5b638d0957d204728d749ff0568",
+      "size": 6266
+    },
+    {
+      "path": "../../../animation/examples/seven-oh-five/scene.spec.draft.json",
+      "sha256": "27d66447287d4e8581983dbc15c4214d4d9b582a8772b27aea2b7d903449e4c0",
+      "size": 5334
+    },
+    {
+      "path": "execution.config.json",
+      "sha256": "5f184a7cae0fc8b817414748d6cbea4720873b64be48d8922b21fbc906455a69",
+      "size": 591
+    }
+  ]
+}

@@ -7,7 +7,9 @@
 
 - 全片预览与正式成片（必须完整观看）
 - 场景预览、contact sheet、证据帧
-- `animation-blueprint.json` / `scene.spec.json` / 组件合同
+- `prompt.original.md` / `corrections.md` / `decisions.md`
+- `render-manifest.json` / `build-manifest.json`（确认 renderId、renderHash、buildHash）
+- `animation-blueprint.json` / `scene.spec.json` / 组件合同（如有）
 - 设计验收条件与视觉方向
 
 ## 输出
@@ -16,7 +18,14 @@
 
 ```json
 {
+  "reviewId": "review-001",
+  "renderId": "render-001",
+  "renderHash": "<actual-output-hash>",
+  "buildHash": "<actual-build-hash>",
+  "reviewer": { "type": "model", "id": "qa-reviewer" },
   "status": "needs-revision",
+  "reviewedRanges": [[0, 300]],
+  "fullPlaybackReviewed": true,
   "findings": [
     {
       "id": "issue-001",
@@ -37,12 +46,14 @@
 
 ## 规则
 
-- 必须看连续预览，不能只凭关键帧批准。
-- 每条 finding 必须有证据帧/时间码 + 对应设计验收条件；不能写“看起来不够高级”。
+- 必须看连续预览，不能只凭关键帧批准；`fullPlaybackReviewed` 必须如实记录。
+- 允许 `holistic` 类 finding（整体节奏、叙事、视觉密度、声音/画面关系、情绪推进），不要求每条都对应预先写下的 acceptance 条款。
+- 每条 finding 必须有证据帧/时间码 + 具体观察/期望；不能写“看起来不够高级”。
 - 严重程度：`blocker`（无法观看/缺失/硬约束）、`major`（关键事件/跳变/风格不一致）、`minor`（局部细节）。
 - `likelyOwner` 必须是可路由的层：creative-direction / animation-design / visual-system / asset-workflow / component-contract / remotion-execution / render-delivery。
 - 发现问题不改别人的设计；写 issue，由对应层修。
 - `approved` 时不能有未处理的 blocker/major；`needs-revision` 时不得交付。
+- AI 审片只能写 `auto-reviewed`/`recommended-pass`；不能伪装成用户确认。
 - 用户/AI 的 `humanDecision` 要记录；AI 不单方面宣布通过。
 
 ## 问题路由

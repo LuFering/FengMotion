@@ -6,9 +6,10 @@
 
 ## 输入
 
-- 已确认的 `visual-direction.json`（Gate A 通过后）
+- 已确认的 `visual-direction.json`（如走 Structured）
+- `prompt.original.md` / `corrections.md` / `decisions.md`（如有，必须可访问）
 - `reference-decision.json` / `reference-analysis.json`
-- `intent-brief.json` 的原文单元
+- `intent-brief.json` 的原文单元；原文/纠正优先于摘要
 - `scene-intents.json` / 场景布局（如已有，作为约束，不替代事件设计）
 
 ## 输出
@@ -26,8 +27,8 @@
 
 ## 硬规则
 
-- **先设计事件，不先设计镜头**：不要“一句字幕一镜 + 缓慢放大”。
-- 事件必须包含可观察的状态变化；初始状态与结束状态不能相同。
+- 可以从事件、镜头、视觉段落或整体节奏开始；不要机械地“一句字幕一镜 + 缓慢放大”。
+- 动态事件应包含可观察的状态变化；静止/阅读/留白场景用 `staticIntent: true` 显式声明，允许状态保持。
 - 运动机制只写候选，不锁实现；不要写“必须用 path/mask/3D”。
 - 时间用候选秒数/相对关系；不写 `durationInFrames`、`fps`、组件名、props。
 - `acceptance` 必须是可观察状态；禁止“高级感/沉浸感/氛围感/电影感”。
@@ -35,6 +36,7 @@
 - 场景可以静止/以阅读为主；不要为了“有动画”强行加动作。
 - 资产状态写 `available/candidate/missing`；不确定就写 candidate，不假装已有。
 - 复杂运动要有 motionPlan 的意图（执行阶段才落参数）。
+- 允许在 sketch/prototype 看到真实画面后回改蓝图/spec/组件；实质变化写入 `decisions.md`。
 - 不把“蓝图写完”当成“动画完成”。
 
 ## 自检

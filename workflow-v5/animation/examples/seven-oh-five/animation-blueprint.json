@@ -412,5 +412,9 @@
       "staticIntent": false
     }
   ],
-  "status": "draft"
+  "status": "draft",
+  "textPolicy": {
+    "captions": "required",
+    "verbatimRequired": true
+  }
 }

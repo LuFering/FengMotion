@@ -12,6 +12,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import { computeBuildManifest } from './lib/build.mjs';
 
 const args = process.argv.slice(2);
 const configArg = args.find((a) => !a.startsWith('--'));
@@ -39,15 +40,36 @@ const add = (id, status, detail) => {
 };
 
 const mode = config.mode ?? 'production';
-add('config/mode', ['prototype', 'production'].includes(mode) ? 'pass' : 'blocked', `mode=${mode}`);
+add('config/mode', ['sketch', 'prototype', 'production'].includes(mode) ? 'pass' : 'blocked', `mode=${mode}`);
+
+// sketch：明确非交付，允许不完整依赖，不做正式门禁
+if (mode === 'sketch') {
+  const report = {
+    schemaVersion: '1.0', type: 'preflight-report', filmId: config.filmId, mode, status: 'passed',
+    checks: [{ id: 'mode/sketch', status: 'pass', detail: 'sketch 允许临时组件/占位素材；产物不可交付' }],
+    blocking: [], hashes: {}, nonDeliverable: true, createdAt: new Date().toISOString(),
+  };
+  if (outArg) {
+    const outPath = path.resolve(baseDir, outArg);
+    fs.mkdirSync(path.dirname(outPath), { recursive: true });
+    fs.writeFileSync(outPath, JSON.stringify(report, null, 2) + '\n');
+    console.log(`wrote ${outArg}`);
+  }
+  console.log('preflight(sketch): passed（非交付；允许不完整依赖）');
+  process.exit(0);
+}
 
 // 1. 设计交接
 const gate = readJson(abs(path.join(P.gates ?? '', 'direction-gate.json')));
-const gateAOk = gate?.status === 'confirmed' && gate?.confirmation?.status === 'approved' && gate.confirmation.version === gate.version && (!gate?.lookDev?.required || gate.lookDev?.status === 'passed');
+const gateAOk = gate?.status === 'confirmed' && gate?.confirmation?.status === 'approved' && gate.confirmation.version === gate.version && (!gate?.lookDev?.required || gate.lookDev?.status === 'passed') && (gate.confirmation.confirmedBy === 'user' || config.allowAutopilotApprovals === true);
 add(
   'design-handoff/gate-a',
-  gateAOk ? 'pass' : 'blocked',
-  gateAOk ? `Gate A 已确认（v${gate.version}）` : `Gate A 状态=${gate?.status ?? '缺失'} / 确认=${gate?.confirmation?.status ?? '无'} / lookDev=${gate?.lookDev?.status ?? '无'}，需当前版本 approved 且写实方向有 Look-dev`,
+  mode === 'prototype' || gateAOk ? 'pass' : 'blocked',
+  mode === 'prototype'
+    ? 'prototype 不要求 Gate A（先验证方向和实现路线）'
+    : gateAOk
+      ? `Gate A 已确认（v${gate.version}）`
+      : `Gate A 状态=${gate?.status ?? '缺失'} / 确认=${gate?.confirmation?.status ?? '无'} / lookDev=${gate?.lookDev?.status ?? '无'}，需当前版本 approved 且写实方向有 Look-dev`,
 );
 
 const intents = readJson(abs(path.join(P.gates ?? '', 'scene-intents.json')));
@@ -70,7 +92,7 @@ const sceneMissing = sceneIds.filter((id) => {
   const r = records
     .filter((x) => x.stage === 'scene-layout' && x.sceneId === id)
     .sort((a, b) => (b.version ?? 0) - (a.version ?? 0))[0];
-  return !(r && r.status === 'approved' && r.version === lv);
+  return !(r && r.status === 'approved' && r.version === lv && (r.confirmedBy === 'user' || config.allowAutopilotApprovals === true));
 });
 add(
   'design-handoff/gate-b',
@@ -87,38 +109,55 @@ add('design-handoff/animation-blueprint', mode === 'prototype' || blueprint?.sta
 const implementation = readJson(abs(path.join(P.animation ?? '', 'implementation-plan.json')));
 add('design-handoff/implementation-plan', mode === 'prototype' || implementation?.status === 'approved' ? 'pass' : 'blocked', mode === 'prototype' ? 'prototype 允许 draft 实现计划' : implementation?.status === 'approved' ? '实现计划已批准' : `实现计划状态为 ${implementation?.status ?? '缺失'}`);
 
-// 2. 组件 / 资产：逐项路径与状态
+// 2. 组件 / 资产：prototype 只检查被选中场景实际引用的依赖
 const comps = implementation?.components ?? [];
-const badCompStatus = comps.filter((c) => mode === 'production' && c.status !== 'available');
-const badCompPath = comps.filter((c) => !c.path || !exists(abs(c.path)));
+const assets = implementation?.assets ?? [];
+const sceneMap = implementation?.sceneMap ?? [];
+const selectedScenes = mode === 'prototype' && Array.isArray(config.prototypeScenes) && config.prototypeScenes.length > 0
+  ? new Set(config.prototypeScenes)
+  : null;
+const relevantMap = selectedScenes ? sceneMap.filter((m) => selectedScenes.has(m.sceneId)) : sceneMap;
+const relevantCompIds = relevantMap.length > 0 ? new Set(relevantMap.map((m) => m.component)) : null;
+const relevantAssetIds = relevantMap.length > 0 ? new Set(relevantMap.flatMap((m) => m.assetIds ?? [])) : null;
+const relevantComps = relevantCompIds ? comps.filter((c) => relevantCompIds.has(c.id)) : comps;
+const relevantAssets = relevantAssetIds ? assets.filter((a) => relevantAssetIds.has(a.id)) : assets;
+const badCompStatus = relevantComps.filter((c) => mode === 'production' && c.status !== 'available');
+const badCompPath = relevantComps.filter((c) => !c.path || !exists(abs(c.path)));
 add(
   'spec/components',
-  comps.length > 0 && (mode === 'prototype' ? badCompPath.length === 0 : badCompStatus.length === 0 && badCompPath.length === 0) ? 'pass' : 'blocked',
   mode === 'prototype'
-    ? badCompPath.length
-      ? `${badCompPath.length}/${comps.length} 个组件文件不存在（prototype 也要求真实文件）`
-      : 'prototype：组件文件存在（允许 candidate）'
-    : badCompStatus.length
-      ? `${badCompStatus.length}/${comps.length} 个组件仍为 candidate/missing（production 不允许）`
+    ? (relevantComps.length === 0 || badCompPath.length === 0) ? 'pass' : 'blocked'
+    : relevantComps.length > 0 && badCompStatus.length === 0 && badCompPath.length === 0 ? 'pass' : 'blocked',
+  mode === 'prototype'
+    ? relevantComps.length === 0
+      ? 'prototype：无组件计划（允许先写可运行代码）'
       : badCompPath.length
-        ? `${badCompPath.length}/${comps.length} 个组件文件不存在（检查 path）`
+        ? `${badCompPath.length}/${relevantComps.length} 个被选中组件文件不存在（prototype 也要求真实文件）`
+        : `prototype：${relevantComps.length} 个被选中组件文件存在（允许 candidate）`
+    : badCompStatus.length
+      ? `${badCompStatus.length}/${relevantComps.length} 个组件仍为 candidate/missing（production 不允许）`
+      : badCompPath.length
+        ? `${badCompPath.length}/${relevantComps.length} 个组件文件不存在（检查 path）`
         : '所有组件文件存在且可用',
 );
 
-const assets = implementation?.assets ?? [];
-const badAssetStatus = assets.filter((a) => mode === 'production' && a.status !== 'available');
-const badAssetPath = assets.filter((a) => !a.path || !exists(abs(a.path)));
+const badAssetStatus = relevantAssets.filter((a) => mode === 'production' && a.status !== 'available');
+const badAssetPath = relevantAssets.filter((a) => !a.path || !exists(abs(a.path)));
 add(
   'spec/assets',
-  assets.length > 0 && (mode === 'prototype' ? badAssetPath.length === 0 : badAssetStatus.length === 0 && badAssetPath.length === 0) ? 'pass' : 'blocked',
   mode === 'prototype'
-    ? badAssetPath.length
-      ? `${badAssetPath.length}/${assets.length} 项资产文件不存在（prototype 也要求真实文件）`
-      : 'prototype：资产文件存在（允许 candidate）'
-    : badAssetStatus.length
-      ? `${badAssetStatus.length}/${assets.length} 项资产仍为 candidate/missing（production 不允许）`
+    ? relevantAssets.length === 0 || badAssetPath.length === 0 ? 'pass' : 'blocked'
+    : relevantAssets.length > 0 && badAssetStatus.length === 0 && badAssetPath.length === 0 ? 'pass' : 'blocked',
+  mode === 'prototype'
+    ? relevantAssets.length === 0
+      ? 'prototype：零外部资产（纯程序化合法）'
       : badAssetPath.length
-        ? `${badAssetPath.length}/${assets.length} 项资产文件不存在（检查 path）`
+        ? `${badAssetPath.length}/${relevantAssets.length} 项被选中资产文件不存在（prototype 也要求真实文件）`
+        : `prototype：${relevantAssets.length} 项被选中资产文件存在（允许 candidate）`
+    : badAssetStatus.length
+      ? `${badAssetStatus.length}/${relevantAssets.length} 项资产仍为 candidate/missing（production 不允许）`
+      : badAssetPath.length
+        ? `${badAssetPath.length}/${relevantAssets.length} 项资产文件不存在（检查 path）`
         : '所有资产文件存在且可用',
 );
 
@@ -152,7 +191,7 @@ const proofOk =
   exists(abs(proof.video ?? '')) &&
   proof.specHash === specHash &&
   proof.configHash === configHash &&
-  ['user', 'autopilot'].includes(proof.approvedBy);
+  (proof.approvedBy === 'user' || (proof.approvedBy === 'autopilot' && config.allowAutopilotProduction === true && proof.approvalType === 'auto'));
 add(
   'gate-c/motion-proof',
   mode === 'production' ? (proofOk ? 'pass' : 'blocked') : proof?.status === 'passed' ? (proofOk ? 'pass' : 'blocked') : 'pass',
@@ -174,6 +213,20 @@ add('engineering/components-dir', mode === 'prototype' || tsx.length > 0 ? 'pass
 const assetsDir = abs(P.assets ?? 'assets');
 add('engineering/assets-dir', mode === 'prototype' || exists(assetsDir) ? 'pass' : 'blocked', mode === 'prototype' ? 'prototype 由逐资产 path 检查' : exists(assetsDir) ? 'assets/ 存在' : 'assets/ 不存在');
 
+const buildManifest = readJson(abs(path.join(P.qa ?? 'qa', 'build-manifest.json')));
+const currentBuild = computeBuildManifest({ root: baseDir, configPath, config });
+const buildOk =
+  buildManifest?.type === 'build-manifest' &&
+  typeof buildManifest.buildHash === 'string' &&
+  buildManifest.buildHash === currentBuild.buildHash &&
+  Array.isArray(buildManifest.files) &&
+  buildManifest.files.length >= 1;
+add(
+  'build/manifest',
+  mode === 'sketch' || buildOk ? 'pass' : 'blocked',
+  mode === 'sketch' ? 'sketch 不要求 build manifest' : buildOk ? `buildHash=${buildManifest.buildHash.slice(0, 12)}…（${buildManifest.fileCount ?? buildManifest.files.length} 个输入）` : '缺少/过期 qa/build-manifest.json（先跑 build-manifest.mjs；buildHash 必须匹配当前输入）',
+);
+
 const out = config.output ?? {};
 const outputOk = Number.isInteger(out.width) && Number.isInteger(out.height) && Number.isInteger(out.fps) && Number.isInteger(out.durationInFrames);
 add('output/config', outputOk ? 'pass' : 'blocked', outputOk ? `输出规格 ${out.width}×${out.height} / ${out.fps}fps / ${out.durationInFrames}f` : 'execution.config.output 缺宽高/fps/帧数');
@@ -187,7 +240,7 @@ const report = {
   status,
   checks,
   blocking,
-  hashes: { specHash, configHash },
+  hashes: { specHash, configHash, buildHash: buildManifest?.buildHash ?? null },
   config: { composition: out.composition, width: out.width, height: out.height, fps: out.fps, durationInFrames: out.durationInFrames },
   createdAt: new Date().toISOString(),
 };

@@ -14,12 +14,19 @@
 | 5 正式渲染 + 自动 QA | 成片 + 媒体规格/完整性/复现记录 | `qa/render-manifest.json` + `qa/acceptance-report.json` | 渲染配置 / 实现 |
 | 6 视觉审片 + 交付 | 真实成片的问题定位、返工、批准 | `qa/visual-review.json` + `qa/iteration-log.json` + `qa/delivery-manifest.json` | 按问题类型路由 |
 
-## 两种模式
+## 三种执行模式
 
-- `prototype`：允许 candidate 组件/资产，用于生成 10s 运动证明；仍要求文件路径真实存在、规格合法。
-- `production`：要求 Gate A/B/C 通过、组件/资产 `available`、证明与当前 spec/config 哈希一致；才允许全片预览与正式成片。
+- `sketch`：自由探索/渲染，明确非交付；允许不完整依赖，不做正式门禁。
+- `prototype`：允许 candidate 组件/资产、零外部资产、只验证选中场景（`prototypeScenes`）；不要求 Gate A/B、正式批准或全片资产；要求真实文件、规格合法、build manifest。
+- `production`：要求 Gate A/B/C 通过、组件/资产 `available`、proof 与当前 spec/config/build 哈希一致；才允许全片预览与正式成片。
 
-Gate C 产物是 `qa/motion-proof.json`：10s 证明视频、使用的 specHash/configHash、验收条件、问题与批准结果。正式 preflight 必须核对版本一致。
+Gate C 产物是 `qa/motion-proof.json`：10s 证明视频、specHash/configHash/buildHash、验收条件、问题与批准结果。production preflight 必须核对版本一致。
+
+## Build identity
+
+`qa/build-manifest.json` 由 `tools/build-manifest.mjs` 生成，覆盖 config、动画 spec/蓝图/合同、组件源码、素材、package/lockfile，排除 qa/out/缓存。
+`buildHash` 是确定性聚合；preview、proof、正式渲染、visual-review 都必须引用同一个 buildHash。
+修改组件/素材/spec/config 后 buildHash 变化，旧 preview/review 自动 stale。
 
 ## 关键规则
 
@@ -37,6 +44,8 @@ films/<film-id>/
   execution.config.json
   qa/
     preflight-report.json
+    build-manifest.json
+    motion-proof.json
     component-test-report.json
     preview-report.json
     render-manifest.json
@@ -51,13 +60,10 @@ films/<film-id>/
 
 ## Preflight 检查
 
-- Gate A 方向已确认、Gate B 场景布局已批准；
-- 动画蓝图/实现计划/scene.spec 已批准；
-- 组件与资产 `available`（candidate/missing 直接阻塞）；
-- `components/*.tsx` 存在、`assets/` 已落盘；
-- `timingCompile` 已确认，fps/帧数与 `execution.config` 一致；
-- 组件合同存在；
-- 确定性/依赖/字体/资源规则（由实现层补充检查）。
+- `sketch`：只要求 config 可解析，产物不可交付。
+- `prototype`：只检查被 `prototypeScenes` 选中场景的组件/资产路径；允许零外部资产；不要求 Gate A/B。
+- `production`：Gate A 已确认且写实方向 Look-dev 通过、Gate B 逐场景当前版本批准、蓝图/实现计划/spec 已批准、组件/资产 available、timing 已确认、Gate C proof 与当前 spec/config/build 一致。
+- 所有模式：fps/宽高/帧数与 config 一致；组件合同存在；build manifest 存在（sketch 除外）。
 
 ## 渲染身份（render-manifest）
 
@@ -65,12 +71,12 @@ films/<film-id>/
 
 - `renderId` / `mode` / `composition`；
 - `codeVersion`（git 版本或可追溯标识）；
-- `specHash` / `assetManifestHash` / `configHash` / `propsHash`；
+- `specHash` / `assetManifestHash` / `configHash` / `propsHash` / `buildHash` / `renderHash`；
 - fps / width / height / durationInFrames；
 - 渲染配置（codec/crf/concurrency）；
 - `output` 路径、`status`、`createdAt`。
 
-预览与正式渲染的 `specHash` / `configHash` 必须一致；否则不是同一份东西。
+预览、proof、正式渲染、visual-review 的 `buildHash` 必须一致；`renderHash` 是实际输出文件 sha256。旧 build 的审片自动 stale。
 
 ## 自动 QA（acceptance-report）
 
@@ -84,7 +90,14 @@ films/<film-id>/
 
 ```json
 {
+  "reviewId": "review-001",
+  "renderId": "render-001",
+  "renderHash": "<actual-output-sha256>",
+  "buildHash": "<actual-build-hash>",
+  "reviewer": { "type": "model", "id": "qa-reviewer" },
   "status": "needs-revision",
+  "reviewedRanges": [[0, 300]],
+  "fullPlaybackReviewed": true,
   "findings": [
     {
       "id": "issue-001",
@@ -104,7 +117,9 @@ films/<film-id>/
 ```
 
 严重程度：`blocker` / `major` / `minor`。
-`approved` 时不允许有未处理的 blocker/major；`needs-revision` 时不得交付。
+`approved` 时不允许有未处理的 blocker/major，且必须 `fullPlaybackReviewed: true`；`needs-revision` 时不得交付。
+每条 finding 必须绑定当前 `renderId/renderHash/buildHash`；build 变化后旧 review 自动失效。
+AI 审片只能标 `auto-reviewed`/`recommended-pass`，不能伪装成用户确认。
 
 ## 问题路由
 
@@ -146,6 +161,7 @@ workflow-v5/execution/
 
 ```bash
 cd workflow-v5/execution
+node tools/build-manifest.mjs examples/seven-oh-five/execution.config.json --out qa/build-manifest.json
 node tools/preflight.mjs examples/seven-oh-five/execution.config.json --out qa/preflight-report.json
 node tools/validate-execution.mjs examples/seven-oh-five
 ```

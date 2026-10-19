@@ -81,6 +81,8 @@ workflow-v5/animation/
 
 ```bash
 cd workflow-v5/animation
+# 默认 creative：场景数/阶段数等只 warning；strict 才失败
+node tools/validate-animation.mjs examples/seven-oh-five --profile=creative
 node tools/validate-animation.mjs examples/seven-oh-five
 ```
 

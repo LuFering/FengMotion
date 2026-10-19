@@ -86,6 +86,8 @@ workflow-v5/director/
 
 ```bash
 cd workflow-v5/director
+# 默认 creative：创意配额只 warning；strict 才失败
+node tools/validate.mjs examples/seven-oh-five --profile=creative
 node tools/validate.mjs examples/seven-oh-five
 ```
 

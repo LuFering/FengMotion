@@ -84,6 +84,15 @@ if (preflight) {
 }
 
 // 以下只在 preflight passed 时检查
+const buildManifest = readJson('qa/build-manifest.json');
+need(!!buildManifest, '缺少 qa/build-manifest.json（先跑 build-manifest.mjs）');
+if (buildManifest) {
+  need(buildManifest.type === 'build-manifest', 'build-manifest.type 非法');
+  need(isStr(buildManifest.buildHash) && buildManifest.buildHash.length >= 32, 'build-manifest.buildHash 不能为空');
+  need(isArr(buildManifest.files) && buildManifest.files.length >= 1, 'build-manifest.files 至少 1 个输入');
+}
+const buildHash = buildManifest?.buildHash;
+
 const proof = readJson('qa/motion-proof.json');
 need(!!proof, '缺少 qa/motion-proof.json（Gate C）');
 if (proof) {
@@ -92,6 +101,7 @@ if (proof) {
   need(existsRel(proof.video), `motion-proof.video 不存在：${proof.video}`);
   need(isStr(proof.specHash) && proof.specHash === preflight?.hashes?.specHash, 'motion-proof.specHash 必须与当前 scene.spec 一致');
   need(isStr(proof.configHash) && proof.configHash === preflight?.hashes?.configHash, 'motion-proof.configHash 必须与当前 execution.config 一致');
+  need(isStr(proof.buildHash) && proof.buildHash === buildHash, 'motion-proof.buildHash 必须与当前 build manifest 一致');
   need(['user', 'autopilot'].includes(proof.approvedBy), 'motion-proof.approvedBy 非法');
 }
 
@@ -132,6 +142,7 @@ if (preview) {
   need(existsRel(preview.fullPreview), 'preview-report.fullPreview 不存在');
   need(isStr(preview.specHash), 'preview-report.specHash 不能为空');
   need(isStr(preview.configHash), 'preview-report.configHash 不能为空');
+  need(isStr(preview.buildHash) && preview.buildHash === buildHash, 'preview-report.buildHash 必须与当前 build manifest 一致');
   need(preview.specHash === preflight?.hashes?.specHash, 'preview.specHash 必须与 preflight 的当前 spec 一致');
   need(preview.configHash === preflight?.hashes?.configHash, 'preview.configHash 必须与 preflight 的当前 config 一致');
   const requiredScenes = new Set((spec?.scenes ?? []).map((x) => x.sceneId));
@@ -148,11 +159,12 @@ if (manifest) {
   need(manifest.composition === out.composition, 'render-manifest.composition 与 execution.config 不一致');
   need(manifest.fps === out.fps && manifest.width === out.width && manifest.height === out.height && manifest.durationInFrames === out.durationInFrames, 'render-manifest 媒体规格与 execution.config 不一致');
   need(existsRel(manifest.output), `render-manifest.output 不存在：${manifest.output}`);
-  for (const k of ['codeVersion', 'specHash', 'assetManifestHash', 'configHash']) {
+  for (const k of ['codeVersion', 'specHash', 'assetManifestHash', 'configHash', 'buildHash', 'renderHash']) {
     need(isStr(manifest[k]), `render-manifest.${k} 不能为空（可追溯）`);
   }
   need(manifest.specHash === preflight?.hashes?.specHash, '正式渲染的 specHash 必须与当前 spec 一致');
   need(manifest.configHash === preflight?.hashes?.configHash, '正式渲染的 configHash 必须与当前 config 一致');
+  need(manifest.buildHash === buildHash, '正式渲染的 buildHash 必须与当前 build manifest 一致');
   if (preview) {
     need(manifest.specHash === preview.specHash, '正式渲染与预览的 specHash 不一致（不是同一份规格）');
     need(manifest.configHash === preview.configHash, '正式渲染与预览的 configHash 不一致（不是同一套配置）');
@@ -176,14 +188,26 @@ need(!!review, '缺少 qa/visual-review.json');
 if (review) {
   need(review.type === 'visual-review', 'visual-review.type 非法');
   need(['approved', 'needs-revision'].includes(review.status), 'visual-review.status 非法');
+  need(isStr(review.reviewId), 'visual-review.reviewId 不能为空');
+  need(review.renderId === manifest?.renderId, 'visual-review.renderId 必须与当前 render-manifest 一致');
+  need(isStr(review.renderHash) && review.renderHash === manifest?.renderHash, 'visual-review.renderHash 必须与当前渲染输出一致');
+  need(review.buildHash === buildHash, 'visual-review.buildHash 必须与当前 build manifest 一致（否则审片已过期）');
+  need(isArr(review.reviewedRanges) && review.reviewedRanges.length >= 1, 'visual-review.reviewedRanges 不能为空');
+  need(typeof review.fullPlaybackReviewed === 'boolean', 'visual-review.fullPlaybackReviewed 必须是布尔值');
+  need(isObj(review.reviewer) && ['model', 'human'].includes(review.reviewer.type), 'visual-review.reviewer.type 必须是 model/human');
   need(isArr(review.findings), 'visual-review.findings 必须是数组');
   for (const [i, f] of (review.findings ?? []).entries()) {
     need(isStr(f.id), `findings[${i}].id 不能为空`);
     need(['blocker', 'major', 'minor'].includes(f.severity), `findings[${i}].severity 非法`);
-    need(isStr(f.sceneId), `findings[${i}].sceneId 不能为空`);
-    need(isArr(f.frameRange) && f.frameRange.length === 2, `findings[${i}].frameRange 必须是 [start,end]`);
+    const holistic = f.scope === 'holistic' || f.category === 'holistic' || f.sceneId === 'film';
+    if (!holistic) {
+      need(isStr(f.sceneId), `findings[${i}].sceneId 不能为空（holistic finding 请标 scope=holistic）`);
+      need(isArr(f.frameRange) && f.frameRange.length === 2, `findings[${i}].frameRange 必须是 [start,end]`);
+      need(isStr(f.expected) && f.expected.length >= 6, `findings[${i}].expected 不能为空`);
+    } else {
+      need((isArr(f.frameRange) && f.frameRange.length === 2) || (isArr(f.timeRangeSec) && f.timeRangeSec.length === 2), `holistic findings[${i}] 需要 frameRange 或 timeRangeSec`);
+    }
     need(isStr(f.observation) && f.observation.length >= 6, `findings[${i}].observation 不能为空`);
-    need(isStr(f.expected) && f.expected.length >= 6, `findings[${i}].expected 不能为空`);
     need(['creative-direction', 'animation-design', 'visual-system', 'asset-workflow', 'component-contract', 'remotion-execution', 'render-delivery'].includes(f.likelyOwner), `findings[${i}].likelyOwner 非法`);
     need(isStr(f.recommendedAction) && f.recommendedAction.length >= 4, `findings[${i}].recommendedAction 不能为空`);
     need(isArr(f.evidence) && f.evidence.length >= 1, `findings[${i}].evidence 至少 1 项`);
@@ -191,6 +215,7 @@ if (review) {
     need(['pending', 'accepted', 'rejected'].includes(f.humanDecision), `findings[${i}].humanDecision 非法`);
   }
   if (review.status === 'approved') {
+    need(review.fullPlaybackReviewed === true, 'visual-review approved 前必须完整播放审查（fullPlaybackReviewed=true）');
     const open = (review.findings ?? []).filter((f) => f.humanDecision === 'pending' && f.severity !== 'minor');
     need(open.length === 0, 'visual-review approved 时不能有未处理的 blocker/major');
   }
@@ -211,6 +236,10 @@ if (delivery) {
     need(review?.status === 'approved', 'delivery delivered 前必须有 approved 的 visual-review');
     need(isStr(delivery.output) && delivery.output === manifest?.output, 'delivery.output 必须与 render-manifest 一致');
     need(['user', 'autopilot'].includes(delivery.approvedBy), 'delivery.approvedBy 非法');
+    if (delivery.approvedBy === 'autopilot') {
+      need(config?.allowAutopilotDelivery === true, 'autopilot 不能单独解锁正式交付；需项目明确 allowAutopilotDelivery=true');
+      need(delivery.approvalType === 'auto', 'autopilot 交付必须标 approvalType=auto，不能伪装用户批准');
+    }
   }
 }
 

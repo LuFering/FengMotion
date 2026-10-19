@@ -6,6 +6,11 @@
 > v3 冻结；v5 是并行新管线。核心不是“更长的提示词”，而是让每一层只回答自己的问题，
 > 每个决定都有状态、来源、确认范围，未确认不得进入下一层。
 
+## 入口
+
+- **默认：`prompt-first/`** —— 直接读原始提示词/参考/素材创作、渲染、看片、修改，不强制先生成所有中间 JSON。
+- **按需：Structured** —— 复杂/多人/客户/需复现时再启用下面这些层。
+
 ## 层级
 
 | 层 | 回答的问题 | 目录 |
@@ -23,17 +28,18 @@
 
 ```bash
 node intent/tools/validate-intent.mjs intent/examples/seven-oh-five/intent-brief.json
-node director/tools/validate.mjs director/examples/seven-oh-five
+node director/tools/validate.mjs director/examples/seven-oh-five --profile=creative
 node reference/tools/validate-reference.mjs reference/examples/seven-oh-five
 node gates/tools/validate-gates.mjs gates/examples/seven-oh-five
-node animation/tools/validate-animation.mjs animation/examples/seven-oh-five
+node animation/tools/validate-animation.mjs animation/examples/seven-oh-five --profile=creative
+node execution/tools/build-manifest.mjs execution/examples/seven-oh-five/execution.config.json --out qa/build-manifest.json
 node execution/tools/preflight.mjs execution/examples/seven-oh-five/execution.config.json --out qa/preflight-report.json
 node execution/tools/validate-execution.mjs execution/examples/seven-oh-five
 ```
 
 ## 当前状态
 
-- 示例《七点零五分》停在未确认/阻塞状态：Gate A recommended、Gate B pending、
+- 示例《七点零五分》停在未确认/阻塞状态：Gate A recommended 且缺 Look-dev、Gate B 0/6、
   动画蓝图 draft、组件/资产 candidate、preflight blocked。
 - 没有伪造成片、审片或用户确认；这是有意的门禁状态。
 - v3 不修改；v5 复用 v3 的执行层思路（scene.spec / 组件合同 / Remotion / 渲染验收），

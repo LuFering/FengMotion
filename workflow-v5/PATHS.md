@@ -6,6 +6,8 @@
 
 ## 路径 A · Prompt-first（默认）
 
+入口与项目模板见 `prompt-first/README.md`。
+
 面向创意性强、视觉方向明确、需要高质量表达的短片。
 
 ```

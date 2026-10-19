@@ -15,9 +15,16 @@ import path from 'node:path';
 
 const target = process.argv[2];
 if (!target) {
-  console.error('用法：node tools/validate-animation.mjs <film-dir>');
+  console.error('用法：node tools/validate-animation.mjs <film-dir> [--profile creative|strict]');
   process.exit(2);
 }
+const profileArg = process.argv.find((a) => a.startsWith('--profile='));
+const profile = profileArg ? profileArg.split('=')[1] : 'creative';
+if (!['creative', 'strict'].includes(profile)) {
+  console.error('--profile 必须是 creative 或 strict');
+  process.exit(2);
+}
+const strict = profile === 'strict';
 const dir = path.resolve(process.cwd(), target);
 if (!fs.existsSync(dir) || !fs.statSync(dir).isDirectory()) {
   console.error(`目录不存在：${target}`);
@@ -25,8 +32,13 @@ if (!fs.existsSync(dir) || !fs.statSync(dir).isDirectory()) {
 }
 
 const errors = [];
+const warnings = [];
 const need = (cond, msg) => {
   if (!cond) errors.push(msg);
+};
+// 创作配额默认只警告；strict 才失败。技术错误仍走 need()
+const soft = (cond, msg) => {
+  if (!cond) (strict ? errors : warnings).push(msg);
 };
 const isStr = (v) => typeof v === 'string' && v.trim().length > 0;
 const isArr = (v) => Array.isArray(v);
@@ -115,7 +127,8 @@ if (blueprint) {
   need(isStr(tp.note), 'timingPolicy.note 不能为空');
 
   blueprintScenes = blueprint.scenes ?? [];
-  need(isArr(blueprintScenes) && blueprintScenes.length >= 1 && blueprintScenes.length <= 12, 'blueprint.scenes 需要 1–12 场（数量是建议，不是创作硬门禁）');
+  need(isArr(blueprintScenes) && blueprintScenes.length >= 1, 'blueprint.scenes 至少 1 场');
+  soft(blueprintScenes.length <= 12, '场景数量超过 12；这是建议不是硬门禁，可用 --profile=strict 检查');
   const sceneIds = new Set();
   let sumDur = 0;
   for (const [i, s] of blueprintScenes.entries()) {
@@ -138,7 +151,10 @@ if (blueprint) {
     need(isStr(e.initialState) && e.initialState.length >= 4, `${p}.event.initialState 不能为空`);
     need(isStr(e.trigger) && e.trigger.length >= 4, `${p}.event.trigger 不能为空`);
     if (isStatic) need(isArr(e.progression) && e.progression.length >= 1, `${p}.event.progression 静止场景至少 1 条说明`);
-    else need(isArr(e.progression) && e.progression.length >= 2 && e.progression.length <= 4, `${p}.event.progression 需要 2–4 个可观察阶段（动态事件）`);
+    else {
+      need(isArr(e.progression) && e.progression.length >= 1, `${p}.event.progression 必须是数组`);
+      soft(e.progression.length >= 2 && e.progression.length <= 4, `${p}.event.progression 建议 2–4 个可观察阶段（动态事件，非硬门禁）`);
+    }
     for (const [j, x] of (e.progression ?? []).entries()) need(isStr(x), `${p}.event.progression[${j}] 不能为空`);
     need(isStr(e.finalState) && e.finalState.length >= 4, `${p}.event.finalState 不能为空`);
     if (!isStatic) need(e.initialState !== e.finalState, `${p}.event.initialState 与 finalState 不能相同（动态事件必须有变化）`);
@@ -146,7 +162,10 @@ if (blueprint) {
     const mi = s.motionIntent ?? {};
     need(isStr(mi.purpose) && mi.purpose.length >= 4, `${p}.motionIntent.purpose 不能为空`);
     need(['primary', 'secondary'].includes(mi.priority), `${p}.motionIntent.priority 非法`);
-    if (!isStatic) need(isArr(mi.motionCandidates) && mi.motionCandidates.length >= 1, `${p}.motionIntent.motionCandidates 至少 1 个候选机制（动态事件）`);
+    if (!isStatic) {
+      need(isArr(mi.motionCandidates), `${p}.motionIntent.motionCandidates 必须是数组`);
+      soft(mi.motionCandidates.length >= 1, `${p}.motionIntent.motionCandidates 建议至少 1 个候选机制（动态事件，非硬门禁）`);
+    }
     else need(isArr(mi.motionCandidates), `${p}.motionIntent.motionCandidates 必须是数组`);
     need(['pending-implementation-review', 'not-applicable'].includes(mi.selectionStatus), `${p}.motionIntent.selectionStatus 非法`);
     if (!isStatic) need(mi.selectionStatus === 'pending-implementation-review', `${p}.motionIntent.selectionStatus 必须是 pending-implementation-review（蓝图不锁实现）`);
@@ -175,7 +194,8 @@ if (blueprint) {
       need(['available', 'candidate', 'missing'].includes(a.status), `${p}.assetRequirements[${j}].status 非法`);
       need(isStr(a.note), `${p}.assetRequirements[${j}].note 不能为空`);
     }
-    need(isArr(s.acceptance) && s.acceptance.length >= 2 && s.acceptance.length <= 4, `${p}.acceptance 需要 2–4 条可观察条件`);
+    need(isArr(s.acceptance) && s.acceptance.length >= 1, `${p}.acceptance 至少 1 条可观察条件`);
+    soft(s.acceptance.length >= 2 && s.acceptance.length <= 4, `${p}.acceptance 建议 2–4 条（非硬门禁）`);
     for (const [j, a] of (s.acceptance ?? []).entries()) {
       need(isStr(a) && a.length >= 6, `${p}.acceptance[${j}] 不能为空`);
       need(!/高级感|沉浸感|氛围感|电影感|好看/.test(a), `${p}.acceptance[${j}] 是不可验证的形容词，改成可观察状态`);
@@ -185,7 +205,7 @@ if (blueprint) {
     }
   }
   if ((tp.overlapPolicy ?? 'sequential') === 'sequential' && typeof tp.durationCandidateSec === 'number' && Math.abs(sumDur - tp.durationCandidateSec) > 0.51) {
-    errors.push(`顺序模式下各场候选时长合计 ${sumDur}s 与 timingPolicy ${tp.durationCandidateSec}s 不一致；重叠/并行模式请声明 overlapPolicy`);
+    soft(false, `顺序模式下各场候选时长合计 ${sumDur}s 与 timingPolicy ${tp.durationCandidateSec}s 不一致；重叠/并行模式请声明 overlapPolicy（默认只警告）`);
   }
 }
 
@@ -325,8 +345,12 @@ if (spec) {
     }
   }
   const sceneById = new Map((spec.scenes ?? []).map((s) => [s.sceneId, s]));
+  const textPolicy = blueprint.textPolicy ?? { captions: 'required', verbatimRequired: true };
+  need(['required', 'optional', 'none'].includes(textPolicy.captions), 'blueprint.textPolicy.captions 必须是 required/optional/none');
+  const captionsRequired = textPolicy.captions === 'required';
   const cap = spec.captionTrack;
-  need(isArr(cap) && cap.length >= 1, 'scene.spec.captionTrack 至少 1 条（字幕必须有执行规格）');
+  need(isArr(cap), 'scene.spec.captionTrack 必须是数组');
+  if (captionsRequired) need((cap ?? []).length >= 1, 'textPolicy.captions=required 时 captionTrack 至少 1 条');
   const capIds = new Set();
   const capUnits = new Set();
   for (const [i, c] of (cap ?? []).entries()) {
@@ -362,8 +386,8 @@ if (spec) {
       need(c.readingTimeSec >= c.text.length / 10, `captionTrack[${i}] 阅读时间不足（至少 ${(c.text.length / 10).toFixed(1)}s）`);
     }
   }
-  if (intentUnits.length) {
-    for (const u of intentUnits) need(capUnits.has(u), `captionTrack 缺少原文单元 ${u}（不能漏字幕）`);
+  if (intentUnits.length && captionsRequired) {
+    for (const u of intentUnits) need(capUnits.has(u), `captionTrack 缺少原文单元 ${u}（用户要求完整字幕时不能漏）`);
   }
 
   need(prevEnd === spec.durationInFrames, `场景必须连续覆盖到 durationInFrames（当前覆盖到 ${prevEnd} / ${spec.durationInFrames}）`);

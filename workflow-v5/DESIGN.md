@@ -196,8 +196,8 @@ v5 不修补 v3，而是把这些问题变成新的阶段边界与数据契约�
 ### 5.0 Prototype / Proof 通路
 
 候选组件/资产在 production preflight 会被阻塞，但验证它们又需要实际渲染。
-因此分两级：`prototype` 允许 candidate 组件/资产生成受控 10s 证明（非正式交付，要求文件真实存在、Gate A 已确认）；
-`production` 要求 Gate A/B/C、组件/资产 available、proof 与 spec/config 哈希一致。
+因此分三级：`sketch` 可自由渲染但不可交付；`prototype` 允许 candidate 组件/资产、零外部资产、只验证选中场景，不要求 Gate A/B；
+`production` 才要求 Gate A/B/C、组件/资产 available、proof 与 spec/config/build 哈希一致。
 原型通过后才把组件/资产转为 available，不能为了过门提前改状态。
 
 ### 5.1 视觉系统
@@ -371,9 +371,9 @@ workflow-v5/
 | 2 参考分析 | 已实现 | `reference/`（三种模式/六步/三产物/lint/reference-free 示例） |
 | Gate A 方向验证 | 已实现 | `gates/`（direction-gate + 3 个样稿 + 确认记录） |
 | Gate B 场景布局 | 已实现 | `gates/`（scene-intent + layout v1 + approvals，当前 pending） |
-| 动画设计层 | 待实现 | 复用 v3 `scene.spec` / 组件合同思路 |
+| Prompt-first 默认入口 | 已实现 | `prompt-first/`（原始提示词/corrections/decisions + 创作闭环） |
 | 5 动画设计（蓝图/实现计划/草稿规格/设计审查） | 已实现（draft/blocked） | `animation/`（6 场蓝图 + implementation plan + scene.spec.draft + design-review） |
-| 6 执行与验收（preflight/组件/预览/正式渲染/QA/审片） | 已实现校验与 blocked 示例；真实渲染待组件可用 | `execution/` |
+| 6 执行与验收（sketch/prototype/production、buildHash、审片绑定） | 已实现校验与 blocked 示例；真实渲染待组件可用 | `execution/` |
 | 10s 证明 / 声音先行 / 制作循环 | 待实现 | 见阶段地图 5–7 |
 
 当前示例都停在“未确认”状态：Gate A 是 `recommended`，Gate B 是 `pending`，不伪造用户确认。
@@ -382,7 +382,8 @@ workflow-v5/
 
 ```bash
 node intent/tools/validate-intent.mjs intent/examples/seven-oh-five/intent-brief.json
-node director/tools/validate.mjs director/examples/seven-oh-five
+node director/tools/validate.mjs director/examples/seven-oh-five --profile=creative
 node reference/tools/validate-reference.mjs reference/examples/seven-oh-five
 node gates/tools/validate-gates.mjs gates/examples/seven-oh-five
+node animation/tools/validate-animation.mjs animation/examples/seven-oh-five --profile=creative
 ```
