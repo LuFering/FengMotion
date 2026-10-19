@@ -11,7 +11,7 @@
 | 3 方向样稿 | 采用哪种视觉语言？ | `direction-gate.json` + `direction-samples/` | **Gate A：方向验证** |
 | 4 视觉系统 + 场景 | 规则是什么？每个场景要表达什么？ | `visual-direction.json`、`scene-intents.json`、`scene-layouts/` | **Gate B：场景布局** |
 | 5 动画设计 + 10s 证明 | 对象何时发生什么变化？运动成立吗？ | `scene.spec.json`（按需）、组件合同（按需）、`proof-10s.mp4` | **Gate C：运动验收**（production） |
-| 6 声音先行 + 制作循环 | 声音/节奏支撑整片吗？ | `animatic-30s.mp4`、`passes/` | 内部检查 + 循环 |
+| 6 声音先行 + 制作循环 | 声音/节奏支撑整片吗？ | `animatic-<duration>.mp4`、`passes/` | 内部检查 + 循环 |
 | 7 交付 | 成片真的成立吗？ | 成片、QC、版权、盲评 | **Gate D：终审** |
 
 ## 硬规则
@@ -27,6 +27,7 @@
 ## 当前实现
 
 - 默认：`prompt-first/` 已实现原始提示词/纠正/决定持久化与创作闭环入口。
+- v5.1：Prompt-first 增加 `film-plan.md` 全片编排（节奏弧/关键事件/连续性/转场/结尾）与 6–10 秒连续片段 proof；QA 对照 film-plan 检查连续性；硬校验器未改。
 - 0–2：`intent/`、`director/`、`reference/` 已实现；导演/动画校验器支持 creative/strict profile。
 - Gate A/B：`gates/` 已实现（当前示例未确认：Gate A recommended 且缺 Look-dev，Gate B 0/6 当前版本 approved）。
 - 5 动画设计：`animation/` 已实现蓝图/实现计划/草稿规格/四道门校验；当前 6 场均为 draft，组件/资产 candidate，Gate 3/4 blocked。

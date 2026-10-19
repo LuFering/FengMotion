@@ -8,8 +8,8 @@
 
 两种常见失败：
 
-- **空洞翻译**：把原文压成“清晨、安静、温暖、电影感”，丢掉“卷帘门只拉起一半 / 光先出现”的关系。
-- **提前定死**：直接写“2.39:1、35mm、木质极简、黑围裙男咖啡师、缓慢推轨”，看起来专业，但大多没有来源依据，提前扼杀设计空间。
+- **空洞翻译**：把原文压成抽象形容词，丢掉原文中的具体动作、先后关系或因果。
+- **提前定死**：直接写“2.39:1、35mm、具体人物设定、缓慢推轨”，看起来专业，但大多没有来源依据，提前扼杀设计空间。
 
 创作意图编译器要同时避免这两端：**意图清楚，但不替导演决定怎么拍；线索具体，但不是空洞形容词。**
 
@@ -34,7 +34,7 @@
 - `not-provided`：用户没提供；**不能带 value**，写 `decisionOwner`。
 
 `decisionOwner` 说明“该由谁决定”，例如 `creative-direction`、`sound-design`、`execution`、`reference-analysis`。
-这样后续模型不会把 30s / 2.39:1 / 30fps 这类暂定值当成既成事实。
+这样后续模型不会把暂定时长 / 画幅 / 帧率当成既成事实。
 
 ## 文件
 
@@ -45,7 +45,7 @@ workflow-v5/intent/
 ├── schema/intent-brief.schema.json  # 数据契约
 ├── tools/validate-intent.mjs        # 无依赖校验器
 └── examples/seven-oh-five/
-    ├── input.md                     # 六行诗 + 用户说明
+    ├── input.md                     # 原文 + 用户说明
     └── intent-brief.json            # 合格产物
 ```
 
@@ -55,7 +55,7 @@ workflow-v5/intent/
 - 每个 unit：`id/order/text/event/relations/sourceRef`。
 - `event` 是“发生了什么”；`relations` 是文本内部关系（先后、因果、对比、变化）。
 - 两行可以共享一个场景，但先保留为两个 unit；后续场景设计用 `sourceUnitIds` 组合。
-- 故事时间（“七点零五分”）不是播放时间；需要 `interpretive-guardrail` invariant 防止误读。
+- 故事时间（原文中的具体时刻）不是播放时间；需要 `interpretive-guardrail` invariant 防止误读。
 
 ## 创作线索（creativeCues）
 

@@ -74,7 +74,7 @@ workflow-v5/animation/
 │   └── design-reviewer.md         # 四道门
 ├── tools/validate-animation.mjs
 └── examples/seven-oh-five/
-    ├── animation-blueprint.json   # 6 场，候选 30s，fps=null
+    ├── animation-blueprint.json   # 场景数/候选时长按项目实际，fps=null
     ├── implementation-plan.json   # 组件/资产均为 candidate
     ├── scene.spec.draft.json      # 900 帧草稿
     ├── component-contracts.md     # 6 个组件合同（draft）
@@ -105,9 +105,9 @@ node tools/validate-animation.mjs examples/seven-oh-five
 
 ## 示例状态
 
-《七点零五分》当前是 **draft / blocked**：
+示例项目当前是 **draft / blocked**：
 
-- 蓝图 6 场（S01–S06），候选 30s，`fps: null`；
+- 蓝图场景数与候选时长按项目实际，`fps: null`；
 - 组件与资产全部 `candidate`，尚未开发/验证；
 - `scene.spec.draft.json` 只是编译草稿（900 帧），不是可执行交付；
 - `design-review.json`：创意/运动 pass，实现可行性/交接 blocked；

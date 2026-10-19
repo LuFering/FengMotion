@@ -37,9 +37,11 @@ node execution/tools/preflight.mjs execution/examples/seven-oh-five/execution.co
 node execution/tools/validate-execution.mjs execution/examples/seven-oh-five
 ```
 
+> `*/examples/` 与旧片示例仅用于校验门禁和演示，不是默认题材、默认视觉模板或默认叙事结构；Prompt-first 创作必须从当前项目的 `prompt.original.md` 开始。夹具隔离规则见 [FIXTURES.md](FIXTURES.md)。
+
 ## 当前状态
 
-- 示例《七点零五分》停在未确认/阻塞状态：Gate A recommended 且缺 Look-dev、Gate B 0/6、
+- 示例项目停在未确认/阻塞状态：Gate A recommended 且缺 Look-dev、Gate B 0/6、
   动画蓝图 draft、组件/资产 candidate、preflight blocked。
 - 没有伪造成片、审片或用户确认；这是有意的门禁状态。
 - v3 不修改；v5 复用 v3 的执行层思路（scene.spec / 组件合同 / Remotion / 渲染验收），

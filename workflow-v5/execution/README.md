@@ -110,7 +110,7 @@ films/<film-id>/
       "observation": "白色纹路接近最终形态，但形成过程变化不足",
       "expected": "能看出白褐交汇与纹路逐步形成",
       "likelyOwner": "component-contract",
-      "recommendedAction": "检查中间帧、变化幅度与液体素材",
+      "recommendedAction": "检查中间帧、变化幅度与对象素材",
       "evidence": ["qa/frames/s04-420.png", "qa/frames/s04-430.png"],
       "humanDecision": "pending"
     }

@@ -32,7 +32,7 @@
 {
   "mode": "reference-free",
   "queries": [
-    { "tool": "local-motion-library", "args": "晨光 窗 遮罩 液体", "outcome": "none", "why": "没有连续空间与液体形态的可迁移手法" }
+    { "tool": "local-motion-library", "args": "窗光 遮罩 形态", "outcome": "none", "why": "没有连续空间与形态变化的可迁移手法" }
   ],
   "cards": [],
   "refs": [],
@@ -116,10 +116,10 @@ node tools/validate-reference.mjs examples/seven-oh-five
 - 设计假设没有依据/风险；
 - 占位符/待填写。
 
-## 《七点零五分》示例
+## 示例：参考分析（仅示例）
 
 当前没有可用参考，示例走 `reference-free`：
 
 - 3 条检索记录（本地镜头卡、网络实拍参考、文字/物质参考），结果 none/partial，写明原因；
-- 3 条自主设计假设：光先进入空间、液体变化用路径/遮罩、文字参与构图但不抢焦点；
-- 不把通用咖啡广告当参考复现，也不假装看过不存在的参考。
+- 3 条自主设计假设：光先进入空间、形态变化用路径/遮罩、文字参与构图但不抢焦点；
+- 不把通用商业广告当参考复现，也不假装看过不存在的参考。

@@ -38,7 +38,7 @@ const projectDir = path.resolve(process.cwd(), projectArg);
 const readTemplate = (name) => fs.readFileSync(path.join(templateDir, name), 'utf8');
 
 if (checkMode) {
-  const required = ['prompt.original.md', 'corrections.md', 'decisions.md', 'lookdev-brief.md', 'quality-bar.md', 'project.json'];
+  const required = ['prompt.original.md', 'corrections.md', 'decisions.md', 'lookdev-brief.md', 'quality-bar.md', 'film-plan.md', 'project.json'];
   for (const f of required) {
     const p = path.join(projectDir, f);
     if (!fs.existsSync(p)) fail(`缺少 ${f}`);
@@ -91,6 +91,7 @@ writeIfMissing('corrections.md', readTemplate('corrections.md'));
 writeIfMissing('decisions.md', readTemplate('decisions.md'));
 writeIfMissing('lookdev-brief.md', readTemplate('lookdev-brief.md'));
 writeIfMissing('quality-bar.md', readTemplate('quality-bar.md'));
+writeIfMissing('film-plan.md', readTemplate('film-plan.md'));
 
 const projectJson = path.join(projectDir, 'project.json');
 if (!fs.existsSync(projectJson) || force) {
@@ -105,4 +106,4 @@ if (!fs.existsSync(projectJson) || force) {
 }
 
 console.log(`✓ Prompt-first 项目就绪：${projectDir}`);
-console.log('  下一步：把用户原始提示词逐字放入 prompt.original.md，先填 lookdev-brief.md / quality-bar.md，再按 prompts/creator.md 开始。');
+console.log('  下一步：把用户原始提示词逐字放入 prompt.original.md，先填 lookdev-brief.md / quality-bar.md；多镜头再填 film-plan.md，然后按 prompts/creator.md 开始。');

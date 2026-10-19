@@ -52,7 +52,7 @@ v5 不修补 v3，而是把这些问题变成新的阶段边界与数据契约�
 | 3 方向样稿 | 采用哪种视觉语言？ | `direction-samples/`、`direction-decision.json` | **Gate A：方向验证** |
 | 4 视觉系统 + 场景设计 | 这套语言如何变成规则？每个场景要表达什么？ | `visual-direction.json`（approved）、`scene-intents.json` | **Gate B：场景布局** |
 | 5 动画设计 + 10s 证明 | 对象何时发生什么变化？运动是否成立？ | `scene.spec.json`、组件合同、`proof-10s.mp4` | **Gate C：运动验收** |
-| 6 声音先行 + 制作循环 | 声音与节奏是否支撑整片？ | `animatic-30s.mp4`、`passes/` | 内部检查 + 循环 |
+| 6 声音先行 + 制作循环 | 声音与节奏是否支撑整片？ | `animatic-<duration>.mp4`、`passes/` | 内部检查 + 循环 |
 | 7 交付 | 成片是否真的成立？ | 成片、QC、版权、盲评 | **Gate D：终审** |
 
 > 与早期 5 阶段计划的关系：0/1 是原来的“内容 + 视觉开发”；2/3/4 是把“参考 + 方向 + 布局”拆开；
@@ -104,7 +104,7 @@ v5 不修补 v3，而是把这些问题变成新的阶段边界与数据契约�
 {
   "mode": "reference-free",
   "queries": [
-    { "tool": "search-craft", "args": "晨光 窗 遮罩", "outcome": "none", "why": "没有同时满足连续空间与液体形态的参考" }
+    { "tool": "search-craft", "args": "窗光 遮罩 形态", "outcome": "none", "why": "没有同时满足连续空间与形态变化的参考" }
   ],
   "cards": [],
   "refs": [],
@@ -163,11 +163,11 @@ v5 不修补 v3，而是把这些问题变成新的阶段边界与数据契约�
 为候选方向各做一个代表性视觉样稿，确认“视觉方向值得继续”，不是确认整部片。
 样稿分两类：**结构示意**（SVG/色块，只验证构图/空间）与 **Look-dev 样稿**（真实参考/摄影/生成/高质量拼贴，验证材质/光线/色彩/焦点）。写实方向不能只靠结构示意通过 Gate A。
 
-- 每个方向尽量用同一个内容节点（如《七点零五分》L1）；
+- 每个方向尽量用同一个内容节点（如示例内容节点 L1）；
 - 比较画布用相同临时尺寸，但不锁定最终画幅；
 - **允许各方向使用自己的字体、配色、材质、空间组织**——这些正是要比较的差异；
 - 每个样稿标记：已确定 / 临时资产 / 占位布局；
-- 不要求已有最终人物/背景/液体素材。
+- 不要求已有最终人物/背景/对象素材。
 
 > 旧规则“同一文案、同一画幅、同一字体/配色”要拆开：比较条件一致 ≠ 强迫不同方向用同一套视觉。
 
@@ -234,7 +234,7 @@ v5 不修补 v3，而是把这些问题变成新的阶段边界与数据契约�
 | 内容 | 没有运动时，这一帧是否体现场景目标 |
 | 资产 | 正式素材 / 占位图 / 待获取 |
 
-复杂运动（液体、遮罩揭示、空间变换）除静态关键帧外，还要“变化前—变化中—变化后”状态序列；可以是设计示意，不必最终渲染。
+复杂运动（形态变化、遮罩揭示、空间变换等）除静态关键帧外，还要“变化前—变化中—变化后”状态序列；可以是设计示意，不必最终渲染。
 
 纯静态/阅读场景允许明确声明 `staticIntent`，不为过门禁强加动画事件。
 
@@ -371,7 +371,7 @@ workflow-v5/
 | 2 参考分析 | 已实现 | `reference/`（三种模式/六步/三产物/lint/reference-free 示例） |
 | Gate A 方向验证 | 已实现 | `gates/`（direction-gate + 3 个样稿 + 确认记录） |
 | Gate B 场景布局 | 已实现 | `gates/`（scene-intent + layout v1 + approvals，当前 pending） |
-| Prompt-first 默认入口 | 已实现 | `prompt-first/`（原始提示词/corrections/decisions + 创作闭环） |
+| Prompt-first 默认入口 | 已实现 + v5.1 全片编排 | `prompt-first/`（原始提示词/corrections/decisions + lookdev/quality-bar/film-plan + 创作闭环） |
 | 5 动画设计（蓝图/实现计划/草稿规格/设计审查） | 已实现（draft/blocked） | `animation/`（6 场蓝图 + implementation plan + scene.spec.draft + design-review） |
 | 6 执行与验收（sketch/prototype/production、buildHash 重算、输出 SHA-256、审片人工/自动分离） | 已实现；sketch 真实渲染已跑通，production 仍待组件/资产 | `execution/` |
 | 10s 证明 / 声音先行 / 制作循环 | 待实现 | 见阶段地图 5–7 |

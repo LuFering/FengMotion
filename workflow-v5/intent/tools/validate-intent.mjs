@@ -12,7 +12,7 @@
  * - 创作线索 binding 必须为 false；
  * - 未决/未提供决策不能带 value；locked 必须带 value + sourceRef；
  * - 时长/画幅/fps/声音只能出现在 productionDecisions，不能混进内容层；
- * - 故事时间必须与播放时间分开（有“七点”类文本时要求 guardrail）。
+ * - 故事时间必须与播放时间分开（有具体时刻文本时要求 guardrail）。
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -194,7 +194,7 @@ for (const [i, inv] of invariants.entries()) {
 need(hasLocked, 'content.invariants 至少要有 1 条 locked（哪些不能改必须说清）');
 
 // 故事时间 vs 播放时间
-// 只匹配“七点/7点/七点零五分”，不误伤“一点点/有一点/这一点”
+// 只匹配具体时刻（数字 + “点”），不误伤口语化表达
 const hasStoryTime = units.some((u) => isStr(u.text) && /(?<![一这有])[零一二三四五六七八九十百两\d]+点(?!点)/.test(u.text));
 if (hasStoryTime) {
   need(

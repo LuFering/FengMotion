@@ -30,7 +30,7 @@
 - `eventFrames` 是事件窗口；`motionCheckFrames` 必须在事件窗口内。
 - `acceptanceFrames` 检查整个场景（含保持段），可以落在事件结束之后。
 - `heroFrame` 验证整体构图，可位于保持阶段。
-- 复杂运动（液体/形变/放杯）必须有 `motionPlan`；简单场景不强制。
+- 复杂运动（形态/位置/状态变化）必须有 `motionPlan`；简单场景不强制。
 - 组件/资产必须真实：`candidate` 不能写成 `available`；`missing` 不能假装已取得。
 - 实现不了就写 blocked 并说明原因，不要为了过校验伪造组件/素材。
 - 不直接写 Remotion 组件代码；合同定义接口与验收，执行层再实现。
