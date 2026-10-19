@@ -6,5 +6,5 @@
 
 - 不把夹具中的题材、对象、视觉方向、叙事结构当作默认模板。
 - 通用提示词/模板/QA 规范不得写入夹具专属术语。
-- 新项目必须从当前项目的 `prompt.original.md` 和 `film-plan.md` 开始。
+- 新项目必须从当前项目的 `prompt.original.md` 开始；多镜头再写 `film-plan.md`。
 - 修改 schema/validator 时可以更新夹具；但不要把夹具内容反推到通用规则里。
