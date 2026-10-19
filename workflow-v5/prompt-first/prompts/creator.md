@@ -61,15 +61,26 @@ node tools/validate-shot-plan.mjs shot-plan.json
 
 不通过就改规划，不要改校验器。
 
-### 3. 全片低保真 animatic（多镜头必做）
+### 3. 全片低保真 animatic + review（多镜头必做）
 
-在完整视觉制作之前，用占位形状/简单构图/临时文字做覆盖全片时长的 animatic。
+在完整视觉制作之前，用占位形状/简单构图/临时文字做覆盖全片时长的 animatic，并留下审查记录：
 
-- 覆盖全部 Shot 和每个切点，不是只做关键片段；
+- `animatic.mp4`：覆盖全部 Shot/切点/时长，不是只做关键片段；
+- `animatic-review.json`：记录 `shotPlanHash`、完整播放范围、`noSubtitleTest`、findings、结论、返工目标；
 - 先验证时间线、动作因果、状态交接、节奏和结尾；
 - 逐切点检查：前一镜 `stateOut` 是否成为后一镜 `stateIn`；动作是否被截断；是否只是换画面；
+- 遮住字幕看一遍，`noSubtitleTest.result` 必须是 pass：仅凭画面能理解事件、发展和切点理由；
 - 如果去掉精细外观后仍像幻灯片，回到 `shot-plan.json` 修改，不进入完整视觉制作；
-- animatic 通过后才做静帧、proof 和完整视觉实现。
+- `status=passed` 且 `rework.required=false` 后，才做静帧、proof 和完整视觉实现。
+
+生成哈希并校验：
+
+```bash
+node tools/validate-shot-plan.mjs shot-plan.json --hash
+node tools/validate-animatic-review.mjs animatic-review.json --shot-plan shot-plan.json
+```
+
+`animatic-review` 绑定当前 shot-plan 的 sha256；shot-plan 一变，旧 animatic review 自动失效。
 
 ### 4. Still-first：先渲 1–3 张静帧
 
@@ -123,7 +134,7 @@ node execution/tools/cut-evidence.mjs --video <mp4> --shot-plan shot-plan.json -
 ## 省 token 规则
 
 1. 多镜头没有 `film-plan.md` + `shot-plan.json`，不写完整动画。
-2. 全片 animatic 未通过，不做完整视觉制作。
+2. 全片 animatic-review 未 `passed` 或 `rework.required=true`，不做完整视觉制作。
 3. 静帧不过，不写完整动画；静帧覆盖开场/核心/结尾，不只做开场。
 4. 首版只做关键动作 proof；多镜头额外做 6–10 秒连续片段，不直接全片。
 5. 每轮只修 1 个主要问题；用 animatic/静帧/短片段验证，不重渲全片。
@@ -144,12 +155,13 @@ node execution/tools/cut-evidence.mjs --video <mp4> --shot-plan shot-plan.json -
 - 同一主体/道具跨镜头必须可识别；有意的形态变化/时间跳跃要写进 `film-plan.md` / `shot-plan.json` / `decisions.md`。
 - 字幕是独立轨道，不因字幕换行自动创建新 Shot；文本单元、事件、镜头、场景、组件不是同一层级。
 - 执行层必须继承 `stateIn`；不得让每个组件默认从初始状态重新开始。
+- `animatic-review.json` 必须绑定当前 shot-plan 哈希；animatic 变化或 shot-plan 变化后，旧 review 失效。
 
 ## 输出
 
 按任务需要输出，不强制全套：
 
-- 至少：填写后的 `lookdev-brief.md` / `quality-bar.md`、`film-plan.md`、`shot-plan.json`（多镜头）、全片 animatic、可运行 Remotion 代码、真实静帧/渲染、观察记录、`decisions.md` 更新。
+- 至少：填写后的 `lookdev-brief.md` / `quality-bar.md`、`film-plan.md`、`shot-plan.json`（多镜头）、`animatic.mp4` + `animatic-review.json`、可运行 Remotion 代码、真实静帧/渲染、观察记录、`decisions.md` 更新。
 - 需要时：`intent-brief.json`、方向/参考/Gate、蓝图、`scene.spec`、组件合同、QA 报告。
 - 每轮产物放 `qa/passes/NN/`（或项目既有目录），记录构建/渲染身份和问题证据。
 

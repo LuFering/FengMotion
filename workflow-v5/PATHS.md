@@ -21,6 +21,8 @@
         ↓
 全片低保真 animatic（覆盖全部切点）
         ↓
+animatic-review.json（绑定 shotPlanHash；passed + 无返工）
+        ↓
 先渲 1–3 张静帧（开场/核心/结尾），过 quality-bar
         ↓
 3–5 秒关键动作 proof；多镜头加 6–10 秒连续片段
@@ -32,7 +34,8 @@
 
 - 高质量提示词是创作核心；原始输入、参考图、确认后的创作指令**持续可读**。
 - 先做静帧再做动画：第一版不是代码占位符；静帧不过不写完整动画。
-- 多镜头先做全片编排：`film-plan.md` 定叙事/节奏/事件，`shot-plan.json` 定镜头/字幕/状态交接；先过全片 animatic，再进入完整视觉制作。
+- 多镜头先做全片编排：`film-plan.md` 定叙事/节奏/事件，`shot-plan.json` 定镜头/字幕/状态交接；先过全片 animatic 和 `animatic-review.json`，再进入完整视觉制作。
+- animatic review 绑定当前 shot plan 哈希；shot plan 变更后旧 review 失效；`status=passed` 且无返工才可继续。
 - 事件、镜头、场景、字幕是不同层级；字幕不因换行自动创建镜头。
 - 执行层必须继承 `stateIn`，不能每镜默认重置。
 - v5 的结构化数据在后台记录约束、资源、版本和问题，**不要求主创模型先填完所有中间文件**。

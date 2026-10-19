@@ -85,7 +85,14 @@
       "eventIds": ["E2"],
       "captionIds": ["C2"],
       "transitionIntent": "收束：延续 SH02 的最终位置与光向，不重新开始",
-      "continuityIn": { "fromShot": "SH02", "carriedState": ["主体位置", "运动状态", "光向"] },
+      "continuityIn": {
+        "fromShot": "SH02",
+        "carriedState": ["主体位置", "运动状态", "光向"],
+        "stateChanges": [
+          { "subjectId": "subject-a", "field": "pose", "reason": "切到俯视，同一主体的观察角度变化" },
+          { "subjectId": "subject-a", "field": "spatialRelation", "reason": "俯视机位改变空间关系描述" }
+        ]
+      },
       "continuityOut": { "toShot": null, "carriedState": [] },
       "subjects": [
         {

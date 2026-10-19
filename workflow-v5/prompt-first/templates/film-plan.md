@@ -113,6 +113,7 @@
 | SH03 |  |  |  |  |
 
 状态至少包括：身份/外形、位置、姿态/形态、运动状态、与空间/其他主体的关系。
+同一主体前后镜的 `stateOut` 必须等于下一镜 `stateIn`；允许的视角/姿态/位置变化，必须在 `continuityIn.stateChanges` 写清 `subjectId` / `field` / `reason`。
 转场意图可选：动作接续 / 视线引导 / 形态匹配 / 时间跳跃 / 情绪断开 / 光位变化 / 声音桥接。
 不需要为了“有转场”加复杂效果；硬切也可以是设计。
 
@@ -137,19 +138,36 @@
 - 音乐或氛围层与情绪变化：
 - 结尾声音：收住 / 淡出 / 留余韵：
 
-## 8. 全片低保真 animatic（多镜头必做）
+## 8. 全片低保真 animatic + review（多镜头必做）
 
-在完整视觉制作之前，用占位形状/简单构图/临时文字做**覆盖全片时长**的低保真 animatic。
+在完整视觉制作之前，用占位形状/简单构图/临时文字做**覆盖全片时长**的低保真 animatic，并留下可校验的审查记录。
+
+产物：
+
+- `animatic.mp4`：覆盖全部 Shot/切点/时长；
+- `animatic-review.json`：记录 `shotPlanHash`、`fullPlaybackReviewed`、`reviewedRanges`、`noSubtitleTest`、findings、`status`、`rework`。
+
+检查：
 
 - 覆盖全部 Shot 和每个切点，不是只做关键片段；
 - 不追求材质/精细光效，先验证时间线、动作因果、状态交接、节奏和结尾；
 - 逐切点检查：前一镜的 `stateOut` 是否成为后一镜的 `stateIn`；动作是否被突然截断；是否只是换了一张画面；
+- 遮住字幕看一遍，并把结果写入 `noSubtitleTest`；`status=passed` 时必须是 `reviewed=true` + `result=pass`。
 - 如果去掉精细外观后仍然像幻灯片，回到 Shot Plan 修改，不进入完整视觉制作；
-- animatic 通过后，才做静帧定标、关键动作 proof 和完整视觉实现。
+- `status=passed` 且 `rework.required=false` 后，才做静帧定标、关键动作 proof 和完整视觉实现。
+
+校验：
+
+```bash
+node tools/validate-shot-plan.mjs shot-plan.json --hash
+node tools/validate-animatic-review.mjs animatic-review.json --shot-plan shot-plan.json
+```
+
+`shotPlanHash` 绑定当前 shot plan；shot plan 变更后旧 animatic review 自动失效。
 
 ## 9. 验证计划
 
-- 全片 animatic：覆盖全时长；审片确认时间线成立。
+- 全片 animatic：覆盖全时长；`animatic-review.json` 必须 `status=passed`、`rework.required=false`，且哈希绑定当前 shot plan。
 - 静帧：至少覆盖开场、核心事件、结尾；不能只把开场做好。
 - 关键事件 proof：3–5 秒，验证一个完整事件。
 - 连续片段 proof：多镜头作品额外验证 6–10 秒，至少覆盖一个重要事件 + 一个镜头转换。

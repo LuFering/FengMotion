@@ -10,12 +10,19 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
+import crypto from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 const isStr = (v) => typeof v === 'string' && v.trim().length > 0;
 const isInt = (v) => Number.isInteger(v);
 const isArr = Array.isArray;
+const stable = (v) => {
+  if (Array.isArray(v)) return v.map(stable);
+  if (v && typeof v === 'object') return Object.keys(v).sort().reduce((o, k) => { o[k] = stable(v[k]); return o; }, {});
+  return v;
+};
+const sameState = (a, b) => JSON.stringify(stable(a)) === JSON.stringify(stable(b));
 
 export function validateShotPlan(doc) {
   const errors = [];
@@ -100,7 +107,19 @@ export function validateShotPlan(doc) {
 
     need(isObj(s.continuityIn), `shots[${i}].continuityIn 必须是对象`);
     need(isObj(s.continuityOut), `shots[${i}].continuityOut 必须是对象`);
-    if (isObj(s.continuityIn)) need(isArr(s.continuityIn.carriedState), `shots[${i}].continuityIn.carriedState 必须是数组`);
+    if (isObj(s.continuityIn)) {
+      need(isArr(s.continuityIn.carriedState), `shots[${i}].continuityIn.carriedState 必须是数组`);
+      if (s.continuityIn.stateChanges !== undefined) {
+        need(isArr(s.continuityIn.stateChanges), `shots[${i}].continuityIn.stateChanges 必须是数组`);
+        for (const [k, c] of (isArr(s.continuityIn.stateChanges) ? s.continuityIn.stateChanges : []).entries()) {
+          need(isObj(c), `shots[${i}].continuityIn.stateChanges[${k}] 必须是对象`);
+          if (!isObj(c)) continue;
+          need(isStr(c.subjectId), `shots[${i}].continuityIn.stateChanges[${k}].subjectId 不能为空`);
+          need(isStr(c.field), `shots[${i}].continuityIn.stateChanges[${k}].field 不能为空`);
+          need(isStr(c.reason), `shots[${i}].continuityIn.stateChanges[${k}].reason 不能为空（为什么允许变化）`);
+        }
+      }
+    }
     if (isObj(s.continuityOut)) need(isArr(s.continuityOut.carriedState), `shots[${i}].continuityOut.carriedState 必须是数组`);
 
     const subjects = isArr(s.subjects) ? s.subjects : [];
@@ -144,6 +163,40 @@ export function validateShotPlan(doc) {
     else need(outTo === next?.id, `镜头 ${s.id} 的 continuityOut.toShot 必须是下一镜 ${next?.id}`);
   }
 
+  // 跨镜头状态一致性：同一 subject 的 stateOut 必须等于下一镜 stateIn，
+  // 除非 continuityIn.stateChanges 显式声明允许变化及原因。
+  const stateChangeAllowed = (shot, subjectId, field) => {
+    const list = isObj(shot.continuityIn) && isArr(shot.continuityIn.stateChanges) ? shot.continuityIn.stateChanges : [];
+    return list.some((c) => isObj(c) && c.subjectId === subjectId && (c.field === field || c.field === '*'));
+  };
+  for (const [i, s] of sorted.entries()) {
+    if (i === 0 || !isObj(s)) continue;
+    const prev = sorted[i - 1];
+    if (!isObj(prev)) continue;
+    const prevOut = isObj(prev.continuityOut) && isArr(prev.continuityOut.carriedState) ? prev.continuityOut.carriedState : [];
+    const currIn = isObj(s.continuityIn) && isArr(s.continuityIn.carriedState) ? s.continuityIn.carriedState : [];
+    need(sameState(prevOut, currIn), `镜头 ${prev.id} 的 continuityOut.carriedState 与 ${s.id} 的 continuityIn.carriedState 不一致`);
+
+    const prevSubjects = isArr(prev.subjects) ? prev.subjects : [];
+    const currSubjects = isArr(s.subjects) ? s.subjects : [];
+    for (const sub of currSubjects) {
+      if (!isObj(sub) || !isStr(sub.id)) continue;
+      const prevSub = prevSubjects.find((x) => isObj(x) && x.id === sub.id);
+      if (!prevSub) continue;
+      if (prevSub.identity !== sub.identity && !stateChangeAllowed(s, sub.id, 'identity')) {
+        errors.push(`主体 ${sub.id} 在 ${prev.id}→${s.id} 的 identity 发生变化，但 continuityIn.stateChanges 没有声明 identity 变化及原因`);
+      }
+      const out = isObj(prevSub.stateOut) ? prevSub.stateOut : {};
+      const inn = isObj(sub.stateIn) ? sub.stateIn : {};
+      const fields = new Set([...Object.keys(out), ...Object.keys(inn)]);
+      for (const field of fields) {
+        if (!sameState(out[field], inn[field]) && !stateChangeAllowed(s, sub.id, field)) {
+          errors.push(`主体 ${sub.id} 的 ${field} 在 ${prev.id}.stateOut 与 ${s.id}.stateIn 不一致，且未在 continuityIn.stateChanges 声明允许变化`);
+        }
+      }
+    }
+  }
+
   // 事件/字幕必须被至少一个镜头引用
   for (const eid of eventIds) {
     need(shots.some((s) => isArr(s.eventIds) && s.eventIds.includes(eid)), `事件 ${eid} 没有被任何镜头引用`);
@@ -156,9 +209,21 @@ export function validateShotPlan(doc) {
 }
 
 function main() {
-  const file = process.argv[2];
+  const args = process.argv.slice(2);
+  const hashIdx = args.indexOf('--hash');
+  if (hashIdx >= 0) {
+    const hashFile = args[hashIdx + 1] && !args[hashIdx + 1].startsWith('--') ? args[hashIdx + 1] : args.find((a) => !a.startsWith('--'));
+    if (!hashFile) {
+      console.error('用法：node tools/validate-shot-plan.mjs --hash <shot-plan.json>');
+      process.exit(2);
+    }
+    const hash = crypto.createHash('sha256').update(fs.readFileSync(path.resolve(hashFile))).digest('hex');
+    console.log(hash);
+    process.exit(0);
+  }
+  const file = args.find((a) => !a.startsWith('--'));
   if (!file) {
-    console.error('用法：node tools/validate-shot-plan.mjs <shot-plan.json>');
+    console.error('用法：node tools/validate-shot-plan.mjs <shot-plan.json> [--hash]');
     process.exit(2);
   }
   let doc;

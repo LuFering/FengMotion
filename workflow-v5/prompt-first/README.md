@@ -15,6 +15,8 @@
   quality-bar.md         # 首帧与首版动画的最低质量门槛
   film-plan.md           # 全片编排：节奏弧/关键事件/连续性/转场/结尾/可选声音
   shot-plan.json         # 机器可读时间线：Shot/Event/Caption/状态交接
+  animatic.mp4           # 全片低保真动态分镜（多镜头）
+  animatic-review.json   # animatic 审查：shotPlanHash/播放范围/findings/返工状态
   references/            # 参考图/视频/链接清单
   qa/
     passes/NN/           # 每轮渲染：视频、抽帧、观察记录
@@ -39,6 +41,7 @@ node tools/init-project.mjs <project-dir> --film-id <id> --prompt-file <原始�
 - 写代码前先填 `lookdev-brief.md` 和 `quality-bar.md`：先定媒介/构图/光/材质，再写动画。
 - 多镜头/长片作品，在完整动画前填 `film-plan.md` 和 `shot-plan.json`：先排节奏、事件、镜头、字幕、连续性和结尾。
 - `shot-plan.json` 写完后运行 `node tools/validate-shot-plan.mjs shot-plan.json`。
+- 全片 animatic 后填 `animatic-review.json`（含 `noSubtitleTest`），运行 `node tools/validate-animatic-review.mjs animatic-review.json --shot-plan shot-plan.json`；未 `passed` 不进入视觉制作。
 - 不需要先创建 `intent-brief.json`、方向、Gate、蓝图或 `scene.spec`；按任务复杂度按需使用。
 
 ## 上下文优先级
@@ -59,16 +62,17 @@ node tools/init-project.mjs <project-dir> --film-id <id> --prompt-file <原始�
   → 多镜头：film-plan（叙事/节奏/事件/连续性/结尾）
   → 多镜头：shot-plan.json（Shot/Event/Caption/状态交接）
   → 全片低保真 animatic（覆盖全部切点）
-  → animatic 通过：静帧（开场/核心动作/结尾）
+  → animatic-review.json（绑定 shotPlanHash；passed + 无返工）
+  → 静帧（开场/核心动作/结尾）
   → 3–5 秒关键动作 proof；多镜头额外 6–10 秒连续片段
   → 完整视觉实现
   → 渲染 → 看连续画面 → 逐切点证据 → 修改
   → 技术 QA + 视觉审片（对照 film-plan/shot-plan）
 ```
 
-### 全片编排（v5.2）
+### 全片编排（v5.3）
 
-多镜头/长片，局部 proof 不能证明全片成立。v5.2 把规划拆成两层：
+多镜头/长片，局部 proof 不能证明全片成立。v5.2/v5.3 把规划拆成两层：
 
 - `film-plan.md`：叙事/节奏/事件/连续性/结尾，是导演地图；
 - `shot-plan.json`：机器可读时间线，定义 Shot、Event、Caption、状态交接。
@@ -82,11 +86,13 @@ node tools/init-project.mjs <project-dir> --film-id <id> --prompt-file <原始�
 
 每个 Shot 记录 `continuityIn/out`、`transitionIntent`、主体 `stateIn/stateOut`。执行层必须继承 `stateIn`，不能默认从初始状态重新开始。
 
-全片 animatic 是完整视觉制作前的门槛：用占位形状覆盖全部切点，先证明时间线连贯；如果去掉精细外观后像幻灯片，就回改 Shot Plan，不进入完整视觉制作。
+同一主体前后镜的 `stateOut` 必须等于下一镜 `stateIn`；视角/姿态/位置等允许的变化，必须在 `continuityIn.stateChanges` 写清 `subjectId` / `field` / `reason`，否则 `validate-shot-plan` 直接失败。
+
+全片 animatic 是完整视觉制作前的门槛：用占位形状覆盖全部切点，先证明时间线连贯；`animatic-review.json` 必须绑定当前 shot plan 哈希并记录完整播放、findings 和返工状态。`status=passed` 且 `rework.required=false` 后才能进入视觉制作；如果去掉精细外观后像幻灯片，就回改 Shot Plan。
 
 声音是可选段：用户要求无声则跳过，不作为阻塞项。
 
-全片编排不是硬门禁，也不规定固定镜头数/转场类型；它只让“安静/变化/高潮/收束”成为有意设计，而不是渲完就停。
+全片编排不规定固定镜头数/转场类型；但 shot-plan 结构、stateOut→stateIn 一致性、animatic-review passed 是进入视觉制作的前置条件。
 
 ### 为什么加 still-first
 
@@ -110,7 +116,7 @@ node tools/init-project.mjs <project-dir> --film-id <id> --prompt-file <原始�
 ### 省 token 规则
 
 1. 多镜头没有 `film-plan.md` + `shot-plan.json`，不写完整动画。
-2. 全片 animatic 未通过，不做完整视觉制作。
+2. 全片 animatic-review 未 `passed` 或 `rework.required=true`，不做完整视觉制作。
 3. 静帧不过，不写完整动画；静帧覆盖开场/核心/结尾，不只做开场。
 4. 首版只做关键动作 proof；多镜头额外做 6–10 秒连续片段，不直接全片。
 5. 每轮只修 1 个主要问题；用 animatic/静帧/短片段验证，不重渲全片。
@@ -137,7 +143,7 @@ node tools/init-project.mjs <project-dir> --film-id <id> --prompt-file <原始�
 workflow-v5/prompt-first/
 ├── README.md
 ├── prompts/creator.md
-├── templates/{prompt.original.md,corrections.md,decisions.md,lookdev-brief.md,quality-bar.md,film-plan.md,shot-plan.json}
-├── tools/{init-project.mjs,validate-shot-plan.mjs}
+├── templates/{prompt.original.md,corrections.md,decisions.md,lookdev-brief.md,quality-bar.md,film-plan.md,shot-plan.json,animatic-review.json}
+├── tools/{init-project.mjs,validate-shot-plan.mjs,validate-animatic-review.mjs}
 └── examples/（含 continuity-reference 结构参考）
 ```

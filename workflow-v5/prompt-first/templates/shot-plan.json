@@ -34,7 +34,8 @@
       "transitionIntent": "<为什么在这里切：动作接续/视线引导/形态匹配/时间跳跃/情绪断开/光位变化>",
       "continuityIn": {
         "fromShot": null,
-        "carriedState": []
+        "carriedState": [],
+        "stateChanges": []
       },
       "continuityOut": {
         "toShot": null,

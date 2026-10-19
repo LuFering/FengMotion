@@ -1,0 +1,25 @@
+{
+  "schemaVersion": "1.0",
+  "type": "animatic-review",
+  "filmId": "<film-id>",
+  "shotPlanHash": "<sha256-of-shot-plan.json>",
+  "animatic": "animatic.mp4",
+  "durationInFrames": 0,
+  "reviewer": {
+    "type": "model",
+    "id": "animatic-review"
+  },
+  "fullPlaybackReviewed": false,
+  "reviewedRanges": [],
+  "noSubtitleTest": {
+    "reviewed": false,
+    "result": "fail",
+    "notes": ""
+  },
+  "status": "needs-revision",
+  "findings": [],
+  "rework": {
+    "required": true,
+    "targets": ["shot-plan"]
+  }
+}

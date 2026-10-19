@@ -172,6 +172,7 @@ node tools/validate-execution.mjs examples/seven-oh-five
 # sketch 项目：同一命令会走 sketch 分支，校验 buildHash + 输出 SHA-256
 # 多镜头审片前生成切点前后帧：
 node tools/cut-evidence.mjs --video <mp4> --shot-plan <shot-plan.json> --out qa/cuts
+# 输出 cut-*-before/at/after.png、freeze-report.txt、black-report.txt、cut-evidence.json
 ```
 
 当前示例是 **blocked**：Gate A/B/C 未确认、组件/资产 candidate、无组件代码、无正式渲染。

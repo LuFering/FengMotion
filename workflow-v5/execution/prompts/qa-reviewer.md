@@ -10,7 +10,8 @@
 - `prompt.original.md` / `corrections.md` / `decisions.md`
 - `film-plan.md`（全片编排：节奏弧/关键事件/连续性/转场/结尾）
 - `shot-plan.json`（机器可读镜头/事件/字幕/状态交接）
-- `qa/cuts/cut-evidence.json` + 切点前后帧（如已生成）
+- `qa/cuts/cut-evidence.json` + 切点前后帧 + `freeze-report.txt` / `black-report.txt`（如已生成）
+- `animatic-review.json`（绑定 shotPlanHash、完整播放范围、findings、status、rework）
 - `render-manifest.json` / `build-manifest.json`（确认 renderId、renderHash、buildHash）
 - `animation-blueprint.json` / `scene.spec.json` / 组件合同（如有）
 - 设计验收条件与视觉方向
@@ -52,6 +53,7 @@
 
 完整视觉制作前，先审覆盖全片时长的低保真 animatic：
 
+- `animatic-review.json` 是否存在、`status=passed`、`rework.required=false`？`shotPlanHash` 是否等于当前 shot plan 的 sha256？`noSubtitleTest.reviewed=true` 且 `result=pass`？不满足则说明视觉制作提前启动，直接记 blocker。
 - 是否覆盖全部 Shot 和每个切点，而不是只做关键片段？
 - 去掉精细材质后，时间线是否仍然连贯、有因果、有节奏？
 - 是否出现“每句字幕换一张画面”“长时间静止代替动作”“切点只换画面不交接状态”？
@@ -63,23 +65,26 @@
 
 - **事件**：关键事件是否有开始/变化/结束？主体状态、位置、形态或光位是否真的发生可见变化，而不是对象出现后停住？
 - **连续性**：同一主体/道具/材质/空间/光源跨镜头是否可识别？不同景别/视角下的同一主体是否一致？有意的时间跳跃/形态变化是否在 plan 中说明？
-- **状态交接**：前一镜 `continuityOut` / 主体 `stateOut` 是否成为后一镜 `continuityIn` / `stateIn`？动作是继续、结束还是被中断？
+- **状态交接**：前一镜 `continuityOut` / 主体 `stateOut` 是否成为后一镜 `continuityIn` / `stateIn`？动作是继续、结束还是被中断？如果两者不同，检查 `continuityIn.stateChanges` 是否声明了 `subjectId/field/reason`；未声明就是状态断裂。
 - **转场**：每个切点是否有 `transitionIntent`（动作接续/视线转移/形态匹配/时间跳跃/情绪断开/光位变化）？还是只是“上一段结束，换下一张”？
 - **节奏**：开场/中段/高潮/结尾是否有变化曲线？是否连续多段等长硬切、静止过长、重复相似画面？
+- **无字幕测试**：遮住字幕，事件因果是否仍然成立？如果只能靠字幕解释，记 major，退回镜头计划/动画实现。
 - **结尾**：最后 3–5 秒是否完成情绪收束？最后一个动作/构图/光是否与开场呼应？还是对象放上去后直接停住？
 - **安静镜头**：允许静止/空镜/留白，但停顿必须是有意设计；不要要求每个镜头都必须大幅运动。
 
 ## 规则
 
 - 必须看连续预览，不能只凭关键帧批准；`fullPlaybackReviewed` 必须如实记录。
-- 多镜头审片必须读取 `film-plan.md` 和 `shot-plan.json`；成片与计划不一致时，写清楚是计划问题还是执行问题。
+- 多镜头审片必须读取 `film-plan.md`、`shot-plan.json` 和 `animatic-review.json`；成片与计划不一致时，写清楚是计划问题还是执行问题。
+- 如果 animatic-review 为 `needs-revision` 或哈希过期，视觉审片不能直接批准成片；先退回 shot plan/animatic。
 - 每个切点必须有 before/at/after 证据；可运行：
 
 ```bash
 node tools/cut-evidence.mjs --video <mp4> --shot-plan shot-plan.json --out qa/cuts
 ```
 
-- 切点证据用于定位：前一镜 stateOut 是否等于后一镜 stateIn；动作是否被截断；是否只是换画面。不要用固定帧差阈值替代导演判断。
+- 切点证据用于定位：前一镜 stateOut 是否等于后一镜 stateIn；动作是否被截断；是否只是换画面。
+- freeze/black 报告用于定位长时间静止、黑帧或明显停顿；不设通过阈值，要区分“有意停顿”和“动作未完成”。
 - 静止/低变化镜头允许存在，但必须是有意设计；报告要区分“有意停顿”和“动作未完成”。
 - 允许 `holistic` 类 finding（整体节奏、叙事、视觉密度、声音/画面关系、情绪推进），不要求每条都对应预先写下的 acceptance 条款；holistic finding 用 `scope: "holistic"` + `timeRangeSec` 或全片范围。
 - 每条 finding 必须有证据帧/时间码 + 具体观察/期望；不能写“看起来不够高级”。
