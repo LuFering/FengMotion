@@ -32,6 +32,7 @@
 - v5.3：`animatic-review.json` 绑定 shotPlanHash、完整播放、无字幕测试和返工状态；shot-plan 增加 stateOut→stateIn 一致性检查与显式 stateChanges；init 检查 animatic review；QA 增加无字幕叙事测试；cut-evidence 增加 freeze/black 定位报告。
 - v5.5：重新审视默认 Prompt-first，删掉默认流程里的 shot-plan/animatic-review/静帧/proof 审批层；lookdev 改为视觉转译工作稿，quality-bar 改为看片问题，film-plan 缩成一页导演处理；init 只检查原始提示词/项目文件；高级结构工具保留给复杂/Structured 项目。
 - v5.6：补“从风格到动作”的转译深度；film-plan 增加关键动作/时间/镜头/光材质响应/交接；creator 增加最难动作 3–5 秒局部预览与连续看片；lookdev 增加动作/媒介适配；不新增文件或校验门。
+- v5.7：补“从视觉命题到注意力”的转译深度；lookdev 增加核心视觉事件/注意力路径；film-plan 增加镜头注意力/镜头对比/视觉高潮/余像；quality-bar 增加视觉事件/动作表现力/动态审片方式；并补“输入事件覆盖”，防止视觉重点吃掉原文/用户要求的事件；不新增文件或校验门。
 - 0–2：`intent/`、`director/`、`reference/` 已实现；导演/动画校验器支持 creative/strict profile。
 - Gate A/B：`gates/` 已实现（当前示例未确认：Gate A recommended 且缺 Look-dev，Gate B 0/6 当前版本 approved）。
 - 5 动画设计：`animation/` 已实现蓝图/实现计划/草稿规格/四道门校验；当前 6 场均为 draft，组件/资产 candidate，Gate 3/4 blocked。
