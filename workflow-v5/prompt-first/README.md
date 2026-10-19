@@ -1,8 +1,8 @@
 # Prompt-first（默认创作路径）
 
-> 用完整的高级提示词、参考和素材直接创作 Remotion，不需要先填完所有结构化文件。
-> v5 的意图/导演/动画/门禁/执行产物是**可选的后台记录**，不是创作前提。
-> 只有在多场景协作、客户交付、严格复现、素材/授权风险高时，才升级到 Structured 路径（见 `../PATHS.md`）。
+> 用完整提示词、参考和素材直接创作 Remotion；默认流程不做「先填完整结构化文件再开工」。
+> 目标是让模型先看见画面，再写代码；不是让模型通过门禁。
+> 只有在多人协作、客户交付、严格复现、素材/授权风险高时，才升级 Structured 路径（见 `../PATHS.md`）。
 
 ## 项目目录
 
@@ -10,24 +10,17 @@
 <project-dir>/
   prompt.original.md     # 用户原始输入，逐字保存，不摘要、不改写
   corrections.md         # 用户后续纠正，追加，不覆盖原文
-  decisions.md           # 影响创意/构建/素材/验收的关键决定，可 supersede
-  lookdev-brief.md       # 首帧视觉定标：媒介/构图/光/材质/文字/运动/参考
-  quality-bar.md         # 首帧与首版动画的最低质量门槛
-  film-plan.md           # 全片编排：节奏弧/关键事件/连续性/转场/结尾/可选声音
-  shot-plan.json         # 机器可读时间线：Shot/Event/Caption/状态交接
-  animatic.mp4           # 全片低保真动态分镜（多镜头）
-  animatic-review.json   # animatic 审查：shotPlanHash/播放范围/findings/返工状态
+  decisions.md           # 关键决定，可 supersede
+  lookdev-brief.md       # 视觉转译工作稿：视觉命题/参考/方向/色版/光/材质/镜头/运动
+  quality-bar.md         # 看片问题：用来定位「哪里 generic、下一轮改什么」
+  film-plan.md           # 多镜头可选：一页导演处理，不是审批表
   references/            # 参考图/视频/链接清单
   qa/
-    passes/NN/           # 每轮渲染：视频、抽帧、观察记录
-  project.json           # filmId、创建时间、模式
+    passes/NN/           # 每轮渲染、抽帧、观察记录
+  project.json
 ```
 
-实际 Remotion 工程可以在任意目录；这里只规定**创作上下文**的存放方式，不强制新的渲染后端。
-
-## 通用性
-
-模板使用中性术语（主体/道具/材质/空间/光源/事件），不预设题材；`examples/` 或旧片仅用于校验/演示，不应成为默认视觉方案或叙事结构。
+`shot-plan.json`、`animatic-review.json`、`scene.spec` 等仍可用于复杂/Structured 项目，但**不是默认 Prompt-first 的前置条件**。
 
 ## 开始
 
@@ -38,11 +31,10 @@ node tools/init-project.mjs <project-dir> --film-id <id> --prompt-file <原始�
 
 - `prompt.original.md` 逐字复制，不做摘要；已存在时默认不覆盖。
 - 之后把用户纠正追加到 `corrections.md`，关键决定写入 `decisions.md`。
-- 写代码前先填 `lookdev-brief.md` 和 `quality-bar.md`：先定媒介/构图/光/材质，再写动画。
-- 多镜头/长片作品，在完整动画前填 `film-plan.md` 和 `shot-plan.json`：先排节奏、事件、镜头、字幕、连续性和结尾。
-- `shot-plan.json` 写完后运行 `node tools/validate-shot-plan.mjs shot-plan.json`。
-- 全片 animatic 后填 `animatic-review.json`（含 `noSubtitleTest`），运行 `node tools/validate-animatic-review.mjs animatic-review.json --shot-plan shot-plan.json`；未 `passed` 不进入视觉制作。
-- 不需要先创建 `intent-brief.json`、方向、Gate、蓝图或 `scene.spec`；按任务复杂度按需使用。
+- 先写 `lookdev-brief.md`：视觉命题、参考、2–3 个方向、色版/光/材质/镜头/运动。
+- 做 1–3 张便宜测试帧，并排比较方向；如果还是默认占位符，换方向/媒介。
+- 多镜头写 `film-plan.md`（一页导演处理），不需要先写镜头 JSON。
+- 没有必须通过的 animatic-review/style-frame 门；测试帧和 animatic 是判断工具，不是审批门。
 
 ## 上下文优先级
 
@@ -54,78 +46,68 @@ node tools/init-project.mjs <project-dir> --film-id <id> --prompt-file <原始�
 
 原文不能被摘要替代。上下文变长时，完整原文留在项目文件中，创作阶段注入相关原句、纠正、硬约束与最近决定。
 
-## 创作闭环（animatic-first + still-first）
+## 创作闭环（画面先行）
 
 ```text
 原文/参考/素材
-  → 媒介适配 + lookdev-brief（构图/光/材质/文字/运动）
-  → 多镜头：film-plan（叙事/节奏/事件/连续性/结尾）
-  → 多镜头：shot-plan.json（Shot/Event/Caption/状态交接）
-  → 全片低保真 animatic（覆盖全部切点）
-  → animatic-review.json（绑定 shotPlanHash；passed + 无返工）
-  → 静帧（开场/核心动作/结尾）
-  → 3–5 秒关键动作 proof；多镜头额外 6–10 秒连续片段
-  → 完整视觉实现
-  → 渲染 → 看连续画面 → 逐切点证据 → 修改
-  → 技术 QA + 视觉审片（对照 film-plan/shot-plan）
+  → 读原文，找视觉命题/视觉母题
+  → lookdev：参考 + 2–3 个方向 + 1–3 张测试帧
+  → 选定方向；如果测试帧仍像占位符，换方向/媒介
+  → 多镜头：film-plan（一页导演处理；可选 shot list）
+  → 实现视觉系统 → 粗剪/animatic → 完整画面
+  → 看连续画面 → 对照参考定位最大问题 → 只改一个 → 再看
+  → 技术 QA + 视觉判断（不是通过/失败门禁）
 ```
 
-### 全片编排（v5.3）
+### 视觉转译（这是重点）
 
-多镜头/长片，局部 proof 不能证明全片成立。v5.2/v5.3 把规划拆成两层：
+模型默认会写「暗背景 + 渐变光 + 几何图形」，因为没有先决定画面。Prompt-first 要做的是：
 
-- `film-plan.md`：叙事/节奏/事件/连续性/结尾，是导演地图；
-- `shot-plan.json`：机器可读时间线，定义 Shot、Event、Caption、状态交接。
+1. **原文 → 视觉命题**：这段文字里，什么是只有画面能表达的？
+2. **参考 → 视觉系统**：借什么构图/光/色/材质/镜头/运动，不借什么。
+3. **2–3 个方向**：不要只做第一个想到的方案；并排看差异。
+4. **测试帧**：先做便宜的真实帧，验证方向，不急着写完整动画。
+5. **选定方向**：写清为什么、放弃了什么、风险是什么。
+6. **再实现**：先建立色板/光/材质/镜头规则，再写镜头；不要每镜临时画几何。
 
-层级必须分开：
+### 字幕/旁白
 
-- **Event** 可以跨多个 Shot；
-- **Shot** 是时间/观看单位，不等于一句文本；
-- **Scene** 是空间单位，可以包含多个 Shot；
-- **Caption** 是独立轨道，不因字幕换行自动创建 Shot。
+- 字幕/旁白不是画面的解释器；它们应该补充画面不能说的，而不是复述画面。
+- 如果去掉字幕就看不懂事件，优先改画面/镜头，而不是加更多字幕。
+- 多镜头可以让字幕跨镜头；不需要为了字幕换行新建镜头。
 
-每个 Shot 记录 `continuityIn/out`、`transitionIntent`、主体 `stateIn/stateOut`。执行层必须继承 `stateIn`，不能默认从初始状态重新开始。
+### 创作习惯
 
-同一主体前后镜的 `stateOut` 必须等于下一镜 `stateIn`；视角/姿态/位置等允许的变化，必须在 `continuityIn.stateChanges` 写清 `subjectId` / `field` / `reason`，否则 `validate-shot-plan` 直接失败。
+这些是习惯，不是硬门禁：
 
-全片 animatic 是完整视觉制作前的门槛：用占位形状覆盖全部切点，先证明时间线连贯；`animatic-review.json` 必须绑定当前 shot plan 哈希并记录完整播放、findings 和返工状态。`status=passed` 且 `rework.required=false` 后才能进入视觉制作；如果去掉精细外观后像幻灯片，就回改 Shot Plan。
+1. 先做便宜的图，再写贵的代码。
+2. 一次只改一个最大的视觉问题。
+3. 计划服务于画面；如果文档开始替代画面判断，删掉文档。
+4. 参考是借结构/光/材质/构图，不是照抄表皮。
+5. 复用已经成立的视觉系统，不要每轮重新决定风格。
+6. 允许实验；实验失败就换方向，不要用更多装饰救场。
+7. 安静/留白可以保留，但必须是有意的节奏。
 
-声音是可选段：用户要求无声则跳过，不作为阻塞项。
+### 技术/真实性底线
 
-全片编排不规定固定镜头数/转场类型；但 shot-plan 结构、stateOut→stateIn 一致性、animatic-review passed 是进入视觉制作的前置条件。
+这些必须过：
 
-### 为什么加 still-first
+- 不伪造参考、素材、组件、渲染、用户批准或审片结果；
+- 不把占位渲染当最终交付；`sketch`/`prototype` 明确标记非交付；
+- 用户要求逐字保留的内容不能遗漏/改写；
+- 技术错误（JSON、帧窗口、fps/宽高/帧数、资源、输出损坏）必须修；
+- 没有实际渲染证据，不声称「效果已改善」。
 
+## 高级工具（可选，不是默认门禁）
 
-第一版直接从提示词写完整动画，模型会默认选最省力的实现：深色背景、矩形、渐变、硬边光、几何占位符、文字浮入。
-这不是“模型不会写代码”，而是跳过了视觉定标。先做静帧，能在最便宜的阶段暴露构图/光/材质问题，避免整片重渲。
+复杂/Structured 项目可以按需使用：
 
-### 首版质量门槛
+- `shot-plan.json` + `validate-shot-plan.mjs`：机器可读镜头/事件/字幕/状态交接；
+- `animatic-review.json` + `validate-animatic-review.mjs`：记录 animatic 完整播放/无字幕测试/返工状态；
+- `cut-evidence.mjs`：切点前后帧 + freeze/black 定位；
+- `animation/`、`execution/` 下的蓝图、scene.spec、组件合同。
 
-`lookdev-brief.md` / `quality-bar.md` 至少检查：
-
-- 焦点、构图、留白、层次；
-- 光的方向/衰减/受光面/暗部；
-- 材质是否能区分，而不是纯色块；
-- 文字完整、可读、层级清楚；
-- 暂停时像设计画面，不像 PPT；
-- 媒介诚实：程序化不假装摄影。
-
-不通过就改静帧，不写完整动画。
-
-### 省 token 规则
-
-1. 多镜头没有 `film-plan.md` + `shot-plan.json`，不写完整动画。
-2. 全片 animatic-review 未 `passed` 或 `rework.required=true`，不做完整视觉制作。
-3. 静帧不过，不写完整动画；静帧覆盖开场/核心/结尾，不只做开场。
-4. 首版只做关键动作 proof；多镜头额外做 6–10 秒连续片段，不直接全片。
-5. 每轮只修 1 个主要问题；用 animatic/静帧/短片段验证，不重渲全片。
-6. 连续两轮修同一层无改善 → 换镜头组织/媒介/视觉目标，而不是继续调参数。
-7. 复用已确认的构图/光/材质/主体身份和状态交接，不每轮重新决定风格。
-
-- `sketch` / `prototype` 允许在正式门禁前渲染，但必须标记为非交付；不能伪装成最终素材/授权/成片。
-- 预览、proof、正式渲染必须能追溯到同一份代码/配置/素材；使用 `buildHash`/`renderHash` 时不得伪造。
-- 技术 QA 与视觉审片分开：技术通过不等于好看，视觉好评不能覆盖技术失败。
+这些工具用于**复杂项目的协作和追溯**，不是 Prompt-first 的创作前提，也不应用来替代画面判断。
 
 ## 什么时候升级 Structured
 
@@ -143,7 +125,9 @@ node tools/init-project.mjs <project-dir> --film-id <id> --prompt-file <原始�
 workflow-v5/prompt-first/
 ├── README.md
 ├── prompts/creator.md
-├── templates/{prompt.original.md,corrections.md,decisions.md,lookdev-brief.md,quality-bar.md,film-plan.md,shot-plan.json,animatic-review.json}
-├── tools/{init-project.mjs,validate-shot-plan.mjs,validate-animatic-review.mjs}
-└── examples/（含 continuity-reference 结构参考）
+├── templates/{prompt.original.md,corrections.md,decisions.md,lookdev-brief.md,quality-bar.md,film-plan.md}
+├── tools/init-project.mjs
+├── templates/{shot-plan.json,animatic-review.json}          # 可选/高级
+├── tools/{validate-shot-plan.mjs,validate-animatic-review.mjs} # 可选/高级
+└── examples/
 ```

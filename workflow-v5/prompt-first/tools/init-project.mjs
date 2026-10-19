@@ -12,8 +12,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { validateShotPlan } from './validate-shot-plan.mjs';
-import { validateAnimaticReview } from './validate-animatic-review.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const templateDir = path.resolve(__dirname, '../templates');
@@ -40,33 +38,11 @@ const projectDir = path.resolve(process.cwd(), projectArg);
 const readTemplate = (name) => fs.readFileSync(path.join(templateDir, name), 'utf8');
 
 if (checkMode) {
-  const required = ['prompt.original.md', 'corrections.md', 'decisions.md', 'lookdev-brief.md', 'quality-bar.md', 'film-plan.md', 'shot-plan.json', 'animatic-review.json', 'project.json'];
+  const required = ['prompt.original.md', 'project.json'];
   for (const f of required) {
     const p = path.join(projectDir, f);
     if (!fs.existsSync(p)) fail(`缺少 ${f}`);
     else if (f.endsWith('.md') && fs.readFileSync(p, 'utf8').trim().length < 20) fail(`${f} 内容过短`);
-  }
-  const shotPlanPath = path.join(projectDir, 'shot-plan.json');
-  if (fs.existsSync(shotPlanPath)) {
-    try {
-      const shotPlan = JSON.parse(fs.readFileSync(shotPlanPath, 'utf8'));
-      for (const e of validateShotPlan(shotPlan)) fail(`shot-plan.json：${e}`);
-    } catch (e) {
-      fail(`shot-plan.json 读取/解析失败：${e.message}`);
-    }
-  }
-  const animaticReviewPath = path.join(projectDir, 'animatic-review.json');
-  if (fs.existsSync(animaticReviewPath) && fs.existsSync(shotPlanPath)) {
-    try {
-      const review = JSON.parse(fs.readFileSync(animaticReviewPath, 'utf8'));
-      for (const e of validateAnimaticReview(review, { shotPlanPath, reviewPath: animaticReviewPath, reviewDir: projectDir })) {
-        fail(`animatic-review.json：${e}`);
-      }
-      if (review.status !== 'passed') fail('animatic-review.json：status 必须为 passed 才能进入视觉制作');
-      if (review.rework?.required !== false) fail('animatic-review.json：rework.required 必须为 false 才能进入视觉制作');
-    } catch (e) {
-      fail(`animatic-review.json 读取/解析失败：${e.message}`);
-    }
   }
   if (errors.length) {
     console.error(`✗ Prompt-first 项目检查未通过（${errors.length} 项）：`);
@@ -116,8 +92,6 @@ writeIfMissing('decisions.md', readTemplate('decisions.md'));
 writeIfMissing('lookdev-brief.md', readTemplate('lookdev-brief.md'));
 writeIfMissing('quality-bar.md', readTemplate('quality-bar.md'));
 writeIfMissing('film-plan.md', readTemplate('film-plan.md'));
-writeIfMissing('shot-plan.json', readTemplate('shot-plan.json'));
-writeIfMissing('animatic-review.json', readTemplate('animatic-review.json'));
 
 const projectJson = path.join(projectDir, 'project.json');
 if (!fs.existsSync(projectJson) || force) {
@@ -132,4 +106,4 @@ if (!fs.existsSync(projectJson) || force) {
 }
 
 console.log(`✓ Prompt-first 项目就绪：${projectDir}`);
-console.log('  下一步：把用户原始提示词逐字放入 prompt.original.md；先填 lookdev-brief.md / quality-bar.md、film-plan.md、shot-plan.json；animatic 后填 animatic-review.json，再按 prompts/creator.md 开始。');
+console.log('  下一步：把用户原始提示词逐字放入 prompt.original.md；先写 lookdev-brief.md 并做 1–3 张测试帧，再按 prompts/creator.md 开始。');
