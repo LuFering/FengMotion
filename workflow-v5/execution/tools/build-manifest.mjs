@@ -30,7 +30,8 @@ if (!fs.existsSync(configPath)) {
 }
 const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
 const baseDir = path.dirname(configPath);
-const root = flag('--root') ? path.resolve(process.cwd(), flag('--root')) : baseDir;
+const configuredRoot = config?.build?.root ? path.resolve(baseDir, config.build.root) : baseDir;
+const root = flag('--root') ? path.resolve(process.cwd(), flag('--root')) : configuredRoot;
 const outArg = flag('--out') ?? 'qa/build-manifest.json';
 const outPath = path.resolve(baseDir, outArg);
 
@@ -40,7 +41,7 @@ const report = {
   type: 'build-manifest',
   filmId: config.filmId,
   createdAt: new Date().toISOString(),
-  root: path.relative(process.cwd(), root) || '.',
+  root: path.relative(baseDir, root) || '.',
   fileCount: manifest.fileCount,
   buildHash: manifest.buildHash,
   files: manifest.files,

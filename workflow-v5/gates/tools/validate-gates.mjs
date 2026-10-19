@@ -295,9 +295,20 @@ for (const sceneId of blueprintIds) {
 gateBApproved = sceneStatus.length > 0 && sceneStatus.every((s) => s.status === 'approved');
 if (gateBApproved && !gateAApproved) errors.push('Gate B 已全部通过，但 Gate A 方向未确认；不能跳过方向门');
 
-// 动画不能在 Gate B 前开始
-const hasAnimation = ['scene.spec.json', '02-scene.spec.json', path.join('components', 'index.tsx')].some((f) => fs.existsSync(path.join(dir, f)));
-if (hasAnimation && !gateBApproved) errors.push('Gate B 未全部通过就出现了 scene.spec / 组件文件；先逐场景确认布局，再写动画');
+// 动画不能在 Gate B 前开始：按实际 animation 目录检查，而不是只看 gates 目录
+const animDir = intentsDoc?.basedOn?.animationBlueprint
+  ? path.dirname(path.resolve(dir, intentsDoc.basedOn.animationBlueprint))
+  : dir;
+let hasApprovedSpec = false;
+const specCandidate = path.join(animDir, 'scene.spec.json');
+if (fs.existsSync(specCandidate)) {
+  try {
+    hasApprovedSpec = JSON.parse(fs.readFileSync(specCandidate, 'utf8')).status === 'approved';
+  } catch {}
+}
+const compDir = path.join(animDir, 'components');
+const hasComponents = fs.existsSync(compDir) && fs.readdirSync(compDir).some((f) => /\.(tsx|ts|jsx|js)$/.test(f));
+if ((hasApprovedSpec || hasComponents) && !gateBApproved) errors.push('Gate B 未全部通过就出现了已批准的 scene.spec / 组件文件；先逐场景确认布局，再写动画');
 
 const text = JSON.stringify({ gate, intentsDoc, approvals });
 need(!/TODO|TBD|占位符|待填写/i.test(text), '还有占位符/待填写');

@@ -61,7 +61,16 @@ if (mode === 'sketch') {
 
 // 1. 设计交接
 const gate = readJson(abs(path.join(P.gates ?? '', 'direction-gate.json')));
-const gateAOk = gate?.status === 'confirmed' && gate?.confirmation?.status === 'approved' && gate.confirmation.version === gate.version && (!gate?.lookDev?.required || gate.lookDev?.status === 'passed') && (gate.confirmation.confirmedBy === 'user' || config.allowAutopilotApprovals === true);
+const gateDir = abs(P.gates ?? '');
+const directionsDoc = gate?.basedOn?.creativeDirections ? readJson(path.resolve(gateDir, gate.basedOn.creativeDirections)) : null;
+const selectedDir = (directionsDoc?.directions ?? []).find((d) => d.id === gate?.selectedDirectionId);
+const needsLookDev = selectedDir?.materialDirection === 'naturalistic' || (selectedDir?.candidateMediums ?? []).includes('selected-video-footage');
+const lookDevWaived = gate?.lookDev?.required === false && gate?.lookDev?.waiver?.by === 'user' && typeof gate.lookDev.waiver.reason === 'string';
+const lookDevEvidenceOk = gate?.lookDev?.status === 'passed' && Array.isArray(gate.lookDev.evidence) && gate.lookDev.evidence.length >= 1 && gate.lookDev.evidence.every((e) => exists(path.resolve(gateDir, e)) && /\.(png|jpe?g|webp|mp4|mov)$/i.test(e)) && ['remotion-still', 'reference-frame', 'generated-image', 'photographic'].includes(gate.lookDev.source);
+const lookDevOk = !needsLookDev || lookDevWaived || (gate?.lookDev?.required === true && lookDevEvidenceOk);
+const selectedSample = (gate?.samples ?? []).find((x) => x.directionId === gate?.selectedDirectionId);
+const gateAContentOk = !gate?.confirmation || !selectedSample?.file || gate.confirmation.contentHash === sha256(path.resolve(gateDir, selectedSample.file));
+const gateAOk = gate?.status === 'confirmed' && gate?.confirmation?.status === 'approved' && gate.confirmation.version === gate.version && lookDevOk && gateAContentOk && (gate.confirmation.confirmedBy === 'user' || config.allowAutopilotApprovals === true);
 add(
   'design-handoff/gate-a',
   mode === 'prototype' || gateAOk ? 'pass' : 'blocked',
@@ -69,7 +78,7 @@ add(
     ? 'prototype 不要求 Gate A（先验证方向和实现路线）'
     : gateAOk
       ? `Gate A 已确认（v${gate.version}）`
-      : `Gate A 状态=${gate?.status ?? '缺失'} / 确认=${gate?.confirmation?.status ?? '无'} / lookDev=${gate?.lookDev?.status ?? '无'}，需当前版本 approved 且写实方向有 Look-dev`,
+      : `Gate A 状态=${gate?.status ?? '缺失'} / 确认=${gate?.confirmation?.status ?? '无'} / lookDev=${gate?.lookDev?.status ?? '无'} / contentHash=${gateAContentOk ? 'ok' : 'bad'}，需当前版本 approved、写实方向 Look-dev、内容哈希匹配`,
 );
 
 const intents = readJson(abs(path.join(P.gates ?? '', 'scene-intents.json')));
@@ -82,7 +91,7 @@ for (const f of layoutFiles) {
   const m = f.match(/^(.+)-v(\d+)\.(svg|png|jpe?g|webp)$/i);
   if (!m) continue;
   const v = Number(m[2]);
-  if (!latestLayout.has(m[1]) || latestLayout.get(m[1]) < v) latestLayout.set(m[1], v);
+  if (!latestLayout.has(m[1]) || latestLayout.get(m[1]).version < v) latestLayout.set(m[1], { version: v, file: f });
 }
 const records = approvals?.records ?? [];
 const sceneIds = (blueprint?.scenes ?? []).map((s) => s.sceneId);
@@ -92,7 +101,8 @@ const sceneMissing = sceneIds.filter((id) => {
   const r = records
     .filter((x) => x.stage === 'scene-layout' && x.sceneId === id)
     .sort((a, b) => (b.version ?? 0) - (a.version ?? 0))[0];
-  return !(r && r.status === 'approved' && r.version === lv && (r.confirmedBy === 'user' || config.allowAutopilotApprovals === true));
+  const hashOk = r?.contentHash === sha256(path.join(layoutDir, lv.file));
+  return !(r && r.status === 'approved' && r.version === lv.version && hashOk && (r.confirmedBy === 'user' || config.allowAutopilotApprovals === true));
 });
 add(
   'design-handoff/gate-b',
@@ -214,11 +224,13 @@ const assetsDir = abs(P.assets ?? 'assets');
 add('engineering/assets-dir', mode === 'prototype' || exists(assetsDir) ? 'pass' : 'blocked', mode === 'prototype' ? 'prototype 由逐资产 path 检查' : exists(assetsDir) ? 'assets/ 存在' : 'assets/ 不存在');
 
 const buildManifest = readJson(abs(path.join(P.qa ?? 'qa', 'build-manifest.json')));
-const currentBuild = computeBuildManifest({ root: baseDir, configPath, config });
+const buildRoot = config?.build?.root ? path.resolve(baseDir, config.build.root) : baseDir;
+const currentBuild = computeBuildManifest({ root: buildRoot, configPath, config });
 const buildOk =
   buildManifest?.type === 'build-manifest' &&
   typeof buildManifest.buildHash === 'string' &&
   buildManifest.buildHash === currentBuild.buildHash &&
+  path.resolve(baseDir, buildManifest.root ?? '.') === buildRoot &&
   Array.isArray(buildManifest.files) &&
   buildManifest.files.length >= 1;
 add(

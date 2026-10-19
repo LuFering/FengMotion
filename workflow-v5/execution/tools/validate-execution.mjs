@@ -9,6 +9,7 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
+import { computeBuildManifest, sha256File } from './lib/build.mjs';
 
 const target = process.argv[2];
 if (!target) {
@@ -30,6 +31,20 @@ const isArr = (v) => Array.isArray(v);
 const isObj = (v) => v && typeof v === 'object' && !Array.isArray(v);
 const isInt = (v) => Number.isInteger(v);
 const existsRel = (p) => isStr(p) && fs.existsSync(path.resolve(dir, p));
+function coversTimeline(ranges, total) {
+  if (!Array.isArray(ranges) || ranges.length === 0 || !Number.isInteger(total) || total <= 0) return false;
+  const rs = ranges
+    .filter((r) => Array.isArray(r) && r.length === 2 && Number.isInteger(r[0]) && Number.isInteger(r[1]))
+    .map((r) => [Math.max(0, r[0]), Math.min(total - 1, r[1])])
+    .sort((a, b) => a[0] - b[0]);
+  if (rs.length === 0 || rs[0][0] > 0) return false;
+  let end = rs[0][1];
+  for (const [a, b] of rs.slice(1)) {
+    if (a > end + 1) return false;
+    end = Math.max(end, b);
+  }
+  return end >= total - 1;
+}
 const readJson = (rel) => {
   const p = path.resolve(dir, rel);
   if (!fs.existsSync(p)) return null;
@@ -83,6 +98,40 @@ if (preflight) {
   }
 }
 
+// sketch：非交付，只要求 build manifest + 真实渲染产物身份
+if (preflight?.mode === 'sketch' && preflight.status === 'passed') {
+  const bm = readJson('qa/build-manifest.json');
+  need(!!bm, 'sketch 缺少 qa/build-manifest.json');
+  if (bm) {
+    const configPath = path.join(dir, 'execution.config.json');
+    const buildRoot = config?.build?.root ? path.resolve(dir, config.build.root) : dir;
+    const currentBuild = computeBuildManifest({ root: buildRoot, configPath, config });
+    need(bm.type === 'build-manifest' && bm.buildHash === currentBuild.buildHash, 'sketch build-manifest 与当前源码不一致');
+  }
+  const rm = readJson('qa/render-manifest.json');
+  need(!!rm, 'sketch 缺少 qa/render-manifest.json');
+  if (rm) {
+    need(rm.type === 'render-manifest', 'sketch render-manifest.type 非法');
+    need(rm.mode === 'sketch', 'sketch render-manifest.mode 必须是 sketch');
+    need(rm.status === 'passed', 'sketch render-manifest.status 必须是 passed');
+    need(rm.composition === out.composition, 'sketch render-manifest.composition 与 config 不一致');
+    need(rm.fps === out.fps && rm.width === out.width && rm.height === out.height && rm.durationInFrames === out.durationInFrames, 'sketch render-manifest 媒体规格与 config 不一致');
+    need(existsRel(rm.output), `sketch 输出不存在：${rm.output}`);
+    if (existsRel(rm.output)) {
+      const actual = sha256File(path.resolve(dir, rm.output));
+      need(rm.renderHash === actual, 'sketch renderHash 与输出文件实际 SHA-256 不一致');
+    }
+    need(rm.buildHash === bm?.buildHash, 'sketch renderHash/buildHash 与 build manifest 不一致');
+  }
+  if (errors.length) {
+    console.error(`✗ sketch 执行链未通过（${errors.length} 项）：`);
+    for (const e of errors) console.error('  - ' + e);
+    process.exit(1);
+  }
+  console.log(`✓ sketch 执行链通过：buildHash=${bm.buildHash.slice(0, 12)}…，输出 SHA-256 已核对（非交付）`);
+  process.exit(0);
+}
+
 // 以下只在 preflight passed 时检查
 const buildManifest = readJson('qa/build-manifest.json');
 need(!!buildManifest, '缺少 qa/build-manifest.json（先跑 build-manifest.mjs）');
@@ -92,6 +141,13 @@ if (buildManifest) {
   need(isArr(buildManifest.files) && buildManifest.files.length >= 1, 'build-manifest.files 至少 1 个输入');
 }
 const buildHash = buildManifest?.buildHash;
+if (buildManifest) {
+  const configPath = path.join(dir, 'execution.config.json');
+  const buildRoot = config?.build?.root ? path.resolve(dir, config.build.root) : dir;
+  const currentBuild = computeBuildManifest({ root: buildRoot, configPath, config });
+  need(path.resolve(dir, buildManifest.root ?? '.') === buildRoot, 'build-manifest.root 与当前 build root 不一致');
+  need(buildManifest.buildHash === currentBuild.buildHash, 'build-manifest 已过期：当前磁盘输入与 buildHash 不一致，请重新生成');
+}
 
 const proof = readJson('qa/motion-proof.json');
 need(!!proof, '缺少 qa/motion-proof.json（Gate C）');
@@ -159,6 +215,10 @@ if (manifest) {
   need(manifest.composition === out.composition, 'render-manifest.composition 与 execution.config 不一致');
   need(manifest.fps === out.fps && manifest.width === out.width && manifest.height === out.height && manifest.durationInFrames === out.durationInFrames, 'render-manifest 媒体规格与 execution.config 不一致');
   need(existsRel(manifest.output), `render-manifest.output 不存在：${manifest.output}`);
+  if (existsRel(manifest.output) && isStr(manifest.renderHash)) {
+    const actual = sha256File(path.resolve(dir, manifest.output));
+    need(actual === manifest.renderHash, 'render-manifest.renderHash 与输出文件实际 SHA-256 不一致');
+  }
   for (const k of ['codeVersion', 'specHash', 'assetManifestHash', 'configHash', 'buildHash', 'renderHash']) {
     need(isStr(manifest[k]), `render-manifest.${k} 不能为空（可追溯）`);
   }
@@ -195,6 +255,17 @@ if (review) {
   need(isArr(review.reviewedRanges) && review.reviewedRanges.length >= 1, 'visual-review.reviewedRanges 不能为空');
   need(typeof review.fullPlaybackReviewed === 'boolean', 'visual-review.fullPlaybackReviewed 必须是布尔值');
   need(isObj(review.reviewer) && ['model', 'human'].includes(review.reviewer.type), 'visual-review.reviewer.type 必须是 model/human');
+  need(['auto', 'human'].includes(review.approvalType), 'visual-review.approvalType 必须是 auto/human');
+  if (review.reviewer?.type === 'model') need(review.approvalType !== 'human', 'model 审片不能声称 human approval');
+  if (review.reviewer?.type === 'human') {
+    need(review.approvalType === 'human', 'human reviewer 必须 approvalType=human');
+    need(review.confirmedBy === 'user', 'human approval 必须 confirmedBy=user');
+  }
+  if (review.status === 'approved' && review.approvalType === 'auto') {
+    need(config?.allowAutoApproval === true, '模型/自动审片不能单独批准；需项目明确 allowAutoApproval=true');
+  }
+  const totalFrames = manifest?.durationInFrames ?? spec?.durationInFrames;
+  need(coversTimeline(review.reviewedRanges, totalFrames), 'visual-review.reviewedRanges 必须无缺口覆盖整片');
   need(isArr(review.findings), 'visual-review.findings 必须是数组');
   for (const [i, f] of (review.findings ?? []).entries()) {
     need(isStr(f.id), `findings[${i}].id 不能为空`);
@@ -236,6 +307,8 @@ if (delivery) {
     need(review?.status === 'approved', 'delivery delivered 前必须有 approved 的 visual-review');
     need(isStr(delivery.output) && delivery.output === manifest?.output, 'delivery.output 必须与 render-manifest 一致');
     need(['user', 'autopilot'].includes(delivery.approvedBy), 'delivery.approvedBy 非法');
+    need(review?.approvalType === 'human' || config?.allowAutoDelivery === true, '正式交付需要 human approval，或项目明确 allowAutoDelivery=true');
+    if (review?.approvalType === 'auto') need(delivery.approvalType === 'auto', 'auto approval 交付必须标 approvalType=auto');
     if (delivery.approvedBy === 'autopilot') {
       need(config?.allowAutopilotDelivery === true, 'autopilot 不能单独解锁正式交付；需项目明确 allowAutopilotDelivery=true');
       need(delivery.approvalType === 'auto', 'autopilot 交付必须标 approvalType=auto，不能伪装用户批准');

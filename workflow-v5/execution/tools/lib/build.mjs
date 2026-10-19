@@ -34,11 +34,13 @@ function addFile(out, p) {
  */
 export function computeBuildManifest({ root, configPath, config }) {
   const base = path.resolve(root);
+  const configDir = path.dirname(path.resolve(configPath));
   const files = new Set();
   addFile(files, path.resolve(configPath));
 
   const P = config?.paths ?? {};
-  const abs = (p) => (p ? path.resolve(base, p) : null);
+  // config 里的 paths 相对 config 文件目录；build root 只用于 manifest 相对路径与默认运行时目录
+  const abs = (p) => (p ? path.resolve(configDir, p) : null);
 
   // 动画/规格输入
   const animDir = abs(P.animation);
@@ -48,12 +50,20 @@ export function computeBuildManifest({ root, configPath, config }) {
     }
   }
 
-  // 组件与素材
-  const compDir = abs(P.components ?? 'components');
-  const assetDir = abs(P.assets ?? 'assets');
+  // 组件/素材按 config 目录解析；默认运行时目录与 build.include 按 build root 解析
+  const runtimeRoots = new Set();
+  runtimeRoots.add(P.components ? abs(P.components) : path.resolve(base, 'components'));
+  runtimeRoots.add(P.assets ? abs(P.assets) : path.resolve(base, 'assets'));
+  for (const rel of ['src', 'public', 'styles', 'fonts', 'shared', 'lib', 'remotion']) {
+    runtimeRoots.add(path.resolve(base, rel));
+  }
+  for (const rel of (Array.isArray(config?.build?.include) ? config.build.include : [])) {
+    runtimeRoots.add(path.resolve(base, rel));
+  }
   const collected = [];
-  if (compDir) walk(compDir, collected, base);
-  if (assetDir) walk(assetDir, collected, base);
+  for (const dir of runtimeRoots) {
+    if (dir) walk(dir, collected, base);
+  }
   for (const p of collected) files.add(p);
 
   // 工程版本输入

@@ -11,6 +11,8 @@
   prompt.original.md     # 用户原始输入，逐字保存，不摘要、不改写
   corrections.md         # 用户后续纠正，追加，不覆盖原文
   decisions.md           # 影响创意/构建/素材/验收的关键决定，可 supersede
+  lookdev-brief.md       # 首帧视觉定标：媒介/构图/光/材质/文字/运动/参考
+  quality-bar.md         # 首帧与首版动画的最低质量门槛
   references/            # 参考图/视频/链接清单
   qa/
     passes/NN/           # 每轮渲染：视频、抽帧、观察记录
@@ -28,6 +30,7 @@ node tools/init-project.mjs <project-dir> --film-id <id> --prompt-file <原始�
 
 - `prompt.original.md` 逐字复制，不做摘要；已存在时默认不覆盖。
 - 之后把用户纠正追加到 `corrections.md`，关键决定写入 `decisions.md`。
+- 写代码前先填 `lookdev-brief.md` 和 `quality-bar.md`：先定媒介/构图/光/材质，再写动画。
 - 不需要先创建 `intent-brief.json`、方向、Gate、蓝图或 `scene.spec`；按任务复杂度按需使用。
 
 ## 上下文优先级
@@ -40,20 +43,47 @@ node tools/init-project.mjs <project-dir> --film-id <id> --prompt-file <原始�
 
 原文不能被摘要替代。上下文变长时，完整原文留在项目文件中，创作阶段注入相关原句、纠正、硬约束与最近决定。
 
-## 创作闭环
+## 创作闭环（still-first）
 
 ```text
 原文/参考/素材
-  → 主创模型整体构思，确定实现方法
-  → 先做最关键或最危险的画面/片段（sketch）
-  → 编写/修改 Remotion
+  → 媒介适配 + lookdev-brief（构图/光/材质/文字/运动）
+  → 先渲 1–3 张静帧，过 quality-bar
+  → 静帧不过：改媒介/构图/光/材质，不写动画
+  → 静帧通过：做 3–5 秒关键运动 proof
+  → proof 通过：写完整动画
   → 渲染真实视频/片段
   → 看连续画面 + 关键帧 + 节奏/声音
-  → 记录具体问题与证据
-  → 修改导演决定/spec/组件/素材
-  ↺ 重渲，直到问题解决或预算用尽
+  → 每轮只修 1 个主要问题；能静帧/短片段验证就不重渲全片
+  ↺ 直到问题解决或预算用尽
   → 技术 QA + 视觉审片
 ```
+
+### 为什么加 still-first
+
+第一版直接从提示词写完整动画，模型会默认选最省力的实现：深色背景、矩形、渐变、硬边光、半圆杯子、文字浮入。
+这不是“模型不会写代码”，而是跳过了视觉定标。先做静帧，能在最便宜的阶段暴露构图/光/材质问题，避免整片重渲。
+
+### 首版质量门槛
+
+`lookdev-brief.md` / `quality-bar.md` 至少检查：
+
+- 焦点、构图、留白、层次；
+- 光的方向/衰减/受光面/暗部；
+- 材质是否能区分，而不是纯色块；
+- 文字完整、可读、层级清楚；
+- 暂停时像设计画面，不像 PPT；
+- 媒介诚实：程序化不假装摄影。
+
+不通过就改静帧，不写完整动画。
+
+### 省 token 规则
+
+1. 静帧不过，不写完整动画。
+2. 首版只做 1 个关键镜头/3–5 秒 proof，不直接全片。
+3. 每轮只修 1 个主要问题；用静帧/短片段验证，不重渲全片。
+4. 连续两轮修同一层无改善 → 换媒介/视觉目标，而不是继续调参数。
+5. 复用已确认的构图/光/材质策略，不每轮重新决定风格。
 
 - `sketch` / `prototype` 允许在正式门禁前渲染，但必须标记为非交付；不能伪装成最终素材/授权/成片。
 - 预览、proof、正式渲染必须能追溯到同一份代码/配置/素材；使用 `buildHash`/`renderHash` 时不得伪造。
@@ -75,7 +105,7 @@ node tools/init-project.mjs <project-dir> --film-id <id> --prompt-file <原始�
 workflow-v5/prompt-first/
 ├── README.md
 ├── prompts/creator.md
-├── templates/{prompt.original.md,corrections.md,decisions.md}
+├── templates/{prompt.original.md,corrections.md,decisions.md,lookdev-brief.md,quality-bar.md}
 ├── tools/init-project.mjs
 └── examples/
 ```

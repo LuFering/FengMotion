@@ -52,7 +52,11 @@
 
 - 运动机制由事件决定，不设“每场必须几种动画”的配额；静止/阅读场景用 `staticIntent: true` 显式声明，允许状态不变、motionPlan 为空。
 - 动态事件才要求 progression 2–4 阶段、初始≠结束、候选机制；静态场景不受这些硬规则约束。
-- 顺序剪辑可用 `timingPolicy.overlapPolicy: "sequential"` 校验时长合计；有重叠/并行时声明 `overlapping`，不强行让各场时长等于总时长。
+- 顺序剪辑可用 `timingPolicy.overlapPolicy: "sequential"` 校验时长合计；有重叠/并行时声明 `overlapping`。
+- `scene.spec.timelinePolicy: "contiguous" | "explicit"`：explicit 允许场景重叠/空档；每个场景仍必须在总时长内。
+- 每场可用 `eventFrames` 或 `eventWindows[]` 表达多个运动窗口；静态场景可省略 event/motion/motionCheckFrames。
+- `assetStrategy` 支持字符串或数组（混合素材/程序化组合）。
+- `textPolicy.verbatimRequired: false` 时不再强制字幕逐字匹配；`captionTrack` 允许重复 `sourceUnitId`（分段/重复排版）。
 - `candidate` / `missing` 不是可用资产；不能为了过规格假装组件已存在。
 - 组件合同定义接口、运动状态、验收，不是提前写实现代码。
 - `acceptanceFrames` 可以落在场景保持段；`motionCheckFrames` 必须在 `eventFrames` 内。

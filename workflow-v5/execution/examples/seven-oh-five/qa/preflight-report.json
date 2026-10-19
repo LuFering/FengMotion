@@ -13,7 +13,7 @@
     {
       "id": "design-handoff/gate-a",
       "status": "blocked",
-      "detail": "Gate A 状态=recommended / 确认=无 / lookDev=missing，需当前版本 approved 且写实方向有 Look-dev"
+      "detail": "Gate A 状态=recommended / 确认=无 / lookDev=missing / contentHash=ok，需当前版本 approved、写实方向 Look-dev、内容哈希匹配"
     },
     {
       "id": "design-handoff/gate-b",
@@ -87,7 +87,7 @@
     }
   ],
   "blocking": [
-    "design-handoff/gate-a: Gate A 状态=recommended / 确认=无 / lookDev=missing，需当前版本 approved 且写实方向有 Look-dev",
+    "design-handoff/gate-a: Gate A 状态=recommended / 确认=无 / lookDev=missing / contentHash=ok，需当前版本 approved、写实方向 Look-dev、内容哈希匹配",
     "design-handoff/gate-b: 6/6 个场景没有当前版本 approved 布局（S01, S02, S03, S04, S05, S06）",
     "design-handoff/animation-blueprint: 动画蓝图状态为 draft",
     "design-handoff/implementation-plan: 实现计划状态为 draft",
@@ -111,5 +111,5 @@
     "fps": 30,
     "durationInFrames": 900
   },
-  "createdAt": "2026-10-19T05:37:23.118Z"
+  "createdAt": "2026-10-19T06:11:50.623Z"
 }

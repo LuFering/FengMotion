@@ -16,7 +16,7 @@
 
 ## 三种执行模式
 
-- `sketch`：自由探索/渲染，明确非交付；允许不完整依赖，不做正式门禁。
+- `sketch`：自由探索/渲染，明确非交付；允许不完整依赖，不做正式门禁。sketch 的执行校验只要求 build manifest + render manifest，并核对输出文件实际 SHA-256。
 - `prototype`：允许 candidate 组件/资产、零外部资产、只验证选中场景（`prototypeScenes`）；不要求 Gate A/B、正式批准或全片资产；要求真实文件、规格合法、build manifest。
 - `production`：要求 Gate A/B/C 通过、组件/资产 `available`、proof 与当前 spec/config/build 哈希一致；才允许全片预览与正式成片。
 
@@ -24,7 +24,8 @@ Gate C 产物是 `qa/motion-proof.json`：10s 证明视频、specHash/configHash
 
 ## Build identity
 
-`qa/build-manifest.json` 由 `tools/build-manifest.mjs` 生成，覆盖 config、动画 spec/蓝图/合同、组件源码、素材、package/lockfile，排除 qa/out/缓存。
+`qa/build-manifest.json` 由 `tools/build-manifest.mjs` 生成，覆盖 config、动画 spec/蓝图/合同、组件源码、素材、默认运行时目录（`src/public/styles/fonts/shared/lib/remotion` 或 `build.include`）、package/lockfile、prompt/decisions；排除 qa/out/缓存。
+根目录由 `build.root` 统一；`validate-execution` 会重新计算当前 buildHash，并核对输出文件实际 SHA-256。
 `buildHash` 是确定性聚合；preview、proof、正式渲染、visual-review 都必须引用同一个 buildHash。
 修改组件/素材/spec/config 后 buildHash 变化，旧 preview/review 自动 stale。
 
@@ -95,6 +96,7 @@ films/<film-id>/
   "renderHash": "<actual-output-sha256>",
   "buildHash": "<actual-build-hash>",
   "reviewer": { "type": "model", "id": "qa-reviewer" },
+  "approvalType": "auto",
   "status": "needs-revision",
   "reviewedRanges": [[0, 300]],
   "fullPlaybackReviewed": true,
@@ -119,7 +121,8 @@ films/<film-id>/
 严重程度：`blocker` / `major` / `minor`。
 `approved` 时不允许有未处理的 blocker/major，且必须 `fullPlaybackReviewed: true`；`needs-revision` 时不得交付。
 每条 finding 必须绑定当前 `renderId/renderHash/buildHash`；build 变化后旧 review 自动失效。
-AI 审片只能标 `auto-reviewed`/`recommended-pass`，不能伪装成用户确认。
+`reviewedRanges` 必须无缺口覆盖整片；`fullPlaybackReviewed` 不能替代覆盖检查。
+AI 审片只能 `approvalType: auto`，不能伪装 `human`/用户确认；production 交付需要 `human approval`，除非项目显式 `allowAutoDelivery=true`。
 
 ## 问题路由
 
@@ -164,6 +167,7 @@ cd workflow-v5/execution
 node tools/build-manifest.mjs examples/seven-oh-five/execution.config.json --out qa/build-manifest.json
 node tools/preflight.mjs examples/seven-oh-five/execution.config.json --out qa/preflight-report.json
 node tools/validate-execution.mjs examples/seven-oh-five
+# sketch 项目：同一命令会走 sketch 分支，校验 buildHash + 输出 SHA-256
 ```
 
 当前示例是 **blocked**：Gate A/B/C 未确认、组件/资产 candidate、无组件代码、无正式渲染。

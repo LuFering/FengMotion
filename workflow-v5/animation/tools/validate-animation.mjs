@@ -79,7 +79,7 @@ const BLUEPRINT_SCENE_KEYS = new Set([
   'acceptance',
   'staticIntent',
 ]);
-const SPEC_KEYS = ['sceneId', 'component', 'props', 'from', 'durationInFrames', 'eventFrames', 'heroFrame', 'motion', 'motionPlan', 'motionCheckFrames', 'acceptanceFrames', 'assetStrategy', 'layers'];
+const SPEC_KEYS = ['sceneId', 'component', 'props', 'from', 'durationInFrames', 'eventFrames', 'heroFrame', 'motion', 'motionPlan', 'motionCheckFrames', 'acceptanceFrames', 'assetStrategy', 'layers', 'eventWindows'];
 
 // ---------------- 蓝图 ----------------
 let directionConfirmed = false;
@@ -279,6 +279,8 @@ if (spec) {
   need(isInt(spec.height) && spec.height > 0, 'scene.spec.height 必须是正整数');
   need(isInt(spec.durationInFrames) && spec.durationInFrames > 0, 'scene.spec.durationInFrames 必须是正整数');
   need(isArr(spec.scenes) && spec.scenes.length === blueprintScenes.length, 'scene.spec.scenes 数量必须与 blueprint 一致');
+  const timelinePolicy = spec.timelinePolicy ?? 'contiguous';
+  need(['contiguous', 'explicit'].includes(timelinePolicy), 'scene.spec.timelinePolicy 必须是 contiguous/explicit');
 
   const ids = new Set(blueprintScenes.map((s) => s.sceneId));
   const seen = new Set();
@@ -292,26 +294,30 @@ if (spec) {
     }
     need(isInt(s.from) && s.from >= 0, `${p}.from 必须是 >=0 的整数`);
     need(isInt(s.durationInFrames) && s.durationInFrames > 0, `${p}.durationInFrames 必须是正整数`);
+    const bpScene = blueprintScenes.find((x) => x.sceneId === s.sceneId);
+    const isStatic = bpScene?.staticIntent === true;
     if (isInt(s.from)) {
-      need(s.from === prevEnd, `${p}.from 必须等于上一场结束帧（不能留空白或重叠）`);
-      if (isInt(s.durationInFrames)) prevEnd = s.from + s.durationInFrames;
+      if (timelinePolicy === 'contiguous') need(s.from === prevEnd, `${p}.from 必须等于上一场结束帧（contiguous 不能留空白或重叠；重叠请声明 timelinePolicy=explicit）`);
+      if (isInt(s.durationInFrames)) prevEnd = Math.max(prevEnd, s.from + s.durationInFrames);
     }
-    need(isArr(s.eventFrames) && s.eventFrames.length === 2, `${p}.eventFrames 必须是 [start,end]`);
-    let evStart = null;
-    let evEnd = null;
-    if (isArr(s.eventFrames) && isInt(s.from) && isInt(s.durationInFrames)) {
-      const [a, b] = s.eventFrames;
-      evStart = a;
-      evEnd = b;
-      need(isInt(a) && isInt(b) && a >= s.from && b <= s.from + s.durationInFrames - 1 && a <= b, `${p}.eventFrames 必须落在场景可见帧内（含端点为最后一帧）`);
+    const windows = [];
+    if (isArr(s.eventFrames)) windows.push(s.eventFrames);
+    if (isArr(s.eventWindows)) windows.push(...s.eventWindows);
+    if (!isStatic) need(windows.length >= 1, `${p} 动态场景需要 eventFrames 或 eventWindows`);
+    for (const [j, w] of windows.entries()) {
+      need(isArr(w) && w.length === 2 && isInt(w[0]) && isInt(w[1]) && w[0] <= w[1], `${p}.eventWindows[${j}] 必须是 [start,end]`);
+      if (isArr(w) && isInt(s.from) && isInt(s.durationInFrames)) {
+        need(w[0] >= s.from && w[1] <= s.from + s.durationInFrames - 1, `${p}.eventWindows[${j}] 必须落在场景可见帧内`);
+      }
     }
+    const inAnyWindow = (a, b) => windows.some(([x, y]) => a >= x && b <= y);
     need(isInt(s.heroFrame) && isInt(s.from) && isInt(s.durationInFrames) && s.heroFrame >= s.from && s.heroFrame < s.from + s.durationInFrames, `${p}.heroFrame 必须落在场景可见区间`);
     need(isStr(s.component) && componentStatus.has(s.component), `${p}.component 不在 implementation.components`);
     need(isObj(s.props), `${p}.props 必须是对象`);
-    need(isArr(s.motion) && s.motion.length >= 1, `${p}.motion 至少 1 项`);
-    const bpScene = blueprintScenes.find((x) => x.sceneId === s.sceneId);
-    if (bpScene?.staticIntent === true) {
-      need(isArr(s.motionPlan), `${p}.motionPlan 必须是数组（静止场景可为空）`);
+    if (isStatic) need(s.motion === undefined || isArr(s.motion), `${p}.motion 必须是数组（静止场景可为空/省略）`);
+    else need(isArr(s.motion) && s.motion.length >= 1, `${p}.motion 至少 1 项（动态场景）`);
+    if (isStatic) {
+      need(s.motionPlan === undefined || isArr(s.motionPlan), `${p}.motionPlan 必须是数组（静止场景可为空/省略）`);
     } else {
       need(isArr(s.motionPlan) && s.motionPlan.length >= 1, `${p}.motionPlan 至少 1 条（动态场景要写清状态变化）`);
     }
@@ -321,25 +327,27 @@ if (spec) {
       need(isStr(m.target) && (s.layers ?? []).includes(m.target), `${p}.motionPlan[${j}].target 必须在 layers 中`);
       need(isStr(m.from) && isStr(m.to), `${p}.motionPlan[${j}] 必须写 from/to 状态`);
       need(isInt(m.start) && isInt(m.end) && m.start <= m.end, `${p}.motionPlan[${j}] start/end 必须是整数且 start<=end`);
-      if (isInt(m.start) && isInt(m.end) && evStart !== null && evEnd !== null) {
-        need(m.start >= evStart && m.end <= evEnd, `${p}.motionPlan[${j}] 必须落在 eventFrames 内`);
+      if (isInt(m.start) && isInt(m.end) && windows.length > 0) {
+        need(inAnyWindow(m.start, m.end), `${p}.motionPlan[${j}] 必须落在某个 eventFrames/eventWindows 内`);
       }
       need(isStr(m.easing), `${p}.motionPlan[${j}].easing 不能为空`);
       need(isArr(m.dependsOn), `${p}.motionPlan[${j}].dependsOn 必须是数组`);
     }
-    need(isArr(s.motionCheckFrames) && s.motionCheckFrames.length >= 2, `${p}.motionCheckFrames 至少 2 帧`);
-    if (isArr(s.eventFrames) && isArr(s.motionCheckFrames)) {
+    if (isStatic) need(s.motionCheckFrames === undefined || isArr(s.motionCheckFrames), `${p}.motionCheckFrames 必须是数组（静止场景可为空/省略）`);
+    else need(isArr(s.motionCheckFrames) && s.motionCheckFrames.length >= 2, `${p}.motionCheckFrames 至少 2 帧（动态场景）`);
+    if (isArr(s.motionCheckFrames)) {
       for (const [j, f] of s.motionCheckFrames.entries()) {
-        need(isInt(f) && f >= s.eventFrames[0] && f <= s.eventFrames[1], `${p}.motionCheckFrames[${j}] 必须在 eventFrames 内`);
+        if (windows.length > 0) need(isInt(f) && windows.some(([a, b]) => f >= a && f <= b), `${p}.motionCheckFrames[${j}] 必须在 eventFrames/eventWindows 内`);
       }
     }
-    need(isArr(s.acceptanceFrames) && s.acceptanceFrames.length >= 2, `${p}.acceptanceFrames 至少 2 帧`);
+    need(isArr(s.acceptanceFrames) && s.acceptanceFrames.length >= (isStatic ? 1 : 2), `${p}.acceptanceFrames 至少 ${isStatic ? 1 : 2} 帧`);
     if (isArr(s.acceptanceFrames) && isInt(s.from) && isInt(s.durationInFrames)) {
       for (const [j, f] of s.acceptanceFrames.entries()) {
         need(isInt(f) && f >= s.from && f < s.from + s.durationInFrames, `${p}.acceptanceFrames[${j}] 必须在场景可见区间内（含保持段）`);
       }
     }
-    need(['procedural', 'svg-asset', 'generated-image', 'video-footage', '3d-scene'].includes(s.assetStrategy), `${p}.assetStrategy 必须是 v3 执行层支持的枚举`);
+    const strategies = Array.isArray(s.assetStrategy) ? s.assetStrategy : [s.assetStrategy];
+    need(strategies.length >= 1 && strategies.every((x) => ['procedural', 'svg-asset', 'generated-image', 'video-footage', '3d-scene'].includes(x)), `${p}.assetStrategy 必须是 v3 枚举（字符串或数组，支持混合素材）`);
     for (const k of Object.keys(s)) {
       if (!SPEC_KEYS.includes(k)) errors.push(`${p} 不允许的字段：${k}`);
     }
@@ -361,12 +369,11 @@ if (spec) {
     }
     need(isStr(c.sourceUnitId), `captionTrack[${i}].sourceUnitId 不能为空`);
     if (isStr(c.sourceUnitId)) {
-      need(!capUnits.has(c.sourceUnitId), `captionTrack 重复引用 ${c.sourceUnitId}`);
       capUnits.add(c.sourceUnitId);
       if (intentUnits.length) need(intentUnits.includes(c.sourceUnitId), `captionTrack[${i}].sourceUnitId 不在 intent-brief`);
     }
     need(isStr(c.text), `captionTrack[${i}].text 不能为空`);
-    if (isStr(c.sourceUnitId) && isStr(c.text) && intentUnits.length) {
+    if (isStr(c.sourceUnitId) && isStr(c.text) && intentUnits.length && textPolicy.verbatimRequired !== false) {
       const ip = path.resolve(dir, blueprint.basedOn.intentBrief);
       if (fs.existsSync(ip)) {
         try {
@@ -390,7 +397,8 @@ if (spec) {
     for (const u of intentUnits) need(capUnits.has(u), `captionTrack 缺少原文单元 ${u}（用户要求完整字幕时不能漏）`);
   }
 
-  need(prevEnd === spec.durationInFrames, `场景必须连续覆盖到 durationInFrames（当前覆盖到 ${prevEnd} / ${spec.durationInFrames}）`);
+  if (timelinePolicy === 'contiguous') need(prevEnd === spec.durationInFrames, `contiguous 场景必须连续覆盖到 durationInFrames（当前覆盖到 ${prevEnd} / ${spec.durationInFrames}）`);
+  else need(prevEnd <= spec.durationInFrames, 'explicit 时间线的场景范围不能超过 durationInFrames');
   if (implementationBlocked) need(spec.status === 'draft', '实现可行性未通过时，scene.spec 必须是 draft');
   if (spec.status === 'approved') {
     need(!implementationBlocked, 'scene.spec 不能在与 implementation 未通过时标记 approved');

@@ -30,5 +30,6 @@
 - 0–2：`intent/`、`director/`、`reference/` 已实现；导演/动画校验器支持 creative/strict profile。
 - Gate A/B：`gates/` 已实现（当前示例未确认：Gate A recommended 且缺 Look-dev，Gate B 0/6 当前版本 approved）。
 - 5 动画设计：`animation/` 已实现蓝图/实现计划/草稿规格/四道门校验；当前 6 场均为 draft，组件/资产 candidate，Gate 3/4 blocked。
-- 6 执行与验收：`execution/` 已实现 sketch/prototype/production、build manifest/buildHash、审片绑定与 stale 检查；当前 production preflight blocked（11 项前置未满足），没有伪造成片/审片。
+- 6 执行与验收：`execution/` 已实现 sketch/prototype/production、build manifest/buildHash 重算、输出 SHA-256、审片覆盖与人工/自动分离；当前 production preflight blocked（11 项前置未满足），没有伪造成片/审片。
 - 10s 证明/声音/制作：待组件与资产可用后执行。
+- 已用真实 Remotion sketch 渲染（4s/120f/1920×1080）验证 buildHash + 输出 SHA-256；重复渲染字节一致。

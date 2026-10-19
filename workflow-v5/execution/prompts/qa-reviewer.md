@@ -24,6 +24,7 @@
   "buildHash": "<actual-build-hash>",
   "reviewer": { "type": "model", "id": "qa-reviewer" },
   "status": "needs-revision",
+  "approvalType": "auto",
   "reviewedRanges": [[0, 300]],
   "fullPlaybackReviewed": true,
   "findings": [
@@ -53,7 +54,9 @@
 - `likelyOwner` 必须是可路由的层：creative-direction / animation-design / visual-system / asset-workflow / component-contract / remotion-execution / render-delivery。
 - 发现问题不改别人的设计；写 issue，由对应层修。
 - `approved` 时不能有未处理的 blocker/major；`needs-revision` 时不得交付。
-- AI 审片只能写 `auto-reviewed`/`recommended-pass`；不能伪装成用户确认。
+- `reviewedRanges` 必须无缺口覆盖整片；不能只写 `fullPlaybackReviewed: true`。
+- AI 审片只能写 `approvalType: auto` / `auto-reviewed`；不能伪装 `human` 或用户确认。
+- 正式交付需要 human approval；除非项目明确 `allowAutoDelivery=true`。
 - 用户/AI 的 `humanDecision` 要记录；AI 不单方面宣布通过。
 
 ## 问题路由

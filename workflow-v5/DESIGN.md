@@ -373,7 +373,7 @@ workflow-v5/
 | Gate B 场景布局 | 已实现 | `gates/`（scene-intent + layout v1 + approvals，当前 pending） |
 | Prompt-first 默认入口 | 已实现 | `prompt-first/`（原始提示词/corrections/decisions + 创作闭环） |
 | 5 动画设计（蓝图/实现计划/草稿规格/设计审查） | 已实现（draft/blocked） | `animation/`（6 场蓝图 + implementation plan + scene.spec.draft + design-review） |
-| 6 执行与验收（sketch/prototype/production、buildHash、审片绑定） | 已实现校验与 blocked 示例；真实渲染待组件可用 | `execution/` |
+| 6 执行与验收（sketch/prototype/production、buildHash 重算、输出 SHA-256、审片人工/自动分离） | 已实现；sketch 真实渲染已跑通，production 仍待组件/资产 | `execution/` |
 | 10s 证明 / 声音先行 / 制作循环 | 待实现 | 见阶段地图 5–7 |
 
 当前示例都停在“未确认”状态：Gate A 是 `recommended`，Gate B 是 `pending`，不伪造用户确认。
