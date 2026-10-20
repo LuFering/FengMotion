@@ -36,6 +36,8 @@
 - v5.8：补“可见变化/媒介能力试片/镜头级定向返工”；film-plan 动作表增加可见变化列；lookdev 增加 3–5 秒媒介试片；quality-bar 增加本轮证据记录与重渲范围；不新增文件或校验门。
 - v5.9：把主路径改为“先编码、再渲染验证”；lookdev 增加 design tokens/视觉原语/可计算不变量；film-plan 增加 frame score 帧级时间编码；quality-bar 默认只做 3–6 张边界帧验证，不做大批量抽帧；新增可复制代码骨架 `templates/visual-encoding.ts`（非运行时依赖、非校验门）。
 - v5.10：补“视觉机制/镜头行为/假设驱动验证/成片优先”；lookdev 增加贯穿全片的视觉机制；film-plan 增加镜头行为与 BPM→帧换算；quality-bar 改为先写 2–4 个视觉假设再选帧；creator 明确文档适可而止、复杂片 2–3 轮整片渲染；不新增文件或校验门。
+- v5.11：一次性压缩中间文档；方向明确时只做 1 个主方向；film-plan 删除完整注意力/转场表，改为镜头差异四问；creator/quality 增加 Finishing Pass（镜头差异/视觉密度/时间表现/节奏收束）；复杂片按 2–3 轮整片渲染执行；不新增文件或校验门。
+- v5.12：接入外部 capability registry（lemo-opuscar / video-shotcraft / remotion-scenes）；只在 lookdev/film-plan/实现/Finishing 做可选检索，不把全库塞进工作流；RVE/ui2v 不接入。
 - 0–2：`intent/`、`director/`、`reference/` 已实现；导演/动画校验器支持 creative/strict profile。
 - Gate A/B：`gates/` 已实现（当前示例未确认：Gate A recommended 且缺 Look-dev，Gate B 0/6 当前版本 approved）。
 - 5 动画设计：`animation/` 已实现蓝图/实现计划/草稿规格/四道门校验；当前 6 场均为 draft，组件/资产 candidate，Gate 3/4 blocked。

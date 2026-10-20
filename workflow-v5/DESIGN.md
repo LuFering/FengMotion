@@ -371,7 +371,7 @@ workflow-v5/
 | 2 参考分析 | 已实现 | `reference/`（三种模式/六步/三产物/lint/reference-free 示例） |
 | Gate A 方向验证 | 已实现 | `gates/`（direction-gate + 3 个样稿 + 确认记录） |
 | Gate B 场景布局 | 已实现 | `gates/`（scene-intent + layout v1 + approvals，当前 pending） |
-| Prompt-first 默认入口 | 已实现 + v5.10 视觉机制/镜头行为/假设验证 | `prompt-first/`（lookdev 视觉机制/编码 + film-plan 镜头行为/frame score + quality 假设驱动验证 + creator 成片优先；结构工具降为可选） |
+| Prompt-first 默认入口 | 已实现 + v5.12 外部能力检索 | `prompt-first/`（lookdev 视觉机制 + film-plan 镜头差异/frame score + quality Finishing Pass + creator 成片优先；lemo/shotcraft/scenes 仅可选检索） |
 | 5 动画设计（蓝图/实现计划/草稿规格/设计审查） | 已实现（draft/blocked） | `animation/`（6 场蓝图 + implementation plan + scene.spec.draft + design-review） |
 | 6 执行与验收（sketch/prototype/production、buildHash 重算、输出 SHA-256、审片人工/自动分离） | 已实现；sketch 真实渲染已跑通，production 仍待组件/资产 | `execution/` |
 | 10s 证明 / 声音先行 / 制作循环 | 待实现 | 见阶段地图 5–7 |

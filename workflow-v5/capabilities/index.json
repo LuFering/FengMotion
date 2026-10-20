@@ -1,0 +1,91 @@
+{
+  "version": 1,
+  "installRoot": "~/ai-video-desktop/capabilities",
+  "policy": {
+    "load": "retrieval-only",
+    "maxStyleCandidates": 1,
+    "maxShotCandidates": 3,
+    "maxComponentCandidates": 2,
+    "copy": "copy only selected files into the project; do not import a whole library",
+    "record": "record source path, commit, license, and what was adapted in decisions.md"
+  },
+  "capabilities": [
+    {
+      "id": "lemo-opuscar",
+      "type": "style-skill",
+      "description": "51 film styles; STYLE.md + demo films + DIRECTOR.md/TECHNIQUE.md; code-first short-film skill.",
+      "localPath": "~/ai-video-desktop/capabilities/lemo-opuscar",
+      "upstream": "https://github.com/lemomo-ai/lemo-opuscar",
+      "commit": "b5e8ef93930b6d828f352055a689320f138237b1",
+      "license": {
+        "code": "MIT",
+        "demoFilmsAndStills": "CC BY 4.0 (credit LemoLab; indicate changes)"
+      },
+      "entry": [
+        "DIRECTOR.md",
+        "TECHNIQUE.md",
+        "styles/README.md",
+        "styles/<style>/STYLE.md"
+      ],
+      "useAt": ["lookdev"],
+      "retrieval": "Only when a named style or strong style uncertainty exists: pick 1 STYLE.md, read DIRECTOR.md as method reference, adapt to the current content.",
+      "constraints": [
+        "Styles are tuned for Claude Opus 5.5; other models may not reproduce them.",
+        "Do not copy a demo film/still into a deliverable without CC BY attribution.",
+        "Do not load all 51 styles; retrieve one style at a time."
+      ]
+    },
+    {
+      "id": "video-shotcraft",
+      "type": "shot-library",
+      "description": "124 shot recipe cards / 150 shots, Remotion demos, product-video template, aesthetic rules, final review, sound design and beat sync references.",
+      "localPath": "~/ai-video-desktop/capabilities/video-shotcraft",
+      "upstream": "https://github.com/Vincentwei1021/video-shotcraft",
+      "commit": "43bd349a136651865ecfa6ea1cf012f6e957d304",
+      "license": {
+        "codeAndDocs": "Apache-2.0",
+        "audio": "per-file licenses; see assets/audio/ATTRIBUTION.md",
+        "remotion": "Remotion license applies separately"
+      },
+      "entry": [
+        "SKILL.md",
+        "references/shots/",
+        "references/aesthetic-rules.md",
+        "references/final-review.md",
+        "demos/",
+        "template/",
+        "assets/lib/"
+      ],
+      "useAt": ["film-plan", "implementation", "finishing"],
+      "retrieval": "When a shot needs an existing motion grammar: pick 1-3 cards by function, read the card and its exact demo source, then adapt to the current visual system.",
+      "constraints": [
+        "Focus is web/desktop product promos; not a default narrative-film template.",
+        "Do not load all 124 cards; retrieve by function/category.",
+        "Only borrow motion structure/parameters, not the whole skin/theme.",
+        "Keep Apache-2.0 notices and per-asset audio licenses."
+      ]
+    },
+    {
+      "id": "remotion-scenes",
+      "type": "component-library",
+      "description": "201+ Remotion motion scenes in 16 categories, with shared colors/easing/fonts/lerp utilities.",
+      "localPath": "~/ai-video-desktop/capabilities/remotion-scenes",
+      "upstream": "https://github.com/lifeprompt-team/remotion-scenes",
+      "commit": "02c7a84241da7010b5f59c420b0110aafd1d6f0d",
+      "license": {
+        "codeAndDocs": "MIT"
+      },
+      "entry": [
+        "src/scenes/",
+        "src/common/"
+      ],
+      "useAt": ["implementation"],
+      "retrieval": "When a specific primitive is needed (text/data/transition/particle/UI), copy 1-2 components into the project and adapt tokens/dependencies.",
+      "constraints": [
+        "Do not register/import all 201 scenes.",
+        "Default visual styling must be re-skinned to the project tokens.",
+        "Check React/Remotion/dependency versions before copying."
+      ]
+    }
+  ]
+}
