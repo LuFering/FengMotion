@@ -40,6 +40,7 @@
 - v5.12：接入外部 capability registry（lemo-opuscar / video-shotcraft / remotion-scenes）；只在 lookdev/film-plan/实现/Finishing 做可选检索，不把全库塞进工作流；RVE/ui2v 不接入。
 - v5.13：film-plan 增加场景类型/视觉权重/时间分配（BPM 只定切点，不决定等长）；Finishing Pass 改为观众优先排序，一个质量瓶颈可含多个协同修改；要求首版/最终版完整播放或明确替代审片；不新增文件或校验门。
 - v5.14：补镜头设计层；film-plan 增加场景叙事证据、景别/视点/空间层次/运动目的、镜头衔接（形状/动作/视线/尺度/光位/声音）；creator 明确整体→场景→镜头→帧；quality 增加镜头设计检查和外部 critic；不新增文件或校验门。
+- v5.14.1 补丁：补内容契约、镜头落地追踪、观众理解测试；EVALUATION 增加内容理解/镜头落地维度；不新增文件或校验门。
 - 0–2：`intent/`、`director/`、`reference/` 已实现；导演/动画校验器支持 creative/strict profile。
 - Gate A/B：`gates/` 已实现（当前示例未确认：Gate A recommended 且缺 Look-dev，Gate B 0/6 当前版本 approved）。
 - 5 动画设计：`animation/` 已实现蓝图/实现计划/草稿规格/四道门校验；当前 6 场均为 draft，组件/资产 candidate，Gate 3/4 blocked。
