@@ -7,7 +7,9 @@
     "maxShotCandidates": 3,
     "maxComponentCandidates": 2,
     "copy": "copy only selected files into the project; do not import a whole library",
-    "record": "record source path, commit, license, and what was adapted in decisions.md"
+    "record": "record source path, commit, license, and what was adapted in decisions.md",
+    "selectModeFirst": true,
+    "fullTemplate": "Only use a full template/skill when the task matches its declared mode; never load the whole library."
   },
   "capabilities": [
     {
@@ -27,13 +29,30 @@
         "styles/README.md",
         "styles/<style>/STYLE.md"
       ],
-      "useAt": ["lookdev"],
+      "useAt": [
+        "lookdev"
+      ],
       "retrieval": "Only when a named style or strong style uncertainty exists: pick 1 STYLE.md, read DIRECTOR.md as method reference, adapt to the current content.",
       "constraints": [
         "Styles are tuned for Claude Opus 5.5; other models may not reproduce them.",
         "Do not copy a demo film/still into a deliverable without CC BY attribution.",
         "Do not load all 51 styles; retrieve one style at a time."
-      ]
+      ],
+      "capabilitySurface": [
+        "51 film styles (STYLE.md + demo films/stills)",
+        "DIRECTOR.md: story, sound, rhythm, camera, performance, self-check",
+        "TECHNIQUE.md: frame rendering, voice, music, mixing",
+        "MY-STYLES.md: modify a style",
+        "plugin skill + setup tools"
+      ],
+      "modes": [
+        "style-film",
+        "lookdev-reference",
+        "micro-test"
+      ],
+      "fullSkill": "plugin/skills/lemo-opuscar/SKILL.md -> DIRECTOR.md + TECHNIQUE.md + styles/<style>/STYLE.md",
+      "defaultUse": "For a named style film, use the full skill; for lookdev only, one STYLE.md; never load all styles.",
+      "modelFit": "Tuned for Claude Opus 5.5; other models may not reproduce reliably."
     },
     {
       "id": "video-shotcraft",
@@ -56,14 +75,36 @@
         "template/",
         "assets/lib/"
       ],
-      "useAt": ["film-plan", "implementation", "finishing"],
+      "useAt": [
+        "film-plan",
+        "implementation",
+        "finishing"
+      ],
       "retrieval": "When a shot needs an existing motion grammar: pick 1-3 cards by function, read the card and its exact demo source, then adapt to the current visual system.",
       "constraints": [
         "Focus is web/desktop product promos; not a default narrative-film template.",
         "Do not load all 124 cards; retrieve by function/category.",
         "Only borrow motion structure/parameters, not the whole skin/theme.",
         "Keep Apache-2.0 notices and per-asset audio licenses."
-      ]
+      ],
+      "capabilitySurface": [
+        "124 shot recipe cards / 150 shots in 10 categories",
+        "226 Remotion demo TSX implementations",
+        "36.2s validated product-promo template",
+        "references/pipeline.md + sequences/ + aesthetic-rules.md + final-review.md",
+        "page capture scripts + 2.5D PageCam + reusable components",
+        "149 SFX / 5 BGM / beat sync / sound design",
+        "Motion Workbench + JianYing export"
+      ],
+      "modes": [
+        "product-promo",
+        "shot-retrieval",
+        "finishing-reference",
+        "micro-test"
+      ],
+      "fullTemplate": "template/ -> 36.2s validated product promo; use only for product-promo; re-skin assets.",
+      "defaultUse": "For a matching product/UI promo, use SKILL.md + pipeline/template; for other films, retrieve 1-3 cards only.",
+      "modelFit": "Built for Claude Code/Codex; product-promo focus."
     },
     {
       "id": "remotion-scenes",
@@ -79,13 +120,71 @@
         "src/scenes/",
         "src/common/"
       ],
-      "useAt": ["implementation"],
+      "useAt": [
+        "implementation"
+      ],
       "retrieval": "When a specific primitive is needed (text/data/transition/particle/UI), copy 1-2 components into the project and adapt tokens/dependencies.",
       "constraints": [
         "Do not register/import all 201 scenes.",
         "Default visual styling must be re-skinned to the project tokens.",
         "Check React/Remotion/dependency versions before copying."
-      ]
+      ],
+      "capabilitySurface": [
+        "201+ Remotion motion scenes in 16 categories",
+        "src/common: colors, easing, fonts, lerp",
+        "copyable TSX components, no narrative/template"
+      ],
+      "modes": [
+        "component-retrieval",
+        "motion-graphics",
+        "micro-test"
+      ],
+      "defaultUse": "Retrieve 1-2 components by category; no full film template.",
+      "modelFit": "Framework-only; no narrative workflow."
+    }
+  ],
+  "routing": [
+    {
+      "id": "style-film",
+      "lead": "lemo-opuscar",
+      "support": [
+        "video-shotcraft shot cards",
+        "remotion-scenes primitives"
+      ],
+      "when": "named style, narrative short, art film, evidence film",
+      "load": "lemo DIRECTOR.md + TECHNIQUE.md + 1 STYLE.md; optional 1-3 shotcraft cards and 1-2 scenes primitives",
+      "doNot": "do not load all 51 styles; do not use product-promo template as a narrative template"
+    },
+    {
+      "id": "product-promo",
+      "lead": "video-shotcraft",
+      "support": [
+        "remotion-scenes primitives",
+        "lemo style reference (optional)"
+      ],
+      "when": "product/UI/launch promo, page capture, beat-synced product film",
+      "load": "video-shotcraft SKILL.md + pipeline/template when matching + 1-3 cards + selected components/audio; optional 1 lemo style reference",
+      "doNot": "do not use the full 36.2s template for non-product films; re-skin all product-specific assets"
+    },
+    {
+      "id": "motion-graphics",
+      "lead": "remotion-scenes + video-shotcraft cards",
+      "support": [
+        "lemo style reference (optional)"
+      ],
+      "when": "typographic, data, abstract, transition-heavy motion",
+      "load": "selected remotion-scenes components + 1-3 shotcraft cards; no full film template",
+      "doNot": "do not register all 201 scenes; do not force a narrative structure"
+    },
+    {
+      "id": "micro-test",
+      "lead": "none",
+      "support": [
+        "one style/card/component"
+      ],
+      "when": "8s capability smoke or isolated experiment",
+      "load": "one style or one card or one component",
+      "doNot": "do not load a full pipeline for a smoke test"
     }
   ]
 }

@@ -3,7 +3,7 @@
 > **v5 尚未证明优于高级提示词。** 默认 Prompt-first；Structured 只在复杂任务按需启用。
 > 路径与硬/软约束见 `PATHS.md`；对照实验见 `EVALUATION.md`。
 
-> v3 冻结；v5 是并行新管线。v5.12 默认 Prompt-first 以最小充分设计、视觉机制、镜头差异、Finishing Pass 和可选能力检索为主，不强制逐层审批；
+> v3 冻结；v5 是并行新管线。v5.13 默认 Prompt-first 以最小充分设计、视觉机制、场景类型/视觉权重、观众优先 Finishing Pass 和可选能力检索为主，不强制逐层审批；
 > Structured 路径才保留状态、来源、确认范围和追溯。
 
 ## 入口

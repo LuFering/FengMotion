@@ -55,13 +55,13 @@ node tools/init-project.mjs <project-dir> --film-id <id> --prompt-file <原始�
   → 设计系统：tokens + 视觉原语 + 视觉机制/镜头行为
   → frame score：帧级时间编码（起止帧/时长/曲线/焦点/可见窗口）
   → lookdev：1 个主方向（不确定才 2–3 个）+ 媒介能力试片
-  → 多镜头：film-plan（视觉弧 + 视觉机制/镜头差异/可见变化/帧表）
+  → 多镜头：film-plan（视觉弧 + 场景类型/视觉权重/时间分配 + 镜头差异/帧表）
   → 实现：tokens + 原语组件 + 代码级不变量
   → 假设驱动验证 → 定位镜头/时间段 → 只改一个 → 重渲同段
-  → Finishing Pass：首版整体看镜头差异/视觉密度/时间表现/节奏收束
-  → 只修最影响成片的一个问题 → 局部重渲 → 最终整体回看
-  → 没有播放条件：2–3 秒短运动预览 + 密集时间序列 + 人审，记录未完整审片
-  → 可选：能力检索（风格/镜头卡/原语）→ 只取 1–2 个候选，不套皮肤
+  → Finishing Pass：按观众第一次观看排序（钩子/结构/信息/收束/精修）
+  → 只选一个质量瓶颈（可含多个协同修改）→ 局部重渲 → 最终整体回看
+  → 有播放条件：首版和最终版各完整播放一次；没有：2–3 秒短预览 + 高帧率序列 + 人审，记录未完整审片
+  → 可选：先选能力模式（style-film / product-promo / motion-graphics / micro-test）再检索
   → 技术 QA + 设计编码复查（不是通过/失败门禁）
 ```
 
@@ -104,6 +104,20 @@ node tools/init-project.mjs <project-dir> --film-id <id> --prompt-file <原始�
 
 如果核心事件说不清，先不要选风格；否则容易做成有质感的静物展示。
 
+### 场景类型与视觉权重
+
+BPM 网格只决定切点候选，不决定每段等长。每个主要段落写清：
+
+- 场景类型：开场钩子 / 规模展示 / 数据对比 / 对抗 / 快闪 / 高潮 / 收束；
+- 主导视觉对象：这一段第一眼看什么；
+- 观看任务：快速识别 / 阅读数据 / 感受变化 / 等待揭示；
+- 视觉权重：铺垫 / 过渡 / 重点 / 高潮；
+- 时间分配：多少秒/拍，为什么；
+- 与上一段差异：空间/构图/尺度/信息类型/运动，至少一项实质变化；
+- 结束状态：观众应理解什么、记住什么。
+
+不要让 12 个版本各占 2 秒；数据段按阅读任务给时间，高潮要有权重。
+
 ### 从风格到动作
 
 Lookdev 只解决“长什么样”，不能证明“怎么动”。继续往下写：
@@ -144,13 +158,14 @@ Lookdev 只解决“长什么样”，不能证明“怎么动”。继续往下
 
 ## 可选能力检索
 
-如果本地接入了 `workflow-v5/capabilities/index.json`：
+如果本地接入了 `workflow-v5/capabilities/index.json`，**先选模式，再决定加载多少**：
 
-- 有明确风格需求 → lemo-opuscar 取 1 个 `STYLE.md`+`DIRECTOR.md` 作参考；
-- 有具体镜头运动需求 → video-shotcraft 取 1–3 张卡 + demo 源码；
-- 需要具体原语 → remotion-scenes 复制 1–2 个组件并重新蒙皮。
+- **style-film**：lemo-opuscar 的 `DIRECTOR.md` + `TECHNIQUE.md` + 1 个 `STYLE.md`；可选 shotcraft 卡 + scenes 原语。适合有明确风格的叙事短片。
+- **product-promo**：任务匹配时可用 video-shotcraft 的 `SKILL.md` + `pipeline/template` + 1–3 张卡 + 组件/音频；模板必须重新蒙皮。适合产品/UI 宣传片。
+- **motion-graphics**：remotion-scenes 选中的组件 + 1–3 张 shotcraft 卡；不用完整片模板。
+- **micro-test**：只取 1 个风格 / 1 张卡 / 1 个组件。
 
-只借结构/运动/参数，不照抄整套皮肤；不匹配就不用，不为了用资产而用。记录来源/license 到 decisions。
+完整模板不是禁用，但只在任务匹配时用；完整 skill 也不是全量加载。只借结构/运动/参数，不照抄整套皮肤；不匹配就不用。记录来源/license 到 decisions。
 
 ## 创作习惯
 

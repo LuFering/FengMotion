@@ -12,10 +12,26 @@
 
 `index.json` 是唯一入口。不要把整个库复制进 `workflow-v5`，也不要全量加载。
 
+## 先选模式，再决定用多少
+
+> 之前只写“取 1 个 STYLE / 1–3 张卡 / 1–2 个原语”，会让人误以为这些库只有零件。
+> 实际上：lemo 是完整短片 skill，shotcraft 有完整产品片模板/pipeline，scenes 是组件库。先选任务模式：
+
+| 模式 | 主导 | 可以用到什么程度 | 什么时候用 |
+|---|---|---|---|
+| `style-film` | lemo-opuscar | `DIRECTOR.md` + `TECHNIQUE.md` + 1 个 `STYLE.md`；可选 shotcraft 卡 + scenes 原语 | 有明确风格、叙事短片、艺术片、实证影像 |
+| `product-promo` | video-shotcraft | `SKILL.md` + `pipeline/template`（匹配时）+ 1–3 张卡 + 组件/音频；可选 1 个 lemo 风格参考 | 产品/UI/发布宣传片、真实页面、卡点片 |
+| `motion-graphics` | remotion-scenes + shotcraft 卡 | 选中的组件 + 1–3 张卡；不用完整片模板 | 排版/数据/抽象/转场动效 |
+| `micro-test` | 混合 | 只取 1 个风格/1 张卡/1 个组件 | 8s smoke、单点验证 |
+
+- **完整模板不是禁用**：shotcraft 的 36.2s template 只在 product-promo 匹配时用，且必须重新蒙皮；lemo 的完整 skill 只在 style-film 时用。
+- **完整 skill 也不是全量加载**：仍然只读 entry（DIRECTOR/TECHNIQUE/pipeline/template/1 个 STYLE），不读 51 风格/124 卡/201 组件的全库。
+- **当前 8 秒《雨后》测试属于 `micro-test`/`style-film` 的轻量用法**：只取一个 STYLE + 一个 typewriter 卡 + 一个 TextKinetic 原语；不是这些库的完整能力面。
+
 ## 检索规则
 
-- **lookdev**：有明确风格需求时，从 `lemo-opuscar` 取 1 个 `styles/<id>/STYLE.md`；`DIRECTOR.md` 只作方法参考。不要加载 51 个风格。
-- **film-plan**：需要已有镜头运动语法时，从 `video-shotcraft/references/shots/` 按功能取 1–3 张卡，读卡 + 对应 `demos/` 源码；只借结构与参数。
+- **lookdev**：style-film 模式可读 `DIRECTOR.md`/`TECHNIQUE.md` + 1 个 `STYLE.md`；micro-test 只取 1 个 STYLE。不要加载 51 个风格。
+- **film-plan**：product-promo 匹配时可读 `SKILL.md` + `pipeline/template`；其他任务只按功能取 1–3 张卡 + demo。不要为了用模板而把非产品片套成产品片。
 - **实现**：需要具体原语时，从 `remotion-scenes/src/scenes/` 复制 1–2 个组件，按项目 tokens 重新蒙皮。
 - **Finishing**：可参考 `video-shotcraft/references/aesthetic-rules.md`、`final-review.md`、`lemo-opuscar/DIRECTOR.md` 的自检问题；但 Finishing Pass 仍按本项目 `quality-bar` 执行。
 - **记录**：在 `decisions.md` 写来源、commit、许可、改了什么。
