@@ -12,6 +12,7 @@
  */
 
 export type ViewId =
+  | 'home'
   | 'production'
   | 'project'
   | 'assets'
@@ -45,6 +46,7 @@ export interface NavNode {
  * 项目内子视图（编排/时序/交付）不占全局导航，从「我的创作」进入任务后切换。
  */
 export const NAV: NavNode[] = [
+  { id: 'home',       label: '首页',   icon: 'house' },
   { id: 'project',    label: '我的创作', icon: 'clapperboard' },
   { id: 'methods',    label: '工作流',   icon: 'workflow' },
   { id: 'knowledge',  label: '特效库',   icon: 'panels-top-left' },
@@ -59,6 +61,7 @@ export const DEFAULT_EXPANDED: string[] = []
 export const CONTEXT_VIEWS: ViewId[] = ['assets']
 
 export const VIEW_META: Record<ViewId, { title: string; hint: string }> = {
+  home:       { title: '首页', hint: '从一句话开始' },
   production: { title: '制作工作台', hint: '场景列表 + 监看器 + AI 对话' },
   project:    { title: '我的创作', hint: '视频任务：正在制作、等待处理、已完成' },
   assets:     { title: '我的素材', hint: '自己的图片/视频/音频/生成文件，导入与复用' },
