@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import { GENOMES } from '@/data/knowledge'
+import { GENOMES } from '@/data/genomes'
 import { PROJECTS, PROJECTS_ROOT, type ProjectSummary } from '@/data/projects'
 
 const nowIso = () => new Date().toISOString().slice(0, 16).replace('T', ' ')

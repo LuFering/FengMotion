@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { GENOMES } from '@/data/knowledge'
+import { GENOMES } from '@/data/genomes'
 import { PROJECTS_ROOT, type ProjectSummary } from '@/data/projects'
 
 function Icon({ name, className = 'ui-icon' }: { name: string; className?: string }) {
