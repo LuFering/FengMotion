@@ -109,16 +109,16 @@ export const PROJECT_SUBVIEWS: ProjectSubView[] = [
 export function projectStats(p: ProjectSummary): { k: string; v: string }[] {
   if (p.planned) {
     return [
-      { k: '镜头', v: '—' },
+      { k: '场景', v: '—' },
       { k: '时长', v: p.targetDuration ? `目标 ${p.targetDuration}s` : '—' },
-      { k: '分镜段', v: '—' },
+      { k: '分段', v: '—' },
       { k: '合成', v: '—' },
     ]
   }
   return [
-    { k: '镜头', v: `${p.doneClips}/${p.totalClips}` },
+    { k: '场景', v: `${p.doneClips}/${p.totalClips}` },
     { k: '时长', v: `${p.duration.toFixed(0)}s` },
-    { k: '分镜段', v: String(p.segments) },
+    { k: '分段', v: String(p.segments) },
     { k: '合成', v: String(p.compositions) },
   ]
 }

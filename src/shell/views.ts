@@ -3,7 +3,7 @@
  *
  * 与 paba 的区别：paba 是扁平的（4 主项 + 一个「创作工具」标签）。
  * 本产品导航对齐产品三层定位（工作流 / 创作知识 / 普通素材）+ 创作动线：
- *   首页 —— 起活儿（想法入口、镜头库）
+ *   首页 —— 起活儿（想法入口、画面库）
  *   我的创作 —— 视频任务列表，进任务后切编排/时序/交付等子视图
  *   工作流 —— 制作方案的定义与复用（怎么做）
  *   特效库 / 参考片库 —— 创作知识（实现方法 / 创作依据）
@@ -12,7 +12,6 @@
  */
 
 export type ViewId =
-  | 'overview'
   | 'production'
   | 'project'
   | 'assets'
@@ -46,7 +45,6 @@ export interface NavNode {
  * 项目内子视图（编排/时序/交付）不占全局导航，从「我的创作」进入任务后切换。
  */
 export const NAV: NavNode[] = [
-  { id: 'overview',   label: '首页',     icon: 'house' },
   { id: 'project',    label: '我的创作', icon: 'clapperboard' },
   { id: 'methods',    label: '工作流',   icon: 'workflow' },
   { id: 'knowledge',  label: '特效库',   icon: 'panels-top-left' },
@@ -61,16 +59,15 @@ export const DEFAULT_EXPANDED: string[] = []
 export const CONTEXT_VIEWS: ViewId[] = ['assets']
 
 export const VIEW_META: Record<ViewId, { title: string; hint: string }> = {
-  overview:   { title: '首页',     hint: '创作想法入口、镜头库、动效来源' },
-  production: { title: '制作工作台', hint: '分镜列表 + 监看器 + AI 对话' },
+  production: { title: '制作工作台', hint: '场景列表 + 监看器 + AI 对话' },
   project:    { title: '我的创作', hint: '视频任务：正在制作、等待处理、已完成' },
   assets:     { title: '我的素材', hint: '自己的图片/视频/音频/生成文件，导入与复用' },
   script:     { title: '内容编排', hint: '脚本段落、版本差异、时长与口播估算' },
   audio:      { title: '时序校验', hint: '脚本与成片之间哪里对不上' },
   render:     { title: '发布与验收', hint: '能交付什么、缺什么、验收结果' },
   sources:    { title: '资源接入', hint: '外部资源从哪进来、解析到哪一步、产物审没审' },
-  knowledge:  { title: '特效库', hint: '特效/镜头设计/转场/动画的实现方法，供工作流检索调用' },
-  reference:  { title: '参考片库', hint: '参考视频的镜头、运镜、节奏与风格知识' },
+  knowledge:  { title: '特效库', hint: '特效/场景设计/转场/动画的实现方法，供工作流检索调用' },
+  reference:  { title: '参考片库', hint: '参考视频的画面段、机位运动、节奏与风格知识' },
   rules:      { title: '反馈与规则', hint: '纠错记录 → 规则候选 → 生效规则' },
   methods:    { title: '工作流', hint: '制作方案：步骤、节点、提示词与检查要求' },
 }

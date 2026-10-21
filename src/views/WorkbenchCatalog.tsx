@@ -6,7 +6,7 @@ import { STAGE_LABEL, type ProjectSummary } from '@/data/projects'
  *
  * ── 做法：用 paba 的机制，装本产品的字段 ────────────────────
  *   .hm-project 封面 16:9            封面 + 进度槽（paba 的 .fm-slot）
- *   <b>名</b> + <time>              名 + 镜数 · 时长 · 阶段
+ *   <b>名</b> + <time>              名 + 场数 · 时长 · 阶段
  *   悬停浮出操作条                   打开 / 更多（更多里是**真的能用的**项目动作）
  *   hm-opening 打开中态              同左 —— 点开有真实间隔，正需要它
  *
@@ -187,12 +187,12 @@ function ProjectCard({ project: p, opening, menuOpen, renaming, confirming, draf
         <span className="fm-project-text">
           <b>{p.name}</b>
           <span className="fm-project-meta">
-            {/* 衍生：工作台关心「活儿多大」，所以是镜数 + 时长，不是相对时间 */}
+            {/* 衍生：工作台关心「活儿多大」，所以是场数 + 时长，不是相对时间 */}
             {p.planned ? (
               <span className="num">{p.targetDuration ? `目标 ${p.targetDuration}s` : '还没定目标时长'}</span>
             ) : (
               <>
-                <span className="num">{p.doneClips}/{p.totalClips} 镜</span>
+                <span className="num">{p.doneClips}/{p.totalClips} 场</span>
                 <span className="num">{p.duration.toFixed(0)}s</span>
               </>
             )}

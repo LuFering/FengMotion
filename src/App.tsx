@@ -5,7 +5,6 @@ import { useAgentTasks } from '@/hooks/useAgentTasks'
 import { VIEW_META, type ViewId } from '@/shell/views'
 import { SidebarNav, SidebarFooter } from '@/shell/SidebarNav'
 import { SettingsDialog, DEFAULT_SETTINGS, type Settings } from '@/shell/SettingsDialog'
-import { Home } from '@/views/Home'
 import { Workbench } from '@/views/Workbench'
 import { WorkbenchCatalog } from '@/views/WorkbenchCatalog'
 import { Assets } from '@/views/Assets'
@@ -42,11 +41,10 @@ function Icon({ name, className = 'ui-icon' }: { name: string; className?: strin
   )
 }
 
-type View = ViewId | 'home'
+type View = ViewId
 
 /** 顶栏标签（paba 的 .tabbar）：只放最常用的几个 */
 const TABS: Array<{ id: View; label: string; icon: string }> = [
-  { id: 'overview',   label: '首页',   icon: 'house' },
   { id: 'production', label: '工作台', icon: 'clapperboard' },
   { id: 'assets',     label: '素材',   icon: 'image' },
   { id: 'knowledge',  label: '特效',   icon: 'panels-top-left' },
@@ -54,7 +52,10 @@ const TABS: Array<{ id: View; label: string; icon: string }> = [
 ]
 
 export default function App() {
-  const [view, setView] = useState<View>('overview')
+  /** 开发调试入口：?view=production&project=token 直接进工作台；普通访问不变。 */
+  const initialQuery = new URLSearchParams(window.location.search)
+  const initialView = initialQuery.get('view') as View | null
+  const [view, setView] = useState<View>(initialView && initialView in VIEW_META ? initialView : 'project')
   /**
    * 制作工作台是**两级**的：
    *   null      → 一级：项目目录（铺满页面）
@@ -62,7 +63,7 @@ export default function App() {
    * 用独立的 openProject 而不是复用 view，因为「目录」和「工作台」
    * 共用一个 ViewId（production），但页面完全不同。
    */
-  const [openProject, setOpenProject] = useState<string | null>(null)
+  const [openProject, setOpenProject] = useState<string | null>(initialQuery.get('project'))
   /** 新建项目对话卡（演示：只在内存里建，不落盘） */
   const [newProjectOpen, setNewProjectOpen] = useState(false)
   const tasks = useAgentTasks()
@@ -78,7 +79,7 @@ export default function App() {
       if (d.type === 'fm-audio-back') { openList(); return } // 时序校验复刻页的返回键
       if (d.type !== 'fm-nav' || !d.id) return
       if (d.id === '__list') { openList(); return }
-      if (d.id === '__home') { setView('overview'); return }
+      if (d.id === '__home') { setView('project'); return }
       setView(d.id as Parameters<typeof setView>[0])
     }
     window.addEventListener('message', onMsg)
@@ -103,12 +104,9 @@ export default function App() {
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', 'dark')
     document.body.classList.add('studio-shell')   // 本产品所有视图都在 shell 内
-    document.body.classList.toggle('homeon', view === 'overview')
     document.body.classList.toggle('flowon', view === 'production')
   }, [view])
 
-  /** 首页 = 概览视图；其余走 pane-* 容器 */
-  const isHome = view === 'overview'
   /** 制作工作台：必须有当前项目（列表已归项目管理，这里不再兼当目录） */
   const isFlow = view === 'production' && current !== null
   /** 项目列表：制作工作台没项目时、项目总览没项目时，都落到它 */
@@ -137,8 +135,8 @@ export default function App() {
         {/* 侧栏（paba #hm-sidebar，默认 68px 图标轨）*/}
         <aside className="hm-sidebar" id="hm-sidebar" aria-label="主导航">
           <div className="hm-sidebar-head">
-            <a className="hm-brand" href="#overview" aria-label="FengMotion 首页"
-               onClick={(e) => { e.preventDefault(); go('overview') }}>
+            <a className="hm-brand" href="#project" aria-label="FengMotion 项目"
+               onClick={(e) => { e.preventDefault(); go('project') }}>
               <span className="hm-brand-mark">
                 <img src="/assets/brand/fengmotion-mark.png" alt="" width={26} height={26} />
               </span>
@@ -157,13 +155,6 @@ export default function App() {
 
           <SidebarFooter onOpenSettings={() => setSettingsOpen(true)} />
         </aside>
-
-        {/* 首页 */}
-        {isHome && (
-          <main id="pane-home" className="hm-main">
-            <Home onOpenProject={go} />
-          </main>
-        )}
 
         {/* 项目列表（一级）—— 「列表 → 项目 → 子视图」的第一层 */}
         {isCatalog && (
@@ -199,7 +190,7 @@ export default function App() {
         )}
 
         {/* 其余视图 */}
-        {!isHome && !isFlow && !isCatalog && (
+        {!isFlow && !isCatalog && (
           <>
             {/* 项目指挥中心 / 创作资产 / 时序校验 / 工作流广场：全幅复刻页，这层标题栏不渲染 */}
             {view !== 'project' && view !== 'assets' && view !== 'audio' && view !== 'methods' && view !== 'knowledge' && view !== 'reference' && (
@@ -210,7 +201,7 @@ export default function App() {
               <h1>{VIEW_META[view as ViewId].title}</h1>
               <span className="spacer" />
               <span className="chip"><span className="dot off" />Agent 未连接</span>
-              <button className="iconbtn" type="button" title="返回首页" onClick={() => go('overview')}>
+              <button className="iconbtn" type="button" title="返回项目" onClick={() => go('project')}>
                 <Icon name="house" />
               </button>
             </header>

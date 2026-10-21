@@ -1,22 +1,27 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
-  AlertCircle, ArrowDownToLine, ArrowLeftRight, ArrowUpRight, Check,
-  ChevronDown, ChevronLeft, Clock3, FileCode2, FolderOpen, History, LoaderCircle, Maximize2,
-  PanelBottom, Pause, Play, Plus, RotateCcw, Send, Settings2,
+  AlertCircle, ArrowDownToLine, ArrowLeftRight, ArrowUpRight, BookOpen, Check,
+  ChevronDown, ChevronLeft, Clock3, Crosshair, FileCode2, FileText, FolderOpen, History, ListTree, LoaderCircle, Maximize2,
+  ShieldCheck,
+  PanelBottom, Pause, Play, Plus, RotateCcw, Scan, Send, Settings2, SlidersHorizontal,
   SkipBack, SkipForward, Square, Volume2, X,
 } from 'lucide-react'
 import { ACTIVE_SCENES, SCENES } from '@/data/projectModel'
 import { PROJECTS } from '@/data/projects'
 import type { StoryboardEntry } from '@/data/projectModel'
+import { ARTIFACT_STATUS_LABEL, ARTIFACT_TYPE_LABEL, WORKBENCH_ARTIFACTS, type WorkbenchArtifact } from '@/data/workbenchArtifacts'
 import { ACTIVE_DURATION, FILM_FPS } from '@/data/timeline'
 import { useAgentTasks, type TaskRecord } from '@/hooks/useAgentTasks'
-import type { AgentTask, ModificationConstraints, ProjectVersion, TaskRequest } from '@/services/studioApi'
+import type { AgentReference, AgentTask, ModificationConstraints, ProjectVersion, TaskRequest } from '@/services/studioApi'
 import { studioAdapter } from '@/services/studioAdapter'
 import type { ChatState } from '@/shell/useChat'
 import { statusOf } from '@/shell/status'
 import { cn } from '@/lib/utils'
 import { FilmPlayer, type PlayerRef } from '@/remotion/FilmPlayer'
 import { StoryTimeline } from '@/views/StoryTimeline'
+import { RemotionEditPanel, RemotionEditPreview } from '@/views/RemotionEditPanel'
+import type { EditableShotSettings } from '@/remotion/EditableShot'
+import { defaultShotSettings, loadShotOverrides, saveShotOverrides, type ShotOverrideMap } from '@/data/shotOverrides'
 import type { ViewId } from '@/shell/views'
 
 /**
@@ -29,7 +34,7 @@ import type { ViewId } from '@/shell/views'
  *      工作台  .wb-/.fw-  工具面板（--surf/--hole/--line）—— 平、密、6px 圆角
  *    工作台要能长时间盯着干活，所以**不用纸、不用大圆角、不用阴影**。
  *
- * 三栏：镜头列表（.fw-ing）/ 监看器（.fw-canvas）/ 对话设置（.fw-bar）
+ * 三栏：场景列表（.fw-ing）/ 监看器（.fw-canvas）/ 对话设置（.fw-bar）
  */
 
 /** 项目里实际存在的那份成片。演示适配器不改它，只播放/下载。 */
@@ -39,12 +44,12 @@ const quickActions = [
   { id: 'undo', label: '撤销', icon: RotateCcw, prompt: '撤销上一次修改。' },
   { id: 'redo', label: '重做', icon: RotateCcw, prompt: '重做上一次修改。' },
   { id: 'compare', label: '对比版本', icon: ArrowLeftRight, compare: true },
-  { id: 'camera', label: '锁定运镜', icon: Settings2, constraint: 'preserveCamera' as const },
+  { id: 'camera', label: '锁定机位', icon: Settings2, constraint: 'preserveCamera' as const },
   { id: 'captions', label: '保留字幕', icon: Check, constraint: 'preserveCaptions' as const },
   { id: 'assets', label: '替换素材', icon: Plus, constraint: 'attachment' as const },
-  { id: 'duration', label: '调整时长', icon: Clock3, prompt: '调整当前镜头时长。请先询问目标时长。' },
+  { id: 'duration', label: '调整时长', icon: Clock3, prompt: '调整当前场景时长。请先询问目标时长。' },
   { id: 'resolution', label: '修改分辨率', icon: Settings2, prompt: '调整项目分辨率。请先询问目标分辨率。' },
-  { id: 'regenerate', label: '重做当前镜头', icon: ArrowUpRight, prompt: '重新生成当前镜头，保留现有镜头运动和字幕。' },
+  { id: 'regenerate', label: '重做当前场景', icon: ArrowUpRight, prompt: '重新生成当前场景，保留现有机位运动和字幕。' },
 ]
 
 interface WorkbenchProps {
@@ -66,6 +71,18 @@ export function Workbench({ chat, tasks, onNavigate, projectId, onBack, onSwitch
   const project = PROJECTS.find((p) => p.id === projectId) ?? PROJECTS[0]
   const [selectedId, setSelectedId] = useState('s01')
   const [selectedStoryboardId, setSelectedStoryboardId] = useState<string | null>(null)
+  // 调试直达：?artifact=artifact-content-contract 直接打开产物只读视图。
+  const initialArtifact = new URLSearchParams(window.location.search).get('artifact')
+  const [railTab, setRailTab] = useState<'structure' | 'artifacts'>(initialArtifact ? 'artifacts' : 'structure')
+  const [selectedArtifactId, setSelectedArtifactId] = useState<string | null>(initialArtifact)
+  const [editMode, setEditMode] = useState(new URLSearchParams(window.location.search).get('edit') === '1')
+  const [shotOverrides, setShotOverrides] = useState<ShotOverrideMap>(() => loadShotOverrides(projectId))
+  const [savedAt, setSavedAt] = useState('')
+  const [references, setReferences] = useState<AgentReference[]>([])
+  const [regionMode, setRegionMode] = useState(false)
+  const [regionRect, setRegionRect] = useState<{ x: number; y: number; w: number; h: number } | null>(null)
+  const regionStart = useRef<{ x: number; y: number } | null>(null)
+  const stageRef = useRef<HTMLDivElement | null>(null)
   const [frame, setFrame] = useState(0)
   const [playerReady, setPlayerReady] = useState(false)
   const [playing, setPlaying] = useState(false)
@@ -74,7 +91,9 @@ export function Workbench({ chat, tasks, onNavigate, projectId, onBack, onSwitch
   const [constraints, setConstraints] = useState<ModificationConstraints>({
     preserveCamera: true, preserveCaptions: true, limitToSelection: true, reuseExistingComponents: true,
   })
-  const [sideTab, setSideTab] = useState<'chat'|'settings'>('chat')
+  const initialPanel = new URLSearchParams(window.location.search).get('panel')
+  const [sideTab, setSideTab] = useState<'chat'|'task'|'changes'|'edit'|'settings'>(
+    initialPanel === 'task' || initialPanel === 'changes' || initialPanel === 'edit' || initialPanel === 'settings' ? initialPanel : 'chat')
   const [bottomTab, setBottomTab] = useState<'activity'|'changes'|'versions'>('activity')
   const [trayOpen, setTrayOpen] = useState(false)
   const [compare, setCompare] = useState(false)
@@ -83,6 +102,13 @@ export function Workbench({ chat, tasks, onNavigate, projectId, onBack, onSwitch
   const [notice, setNotice] = useState('')
   const [switchOpen, setSwitchOpen] = useState(false)
   const selectedScene = useMemo(() => SCENES.find((s) => s.id === selectedId) ?? SCENES[0], [selectedId])
+  const selectedArtifact = useMemo(() => WORKBENCH_ARTIFACTS.find((a) => a.id === selectedArtifactId) ?? null, [selectedArtifactId])
+  const currentShotSettings = useMemo<EditableShotSettings>(() => shotOverrides[selectedId] ?? defaultShotSettings(selectedScene), [selectedId, selectedScene, shotOverrides])
+  useEffect(() => {
+    if (!saveShotOverrides(projectId, shotOverrides)) return
+    if (Object.keys(shotOverrides).length === 0) { setSavedAt(''); return }
+    setSavedAt(new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }))
+  }, [projectId, shotOverrides])
   const storyboard = selectedStoryboardId && selectedScene.storyboard?.段 !== selectedStoryboardId
     ? null : selectedScene.storyboard
   const selectedVersion = studioAdapter.versions()[0]
@@ -91,9 +117,34 @@ export function Workbench({ chat, tasks, onNavigate, projectId, onBack, onSwitch
   const selectScene = (id: string, storyboardId?: string | null) => {
     setSelectedId(id)
     setSelectedStoryboardId(storyboardId ?? null)
+    setSelectedArtifactId(null)
+    setEditMode(false)
+    setReferences([])
+    setRailTab('structure')
     const clip = ACTIVE_SCENES.find((item) => item.id === id)
     if (clip) seek(clip.startFrame)
     setRailOpen(false)                    // 窄屏选完就收起抽屉
+  }
+  const selectArtifact = (id: string) => {
+    setSelectedArtifactId(id)
+    setEditMode(false)
+    setRailTab('artifacts')
+    setRailOpen(false)
+  }
+  const openEdit = () => {
+    setSelectedArtifactId(null)
+    setEditMode(true)
+    setSideTab('edit')
+  }
+  const closeEdit = () => {
+    setEditMode(false)
+    setSideTab('chat')
+  }
+  const applyShotSettings = (settings: EditableShotSettings) => {
+    setShotOverrides((old) => ({ ...old, [selectedId]: settings }))
+  }
+  const resetShotSettings = () => {
+    setShotOverrides((old) => { const copy = { ...old }; delete copy[selectedId]; return copy })
   }
   const seek = (nextFrame: number) => {
     const next = Math.max(0, Math.min(totalFrames - 1, Math.round(nextFrame)))
@@ -102,8 +153,77 @@ export function Workbench({ chat, tasks, onNavigate, projectId, onBack, onSwitch
     const clip = [...ACTIVE_SCENES].reverse().find((item) => next / FILM_FPS >= item.start)
     if (clip) { setSelectedId(clip.id); setSelectedStoryboardId(clip.storyboardId) }
   }
+  const currentShotRef = useMemo<AgentReference>(() => ({
+    id: `shot:${selectedId}`, role: 'target', kind: 'shot', shotId: selectedId,
+    label: `${selectedId.toUpperCase()} · ${selectedScene.label}`,
+  }), [selectedId, selectedScene.label])
+  const setTargetReference = (ref: AgentReference) => {
+    setReferences((old) => [ref, ...old.filter((item) => item.role !== 'target')])
+  }
+  const addContextReference = (ref: AgentReference) => {
+    setReferences((old) => old.some((item) => item.id === ref.id) ? old : [...old, ref])
+  }
+  const removeReference = (id: string) => setReferences((old) => old.filter((item) => item.id !== id))
+  const referenceFrame = () => {
+    const tc = formatTime(frame / FILM_FPS)
+    setTargetReference({
+      id: `frame:${selectedId}:${frame}`, role: 'target', kind: 'frame', shotId: selectedId,
+      frame, timecode: tc, label: `${selectedId.toUpperCase()} · ${frame}f · ${tc}`,
+    })
+  }
+  const referenceRange = () => {
+    const clip = ACTIVE_SCENES.find((item) => item.id === selectedId)
+    const startFrame = clip?.startFrame ?? Math.round((selectedScene.start ?? 0) * FILM_FPS)
+    const endFrame = startFrame + (clip?.durationFrames ?? Math.round(selectedScene.duration * FILM_FPS)) - 1
+    setTargetReference({
+      id: `range:${selectedId}:${startFrame}:${endFrame}`, role: 'target', kind: 'range',
+      shotId: selectedId, startFrame, endFrame,
+      timecode: `${formatTime(startFrame / FILM_FPS)}–${formatTime(endFrame / FILM_FPS)}`,
+      label: `${selectedId.toUpperCase()} · ${startFrame}–${endFrame}f`,
+    })
+  }
+  const referenceRegion = (bbox: { x: number; y: number; w: number; h: number }) => {
+    setTargetReference({
+      id: `region:${selectedId}:${frame}:${bbox.x.toFixed(2)}:${bbox.y.toFixed(2)}:${bbox.w.toFixed(2)}:${bbox.h.toFixed(2)}`,
+      role: 'target', kind: 'region', shotId: selectedId, frame, bbox,
+      label: `${selectedId.toUpperCase()} · ${frame}f · 区域 ${Math.round(bbox.w * 100)}×${Math.round(bbox.h * 100)}%`,
+    })
+  }
+  const referenceArtifact = (artifact: WorkbenchArtifact) => {
+    addContextReference({
+      id: `artifact:${artifact.id}:${artifact.version}`, role: 'context', kind: 'artifact',
+      artifactId: artifact.id, version: artifact.version, label: `${artifact.title} · ${artifact.version}`,
+    })
+  }
+  const regionPoint = (e: React.PointerEvent<HTMLDivElement>) => {
+    const rect = stageRef.current?.getBoundingClientRect()
+    if (!rect) return { x: 0, y: 0 }
+    return { x: Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width)), y: Math.min(1, Math.max(0, (e.clientY - rect.top) / rect.height)) }
+  }
+  const startRegion = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!regionMode) return
+    e.currentTarget.setPointerCapture(e.pointerId)
+    regionStart.current = regionPoint(e)
+    setRegionRect({ x: regionStart.current.x, y: regionStart.current.y, w: 0, h: 0 })
+  }
+  const moveRegion = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!regionMode || !regionStart.current) return
+    const p = regionPoint(e)
+    setRegionRect({
+      x: Math.min(regionStart.current.x, p.x), y: Math.min(regionStart.current.y, p.y),
+      w: Math.abs(p.x - regionStart.current.x), h: Math.abs(p.y - regionStart.current.y),
+    })
+  }
+  const endRegion = () => {
+    if (!regionMode) return
+    if (regionRect && regionRect.w > 0.01 && regionRect.h > 0.01) referenceRegion(regionRect)
+    regionStart.current = null
+    setRegionMode(false)
+    setRegionRect(null)
+  }
   const submit = (prompt: string, kind: TaskRequest['kind'] = 'modify') => {
-    const request: TaskRequest = { kind, prompt, scope, sceneIds: scope === 'project' ? [] : [selectedId], constraints, attachments: [] }
+    const requestRefs = references.some((ref) => ref.role === 'target') ? references : [currentShotRef, ...references]
+    const request: TaskRequest = { kind, prompt, scope, sceneIds: scope === 'project' ? [] : [selectedId], references: requestRefs, constraints, attachments: [] }
     const id = tasks.start(request)
     chat.addUserMessage(prompt, id)
     setBottomTab('activity')
@@ -139,7 +259,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, onBack, onSwitch
         <button className="iconbtn" type="button" title="返回项目目录" onClick={onBack}>
           <ChevronLeft className="size-4" />
         </button>
-        <button className="mini fw-mobile" type="button" title="镜头列表"
+        <button className="mini fw-mobile" type="button" title="场景列表"
                 onClick={() => setRailOpen((v) => !v)}>
           <PanelBottom className="size-3.5" />
         </button>
@@ -159,7 +279,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, onBack, onSwitch
                         aria-current={p.id === project.id ? 'true' : undefined}
                         onClick={() => { setSwitchOpen(false); if (p.id !== project.id) onSwitchProject(p.id) }}>
                   <span className="truncate">{p.name}</span>
-                  <em className="num">{p.doneClips}/{p.totalClips} 镜</em>
+                  <em className="num">{p.doneClips}/{p.totalClips} 场</em>
                 </button>
               ))}
               <button type="button" role="menuitem" className="wb-switch-all"
@@ -194,73 +314,120 @@ export function Workbench({ chat, tasks, onNavigate, projectId, onBack, onSwitch
 
       {/* ═══ 三栏（paba .fw 网格）══════════════════════════════ */}
       <div className="fw relative">
-        {railOpen && <button className="fw-scrim" aria-label="收起镜头列表" onClick={() => setRailOpen(false)} />}
+        {railOpen && <button className="fw-scrim" aria-label="收起场景列表" onClick={() => setRailOpen(false)} />}
 
         <ProjectRail selectedId={selectedId} onSelect={selectScene} projectName={project.name}
-                     open={railOpen} onClose={() => setRailOpen(false)} />
+                     open={railOpen} onClose={() => setRailOpen(false)}
+                     tab={railTab} onTab={setRailTab}
+                     selectedArtifactId={selectedArtifactId} onSelectArtifact={selectArtifact}
+                     modifiedIds={Object.keys(shotOverrides)} />
 
         {/* 中栏：监看器 */}
         <main className="fw-canvas">
           <div className="fw-toolbar">
-            <h2 className="num">{selectedId.toUpperCase()}</h2>
-            <span className="t-title truncate">{selectedScene.label}</span>
-            {storyboard && <span className="fw-count">V3 段 {storyboard.段}</span>}
-            {!selectedScene.inTimeline && <span className="chip"><span className="dot warn" />未排入剪辑</span>}
+            <h2 className="num">{selectedArtifact ? 'ARTIFACT' : selectedId.toUpperCase()}</h2>
+            <span className="t-title truncate">{selectedArtifact ? selectedArtifact.title : selectedScene.label}</span>
+            {selectedArtifact ? (
+              <>
+                <span className="fw-count">{ARTIFACT_TYPE_LABEL[selectedArtifact.type]} · {selectedArtifact.version}</span>
+                <span className="chip">只读预览</span>
+              </>
+            ) : (
+              <>
+                {storyboard && <span className="fw-count">V3 段 {storyboard.段}</span>}
+                {!selectedScene.inTimeline && <span className="chip"><span className="dot warn" />未纳入当前版本</span>}
+              </>
+            )}
             <span className="spacer" />
           </div>
 
-          {/* 舞台：paba .fw-stage */}
-          <div className="fw-stage">
-            {!compare ? (
-              <FilmPlayer onPlayer={(p) => { playerRef.current = p }} onFrame={setFrame} onReady={setPlayerReady} />
-            ) : (
-              <div className="relative flex size-full overflow-hidden bg-black">
-                <div className="relative h-full overflow-hidden" style={{ width: `${compareSplit}%` }}>
-                  <img src={selectedScene.frame ?? '/frames/u01.jpg'} alt="项目抽帧"
-                       className="absolute inset-0 size-full object-contain" />
-                  <span className="absolute left-2 top-2 bg-black/75 px-1.5 py-1 text-[10px]">已存抽帧</span>
-                </div>
-                <div className="relative h-full flex-1 overflow-hidden border-l border-acc">
+          {selectedArtifact ? (
+            <ArtifactView artifact={selectedArtifact}
+                          onLocate={(id) => selectScene(id)}
+                          onReference={() => referenceArtifact(selectedArtifact)}
+                          onClose={() => setSelectedArtifactId(null)} />
+          ) : editMode ? (
+            <>
+              <div className="fw-stage fw-stage-edit">
+                <RemotionEditPreview settings={currentShotSettings} poster={selectedScene.frame ?? undefined} />
+                <div className="fw-edit-hint">Remotion 实时预览 · 修改右栏参数后点“应用”</div>
+              </div>
+              <ShotActionBar
+                onFrame={referenceFrame} onRange={referenceRange}
+                onRegion={() => { setRegionMode((v) => !v); setRegionRect(null) }}
+                regionMode={regionMode} editMode={editMode}
+                onEdit={closeEdit}
+              />
+            </>
+          ) : (
+            <>
+              {/* 舞台：paba .fw-stage */}
+              <div className="fw-stage" ref={stageRef}>
+                {!compare ? (
                   <FilmPlayer onPlayer={(p) => { playerRef.current = p }} onFrame={setFrame} onReady={setPlayerReady} />
-                  <span className="absolute left-2 top-2 z-10 bg-black/75 px-1.5 py-1 text-[10px]">当前影片</span>
-                </div>
-                <input aria-label="调整对比画面分割" type="range" min={25} max={75} value={compareSplit}
-                       onChange={(e) => setCompareSplit(Number(e.target.value))}
-                       className="absolute bottom-2 left-2 z-20 w-[calc(100%-16px)] accent-[var(--acc)]" />
+                ) : (
+                  <div className="relative flex size-full overflow-hidden bg-black">
+                    <div className="relative h-full overflow-hidden" style={{ width: `${compareSplit}%` }}>
+                      <img src={selectedScene.frame ?? '/frames/u01.jpg'} alt="项目抽帧"
+                           className="absolute inset-0 size-full object-contain" />
+                      <span className="absolute left-2 top-2 bg-black/75 px-1.5 py-1 text-[10px]">已存抽帧</span>
+                    </div>
+                    <div className="relative h-full flex-1 overflow-hidden border-l border-acc">
+                      <FilmPlayer onPlayer={(p) => { playerRef.current = p }} onFrame={setFrame} onReady={setPlayerReady} />
+                      <span className="absolute left-2 top-2 z-10 bg-black/75 px-1.5 py-1 text-[10px]">当前影片</span>
+                    </div>
+                    <input aria-label="调整对比画面分割" type="range" min={25} max={75} value={compareSplit}
+                           onChange={(e) => setCompareSplit(Number(e.target.value))}
+                           className="absolute bottom-2 left-2 z-20 w-[calc(100%-16px)] accent-[var(--acc)]" />
+                  </div>
+                )}
+                {!playerReady && (
+                  <div className="absolute left-4 top-4 z-20 flex items-center gap-2 rounded-md border border-warn/30 bg-surf px-2 py-1 text-[11px] text-warn">
+                    <LoaderCircle className="size-3 animate-spin" />正在加载项目影片
+                  </div>
+                )}
+                {notice && (
+                  <button className="absolute bottom-3 right-3 z-20 max-w-[75%] rounded-md border border-warn/30 bg-surf px-2 py-1 text-[10px] text-warn"
+                          onClick={() => setNotice('')}>
+                    {notice}<X className="ml-1 inline size-3" />
+                  </button>
+                )}
+                {regionMode && (
+                  <div className="fw-region-layer" onPointerDown={startRegion} onPointerMove={moveRegion} onPointerUp={endRegion}>
+                    <div className="fw-region-hint">拖拽框选画面区域；松开后加入 Agent 目标</div>
+                    {regionRect && <div className="fw-region-box" style={{ left: `${regionRect.x * 100}%`, top: `${regionRect.y * 100}%`, width: `${regionRect.w * 100}%`, height: `${regionRect.h * 100}%` }} />}
+                  </div>
+                )}
               </div>
-            )}
-            {!playerReady && (
-              <div className="absolute left-4 top-4 z-20 flex items-center gap-2 rounded-md border border-warn/30 bg-surf px-2 py-1 text-[11px] text-warn">
-                <LoaderCircle className="size-3 animate-spin" />正在加载项目影片
+
+              <ShotActionBar
+                onFrame={referenceFrame} onRange={referenceRange}
+                onRegion={() => { setRegionMode((v) => !v); setRegionRect(null) }}
+                regionMode={regionMode} editMode={editMode}
+                onEdit={editMode ? closeEdit : openEdit}
+              />
+
+              <PlayerBar playerRef={playerRef} frame={frame} onSeek={seek} playing={playing}
+                         onToggle={playToggle} rate={previewRate} onRate={setPreviewRate} totalFrames={totalFrames} />
+
+              <div className="tl-wrap">
+                <StoryTimeline selectedId={selectedId} onSelect={selectScene} activeFrame={frame} onSeek={seek} />
               </div>
-            )}
-            {notice && (
-              <button className="absolute bottom-3 right-3 z-20 max-w-[75%] rounded-md border border-warn/30 bg-surf px-2 py-1 text-[10px] text-warn"
-                      onClick={() => setNotice('')}>
-                {notice}<X className="ml-1 inline size-3" />
-              </button>
-            )}
-          </div>
 
-          <PlayerBar playerRef={playerRef} frame={frame} onSeek={seek} playing={playing}
-                     onToggle={playToggle} rate={previewRate} onRate={setPreviewRate} totalFrames={totalFrames} />
+              <div className="fw-subbar">
+                <button className="mini" type="button" onClick={() => setTrayOpen((v) => !v)}>
+                  <PanelBottom className="size-3" />{trayOpen ? '收起任务面板' : '展开任务面板'}
+                </button>
+                <span className="hint">
+                  {tasks.active?.task.title ?? '没有正在执行的任务'}
+                </span>
+              </div>
 
-          <div className="tl-wrap">
-            <StoryTimeline selectedId={selectedId} onSelect={selectScene} activeFrame={frame} onSeek={seek} />
-          </div>
-
-          <div className="fw-subbar">
-            <button className="mini" type="button" onClick={() => setTrayOpen((v) => !v)}>
-              <PanelBottom className="size-3" />{trayOpen ? '收起任务面板' : '展开任务面板'}
-            </button>
-            <span className="hint">
-              {tasks.active?.task.title ?? '没有正在执行的任务'}
-            </span>
-          </div>
-
-          {trayOpen && (
-            <BottomTray records={tasks.records} activeId={tasks.active?.task.id ?? null}
-                        onCancel={tasks.cancel} tab={bottomTab} setTab={setBottomTab} />
+              {trayOpen && (
+                <BottomTray records={tasks.records} activeId={tasks.active?.task.id ?? null}
+                            onCancel={tasks.cancel} tab={bottomTab} setTab={setBottomTab} />
+              )}
+            </>
           )}
         </main>
 
@@ -271,28 +438,113 @@ export function Workbench({ chat, tasks, onNavigate, projectId, onBack, onSwitch
                     constraints={constraints} setConstraints={setConstraints}
                     activeTask={tasks.active?.task ?? null} cancelTask={tasks.cancel}
                     records={tasks.records} onSubmit={submit} onQuickAction={runQuickAction}
-                    onNavigate={onNavigate} selectedVersion={selectedVersion} />
+                    onNavigate={onNavigate} selectedVersion={selectedVersion}
+                    editSettings={currentShotSettings} editSavedAt={savedAt}
+                    editOverridden={!!shotOverrides[selectedId]}
+                    references={references} onRemoveReference={removeReference}
+                    onApplyEdit={applyShotSettings} onResetEdit={resetShotSettings}
+                    onCloseEdit={closeEdit} onOpenEdit={openEdit} />
       </div>
     </div>
   )
 }
 
-/* ── 左栏：镜头列表（paba .fw-ing）────────────────────────── */
-function ProjectRail({ selectedId, onSelect, projectName, open, onClose }:
+/* ── 中栏：产物只读视图 ───────────────────────────────────── */
+function ArtifactView({ artifact, onLocate, onReference, onClose }:
+  { artifact: WorkbenchArtifact; onLocate: (shotId: string) => void; onReference: () => void; onClose: () => void }) {
+  return (
+    <div className="fw-artifact-view">
+      <div className="fw-artifact-head">
+        <div className="fw-artifact-kicker">{ARTIFACT_TYPE_LABEL[artifact.type]} / ARTIFACT</div>
+        <h3>{artifact.title}</h3>
+        <p>{artifact.summary}</p>
+        <div className="fw-artifact-meta">
+          <span>{artifact.version}</span>
+          <span data-status={artifact.status}>{ARTIFACT_STATUS_LABEL[artifact.status]}</span>
+          <span>{artifact.updatedAt}</span>
+          {artifact.demo && <span className="fw-artifact-demo">演示样例</span>}
+        </div>
+      </div>
+      <div className="fw-artifact-body">
+        <pre className="fw-artifact-sheet">{artifact.body}</pre>
+        <aside className="fw-artifact-side">
+          <div className="fw-scene-hd">关联场景</div>
+          {artifact.relatedShotIds.map((id) => {
+            const scene = ACTIVE_SCENES.find((s) => s.id === id)
+            return scene ? (
+              <button key={id} className="mini h-7 w-full justify-start text-[10.5px]" type="button"
+                      onClick={() => onLocate(id)}>
+                {id.toUpperCase()} · {scene.title}
+              </button>
+            ) : null
+          })}
+          <div className="wb-sep" />
+          <div className="text-[10.5px] leading-relaxed text-dim">
+            这是产物只读预览，不是编辑/批准状态。点击关联场景可回到监看。
+          </div>
+          <button className="mini h-7 w-full justify-start text-[10.5px]" type="button" onClick={onReference}>
+            引用为上下文
+          </button>
+          <button className="mini h-7 w-full justify-start text-[10.5px]" type="button" onClick={onClose}>
+            回到监看
+          </button>
+        </aside>
+      </div>
+    </div>
+  )
+}
+
+/* ── 左栏：场景列表（paba .fw-ing）────────────────────────── */
+function ArtifactIcon({ type }: { type: WorkbenchArtifact['type'] }) {
+  const Icon = type === 'content-contract' ? FileText
+    : type === 'lookdev' ? BookOpen
+    : type === 'film-plan' ? ListTree
+    : ShieldCheck
+  return <Icon className="size-3.5" />
+}
+
+function ProjectRail({ selectedId, onSelect, projectName, open, onClose, tab, onTab,
+  selectedArtifactId, onSelectArtifact, modifiedIds }:
   { selectedId: string; onSelect: (id: string, storyboardId?: string | null) => void
-    projectName: string; open: boolean; onClose: () => void }) {
+    projectName: string; open: boolean; onClose: () => void
+    tab: 'structure' | 'artifacts'; onTab: (tab: 'structure' | 'artifacts') => void
+    selectedArtifactId: string | null; onSelectArtifact: (id: string) => void
+    modifiedIds: string[] }) {
   const acts = [...new Set(ACTIVE_SCENES.map((s) => s.scene?.storyboard?.幕 ?? (s.storyboardId ? 'V3 草稿' : '当前剪辑')))]
   return (
-    <aside className="fw-ing" data-open={open ? '' : undefined} aria-label="镜头列表">
+    <aside className="fw-ing" data-open={open ? '' : undefined} aria-label="工作区导航">
       <div className="fw-ing-hd">
-        <h2>镜头列表</h2>
-        <span className="fw-count">{ACTIVE_SCENES.length} 镜</span>
+        <h2>工作区</h2>
+        <span className="fw-count">{tab === 'structure' ? `${ACTIVE_SCENES.length} 场` : `${WORKBENCH_ARTIFACTS.length} 产物`}</span>
         <span className="spacer" />
         <button className="iconbtn fw-mobile" type="button" title="收起" onClick={onClose}>
           <X className="size-4" />
         </button>
       </div>
 
+      <div className="fw-rail-tabs" role="tablist" aria-label="工作区导航">
+        <button className="mini" type="button" role="tab" aria-selected={tab === 'structure'}
+                aria-pressed={tab === 'structure'} onClick={() => onTab('structure')}>结构</button>
+        <button className="mini" type="button" role="tab" aria-selected={tab === 'artifacts'}
+                aria-pressed={tab === 'artifacts'} onClick={() => onTab('artifacts')}>产物</button>
+      </div>
+
+      {tab === 'artifacts' ? (
+        <div className="fw-artifacts" role="tabpanel">
+          {WORKBENCH_ARTIFACTS.map((a) => (
+            <button key={a.id} type="button" className="fw-artifact"
+                    aria-current={a.id === selectedArtifactId ? 'true' : undefined}
+                    onClick={() => onSelectArtifact(a.id)}>
+              <span className="fw-artifact-ic"><ArtifactIcon type={a.type} /></span>
+              <span className="fw-artifact-main">
+                <b>{a.title}</b>
+                <small>{ARTIFACT_TYPE_LABEL[a.type]} · {a.version} · {a.updatedAt}</small>
+              </span>
+              <span className="fw-artifact-status" data-status={a.status}>{ARTIFACT_STATUS_LABEL[a.status]}</span>
+            </button>
+          ))}
+        </div>
+      ) : (
       <div className="fw-ing-list">
         {acts.map((act) => {
           const list = ACTIVE_SCENES.filter((s) => (s.scene?.storyboard?.幕 ?? (s.storyboardId ? 'V3 草稿' : '当前剪辑')) === act)
@@ -324,6 +576,7 @@ function ProjectRail({ selectedId, onSelect, projectName, open, onClose }:
                       </span>
                     </span>
                     {/* 状态：正常态安静一个点，异常态必须带文字（shell/status.ts 是唯一来源） */}
+                    {modifiedIds.includes(scene.id) && <span className="fm-tag" data-s="modified">已改</span>}
                     {state.s === 'done'
                       ? <span className="fm-dot" data-s="done" title={state.label} />
                       : <span className="fm-tag" data-s={state.s}>{state.label}</span>}
@@ -334,9 +587,31 @@ function ProjectRail({ selectedId, onSelect, projectName, open, onClose }:
           )
         })}
       </div>
+      )}
 
       <div className="fw-ing-footer">{projectName}</div>
     </aside>
+  )
+}
+
+/* ── 预览下方动作条：图标 + title 提示 ─────────────────────── */
+function ShotActionBar({ onFrame, onRange, onRegion, regionMode, editMode, onEdit }: {
+  onFrame: () => void; onRange: () => void; onRegion: () => void
+  regionMode: boolean; editMode: boolean; onEdit: () => void
+}) {
+  return (
+    <div className="fw-actionbar" aria-label="场景操作">
+      <button className="iconbtn" type="button" title="引用此帧（加入 Agent 目标）" aria-label="引用此帧"
+              onClick={onFrame}><Crosshair /></button>
+      <button className="iconbtn" type="button" title="引用本场（当前场景时段）" aria-label="引用本场"
+              onClick={onRange}><Clock3 /></button>
+      <button className="iconbtn" type="button" title="框选画面区域（加入 Agent 目标）" aria-label="框选画面区域"
+              aria-pressed={regionMode} onClick={onRegion}><Scan /></button>
+      <span className="fw-actionbar-sep" />
+      <button className="iconbtn" type="button" title={editMode ? '退出 Remotion 编辑' : 'Remotion 编辑（改标题/颜色/动效/时长）'}
+              aria-label={editMode ? '退出 Remotion 编辑' : 'Remotion 编辑'} aria-pressed={editMode}
+              onClick={onEdit}><SlidersHorizontal /></button>
+    </div>
   )
 }
 
@@ -379,25 +654,38 @@ function PlayerBar({ playerRef, frame, onSeek, playing, onToggle, rate, onRate, 
 /* ── 右栏：对话 / 修改设置 ──────────────────────────────────── */
 function RightPanel({ chat, sideTab, setSideTab, scope, setScope, selectedId, scene, storyboard,
   constraints, setConstraints, activeTask, cancelTask, records, onSubmit, onQuickAction,
-  onNavigate, selectedVersion }:
-  { chat: ChatState; sideTab: 'chat'|'settings'; setSideTab: (v: 'chat'|'settings') => void
+  onNavigate, selectedVersion, editSettings, editSavedAt, editOverridden, references, onRemoveReference,
+  onApplyEdit, onResetEdit, onCloseEdit, onOpenEdit }:
+  { chat: ChatState; sideTab: 'chat'|'task'|'changes'|'edit'|'settings'; setSideTab: (v: 'chat'|'task'|'changes'|'edit'|'settings') => void
     scope: 'project'|'scene'|'selection'; setScope: (v: 'project'|'scene'|'selection') => void
     selectedId: string; scene: (typeof SCENES)[number]; storyboard: StoryboardEntry | null
     constraints: ModificationConstraints
     setConstraints: React.Dispatch<React.SetStateAction<ModificationConstraints>>
     activeTask: AgentTask | null; cancelTask: (id: string) => void; records: TaskRecord[]
     onSubmit: (p: string) => void; onQuickAction: (a: (typeof quickActions)[number]) => void
-    onNavigate: (v: ViewId) => void; selectedVersion: ProjectVersion }) {
+    onNavigate: (v: ViewId) => void; selectedVersion: ProjectVersion
+    editSettings: EditableShotSettings; editSavedAt: string; editOverridden: boolean
+    references: AgentReference[]; onRemoveReference: (id: string) => void
+    onApplyEdit: (settings: EditableShotSettings) => void; onResetEdit: () => void
+    onCloseEdit: () => void; onOpenEdit: () => void }) {
   const submit = () => { const v = chat.draft.trim(); if (v) { onSubmit(v); chat.setDraft('') } }
 
   return (
     <aside className="fw-panel" aria-label="AI 对话">
       <div className="fw-ing-hd" style={{ padding: '0 14px' }}>
         <button className="mini h-7" type="button" aria-pressed={sideTab === 'chat'}
-                onClick={() => setSideTab('chat')}>AI 对话</button>
-        <button className="mini h-7" type="button" aria-pressed={sideTab === 'settings'}
-                onClick={() => setSideTab('settings')}>修改设置</button>
+                onClick={() => setSideTab('chat')}>对话</button>
+        <button className="mini h-7" type="button" aria-pressed={sideTab === 'task'}
+                onClick={() => setSideTab('task')}>任务</button>
+        <button className="mini h-7" type="button" aria-pressed={sideTab === 'changes'}
+                onClick={() => setSideTab('changes')}>变更</button>
+        <button className="mini h-7" type="button" aria-pressed={sideTab === 'edit'}
+                onClick={onOpenEdit}>参数</button>
         <span className="spacer" />
+        <button className="iconbtn" type="button" title="修改设置" aria-label="修改设置"
+                aria-pressed={sideTab === 'settings'} onClick={() => setSideTab('settings')}>
+          <Settings2 className="size-3.5" />
+        </button>
         <span className="chip"><span className="dot warn" />演示</span>
       </div>
 
@@ -405,16 +693,28 @@ function RightPanel({ chat, sideTab, setSideTab, scope, setScope, selectedId, sc
         <>
           <div className="fw-scroll">
             <div className="flex flex-col gap-3 p-3.5">
-              {/* 上下文条（paba .fw-ctx）：你在改哪一镜 */}
+              {/* 上下文条（paba .fw-ctx）：你在改哪个场景 */}
               <div className="fw-ctx">
                 {scene.frame && <img src={scene.frame} alt="" />}
                 <div className="min-w-0">
                   <b>{scene.label}</b>
-                  <div className="num truncate">{selectedId.toUpperCase()} · 当前镜头</div>
+                  <div className="num truncate">{selectedId.toUpperCase()} · 当前场景</div>
                 </div>
               </div>
 
               {/* 消息：AI 不用气泡，用户用 --soft 底（fm-components §9） */}
+              <div className="fw-ref-chips">
+                {references.length === 0
+                  ? <span className="fw-ref-empty">默认目标：当前场景 {selectedId.toUpperCase()}</span>
+                  : references.map((ref) => (
+                    <span key={ref.id} className="fw-ref-chip" data-role={ref.role}>
+                      <i>{ref.role === 'target' ? '目标' : '上下文'}</i>
+                      <span>{ref.label}</span>
+                      <button type="button" title="移除引用" onClick={() => onRemoveReference(ref.id)}>×</button>
+                    </span>
+                  ))}
+              </div>
+
               <div className="fw-msg">
                 <span className="fw-msg-avatar">AI</span>
                 <p className="fm-msg-ai">{chat.messages[0]?.text}</p>
@@ -475,11 +775,11 @@ function RightPanel({ chat, sideTab, setSideTab, scope, setScope, selectedId, sc
               <textarea className="wb-input" rows={3}
                         value={chat.draft} onChange={(e) => chat.setDraft(e.target.value)}
                         onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit() } }}
-                        placeholder="告诉 AI 要如何修改当前镜头…" />
+                        placeholder="告诉 AI 要如何修改当前场景…" />
               <div className="mt-1.5 flex items-center gap-2">
                 <button className="iconbtn" type="button" title="素材上传尚未连接" disabled><Plus /></button>
                 <span className="flex-1 text-[10.5px] text-dim">
-                  作用范围：{scope === 'project' ? '整个项目' : scope === 'scene' ? selectedId : '所选镜头'}
+                  作用范围：{scope === 'project' ? '整个项目' : scope === 'scene' ? selectedId : '所选场景'}
                 </span>
                 <button className="mini mini-strong" type="submit" disabled={!chat.draft.trim()}>
                   <Send className="size-3" />提交
@@ -488,12 +788,20 @@ function RightPanel({ chat, sideTab, setSideTab, scope, setScope, selectedId, sc
             </div>
           </form>
         </>
+      ) : sideTab === 'task' ? (
+        <TaskPanel activeTask={activeTask} records={records} cancelTask={cancelTask}
+                   scope={scope} selectedId={selectedId} constraints={constraints} />
+      ) : sideTab === 'changes' ? (
+        <ChangesPanel activeTask={activeTask} records={records} />
+      ) : sideTab === 'edit' ? (
+        <RemotionEditPanel settings={editSettings} savedAt={editSavedAt} isOverridden={editOverridden}
+                           onApply={onApplyEdit} onReset={onResetEdit} onClose={onCloseEdit} />
       ) : (
         <div className="fw-scroll">
           <div className="flex flex-col gap-3 p-3.5">
             <div className="fw-scene-hd">修改作用范围</div>
             <div className="fw-chips">
-              {([['scene', `当前镜头 · ${selectedId}`], ['selection', '所选镜头'], ['project', '整个项目']] as const).map(([v, label]) => (
+              {([['scene', `当前场景 · ${selectedId}`], ['selection', '所选场景'], ['project', '整个项目']] as const).map(([v, label]) => (
                 <button key={v} className="mini h-7 text-[11px]" type="button"
                         onClick={() => setScope(v as typeof scope)}
                         aria-pressed={scope === v}>
@@ -504,8 +812,8 @@ function RightPanel({ chat, sideTab, setSideTab, scope, setScope, selectedId, sc
 
             <div className="wb-sep" />
             <div className="fw-scene-hd">保留条件</div>
-            {([['preserveCamera', '保留当前运镜'], ['preserveCaptions', '保留字幕与配音'],
-               ['limitToSelection', '不修改其他镜头'], ['reuseExistingComponents', '尽量复用现有组件']] as const).map(([key, label]) => (
+            {([['preserveCamera', '保留当前机位运动'], ['preserveCaptions', '保留字幕与配音'],
+               ['limitToSelection', '不修改其他场景'], ['reuseExistingComponents', '尽量复用现有组件']] as const).map(([key, label]) => (
               <label key={key} className="wb-check">
                 <input type="checkbox" checked={constraints[key]}
                        onChange={(e) => setConstraints((c) => ({ ...c, [key]: e.target.checked }))} />
@@ -537,6 +845,92 @@ function RightPanel({ chat, sideTab, setSideTab, scope, setScope, selectedId, sc
         </div>
       )}
     </aside>
+  )
+}
+
+/* ── 右栏：当前任务 ─────────────────────────────────────────── */
+function TaskPanel({ activeTask, records, cancelTask, scope, selectedId, constraints }:
+  { activeTask: AgentTask | null; records: TaskRecord[]; cancelTask: (id: string) => void
+    scope: 'project'|'scene'|'selection'; selectedId: string; constraints: ModificationConstraints }) {
+  const record = activeTask ? records.find((r) => r.task.id === activeTask.id) : null
+  const scopeLabel = scope === 'project' ? '整个项目' : scope === 'scene' ? `场景 · ${selectedId}` : '所选场景'
+  const constraintLabels: Array<[keyof ModificationConstraints, string]> = [
+    ['preserveCamera', '保留机位运动'], ['preserveCaptions', '保留字幕/配音'],
+    ['limitToSelection', '不修改其他场景'], ['reuseExistingComponents', '复用现有组件'],
+  ]
+  return (
+    <div className="fw-scroll">
+      <div className="flex flex-col gap-3 p-3.5">
+        <div className="fw-scene-hd">当前任务</div>
+        {activeTask ? (
+          <div className="fw-task-card">
+            <div className="flex items-center gap-2">
+              <LoaderCircle className="size-3 animate-spin text-acc" />
+              <b>{activeTask.title}</b>
+              <span className="fw-count ml-auto">{activeTask.status}</span>
+            </div>
+            {record?.events.slice(-5).map((e) => (
+              <div key={e.id} className="mt-1.5 text-[10.5px] text-dim">· {e.message}</div>
+            ))}
+            <button className="mini mt-2 h-6 px-2 text-[10.5px]" type="button" onClick={() => cancelTask(activeTask.id)}>
+              <Square className="size-2.5" />停止任务
+            </button>
+          </div>
+        ) : (
+          <div className="fw-tray-empty">没有正在执行的任务。提交修改后，这里显示目标、步骤和可停止状态。</div>
+        )}
+        <div className="wb-sep" />
+        <div className="fw-scene-hd">作用范围</div>
+        <div className="fw-chips"><span className="fw-chip">{scopeLabel}</span></div>
+        <div className="fw-scene-hd">保留条件</div>
+        <div className="flex flex-col gap-1.5">
+          {constraintLabels.map(([key, label]) => (
+            <span key={key} className="text-[10.5px] text-dim">{constraints[key] ? '●' : '○'} {label}</span>
+          ))}
+        </div>
+        <div className="wb-sep" />
+        <div className="text-[10.5px] leading-relaxed text-dim">
+          任务 ≠ 质量验收。完成只代表这次执行结束，是否接受还要看变更与验证。
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ── 右栏：变更审阅 ─────────────────────────────────────────── */
+function ChangesPanel({ activeTask, records }:
+  { activeTask: AgentTask | null; records: TaskRecord[] }) {
+  const record = activeTask ? records.find((r) => r.task.id === activeTask.id) : null
+  return (
+    <div className="fw-scroll">
+      <div className="flex flex-col gap-3 p-3.5">
+        <div className="fw-scene-hd">变更审阅</div>
+        <div className="fw-demo">
+          <AlertCircle className="size-3.5" />
+          <div>
+            <b>演示模式</b>
+            <span>还没有真实 ChangeSet；当前只展示任务影响范围，不会写入项目文件。</span>
+          </div>
+        </div>
+        {activeTask ? (
+          <div className="fw-task-card">
+            <div className="text-[10.5px] text-dim">当前任务</div>
+            <b className="mt-0.5 block text-[11.5px]">{activeTask.title}</b>
+            <div className="mt-1 text-[10.5px] text-dim">影响：当前作用范围；接受前请先检查差异。</div>
+            {record?.events.slice(-3).map((e) => (
+              <div key={e.id} className="mt-1 text-[10.5px] text-dim">· {e.message}</div>
+            ))}
+          </div>
+        ) : (
+          <div className="fw-tray-empty">还没有待审阅的变更。提交任务后，这里应显示改了什么、影响哪些对象、接受/拒绝。</div>
+        )}
+        <div className="wb-sep" />
+        <div className="fw-scene-hd">审阅规则</div>
+        <div className="text-[10.5px] leading-relaxed text-dim">
+          变更必须先看见影响范围；涉及下游时间编码或音画同步时，需要先提示，不静默改全片。
+        </div>
+      </div>
+    </div>
   )
 }
 

@@ -173,7 +173,7 @@ export function ScriptVoice({ project }: { project: ProjectSummary }) {
               <div className="sv-diag">
                 <span><em>字数</em><b className="num">{curRead.n}</b></span>
                 <span><em>按 {rate} 字/秒</em><b className="num">{curRead.need.toFixed(1)}s</b></span>
-                <span><em>镜头给</em><b className="num">{curRead.d.toFixed(1)}s</b></span>
+                <span><em>画面段给</em><b className="num">{curRead.d.toFixed(1)}s</b></span>
                 <span data-warn={curRead.diff > 0.8 ? '' : undefined}>
                   <em>差</em>
                   <b className="num">{curRead.diff > 0 ? `+${curRead.diff.toFixed(1)}s` : `${curRead.diff.toFixed(1)}s`}</b>
@@ -181,13 +181,13 @@ export function ScriptVoice({ project }: { project: ProjectSummary }) {
                 {/* 一条对照条：镜头时长 vs 需要的时长 */}
                 <span className="sv-bar-wrap">
                   <span className="sv-bar" role="img"
-                        aria-label={`镜头 ${curRead.d.toFixed(1)} 秒，需要 ${curRead.need.toFixed(1)} 秒`}>
+                        aria-label={`画面段 ${curRead.d.toFixed(1)} 秒，需要 ${curRead.need.toFixed(1)} 秒`}>
                     <i className="sv-bar-shot" style={{ width: `${Math.min(100, (curRead.d / Math.max(curRead.d, curRead.need)) * 100)}%` }} />
                     <i className="sv-bar-need" data-over={curRead.need > curRead.d ? '' : undefined}
                        style={{ width: `${Math.min(100, (curRead.need / Math.max(curRead.d, curRead.need)) * 100)}%` }} />
                   </span>
                   <span className="sv-bar-legend">
-                    <i className="sv-lg-shot" />镜头 {curRead.d.toFixed(1)}s
+                    <i className="sv-lg-shot" />画面段 {curRead.d.toFixed(1)}s
                     <i className="sv-lg-need" data-over={curRead.need > curRead.d ? '' : undefined} />需要 {curRead.need.toFixed(1)}s
                   </span>
                 </span>
@@ -201,7 +201,7 @@ export function ScriptVoice({ project }: { project: ProjectSummary }) {
                   <dt>映射</dt>
                   <dd>
                     {mappedUnits.length
-                      ? <>这一段的旁白用在成片镜头 {mappedUnits.map((u) => `${u.id}（${u.start?.toFixed(1)}–${((u.start ?? 0) + u.duration).toFixed(1)}s）`).join('、')} 上</>
+                      ? <>这一段的旁白用在成片画面段 {mappedUnits.map((u) => `${u.id}（${u.start?.toFixed(1)}–${((u.start ?? 0) + u.duration).toFixed(1)}s）`).join('、')} 上</>
                       : '还没排进成片（V3 脚本是完整 73 段，成片只剪了其中一部分）'}
                     <span className="num sv-map-note"> · 成片 {UNITS.length} 镜里对上 V3 的 {mapped} 镜</span>
                   </dd>

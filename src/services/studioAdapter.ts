@@ -30,7 +30,7 @@ export const studioAdapter: StudioAdapter = {
   },
   project: PROJECT,
   buildTaskRequest(input) {
-    return { ...input, attachments: input.attachments ?? [] }
+    return { ...input, attachments: input.attachments ?? [], references: input.references ?? [] }
   },
   versions() {
     return [

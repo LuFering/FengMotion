@@ -125,7 +125,7 @@ export function SettingsDialog({
             <Toggle checked={draft.autoPreview}
                     onChange={(v) => set('autoPreview', v)} />
           </Row>
-          <Row label="显示时间线" hint="工作区底部的镜头时间线">
+          <Row label="显示时间线" hint="工作区底部的场景时间线">
             <Toggle checked={draft.showTimeline}
                     onChange={(v) => set('showTimeline', v)} />
           </Row>

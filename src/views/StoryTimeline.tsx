@@ -3,7 +3,7 @@ import { ACTIVE_SCENES } from '@/data/projectModel'
 import { ACTIVE_DURATION, FILM_FPS } from '@/data/timeline'
 
 /**
- * 镜头时间线 —— 本产品特有的控件（paba 没有）。
+ * 场景时间线 —— 本产品特有的控件（paba 没有）。
  *
  * ⚠️ 但**规格沿用工作台那套**（.tl-* 见 workbench.css）：
  *      头 30px / 片段 8px 圆角 --hole 底 / 悬停变强调边 / 播放头强调色
@@ -31,11 +31,11 @@ export function StoryTimeline({
     <div className="flex h-full flex-col bg-surf">
       {/* 头：paba .fw-toolbar 规格的压缩版 */}
       <div className="tl-head">
-        <b>镜头时间线</b>
+        <b>场景时间线</b>
         <button className="mini" type="button"
                 aria-pressed={showDraft}
                 onClick={() => setShowDraft((v) => !v)}>
-          {showDraft ? '隐藏 V3 分镜' : '显示 V3 分镜'}
+          {showDraft ? '隐藏 V3 分段' : '显示 V3 分段'}
         </button>
         <span className="spacer" />
         <span className="num">旧版剪辑 · {totalSeconds.toFixed(1)}s</span>
@@ -97,7 +97,7 @@ export function StoryTimeline({
 
           {showDraft && (
             <div className="tl-note">
-              V3 分镜共 72 个正式段 + 19b 插段，目标 273.6s；当前未映射成完整剪辑，故不叠加到 152s 播放时间线上。
+              V3 分段共 72 个正式段 + 19b 插段，目标 273.6s；当前未映射成完整剪辑，故不叠加到 152s 播放时间线上。
             </div>
           )}
           {selected && (

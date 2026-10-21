@@ -208,13 +208,13 @@ export function KnowledgeSources({ onOpen }: { onOpen: (v: ViewId) => void }) {
             <h4>解析产物</h4>
             {cur.status === 'pending' ? (
               <p className="ks-wait">
-                还没有产物 —— 解析要后端。接入后这里会列出：卡 / 判例 / 流程 / 镜头。
+                还没有产物 —— 解析要后端。接入后这里会列出：卡 / 判例 / 流程 / 画面段。
               </p>
             ) : (
               <div className="ks-yields">
                 {(cur.yields.cards ?? 0) > 0 && (
                   <button type="button" onClick={() => onOpen('knowledge')}>
-                    <b className="num">{cur.yields.cards}</b><span>张镜头卡</span>
+                    <b className="num">{cur.yields.cards}</b><span>张画面卡</span>
                     <Icon name="chevron-right" className="ui-icon ks-go" />
                   </button>
                 )}

@@ -12,11 +12,25 @@ export interface ModificationConstraints {
   resolution?: '1080p' | '1440p' | '4k'
 }
 
+/**
+ * 结构化引用：Agent 修改的对象 + 它需要读取的上下文。
+ *
+ * 位置一律用稳定 ID / 精确帧 / 归一化区域 / 产物版本表示；
+ * 不让模型从「这里/这段」猜位置。
+ */
+export type AgentReference =
+  | { id: string; role: 'target' | 'context'; kind: 'shot'; shotId: string; label: string }
+  | { id: string; role: 'target' | 'context'; kind: 'frame'; shotId: string; frame: number; timecode: string; label: string; snapshotId?: string }
+  | { id: string; role: 'target' | 'context'; kind: 'range'; shotId: string; startFrame: number; endFrame: number; timecode: string; label: string }
+  | { id: string; role: 'target' | 'context'; kind: 'region'; shotId: string; frame: number; bbox: { x: number; y: number; w: number; h: number }; label: string }
+  | { id: string; role: 'target' | 'context'; kind: 'artifact'; artifactId: string; version: string; label: string }
+
 export interface TaskRequest {
   kind: TaskKind
   prompt: string
   scope: 'project' | 'scene' | 'selection'
   sceneIds: string[]
+  references?: AgentReference[]
   constraints: ModificationConstraints
   attachments: Array<{ name: string; type: string; size: number }>
 }
@@ -103,7 +117,7 @@ export class MockStudioApi implements StudioApi {
 
   render(onEvent: (event: TaskEvent) => void): TaskRun {
     return this.run('render', {
-      kind: 'render', prompt: 'Render current project', scope: 'project', sceneIds: [],
+      kind: 'render', prompt: 'Render current project', scope: 'project', sceneIds: [], references: [],
       constraints: { preserveCamera: false, preserveCaptions: false, limitToSelection: false, reuseExistingComponents: false },
       attachments: [],
     }, onEvent)
@@ -158,11 +172,14 @@ export class MockStudioApi implements StudioApi {
     }
 
     const done = (async () => {
-      const target = kind === 'render' ? '渲染队列' : request.scope === 'scene'
-        ? `镜头 ${request.sceneIds.join(', ') || '当前镜头'}`
-        : request.scope === 'selection' ? '所选镜头' : '整个项目'
+      const refs = request.references ?? []
+      const targetRef = refs.find((ref) => ref.role === 'target')
+      const target = kind === 'render' ? '渲染队列' : targetRef?.label ?? (request.scope === 'scene'
+        ? `场景 ${request.sceneIds.join(', ') || '当前场景'}`
+        : request.scope === 'selection' ? '所选场景' : '整个项目')
+      const contextText = refs.filter((ref) => ref.role === 'context').map((ref) => ref.label).join('、')
       try {
-        emit({ kind: 'accepted', status: 'queued', message: `演示模式：已接收对${target}的${kind === 'render' ? '导出' : '修改'}请求。` })
+        emit({ kind: 'accepted', status: 'queued', message: `演示模式：已接收对${target}的${kind === 'render' ? '导出' : '修改'}请求${contextText ? `；上下文：${contextText}` : ''}。` })
         await wait(650, abort.signal)
         emit({ kind: 'progress', status: 'running', message: '演示流程：请求已排队。Agent 后端未连接。' })
         await wait(700, abort.signal)
