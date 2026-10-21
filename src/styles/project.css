@@ -264,3 +264,13 @@
 }
 .pj-demo > .ui-icon { flex: 0 0 auto; width: 14px; height: 14px; margin-top: 1px; color: var(--warn) }
 .pj-modal-ft { display: flex; justify-content: flex-end; gap: 8px; padding-top: 2px }
+
+/* ═══ 项目这一层是全幅页：.hm-content 的默认内边距与宽度归零 ═══════════
+   顶上只留一条项目条（原 center.css 的规则；项目指挥中心改成 iframe 后
+   .pjz-* 全删了，这条仍被项目目录与项目指挥中心共用，所以留在这里）。 */
+.hm-content[data-view="project"] { padding: 0 !important; max-width: none; margin: 0 }
+.hm-content[data-view="project"] .pj-bar {
+  margin: 0; padding: 9px 18px;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg);
+}

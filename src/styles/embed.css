@@ -9,8 +9,11 @@
      .wgr  工作流广场（public/replica/workflow-gallery.html）
    ═══════════════════════════════════════════════════════════════ */
 
+/* 项目指挥中心（.acr）没有项目条，直接吃满一屏 */
+.acr { height: 100vh }
 .wgr { height: 100vh }
 
+/* 交付页顶上有项目条：iframe 用 flex 吃掉剩余高度，别再叠一条 100vh */
 #pane-render { height: 100vh; overflow: hidden }
 #pane-render > .hm-content { display: flex; flex-direction: column; height: 100vh }
 #pane-render .acr { flex: 1 1 auto; min-height: 0 }
