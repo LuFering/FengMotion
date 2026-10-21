@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1440">
+<title>FengMotion · 首页 v2（GSAP）</title>
+<style>
+:root{
+  --ink:#000; --paper:#F4F1EA; --dim:#8A8A8A; --faint:#5A5A5A;
+  --line:#262626; --line-2:#171717; --blue:#3B8CF8;
+  --serif:"Noto Serif CJK SC","思源宋体",Songti SC,serif;
+  --sans:"Noto Sans CJK SC","思源黑体",system-ui,sans-serif;
+  --mono:"Noto Sans Mono CJK SC",ui-monospace,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--ink);color:var(--paper);font-family:var(--sans);
+  -webkit-font-smoothing:antialiased}
+body{width:1440px;margin:0 auto;overflow-x:hidden}
+::selection{background:var(--blue);color:#fff}
+html.lenis,html.lenis body{height:auto}
+.lenis.lenis-smooth{scroll-behavior:auto!important}
+
+/* 顶栏 */
+.nav{position:fixed;top:0;left:50%;transform:translateX(-50%);width:1440px;z-index:50;
+  display:flex;align-items:center;gap:30px;height:76px;padding:0 56px;mix-blend-mode:difference}
+.nav img{height:17px;width:auto;display:block}
+.nav .sp{margin-left:auto}
+.nav a{font-size:12px;color:#c9c9c9;text-decoration:none;letter-spacing:.02em}
+.nav a:hover{color:#fff}
+.nav .go{display:inline-flex;align-items:center;height:32px;padding:0 14px;border:1px solid #ffffff59;
+  border-radius:999px;color:#fff;font-size:12px}
+
+/* 场景 */
+.scene{position:relative;height:100vh;min-height:820px;overflow:hidden}
+.cut{height:56px;background:#000}
+.kicker{font:10px var(--mono);letter-spacing:.34em;color:var(--faint);text-transform:uppercase}
+
+/* 1 首屏 */
+.hero video{position:absolute;inset:-8% 0;width:100%;height:116%;object-fit:cover;
+  filter:brightness(.92) contrast(1.04);will-change:transform}
+.hero .scrim{position:absolute;inset:0;
+  background:linear-gradient(90deg,#000 0%,rgba(0,0,0,.8) 30%,rgba(0,0,0,.28) 58%,rgba(0,0,0,.05) 100%)}
+.hero .inner{position:relative;height:100%;display:flex;flex-direction:column;justify-content:center;
+  padding:0 56px;max-width:980px}
+.hero h1{margin:18px 0 0;font:500 78px/1.16 var(--serif);letter-spacing:-.01em;
+  overflow:hidden;padding-bottom:.06em}
+.hero h1 span{color:#fff}
+.hero .lead{margin:22px 0 0;font-size:14px;line-height:1.9;color:#b9b9b9;max-width:430px}
+.hero .ask{display:flex;align-items:center;gap:14px;margin-top:44px;width:620px;max-width:100%;
+  padding:0 0 12px;border-bottom:1px solid #ffffff40}
+.hero .ask input{flex:1;min-width:0;border:0;background:0 0;outline:0;color:#fff;
+  font:15px var(--sans);caret-color:var(--blue)}
+.hero .ask input::placeholder{color:#8f8f8f}
+.hero .ask button{width:34px;height:34px;border-radius:50%;border:1px solid #ffffff40;background:0 0;
+  color:#fff;display:grid;place-items:center;cursor:pointer;transition:.2s}
+.hero .ask button:hover{background:var(--blue);border-color:var(--blue)}
+.hero .ask button svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:1.8}
+.hero .hint{margin-top:14px;font:10.5px var(--mono);letter-spacing:.16em;color:#6a6a6a}
+.hero .scroll{position:absolute;left:56px;bottom:34px;display:flex;align-items:center;gap:10px;
+  font:10px var(--mono);letter-spacing:.24em;color:#6a6a6a}
+.hero .scroll i{width:38px;height:1px;background:#3a3a3a;display:inline-block}
+
+/* 2 视频类型 */
+.genres{display:flex;height:100vh;min-height:820px;background:#000}
+.genres .bar{position:relative;flex:1 1 0;overflow:hidden;cursor:pointer;
+  transition:flex-grow .9s cubic-bezier(.2,.7,.2,1)}
+.genres .bar:hover{flex-grow:1.85}
+.genres .bar video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+  filter:brightness(.45) saturate(.85);transition:filter .9s}
+.genres .bar:hover video{filter:brightness(.85) saturate(1)}
+.genres .bar .edge{position:absolute;top:0;bottom:0;left:0;width:1px;background:#ffffff1f}
+.genres .bar .lab{position:absolute;left:34px;bottom:44px;right:34px}
+.genres .bar .lab .n{font:10px var(--mono);letter-spacing:.28em;color:#9a9a9a}
+.genres .bar .lab h3{margin:10px 0 0;font:500 34px/1.25 var(--serif);letter-spacing:-.01em}
+.genres .bar .lab p{margin:10px 0 0;font-size:12px;line-height:1.8;color:#a8a8a8;
+  max-width:260px;opacity:0;transform:translateY(6px);transition:.5s .1s}
+.genres .bar:hover .lab p{opacity:1;transform:none}
+.genres .head{position:absolute;left:56px;top:96px;z-index:3}
+.genres .head h2{margin:12px 0 0;font:500 22px/1.4 var(--serif)}
+
+/* 3 卡库（pin + scrub） */
+.cards{height:100vh;min-height:820px;background:#000;overflow:hidden}
+.cards .hd{position:absolute;left:56px;top:96px;z-index:4}
+.cards .hd h2{margin:12px 0 0;font:500 22px/1.4 var(--serif)}
+.cards .track{position:absolute;top:50%;left:0;display:flex;align-items:center;gap:14px;
+  transform:translateY(-50%);will-change:transform}
+.cards figure{margin:0;flex:0 0 auto;position:relative;overflow:hidden;border-radius:2px}
+.cards figure img{display:block;width:100%;height:100%;object-fit:cover;filter:brightness(.82);
+  transition:filter .5s}
+.cards figure:hover img{filter:brightness(1.05)}
+.cards figure figcaption{position:absolute;left:10px;bottom:8px;font:9.5px var(--mono);
+  color:#ffffffc0;letter-spacing:.06em;opacity:0;transition:.25s}
+.cards figure:hover figcaption{opacity:1}
+.cards .w1{width:520px;height:292px}
+.cards .w2{width:300px;height:392px}
+.cards .w3{width:380px;height:214px}
+.cards .w4{width:240px;height:240px}
+.cards .foot{position:absolute;left:56px;bottom:44px;font:10px var(--mono);letter-spacing:.22em;
+  color:#5f5f5f}
+
+/* 4 制作方法 */
+.methods{display:flex;flex-direction:column;justify-content:center;padding:0 56px;background:#000}
+.methods .kicker{margin-bottom:34px}
+.methods ol{list-style:none;margin:0;padding:0}
+.methods li{display:flex;align-items:baseline;gap:26px;padding:22px 0;border-top:1px solid var(--line-2)}
+.methods li:last-child{border-bottom:1px solid var(--line-2)}
+.methods li .no{font:10px var(--mono);color:#4d4d4d;letter-spacing:.1em;width:30px;flex:0 0 auto}
+.methods li .name{font:500 46px/1.2 var(--serif);letter-spacing:-.01em;transition:color .4s}
+.methods li .say{margin-left:auto;font-size:12px;color:#8a8a8a;max-width:300px;text-align:right;
+  opacity:0;transform:translateX(8px);transition:.5s}
+.methods li:hover .name{color:var(--blue)}
+.methods li:hover .say{opacity:1;transform:none}
+
+/* 5 动效来源 */
+.sources{display:flex;flex-direction:column;justify-content:center;padding:0 56px;background:#000}
+.sources .row{display:flex;align-items:flex-end;gap:64px;margin-top:44px}
+.sources .item{display:flex;flex-direction:column;gap:14px;min-width:0}
+.sources .item img{height:30px;width:auto;filter:grayscale(1) brightness(1.4);opacity:.75;
+  transition:.4s}
+.sources .item:hover img{filter:none;opacity:1}
+.sources .item b{font:500 20px/1.3 var(--serif)}
+.sources .item span{font-size:11px;color:#7d7d7d;line-height:1.7;max-width:260px}
+.sources .note{margin-top:52px;font:10px var(--mono);letter-spacing:.22em;color:#4f4f4f}
+
+/* 6 结尾 */
+.end{display:flex;flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;background:#000;padding:0 56px}
+.end h2{margin:0;font:500 62px/1.25 var(--serif);letter-spacing:-.01em}
+.end p{margin:18px 0 0;font-size:13px;color:#8f8f8f}
+.end a{display:inline-flex;align-items:center;gap:10px;margin-top:38px;height:48px;padding:0 26px;
+  background:var(--blue);color:#fff;text-decoration:none;font-size:13px;font-weight:500;
+  border-radius:999px;transition:.2s}
+.end a:hover{background:#2E6FD9}
+.end .foot{position:absolute;left:56px;right:56px;bottom:34px;display:flex;gap:20px;
+  font:10px var(--mono);letter-spacing:.16em;color:#454545;border-top:1px solid #141414;padding-top:14px}
+.end .foot span:last-child{margin-left:auto}
+
+/* 滚动进度：一条 1px 蓝线 */
+.progress{position:fixed;left:0;top:0;height:1px;width:100%;transform:scaleX(0);
+  transform-origin:0 50%;background:var(--blue);z-index:60;opacity:.9}
+</style>
+</head>
+<body>
+
+<div class="progress" id="progress"></div>
+
+<nav class="nav">
+  <img src="../assets/brand/fengmotion-lockup.png" alt="FengMotion">
+  <span class="sp"></span>
+  <a href="#genres">视频类型</a>
+  <a href="#cards">镜头卡库</a>
+  <a href="#methods">制作方法</a>
+  <a href="#sources">动效来源</a>
+  <a class="go" href="#">开始创作</a>
+</nav>
+
+<!-- 1 · 首屏 -->
+<section class="scene hero" id="top">
+  <video id="heroVideo" src="assets/hero.mp4" autoplay muted loop playsinline></video>
+  <div class="scrim"></div>
+  <div class="inner">
+    <div class="kicker" data-fade>FENGMOTION · 创作空间</div>
+    <h1 id="heroTitle">从一句话，<br>到一条<span>片子</span></h1>
+    <p class="lead" data-fade>写一句想法，拆成镜头、接上动效和素材，在一个工作台里出片。</p>
+    <div class="ask" data-fade>
+      <input placeholder="描述你想要的画面，比如：雨夜车站，两个人重逢">
+      <button aria-label="开始"><svg viewBox="0 0 24 24"><path d="M5 12h13M13 6l6 6-6 6"/></svg></button>
+    </div>
+    <div class="hint" data-fade>回车开始 · 不需要写分镜</div>
+  </div>
+  <div class="scroll"><i></i>向下滚动</div>
+</section>
+
+<div class="cut"></div>
+
+<!-- 2 · 视频类型 -->
+<section class="scene genres" id="genres">
+  <div class="head" data-fade>
+    <div class="kicker">02 · 视频类型</div>
+    <h2>三种片型，三种镜头节奏</h2>
+  </div>
+  <div class="bar">
+    <video src="../cards/motion/card-stack.mp4" autoplay muted loop playsinline></video>
+    <span class="edge"></span>
+    <div class="lab"><div class="n">口播科普</div><h3>一句话<br>一个镜头</h3>
+      <p>镜头跟着信息走，说到哪拍到哪。</p></div>
+  </div>
+  <div class="bar">
+    <video src="../cards/motion/carousel-3d.mp4" autoplay muted loop playsinline></video>
+    <span class="edge"></span>
+    <div class="lab"><div class="n">对话访谈</div><h3>先切话轮<br>再配画面</h3>
+      <p>谁在说就给谁镜头，来回有呼吸。</p></div>
+  </div>
+  <div class="bar">
+    <video src="../cards/motion/blur-slide.mp4" autoplay muted loop playsinline></video>
+    <span class="edge"></span>
+    <div class="lab"><div class="n">讲书解读</div><h3>一页一个论点</h3>
+      <p>不实拍，用版面和图讲清楚。</p></div>
+  </div>
+</section>
+
+<div class="cut"></div>
+
+<!-- 3 · 镜头卡库 -->
+<section class="cards" id="cards">
+  <div class="hd" data-fade>
+    <div class="kicker">03 · 镜头卡库</div>
+    <h2>每一张卡，都是一段能用的动作</h2>
+  </div>
+  <div class="track" id="track">
+    <figure class="w1"><img src="../cards/posters/card-stack.jpg" alt=""><figcaption>card-stack</figcaption></figure>
+    <figure class="w2"><img src="../cards/posters/carousel-3d.jpg" alt=""><figcaption>carousel-3d</figcaption></figure>
+    <figure class="w3"><img src="../cards/posters/blur-slide.jpg" alt=""><figcaption>blur-slide</figcaption></figure>
+    <figure class="w4"><img src="../cards/posters/aurora-bloom-bg-flip.jpg" alt=""><figcaption>aurora</figcaption></figure>
+    <figure class="w1"><img src="../cards/posters/countdown-arc-scatter.jpg" alt=""><figcaption>countdown</figcaption></figure>
+    <figure class="w3"><img src="../cards/posters/before-after-slider-scrub.jpg" alt=""><figcaption>before-after</figcaption></figure>
+    <figure class="w2"><img src="../cards/posters/magician-card-flourish.jpg" alt=""><figcaption>magician</figcaption></figure>
+    <figure class="w4"><img src="../cards/posters/flying-words.jpg" alt=""><figcaption>flying-words</figcaption></figure>
+    <figure class="w3"><img src="../cards/posters/glitch-cycle.jpg" alt=""><figcaption>glitch</figcaption></figure>
+    <figure class="w1"><img src="../cards/posters/mosaic-reframe.jpg" alt=""><figcaption>mosaic</figcaption></figure>
+  </div>
+  <div class="foot">横向滚动 · 卡片自带动作预览</div>
+</section>
+
+<div class="cut"></div>
+
+<!-- 4 · 制作方法 -->
+<section class="scene methods" id="methods">
+  <div class="kicker" data-fade>04 · 制作方法</div>
+  <ol>
+    <li><span class="no">一</span><span class="name">按镜头制作</span>
+      <span class="say">一句话一个镜头，读到哪拍到哪。</span></li>
+    <li><span class="no">二</span><span class="name">按话轮制作</span>
+      <span class="say">先切话轮，再配画面，来回有呼吸。</span></li>
+    <li><span class="no">三</span><span class="name">按页制作</span>
+      <span class="say">一页一个论点，不做实拍。</span></li>
+    <li><span class="no">四</span><span class="name">按卖点制作</span>
+      <span class="say">一个卖点一条镜头，不堆功能。</span></li>
+    <li><span class="no">五</span><span class="name">按钩子制作</span>
+      <span class="say">前三秒定生死，先给结果。</span></li>
+    <li><span class="no">六</span><span class="name">按章节制作</span>
+      <span class="say">两到四分钟一章，一章一件事。</span></li>
+  </ol>
+</section>
+
+<div class="cut"></div>
+
+<!-- 5 · 动效来源 -->
+<section class="scene sources" id="sources">
+  <div class="kicker" data-fade>05 · 动效来源</div>
+  <div class="row">
+    <div class="item" data-fade><img src="../assets/partners/shotcraft.svg" alt=""><b>镜刻</b>
+      <span>这个镜头该长什么样：配方卡和动态样片。</span></div>
+    <div class="item" data-fade><img src="../assets/partners/scenes.svg" alt=""><b>Remotion Scenes</b>
+      <span>这段效果怎么写：带源码的场景组件。</span></div>
+    <div class="item" data-fade><img src="../assets/partners/rve.svg" alt=""><b>React Video Editor</b>
+      <span>复制即用的零依赖模板。</span></div>
+  </div>
+  <div class="note" data-fade>全部开源 · 接进同一个卡库</div>
+</section>
+
+<div class="cut"></div>
+
+<!-- 6 · 结尾 -->
+<section class="scene end">
+  <h2 data-fade>现在写第一句。</h2>
+  <p data-fade>剩下的，交给镜头。</p>
+  <a data-fade href="#">开始创作 →</a>
+  <div class="foot"><span>FENGMOTION</span><span>创作空间</span><span>© 2026</span></div>
+</section>
+
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/gsap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/ScrollTrigger.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/SplitText.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/lenis@1.1.18/dist/lenis.min.js"></script>
+<script>
+gsap.registerPlugin(ScrollTrigger, SplitText);
+
+/* ── 平滑滚动：Lenis 驱动 ScrollTrigger ───────────────── */
+const lenis = new Lenis({ duration: 1.05, smoothWheel: true });
+lenis.on('scroll', ScrollTrigger.update);
+gsap.ticker.add((time) => lenis.raf(time * 1000));
+gsap.ticker.lagSmoothing(0);
+
+/* ── 滚动进度线 ──────────────────────────────────────── */
+gsap.to('#progress', {
+  scaleX: 1, ease: 'none',
+  scrollTrigger: { start: 0, end: 'max', scrub: .3 }
+});
+
+/* ── 首屏：标题逐行上浮 + 视频视差 ───────────────────── */
+document.fonts.ready.then(() => {
+  const split = new SplitText('#heroTitle', { type: 'lines', linesClass: 'split-line' });
+  gsap.set('#heroTitle', { overflow: 'hidden' });
+  gsap.from(split.lines, {
+    yPercent: 108, opacity: 0, duration: 1.15, ease: 'power4.out', stagger: .1, delay: .15
+  });
+  ScrollTrigger.refresh();
+});
+
+gsap.from('[data-fade]', {
+  y: 18, opacity: 0, duration: .9, ease: 'power3.out', stagger: .09, delay: .35
+});
+
+gsap.to('#heroVideo', {
+  yPercent: 10, ease: 'none',
+  scrollTrigger: { trigger: '.hero', start: 'top top', end: 'bottom top', scrub: true }
+});
+gsap.to('.hero .inner', {
+  yPercent: -8, opacity: .25, ease: 'none',
+  scrollTrigger: { trigger: '.hero', start: 'top top', end: 'bottom top', scrub: true }
+});
+
+/* ── 视频类型：进场时三条依次推开 ───────────────────── */
+gsap.from('.genres .bar', {
+  yPercent: 12, opacity: 0, duration: 1, ease: 'power3.out', stagger: .12,
+  scrollTrigger: { trigger: '.genres', start: 'top 70%', once: true }
+});
+
+/* ── 卡库：pin 住整屏，横向轨道跟手（scrub）─────────── */
+const track = document.getElementById('track');
+const distance = () => track.scrollWidth - window.innerWidth + 120;
+gsap.to(track, {
+  x: () => -distance(),
+  ease: 'none',
+  scrollTrigger: {
+    trigger: '.cards',
+    start: 'top top',
+    end: () => '+=' + distance(),
+    pin: true,
+    scrub: 1,
+    invalidateOnRefresh: true,
+    anticipatePin: 1
+  }
+});
+
+/* ── 制作方法：pin 住，六行随滚动逐条推入 ───────────── */
+const rows = gsap.utils.toArray('.methods li');
+gsap.set(rows, { y: 42, opacity: 0 });
+const mtl = gsap.timeline({
+  scrollTrigger: {
+    trigger: '.methods',
+    start: 'top top',
+    end: '+=900',
+    pin: true,
+    scrub: 1,
+    anticipatePin: 1
+  }
+});
+mtl.to(rows, { y: 0, opacity: 1, duration: 1, ease: 'power2.out', stagger: .55 })
+   .to('.methods ol', { scale: 1, duration: .01 }, 0);
+
+/* ── 其余区块：批量进场 ─────────────────────────────── */
+ScrollTrigger.batch('[data-fade]:not(.hero [data-fade])', {
+  start: 'top 82%', once: true,
+  onEnter: (batch) => gsap.to(batch, { y: 0, opacity: 1, duration: .9, stagger: .1, ease: 'power3.out' })
+});
+gsap.set('[data-fade]:not(.hero [data-fade])', { y: 22, opacity: 0 });
+
+/* 图片加载完刷新一次，避免 pin 距离算错 */
+window.addEventListener('load', () => ScrollTrigger.refresh());
+</script>
+</body>
+</html>

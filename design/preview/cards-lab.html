@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1440">
+<title>镜头卡库 · 六种展示方式</title>
+<style>
+:root{--blue:#3B8CF8;--paper:#F4F1EA;
+  --serif:"Noto Serif CJK SC","思源宋体",Songti SC,serif;
+  --mono:"Noto Sans Mono CJK SC",ui-monospace,monospace;
+  --sans:"Noto Sans CJK SC","思源黑体",system-ui,sans-serif}
+*{box-sizing:border-box}
+body{margin:0;width:1440px;background:#000;color:var(--paper);font-family:var(--sans);
+  -webkit-font-smoothing:antialiased}
+.sec{padding:34px 56px 40px;border-bottom:1px solid #101010}
+.sec .cap{display:flex;align-items:baseline;gap:14px;margin-bottom:20px}
+.sec .cap b{font:400 10px var(--mono);letter-spacing:.3em;color:var(--blue)}
+.sec .cap h3{margin:0;font:500 19px/1.3 var(--serif);letter-spacing:-.01em}
+.sec .cap span{font:400 11px var(--mono);letter-spacing:.1em;color:#6E6E6E;margin-left:auto}
+.stage{position:relative;width:100%;height:330px;overflow:hidden;background:#000}
+.stage img{display:block;width:100%;height:100%;object-fit:cover;filter:brightness(.86)}
+.stage .num{position:absolute;left:6px;bottom:4px;font:8px var(--mono);color:#ffffff8a}
+
+/* A 编辑网格墙 */
+.wall{display:grid;grid-template-columns:repeat(12,1fr);grid-auto-rows:104px;gap:8px;height:330px}
+.wall figure{position:relative;margin:0;overflow:hidden}
+.wall figure:hover{outline:1px solid var(--blue)}
+.wall .a{grid-column:span 4;grid-row:span 2}
+.wall .b{grid-column:span 3;grid-row:span 1}
+.wall .c{grid-column:span 2;grid-row:span 2}
+.wall .d{grid-column:span 3;grid-row:span 1}
+.wall .e{grid-column:span 5;grid-row:span 1}
+.wall .f{grid-column:span 3;grid-row:span 2}
+.wall .g{grid-column:span 2;grid-row:span 1}
+
+/* B 接触印相 */
+.sheet{position:relative;padding:16px 0;background:#0B0B0B;height:330px;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.06)}
+.sheet .perf{position:absolute;left:0;right:0;height:22px;background:#111
+  url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='46' height='22'%3E%3Crect x='7' y='5' width='15' height='12' rx='3' fill='%23000'/%3E%3C/svg%3E") repeat-x;
+  background-size:46px 22px}
+.sheet .perf.t{top:0}.sheet .perf.b{bottom:0}
+.sheet .grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;padding:0 16px;margin-top:22px}
+.sheet .cell{position:relative}
+.sheet .cell img{width:100%;height:112px;object-fit:cover;filter:brightness(.86)}
+.sheet .cell .fn{position:absolute;left:0;bottom:-15px;font:8px var(--mono);color:#8A8A8A;letter-spacing:.12em}
+
+/* C 索引 + 预览 */
+.index{display:flex;gap:28px;height:330px}
+.index .list{width:470px;flex:0 0 auto;display:flex;flex-direction:column}
+.index .row{display:flex;align-items:center;gap:14px;height:52px;border-bottom:1px solid #161616;
+  font-size:12px;color:#B8B8B8;padding:0 4px}
+.index .row i{font:9px var(--mono);color:#5A5A5A;font-style:normal;width:22px}
+.index .row b{font-weight:400;color:#EDEDED}
+.index .row span{margin-left:auto;font:9px var(--mono);color:#6A6A6A}
+.index .row.on{background:#0E1520;color:#fff;box-shadow:inset 2px 0 0 var(--blue)}
+.index .row.on b{color:#fff}
+.index .prev{position:relative;flex:1;overflow:hidden;background:#050505}
+.index .prev img{width:100%;height:100%;object-fit:cover;filter:brightness(.92)}
+.index .prev .tag{position:absolute;left:16px;bottom:14px;font:10px var(--mono);
+  letter-spacing:.2em;color:#fff;text-shadow:0 1px 3px #000}
+
+/* D 牌堆 */
+.deck{position:relative;height:330px;display:flex;align-items:center;justify-content:center}
+.deck .c{position:absolute;width:430px;height:242px;overflow:hidden;background:#050505;
+  box-shadow:0 24px 50px rgba(0,0,0,.7),0 0 0 1px rgba(255,255,255,.12)}
+.deck .c img{width:100%;height:100%;object-fit:cover;filter:brightness(.9)}
+.deck .c1{transform:translate(-46px,14px) rotate(-7deg) scale(.97);opacity:.45}
+.deck .c2{transform:translate(-24px,7px) rotate(-3.5deg) scale(.985);opacity:.7}
+.deck .c3{transform:translate(0,0) rotate(0) scale(1);z-index:3}
+.deck .c4{transform:translate(24px,7px) rotate(3.5deg) scale(.985);opacity:.7}
+.deck .c5{transform:translate(46px,14px) rotate(7deg) scale(.97);opacity:.45}
+.deck .hint{position:absolute;bottom:6px;left:50%;transform:translateX(-50%);
+  font:9px var(--mono);letter-spacing:.24em;color:#5A5A5A}
+
+/* E 瀑布三栏 */
+.falls{display:flex;gap:12px;height:330px;overflow:hidden}
+.falls .col{flex:1;display:flex;flex-direction:column;gap:12px}
+.falls figure{margin:0;overflow:hidden;position:relative}
+.falls img{width:100%;height:100%;object-fit:cover;filter:brightness(.86)}
+.falls .h1{height:190px}.falls .h2{height:128px}.falls .h3{height:150px}.falls .h4{height:104px}
+
+/* F 轮盘 */
+.wheel{position:relative;height:330px;overflow:hidden}
+.wheel .c{position:absolute;left:50%;top:50%;width:300px;height:170px;margin:-85px 0 0 -150px;
+  overflow:hidden;box-shadow:0 18px 40px rgba(0,0,0,.65),0 0 0 1px rgba(255,255,255,.1)}
+.wheel .c img{width:100%;height:100%;object-fit:cover;filter:brightness(.8)}
+.wheel .w1{transform:translateX(-430px) rotate(-16deg) scale(.62);opacity:.35}
+.wheel .w2{transform:translateX(-290px) rotate(-9deg) scale(.78);opacity:.6}
+.wheel .w3{transform:translateX(-140px) rotate(-4deg) scale(.92);opacity:.85}
+.wheel .w4{transform:translateX(0) rotate(0) scale(1.12);z-index:5}
+.wheel .w5{transform:translateX(140px) rotate(4deg) scale(.92);opacity:.85}
+.wheel .w6{transform:translateX(290px) rotate(9deg) scale(.78);opacity:.6}
+.wheel .w7{transform:translateX(430px) rotate(16deg) scale(.62);opacity:.35}
+</style>
+</head>
+<body>
+
+<!-- A -->
+<section class="sec">
+  <div class="cap"><b>方案 A</b><h3>编辑网格墙</h3><span>全部卡片一次铺开 · 悬停单张提亮</span></div>
+  <div class="stage" style="height:auto">
+    <div class="wall">
+      <figure class="a"><img src="../cards/posters/card-stack.jpg" alt=""></figure>
+      <figure class="b"><img src="../cards/posters/carousel-3d.jpg" alt=""></figure>
+      <figure class="c"><img src="../cards/posters/mosaic-reframe.jpg" alt=""></figure>
+      <figure class="d"><img src="../cards/posters/glitch-cycle.jpg" alt=""></figure>
+      <figure class="e"><img src="../cards/posters/flying-words.jpg" alt=""></figure>
+      <figure class="f"><img src="../cards/posters/countdown-arc-scatter.jpg" alt=""></figure>
+      <figure class="g"><img src="../cards/posters/before-after-slider-scrub.jpg" alt=""></figure>
+    </div>
+  </div>
+</section>
+
+<!-- B -->
+<section class="sec">
+  <div class="cap"><b>方案 B</b><h3>胶片接触印相</h3><span>2×5 一格一张 · 带齿孔和帧号</span></div>
+  <div class="stage" style="height:auto">
+    <div class="sheet">
+      <span class="perf t"></span><span class="perf b"></span>
+      <div class="grid">
+        <div class="cell"><img src="../cards/posters/card-stack.jpg" alt=""><span class="fn">01A</span></div>
+        <div class="cell"><img src="../cards/posters/carousel-3d.jpg" alt=""><span class="fn">02A</span></div>
+        <div class="cell"><img src="../cards/posters/mosaic-reframe.jpg" alt=""><span class="fn">03A</span></div>
+        <div class="cell"><img src="../cards/posters/glitch-cycle.jpg" alt=""><span class="fn">04A</span></div>
+        <div class="cell"><img src="../cards/posters/flying-words.jpg" alt=""><span class="fn">05A</span></div>
+        <div class="cell"><img src="../cards/posters/countdown-arc-scatter.jpg" alt=""><span class="fn">01B</span></div>
+        <div class="cell"><img src="../cards/posters/before-after-slider-scrub.jpg" alt=""><span class="fn">02B</span></div>
+        <div class="cell"><img src="../cards/posters/magician-card-flourish.jpg" alt=""><span class="fn">03B</span></div>
+        <div class="cell"><img src="../cards/posters/aurora-bloom-bg-flip.jpg" alt=""><span class="fn">04B</span></div>
+        <div class="cell"><img src="../cards/posters/blur-slide.jpg" alt=""><span class="fn">05B</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- C -->
+<section class="sec">
+  <div class="cap"><b>方案 C</b><h3>索引表 + 大预览</h3><span>左边检索 · 右边看片 · 像素材库</span></div>
+  <div class="index">
+    <div class="list">
+      <div class="row on"><i>01</i><b>card-stack</b><span>叠卡推入</span></div>
+      <div class="row"><i>02</i><b>carousel-3d</b><span>3D 轮播</span></div>
+      <div class="row"><i>03</i><b>mosaic-reframe</b><span>马赛克重构图</span></div>
+      <div class="row"><i>04</i><b>glitch-cycle</b><span>故障循环</span></div>
+      <div class="row"><i>05</i><b>flying-words</b><span>飞字</span></div>
+      <div class="row"><i>06</i><b>countdown-arc-scatter</b><span>倒计时散开</span></div>
+    </div>
+    <div class="prev">
+      <img src="../cards/posters/card-stack.jpg" alt="">
+      <span class="tag">card-stack · 叠卡推入</span>
+    </div>
+  </div>
+</section>
+
+<!-- D -->
+<section class="sec">
+  <div class="cap"><b>方案 D</b><h3>牌堆</h3><span>一叠卡 · 只露最上面那张 · 拖动翻牌</span></div>
+  <div class="deck">
+    <div class="c c1"><img src="../cards/posters/glitch-cycle.jpg" alt=""></div>
+    <div class="c c2"><img src="../cards/posters/mosaic-reframe.jpg" alt=""></div>
+    <div class="c c3"><img src="../cards/posters/card-stack.jpg" alt=""></div>
+    <div class="c c4"><img src="../cards/posters/carousel-3d.jpg" alt=""></div>
+    <div class="c c5"><img src="../cards/posters/flying-words.jpg" alt=""></div>
+    <div class="hint">拖动或滚动翻牌</div>
+  </div>
+</section>
+
+<!-- E -->
+<section class="sec">
+  <div class="cap"><b>方案 E</b><h3>瀑布三栏</h3><span>像情绪板 · 可拖动重排</span></div>
+  <div class="falls">
+    <div class="col">
+      <figure class="h1"><img src="../cards/posters/card-stack.jpg" alt=""></figure>
+      <figure class="h3"><img src="../cards/posters/glitch-cycle.jpg" alt=""></figure>
+    </div>
+    <div class="col">
+      <figure class="h2"><img src="../cards/posters/carousel-3d.jpg" alt=""></figure>
+      <figure class="h1"><img src="../cards/posters/mosaic-reframe.jpg" alt=""></figure>
+    </div>
+    <div class="col">
+      <figure class="h3"><img src="../cards/posters/flying-words.jpg" alt=""></figure>
+      <figure class="h4"><img src="../cards/posters/countdown-arc-scatter.jpg" alt=""></figure>
+      <figure class="h4"><img src="../cards/posters/blur-slide.jpg" alt=""></figure>
+    </div>
+  </div>
+</section>
+
+<!-- F -->
+<section class="sec">
+  <div class="cap"><b>方案 F</b><h3>轮盘</h3><span>卡片沿弧线排开 · 中间那张是当前</span></div>
+  <div class="wheel">
+    <div class="c w1"><img src="../cards/posters/glitch-cycle.jpg" alt=""></div>
+    <div class="c w2"><img src="../cards/posters/flying-words.jpg" alt=""></div>
+    <div class="c w3"><img src="../cards/posters/mosaic-reframe.jpg" alt=""></div>
+    <div class="c w4"><img src="../cards/posters/card-stack.jpg" alt=""></div>
+    <div class="c w5"><img src="../cards/posters/carousel-3d.jpg" alt=""></div>
+    <div class="c w6"><img src="../cards/posters/blur-slide.jpg" alt=""></div>
+    <div class="c w7"><img src="../cards/posters/countdown-arc-scatter.jpg" alt=""></div>
+  </div>
+</section>
+
+</body>
+</html>

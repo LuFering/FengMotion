@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1440">
+<title>创意框 · 四种方案</title>
+<style>
+:root{--ink:#000;--paper:#F4F1EA;--dim:#9A9A9A;--blue:#3B8CF8;
+  --serif:"Noto Serif CJK SC","思源宋体",Songti SC,serif;
+  --mono:"Noto Sans Mono CJK SC",ui-monospace,monospace;
+  --sans:"Noto Sans CJK SC","思源黑体",system-ui,sans-serif}
+*{box-sizing:border-box}
+body{margin:0;width:1440px;background:#000;color:var(--paper);font-family:var(--sans);
+  -webkit-font-smoothing:antialiased}
+.sec{height:560px;display:flex;align-items:center;gap:88px;padding:0 88px;position:relative}
+.sec+.sec{border-top:1px solid #141414}
+.sec .stage{width:660px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;height:100%}
+.sec .txt{max-width:430px}
+.sec .txt .idx{font:10px var(--mono);letter-spacing:.3em;color:#5A5A5A}
+.sec .txt h3{margin:14px 0 0;font:500 30px/1.3 var(--serif);letter-spacing:-.01em}
+.sec .txt p{margin:14px 0 0;font-size:13px;line-height:1.9;color:#9C9C9C}
+.sec .txt .src{margin-top:20px;font:10px var(--mono);letter-spacing:.08em;color:#4F4F4F;line-height:1.9}
+.sec .txt .src b{color:#7A7A7A;font-weight:400}
+
+/* ── 01 胶片单格 ───────────────────────────── */
+.film{position:relative;width:600px}
+.film .perf{position:absolute;left:0;right:0;height:28px;border-radius:2px;background:#111
+  url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='50' height='28'%3E%3Crect x='8' y='6' width='17' height='16' rx='4' fill='%23000'/%3E%3C/svg%3E") repeat-x;
+  background-size:50px 28px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)}
+.film .perf.t{top:0}.film .perf.b{bottom:0}
+.film .win{position:relative;width:600px;height:380px;margin:30px 0 26px;overflow:hidden;border-radius:2px;
+  background:#050505;box-shadow:0 40px 90px rgba(0,0,0,.85),0 0 0 1px rgba(255,255,255,.16),
+  0 0 90px rgba(59,140,248,.10)}
+.film .win video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:brightness(.96)}
+.film .cap{display:flex;align-items:center;gap:12px;font:10px var(--mono);letter-spacing:.2em;color:#9C9C9C}
+.film .cap i{width:34px;height:1px;background:#3A3A3A}
+.film .cap b{color:var(--blue);font-weight:400}
+
+/* ── 02 取景器 ─────────────────────────────── */
+.vf{position:relative;width:640px;height:400px}
+.vf .win{position:absolute;inset:0;overflow:hidden;background:#050505}
+.vf .win video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+  filter:brightness(.88) contrast(1.06)}
+.vf .grid{position:absolute;inset:0;pointer-events:none;
+  background:
+    linear-gradient(to right,transparent calc(33.33% - .5px),#ffffff1c calc(33.33% - .5px),#ffffff1c calc(33.33% + .5px),transparent calc(33.33% + .5px)),
+    linear-gradient(to right,transparent calc(66.66% - .5px),#ffffff1c calc(66.66% - .5px),#ffffff1c calc(66.66% + .5px),transparent calc(66.66% + .5px)),
+    linear-gradient(to bottom,transparent calc(33.33% - .5px),#ffffff1c calc(33.33% - .5px),#ffffff1c calc(33.33% + .5px),transparent calc(33.33% + .5px)),
+    linear-gradient(to bottom,transparent calc(66.66% - .5px),#ffffff1c calc(66.66% - .5px),#ffffff1c calc(66.66% + .5px),transparent calc(66.66% + .5px))}
+.vf .cn{position:absolute;width:30px;height:30px;border:2px solid #fff;opacity:.85}
+.vf .cn.tl{left:-1px;top:-1px;border-right:0;border-bottom:0}
+.vf .cn.tr{right:-1px;top:-1px;border-left:0;border-bottom:0}
+.vf .cn.bl{left:-1px;bottom:-1px;border-right:0;border-top:0}
+.vf .cn.br{right:-1px;bottom:-1px;border-left:0;border-top:0}
+.vf .cross{position:absolute;left:50%;top:50%;width:22px;height:22px;transform:translate(-50%,-50%);
+  opacity:.75}
+.vf .cross::before,.vf .cross::after{content:"";position:absolute;background:#fff}
+.vf .cross::before{left:50%;top:0;bottom:0;width:1px;transform:translateX(-50%)}
+.vf .cross::after{top:50%;left:0;right:0;height:1px;transform:translateY(-50%)}
+.vf .rec{position:absolute;left:14px;top:12px;display:flex;align-items:center;gap:7px;
+  font:9px var(--mono);letter-spacing:.24em;color:#ffffffc0}
+.vf .rec i{width:6px;height:6px;border-radius:50%;background:#F0553F;box-shadow:0 0 8px #F0553F}
+
+/* ── 03 错位双框 ───────────────────────────── */
+.reg{position:relative;width:560px;height:350px}
+.reg .ghost{position:absolute;inset:0;transform:translate(16px,16px);border:1px solid #ffffff42;
+  border-radius:2px}
+.reg .win{position:absolute;inset:0;overflow:hidden;background:#050505;border-radius:2px;
+  box-shadow:0 30px 70px rgba(0,0,0,.8),0 0 0 1px #ffffff26}
+.reg .win video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:brightness(.95)}
+.reg .mark{position:absolute;right:-34px;bottom:-34px;width:14px;height:14px}
+.reg .mark::before,.reg .mark::after{content:"";position:absolute;background:#7A7A7A}
+.reg .mark::before{left:50%;top:0;bottom:0;width:1px}
+.reg .mark::after{top:50%;left:0;right:0;height:1px}
+.reg .num{position:absolute;left:0;top:-30px;font:10px var(--mono);letter-spacing:.26em;color:#6A6A6A}
+
+/* ── 04 液态玻璃框 ─────────────────────────── */
+.gl{position:relative;width:576px;height:366px;padding:14px;border-radius:22px;
+  background:linear-gradient(180deg,rgba(255,255,255,.16),rgba(255,255,255,.05));
+  backdrop-filter:blur(18px) saturate(170%);-webkit-backdrop-filter:blur(18px) saturate(170%);
+  border:1px solid rgba(255,255,255,.22);
+  box-shadow:0 40px 90px rgba(0,0,0,.7),inset 0 1px 0 rgba(255,255,255,.45),
+             inset 0 -1px 0 rgba(255,255,255,.08)}
+.gl::before{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+  background:radial-gradient(220px 90px at 22% 0%,rgba(255,255,255,.30),transparent 62%)}
+.gl .win{position:relative;width:100%;height:100%;overflow:hidden;border-radius:12px;background:#050505;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.10)}
+.gl .win video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:brightness(.95)}
+.gl .badge{position:absolute;left:26px;bottom:24px;font:9px var(--mono);letter-spacing:.24em;
+  color:#ffffffc0;display:flex;gap:8px;align-items:center}
+.gl .badge i{width:5px;height:5px;border-radius:50%;background:var(--blue);box-shadow:0 0 8px #3B8CF8}
+</style>
+</head>
+<body>
+
+<!-- 01 胶片单格 -->
+<section class="sec">
+  <div class="stage">
+    <div class="film">
+      <span class="perf t"></span>
+      <span class="perf b"></span>
+      <div class="win"><video src="assets/hero-cards.mp4" autoplay muted loop playsinline></video></div>
+      <div class="cap"><i></i><b>01</b><span>镜头卡库 · 实时预览</span></div>
+    </div>
+  </div>
+  <div class="txt">
+    <div class="idx">方案 01</div>
+    <h3>胶片单格</h3>
+    <p>上下两排齿孔把画面框成一张胶片，画面外只留一条细线和一句标注。最贴你现在的黑底宋体。</p>
+    <div class="src"><b>参考</b> · github.com/pshihn/film-strip（虚拟滚动取帧）<br><b>做法</b> · SVG 圆角齿孔平铺 + 1px 画框 + 外投影</div>
+  </div>
+</section>
+
+<!-- 02 取景器 -->
+<section class="sec">
+  <div class="stage">
+    <div class="vf">
+      <div class="win"><video src="assets/hero-cards.mp4" autoplay muted loop playsinline></video></div>
+      <div class="grid"></div>
+      <span class="cn tl"></span><span class="cn tr"></span>
+      <span class="cn bl"></span><span class="cn br"></span>
+      <span class="cross"></span>
+      <div class="rec"><i></i>REC</div>
+    </div>
+  </div>
+  <div class="txt">
+    <div class="idx">方案 02</div>
+    <h3>取景器</h3>
+    <p>四个角括号、三分线、中心十字，像导演监视器里看到的画面。没有外框，画面直接出血。</p>
+    <div class="src"><b>参考</b> · cssimagelab.com/effects/viewfinder<br><b>做法</b> · 角括号 + 渐变三分线 + 十字，纯 CSS</div>
+  </div>
+</section>
+
+<!-- 03 错位双框 -->
+<section class="sec">
+  <div class="stage">
+    <div class="reg">
+      <span class="num">FRAME 03</span>
+      <div class="ghost"></div>
+      <div class="win"><video src="assets/hero-cards.mp4" autoplay muted loop playsinline></video></div>
+      <span class="mark"></span>
+    </div>
+  </div>
+  <div class="txt">
+    <div class="idx">方案 03</div>
+    <h3>错位双框</h3>
+    <p>画面右下再叠一条 16px 的错位细线，像印刷套版没对准。安静，但一眼能看出是设计过的。</p>
+    <div class="src"><b>参考</b> · atelierbram/frame-patterns（边框图形库）<br><b>做法</b> · 一层 ghost 边框 translate(16,16) + 套版十字</div>
+  </div>
+</section>
+
+<!-- 04 液态玻璃框 -->
+<section class="sec">
+  <div class="stage">
+    <div class="gl">
+      <div class="win">
+        <video src="assets/hero-cards.mp4" autoplay muted loop playsinline></video>
+        <div class="badge"><i></i>实时预览</div>
+      </div>
+    </div>
+  </div>
+  <div class="txt">
+    <div class="idx">方案 04</div>
+    <h3>液态玻璃框</h3>
+    <p>14px 厚的磨砂玻璃边框包住画面，和右侧输入框同一套材质，首屏两件东西看起来是一家人。</p>
+    <div class="src"><b>参考</b> · github.com/kevinbism/liquid-glass-effect<br><b>做法</b> · backdrop-filter + 内高光 + 径向镜面</div>
+  </div>
+</section>
+
+</body>
+</html>

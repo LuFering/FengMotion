@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1440">
+<title>创意标签 · 六种做法</title>
+<style>
+:root{--blue:#3B8CF8;--blue-d:#1D5FC4;
+  --mono:"Noto Sans Mono CJK SC",ui-monospace,monospace;
+  --sans:"Noto Sans CJK SC","思源黑体",system-ui,sans-serif}
+*{box-sizing:border-box}
+body{margin:0;width:1440px;background:#000;color:#F4F1EA;font-family:var(--sans);
+  -webkit-font-smoothing:antialiased}
+.row{padding:30px 56px 38px}
+.row .tag{display:flex;align-items:baseline;gap:14px;margin-bottom:14px}
+.row .tag b{font:400 10px var(--mono);letter-spacing:.3em;color:var(--blue)}
+.row .tag span{font:400 11px var(--mono);letter-spacing:.12em;color:#6E6E6E}
+.band{position:relative;height:248px;overflow:hidden;background:#050505;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.07)}
+.band video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+  filter:brightness(.72) saturate(.92)}
+.band .scrim{position:absolute;inset:0;pointer-events:none;z-index:1;
+  background:linear-gradient(to top,rgba(0,0,0,.78) 0%,rgba(0,0,0,.32) 34%,transparent 62%),
+             linear-gradient(to right,rgba(0,0,0,.42),transparent 44%)}
+.wrap{position:absolute;left:24px;bottom:20px;z-index:2;display:flex;flex-direction:column;gap:11px;
+  align-items:flex-start;transform:scale(1.6);transform-origin:left bottom}
+.tc{display:flex;align-items:center;gap:7px;font:9.5px var(--mono);letter-spacing:.16em;
+  color:#B4B4B4;font-variant-numeric:tabular-nums}
+.tc i{width:5px;height:5px;border-radius:50%;background:#F0553F;box-shadow:0 0 8px #F0553F}
+
+/* A 电影票根 */
+.ticket{position:relative;display:flex;align-items:stretch;height:36px;background:var(--blue);
+  color:#fff;transform:rotate(-4deg);box-shadow:0 10px 24px rgba(0,0,0,.5)}
+.ticket .stub{display:flex;align-items:center;padding:0 10px;font:600 10px var(--mono);
+  letter-spacing:.1em;border-right:2px dashed rgba(255,255,255,.9)}
+.ticket .nm{display:flex;align-items:center;padding:0 15px 0 12px;font:500 11.5px var(--mono);
+  letter-spacing:.18em}
+.ticket::before,.ticket::after{content:"";position:absolute;left:31px;width:9px;height:9px;
+  border-radius:50%;background:#050505}
+.ticket::before{top:-4.5px}
+.ticket::after{bottom:-4.5px}
+
+/* B 邮票齿边 */
+.stamp{display:flex;align-items:center;justify-content:center;width:132px;height:36px;
+  background:var(--blue);color:#fff;font:500 11px var(--mono);letter-spacing:.16em;
+  transform:rotate(-1deg);
+  clip-path:polygon(0px 0px,4.5px 3px,9px 0px,13.5px 3px,18px 0px,22.5px 3px,27px 0px,31.5px 3px,36px 0px,40.5px 3px,45px 0px,49.5px 3px,54px 0px,58.5px 3px,63px 0px,67.5px 3px,72px 0px,76.5px 3px,81px 0px,85.5px 3px,90px 0px,94.5px 3px,99px 0px,103.5px 3px,108px 0px,112.5px 3px,117px 0px,121.5px 3px,126px 0px,130.5px 3px,132px 0px,132px 0px,129px 4.5px,132px 9px,129px 13.5px,132px 18px,129px 22.5px,132px 27px,129px 31.5px,132px 36px,132px 36px,127.5px 33px,123px 36px,118.5px 33px,114px 36px,109.5px 33px,105px 36px,100.5px 33px,96px 36px,91.5px 33px,87px 36px,82.5px 33px,78px 36px,73.5px 33px,69px 36px,64.5px 33px,60px 36px,55.5px 33px,51px 36px,46.5px 33px,42px 36px,37.5px 33px,33px 36px,28.5px 33px,24px 36px,19.5px 33px,15px 36px,10.5px 33px,6px 36px,1.5px 33px,0px 36px,0px 36px,3px 31.5px,0px 27px,3px 22.5px,0px 18px,3px 13.5px,0px 9px,3px 4.5px,0px 0px);}
+
+/* C 全息贴纸 */
+.holo{position:relative;display:inline-flex;align-items:center;height:34px;padding:0 16px;
+  border-radius:4px;overflow:hidden;color:#fff;font:600 11.5px var(--mono);letter-spacing:.18em;
+  background:linear-gradient(118deg,#2E6FD9 0%,#59B8FF 22%,#8E9BFF 40%,#C79BFF 55%,#6FE6D2 74%,#3B8CF8 100%);
+  transform:rotate(-1.2deg);box-shadow:0 8px 20px rgba(0,0,0,.45)}
+.holo::before{content:"";position:absolute;inset:0;
+  background:conic-gradient(from 210deg at 30% 120%,#ff5fd2,#ffd36e,#7dffd0,#5fb8ff,#b06bff,#ff5fd2);
+  mix-blend-mode:soft-light;opacity:.85}
+.holo::after{content:"";position:absolute;top:-60%;bottom:-60%;left:-30%;width:26%;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.85),transparent);
+  transform:rotate(18deg);animation:sheen 4.2s ease-in-out infinite}
+@keyframes sheen{0%,55%{left:-30%}85%,100%{left:120%}}
+.holo span{position:relative;z-index:2}
+
+/* D 条码标签 */
+.barcode{display:flex;align-items:center;gap:10px;height:38px;padding:0 12px 0 10px;
+  background:var(--blue);color:#fff}
+.barcode .bars{width:56px;height:20px;
+  background:repeating-linear-gradient(to right,#fff 0 2px,transparent 2px 4px,#fff 4px 5px,transparent 5px 9px,#fff 9px 12px,transparent 12px 14px)}
+.barcode .txt{display:flex;flex-direction:column;gap:2px;line-height:1}
+.barcode .txt b{font:600 10.5px var(--mono);letter-spacing:.16em}
+.barcode .txt i{font:8px var(--mono);letter-spacing:.14em;color:#DCEAFF;font-style:normal}
+
+/* E 翻牌器 */
+.flap{display:inline-flex;gap:2px}
+.flap b{position:relative;display:flex;align-items:center;justify-content:center;width:27px;height:36px;
+  background:linear-gradient(180deg,#4A90F7 0 47.5%,#0A2450 47.5% 52.5%,#2F74E0 52.5% 100%);
+  color:#fff;font:500 12px var(--mono);box-shadow:inset 0 1px 0 rgba(255,255,255,.35),
+  inset 0 -1px 0 rgba(0,0,0,.35)}
+.flap b::after{content:"";position:absolute;left:0;right:0;top:50%;height:2px;margin-top:-1px;
+  background:rgba(0,0,0,.6);box-shadow:0 1px 0 rgba(255,255,255,.12)}
+
+/* F 霓虹灯牌 */
+.neon{position:relative;display:inline-flex;align-items:center;height:36px;padding:0 16px;
+  background:rgba(8,14,26,.72);border:1px solid rgba(59,140,248,.85);border-radius:3px;
+  color:#fff;font:500 11.5px var(--mono);letter-spacing:.2em;
+  box-shadow:0 0 22px rgba(59,140,248,.7),0 0 46px rgba(59,140,248,.35),inset 0 0 18px rgba(59,140,248,.35)}
+.neon span{text-shadow:0 0 6px rgba(120,180,255,.9),0 0 16px rgba(59,140,248,.75)}
+</style>
+</head>
+<body>
+
+<div class="row">
+  <div class="tag"><b>方案 A</b><span>电影票根 · 虚线撕口 + 上下两个半圆缺口，斜 1.6°</span></div>
+  <div class="band">
+    <video src="assets/hero-cards.mp4" autoplay muted loop playsinline></video>
+    <span class="scrim"></span>
+    <div class="wrap"><div class="tc"><i></i>00:00:12:04</div>
+      <div class="ticket"><span class="stub">01</span><span class="nm">口播科普</span></div></div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="tag"><b>方案 B</b><span>邮票齿边 · 四周是齿孔，像从胶片上撕下来的一格</span></div>
+  <div class="band">
+    <video src="assets/hero-cards.mp4" autoplay muted loop playsinline></video>
+    <span class="scrim"></span>
+    <div class="wrap"><div class="tc"><i></i>00:00:12:04</div>
+      <div class="stamp">口播科普</div></div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="tag"><b>方案 C</b><span>全息贴纸 · 彩虹偏光 + 每 4 秒扫一道光</span></div>
+  <div class="band">
+    <video src="assets/hero-cards.mp4" autoplay muted loop playsinline></video>
+    <span class="scrim"></span>
+    <div class="wrap"><div class="tc"><i></i>00:00:12:04</div>
+      <div class="holo"><span>口播科普</span></div></div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="tag"><b>方案 D</b><span>条码标签 · 白色条码 + 编号，像胶片罐上的标签</span></div>
+  <div class="band">
+    <video src="assets/hero-cards.mp4" autoplay muted loop playsinline></video>
+    <span class="scrim"></span>
+    <div class="wrap"><div class="tc"><i></i>00:00:12:04</div>
+      <div class="barcode"><span class="bars"></span>
+        <span class="txt"><b>口播科普</b><i>FM-001 · 30P</i></span></div></div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="tag"><b>方案 E</b><span>翻牌器 · 一个字一格，中间一道翻页缝</span></div>
+  <div class="band">
+    <video src="assets/hero-cards.mp4" autoplay muted loop playsinline></video>
+    <span class="scrim"></span>
+    <div class="wrap"><div class="tc"><i></i>00:00:12:04</div>
+      <div class="flap"><b>口</b><b>播</b><b>科</b><b>普</b></div></div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="tag"><b>方案 F</b><span>霓虹灯牌 · 深蓝底 + 蓝辉光，字是白的热芯</span></div>
+  <div class="band">
+    <video src="assets/hero-cards.mp4" autoplay muted loop playsinline></video>
+    <span class="scrim"></span>
+    <div class="wrap"><div class="tc"><i></i>00:00:12:04</div>
+      <div class="neon"><span>口播科普</span></div></div>
+  </div>
+</div>
+
+</body>
+</html>

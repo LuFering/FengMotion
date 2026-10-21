@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1440">
+<title>视频内标签 · 四种方案</title>
+<style>
+:root{--blue:#3B8CF8;--paper:#F4F1EA;
+  --serif:"Noto Serif CJK SC","思源宋体",Songti SC,serif;
+  --mono:"Noto Sans Mono CJK SC",ui-monospace,monospace;
+  --sans:"Noto Sans CJK SC","思源黑体",system-ui,sans-serif}
+*{box-sizing:border-box}
+body{margin:0;width:1440px;background:#000;color:var(--paper);font-family:var(--sans);
+  -webkit-font-smoothing:antialiased}
+.row{padding:34px 56px 44px}
+.row .tag{display:flex;align-items:baseline;gap:14px;margin-bottom:14px}
+.row .tag b{font:400 10px var(--mono);letter-spacing:.3em;color:var(--blue)}
+.row .tag span{font:400 11px var(--mono);letter-spacing:.14em;color:#6E6E6E}
+.band{position:relative;height:248px;overflow:hidden;background:#050505;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.07)}
+.band video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+  filter:brightness(.78) saturate(.92);transform:scale(1.02)}
+.band .scrim{position:absolute;inset:0;pointer-events:none;z-index:1;
+  background:linear-gradient(to top,rgba(0,0,0,.86) 0%,rgba(0,0,0,.42) 34%,transparent 62%),
+             linear-gradient(to right,rgba(0,0,0,.45),transparent 42%)}
+
+/* A 字幕条 */
+.sub{position:absolute;left:22px;bottom:20px;z-index:2;display:flex;align-items:center;gap:10px;
+  padding:8px 16px 8px 11px;background:rgba(6,6,6,.78);border-left:2px solid var(--blue);
+  backdrop-filter:blur(6px)}
+.sub b{font:400 12px var(--mono);letter-spacing:.24em;color:#8FB8FF}
+.sub i{width:5px;height:5px;border-radius:50%;background:var(--blue);box-shadow:0 0 8px #3B8CF8}
+
+/* B 场记板 */
+.slate{position:absolute;left:22px;bottom:18px;z-index:2;width:170px;background:#0A0A0A;
+  border:1px solid #2E2E2E;transform:rotate(-1.2deg);box-shadow:0 12px 26px rgba(0,0,0,.6)}
+.slate .clap{height:13px;background:repeating-linear-gradient(115deg,var(--blue) 0 9px,#0A0A0A 9px 18px)}
+.slate .body{padding:8px 10px 10px}
+.slate .body .no{font:9px var(--mono);letter-spacing:.22em;color:#AEAEAE}
+.slate .body .nm{margin-top:6px;font:500 16px/1.2 var(--serif);color:#8FB8FF;letter-spacing:.02em}
+
+/* C 竖排书脊 */
+.spine{position:absolute;left:8px;top:0;bottom:0;z-index:2;display:flex;align-items:center;gap:10px}
+.spine i{width:1px;height:64%;background:linear-gradient(to bottom,transparent,#3B8CF8aa,transparent)}
+.spine b{writing-mode:vertical-rl;transform:rotate(180deg);
+  font:400 14px var(--mono);letter-spacing:.34em;color:#8FB8FF;text-shadow:0 0 10px rgba(0,0,0,.9)}
+
+/* D 时间码 HUD */
+.tc{position:absolute;left:22px;bottom:18px;z-index:2;display:flex;flex-direction:column;gap:6px}
+.tc .t{display:flex;align-items:center;gap:7px;font:9.5px var(--mono);letter-spacing:.18em;color:#A8A8A8}
+.tc .t i{width:5px;height:5px;border-radius:50%;background:#F0553F;box-shadow:0 0 8px #F0553F}
+.tc .nm{font:400 13px var(--mono);letter-spacing:.24em;color:#fff}
+</style>
+</head>
+<body>
+
+<div class="row">
+  <div class="tag"><b>方案 A</b><span>字幕条 · 像片子自带的字幕，蓝竖线起头</span></div>
+  <div class="band">
+    <video src="assets/hero-cards.mp4" autoplay muted loop playsinline></video>
+    <span class="scrim"></span>
+    <div class="sub"><i></i><b>口播科普</b></div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="tag"><b>方案 B</b><span>场记板 · 斜纹板头 + 场次号，最贴“拍片”这件事</span></div>
+  <div class="band">
+    <video src="assets/hero-cards.mp4" autoplay muted loop playsinline></video>
+    <span class="scrim"></span>
+    <div class="slate">
+      <div class="clap"></div>
+      <div class="body"><div class="no">SCENE 01</div><div class="nm">口播科普</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="tag"><b>方案 C</b><span>竖排书脊 · 贴左边缘竖着读，安静、最像胶片边码</span></div>
+  <div class="band">
+    <video src="assets/hero-cards.mp4" autoplay muted loop playsinline></video>
+    <span class="scrim"></span>
+    <div class="spine"><i></i><b>口播科普</b><i></i></div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="tag"><b>方案 D</b><span>时间码 HUD · 录制点 + 时间码在上，片型名在下</span></div>
+  <div class="band">
+    <video src="assets/hero-cards.mp4" autoplay muted loop playsinline></video>
+    <span class="scrim"></span>
+    <div class="tc"><div class="t"><i></i>00:00:12:04</div><div class="nm">口播科普</div></div>
+  </div>
+</div>
+
+</body>
+</html>

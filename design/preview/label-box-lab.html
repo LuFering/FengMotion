@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1440">
+<title>蓝框白字 · 五种框</title>
+<style>
+:root{--blue:#3B8CF8;
+  --serif:"Noto Serif CJK SC","思源宋体",Songti SC,serif;
+  --mono:"Noto Sans Mono CJK SC",ui-monospace,monospace;
+  --sans:"Noto Sans CJK SC","思源黑体",system-ui,sans-serif}
+*{box-sizing:border-box}
+body{margin:0;width:1440px;background:#000;color:#F4F1EA;font-family:var(--sans);
+  -webkit-font-smoothing:antialiased}
+.row{padding:32px 56px 40px}
+.row .tag{display:flex;align-items:baseline;gap:14px;margin-bottom:14px}
+.row .tag b{font:400 10px var(--mono);letter-spacing:.3em;color:var(--blue)}
+.row .tag span{font:400 11px var(--mono);letter-spacing:.12em;color:#6E6E6E}
+.band{position:relative;height:248px;overflow:hidden;background:#050505;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.07)}
+.band video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+  filter:brightness(.72) saturate(.92)}
+.band .scrim{position:absolute;inset:0;pointer-events:none;z-index:1;
+  background:linear-gradient(to top,rgba(0,0,0,.86) 0%,rgba(0,0,0,.4) 34%,transparent 62%),
+             linear-gradient(to right,rgba(0,0,0,.5),transparent 44%)}
+.wrap{position:absolute;left:22px;bottom:18px;z-index:2;display:flex;flex-direction:column;gap:8px}
+.tc{display:flex;align-items:center;gap:7px;font:9.5px var(--mono);letter-spacing:.16em;
+  color:#B4B4B4;font-variant-numeric:tabular-nums}
+.tc i{width:5px;height:5px;border-radius:50%;background:#F0553F;box-shadow:0 0 8px #F0553F}
+
+/* A 细蓝胶囊 */
+.box-a{display:inline-flex;align-items:center;height:30px;padding:0 14px;border-radius:999px;
+  border:1px solid var(--blue);background:rgba(6,10,18,.42);backdrop-filter:blur(6px);
+  color:#fff;font:400 11.5px var(--mono);letter-spacing:.2em}
+
+/* B 直角框 + 四角刻线 */
+.box-b{position:relative;display:inline-flex;align-items:center;height:32px;padding:0 16px;
+  border:1px solid var(--blue);background:rgba(6,10,18,.42);backdrop-filter:blur(6px);
+  color:#fff;font:400 11.5px var(--mono);letter-spacing:.2em}
+.box-b::before,.box-b::after{content:"";position:absolute;width:9px;height:9px;
+  border:2px solid #fff;opacity:.85}
+.box-b::before{left:-1px;top:-1px;border-right:0;border-bottom:0}
+.box-b::after{right:-1px;bottom:-1px;border-left:0;border-top:0}
+
+/* C 双线框 */
+.box-c{position:relative;display:inline-flex;align-items:center;height:34px;padding:0 18px;
+  border:1px solid var(--blue);color:#fff;font:400 11.5px var(--mono);letter-spacing:.2em;
+  background:rgba(6,10,18,.42);backdrop-filter:blur(6px)}
+.box-c::before{content:"";position:absolute;inset:3px;border:1px solid rgba(59,140,248,.42)}
+
+/* D 左实心蓝条 */
+.box-d{display:inline-flex;align-items:center;height:32px;padding:0 16px 0 14px;
+  border:1px solid var(--blue);border-left:3px solid var(--blue);
+  background:rgba(6,10,18,.42);backdrop-filter:blur(6px);
+  color:#fff;font:400 11.5px var(--mono);letter-spacing:.2em}
+
+/* E 上细下粗 */
+.box-e{display:inline-flex;align-items:center;height:32px;padding:0 16px;
+  border:1px solid var(--blue);border-bottom:3px solid var(--blue);
+  background:rgba(6,10,18,.42);backdrop-filter:blur(6px);
+  color:#fff;font:400 11.5px var(--mono);letter-spacing:.2em}
+</style>
+</head>
+<body>
+
+<div class="row">
+  <div class="tag"><b>方案 A</b><span>细蓝胶囊 · 最轻，像流媒体界面上的标签</span></div>
+  <div class="band">
+    <video src="assets/hero-cards.mp4" autoplay muted loop playsinline></video>
+    <span class="scrim"></span>
+    <div class="wrap"><div class="tc"><i></i>00:00:12:04</div>
+      <div><span class="box-a">口播科普</span></div></div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="tag"><b>方案 B</b><span>直角框 + 对角刻线 · 像取景器，和左边首屏呼应</span></div>
+  <div class="band">
+    <video src="assets/hero-cards.mp4" autoplay muted loop playsinline></video>
+    <span class="scrim"></span>
+    <div class="wrap"><div class="tc"><i></i>00:00:12:04</div>
+      <div><span class="box-b">口播科普</span></div></div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="tag"><b>方案 C</b><span>双线框 · 里外两道线，最"胶片盒"的做工感</span></div>
+  <div class="band">
+    <video src="assets/hero-cards.mp4" autoplay muted loop playsinline></video>
+    <span class="scrim"></span>
+    <div class="wrap"><div class="tc"><i></i>00:00:12:04</div>
+      <div><span class="box-c">口播科普</span></div></div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="tag"><b>方案 D</b><span>左实心蓝条 · 左边压重，右边留轻，最像"片种"标签</span></div>
+  <div class="band">
+    <video src="assets/hero-cards.mp4" autoplay muted loop playsinline></video>
+    <span class="scrim"></span>
+    <div class="wrap"><div class="tc"><i></i>00:00:12:04</div>
+      <div><span class="box-d">口播科普</span></div></div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="tag"><b>方案 E</b><span>上细下粗 · 底部一道粗线，像字幕条的压边</span></div>
+  <div class="band">
+    <video src="assets/hero-cards.mp4" autoplay muted loop playsinline></video>
+    <span class="scrim"></span>
+    <div class="wrap"><div class="tc"><i></i>00:00:12:04</div>
+      <div><span class="box-e">口播科普</span></div></div>
+  </div>
+</div>
+
+</body>
+</html>

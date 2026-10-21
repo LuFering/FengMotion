@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>FengMotion · 首页重构预览（纸面版）</title>
+<style>
+:root{
+  --paper:#F2EFE8; --ink:#14120F; --dim:#6B655C; --faint:#9A9387;
+  --rule:#D6CFC0; --rule-2:#E3DDD0; --blue:#1E5BD6;
+  --serif:"Noto Serif CJK SC","思源宋体",Songti SC,serif;
+  --sans:"Noto Sans CJK SC","思源黑体",system-ui,sans-serif;
+  --mono:"Noto Sans Mono CJK SC",ui-monospace,"SF Mono",monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);
+  -webkit-font-smoothing:antialiased}
+.page{width:1440px;margin:0 auto;padding:0 64px}
+
+/* 导航 */
+.nav{display:flex;align-items:center;gap:32px;height:76px;border-bottom:1px solid var(--ink)}
+.nav img{height:19px;filter:brightness(0)}
+.nav a{font-size:12.5px;color:var(--dim);text-decoration:none}
+.nav a:hover{color:var(--ink)}
+.nav .cta{margin-left:auto;display:inline-flex;align-items:center;height:36px;padding:0 16px;
+  background:var(--ink);color:var(--paper);font-size:12.5px;font-weight:500;text-decoration:none}
+.nav .cta:hover{background:var(--blue)}
+
+/* 首屏 */
+.hero{display:grid;grid-template-columns:minmax(0,1.06fr) minmax(0,1fr);gap:52px;
+  padding:52px 0 46px;align-items:start}
+.kick{display:flex;align-items:center;gap:10px;font:10.5px var(--mono);letter-spacing:.16em;
+  color:var(--dim);text-transform:uppercase;margin-bottom:26px}
+.kick i{width:26px;height:1px;background:var(--ink);display:inline-block}
+.hero h1{margin:0;font:900 74px/1.02 var(--sans);letter-spacing:-.045em}
+.hero h1 u{text-decoration:none;box-shadow:inset 0 -.14em 0 var(--blue)}
+.hero .sub{margin:24px 0 0;max-width:420px;font-size:14px;line-height:1.85;color:var(--dim)}
+.hero .row{display:flex;align-items:center;gap:18px;margin-top:32px}
+.hero .main{display:inline-flex;align-items:center;gap:10px;height:46px;padding:0 22px;
+  border:1px solid var(--ink);background:var(--ink);color:var(--paper);
+  font:500 13.5px var(--sans);cursor:pointer;transition:.15s}
+.hero .main:hover{background:var(--blue);border-color:var(--blue)}
+.hero .ghost{display:inline-flex;align-items:center;gap:8px;height:46px;padding:0 0 2px;
+  border:0;border-bottom:1px solid var(--ink);background:0 0;color:var(--ink);
+  font:13.5px var(--sans);cursor:pointer}
+.hero .ghost:hover{color:var(--blue);border-color:var(--blue)}
+
+/* 产品截图：硬边框 + 硬投影（印刷感，不用光晕） */
+.shot{position:relative;padding-top:8px}
+.shot .frame{border:1px solid var(--ink);background:#0A0B0D;
+  box-shadow:12px 12px 0 #14120F14, 12px 12px 0 1px var(--ink)}
+.shot img{display:block;width:100%;height:372px;object-fit:cover;object-position:top left}
+.shot .tag{position:absolute;right:-1px;top:-9px;background:var(--paper);border:1px solid var(--ink);
+  padding:3px 8px;font:10px var(--mono);letter-spacing:.08em}
+
+/* 黑带数据 */
+.band{margin-top:10px;background:var(--ink);color:var(--paper);display:grid;
+  grid-template-columns:repeat(4,1fr)}
+.band div{padding:26px 24px 28px;border-right:1px solid #3A362F}
+.band div:last-child{border-right:0}
+.band b{display:block;font:400 34px/1 var(--mono);letter-spacing:-.03em}
+.band b i{font-style:normal;font-size:12px;color:#B9B1A2;margin-left:7px}
+.band span{display:block;margin-top:8px;font-size:12px;color:#CFC7B8}
+
+/* 分区 */
+.sec{padding:70px 0 0}
+.sec-hd{display:flex;align-items:baseline;gap:16px;padding-bottom:14px;
+  border-bottom:1px solid var(--ink);margin-bottom:26px}
+.sec-hd .idx{font:10.5px var(--mono);letter-spacing:.14em;color:var(--faint)}
+.sec-hd h2{margin:0;font:800 27px/1.25 var(--sans);letter-spacing:-.02em}
+.sec-hd p{margin:0;font-size:12.5px;color:var(--dim)}
+.sec-hd a{margin-left:auto;font-size:12px;color:var(--ink);text-decoration:none;
+  border-bottom:1px solid var(--ink);padding-bottom:1px}
+.sec-hd a:hover{color:var(--blue);border-color:var(--blue)}
+
+/* 三步 */
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
+.step .ph{position:relative;aspect-ratio:16/9;overflow:hidden;background:#0A0B0D;
+  border:1px solid var(--ink)}
+.step img{width:100%;height:100%;object-fit:cover;display:block;filter:brightness(.96) contrast(1.02);
+  transition:.35s}
+.step:hover img{filter:brightness(1)}
+.step .mk{position:absolute;left:0;top:0;background:var(--paper);color:var(--ink);
+  font:700 13px var(--sans);padding:5px 10px;border-right:1px solid var(--ink);
+  border-bottom:1px solid var(--ink)}
+.step h3{margin:14px 0 5px;font-size:15px;font-weight:700;letter-spacing:-.01em}
+.step p{margin:0;font-size:12.5px;line-height:1.8;color:var(--dim)}
+
+/* 卡库 */
+.rack{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
+.rack figure{margin:0;position:relative;aspect-ratio:16/9;overflow:hidden;border:1px solid var(--ink);
+  background:#0A0B0D}
+.rack img{width:100%;height:100%;object-fit:cover;display:block;filter:grayscale(.25) brightness(.92);
+  transition:.3s}
+.rack figure:hover img{filter:none;transform:scale(1.03)}
+.rack figcaption{position:absolute;left:0;bottom:0;background:var(--paper);color:var(--ink);
+  font:9.5px var(--mono);padding:2px 6px;opacity:0;transition:.2s}
+.rack figure:hover figcaption{opacity:1}
+
+/* 规格表 */
+.spec{width:100%;border-collapse:collapse;table-layout:fixed}
+.spec col.c1{width:22%}.spec col.c2{width:20%}.spec col.c3{width:16%}.spec col.c4{width:18%}.spec col.c5{width:24%}
+.spec th{text-align:left;font:400 10px var(--mono);letter-spacing:.12em;color:var(--faint);
+  padding:0 0 10px;border-bottom:1px solid var(--ink);text-transform:uppercase}
+.spec th:not(:first-child),.spec td:not(:first-child){text-align:right}
+.spec td{padding:15px 0;border-bottom:1px solid var(--rule);font-size:13px;color:var(--dim)}
+.spec td:first-child{color:var(--ink);font-size:14.5px;font-weight:600}
+.spec td.n{font-family:var(--mono);color:var(--ink);font-variant-numeric:tabular-nums}
+.spec tr:hover td{background:#EAE6DC}
+
+/* 来源 */
+.libs{display:grid;grid-template-columns:repeat(3,1fr);gap:0;border:1px solid var(--ink)}
+.lib{display:flex;align-items:center;gap:14px;padding:22px;border-right:1px solid var(--ink);
+  text-decoration:none;color:inherit;transition:background .15s}
+.lib:last-child{border-right:0}
+.lib:hover{background:#EAE6DC}
+.lib img{width:32px;height:32px;object-fit:contain;filter:grayscale(1) contrast(1.15);flex:0 0 auto}
+.lib b{display:block;font-size:13.5px;font-weight:600}
+.lib span{display:block;margin-top:3px;font:10.5px var(--mono);color:var(--dim)}
+
+/* 结尾 */
+.end{margin-top:78px;border-top:1px solid var(--ink);padding:44px 0 52px;
+  display:flex;align-items:center;gap:28px}
+.end h2{margin:0;font:900 40px/1.15 var(--sans);letter-spacing:-.035em}
+.end .main{margin-left:auto;display:inline-flex;align-items:center;gap:10px;height:48px;
+  padding:0 24px;border:1px solid var(--ink);background:var(--ink);color:var(--paper);
+  font:500 14px var(--sans);cursor:pointer}
+.end .main:hover{background:var(--blue);border-color:var(--blue)}
+
+.foot{display:flex;align-items:center;gap:14px;border-top:1px solid var(--rule);
+  padding:18px 0 30px;font:10px var(--mono);letter-spacing:.06em;color:var(--faint)}
+.foot img{height:13px;filter:brightness(0);opacity:.55}
+.foot span:last-child{margin-left:auto}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <nav class="nav">
+    <img src="/assets/brand/fengmotion-lockup.png" alt="FengMotion">
+    <a href="#how">怎么工作</a>
+    <a href="#cards">镜头卡库</a>
+    <a href="#genres">片型指纹</a>
+    <a href="#sources">动效来源</a>
+    <a class="cta" href="#">开始创作</a>
+  </nav>
+
+  <section class="hero">
+    <div>
+      <div class="kick"><i></i>AI video workbench</div>
+      <h1>从一句话<br>到一条<u>片子</u></h1>
+      <p class="sub">写一句想法，拆成镜头、接上动效和素材，在一个工作台里出片。卡库、来源、片型、做法都是现成的。</p>
+      <div class="row">
+        <button class="main">开始创作 →</button>
+        <button class="ghost">看看卡库 →</button>
+      </div>
+    </div>
+    <div class="shot">
+      <div class="frame">
+        <img src="../app-shots/cards.png" alt="FengMotion 镜头卡库">
+        <span class="tag">fengmotion / 卡库</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="band">
+    <div><b>157<i>张</i></b><span>镜头卡 · 10 类</span></div>
+    <div><b>3<i>个库</i></b><span>开源动效来源</span></div>
+    <div><b>6<i>种</i></b><span>片型各一套做法</span></div>
+    <div><b>30<i>fps</i></b><span>本地渲染出片</span></div>
+  </section>
+
+  <section class="sec" id="how">
+    <div class="sec-hd">
+      <span class="idx">01</span><h2>怎么工作</h2>
+      <p>三步，从一句话到一条能发的片子。</p>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <div class="ph"><img src="/frames/u15.jpg" alt=""><span class="mk">写</span></div>
+        <h3>写一句想法</h3>
+        <p>描述画面或故事，选一个片型：口播科普、对话访谈、讲书解读。</p>
+      </div>
+      <div class="step">
+        <div class="ph"><img src="/frames/u09.jpg" alt=""><span class="mk">拆</span></div>
+        <h3>拆成分镜</h3>
+        <p>每个镜头带时长、构图和动效建议，能直接改，也能换卡。</p>
+      </div>
+      <div class="step">
+        <div class="ph"><img src="/frames/u13.jpg" alt=""><span class="mk">出</span></div>
+        <h3>渲染出片</h3>
+        <p>调时长、换素材、接动效，本地渲染成片。</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" id="cards">
+    <div class="sec-hd">
+      <span class="idx">02</span><h2>镜头卡库</h2>
+      <p>157 张，10 类，每张带动作预览和时间码。</p>
+      <a href="#">全部卡 →</a>
+    </div>
+    <div class="rack">
+      <figure><img src="/cards/posters/card-stack.jpg" alt=""><figcaption>card-stack</figcaption></figure>
+      <figure><img src="/cards/posters/carousel-3d.jpg" alt=""><figcaption>carousel-3d</figcaption></figure>
+      <figure><img src="/cards/posters/blur-slide.jpg" alt=""><figcaption>blur-slide</figcaption></figure>
+      <figure><img src="/cards/posters/countdown-arc-scatter.jpg" alt=""><figcaption>countdown</figcaption></figure>
+      <figure><img src="/cards/posters/aurora-bloom-bg-flip.jpg" alt=""><figcaption>aurora</figcaption></figure>
+      <figure><img src="/cards/posters/before-after-slider-scrub.jpg" alt=""><figcaption>before-after</figcaption></figure>
+    </div>
+  </section>
+
+  <section class="sec" id="genres">
+    <div class="sec-hd">
+      <span class="idx">03</span><h2>片型指纹</h2>
+      <p>三种片型，各有一组能数的指标。</p>
+    </div>
+    <table class="spec">
+      <colgroup><col class="c1"><col class="c2"><col class="c3"><col class="c4"><col class="c5"></colgroup>
+      <thead><tr><th>片型</th><th>平均镜长</th><th>出镜占比</th><th>锚点回归</th><th>做法</th></tr></thead>
+      <tbody>
+        <tr><td>口播科普</td><td class="n">2.0–2.6s</td><td class="n">27%</td><td class="n">每 5.0s</td><td>按镜头制作</td></tr>
+        <tr><td>对话访谈</td><td class="n">2.0–2.4s</td><td class="n">57%</td><td class="n">每 3.0s</td><td>按话轮制作</td></tr>
+        <tr><td>讲书解读</td><td class="n">4.3–5.5s</td><td class="n">0%</td><td class="n">无</td><td>按页制作</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="sec" id="sources">
+    <div class="sec-hd">
+      <span class="idx">04</span><h2>动效来源</h2>
+      <p>三个开源库，全部接进卡库。</p>
+    </div>
+    <div class="libs">
+      <a class="lib" href="#"><img src="/assets/partners/shotcraft.svg" alt="">
+        <div><b>镜刻</b><span>157 张卡 · 214 条样片</span></div></a>
+      <a class="lib" href="#"><img src="/assets/partners/scenes.svg" alt="">
+        <div><b>Remotion Scenes</b><span>201 个场景 · 16 类</span></div></a>
+      <a class="lib" href="#"><img src="/assets/partners/rve.svg" alt="">
+        <div><b>React Video Editor</b><span>81 个模板 · 9 类</span></div></a>
+    </div>
+  </section>
+
+  <section class="end">
+    <h2>现在写第一句。</h2>
+    <button class="main">开始创作 →</button>
+  </section>
+
+  <footer class="foot">
+    <img src="/assets/brand/fengmotion-lockup.png" alt="">
+    <span>FENGMOTION · 创作空间</span>
+    <span>预览稿</span>
+  </footer>
+
+</div>
+</body>
+</html>
