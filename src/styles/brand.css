@@ -19,15 +19,15 @@ html[data-theme=dark] {
   color-scheme: dark;
 
   /* ── 表面：中性偏蓝黑 ───────────────────────────────────── */
-  --bg:     #0E1116;
-  --surf:   #161A21;
-  --hole:   #1E222B;
-  --line:   #2A2F38;
-  --fg:     #E9ECF1;
-  --dim:    #99A2AE;
-  --ph:     #6A7380;
-  --hint:   #89929E;
-  --grid:   #1B2029;   /* 舞台点阵底：蓝黑一档，不用旧的绿调 */
+  --bg:     #000000;
+  --surf:   #0D0D0F;
+  --hole:   #151517;
+  --line:   #2A2A2E;
+  --fg:     #EDEDED;
+  --dim:    #9A9A9A;
+  --ph:     #6E6E6E;
+  --hint:   #8A8A8A;
+  --grid:   #121214;   /* 舞台点阵底：蓝黑一档，不用旧的绿调 */
 
   /* ── 强调色：品牌蓝（不是紫）────────────────────────────── */
   --acc:    #3B8CF8;
@@ -38,7 +38,7 @@ html[data-theme=dark] {
   --on-accent: #FFFFFF;
 
   /* 选中/浅底：直接给一个确定的深蓝，不用 color-mix */
-  --soft:   #17273C;
+  --soft:   #13233A;
 }
 
 /* ── 工作台「面板」层 + 首页「纸」层 ─────────────────────────
@@ -51,28 +51,28 @@ html[data-theme=dark] {
    改这两条前先想清楚上下文，别只改一条。 */
 html[data-theme=dark] body.studio-shell.studio-shell,
 html[data-theme=dark] body.studio-shell.studio-shell:is(.homeon, .toolson) {
-  --bg:     #0E1116;
-  --surf:   #161A21;
-  --hole:   #1E222B;
-  --line:   #2A2F38;
-  --fg:     #E9ECF1;
-  --dim:    #99A2AE;
-  --ph:     #6A7380;
-  --soft:   #17273C;
+  --bg:     #000000;
+  --surf:   #0D0D0F;
+  --hole:   #151517;
+  --line:   #2A2A2E;
+  --fg:     #EDEDED;
+  --dim:    #9A9A9A;
+  --ph:     #6E6E6E;
+  --soft:   #13233A;
 
   --acc:    #3B8CF8;
   --acc-d:  #2E6FD9;
   --on-accent: #FFFFFF;
 
-  --ht-paper:      #181C24;
-  --ht-paper-back: #14171E;
-  --ht-edge:       #2C323C;
+  --ht-paper:      #0D0D0F;
+  --ht-paper-back: #08080A;
+  --ht-edge:       #2C2C31;
   --ht-rim:        #ffffff0f;
   --ht-ink:        #3B8CF8;   /* 墨 = 品牌蓝 */
   --ht-grid:       #ffffff06;
-  --ht-sidebar:    #111419;
-  --ht-tag:        #1C2029ef;
-  --ht-tag-fg:     #E9ECF1;
+  --ht-sidebar:    #000000;
+  --ht-tag:        #16161Aef;
+  --ht-tag-fg:     #EDEDED;
   --ht-raised:     0 2px 8px #0000002e, inset 0 1px 0 #ffffff0d;
   --ht-pressed:    inset 0 2px 4px #00000040, 0 1px 0 #ffffff0a;
 
@@ -153,3 +153,79 @@ html[data-theme=dark] ::-webkit-scrollbar-track,
 html[data-theme=dark] ::-webkit-scrollbar-corner { background: transparent }
 html[data-theme=dark] ::-webkit-scrollbar-thumb { background: var(--line); border-radius: 4px }
 html[data-theme=dark] ::-webkit-scrollbar-thumb:hover { background: var(--dim) }
+
+/* ── A2 触感主题：全局 paba 变量（设置弹窗/外壳）────────────── */
+html[data-theme="tactile"] {
+  color-scheme: light;
+  --bg: #e6e1d5;
+  --surf: #eae6da;
+  --hole: #ddd8c9;
+  --line: rgba(34, 35, 31, .18);
+  --fg: #22231f;
+  --dim: #55534a;
+  --ph: #8a8676;
+  --hint: #6f6b5f;
+  --acc: #f7c948;
+  --acc-d: #d9a92b;
+  --on-accent: #22231f;
+  --soft: rgba(247, 201, 72, .40);
+  --ok: #2e7d32;
+  --warn: #8a5a00;
+  --bad: #a33d32;
+}
+
+/* ── A2 浅色：让全局壳层/侧栏跟随主题（页面 token 由各页自管）── */
+html[data-theme="light"] body.studio-shell.studio-shell {
+  --bg: #e0e2e9;
+  --surf: #fcfcfd;
+  --hole: #eef0f4;
+  --line: #cdcdd6;
+  --fg: #191a20;
+  --dim: #5b5e66;
+  --ph: #94969e;
+  --hint: #6c6e78;
+  --acc: #2F6FE4;
+  --acc-d: #1E5BBF;
+  --on-accent: #ffffff;
+  --soft: rgba(47, 111, 228, .10);
+  --ht-edge: #cdcdd6;
+  --ht-rim: #ffffff;
+  --ht-ink: #2F6FE4;
+  --ht-paper: #fcfcfd;
+  --ht-paper-back: #eef0f4;
+  --ht-grid: rgba(25, 25, 50, .06);
+  --ht-sidebar: #e0e2e9;
+  --ht-tag: #fcfcfd;
+  --ht-tag-fg: #191a20;
+  --ht-raised: 0 2px 8px rgba(30,30,60,.08), inset 0 1px 0 #fff;
+  --ht-pressed: inset 0 1px 3px rgba(30,30,60,.10), 0 1px 0 #fff;
+  --hm-hover: rgba(25, 25, 50, .05);
+  --hm-panel: #eef0f4;
+}
+html[data-theme="tactile"] body.studio-shell.studio-shell {
+  --bg: #e6e1d5;
+  --surf: #eae6da;
+  --hole: #ddd8c9;
+  --line: rgba(34, 35, 31, .18);
+  --fg: #22231f;
+  --dim: #55534a;
+  --ph: #8a8676;
+  --hint: #6f6b5f;
+  --acc: #f7c948;
+  --acc-d: #d9a92b;
+  --on-accent: #22231f;
+  --soft: rgba(247, 201, 72, .40);
+  --ht-edge: #22231f;
+  --ht-rim: #f4f1e8;
+  --ht-ink: #22231f;
+  --ht-paper: #efece3;
+  --ht-paper-back: #dcd8cc;
+  --ht-grid: rgba(34, 35, 31, .12);
+  --ht-sidebar: #e6e1d5;
+  --ht-tag: #efece3;
+  --ht-tag-fg: #22231f;
+  --ht-raised: 2px 2px 0 #22231f;
+  --ht-pressed: 2px 2px 0 #22231f inset;
+  --hm-hover: rgba(34, 35, 31, .06);
+  --hm-panel: #ddd8c9;
+}

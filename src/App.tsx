@@ -86,7 +86,12 @@ export default function App() {
     return () => window.removeEventListener('message', onMsg)
   }, [])
   const [settingsOpen, setSettingsOpen] = useState(false)
-  const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS)
+  const [settings, setSettings] = useState<Settings>(() => {
+    const saved = typeof localStorage === 'undefined' ? null : localStorage.getItem('fengmotion:theme')
+    return saved === 'dark' || saved === 'light' || saved === 'tactile'
+      ? { ...DEFAULT_SETTINGS, theme: saved }
+      : DEFAULT_SETTINGS
+  })
   const chat = useChat()
 
   /** 切视图**不清**项目上下文：项目管理组的子视图（素材/脚本/音频/渲染）都挂在
@@ -102,10 +107,11 @@ export default function App() {
    *    首页纸片样式挂在 `body.homeon` 下。不加这两个类，布局会塌。
    */
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', 'dark')
+    document.documentElement.setAttribute('data-theme', settings.theme)
+    try { localStorage.setItem('fengmotion:theme', settings.theme) } catch { /* local-only */ }
     document.body.classList.add('studio-shell')   // 本产品所有视图都在 shell 内
     document.body.classList.toggle('flowon', view === 'production')
-  }, [view])
+  }, [view, settings.theme])
 
   /** 制作工作台：必须有当前项目（列表已归项目管理，这里不再兼当目录） */
   const isFlow = view === 'production' && current !== null
@@ -153,7 +159,12 @@ export default function App() {
 
           <SidebarNav current={view as ViewId} onNavigate={(id) => go(id)} />
 
-          <SidebarFooter onOpenSettings={() => setSettingsOpen(true)} />
+          <SidebarFooter onOpenSettings={() => setSettingsOpen(true)} theme={settings.theme}
+                       onThemeChange={(theme) => {
+                         document.documentElement.classList.add('theme-switching')
+                         setSettings((prev) => ({ ...prev, theme }))
+                         window.setTimeout(() => document.documentElement.classList.remove('theme-switching'), 320)
+                       }} />
         </aside>
 
         {/* 项目列表（一级）—— 「列表 → 项目 → 子视图」的第一层 */}

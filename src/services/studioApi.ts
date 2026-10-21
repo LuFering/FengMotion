@@ -19,6 +19,7 @@ export interface ModificationConstraints {
  * 不让模型从「这里/这段」猜位置。
  */
 export type AgentReference =
+  | { id: string; role: 'target' | 'context'; kind: 'project'; projectId: string; label: string }
   | { id: string; role: 'target' | 'context'; kind: 'shot'; shotId: string; label: string }
   | { id: string; role: 'target' | 'context'; kind: 'frame'; shotId: string; frame: number; timecode: string; label: string; snapshotId?: string }
   | { id: string; role: 'target' | 'context'; kind: 'range'; shotId: string; startFrame: number; endFrame: number; timecode: string; label: string }

@@ -63,12 +63,12 @@ export function RemotionEditPanel({ settings, savedAt, isOverridden, onApply, on
       <div className="flex flex-col gap-3 p-3.5">
         <div className="flex items-center gap-2">
           <SlidersHorizontal className="size-3.5 text-acc" />
-          <div className="fw-scene-hd" style={{ margin: 0 }}>Remotion 参数</div>
+          <div className="fw-scene-hd" style={{ margin: 0 }}>Remotion 参数 <span className="fw-count">样例</span></div>
           <span className="spacer" />
           <button className="iconbtn" type="button" title="退出编辑" onClick={onClose}><X className="size-3.5" /></button>
         </div>
         <div className="text-[10.5px] leading-relaxed text-dim">
-          当前预览是真实的 Remotion composition。参数写入本地 shot override，不伪造服务端保存。
+          当前预览是真实的 Remotion composition，但只覆盖“场景封面 + 标题层”的样例参数；不是能修改任意成片的通用编辑器。参数写入本地 override，不伪造服务端保存。
         </div>
         <div className="flex items-center gap-2 text-[10.5px] text-dim">
           <span>{savedAt ? `本地已保存 · ${savedAt}` : '本地保存不可用'}</span>

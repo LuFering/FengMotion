@@ -5,12 +5,11 @@ import { ACTIVE_DURATION, FILM_FPS } from '@/data/timeline'
 /**
  * 场景时间线 —— 本产品特有的控件（paba 没有）。
  *
- * ⚠️ 但**规格沿用工作台那套**（.tl-* 见 workbench.css）：
- *      头 30px / 片段 8px 圆角 --hole 底 / 悬停变强调边 / 播放头强调色
- *    不用 shadcn，不用 Tailwind 拼视觉 —— 只留布局工具类。
- *
  * ⚠️ 本组件在 Remotion Player **之外**渲染，
  *    所以播放头是 prop 传进来的 —— 绝不能在这里调 useCurrentFrame()。
+ *
+ * A2 云端岛屿 V3：轨道 32px、片段块按时长比例 + 3px 间隙、
+ * 选中块强调描边、播放头 2.5px + 三角 + 光晕、5 个等分刻度、缩放 1×–4×。
  */
 export function StoryTimeline({
   selectedId, onSelect, activeFrame, onSeek,
@@ -22,48 +21,45 @@ export function StoryTimeline({
 }) {
   const [scale, setScale] = useState(1)
   const [showDraft, setShowDraft] = useState(false)
-  const width = Math.max(1000, 1400 * scale)
   const totalSeconds = ACTIVE_DURATION
   const selected = ACTIVE_SCENES.find((s) => s.id === selectedId)
   const playhead = Math.min((activeFrame / FILM_FPS) / totalSeconds * 100, 100)
+  const ticks = Array.from({ length: 5 }, (_, i) => totalSeconds * i / 4)
+
+  const formatTick = (seconds: number) => {
+    const m = Math.floor(seconds / 60)
+    const s = Math.floor(seconds % 60)
+    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+  }
+
+  const seekAt = (event: React.MouseEvent<HTMLElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect()
+    const ratio = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width))
+    onSeek(Math.round(ratio * totalSeconds * FILM_FPS))
+  }
 
   return (
-    <div className="flex h-full flex-col bg-surf">
-      {/* 头：paba .fw-toolbar 规格的压缩版 */}
+    <div className="flex h-full flex-col">
       <div className="tl-head">
-        <b>场景时间线</b>
-        <button className="mini" type="button"
+        <span className="wb-sec">时间线</span>
+        <button className="tl-plan-toggle" type="button"
                 aria-pressed={showDraft}
                 onClick={() => setShowDraft((v) => !v)}>
-          {showDraft ? '隐藏 V3 分段' : '显示 V3 分段'}
+          {showDraft ? '隐藏计划段' : '计划段'}
         </button>
-        <span className="spacer" />
-        <span className="num">旧版剪辑 · {totalSeconds.toFixed(1)}s</span>
-        <div className="fw-zoom">
-          <button type="button" disabled={scale <= 0.7} title="缩小"
-                  onClick={() => setScale((s) => Math.max(0.7, s - 0.15))}>−</button>
-          <button type="button" disabled={scale >= 2.2} title="放大"
-                  onClick={() => setScale((s) => Math.min(2.2, s + 0.15))}>+</button>
+        {showDraft && <span className="tl-plan-note">计划段仅作结构参考</span>}
+        <span className="wb-spacer" />
+        {selected && <span className="tl-selected">{selected.id.toUpperCase()} · {selected.title}</span>}
+        <div className="wb-zoom">
+          <button type="button" disabled={scale <= 1} title="缩小" onClick={() => setScale((s) => Math.max(1, s - 0.5))}>−</button>
+          <span className="num">{scale.toFixed(1)}×</span>
+          <button type="button" disabled={scale >= 4} title="放大" onClick={() => setScale((s) => Math.min(4, s + 0.5))}>+</button>
         </div>
       </div>
 
       <div className="tl-body">
-        <div style={{ width, position: 'relative' }}>
-          {/* 刻度尺 */}
-          <div className="tl-ruler">
-            {Array.from({ length: 16 }, (_, i) => (
-              <span key={i} style={{ left: `${(i * 10 / totalSeconds) * 100}%` }}>
-                {`${String(Math.floor(i / 6)).padStart(2, '0')}:${String(i % 6 * 10).padStart(2, '0')}`}
-              </span>
-            ))}
-          </div>
-
-          {/* 片段轨 */}
-          <div className="tl-track">
-            {/* 已播区：从 0 到播放头铺一条半透明带（一眼看到"演到哪了"） */}
-            <div className="tl-played" style={{ width: `${playhead}%` }} aria-hidden="true" />
-            {/* 未播区压暗：已播/未播的差别比"给已播染一点蓝"更看得出来 */}
-            <div className="tl-future" style={{ left: `${playhead}%` }} aria-hidden="true" />
+        <div className="tl-canvas" style={{ width: `${scale * 100}%` }}>
+          <div className="tl-track" onClick={(e) => { if (!(e.target as HTMLElement).closest('.tl-clip')) seekAt(e) }}>
             {ACTIVE_SCENES.map((clip) => {
               const sel = clip.id === selectedId
               return (
@@ -72,42 +68,17 @@ export function StoryTimeline({
                         aria-current={sel ? 'true' : undefined}
                         title={`${clip.id} · ${clip.title} · ${clip.start.toFixed(1)}–${(clip.start + clip.duration).toFixed(1)}s`}
                         onClick={() => onSelect(clip.id, clip.storyboardId)}
-                        style={{
-                          left: `${clip.start / totalSeconds * 100}%`,
-                          width: `${Math.max(clip.duration / totalSeconds * 100, .7)}%`,
-                        }}>
-                  {clip.frame && <img src={clip.frame} alt="" loading="lazy" />}
-                  <i>{clip.id}</i>
+                        style={{ flexGrow: clip.duration, flexBasis: 0 }}>
+                  {clip.frame && <img className="tl-clip-thumb" src={clip.frame} alt="" loading="lazy" />}
+                  <span>{clip.id.slice(1)}</span>
                 </button>
               )
             })}
-            <div className="tl-playhead" style={{ left: `${playhead}%` }} />
+            <div className="tl-playhead" style={{ left: `${playhead}%` }} aria-hidden="true" />
           </div>
-
-          {/* 拖动层：整条可点可拖 */}
-          <button
-            type="button"
-            aria-label="拖动播放头"
-            className="absolute inset-x-2 top-0 h-full cursor-ew-resize opacity-0"
-            onClick={(e) => {
-              const rect = e.currentTarget.getBoundingClientRect()
-              onSeek(Math.round(((e.clientX - rect.left) / rect.width) * totalSeconds * FILM_FPS))
-            }}
-          />
-
-          {showDraft && (
-            <div className="tl-note">
-              V3 分段共 72 个正式段 + 19b 插段，目标 273.6s；当前未映射成完整剪辑，故不叠加到 152s 播放时间线上。
-            </div>
-          )}
-          {selected && (
-            <div className="tl-meta">
-              <span>{selected.id} · {selected.title}</span>
-              <span className="num">
-                {selected.start.toFixed(2)}—{(selected.start + selected.duration).toFixed(2)}s · track {selected.track}
-              </span>
-            </div>
-          )}
+          <div className="wb-scale num">
+            {ticks.map((tick) => <span key={tick}>{formatTick(tick)}</span>)}
+          </div>
         </div>
       </div>
     </div>

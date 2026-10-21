@@ -9,7 +9,10 @@ import { useEffect, useRef, useState } from 'react'
 
 export type HarnessId = 'claude' | 'codex' | 'hermes' | 'custom'
 
+export type ThemeId = 'dark' | 'light' | 'tactile'
+
 export interface Settings {
+  theme: ThemeId
   harness: HarnessId
   harnessEndpoint: string
   model: string
@@ -19,6 +22,7 @@ export interface Settings {
 }
 
 export const DEFAULT_SETTINGS: Settings = {
+  theme: 'dark',
   harness: 'claude',
   harnessEndpoint: 'http://127.0.0.1:8788/v1',
   model: 'deepseek-v4.1-flash',
@@ -68,7 +72,7 @@ export function SettingsDialog({
 
   return (
     <dialog ref={ref} className="delete-dialog" id="settings-dialog"
-            aria-label="设置" onClose={onClose}
+            aria-label="设置"
             onCancel={(e) => { e.preventDefault(); onClose() }}>
       <div className="delete-dialog-heading">
         <span className="delete-dialog-icon" style={{ background: 'color-mix(in srgb, var(--acc) 12%, var(--surf))', color: 'var(--acc)' }}>

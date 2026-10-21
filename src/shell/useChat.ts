@@ -14,7 +14,7 @@ const INITIAL_MESSAGES: ChatMessage[] = [
   {
     id: 'intro',
     role: 'ai',
-    text: '预览播放的是项目里已有的 152 秒旧版成片。Agent 尚未连接；演示模式可以模拟请求状态，但不会改代码或生成新画面。',
+    text: '预览来自项目当前可播放来源。Agent 尚未连接；演示模式可以模拟请求状态，但不会改代码或生成新画面。',
   },
 ]
 

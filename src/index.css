@@ -4,7 +4,6 @@
 @import "./styles/settings.css";
 @import "./styles/brand.css";
 @import "./styles/fm-components.css";
-@import "./styles/home.css";
 @import "./styles/workbench.css";
 @import "./styles/project.css";
 @import "./styles/center.css";
@@ -16,6 +15,7 @@
 @import "./styles/technique.css";
 @import "./styles/reference.css";
 @import "./styles/reference-empty.css";
+@import "./styles/workbench-a2.css";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";

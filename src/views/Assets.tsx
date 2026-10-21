@@ -10,7 +10,7 @@ import {
 } from '@/services/assetService'
 
 /**
- * 我的素材 —— 原生多媒体素材管理器（不再用 iframe 复刻页）。
+ * 我的素材 —— 原生多媒体素材管理器。
  *
  * 职责：管理**真实文件**的索引与元数据 —— 用户导入的文件、工作流输入与生成结果；
  * 不负责镜头分析（参考片库），不负责技法定义（特效库）。
@@ -20,6 +20,10 @@ import {
  *     本体存 IndexedDB，刷新/重启仍在；「落盘到系统目录」未接入（不承诺）。
  *   · 授权（licenseStatus）与审核（reviewStatus）分离；未确认授权一律 unknown。
  *   · 删除前检查引用；被项目引用的素材给出警告。批量操作全部真实生效。
+ *
+ * 视觉：A2 云端岛屿 V3（三层浮岛）。基岛 = 顶栏/状态栏，中岛 = 左素材栏/右检查器，
+ * 主岛 = 素材画布。全部颜色/圆角/阴影/动效来自 myassets.css 的 V3 token；
+ * 本文件不写任何色值。字号只用 13 / 12.5 / 11.5 / 11 / 10.5，数字一律等宽。
  */
 
 function Icon({ name, className = 'ui-icon' }: { name: string; className?: string }) {
@@ -30,11 +34,72 @@ function Icon({ name, className = 'ui-icon' }: { name: string; className?: strin
   )
 }
 
-type NodeId = 'all' | 'favorites' | 'recent' | 'project' | 'imported' | 'generated' | 'builtin' | `type:${MediaType}` | `folder:${string}`
+type NodeId = 'all' | 'favorites' | 'recent' | 'project' | 'imported' | 'generated' | 'builtin'
+  | 'review:pending' | 'review:needs_review' | 'license:unknown' | 'license:restricted'
+  | `type:${MediaType}` | `folder:${string}`
 type SortKey = 'recent' | 'used' | 'name' | 'size' | 'duration'
+type TreeEntry = { id: NodeId; label: string; icon: string; count: number }
 
 const SORT_LABEL: Record<SortKey, string> = {
   recent: '最近导入', used: '最近使用', name: '名称', size: '大小', duration: '时长',
+}
+
+const TYPE_IDS: MediaType[] = ['image', 'video', 'audio', 'font', 'doc']
+
+/** 当前分类的中文名（顶栏 / 左栏 / 命令条共用） */
+function nodeLabel(id: NodeId, folders: FolderRow[]): string {
+  if (id.startsWith('type:')) return MEDIA_LABEL[id.slice(5) as MediaType]
+  if (id.startsWith('folder:')) return folders.find((f) => f.id === id.slice(7))?.name ?? '文件夹'
+  switch (id) {
+    case 'favorites': return '收藏'
+    case 'recent': return '最近使用'
+    case 'project': return '本项目素材'
+    case 'imported': return '导入素材'
+    case 'generated': return '生成结果'
+    case 'builtin': return '内置素材'
+    case 'review:pending': return '待审核'
+    case 'review:needs_review': return '需复核'
+    case 'license:unknown': return '授权未知'
+    case 'license:restricted': return '限制使用'
+    default: return '全部素材'
+  }
+}
+
+/**
+ * 网格里只显示「需要有人处理」的异常状态。
+ * 待审核是生成结果的默认状态，不逐格重复；它在列表审核列、右栏和状态栏里可见。
+ */
+function assetFlag(a: MyAsset): { label: string; tone: 'warn' | 'bad' } | null {
+  if (a.licenseStatus === 'restricted') return { label: LICENSE_LABEL.restricted, tone: 'bad' }
+  if (a.licenseStatus === 'unknown') return { label: LICENSE_LABEL.unknown, tone: 'warn' }
+  if (a.reviewStatus === 'needs_review') return { label: REVIEW_LABEL.needs_review, tone: 'warn' }
+  if (a.licenseStatus === 'attribution_required') return { label: LICENSE_LABEL.attribution_required, tone: 'warn' }
+  return null
+}
+
+/** 卡片第二行：媒体属性优先（时长 / 尺寸），来源留给列表和右栏 */
+function cardSpec(a: MyAsset): string {
+  if (a.mediaType === 'video') {
+    return [a.duration != null ? formatDur(a.duration) : null,
+            a.width != null ? `${a.width}×${a.height}` : null].filter(Boolean).join(' · ')
+  }
+  if (a.mediaType === 'audio') return a.duration != null ? `音频 · ${formatDur(a.duration)}` : '音频'
+  if (a.mediaType === 'image') {
+    return [a.width != null ? `${a.width}×${a.height}` : null, formatBytes(a.sizeBytes)]
+      .filter(Boolean).join(' · ')
+  }
+  return `${MEDIA_LABEL[a.mediaType]} · ${formatBytes(a.sizeBytes)}`
+}
+
+function listSpec(a: MyAsset): string {
+  if (a.mediaType === 'video' || a.mediaType === 'audio') return formatDur(a.duration)
+  if (a.width != null && a.height != null) return `${a.width}×${a.height}`
+  return '—'
+}
+
+function fullMeta(a: MyAsset): string {
+  const dims = a.width != null ? ` · ${a.width}×${a.height}` : ''
+  return `${a.name}\n${SOURCE_LABEL[a.sourceType]} · ${formatBytes(a.sizeBytes)}${dims}\n授权：${LICENSE_LABEL[a.licenseStatus]} · 审核：${REVIEW_LABEL[a.reviewStatus]}`
 }
 
 interface QueueRow extends ImportEvent { file: File }
@@ -55,7 +120,9 @@ export function Assets({ projectName }: { projectName?: string } = {}) {
   const [renaming, setRenaming] = useState<MyAsset | null>(null)
   const [renameText, setRenameText] = useState('')
   const [tagText, setTagText] = useState('')
+  const [filterOverflow, setFilterOverflow] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
+  const filtersRef = useRef<HTMLDivElement>(null)
   const dragDepth = useRef(0)
 
   // ── 加载 ──
@@ -94,6 +161,29 @@ export function Assets({ projectName }: { projectName?: string } = {}) {
     return () => { alive = false }
   }, [assets])
 
+  // Esc 关闭详情 / 重命名（输入框自己也会处理）
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      setDetailId(null)
+      setRenaming(null)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
+  // 筛选条溢出时才显示“查看更多”与渐隐，避免在 1920 下无谓出现
+  useEffect(() => {
+    const el = filtersRef.current
+    if (!el) return
+    const check = () => setFilterOverflow(el.scrollWidth > el.clientWidth + 1)
+    check()
+    const ro = new ResizeObserver(check)
+    ro.observe(el)
+    window.addEventListener('resize', check)
+    return () => { ro.disconnect(); window.removeEventListener('resize', check) }
+  }, [assets, folders, search, node])
+
   const detail = useMemo(() => assets.find((a) => a.id === detailId) ?? null, [assets, detailId])
 
   // ── 可见集合（统计/筛选共用同一份）──
@@ -106,6 +196,10 @@ export function Assets({ projectName }: { projectName?: string } = {}) {
       if (node === 'imported') return a.sourceType === 'imported'
       if (node === 'generated') return a.sourceType === 'generated'
       if (node === 'builtin') return a.sourceType === 'builtin'
+      if (node === 'review:pending') return a.reviewStatus === 'pending'
+      if (node === 'review:needs_review') return a.reviewStatus === 'needs_review'
+      if (node === 'license:unknown') return a.licenseStatus === 'unknown'
+      if (node === 'license:restricted') return a.licenseStatus === 'restricted'
       if (node.startsWith('type:')) return a.mediaType === node.slice(5)
       if (node.startsWith('folder:')) return a.folderId === node.slice(7)
       return true
@@ -136,6 +230,10 @@ export function Assets({ projectName }: { projectName?: string } = {}) {
     generated: assets.filter((a) => a.sourceType === 'generated').length,
     builtin: assets.filter((a) => a.sourceType === 'builtin').length,
     project: assets.filter((a) => !!projectName && a.refs.some((r) => r.kind === 'project' && r.label === projectName)).length,
+    pending: assets.filter((a) => a.reviewStatus === 'pending').length,
+    needsReview: assets.filter((a) => a.reviewStatus === 'needs_review').length,
+    licenseUnknown: assets.filter((a) => a.licenseStatus === 'unknown').length,
+    restricted: assets.filter((a) => a.licenseStatus === 'restricted').length,
     type: (t: MediaType) => assets.filter((a) => a.mediaType === t).length,
     folder: (id: string) => assets.filter((a) => a.folderId === id).length,
   }), [assets, projectName])
@@ -254,8 +352,10 @@ export function Assets({ projectName }: { projectName?: string } = {}) {
     setSelected((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n })
   }
 
+  const clearFilter = () => { setNode('all'); setSearch('') }
+
   // ── 渲染 ──
-  const TREE: { id: NodeId; label: string; icon: string; count: number }[] = [
+  const TREE: TreeEntry[] = [
     { id: 'all', label: '全部素材', icon: 'layout-grid', count: counts.all },
     ...(projectName ? [{ id: 'project' as NodeId, label: '本项目素材', icon: 'folder-open', count: counts.project }] : []),
     { id: 'favorites', label: '收藏', icon: 'star', count: counts.favorites },
@@ -264,92 +364,129 @@ export function Assets({ projectName }: { projectName?: string } = {}) {
     { id: 'generated', label: '生成结果', icon: 'sparkles', count: counts.generated },
     { id: 'builtin', label: '内置素材', icon: 'box', count: counts.builtin },
   ]
-  const TYPE_IDS: MediaType[] = ['image', 'video', 'audio', 'font', 'doc']
+  const coreNodes = TREE.filter((t) => t.id === 'all' || t.id === 'project' || t.id === 'favorites' || t.id === 'recent')
+  const sourceNodes = TREE.filter((t) => t.id === 'imported' || t.id === 'generated' || t.id === 'builtin')
+  const typeNodes: TreeEntry[] = TYPE_IDS.map((t) => ({
+    id: `type:${t}`, label: MEDIA_LABEL[t], icon: MEDIA_ICON[t], count: counts.type(t),
+  }))
+  const reviewNodes: TreeEntry[] = [
+    { id: 'review:pending', label: '待审核', icon: 'loader-circle', count: counts.pending },
+    { id: 'review:needs_review', label: '需复核', icon: 'circle-alert', count: counts.needsReview },
+    { id: 'license:unknown', label: '授权未知', icon: 'circle-help', count: counts.licenseUnknown },
+    { id: 'license:restricted', label: '限制使用', icon: 'lock-keyhole', count: counts.restricted },
+  ]
+  const activeLabel = nodeLabel(node, folders)
+
+  const renderChip = (t: TreeEntry) => (
+    <button key={t.id} type="button" className="mya-chip" data-on={node === t.id || undefined}
+            aria-pressed={node === t.id}
+            onClick={() => setNode(t.id)}>
+      <span>{t.label}</span><em>{t.count}</em>
+    </button>
+  )
 
   return (
     <div className="mya">
-      <header className="mya-head">
-        <div className="mya-head-copy">
-          <span className="mya-eyebrow">FENGMOTION / MEDIA</span>
-          <h2>我的素材</h2>
-          <p>管理导入素材、生成结果和创作文件 —— 文件本体存本地索引，刷新后仍在</p>
-        </div>
-        <div className="mya-head-acts">
-          <label className="mya-search">
-            <Icon name="search" />
-            <input value={search} onChange={(e) => setSearch(e.target.value)}
-                   placeholder="搜索文件名、标签、来源…" />
-            {search && <button type="button" className="mya-search-x" onClick={() => setSearch('')} title="清除搜索"><Icon name="x" /></button>}
-          </label>
-          <button type="button" className="mya-import" onClick={() => inputRef.current?.click()}>
-            <Icon name="import" /> 导入素材
+      <header className="mya-cmd">
+        <span className="mya-logo"><Icon name="image" /></span>
+        <h1 className="mya-title">我的素材</h1>
+        <span className="mya-meta">{projectName ? `${projectName} · ` : ''}{assets.length} 项</span>
+        <span className="mya-spacer" />
+        <label className="mya-search">
+          <Icon name="search" />
+          <input value={search} onChange={(e) => setSearch(e.target.value)}
+                 placeholder="搜索名称、标签、来源" aria-label="搜索素材" />
+          {search && <button type="button" className="mya-search-x" onClick={() => setSearch('')} title="清除搜索" aria-label="清除搜索"><Icon name="x" /></button>}
+        </label>
+        <div className="mya-seg" role="group" aria-label="视图模式">
+          <button type="button" className={viewMode === 'grid' ? 'on' : undefined}
+                  aria-pressed={viewMode === 'grid'} onClick={() => setViewMode('grid')}>
+            <Icon name="layout-grid" />网格
           </button>
-          <input ref={inputRef} type="file" multiple hidden onChange={onPick} />
+          <button type="button" className={viewMode === 'list' ? 'on' : undefined}
+                  aria-pressed={viewMode === 'list'} onClick={() => setViewMode('list')}>
+            <Icon name="list" />列表
+          </button>
         </div>
+        <button type="button" className="mya-primary" onClick={() => inputRef.current?.click()}>
+          <Icon name="import" />导入素材
+        </button>
+        <input ref={inputRef} type="file" multiple hidden onChange={onPick} />
       </header>
 
-      <div className="mya-body">
-        <aside className="mya-tree">
-          <div className="mya-tree-group">
-            {TREE.map((t) => (
-              <button key={t.id} type="button" className="mya-node" data-on={node === t.id || undefined}
-                      onClick={() => setNode(t.id)}>
-                <Icon name={t.icon} /><span className="mya-node-label">{t.label}</span>
-                <span className="mya-node-count">{t.count}</span>
-              </button>
-            ))}
+      <div className="mya-filterbar">
+        {selected.size > 0 ? (
+          <div className="mya-batch" role="region" aria-label="批量操作">
+            <span className="mya-batch-n">已选 {selected.size} 项</span>
+            <button type="button" onClick={() => setSelected(new Set(visible.map((a) => a.id)))}>全选当前</button>
+            <button type="button" onClick={() => setSelected(new Set())}>清除选择</button>
+            <span className="mya-batch-sep" />
+            <button type="button" onClick={() => { for (const a of assets) if (selected.has(a.id) && !a.tags.includes('★')) toggleFav(a) }}>收藏</button>
+            <button type="button" onClick={() => { const t = window.prompt('给选中素材添加标签'); if (t?.trim()) { for (const a of assets) if (selected.has(a.id)) applyPatch(a.id, { tags: [...new Set([...a.tags, t.trim()])] }) } }}>加标签</button>
+            <button type="button" onClick={() => { const f = window.prompt('移动到文件夹（输入名称，留空=移出）'); if (f === null) return; const target = f.trim() ? folders.find((x) => x.name === f.trim()) ?? null : null; if (f.trim() && !target) { window.alert('没有这个文件夹，先在左侧新建'); return } moveToFolder([...selected], target?.id ?? null) }}>移动</button>
+            <button type="button" onClick={() => exportList([...selected])}>导出清单</button>
+            <button type="button" className="mya-danger" onClick={() => doDelete([...selected])}>删除</button>
           </div>
-          <div className="mya-tree-group">
-            <div className="mya-tree-title">类型</div>
-            {TYPE_IDS.map((t) => (
-              <button key={t} type="button" className="mya-node" data-on={node === `type:${t}` || undefined}
-                      onClick={() => setNode(`type:${t}`)}>
-                <Icon name={MEDIA_ICON[t]} /><span className="mya-node-label">{MEDIA_LABEL[t]}</span>
-                <span className="mya-node-count">{counts.type(t)}</span>
-              </button>
-            ))}
-          </div>
-          <div className="mya-tree-group">
-            <div className="mya-tree-title">文件夹 <button type="button" className="mya-folder-add" onClick={addFolder} title="新建文件夹"><Icon name="folder-plus" /></button></div>
-            {folders.map((f) => (
-              <button key={f.id} type="button" className="mya-node" data-on={node === `folder:${f.id}` || undefined}
-                      onClick={() => setNode(`folder:${f.id}`)}>
-                <Icon name="folder-open" /><span className="mya-node-label">{f.name}</span>
-                <span className="mya-node-count">{counts.folder(f.id)}</span>
-              </button>
-            ))}
-            {folders.length === 0 && <p className="mya-tree-empty">还没有文件夹</p>}
-          </div>
-        </aside>
-
-        <main className="mya-center">
-          <div className="mya-toolbar">
-            <label className="mya-sort">
-              排序
-              <select value={sortKey} onChange={(e) => setSortKey(e.target.value as SortKey)}>
-                {(Object.keys(SORT_LABEL) as SortKey[]).map((k) => <option key={k} value={k}>{SORT_LABEL[k]}</option>)}
-              </select>
-            </label>
-            <span className="mya-count">{visible.length} 项</span>
-            <span className="mya-spacer" />
-            <button type="button" className="mya-tool" data-on={viewMode === 'grid' || undefined} onClick={() => setViewMode('grid')} title="网格视图"><Icon name="layout-grid" /></button>
-            <button type="button" className="mya-tool" data-on={viewMode === 'list' || undefined} onClick={() => setViewMode('list')} title="列表视图"><Icon name="list" /></button>
-          </div>
-
-          {selected.size > 0 && (
-            <div className="mya-batch">
-              <span className="mya-batch-n">{selected.size} 项已选</span>
-              <button type="button" onClick={() => setSelected(new Set(visible.map((a) => a.id)))}>全选当前</button>
-              <button type="button" onClick={() => setSelected(new Set())}>清除选择</button>
-              <span className="mya-batch-sep" />
-              <button type="button" onClick={() => { for (const a of assets) if (selected.has(a.id) && !a.tags.includes('★')) toggleFav(a) }}>收藏</button>
-              <button type="button" onClick={() => { const t = window.prompt('给选中素材添加标签'); if (t?.trim()) { for (const a of assets) if (selected.has(a.id)) applyPatch(a.id, { tags: [...new Set([...a.tags, t.trim()])] }) } }}>加标签</button>
-              <button type="button" onClick={() => { const f = window.prompt('移动到文件夹（输入名称，留空=移出）'); if (f === null) return; const target = f.trim() ? folders.find((x) => x.name === f.trim()) ?? null : null; if (f.trim() && !target) { window.alert('没有这个文件夹，先在左侧新建'); return } moveToFolder([...selected], target?.id ?? null) }}>移动</button>
-              <button type="button" onClick={() => exportList([...selected])}>导出清单</button>
-              <button type="button" className="mya-danger" onClick={() => doDelete([...selected])}>删除</button>
+        ) : (
+          <>
+            <div className="mya-filters" ref={filtersRef} data-more={filterOverflow || undefined} role="toolbar" aria-label="素材筛选">
+              <span className="mya-filter-label">库</span>
+              {coreNodes.map(renderChip)}
+              <span className="mya-filter-group">
+                <span className="mya-filter-label">来源</span>
+                {sourceNodes.map(renderChip)}
+              </span>
+              <span className="mya-filter-group">
+                <span className="mya-filter-label">类型</span>
+                {typeNodes.map(renderChip)}
+              </span>
+              <span className="mya-filter-group">
+                <span className="mya-filter-label">审核</span>
+                {reviewNodes.map(renderChip)}
+              </span>
+              <span className="mya-filter-group">
+                <span className="mya-filter-label">文件夹</span>
+                {folders.map((f) => (
+                  <button key={f.id} type="button" className="mya-chip" data-on={node === `folder:${f.id}` || undefined}
+                          aria-pressed={node === `folder:${f.id}`}
+                          onClick={() => setNode(`folder:${f.id}`)}>
+                    <span>{f.name}</span><em>{counts.folder(f.id)}</em>
+                  </button>
+                ))}
+                <button type="button" className="mya-chip mya-chip-add" onClick={addFolder} title="新建文件夹" aria-label="新建文件夹">
+                  <Icon name="folder-plus" /><span>新建</span>
+                </button>
+              </span>
             </div>
-          )}
+            {filterOverflow && (
+              <button type="button" className="mya-filter-more"
+                      onClick={() => {
+                        const el = filtersRef.current
+                        if (!el) return
+                        const atEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 2
+                        if (atEnd) el.scrollTo({ left: 0, behavior: 'smooth' })
+                        else el.scrollBy({ left: 260, behavior: 'smooth' })
+                      }}
+                      title="查看更多筛选" aria-label="查看更多筛选">
+                <Icon name="chevron-right" />
+              </button>
+            )}
+            <div className="mya-filter-end">
+              <span className="mya-result-count">{activeLabel} · {visible.length} 项</span>
+              {(node !== 'all' || search) && <button type="button" className="mya-link" onClick={clearFilter}>清除筛选</button>}
+              <label className="mya-sort">
+                排序
+                <select value={sortKey} onChange={(e) => setSortKey(e.target.value as SortKey)} aria-label="排序方式">
+                  {(Object.keys(SORT_LABEL) as SortKey[]).map((k) => <option key={k} value={k}>{SORT_LABEL[k]}</option>)}
+                </select>
+              </label>
+            </div>
+          </>
+        )}
+      </div>
 
+      <main className="mya-canvas">
+        <div className="mya-scroll">
           {loading ? (
             <div className="mya-state"><span className="mya-spin" /> 正在读取本地素材索引…</div>
           ) : visible.length === 0 ? (
@@ -359,49 +496,57 @@ export function Assets({ projectName }: { projectName?: string } = {}) {
                 <>
                   <h3>素材库还是空的</h3>
                   <p>把图片、视频、音频、字体拖进来，或点右上角「导入素材」。<br />文件本体保存在本地索引，刷新后仍在。</p>
-                  <button type="button" className="mya-import" onClick={() => inputRef.current?.click()}><Icon name="import" /> 导入素材</button>
+                  <button type="button" className="mya-primary" onClick={() => inputRef.current?.click()}><Icon name="import" />导入素材</button>
                 </>
               ) : (
                 <>
                   <h3>没有符合当前筛选的素材</h3>
                   <p>换个分类，或清除搜索条件。</p>
-                  <button type="button" className="mya-tool" onClick={() => { setNode('all'); setSearch('') }}>清除筛选</button>
+                  <button type="button" className="mya-link" onClick={clearFilter}>清除筛选</button>
                 </>
               )}
             </div>
           ) : viewMode === 'grid' ? (
             <div className="mya-grid">
-              {visible.map((a) => (
-                <div key={a.id} className="mya-card" data-on={detailId === a.id || undefined}
-                     onClick={() => openDetail(a)}>
-                  <div className="mya-thumb">
-                    {thumbs[a.id]
-                      ? <img src={thumbs[a.id]} alt="" loading="lazy" />
-                      : <span className="mya-thumb-ph"><Icon name={MEDIA_ICON[a.mediaType]} /></span>}
-                    <span className="mya-badge">{MEDIA_LABEL[a.mediaType]}{a.duration != null ? ` · ${formatDur(a.duration)}` : ''}</span>
-                    <label className="mya-check" onClick={(e) => e.stopPropagation()}>
-                      <input type="checkbox" checked={selected.has(a.id)} onChange={() => toggleSelect(a.id)} />
-                    </label>
-                    <button type="button" className="mya-star" data-on={a.tags.includes('★') || undefined}
-                            onClick={(e) => { e.stopPropagation(); toggleFav(a) }} title="收藏">
-                      <Icon name="star" />
-                    </button>
-                  </div>
-                  <div className="mya-card-body">
-                    <div className="mya-card-name" title={a.name}>{a.name}</div>
-                    <div className="mya-card-meta">
-                      <span>{SOURCE_LABEL[a.sourceType]}</span>
-                      <span>·</span>
-                      <span>{formatBytes(a.sizeBytes)}</span>
-                      {a.width != null && <><span>·</span><span>{a.width}×{a.height}</span></>}
+              {visible.map((a) => {
+                const flag = assetFlag(a)
+                return (
+                  <div key={a.id} className="mya-card"
+                       data-on={detailId === a.id || undefined}
+                       data-picked={selected.has(a.id) || undefined}
+                       role="option" aria-selected={detailId === a.id} tabIndex={0}
+                       title={fullMeta(a)}
+                       onClick={() => openDetail(a)}
+                       onKeyDown={(e) => {
+                         if (e.target !== e.currentTarget) return
+                         if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDetail(a) }
+                       }}>
+                    <div className="mya-thumb">
+                      {thumbs[a.id]
+                        ? <img src={thumbs[a.id]} alt="" loading="lazy" />
+                        : <span className="mya-thumb-ph"><Icon name={MEDIA_ICON[a.mediaType]} /></span>}
+                      {a.duration != null && (a.mediaType === 'video' || a.mediaType === 'audio') &&
+                        <span className="mya-dur mono">{formatDur(a.duration)}</span>}
+                      <label className="mya-check" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+                        <input type="checkbox" checked={selected.has(a.id)} onChange={() => toggleSelect(a.id)}
+                               aria-label={`选择 ${a.name}`} />
+                      </label>
+                      <button type="button" className="mya-star" data-on={a.tags.includes('★') || undefined}
+                              aria-label={a.tags.includes('★') ? `取消收藏 ${a.name}` : `收藏 ${a.name}`}
+                              onClick={(e) => { e.stopPropagation(); toggleFav(a) }}>
+                        <Icon name="star" />
+                      </button>
                     </div>
-                    <div className="mya-card-foot">
-                      <span className="mya-lic" data-s={a.licenseStatus}>{LICENSE_LABEL[a.licenseStatus]}</span>
-                      <span className="mya-rev" data-s={a.reviewStatus}>{REVIEW_LABEL[a.reviewStatus]}</span>
+                    <div className="mya-card-body">
+                      <div className="mya-card-name">{a.name}</div>
+                      <div className="mya-card-meta">
+                        <span className="mya-card-spec mono">{cardSpec(a)}</span>
+                        {flag && <span className="mya-flag" data-tone={flag.tone}>{flag.label}</span>}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           ) : (
             <div className="mya-list">
@@ -409,67 +554,95 @@ export function Assets({ projectName }: { projectName?: string } = {}) {
                 <span className="mya-col-check" />
                 <span className="mya-col-name">名称</span>
                 <span className="mya-col-type">类型</span>
+                <span className="mya-col-dim">时长 / 尺寸</span>
                 <span className="mya-col-size">大小</span>
-                <span className="mya-col-dim">尺寸 / 时长</span>
                 <span className="mya-col-src">来源</span>
                 <span className="mya-col-lic">授权</span>
+                <span className="mya-col-rev">审核</span>
               </div>
               {visible.map((a) => (
-                <div key={a.id} className="mya-row" data-on={detailId === a.id || undefined} onClick={() => openDetail(a)}>
-                  <span className="mya-col-check" onClick={(e) => e.stopPropagation()}>
-                    <input type="checkbox" checked={selected.has(a.id)} onChange={() => toggleSelect(a.id)} />
+                <div key={a.id} className="mya-row"
+                     data-on={detailId === a.id || undefined}
+                     data-picked={selected.has(a.id) || undefined}
+                     role="option" aria-selected={detailId === a.id} tabIndex={0}
+                     onClick={() => openDetail(a)}
+                     onKeyDown={(e) => {
+                       if (e.target !== e.currentTarget) return
+                       if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDetail(a) }
+                     }}>
+                  <span className="mya-col-check" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+                    <input type="checkbox" checked={selected.has(a.id)} onChange={() => toggleSelect(a.id)}
+                           aria-label={`选择 ${a.name}`} />
                   </span>
                   <span className="mya-col-name">
-                    <span className="mya-row-ic"><Icon name={MEDIA_ICON[a.mediaType]} /></span>
+                    <span className="mya-row-thumb">
+                      {thumbs[a.id] ? <img src={thumbs[a.id]} alt="" loading="lazy" />
+                                    : <Icon name={MEDIA_ICON[a.mediaType]} />}
+                    </span>
                     <span className="mya-row-name" title={a.name}>{a.name}</span>
                     {a.tags.includes('★') && <Icon name="star" className="mya-row-star" />}
                   </span>
                   <span className="mya-col-type">{MEDIA_LABEL[a.mediaType]}</span>
-                  <span className="mya-col-size num">{formatBytes(a.sizeBytes)}</span>
-                  <span className="mya-col-dim num">{a.mediaType === 'video' || a.mediaType === 'audio' ? formatDur(a.duration) : a.width != null ? `${a.width}×${a.height}` : '—'}</span>
+                  <span className="mya-col-dim mono">{listSpec(a)}</span>
+                  <span className="mya-col-size mono">{formatBytes(a.sizeBytes)}</span>
                   <span className="mya-col-src">{SOURCE_LABEL[a.sourceType]}</span>
-                  <span className="mya-col-lic"><span className="mya-lic" data-s={a.licenseStatus}>{LICENSE_LABEL[a.licenseStatus]}</span></span>
+                  <span className="mya-col-lic"><span className="mya-status-pill" data-s={a.licenseStatus}>{LICENSE_LABEL[a.licenseStatus]}</span></span>
+                  <span className="mya-col-rev"><span className="mya-status-pill" data-s={a.reviewStatus}>{REVIEW_LABEL[a.reviewStatus]}</span></span>
                 </div>
               ))}
             </div>
           )}
-        </main>
+        </div>
+      </main>
 
-        {detail && (
-          <aside className="mya-drawer">
+      <div className="mya-status">
+        <span className="mya-pill"><i className="mya-dot" />就绪</span>
+        <span className="mya-pill">{assets.length} 项</span>
+        {selected.size > 0 && <span className="mya-pill">{selected.size} 已选</span>}
+        <span className="mya-pill">{counts.pending} 待审核</span>
+        <span className="mya-spacer" />
+        <span className="mya-status-note">本地索引 · 刷新后仍在</span>
+      </div>
+
+      {detail && (
+        <div className="mya-overlay" onClick={() => setDetailId(null)}>
+          <aside className="mya-drawer" role="dialog" aria-modal="true" aria-label="素材详情"
+                 onClick={(e) => e.stopPropagation()}>
             <div className="mya-drawer-head">
-              <span className="mya-drawer-title" title={detail.name}>{detail.name}</span>
-              <button type="button" className="mya-tool" onClick={() => setDetailId(null)} title="关闭"><Icon name="x" /></button>
-            </div>
-            <div className="mya-preview">
-              <Preview asset={detail} poster={thumbs[detail.id]} />
-            </div>
-            <div className="mya-drawer-acts">
-              <button type="button" onClick={() => { setRenaming(detail); setRenameText(detail.name) }}><Icon name="pencil" /> 重命名</button>
-              <button type="button" onClick={() => toggleFav(detail)} data-on={detail.tags.includes('★') || undefined}><Icon name="star" /> {detail.tags.includes('★') ? '已收藏' : '收藏'}</button>
-              <button type="button" onClick={() => void copyPath(detail)}><Icon name="copy" /> 复制路径</button>
-              <button type="button" className="mya-danger" onClick={() => doDelete([detail.id])}><Icon name="trash-2" /> 删除</button>
+              <div className="mya-drawer-title-wrap">
+                <span className="mya-drawer-title" title={detail.name}>{detail.name}</span>
+                <span className="mya-drawer-meta">{MEDIA_LABEL[detail.mediaType]} · {SOURCE_LABEL[detail.sourceType]}</span>
+              </div>
+              <button type="button" className="mya-iconbtn" onClick={() => setDetailId(null)} title="关闭详情" aria-label="关闭详情"><Icon name="x" /></button>
             </div>
 
-            <section className="mya-sec">
-              <h4>文件信息</h4>
-              <dl className="mya-kv">
-                <dt>类型</dt><dd>{MEDIA_LABEL[detail.mediaType]} · {detail.mimeType}</dd>
-                <dt>大小</dt><dd className="num">{formatBytes(detail.sizeBytes)}</dd>
-                {detail.width != null && <><dt>尺寸</dt><dd className="num">{detail.width} × {detail.height}</dd></>}
-                {detail.duration != null && <><dt>时长</dt><dd className="num">{formatDur(detail.duration)}</dd></>}
-                <dt>路径</dt><dd className="mya-mono">{detail.filePath}</dd>
-                <dt>导入时间</dt><dd className="num">{new Date(detail.createdAt).toLocaleString('zh-CN', { hour12: false })}</dd>
-                <dt>最近使用</dt><dd className="num">{detail.lastUsedAt ? new Date(detail.lastUsedAt).toLocaleString('zh-CN', { hour12: false }) : '—'}</dd>
-              </dl>
-            </section>
+            <div className="mya-drawer-body">
+              <div className="mya-preview">
+                <Preview asset={detail} poster={thumbs[detail.id]} />
+              </div>
 
-            <section className="mya-sec">
-              <h4>标签</h4>
+              <div className="mya-actrow">
+                <button type="button" onClick={() => { setRenaming(detail); setRenameText(detail.name) }}><Icon name="pencil" />重命名</button>
+                <button type="button" onClick={() => toggleFav(detail)} data-on={detail.tags.includes('★') || undefined}><Icon name="star" />{detail.tags.includes('★') ? '已收藏' : '收藏'}</button>
+                <button type="button" onClick={() => void copyPath(detail)}><Icon name="copy" />复制路径</button>
+                <button type="button" className="mya-danger" onClick={() => doDelete([detail.id])}><Icon name="trash-2" />删除</button>
+              </div>
+
+              <div className="mya-sec">文件</div>
+              <div className="mya-facts">
+                <div className="mya-fact mya-fact-wide"><span>类型</span><b title={`${MEDIA_LABEL[detail.mediaType]} · ${detail.mimeType}`}>{MEDIA_LABEL[detail.mediaType]} · {detail.mimeType}</b></div>
+                <div className="mya-fact"><span>大小</span><b className="mono">{formatBytes(detail.sizeBytes)}</b></div>
+                {detail.width != null && <div className="mya-fact"><span>尺寸</span><b className="mono">{detail.width} × {detail.height}</b></div>}
+                {detail.duration != null && <div className="mya-fact"><span>时长</span><b className="mono">{formatDur(detail.duration)}</b></div>}
+                <div className="mya-fact"><span>最近使用</span><b className="mono">{detail.lastUsedAt ? new Date(detail.lastUsedAt).toLocaleDateString('zh-CN') : '—'}</b></div>
+                <div className="mya-fact mya-fact-wide"><span>路径</span><b className="mono" title={detail.filePath}>{detail.filePath}</b></div>
+              </div>
+
+              <div className="mya-sec">标签</div>
               <div className="mya-tags">
                 {detail.tags.filter((t) => t !== '★').map((t) => (
                   <span key={t} className="mya-tag">{t}
-                    <button type="button" onClick={() => applyPatch(detail.id, { tags: detail.tags.filter((x) => x !== t) })} title="移除"><Icon name="x" /></button>
+                    <button type="button" onClick={() => applyPatch(detail.id, { tags: detail.tags.filter((x) => x !== t) })} title="移除" aria-label={`移除标签 ${t}`}><Icon name="x" /></button>
                   </span>
                 ))}
                 <input className="mya-tag-input" value={tagText} placeholder="+ 标签"
@@ -481,52 +654,51 @@ export function Assets({ projectName }: { projectName?: string } = {}) {
                          }
                        }} />
               </div>
-            </section>
 
-            <section className="mya-sec">
-              <h4>来源与授权</h4>
-              <dl className="mya-kv">
-                <dt>来源</dt><dd>{SOURCE_LABEL[detail.sourceType]}{detail.sourceType === 'imported' ? '（本次导入）' : ''}</dd>
-                <dt>授权</dt><dd>
-                  <select className="mya-select" value={detail.licenseStatus}
-                          onChange={(e) => applyPatch(detail.id, { licenseStatus: e.target.value as LicenseStatus })}>
-                    {(Object.keys(LICENSE_LABEL) as LicenseStatus[]).map((k) => <option key={k} value={k}>{LICENSE_LABEL[k]}</option>)}
-                  </select>
-                </dd>
-                <dt>审核</dt><dd>
-                  <select className="mya-select" value={detail.reviewStatus}
-                          onChange={(e) => applyPatch(detail.id, { reviewStatus: e.target.value as ReviewStatus })}>
-                    {(Object.keys(REVIEW_LABEL) as ReviewStatus[]).map((k) => <option key={k} value={k}>{REVIEW_LABEL[k]}</option>)}
-                  </select>
-                </dd>
-                {detail.licenseDetails && <><dt>备注</dt><dd className="mya-dim">{detail.licenseDetails}</dd></>}
-              </dl>
+              <div className="mya-sec">来源与授权</div>
+              <div className="mya-param">
+                <span className="mya-plabel">授权</span>
+                <select className="mya-select" value={detail.licenseStatus} aria-label="授权状态"
+                        onChange={(e) => applyPatch(detail.id, { licenseStatus: e.target.value as LicenseStatus })}>
+                  {(Object.keys(LICENSE_LABEL) as LicenseStatus[]).map((k) => <option key={k} value={k}>{LICENSE_LABEL[k]}</option>)}
+                </select>
+              </div>
+              <div className="mya-param">
+                <span className="mya-plabel">审核</span>
+                <select className="mya-select" value={detail.reviewStatus} aria-label="审核状态"
+                        onChange={(e) => applyPatch(detail.id, { reviewStatus: e.target.value as ReviewStatus })}>
+                  {(Object.keys(REVIEW_LABEL) as ReviewStatus[]).map((k) => <option key={k} value={k}>{REVIEW_LABEL[k]}</option>)}
+                </select>
+              </div>
+              {detail.licenseDetails && <p className="mya-detail-note">{detail.licenseDetails}</p>}
               <p className="mya-note">授权与审核相互独立：审核只改审核状态，不会替你推断授权。</p>
-            </section>
 
-            <section className="mya-sec">
-              <h4>引用</h4>
+              <div className="mya-sec">引用</div>
               {detail.refs.length ? (
-                <ul className="mya-refs">
+                <div className="mya-refs">
                   {detail.refs.map((r, i) => (
-                    <li key={i}><Icon name={r.kind === 'project' ? 'folder-open' : r.kind === 'workflow' ? 'workflow' : 'play'} /> {r.label}<span className="mya-dim">（{r.kind === 'project' ? '项目' : r.kind === 'workflow' ? '工作流' : '任务'}）</span></li>
+                    <div key={i} className="mya-ref">
+                      <Icon name={r.kind === 'project' ? 'folder-open' : r.kind === 'workflow' ? 'workflow' : 'play'} />
+                      <span>{r.label}</span>
+                      <em>{r.kind === 'project' ? '项目' : r.kind === 'workflow' ? '工作流' : '任务'}</em>
+                    </div>
                   ))}
-                </ul>
+                </div>
               ) : <p className="mya-dim">未被任何项目或工作流引用。</p>}
-            </section>
+            </div>
           </aside>
-        )}
-      </div>
+        </div>
+      )}
 
       {queue && (
         <div className="mya-queue">
           <div className="mya-queue-head">
             <span>导入队列</span>
-            <span className="mya-dim">
+            <span className="mya-queue-count">
               {queue.filter((r) => r.phase === 'done').length}/{queue.length} 完成
               {queue.some((r) => r.phase === 'error') && ` · ${queue.filter((r) => r.phase === 'error').length} 失败`}
             </span>
-            <button type="button" className="mya-tool" onClick={() => setQueue(null)} title="关闭"><Icon name="x" /></button>
+            <button type="button" className="mya-iconbtn" onClick={() => setQueue(null)} title="关闭" aria-label="关闭导入队列"><Icon name="x" /></button>
           </div>
           <div className="mya-queue-list">
             {queue.map((r, i) => (
@@ -565,7 +737,7 @@ export function Assets({ projectName }: { projectName?: string } = {}) {
                    onKeyDown={(e) => { if (e.key === 'Enter') doRename(); if (e.key === 'Escape') setRenaming(null) }} />
             <div className="mya-modal-acts">
               <button type="button" onClick={() => setRenaming(null)}>取消</button>
-              <button type="button" className="mya-import" onClick={doRename}>确定</button>
+              <button type="button" className="mya-primary" onClick={doRename}>确定</button>
             </div>
           </div>
         </div>
