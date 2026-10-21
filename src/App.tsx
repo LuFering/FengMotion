@@ -11,13 +11,9 @@ import { WorkbenchCatalog } from '@/views/WorkbenchCatalog'
 import { Assets } from '@/views/Assets'
 import { ProjectOverview, ProjectBar, PickProject } from '@/views/ProjectOverview'
 import { NewProjectDialog } from '@/shell/NewProjectDialog'
-import { ScriptVoice } from '@/views/ScriptVoice'
-import { AudioTime } from '@/views/AudioTime'
 import { RenderDelivery } from '@/views/RenderDelivery'
 import { FxLibrary } from '@/views/FxLibrary'
 import { RefLibrary } from '@/views/RefLibrary'
-import { KnowledgeSources } from '@/views/KnowledgeSources'
-import { RuleCases } from '@/views/RuleCases'
 import { WorkflowGallery } from '@/views/WorkflowGallery'
 import { TooltipProvider } from '@/components/ui/tooltip'
 
@@ -73,12 +69,11 @@ export default function App() {
   /** 当前项目 —— 项目管理组的每个视图都要它 */
   const current = projects.list.find((p) => p.id === openProject) ?? null
   const openList = () => { setOpenProject(null); setView('project') }
-  // 复刻页（项目指挥中心 / 时序校验）通过 postMessage 请求跨页导航
+  // 复刻页（项目指挥中心）通过 postMessage 请求跨页导航
   useEffect(() => {
     const onMsg = (e: MessageEvent) => {
       const d = e.data as { type?: string; id?: string } | null
       if (!d) return
-      if (d.type === 'fm-audio-back') { openList(); return } // 时序校验复刻页的返回键
       if (d.type !== 'fm-nav' || !d.id) return
       if (d.id === '__list') { openList(); return }
       if (d.id === '__home') { setView('home'); return }
@@ -96,7 +91,7 @@ export default function App() {
   })
   const chat = useChat()
 
-  /** 切视图**不清**项目上下文：项目管理组的子视图（素材/脚本/音频/渲染）都挂在
+  /** 切视图**不清**项目上下文：项目管理组的子视图（素材/交付）都挂在
       当前项目上；要回列表就走 openList()（项目条上的「全部项目」或总览的返回）。 */
   const go = (v: string) => setView(v as View)
   const toggleNav = () => document.body.classList.toggle('hm-nav-expanded')
@@ -119,10 +114,12 @@ export default function App() {
   const isFlow = view === 'production' && current !== null
   /** 项目列表：制作工作台没项目时、项目总览没项目时，都落到它 */
   const isCatalog = (view === 'production' || view === 'project') && current === null
-  /** 项目这一层：总览 / 四个子视图 */
+  /** 项目这一层：总览 / 子视图 */
   const isOverview = view === 'project' && current !== null
-  const SUB_VIEWS = ['assets', 'script', 'audio', 'render']
+  const SUB_VIEWS = ['assets', 'render']
   const isSub = SUB_VIEWS.includes(view as string)
+  /** 自带顶栏的页面：外壳不再渲染 .app-header（全幅复刻页 / 首页 / 渲染页顶上是项目条） */
+  const NO_APP_HEADER: View[] = ['home', 'project', 'assets', 'methods', 'knowledge', 'reference', 'render']
 
   return (
     <TooltipProvider delayDuration={300}>
@@ -212,8 +209,8 @@ export default function App() {
         {/* 其余视图 */}
         {!isFlow && !isCatalog && (
           <>
-            {/* 项目指挥中心 / 创作资产 / 时序校验 / 工作流广场：全幅复刻页，这层标题栏不渲染 */}
-            {view !== 'home' && view !== 'project' && view !== 'assets' && view !== 'audio' && view !== 'methods' && view !== 'knowledge' && view !== 'reference' && (
+            {/* 项目指挥中心 / 创作资产 / 工作流广场 / 交付：全幅页，这层标题栏不渲染 */}
+            {!NO_APP_HEADER.includes(view) && (
             <header className="app-header">
               <span className="logo">
                 <img src="/assets/brand/fengmotion-mark.png" alt="" width={22} height={22} />
@@ -229,27 +226,23 @@ export default function App() {
             <div id={`pane-${view}`} className="hm-main">
               <div className="hm-content" data-view={view}>
                 {/* 项目管理组的视图都挂在当前项目上：顶上先给一条项目条
-                    （创作资产 / 时序校验 = 全幅复刻页，无项目条） */}
-                {isSub && current && view !== 'assets' && view !== 'audio' && (
+                    （创作资产 = 全幅复刻页，无项目条） */}
+                {isSub && current && view !== 'assets' && (
                   <ProjectBar project={current} view={view}
                               onNav={(id) => go(id)} onBack={openList}
                               onOpenWorkbench={() => setView('production')} />
                 )}
-                {isSub && !current && view !== 'assets' && view !== 'audio' && (
+                {isSub && !current && view !== 'assets' && (
                   <PickProject onBack={openList} />
                 )}
-                {/* 创作资产 / 时序校验是例外：既可作为项目内的上下文视图，
+                {/* 创作资产是例外：既可作为项目内的上下文视图，
                     也可作为不带项目过滤的全局入口 */}
                 {isSub && view === 'assets' && <Assets projectName={current?.name} />}
-                {isSub && view === 'audio' && <AudioTime projectName={current?.name} />}
-                {isSub && current && view === 'script' && <ScriptVoice project={current} />}
                 {isSub && current && view === 'render' && (
                   <RenderDelivery project={current} tasks={tasks} />
                 )}
-                {view === 'sources' && <KnowledgeSources onOpen={go} />}
                 {view === 'knowledge' && <FxLibrary />}
                 {view === 'reference' && <RefLibrary />}
-                {view === 'rules' && <RuleCases />}
                 {view === 'methods' && <WorkflowGallery />}
               </div>
             </div>

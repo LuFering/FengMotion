@@ -16,13 +16,9 @@ export type ViewId =
   | 'production'
   | 'project'
   | 'assets'
-  | 'script'
-  | 'audio'
   | 'render'
   | 'knowledge'
-  | 'sources'
   | 'reference'
-  | 'rules'
   | 'methods'
 
 export interface NavLeaf {
@@ -65,12 +61,8 @@ export const VIEW_META: Record<ViewId, { title: string; hint: string }> = {
   production: { title: '制作工作台', hint: '场景列表 + 监看器 + AI 对话' },
   project:    { title: '我的创作', hint: '视频任务：正在制作、等待处理、已完成' },
   assets:     { title: '我的素材', hint: '自己的图片/视频/音频/生成文件，导入与复用' },
-  script:     { title: '内容编排', hint: '脚本段落、版本差异、时长与口播估算' },
-  audio:      { title: '时序校验', hint: '脚本与成片之间哪里对不上' },
   render:     { title: '发布与验收', hint: '能交付什么、缺什么、验收结果' },
-  sources:    { title: '资源接入', hint: '外部资源从哪进来、解析到哪一步、产物审没审' },
   knowledge:  { title: '特效库', hint: '特效/场景设计/转场/动画的实现方法，供工作流检索调用' },
   reference:  { title: '参考片库', hint: '参考视频的画面段、机位运动、节奏与风格知识' },
-  rules:      { title: '反馈与规则', hint: '纠错记录 → 规则候选 → 生效规则' },
   methods:    { title: '工作流', hint: '制作方案：步骤、节点、提示词与检查要求' },
 }

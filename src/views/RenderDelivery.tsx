@@ -7,8 +7,6 @@
  *
  * 复刻页当前是示范内容（QC Analyzer — Demo Project，8 个示例文件）；
  * 下一阶段「适应项目」再换成 FengMotion 真实渲染/交付数据，然后「修复交互」。
- * 旧的手写复刻实现备份在 src/views/RenderDelivery.legacy.tsx.bak（真实数据版，
- * 含云渲染未接入/文件大小不编造等边界处理——适应项目时从那里对照恢复数据边界）。
  */
 import type { ProjectSummary } from '@/data/projects'
 import type { TaskRecord } from '@/hooks/useAgentTasks'

@@ -83,18 +83,6 @@ html[data-theme=dark] body.studio-shell.studio-shell:is(.homeon, .toolson) {
   --ht-red:    #F0708C;
 }
 
-/* ── 主按钮：品牌蓝 ───────────────────────────────────────── */
-.hm-partner-submit:not(:disabled) {
-  background: var(--brand-blue);
-  border-color: var(--brand-blue);
-  color: #fff;
-}
-.hm-partner-submit:hover:not(:disabled) {
-  background: var(--brand-deep);
-  border-color: var(--brand-deep);
-}
-
-/* ── 品牌标记 ─────────────────────────────────────────────── */
 /* 品牌锁定：标记 24px 高，字标高 15px（大写字母高），
    两者**光学居中** —— 不是几何居中，字标要略高于中线才看着齐。 */
 .hm-brand-mark {
@@ -132,8 +120,6 @@ body:not(.hm-nav-expanded) .nav-parent[data-active],
   color: var(--brand-blue);
 }
 
-/* ── 灵感网格悬停箭头 ─────────────────────────────────────── */
-.hm-show-arrow { background: var(--brand-blue); color: #fff }
 /* ── 滚动条（深色主题统一处理）───────────────────────────────
    ⚠️ 白色竖条的根因：paba 的 `:root { color-scheme: light }` ——
       深色界面下浏览器仍按浅色画系统滚动条（镜头列表 / 时间轴那两根）。

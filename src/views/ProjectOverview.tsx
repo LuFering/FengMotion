@@ -8,7 +8,6 @@
  *
  * 数据边界：复刻页当前仍是其示范内容（Callour Studio / Key Scenes 及示例图）；
  * 下一阶段把其中数据换成 FengMotion 真实项目数据（UNITS / 分镜备注）。
- * 上一版（v1 移植 + 真实数据适配）备份在 ProjectOverview.legacy.tsx.bak。
  */
 import { PROJECT_SUBVIEWS, STAGE_LABEL, type ProjectSummary } from '@/data/projects'
 import type { TaskRecord } from '@/hooks/useAgentTasks'

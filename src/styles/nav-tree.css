@@ -1,12 +1,4 @@
-/* ═══════════════════════════════════════════════════════════════
-   可展开的导航树 —— paba 没有这一层。
 
-   paba 的导航是扁平的（一级项 + 静态分组标签）。
-   本产品改成：一级项可点击展开/收缩子项。
-
-   复用 paba 的视觉 token（--hm-hover / --acc / --hole / --line），
-   不引入新颜色。
-   ═══════════════════════════════════════════════════════════════ */
 
 /* ── 一级叶子（首页 / 制作工作台）─────────────────────────── */
 .nav-leaf,
@@ -255,13 +247,9 @@ body.studio-shell .hm-brand-word img {
 }
 
 /* FengMotion 字标三主题适配：浅色/触感转墨色 */
-html[data-theme="light"] .hm-brand-word img,
-html[data-theme="light"] .hm-mobile-brand img,
-html[data-theme="tactile"] .hm-brand-word img,
-html[data-theme="tactile"] .hm-mobile-brand img {
+html[data-theme="light"] .hm-brand-word img, html[data-theme="tactile"] .hm-brand-word img{
   filter: brightness(0);
 }
-html[data-theme="dark"] .hm-brand-word img,
-html[data-theme="dark"] .hm-mobile-brand img {
+html[data-theme="dark"] .hm-brand-word img{
   filter: none;
 }

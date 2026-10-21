@@ -1,0 +1,28 @@
+/* ═══════════════════════════════════════════════════════════════
+   复刻页装载器 —— 自包含单文件复刻页用 iframe 整区装载。
+   全幅融入：复刻页 = 整个内容区，无缝无壳（去掉外层的留白与圆角）。
+
+   目前只有两个：
+     .acr  发布与验收（public/replica/qc-preview-v2.html）
+           顶上还有一条项目条，所以 iframe 只吃剩下的高度（flex 撑满，
+           不再用 100vh —— 否则整页会比视口高出一条项目条，出现滚动）
+     .wgr  工作流广场（public/replica/workflow-gallery.html）
+   ═══════════════════════════════════════════════════════════════ */
+
+.wgr { height: 100vh }
+
+#pane-render { height: 100vh; overflow: hidden }
+#pane-render > .hm-content { display: flex; flex-direction: column; height: 100vh }
+#pane-render .acr { flex: 1 1 auto; min-height: 0 }
+
+.acr-frame,
+.wgr-frame {
+  display: block; width: 100%; height: 100%; border: 0;
+  border-radius: 0; overflow: hidden;
+  background: #0E1116;
+}
+
+.hm-main:has(.acr),
+.hm-main:has(.wgr) { margin: 0 0 0 var(--hm-sidebar, 68px) !important; padding: 0 !important }
+.hm-content:has(.acr),
+.hm-content:has(.wgr) { padding: 0 !important; margin: 0 !important; max-width: none !important }

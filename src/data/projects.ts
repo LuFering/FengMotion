@@ -91,7 +91,7 @@ export function catalogStats(list: ProjectSummary[]) {
 /** 一个项目下的四个子视图 —— 导航、项目条、总览页共用这一张表（单一来源）
  *  state: ready = 有真界面 · todo = 还是占位页（界面上如实标"未实现"） */
 export interface ProjectSubView {
-  id: 'assets' | 'script' | 'audio' | 'render'
+  id: 'assets' | 'render'
   label: string
   icon: string
   state: 'ready' | 'todo'
@@ -99,8 +99,6 @@ export interface ProjectSubView {
 }
 export const PROJECT_SUBVIEWS: ProjectSubView[] = [
   { id: 'assets', label: '创作资产',   icon: 'image',       state: 'ready', hint: '素材、出处、许可、关联' },
-  { id: 'script', label: '内容编排',   icon: 'file-text',   state: 'ready', hint: '两版脚本对照、口播时长诊断' },
-  { id: 'audio',  label: '时序校验',   icon: 'audio-lines', state: 'ready', hint: '成片音轨、两条时间轴对齐、空档' },
   { id: 'render', label: '发布与验收', icon: 'upload',      state: 'ready', hint: '交付物、渲染任务、合成清单' },
 ]
 
