@@ -1,0 +1,87 @@
+/* ═══════════════════════════════════════════════════════════════
+   数值 token —— 间距 / 字阶 / 圆角 / 控件高 / 动效
+
+   ⚠️ 本文件只放**数值**。颜色、阴影、主题变量在 brand.css；
+      语义映射（--color-* / shadcn）在 index.css 的 @theme inline。
+
+   ⚠️ 01 期定位是「只加不改」：本文件不覆盖任何现有变量，
+      三库的 --r-*、首页的 --hf-*、工作台的 --wb-* 暂时原样保留。
+      04 期迁移时按下表逐条替换，替换完才删旧定义。
+
+   ── 与现有变量的对应关系（迁移时照这张表换）──────────────────
+      三库/工作台            本文件
+      --r-ctl     10px   →   --fm-radius-ctl
+      --r-card    12px   →   --fm-radius-card
+      --r-panel   18/20  →   --fm-radius-panel   （触感主题为 20）
+      --r-float   14px   →   --fm-radius-float
+      --r-mark     6px   →   --fm-radius-mark
+      --r-thumb    5px   →   --fm-radius-thumb
+      --r-pill   999px   →   --fm-radius-pill
+      --gap       16px   →   --fm-space-4
+      --pad    12/16px   →   --fm-space-3 / --fm-space-4
+      --eo  cubic-bezier(.23,1,.32,1)  →  --fm-ease
+      --eio 入场曲线     →   --fm-ease-in
+
+   ⚠️ 已知双轨（01 期不合并，登记待办）：
+      index.css 的 @theme 里有另一套 Tailwind 半径
+      --radius-sm/md/lg/xl = 4/6/8/12（给 shadcn 组件用），
+      与库层的 10/12/18-20 不是一套。统一它们会改变 Tooltip/Switch/
+      SegmentedControl 的圆角，属于「改」不是「加」，放到组件迁移期一起做。
+   ═══════════════════════════════════════════════════════════════ */
+
+:root {
+  /* ── 间距（4px 步长）──────────────────────────────────────── */
+  --fm-space-1: 4px;
+  --fm-space-2: 8px;
+  --fm-space-3: 12px;
+  --fm-space-4: 16px;
+  --fm-space-5: 20px;
+  --fm-space-6: 24px;
+  --fm-space-8: 32px;
+  --fm-space-10: 40px;
+  --fm-space-12: 48px;
+  --fm-space-16: 64px;
+
+  /* ── 字阶（字号 / 行高成对，别单独用字号）─────────────────── */
+  --fm-text-meta: 11px;   --fm-leading-meta: 16px;   /* 元数据、时间码 */
+  --fm-text-label: 12px;  --fm-leading-label: 18px;  /* 标签 */
+  --fm-text-sub: 14px;    --fm-leading-sub: 20px;    /* 次级描述 */
+  --fm-text-body: 15px;   --fm-leading-body: 22px;   /* 默认正文 */
+  --fm-text-card: 16px;   --fm-leading-card: 24px;   /* 卡片标题 */
+  --fm-text-heading: 20px; --fm-leading-heading: 28px; /* 小标题 */
+  --fm-text-title: 24px;  --fm-leading-title: 32px;  /* 页面标题 */
+  --fm-text-hero: 40px;   --fm-leading-hero: 48px;   /* 首页主标题 */
+
+  /* ── 圆角 ─────────────────────────────────────────────────── */
+  --fm-radius-thumb: 5px;
+  --fm-radius-mark: 6px;
+  --fm-radius-ctl: 10px;
+  --fm-radius-card: 12px;
+  --fm-radius-float: 14px;
+  --fm-radius-panel: 18px;   /* 触感主题覆盖为 20 */
+  --fm-radius-pill: 999px;
+
+  /* ── 控件高度 / 页面骨架 ──────────────────────────────────── */
+  --fm-control-sm: 32px;
+  --fm-control-md: 36px;
+  --fm-control-lg: 40px;
+  --fm-topbar: 56px;
+  --fm-page-pad: 24px;
+  --fm-page-pad-narrow: 16px;
+
+  /* ── 动效 ─────────────────────────────────────────────────── */
+  --fm-ease: cubic-bezier(.23, 1, .32, 1);      /* 出场 / 常态 */
+  --fm-ease-in: cubic-bezier(.4, 0, 1, 1);      /* 退场 */
+  --fm-dur-micro: 140ms;                        /* 悬停、按压、选中 */
+  --fm-dur-panel: 220ms;                        /* 抽屉、面板 */
+}
+
+/* 触感主题：纸更厚，岛面圆角大一档（沿用三库现状，不引入新数值） */
+html[data-theme="tactile"] {
+  --fm-radius-panel: 20px;
+}
+
+/* 窄窗：页边距收一档 */
+@media (max-width: 900px) {
+  :root { --fm-page-pad: var(--fm-page-pad-narrow); }
+}

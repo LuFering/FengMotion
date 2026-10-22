@@ -3,6 +3,7 @@
 @import "./styles/nav-tree.css";
 @import "./styles/settings.css";
 @import "./styles/brand.css";
+@import "./styles/tokens.css";
 @import "./styles/fm-components.css";
 @import "./styles/workbench.css";
 @import "./styles/project.css";
