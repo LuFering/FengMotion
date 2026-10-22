@@ -1,0 +1,171 @@
+/* ═══════════════════════════════════════════════════════════════
+   页面级共享组件 —— PageHeader / SearchField / Toolbar
+
+   01 期 P0。只引用 src/styles/tokens.css 的数值 token 与 brand.css 的语义色，
+   本文件不出现十六进制色值。
+
+   ⚠️ 现状：组件已建好，但只作为 02–04 期的迁移目标，尚未接入任何页面。
+      接入时按《重复样式盘点》的归并结论逐页替换：
+        .fx-masthead / .rfl-head / .app-header      → PageHeader
+        .fm-search / .mya-search / .fx-search / .rfl-search → SearchField
+        .mya-filterbar / .fx-filterbar / .rfl 工具条 → Toolbar
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── 页头 ─────────────────────────────────────────────────── */
+.fm-page-head {
+  display: flex;
+  align-items: center;
+  gap: var(--fm-space-4);
+  min-height: var(--fm-topbar);
+  flex: 0 0 auto;
+}
+
+.fm-page-head-main {
+  display: flex;
+  align-items: baseline;
+  gap: var(--fm-space-3);
+  min-width: 0;
+}
+
+.fm-page-head-title {
+  margin: 0;
+  font-size: var(--fm-text-title);
+  line-height: var(--fm-leading-title);
+  font-weight: 600;
+  letter-spacing: .01em;
+  color: var(--fg);
+  white-space: nowrap;
+}
+
+.fm-page-head-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--fm-space-2);
+  min-width: 0;
+  overflow: hidden;
+  color: var(--dim);
+  font-size: var(--fm-text-meta);
+  line-height: var(--fm-leading-meta);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.fm-page-head-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--fm-space-2);
+  margin-left: auto;
+  flex: 0 0 auto;
+}
+
+/* ── 搜索框 ───────────────────────────────────────────────── */
+.fm-searchfield {
+  display: flex;
+  align-items: center;
+  gap: var(--fm-space-2);
+  flex: 1 1 180px;
+  min-width: 0;
+  max-width: 360px;
+  height: var(--fm-control-sm);
+  padding: 0 var(--fm-space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--fm-radius-ctl);
+  background: var(--hole);
+  color: var(--ph);
+  transition: border-color var(--fm-dur-micro) var(--fm-ease),
+              background-color var(--fm-dur-micro) var(--fm-ease);
+}
+.fm-searchfield:hover { border-color: color-mix(in srgb, var(--fg) 18%, var(--line)) }
+.fm-searchfield:focus-within {
+  border-color: var(--acc);
+  outline: 2px solid var(--soft);
+  outline-offset: 1px;
+}
+
+.fm-searchfield-icon {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
+  color: var(--ph);
+}
+
+.fm-searchfield-input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: 0 0;
+  outline: 0;
+  color: var(--fg);
+  font: inherit;
+  font-size: var(--fm-text-label);
+}
+.fm-searchfield-input::placeholder { color: var(--ph) }
+/* 原生 search 的清除按钮与自绘的重复，去掉 */
+.fm-searchfield-input::-webkit-search-cancel-button { display: none }
+
+.fm-searchfield-clear {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--fm-radius-mark);
+  background: 0 0;
+  color: var(--ph);
+  cursor: pointer;
+}
+.fm-searchfield-clear:hover { background: var(--hole); color: var(--fg) }
+.fm-searchfield-clear .ui-icon { width: 12px; height: 12px }
+
+/* ── 工具栏 ───────────────────────────────────────────────── */
+.fm-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fm-space-2);
+  flex: 0 0 auto;
+}
+
+.fm-toolbar-row {
+  display: flex;
+  align-items: center;
+  gap: var(--fm-space-3);
+  min-height: var(--fm-control-md);
+  flex-wrap: wrap;
+}
+
+.fm-toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: var(--fm-space-2);
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+}
+
+.fm-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: var(--fm-space-2);
+  margin-left: auto;
+  flex: 0 0 auto;
+  color: var(--dim);
+  font-size: var(--fm-text-meta);
+}
+
+.fm-toolbar-extra {
+  display: flex;
+  align-items: center;
+  gap: var(--fm-space-2);
+  flex-wrap: wrap;
+}
+
+/* ── 窄窗 ─────────────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .fm-page-head { flex-wrap: wrap; gap: var(--fm-space-2) }
+  .fm-page-head-title { font-size: var(--fm-text-heading); line-height: var(--fm-leading-heading) }
+  .fm-searchfield { max-width: none }
+}

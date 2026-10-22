@@ -339,7 +339,6 @@
 body.flowon { overflow: hidden }
 body.flowon #app { height: 100vh; height: 100dvh; display: flex; flex-direction: column }
 body.flowon header { position: static; flex: 0 0 auto }
-body.flowon .tabbar { flex: 0 0 auto }
 body.flowon #pane-flow {
   flex: 1;
   min-height: 0;

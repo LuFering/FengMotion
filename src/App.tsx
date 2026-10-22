@@ -3,7 +3,7 @@ import { useChat } from '@/shell/useChat'
 import { useProjects } from '@/shell/useProjects'
 import { useAgentTasks } from '@/hooks/useAgentTasks'
 import { VIEW_META, type ViewId } from '@/shell/views'
-import { SidebarNav, SidebarFooter } from '@/shell/SidebarNav'
+import { AppShell } from '@/shell/AppShell'
 import { SettingsDialog, DEFAULT_SETTINGS, type Settings } from '@/shell/SettingsDialog'
 import { Home } from '@/views/Home'
 import { Workbench } from '@/views/Workbench'
@@ -21,33 +21,17 @@ import { TooltipProvider } from '@/components/ui/tooltip'
  * 应用外壳 —— 结构对应 paba.tv 的 #app：
  *
  *   #app
- *   ├── <nav class="tabbar">        顶部标签栏
  *   ├── <aside id="hm-sidebar">     68px 图标轨（悬停出展开按钮 → 216px）
  *   ├── <div id="pane-home">        首页
  *   ├── <div id="pane-flow">        工作台
  *   └── <main id="pane-*">          其余视图
  *
+ * 侧栏壳在 shell/AppShell.tsx；本文件只做状态与视图分发。
+ * 顶部标签栏（paba 的 .tabbar）已删除：它与侧栏是同一份导航，且运行时不可见。
  * 导航内容来自 shell/views.ts，不在这里硬编码。
  */
 
-function Icon({ name, className = 'ui-icon' }: { name: string; className?: string }) {
-  return (
-    <svg className={className} aria-hidden="true">
-      <use href={`/assets/paba-icons.svg#${name}`} />
-    </svg>
-  )
-}
-
 type View = ViewId
-
-/** 顶栏标签（paba 的 .tabbar）：只放最常用的几个 */
-const TABS: Array<{ id: View; label: string; icon: string }> = [
-  { id: 'home',       label: '首页',   icon: 'house' },
-  { id: 'production', label: '工作台', icon: 'clapperboard' },
-  { id: 'assets',     label: '素材',   icon: 'image' },
-  { id: 'knowledge',  label: '特效',   icon: 'panels-top-left' },
-  { id: 'render',     label: '交付',   icon: 'upload' },
-]
 
 export default function App() {
   /** 开发调试入口：?view=production&project=token 直接进工作台；普通访问不变。 */
@@ -95,6 +79,12 @@ export default function App() {
       当前项目上；要回列表就走 openList()（项目条上的「全部项目」或总览的返回）。 */
   const go = (v: string) => setView(v as View)
   const toggleNav = () => document.body.classList.toggle('hm-nav-expanded')
+  /** 切主题：加一个短暂的 theme-switching 类，让过渡不闪 */
+  const changeTheme = (theme: Settings['theme']) => {
+    document.documentElement.classList.add('theme-switching')
+    setSettings((prev) => ({ ...prev, theme }))
+    window.setTimeout(() => document.documentElement.classList.remove('theme-switching'), 320)
+  }
 
   /**
    * paba 的真实做法（源码 HM["select"]）：
@@ -118,53 +108,12 @@ export default function App() {
   const isOverview = view === 'project' && current !== null
   const SUB_VIEWS = ['assets', 'render']
   const isSub = SUB_VIEWS.includes(view as string)
-  /** 自带顶栏的页面：外壳不再渲染 .app-header（全幅复刻页 / 首页 / 渲染页顶上是项目条） */
-  const NO_APP_HEADER: View[] = ['home', 'project', 'assets', 'methods', 'knowledge', 'reference', 'render']
 
   return (
     <TooltipProvider delayDuration={300}>
-      <div id="app">
-        {/* 顶栏标签（paba .tabbar）*/}
-        <nav className="tabbar" aria-label="创作视图">
-          <div className="tabs">
-            {TABS.map((t) => (
-              <button key={t.id} className="tab" type="button"
-                      aria-pressed={view === t.id}
-                      onClick={() => go(t.id)}>
-                <Icon name={t.icon} />{t.label}
-              </button>
-            ))}
-          </div>
-        </nav>
-
-        {/* 侧栏（paba #hm-sidebar，默认 68px 图标轨）*/}
-        <aside className="hm-sidebar" id="hm-sidebar" aria-label="主导航">
-          <div className="hm-sidebar-head">
-            <a className="hm-brand" href="#project" aria-label="FengMotion 项目"
-               onClick={(e) => { e.preventDefault(); go('project') }}>
-              <span className="hm-brand-mark">
-                <img src="/assets/brand/fengmotion-mark.png" alt="" width={26} height={26} />
-              </span>
-              <span className="hm-brand-word app-brand-logo">
-                <img src="/assets/brand/fengmotion-word.png" alt="FengMotion" style={{ height: 14, width: "auto" }} />
-              </span>
-            </a>
-            <button className="hm-sidebar-toggle" id="hm-sidebar-toggle" type="button"
-                    aria-label="展开边栏" aria-expanded={false} onClick={toggleNav}>
-              <Icon name="panel-left-open" className="ui-icon hm-icon-open" />
-              <Icon name="panel-left-close" className="ui-icon hm-icon-close" />
-            </button>
-          </div>
-
-          <SidebarNav current={view as ViewId} onNavigate={(id) => go(id)} />
-
-          <SidebarFooter onOpenSettings={() => setSettingsOpen(true)} theme={settings.theme}
-                       onThemeChange={(theme) => {
-                         document.documentElement.classList.add('theme-switching')
-                         setSettings((prev) => ({ ...prev, theme }))
-                         window.setTimeout(() => document.documentElement.classList.remove('theme-switching'), 320)
-                       }} />
-        </aside>
+      <AppShell view={view as ViewId} onNavigate={go} theme={settings.theme}
+                onOpenSettings={() => setSettingsOpen(true)}
+                onThemeChange={changeTheme} onToggleNav={toggleNav}>
 
         {/* 项目列表（一级）—— 「列表 → 项目 → 子视图」的第一层 */}
         {isCatalog && (
@@ -208,45 +157,29 @@ export default function App() {
 
         {/* 其余视图 */}
         {!isFlow && !isCatalog && (
-          <>
-            {/* 项目指挥中心 / 创作资产 / 工作流广场 / 交付：全幅页，这层标题栏不渲染 */}
-            {!NO_APP_HEADER.includes(view) && (
-            <header className="app-header">
-              <span className="logo">
-                <img src="/assets/brand/fengmotion-mark.png" alt="" width={22} height={22} />
-              </span>
-              <h1>{VIEW_META[view as ViewId].title}</h1>
-              <span className="spacer" />
-              <span className="chip"><span className="dot off" />Agent 未连接</span>
-              <button className="iconbtn" type="button" title="返回项目" onClick={() => go('project')}>
-                <Icon name="house" />
-              </button>
-            </header>
-            )}
-            <div id={`pane-${view}`} className="hm-main">
-              <div className="hm-content" data-view={view}>
-                {/* 项目管理组的视图都挂在当前项目上：顶上先给一条项目条
-                    （创作资产 = 全幅复刻页，无项目条） */}
-                {isSub && current && view !== 'assets' && (
-                  <ProjectBar project={current} view={view}
-                              onNav={(id) => go(id)} onBack={openList}
-                              onOpenWorkbench={() => setView('production')} />
-                )}
-                {isSub && !current && view !== 'assets' && (
-                  <PickProject onBack={openList} />
-                )}
-                {/* 创作资产是例外：既可作为项目内的上下文视图，
-                    也可作为不带项目过滤的全局入口 */}
-                {isSub && view === 'assets' && <Assets projectName={current?.name} />}
-                {isSub && current && view === 'render' && (
-                  <RenderDelivery project={current} tasks={tasks} />
-                )}
-                {view === 'knowledge' && <FxLibrary />}
-                {view === 'reference' && <RefLibrary />}
-                {view === 'methods' && <WorkflowGallery />}
-              </div>
+          <div id={`pane-${view}`} className="hm-main">
+            <div className="hm-content" data-view={view}>
+              {/* 项目管理组的视图都挂在当前项目上：顶上先给一条项目条
+                  （创作资产 = 全幅复刻页，无项目条） */}
+              {isSub && current && view !== 'assets' && (
+                <ProjectBar project={current} view={view}
+                            onNav={(id) => go(id)} onBack={openList}
+                            onOpenWorkbench={() => setView('production')} />
+              )}
+              {isSub && !current && view !== 'assets' && (
+                <PickProject onBack={openList} />
+              )}
+              {/* 创作资产是例外：既可作为项目内的上下文视图，
+                  也可作为不带项目过滤的全局入口 */}
+              {isSub && view === 'assets' && <Assets projectName={current?.name} />}
+              {isSub && current && view === 'render' && (
+                <RenderDelivery project={current} tasks={tasks} />
+              )}
+              {view === 'knowledge' && <FxLibrary />}
+              {view === 'reference' && <RefLibrary />}
+              {view === 'methods' && <WorkflowGallery />}
             </div>
-          </>
+          </div>
         )}
         <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)}
                         settings={settings} onChange={setSettings} />
@@ -260,7 +193,7 @@ export default function App() {
                             setView('project')
                             return p
                           }} />
-      </div>
+      </AppShell>
     </TooltipProvider>
   )
 }
