@@ -214,6 +214,15 @@ Remotion Player 在这里的作用是：**给 MP4 提供确定性播放和帧级
 
 ---
 
+## 文档
+
+- [ARCHITECTURE.md](ARCHITECTURE.md) — 代码地图：目录职责、边界与核心链路
+- [CONTRIBUTING.md](CONTRIBUTING.md) — 参与开发：分工、命令、提交与 PR 要点
+- [开发文档（docs/dev/）](docs/dev/README.md) — 开发规范、开发进度、更新日志、前后端协议、决策记录
+- [设计规格（docs/design/）](docs/design/README.md) — 设计系统与各模块规格
+
+---
+
 ## 待接
 
 - [ ] `studioApi` 换成真实 HTTP/SSE 实现
