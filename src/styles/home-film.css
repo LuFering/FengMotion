@@ -517,7 +517,8 @@ html[data-theme="tactile"] .hf-brandsep { color: #8a8676; }
 /* 隐藏态必须清掉动画，否则基础入场动画会把 opacity 又拉回 1，文字残影压在视频上 */
 .hf-panel-text.is-hidden { animation: none; opacity: 0; pointer-events: none; }
 .hf-video-panel {
-  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  position: absolute; inset: 0; display: flex; /* 与文案块顶对齐，不走舞台垂直居中 */
+  align-items: flex-start; justify-content: center;
   animation: hf-flip-in .62s cubic-bezier(.16,.84,.3,1) both;
 }
 .hf-video-panel.is-out { animation: hf-flip-out .62s cubic-bezier(.55,.06,.68,.19) forwards; }
