@@ -1,21 +1,26 @@
 /**
- * 工作流服务层（第一期 · Mock 适配器）
+ * 工作流服务层（v5 重构 · Mock 适配器）
  *
- * 页面只经此层读写工作流与运行记录，不在组件里直碰 localStorage。
- * 形状对齐冻结契约：运行的 task/events 复用 studioApi 的 AgentTask /
- * TaskEvent，产物变更摘要复用 ChangeSet；将来换真实适配器时页面不改。
+ * 页面只经此层读写。形状对齐冻结契约：运行的 task/events 复用 studioApi
+ * 的 AgentTask / TaskEvent，产物变更摘要复用 ChangeSet。
  *
- * Demo 执行器边界（如实标注）：只做编排校验与结构化产物生成，
- * 不合成语音、不执行技法、不渲染视频。每个产物 demo: true。
+ * v5 语义：
+ * · Prompt-first 运行 = 逐节点生成工作稿/引用/请求记录的真实快照；
+ *   创作与渲染只产「渲染请求记录」，绝不伪造视频。
+ * · Structured 运行 = 状态评估：按阶段清点产物与 Gate，产出状态报告；
+ *   Gate 的确认只能由用户在检查器里对具体产物版本做出，运行永不代确认。
  */
 import type { AgentTask, ChangeSet, TaskEvent, TaskStatus } from './studioApi'
 import {
-  WF_NODE_DEF_MAP,
-  WORKFLOW_TEMPLATES,
+  ARTIFACT_KIND_MAP,
+  GATE_DEFS,
+  defForNode,
+  promptFirstGraph,
+  structuredGraph,
   type WfEdgeInstance,
   type WfNodeInstance,
+  type WfPath,
 } from '../data/workflowTemplates'
-import { STORYBOARD } from '../data/productionData'
 import { BUILTIN_ASSETS } from '../data/myAssets'
 import { FX_TECHNIQUES } from '../data/fxTechniques'
 import { REFERENCE_SEGMENTS, REFERENCE_VIDEOS } from '../data/referenceLibrary'
@@ -24,9 +29,9 @@ export interface WorkflowDef {
   id: string
   name: string
   description: string
+  path: WfPath
+  presetId: string
   projectId: string | null
-  sourceTemplateId: string | null
-  templateVersion: string | null
   revision: number
   createdAt: string
   updatedAt: string
@@ -38,7 +43,7 @@ export interface WfArtifact {
   id: string
   nodeId: string
   nodeType: string
-  kind: 'script' | 'media' | 'voiceover' | 'shotplan' | 'technique' | 'spec'
+  kind: string
   title: string
   filename: string
   summary: string
@@ -64,8 +69,8 @@ export interface WorkflowRun {
   demo: true
 }
 
-const WF_KEY = 'fm-workflows-v1'
-const RUN_KEY = 'fm-workflow-runs-v1'
+const WF_KEY = 'fm-workflows-v2'
+const RUN_KEY = 'fm-workflow-runs-v2'
 
 let uidCounter = 0
 function uid(prefix: string): string {
@@ -91,21 +96,45 @@ function writeJson(key: string, value: unknown) {
 }
 
 function seedWorkflows(): WorkflowDef[] {
-  const tpl = WORKFLOW_TEMPLATES.find((t) => t.id === 'tpl-talking-explainer')!
   const now = new Date().toISOString()
+  const pf = promptFirstGraph('talking')
+  const st = structuredGraph()
+  const brief = st.nodes.find((n) => n.id === 'a-intent-brief')
+  if (brief) {
+    brief.params = {
+      kind: 'intent-brief',
+      status: 'draft',
+      version: 'v1',
+      summary: '面向 AI 初学者讲清 Token 的定义、计费与上下文（演示快照，整理自项目既有口播稿与分镜基线）',
+      fixture: true,
+    }
+  }
   return [
     {
-      id: 'wf-token-explainer',
-      name: 'Token 科普视频 · 口播流程',
-      description: '由「口播科普」模板创建，对着 Token 科普视频真实工程的流程定义。',
+      id: 'wf-token-pf',
+      name: 'Token 科普视频 · Prompt-first',
+      description: '默认路径：从提示词直接创作。带 Token 项目的真实素材引用作基线。',
+      path: 'prompt-first',
+      presetId: 'talking',
       projectId: 'token',
-      sourceTemplateId: tpl.id,
-      templateVersion: tpl.version,
       revision: 1,
       createdAt: now,
       updatedAt: now,
-      nodes: structuredClone(tpl.graph!.nodes),
-      edges: structuredClone(tpl.graph!.edges),
+      nodes: pf.nodes,
+      edges: pf.edges,
+    },
+    {
+      id: 'wf-token-structured',
+      name: 'Token 科普视频 · Structured',
+      description: '按需路径：阶段泳道 + Gate 检查点的演示骨架；产物状态如实为空缺起步。',
+      path: 'structured',
+      presetId: 'talking',
+      projectId: 'token',
+      revision: 1,
+      createdAt: now,
+      updatedAt: now,
+      nodes: st.nodes,
+      edges: st.edges,
     },
   ]
 }
@@ -137,43 +166,21 @@ export const workflowService = {
     return loadWorkflows().find((w) => w.id === id) ?? null
   },
 
-  createFromTemplate(templateId: string, name?: string): WorkflowDef | null {
-    const tpl = WORKFLOW_TEMPLATES.find((t) => t.id === templateId)
-    if (!tpl || tpl.status !== 'ready' || !tpl.graph) return null
+  createFromPath(path: WfPath, presetId: string, name?: string): WorkflowDef {
+    const graph = path === 'prompt-first' ? promptFirstGraph(presetId) : structuredGraph()
     const now = new Date().toISOString()
     const wf: WorkflowDef = {
       id: uid('wf'),
-      name: name ?? `${tpl.name}流程`,
-      description: `由模板「${tpl.name}」${tpl.version} 创建。`,
-      projectId: templateId === 'tpl-talking-explainer' ? 'token' : null,
-      sourceTemplateId: tpl.id,
-      templateVersion: tpl.version,
-      revision: 1,
-      createdAt: now,
-      updatedAt: now,
-      nodes: structuredClone(tpl.graph.nodes),
-      edges: structuredClone(tpl.graph.edges),
-    }
-    const list = loadWorkflows()
-    list.push(wf)
-    writeJson(WF_KEY, list)
-    return wf
-  },
-
-  createBlank(name: string): WorkflowDef {
-    const now = new Date().toISOString()
-    const wf: WorkflowDef = {
-      id: uid('wf'),
-      name,
+      name: name ?? (path === 'prompt-first' ? '未命名创作' : '未命名结构化制作'),
       description: '',
-      projectId: null,
-      sourceTemplateId: null,
-      templateVersion: null,
+      path,
+      presetId,
+      projectId: presetId === 'talking' ? 'token' : null,
       revision: 1,
       createdAt: now,
       updatedAt: now,
-      nodes: [],
-      edges: [],
+      nodes: graph.nodes,
+      edges: graph.edges,
     }
     const list = loadWorkflows()
     list.push(wf)
@@ -197,15 +204,6 @@ export const workflowService = {
     list[at] = next
     writeJson(WF_KEY, list)
     return next
-  },
-
-  renameWorkflow(id: string, name: string) {
-    const list = loadWorkflows()
-    const wf = list.find((w) => w.id === id)
-    if (!wf) return
-    wf.name = name
-    wf.updatedAt = new Date().toISOString()
-    writeJson(WF_KEY, list)
   },
 
   duplicateWorkflow(id: string): WorkflowDef | null {
@@ -235,22 +233,90 @@ export const workflowService = {
       .filter((r) => !workflowId || r.workflowId === workflowId)
       .sort((a, b) => b.startedAt.localeCompare(a.startedAt))
   },
+}
 
-  getRun(id: string): WorkflowRun | null {
-    return loadRuns().find((r) => r.id === id) ?? null
-  },
+/* ── Gate 评估（首页与检查器共用同一口径） ─────────────────────── */
+
+/** 每个 Gate 的主检产物：确认与阻塞都对着它算 */
+export const GATE_PRIMARY_KIND: Record<string, string> = {
+  ref: 'reference-decision',
+  A: 'direction-samples',
+  B: 'scene-layouts',
+  C: 'proof-10s',
+  D: 'delivery',
+}
+
+export interface GateEval {
+  gate: string
+  label: string
+  decision: 'not-started' | 'pending' | 'confirmed'
+  stale: boolean
+  blocked: string[]
+  primaryKind: string
+  primaryStatus: string
+}
+
+export function evaluateGate(wf: WorkflowDef, gateNode: WfNodeInstance): GateEval {
+  const gate = String(gateNode.params.gate ?? 'A')
+  const primaryKind = GATE_PRIMARY_KIND[gate] ?? ''
+  const primary = wf.nodes.find(
+    (n) => n.type === 'artifact' && String(n.params.kind ?? '') === primaryKind,
+  )
+  const primaryStatus = primary ? String(primary.params.status ?? 'missing') : 'missing'
+  const blocked: string[] = []
+  if (!primary || primaryStatus === 'missing') {
+    blocked.push(`尚无主检产物：${ARTIFACT_KIND_MAP[primaryKind]?.label ?? primaryKind}`)
+  }
+  if (gate === 'D') {
+    const qc = wf.nodes.find((n) => n.type === 'artifact' && String(n.params.kind ?? '') === 'qc')
+    if (!qc || String(qc.params.status ?? 'missing') === 'missing') blocked.push('尚无 QC / 版权 / 盲评记录')
+  }
+  let decision = (gateNode.params.decision as GateEval['decision']) ?? 'not-started'
+  if (decision !== 'confirmed' && primary && primaryStatus !== 'missing' && decision === 'not-started') {
+    decision = 'pending'
+  }
+  const confirmedFor = gateNode.params.confirmedFor as { kind: string; version: string } | undefined
+  const stale =
+    decision === 'confirmed' &&
+    !!confirmedFor &&
+    confirmedFor.kind === primaryKind &&
+    String(primary?.params.version ?? '') !== confirmedFor.version
+  return {
+    gate,
+    label: GATE_DEFS[gate]?.label ?? `Gate ${gate}`,
+    decision,
+    stale,
+    blocked,
+    primaryKind,
+    primaryStatus,
+  }
+}
+
+export function gateSummaryOf(wf: WorkflowDef): GateEval[] {
+  return wf.nodes
+    .filter((n) => n.type === 'gate')
+    .map((n) => evaluateGate(wf, n))
 }
 
 /* ── Demo 执行器 ─────────────────────────────────────────────────── */
 
 const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms))
 
+export const QUALITY_QUESTIONS = [
+  '叙事是否一眼看懂',
+  '镜头衔接是否顺畅',
+  '声音与节奏是否支撑内容',
+  '视觉高潮是否成立',
+  '结尾是否有余像',
+]
+
 function topoOrder(wf: WorkflowDef): WfNodeInstance[] {
-  const indegree = new Map<string, number>(wf.nodes.map((n) => [n.id, 0]))
+  const nodes = wf.nodes.filter((n) => n.type !== 'lane')
+  const indegree = new Map<string, number>(nodes.map((n) => [n.id, 0]))
   for (const e of wf.edges) indegree.set(e.target, (indegree.get(e.target) ?? 0) + 1)
-  const queue = wf.nodes.filter((n) => (indegree.get(n.id) ?? 0) === 0)
+  const queue = nodes.filter((n) => (indegree.get(n.id) ?? 0) === 0)
   const order: WfNodeInstance[] = []
-  const rest = [...wf.nodes]
+  const rest = [...nodes]
   while (queue.length > 0) {
     const node = queue.shift()!
     order.push(node)
@@ -264,136 +330,100 @@ function topoOrder(wf: WorkflowDef): WfNodeInstance[] {
       }
     }
   }
-  return order.length === wf.nodes.length ? order : wf.nodes
+  return order.length === nodes.length ? order : nodes
 }
 
 function incoming(wf: WorkflowDef, nodeId: string, port: string): WfEdgeInstance | undefined {
   return wf.edges.find((e) => e.target === nodeId && e.targetPort === port)
 }
 
-interface NodeOutput {
-  kind: WfArtifact['kind']
-  data: Record<string, unknown>
-}
+const json = (v: unknown) => JSON.stringify(v, null, 2)
 
-function buildArtifact(
-  wf: WorkflowDef,
-  node: WfNodeInstance,
-  outputs: Map<string, NodeOutput>,
-): { artifact: WfArtifact; output: NodeOutput } {
-  const label = WF_NODE_DEF_MAP[node.type]?.label ?? node.type
+function pfArtifact(node: WfNodeInstance): WfArtifact {
   const base = { id: uid('art'), nodeId: node.id, nodeType: node.type, demo: true as const }
-  const json = (v: unknown) => JSON.stringify(v, null, 2)
-
+  const p = node.params
   switch (node.type) {
-    case 'script': {
-      const text = String(node.params.text ?? '')
-      const paragraphs = text.split('\n').map((s) => s.trim()).filter(Boolean)
-      const data = { title: String(node.params.title ?? '未命名脚本'), paragraphs, charCount: text.length }
-      return {
-        output: { kind: 'script', data },
-        artifact: { ...base, kind: 'script', title: `${label} · 脚本快照`, filename: 'script-snapshot.json', summary: `脚本快照 · ${paragraphs.length} 段 · ${text.length} 字`, content: json(data) },
+    case 'prompt': {
+      const data = {
+        text: String(p.text ?? ''),
+        audience: String(p.audience ?? ''),
+        duration: String(p.duration ?? ''),
+        ratio: String(p.ratio ?? '16:9'),
+        source: '用户原始输入快照',
       }
+      return { ...base, kind: 'prompt', title: '提示词输入 · 原始快照', filename: 'prompt.original.md', summary: `原始提示词快照 · ${data.text.length} 字`, content: json(data) }
     }
-    case 'media': {
-      const ids = (node.params.assetIds as string[] | undefined) ?? []
-      const items = ids
+    case 'refs': {
+      const assetIds = (p.assetIds as string[] | undefined) ?? []
+      const assets = assetIds
         .map((id) => BUILTIN_ASSETS.find((a) => a.id === id))
         .filter(Boolean)
         .map((a) => ({ id: a!.id, name: a!.name, mediaType: a!.mediaType }))
-      const data = { projectId: String(node.params.projectId ?? ''), items }
-      return {
-        output: { kind: 'media', data },
-        artifact: { ...base, kind: 'media', title: `${label} · 引用清单`, filename: 'media-refs.json', summary: `引用清单 · ${items.length} 项真实素材（只引用，未复制文件）`, content: json(data) },
-      }
-    }
-    case 'voiceover': {
-      const scriptOut = [...outputs.values()].find((o) => o.kind === 'script')
-      const paragraphs = (scriptOut?.data.paragraphs as string[] | undefined) ?? []
-      const segments = paragraphs.map((text, i) => ({
-        index: i + 1,
-        text,
-        estSeconds: Math.max(1, Math.round((text.length / 4.5) * 10) / 10),
-      }))
-      const data = {
-        voiceLabel: String(node.params.voiceLabel ?? ''),
-        rate: String(node.params.rate ?? '正常'),
-        segments,
-        totalEstSeconds: Math.round(segments.reduce((s, x) => s + x.estSeconds, 0) * 10) / 10,
-        note: '时长按字数估算；demo 执行器不合成语音，无音频文件产生。',
-      }
-      return {
-        output: { kind: 'voiceover', data },
-        artifact: { ...base, kind: 'voiceover', title: `${label} · 配音计划`, filename: 'voiceover-plan.json', summary: `配音计划 · ${segments.length} 段 · 估算 ${data.totalEstSeconds}s（未合成音频）`, content: json(data) },
-      }
-    }
-    case 'shotplan': {
-      const refIds = (node.params.refSegmentIds as string[] | undefined) ?? []
-      const references = refIds.map((id) => {
+      const segIds = (p.refSegmentIds as string[] | undefined) ?? []
+      const segments = segIds.map((id) => {
         const seg = REFERENCE_SEGMENTS.find((s) => s.id === id)
         const film = seg ? REFERENCE_VIDEOS.find((v) => v.id === seg.videoId) : null
         return seg
           ? { segmentId: seg.id, film: film?.title ?? seg.videoId, index: seg.index + 1, observation: seg.observation, suggestion: seg.suggestion }
           : { segmentId: id, film: '（来源已失效）', index: 0, observation: '', suggestion: '' }
       })
-      const data = {
-        baseline: 'Token 科普视频真实工程分镜（演示基线，非本次新生成）',
-        note: String(node.params.note ?? ''),
-        shotCount: STORYBOARD.length,
-        shots: STORYBOARD.map((s) => ({ seg: s.段, timecode: s.时间码, narration: s.旁白, visual: s.画面 })),
-        references,
-      }
-      return {
-        output: { kind: 'shotplan', data },
-        artifact: { ...base, kind: 'shotplan', title: `${label} · 分镜计划快照`, filename: 'shot-plan.json', summary: `分镜计划 · ${STORYBOARD.length} 段（真实工程基线）${references.length ? ` · 附 ${references.length} 条参考结论` : ''}`, content: json(data) },
-      }
+      const data = { projectId: String(p.projectId ?? ''), assets, referenceSegments: segments }
+      return { ...base, kind: 'refs', title: '参考与素材 · 引用清单', filename: 'refs.json', summary: `引用清单 · ${assets.length} 项素材 / ${segments.length} 条参考结论（只引用）`, content: json(data) }
     }
-    case 'technique': {
-      const ids = (node.params.techniqueIds as string[] | undefined) ?? []
+    case 'lookdev': {
+      const data = { status: 'draft', summary: String(p.summary ?? ''), source: '用户工作稿快照；demo 不做 AI 视觉转译' }
+      return { ...base, kind: 'lookdev', title: 'Lookdev · 工作稿快照', filename: 'lookdev.md', summary: `Lookdev 工作稿（draft）· ${data.summary.length} 字`, content: json(data) }
+    }
+    case 'filmplan': {
+      const data = { status: 'draft', summary: String(p.summary ?? ''), source: '用户工作稿快照；demo 不生成导演方案' }
+      return { ...base, kind: 'filmplan', title: 'Film-plan · 工作稿快照', filename: 'film-plan.md', summary: `Film-plan 工作稿（draft）· ${data.summary.length} 字`, content: json(data) }
+    }
+    case 'capability': {
+      const ids = (p.techniqueIds as string[] | undefined) ?? []
       const items = ids
         .map((id) => FX_TECHNIQUES.find((t) => t.id === id))
         .filter(Boolean)
-        .map((t) => ({ id: t!.id, name: t!.name, execType: t!.execType, execLabel: t!.execLabel, note: '仅引用记录，demo 不执行该技法' }))
-      const data = { items }
-      return {
-        output: { kind: 'technique', data },
-        artifact: { ...base, kind: 'technique', title: `${label} · 技法引用清单`, filename: 'technique-refs.json', summary: items.length ? `技法引用 · ${items.length} 项（只引用，不执行）` : '技法引用 · 空（未选择技法）', content: json(data) },
-      }
+        .map((t) => ({ id: t!.id, name: t!.name, execType: t!.execType, execLabel: t!.execLabel, note: '检索候选，未执行' }))
+      const data = { source: '能力注册表快照（本地特效技法库）', items }
+      return { ...base, kind: 'capability', title: '能力检索 · 候选快照', filename: 'capability-refs.json', summary: items.length ? `能力候选 · ${items.length} 项（只检索，不执行）` : '能力候选 · 空（未选择）', content: json(data) }
     }
-    case 'compose': {
-      const shots = [...outputs.values()].find((o) => o.kind === 'shotplan')
-      const voice = [...outputs.values()].find((o) => o.kind === 'voiceover')
-      const media = [...outputs.values()].find((o) => o.kind === 'media')
-      const tech = [...outputs.values()].find((o) => o.kind === 'technique')
+    case 'create': {
       const data = {
-        projectId: String(node.params.projectId ?? 'token'),
-        spec: { resolution: String(node.params.resolution ?? '1080p'), width: 1920, height: 1080, fps: 30 },
-        shotCount: (shots?.data.shotCount as number | undefined) ?? 0,
-        voiceSegments: ((voice?.data.segments as unknown[] | undefined) ?? []).length,
-        mediaRefs: ((media?.data.items as unknown[] | undefined) ?? []).length,
-        techniques: ((tech?.data.items as Array<{ name: string }> | undefined) ?? []).map((t) => t.name),
-        render: '未渲染：demo 执行器只生成工程描述，不产生视频文件。',
-        workflow: { id: wf.id, name: wf.name, revision: wf.revision },
+        mode: String(p.mode ?? 'sketch'),
+        resolution: String(p.resolution ?? '1080p'),
+        status: 'demo-request',
+        note: '这是渲染请求记录：demo 未接入真实渲染，没有视频产物生成。',
       }
-      return {
-        output: { kind: 'spec', data },
-        artifact: { ...base, kind: 'spec', title: `${label} · 工程描述`, filename: 'remotion-spec.json', summary: `工程描述 · ${data.shotCount} 段分镜 / ${data.voiceSegments} 段配音 / ${data.mediaRefs} 项素材（未渲染视频）`, content: json(data) },
+      return { ...base, kind: 'create', title: '创作与渲染 · 请求记录', filename: 'render-request.json', summary: `渲染请求（${data.mode} / ${data.resolution}）· 未实际渲染`, content: json(data) }
+    }
+    case 'review': {
+      const checks = (p.checks as Record<string, boolean> | undefined) ?? {}
+      const data = {
+        issues: String(p.issues ?? ''),
+        qualityBar: QUALITY_QUESTIONS.map((q) => ({ question: q, checkedByUser: !!checks[q] })),
+        note: '未勾选的问题视为尚未看片确认；demo 不生成「检查通过」。',
       }
+      const done = data.qualityBar.filter((x) => x.checkedByUser).length
+      return { ...base, kind: 'review', title: '看片与修改 · 记录快照', filename: 'review-notes.json', summary: `看片记录 · quality-bar 已确认 ${done}/${QUALITY_QUESTIONS.length}`, content: json(data) }
+    }
+    case 'finishing': {
+      const data = { notes: String(p.notes ?? ''), source: '用户 Finishing 记录快照；demo 不做 QC 判定' }
+      return { ...base, kind: 'finishing', title: 'Finishing · 记录快照', filename: 'finishing-notes.json', summary: `Finishing 记录 · ${data.notes.length} 字`, content: json(data) }
     }
     default:
       throw new Error(`未知节点类型 ${node.type}`)
   }
 }
 
-function validateNode(wf: WorkflowDef, node: WfNodeInstance): string | null {
-  const def = WF_NODE_DEF_MAP[node.type]
-  if (!def) return `未知节点类型 ${node.type}`
-  for (const port of def.inputs.filter((p) => p.required)) {
+function pfValidate(wf: WorkflowDef, node: WfNodeInstance): string | null {
+  const def = defForNode(node)
+  if (!def) return `未知节点 ${node.type}`
+  for (const port of def.inputs.filter((x) => x.required)) {
     if (!incoming(wf, node.id, port.id)) return `${def.label}：必填输入「${port.label}」未连接`
   }
-  if (node.type === 'script' && !String(node.params.text ?? '').trim()) return '脚本输入：脚本正文为空'
-  if (node.type === 'media' && ((node.params.assetIds as string[] | undefined) ?? []).length === 0)
-    return '素材引用：未选择任何素材'
+  if (node.type === 'prompt' && !String(node.params.text ?? '').trim()) return '提示词输入：提示词为空'
+  if (node.type === 'lookdev' && !String(node.params.summary ?? '').trim()) return 'Lookdev：工作稿尚无内容'
+  if (node.type === 'filmplan' && !String(node.params.summary ?? '').trim()) return 'Film-plan：工作稿尚无内容'
   return null
 }
 
@@ -417,65 +447,114 @@ export function startDemoRun(
     id: taskId,
     kind: 'modify',
     status: 'queued',
-    title: `演示运行 · ${wf.name}`,
+    title: wf.path === 'structured' ? `状态评估 · ${wf.name}` : `演示运行 · ${wf.name}`,
     createdAt: startedAt,
     mock: true,
   }
   const events: TaskEvent[] = []
   const artifacts: WfArtifact[] = []
-  const nodeStatus: Record<string, WfNodeStatus> = Object.fromEntries(wf.nodes.map((n) => [n.id, 'pending' as WfNodeStatus]))
+  const nodeStatus: Record<string, WfNodeStatus> = Object.fromEntries(
+    wf.nodes.filter((n) => n.type !== 'lane').map((n) => [n.id, 'pending' as WfNodeStatus]),
+  )
   let cancelled = false
-
   const emit = (kind: TaskEvent['kind'], status: TaskStatus, message: string) => {
     const event: TaskEvent = { id: uid('evt'), taskId, kind, status, message, at: new Date().toISOString(), mock: true }
     events.push(event)
     callbacks.onEvent(event)
   }
+  const setStatus = (id: string, s: WfNodeStatus) => {
+    nodeStatus[id] = s
+    callbacks.onNodeStatus(id, s)
+  }
 
   const done = (async (): Promise<WorkflowRun> => {
     let status: TaskStatus = 'completed'
-    emit('accepted', 'queued', `演示执行器已接收运行请求（工作流 ${wf.name} · 修订 ${wf.revision}）。Agent 后端未连接，本次为 DEMO 运行。`)
-    const outputs = new Map<string, NodeOutput>()
-    const order = topoOrder(wf)
-    for (const node of order) {
+    if (wf.path === 'structured') {
+      emit('accepted', 'queued', `演示评估已接收（${wf.name} · 修订 ${wf.revision}）。Structured 运行只做状态评估：清点产物与 Gate，不生成产物、不代替用户确认。`)
+      const stageRows: Array<Record<string, unknown>> = []
+      const arts = wf.nodes.filter((n) => n.type === 'artifact')
+      for (const node of arts) {
+        if (cancelled) break
+        const kind = String(node.params.kind ?? '')
+        const st = String(node.params.status ?? 'missing')
+        setStatus(node.id, 'running')
+        await wait(90)
+        setStatus(node.id, st === 'missing' ? 'skipped' : 'completed')
+        emit('progress', 'running', `${ARTIFACT_KIND_MAP[kind]?.label ?? kind}：${st === 'missing' ? '尚无产物' : `状态 ${st}${node.params.version ? ` · ${String(node.params.version)}` : ''}`}`)
+        stageRows.push({ kind, status: st, version: String(node.params.version ?? ''), fixture: !!node.params.fixture })
+      }
+      const gateRows: Array<Record<string, unknown>> = []
+      for (const g of wf.nodes.filter((n) => n.type === 'gate')) {
+        if (cancelled) break
+        const ev = evaluateGate(wf, g)
+        setStatus(g.id, 'completed')
+        gateRows.push({ gate: ev.gate, label: ev.label, decision: ev.decision, stale: ev.stale, blocked: ev.blocked, primary: ev.primaryKind })
+        emit(
+          'build',
+          'building',
+          `${ev.label}：${ev.decision === 'confirmed' ? (ev.stale ? '已确认（版本已变更，确认失效）' : '已确认') : ev.decision === 'pending' ? '待确认' : '未开始'}${ev.blocked.length ? `；阻塞：${ev.blocked.join('、')}` : ''}`,
+        )
+        await wait(90)
+      }
       if (cancelled) {
         status = 'cancelled'
-        nodeStatus[node.id] = 'skipped'
-        callbacks.onNodeStatus(node.id, 'skipped')
-        continue
-      }
-      const label = WF_NODE_DEF_MAP[node.type]?.label ?? node.type
-      const problem = validateNode(wf, node)
-      if (problem) {
-        nodeStatus[node.id] = 'failed'
-        callbacks.onNodeStatus(node.id, 'failed')
-        emit('error', 'failed', problem)
-        status = 'failed'
-        for (const rest of order.slice(order.indexOf(node) + 1)) {
-          nodeStatus[rest.id] = 'skipped'
-          callbacks.onNodeStatus(rest.id, 'skipped')
+        emit('cancelled', 'cancelled', '评估已取消。')
+      } else {
+        const missing = stageRows.filter((r) => r.status === 'missing').length
+        const report = {
+          workflow: { id: wf.id, name: wf.name, revision: wf.revision, path: wf.path },
+          artifacts: stageRows,
+          gates: gateRows,
+          note: '状态评估报告：反映本次评估时工作流内的产物与 Gate 状态；不代表任何产物被新生成或被确认。',
         }
-        break
+        artifacts.push({
+          id: uid('art'),
+          nodeId: '',
+          nodeType: 'evaluation',
+          kind: 'evaluation',
+          title: 'Structured · 状态评估报告',
+          filename: 'v5-status-report.json',
+          summary: `状态评估 · 产物 ${stageRows.length} 项（缺 ${missing}）/ Gate ${gateRows.length} 个`,
+          content: json(report),
+          demo: true,
+        })
+        emit('complete', 'completed', '状态评估结束：已生成评估报告；没有新产物被生成、没有 Gate 被代为确认。')
       }
-      nodeStatus[node.id] = 'running'
-      callbacks.onNodeStatus(node.id, 'running')
-      emit('progress', 'running', `${label}：开始处理。`)
-      await wait(420)
-      if (cancelled) {
-        nodeStatus[node.id] = 'skipped'
-        callbacks.onNodeStatus(node.id, 'skipped')
-        status = 'cancelled'
-        continue
+    } else {
+      emit('accepted', 'queued', `演示执行器已接收运行请求（${wf.name} · 修订 ${wf.revision}）。Prompt-first 路径无强制门；本次为 DEMO 运行。`)
+      const order = topoOrder(wf)
+      for (const node of order) {
+        if (cancelled) {
+          status = 'cancelled'
+          setStatus(node.id, 'skipped')
+          continue
+        }
+        const def = defForNode(node)
+        const label = def?.label ?? node.type
+        const problem = pfValidate(wf, node)
+        if (problem) {
+          setStatus(node.id, 'failed')
+          emit('error', 'failed', problem)
+          status = 'failed'
+          for (const rest of order.slice(order.indexOf(node) + 1)) setStatus(rest.id, 'skipped')
+          break
+        }
+        setStatus(node.id, 'running')
+        emit('progress', 'running', `${label}：开始处理。`)
+        await wait(380)
+        if (cancelled) {
+          setStatus(node.id, 'skipped')
+          status = 'cancelled'
+          continue
+        }
+        const artifact = pfArtifact(node)
+        artifacts.push(artifact)
+        setStatus(node.id, 'completed')
+        emit('build', 'building', `${label}：${artifact.summary}`)
       }
-      const { artifact, output } = buildArtifact(wf, node, outputs)
-      outputs.set(node.id, output)
-      artifacts.push(artifact)
-      nodeStatus[node.id] = 'completed'
-      callbacks.onNodeStatus(node.id, 'completed')
-      emit('build', 'building', `${label}：${artifact.summary}`)
+      if (status === 'completed') emit('complete', 'completed', '演示运行结束：产物均为工作稿/引用/请求记录快照；未接入真实渲染，没有视频生成。')
+      if (status === 'cancelled') emit('cancelled', 'cancelled', '演示运行已取消；已生成的产物保留在本次运行记录中。')
     }
-    if (status === 'completed') emit('complete', 'completed', '演示运行结束：已生成结构化演示产物；未调用 AI、未合成语音、未渲染视频。')
-    if (status === 'cancelled') emit('cancelled', 'cancelled', '演示运行已取消；已生成的产物保留在本次运行记录中。')
     task.status = status
     const changes: ChangeSet | null =
       artifacts.length > 0
@@ -512,11 +591,5 @@ export function startDemoRun(
     return run
   })()
 
-  return {
-    runId,
-    done,
-    cancel: () => {
-      cancelled = true
-    },
-  }
+  return { runId, done, cancel: () => { cancelled = true } }
 }

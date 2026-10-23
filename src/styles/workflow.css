@@ -384,3 +384,77 @@ html[data-theme='tactile'] .wfl {
   background: var(--panel2); border: 1px solid var(--line); border-radius: 10px;
   padding: 11px 12px; font-size: 11px; line-height: 1.6; color: var(--tx2); white-space: pre-wrap; word-break: break-word;
 }
+
+/* ── v5 重构追加：路径入口 / Gate 芯片 / 创建页 / 泳道与检查点 ────── */
+
+.wfh-paths { display: grid; grid-template-columns: 1.6fr 1fr; gap: 14px; }
+.wfh-path {
+  display: flex; flex-direction: column; gap: 8px;
+  border: 1px solid var(--line); border-radius: 14px; background: var(--panel); padding: 16px;
+}
+.wfh-path.is-hero { border-color: var(--acc); background: linear-gradient(180deg, var(--sel), transparent 130%), var(--panel); }
+.wfh-path b { font-size: 16px; }
+.wfh-path p { margin: 0; font-size: 12.5px; line-height: 1.65; color: var(--tx2); }
+.wfh-path-tag { display: inline-flex; align-items: center; gap: 5px; align-self: flex-start; font-size: 11px; font-weight: 800; letter-spacing: 0.04em; color: var(--acc-tx); background: var(--sel); padding: 3px 9px; border-radius: 999px; }
+.wfh-path-tag.is-alt { color: var(--tx2); background: var(--hover); }
+.wfh-path-actions { display: flex; gap: 8px; margin-top: auto; padding-top: 4px; }
+
+.wfh-row-title { display: flex; align-items: center; gap: 8px; }
+.wfh-pathbadge {
+  flex: none; font-size: 10.5px; font-weight: 800; letter-spacing: 0.03em;
+  padding: 2px 7px; border-radius: 999px; border: 1px solid var(--line2); color: var(--tx2);
+}
+.wfh-pathbadge[data-p='prompt-first'] { color: var(--acc-tx); border-color: var(--acc); }
+.wfh-gates { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; margin-top: 3px; color: var(--tx3); }
+.wfh-gate-chip { font-size: 10.5px; font-weight: 600; border: 1px solid var(--line); border-radius: 999px; padding: 1.5px 7px; color: var(--tx2); }
+.wfh-gate-chip[data-d='confirmed'] { color: var(--ok); border-color: var(--ok); }
+.wfh-gate-chip[data-d='stale'] { color: var(--warn); border-color: var(--warn); }
+.wfh-gate-chip[data-d='pending'] { color: var(--acc-tx); }
+
+.wfh-create { flex: 1; min-height: 0; overflow-y: auto; padding: 18px; display: flex; flex-direction: column; gap: 26px; }
+.wfh-create-note { margin: -4px 0 12px; font-size: 12px; color: var(--tx3); }
+.wfh-tplgrid.is-inline { overflow: visible; padding: 0; flex: none; }
+.wfh-tpl-cover { width: 100%; aspect-ratio: 16 / 8; object-fit: cover; border-radius: 9px; border: 1px solid var(--line); background: var(--panel2); }
+.wfh-tpl-cover.is-none { display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; letter-spacing: 0.2em; color: var(--tx3); }
+
+.wfe-pathbadge {
+  flex: none; font-size: 10.5px; font-weight: 800; letter-spacing: 0.04em;
+  padding: 3px 8px; border-radius: 999px; border: 1px solid var(--line2); color: var(--tx2); white-space: nowrap;
+}
+.wfe-pathbadge[data-p='prompt-first'] { color: var(--acc-tx); border-color: var(--acc); }
+.wfe-stagegroup h4, .wfe-stagegroup-title { margin: 10px 0 6px; font-size: 11px; font-weight: 700; letter-spacing: 0.05em; color: var(--tx3); }
+.wfe-stagegroup .wfe-nodeitem { width: 100%; margin-bottom: 6px; }
+.wfe-blocklist { list-style: disc; margin: 0; padding-left: 16px; font-size: 12px; font-weight: 400; color: var(--danger); display: flex; flex-direction: column; gap: 3px; }
+
+/* 文档 / Gate 节点变体 */
+.wfn.is-doc { width: 238px; }
+.wfn-file { margin: 3px 0 0; font-size: 10.5px; color: var(--tx3); font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wfn-gate-row { display: flex; flex-wrap: wrap; gap: 5px; margin: 2px 0 8px; }
+.wfn-artifact-chip { font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line2); color: var(--tx3); }
+.wfn-artifact-chip[data-s='draft'] { color: var(--warn); border-color: var(--warn); }
+.wfn-artifact-chip[data-s='candidate'] { color: var(--acc-tx); border-color: var(--acc); }
+.wfn-artifact-chip[data-s='confirmed'] { color: var(--ok); border-color: var(--ok); }
+.wfn.is-gate { width: 248px; border-style: dashed; border-width: 1.5px; }
+.wfn-flag { flex: none; color: var(--warn); }
+.wfn-gate-chip { font-size: 10.5px; font-weight: 800; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line2); color: var(--tx2); }
+.wfn-gate-chip[data-d='confirmed'] { color: var(--ok); border-color: var(--ok); }
+.wfn-gate-chip[data-d='confirmed-stale'] { color: var(--warn); border-color: var(--warn); }
+.wfn-gate-chip[data-d='pending'] { color: var(--acc-tx); border-color: var(--acc); }
+.wfn-rec-chip { font-size: 10.5px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: var(--hover); color: var(--tx2); }
+.wfn-blocked { margin: 0 0 8px; font-size: 11px; line-height: 1.5; color: var(--danger); }
+
+/* 阶段泳道 */
+.wflane {
+  width: 100%; height: 100%;
+  border: 1px solid var(--line); border-radius: 14px;
+  background: color-mix(in srgb, var(--panel) 55%, transparent);
+  pointer-events: none;
+}
+.wflane-head { display: flex; align-items: center; gap: 10px; padding: 9px 12px; pointer-events: all; }
+.wflane-head b { font-size: 12.5px; color: var(--tx); }
+.wflane-head span { font-size: 11.5px; color: var(--tx3); }
+.wflane-toggle {
+  margin-left: auto; font-size: 11px; font-weight: 700; color: var(--acc-tx);
+  border: 1px solid var(--line2); border-radius: 7px; padding: 3px 9px; background: var(--panel);
+}
+.wflane-toggle:hover { background: var(--hover); }
