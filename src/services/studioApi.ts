@@ -1,66 +1,33 @@
-
-export type TaskKind = 'modify' | 'render' | 'undo' | 'redo' | 'restore'
-export type TaskStatus = 'queued' | 'running' | 'building' | 'completed' | 'failed' | 'cancelled'
-export type TaskEventKind = 'accepted' | 'progress' | 'build' | 'complete' | 'error' | 'cancelled'
-
-export interface ModificationConstraints {
-  preserveCamera: boolean
-  preserveCaptions: boolean
-  limitToSelection: boolean
-  reuseExistingComponents: boolean
-  durationSeconds?: number
-  resolution?: '1080p' | '1440p' | '4k'
-}
+import type {
+  AgentReference,
+  AgentTask,
+  ChangeSet,
+  ModificationConstraints,
+  TaskAttachment,
+  TaskEvent,
+  TaskEventKind,
+  TaskKind,
+  TaskRequest,
+  TaskStatus,
+} from '@/types/contracts'
 
 /**
- * 结构化引用：Agent 修改的对象 + 它需要读取的上下文。
- *
- * 位置一律用稳定 ID / 精确帧 / 归一化区域 / 产物版本表示；
- * 不让模型从「这里/这段」猜位置。
+ * 任务协议的唯一来源是 src/types/contracts.ts（契约见 docs/contracts/task.md）。
+ * 这里只做转发，保证视图继续从 studioApi 取类型时不出现第二套定义。
  */
-export type AgentReference =
-  | { id: string; role: 'target' | 'context'; kind: 'project'; projectId: string; label: string }
-  | { id: string; role: 'target' | 'context'; kind: 'shot'; shotId: string; label: string }
-  | { id: string; role: 'target' | 'context'; kind: 'frame'; shotId: string; frame: number; timecode: string; label: string; snapshotId?: string }
-  | { id: string; role: 'target' | 'context'; kind: 'range'; shotId: string; startFrame: number; endFrame: number; timecode: string; label: string }
-  | { id: string; role: 'target' | 'context'; kind: 'region'; shotId: string; frame: number; bbox: { x: number; y: number; w: number; h: number }; label: string }
-  | { id: string; role: 'target' | 'context'; kind: 'artifact'; artifactId: string; version: string; label: string }
-
-export interface TaskRequest {
-  kind: TaskKind
-  prompt: string
-  scope: 'project' | 'scene' | 'selection'
-  sceneIds: string[]
-  references?: AgentReference[]
-  constraints: ModificationConstraints
-  attachments: Array<{ name: string; type: string; size: number }>
+export type {
+  AgentReference,
+  AgentTask,
+  ChangeSet,
+  ModificationConstraints,
+  TaskAttachment,
+  TaskEvent,
+  TaskEventKind,
+  TaskKind,
+  TaskRequest,
+  TaskStatus,
 }
 
-export interface AgentTask {
-  id: string
-  kind: TaskKind
-  status: TaskStatus
-  title: string
-  createdAt: string
-  mock: true
-}
-
-export interface TaskEvent {
-  id: string
-  taskId: string
-  kind: TaskEventKind
-  status: TaskStatus
-  message: string
-  at: string
-  mock: true
-}
-
-export interface ChangeSet {
-  taskId: string
-  files: Array<{ path: string; summary: string; additions: number; deletions: number }>
-  buildStatus: 'not-run' | 'passed' | 'failed'
-  mock: true
-}
 
 export interface ProjectVersion {
   id: string
@@ -162,12 +129,12 @@ export class MockStudioApi implements StudioApi {
     const status = kind === 'render' ? 'queued' : 'queued'
     const task: AgentTask = {
       id, kind, status, title: kind === 'render' ? '演示导出任务' : '演示修改请求',
-      createdAt: stamp(), mock: true,
+      createdAt: stamp(), demo: true,
     }
     this.runs.set(id, { abort, listeners })
 
-    const emit = (event: Omit<TaskEvent, 'id' | 'taskId' | 'at' | 'mock'>) => {
-      const full: TaskEvent = { ...event, id: `${id}-${events.length}`, taskId: id, at: stamp(), mock: true }
+    const emit = (event: Omit<TaskEvent, 'id' | 'taskId' | 'at' | 'demo'>) => {
+      const full: TaskEvent = { ...event, id: `${id}-${events.length}`, taskId: id, at: stamp(), demo: true }
       events.push(full)
       listeners.forEach((listener) => listener(full))
     }
