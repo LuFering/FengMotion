@@ -22,7 +22,7 @@ import { SearchField } from '@/components/SearchField'
  *
  * 布局（与应用外壳图标栏共存，不再自带第二套导航语义）：
  *   页头岛（标题/搜索/视图/导入）通栏；其下三列 —— 左 = 组织岛（库 / 来源 /
- *   智能文件夹 / 文件夹 / 标签，216px 岛屿面板，可收起），中 = 工具条（当前
+ *   项目 / 智能文件夹 / 文件夹 / 标签，216px 岛屿面板，可收起），中 = 工具条（当前
  *   范围 + 类型/排序浮层，渐进披露）+ 素材画布 + 状态栏，右 = 检查器岛
  *   （选中才出现，含引用关系与内联审核，真实写回索引）。
  *
@@ -47,7 +47,7 @@ function Icon({ name, className = 'ui-icon' }: { name: string; className?: strin
 
 type NodeId = 'all' | 'favorites' | 'recent' | 'project' | 'imported' | 'generated' | 'builtin'
   | 'review:pending' | 'review:needs_review' | 'license:unknown' | 'license:restricted'
-  | 'refs:none' | `type:${MediaType}` | `folder:${string}` | `tag:${string}`
+  | 'refs:none' | `type:${MediaType}` | `folder:${string}` | `tag:${string}` | `proj:${string}`
 type SortKey = 'recent' | 'used' | 'name' | 'size' | 'duration'
 type TreeEntry = { id: NodeId; label: string; icon: string; count: number }
 
@@ -70,6 +70,7 @@ function nodeLabel(id: NodeId, folders: FolderRow[]): string {
   if (id.startsWith('type:')) return MEDIA_LABEL[id.slice(5) as MediaType]
   if (id.startsWith('folder:')) return folders.find((f) => f.id === id.slice(7))?.name ?? '文件夹'
   if (id.startsWith('tag:')) return id.slice(4)
+  if (id.startsWith('proj:')) return id.slice(5).split('|')[1] ?? '项目'
   switch (id) {
     case 'favorites': return '收藏'
     case 'recent': return '最近使用'
@@ -224,6 +225,7 @@ export function Assets({ projectName }: { projectName?: string } = {}) {
       if (node === 'license:unknown') return a.licenseStatus === 'unknown'
       if (node === 'license:restricted') return a.licenseStatus === 'restricted'
       if (node === 'refs:none') return a.refs.length === 0
+      if (node.startsWith('proj:')) { const pid = node.slice(5).split('|')[0]; return a.refs.some((r) => r.kind === 'project' && r.id === pid) }
       if (node.startsWith('type:')) return a.mediaType === node.slice(5)
       if (node.startsWith('folder:')) return a.folderId === node.slice(7)
       if (node.startsWith('tag:')) return a.tags.includes(node.slice(4))
@@ -265,6 +267,23 @@ export function Assets({ projectName }: { projectName?: string } = {}) {
     type: (t: MediaType) => assets.filter((a) => a.mediaType === t).length,
     folder: (id: string) => assets.filter((a) => a.folderId === id).length,
   }), [assets, projectName])
+
+  /** 项目划分（组织栏）：从 refs 里真实存在的项目关联合并计数，按素材数降序 */
+  const projectList = useMemo(() => {
+    const m = new Map<string, { label: string; count: number }>()
+    for (const a of assets) {
+      const seen = new Set<string>()
+      for (const r of a.refs) {
+        if (r.kind !== 'project' || seen.has(r.id)) continue
+        seen.add(r.id)
+        const cur = m.get(r.id) ?? { label: r.label, count: 0 }
+        cur.count++
+        m.set(r.id, cur)
+      }
+    }
+    return [...m.entries()].map(([id, v]) => ({ id, label: v.label, count: v.count }))
+      .sort((x, y) => y.count - x.count)
+  }, [assets])
 
   /** 标签云（组织栏）：按素材数降序，取前 10 */
   const tagList = useMemo(() => {
@@ -414,10 +433,12 @@ export function Assets({ projectName }: { projectName?: string } = {}) {
   // ── 渲染 ──
   const coreNodes: TreeEntry[] = [
     { id: 'all', label: '全部素材', icon: 'layout-grid', count: counts.all },
-    ...(projectName ? [{ id: 'project' as NodeId, label: '本项目素材', icon: 'folder-open', count: counts.project }] : []),
     { id: 'favorites', label: '收藏', icon: 'star', count: counts.favorites },
     { id: 'recent', label: '最近使用', icon: 'history', count: counts.recent },
   ]
+  const projectNodes: TreeEntry[] = projectList.map((p) => ({
+    id: `proj:${p.id}|${p.label}`, label: p.label, icon: 'clapperboard', count: p.count,
+  }))
   const sourceNodes: TreeEntry[] = [
     { id: 'imported', label: '导入素材', icon: 'download', count: counts.imported },
     { id: 'generated', label: '生成结果', icon: 'sparkles', count: counts.generated },
@@ -489,6 +510,12 @@ export function Assets({ projectName }: { projectName?: string } = {}) {
               {coreNodes.map(renderNav)}
               <div className="mya-org-sec">来源</div>
               {sourceNodes.map(renderNav)}
+              {projectNodes.length > 0 && (
+                <>
+                  <div className="mya-org-sec">项目</div>
+                  {projectNodes.map(renderNav)}
+                </>
+              )}
               <div className="mya-org-sec">智能文件夹</div>
               {smartNodes.map(renderNav)}
               <div className="mya-org-sec">文件夹</div>
