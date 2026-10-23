@@ -628,3 +628,12 @@ html[data-theme="tactile"] .hf-brandsep { color: #8a8676; }
 }
 html[data-theme="tactile"] .hf-chip { border: 2px solid var(--hf-line2); background: var(--hf-raised); }
 html[data-theme="tactile"] .hf-toast { border: 2px solid var(--hf-line2); box-shadow: 3px 3px 0 var(--hf-line2); }
+
+/* 未接入引擎：虚线边框 + 琥珀徽标，和可用状态区分开 */
+.hf-harness[data-off] { border-style: dashed; }
+.hf-harness-warn {
+  padding: 2px 6px; border: 1px solid rgba(208, 138, 44, .55); border-radius: 999px;
+  color: #d08a2c; font: 10px var(--hf-sans); letter-spacing: .02em; white-space: nowrap;
+}
+.hf-sample-hint[data-off] { color: #d08a2c; }
+html[data-theme="tactile"] .hf-harness-warn { border-color: #8a5a00; color: #7a5b00; }

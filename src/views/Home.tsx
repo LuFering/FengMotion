@@ -243,10 +243,15 @@ export function Home() {
 
   const send = () => {
     if (!draft.trim() && !attachments.length) return
+    if (notReady) {
+      setToast(`${harness.name} 未接入：不会创建任务，请切回已配置引擎。`)
+      return
+    }
     setToast('演示输入框：发送未接入，未创建任务。')
   }
 
   const harness = HARNESSES.find((h) => h.id === harnessId) ?? HARNESSES[0]
+  const notReady = !harness.ready
   const phrase = MIST_PHRASES[phraseIndex]
   const phraseChunks = phrase.match(/.{1,3}/gu) ?? [phrase]
 
@@ -349,11 +354,13 @@ export function Home() {
                 <span className="hf-count">{draft.length || ''}</span>
                 <div className="hf-btnwrap hf-harnesswrap">
                   <button className="hf-harness" type="button" aria-haspopup="dialog"
-                          aria-expanded={menu === 'harness'} title="切换执行引擎"
+                          data-off={notReady || undefined}
+                          aria-expanded={menu === 'harness'} title={notReady ? '该引擎未接入' : '切换执行引擎'}
                           onClick={() => setMenu(menu === 'harness' ? null : 'harness')}>
-                    <span className="hf-harness-seg" data-off={!harness.ready || undefined}><i />{harness.short}</span>
+                    <span className="hf-harness-seg" data-off={notReady || undefined}><i />{harness.short}</span>
                     <span className="hf-harness-div" aria-hidden="true" />
                     <span className="hf-harness-model">{model}</span>
+                    {notReady && <span className="hf-harness-warn">未接入</span>}
                     <svg className="hf-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
                   </button>
                   {menu === 'harness' && (
@@ -396,7 +403,11 @@ export function Home() {
                 </button>
               </div>
             </div>
-            <div className="hf-sample-hint">Enter 发送 · Shift + Enter 换行 · 附件只做展示，不上传</div>
+            <div className="hf-sample-hint" data-off={notReady || undefined}>
+              {notReady
+                ? `${harness.name} 未接入，切换回已配置引擎才能发送`
+                : 'Enter 发送 · Shift + Enter 换行 · 附件只做展示，不上传'}
+            </div>
             </div>
           </div>
         </div>
