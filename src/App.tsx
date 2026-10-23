@@ -14,7 +14,7 @@ import { NewProjectDialog } from '@/shell/NewProjectDialog'
 import { RenderDelivery } from '@/views/RenderDelivery'
 import { FxLibrary } from '@/views/FxLibrary'
 import { RefLibrary } from '@/views/RefLibrary'
-import { WorkflowGallery } from '@/views/WorkflowGallery'
+import { Workflow } from '@/views/Workflow'
 import { TooltipProvider } from '@/components/ui/tooltip'
 
 /**
@@ -56,11 +56,12 @@ export default function App() {
   // 复刻页（项目指挥中心）通过 postMessage 请求跨页导航
   useEffect(() => {
     const onMsg = (e: MessageEvent) => {
-      const d = e.data as { type?: string; id?: string } | null
+      const d = e.data as { type?: string; id?: string; projectId?: string } | null
       if (!d) return
       if (d.type !== 'fm-nav' || !d.id) return
       if (d.id === '__list') { openList(); return }
       if (d.id === '__home') { setView('home'); return }
+      if (d.projectId) setOpenProject(d.projectId)
       setView(d.id as Parameters<typeof setView>[0])
     }
     window.addEventListener('message', onMsg)
@@ -177,7 +178,7 @@ export default function App() {
               )}
               {view === 'knowledge' && <FxLibrary />}
               {view === 'reference' && <RefLibrary />}
-              {view === 'methods' && <WorkflowGallery />}
+              {view === 'methods' && <Workflow />}
             </div>
           </div>
         )}
