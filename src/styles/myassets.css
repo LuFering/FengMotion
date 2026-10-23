@@ -470,7 +470,7 @@ html[data-theme="light"] .mya {
   overflow-y: auto;
   padding: 0 20px 20px;
 }
-.mya-grid { padding-top: 16px; }
+.mya-grid { padding-top: 20px; }
 .mya-list { padding-top: 16px; }
 .mya-scroll::-webkit-scrollbar,
 .mya-drawer-body::-webkit-scrollbar {
@@ -486,26 +486,46 @@ html[data-theme="light"] .mya {
 }
 .mya-scroll, .mya-drawer-body { scrollbar-width: thin; scrollbar-color: var(--line2) transparent; }
 
-/* ── 主岛内的素材卡（岛中岛）─────────────────────────────────── */
+/* ── 主岛内的素材卡 ─────────────────────────────────────────────
+   网格密度参考 Eagle / Immich 一类素材库：卡片最小 264px，
+   1600 宽下 4 列、间距 20px，缩略图贴边通栏、信息区独立成块。 */
 .mya-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(196px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(264px, 1fr));
+  gap: 20px;
   align-content: start;
+}
+@keyframes myaCardIn {
+  from { opacity: 0; transform: translateY(12px) scale(.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 .mya-card {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 7px;
-  padding: 7px;
+  padding: 0;
+  overflow: hidden;
   background: var(--panel2);
   border: 1px solid var(--line);
   border-radius: var(--r-card);
   cursor: pointer;
-  transition: transform .18s var(--eo), box-shadow .18s var(--eo), background-color .18s var(--eo), border-color .18s var(--eo);
+  /* 入场：逐张错峰升起（--d 由 JSX 按序号给，封顶 20 张）；backwards 让
+     动画结束后把 transform 还给 hover/active 规则 */
+  animation: myaCardIn .5s var(--eo) backwards;
+  animation-delay: var(--d, 0ms);
+  transition: transform .22s var(--eo), box-shadow .22s var(--eo), background-color .22s var(--eo), border-color .22s var(--eo);
 }
-.mya-card:hover { transform: translateY(-1px); }
+.mya-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--line2);
+  box-shadow: 0 14px 34px rgb(0 0 0 / .30);
+}
+@media (prefers-reduced-motion: reduce) {
+  .mya-card { animation: none; transition: none; }
+  .mya-card:hover { transform: none; box-shadow: none; }
+  .mya-thumb img { transition: none; }
+  .mya-card:hover .mya-thumb img { transform: none; }
+}
 .mya-card[data-on] {
   background: var(--raised);
   border-color: color-mix(in srgb, var(--acc) 55%, transparent);
@@ -521,64 +541,75 @@ html[data-theme="light"] .mya {
   position: relative;
   aspect-ratio: 16 / 9;
   overflow: hidden;
-  border-radius: var(--r-thumb);
   background: var(--stage-bg);
 }
-.mya-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.mya-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform .5s var(--eo);
+}
+.mya-card:hover .mya-thumb img { transform: scale(1.05); }
 .mya-thumb-ph { position: absolute; inset: 0; display: grid; place-items: center; color: var(--tx3); }
-.mya-thumb-ph .ui-icon { width: 20px; height: 20px; }
+.mya-thumb-ph .ui-icon { width: 26px; height: 26px; }
 .mya-dur {
   position: absolute;
-  right: 6px;
-  bottom: 6px;
-  padding: 2px 6px;
+  right: 8px;
+  bottom: 8px;
+  padding: 2px 7px;
   border-radius: var(--r-pill);
   background: var(--scrim);
+  backdrop-filter: blur(4px);
   color: var(--tx);
-  font-size: 10.5px;
-  line-height: 1.2;
+  font-size: 11px;
+  line-height: 1.25;
 }
 .mya-check {
   position: absolute;
-  left: 6px;
-  top: 6px;
-  display: grid;
-  place-items: center;
-  width: 18px;
-  height: 18px;
-  border-radius: var(--r-mark);
-  background: var(--panel);
-  border: 1px solid var(--line2);
-  opacity: 0;
-  transition: opacity .15s var(--eo);
-}
-.mya-check input { width: 11px; height: 11px; margin: 0; accent-color: var(--acc); cursor: pointer; }
-.mya-card:hover .mya-check,
-.mya-card[data-on] .mya-check,
-.mya-card[data-picked] .mya-check,
-.mya-check:focus-within { opacity: 1; }
-.mya-star {
-  position: absolute;
-  right: 6px;
-  top: 6px;
+  left: 8px;
+  top: 8px;
   display: grid;
   place-items: center;
   width: 22px;
   height: 22px;
+  border-radius: var(--r-mark);
+  background: color-mix(in srgb, var(--panel) 85%, transparent);
+  backdrop-filter: blur(6px);
+  border: 1px solid var(--line2);
+  opacity: 0;
+  transform: translateY(-3px);
+  transition: opacity .18s var(--eo), transform .18s var(--eo);
+}
+.mya-check input { width: 13px; height: 13px; margin: 0; accent-color: var(--acc); cursor: pointer; }
+.mya-card:hover .mya-check,
+.mya-card[data-on] .mya-check,
+.mya-card[data-picked] .mya-check,
+.mya-check:focus-within { opacity: 1; transform: translateY(0); }
+.mya-star {
+  position: absolute;
+  right: 8px;
+  top: 8px;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
   border: 1px solid var(--line2);
   border-radius: var(--r-pill);
-  background: var(--panel);
+  background: color-mix(in srgb, var(--panel) 85%, transparent);
+  backdrop-filter: blur(6px);
   color: var(--tx2);
   cursor: pointer;
   opacity: 0;
-  transition: opacity .15s var(--eo), color .15s var(--eo);
+  transform: translateY(-3px);
+  transition: opacity .18s var(--eo), transform .18s var(--eo), color .18s var(--eo);
 }
-.mya-card:hover .mya-star, .mya-star[data-on], .mya-star:focus-visible { opacity: 1; }
+.mya-card:hover .mya-star, .mya-star[data-on], .mya-star:focus-visible { opacity: 1; transform: translateY(0); }
 .mya-star[data-on] { color: var(--warn); }
-.mya-star .ui-icon { width: 12px; height: 12px; }
-.mya-card-body { display: flex; flex-direction: column; gap: 3px; min-width: 0; padding: 0 1px 1px; }
-.mya-card-name { font-size: 12.5px; font-weight: 550; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mya-card-meta { display: flex; align-items: center; gap: 5px; min-width: 0; font-size: 11px; color: var(--tx3); }
+.mya-star .ui-icon { width: 14px; height: 14px; }
+.mya-card-body { display: flex; flex-direction: column; gap: 4px; min-width: 0; padding: 11px 13px 12px; }
+.mya-card-name { font-size: 13.5px; font-weight: 600; line-height: 1.35; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mya-card-meta { display: flex; align-items: center; gap: 5px; min-width: 0; font-size: 11.5px; line-height: 1.4; color: var(--tx3); }
 .mya-card-spec { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mya-flag { flex: 0 0 auto; margin-left: auto; font-size: 10.5px; color: var(--warn); }
 .mya-flag[data-tone="bad"] { color: var(--danger); }
@@ -1068,7 +1099,7 @@ button.mya-ref:hover { background: var(--hover); color: var(--tx); }
 }
 @media (max-width: 1280px) {
   .mya-search { width: 240px; }
-  .mya-grid { grid-template-columns: repeat(auto-fill, minmax(176px, 1fr)); }
+  .mya-grid { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
   .mya-list-head, .mya-row { grid-template-columns: 22px minmax(0, 1fr) 44px 82px 64px 58px 68px 64px; gap: 6px; }
   .mya-drawer { width: 360px; }
 }
