@@ -16,7 +16,7 @@ export function ErrorState({
   return (
     <div className="fm-state fm-state-error" role="alert">
       <svg className="ui-icon fm-state-icon" aria-hidden="true">
-        <use href="/assets/paba-icons.svg#circle-alert" />
+        <use href="./assets/paba-icons.svg#circle-alert" />
       </svg>
       <b className="fm-state-title">{title}</b>
       {body ? <p className="fm-state-body">{body}</p> : null}

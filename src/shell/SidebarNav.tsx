@@ -14,7 +14,7 @@ import { NAV, DEFAULT_EXPANDED, type NavNode, type ViewId } from '@/shell/views'
 function Icon({ name, className = 'ui-icon' }: { name: string; className?: string }) {
   return (
     <svg className={className} aria-hidden="true">
-      <use href={`/assets/paba-icons.svg#${name}`} />
+      <use href={`./assets/paba-icons.svg#${name}`} />
     </svg>
   )
 }
@@ -150,7 +150,7 @@ function NavGroup({
         <Icon name={node.icon} />
         <span className="hm-nav-text">{node.label}</span>
         <svg className="nav-chevron ui-icon" aria-hidden="true">
-          <use href="/assets/paba-icons.svg#chevron-right" />
+          <use href="./assets/paba-icons.svg#chevron-right" />
         </svg>
       </button>
 

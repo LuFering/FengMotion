@@ -122,7 +122,7 @@ export function Home() {
         <div className="hf-media">
           <div className="hf-left-module">
             <div className="hf-brandline">
-              <img src="/assets/brand/fengmotion-mark.png" alt="" />
+              <img src="./assets/brand/fengmotion-mark.png" alt="" />
               <span className="hf-brandname">FengMotion</span>
               <span className="hf-brandsep" aria-hidden="true">|</span>
               <button type="button" className="hf-brandstart" onClick={() => taRef.current?.focus()}>开始创作</button>

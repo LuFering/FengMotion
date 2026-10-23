@@ -15,7 +15,7 @@ import type { TaskRecord } from '@/hooks/useAgentTasks'
 function Icon({ name, className = 'ui-icon' }: { name: string; className?: string }) {
   return (
     <svg className={className} aria-hidden="true">
-      <use href={`/assets/paba-icons.svg#${name}`} />
+      <use href={`./assets/paba-icons.svg#${name}`} />
     </svg>
   )
 }
@@ -31,7 +31,7 @@ export function ProjectOverview(_props: {
     <div className="acr" style={{ background: '#000801', overflow: 'hidden' }}>
       <iframe
         className="acr-frame"
-        src="/replica/callour/index.html"
+        src="./replica/callour/index.html"
         title="项目指挥中心"
         style={{ width: '100%', height: '100%', borderRadius: 0, background: '#000801' }}
       />

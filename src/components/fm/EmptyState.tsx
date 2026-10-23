@@ -18,7 +18,7 @@ export function EmptyState({
   return (
     <div className="fm-state fm-state-empty" role="status">
       <svg className="ui-icon fm-state-icon" aria-hidden="true">
-        <use href={`/assets/paba-icons.svg#${icon}`} />
+        <use href={`./assets/paba-icons.svg#${icon}`} />
       </svg>
       <b className="fm-state-title">{title}</b>
       {body ? <p className="fm-state-body">{body}</p> : null}

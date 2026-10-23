@@ -24,7 +24,7 @@ export function SearchField({
   return (
     <div className="fm-searchfield" role="search">
       <svg className="ui-icon fm-searchfield-icon" aria-hidden="true">
-        <use href="/assets/paba-icons.svg#search" />
+        <use href="./assets/paba-icons.svg#search" />
       </svg>
       <input
         ref={inputRef}
@@ -37,7 +37,7 @@ export function SearchField({
       />
       {value && onClear ? (
         <button className="fm-searchfield-clear" type="button" aria-label="清空搜索" onClick={onClear}>
-          <svg className="ui-icon" aria-hidden="true"><use href="/assets/paba-icons.svg#x" /></svg>
+          <svg className="ui-icon" aria-hidden="true"><use href="./assets/paba-icons.svg#x" /></svg>
         </button>
       ) : !value && shortcutHint ? (
         <kbd className="fm-searchfield-kbd" aria-hidden="true">{shortcutHint}</kbd>

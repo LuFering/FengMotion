@@ -18,7 +18,7 @@ export function RenderDelivery({
     <div className="acr" data-project={project?.name ?? ''}>
       <iframe
         className="acr-frame"
-        src="/replica/qc-preview-v2.html"
+        src="./replica/qc-preview-v2.html"
         title="渲染页复刻（QC Analyzer — Demo Project）"
       />
     </div>

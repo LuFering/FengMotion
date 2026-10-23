@@ -67,7 +67,7 @@ const SORT_ITEMS: Array<{ value: SortKey; label: string }> = [
 function Icon({ name, className = 'ui-icon' }: { name: string; className?: string }) {
   return (
     <svg className={className} aria-hidden="true">
-      <use href={`/assets/paba-icons.svg#${name}`} />
+      <use href={`./assets/paba-icons.svg#${name}`} />
     </svg>
   )
 }
@@ -325,7 +325,7 @@ export function RefLibrary() {
         <img
           key={segment.id}
           className={`rfc-frame${playing ? ' is-playing' : ''}`}
-          src={`/reference/shots/${segment.id}.webp`}
+          src={`./reference/shots/${segment.id}.webp`}
           alt=""
         />
         <div className="rfc-scrim rfc-scrim-t" />
@@ -512,7 +512,7 @@ export function RefLibrary() {
                   onClick={() => selectFilm(v.id)}
                   aria-pressed={v.id === film.id}
                 >
-                  <img src={`/reference/shots/${ss[0]?.id}.webp`} alt="" loading="lazy" />
+                  <img src={`./reference/shots/${ss[0]?.id}.webp`} alt="" loading="lazy" />
                   <span className="rfc-film-lb">
                     <span className="rfc-film-t">{v.title}</span>
                     <span className="rfc-film-m num">{ss.length} 片段 · 已分析 {done}/{ss.length}</span>
@@ -625,7 +625,7 @@ export function RefLibrary() {
                     }}
                   >
                     <span className="rfc-card-thumb">
-                      <img src={`/reference/shots/${s.id}.webp`} alt="" loading="lazy" />
+                      <img src={`./reference/shots/${s.id}.webp`} alt="" loading="lazy" />
                       <span className="rfc-card-idx num">{String(SEGMENT_ORDER.get(s.id) ?? 0).padStart(2, '0')}</span>
                       <span className="rfc-card-tc num">{formatTimecode(s.start)}</span>
                       {stored.favorites.includes(s.id) && <span className="rfc-card-fav"><Icon name="star" /></span>}

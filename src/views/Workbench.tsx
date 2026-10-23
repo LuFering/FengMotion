@@ -41,7 +41,7 @@ import { Switch } from '@/components/ui/switch'
  */
 
 /** 项目里实际存在的那份成片。演示适配器不改它，只播放/下载。 */
-const EXISTING_FILM_SOURCE = '/media/token-full-legacy.mp4'
+const EXISTING_FILM_SOURCE = './media/token-full-legacy.mp4'
 
 /**
  * 首屏默认停在场景内的「代表帧」而不是 0s。
@@ -571,7 +571,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, onBack, onSwitch
                 ) : (
                   <div className="relative flex size-full overflow-hidden bg-black">
                     <div className="relative h-full overflow-hidden" style={{ width: `${compareSplit}%` }}>
-                      <img src={selectedScene.frame ?? '/frames/u01.jpg'} alt="项目抽帧"
+                      <img src={selectedScene.frame ?? './frames/u01.jpg'} alt="项目抽帧"
                            className="absolute inset-0 size-full object-contain" />
                       <span className="absolute left-2 top-2 bg-black/75 px-1.5 py-1 text-[10px]">已存抽帧</span>
                     </div>

@@ -35,7 +35,7 @@ export function useProjects() {
       totalClips: 0,
       segments: 0,
       compositions: 0,
-      cover: g?.img ?? '/frames/film/s01.jpg',
+      cover: g?.img ?? './frames/film/s01.jpg',
       path: `${PROJECTS_ROOT}/${slug(name)}`,
       updatedAt: nowIso(),
       planned: true,

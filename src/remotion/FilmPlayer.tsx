@@ -4,7 +4,7 @@ import { FilmPlayback } from '@/remotion/FilmPlayback'
 import { Player, type PlayerRef } from '@remotion/player'
 import { useRef, useState } from 'react'
 
-const SOURCE = '/media/token-full-legacy.mp4'
+const SOURCE = './media/token-full-legacy.mp4'
 const FPS = 30
 const DURATION_FRAMES = Math.round(ACTIVE_DURATION * FPS)
 
