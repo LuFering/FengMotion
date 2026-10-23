@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties } from 'react'
+import { useEffect, useRef, useState, type CSSProperties, type ChangeEvent } from 'react'
 
 /**
  * 首页 · 第一屏
@@ -128,13 +128,32 @@ function HeroTitle({ copy, cycle }: { copy: HeroCycle; cycle: number }) {
   )
 }
 
+type Attachment = { name: string; size: number; kind: 'file' | 'image' | 'video' }
+
+const fmtSize = (bytes: number) =>
+  bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)}MB`
+    : bytes >= 1024 ? `${Math.round(bytes / 1024)}KB`
+      : `${bytes}B`
+
+const AI_TOOLS = [
+  { label: '分镜拆解', hint: '把口播稿拆成可拍的镜头', prompt: '把这段口播稿拆成分镜脚本：' },
+  { label: '文案润色', hint: '改得更口语、更短', prompt: '把下面这段文案改得更口语些：' },
+  { label: '镜头建议', hint: '换一种运镜或景别', prompt: '给这个镜头换一种运镜方式：' },
+]
+
 export function Home() {
   const [ready, setReady] = useState(false)
   const [draft, setDraft] = useState('')
-  const [workdirOpen, setWorkdirOpen] = useState(false)
+  const [menu, setMenu] = useState<null | 'workdir' | 'add' | 'ai'>(null)
   const [workdir, setWorkdir] = useState('~/workspace/fengmotion')
+  const [attachments, setAttachments] = useState<Attachment[]>([])
+  const [toast, setToast] = useState('')
   const [phraseIndex, setPhraseIndex] = useState(0)
   const taRef = useRef<HTMLTextAreaElement>(null)
+  const moduleRef = useRef<HTMLDivElement>(null)
+  const fileRef = useRef<HTMLInputElement>(null)
+  const imageRef = useRef<HTMLInputElement>(null)
+  const videoRef = useRef<HTMLInputElement>(null)
   const [cycle, setCycle] = useState(0)
   const [phase, setPhase] = useState<HeroPhase>('text')
   const [reduced, setReduced] = useState(false)
@@ -185,6 +204,42 @@ export function Home() {
     el.style.height = `${Math.min(el.scrollHeight, 172)}px`
   }, [draft])
 
+  // 点击模块外或 Esc 关闭气泡菜单
+  useEffect(() => {
+    if (!menu) return
+    const onDown = (e: MouseEvent) => {
+      if (!moduleRef.current?.contains(e.target as Node)) setMenu(null)
+    }
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setMenu(null) }
+    document.addEventListener('mousedown', onDown)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onDown)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [menu])
+
+  useEffect(() => {
+    if (!toast) return
+    const id = window.setTimeout(() => setToast(''), 2600)
+    return () => window.clearTimeout(id)
+  }, [toast])
+
+  const pickFiles = (kind: Attachment['kind']) => (e: ChangeEvent<HTMLInputElement>) => {
+    const picked = Array.from(e.target.files ?? []).map((f) => ({ name: f.name, size: f.size, kind }))
+    setAttachments((prev) => [...prev, ...picked].slice(0, 6))
+    e.target.value = ''
+    setMenu(null)
+  }
+
+  const removeAttachment = (name: string, size: number) =>
+    setAttachments((prev) => prev.filter((a) => !(a.name === name && a.size === size)))
+
+  const send = () => {
+    if (!draft.trim() && !attachments.length) return
+    setToast('演示输入框：发送未接入，未创建任务。')
+  }
+
   const phrase = MIST_PHRASES[phraseIndex]
   const phraseChunks = phrase.match(/.{1,3}/gu) ?? [phrase]
 
@@ -193,7 +248,10 @@ export function Home() {
 
       <section className="hf-hero">
         <div className="hf-media">
-          <div className="hf-left-module">
+          <div className="hf-left-module" ref={moduleRef}>
+            <input ref={fileRef} type="file" multiple hidden onChange={pickFiles('file')} />
+            <input ref={imageRef} type="file" accept="image/*" multiple hidden onChange={pickFiles('image')} />
+            <input ref={videoRef} type="file" accept="video/*" multiple hidden onChange={pickFiles('video')} />
             <div className="hf-brandline">
               <img src="/assets/brand/fengmotion-mark.png" alt="" />
               <span className="hf-brandname">FengMotion</span>
@@ -202,7 +260,26 @@ export function Home() {
             </div>
             <div className="hf-sample">
             <div className="hf-composer">
-              <div className="hf-chips" aria-hidden="true" />
+              {attachments.length > 0 && (
+                <div className="hf-chips">
+                  {attachments.map((a) => (
+                    <span className="hf-chip" key={`${a.kind}-${a.name}-${a.size}`}>
+                      <svg className="hf-chip-icon" viewBox="0 0 24 24" aria-hidden="true">
+                        {a.kind === 'image'
+                          ? <><rect x="3" y="4" width="18" height="16" rx="3" /><circle cx="9" cy="10" r="1.6" /><path d="M4 17l5-4 4 3 3-2 4 3" /></>
+                          : a.kind === 'video'
+                            ? <><rect x="3" y="5" width="18" height="14" rx="3" /><path d="M10 9l5 3-5 3z" /></>
+                            : <><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" /><path d="M14 3v5h5" /></>}
+                      </svg>
+                      <span className="hf-chip-name" title={a.name}>{a.name}</span>
+                      <span className="hf-chip-size">{fmtSize(a.size)}</span>
+                      <button type="button" onClick={() => removeAttachment(a.name, a.size)} aria-label={`移除 ${a.name}`}>
+                        <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" /></svg>
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
               <div className="hf-ta">
                 <textarea ref={taRef} rows={1} value={draft}
                           placeholder=""
@@ -218,21 +295,55 @@ export function Home() {
                   </div>
                 )}
               </div>
+              {toast && <div className="hf-toast" role="status">{toast}</div>}
               <div className="hf-toolbar">
-                <button className="hf-ibtn" type="button" title="添加附件" onClick={() => taRef.current?.focus()}>
-                  <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
-                </button>
-                <button className="hf-ibtn" type="button" title="AI 工具" onClick={() => taRef.current?.focus()}>
-                  <svg viewBox="0 0 24 24"><path d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.4z" /><path d="M19 15.5l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z" /></svg>
-                </button>
-                <div className="hf-modewrap" data-open={workdirOpen || undefined}>
-                  <button className="hf-modechip hf-workdir-chip" type="button" aria-expanded={workdirOpen}
-                          onClick={() => setWorkdirOpen((v) => !v)}>
+                <div className="hf-btnwrap">
+                  <button className="hf-ibtn" type="button" title="添加附件" aria-expanded={menu === 'add'}
+                          onClick={() => setMenu(menu === 'add' ? null : 'add')}>
+                    <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
+                  </button>
+                  {menu === 'add' && (
+                    <div className="hf-menu">
+                      <button type="button" onClick={() => fileRef.current?.click()}>
+                        <span className="hf-mt"><b>文件</b><small>任意类型</small></span>
+                      </button>
+                      <button type="button" onClick={() => imageRef.current?.click()}>
+                        <span className="hf-mt"><b>图片</b><small>png / jpg / webp</small></span>
+                      </button>
+                      <button type="button" onClick={() => videoRef.current?.click()}>
+                        <span className="hf-mt"><b>视频</b><small>mp4 / mov / webm</small></span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+                <div className="hf-btnwrap">
+                  <button className="hf-ibtn" type="button" title="AI 工具" aria-expanded={menu === 'ai'}
+                          onClick={() => setMenu(menu === 'ai' ? null : 'ai')}>
+                    <svg viewBox="0 0 24 24"><path d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.4z" /><path d="M19 15.5l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z" /></svg>
+                  </button>
+                  {menu === 'ai' && (
+                    <div className="hf-menu">
+                      {AI_TOOLS.map((tool) => (
+                        <button key={tool.label} type="button"
+                                onClick={() => {
+                                  setDraft((d) => (d ? `${d}\n${tool.prompt}` : tool.prompt))
+                                  setMenu(null)
+                                  taRef.current?.focus()
+                                }}>
+                          <span className="hf-mt"><b>{tool.label}</b><small>{tool.hint}</small></span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div className="hf-modewrap" data-open={menu === 'workdir' || undefined}>
+                  <button className="hf-modechip hf-workdir-chip" type="button" aria-expanded={menu === 'workdir'}
+                          onClick={() => setMenu(menu === 'workdir' ? null : 'workdir')}>
                     <svg className="hf-folder" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></svg>
                     <span>工作目录</span>
                     <svg className="hf-chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" /></svg>
                   </button>
-                  {workdirOpen && (
+                  {menu === 'workdir' && (
                     <div className="hf-menu hf-workdir-menu">
                       {[
                         ['~/workspace/fengmotion', 'FengMotion'],
@@ -240,7 +351,7 @@ export function Home() {
                         ['~/workspace', 'workspace 根目录'],
                       ].map(([path, label]) => (
                         <button key={path} type="button" className={workdir === path ? 'is-sel' : undefined}
-                                onClick={() => { setWorkdir(path); setWorkdirOpen(false) }}>
+                                onClick={() => { setWorkdir(path); setMenu(null) }}>
                           <span>{label}</span><span className="hf-ck">✓</span>
                         </button>
                       ))}
@@ -250,13 +361,14 @@ export function Home() {
                 <span className="hf-spacer" />
                 <span className="hf-count">{draft.length || ''}</span>
                 <span className="hf-model"><i />deepseek-chat</span>
-                <button className="hf-send" type="button" disabled={!draft.trim()}
-                        title={draft.trim() ? '示例输入框：发送未接入' : '发送'} aria-label="发送">
+                <button className="hf-send" type="button" disabled={!draft.trim() && !attachments.length}
+                        title={draft.trim() || attachments.length ? '示例输入框：发送未接入' : '发送'}
+                        onClick={send} aria-label="发送">
                   <svg viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7" /></svg>
                 </button>
               </div>
             </div>
-            <div className="hf-sample-hint">Enter 发送 · Shift + Enter 换行 · 支持拖放 / 粘贴文件</div>
+            <div className="hf-sample-hint">Enter 发送 · Shift + Enter 换行 · 附件只做展示，不上传</div>
             </div>
           </div>
         </div>
