@@ -146,6 +146,77 @@
   opacity: 1; transform: translateX(2px); color: var(--acc);
 }
 
+/* ── 8b · 区块标题（我的创作等列表页）──────────────────────────
+   结构：序号徽标 + 标题 + 英文 slug + 横线 + 计数 + 搜索 + 主动作。
+   ⚠️ 此前只有 WorkbenchCatalog 在用这套类名，样式从未定义过，
+      标题一直以纯文本纵排渲染；这里按 fm 语言补齐定义。 */
+.fm-heading {
+  display: flex;
+  align-items: center;
+  gap: var(--fm-space-3);
+  margin-bottom: var(--fm-space-5);
+  min-width: 0;
+}
+.fm-hd-idx {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  color: var(--dim);
+}
+.fm-hd-idx .ui-icon { width: 18px; height: 18px }
+.fm-hd-idx i {
+  font-style: normal;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 10px;
+  color: var(--ph);
+}
+.fm-heading h2 {
+  margin: 0;
+  font-size: var(--fm-text-heading);
+  line-height: var(--fm-leading-heading);
+  font-weight: 600;
+  color: var(--fg);
+  white-space: nowrap;
+}
+.fm-hd-slug {
+  font-style: normal;
+  font-size: 10px;
+  letter-spacing: .18em;
+  color: var(--ph);
+  white-space: nowrap;
+}
+.fm-hd-rule {
+  flex: 1 1 auto;
+  min-width: 24px;
+  height: 1px;
+  background: var(--line);
+}
+.fm-hd-meta {
+  flex: 0 0 auto;
+  color: var(--dim);
+  font-size: var(--fm-text-meta);
+  white-space: nowrap;
+}
+.fm-heading .fm-searchfield { flex: 0 1 220px }
+.fm-heading > button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  height: var(--fm-control-sm);
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--fm-radius-ctl);
+  background: var(--surf);
+  color: var(--fg);
+  font: inherit;
+  font-size: var(--fm-text-label);
+  cursor: pointer;
+  transition: border-color var(--fm-dur-micro) var(--fm-ease);
+}
+.fm-heading > button:hover { border-color: var(--acc) }   /* [R8] */
+
 /* ── 9 · 消息气泡（对话）─────────────────────────────────────
    衍生自 paba 聊天面板：用户消息用 --soft（选中的底），AI 消息不用气泡。
    这是 paba 已有的做法，直接沿用。 */

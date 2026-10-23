@@ -13,6 +13,9 @@ import {
   type ReferenceVideo,
 } from '@/data/referenceLibrary'
 import { EmptyState } from '@/components/fm/EmptyState'
+import { StatusBadge } from '@/components/fm/StatusBadge'
+import { PageHeader } from '@/components/PageHeader'
+import { SearchField } from '@/components/SearchField'
 
 /**
  * 参考片库 —— 搜索/筛选 + 全宽镜头接触表 + 抽屉详情。
@@ -686,43 +689,30 @@ export function RefLibrary() {
   return (
     <div className="rfl" data-mode="dark">
       <div className="rfl-page" inert={drawerOpen}>
-        <header className="rfl-head">
-          <div className="rfl-brand">
-            <span className="rfl-brand-mark">
-              <Icon name="film" />
-            </span>
-            <span className="rfl-brand-copy">
-              <b>参考片库</b>
-              <span>
-                {REFERENCE_SHOTS.length} 镜头 · {REFERENCE_VIDEOS.length} 部参考片
+        <PageHeader
+          title="参考片库"
+          meta={
+            <>
+              {REFERENCE_SHOTS.length} 镜头 · {REFERENCE_VIDEOS.length} 部参考片
+            </>
+          }
+          actions={
+            <>
+              <SearchField
+                value={query}
+                onChange={setQuery}
+                placeholder="搜索镜头、运镜、叙事功能…"
+                ariaLabel="搜索参考镜头"
+                onClear={() => setQuery('')}
+                inputRef={searchRef}
+                shortcutHint="/"
+              />
+              <span title="需要后端向量服务，当前未接入">
+                <StatusBadge tone="neutral">视觉检索未接入</StatusBadge>
               </span>
-            </span>
-          </div>
-
-          <label className="rfl-search">
-            <Icon name="search" />
-            <input
-              ref={searchRef}
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="搜索镜头、运镜、叙事功能…"
-              aria-label="搜索参考镜头"
-              spellCheck={false}
-            />
-            {query ? (
-              <button type="button" className="rfl-search-clear" onClick={() => setQuery('')} aria-label="清空搜索">
-                <Icon name="x" />
-              </button>
-            ) : (
-              <kbd className="rfl-kbd">/</kbd>
-            )}
-          </label>
-
-          <span className="rfl-chip is-off" title="需要后端向量服务，当前未接入">
-            <Icon name="scan-face" />
-            视觉检索未接入
-          </span>
-        </header>
+            </>
+          }
+        />
 
         <section className="rfl-toolbar" aria-label="浏览范围与筛选">
           <div className="rfl-toolbar-main">
