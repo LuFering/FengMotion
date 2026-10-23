@@ -430,3 +430,8 @@ html[data-theme='tactile'] .rfc {
   .rfc-transport-hint { display: none; }
   .rfc-browse { inset: 8px; }
 }
+
+/* ── 影院态控件闲置淡出（.is-idle 由组件在 3 秒无活动后挂上） ── */
+.rfc-head, .rfc-actions, .rfc-nav { transition: opacity 0.35s ease; }
+.rfc.is-idle .rfc-head, .rfc.is-idle .rfc-actions, .rfc.is-idle .rfc-nav { opacity: 0; pointer-events: none; }
+.rfc.is-idle .rfc-stage { cursor: none; }

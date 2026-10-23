@@ -748,14 +748,6 @@ export function Assets({ projectName }: { projectName?: string } = {}) {
             </div>
           </main>
 
-          <div className="mya-status">
-            <span className="mya-pill"><i className="mya-dot" />就绪</span>
-            <span className="mya-pill">{assets.length} 项</span>
-            {selected.size > 0 && <span className="mya-pill">{selected.size} 已选</span>}
-            <span className="mya-pill">{counts.pending} 待审核</span>
-            <span className="mya-spacer" />
-            <span className="mya-status-note">本地索引 · 刷新后仍在</span>
-          </div>
         </div>
 
         {detail && (

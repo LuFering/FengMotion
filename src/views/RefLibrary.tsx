@@ -149,6 +149,7 @@ export function RefLibrary() {
   const [browseOpen, setBrowseOpen] = useState(false)
   const [collMenuOpen, setCollMenuOpen] = useState(false)
   const [toast, setToast] = useState('')
+  const [idle, setIdle] = useState(false)
   const [tab, setTab] = useState<BrowseTab>('all')
   const [collId, setCollId] = useState(REFERENCE_COLLECTIONS[0]?.id ?? '')
   const [query, setQuery] = useState('')
@@ -174,6 +175,27 @@ export function RefLibrary() {
       localStorage.setItem(OUTBOX_KEY, JSON.stringify(outbox))
     } catch { /* 同上 */ }
   }, [outbox])
+
+  /** 影院态控件闲置淡出：3 秒无鼠标/键盘活动后淡出头部与操作控件，活动即恢复 */
+  useEffect(() => {
+    let timer = 0
+    const arm = () => {
+      window.clearTimeout(timer)
+      timer = window.setTimeout(() => setIdle(true), 3000)
+    }
+    const wake = () => {
+      setIdle(false)
+      arm()
+    }
+    arm()
+    window.addEventListener('mousemove', wake)
+    window.addEventListener('keydown', wake)
+    return () => {
+      window.clearTimeout(timer)
+      window.removeEventListener('mousemove', wake)
+      window.removeEventListener('keydown', wake)
+    }
+  }, [])
 
   /** 每次激活片段记入最近浏览（去重、最近在前、上限 12）。 */
   useEffect(() => {
@@ -320,7 +342,7 @@ export function RefLibrary() {
   }))
 
   return (
-    <div className="rfc">
+    <div className={idle && !browseOpen ? 'rfc is-idle' : 'rfc'}>
       <div className="rfc-stage">
         <img
           key={segment.id}

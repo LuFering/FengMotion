@@ -1073,28 +1073,6 @@ button.mya-ref:hover { background: var(--hover); color: var(--tx); }
 .mya-ref em { margin-left: auto; font-style: normal; font-size: 10.5px; color: var(--tx3); }
 .mya-recent { display: flex; flex-direction: column; gap: 4px; }
 
-/* ── 基岛：状态栏 26px（独立胶囊）───────────────────────────── */
-.mya-status {
-  flex: 0 0 26px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0 2px;
-  font-size: 11px;
-  color: var(--tx3);
-  animation: myaRise .5s var(--eo) .18s both;
-}
-.mya-status > span:not(.mya-spacer):not(.mya-status-note) {
-  padding: 3px 11px;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: var(--r-pill);
-  box-shadow: var(--shadow-base);
-  white-space: nowrap;
-}
-.mya-dot { display: inline-block; width: 6px; height: 6px; margin-right: 6px; border-radius: var(--r-pill); background: var(--ok); }
-.mya-status-note { padding: 0 4px; color: var(--tx3); white-space: nowrap; }
-
 /* ── 空态 / 加载（不留白屏，不用虚线大卡）──────────────────── */
 .mya-state {
   min-height: 320px;
