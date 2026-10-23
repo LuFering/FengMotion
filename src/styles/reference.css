@@ -57,12 +57,21 @@ body:has(#pane-reference .rfc) {
   --r-card: 12px;
   --eo: cubic-bezier(0.23, 1, 0.32, 1);
 
-  /* 影院覆层固定玻璃（画面之上，不随壳主题） */
+  /* 画面之上的走带层恒为影院深色玻璃（片名/片单/片段段/走带，在照片上不随主题） */
   --glass: rgba(10, 13, 18, 0.58);
   --glass-deep: rgba(11, 14, 19, 0.86);
   --glass-line: rgba(255, 255, 255, 0.15);
   --ink: #eef1f6;
   --ink-dim: rgba(238, 241, 246, 0.62);
+
+  /* 界面层（分析面板 / 片库覆层 / 吐司）跟随壳主题，由下方主题块覆写 */
+  --panel-glass: rgba(11, 14, 19, 0.86);
+  --panel-line: rgba(255, 255, 255, 0.15);
+  --chip-bg: rgba(255, 255, 255, 0.07);
+  --dash: rgba(255, 255, 255, 0.055);
+  --conf-track: rgba(255, 255, 255, 0.10);
+  --tag-bg: rgba(255, 255, 255, 0.06);
+  --seg-fill: rgba(59, 140, 248, 0.5);
 
   position: relative;
   flex: 1;
@@ -77,6 +86,63 @@ body:has(#pane-reference .rfc) {
   line-height: 1.5;
   font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
+}
+
+/* ── 浅白主题：界面层换浅色 token（与素材库浅色根同值），走带层保持深色玻璃 ── */
+html[data-theme='light'] .rfc {
+  --panel: #fcfcfd;
+  --panel2: #eef0f4;
+  --raised: #ffffff;
+  --line: rgba(25, 25, 50, 0.06);
+  --line2: #cdcdd6;
+  --tx: #191a20;
+  --tx2: #5b5e66;
+  --tx3: #94969e;
+  --acc: #2F6FE4;
+  --acc-ink: #ffffff;
+  --acc-tx: #1E5BBF;
+  --sel: rgba(47, 111, 228, 0.10);
+  --hover: rgba(25, 25, 50, 0.035);
+  --ok: #3d9166;
+  --warn: #b97f16;
+  --shadow-mid: 0 12px 30px rgba(30, 30, 60, 0.12);
+  --shadow-float: 0 32px 80px rgba(30, 30, 60, 0.28);
+  --panel-glass: rgba(252, 252, 253, 0.94);
+  --panel-line: rgba(25, 25, 50, 0.12);
+  --chip-bg: rgba(25, 25, 50, 0.05);
+  --dash: rgba(25, 25, 50, 0.08);
+  --conf-track: rgba(25, 25, 50, 0.10);
+  --tag-bg: rgba(25, 25, 50, 0.05);
+  --seg-fill: rgba(47, 111, 228, 0.45);
+}
+
+/* ── 触感主题：纸色 + 硬阴影 + 黄强调（与素材库触感根同值） ── */
+html[data-theme='tactile'] .rfc {
+  --panel: #eae6da;
+  --panel2: #ddd8c9;
+  --raised: #f4f1e8;
+  --line: rgba(34, 35, 31, 0.16);
+  --line2: #22231f;
+  --tx: #22231f;
+  --tx2: #55534a;
+  --tx3: #8a8676;
+  --acc: #f7c948;
+  --acc-ink: #22231f;
+  --acc-tx: #7a5b00;
+  --sel: rgba(247, 201, 72, 0.40);
+  --hover: rgba(34, 35, 31, 0.05);
+  --ok: #2e7d32;
+  --warn: #8a5a00;
+  --r-panel: 20px;
+  --shadow-mid: 5px 5px 0 #22231f;
+  --shadow-float: 8px 8px 0 #22231f;
+  --panel-glass: rgba(244, 241, 232, 0.97);
+  --panel-line: #22231f;
+  --chip-bg: rgba(34, 35, 31, 0.06);
+  --dash: rgba(34, 35, 31, 0.14);
+  --conf-track: rgba(34, 35, 31, 0.14);
+  --tag-bg: rgba(34, 35, 31, 0.06);
+  --seg-fill: rgba(247, 201, 72, 0.55);
 }
 
 .rfc *,
@@ -153,7 +219,7 @@ body:has(#pane-reference .rfc) {
   transition: background 0.15s var(--eo), opacity 0.15s;
 }
 .rfc-nav .ui-icon { width: 17px; height: 17px; }
-.rfc-nav:hover:not(:disabled) { background: var(--acc); }
+.rfc-nav:hover:not(:disabled) { background: var(--acc); color: var(--acc-ink); }
 .rfc-nav:disabled { opacity: 0.28; cursor: default; }
 .rfc-nav.prev { left: 20px; }
 .rfc-nav.next { right: 20px; }
@@ -163,7 +229,7 @@ body:has(#pane-reference .rfc) {
   position: absolute; top: 78px; right: 20px;
   width: 348px; max-height: calc(100% - 268px);
   overflow-y: auto; overscroll-behavior: contain;
-  background: var(--glass-deep); border: 1px solid var(--glass-line);
+  background: var(--panel-glass); border: 1px solid var(--panel-line);
   border-radius: var(--r-panel);
   backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
   box-shadow: var(--shadow-float);
@@ -173,8 +239,8 @@ body:has(#pane-reference .rfc) {
 @keyframes rfc-panel-in { from { opacity: 0; transform: translateX(14px); } to { opacity: 1; transform: none; } }
 .rfc-panel-head { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
 .rfc-panel-head h2 { font-size: 16.5px; font-weight: 700; }
-.rfc-panel-tc { color: var(--ink-dim); font-size: 12px; }
-.rfc-panel .rfc-pill { background: rgba(255, 255, 255, 0.07); }
+.rfc-panel-tc { color: var(--tx2); font-size: 12px; }
+.rfc-panel .rfc-pill { background: var(--chip-bg); border-color: var(--panel-line); color: var(--tx); backdrop-filter: none; }
 .rfc-panel-acts { display: flex; gap: 8px; margin: 13px 0 4px; position: relative; }
 .rfc-btn {
   display: inline-flex; align-items: center; gap: 6px;
@@ -205,27 +271,27 @@ body:has(#pane-reference .rfc) {
   color: #fff;
 }
 .rfc-checkbox .ui-icon { width: 11px; height: 11px; }
-.rfc-checkbox.is-on { background: var(--acc); border-color: var(--acc); }
+.rfc-checkbox.is-on { background: var(--acc); border-color: var(--acc); color: var(--acc-ink); }
 .rfc-collname { flex: 1; font-weight: 550; }
 .rfc-collcount { color: var(--tx3); font-size: 12px; }
 .rfc-fgroup { margin-top: 10px; }
 .rfc-fgroup-t { font-size: 11px; font-weight: 700; letter-spacing: 0.14em; color: var(--tx3); padding: 4px 0 2px; }
-.rfc-field { display: flex; align-items: baseline; gap: 9px; padding: 5.5px 0; border-bottom: 1px dashed rgba(255, 255, 255, 0.055); flex-wrap: wrap; }
+.rfc-field { display: flex; align-items: baseline; gap: 9px; padding: 5.5px 0; border-bottom: 1px dashed var(--dash); flex-wrap: wrap; }
 .rfc-field:last-child { border-bottom: 0; }
 .rfc-field-k { width: 56px; flex: none; color: var(--tx2); font-size: 12.5px; }
 .rfc-field-v { font-weight: 600; flex: 1; min-width: 90px; }
 .rfc-field-v.pend { color: var(--tx3); font-weight: 500; }
 .rfc-conf { display: inline-flex; align-items: center; gap: 6px; color: var(--tx2); font-size: 12px; }
-.rfc-confbar { width: 62px; height: 4px; border-radius: 3px; background: rgba(255, 255, 255, 0.10); overflow: hidden; flex: none; }
+.rfc-confbar { width: 62px; height: 4px; border-radius: 3px; background: var(--conf-track); overflow: hidden; flex: none; }
 .rfc-confbar i { display: block; height: 100%; background: var(--acc); border-radius: 3px; }
 .rfc-evidence { flex-basis: 100%; color: var(--tx3); font-size: 11.5px; padding-left: 65px; margin-top: -2px; }
 .rfc-notes { margin-top: 10px; }
-.rfc-note { padding: 8px 0; border-bottom: 1px dashed rgba(255, 255, 255, 0.055); }
+.rfc-note { padding: 8px 0; border-bottom: 1px dashed var(--dash); }
 .rfc-note:last-child { border-bottom: 0; }
 .rfc-note-k { color: var(--tx3); font-size: 12.5px; margin-bottom: 2px; }
 .rfc-note p { color: var(--tx); }
 .rfc-tags { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 10px; }
-.rfc-tag { padding: 1px 8px; border-radius: 6px; background: rgba(255, 255, 255, 0.06); border: 1px solid var(--line); color: var(--tx2); font-size: 12px; }
+.rfc-tag { padding: 1px 8px; border-radius: 6px; background: var(--tag-bg); border: 1px solid var(--line); color: var(--tx2); font-size: 12px; }
 
 /* ── 底部坞：走带 + 片段段 + 片单 ───────────────────────── */
 .rfc-dock { position: absolute; left: 0; right: 0; bottom: 0; padding: 0 20px 14px; }
@@ -238,7 +304,7 @@ body:has(#pane-reference .rfc) {
   transition: background 0.15s var(--eo);
 }
 .rfc-play .ui-icon { width: 18px; height: 18px; }
-.rfc-play:hover { background: var(--acc); }
+.rfc-play:hover { background: var(--acc); color: var(--acc-ink); }
 .rfc-time { color: var(--ink); font-size: 13px; text-shadow: 0 1px 6px rgba(0, 0, 0, 0.6); }
 .rfc-transport-hint { color: var(--ink-dim); font-size: 12px; }
 .rfc-segbar { display: flex; gap: 3px; margin-bottom: 11px; }
@@ -250,7 +316,7 @@ body:has(#pane-reference .rfc) {
 }
 .rfc-seg:hover { border-color: rgba(255, 255, 255, 0.45); }
 .rfc-seg.is-on { border-color: #fff; }
-.rfc-seg-fill { position: absolute; inset: 0 auto 0 0; width: 0; background: rgba(59, 140, 248, 0.5); pointer-events: none; }
+.rfc-seg-fill { position: absolute; inset: 0 auto 0 0; width: 0; background: var(--seg-fill); pointer-events: none; }
 .rfc-seg-lb {
   position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
   font-size: 12.5px; font-weight: 650; color: #fff; white-space: nowrap;
@@ -340,15 +406,15 @@ body:has(#pane-reference .rfc) {
 .rfc-card-t { display: block; font-weight: 600; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rfc-card-m { display: block; color: var(--tx2); font-size: 12.5px; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rfc-card-f { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; color: var(--tx3); }
-.rfc-card-f .rfc-pill { background: rgba(255, 255, 255, 0.05); border-color: var(--line); color: var(--tx2); backdrop-filter: none; padding: 1px 8px; font-size: 11.5px; }
+.rfc-card-f .rfc-pill { background: var(--chip-bg); border-color: var(--line); color: var(--tx2); backdrop-filter: none; padding: 1px 8px; font-size: 11.5px; }
 .rfc-empty { grid-column: 1 / -1; text-align: center; color: var(--tx3); padding: 56px 0; }
 
 /* ── 吐司 ───────────────────────────────────────────────── */
 .rfc-toast {
   position: absolute; left: 50%; bottom: 196px; transform: translateX(-50%); z-index: 9;
-  background: var(--glass-deep); border: 1px solid var(--glass-line);
+  background: var(--panel-glass); border: 1px solid var(--panel-line);
   backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-  color: var(--ink); padding: 9px 17px; border-radius: 12px; font-size: 13px;
+  color: var(--tx); padding: 9px 17px; border-radius: 12px; font-size: 13px;
   box-shadow: var(--shadow-mid);
   animation: rfc-panel-in 0.25s var(--eo);
   white-space: nowrap;
