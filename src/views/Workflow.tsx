@@ -148,7 +148,7 @@ function WorkflowHome(props: {
                 <b>需要阶段与确认门时用</b>
                 <p>复杂、多人或客户项目：8 个阶段泳道管理产物版本，Gate A–D 的确认绑定具体产物版本，阻塞原因可追溯。</p>
                 <div className="wfh-path-actions">
-                  <button type="button" className="wfh-btn" onClick={() => quickStart('structured')}>
+                  <button type="button" className="wfh-btn is-ghost" onClick={() => quickStart('structured')}>
                     新建结构化制作 <ArrowRight size={13} strokeWidth={2.2} />
                   </button>
                 </div>
@@ -159,32 +159,36 @@ function WorkflowHome(props: {
           <section aria-label="我的工作流">
             <h2 className="wfh-sect">我的工作流</h2>
             {filtered.length === 0 ? (
-              <p className="wfh-empty">{query ? '没有匹配的工作流。' : '还没有工作流，从上面的入口开始。'}</p>
+              <p className="wfh-empty">{query ? '没有匹配的工作流。换个关键词试试。' : '还没有工作流。用上面的入口从提示词开始，或点右上角「新建工作流」选预设。'}</p>
             ) : (
               <ul className="wfh-list">
                 {filtered.map((w) => {
                   const last = latestRunOf(w.id)
                   const gates = w.path === 'structured' ? gateSummaryOf(w) : []
+                  const rank = (g: (typeof gates)[number]) =>
+                    g.stale ? 0 : g.decision === 'pending' ? 1 : g.blocked.length > 0 ? 2 : g.decision === 'confirmed' ? 3 : 4
+                  const primaryGate = gates.length > 0 ? [...gates].sort((a, b) => rank(a) - rank(b))[0] : null
                   return (
                     <li key={w.id} className="wfh-row">
                       <button type="button" className="wfh-row-main" onClick={() => props.onOpen(w.id)}>
-                        <span className="wfh-row-title">
-                          <b>{w.name}</b>
-                          <span className="wfh-pathbadge" data-p={w.path}>{w.path === 'structured' ? 'Structured' : 'Prompt-first'}</span>
+                        <span className="wfh-row-info">
+                          <span className="wfh-row-title">
+                            <b>{w.name}</b>
+                            <span className="wfh-pathbadge" data-p={w.path}>{w.path === 'structured' ? 'Structured' : 'Prompt-first'}</span>
+                          </span>
+                          <span className="wfh-row-meta">
+                            {w.nodes.filter((n) => n.type !== 'lane').length} 个节点 · 修订 {w.revision} · {fmtTime(w.updatedAt)}
+                            {last ? ` · 最近${w.path === 'structured' ? '评估' : '运行'}：${last.artifacts[0]?.summary ?? RUN_STATUS_LABEL[last.status]}` : ' · 尚未运行'}
+                          </span>
                         </span>
-                        <span>
-                          {w.nodes.filter((n) => n.type !== 'lane').length} 个节点 · 修订 {w.revision} · {fmtTime(w.updatedAt)}
-                          {last ? ` · 最近${w.path === 'structured' ? '评估' : '运行'}：${last.artifacts[0]?.summary ?? RUN_STATUS_LABEL[last.status]}` : ' · 尚未运行'}
-                        </span>
-                        {gates.length > 0 && (
-                          <span className="wfh-gates">
-                            <Flag size={11} strokeWidth={2.2} />
-                            {gates.map((g) => (
-                              <span key={g.gate} className="wfh-gate-chip" data-d={g.stale ? 'stale' : g.decision}>
-                                {g.label.replace(' · ', ' ')} {g.stale ? '已确认·已失效' : GATE_DECISION_SHORT[g.decision]}
-                                {g.blocked.length > 0 ? ` · 阻塞 ${g.blocked.length}` : ''}
-                              </span>
-                            ))}
+                        {primaryGate && (
+                          <span className="wfh-row-gate">
+                            <span className="wfh-gate-chip" data-d={primaryGate.stale ? 'stale' : primaryGate.decision}>
+                              <Flag size={11} strokeWidth={2.2} />
+                              {primaryGate.label.replace(' · ', ' ')} {primaryGate.stale ? '已确认·已失效' : GATE_DECISION_SHORT[primaryGate.decision]}
+                              {primaryGate.blocked.length > 0 ? ` · 阻塞 ${primaryGate.blocked.length}` : ''}
+                            </span>
+                            {gates.length > 1 && <span className="wfh-gate-more">另有 {gates.length - 1} 个门</span>}
                           </span>
                         )}
                       </button>
@@ -220,30 +224,43 @@ function WorkflowHome(props: {
           <section aria-label="最近运行">
             <h2 className="wfh-sect"><History size={13} strokeWidth={2.2} /> 最近运行 / 评估</h2>
             {runs.length === 0 ? (
-              <p className="wfh-empty">暂无记录。在编辑器里运行或评估后，记录会出现在这里。</p>
+              <p className="wfh-empty">尚无运行记录。在编辑器里运行或评估一次，记录会出现在这里。</p>
             ) : (
               <ul className="wfh-runs">
-                {runs.slice(0, 5).map((r) => (
-                  <li key={r.id}>
-                    <button type="button" className="wfh-run" onClick={() => props.onOpen(r.workflowId)}>
-                      <span className="wfh-run-top">
-                        <b>{r.workflowName}</b>
-                        <span className="wfh-run-status" data-s={r.status}>{RUN_STATUS_LABEL[r.status]}</span>
-                      </span>
-                      <span className="wfh-run-sub">
-                        <Clock3 size={11} strokeWidth={2} /> {fmtTime(r.startedAt)} · 演示 · {r.artifacts.length} 项产物
-                      </span>
-                    </button>
-                  </li>
-                ))}
+                {runs.slice(0, 5).map((r) => {
+                  const owner = workflows.find((w) => w.id === r.workflowId)
+                  return (
+                    <li key={r.id}>
+                      <button type="button" className="wfh-run" onClick={() => props.onOpen(r.workflowId)}>
+                        <span className="wfh-run-top">
+                          <b>{r.workflowName}</b>
+                          <span className="wfh-run-status" data-s={r.status}>{RUN_STATUS_LABEL[r.status]}</span>
+                        </span>
+                        <span className="wfh-run-sub">
+                          <Clock3 size={11} strokeWidth={2} /> {fmtTime(r.startedAt)}
+                          {owner ? ` · ${owner.path === 'structured' ? 'Structured' : 'Prompt-first'}` : ''}
+                          {` · ${r.artifacts.length} 项产物 · 演示`}
+                        </span>
+                      </button>
+                    </li>
+                  )
+                })}
               </ul>
             )}
           </section>
           <section aria-label="说明">
             <h2 className="wfh-sect"><WorkflowIcon size={13} strokeWidth={2.2} /> 路径说明</h2>
-            <p className="wfh-empty">
-              两条路径遵循 workflow-v5：Prompt-first 不强制中间文档与审批；Structured 的确认绑定产物版本，推荐不等于确认。演示运行只产出工作稿、引用与请求记录快照，不生成视频。
-            </p>
+            <dl className="wfh-pathnote">
+              <div>
+                <dt>Prompt-first</dt>
+                <dd>直接创作、渲染、看片、修改；工作稿不是审批门。</dd>
+              </div>
+              <div>
+                <dt>Structured</dt>
+                <dd>阶段产物 + 范围确认；确认绑产物版本，推荐不等于确认。</dd>
+              </div>
+            </dl>
+            <p className="wfh-pathnote-foot">演示运行只产出工作稿、引用与请求记录快照，不生成视频。</p>
           </section>
         </div>
       </div>

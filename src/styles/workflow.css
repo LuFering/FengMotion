@@ -89,7 +89,7 @@ html[data-theme='tactile'] .wfl {
   display: flex;
   width: 100%;
   height: 100vh;
-  padding: 16px;
+  padding: 0;
   overflow: hidden;
   background: var(--wf-bg-glow), var(--wf-bg);
   color: var(--tx);
@@ -111,10 +111,13 @@ html[data-theme='tactile'] .wfl {
 .wfh-btn, .wfe-btn {
   display: inline-flex; align-items: center; gap: 6px;
   height: 32px; padding: 0 12px;
-  border: 1px solid var(--line2); border-radius: 9px;
+  border: 1px solid var(--line2); border-radius: 8px;
   background: var(--panel); color: var(--tx);
   font-size: 12.5px; font-weight: 600; white-space: nowrap;
+  transition: background-color 0.14s var(--eo), border-color 0.14s var(--eo);
 }
+.wfh-btn.is-ghost { background: transparent; border-color: transparent; color: var(--acc-tx); }
+.wfh-btn.is-ghost:hover { background: var(--hover); }
 .wfh-btn:hover, .wfe-btn:hover { background: var(--hover); }
 .wfh-btn.is-primary, .wfe-btn.is-primary { background: var(--acc); border-color: transparent; color: var(--acc-ink); }
 .wfh-btn.is-primary:hover, .wfe-btn.is-primary:hover { background: var(--acc); filter: brightness(1.08); }
@@ -128,7 +131,7 @@ html[data-theme='tactile'] .wfl {
 .wfh-iconbtn:hover, .wfe-iconbtn:hover { background: var(--hover); color: var(--tx); }
 .wfh-textbtn, .wfe-textbtn { font-size: 12px; font-weight: 600; color: var(--acc-tx); }
 .wfh-textbtn:hover, .wfe-textbtn:hover { text-decoration: underline; }
-.wfh-sect { display: flex; align-items: center; gap: 6px; margin: 0 0 10px; font-size: 12px; font-weight: 700; letter-spacing: 0.05em; color: var(--tx3); }
+.wfh-sect { display: flex; align-items: center; gap: 6px; margin: 0 0 12px; font-size: 14px; font-weight: 600; letter-spacing: 0.01em; color: var(--tx2); }
 .wfh-empty { margin: 0; font-size: 12.5px; line-height: 1.6; color: var(--tx3); }
 
 /* ── 首页 ───────────────────────────────────────────────────────── */
@@ -136,29 +139,26 @@ html[data-theme='tactile'] .wfl {
 .wfh {
   flex: 1; min-width: 0; min-height: 0;
   display: flex; flex-direction: column;
-  background: var(--panel2);
-  border: 1px solid var(--line);
-  border-radius: var(--r-panel);
-  box-shadow: var(--shadow-base);
+  background: transparent;
   overflow: hidden;
 }
 .wfh-cmd {
   flex: none; display: flex; align-items: center; gap: 14px;
-  min-height: 57px; padding: 8px 16px; border-bottom: 1px solid var(--line);
+  min-height: 57px; padding: 8px 28px; border-bottom: 1px solid var(--line);
 }
-.wfh-cmd-title { margin: 0; font-size: 16px; font-weight: 700; white-space: nowrap; }
+.wfh-cmd-title { margin: 0; font-size: 22px; font-weight: 600; line-height: 30px; white-space: nowrap; }
 .wfh-cmd-search { flex: 1 1 auto; max-width: 460px; margin-right: auto; }
 .wfh-cmd-search .ui-search { width: 100%; }
 .wfh-meta {
   flex: none; display: flex; align-items: center; gap: 16px;
-  min-height: 37px; padding: 5px 16px; border-bottom: 1px solid var(--line);
+  min-height: 37px; padding: 5px 28px; border-bottom: 1px solid var(--line);
   font-size: 12px; color: var(--tx3);
 }
 .wfh-meta b { color: var(--tx); font-weight: 700; }
 .wfh-meta-demo { margin-left: auto; }
-.wfh-body { flex: 1; min-height: 0; display: flex; gap: 24px; padding: 18px; overflow-y: auto; }
-.wfh-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 24px; }
-.wfh-side { flex: none; width: 320px; display: flex; flex-direction: column; gap: 24px; }
+.wfh-body { flex: 1; min-height: 0; display: flex; gap: 24px; padding: 26px 28px 28px; overflow-y: auto; }
+.wfh-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 30px; }
+.wfh-side { flex: none; width: 320px; display: flex; flex-direction: column; gap: 28px; }
 
 .wfh-recent { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
 .wfh-recent-card {
@@ -171,16 +171,20 @@ html[data-theme='tactile'] .wfl {
 .wfh-recent-top b { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .wfh-recent-sub { font-size: 11.5px; color: var(--tx3); }
 
-.wfh-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.wfh-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
 .wfh-row {
   display: flex; align-items: center; gap: 8px;
-  border: 1px solid var(--line); border-radius: 12px; background: var(--panel);
-  padding: 6px 8px 6px 14px;
+  border-bottom: 1px solid var(--line);
+  padding: 8px 6px 8px 2px; min-height: 68px;
+  transition: background-color 0.14s var(--eo);
 }
-.wfh-row:hover { border-color: var(--line2); }
-.wfh-row-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; text-align: left; padding: 5px 0; }
-.wfh-row-main b { font-size: 13.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.wfh-row-main span { font-size: 11.5px; color: var(--tx3); }
+.wfh-row:hover { background: var(--hover); }
+.wfh-row-main { flex: 1; min-width: 0; display: flex; align-items: center; gap: 16px; text-align: left; padding: 5px 0; }
+.wfh-row-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.wfh-row-info b { font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wfh-row-meta { font-size: 12px; line-height: 18px; color: var(--tx3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wfh-row-gate { flex: none; width: 300px; display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+.wfh-gate-more { font-size: 11px; color: var(--tx3); white-space: nowrap; }
 .wfh-row-actions { flex: none; display: flex; gap: 2px; }
 
 .wfh-feature {
@@ -194,12 +198,13 @@ html[data-theme='tactile'] .wfl {
 .wfh-feature .wfh-btn { align-self: flex-start; margin-top: 4px; }
 .wfh-side > section > .wfh-textbtn { margin-top: 8px; }
 
-.wfh-runs { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.wfh-runs { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
 .wfh-run {
   width: 100%; display: flex; flex-direction: column; gap: 3px; text-align: left;
-  border: 1px solid var(--line); border-radius: 12px; background: var(--panel); padding: 10px 12px;
+  border-bottom: 1px solid var(--line); padding: 10px 2px;
+  transition: background-color 0.14s var(--eo);
 }
-.wfh-run:hover { border-color: var(--line2); }
+.wfh-run:hover { background: var(--hover); }
 .wfh-run-top { display: flex; align-items: center; gap: 8px; }
 .wfh-run-top b { flex: 1; min-width: 0; font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .wfh-run-status { flex: none; font-size: 11px; font-weight: 700; color: var(--tx2); }
@@ -210,7 +215,7 @@ html[data-theme='tactile'] .wfl {
 
 /* 模板广场 / 详情 */
 .wfh-tplgrid { flex: 1; min-height: 0; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; align-content: start; padding: 18px; }
-.wfh-tpl { display: flex; flex-direction: column; gap: 7px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); padding: 14px; }
+.wfh-tpl { display: flex; flex-direction: column; gap: 7px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); padding: 14px; transition: border-color 0.14s var(--eo); }
 .wfh-tpl:hover { border-color: var(--line2); }
 .wfh-tpl-top { display: flex; align-items: center; justify-content: space-between; }
 .wfh-tpl-cat { font-size: 11px; font-weight: 700; letter-spacing: 0.05em; color: var(--tx3); }
@@ -233,10 +238,7 @@ html[data-theme='tactile'] .wfl {
 .wfe {
   flex: 1; min-width: 0; min-height: 0;
   display: flex; flex-direction: column;
-  background: var(--panel2);
-  border: 1px solid var(--line);
-  border-radius: var(--r-panel);
-  box-shadow: var(--shadow-base);
+  background: transparent;
   overflow: hidden;
 }
 .wfe-cmd {
@@ -257,7 +259,7 @@ html[data-theme='tactile'] .wfl {
 }
 .wfe-body { flex: 1; min-height: 0; display: flex; }
 .wfe-left {
-  flex: none; width: 256px; min-height: 0; overflow-y: auto;
+  flex: none; width: 248px; min-height: 0; overflow-y: auto;
   border-right: 1px solid var(--line); background: var(--panel);
   padding: 12px; display: flex; flex-direction: column; gap: 10px;
 }
@@ -296,12 +298,14 @@ html[data-theme='tactile'] .wfl {
 .wfe-canvas .react-flow__controls-button { background: var(--panel); border-bottom: 1px solid var(--line); fill: var(--tx2); width: 26px; height: 26px; }
 .wfe-canvas .react-flow__controls-button:hover { background: var(--hover); }
 .wfe-canvas .react-flow__minimap { background: var(--panel); border: 1px solid var(--line); border-radius: 9px; overflow: hidden; }
-.wfe-canvas .react-flow__edge.selected .react-flow__edge-path { stroke: var(--acc); stroke-width: 2.4; }
-.wfe-canvas .react-flow__handle { width: 11px; height: 11px; border: 2px solid var(--canvas); }
+.wfe-canvas .react-flow__edge.selected .react-flow__edge-path { stroke: var(--acc); stroke-width: 2px; }
+.wfe-canvas .react-flow__edge:hover .react-flow__edge-path { stroke-width: 2px; }
+.wfe-canvas .react-flow__handle { width: 8px; height: 8px; border: 2px solid var(--canvas); transition: width 0.12s var(--eo), height 0.12s var(--eo); }
+.wfe-canvas .react-flow__handle:hover, .wfe-canvas .react-flow__handle.connectingfrom, .wfe-canvas .react-flow__handle.connectingto { width: 10px; height: 10px; }
 .wfe-canvas .react-flow__handle.valid { box-shadow: 0 0 0 3px var(--sel); }
 
 .wfe-inspector {
-  flex: none; width: 328px; min-height: 0; overflow-y: auto;
+  flex: none; width: 320px; min-height: 0; overflow-y: auto;
   border-left: 1px solid var(--line); background: var(--panel); padding: 14px;
 }
 .wfe-insp h3 { margin: 0 0 6px; font-size: 13.5px; font-weight: 700; }
@@ -329,28 +333,30 @@ html[data-theme='tactile'] .wfl {
 
 /* 节点 */
 .wfn {
-  width: 232px;
+  width: 260px;
   background: var(--panel);
   border: 1px solid var(--line2);
-  border-radius: 12px;
+  border-radius: 8px;
   box-shadow: var(--shadow-base);
-  padding: 10px 12px 11px;
+  padding: 12px;
   color: var(--tx);
   font-family: Inter, -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  transition: border-color 0.14s var(--eo);
 }
-.wfn[data-selected] { border-color: var(--acc); box-shadow: 0 0 0 1.5px var(--acc), var(--shadow-mid); }
+.wfn.is-wide { width: 280px; }
+.wfn[data-selected] { border-color: var(--acc); box-shadow: 0 0 0 1px var(--acc), var(--shadow-mid); }
 .wfn[data-status='running'] { border-color: var(--acc); }
 .wfn[data-status='failed'] { border-color: var(--danger); }
 .wfn-head { display: flex; align-items: center; gap: 7px; }
 .wfn-group { font-size: 10px; font-weight: 800; letter-spacing: 0.06em; color: var(--tx3); }
-.wfn-head b { flex: 1; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wfn-head b { flex: 1; font-size: 13.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .wfn-status { flex: none; display: inline-flex; color: var(--tx3); }
 .wfn-status[data-s='running'] { color: var(--acc-tx); }
 .wfn-status[data-s='completed'] { color: var(--ok); }
 .wfn-status[data-s='failed'] { color: var(--danger); }
 .wfn-spin { animation: wfn-spin 1s linear infinite; }
 @keyframes wfn-spin { to { transform: rotate(360deg); } }
-.wfn-summary { margin: 5px 0 8px; font-size: 11.5px; line-height: 1.5; color: var(--tx2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wfn-summary { margin: 6px 0 8px; font-size: 12px; line-height: 18px; color: var(--tx2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .wfn-ports { display: flex; justify-content: space-between; gap: 10px; }
 .wfn-col { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
 .wfn-col.out { align-items: flex-end; text-align: right; }
@@ -387,13 +393,14 @@ html[data-theme='tactile'] .wfl {
 
 /* ── v5 重构追加：路径入口 / Gate 芯片 / 创建页 / 泳道与检查点 ────── */
 
-.wfh-paths { display: grid; grid-template-columns: 1.6fr 1fr; gap: 14px; }
+.wfh-paths { display: grid; grid-template-columns: 1.6fr 1fr; gap: 16px; align-items: stretch; }
 .wfh-path {
   display: flex; flex-direction: column; gap: 8px;
-  border: 1px solid var(--line); border-radius: 14px; background: var(--panel); padding: 16px;
+  border: 1px solid var(--line); border-radius: 10px; background: transparent; padding: 18px;
+  transition: border-color 0.14s var(--eo), background-color 0.14s var(--eo);
 }
-.wfh-path.is-hero { border-color: var(--acc); background: linear-gradient(180deg, var(--sel), transparent 130%), var(--panel); }
-.wfh-path b { font-size: 16px; }
+.wfh-path.is-hero { min-height: 208px; background: linear-gradient(180deg, var(--sel), transparent 130%), var(--panel); }
+.wfh-path b { font-size: 18px; font-weight: 600; line-height: 26px; }
 .wfh-path p { margin: 0; font-size: 12.5px; line-height: 1.65; color: var(--tx2); }
 .wfh-path-tag { display: inline-flex; align-items: center; gap: 5px; align-self: flex-start; font-size: 11px; font-weight: 800; letter-spacing: 0.04em; color: var(--acc-tx); background: var(--sel); padding: 3px 9px; border-radius: 999px; }
 .wfh-path-tag.is-alt { color: var(--tx2); background: var(--hover); }
@@ -406,15 +413,15 @@ html[data-theme='tactile'] .wfl {
 }
 .wfh-pathbadge[data-p='prompt-first'] { color: var(--acc-tx); border-color: var(--acc); }
 .wfh-gates { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; margin-top: 3px; color: var(--tx3); }
-.wfh-gate-chip { font-size: 10.5px; font-weight: 600; border: 1px solid var(--line); border-radius: 999px; padding: 1.5px 7px; color: var(--tx2); }
+.wfh-gate-chip { display: inline-flex; align-items: center; gap: 5px; font-size: 10.5px; font-weight: 600; border: 1px solid var(--line); border-radius: 999px; padding: 1.5px 7px; color: var(--tx2); white-space: nowrap; }
 .wfh-gate-chip[data-d='confirmed'] { color: var(--ok); border-color: var(--ok); }
 .wfh-gate-chip[data-d='stale'] { color: var(--warn); border-color: var(--warn); }
 .wfh-gate-chip[data-d='pending'] { color: var(--acc-tx); }
 
-.wfh-create { flex: 1; min-height: 0; overflow-y: auto; padding: 18px; display: flex; flex-direction: column; gap: 26px; }
-.wfh-create-note { margin: -4px 0 12px; font-size: 12px; color: var(--tx3); }
+.wfh-create { flex: 1; min-height: 0; overflow-y: auto; padding: 26px 28px 28px; display: flex; flex-direction: column; gap: 30px; }
+.wfh-create-note { margin: -4px 0 14px; font-size: 12px; color: var(--tx3); }
 .wfh-tplgrid.is-inline { overflow: visible; padding: 0; flex: none; }
-.wfh-tpl-cover { width: 100%; aspect-ratio: 16 / 8; object-fit: cover; border-radius: 9px; border: 1px solid var(--line); background: var(--panel2); }
+.wfh-tpl-cover { width: 100%; aspect-ratio: 16 / 8; object-fit: cover; border-radius: 6px; border: 1px solid var(--line); background: var(--panel2); }
 .wfh-tpl-cover.is-none { display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; letter-spacing: 0.2em; color: var(--tx3); }
 
 .wfe-pathbadge {
@@ -427,15 +434,20 @@ html[data-theme='tactile'] .wfl {
 .wfe-blocklist { list-style: disc; margin: 0; padding-left: 16px; font-size: 12px; font-weight: 400; color: var(--danger); display: flex; flex-direction: column; gap: 3px; }
 
 /* 文档 / Gate 节点变体 */
-.wfn.is-doc { width: 238px; }
+.wfn.is-doc { width: 260px; }
 .wfn-file { margin: 3px 0 0; font-size: 10.5px; color: var(--tx3); font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .wfn-gate-row { display: flex; flex-wrap: wrap; gap: 5px; margin: 2px 0 8px; }
 .wfn-artifact-chip { font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line2); color: var(--tx3); }
 .wfn-artifact-chip[data-s='draft'] { color: var(--warn); border-color: var(--warn); }
 .wfn-artifact-chip[data-s='candidate'] { color: var(--acc-tx); border-color: var(--acc); }
 .wfn-artifact-chip[data-s='confirmed'] { color: var(--ok); border-color: var(--ok); }
-.wfn.is-gate { width: 248px; border-style: dashed; border-width: 1.5px; }
+.wfn.is-gate { width: 252px; border-style: solid; border-left: 3px solid var(--warn); background: color-mix(in srgb, var(--panel) 88%, var(--warn) 4%); }
+.wfn.is-gate[data-d='pending'] { border-left-color: var(--acc); }
+.wfn.is-gate[data-d='confirmed'] { border-left-color: var(--ok); }
+.wfn.is-gate[data-d='confirmed-stale'] { border-left-color: var(--warn); }
 .wfn-flag { flex: none; color: var(--warn); }
+.wfn.is-gate[data-d='pending'] .wfn-flag { color: var(--acc-tx); }
+.wfn.is-gate[data-d='confirmed'] .wfn-flag { color: var(--ok); }
 .wfn-gate-chip { font-size: 10.5px; font-weight: 800; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line2); color: var(--tx2); }
 .wfn-gate-chip[data-d='confirmed'] { color: var(--ok); border-color: var(--ok); }
 .wfn-gate-chip[data-d='confirmed-stale'] { color: var(--warn); border-color: var(--warn); }
@@ -443,18 +455,60 @@ html[data-theme='tactile'] .wfl {
 .wfn-rec-chip { font-size: 10.5px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: var(--hover); color: var(--tx2); }
 .wfn-blocked { margin: 0 0 8px; font-size: 11px; line-height: 1.5; color: var(--danger); }
 
-/* 阶段泳道 */
+/* 阶段泳道（打磨轮：退为轻量布局层，不与产物节点争夺注意力） */
 .wflane {
   width: 100%; height: 100%;
-  border: 1px solid var(--line); border-radius: 14px;
-  background: color-mix(in srgb, var(--panel) 55%, transparent);
+  border-top: 1px solid var(--line);
+  background: transparent;
   pointer-events: none;
 }
-.wflane-head { display: flex; align-items: center; gap: 10px; padding: 9px 12px; pointer-events: all; }
-.wflane-head b { font-size: 12.5px; color: var(--tx); }
-.wflane-head span { font-size: 11.5px; color: var(--tx3); }
+.wflane-head { display: flex; align-items: center; gap: 10px; height: 38px; padding: 0 4px; pointer-events: all; }
+.wflane-head b { font-size: 12.5px; font-weight: 600; color: var(--tx); white-space: nowrap; }
+.wflane-no { font-weight: 500; color: var(--tx3); margin-right: 6px; }
+.wflane-q { font-size: 11.5px; color: var(--tx3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wflane-sum { margin-left: auto; font-size: 11px; color: var(--tx3); white-space: nowrap; }
+.wflane-sum + .wflane-toggle { margin-left: 10px; }
 .wflane-toggle {
-  margin-left: auto; font-size: 11px; font-weight: 700; color: var(--acc-tx);
-  border: 1px solid var(--line2); border-radius: 7px; padding: 3px 9px; background: var(--panel);
+  font-size: 11px; font-weight: 600; color: var(--tx2);
+  border-radius: 6px; padding: 3px 8px;
 }
-.wflane-toggle:hover { background: var(--hover); }
+.wflane-toggle:hover { background: var(--hover); color: var(--tx); }
+
+/* ── 打磨轮追加（第六轮定案）：路径说明 / 缩略图 / 紧凑模式 / Inspector 分层 ── */
+
+.wflane-toggle { margin-left: auto; }
+
+.wfh-pathnote { margin: 0; display: flex; flex-direction: column; gap: 10px; }
+.wfh-pathnote > div { display: flex; flex-direction: column; gap: 2px; }
+.wfh-pathnote dt { font-size: 12.5px; font-weight: 600; color: var(--tx2); }
+.wfh-pathnote dd { margin: 0; font-size: 12px; line-height: 1.6; color: var(--tx3); }
+.wfh-pathnote-foot { margin: 10px 0 0; font-size: 11.5px; line-height: 1.6; color: var(--tx3); }
+
+/* 节点：参考缩略图条 + Gate 检查目标行 */
+.wfn-thumbs { display: flex; gap: 5px; margin: 0 0 8px; }
+.wfn-thumbs img { width: 52px; height: 32px; object-fit: cover; border-radius: 4px; border: 1px solid var(--line); background: var(--panel2); }
+.wfn-target { margin: 0 0 8px; font-size: 11px; line-height: 16px; color: var(--tx3); }
+
+/* 画布缩放紧凑模式（<0.7）：收起摘要类信息，保留名称/状态/端口 */
+.wfe-canvas[data-compact] .wfn-summary,
+.wfe-canvas[data-compact] .wfn-file,
+.wfe-canvas[data-compact] .wfn-target,
+.wfe-canvas[data-compact] .wfn-thumbs { display: none; }
+.wfe-canvas[data-compact] .wfn-blocked { margin-bottom: 4px; }
+
+/* Inspector 四层：头部（类型/名称/状态）→ 核心操作 → 主要内容 → 技术细节（折叠） */
+.wfe-insp-head { margin-bottom: 10px; }
+.wfe-insp-kicker { display: block; font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em; color: var(--tx3); margin-bottom: 3px; }
+.wfe-insp-titlerow { display: flex; align-items: center; gap: 8px; }
+.wfe-insp-titlerow h3 { margin: 0; font-size: 15px; font-weight: 600; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wfe-insp-run { flex: none; font-size: 11px; font-weight: 700; color: var(--tx2); }
+.wfe-insp-run[data-s='running'] { color: var(--acc-tx); }
+.wfe-insp-run[data-s='completed'] { color: var(--ok); }
+.wfe-insp-run[data-s='failed'] { color: var(--danger); }
+.wfe-tech { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 10px; }
+.wfe-tech summary { font-size: 12px; font-weight: 600; color: var(--tx2); cursor: pointer; padding: 2px 0 6px; }
+.wfe-tech summary:hover { color: var(--tx); }
+.wfe-tech .wfe-kv { margin-top: 4px; }
+
+/* 执行抽屉标题栏约 40px */
+.wfe-drawer-head { padding: 10px 14px; }

@@ -6,7 +6,7 @@
  * 阶段泳道 + 产物节点 + Gate 检查点。Gate 的确认只能由用户在检查器里对
  * 具体产物版本做出；演示运行永不代确认。
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -69,6 +69,7 @@ type FmNodeData = {
   params: Record<string, unknown>
   status: WfNodeStatus | 'idle'
   gateEval?: GateEval | null
+  laneSummary?: string
   onToggleLane?: () => void
 }
 type FmNode = Node<FmNodeData, 'fm' | 'lane'>
@@ -107,8 +108,11 @@ function pfSummary(defType: string, p: Record<string, unknown>): string {
   switch (defType) {
     case 'prompt':
       return String(p.text ?? '').trim() ? `${String(p.text).trim().slice(0, 42)}…` : '尚未填写提示词'
-    case 'refs':
-      return `${((p.assetIds as string[] | undefined) ?? []).length} 项素材 · ${((p.refSegmentIds as string[] | undefined) ?? []).length} 条参考`
+    case 'refs': {
+      const na = ((p.assetIds as string[] | undefined) ?? []).length
+      const nr = ((p.refSegmentIds as string[] | undefined) ?? []).length
+      return na + nr === 0 ? '未添加参考 · 可直接创作' : `${na} 项素材 · ${nr} 条参考`
+    }
     case 'lookdev':
     case 'filmplan':
       return String(p.summary ?? '').trim() ? String(p.summary).trim().slice(0, 46) : '尚无内容'
@@ -177,13 +181,12 @@ function FmNodeView({ data, selected }: { data: FmNodeData; selected?: boolean }
     const ev = data.gateEval
     const decision = ev?.stale ? 'confirmed-stale' : (ev?.decision ?? 'not-started')
     return (
-      <div className="wfn is-gate" data-selected={selected || undefined} data-status={data.status}>
+      <div className="wfn is-gate" data-selected={selected || undefined} data-status={data.status} data-d={decision}>
         <div className="wfn-head">
-          <Flag size={12} strokeWidth={2.2} className="wfn-flag" />
+          <Flag size={13} strokeWidth={2.2} className="wfn-flag" />
           <b>{def.label}</b>
           <StatusIcon status={data.status} />
         </div>
-        <p className="wfn-summary">{def.description}</p>
         <div className="wfn-gate-row">
           <span className="wfn-gate-chip" data-d={decision}>
             {decision === 'confirmed' && '已确认'}
@@ -194,6 +197,7 @@ function FmNodeView({ data, selected }: { data: FmNodeData; selected?: boolean }
           {data.params.recommendation ? <span className="wfn-rec-chip">推荐方案（≠确认）</span> : null}
         </div>
         {ev && ev.blocked.length > 0 && <p className="wfn-blocked">阻塞：{ev.blocked[0]}</p>}
+        <p className="wfn-target">检查目标：{def.description}</p>
         <Ports node={pseudoNode} />
       </div>
     )
@@ -221,14 +225,35 @@ function FmNodeView({ data, selected }: { data: FmNodeData; selected?: boolean }
     )
   }
 
+  const wide = ['create', 'review', 'lookdev', 'filmplan', 'finishing'].includes(data.defType)
+  const thumbs =
+    data.defType === 'refs'
+      ? (((data.params.assetIds as string[] | undefined) ?? [])
+          .map((id) => BUILTIN_ASSETS.find((a) => a.id === id))
+          .filter((a) => a?.thumbnailPath)
+          .slice(0, 4) as Array<(typeof BUILTIN_ASSETS)[number]>)
+      : []
   return (
-    <div className="wfn" data-selected={selected || undefined} data-status={data.status}>
+    <div className={`wfn${wide ? ' is-wide' : ''}`} data-selected={selected || undefined} data-status={data.status}>
       <div className="wfn-head">
         <span className="wfn-group">{def.group}</span>
         <b>{def.label}</b>
         <StatusIcon status={data.status} />
       </div>
       <p className="wfn-summary">{pfSummary(data.defType, data.params)}</p>
+      {thumbs.length > 0 && (
+        <div className="wfn-thumbs" aria-hidden>
+          {thumbs.map((a) => (
+            <img
+              key={a.id}
+              src={a.thumbnailPath}
+              alt=""
+              loading="lazy"
+              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+            />
+          ))}
+        </div>
+      )}
       <Ports node={pseudoNode} />
     </div>
   )
@@ -239,8 +264,9 @@ function LaneView({ data }: { data: FmNodeData }) {
   return (
     <div className="wflane" data-collapsed={collapsed || undefined}>
       <div className="wflane-head">
-        <b>阶段 {String(data.params.stage)} · {String(data.params.label ?? '')}</b>
-        <span>{String(data.params.question ?? '')}</span>
+        <b><span className="wflane-no">阶段 {String(data.params.stage)}</span> {String(data.params.label ?? '')}</b>
+        <span className="wflane-q">{String(data.params.question ?? '')}</span>
+        {data.laneSummary && <span className="wflane-sum">{data.laneSummary}</span>}
         <button
           type="button"
           className="wflane-toggle nodrag"
@@ -280,7 +306,7 @@ function toRfEdge(e: WfEdgeInstance, nodes: Array<{ id: string; type: string; pa
     sourceHandle: e.sourcePort,
     target: e.target,
     targetHandle: e.targetPort,
-    style: { stroke: out ? WF_PORT_COLORS[out.type] : undefined, strokeWidth: 1.6 },
+    style: { stroke: out ? WF_PORT_COLORS[out.type] : undefined, strokeWidth: 1.5 },
   }
 }
 
@@ -300,6 +326,7 @@ function EditorInner({ workflowId, onBack }: { workflowId: string; onBack: () =>
   const [liveEvents, setLiveEvents] = useState<TaskEvent[]>([])
   const [lastRun, setLastRun] = useState<WorkflowRun | null>(() => workflowService.listRuns(workflowId)[0] ?? null)
   const [viewing, setViewing] = useState<WfArtifact | null>(null)
+  const [compact, setCompact] = useState(false)
   const [pendingTick, setPendingTick] = useState(0)
   const runHandle = useRef<{ cancel: () => void } | null>(null)
   const flow = useReactFlow()
@@ -352,20 +379,43 @@ function EditorInner({ workflowId, onBack }: { workflowId: string; onBack: () =>
     }
   }, [workflow, name, nodes, edges])
 
-  /* Gate 评估注入节点数据（口径与首页一致，来自服务层 evaluateGate） */
+  /* Gate 评估与泳道摘要注入节点数据（Gate 口径与首页一致，来自服务层 evaluateGate） */
   useEffect(() => {
     const snap = snapshot()
     if (!snap) return
+    const gateEvalById = new Map<string, GateEval>()
+    for (const gn of snap.nodes.filter((x) => x.type === 'gate')) {
+      gateEvalById.set(gn.id, evaluateGate(snap, gn))
+    }
+    const gateIdByStage = new Map<number, string>()
+    for (const [letter, gdef] of Object.entries(GATE_DEFS)) {
+      const gn = snap.nodes.find((x) => x.type === 'gate' && String(x.params.gate ?? '') === letter)
+      if (gn) gateIdByStage.set(gdef.afterStage, gn.id)
+    }
+    const DECISION_TXT: Record<string, string> = { confirmed: '已确认', pending: '待确认', 'not-started': '未开始' }
     setNodes((prev) => {
       let changed = false
       const next = prev.map((n) => {
-        if (n.data.defType !== 'gate') return n
-        const gateNode = snap.nodes.find((x) => x.id === n.id)!
-        const ev = evaluateGate(snap, gateNode)
-        const prevKey = n.data.gateEval ? JSON.stringify(n.data.gateEval) : ''
-        if (prevKey === JSON.stringify(ev)) return n
-        changed = true
-        return { ...n, data: { ...n.data, gateEval: ev } }
+        if (n.data.defType === 'gate') {
+          const ev = gateEvalById.get(n.id)
+          if (!ev) return n
+          const prevKey = n.data.gateEval ? JSON.stringify(n.data.gateEval) : ''
+          if (prevKey === JSON.stringify(ev)) return n
+          changed = true
+          return { ...n, data: { ...n.data, gateEval: ev } }
+        }
+        if (n.type === 'lane') {
+          const kids = snap.nodes.filter((x) => x.parentId === n.id && x.type === 'artifact')
+          const present = kids.filter((k) => String(k.params.status ?? 'missing') !== 'missing').length
+          let sum = `${kids.length} 项产物 · 有 ${present} · 缺 ${kids.length - present}`
+          const gid = gateIdByStage.get(Number(n.data.params.stage))
+          const ev = gid ? gateEvalById.get(gid) : undefined
+          if (ev) sum += ` · ${ev.label.replace(' · ', ' ')} ${ev.stale ? '已确认·已失效' : DECISION_TXT[ev.decision]}`
+          if (n.data.laneSummary === sum) return n
+          changed = true
+          return { ...n, data: { ...n.data, laneSummary: sum } }
+        }
+        return n
       })
       return changed ? next : prev
     })
@@ -394,7 +444,7 @@ function EditorInner({ workflowId, onBack }: { workflowId: string; onBack: () =>
             return {
               ...n,
               data: { ...n.data, params: { ...n.data.params, collapsed } },
-              style: { ...n.style, height: collapsed ? 52 : 148 },
+              style: { ...n.style, height: collapsed ? 44 : 148 },
             }
           }
           if (n.parentId === laneId) return { ...n, hidden: collapsed }
@@ -452,7 +502,7 @@ function EditorInner({ workflowId, onBack }: { workflowId: string; onBack: () =>
             sourceHandle: c.sourceHandle ?? undefined,
             target: c.target!,
             targetHandle: c.targetHandle ?? undefined,
-            style: { stroke: out ? WF_PORT_COLORS[out.type] : undefined, strokeWidth: 1.6 },
+            style: { stroke: out ? WF_PORT_COLORS[out.type] : undefined, strokeWidth: 1.5 },
           } as Edge,
         ]
       })
@@ -716,11 +766,12 @@ function EditorInner({ workflowId, onBack }: { workflowId: string; onBack: () =>
           )}
         </aside>
 
-        <div className="wfe-canvas" ref={wrapRef}>
+        <div className="wfe-canvas" ref={wrapRef} data-compact={compact || undefined}>
           <ReactFlow
             nodes={nodes}
-            edges={visibleEdges}
+            edges={running ? visibleEdges.map((e) => ({ ...e, animated: true })) : visibleEdges}
             nodeTypes={nodeTypes}
+            onMove={(_, vp) => setCompact(vp.zoom < 0.7)}
             onNodesChange={(changes) => {
               setNodes((prev) => {
                 let next = [...prev]
@@ -877,6 +928,55 @@ function EditorInner({ workflowId, onBack }: { workflowId: string; onBack: () =>
 
 /* ── Inspector ───────────────────────────────────────────────────── */
 
+const RUN_STATUS_TXT: Record<string, string> = {
+  pending: '待处理',
+  running: '运行中',
+  completed: '已完成',
+  failed: '失败',
+  skipped: '已跳过',
+}
+
+function InspHead(props: { kicker: string; title: string; chip?: ReactNode }) {
+  return (
+    <div className="wfe-insp-head">
+      <span className="wfe-insp-kicker">{props.kicker}</span>
+      <div className="wfe-insp-titlerow">
+        <h3>{props.title}</h3>
+        {props.chip}
+      </div>
+    </div>
+  )
+}
+
+function TechDetails({ node }: { node: FmNode }) {
+  const def = defForNode({ type: node.data.defType, params: node.data.params })
+  if (!def) return null
+  const fmt = (ports: typeof def.inputs) =>
+    ports.length ? ports.map((x) => `${x.label}（${x.type}）`).join('、') : '无'
+  return (
+    <details className="wfe-tech">
+      <summary>技术细节</summary>
+      <dl className="wfe-kv">
+        <dt>节点 ID</dt><dd className="num">{node.id}</dd>
+        <dt>节点类型</dt>
+        <dd>
+          {node.data.defType}
+          {node.data.defType === 'artifact' ? ` · ${String(node.data.params.kind ?? '')}` : ''}
+          {node.data.defType === 'gate' ? ` · ${String(node.data.params.gate ?? '')}` : ''}
+        </dd>
+        <dt>输入端口</dt><dd>{fmt(def.inputs)}</dd>
+        <dt>输出端口</dt><dd>{fmt(def.outputs)}</dd>
+        {node.data.defType === 'gate' && (
+          <>
+            <dt>确认记录</dt>
+            <dd>{String(node.data.params.decision ?? 'not-started')}{typeof node.data.params.confirmedAt === 'string' && node.data.params.confirmedAt ? ` · ${new Date(node.data.params.confirmedAt).toLocaleString('zh-CN')}` : ''}</dd>
+          </>
+        )}
+      </dl>
+    </details>
+  )
+}
+
 function Inspector(props: {
   node: FmNode
   workflow: WorkflowDef | null
@@ -898,7 +998,15 @@ function Inspector(props: {
     const parseLines = (s: string) => s.split('\n').map((x) => x.trim()).filter(Boolean)
     return (
       <div className="wfe-insp">
-        <h3>{def.label}</h3>
+        <InspHead
+          kicker="检查点 · Gate"
+          title={def.label}
+          chip={
+            <span className="wfn-gate-chip" data-d={ev?.stale ? 'confirmed-stale' : (ev?.decision ?? 'not-started')}>
+              {ev?.stale ? '已确认 · 已失效' : ev?.decision === 'confirmed' ? '已确认' : ev?.decision === 'pending' ? '待确认' : '未开始'}
+            </span>
+          }
+        />
         <p className="wfe-hint">检查点问题：{def.description}。确认绑定具体产物与版本；推荐不等于确认。</p>
         <dl className="wfe-kv">
           <dt>主检产物</dt>
@@ -941,6 +1049,7 @@ function Inspector(props: {
         {typeof p.confirmedAt === 'string' && p.confirmedAt && (
           <p className="wfe-hint">确认时间：{new Date(p.confirmedAt).toLocaleString('zh-CN')}（本地记录）</p>
         )}
+        <TechDetails node={node} />
       </div>
     )
   }
@@ -949,8 +1058,12 @@ function Inspector(props: {
     const kind = ARTIFACT_KIND_MAP[String(p.kind ?? '')]
     return (
       <div className="wfe-insp">
-        <h3>{kind?.label ?? '产物'}</h3>
-        <p className="wfe-hint">{kind?.filename} · 阶段 {kind?.stage} {STRUCTURED_STAGES[kind?.stage ?? 0]?.label}。状态与摘要是本工作流内的真实记录，demo 不代生成。</p>
+        <InspHead
+          kicker={`产物 · 阶段 ${kind?.stage ?? ''} ${STRUCTURED_STAGES[kind?.stage ?? 0]?.label ?? ''}`}
+          title={kind?.label ?? '产物'}
+          chip={<span className="wfn-artifact-chip" data-s={String(p.status ?? 'missing')}>{ARTIFACT_STATUS_LABEL[String(p.status ?? 'missing')] ?? String(p.status ?? '')}</span>}
+        />
+        <p className="wfe-hint">{kind?.filename}。状态与摘要是本工作流内的真实记录，demo 不代生成。</p>
         <label className="wfe-field"><span>状态</span>
           <select value={String(p.status ?? 'missing')} onChange={(e) => onParams({ status: e.target.value })}>
             <option value="missing">尚无产物</option>
@@ -969,13 +1082,18 @@ function Inspector(props: {
           <input type="checkbox" checked={!!p.fixture} onChange={(e) => onParams({ fixture: e.target.checked })} />
           <span>演示快照（fixture）</span>
         </label>
+        <TechDetails node={node} />
       </div>
     )
   }
 
   return (
     <div className="wfe-insp">
-      <h3>{def.label}</h3>
+      <InspHead
+        kicker={def.group}
+        title={def.label}
+        chip={node.data.status !== 'idle' ? <span className="wfe-insp-run" data-s={node.data.status}>{RUN_STATUS_TXT[node.data.status] ?? ''}</span> : undefined}
+      />
       <p className="wfe-hint">{def.description}</p>
 
       {node.data.defType === 'prompt' && (
@@ -1104,6 +1222,7 @@ function Inspector(props: {
           <textarea rows={8} value={String(p.notes ?? '')} onChange={(e) => onParams({ notes: e.target.value })} placeholder="观众优先的收束：节奏、音画关系、细节、QC 观察" />
         </label>
       )}
+      <TechDetails node={node} />
     </div>
   )
 }
