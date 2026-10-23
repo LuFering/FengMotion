@@ -11,6 +11,8 @@ import {
 import { EmptyState } from '@/components/fm/EmptyState'
 import { ErrorState } from '@/components/fm/ErrorState'
 import { LoadingState } from '@/components/fm/LoadingState'
+import { PageHeader } from '@/components/PageHeader'
+import { SearchField } from '@/components/SearchField'
 
 /**
  * 我的素材 —— 原生多媒体素材管理器。
@@ -125,9 +127,9 @@ export function Assets({ projectName }: { projectName?: string } = {}) {
   const [renaming, setRenaming] = useState<MyAsset | null>(null)
   const [renameText, setRenameText] = useState('')
   const [tagText, setTagText] = useState('')
-  const [filterOverflow, setFilterOverflow] = useState(false)
+
   const inputRef = useRef<HTMLInputElement>(null)
-  const filtersRef = useRef<HTMLDivElement>(null)
+
   const dragDepth = useRef(0)
 
   // ── 加载 ──
@@ -184,18 +186,6 @@ export function Assets({ projectName }: { projectName?: string } = {}) {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [])
-
-  // 筛选条溢出时才显示“查看更多”与渐隐，避免在 1920 下无谓出现
-  useEffect(() => {
-    const el = filtersRef.current
-    if (!el) return
-    const check = () => setFilterOverflow(el.scrollWidth > el.clientWidth + 1)
-    check()
-    const ro = new ResizeObserver(check)
-    ro.observe(el)
-    window.addEventListener('resize', check)
-    return () => { ro.disconnect(); window.removeEventListener('resize', check) }
-  }, [assets, folders, search, node])
 
   const detail = useMemo(() => assets.find((a) => a.id === detailId) ?? null, [assets, detailId])
 
@@ -400,32 +390,35 @@ export function Assets({ projectName }: { projectName?: string } = {}) {
 
   return (
     <div className="mya">
-      <header className="mya-cmd">
-        <span className="mya-logo"><Icon name="image" /></span>
-        <h1 className="mya-title">我的素材</h1>
-        <span className="mya-meta">{projectName ? `${projectName} · ` : ''}{assets.length} 项</span>
-        <span className="mya-spacer" />
-        <label className="mya-search">
-          <Icon name="search" />
-          <input value={search} onChange={(e) => setSearch(e.target.value)}
-                 placeholder="搜索名称、标签、来源" aria-label="搜索素材" />
-          {search && <button type="button" className="mya-search-x" onClick={() => setSearch('')} title="清除搜索" aria-label="清除搜索"><Icon name="x" /></button>}
-        </label>
-        <div className="mya-seg" role="group" aria-label="视图模式">
-          <button type="button" className={viewMode === 'grid' ? 'on' : undefined}
-                  aria-pressed={viewMode === 'grid'} onClick={() => setViewMode('grid')}>
-            <Icon name="layout-grid" />网格
-          </button>
-          <button type="button" className={viewMode === 'list' ? 'on' : undefined}
-                  aria-pressed={viewMode === 'list'} onClick={() => setViewMode('list')}>
-            <Icon name="list" />列表
-          </button>
-        </div>
-        <button type="button" className="mya-primary" onClick={() => inputRef.current?.click()}>
-          <Icon name="import" />导入素材
-        </button>
-        <input ref={inputRef} type="file" multiple hidden onChange={onPick} />
-      </header>
+      <PageHeader
+        title="我的素材"
+        meta={projectName ? `${projectName} · ${assets.length} 项` : `${assets.length} 项`}
+        actions={
+          <>
+            <SearchField
+              value={search}
+              onChange={setSearch}
+              placeholder="搜索名称、标签、来源"
+              ariaLabel="搜索素材"
+              onClear={() => setSearch('')}
+            />
+            <div className="mya-seg" role="group" aria-label="视图模式">
+              <button type="button" className={viewMode === 'grid' ? 'on' : undefined}
+                      aria-pressed={viewMode === 'grid'} onClick={() => setViewMode('grid')}>
+                <Icon name="layout-grid" />网格
+              </button>
+              <button type="button" className={viewMode === 'list' ? 'on' : undefined}
+                      aria-pressed={viewMode === 'list'} onClick={() => setViewMode('list')}>
+                <Icon name="list" />列表
+              </button>
+            </div>
+            <button type="button" className="mya-primary" onClick={() => inputRef.current?.click()}>
+              <Icon name="import" />导入素材
+            </button>
+          </>
+        }
+      />
+      <input ref={inputRef} type="file" multiple hidden onChange={onPick} />
 
       <div className="mya-filterbar">
         {selected.size > 0 ? (
@@ -442,20 +435,12 @@ export function Assets({ projectName }: { projectName?: string } = {}) {
           </div>
         ) : (
           <>
-            <div className="mya-filters" ref={filtersRef} data-more={filterOverflow || undefined} role="toolbar" aria-label="素材筛选">
+            <div className="mya-filterrow" role="toolbar" aria-label="素材筛选：范围">
               <span className="mya-filter-label">库</span>
               {coreNodes.map(renderChip)}
               <span className="mya-filter-group">
                 <span className="mya-filter-label">来源</span>
                 {sourceNodes.map(renderChip)}
-              </span>
-              <span className="mya-filter-group">
-                <span className="mya-filter-label">类型</span>
-                {typeNodes.map(renderChip)}
-              </span>
-              <span className="mya-filter-group">
-                <span className="mya-filter-label">审核</span>
-                {reviewNodes.map(renderChip)}
               </span>
               <span className="mya-filter-group">
                 <span className="mya-filter-label">文件夹</span>
@@ -471,28 +456,25 @@ export function Assets({ projectName }: { projectName?: string } = {}) {
                 </button>
               </span>
             </div>
-            {filterOverflow && (
-              <button type="button" className="mya-filter-more"
-                      onClick={() => {
-                        const el = filtersRef.current
-                        if (!el) return
-                        const atEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 2
-                        if (atEnd) el.scrollTo({ left: 0, behavior: 'smooth' })
-                        else el.scrollBy({ left: 260, behavior: 'smooth' })
-                      }}
-                      title="查看更多筛选" aria-label="查看更多筛选">
-                <Icon name="chevron-right" />
-              </button>
-            )}
-            <div className="mya-filter-end">
-              <span className="mya-result-count">{activeLabel} · {visible.length} 项</span>
-              {(node !== 'all' || search) && <button type="button" className="mya-link" onClick={clearFilter}>清除筛选</button>}
-              <label className="mya-sort">
-                排序
-                <select value={sortKey} onChange={(e) => setSortKey(e.target.value as SortKey)} aria-label="排序方式">
-                  {(Object.keys(SORT_LABEL) as SortKey[]).map((k) => <option key={k} value={k}>{SORT_LABEL[k]}</option>)}
-                </select>
-              </label>
+            <div className="mya-filterrow" role="toolbar" aria-label="素材筛选：属性">
+              <span className="mya-filter-group">
+                <span className="mya-filter-label">类型</span>
+                {typeNodes.map(renderChip)}
+              </span>
+              <span className="mya-filter-group">
+                <span className="mya-filter-label">审核</span>
+                {reviewNodes.map(renderChip)}
+              </span>
+              <div className="mya-filter-end">
+                <span className="mya-result-count">{activeLabel} · {visible.length} 项</span>
+                {(node !== 'all' || search) && <button type="button" className="mya-clearbtn" onClick={clearFilter}>清除筛选</button>}
+                <label className="mya-sort">
+                  排序
+                  <select value={sortKey} onChange={(e) => setSortKey(e.target.value as SortKey)} aria-label="排序方式">
+                    {(Object.keys(SORT_LABEL) as SortKey[]).map((k) => <option key={k} value={k}>{SORT_LABEL[k]}</option>)}
+                  </select>
+                </label>
+              </div>
             </div>
           </>
         )}

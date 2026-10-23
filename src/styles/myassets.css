@@ -141,6 +141,20 @@ html[data-theme="light"] .mya {
 .mya-title { margin: 0; font-size: 13px; font-weight: 650; white-space: nowrap; }
 .mya-meta { font-size: 11.5px; color: var(--tx3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
+/* 共享页头接入（整改清单 3）：页头本体由 fm-page.css 定义，这里只补岛面外观 */
+.mya > .fm-page-head {
+  flex: 0 0 auto;
+  padding: 0 14px;
+  background: var(--panel);
+  border: 1px solid transparent;
+  border-radius: var(--r-panel);
+  box-shadow: var(--shadow-base);
+  animation: myaRise .5s var(--eo) both;
+}
+.mya > .fm-page-head .fm-searchfield { flex: 0 1 240px; background: var(--panel2); }
+.mya > .fm-page-head .mya-seg { flex: 0 0 auto; }
+.mya > .fm-page-head .mya-primary { flex: 0 0 auto; }
+
 .mya-seg {
   display: flex;
   gap: 2px;
@@ -153,7 +167,9 @@ html[data-theme="light"] .mya {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 4px 11px;
+  min-height: 28px;
+  padding: 4px 12px;
+  white-space: nowrap;
   border: 0;
   border-radius: var(--r-pill);
   background: none;
@@ -177,7 +193,8 @@ html[data-theme="light"] .mya {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 6px 14px;
+  height: 36px;
+  padding: 0 16px;
   border: 0;
   border-radius: var(--r-ctl);
   background: var(--acc);
@@ -185,25 +202,38 @@ html[data-theme="light"] .mya {
   font: inherit;
   font-size: 12.5px;
   font-weight: 600;
+  white-space: nowrap;
   cursor: pointer;
   transition: transform .15s var(--eo), filter .15s var(--eo);
 }
 .mya-primary:hover { filter: brightness(1.06); }
 .mya-primary .ui-icon { width: 13px; height: 13px; }
 
-/* ── 横向筛选条（全宽，可横向滚动）──────────────────────────── */
+/* ── 筛选条（全宽，两行：范围行 + 属性行，整改清单 1）────────────── */
 .mya-filterbar {
-  flex: 0 0 44px;
+  flex: 0 0 auto;
   display: flex;
-  align-items: center;
-  gap: 10px;
+  flex-direction: column;
   min-width: 0;
-  padding: 6px 12px;
+  padding: 4px 12px;
   background: var(--panel);
   border: 1px solid transparent;
   border-radius: var(--r-panel);
   box-shadow: var(--shadow-base);
   animation: myaRise .5s var(--eo) .06s both;
+}
+.mya-filterrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  min-width: 0;
+}
+.mya-filterrow + .mya-filterrow { border-top: 1px solid var(--line); }
+.mya-filterrow > .mya-filter-group:first-child {
+  margin-left: 0;
+  padding-left: 0;
+  border-left: 0;
 }
 .mya-filters {
   flex: 1;
@@ -219,7 +249,7 @@ html[data-theme="light"] .mya {
 .mya-filters::-webkit-scrollbar { display: none; }
 .mya-filter-label {
   padding: 0 2px;
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: .08em;
   text-transform: uppercase;
@@ -239,21 +269,21 @@ html[data-theme="light"] .mya {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  height: 26px;
-  padding: 0 10px;
+  height: 32px;
+  padding: 0 12px;
   border: 1px solid var(--line);
   border-radius: var(--r-pill);
   background: var(--panel2);
   color: var(--tx2);
   font: inherit;
-  font-size: 11.5px;
+  font-size: 12px;
   white-space: nowrap;
   cursor: pointer;
   transition: transform .15s var(--eo), background-color .15s var(--eo), border-color .15s var(--eo), color .15s var(--eo);
 }
 .mya-chip:hover { background: var(--hover); color: var(--tx); transform: translateY(-1px); }
 .mya-chip .ui-icon { width: 12px; height: 12px; color: var(--tx3); }
-.mya-chip em { margin-left: 1px; font-style: normal; font-size: 10.5px; color: var(--tx3); }
+.mya-chip em { margin-left: 1px; font-style: normal; font-size: 11px; color: var(--tx3); }
 .mya-chip[data-on] {
   background: var(--sel);
   border-color: color-mix(in srgb, var(--acc) 45%, transparent);
@@ -277,8 +307,26 @@ html[data-theme="light"] .mya {
 }
 .mya-filter-more:hover { color: var(--tx); background: var(--hover); }
 .mya-filter-more .ui-icon { width: 12px; height: 12px; }
-.mya-filter-end { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; padding-left: 10px; border-left: 1px solid var(--line); }
-.mya-result-count { font-size: 11.5px; color: var(--tx3); white-space: nowrap; }
+.mya-filter-end { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; margin-left: auto; padding-left: 10px; border-left: 1px solid var(--line); }
+.mya-result-count { font-size: 12px; color: var(--tx3); white-space: nowrap; }
+
+/* 次动作描边按钮（整改清单 5：清除筛选等次动作统一形态） */
+.mya-clearbtn {
+  display: inline-flex;
+  align-items: center;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--line2);
+  border-radius: var(--r-ctl);
+  background: none;
+  color: var(--tx2);
+  font: inherit;
+  font-size: 12px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: border-color .15s var(--eo), color .15s var(--eo), background-color .15s var(--eo);
+}
+.mya-clearbtn:hover { border-color: var(--acc); color: var(--tx); background: var(--hover); }
 
 /* 顶部搜索框（全宽命令条内） */
 .mya-search {
@@ -361,19 +409,19 @@ html[data-theme="light"] .mya {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--tx3);
   white-space: nowrap;
 }
 .mya-sort select {
-  height: 26px;
-  padding: 0 6px;
+  height: 32px;
+  padding: 0 8px;
   border: 1px solid var(--line2);
   border-radius: var(--r-ctl);
   background: var(--panel2);
   color: var(--tx);
   font: inherit;
-  font-size: 11.5px;
+  font-size: 12px;
   outline: 0;
   cursor: pointer;
 }
@@ -396,7 +444,10 @@ html[data-theme="light"] .mya {
 }
 .mya-batch-n { margin-right: 4px; font-size: 12.5px; font-weight: 650; color: var(--acc-tx); }
 .mya-batch button {
-  padding: 4px 9px;
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 10px;
   border: 1px solid var(--line2);
   border-radius: var(--r-ctl);
   background: none;
@@ -408,7 +459,7 @@ html[data-theme="light"] .mya {
 }
 .mya-batch button:hover { color: var(--tx); border-color: var(--tx3); background: var(--hover); }
 .mya-batch-sep { width: 1px; height: 14px; margin: 0 2px; background: var(--line); }
-.mya-filterbar .mya-batch { flex: 1; min-width: 0; height: 30px; margin: 0; padding: 0 8px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+.mya-filterbar .mya-batch { flex: 1; min-width: 0; min-height: 40px; margin: 0; padding: 4px 8px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
 .mya-filterbar .mya-batch::-webkit-scrollbar { display: none; }
 .mya-danger { color: var(--danger) !important; }
 .mya-batch button.mya-danger:hover { border-color: color-mix(in srgb, var(--danger) 55%, transparent); }
@@ -417,10 +468,10 @@ html[data-theme="light"] .mya {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 0 12px 12px;
+  padding: 0 20px 20px;
 }
-.mya-grid { padding-top: 12px; }
-.mya-list { padding-top: 12px; }
+.mya-grid { padding-top: 16px; }
+.mya-list { padding-top: 16px; }
 .mya-scroll::-webkit-scrollbar,
 .mya-drawer-body::-webkit-scrollbar {
   width: 8px;
@@ -439,7 +490,7 @@ html[data-theme="light"] .mya {
 .mya-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(196px, 1fr));
-  gap: 10px;
+  gap: 16px;
   align-content: start;
 }
 .mya-card {
@@ -672,9 +723,9 @@ html[data-theme="light"] .mya {
   scrollbar-color: var(--line2) transparent;
 }
 .mya-iconbtn {
-  width: 22px;
-  height: 22px;
-  flex: 0 0 22px;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
   display: grid;
   place-items: center;
   border: 1px solid var(--line2);
@@ -684,7 +735,7 @@ html[data-theme="light"] .mya {
   cursor: pointer;
 }
 .mya-iconbtn:hover { color: var(--tx); border-color: var(--tx3); }
-.mya-iconbtn .ui-icon { width: 12px; height: 12px; }
+.mya-iconbtn .ui-icon { width: 14px; height: 14px; }
 
 .mya-preview {
   margin: 0 0 10px;
