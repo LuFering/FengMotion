@@ -130,23 +130,29 @@ function HeroTitle({ copy, cycle }: { copy: HeroCycle; cycle: number }) {
 
 type Attachment = { name: string; size: number; kind: 'file' | 'image' | 'video' }
 
+type Harness = { id: string; name: string; short: string; mark: string; models: string[]; ready: boolean }
+
+/** 执行引擎列表：只有 deepseek 标为已配置，其余如实标注「未接入」 */
+const HARNESSES: Harness[] = [
+  { id: 'deepseek', name: 'DeepSeek Harness', short: 'DeepSeek', mark: 'DS', models: ['deepseek-chat', 'deepseek-reasoner', 'deepseek-v4.1-flash'], ready: true },
+  { id: 'claude', name: 'Claude Code', short: 'Claude', mark: 'CC', models: ['claude-sonnet-4', 'claude-opus-4'], ready: false },
+  { id: 'codex', name: 'Codex', short: 'Codex', mark: 'CX', models: ['gpt-5-codex'], ready: false },
+]
+
 const fmtSize = (bytes: number) =>
   bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)}MB`
     : bytes >= 1024 ? `${Math.round(bytes / 1024)}KB`
       : `${bytes}B`
 
-const AI_TOOLS = [
-  { label: '分镜拆解', hint: '把口播稿拆成可拍的镜头', prompt: '把这段口播稿拆成分镜脚本：' },
-  { label: '文案润色', hint: '改得更口语、更短', prompt: '把下面这段文案改得更口语些：' },
-  { label: '镜头建议', hint: '换一种运镜或景别', prompt: '给这个镜头换一种运镜方式：' },
-]
 
 export function Home() {
   const [ready, setReady] = useState(false)
   const [draft, setDraft] = useState('')
-  const [menu, setMenu] = useState<null | 'workdir' | 'add' | 'ai'>(null)
+  const [menu, setMenu] = useState<null | 'workdir' | 'add' | 'harness'>(null)
   const [workdir, setWorkdir] = useState('~/workspace/fengmotion')
   const [attachments, setAttachments] = useState<Attachment[]>([])
+  const [harnessId, setHarnessId] = useState(HARNESSES[0].id)
+  const [model, setModel] = useState(HARNESSES[0].models[0])
   const [toast, setToast] = useState('')
   const [phraseIndex, setPhraseIndex] = useState(0)
   const taRef = useRef<HTMLTextAreaElement>(null)
@@ -240,6 +246,7 @@ export function Home() {
     setToast('演示输入框：发送未接入，未创建任务。')
   }
 
+  const harness = HARNESSES.find((h) => h.id === harnessId) ?? HARNESSES[0]
   const phrase = MIST_PHRASES[phraseIndex]
   const phraseChunks = phrase.match(/.{1,3}/gu) ?? [phrase]
 
@@ -316,26 +323,6 @@ export function Home() {
                     </div>
                   )}
                 </div>
-                <div className="hf-btnwrap">
-                  <button className="hf-ibtn" type="button" title="AI 工具" aria-expanded={menu === 'ai'}
-                          onClick={() => setMenu(menu === 'ai' ? null : 'ai')}>
-                    <svg viewBox="0 0 24 24"><path d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.4z" /><path d="M19 15.5l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z" /></svg>
-                  </button>
-                  {menu === 'ai' && (
-                    <div className="hf-menu">
-                      {AI_TOOLS.map((tool) => (
-                        <button key={tool.label} type="button"
-                                onClick={() => {
-                                  setDraft((d) => (d ? `${d}\n${tool.prompt}` : tool.prompt))
-                                  setMenu(null)
-                                  taRef.current?.focus()
-                                }}>
-                          <span className="hf-mt"><b>{tool.label}</b><small>{tool.hint}</small></span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
                 <div className="hf-modewrap" data-open={menu === 'workdir' || undefined}>
                   <button className="hf-modechip hf-workdir-chip" type="button" aria-expanded={menu === 'workdir'}
                           onClick={() => setMenu(menu === 'workdir' ? null : 'workdir')}>
@@ -360,7 +347,48 @@ export function Home() {
                 </div>
                 <span className="hf-spacer" />
                 <span className="hf-count">{draft.length || ''}</span>
-                <span className="hf-model"><i />deepseek-chat</span>
+                <div className="hf-btnwrap hf-harnesswrap">
+                  <button className="hf-harness" type="button" aria-haspopup="dialog"
+                          aria-expanded={menu === 'harness'} title="切换执行引擎"
+                          onClick={() => setMenu(menu === 'harness' ? null : 'harness')}>
+                    <span className="hf-harness-seg" data-off={!harness.ready || undefined}><i />{harness.short}</span>
+                    <span className="hf-harness-div" aria-hidden="true" />
+                    <span className="hf-harness-model">{model}</span>
+                    <svg className="hf-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
+                  </button>
+                  {menu === 'harness' && (
+                    <div className="hf-harness-pop" role="dialog" aria-label="执行引擎">
+                      <div className="hf-hp-head"><b>执行引擎</b><span>演示：只切换界面状态</span></div>
+                      <div className="hf-hp-list" role="listbox" aria-label="引擎">
+                        {HARNESSES.map((h) => (
+                          <button key={h.id} type="button" className="hf-hp-item" role="option"
+                                  aria-selected={h.id === harnessId}
+                                  data-off={!h.ready || undefined}
+                                  onClick={() => { setHarnessId(h.id); setModel(h.models[0]) }}>
+                            <span className="hf-hp-logo" aria-hidden="true">{h.mark}</span>
+                            <span className="hf-hp-txt">
+                              <b>{h.name}</b>
+                              <small>{h.ready ? '本机已配置' : '未接入，仅展示'}</small>
+                            </span>
+                            <span className="hf-hp-ck" aria-hidden="true">✓</span>
+                          </button>
+                        ))}
+                      </div>
+                      <div className="hf-hp-sep" />
+                      <div className="hf-hp-head"><b>模型</b><span>{harness.short}</span></div>
+                      <div className="hf-hp-list" role="listbox" aria-label="模型">
+                        {harness.models.map((m) => (
+                          <button key={m} type="button" className="hf-hp-item hf-hp-model" role="option"
+                                  aria-selected={m === model} onClick={() => setModel(m)}>
+                            <span className="hf-hp-radio" aria-hidden="true" />
+                            <span className="hf-hp-txt"><b>{m}</b></span>
+                            <span className="hf-hp-ck" aria-hidden="true">✓</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
                 <button className="hf-send" type="button" disabled={!draft.trim() && !attachments.length}
                         title={draft.trim() || attachments.length ? '示例输入框：发送未接入' : '发送'}
                         onClick={send} aria-label="发送">
