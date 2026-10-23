@@ -8,7 +8,6 @@ import {
   Pause,
   Play,
   RotateCcw,
-  Search,
   Star,
   Workflow,
   X,
@@ -26,6 +25,8 @@ import {
   type FxTechnique,
 } from '@/data/fxTechniques'
 import { EmptyState } from '@/components/fm/EmptyState'
+import { PageHeader } from '@/components/PageHeader'
+import { SearchField } from '@/components/SearchField'
 
 /**
  * 特效技法库 —— 技法库自己的布局，不是 Workbench 的三栏骨架。
@@ -307,33 +308,26 @@ export function FxLibrary() {
     <div className="fxlib" data-mode="dark">
       {/* 一个库面板：控件在上，索引铺满，详情走抽屉 */}
       <section className="fx-panel" aria-label="特效技法库" inert={drawerOpen ? true : undefined}>
-        <header className="fx-masthead">
-          <div className="fx-title-group">
-            <h1>特效技法库</h1>
-            <span className="fx-top-sub">
+        <PageHeader
+          title="特效技法库"
+          meta={
+            <>
               视频视觉技法 · 源库 <b className="num">{FX_TECHNIQUES.length}</b> 项 ·{' '}
               <b className="num">{FX_CATEGORIES.length}</b> 类
-            </span>
-          </div>
-          <span className="fx-spacer" />
-          <label className="fx-search">
-            <Search size={14} aria-hidden="true" />
-            <input
-              ref={searchRef}
+            </>
+          }
+          actions={
+            <SearchField
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={setQuery}
               placeholder="搜索技法 / 意图 / 场景 / 别名"
-              aria-label="搜索技法"
+              ariaLabel="搜索技法"
+              onClear={() => setQuery('')}
+              inputRef={searchRef}
+              shortcutHint="/"
             />
-            {query ? (
-              <button type="button" className="fx-search-clear" onClick={() => setQuery('')} aria-label="清除搜索">
-                <X size={12} aria-hidden="true" />
-              </button>
-            ) : (
-              <kbd aria-hidden="true">/</kbd>
-            )}
-          </label>
-        </header>
+          }
+        />
 
         <div className="fx-tabs">
           <div className="fx-tabs-scroll" aria-label="按分类筛选">

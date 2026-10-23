@@ -159,6 +159,11 @@
   padding: 0 16px;
 }
 
+/* 共享页头接入（01 期迁移）：页头本体由 fm-page.css 定义，这里只给面板内边距 */
+.fx-panel > .fm-page-head {
+  padding: 0 16px;
+}
+
 .fx-title-group {
   display: flex;
   align-items: baseline;
