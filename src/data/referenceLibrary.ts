@@ -1,7 +1,9 @@
 /**
  * 参考片库数据层 —— 从 reference 复刻页抽出并整理。
  *
- * 21 个镜头 / 11 部参考片，静帧位于 public/reference/shots/{shotId}.webp。
+ * 21 个片段 / 11 部参考片，静帧位于 public/reference/shots/{segmentId}.webp。
+ * 单位口径与项目一致：项目已去除「镜头」单位，参考片的分析单位为片段
+ * （一段连续时间范围）；数据 id 沿用历史值（shot-*），不影响引用与本地存档。
  * 分析字段与置信度来自现有演示数据，不新增、不推断；pending 字段保持「待分析」。
  */
 
@@ -28,7 +30,7 @@ export type AnalysisKey =
   | 'color' | 'lighting' | 'rhythm' | 'transition'
   | 'narrative' | 'shotType'
 
-export interface ReferenceShot {
+export interface ReferenceSegment {
   id: string
   videoId: string
   index: number
@@ -46,7 +48,7 @@ export interface ReferenceCollection {
   id: string
   name: string
   note: string
-  shotIds: string[]
+  segmentIds: string[]
 }
 
 export const REFERENCE_VIDEOS: ReferenceVideo[] = [
@@ -203,7 +205,7 @@ export const REFERENCE_VIDEOS: ReferenceVideo[] = [
   }
 ]
 
-export const REFERENCE_SHOTS: ReferenceShot[] = [
+export const REFERENCE_SEGMENTS: ReferenceSegment[] = [
   {
     "id": "shot-dolly-a",
     "videoId": "ref-dolly-zoom",
@@ -1856,7 +1858,7 @@ export const REFERENCE_COLLECTIONS: ReferenceCollection[] = [
     "id": "col-transition",
     "name": "转场与节奏",
     "note": "故障、漏光、排版与标题",
-    "shotIds": [
+    "segmentIds": [
       "shot-glitch-a",
       "shot-glitch-b",
       "shot-leak-a",
@@ -1870,7 +1872,7 @@ export const REFERENCE_COLLECTIONS: ReferenceCollection[] = [
     "id": "col-character",
     "name": "人物与情绪",
     "note": "剪影、对话与都市夜景",
-    "shotIds": [
+    "segmentIds": [
       "shot-dolly-a",
       "shot-dolly-b",
       "shot-dlg-a",
@@ -1885,7 +1887,7 @@ export const REFERENCE_COLLECTIONS: ReferenceCollection[] = [
     "id": "col-nature",
     "name": "自然与空镜",
     "note": "海岸、山地与暗夜余烬",
-    "shotIds": [
+    "segmentIds": [
       "shot-ocean-a",
       "shot-ocean-b",
       "shot-teal-a",
@@ -1898,7 +1900,7 @@ export const REFERENCE_COLLECTIONS: ReferenceCollection[] = [
     "id": "col-product",
     "name": "产品与细节",
     "note": "腕表旋转与微距细节",
-    "shotIds": [
+    "segmentIds": [
       "shot-prod-a",
       "shot-prod-b"
     ]
@@ -1934,6 +1936,6 @@ export function formatTimecode(seconds: number): string {
   return [m, s, f].map((n) => String(n).padStart(2, '0')).join(':')
 }
 
-export function pendingFieldCount(shot: ReferenceShot): number {
-  return Object.values(shot.analysis).filter((a) => a.pending).length
+export function pendingFieldCount(segment: ReferenceSegment): number {
+  return Object.values(segment.analysis).filter((a) => a.pending).length
 }
