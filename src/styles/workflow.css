@@ -333,6 +333,7 @@ html[data-theme='tactile'] .wfl {
 
 /* 节点 */
 .wfn {
+  position: relative;
   width: 260px;
   background: var(--panel);
   border: 1px solid var(--line2);
@@ -491,6 +492,8 @@ html[data-theme='tactile'] .wfl {
 
 /* 画布缩放紧凑模式（<0.7）：收起摘要类信息，保留名称/状态/端口 */
 .wfe-canvas[data-compact] .wfn-summary,
+.wfe-canvas[data-compact] .wfn-meta,
+.wfe-canvas[data-compact] .wfn-progress,
 .wfe-canvas[data-compact] .wfn-file,
 .wfe-canvas[data-compact] .wfn-target,
 .wfe-canvas[data-compact] .wfn-thumbs { display: none; }
@@ -512,3 +515,77 @@ html[data-theme='tactile'] .wfl {
 
 /* 执行抽屉标题栏约 40px */
 .wfe-drawer-head { padding: 10px 14px; }
+
+/* ── P0 升级追加（开源标杆调研定案）：角标状态 / 动态副标题 / 三格检查器 / 连线纪律 / 释放连线菜单 ── */
+
+/* 状态角标：浮在节点右上角，不整节点染色 */
+.wfn-badge {
+  position: absolute; top: -7px; right: -7px; z-index: 3;
+  width: 17px; height: 17px; border-radius: 999px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--raised); color: var(--tx2);
+  border: 1px solid var(--line2); box-shadow: var(--shadow-base);
+}
+.wfn-badge[data-s='running'] { color: var(--acc-tx); border-color: var(--acc); }
+.wfn-badge[data-s='completed'] { background: var(--ok); border-color: var(--ok); color: #fff; }
+.wfn-badge[data-s='failed'] { background: var(--danger); border-color: var(--danger); color: #fff; }
+.wfn-badge[data-s='skipped'] { color: var(--tx3); }
+
+/* 动态副标题（规格注脚行） */
+.wfn-meta { margin: -3px 0 8px; font-size: 10.5px; line-height: 15px; color: var(--tx3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* 看片节点 quality-bar 进度 */
+.wfn-progress { height: 3px; border-radius: 999px; background: var(--hover); margin: 0 0 9px; overflow: hidden; }
+.wfn-progress i { display: block; height: 100%; border-radius: 999px; background: var(--ok); transition: width 0.25s var(--eo); }
+
+/* 连线纪律：默认收一档不透明度，hover/选中/运行回全色（stroke 色由端口类型决定） */
+.wfe-canvas .react-flow__edge-path { opacity: 0.82; }
+.wfe-canvas .react-flow__edge:hover .react-flow__edge-path,
+.wfe-canvas .react-flow__edge.selected .react-flow__edge-path { opacity: 1; }
+/* 拖拽连线时：兼容目标口辉光放大（React Flow 给目标 handle 加 connectingto/valid 类） */
+.wfe-canvas .react-flow__handle.connectingto { box-shadow: 0 0 0 4px var(--sel), 0 0 0 5.5px var(--acc); }
+
+/* 检查器三格：输入 | 参数 | 输出 */
+.wfe-sect3 { border-top: 1px solid var(--line); padding-top: 10px; margin-top: 12px; }
+.wfe-sect3-head { font-size: 10.5px; font-weight: 800; letter-spacing: 0.07em; color: var(--tx3); margin-bottom: 8px; }
+.wfe-sect3-head.is-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.wfe-in3-list { display: flex; flex-direction: column; gap: 5px; }
+.wfe-in3 {
+  display: flex; flex-direction: column; gap: 1px; text-align: left;
+  border: 1px solid var(--line); border-radius: 9px; background: var(--panel2); padding: 7px 9px;
+  transition: border-color 0.14s var(--eo), background-color 0.14s var(--eo);
+}
+.wfe-in3:hover { border-color: var(--acc); background: var(--hover); }
+.wfe-in3 b { font-size: 12px; font-weight: 600; color: var(--tx); }
+.wfe-in3 span { font-size: 11px; line-height: 1.45; color: var(--tx3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wfe-out3 { display: flex; flex-direction: column; gap: 2px; border: 1px solid var(--line); border-radius: 9px; background: var(--panel2); padding: 8px 10px; }
+.wfe-out3 b { font-size: 12px; font-weight: 600; color: var(--tx); }
+.wfe-out3 span { font-size: 11.5px; line-height: 1.5; color: var(--tx2); }
+.wfe-out3 .num { font-size: 10.5px; color: var(--tx3); }
+.wfe-runrow { display: flex; align-items: center; gap: 9px; margin-bottom: 12px; }
+
+/* 释放连线推荐菜单 */
+.wfe-menu-scrim { position: absolute; inset: 0; z-index: 18; }
+.wfe-connectmenu {
+  position: absolute; z-index: 19; width: 252px;
+  background: var(--panel); border: 1px solid var(--line2); border-radius: 12px;
+  box-shadow: var(--shadow-mid); padding: 10px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.wfe-connectmenu-head { display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 700; color: var(--tx); }
+.wfe-connectmenu-dot { flex: none; width: 9px; height: 9px; border-radius: 999px; }
+.wfe-connectmenu-type { margin-left: auto; font-size: 10px; font-weight: 700; color: var(--tx3); }
+.wfe-connectmenu-search {
+  display: flex; align-items: center; gap: 6px;
+  border: 1px solid var(--line2); border-radius: 8px; background: var(--panel2); padding: 5px 8px; color: var(--tx3);
+}
+.wfe-connectmenu-search input { flex: 1; min-width: 0; background: none; border: 0; outline: none; font-size: 12px; color: var(--tx); }
+.wfe-connectmenu-list { display: flex; flex-direction: column; gap: 4px; max-height: 264px; overflow-y: auto; }
+.wfe-connectmenu-item {
+  display: flex; flex-direction: column; gap: 1px; text-align: left;
+  border: 1px solid var(--line); border-radius: 9px; background: var(--panel2); padding: 7px 9px;
+}
+.wfe-connectmenu-item:hover { border-color: var(--acc); background: var(--hover); }
+.wfe-connectmenu-item b { font-size: 12.5px; font-weight: 600; color: var(--tx); }
+.wfe-connectmenu-item span { font-size: 11px; color: var(--tx3); }
+.wfe-connectmenu-foot { margin: 0; font-size: 10.5px; line-height: 1.5; color: var(--tx3); }

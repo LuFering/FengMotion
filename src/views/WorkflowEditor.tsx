@@ -20,6 +20,7 @@ import {
   type Node,
   type Edge,
   type Connection,
+  type OnConnectStartParams,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import {
@@ -27,7 +28,6 @@ import {
   Ban,
   CheckCircle2,
   ChevronDown,
-  CircleDashed,
   Download,
   Eye,
   Flag,
@@ -35,6 +35,7 @@ import {
   Play,
   Plus,
   Save,
+  Search,
   XCircle,
 } from 'lucide-react'
 import {
@@ -47,6 +48,8 @@ import {
   defForNode,
   pfDefaultParams,
   type WfEdgeInstance,
+  type WfNodeDef,
+  type WfPortType,
 } from '../data/workflowTemplates'
 import { BUILTIN_ASSETS, MEDIA_LABEL } from '../data/myAssets'
 import { FX_TECHNIQUES } from '../data/fxTechniques'
@@ -54,6 +57,7 @@ import { REFERENCE_SEGMENTS, REFERENCE_VIDEOS } from '../data/referenceLibrary'
 import {
   workflowService,
   startDemoRun,
+  startSingleNodeRun,
   evaluateGate,
   QUALITY_QUESTIONS,
   type GateEval,
@@ -134,16 +138,32 @@ function pfSummary(defType: string, p: Record<string, unknown>): string {
   }
 }
 
-function StatusIcon({ status }: { status: FmNodeData['status'] }) {
-  return (
-    <span className="wfn-status" data-s={status}>
-      {status === 'running' && <LoaderCircle size={11} className="wfn-spin" />}
-      {status === 'completed' && <CheckCircle2 size={11} />}
-      {status === 'failed' && <XCircle size={11} />}
-      {status === 'skipped' && <Ban size={11} />}
-      {status === 'pending' && <CircleDashed size={11} />}
-    </span>
-  )
+/** 动态副标题：由节点关键参数自动生成的一行规格注脚（n8n 式） */
+function pfMeta(defType: string, p: Record<string, unknown>): string {
+  switch (defType) {
+    case 'prompt':
+      return [String(p.audience ?? '').trim(), String(p.duration ?? '').trim(), String(p.ratio ?? '').trim()]
+        .filter(Boolean)
+        .join(' · ')
+    case 'lookdev':
+    case 'filmplan':
+      return `工作稿 · ${String(p.status ?? 'draft')}`
+    case 'create':
+      return '渲染请求记录 · 未接入真实渲染'
+    case 'finishing':
+      return '收束与 QC 记录'
+    default:
+      return ''
+  }
+}
+
+/** 角标式状态：浮在节点右上角的状态徽标，不整节点染色（idle/pending 不显示） */
+function StatusBadge({ status }: { status: FmNodeData['status'] }) {
+  if (status === 'running') return <span className="wfn-badge" data-s="running"><LoaderCircle size={10} className="wfn-spin" /></span>
+  if (status === 'completed') return <span className="wfn-badge" data-s="completed"><CheckCircle2 size={10} strokeWidth={2.6} /></span>
+  if (status === 'failed') return <span className="wfn-badge" data-s="failed"><XCircle size={10} strokeWidth={2.6} /></span>
+  if (status === 'skipped') return <span className="wfn-badge" data-s="skipped"><Ban size={10} strokeWidth={2.6} /></span>
+  return null
 }
 
 function Ports({ node }: { node: { type: string; params: Record<string, unknown> } }) {
@@ -182,10 +202,10 @@ function FmNodeView({ data, selected }: { data: FmNodeData; selected?: boolean }
     const decision = ev?.stale ? 'confirmed-stale' : (ev?.decision ?? 'not-started')
     return (
       <div className="wfn is-gate" data-selected={selected || undefined} data-status={data.status} data-d={decision}>
+        <StatusBadge status={data.status} />
         <div className="wfn-head">
           <Flag size={13} strokeWidth={2.2} className="wfn-flag" />
           <b>{def.label}</b>
-          <StatusIcon status={data.status} />
         </div>
         <div className="wfn-gate-row">
           <span className="wfn-gate-chip" data-d={decision}>
@@ -208,10 +228,10 @@ function FmNodeView({ data, selected }: { data: FmNodeData; selected?: boolean }
     const st = String(data.params.status ?? 'missing')
     return (
       <div className="wfn is-doc" data-selected={selected || undefined} data-status={data.status}>
+        <StatusBadge status={data.status} />
         <div className="wfn-head">
           <span className="wfn-group">{kind ? `阶段 ${kind.stage}` : '产物'}</span>
           <b>{kind?.label ?? '产物'}</b>
-          <StatusIcon status={data.status} />
         </div>
         <p className="wfn-file">{kind?.filename ?? ''}{data.params.version ? ` · ${String(data.params.version)}` : ''}{data.params.fixture ? ' · 演示快照' : ''}</p>
         <p className="wfn-summary">
@@ -225,6 +245,9 @@ function FmNodeView({ data, selected }: { data: FmNodeData; selected?: boolean }
     )
   }
 
+  const meta = pfMeta(data.defType, data.params)
+  const reviewChecks = (data.params.checks as Record<string, boolean> | undefined) ?? {}
+  const reviewDone = QUALITY_QUESTIONS.filter((q) => reviewChecks[q]).length
   const wide = ['create', 'review', 'lookdev', 'filmplan', 'finishing'].includes(data.defType)
   const thumbs =
     data.defType === 'refs'
@@ -235,12 +258,18 @@ function FmNodeView({ data, selected }: { data: FmNodeData; selected?: boolean }
       : []
   return (
     <div className={`wfn${wide ? ' is-wide' : ''}`} data-selected={selected || undefined} data-status={data.status}>
+      <StatusBadge status={data.status} />
       <div className="wfn-head">
         <span className="wfn-group">{def.group}</span>
         <b>{def.label}</b>
-        <StatusIcon status={data.status} />
       </div>
       <p className="wfn-summary">{pfSummary(data.defType, data.params)}</p>
+      {meta && <p className="wfn-meta">{meta}</p>}
+      {data.defType === 'review' && (
+        <div className="wfn-progress" role="img" aria-label={`quality-bar 已确认 ${reviewDone}/${QUALITY_QUESTIONS.length}`}>
+          <i style={{ width: `${(reviewDone / QUALITY_QUESTIONS.length) * 100}%` }} />
+        </div>
+      )}
       {thumbs.length > 0 && (
         <div className="wfn-thumbs" aria-hidden>
           {thumbs.map((a) => (
@@ -284,6 +313,52 @@ function LaneView({ data }: { data: FmNodeData }) {
 }
 
 const nodeTypes = { fm: FmNodeView, lane: LaneView }
+
+/* 释放连线推荐菜单：候选已按端口类型过滤，选中即生成节点并自动连好 */
+function ConnectMenuView(props: {
+  x: number
+  y: number
+  portType: WfPortType
+  fromSource: boolean
+  candidates: Array<{ key: string; label: string; sub: string; defType: string; params: Record<string, unknown>; portId: string }>
+  onPick: (cand: { key: string; label: string; sub: string; defType: string; params: Record<string, unknown>; portId: string }) => void
+  onClose: () => void
+}) {
+  const [q, setQ] = useState('')
+  const list = props.candidates.filter((c) => !q.trim() || c.label.includes(q.trim()))
+  return (
+    <>
+      <div className="wfe-menu-scrim" onClick={props.onClose} onContextMenu={(e) => { e.preventDefault(); props.onClose() }} />
+      <div
+        className="wfe-connectmenu"
+        style={{ left: Math.max(8, props.x - 10), top: Math.max(8, props.y - 10) }}
+        role="menu"
+        aria-label="选择要连接的节点"
+        onKeyDown={(e) => { if (e.key === 'Escape') props.onClose() }}
+      >
+        <div className="wfe-connectmenu-head">
+          <span className="wfe-connectmenu-dot" style={{ background: WF_PORT_COLORS[props.portType] }} />
+          {props.fromSource ? '连接到下一个节点' : '从上一个节点接入'}
+          <span className="wfe-connectmenu-type">{props.portType}</span>
+        </div>
+        <label className="wfe-connectmenu-search">
+          <Search size={12} />
+          <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="搜索节点" aria-label="搜索节点" />
+        </label>
+        <div className="wfe-connectmenu-list">
+          {list.length === 0 && <p className="wfe-hint">没有类型兼容的节点可加。</p>}
+          {list.map((c) => (
+            <button key={c.key} type="button" className="wfe-connectmenu-item" onClick={() => props.onPick(c)}>
+              <b>{c.label}</b>
+              <span>{c.sub}</span>
+            </button>
+          ))}
+        </div>
+        <p className="wfe-connectmenu-foot">仅列类型兼容的节点 · 选中即生成并连好 · Esc 取消</p>
+      </div>
+    </>
+  )
+}
 
 let seq = 0
 const nid = () => `n-${Date.now().toString(36)}${(seq += 1).toString(36)}`
@@ -512,7 +587,7 @@ function EditorInner({ workflowId, onBack }: { workflowId: string; onBack: () =>
   )
 
   const addNode = useCallback(
-    (defType: string, params: Record<string, unknown>) => {
+    (defType: string, params: Record<string, unknown>, at?: { x: number; y: number }) => {
       const id = nid()
       const rect = wrapRef.current?.getBoundingClientRect()
       const center = rect
@@ -522,7 +597,7 @@ function EditorInner({ workflowId, onBack }: { workflowId: string; onBack: () =>
       const node: FmNode = {
         id,
         type: 'fm',
-        position: { x: center.x - 110 + jitter, y: center.y - 40 + jitter },
+        position: at ?? { x: center.x - 110 + jitter, y: center.y - 40 + jitter },
         data: { defType, params, status: 'idle' },
       } as FmNode
       setNodes((prev) => [...prev, node])
@@ -530,6 +605,136 @@ function EditorInner({ workflowId, onBack }: { workflowId: string; onBack: () =>
       return id
     },
     [flow, nodes.length, markDirty],
+  )
+
+  /* ── 释放连线推荐菜单（P0-4）：拖线到空白处松手 → 按端口类型推荐下一节点 ── */
+  interface PendingLink {
+    nodeId: string
+    handleId: string
+    handleType: 'source' | 'target'
+    portType: WfPortType
+  }
+  interface ConnectMenuState extends PendingLink {
+    x: number
+    y: number
+    flowPos: { x: number; y: number }
+  }
+  const [connectMenu, setConnectMenu] = useState<ConnectMenuState | null>(null)
+  const pendingLink = useRef<PendingLink | null>(null)
+
+  const onConnectStart = useCallback(
+    (_event: unknown, params: OnConnectStartParams) => {
+      setConnectMenu(null)
+      if (!params.nodeId || !params.handleId || !params.handleType) return
+      const src = nodes.find((n) => n.id === params.nodeId)
+      if (!src) return
+      const def = defForNode({ type: src.data.defType, params: src.data.params })
+      const port = params.handleType === 'source'
+        ? def?.outputs.find((p) => p.id === params.handleId)
+        : def?.inputs.find((p) => p.id === params.handleId)
+      if (!port) return
+      pendingLink.current = { nodeId: params.nodeId, handleId: params.handleId, handleType: params.handleType, portType: port.type }
+    },
+    [nodes],
+  )
+
+  const onConnectEnd = useCallback(
+    (event: MouseEvent | TouchEvent) => {
+      const link = pendingLink.current
+      pendingLink.current = null
+      if (!link) return
+      const target = event.target as HTMLElement | null
+      if (!target || !target.classList?.contains('react-flow__pane')) return
+      const pt = 'clientX' in event ? event : event.changedTouches[0]
+      const rect = wrapRef.current?.getBoundingClientRect()
+      if (!rect) return
+      setConnectMenu({
+        ...link,
+        x: pt.clientX - rect.left,
+        y: pt.clientY - rect.top,
+        flowPos: flow.screenToFlowPosition({ x: pt.clientX, y: pt.clientY }),
+      })
+    },
+    [flow],
+  )
+
+  interface ConnectCandidate {
+    key: string
+    label: string
+    sub: string
+    defType: string
+    params: Record<string, unknown>
+    portId: string
+  }
+
+  const connectCandidates = useMemo<ConnectCandidate[]>(() => {
+    if (!connectMenu) return []
+    const out: ConnectCandidate[] = []
+    const fromSource = connectMenu.handleType === 'source'
+    const onCanvasKinds = new Set(
+      nodes.filter((n) => n.data.defType === 'artifact').map((n) => String(n.data.params.kind ?? '')),
+    )
+    const onCanvasGates = new Set(
+      nodes.filter((n) => n.data.defType === 'gate').map((n) => String(n.data.params.gate ?? '')),
+    )
+    const consider = (def: WfNodeDef, defType: string, params: Record<string, unknown>) => {
+      const ports = fromSource ? def.inputs : def.outputs
+      const hit = ports.find((p) => p.type === connectMenu.portType)
+      if (!hit) return
+      out.push({
+        key: `${defType}-${String(params.kind ?? params.gate ?? hit.id)}`,
+        label: def.label,
+        sub: fromSource ? `接入「${hit.label}」` : `由「${hit.label}」接出`,
+        defType,
+        params,
+        portId: hit.id,
+      })
+    }
+    if (workflow?.path === 'structured') {
+      for (const k of ARTIFACT_KINDS) {
+        if (onCanvasKinds.has(k.kind)) continue
+        consider(defForNode({ type: 'artifact', params: { kind: k.kind } })!, 'artifact', { kind: k.kind, status: 'missing', version: '', summary: '', fixture: false })
+      }
+      for (const g of Object.keys(GATE_DEFS)) {
+        if (onCanvasGates.has(g)) continue
+        consider(defForNode({ type: 'gate', params: { gate: g } })!, 'gate', { gate: g, decision: 'not-started', recommendation: '', validFor: [], notApproved: [], source: 'live' })
+      }
+    } else {
+      for (const d of PF_NODE_DEFS) consider(d, d.type, pfDefaultParams(d.type))
+    }
+    return out
+  }, [connectMenu, nodes, workflow?.path])
+
+  const pickConnectCandidate = useCallback(
+    (cand: ConnectCandidate) => {
+      if (!connectMenu) return
+      const pos = connectMenu.handleType === 'source'
+        ? { x: connectMenu.flowPos.x + 24, y: connectMenu.flowPos.y - 46 }
+        : { x: connectMenu.flowPos.x - 284, y: connectMenu.flowPos.y - 46 }
+      const id = addNode(cand.defType, cand.params, pos)
+      const conn: Connection = connectMenu.handleType === 'source'
+        ? { source: connectMenu.nodeId, sourceHandle: connectMenu.handleId, target: id, targetHandle: cand.portId }
+        : { source: id, sourceHandle: cand.portId, target: connectMenu.nodeId, targetHandle: connectMenu.handleId }
+      // 新节点刚入 state，onConnect 读的 nodes 还是旧快照——直接在此拼边（端口已按类型筛过）
+      setEdges((prev) => {
+        const kept = prev.filter((e) => !(e.target === conn.target && e.targetHandle === conn.targetHandle))
+        return [
+          ...kept,
+          {
+            id: nid(),
+            source: conn.source!,
+            sourceHandle: conn.sourceHandle ?? undefined,
+            target: conn.target!,
+            targetHandle: conn.targetHandle ?? undefined,
+            style: { stroke: WF_PORT_COLORS[connectMenu.portType], strokeWidth: 1.5 },
+          } as Edge,
+        ]
+      })
+      setNodes((prev) => prev.map((n) => ({ ...n, selected: n.id === id })))
+      setConnectMenu(null)
+      markDirty()
+    },
+    [connectMenu, addNode, markDirty],
   )
 
   const doSave = useCallback(() => {
@@ -564,6 +769,28 @@ function EditorInner({ workflowId, onBack }: { workflowId: string; onBack: () =>
       if (run.status === 'completed') setDrawerTab('artifacts')
     })
   }, [snapshot, running])
+
+  /* 单节点运行（检查器「只运行此节点 / 评估此节点」） */
+  const doRunNode = useCallback(
+    (nodeId: string) => {
+      const snap = snapshot()
+      if (!snap || running) return
+      setRunning(true)
+      setLiveEvents([])
+      const handle = startSingleNodeRun(snap, nodeId, {
+        onEvent: (e) => setLiveEvents((prev) => [...prev, e]),
+        onNodeStatus: (id, status) =>
+          setNodes((prev) => prev.map((n) => (n.id === id ? { ...n, data: { ...n.data, status } } : n))),
+      })
+      runHandle.current = handle
+      void handle.done.then((run) => {
+        setLastRun(run)
+        setRunning(false)
+        runHandle.current = null
+      })
+    },
+    [snapshot, running],
+  )
 
   /* 待处理资源 */
   const addFxIntent = (intent: FxIntent) => {
@@ -807,6 +1034,8 @@ function EditorInner({ workflowId, onBack }: { workflowId: string; onBack: () =>
               if (changes.some((c) => c.type === 'remove')) markDirty()
             }}
             onConnect={onConnect}
+            onConnectStart={onConnectStart}
+            onConnectEnd={onConnectEnd}
             isValidConnection={isValidConnection}
             deleteKeyCode={['Backspace', 'Delete']}
             fitView
@@ -818,11 +1047,49 @@ function EditorInner({ workflowId, onBack }: { workflowId: string; onBack: () =>
             <Controls showInteractive={false} position="bottom-left" />
             <MiniMap position="bottom-right" pannable zoomable style={{ width: 148, height: 96 }} />
           </ReactFlow>
+          {connectMenu && (
+            <ConnectMenuView
+              x={connectMenu.x}
+              y={connectMenu.y}
+              portType={connectMenu.portType}
+              fromSource={connectMenu.handleType === 'source'}
+              candidates={connectCandidates}
+              onPick={pickConnectCandidate}
+              onClose={() => setConnectMenu(null)}
+            />
+          )}
         </div>
 
         <aside className="wfe-inspector" aria-label="检查器">
           {selectedNode ? (
-            <Inspector node={selectedNode} workflow={snapshot()} onParams={(patch) => updateParams(selectedNode.id, patch)} />
+            <Inspector
+              node={selectedNode}
+              workflow={snapshot()}
+              onParams={(patch) => updateParams(selectedNode.id, patch)}
+              inputs={edges
+                .filter((e) => e.target === selectedNode.id)
+                .map((e) => {
+                  const src = nodes.find((n) => n.id === e.source)
+                  if (!src) return null
+                  const sdef = defForNode({ type: src.data.defType, params: src.data.params })
+                  const art = lastRun?.artifacts.find((a) => a.nodeId === src.id)
+                  const detail = art
+                    ? art.summary
+                    : src.data.defType === 'artifact'
+                      ? String(src.data.params.status ?? 'missing') === 'missing'
+                        ? '尚无产物'
+                        : `${String(src.data.params.status)}${src.data.params.version ? ` · ${String(src.data.params.version)}` : ''}`
+                      : src.data.defType === 'gate'
+                        ? '检查点'
+                        : pfSummary(src.data.defType, src.data.params)
+                  return { nodeId: src.id, label: sdef?.label ?? src.data.defType, detail }
+                })
+                .filter((x): x is { nodeId: string; label: string; detail: string } => !!x)}
+              output={lastRun?.artifacts.find((a) => a.nodeId === selectedNode.id) ?? null}
+              busy={running}
+              onRunNode={() => doRunNode(selectedNode.id)}
+              onSelectNode={(id) => setNodes((prev) => prev.map((n) => ({ ...n, selected: n.id === id })))}
+            />
           ) : selectedEdge ? (
             <div className="wfe-insp">
               <h3>连线</h3>
@@ -977,10 +1244,71 @@ function TechDetails({ node }: { node: FmNode }) {
   )
 }
 
+/* ── 检查器三格契约（P0-2）：输入 | 参数（只运行此节点）| 输出 ── */
+
+interface InspInputItem {
+  nodeId: string
+  label: string
+  detail: string
+}
+
+function InspInputs({ items, onSelectNode }: { items: InspInputItem[]; onSelectNode: (id: string) => void }) {
+  return (
+    <div className="wfe-sect3">
+      <div className="wfe-sect3-head">输入</div>
+      {items.length === 0 ? (
+        <p className="wfe-hint">无上游输入（起始节点）。</p>
+      ) : (
+        <div className="wfe-in3-list">
+          {items.map((it) => (
+            <button key={it.nodeId} type="button" className="wfe-in3" onClick={() => onSelectNode(it.nodeId)}>
+              <b>{it.label}</b>
+              <span>{it.detail}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function InspParamsHead({ runLabel, busy, onRunNode }: { runLabel: string; busy: boolean; onRunNode: () => void }) {
+  return (
+    <div className="wfe-sect3-head is-row">
+      参数
+      <button type="button" className="wfe-btn sm is-primary" disabled={busy} onClick={onRunNode}>
+        <Play size={11} strokeWidth={2.6} /> {runLabel}
+      </button>
+    </div>
+  )
+}
+
+function InspOutput({ output, emptyText }: { output: WfArtifact | null; emptyText: string }) {
+  return (
+    <div className="wfe-sect3">
+      <div className="wfe-sect3-head">输出 · 最近一次运行</div>
+      {output ? (
+        <div className="wfe-out3">
+          <b>{output.title}</b>
+          <span>{output.summary}</span>
+          <span className="num">{output.filename} · DEMO 快照</span>
+        </div>
+      ) : (
+        <p className="wfe-hint">{emptyText}</p>
+      )}
+    </div>
+  )
+}
+
 function Inspector(props: {
   node: FmNode
   workflow: WorkflowDef | null
   onParams: (patch: Record<string, unknown>) => void
+  inputs: InspInputItem[]
+  output: WfArtifact | null
+  busy: boolean
+  onRunNode: () => void
+  onSelectNode: (id: string) => void
 }) {
   const { node, onParams } = props
   const def = defForNode({ type: node.data.defType, params: node.data.params })
@@ -1008,6 +1336,12 @@ function Inspector(props: {
           }
         />
         <p className="wfe-hint">检查点问题：{def.description}。确认绑定具体产物与版本；推荐不等于确认。</p>
+        <div className="wfe-runrow">
+          <button type="button" className="wfe-btn sm is-primary" disabled={props.busy} onClick={props.onRunNode}>
+            <Play size={11} strokeWidth={2.6} /> 评估此检查点
+          </button>
+          <span className="wfe-hint">只评估当前状态，不代替确认</span>
+        </div>
         <dl className="wfe-kv">
           <dt>主检产物</dt>
           <dd>{primaryLabel}（{ev?.primaryStatus ?? 'missing'}{primaryVersion ? ` · ${primaryVersion}` : ''}）</dd>
@@ -1049,6 +1383,7 @@ function Inspector(props: {
         {typeof p.confirmedAt === 'string' && p.confirmedAt && (
           <p className="wfe-hint">确认时间：{new Date(p.confirmedAt).toLocaleString('zh-CN')}（本地记录）</p>
         )}
+        <InspOutput output={props.output} emptyText="尚无评估快照。点「评估此检查点」生成一次单点评估（不构成确认）。" />
         <TechDetails node={node} />
       </div>
     )
@@ -1064,6 +1399,9 @@ function Inspector(props: {
           chip={<span className="wfn-artifact-chip" data-s={String(p.status ?? 'missing')}>{ARTIFACT_STATUS_LABEL[String(p.status ?? 'missing')] ?? String(p.status ?? '')}</span>}
         />
         <p className="wfe-hint">{kind?.filename}。状态与摘要是本工作流内的真实记录，demo 不代生成。</p>
+        <InspInputs items={props.inputs} onSelectNode={props.onSelectNode} />
+        <div className="wfe-sect3">
+        <InspParamsHead runLabel="评估此节点" busy={props.busy} onRunNode={props.onRunNode} />
         <label className="wfe-field"><span>状态</span>
           <select value={String(p.status ?? 'missing')} onChange={(e) => onParams({ status: e.target.value })}>
             <option value="missing">尚无产物</option>
@@ -1082,6 +1420,19 @@ function Inspector(props: {
           <input type="checkbox" checked={!!p.fixture} onChange={(e) => onParams({ fixture: e.target.checked })} />
           <span>演示快照（fixture）</span>
         </label>
+        </div>
+        {props.output ? (
+          <InspOutput output={props.output} emptyText="" />
+        ) : (
+          <div className="wfe-sect3">
+            <div className="wfe-sect3-head">输出 · 当前记录</div>
+            <div className="wfe-out3">
+              <b>{kind?.label ?? '产物'} · {ARTIFACT_STATUS_LABEL[String(p.status ?? 'missing')] ?? String(p.status ?? '')}</b>
+              <span>{String(p.status ?? 'missing') === 'missing' ? '尚无产物' : String(p.summary ?? '').trim() || '（无摘要）'}</span>
+              <span className="num">{kind?.filename ?? ''}{p.version ? ` · ${String(p.version)}` : ''}</span>
+            </div>
+          </div>
+        )}
         <TechDetails node={node} />
       </div>
     )
@@ -1095,6 +1446,9 @@ function Inspector(props: {
         chip={node.data.status !== 'idle' ? <span className="wfe-insp-run" data-s={node.data.status}>{RUN_STATUS_TXT[node.data.status] ?? ''}</span> : undefined}
       />
       <p className="wfe-hint">{def.description}</p>
+      <InspInputs items={props.inputs} onSelectNode={props.onSelectNode} />
+      <div className="wfe-sect3">
+      <InspParamsHead runLabel="只运行此节点" busy={props.busy} onRunNode={props.onRunNode} />
 
       {node.data.defType === 'prompt' && (
         <>
@@ -1222,6 +1576,8 @@ function Inspector(props: {
           <textarea rows={8} value={String(p.notes ?? '')} onChange={(e) => onParams({ notes: e.target.value })} placeholder="观众优先的收束：节奏、音画关系、细节、QC 观察" />
         </label>
       )}
+      </div>
+      <InspOutput output={props.output} emptyText="尚无运行产物。在上方参数区点「只运行此节点」，或用顶部「运行」跑完整条工作流。" />
       <TechDetails node={node} />
     </div>
   )
