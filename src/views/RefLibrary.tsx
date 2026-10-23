@@ -12,6 +12,7 @@ import {
   type ReferenceStatus,
   type ReferenceVideo,
 } from '@/data/referenceLibrary'
+import { EmptyState } from '@/components/fm/EmptyState'
 
 /**
  * 参考片库 —— 搜索/筛选 + 全宽镜头接触表 + 抽屉详情。
@@ -263,7 +264,7 @@ function ShotTable({
   )
 }
 
-function EmptyState({
+function LibraryEmptyState({
   view,
   query,
   filtersActive,
@@ -289,17 +290,14 @@ function EmptyState({
     title = '这个集合还是空的'
     body = '在镜头详情里把镜头加入集合，集合会自动更新。'
   }
+  const showReset = Boolean(query.trim() || filtersActive)
   return (
-    <div className="rfl-empty">
-      <Icon name="film" />
-      <b>{title}</b>
-      <p>{body}</p>
-      {(query.trim() || filtersActive) && (
-        <button type="button" className="rfl-mini" onClick={onReset}>
-          清除搜索与筛选
-        </button>
-      )}
-    </div>
+    <EmptyState
+      icon="film"
+      title={title}
+      body={body}
+      action={showReset ? { label: '清除搜索与筛选', onClick: onReset } : undefined}
+    />
   )
 }
 
@@ -877,7 +875,7 @@ export function RefLibrary() {
 
           <div className="rfl-body">
             {visibleShots.length === 0 ? (
-              <EmptyState view={view} query={query} filtersActive={activeFilterCount > 0} onReset={clearFilters} />
+              <LibraryEmptyState view={view} query={query} filtersActive={activeFilterCount > 0} onReset={clearFilters} />
             ) : density === 'sheet' ? (
               <div className="rfl-grid" aria-label="镜头接触表">
                 {visibleShots.map((shot) => (

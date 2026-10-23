@@ -8,6 +8,9 @@ import {
   importFiles, initLibrary, listAssets, listFolders, removeAssets, saveFolders,
   updateAsset, type FolderRow, type ImportEvent,
 } from '@/services/assetService'
+import { EmptyState } from '@/components/fm/EmptyState'
+import { ErrorState } from '@/components/fm/ErrorState'
+import { LoadingState } from '@/components/fm/LoadingState'
 
 /**
  * 我的素材 —— 原生多媒体素材管理器。
@@ -108,6 +111,8 @@ export function Assets({ projectName }: { projectName?: string } = {}) {
   const [assets, setAssets] = useState<MyAsset[]>([])
   const [folders, setFolders] = useState<FolderRow[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
+  const [loadVersion, setLoadVersion] = useState(0)
   const [node, setNode] = useState<NodeId>('all')
   const [search, setSearch] = useState('')
   const [sortKey, setSortKey] = useState<SortKey>('recent')
@@ -128,16 +133,24 @@ export function Assets({ projectName }: { projectName?: string } = {}) {
   // ── 加载 ──
   useEffect(() => {
     let alive = true
+    setLoading(true)
+    setLoadError(false)
     ;(async () => {
-      await initLibrary()
-      const [list, fl] = await Promise.all([listAssets(), listFolders()])
-      if (!alive) return
-      setAssets(list.sort((a, b) => b.createdAt - a.createdAt))
-      setFolders(fl)
-      setLoading(false)
+      try {
+        await initLibrary()
+        const [list, fl] = await Promise.all([listAssets(), listFolders()])
+        if (!alive) return
+        setAssets(list.sort((a, b) => b.createdAt - a.createdAt))
+        setFolders(fl)
+        setLoading(false)
+      } catch {
+        if (!alive) return
+        setLoadError(true)
+        setLoading(false)
+      }
     })()
     return () => { alive = false }
-  }, [])
+  }, [loadVersion])
 
   // ── 缩略图解析（内置图片直接用路径；视频懒截真实帧）──
   useEffect(() => {
@@ -488,24 +501,28 @@ export function Assets({ projectName }: { projectName?: string } = {}) {
       <main className="mya-canvas">
         <div className="mya-scroll">
           {loading ? (
-            <div className="mya-state"><span className="mya-spin" /> 正在读取本地素材索引…</div>
+            <LoadingState variant="grid" rows={8} />
+          ) : loadError ? (
+            <ErrorState
+              body="素材索引读取失败，可能是本地存储暂时不可用。请重试。"
+              onRetry={() => setLoadVersion((v) => v + 1)}
+            />
           ) : visible.length === 0 ? (
-            <div className="mya-state mya-empty">
-              <Icon name="image" className="mya-empty-icon" />
-              {assets.length === 0 ? (
-                <>
-                  <h3>素材库还是空的</h3>
-                  <p>把图片、视频、音频、字体拖进来，或点右上角「导入素材」。<br />文件本体保存在本地索引，刷新后仍在。</p>
-                  <button type="button" className="mya-primary" onClick={() => inputRef.current?.click()}><Icon name="import" />导入素材</button>
-                </>
-              ) : (
-                <>
-                  <h3>没有符合当前筛选的素材</h3>
-                  <p>换个分类，或清除搜索条件。</p>
-                  <button type="button" className="mya-link" onClick={clearFilter}>清除筛选</button>
-                </>
-              )}
-            </div>
+            assets.length === 0 ? (
+              <EmptyState
+                icon="image"
+                title="素材库还是空的"
+                body={'把图片、视频、音频、字体拖进来，或点右上角「导入素材」。\n文件本体保存在本地索引，刷新后仍在。'}
+                action={{ label: '导入素材', onClick: () => inputRef.current?.click() }}
+              />
+            ) : (
+              <EmptyState
+                icon="image"
+                title="没有符合当前筛选的素材"
+                body="换个分类，或清除搜索条件。"
+                action={{ label: '清除筛选', onClick: clearFilter }}
+              />
+            )
           ) : viewMode === 'grid' ? (
             <div className="mya-grid">
               {visible.map((a) => {

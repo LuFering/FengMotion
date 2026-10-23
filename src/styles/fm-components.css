@@ -306,3 +306,146 @@
   .fm-project[data-opening]::after { animation: none }
   .fm-project-cover img, .fm-project-grid { transition: none }
 }
+
+/* ── 三态与状态徽标（01 期 Issue ④）─────────────────────────
+   EmptyState / ErrorState / LoadingState / StatusBadge 共用。
+   数值只用 tokens.css 的 --fm-*，颜色只用 brand.css 的语义色；
+   规格书里的旧变量名在这里落到现行 token：
+   text-1/2/3 → --fg/--dim/--ph，sunken → --hole，ctl → --fm-control-md。 */
+.fm-state {
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 280px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--fm-space-12) var(--fm-space-6);
+  text-align: center;
+  color: var(--dim);
+}
+.fm-state-icon {
+  width: var(--fm-space-10);
+  height: var(--fm-space-10);
+  color: var(--ph);
+}
+.fm-state-error .fm-state-icon { color: var(--warn) }
+.fm-state-title {
+  margin-top: var(--fm-space-4);
+  color: var(--fg);
+  font-size: var(--fm-text-card);
+  line-height: var(--fm-leading-card);
+  font-weight: 600;
+}
+.fm-state-body {
+  max-width: 420px;
+  margin: var(--fm-space-2) 0 0;
+  font-size: var(--fm-text-sub);
+  line-height: var(--fm-leading-sub);
+  color: var(--dim);
+  white-space: pre-line;
+}
+.fm-state-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--fm-control-md);
+  margin-top: var(--fm-space-4);
+  padding: 0 var(--fm-space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--fm-radius-ctl);
+  background: var(--surf);
+  color: var(--fg);
+  font: inherit;
+  font-size: var(--fm-text-label);
+  line-height: var(--fm-leading-label);
+  cursor: pointer;
+  transition: border-color var(--fm-dur-micro) var(--fm-ease),
+              background-color var(--fm-dur-micro) var(--fm-ease);
+}
+.fm-state-action:hover { border-color: var(--acc); background: var(--hole) }
+
+.fm-state-loading {
+  flex: 1 1 auto;
+  width: 100%;
+  padding: var(--fm-space-6);
+}
+.fm-state-loading-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: var(--fm-space-4);
+  align-content: start;
+}
+.fm-state-loading-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fm-space-3);
+}
+.fm-skeleton-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fm-space-3);
+}
+.fm-state-loading-list .fm-skeleton-card { flex-direction: row; align-items: center }
+.fm-skeleton-media {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--fm-radius-card);
+  background: var(--hole);
+}
+.fm-state-loading-list .fm-skeleton-media { width: 96px; flex: 0 0 96px; aspect-ratio: 16 / 9 }
+.fm-skeleton-lines { display: flex; flex: 1; flex-direction: column; gap: var(--fm-space-2); min-width: 0 }
+.fm-skeleton-line {
+  display: block;
+  width: 62%;
+  height: 10px;
+  border-radius: var(--fm-radius-pill);
+  background: var(--hole);
+}
+.fm-skeleton-line-wide { width: 88% }
+.fm-skeleton-media, .fm-skeleton-line {
+  position: relative;
+  overflow: hidden;
+}
+.fm-skeleton-media::after, .fm-skeleton-line::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent 20%, color-mix(in srgb, var(--fg) 7%, transparent) 50%, transparent 80%);
+  transform: translateX(-100%);
+  animation: fmShimmer 1.4s var(--fm-ease) infinite;
+}
+@keyframes fmShimmer { to { transform: translateX(100%) } }
+@media (prefers-reduced-motion: reduce) {
+  .fm-skeleton-media::after, .fm-skeleton-line::after { animation: none }
+}
+
+.fm-status-badge {
+  --fm-status-color: var(--dim);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  padding: 4px 10px;
+  border: 1px solid color-mix(in srgb, var(--fm-status-color) 22%, transparent);
+  border-radius: var(--fm-radius-pill);
+  background: color-mix(in srgb, var(--fm-status-color) 12%, transparent);
+  color: var(--fm-status-color);
+  font-size: var(--fm-text-label);
+  line-height: var(--fm-leading-label);
+  font-weight: 500;
+  white-space: nowrap;
+}
+.fm-status-badge[data-tone="success"] { --fm-status-color: var(--ok) }
+.fm-status-badge[data-tone="warning"] { --fm-status-color: var(--warn) }
+.fm-status-badge[data-tone="danger"] { --fm-status-color: var(--bad) }
+.fm-status-badge[data-tone="info"] { --fm-status-color: var(--acc) }
+.fm-status-badge[data-tone="neutral"] { --fm-status-color: var(--dim) }
+.fm-status-dot {
+  width: 6px;
+  height: 6px;
+  flex: 0 0 6px;
+  border-radius: var(--fm-radius-pill);
+  background: var(--fm-status-color);
+}

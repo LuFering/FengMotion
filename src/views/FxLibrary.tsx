@@ -25,6 +25,7 @@ import {
   type FxInputKind,
   type FxTechnique,
 } from '@/data/fxTechniques'
+import { EmptyState } from '@/components/fm/EmptyState'
 
 /**
  * 特效技法库 —— 技法库自己的布局，不是 Workbench 的三栏骨架。
@@ -472,15 +473,12 @@ export function FxLibrary() {
 
         <div className="fx-list" role="listbox" aria-label="技法列表">
           {visible.length === 0 ? (
-            <div className="fx-empty">
-              <Search size={22} aria-hidden="true" />
-              <p>没有匹配的技法</p>
-              <span>换个词，或清除分类 / 状态 / 输入 / 实现 / 复杂度筛选。</span>
-              <button type="button" className="fx-btn" onClick={resetAll}>
-                <RotateCcw size={12} aria-hidden="true" />
-                清除搜索与筛选
-              </button>
-            </div>
+            <EmptyState
+              icon="search"
+              title="没有匹配的技法"
+              body="换个词，或清除分类 / 状态 / 输入 / 实现 / 复杂度筛选。"
+              action={{ label: '清除搜索与筛选', onClick: resetAll }}
+            />
           ) : (
             groups.map((group) => (
               <section key={group.id} className="fx-group" role="group" aria-label={group.label}>
