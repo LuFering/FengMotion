@@ -8,7 +8,6 @@ import type { NewProjectInput } from '../shell/useProjects'
 import type { WfPath } from '../data/workflowTemplates'
 import { SegmentedControl } from '../components/ui/segmented-control'
 import { ViewSwitch } from '../components/ViewSwitch'
-import { fmtDuration } from '../shell/status'
 import type { ProjectSummary } from '../data/projects'
 import '../styles/conversation.css'
 
@@ -262,9 +261,6 @@ export function Conversation(props: {
                     data-current={p.id === props.openProject || undefined}
                     onClick={() => props.onSelectProject(p.id)} title={p.name}>
               <span className="cv3-project-name">{p.name}</span>
-              <span className="cv3-project-meta num">
-                {p.planned ? '待制作' : `${p.doneClips}/${p.totalClips} 场 · ${fmtDuration(p.duration)}`}
-              </span>
               {p.id === props.openProject && <Check size={13} className="cv3-project-check" aria-label="当前项目" />}
             </button>
           ))}
