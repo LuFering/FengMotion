@@ -11,6 +11,8 @@ export interface ChatMessage {
   thinking?: string
   toolCalls?: { label: string; detail: string }[]
   plan?: string[]
+  /** “改了什么”表：只列真实创建的产物（项目 / 工作流），不编造文件改动 */
+  changes?: { file: string; change: string }[]
 }
 
 let sequence = 0
@@ -31,7 +33,7 @@ export function useChat() {
     setMessages((items) => [...items, { id: makeId(), role: 'user', text, taskId, at: Date.now() }])
   }
   /* 对话视图的演示 agent 回复（原型：本地生成，未连接 Agent） */
-  const addAiMessage = (m: { text: string; thinking?: string; toolCalls?: { label: string; detail: string }[]; plan?: string[] }) => {
+  const addAiMessage = (m: { text: string; thinking?: string; toolCalls?: { label: string; detail: string }[]; plan?: string[]; changes?: { file: string; change: string }[] }) => {
     setMessages((items) => [...items, { id: makeId(), role: 'ai', at: Date.now(), ...m }])
   }
   /* 开新会话：回到初始状态（保留工作台对话 tab 的 intro 免责句，不动任何持久化数据） */
