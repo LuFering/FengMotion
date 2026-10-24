@@ -311,6 +311,21 @@ html[data-theme="tactile"] .hf-page {
   border-color: color-mix(in srgb, var(--brand, var(--hf-acc)) 45%, var(--hf-line2));
   box-shadow: var(--hf-shadow-focus);
 }
+/* 拖放悬停：边框与底色转品牌色，提示「可以放这里」 */
+.hf-composer[data-drag] {
+  border-color: color-mix(in srgb, var(--brand, var(--hf-acc)) 65%, var(--hf-line2));
+  background: color-mix(in srgb, var(--brand, var(--hf-acc)) 7%, var(--hf-panel));
+}
+/* 用真实覆盖层而不是伪元素：composer 内部有 z-index 各异的子元素，
+   伪元素容易被盖住；覆盖层插在内容之上、发送按钮之下。 */
+.hf-dropmask {
+  position: absolute; inset: 0; z-index: 4; display: grid; place-items: center;
+  border-radius: inherit; pointer-events: none;
+  background: color-mix(in srgb, var(--brand, var(--hf-acc)) 9%, transparent);
+  color: var(--brand, var(--hf-acc));
+  font: 600 13px var(--hf-sans); letter-spacing: .02em;
+}
+
 /* 聚焦：外缘逆时针亮起当前引擎品牌色的光，比常态更亮 */
 .hf-composer::before {
   content: ''; position: absolute; inset: -1.5px; border-radius: inherit;

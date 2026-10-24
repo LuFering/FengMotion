@@ -301,9 +301,20 @@ export function Home(props: { onStart?: (draft: string) => void }) {
     return () => window.clearTimeout(id)
   }, [toast])
 
-  const pickFiles = (kind: Attachment['kind']) => (e: ChangeEvent<HTMLInputElement>) => {
-    const picked = Array.from(e.target.files ?? []).map((f) => ({ name: f.name, size: f.size, kind }))
+  const [dragging, setDragging] = useState(false)
+  /* 按 MIME 判类型：拖放和粘贴拿不到 input 的 accept，只能看 File.type */
+  const kindOf = (f: File): Attachment['kind'] =>
+    f.type.startsWith('image/') ? 'image' : f.type.startsWith('video/') ? 'video' : 'file'
+
+  /** 统一的附件入列口：文件选择、拖放、粘贴都走这里，上限 6 个 */
+  const addFiles = (files: File[], forced?: Attachment['kind']) => {
+    if (!files.length) return
+    const picked = files.map((f) => ({ name: f.name, size: f.size, kind: forced ?? kindOf(f) }))
     setAttachments((prev) => [...prev, ...picked].slice(0, 6))
+  }
+
+  const pickFiles = (kind: Attachment['kind']) => (e: ChangeEvent<HTMLInputElement>) => {
+    addFiles(Array.from(e.target.files ?? []), kind)
     e.target.value = ''
     setMenu(null)
   }
@@ -381,7 +392,27 @@ export function Home(props: { onStart?: (draft: string) => void }) {
               <button type="button" className="hf-brandstart" onClick={() => taRef.current?.focus()}>开始创作</button>
             </div>
             <div className="hf-sample">
-            <div className="hf-composer" style={{ '--brand': harness.color } as React.CSSProperties}>
+            <div className="hf-composer" data-drag={dragging || undefined}
+                 style={{ '--brand': harness.color } as React.CSSProperties}
+                 onDragOver={(e) => {
+                   if (!e.dataTransfer.types.includes('Files')) return
+                   e.preventDefault()
+                   setDragging(true)
+                 }}
+                 onDragLeave={(e) => {
+                   /* 只有真正离开 composer 才收高亮，避免掠过子元素时闪 */
+                   if (e.currentTarget.contains(e.relatedTarget as Node | null)) return
+                   setDragging(false)
+                 }}
+                 onDrop={(e) => {
+                   e.preventDefault()
+                   setDragging(false)
+                   const files = Array.from(e.dataTransfer.files ?? [])
+                   if (!files.length) return
+                   addFiles(files)
+                   setMenu(null)
+                 }}>
+              {dragging && <div className="hf-dropmask" aria-hidden="true">松手添加为附件</div>}
               {attachments.length > 0 && (
                 <div className="hf-chips">
                   {attachments.map((a) => (
@@ -406,6 +437,13 @@ export function Home(props: { onStart?: (draft: string) => void }) {
                 <textarea ref={taRef} rows={1} value={draft}
                           placeholder=""
                           onChange={(e) => setDraft(e.target.value)}
+                          onPaste={(e) => {
+                            /* 截图粘贴 / 复制文件：有文件就走附件，纯文本交给默认行为 */
+                            const files = Array.from(e.clipboardData?.files ?? [])
+                            if (!files.length) return
+                            e.preventDefault()
+                            addFiles(files)
+                          }}
                           onKeyDown={(e) => {
                             /* Enter 发送（与下方提示一致）；中文输入法组字中不触发，Shift+Enter 换行 */
                             if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
