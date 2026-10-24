@@ -335,6 +335,7 @@ export function Home(props: { onStart?: (draft: string) => void }) {
 
       {/* 右上角：平台入口与仓库链接（取自产品介绍页 nav，去掉「开始创作」） */}
       <div className="hf-social" aria-label="关注与源码">
+        <span className="hf-soc-note">欢迎关注作者 <em>(๑•ᴗ•๑)</em></span>
         <a className="hf-soc" href="#" title="小红书" aria-label="小红书">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4.5h9.5A2.5 2.5 0 0 1 17 7v12.5H7.5A2.5 2.5 0 0 1 5 17z" /><path d="M17 8.5h2v11h-2" /><path d="M8.5 8.5h5M8.5 11.5h5" /></svg>
         </a>

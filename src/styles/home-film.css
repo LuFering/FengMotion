@@ -24,6 +24,17 @@
   position: absolute; top: 26px; right: 34px; z-index: 20;
   display: flex; align-items: center; gap: 6px;
 }
+/* 文案在按钮组最左侧，宋体；颜文字用衬线字形更有手写感 */
+.hf-soc-note {
+  margin-right: 8px; white-space: nowrap;
+  font: 13px/1 var(--hf-serif); letter-spacing: .04em; color: #9d9d9d;
+  transition: color .2s;
+}
+.hf-soc-note em {
+  margin-left: 4px; font: 13px/1 var(--hf-serif); font-style: normal;
+  color: #c8c8c8; letter-spacing: 0;
+}
+.hf-social:hover .hf-soc-note { color: #d2d2d2; }
 .hf-soc {
   width: 30px; height: 30px; display: grid; place-items: center;
   border-radius: 50%; color: #d2d2d2; text-decoration: none;
@@ -42,12 +53,22 @@
 }
 .hf-gh:hover { color: #fff; }
 
+/* light：文案转墨色系 */
+html[data-theme="light"] .hf-soc-note { color: #7b7e88; }
+html[data-theme="light"] .hf-soc-note em { color: #9a9ca4; }
+html[data-theme="light"] .hf-social:hover .hf-soc-note { color: #191a20; }
+
 /* light：深色图标、浅灰 hover 底 */
 html[data-theme="light"] .hf-soc { color: #6b6e78; }
 html[data-theme="light"] .hf-soc:hover { color: #191a20; background: rgba(25, 25, 50, .07); }
 html[data-theme="light"] .hf-soc-sep { background: rgba(25, 25, 50, .14); }
 html[data-theme="light"] .hf-gh { color: #6b6e78; }
 html[data-theme="light"] .hf-gh:hover { color: #191a20; }
+
+/* tactile：文案用墨色，与方框按钮同一质感 */
+html[data-theme="tactile"] .hf-soc-note { color: #55534a; }
+html[data-theme="tactile"] .hf-soc-note em { color: #22231f; }
+html[data-theme="tactile"] .hf-social:hover .hf-soc-note { color: #22231f; }
 
 /* tactile：墨线描边 + 实底按压感 */
 html[data-theme="tactile"] .hf-soc {
