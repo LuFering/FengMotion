@@ -406,7 +406,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
   }
   const runQuickAction = (action: (typeof quickActions)[number]) => {
     if (action.compare) { setCompare((v) => !v); return }
-    if (action.constraint === 'attachment') { setNotice('演示模式：素材上传未连接。'); return }
+    if (action.constraint === 'attachment') { setNotice('素材上传还没接通。'); return }
     if (action.constraint) {
       const enabled = !constraints[action.constraint]
       setConstraints((old) => ({ ...old, [action.constraint as keyof ModificationConstraints]: enabled }))
@@ -477,11 +477,11 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
         <div className="wb-top-actions">
           <Tooltip>
             <TooltipTrigger asChild>
-              <button className="wb-agent-status" type="button" aria-label="演示模式：Agent 与渲染未连接">
-                <span className="wb-agent-dot" />演示模式
+              <button className="wb-agent-status" type="button" aria-label="离线：Agent 与渲染未连接">
+                <span className="wb-agent-dot" />离线
               </button>
             </TooltipTrigger>
-            <TooltipContent side="bottom" sideOffset={6}>本地演示：Agent 与真实渲染尚未连接；提交只模拟队列与状态，不改项目文件。</TooltipContent>
+            <TooltipContent side="bottom" sideOffset={6}>还没接 Agent 和渲染。提交只会记录，不会真的改项目文件。</TooltipContent>
           </Tooltip>
           <span className="wb-divider" />
           <ToolButton label="撤销（Ctrl+Z）" onClick={() => runQuickAction(quickActions[0])}><RotateCcw /></ToolButton>
@@ -1001,7 +1001,7 @@ function RightPanel({ chat, sideTab, setSideTab, scope, selectedId, scene, clip,
                 </div>
               )}
 
-              <div className="wb-demo-line"><i className="wb-demo-dot" />演示模式 · 提交只模拟队列与状态，不连接 Agent</div>
+              <div className="wb-demo-line"><i className="wb-demo-dot" />离线 · 提交只记录状态</div>
             </div>
           </div>
 
@@ -1013,7 +1013,7 @@ function RightPanel({ chat, sideTab, setSideTab, scope, selectedId, scene, clip,
                         onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit() } }}
                         placeholder="告诉 AI 要如何修改当前场景…" />
               <div className="mt-1.5 flex items-center gap-2">
-                <button className="iconbtn" type="button" title="素材上传尚未连接" disabled><Plus /></button>
+                <button className="iconbtn" type="button" title="上传还没接通" disabled><Plus /></button>
                 <span className="wb-compose-scope">
                   作用范围 · {scope === 'project' ? '整个项目' : scope === 'scene' ? '当前场景' : '所选场景'}
                 </span>
@@ -1185,7 +1185,7 @@ function SceneInspector({ scene, clip, selectedId, storyboard, settings, savedAt
             <span className="wb-insp-tag">{TASK_STATUS_LABEL[activeTask.status] ?? activeTask.status}</span>
           </div>
         ) : (
-          <p className="wb-insp-note">没有正在执行的任务。提交只模拟队列与状态，不连接 Agent。</p>
+          <p className="wb-insp-note">没有正在执行的任务。</p>
         )}
         <div className="wb-insp-actions">
           <button className="wb-btn-ghost" type="button" onClick={onOpenTask}><PanelBottom />任务记录</button>
@@ -1288,7 +1288,7 @@ function BottomTray({ records, activeId, onCancel, tab, setTab }:
                             { value: 'versions', label: '版本记录' },
                           ]} />
         <span className="spacer" />
-        <span className="num tray-note">演示数据 · 未连接 Agent</span>
+        <span className="num tray-note">离线</span>
       </div>
       <div className="fw-scroll">
         <div className="fw-tray-body">
@@ -1325,7 +1325,7 @@ function BottomTray({ records, activeId, onCancel, tab, setTab }:
                   <div className="fw-card-note">{v.summary}</div>
                   <div className="num fw-card-src">{v.source}</div>
                   <button className="mini mini-s" type="button"
-                          disabled={!v.restorable} title="当前来源只读，未连接版本后端">
+                          disabled={!v.restorable} title="只读">
                     {v.restorable ? '恢复版本' : '只读来源'}
                   </button>
                 </div>

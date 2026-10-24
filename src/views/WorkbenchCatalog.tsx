@@ -177,8 +177,8 @@ function ProjectCard({ project: p, opening, menuOpen, renaming, confirming, draf
               <i style={{ width: `${pct}%` }} />
             </span>
           )}
-          {/* 演示新建的项目：还没落盘，如实标出来 */}
-          {p.planned && <span className="fm-project-planned">未落盘</span>}
+          {/* 新建的项目还没存到磁盘上，如实标出来 */}
+          {p.planned && <span className="fm-project-planned">仅本地</span>}
         </span>
         <span className="fm-project-text">
           <b>{p.name}</b>

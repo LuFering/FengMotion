@@ -26,7 +26,7 @@ import '../styles/conversation.css'
  * 与工作台的关系：同一个会话的两种呈现，顶部用同一个 ViewSwitch 互相切换；
  * 工作台右栏的对话 tab 也读同一份 chat 状态。
  *
- * 演示口径：Agent 未连接，回复是本地演示生成；会话与项目都在内存里，刷新即失。
+ * 演示口径：回复由本地演示生成（未接 Agent）；会话与项目在内存里。
  */
 
 interface DemoReply {
@@ -36,15 +36,15 @@ interface DemoReply {
 }
 
 const GENERIC_PLAN = [
-  '开场：先立一个问题钩子，让观众有理由往下看',
-  '中段：分 2–3 个点讲清核心，每点配一个画面',
-  '结尾：回到观众自己的场景收束，留一个可带走的结论',
+  '开场先说一件让人想看下去的事',
+  '中间分两三点讲清楚，每点配一个画面',
+  '结尾落回观众自己的处境',
 ]
 
 const TOKEN_PLAN = [
-  '开场：一个问题钩子，先把 Token 的陌生感立起来',
-  '中段：用生活类比讲清 Token 是什么、以及怎么计费',
-  '结尾：回到观众自己的使用场景，留一个可复用的结论',
+  '开场先让人意识到自己见过 Token 但说不清',
+  '中间用生活里的东西打比方，讲清它是什么、怎么算钱',
+  '结尾说回观众自己的使用场景',
 ]
 
 function demoReply(userText: string, turn: number): DemoReply {
@@ -52,19 +52,19 @@ function demoReply(userText: string, turn: number): DemoReply {
     const aboutToken = /token/i.test(userText)
     return {
       text: aboutToken
-        ? '收到，这条我理解为一支 Token 科普短片。先跟你对三个点：\n1. 讲给谁听\n2. 想做到多长\n3. 想要什么感觉\n你先回其中任何一点，我再往下细化方案。'
-        : '收到。先跟你对三个点：\n1. 这条片子讲给谁听\n2. 想做到多长\n3. 想要什么感觉\n你先回其中任何一点，我再往下细化方案。',
+        ? '这条像 Token 科普。先定三件事：\n1. 讲给谁\n2. 多长\n3. 什么感觉\n回一个就行，剩下的我按常规补。'
+        : '先定三件事：\n1. 讲给谁\n2. 多长\n3. 什么感觉\n回一个就行，剩下的我按常规补。',
       toolCalls: [
-        { label: '检索参考片库', detail: '沙漠公路 · 多莉变焦：人物居中、背景纵深拉伸，可作开场情绪锚点' },
-        { label: '检索特效库', detail: '多莉变焦：主体大小恒定、背景剧烈伸缩，适合揭示时刻' },
+        { label: '参考片库', detail: '沙漠公路那条片的推镜：人不动，背景往后拉' },
+        { label: '特效库', detail: '多莉变焦：人保持大小，背景快速缩放' },
       ],
       plan: aboutToken ? TOKEN_PLAN : GENERIC_PLAN,
     }
   }
   const snippet = userText.trim().slice(0, 24)
   return {
-    text: `收到，你刚补的“${snippet}”我并进了方案。没提到的部分保持上一版，你再补一点，或者直接点开始制作。`,
-    toolCalls: [{ label: '更新方案', detail: '把你刚说的点并入方案要点' }],
+    text: `“${snippet}”已经加进方案，其余照上一版。还要补就接着说，不用了直接开始制作。`,
+    toolCalls: [{ label: '改方案', detail: '把这条并进方案要点' }],
   }
 }
 
@@ -217,8 +217,9 @@ export function Conversation(props: {
     const brief = firstBrief
     if (!brief.trim()) return
     const name = usableName(brief)
+    const projectName = name.slice(0, 14) || '未命名创作'
     const project = props.onCreateProject({
-      name: name.slice(0, 14) || '未命名创作',
+      name: projectName,
       genome: GENOMES[0]?.id ?? 'explainer',
       targetDuration: 180,
     })
@@ -227,10 +228,10 @@ export function Conversation(props: {
       seedPrompt: brief,
     })
     chat.addAiMessage({
-      text: '制作已开始，已创建以下内容：',
+      text: '项目建好了，制作方案也备了一份。',
       changes: [
-        { file: `项目 / ${project.id}`, change: '新增' },
-        { file: `工作流 / ${wf.name}`, change: '新增' },
+        { file: projectName, change: '项目' },
+        { file: wf.name, change: '工作流' },
       ],
     })
     props.onLaunch({ workflowId: wf.id, projectId: project.id, autoRun: quick })
@@ -255,7 +256,7 @@ export function Conversation(props: {
         </div>
         <div className="cv3-side-list">
           {props.projects.length === 0 ? (
-            <p className="cv3-side-hint">还没有项目。发第一条消息开始聊，或点下面的新建。</p>
+            <p className="cv3-side-hint">还没有项目。</p>
           ) : props.projects.map((p) => (
             <button key={p.id} type="button" className="cv3-project"
                     data-current={p.id === props.openProject || undefined}
@@ -271,7 +272,6 @@ export function Conversation(props: {
         <button type="button" className="cv3-side-add" onClick={props.onNewProject}>
           <Plus size={14} />新建项目
         </button>
-        <p className="cv3-side-note">演示模式 · 未连接 Agent。项目与对话都在内存里，刷新即失。</p>
       </aside>
 
       <div className="cv3-main">
@@ -281,7 +281,6 @@ export function Conversation(props: {
               <PanelLeft size={16} />
             </button>
             <div className="cv3-crumb" title={title}>{title}</div>
-            <span className="cv3-demo-pill">演示模式</span>
             <ViewSwitch current="conversation" workbenchDisabled={props.openProject === null}
                         onSwitch={(target) => { if (target === 'workbench') props.onOpenWorkbench() }} />
           </div>
@@ -291,7 +290,7 @@ export function Conversation(props: {
           <div className="cv3-view">
             <div className="cv3-col">
               {userMessages.length === 0 && (
-                <p className="cv3-ai-intro">说说你想做的片子——讲给谁、讲什么、想要什么感觉。先聊清楚，再开始制作。</p>
+                <p className="cv3-ai-intro">说说你想做的片子：讲给谁、多长、什么感觉。</p>
               )}
 
               {messages.map((m) => m.role === 'user' ? (
@@ -311,9 +310,9 @@ export function Conversation(props: {
                   )}
                   {m.changes && m.changes.length > 0 && (
                     <div className="cv3-changes">
-                      <b className="cv3-changes-title">已创建</b>
+                      <b className="cv3-changes-title">新建的东西</b>
                       <table>
-                        <thead><tr><th>对象</th><th>改动</th></tr></thead>
+                        <thead><tr><th>名字</th><th>类型</th></tr></thead>
                         <tbody>
                           {m.changes.map((c, i) => (
                             <tr key={i}><td><code>{c.file}</code></td><td>{c.change}</td></tr>
@@ -324,7 +323,7 @@ export function Conversation(props: {
                   )}
                   {m.plan && (
                     <div className="cv3-plan">
-                      <b className="cv3-plan-title">制作方案（演示）</b>
+                      <b className="cv3-plan-title">制作方案</b>
                       <ol>
                         {m.plan.map((p, i) => <li key={i}>{p}</li>)}
                       </ol>
@@ -338,8 +337,8 @@ export function Conversation(props: {
                                               options={[{ value: 'prompt-first', label: 'Prompt-first' }, { value: 'structured', label: 'Structured' }]} />
                           </div>
                           <div className="cv3-plan-actions">
-                            <button type="button" className="cv3-primary" onClick={() => launch(true)}>开始制作（快速，自动运行）</button>
-                            <button type="button" className="cv3-secondary" onClick={() => launch(false)}>创建并进入工作台（不自动运行）</button>
+                            <button type="button" className="cv3-primary" onClick={() => launch(true)}>开始制作</button>
+                            <button type="button" className="cv3-secondary" onClick={() => launch(false)}>先去工作台看看</button>
                           </div>
                         </>
                       )}
@@ -349,7 +348,7 @@ export function Conversation(props: {
               ))}
 
               {pending && (
-                <p className="cv3-pending"><LoaderCircle className="cv3-spin" size={14} /> 正在思考…（演示）</p>
+                <p className="cv3-pending"><LoaderCircle className="cv3-spin" size={14} /> 正在整理…</p>
               )}
             </div>
           </div>
@@ -372,12 +371,8 @@ export function Conversation(props: {
               </div>
             </form>
             <footer className="cv3-status">
-              <span className="cv3-pill">{messages.length} 条消息</span>
-              <span className="cv3-sep">·</span>
-              <span className="cv3-pill">演示模式</span>
-              <span className="cv3-sep">·</span>
-              <span className="cv3-pill">未连接 Agent</span>
-              {launched && (<><span className="cv3-sep">·</span><span className="cv3-pill">制作已开始</span></>)}
+              <span className="cv3-pill">{userMessages.length} 条需求</span>
+              {launched && (<><span className="cv3-sep">·</span><span className="cv3-pill">已开始制作</span></>)}
             </footer>
           </div>
         </div>

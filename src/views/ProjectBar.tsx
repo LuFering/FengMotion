@@ -38,7 +38,7 @@ export function ProjectBar({ project: p, view, onNav, onBack, onOpenWorkbench }:
           </button>
         ))}
       </nav>
-      <span className="chip"><span className="dot off" />Agent 未连接</span>
+      <span className="chip"><span className="dot off" />离线</span>
       <button className="mini" type="button" onClick={onOpenWorkbench} disabled={!!p.planned}>
         <Icon name="clapperboard" />进工作台
       </button>
@@ -51,8 +51,8 @@ export function PickProject({ onBack }: { onBack: () => void }) {
   return (
     <div className="pj-pick">
       <Icon name="folder-open" />
-      <h2>先选一个项目</h2>
-      <p>这几个视图都是"某个项目的"素材 / 脚本 / 音频 / 渲染 —— 从项目列表里挑一个再进来。</p>
+      <h2>还没选项目</h2>
+      <p>素材和交付都挂在具体项目上。</p>
       <button className="mini mini-strong" type="button" onClick={onBack}>去项目列表</button>
     </div>
   )

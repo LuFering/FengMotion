@@ -296,13 +296,6 @@ html[data-theme="tactile"] #pane-conversation {
   line-height: 20px;
 }
 
-.cv3-side-note {
-  margin: auto 4px 0;
-  color: var(--tx3);
-  font-size: 12px;
-  line-height: 20px;
-}
-
 /* 收起轨：56px，控件 36px 居中，列表与文字全部隐藏 */
 .cv3-side[data-rail] {
   width: 56px;
@@ -336,13 +329,9 @@ html[data-theme="tactile"] #pane-conversation {
 .cv3-side[data-rail] .cv3-new-label,
 .cv3-side[data-rail] .cv3-side-sec,
 .cv3-side[data-rail] .cv3-side-list,
-.cv3-side[data-rail] .cv3-side-add,
-.cv3-side[data-rail] .cv3-side-note {
+.cv3-side[data-rail] .cv3-side-add {
   display: none;
 }
-
-/* 轨内面板行：只留 36px 图标（dsh rail 规范） */
-
 
 /* 覆盖式抽屉（窄屏手动展开）：盖住主列，不挤压 */
 .cv3-side[data-drawer] {
@@ -397,21 +386,6 @@ html[data-theme="tactile"] #pane-conversation {
   font-weight: 500;
   line-height: 20px;
   text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.cv3-demo-pill {
-  display: inline-flex;
-  flex: none;
-  align-items: center;
-  height: 24px;
-  padding: 2px 8px;
-  box-sizing: border-box;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  color: var(--tx3);
-  font-size: 11px;
-  line-height: 18px;
   white-space: nowrap;
 }
 
@@ -1108,10 +1082,6 @@ html[data-theme="tactile"] #pane-conversation {
 @media (max-width: 640px) {
   .cv3-head {
     padding: 10px 16px 0 14px;
-  }
-
-  .cv3-demo-pill {
-    display: none;
   }
 
   .cv3-switch button {

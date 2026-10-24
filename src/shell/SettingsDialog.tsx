@@ -89,7 +89,7 @@ export function SettingsDialog({
         <section className="settings-section">
           <h3>Agent Harness</h3>
           <p className="settings-hint">
-            选择驱动本工作台的 agent 运行时。演示模式下不验证连接。
+            选择驱动本工作台的 agent 运行时。
           </p>
 
           <div className="harness-grid" role="radiogroup" aria-label="Agent Harness">
