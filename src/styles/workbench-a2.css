@@ -506,9 +506,9 @@
 }
 #pane-flow .wb-a2 .tl-clip-thumb {
   position: absolute; inset: 0; width: 100%; height: 100%;
-  object-fit: cover; opacity: .22; pointer-events: none;
+  object-fit: cover; opacity: .38; pointer-events: none;
 }
-#pane-flow .wb-a2 .tl-clip[aria-current="true"] .tl-clip-thumb { opacity: .38; }
+#pane-flow .wb-a2 .tl-clip[aria-current="true"] .tl-clip-thumb { opacity: .55; }
 #pane-flow .wb-a2 .wb-compare-tag {
   position: absolute; left: 8px; top: 8px; z-index: 6;
   padding: 3px 8px; border-radius: 999px;
@@ -518,7 +518,7 @@
 #pane-flow .wb-a2 .fw-media-fit.chg { animation: wbFrameIn .38s var(--eo); }
 #pane-flow .wb-a2 .tl-clip span {
   position: absolute; left: 5px; bottom: 2px;
-  font-family: var(--font-mono); font-size: 9.5px;
+  font-family: var(--font-mono); font-size: 11px;
   color: inherit; font-variant-numeric: tabular-nums;
 }
 #pane-flow .wb-a2 .tl-clip[aria-current="true"] span { color: var(--acc-tx); }
@@ -539,7 +539,7 @@
 #pane-flow .wb-a2 .wb-scale {
   display: flex; justify-content: space-between;
   margin-top: 5px;
-  font-size: 10px; color: var(--tx3);
+  font-size: 11px; color: var(--tx2);
   font-variant-numeric: tabular-nums;
 }
 #pane-flow .wb-a2 .fw-subbar { display: none; }
@@ -591,8 +591,8 @@
 }
 #pane-flow .wb-a2 .wb-insp-section > h3 {
   margin: 0 0 1px;
-  font-size: 10.5px; font-weight: 700; letter-spacing: .08em;
-  color: var(--tx3); text-transform: uppercase;
+  font-size: 12px; font-weight: 650; letter-spacing: .02em;
+  color: var(--tx2);
   display: flex; align-items: center; gap: 6px;
 }
 #pane-flow .wb-a2 .wb-insp-tag {
@@ -1004,4 +1004,13 @@ html.theme-switching #pane-flow .fw-panel {
   #pane-flow .wb-a2 .wb-agent-status,
   #pane-flow .wb-a2 .wb-export { white-space: nowrap; }
   #pane-flow .wb-a2 .fw-playbar { overflow-x: auto; }
+  /* Round 2：窄屏时间线不再压碎——画布给最小宽度，横向滚动代替挤压 */
+  #pane-flow .wb-a2 .tl-canvas { min-width: 560px; }
 }
+
+/* ── Round 2：侧岛阴影降一档，中央预览保持 hero 阴影作锚点 ─────
+   只压深黑/浅白；触感主题的硬阴影是主题身份，不动。 */
+html[data-theme="dark"] #pane-flow .wb-a2 .fw-ing,
+html[data-theme="dark"] #pane-flow .wb-a2 .fw-panel { box-shadow: 0 8px 24px rgba(0, 0, 0, .22); }
+html[data-theme="light"] #pane-flow .wb-a2 .fw-ing,
+html[data-theme="light"] #pane-flow .wb-a2 .fw-panel { box-shadow: 0 8px 24px rgba(30, 30, 60, .10); }

@@ -294,7 +294,7 @@ html[data-theme="tactile"] .hf-page {
 .hf-send:hover:not(:disabled) svg { transform: translateY(-1.5px); }
 .hf-send:active:not(:disabled) { transform: scale(.93); }
 .hf-send:disabled { opacity: .32; cursor: default; }
-.hf-sample-hint { margin-top: 13px; text-align: center; color: var(--hf-tx3); font: 12px var(--hf-sans); }
+.hf-sample-hint { margin-top: 13px; text-align: center; color: var(--hf-tx2); font: 12px var(--hf-sans); }
 .hf-sample-hint b { color: var(--hf-tx2); font-weight: 600; }
 
 /* 触感主题：硬边/硬阴影 */
@@ -323,7 +323,8 @@ html[data-theme="tactile"] .hf-seal circle { stroke: currentColor; }
 
 /* 左右两块向中轴靠近：左侧右移，右侧左移 */
 .hf-sample { transform: translateX(40px); }
-.hf-copy { transform: translate(24px, 68px); }
+/* Round 2：纵向落差 68px → 28px，内容带向屏中央收拢，弱化上下空置感 */
+.hf-copy { transform: translate(24px, 28px); }
 @media (max-width: 1400px) {
   .hf-sample { transform: translateX(16px); }
   .hf-copy { transform: translate(8px, 28px); }

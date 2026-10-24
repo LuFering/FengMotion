@@ -52,6 +52,14 @@
   --fm-text-title: 24px;  --fm-leading-title: 32px;  /* 页面标题 */
   --fm-text-hero: 40px;   --fm-leading-hero: 48px;   /* 首页主标题 */
 
+  /* ── 状态语义别名（Round 2：跨页统一，禁止一色多义）──────────
+     绿只表完成/就绪、琥珀只表警示/待定、红只表失败/危险、蓝只表动作。
+     主题内的 --ok/--warn/--bad/--acc 仍是唯一事实来源，此处只起别名。 */
+  --fm-c-action: var(--acc);
+  --fm-c-success: var(--ok);
+  --fm-c-warn: var(--warn);
+  --fm-c-danger: var(--bad);
+
   /* ── 圆角 ─────────────────────────────────────────────────── */
   --fm-radius-thumb: 5px;
   --fm-radius-mark: 6px;
