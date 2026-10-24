@@ -63,8 +63,11 @@
   --cv-bubble: var(--surf);
   /* 右区这一层 = 应用壳/导航栏透出的 body 底色，也就是全局 --bg */
   --cv-page: var(--bg);
-  --cv-hairline: rgb(255 255 255 / 0.08);
-  --cv-hairline-w: 0.5px;
+  /* 描边一律用全局 --line（其他界面的唯一边线来源），不再自造半透明白/黑：
+     原来暗色用 rgb(255 255 255 / 0.08)、触感用 rgba(34,35,31,.28)，
+     与全局 --line(#2A2A2E / rgba(34,35,31,.18)) 不是同一个东西。 */
+  --cv-hairline: var(--line);
+  --cv-hairline-w: 1px;
 }
 
 html[data-theme="light"] #pane-conversation {
@@ -79,8 +82,8 @@ html[data-theme="light"] #pane-conversation {
   --cv-elev: var(--surf);
   --cv-bubble: #edf3fe;
   --cv-page: var(--bg);
-  --cv-hairline: rgb(0 0 0 / 0.10);
-  --cv-hairline-w: 0.5px;
+  --cv-hairline: var(--line);
+  --cv-hairline-w: 1px;
 }
 
 html[data-theme="tactile"] #pane-conversation {
@@ -96,7 +99,7 @@ html[data-theme="tactile"] #pane-conversation {
      —— 深底深字，用户气泡几乎看不见（截图实测确认过） */
   --cv-bubble: var(--hole);
   --cv-page: var(--bg);
-  --cv-hairline: rgb(34 35 31 / 0.28);
+  --cv-hairline: var(--line);
   --cv-hairline-w: 1px;
 }
 
@@ -203,7 +206,7 @@ html[data-theme="tactile"] #pane-conversation {
   margin: 0 2px 12px;
   padding: 8px 12px;
   box-sizing: border-box;
-  border: 0.5px solid var(--line);
+  border: 1px solid var(--line);
   border-radius: var(--fm-radius-ctl);
   background: var(--cv-elev);
   color: var(--tx1);
@@ -792,7 +795,7 @@ html[data-theme="tactile"] #pane-conversation {
 
 .cv3-changes th {
   padding: 6px 8px;
-  border-bottom: 0.5px solid var(--line);
+  border-bottom: 1px solid var(--line);
   color: var(--tx3);
   font-size: 13px;
   font-weight: 500;
@@ -802,7 +805,7 @@ html[data-theme="tactile"] #pane-conversation {
 
 .cv3-changes td {
   padding: 6px 8px;
-  border-bottom: 0.5px solid var(--line);
+  border-bottom: 1px solid var(--line);
   font-size: 13px;
   line-height: 19.5px;
 }
