@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
 
 /**
  * 首页 · 第一屏
@@ -21,6 +21,25 @@ const MIST_PHRASES = [
   '复刻这个界面的布局和交互',
 ]
 
+/**
+ * 右侧首屏轮转：文案模块 → 视频，共 3 轮。
+ * 每轮只换文案与强调色；视频先放占位片段（public/media/home），后续换品牌片即可。
+ */
+type HeroCycle = { l1: string; l2a: string; kw: string; accent: string; reel: string }
+
+const HERO_CYCLES: HeroCycle[] = [
+  { l1: '从一句话，', l2a: '到一条', kw: '片子', accent: '#3B8CF8', reel: '/media/home/reel-1.mp4' },
+  { l1: '从一个念头，', l2a: '到一场', kw: '好戏', accent: '#39B7A8', reel: '/media/home/reel-2.mp4' },
+  { l1: '从一段故事，', l2a: '到一部', kw: '作品', accent: '#E08A3C', reel: '/media/home/reel-3.mp4' },
+]
+
+const HERO_LEAD = '让 AI agent 用一行行代码，重新定义你内心的小巧思。'
+const TEXT_HOLD = 4600
+const FLIP_MS = 620
+const VIDEO_HOLD = 10000
+
+type HeroPhase = 'text' | 'textOut' | 'video' | 'videoOut'
+
 function Chars({ text, cls, start }: { text: string; cls: string; start: number }) {
   return (
     <>
@@ -34,22 +53,14 @@ function Chars({ text, cls, start }: { text: string; cls: string; start: number 
   )
 }
 
-export function Home(props: { onStart?: (draft: string) => void }) {
-  const [ready, setReady] = useState(false)
-  const [draft, setDraft] = useState('')
-  const [workdirOpen, setWorkdirOpen] = useState(false)
-  const [workdir, setWorkdir] = useState('~/workspace/fengmotion')
-  const [phraseIndex, setPhraseIndex] = useState(0)
-  const taRef = useRef<HTMLTextAreaElement>(null)
+function HeroTitle({ copy, cycle }: { copy: HeroCycle; cycle: number }) {
   const titleRef = useRef<HTMLHeadingElement>(null)
   const inkRef = useRef<SVGSVGElement>(null)
   const curveRef = useRef<SVGPathElement>(null)
   const underRef = useRef<SVGPathElement>(null)
 
-
+  // 每轮都要重测：换文案后字宽变了（「念头」「故事」比「一句话」宽），牵线与下划线必须重算
   useEffect(() => {
-    document.documentElement.classList.add('home-one-page')
-    document.body.classList.add('home-one-page')
     const timers: number[] = []
     const measure = () => {
       const title = titleRef.current
@@ -57,6 +68,8 @@ export function Home(props: { onStart?: (draft: string) => void }) {
       const curve = curveRef.current
       const under = underRef.current
       if (!title || !ink || !curve || !under) return
+      // 逐字入场带 translateY，测量时会读到动画中间态；先冻结动画再量，避免牵线/下划线偏移
+      title.classList.add('is-measuring')
       const host = title.getBoundingClientRect()
       const l1 = title.querySelectorAll<HTMLElement>('.hf-char-l1')
       const l2 = title.querySelectorAll<HTMLElement>('.hf-char-l2')
@@ -84,6 +97,7 @@ export function Home(props: { onStart?: (draft: string) => void }) {
       const ulen = under.getTotalLength()
       under.style.strokeDasharray = String(ulen)
       under.style.strokeDashoffset = String(ulen)
+      title.classList.remove('is-measuring')
     }
 
     // 等字体布局稳定后再测线，避免中文换行导致路径偏
@@ -91,13 +105,72 @@ export function Home(props: { onStart?: (draft: string) => void }) {
     timers.push(window.setTimeout(measure, 60))
     timers.push(window.setTimeout(() => curveRef.current?.classList.add('is-drawn'), CURVE_START))
     timers.push(window.setTimeout(() => underRef.current?.classList.add('is-drawn'), UNDER_START))
-    timers.push(window.setTimeout(() => setReady(true), READY_AT))
+    return () => timers.forEach((t) => window.clearTimeout(t))
+  }, [cycle])
+
+  return (
+    <h1 className="hf-title" ref={titleRef}>
+      <span className="hf-l1"><Chars text={copy.l1} cls="hf-char-l1" start={0} /></span>
+      <span className="hf-l2"><Chars text={copy.l2a} cls="hf-char-l2" start={L2_START} /><span className="hf-kw"><Chars text={copy.kw} cls="hf-char-l2" start={L2_START + 3 * CHAR_STEP} /></span></span>
+      <svg className="hf-ink" ref={inkRef} aria-hidden="true">
+        <path ref={curveRef} className="hf-curve" />
+        <path ref={underRef} className="hf-under" />
+      </svg>
+      <span className="hf-seal" aria-hidden="true">
+        <svg viewBox="0 0 54 54">
+          <circle cx="27" cy="27" r="25" fill="none" stroke="currentColor" strokeWidth=".8" opacity=".7" />
+          <circle cx="27" cy="27" r="21" fill="none" stroke="currentColor" strokeWidth=".4" opacity=".45" />
+          <text x="27" y="25" textAnchor="middle">FENG</text>
+          <text x="27" y="34" textAnchor="middle">MOTION</text>
+        </svg>
+      </span>
+    </h1>
+  )
+}
+
+export function Home(props: { onStart?: (draft: string) => void }) {
+  const [ready, setReady] = useState(false)
+  const [draft, setDraft] = useState('')
+  const [workdirOpen, setWorkdirOpen] = useState(false)
+  const [workdir, setWorkdir] = useState('~/workspace/fengmotion')
+  const [phraseIndex, setPhraseIndex] = useState(0)
+  const taRef = useRef<HTMLTextAreaElement>(null)
+  const [cycle, setCycle] = useState(0)
+  const [phase, setPhase] = useState<HeroPhase>('text')
+  const [reduced, setReduced] = useState(false)
+
+  // 页面锁一页 + 首轮就绪；墨线测量搬进 HeroTitle，每轮重跑
+  useEffect(() => {
+    document.documentElement.classList.add('home-one-page')
+    document.body.classList.add('home-one-page')
+    const timer = window.setTimeout(() => setReady(true), READY_AT)
     return () => {
-      timers.forEach((t) => window.clearTimeout(t))
+      window.clearTimeout(timer)
       document.documentElement.classList.remove('home-one-page')
       document.body.classList.remove('home-one-page')
     }
   }, [])
+
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
+    const sync = () => setReduced(mq.matches)
+    sync()
+    mq.addEventListener('change', sync)
+    return () => mq.removeEventListener('change', sync)
+  }, [])
+
+  // 轮转时间线：文案停留 → 翻出 → 视频 10s → 翻出 → 下一轮
+  useEffect(() => {
+    if (reduced) return
+    const hold = phase === 'text' ? TEXT_HOLD : phase === 'video' ? VIDEO_HOLD : FLIP_MS
+    const id = window.setTimeout(() => {
+      if (phase === 'text') setPhase('textOut')
+      else if (phase === 'textOut') setPhase('video')
+      else if (phase === 'video') setPhase('videoOut')
+      else { setCycle((c) => (c + 1) % HERO_CYCLES.length); setPhase('text') }
+    }, hold)
+    return () => window.clearTimeout(id)
+  }, [phase, reduced])
 
   useEffect(() => {
     if (draft) return
@@ -122,7 +195,7 @@ export function Home(props: { onStart?: (draft: string) => void }) {
         <div className="hf-media">
           <div className="hf-left-module">
             <div className="hf-brandline">
-              <img src="./assets/brand/fengmotion-mark.png" alt="" />
+              <img src="/assets/brand/fengmotion-mark.png" alt="" />
               <span className="hf-brandname">FengMotion</span>
               <span className="hf-brandsep" aria-hidden="true">|</span>
               <button type="button" className="hf-brandstart" onClick={() => taRef.current?.focus()}>开始创作</button>
@@ -134,14 +207,7 @@ export function Home(props: { onStart?: (draft: string) => void }) {
                 <textarea ref={taRef} rows={1} value={draft}
                           placeholder=""
                           onChange={(e) => setDraft(e.target.value)}
-                          onKeyDown={(e) => {
-                            /* Enter 发送（与下方提示一致）；中文输入法组字中不触发，Shift+Enter 换行 */
-                            if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing && draft.trim() && props.onStart) {
-                              e.preventDefault()
-                              props.onStart(draft)
-                            }
-                          }}
-                          aria-label="描述你想做的视频" />
+                          aria-label="输入框样本" />
                 {!draft && (
                   <div className="hf-ph" aria-hidden="true" key={phrase}>
                     {phraseChunks.map((chunk, i) => (
@@ -184,9 +250,8 @@ export function Home(props: { onStart?: (draft: string) => void }) {
                 <span className="hf-spacer" />
                 <span className="hf-count">{draft.length || ''}</span>
                 <span className="hf-model"><i />deepseek-chat</span>
-                <button className="hf-send" type="button" disabled={!draft.trim()}
-                        onClick={() => { if (draft.trim()) props.onStart?.(draft) }}
-                        title={draft.trim() ? '开始制作' : '发送'} aria-label="发送">
+                <button className="hf-send" type="button" disabled={!draft.trim()} onClick={() => { if (draft.trim()) props.onStart?.(draft) }}
+                        title="DEMO 模式：发送未接入后端" aria-label="发送">
                   <svg viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7" /></svg>
                 </button>
               </div>
@@ -197,28 +262,26 @@ export function Home(props: { onStart?: (draft: string) => void }) {
         </div>
 
         <div className="hf-copy">
-          <h1 className="hf-title" ref={titleRef}>
-            <span className="hf-l1"><Chars text="从一句话，" cls="hf-char-l1" start={0} /></span>
-            <span className="hf-l2"><Chars text="到一条" cls="hf-char-l2" start={L2_START} /><span className="hf-kw"><Chars text="片子" cls="hf-char-l2" start={L2_START + 3 * CHAR_STEP} /></span></span>
-            <svg className="hf-ink" ref={inkRef} aria-hidden="true">
-              <path ref={curveRef} className="hf-curve" />
-              <path ref={underRef} className="hf-under" />
-            </svg>
-            <span className="hf-seal" aria-hidden="true">
-              <svg viewBox="0 0 54 54">
-                <circle cx="27" cy="27" r="25" fill="none" stroke="currentColor" strokeWidth=".8" opacity=".7" />
-                <circle cx="27" cy="27" r="21" fill="none" stroke="currentColor" strokeWidth=".4" opacity=".45" />
-                <text x="27" y="25" textAnchor="middle">FENG</text>
-                <text x="27" y="34" textAnchor="middle">MOTION</text>
-              </svg>
-            </span>
-          </h1>
+          <div className="hf-stage" style={{ '--hf-blue': HERO_CYCLES[cycle].accent, '--hf-accent': HERO_CYCLES[cycle].accent } as CSSProperties}>
+            <div key={`text-${cycle}`}
+                 className={`hf-panel hf-panel-text${phase === 'textOut' ? ' is-out' : ''}${phase === 'video' || phase === 'videoOut' ? ' is-hidden' : ''}`}>
+              <HeroTitle copy={HERO_CYCLES[cycle]} cycle={cycle} />
+              <p className="hf-lead">{HERO_LEAD}</p>
+              {/* 视觉上已删除输入区；保留同高占位，维持标题/描述的原始纵向位置 */}
+              <div className="hf-reserve" aria-hidden="true" />
+            </div>
 
-          <p className="hf-lead">让 AI agent 用一行行代码，重新定义你内心的小巧思。</p>
-
-          {/* 视觉上已删除输入区；保留同高占位，维持标题/描述的原始纵向位置 */}
-          <div className="hf-reserve" aria-hidden="true" />
-
+            {(phase === 'video' || phase === 'videoOut') && (
+              <div key={`video-${cycle}`}
+                   className={`hf-panel hf-video-panel${phase === 'videoOut' ? ' is-out' : ''}`} aria-hidden="true">
+                <div className="hf-reel-frame">
+                  <video className="hf-reel" src={HERO_CYCLES[cycle].reel}
+                         autoPlay muted loop playsInline preload="auto" />
+                  <span className="hf-reel-tag">演示片段 · 10s</span>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </section>
     </div>
