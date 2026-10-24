@@ -55,6 +55,9 @@
   --panel: var(--hole);
   --panel2: var(--surf);
   --line2: var(--line);
+  /* 描边：与其余 pane（workflow/technique/reference）一致，暗色用半透明白发丝线，
+     而不是全局 --line 的实色 #2A2A2E —— 实色在暗底上偏重，看起来像框死。 */
+  --line: rgba(255, 255, 255, 0.06);
   --hover: rgba(255, 255, 255, .08);
   --tx1: var(--fg);
   --tx2: var(--dim);
@@ -90,6 +93,7 @@ html[data-theme="tactile"] #pane-conversation {
   --panel: var(--hole);
   --panel2: var(--surf);
   --line2: var(--line);
+  --line: rgba(34, 35, 31, .16);
   --hover: rgba(34, 35, 31, .08);
   --tx1: var(--fg);
   --tx2: var(--dim);
@@ -152,9 +156,11 @@ html[data-theme="tactile"] #pane-conversation {
   margin: 10px 0 10px 10px;
   padding: 6px 12px;
   box-sizing: border-box;
-  /* 侧栏不再用「直角 + 右边贯穿长线」划分，改成一张圆角浮动面板：
-     层级靠 --panel2 的灰阶面 + 圆角浮起，和其余界面（圆角卡片、无长线）同一语言。
-     ⚠️ 原来 border-right + 铺满全高，是 dsh 的三栏硬分割；本产品其余视图都没有这种线。 */
+  /* 左栏 = 一张独立卡片，配方对齐工作台 .fw-ing / .fw-panel：
+     面 --surf + 1px --ht-edge 描边 + 圆角，浮在 --bg 上。
+     ⚠️ 之前只有背景和圆角、没有描边，所以看起来「飘着」，与工作台左栏不是同一种卡片；
+        原来那条 border-right 是 dsh 的三栏硬分割（贯穿全高），已去掉。 */
+  border: 1px solid var(--line);
   border-radius: var(--fm-radius-panel);
   background: var(--panel2);
   color: var(--tx1);
@@ -554,7 +560,8 @@ html[data-theme="tactile"] #pane-conversation {
   border: 0;
   border-radius: var(--fm-radius-ctl);
   background: var(--cv-elev);
-  box-shadow: inset 0 0 0 var(--cv-hairline-w) var(--cv-hairline), 0 3px 8px rgb(0 0 0 / 0.04), 0 0 20px rgb(0 0 0 / 0.05);
+  border: 1px solid var(--line);
+  box-shadow: 0 3px 8px rgb(0 0 0 / 0.04), 0 0 20px rgb(0 0 0 / 0.05);
   color: var(--tx2);
   font-size: 13px;
   line-height: 20px;
@@ -822,7 +829,7 @@ html[data-theme="tactile"] #pane-conversation {
   padding: 16px;
   border-radius: var(--fm-radius-panel);
   background: var(--cv-elev);
-  box-shadow: inset 0 0 0 var(--cv-hairline-w) var(--cv-hairline);
+  border: 1px solid var(--line);
 }
 
 .cv3-plan-title {
@@ -998,7 +1005,8 @@ html[data-theme="tactile"] #pane-conversation {
   border: 0;
   border-radius: 20px;
   background: var(--cv-elev);
-  box-shadow: inset 0 0 0 var(--cv-hairline-w) var(--cv-hairline), 0 4px 16px rgb(0 0 0 / 0.03), 0 0 24px rgb(0 0 0 / 0.03);
+  border: 1px solid var(--line);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.03), 0 0 24px rgb(0 0 0 / 0.03);
   font-size: 13px;
   line-height: 19.5px;
   transition: box-shadow 150ms cubic-bezier(0.4, 0, 0.2, 1);
@@ -1006,7 +1014,8 @@ html[data-theme="tactile"] #pane-conversation {
 
 /* 输入框聚焦晕染：dsh focus.css 的 2px 业务色环，做 35% 透明晕染而非硬环 */
 .cv3-card:focus-within {
-  box-shadow: inset 0 0 0 var(--cv-hairline-w) var(--cv-hairline), 0 0 0 2px color-mix(in srgb, var(--acc) 35%, transparent), 0 4px 16px rgb(0 0 0 / 0.03), 0 0 24px rgb(0 0 0 / 0.03);
+  border: 1px solid var(--line);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--acc) 35%, transparent), 0 4px 16px rgb(0 0 0 / 0.03), 0 0 24px rgb(0 0 0 / 0.03);
 }
 
 /* @// 菜单（dsh MenuView：卡片内绝对定位，bottom 100%+4px，padding 4px） */
@@ -1022,7 +1031,8 @@ html[data-theme="tactile"] #pane-conversation {
   border: 0;
   border-radius: var(--fm-radius-ctl);
   background: var(--cv-elev);
-  box-shadow: inset 0 0 0 var(--cv-hairline-w) var(--cv-hairline), 0 3px 8px rgb(0 0 0 / 0.04), 0 0 20px rgb(0 0 0 / 0.05);
+  border: 1px solid var(--line);
+  box-shadow: 0 3px 8px rgb(0 0 0 / 0.04), 0 0 20px rgb(0 0 0 / 0.05);
 }
 
 .cv3-picker button {
