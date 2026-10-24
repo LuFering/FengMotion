@@ -156,12 +156,10 @@ html[data-theme="tactile"] #pane-conversation {
   margin: 10px 0 10px 10px;
   padding: 6px 12px;
   box-sizing: border-box;
-  /* 左栏 = 一张独立卡片，配方对齐工作台 .fw-ing / .fw-panel：
-     面 --surf + 1px --ht-edge 描边 + 圆角，浮在 --bg 上。
-     ⚠️ 之前只有背景和圆角、没有描边，所以看起来「飘着」，与工作台左栏不是同一种卡片；
-        原来那条 border-right 是 dsh 的三栏硬分割（贯穿全高），已去掉。 */
-  border: 1px solid var(--line);
-  border-radius: var(--fm-radius-panel);
+  /* 按 docs/design/design-system.md §一：表面靠**明度递进**建立层次，
+     不靠边线和阴影。所以左栏不画 border：--surf 比 --bg 亮一档，本身就浮起来了。
+     圆角按 §三「卡片 10–12px」。 */
+  border-radius: var(--fm-radius-card);
   background: var(--panel2);
   color: var(--tx1);
   font-size: 13px;
@@ -560,8 +558,7 @@ html[data-theme="tactile"] #pane-conversation {
   border: 0;
   border-radius: var(--fm-radius-ctl);
   background: var(--cv-elev);
-  border: 1px solid var(--line);
-  box-shadow: 0 3px 8px rgb(0 0 0 / 0.04), 0 0 20px rgb(0 0 0 / 0.05);
+  box-shadow: 0 3px 8px rgb(0 0 0 / 0.04);
   color: var(--tx2);
   font-size: 13px;
   line-height: 20px;
@@ -824,12 +821,11 @@ html[data-theme="tactile"] #pane-conversation {
   overflow-wrap: anywhere;
 }
 
-/* 方案卡（FengMotion 自有组件，落 dsh 卡片语言：16px 圆角、面填充、细描边） */
+/* 方案卡：靠 --hole 面与页面区分，不画边线（规范 §一：不靠边线/阴影建层次） */
 .cv3-plan {
   padding: 16px;
-  border-radius: var(--fm-radius-panel);
-  background: var(--cv-elev);
-  border: 1px solid var(--line);
+  border-radius: var(--fm-radius-card);
+  background: var(--hole);
 }
 
 .cv3-plan-title {
@@ -1003,10 +999,9 @@ html[data-theme="tactile"] #pane-conversation {
   margin: 0 auto;
   padding-top: 8px;
   border: 0;
-  border-radius: 20px;
-  background: var(--cv-elev);
-  border: 1px solid var(--line);
-  box-shadow: 0 4px 16px rgb(0 0 0 / 0.03), 0 0 24px rgb(0 0 0 / 0.03);
+  border-radius: var(--fm-radius-card);
+  /* 输入面用 --hole（凹陷槽），靠明度与页面区分，不画边线、不加装饰性阴影 */
+  background: var(--hole);
   font-size: 13px;
   line-height: 19.5px;
   transition: box-shadow 150ms cubic-bezier(0.4, 0, 0.2, 1);
@@ -1014,8 +1009,8 @@ html[data-theme="tactile"] #pane-conversation {
 
 /* 输入框聚焦晕染：dsh focus.css 的 2px 业务色环，做 35% 透明晕染而非硬环 */
 .cv3-card:focus-within {
-  border: 1px solid var(--line);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--acc) 35%, transparent), 0 4px 16px rgb(0 0 0 / 0.03), 0 0 24px rgb(0 0 0 / 0.03);
+  /* 聚焦不靠加边框/发光：换成 --soft 选中衬底（规范 §一 --soft = 选中底） */
+  background: color-mix(in srgb, var(--acc) 6%, var(--hole));
 }
 
 /* @// 菜单（dsh MenuView：卡片内绝对定位，bottom 100%+4px，padding 4px） */
@@ -1031,8 +1026,7 @@ html[data-theme="tactile"] #pane-conversation {
   border: 0;
   border-radius: var(--fm-radius-ctl);
   background: var(--cv-elev);
-  border: 1px solid var(--line);
-  box-shadow: 0 3px 8px rgb(0 0 0 / 0.04), 0 0 20px rgb(0 0 0 / 0.05);
+  box-shadow: 0 3px 8px rgb(0 0 0 / 0.04);
 }
 
 .cv3-picker button {
