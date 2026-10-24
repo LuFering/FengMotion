@@ -131,6 +131,8 @@ function HeroTitle({ copy, cycle }: { copy: HeroCycle; cycle: number }) {
 type Attachment = { name: string; size: number; kind: 'file' | 'image' | 'video' }
 
 type Harness = { id: string; name: string; short: string; mark: string; models: string[]; ready: boolean }
+/** 每个模型的本地偏好（演示态只存内存 + localStorage）：思考强度与最大上下文 */
+type ModelPrefs = { reasoning: 'off' | 'standard' | 'enhanced'; context: 32 | 64 | 128 }
 
 /** 执行引擎列表：只有 deepseek 标为已配置，其余如实标注「未接入」 */
 const HARNESSES: Harness[] = [
@@ -206,6 +208,21 @@ export function Home(props: { onStart?: (draft: string) => void }) {
   const [attachments, setAttachments] = useState<Attachment[]>([])
   const [harnessId, setHarnessId] = useState(HARNESSES[0].id)
   const [model, setModel] = useState(HARNESSES[0].models[0])
+  /* 引擎弹窗两级导航：null=一级引擎列表，'deepseek'…=二级模型列表 */
+  const [harnessPane, setHarnessPane] = useState<string | null>(null)
+  /* 模型偏好：key = `${harnessId}:${model}`；持久化在 localStorage */
+  const [prefs, setPrefs] = useState<Record<string, ModelPrefs>>(() => {
+    try { const v = JSON.parse(localStorage.getItem('fengmotion:model-prefs') ?? '{}'); return v && typeof v === 'object' ? v : {} } catch { return {} }
+  })
+  const prefKey = `${harnessId}:${model}`
+  const setPref = (patch: Partial<ModelPrefs>) => {
+    setPrefs((all) => {
+      const next = { ...all, [prefKey]: { ...all[prefKey], ...patch } }
+      try { localStorage.setItem('fengmotion:model-prefs', JSON.stringify(next)) } catch { /* 忽略持久化失败 */ }
+      return next
+    })
+  }
+  const currentPrefs: ModelPrefs = prefs[prefKey] ?? { reasoning: 'standard', context: 64 }
   const [toast, setToast] = useState('')
   const [phraseIndex, setPhraseIndex] = useState(0)
   const taRef = useRef<HTMLTextAreaElement>(null)
@@ -443,45 +460,91 @@ export function Home(props: { onStart?: (draft: string) => void }) {
                 <span className="hf-spacer" />
                 <span className="hf-count">{draft.length || ''}</span>
                 <div className="hf-btnwrap hf-harnesswrap">
+                  {/* 引擎按钮：接入 = 绿点 + 引擎图标 | 模型名；未接入 = 黄点 + 引擎图标 + 未接入AI */}
                   <button className="hf-harness" type="button" aria-haspopup="dialog"
                           data-off={notReady || undefined}
                           aria-expanded={menu === 'harness'} title={notReady ? '该引擎未接入' : '切换执行引擎'}
-                          onClick={() => setMenu(menu === 'harness' ? null : 'harness')}>
-                    <span className="hf-harness-seg" data-off={notReady || undefined}><i />{harness.short}</span>
-                    <span className="hf-harness-div" aria-hidden="true" />
-                    <span className="hf-harness-model">{model}</span>
-                    {notReady && <span className="hf-harness-warn">未接入</span>}
+                          onClick={() => { setHarnessPane(null); setMenu(menu === 'harness' ? null : 'harness') }}>
+                    <span className="hf-harness-seg" data-off={notReady || undefined}>
+                      <i aria-hidden="true" />
+                      <span className="hf-harness-mark" aria-hidden="true">{harness.mark}</span>
+                      {notReady ? <span className="hf-harness-off">未接入AI</span>
+                        : <><span className="hf-harness-div" aria-hidden="true" /><span className="hf-harness-model">{model}</span></>}
+                    </span>
                     <svg className="hf-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
                   </button>
                   {menu === 'harness' && (
-                    <div className="hf-harness-pop" role="dialog" aria-label="执行引擎">
-                      <div className="hf-hp-head"><b>执行引擎</b><span>演示：只切换界面状态</span></div>
-                      <div className="hf-hp-list" role="listbox" aria-label="引擎">
-                        {HARNESSES.map((h) => (
-                          <button key={h.id} type="button" className="hf-hp-item" role="option"
-                                  aria-selected={h.id === harnessId}
-                                  data-off={!h.ready || undefined}
-                                  onClick={() => { setHarnessId(h.id); setModel(h.models[0]) }}>
-                            <span className="hf-hp-logo" aria-hidden="true">{h.mark}</span>
-                            <span className="hf-hp-txt">
-                              <b>{h.name}</b>
-                              <small>{h.ready ? '本机已配置' : '未接入，仅展示'}</small>
-                            </span>
-                            <span className="hf-hp-ck" aria-hidden="true">✓</span>
-                          </button>
-                        ))}
-                      </div>
-                      <div className="hf-hp-sep" />
-                      <div className="hf-hp-head"><b>模型</b><span>{harness.short}</span></div>
-                      <div className="hf-hp-list" role="listbox" aria-label="模型">
-                        {harness.models.map((m) => (
-                          <button key={m} type="button" className="hf-hp-item hf-hp-model" role="option"
-                                  aria-selected={m === model} onClick={() => setModel(m)}>
-                            <span className="hf-hp-radio" aria-hidden="true" />
-                            <span className="hf-hp-txt"><b>{m}</b></span>
-                            <span className="hf-hp-ck" aria-hidden="true">✓</span>
-                          </button>
-                        ))}
+                    <div className="hf-harness-pop" role="dialog" aria-label="执行引擎" data-pane={harnessPane || undefined}>
+                      <div className="hf-hp-scroll">
+                        {/* 一级：引擎列表；二级：该引擎的模型（从右侧滑入） */}
+                        <div className="hf-hp-pane" data-active={harnessPane === null || undefined}>
+                          <div className="hf-hp-head"><b>执行引擎</b><span>{HARNESSES.filter((h) => h.ready).length} 个已接入</span></div>
+                          <div className="hf-hp-list" role="listbox" aria-label="引擎">
+                            {HARNESSES.map((h) => (
+                              <button key={h.id} type="button" className="hf-hp-item" role="option"
+                                      aria-selected={h.id === harnessId}
+                                      data-off={!h.ready || undefined}
+                                      onClick={() => {
+                                        setHarnessId(h.id); setModel(h.models[0]); setHarnessPane(h.id)
+                                      }}>
+                                <span className="hf-hp-logo" aria-hidden="true">{h.mark}</span>
+                                <span className="hf-hp-txt">
+                                  <b>{h.name}</b>
+                                  <small>{h.ready ? '本机已配置' : '未接入，仅展示'}</small>
+                                </span>
+                                {h.id === harnessId && <span className="hf-hp-ck" aria-hidden="true">✓</span>}
+                                <svg className="hf-hp-go" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="hf-hp-pane hf-hp-models" data-active={harnessPane !== null || undefined}>
+                          <div className="hf-hp-head">
+                            <button type="button" className="hf-hp-back" onClick={() => setHarnessPane(null)}>
+                              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6" /></svg>引擎
+                            </button>
+                            <b>{harness.name}</b>
+                          </div>
+                          <div className="hf-hp-list" role="listbox" aria-label="模型">
+                            {harness.models.map((m) => (
+                              <div key={m} className="hf-hp-modelwrap" data-open={(model === m && harnessPane !== null) || undefined}>
+                                <button type="button" className="hf-hp-item hf-hp-model" role="option"
+                                        aria-selected={m === model} aria-expanded={model === m && harnessPane !== null}
+                                        onClick={() => setModel(m)}>
+                                  <span className="hf-hp-radio" aria-hidden="true" />
+                                  <span className="hf-hp-txt"><b>{m}</b></span>
+                                  <span className="hf-hp-ck" aria-hidden="true">✓</span>
+                                  <svg className="hf-hp-go hf-hp-go-down" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
+                                </button>
+                                {/* 选中模型下方展开的设置抽屉：思考强度 + 最大上下文 */}
+                                {model === m && harnessPane !== null && (
+                                  <div className="hf-hp-drawer">
+                                    <div className="hf-hp-row">
+                                      <span className="hf-hp-label">思考强度</span>
+                                      <div className="hf-hp-seg" role="radiogroup" aria-label="思考强度">
+                                        {([['off', '关闭'], ['standard', '标准'], ['enhanced', '增强']] as const).map(([v, label]) => (
+                                          <button key={v} type="button" role="radio" aria-checked={currentPrefs.reasoning === v}
+                                                  className={currentPrefs.reasoning === v ? 'on' : undefined}
+                                                  onClick={() => setPref({ reasoning: v })}>{label}</button>
+                                        ))}
+                                      </div>
+                                    </div>
+                                    <div className="hf-hp-row">
+                                      <span className="hf-hp-label">最大上下文</span>
+                                      <div className="hf-hp-seg" role="radiogroup" aria-label="最大上下文">
+                                        {([32, 64, 128] as const).map((v) => (
+                                          <button key={v} type="button" role="radio" aria-checked={currentPrefs.context === v}
+                                                  className={currentPrefs.context === v ? 'on' : undefined}
+                                                  onClick={() => setPref({ context: v })}>{v}K</button>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
                       </div>
                     </div>
                   )}
