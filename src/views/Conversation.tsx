@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { ReactNode } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import {
   Archive, ArchiveRestore, Check, ChevronRight, Cpu, Ellipsis, FileText, ImageIcon,
   ListFilter, LoaderCircle, PanelLeft, Pencil, Pin, PinOff, Plus, Search, Send, Shield,
@@ -13,6 +13,11 @@ import { GENOMES } from '../data/genomes'
 import type { NewProjectInput } from '../shell/useProjects'
 import type { WfPath } from '../data/workflowTemplates'
 import { SegmentedControl } from '../components/ui/segmented-control'
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuTrigger,
+  DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem,
+  DropdownMenuItem, DropdownMenuSeparator,
+} from '../components/ui/dropdown-menu'
 import { ViewSwitch } from '../components/ViewSwitch'
 import type { ProjectSummary } from '../data/projects'
 import '../styles/conversation.css'
@@ -79,12 +84,19 @@ function usableName(text: string): string {
   return first.length >= 2 && !/^[\d\s\p{P}]+$/u.test(first) ? first : ''
 }
 
-/* 权限模式文案（对齐 dsh preset.readOnly / workspaceWrite / fullAccess） */
+/* 权限模式文案（对齐 dsh preset.readOnly / workspaceWrite / fullAccess）
+   每个模式配一句说明：权限是「放开多少」的选择，只说名字看不出后果。 */
 const PERM_LABEL = {
   readOnly: '仅可查看',
   workspaceWrite: '工作区内修改',
   fullAccess: '完全权限',
 } as const
+
+const PERM_MODES = [
+  { id: 'readOnly' as const, label: '仅可查看', desc: '只读取文件，不做任何修改', Icon: Shield },
+  { id: 'workspaceWrite' as const, label: '工作区内修改', desc: '只允许改当前工作目录内的文件', Icon: ShieldCheck },
+  { id: 'fullAccess' as const, label: '完全权限', desc: '减少确认步骤，可执行敏感操作', Icon: ShieldAlert },
+]
 
 /* 相对时间（对齐 dsh time.ago：刚刚 / N分钟 / N小时 / N天 / N个月 / N年） */
 function fmtAgo(t: number): string {
@@ -184,7 +196,6 @@ export function Conversation(props: {
   const [harnessId, setHarnessId] = useState(HARNESSES[0].id)
   const [model, setModel] = useState(HARNESSES[0].models[0])
   const [prefs, setPrefs] = useState<Record<string, ModelPrefs>>(loadPrefs)
-  const [composerMenu, setComposerMenu] = useState<null | 'add' | 'perm' | 'model'>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const imageRef = useRef<HTMLInputElement>(null)
   const repliedRef = useRef(new Set<string>())
@@ -728,94 +739,106 @@ export function Conversation(props: {
                 <div className="cv3-row">
                   {/* 左侧：添加文件 / 权限模式 */}
                   <div className="cv3-leading">
-                    <div className="cv3-cw">
-                      <button type="button" className="cv3-chip-btn" aria-label="添加文件或调用指令"
-                              title="添加文件或调用指令" aria-expanded={composerMenu === 'add'}
-                              data-on={composerMenu === 'add' || undefined}
-                              onClick={() => { setComposerMenu(composerMenu === 'add' ? null : 'add'); setViewMenu(false); setRowMenu(null) }}>
-                        <Plus size={14} />
-                      </button>
-                      {composerMenu === 'add' && (
-                        <div className="cv3-menu cv3-pop" role="menu">
-                          <button type="button" role="menuitem" onClick={() => { fileRef.current?.click(); setComposerMenu(null) }}>
-                            <FileText size={13} /><span>添加文件</span>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button type="button" className="cv3-chip-btn" aria-label="添加文件或调用指令" title="添加文件或调用指令">
+                          <Plus size={14} />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent side="top" align="start" sideOffset={8} className="cv3-ddm cv3-ddm-add">
+                        <DropdownMenuLabel className="cv3-ddm-label">添加到这条对话</DropdownMenuLabel>
+                        <div className="cv3-addgrid">
+                          <button type="button" onClick={() => fileRef.current?.click()}>
+                            <span className="cv3-addicon"><FileText size={16} /></span>
+                            <b>文件</b>
+                            <em>剧本、分镜表</em>
                           </button>
-                          <button type="button" role="menuitem" onClick={() => { imageRef.current?.click(); setComposerMenu(null) }}>
-                            <ImageIcon size={13} /><span>添加图片</span>
+                          <button type="button" onClick={() => imageRef.current?.click()}>
+                            <span className="cv3-addicon"><ImageIcon size={16} /></span>
+                            <b>图片</b>
+                            <em>参考画面</em>
                           </button>
                         </div>
-                      )}
-                    </div>
-                    <div className="cv3-cw">
-                      <button type="button" className="cv3-chip-btn cv3-perm-btn" aria-label="权限设置"
-                              title="权限设置" aria-expanded={composerMenu === 'perm'}
-                              data-on={composerMenu === 'perm' || undefined}
-                              onClick={() => { setComposerMenu(composerMenu === 'perm' ? null : 'perm'); setViewMenu(false); setRowMenu(null) }}>
-                        {permission === 'readOnly' ? <Shield size={13} />
-                          : permission === 'fullAccess' ? <ShieldAlert size={13} /> : <ShieldCheck size={13} />}
-                        <span className="cv3-chip-label">{PERM_LABEL[permission]}</span>
-                      </button>
-                      {composerMenu === 'perm' && (
-                        <div className="cv3-menu cv3-pop cv3-perm-menu" role="menu">
-                          <div className="cv3-menu-sec">权限模式</div>
-                          {(['readOnly', 'workspaceWrite', 'fullAccess'] as const).map((v) => (
-                            <button key={v} type="button" role="menuitemradio" aria-checked={permission === v}
-                                    onClick={() => { setPermission(v); setComposerMenu(null) }}>
-                              <span>{PERM_LABEL[v]}</span>
-                              {permission === v && <Check size={13} />}
-                            </button>
+                        <p className="cv3-ddm-note">也可以直接把文件拖进输入框</p>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button type="button" className="cv3-chip-btn cv3-perm-btn" aria-label="权限设置" title="权限设置">
+                          {permission === 'readOnly' ? <Shield size={13} />
+                            : permission === 'fullAccess' ? <ShieldAlert size={13} /> : <ShieldCheck size={13} />}
+                          <span className="cv3-chip-label">{PERM_LABEL[permission]}</span>
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent side="top" align="start" sideOffset={8} className="cv3-ddm cv3-ddm-perm">
+                        <DropdownMenuLabel className="cv3-ddm-label">权限模式</DropdownMenuLabel>
+                        <DropdownMenuRadioGroup value={permission} onValueChange={(v) => setPermission(v as typeof permission)}>
+                          {PERM_MODES.map(({ id, label, desc, Icon }) => (
+                            <DropdownMenuRadioItem key={id} value={id} className="cv3-ddm-permrow">
+                              <span className="cv3-perm-icon" data-danger={id === 'fullAccess' || undefined}><Icon size={14} /></span>
+                              <span className="cv3-perm-text">
+                                <b>{label}</b>
+                                <em>{desc}</em>
+                              </span>
+                            </DropdownMenuRadioItem>
                           ))}
-                          <p className="cv3-menu-note">
-                            {permission === 'readOnly' ? '只读取文件，不做任何修改。'
-                              : permission === 'fullAccess' ? '减少确认步骤，可直接执行敏感操作。'
-                                : '只允许修改当前工作目录内的文件。'}
-                          </p>
-                        </div>
-                      )}
-                    </div>
+                        </DropdownMenuRadioGroup>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                   {/* 右侧：引擎与模型、发送 */}
                   <div className="cv3-trailing">
-                    <div className="cv3-cw">
-                      <button type="button" className="cv3-chip-btn cv3-model-btn" aria-label="选择引擎与模型"
-                              title="选择引擎与模型" aria-expanded={composerMenu === 'model'}
-                              data-on={composerMenu === 'model' || undefined}
-                              onClick={() => { setComposerMenu(composerMenu === 'model' ? null : 'model'); setViewMenu(false); setRowMenu(null) }}>
-                        <Cpu size={13} />
-                        <span className="cv3-chip-label">{harness.short} · {model}</span>
-                      </button>
-                      {composerMenu === 'model' && (
-                        <div className="cv3-menu cv3-pop cv3-model-menu" role="menu">
-                          <div className="cv3-menu-sec">执行引擎</div>
-                          {HARNESSES.map((h) => (
-                            <button key={h.id} type="button" role="menuitemradio" aria-checked={harnessId === h.id}
-                                    data-disabled={!h.ready || undefined}
-                                    onClick={() => {
-                                      setHarnessId(h.id); setModel(h.models[0])
-                                      if (!h.ready) return
-                                    }}>
-                              <span>{h.name}{h.ready ? '' : '（未接入）'}</span>
-                              {harnessId === h.id && <Check size={13} />}
-                            </button>
-                          ))}
-                          <div className="cv3-menu-sec">模型</div>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button type="button" className="cv3-chip-btn cv3-model-btn" aria-label="选择引擎与模型"
+                                title="选择引擎与模型">
+                          <Cpu size={13} />
+                          <span className="cv3-chip-label">{harness.short} · {model}</span>
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent side="top" align="end" sideOffset={8} className="cv3-ddm cv3-ddm-model">
+                        <DropdownMenuLabel className="cv3-ddm-label">执行引擎</DropdownMenuLabel>
+                        {/* 引擎用普通 MenuItem + 自定义当前态：
+                            RadioItem 自带左侧勾选占位，会和品牌图标叠在一起挤成一行 */}
+                        {HARNESSES.map((h) => (
+                          <DropdownMenuItem key={h.id} className="cv3-ddm-hrow"
+                                            data-current={harnessId === h.id || undefined}
+                                            onSelect={() => { setHarnessId(h.id); setModel(h.models[0]) }}>
+                            <span className="cv3-hmark" style={{ '--h-color': h.color } as CSSProperties}>
+                              <span className="cv3-hmark-img" style={{ maskImage: `url(${h.icon})`, WebkitMaskImage: `url(${h.icon})` }} />
+                            </span>
+                            <span className="cv3-hname">{h.name}</span>
+                            {!h.ready && <span className="cv3-hoff">未接入</span>}
+                            {harnessId === h.id && <Check size={13} className="cv3-ddm-ck" />}
+                          </DropdownMenuItem>
+                        ))}
+                        <DropdownMenuSeparator />
+                        <DropdownMenuLabel className="cv3-ddm-label">
+                          模型<span className="cv3-ddm-cur num">{model}</span>
+                        </DropdownMenuLabel>
+                        <DropdownMenuRadioGroup value={model} onValueChange={setModel}>
                           {harness.models.map((m) => (
-                            <button key={m} type="button" role="menuitemradio" aria-checked={model === m}
-                                    onClick={() => { setModel(m); }}>
-                              <span>{m}</span>{model === m && <Check size={13} />}
-                            </button>
+                            <DropdownMenuRadioItem key={m} value={m} className="cv3-ddm-item num">
+                              {m}
+                            </DropdownMenuRadioItem>
                           ))}
-                          <div className="cv3-menu-sec">推理等级</div>
+                        </DropdownMenuRadioGroup>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuLabel className="cv3-ddm-label">推理等级</DropdownMenuLabel>
+                        {/* 三档并排，比三行菜单省一半高度；分段控件复用项目已有组件 */}
+                        <DropdownMenuRadioGroup value={currentPrefs.reasoning}
+                                                onValueChange={(v) => setPref({ reasoning: v as Reasoning })}>
                           {(['off', 'standard', 'enhanced'] as Reasoning[]).map((v) => (
-                            <button key={v} type="button" role="menuitemradio" aria-checked={currentPrefs.reasoning === v}
-                                    onClick={() => setPref({ reasoning: v })}>
-                              <span>{REASONING_LABEL[v]}</span>{currentPrefs.reasoning === v && <Check size={13} />}
-                            </button>
+                            <DropdownMenuRadioItem key={v} value={v} className="cv3-ddm-item-plain">
+                              {REASONING_LABEL[v]}
+                            </DropdownMenuRadioItem>
                           ))}
-                          {!harness.ready && <p className="cv3-menu-note">{harness.name} 未接入：不会真的执行，切回已配置引擎才能发送。</p>}
-                        </div>
-                      )}
-                    </div>
+                        </DropdownMenuRadioGroup>
+                        {!harness.ready && (
+                          <p className="cv3-ddm-note">{harness.name} 未接入：不会真的执行，切回已配置引擎才能发送。</p>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                     <button className="cv3-send" type="submit" disabled={!canSend} aria-label="发送">
                       {pending ? <LoaderCircle size={16} className="cv3-spin" /> : <Send size={16} />}
                     </button>

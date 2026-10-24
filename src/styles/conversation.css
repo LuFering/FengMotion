@@ -1442,6 +1442,261 @@ html[data-theme="tactile"] #pane-conversation {
   font-variant-numeric: tabular-nums;
 }
 
+/* ══ 输入区弹层：用 Radix DropdownMenu（src/components/ui/dropdown-menu）══
+   上一版是手写 div 菜单：没有键盘导航、没有焦点管理、没有碰撞翻转，
+   内容也只是把文字排成列表。改用 Radix 后键盘/ARIA/定位都由库负责，
+   这里只负责把它压成产品的视觉语言（面 + 边线 + 卡片圆角 + 投影，同首页浮层）。 */
+.cv3-ddm {
+  min-width: 216px;
+  padding: 5px;
+  border: 1px solid var(--cv-line-strong);
+  border-radius: var(--fm-radius-card);
+  background: var(--cv-elev);
+  box-shadow: 0 20px 44px rgb(0 0 0 / .3);
+}
+
+/* Radix 菜单项默认样式压掉，统一成左图标 + 文本 */
+.cv3-ddm [data-slot="dropdown-menu-item"],
+.cv3-ddm [data-slot="dropdown-menu-radio-item"] {
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: var(--fm-radius-mark);
+  color: var(--tx2);
+  font-size: 12.5px;
+  line-height: 18px;
+}
+
+.cv3-ddm [data-slot="dropdown-menu-item"]:focus,
+.cv3-ddm [data-slot="dropdown-menu-radio-item"]:focus {
+  background: var(--hover);
+  color: var(--tx1);
+}
+
+/* Radix 的选中标记在右侧，给引擎行的「未接入」徽标留出位置 */
+.cv3-ddm [data-slot="dropdown-menu-radio-item"] > span:first-child {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.cv3-ddm-label {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 8px 4px;
+  color: var(--tx3);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+/* 分组标题右侧的当前值 */
+.cv3-ddm-cur {
+  color: var(--acc);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cv3-ddm-seg {
+  padding: 2px 4px 6px;
+}
+
+/* 引擎行：品牌色图标 + 名称 + 未接入徽标 */
+.cv3-hmark {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--h-color) 14%, transparent);
+}
+
+.cv3-hmark-img {
+  display: block;
+  width: 12px;
+  height: 12px;
+  background-color: var(--h-color);
+  mask-position: center;
+  mask-size: contain;
+  mask-repeat: no-repeat;
+}
+
+.cv3-hname {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cv3-hoff {
+  flex: none;
+  margin-left: auto;
+  padding: 0 4px;
+  border-radius: 3px;
+  background: var(--hole);
+  color: var(--tx3);
+  font-size: 9.5px;
+  font-weight: 400;
+  line-height: 14px;
+}
+
+/* 引擎行：普通 MenuItem，当前项靠底色 + 右侧勾选标记 */
+.cv3-ddm-hrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cv3-ddm-hrow[data-current] {
+  background: var(--hover);
+  color: var(--tx1);
+  font-weight: 600;
+}
+
+.cv3-ddm-ck {
+  flex: none;
+  color: var(--acc);
+}
+
+/* 推理等级行（纯文本单选） */
+.cv3-ddm-item-plain {
+  justify-content: flex-start;
+}
+
+/* 模型行用等宽字体（模型名是标识符） */
+.cv3-ddm-item {
+  font-family: var(--font-mono, ui-monospace, Consolas, monospace);
+  font-size: 12px;
+}
+
+/* 权限卡片行：图标 + 名称 + 一句后果说明 */
+.cv3-ddm-perm {
+  min-width: 280px;
+}
+
+.cv3-ddm-permrow {
+  align-items: flex-start;
+  padding: 8px;
+}
+
+.cv3-perm-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  background: var(--hole);
+  color: var(--tx2);
+}
+
+.cv3-perm-icon[data-danger] {
+  color: var(--warn);
+}
+
+.cv3-ddm-permrow[data-highlighted] .cv3-perm-icon {
+  background: color-mix(in srgb, var(--acc) 16%, transparent);
+  color: var(--acc);
+}
+
+.cv3-perm-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.cv3-perm-text b {
+  color: var(--tx1);
+  font-size: 12.5px;
+  font-weight: 550;
+  line-height: 18px;
+}
+
+.cv3-perm-text em {
+  color: var(--tx3);
+  font-size: 11px;
+  font-style: normal;
+  line-height: 15px;
+}
+
+/* 添加面板：两格图标宫格 */
+.cv3-ddm-add {
+  width: 258px;
+}
+
+.cv3-addgrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 2px 4px 4px;
+}
+
+.cv3-addgrid button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 9px;
+  border: 0;
+  border-radius: var(--fm-radius-mark);
+  background: var(--hole);
+  color: var(--tx2);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color .12s, color .12s;
+}
+
+.cv3-addgrid button:hover {
+  background: var(--hover);
+  color: var(--tx1);
+}
+
+.cv3-addicon {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin-bottom: 3px;
+  border-radius: 7px;
+  background: var(--cv-elev);
+  color: var(--acc);
+}
+
+.cv3-addgrid b {
+  color: var(--tx1);
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 18px;
+}
+
+.cv3-addgrid em {
+  color: var(--tx3);
+  font-size: 10.5px;
+  font-style: normal;
+  line-height: 14px;
+}
+
+.cv3-ddm-note {
+  margin: 4px 4px 2px;
+  padding: 7px 6px 2px;
+  border-top: 1px solid var(--line);
+  color: var(--tx3);
+  font-size: 11px;
+  line-height: 16px;
+}
+
 /* 输入区弹层：向上展开（输入框在底部） */
 .cv3-pop {
   bottom: calc(100% + 6px);
