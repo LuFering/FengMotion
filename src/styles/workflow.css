@@ -401,7 +401,8 @@ html[data-theme='tactile'] .wfl {
   border: 1px solid var(--line); border-radius: 10px; background: transparent; padding: 18px;
   transition: border-color 0.14s var(--eo), background-color 0.14s var(--eo);
 }
-.wfh-path.is-hero { min-height: 208px; background: linear-gradient(180deg, var(--sel), transparent 130%), var(--panel); }
+/* Round 3（审计 27）：两卡同底，推荐只用 chip 表达，不再给 Prompt-first 单独辉光渐变 */
+.wfh-path.is-hero { min-height: 208px; background: transparent; }
 .wfh-path b { font-size: 18px; font-weight: 600; line-height: 26px; }
 .wfh-path p { margin: 0; font-size: 12.5px; line-height: 1.65; color: var(--tx2); }
 .wfh-path-tag { display: inline-flex; align-items: center; gap: 5px; align-self: flex-start; font-size: 11px; font-weight: 800; letter-spacing: 0.04em; color: var(--acc-tx); background: var(--sel); padding: 3px 9px; border-radius: 999px; }

@@ -227,6 +227,8 @@ html[data-theme='tactile'] .rfc {
 /* ── 分析面板（右侧玻璃覆层） ────────────────────────────── */
 .rfc-panel {
   position: absolute; top: 78px; right: 20px;
+  /* Round 3：检查器限高 + 内部滚动，不再垂到传输条/片段条区域压住控件 */
+  max-height: calc(100% - 190px); overflow-y: auto; overscroll-behavior: contain;
   width: 348px; max-height: calc(100% - 268px);
   overflow-y: auto; overscroll-behavior: contain;
   background: var(--panel-glass); border: 1px solid var(--panel-line);
@@ -308,10 +310,15 @@ html[data-theme='tactile'] .rfc {
 .rfc-time { color: var(--ink); font-size: 13px; text-shadow: 0 1px 6px rgba(0, 0, 0, 0.6); }
 .rfc-transport-hint { color: var(--ink-dim); font-size: 12px; }
 .rfc-segbar { display: flex; gap: 3px; margin-bottom: 11px; }
-.rfc-seg {
+/* Round 3（审计 21）：片段条给实底 + 模糊，标签与状态点落在可见的条内，
+   不再像残留元素浮在画面上。
+   注意：.rfc button 通用复位（0,1,1）会压掉单类名规则的背景与边框，
+   此处用 .rfc-segbar 后代选择器（0,2,0）压回去——此前条带隐形就是这个原因。 */
+.rfc-segbar .rfc-seg {
   position: relative; height: 38px; flex-basis: 0; min-width: 0;
   border-radius: 9px; overflow: hidden; text-align: left;
-  background: rgba(255, 255, 255, 0.10); border: 1px solid rgba(255, 255, 255, 0.10);
+  background: rgba(9, 11, 15, 0.62); border: 1px solid rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
   transition: border-color 0.15s var(--eo);
 }
 .rfc-seg:hover { border-color: rgba(255, 255, 255, 0.45); }

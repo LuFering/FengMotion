@@ -510,6 +510,19 @@ export function FxLibrary() {
           </div>
         </div>
 
+        {/* Round 3（审计 23）：卡片状态点与难度点阵的图例，此前只在筛选浮层里出现 */}
+        <p className="fx-legend" aria-label="图例">
+          {EXEC_IDS.map((id) => (
+            <span key={id}><i className="fx-dot" data-cap={id} aria-hidden="true" /> {execLabel(id)}</span>
+          ))}
+          <span className="fx-legend-sep" aria-hidden="true" />
+          <span>
+            <span className="fxc-dots" aria-hidden="true"><i data-on="" /><i data-on="" /><i /><i /><i /></span>
+            复杂度 1–5
+          </span>
+          <span>能力标签为源库元数据，本页不触发执行</span>
+        </p>
+
         <div className="fx-meta">
           <span className="fx-meta-count"><b className="num">{visible.length}</b> 项技法</span>
           {cat !== 'all' && (

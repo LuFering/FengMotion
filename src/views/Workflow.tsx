@@ -187,9 +187,9 @@ function WorkflowHome(props: {
                     <li key={w.id} className="wfh-row">
                       <button type="button" className="wfh-row-main" onClick={() => props.onOpen(w.id)}>
                         <span className="wfh-row-info">
+                          {/* Round 3（审计 26）：工作流名已含路径（Token 科普视频 · Prompt-first），行内 chip 重复，删掉 */}
                           <span className="wfh-row-title">
                             <b>{w.name}</b>
-                            <span className="wfh-pathbadge" data-p={w.path}>{w.path === 'structured' ? 'Structured' : 'Prompt-first'}</span>
                           </span>
                           <span className="wfh-row-meta">
                             {w.nodes.filter((n) => n.type !== 'lane').length} 个节点 · 修订 {w.revision} · {fmtTime(w.updatedAt)}
@@ -239,7 +239,21 @@ function WorkflowHome(props: {
           <section aria-label="最近运行">
             <h2 className="wfh-sect"><History size={13} strokeWidth={2.2} /> 最近运行 / 评估</h2>
             {runs.length === 0 ? (
-              <p className="wfh-empty">尚无运行记录。在编辑器里运行或评估一次，记录会出现在这里。</p>
+              <p className="wfh-empty">
+                尚无运行记录。在编辑器里运行或评估一次，记录会出现在这里。
+                {/* Round 3（审计 28）：空态给下一步动作——有示例工作流则打开它，否则从提示词新建 */}
+                <button
+                  type="button"
+                  className="wfh-textbtn"
+                  onClick={() => {
+                    const seed = workflows.find((w) => w.id === 'wf-token-pf')
+                    if (seed) props.onOpen(seed.id)
+                    else quickStart('prompt-first')
+                  }}
+                >
+                  打开示例工作流 →
+                </button>
+              </p>
             ) : (
               <ul className="wfh-runs">
                 {runs.slice(0, 5).map((r) => {

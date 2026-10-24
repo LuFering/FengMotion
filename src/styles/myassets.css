@@ -662,6 +662,9 @@ html[data-theme="light"] .mya {
   object-fit: cover;
   display: block;
   transition: transform .5s var(--eo);
+  /* Round 3（审计 17 部分）：近黑帧提亮一档，缓解「一墙坏图」的第一观感；
+     根治需换中帧/亮帧数据源，不在本轮。 */
+  filter: brightness(1.15) contrast(1.05);
 }
 .mya-card:hover .mya-thumb img { transform: scale(1.05); }
 .mya-thumb-ph { position: absolute; inset: 0; display: grid; place-items: center; color: var(--tx3); }
@@ -729,7 +732,9 @@ html[data-theme="light"] .mya {
   gap: 4px;
   padding: 2px 7px;
   border-radius: var(--r-pill);
-  background: var(--scrim);
+  /* Round 3（审计 19）：徽标底衬固定深色，不随主题变透明；触感下也看得见 */
+  background: rgba(8, 9, 11, .66);
+  color: #f4f5f7;
   backdrop-filter: blur(4px);
   color: var(--tx);
   font-size: 10.5px;

@@ -271,6 +271,14 @@ html[data-theme='tactile'] .fxlib {
 .fx-dot[data-cap='composable'] { background: var(--acc); }
 .fx-dot[data-cap='reference'] { background: var(--warn); }
 
+/* Round 3（审计 23）：图例行——状态点与难度点阵的含义，页头下一行常驻 */
+.fx-legend {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 6px 16px;
+  margin: 10px 2px 0; font-size: 11.5px; color: var(--tx3);
+}
+.fx-legend > span { display: inline-flex; align-items: center; gap: 5px; }
+.fx-legend-sep { width: 1px; height: 12px; background: var(--line2); }
+
 /* ── 元信息行：计数 + 已选条件 + 范围 + 排序（只一行） ──────────── */
 
 .fx-meta {
@@ -458,7 +466,11 @@ html[data-theme='tactile'] .fxlib {
   pointer-events: none;
 }
 .fxc-poster .fxc-title { color: #fff; text-shadow: 0 1px 8px rgba(0, 0, 0, 0.45); }
-.fxc-poster .fxc-intent { color: rgba(235, 237, 240, 0.82); -webkit-line-clamp: 1; }
+/* Round 3（审计 25）：海报卡描述与普通卡统一两行截断，不再一行/两行混排 */
+.fxc-poster .fxc-intent { color: rgba(235, 237, 240, 0.82); -webkit-line-clamp: 2; }
+/* Round 3（审计 24 部分）：海报卡边框提一档，黑底海报在墙里有明确边界；
+   海报图本身纯黑仍需换图数据源，不在本轮。 */
+.fxc-poster { border-color: var(--line2); }
 .fxc-poster .fxc-meta { color: rgba(235, 237, 240, 0.66); }
 .fxc-poster .fx-cap { border-color: rgba(255, 255, 255, 0.28); color: rgba(255, 255, 255, 0.88); background: rgba(10, 10, 12, 0.35); }
 .fxc-poster .fxc-dots i { background: rgba(255, 255, 255, 0.25); }

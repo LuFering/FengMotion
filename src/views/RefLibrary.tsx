@@ -371,6 +371,10 @@ export function RefLibrary() {
           <button type="button" className="rfc-gbtn" onClick={() => setBrowseOpen(true)}>
             <Icon name="layout-grid" /> 片库
           </button>
+          {/* Round 3（审计 20）：搜索与筛选由底部传输条移回顶部工具栏，不再贴检查器面板边缘 */}
+          <button type="button" className="rfc-gbtn" onClick={() => setBrowseOpen(true)}>
+            <Icon name="search" /> 搜索与筛选
+          </button>
           <button
             type="button"
             className={`rfc-gbtn${isFav ? ' is-on' : ''}`}
@@ -498,9 +502,6 @@ export function RefLibrary() {
             </span>
             <span className="rfc-transport-hint">逐帧预览 · 空格播放/暂停 · ←/→ 切片段</span>
             <span className="rfc-spacer" />
-            <button type="button" className="rfc-gbtn" onClick={() => setBrowseOpen(true)}>
-              <Icon name="search" /> 搜索与筛选
-            </button>
           </div>
           <div className="rfc-segbar" role="tablist" aria-label="片段">
             {filmSegments.map((s) => {
