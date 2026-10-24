@@ -300,12 +300,11 @@ export function Conversation(props: {
     <div className="cv3">
       {drawer && <button type="button" aria-label="关闭项目栏" className="cv3-backdrop" onClick={() => setSideExpanded(false)} />}
 
-      <aside className="cv3-side" data-rail={rail || undefined} data-drawer={drawer || undefined} aria-label="我的项目">
-        <div className="cv3-side-top">
-          <button type="button" className="cv3-icon-btn" aria-label={sideExpanded ? '收起项目栏' : '展开项目栏'} title={sideExpanded ? '收起项目栏' : '展开项目栏'} onClick={() => setSideExpanded((o) => !o)}>
-            <PanelLeft size={16} />
-          </button>
-        </div>
+      {/* 收起时整块不渲染：不留 56px 竖条（那是 dsh 的「图标轨」，本产品收起后
+          左栏里没有任何还需要常驻的图标，留一条空轨道只是视觉噪音）。 */}
+      {!rail && <aside className="cv3-side" data-drawer={drawer || undefined} aria-label="项目与对话">
+        {/* 收起/展开按钮只留顶栏那一个（原来左栏里还有一个，并排出现两个同样的按钮）。
+            收起后左栏整块不渲染，所以这里不需要自己的开关。 */}
         <button type="button" className="cv3-new" onClick={newSession} title="清空当前对话">
           <Plus size={15} /><span className="cv3-new-label">新对话</span>
         </button>
@@ -382,7 +381,7 @@ export function Conversation(props: {
         <button type="button" className="cv3-side-add" onClick={props.onNewProject}>
           <Plus size={14} />新建项目
         </button>
-      </aside>
+      </aside>}
 
       <div className="cv3-main">
         <header className="cv3-head">

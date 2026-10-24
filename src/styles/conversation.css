@@ -417,42 +417,9 @@ html[data-theme="tactile"] #pane-conversation {
   line-height: 20px;
 }
 
-/* 收起轨：56px，控件 36px 居中，列表与文字全部隐藏 */
-.cv3-side[data-rail] {
-  width: 56px;
-  padding: 18px 10px 6px;
-}
-
-.cv3-side[data-rail] .cv3-side-top {
-  height: auto;
-  margin: 0 0 12px;
-  padding: 0;
-  justify-content: center;
-}
-
-.cv3-side[data-rail] .cv3-icon-btn,
-.cv3-side[data-rail] .cv3-new {
-  width: 36px;
-  height: 36px;
-  margin: 0 0 12px;
-  padding: 0;
-  border-color: transparent;
-  border-radius: 12px;
-  background: transparent;
-  color: var(--tx1);
-}
-
-.cv3-side[data-rail] .cv3-icon-btn:hover,
-.cv3-side[data-rail] .cv3-new:hover {
-  background: var(--hover);
-}
-
-.cv3-side[data-rail] .cv3-new-label,
-.cv3-side[data-rail] .cv3-side-sec,
-.cv3-side[data-rail] .cv3-side-list,
-.cv3-side[data-rail] .cv3-side-add {
-  display: none;
-}
+/* 收起后左栏整块不渲染（不是缩成 56px 图标轨）：
+   收起态下左栏没有任何需要常驻的图标，留一条空轨道只是视觉噪音。
+   原来那套 [data-rail] 收窄样式已随组件改动一并删除。 */
 
 /* 覆盖式抽屉（窄屏手动展开）：盖住主列，不挤压 */
 .cv3-side[data-drawer] {
