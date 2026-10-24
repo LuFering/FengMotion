@@ -46,50 +46,56 @@
    导致卡片/侧栏面全透明、次级文字全继承纯白）——须在此按三主题显式补齐，取值与
    现有主题 token 一致（深黑取 brand/myassets 深色值，浅白取 myassets 浅色值）。 */
 #pane-conversation {
-  --panel: #151517;
-  --panel2: #1b1b1c;
-  --line2: #34353f;
+  /* 灰阶一律接全局三档（--bg 页底 / --surf 面板 / --hole 凹陷），不再自带一套 dsh 色板：
+     之前这里写死 --panel #151517 / --panel2 #1b1b1c，与全局 --hole #151517 / --surf #0D0D0F
+     不是同一套，暗色主题下侧栏就比其他界面的面亮一档 —— 三套主题都对齐回全局值。 */
+  /* 层级：页面(--bg) < 会话栏(--surf) < 卡片/浮层(--hole)
+     ⚠️ 卡片必须比它所在的页面亮一档才浮得起来：暗色下 --surf(#0D0D0F) 只比 --bg 亮一点点，
+        输入卡放上去几乎看不出边界，所以卡片取 --hole(#151517)。 */
+  --panel: var(--hole);
+  --panel2: var(--surf);
+  --line2: var(--line);
   --hover: rgba(255, 255, 255, .08);
-  --tx1: #f5f5f7;
-  --tx2: #a1a1aa;
-  --tx3: #71717a;
-  --cv-elev: #2c2c2e;
-  --cv-bubble: #2c2c2e;
-  /* 右区这一层（= 应用壳/导航栏透出的 body 底色）。
-     ⚠️ 别用全局 --bg：它和 body 实色不总相等（浅色主题 --bg #f5f6f6 vs body #e0e2e9）。 */
-  --cv-page: #000000;
+  --tx1: var(--fg);
+  --tx2: var(--dim);
+  --tx3: var(--ph);
+  --cv-elev: var(--hole);
+  --cv-bubble: var(--surf);
+  /* 右区这一层 = 应用壳/导航栏透出的 body 底色，也就是全局 --bg */
+  --cv-page: var(--bg);
   --cv-hairline: rgb(255 255 255 / 0.08);
   --cv-hairline-w: 0.5px;
 }
 
 html[data-theme="light"] #pane-conversation {
-  --panel: #fcfcfd;
-  --panel2: #eef0f4;
-  --line2: #cdcdd6;
+  --panel: var(--hole);
+  --panel2: var(--surf);
+  --line2: var(--line);
   --hover: rgba(38, 49, 72, .06);
-  --tx1: #191919;
-  --tx2: #666a73;
-  --tx3: #8c8f99;
-  --cv-elev: #ffffff;
+  --tx1: var(--fg);
+  --tx2: var(--dim);
+  --tx3: var(--ph);
+  /* 浅色下 --surf(#fcfcfd) 是页面(#e0e2e9)之上最亮的一档，卡片就用它 */
+  --cv-elev: var(--surf);
   --cv-bubble: #edf3fe;
-  --cv-page: #e0e2e9;
+  --cv-page: var(--bg);
   --cv-hairline: rgb(0 0 0 / 0.10);
   --cv-hairline-w: 0.5px;
 }
 
 html[data-theme="tactile"] #pane-conversation {
-  --panel: #e6e1d5;
-  --panel2: #ddd8c9;
-  --line2: rgba(34, 35, 31, .28);
+  --panel: var(--hole);
+  --panel2: var(--surf);
+  --line2: var(--line);
   --hover: rgba(34, 35, 31, .08);
-  --tx1: #22231f;
-  --tx2: #5c5a50;
-  --tx3: #8a877c;
-  --cv-elev: #eae6da;
-  /* ⚠️ 必须显式给：漏了会继承深色默认值 #2c2c2e（深底）+ 本主题深色文字 #22231f
+  --tx1: var(--fg);
+  --tx2: var(--dim);
+  --tx3: var(--ph);
+  --cv-elev: var(--surf);
+  /* ⚠️ 必须显式给：漏了会继承深色默认值 #2c2c2e（深底）+ 本主题深色文字
      —— 深底深字，用户气泡几乎看不见（截图实测确认过） */
-  --cv-bubble: #ddd8c9;
-  --cv-page: #e6e1d5;
+  --cv-bubble: var(--hole);
+  --cv-page: var(--bg);
   --cv-hairline: rgb(34 35 31 / 0.28);
   --cv-hairline-w: 1px;
 }
