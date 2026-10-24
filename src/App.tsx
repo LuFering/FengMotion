@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useChat } from '@/shell/useChat'
+import { useSessions } from '@/shell/useSessions'
 import { useProjects } from '@/shell/useProjects'
 import { useAgentTasks } from '@/hooks/useAgentTasks'
 import { VIEW_META, type ViewId } from '@/shell/views'
@@ -92,6 +93,7 @@ export default function App() {
       : DEFAULT_SETTINGS
   })
   const chat = useChat()
+  const threads = useSessions()
 
   /** 切视图**不清**项目上下文：项目管理组的子视图（素材/交付）都挂在
       当前项目上；要回列表就走 openList()（项目条上的「全部项目」或总览的返回）。 */
@@ -146,7 +148,27 @@ export default function App() {
             原型分支：发送后不再开启动层，需求直接作为首条消息进项目对话视图 */}
         {view === 'home' && (
           <div id="pane-home">
-            <Home onStart={(draft) => { chat.addUserMessage(draft); setView('conversation') }} />
+            <Home projects={projects.list}
+                  onStart={(payload) => {
+              /* 发送 → 建一条会话：选了工作目录的会话挂在该目录对应的项目下，
+                 没选的落进未分组（之后可拖到项目里） */
+              const project = payload.workdir
+                ? projects.list.find((p) => p.path === payload.workdir!.path) ?? null
+                : null
+              /* 只建会话，不往 chat 里再塞一份：会话是唯一来源，
+                 对话视图装载时会把它的消息装进 chat。
+                 两边都塞会出现两个不同 id 的同一条需求 → 演示回复各排一次 → 回两条。 */
+              const s = threads.create({
+                firstText: payload.draft,
+                projectId: project?.id ?? null,
+                workdir: payload.workdir,
+                messages: [{ id: `m-${Date.now().toString(36)}`, role: 'user', text: payload.draft, at: Date.now() }],
+              })
+              if (project) setOpenProject(project.id)
+              else setOpenProject(null)
+              void s
+              setView('conversation')
+            }} />
           </div>
         )}
 
@@ -155,6 +177,8 @@ export default function App() {
         {view === 'conversation' && (
           <div id="pane-conversation">
             <Conversation chat={chat}
+                          threads={threads}
+                          activeSessionId={threads.activeId}
                           projects={projects.list}
                           onCreateProject={(input) => projects.create(input)}
                           openProject={openProject}

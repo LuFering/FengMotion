@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties, type ChangeEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ChangeEvent } from 'react'
 
 /**
  * 首页 · 第一屏
@@ -165,44 +165,59 @@ function shortenDir(name: string): string {
   return end < chars.length ? `${cut}…` : cut
 }
 
-export function Home(props: { onStart?: (draft: string) => void }) {
+/** 发送时交给上层的上下文：草稿 + 这次用的工作目录 + 引擎 */
+export interface StartPayload {
+  draft: string
+  workdir: { label: string; path: string } | null
+  harness: { id: string; name: string; model: string }
+}
+
+export function Home(props: {
+  onStart?: (payload: StartPayload) => void
+  /** 真实项目列表 —— 工作目录下拉的目录来自它，路径与项目一一对应 */
+  projects?: { id: string; name: string; path: string }[]
+}) {
   const [ready, setReady] = useState(false)
   const [draft, setDraft] = useState('')
   const [menu, setMenu] = useState<null | 'workdir' | 'add' | 'harness'>(null)
   /* 工作目录。真实链路按 docs/dev/前后端协议 与后端 workspace 包的规划走：
      Electron 主进程 dialog.showOpenDialog（DSH 的 dsh-desktop:directory-pick 同款），
-     前端只经适配器拿「显示名 + 路径」。当前是演示适配器：列表存 localStorage，
-     「选择文件夹」在浏览器里拿不到绝对路径（input webkitdirectory 只有名字），
-     所以选择器失败/不可用时回退为手动输入真实路径。接 Electron/后端时只换实现。 */
-  const [workdirs, setWorkdirs] = useState<Workdir[]>(() => {
+     前端只经适配器拿「显示名 + 路径」。
+     列表 = 真实项目目录（上层传入，路径能对上项目，发送后会话才挂得进去）
+          + 用户手动添加的目录（演示态存 localStorage；对不上项目就落未分组）。
+     ⚠️ 不能再用虚构路径当种子：`~/workspace/fengmotion` 与项目真实路径对不上，
+        选了目录发送，会话照样进未分组 —— 那等于目录选择器是假的。 */
+  const [extraDirs, setExtraDirs] = useState<Workdir[]>(() => {
     try {
       const saved = localStorage.getItem('fengmotion:workdirs')
       if (saved) {
         const parsed: unknown = JSON.parse(saved)
         if (Array.isArray(parsed)) return parsed.filter((d): d is Workdir => !!d && typeof d.path === 'string' && typeof d.label === 'string')
       }
-    } catch { /* localStorage 不可用则用种子 */ }
-    return [
-      { label: 'FengMotion', path: '~/workspace/fengmotion' },
-      { label: '小凤 AI 口播片', path: '~/workspace/video-production' },
-      { label: 'workspace 根目录', path: '~/workspace' },
-    ]
+    } catch { /* localStorage 不可用则没有额外目录 */ }
+    return []
   })
-  const [workdirPath, setWorkdirPath] = useState(() => localStorage.getItem('fengmotion:workdir') ?? '~/workspace/fengmotion')
+  const workdirs = useMemo<Workdir[]>(() => {
+    const base = (props.projects ?? []).map((p) => ({ label: p.name, path: p.path }))
+    const seen = new Set(base.map((d) => d.path))
+    return [...base, ...extraDirs.filter((d) => !seen.has(d.path))]
+  }, [props.projects, extraDirs])
+  /* 首页初始化一律「未选择工作目录」：不继承上次的选择。
+     这样「不选目录直接发送 → 会话落进未分组」这条路径才成立；
+     目录列表本身仍持久化（用户不必每次重新录入）。 */
+  const [workdirPath, setWorkdirPath] = useState<string | null>(null)
   const dirInputRef = useRef<HTMLInputElement>(null)
   const currentWorkdir = workdirs.find((d) => d.path === workdirPath) ?? null
   const addWorkdir = (label: string, path: string) => {
-    setWorkdirs((list) => {
+    setExtraDirs((list) => {
       const next = list.some((d) => d.path === path) ? list : [...list, { label, path }]
       try { localStorage.setItem('fengmotion:workdirs', JSON.stringify(next)) } catch { /* 忽略持久化失败 */ }
       return next
     })
     setWorkdirPath(path)
-    try { localStorage.setItem('fengmotion:workdir', path) } catch { /* 同上 */ }
   }
   const selectWorkdir = (path: string) => {
     setWorkdirPath(path)
-    try { localStorage.setItem('fengmotion:workdir', path) } catch { /* 同上 */ }
     setMenu(null)
   }
   const [attachments, setAttachments] = useState<Attachment[]>([])
@@ -328,9 +343,14 @@ export function Home(props: { onStart?: (draft: string) => void }) {
       setToast(`${harness.name} 未接入：不会创建任务，请切回已配置引擎。`)
       return
     }
-    /* 创作启动层已接入：引擎可用时发送即进入开始制作（M1） */
+    /* 发送 → 进对话：把「这次用的工作目录与引擎」一并交出去，
+       由上层建一条会话；没选目录就发，会话落进未分组 */
     if (props.onStart && draft.trim()) {
-      props.onStart(draft)
+      props.onStart({
+        draft,
+        workdir: currentWorkdir,
+        harness: { id: harness.id, name: harness.name, model },
+      })
       return
     }
     setToast('演示输入框：发送未接入，未创建任务。')

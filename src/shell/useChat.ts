@@ -36,12 +36,14 @@ export function useChat() {
   const addAiMessage = (m: { text: string; thinking?: string; toolCalls?: { label: string; detail: string }[]; plan?: string[]; changes?: { file: string; change: string }[] }) => {
     setMessages((items) => [...items, { id: makeId(), role: 'ai', at: Date.now(), ...m }])
   }
+  /* 切换会话时整体换掉消息列表（会话树 → 当前对话） */
+  const replaceMessages = (next: ChatMessage[]) => setMessages(next)
   /* 开新会话：回到初始状态（不动任何持久化数据） */
   const clearChat = () => {
     setMessages(INITIAL_MESSAGES)
     setDraft('')
   }
-  return { messages, draft, setDraft, addUserMessage, addAiMessage, clearChat }
+  return { messages, draft, setDraft, addUserMessage, addAiMessage, clearChat, replaceMessages }
 }
 
 export type ChatState = ReturnType<typeof useChat>

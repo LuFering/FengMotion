@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
-import { Check, LoaderCircle, PanelLeft, Plus, Send } from 'lucide-react'
+import { Check, ChevronRight, LoaderCircle, PanelLeft, Plus, Send } from 'lucide-react'
 import type { ChatState } from '../shell/useChat'
+import { UNGROUPED, sessionTitle, type SessionsState } from '../shell/useSessions'
 import { workflowService } from '../services/workflowService'
 import { GENOMES } from '../data/genomes'
 import type { NewProjectInput } from '../shell/useProjects'
@@ -110,6 +111,10 @@ export function Conversation(props: {
   onCreateProject: (input: NewProjectInput) => { id: string }
   onLaunch: (r: { workflowId: string; projectId: string | null; autoRun: boolean }) => void
   onOpenWorkbench: () => void
+  /** 会话树（项目 + 对话两级）：左栏用它，拖拽改归属也走它 */
+  threads: SessionsState
+  /** 当前会话 id；null = 还没有会话（从空白进入） */
+  activeSessionId: string | null
 }) {
   const { chat } = props
   const [proPath, setProPath] = useState<WfPath>('prompt-first')
@@ -117,6 +122,10 @@ export function Conversation(props: {
   /* dsh 响应式：1024 以下左栏自动收为 56px 轨，手动展开为覆盖式抽屉 */
   const [narrow, setNarrow] = useState(() => (typeof window === 'undefined' ? false : window.innerWidth < 1024))
   const [sideExpanded, setSideExpanded] = useState(() => (typeof window === 'undefined' ? true : window.innerWidth >= 1024))
+  /* 左栏两级树：折叠状态、正在拖的会话、拖放目标组 */
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(() => new Set())
+  const [dragId, setDragId] = useState<string | null>(null)
+  const [dropTarget, setDropTarget] = useState<string | null>(null)
   const repliedRef = useRef(new Set<string>())
   const replyTimer = useRef<number | null>(null)
   const aliveRef = useRef(true)
@@ -136,6 +145,39 @@ export function Conversation(props: {
     return () => { aliveRef.current = false }
   }, [])
 
+  /* 会话 ⇄ 当前对话的双向同步：
+     - 切到另一条会话：把它的消息装进 chat（正在思考中不切，避免丢回复）
+     - 当前对话有新消息：写回这条会话（左栏顺序、后续拖拽都以它为准） */
+  const loadedRef = useRef<string | null>(null)
+  /* 装载会话后的第一次写回必须跳过：
+     切换会话时 replaceMessages 是本轮 effect 里排的队，写回 effect 在同一个 commit
+     里读到的 chat.messages 还是**上一条会话**的 —— 直接写就会把旧内容盖进新会话。 */
+  const skipWriteRef = useRef(false)
+  const activeThread = props.threads.sessions.find((t) => t.id === props.activeSessionId) ?? null
+  useEffect(() => {
+    if (!activeThread || pending) return
+    if (loadedRef.current === activeThread.id) return
+    loadedRef.current = activeThread.id
+    skipWriteRef.current = true
+    if (activeThread.messages.length > 0) chat.replaceMessages(activeThread.messages)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeThread?.id, pending])
+  useEffect(() => {
+    if (!props.activeSessionId) return
+    if (loadedRef.current !== props.activeSessionId) return
+    if (skipWriteRef.current) { skipWriteRef.current = false; return }
+    const mine = chat.messages.filter((m) => m.id !== 'intro')
+    if (mine.length === 0) return
+    const t = props.threads.sessions.find((x) => x.id === props.activeSessionId)
+    if (t && t.messages.length === mine.length) return
+    /* 标题：会话还是「未命名对话」时，用首条需求补上（之后不覆盖用户/既有标题） */
+    const firstUser = mine.find((m) => m.role === 'user')
+    const patch: { messages: typeof mine; title?: string } = { messages: mine }
+    if (firstUser && (!t || t.title === '未命名对话')) patch.title = sessionTitle(firstUser.text)
+    props.threads.update(props.activeSessionId, patch)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chat.messages, props.activeSessionId])
+
   /* 工作台对话 tab 的 intro 免责句不属于创作会话，对话视图里滤掉 */
   const messages = useMemo(() => chat.messages.filter((m) => m.id !== 'intro'), [chat.messages])
   const userMessages = useMemo(() => messages.filter((m) => m.role === 'user'), [messages])
@@ -147,6 +189,19 @@ export function Conversation(props: {
   /* 「制作已开始」只认本会话里真的创建过东西（AI 消息带 changes），
      不能拿「左栏选中了某个项目」当依据 —— 那是切换当前项目，不是开始制作 */
   const launched = messages.some((m) => m.role === 'ai' && m.changes && m.changes.length > 0)
+  /* 分组：每个项目一组（含空组，方便把对话拖进去）+ 未分组一组（仅在有孤儿对话时出现）。
+     未分组放最后，符合「先看自己的项目、再看零散对话」的视线顺序。 */
+  const grouped = useMemo(() => {
+    const groups = props.projects.map((p) => ({
+      key: p.id,
+      projectId: p.id,
+      sessions: props.threads.sessions.filter((t) => t.projectId === p.id),
+    }))
+    const orphans = props.threads.sessions.filter((t) => !t.projectId || !props.projects.some((p) => p.id === t.projectId))
+    if (orphans.length > 0) groups.push({ key: UNGROUPED, projectId: UNGROUPED, sessions: orphans })
+    return groups
+  }, [props.projects, props.threads.sessions])
+
   const drawer = narrow && sideExpanded
   const rail = !sideExpanded
 
@@ -204,6 +259,11 @@ export function Conversation(props: {
     }
     setPending(false)
     chat.clearChat()
+    /* 左栏也要真的多一条会话，否则「新对话」只清空了内容、树上什么都没变。
+       归属沿用当前项目（在项目里开新对话，默认还是这个项目的活）；
+       当前没有项目时落未分组，之后可拖过去。 */
+    const t = props.threads.create({ projectId: props.openProject, workdir: null })
+    loadedRef.current = t.id
   }
 
   const onInputKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -251,19 +311,73 @@ export function Conversation(props: {
         </button>
 
         <div className="cv3-side-sec">
-          我的项目<span className="cv3-side-count num">{props.projects.length}</span>
+          项目与对话<span className="cv3-side-count num">{props.projects.length}</span>
         </div>
         <div className="cv3-side-list">
-          {props.projects.length === 0 ? (
-            <p className="cv3-side-hint">还没有项目。</p>
-          ) : props.projects.map((p) => (
-            <button key={p.id} type="button" className="cv3-project"
-                    data-current={p.id === props.openProject || undefined}
-                    onClick={() => props.onSelectProject(p.id)} title={p.name}>
-              <span className="cv3-project-name">{p.name}</span>
-              {p.id === props.openProject && <Check size={13} className="cv3-project-check" aria-label="当前项目" />}
-            </button>
-          ))}
+          {/* 两级：项目（分组）→ 该项目的对话。
+              没有归属的对话落在「未分组」，可拖到任意项目下。 */}
+          {grouped.map((g) => {
+            const isUng = g.projectId === UNGROUPED
+            const proj = isUng ? null : props.projects.find((p) => p.id === g.projectId) ?? null
+            const collapsed = collapsedGroups.has(g.key)
+            return (
+              <div key={g.key} className="cv3-group" data-ungrouped={isUng || undefined}
+                   onDragOver={(e) => {
+                     if (!dragId) return
+                     e.preventDefault()
+                     setDropTarget(g.projectId)
+                   }}
+                   onDragLeave={(e) => {
+                     if (e.currentTarget.contains(e.relatedTarget as Node | null)) return
+                     setDropTarget((t) => (t === g.projectId ? null : t))
+                   }}
+                   onDrop={(e) => {
+                     e.preventDefault()
+                     if (dragId) props.threads.moveTo(dragId, isUng ? null : g.projectId)
+                     setDragId(null)
+                     setDropTarget(null)
+                   }}>
+                <button type="button" className="cv3-group-head"
+                        data-drop={dropTarget === g.projectId || undefined}
+                        onClick={() => {
+                          if (!isUng && proj) props.onSelectProject(proj.id)
+                          setCollapsedGroups((prev) => {
+                            const next = new Set(prev)
+                            if (next.has(g.key)) next.delete(g.key)
+                            else next.add(g.key)
+                            return next
+                          })
+                        }}
+                        title={isUng ? '没有归属项目的对话，可拖到项目下' : proj?.name}>
+                  <ChevronRight size={13} className="cv3-group-caret" data-open={!collapsed || undefined} />
+                  <span className="cv3-group-name">{isUng ? '未分组' : proj?.name ?? '未命名项目'}</span>
+                  <span className="cv3-group-count num">{g.sessions.length}</span>
+                </button>
+                {!collapsed && (
+                  <div className="cv3-group-body">
+                    {g.sessions.length === 0 ? (
+                      <p className="cv3-side-hint">{isUng ? '没有未分组的对话。' : '还没有对话。'}</p>
+                    ) : g.sessions.map((t) => (
+                      <div key={t.id} className="cv3-session"
+                           draggable
+                           data-current={t.id === props.activeSessionId || undefined}
+                           data-dragging={dragId === t.id || undefined}
+                           onDragStart={(e) => { setDragId(t.id); e.dataTransfer.effectAllowed = 'move' }}
+                           onDragEnd={() => { setDragId(null); setDropTarget(null) }}
+                           onClick={() => {
+                             props.threads.setActiveId(t.id)
+                             if (!isUng && proj) props.onSelectProject(proj.id)
+                           }}
+                           title={t.title}>
+                        <span className="cv3-session-name">{t.title}</span>
+                        {t.id === props.activeSessionId && <Check size={12} className="cv3-session-check" aria-label="当前对话" />}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+          })}
         </div>
         <button type="button" className="cv3-side-add" onClick={props.onNewProject}>
           <Plus size={14} />新建项目
