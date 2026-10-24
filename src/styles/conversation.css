@@ -1385,6 +1385,137 @@ html[data-theme="tactile"] #pane-conversation {
   padding: 2px 8px 6px;
 }
 
+/* ── 输入区工具栏（对齐 dsh InputBar：左附件/权限，右模型/发送）── */
+.cv3-leading,
+.cv3-trailing {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+/* 弹层锚点 */
+.cv3-cw {
+  position: relative;
+  flex: none;
+  min-width: 0;
+}
+
+/* 工具条上的胶囊按钮（dsh InputBar 的 chip：28px 高、13/20） */
+.cv3-chip-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  max-width: 100%;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--fm-radius-mark);
+  background: transparent;
+  color: var(--tx3);
+  font: inherit;
+  font-size: 12px;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color .12s, color .12s;
+}
+
+.cv3-chip-btn:hover,
+.cv3-chip-btn[data-on] {
+  background: var(--hover);
+  color: var(--tx1);
+}
+
+.cv3-chip-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 引擎/模型按钮给短名留空间，但别把发送钮挤走 */
+.cv3-model-btn {
+  max-width: 210px;
+}
+
+.cv3-model-btn .cv3-chip-label {
+  font-variant-numeric: tabular-nums;
+}
+
+/* 输入区弹层：向上展开（输入框在底部） */
+.cv3-pop {
+  bottom: calc(100% + 6px);
+  top: auto;
+  left: 0;
+  right: auto;
+}
+
+.cv3-perm-menu,
+.cv3-model-menu {
+  min-width: 208px;
+}
+
+.cv3-menu button[data-disabled] {
+  color: var(--tx3);
+}
+
+.cv3-menu-note {
+  margin: 6px 9px 4px;
+  padding-top: 6px;
+  border-top: 1px solid var(--line);
+  color: var(--tx3);
+  font-size: 11px;
+  line-height: 16px;
+  white-space: normal;
+}
+
+/* 待发送附件行 */
+.cv3-attach-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 2px 8px 0;
+}
+
+.cv3-attach-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 200px;
+  height: 24px;
+  padding: 0 4px 0 7px;
+  border-radius: var(--fm-radius-mark);
+  background: var(--hole);
+  color: var(--tx2);
+  font-size: 11px;
+  line-height: 1;
+}
+
+.cv3-attach-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cv3-attach-chip button {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--tx3);
+  cursor: pointer;
+}
+
+.cv3-attach-chip button:hover {
+  background: var(--hover);
+  color: var(--tx1);
+}
+
 .cv3-tools-left,
 .cv3-trailing {
   display: flex;

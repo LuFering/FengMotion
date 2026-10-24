@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import {
-  Archive, ArchiveRestore, Check, ChevronRight, Ellipsis, ListFilter, LoaderCircle,
-  PanelLeft, Pencil, Pin, PinOff, Plus, Search, Send, Trash2, X,
+  Archive, ArchiveRestore, Check, ChevronRight, Cpu, Ellipsis, FileText, ImageIcon,
+  ListFilter, LoaderCircle, PanelLeft, Pencil, Pin, PinOff, Plus, Search, Send, Shield,
+  ShieldAlert, ShieldCheck, Trash2, X,
 } from 'lucide-react'
+import { HARNESSES, REASONING_LABEL, DEFAULT_PREFS, prefsKey, loadPrefs, savePrefs, type ModelPrefs, type Reasoning } from '../data/harnesses'
 import type { ChatState } from '../shell/useChat'
 import { UNGROUPED, sessionTitle, type SessionsState } from '../shell/useSessions'
 import { workflowService } from '../services/workflowService'
@@ -76,6 +78,13 @@ function usableName(text: string): string {
   const first = text.trim().split('\n')[0] ?? ''
   return first.length >= 2 && !/^[\d\s\p{P}]+$/u.test(first) ? first : ''
 }
+
+/* 权限模式文案（对齐 dsh preset.readOnly / workspaceWrite / fullAccess） */
+const PERM_LABEL = {
+  readOnly: '仅可查看',
+  workspaceWrite: '工作区内修改',
+  fullAccess: '完全权限',
+} as const
 
 /* 相对时间（对齐 dsh time.ago：刚刚 / N分钟 / N小时 / N天 / N个月 / N年） */
 function fmtAgo(t: number): string {
@@ -165,6 +174,19 @@ export function Conversation(props: {
   /* 行内重命名：editing = 正在编辑的 id，editText = 输入值 */
   const [editing, setEditing] = useState<string | null>(null)
   const [editText, setEditText] = useState('')
+
+  /* ── 输入区工具栏（对齐 dsh InputBar：左侧附件/权限，右侧模型/发送）──
+     attachments=待发送附件；permission=权限模式（dsh preset.readOnly/workspaceWrite/fullAccess）；
+     harnessId/model/prefs=引擎与模型配置（与首页共用同一份 data/harnesses）；
+     composerMenu=当前展开的弹层（'add' 附件菜单 / 'perm' 权限 / 'model' 模型） */
+  const [attachments, setAttachments] = useState<{ name: string; size: number; kind: 'file' | 'image' | 'video' }[]>([])
+  const [permission, setPermission] = useState<'readOnly' | 'workspaceWrite' | 'fullAccess'>('workspaceWrite')
+  const [harnessId, setHarnessId] = useState(HARNESSES[0].id)
+  const [model, setModel] = useState(HARNESSES[0].models[0])
+  const [prefs, setPrefs] = useState<Record<string, ModelPrefs>>(loadPrefs)
+  const [composerMenu, setComposerMenu] = useState<null | 'add' | 'perm' | 'model'>(null)
+  const fileRef = useRef<HTMLInputElement>(null)
+  const imageRef = useRef<HTMLInputElement>(null)
   const repliedRef = useRef(new Set<string>())
   const replyTimer = useRef<number | null>(null)
   const aliveRef = useRef(true)
@@ -313,6 +335,36 @@ export function Conversation(props: {
       const el = inputRef.current
       if (el) el.style.height = 'auto'
     })
+  }
+
+  /* ── 输入区派生值 ── */
+  const harness = HARNESSES.find((h) => h.id === harnessId) ?? HARNESSES[0]
+  const prefKey = prefsKey(harnessId, model)
+  const currentPrefs: ModelPrefs = prefs[prefKey] ?? DEFAULT_PREFS
+  const setPref = (patch: Partial<ModelPrefs>) => {
+    setPrefs((all) => {
+      const next = { ...all, [prefKey]: { ...(all[prefKey] ?? DEFAULT_PREFS), ...patch } }
+      savePrefs(next)
+      return next
+    })
+  }
+  /* 未接入的引擎不许发送（与首页同口径），附件/草稿至少有一个才算有内容 */
+  const canSend = !pending && harness.ready && (chat.draft.trim().length > 0 || attachments.length > 0)
+
+  /* 附件：kind 按 MIME 判定；最多 6 个（同首页上限） */
+  const addFiles = (files: File[], forced?: 'file' | 'image' | 'video', done?: () => void) => {
+    if (files.length > 0) {
+      const picked = files.map((f) => ({
+        name: f.name,
+        size: f.size,
+        kind: forced ?? (f.type.startsWith('image/') ? 'image' : f.type.startsWith('video/') ? 'video' : 'file'),
+      }))
+      setAttachments((prev) => [...prev, ...picked].slice(0, 6))
+    }
+    done?.()
+  }
+  const onPickFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
+    addFiles(Array.from(e.target.files ?? []), undefined, () => { e.target.value = '' })
   }
 
   /* 删除项目：会话不跟着删，按 dsh delete.desc 的语义落进「未分组」 */
@@ -653,18 +705,126 @@ export function Conversation(props: {
           <div className="cv3-seat">
             <form className="cv3-compose" onSubmit={(e) => { e.preventDefault(); submit() }}>
               <div className="cv3-card">
+                {/* 待发送附件（对齐 dsh attachment.pending：可逐个移除） */}
+                {attachments.length > 0 && (
+                  <div className="cv3-attach-row">
+                    {attachments.map((a, i) => (
+                      <span key={`${a.name}-${i}`} className="cv3-attach-chip" data-kind={a.kind}>
+                        {a.kind === 'image' ? <ImageIcon size={12} /> : <FileText size={12} />}
+                        <span className="cv3-attach-name">{a.name}</span>
+                        <button type="button" aria-label={`移除文件 ${a.name}`}
+                                onClick={() => setAttachments((l) => l.filter((_, j) => j !== i))}>
+                          <X size={11} />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
                 <textarea className="cv3-input" rows={1} ref={inputRef}
                           value={chat.draft}
                           onChange={(e) => { chat.setDraft(e.target.value); growInput() }}
                           onKeyDown={onInputKeyDown}
                           placeholder="说说你想做的片子，或补充制作要求" />
                 <div className="cv3-row">
+                  {/* 左侧：添加文件 / 权限模式 */}
+                  <div className="cv3-leading">
+                    <div className="cv3-cw">
+                      <button type="button" className="cv3-chip-btn" aria-label="添加文件或调用指令"
+                              title="添加文件或调用指令" aria-expanded={composerMenu === 'add'}
+                              data-on={composerMenu === 'add' || undefined}
+                              onClick={() => { setComposerMenu(composerMenu === 'add' ? null : 'add'); setViewMenu(false); setRowMenu(null) }}>
+                        <Plus size={14} />
+                      </button>
+                      {composerMenu === 'add' && (
+                        <div className="cv3-menu cv3-pop" role="menu">
+                          <button type="button" role="menuitem" onClick={() => { fileRef.current?.click(); setComposerMenu(null) }}>
+                            <FileText size={13} /><span>添加文件</span>
+                          </button>
+                          <button type="button" role="menuitem" onClick={() => { imageRef.current?.click(); setComposerMenu(null) }}>
+                            <ImageIcon size={13} /><span>添加图片</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    <div className="cv3-cw">
+                      <button type="button" className="cv3-chip-btn cv3-perm-btn" aria-label="权限设置"
+                              title="权限设置" aria-expanded={composerMenu === 'perm'}
+                              data-on={composerMenu === 'perm' || undefined}
+                              onClick={() => { setComposerMenu(composerMenu === 'perm' ? null : 'perm'); setViewMenu(false); setRowMenu(null) }}>
+                        {permission === 'readOnly' ? <Shield size={13} />
+                          : permission === 'fullAccess' ? <ShieldAlert size={13} /> : <ShieldCheck size={13} />}
+                        <span className="cv3-chip-label">{PERM_LABEL[permission]}</span>
+                      </button>
+                      {composerMenu === 'perm' && (
+                        <div className="cv3-menu cv3-pop cv3-perm-menu" role="menu">
+                          <div className="cv3-menu-sec">权限模式</div>
+                          {(['readOnly', 'workspaceWrite', 'fullAccess'] as const).map((v) => (
+                            <button key={v} type="button" role="menuitemradio" aria-checked={permission === v}
+                                    onClick={() => { setPermission(v); setComposerMenu(null) }}>
+                              <span>{PERM_LABEL[v]}</span>
+                              {permission === v && <Check size={13} />}
+                            </button>
+                          ))}
+                          <p className="cv3-menu-note">
+                            {permission === 'readOnly' ? '只读取文件，不做任何修改。'
+                              : permission === 'fullAccess' ? '减少确认步骤，可直接执行敏感操作。'
+                                : '只允许修改当前工作目录内的文件。'}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  {/* 右侧：引擎与模型、发送 */}
                   <div className="cv3-trailing">
-                    <button className="cv3-send" type="submit" disabled={!chat.draft.trim() || pending} aria-label="发送">
-                      <Send size={16} />
+                    <div className="cv3-cw">
+                      <button type="button" className="cv3-chip-btn cv3-model-btn" aria-label="选择引擎与模型"
+                              title="选择引擎与模型" aria-expanded={composerMenu === 'model'}
+                              data-on={composerMenu === 'model' || undefined}
+                              onClick={() => { setComposerMenu(composerMenu === 'model' ? null : 'model'); setViewMenu(false); setRowMenu(null) }}>
+                        <Cpu size={13} />
+                        <span className="cv3-chip-label">{harness.short} · {model}</span>
+                      </button>
+                      {composerMenu === 'model' && (
+                        <div className="cv3-menu cv3-pop cv3-model-menu" role="menu">
+                          <div className="cv3-menu-sec">执行引擎</div>
+                          {HARNESSES.map((h) => (
+                            <button key={h.id} type="button" role="menuitemradio" aria-checked={harnessId === h.id}
+                                    data-disabled={!h.ready || undefined}
+                                    onClick={() => {
+                                      setHarnessId(h.id); setModel(h.models[0])
+                                      if (!h.ready) return
+                                    }}>
+                              <span>{h.name}{h.ready ? '' : '（未接入）'}</span>
+                              {harnessId === h.id && <Check size={13} />}
+                            </button>
+                          ))}
+                          <div className="cv3-menu-sec">模型</div>
+                          {harness.models.map((m) => (
+                            <button key={m} type="button" role="menuitemradio" aria-checked={model === m}
+                                    onClick={() => { setModel(m); }}>
+                              <span>{m}</span>{model === m && <Check size={13} />}
+                            </button>
+                          ))}
+                          <div className="cv3-menu-sec">推理等级</div>
+                          {(['off', 'standard', 'enhanced'] as Reasoning[]).map((v) => (
+                            <button key={v} type="button" role="menuitemradio" aria-checked={currentPrefs.reasoning === v}
+                                    onClick={() => setPref({ reasoning: v })}>
+                              <span>{REASONING_LABEL[v]}</span>{currentPrefs.reasoning === v && <Check size={13} />}
+                            </button>
+                          ))}
+                          {!harness.ready && <p className="cv3-menu-note">{harness.name} 未接入：不会真的执行，切回已配置引擎才能发送。</p>}
+                        </div>
+                      )}
+                    </div>
+                    <button className="cv3-send" type="submit" disabled={!canSend} aria-label="发送">
+                      {pending ? <LoaderCircle size={16} className="cv3-spin" /> : <Send size={16} />}
                     </button>
                   </div>
                 </div>
+                {/* 隐藏的文件选择器（对齐 dsh 的 file input：多选） */}
+                <input ref={fileRef} type="file" multiple hidden onChange={onPickFiles} />
+                <input ref={imageRef} type="file" accept="image/*" multiple hidden
+                       onChange={(e) => addFiles(Array.from(e.target.files ?? []), 'image', () => { if (imageRef.current) imageRef.current.value = '' })} />
               </div>
             </form>
             <footer className="cv3-status">

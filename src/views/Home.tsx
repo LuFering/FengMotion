@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ChangeEvent } from 'react'
+import { HARNESSES, DEFAULT_PREFS, prefsKey, loadPrefs, savePrefs, type ModelPrefs } from '@/data/harnesses'
 
 /**
  * 首页 · 第一屏
@@ -130,16 +131,7 @@ function HeroTitle({ copy, cycle }: { copy: HeroCycle; cycle: number }) {
 
 type Attachment = { name: string; size: number; kind: 'file' | 'image' | 'video' }
 
-type Harness = { id: string; name: string; short: string; mark: string; icon: string; color: string; models: string[]; ready: boolean }
-/** 每个模型的本地偏好（演示态只存内存 + localStorage）：思考强度与最大上下文 */
-type ModelPrefs = { reasoning: 'off' | 'standard' | 'enhanced'; context: 32 | 64 | 128 }
 
-/** 执行引擎列表：只有 deepseek 标为已配置，其余如实标注「未接入」 */
-const HARNESSES: Harness[] = [
-  { id: 'deepseek', name: 'DeepSeek Harness', short: 'DeepSeek', mark: 'DS', icon: './assets/brand/deepseek.svg', color: '#4D6BFE', models: ['deepseek-chat', 'deepseek-reasoner', 'deepseek-v4.1-flash'], ready: true },
-  { id: 'claude', name: 'Claude Code', short: 'Claude', mark: 'CC', icon: './assets/brand/claude.svg', color: '#D97757', models: ['claude-sonnet-4', 'claude-opus-4'], ready: false },
-  { id: 'codex', name: 'Codex', short: 'Codex', mark: 'CX', icon: './assets/brand/openai.svg', color: '#10A37F', models: ['gpt-5-codex'], ready: false },
-]
 
 const fmtSize = (bytes: number) =>
   bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)}MB`
@@ -226,18 +218,16 @@ export function Home(props: {
   /* 引擎弹窗两级导航：null=一级引擎列表，'deepseek'…=二级模型列表 */
   const [harnessPane, setHarnessPane] = useState<string | null>(null)
   /* 模型偏好：key = `${harnessId}:${model}`；持久化在 localStorage */
-  const [prefs, setPrefs] = useState<Record<string, ModelPrefs>>(() => {
-    try { const v = JSON.parse(localStorage.getItem('fengmotion:model-prefs') ?? '{}'); return v && typeof v === 'object' ? v : {} } catch { return {} }
-  })
-  const prefKey = `${harnessId}:${model}`
+  const [prefs, setPrefs] = useState<Record<string, ModelPrefs>>(loadPrefs)
+  const prefKey = prefsKey(harnessId, model)
   const setPref = (patch: Partial<ModelPrefs>) => {
     setPrefs((all) => {
       const next = { ...all, [prefKey]: { ...all[prefKey], ...patch } }
-      try { localStorage.setItem('fengmotion:model-prefs', JSON.stringify(next)) } catch { /* 忽略持久化失败 */ }
+      savePrefs(next)
       return next
     })
   }
-  const currentPrefs: ModelPrefs = prefs[prefKey] ?? { reasoning: 'standard', context: 64 }
+  const currentPrefs: ModelPrefs = prefs[prefKey] ?? DEFAULT_PREFS
   const [toast, setToast] = useState('')
   const [phraseIndex, setPhraseIndex] = useState(0)
   const taRef = useRef<HTMLTextAreaElement>(null)
