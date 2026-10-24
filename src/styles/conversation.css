@@ -87,7 +87,9 @@ html[data-theme="tactile"] #pane-conversation {
 }
 
 #pane-conversation {
-  height: 100%;
+  /* 全局没有 html/body/#root 高度链，父级 #app 高度是 auto（仅 body.flowon 时才有高度），
+     百分比高度解析不出来会塌成内容高度（“半面”bug）——pane 必须自撑一屏，同 #pane-home 口径 */
+  height: 100dvh;
   min-height: 0;
   /* 侧栏 position:fixed 不占文档流，各 pane 都要自己让出 68px（同 home-film / technique 口径） */
   margin-left: var(--hm-sidebar, 68px);
