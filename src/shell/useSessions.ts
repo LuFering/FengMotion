@@ -22,6 +22,10 @@ export interface Session {
   workdir: { label: string; path: string } | null
   /** 会话内容 */
   messages: ChatMessage[]
+  /** 置顶：置顶的排在组内最前（同 dsh 的 pinSession） */
+  pinned?: boolean
+  /** 归档：默认不显示，可在视图选项里筛「显示已归档」（同 dsh 的 archiveSession） */
+  archived?: boolean
   createdAt: number
   updatedAt: number
 }
@@ -81,7 +85,25 @@ export function useSessions() {
     setSessions((list) => list.map((s) => (s.id === id ? { ...s, projectId, updatedAt: now() } : s)))
   }, [])
 
-  return { sessions, activeId, setActiveId, create, update, remove, moveTo }
+  /** 重命名会话（空标题回退为「未命名对话」） */
+  const rename = useCallback((id: string, title: string) => {
+    const t = title.trim()
+    if (!t) return
+    setSessions((list) => list.map((s) => (s.id === id ? { ...s, title: t.slice(0, 40) } : s)))
+  }, [])
+
+  /** 置顶 / 取消置顶 */
+  const setPinned = useCallback((id: string, pinned: boolean) => {
+    setSessions((list) => list.map((s) => (s.id === id ? { ...s, pinned } : s)))
+  }, [])
+
+  /** 归档 / 取消归档：归档的会话从默认视图里隐去（不删除） */
+  const setArchived = useCallback((id: string, archived: boolean) => {
+    setSessions((list) => list.map((s) => (s.id === id ? { ...s, archived } : s)))
+    if (archived) setActiveId((cur) => (cur === id ? null : cur))
+  }, [])
+
+  return { sessions, activeId, setActiveId, create, update, remove, moveTo, rename, setPinned, setArchived }
 }
 
 export type SessionsState = ReturnType<typeof useSessions>

@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
-import { Check, ChevronRight, LoaderCircle, PanelLeft, Plus, Send } from 'lucide-react'
+import {
+  Archive, ArchiveRestore, Check, ChevronRight, Ellipsis, ListFilter, LoaderCircle,
+  PanelLeft, Pencil, Pin, PinOff, Plus, Search, Send, Trash2, X,
+} from 'lucide-react'
 import type { ChatState } from '../shell/useChat'
 import { UNGROUPED, sessionTitle, type SessionsState } from '../shell/useSessions'
 import { workflowService } from '../services/workflowService'
@@ -74,6 +77,27 @@ function usableName(text: string): string {
   return first.length >= 2 && !/^[\d\s\p{P}]+$/u.test(first) ? first : ''
 }
 
+/* 相对时间（对齐 dsh time.ago：刚刚 / N分钟 / N小时 / N天 / N个月 / N年） */
+function fmtAgo(t: number): string {
+  const d = Date.now() - t
+  const m = Math.floor(d / 60000)
+  if (m < 1) return '刚刚'
+  if (m < 60) return `${m}分钟前`
+  const h = Math.floor(m / 60)
+  if (h < 24) return `${h}小时前`
+  const day = Math.floor(h / 24)
+  if (day < 30) return `${day}天前`
+  const mo = Math.floor(day / 30)
+  if (mo < 12) return `${mo}个月前`
+  return `${Math.floor(mo / 12)}年前`
+}
+
+/* 绝对时间（对齐 dsh date.ymd / hover.created 的「创建于」） */
+function fmtWhen(t: number): string {
+  const d = new Date(t)
+  return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`
+}
+
 /* 富文本小渲染：段落 + 数字编号列表 + 行内 `代码` 与 **加粗**（只渲染文本自带的结构，不编造内容） */
 function renderInline(line: string, keyPrefix: string): ReactNode {
   return line.split(/(`[^`]+`|\*\*[^*]+\*\*)/g).map((p, i) => {
@@ -115,6 +139,8 @@ export function Conversation(props: {
   threads: SessionsState
   /** 当前会话 id；null = 还没有会话（从空白进入） */
   activeSessionId: string | null
+  /** 删除项目（会话会先落回未分组，由本视图负责搬迁） */
+  onDeleteProject?: (projectId: string) => void
 }) {
   const { chat } = props
   const [proPath, setProPath] = useState<WfPath>('prompt-first')
@@ -126,6 +152,19 @@ export function Conversation(props: {
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(() => new Set())
   const [dragId, setDragId] = useState<string | null>(null)
   const [dropTarget, setDropTarget] = useState<string | null>(null)
+  /* ── 左栏视图选项（对齐 dsh 的 viewOptions / groupBy / orderBy / filterBy）──
+     query=搜索会话名称；groupMode=按项目/单列表；orderMode=最近更新/手动；
+     archiveFilter=隐藏已归档/全部/仅已归档 */
+  const [query, setQuery] = useState('')
+  const [groupMode, setGroupMode] = useState<'project' | 'flat'>('project')
+  const [orderMode, setOrderMode] = useState<'updated' | 'manual'>('updated')
+  const [archiveFilter, setArchiveFilter] = useState<'hide' | 'show' | 'only'>('hide')
+  const [viewMenu, setViewMenu] = useState(false)
+  /* 每行的「更多」菜单：记录当前展开的是哪个 id（项目/会话共用一套浮层） */
+  const [rowMenu, setRowMenu] = useState<string | null>(null)
+  /* 行内重命名：editing = 正在编辑的 id，editText = 输入值 */
+  const [editing, setEditing] = useState<string | null>(null)
+  const [editText, setEditText] = useState('')
   const repliedRef = useRef(new Set<string>())
   const replyTimer = useRef<number | null>(null)
   const aliveRef = useRef(true)
@@ -189,18 +228,43 @@ export function Conversation(props: {
   /* 「制作已开始」只认本会话里真的创建过东西（AI 消息带 changes），
      不能拿「左栏选中了某个项目」当依据 —— 那是切换当前项目，不是开始制作 */
   const launched = messages.some((m) => m.role === 'ai' && m.changes && m.changes.length > 0)
-  /* 分组：每个项目一组（含空组，方便把对话拖进去）+ 未分组一组（仅在有孤儿对话时出现）。
-     未分组放最后，符合「先看自己的项目、再看零散对话」的视线顺序。 */
+  /* ── 左栏数据管线（对齐 dsh：筛选 → 搜索 → 排序 → 分组）──
+     1. archiveFilter：隐藏已归档（默认）/ 全部 / 仅已归档
+     2. query：按会话名称过滤（大小写不敏感）
+     3. orderMode：最近更新 / 手动（手动=用户拖拽后的既有顺序）
+        置顶的永远在最前（dsh pinSession 语义）
+     4. groupMode：按项目两级 / 单列表 */
+  const visibleSessions = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    return props.threads.sessions
+      .filter((t) => {
+        if (archiveFilter === 'hide' && t.archived) return false
+        if (archiveFilter === 'only' && !t.archived) return false
+        if (q && !t.title.toLowerCase().includes(q)) return false
+        return true
+      })
+      .sort((a, b) => {
+        if (!!b.pinned !== !!a.pinned) return a.pinned ? -1 : 1
+        if (orderMode === 'updated') return b.updatedAt - a.updatedAt
+        return 0
+      })
+  }, [props.threads.sessions, archiveFilter, query, orderMode])
+
   const grouped = useMemo(() => {
+    if (groupMode === 'flat') {
+      return [{ key: 'flat', projectId: UNGROUPED, sessions: visibleSessions }]
+    }
     const groups = props.projects.map((p) => ({
       key: p.id,
       projectId: p.id,
-      sessions: props.threads.sessions.filter((t) => t.projectId === p.id),
+      sessions: visibleSessions.filter((t) => t.projectId === p.id),
     }))
-    const orphans = props.threads.sessions.filter((t) => !t.projectId || !props.projects.some((p) => p.id === t.projectId))
+    const orphans = visibleSessions.filter((t) => !t.projectId || !props.projects.some((p) => p.id === t.projectId))
     if (orphans.length > 0) groups.push({ key: UNGROUPED, projectId: UNGROUPED, sessions: orphans })
     return groups
-  }, [props.projects, props.threads.sessions])
+  }, [props.projects, visibleSessions, groupMode])
+
+  const noMatches = visibleSessions.length === 0
 
   const drawer = narrow && sideExpanded
   const rail = !sideExpanded
@@ -249,6 +313,12 @@ export function Conversation(props: {
       const el = inputRef.current
       if (el) el.style.height = 'auto'
     })
+  }
+
+  /* 删除项目：会话不跟着删，按 dsh delete.desc 的语义落进「未分组」 */
+  const onDeleteProject = (projectId: string) => {
+    props.threads.sessions.filter((t) => t.projectId === projectId).forEach((t) => props.threads.moveTo(t.id, null))
+    props.onDeleteProject?.(projectId)
   }
 
   const newSession = () => {
@@ -303,26 +373,71 @@ export function Conversation(props: {
       {/* 收起时整块不渲染：不留 56px 竖条（那是 dsh 的「图标轨」，本产品收起后
           左栏里没有任何还需要常驻的图标，留一条空轨道只是视觉噪音）。 */}
       {!rail && <aside className="cv3-side" data-drawer={drawer || undefined} aria-label="项目与对话">
-        {/* 收起/展开按钮只留顶栏那一个（原来左栏里还有一个，并排出现两个同样的按钮）。
-            收起后左栏整块不渲染，所以这里不需要自己的开关。 */}
-        <button type="button" className="cv3-new" onClick={newSession} title="清空当前对话">
-          <Plus size={15} /><span className="cv3-new-label">新对话</span>
-        </button>
-
-        <div className="cv3-side-sec">
-          项目与对话<span className="cv3-side-count num">{props.projects.length}</span>
+        <div className="cv3-side-top">
+          <button type="button" className="cv3-new" onClick={newSession} title="新建对话">
+            <Plus size={15} /><span className="cv3-new-label">新对话</span>
+          </button>
+          {/* 视图选项（对齐 dsh viewOptions：分组方式 / 排序方式 / 归档筛选） */}
+          <div className="cv3-viewwrap">
+            <button type="button" className="cv3-icon-btn" aria-label="视图选项" title="视图选项"
+                    aria-expanded={viewMenu} data-on={viewMenu || undefined}
+                    onClick={() => { setViewMenu((o) => !o); setRowMenu(null) }}>
+              <ListFilter size={15} />
+            </button>
+            {viewMenu && (
+              <div className="cv3-menu cv3-viewmenu" role="menu">
+                <div className="cv3-menu-sec">分组方式</div>
+                <button type="button" role="menuitemradio" aria-checked={groupMode === 'project'}
+                        onClick={() => { setGroupMode('project'); setViewMenu(false) }}>
+                  <span>按项目</span>{groupMode === 'project' && <Check size={13} />}
+                </button>
+                <button type="button" role="menuitemradio" aria-checked={groupMode === 'flat'}
+                        onClick={() => { setGroupMode('flat'); setViewMenu(false) }}>
+                  <span>单列表</span>{groupMode === 'flat' && <Check size={13} />}
+                </button>
+                <div className="cv3-menu-sec">排序方式</div>
+                <button type="button" role="menuitemradio" aria-checked={orderMode === 'updated'}
+                        onClick={() => { setOrderMode('updated'); setViewMenu(false) }}>
+                  <span>最近更新</span>{orderMode === 'updated' && <Check size={13} />}
+                </button>
+                <button type="button" role="menuitemradio" aria-checked={orderMode === 'manual'}
+                        onClick={() => { setOrderMode('manual'); setViewMenu(false) }}>
+                  <span>手动排序</span>{orderMode === 'manual' && <Check size={13} />}
+                </button>
+                <div className="cv3-menu-sec">筛选会话</div>
+                {([['hide', '隐藏已归档'], ['show', '全部对话（显示已归档）'], ['only', '仅显示已归档']] as const).map(([v, label]) => (
+                  <button key={v} type="button" role="menuitemradio" aria-checked={archiveFilter === v}
+                          onClick={() => { setArchiveFilter(v); setViewMenu(false) }}>
+                    <span>{label}</span>{archiveFilter === v && <Check size={13} />}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
+
+        {/* 搜索会话（对齐 dsh search.placeholder / search.noMatches） */}
+        <label className="cv3-search">
+          <Search size={13} aria-hidden="true" />
+          <input value={query} onChange={(e) => setQuery(e.target.value)}
+                 placeholder="搜索对话名称" aria-label="搜索对话" />
+          {query && (
+            <button type="button" aria-label="清除搜索" onClick={() => setQuery('')}><X size={12} /></button>
+          )}
+        </label>
+
         <div className="cv3-side-list">
-          {/* 两级：项目（分组）→ 该项目的对话。
-              没有归属的对话落在「未分组」，可拖到任意项目下。 */}
-          {grouped.map((g) => {
+          {grouped.length === 0 || noMatches ? (
+            <p className="cv3-side-hint">{query.trim() ? '无匹配结果' : '暂无会话'}</p>
+          ) : grouped.map((g) => {
             const isUng = g.projectId === UNGROUPED
-            const proj = isUng ? null : props.projects.find((p) => p.id === g.projectId) ?? null
+            const flat = g.key === 'flat'
+            const proj = isUng || flat ? null : props.projects.find((p) => p.id === g.projectId) ?? null
             const collapsed = collapsedGroups.has(g.key)
             return (
-              <div key={g.key} className="cv3-group" data-ungrouped={isUng || undefined}
+              <div key={g.key} className="cv3-group" data-ungrouped={isUng && !flat || undefined}
                    onDragOver={(e) => {
-                     if (!dragId) return
+                     if (!dragId || flat) return
                      e.preventDefault()
                      setDropTarget(g.projectId)
                    }}
@@ -332,44 +447,117 @@ export function Conversation(props: {
                    }}
                    onDrop={(e) => {
                      e.preventDefault()
-                     if (dragId) props.threads.moveTo(dragId, isUng ? null : g.projectId)
+                     if (dragId && !flat) props.threads.moveTo(dragId, isUng ? null : g.projectId)
                      setDragId(null)
                      setDropTarget(null)
                    }}>
-                <button type="button" className="cv3-group-head"
-                        data-drop={dropTarget === g.projectId || undefined}
-                        onClick={() => {
-                          if (!isUng && proj) props.onSelectProject(proj.id)
-                          setCollapsedGroups((prev) => {
-                            const next = new Set(prev)
-                            if (next.has(g.key)) next.delete(g.key)
-                            else next.add(g.key)
-                            return next
-                          })
-                        }}
-                        title={isUng ? '没有归属项目的对话，可拖到项目下' : proj?.name}>
-                  <ChevronRight size={13} className="cv3-group-caret" data-open={!collapsed || undefined} />
-                  <span className="cv3-group-name">{isUng ? '未分组' : proj?.name ?? '未命名项目'}</span>
-                  <span className="cv3-group-count num">{g.sessions.length}</span>
-                </button>
+                {!flat && (
+                  <div className="cv3-group-row">
+                    <button type="button" className="cv3-group-head"
+                            data-drop={dropTarget === g.projectId || undefined}
+                            onClick={() => setCollapsedGroups((prev) => {
+                              const next = new Set(prev)
+                              if (next.has(g.key)) next.delete(g.key)
+                              else next.add(g.key)
+                              return next
+                            })}
+                            title={isUng ? '没有归属项目的对话，可拖到项目下' : proj?.name}>
+                      <ChevronRight size={13} className="cv3-group-caret" data-open={!collapsed || undefined} />
+                      <span className="cv3-group-name">{isUng ? '未分组' : proj?.name ?? '未命名项目'}</span>
+                      <span className="cv3-group-count num">{g.sessions.length}</span>
+                    </button>
+                    {!isUng && proj && (
+                      <div className="cv3-rowmenu-wrap">
+                        <button type="button" className="cv3-row-more" aria-label={`${proj.name} 的操作`}
+                                aria-expanded={rowMenu === proj.id}
+                                onClick={(e) => { e.stopPropagation(); setRowMenu(rowMenu === proj.id ? null : proj.id); setViewMenu(false) }}>
+                          <Ellipsis size={14} />
+                        </button>
+                        {rowMenu === proj.id && (
+                          <div className="cv3-menu cv3-rowmenu" role="menu">
+                            <button type="button" role="menuitem"
+                                    onClick={() => { props.onSelectProject(proj.id); setRowMenu(null) }}>
+                              <PanelLeft size={13} /><span>打开项目</span>
+                            </button>
+                            <button type="button" role="menuitem"
+                                    onClick={() => { setEditing(proj.id); setEditText(proj.name); setRowMenu(null) }}>
+                              <Pencil size={13} /><span>重命名项目</span>
+                            </button>
+                            <button type="button" role="menuitem" data-danger
+                                    onClick={() => { setRowMenu(null); onDeleteProject(proj.id) }}>
+                              <Trash2 size={13} /><span>删除项目</span>
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
                 {!collapsed && (
                   <div className="cv3-group-body">
                     {g.sessions.length === 0 ? (
-                      <p className="cv3-side-hint">{isUng ? '没有未分组的对话。' : '还没有对话。'}</p>
+                      <p className="cv3-side-hint">{flat ? '暂无会话' : isUng ? '没有未分组的对话。' : '还没有对话。'}</p>
                     ) : g.sessions.map((t) => (
                       <div key={t.id} className="cv3-session"
                            draggable
                            data-current={t.id === props.activeSessionId || undefined}
                            data-dragging={dragId === t.id || undefined}
+                           data-archived={t.archived || undefined}
                            onDragStart={(e) => { setDragId(t.id); e.dataTransfer.effectAllowed = 'move' }}
                            onDragEnd={() => { setDragId(null); setDropTarget(null) }}
                            onClick={() => {
+                             if (editing === t.id) return
                              props.threads.setActiveId(t.id)
-                             if (!isUng && proj) props.onSelectProject(proj.id)
+                             if (!isUng && !flat && proj) props.onSelectProject(proj.id)
                            }}
-                           title={t.title}>
-                        <span className="cv3-session-name">{t.title}</span>
-                        {t.id === props.activeSessionId && <Check size={12} className="cv3-session-check" aria-label="当前对话" />}
+                           title={`${t.title} · 创建于 ${fmtWhen(t.createdAt)}`}>
+                        {editing === t.id ? (
+                          <input className="cv3-session-edit" autoFocus value={editText}
+                                 onChange={(e) => setEditText(e.target.value)}
+                                 onBlur={() => { props.threads.rename(t.id, editText); setEditing(null) }}
+                                 onKeyDown={(e) => {
+                                   if (e.key === 'Enter') { props.threads.rename(t.id, editText); setEditing(null) }
+                                   if (e.key === 'Escape') setEditing(null)
+                                 }}
+                                 onClick={(e) => e.stopPropagation()} />
+                        ) : (
+                          <>
+                            {t.pinned && <Pin size={11} className="cv3-session-pin" aria-label="已置顶" />}
+                            <span className="cv3-session-name">{t.title}</span>
+                            {t.archived
+                              ? <span className="cv3-session-flag">已归档</span>
+                              : <span className="cv3-session-time num">{fmtAgo(t.updatedAt)}</span>}
+                          </>
+                        )}
+                        <div className="cv3-rowmenu-wrap">
+                          <button type="button" className="cv3-row-more" aria-label={`${t.title} 的操作`}
+                                  aria-expanded={rowMenu === t.id}
+                                  onClick={(e) => { e.stopPropagation(); setRowMenu(rowMenu === t.id ? null : t.id); setViewMenu(false) }}>
+                            <Ellipsis size={13} />
+                          </button>
+                          {rowMenu === t.id && (
+                            <div className="cv3-menu cv3-rowmenu" role="menu">
+                              <button type="button" role="menuitem"
+                                      onClick={() => { setEditing(t.id); setEditText(t.title); setRowMenu(null) }}>
+                                <Pencil size={13} /><span>重命名</span>
+                              </button>
+                              <button type="button" role="menuitem"
+                                      onClick={() => { props.threads.setPinned(t.id, !t.pinned); setRowMenu(null) }}>
+                                {t.pinned ? <PinOff size={13} /> : <Pin size={13} />}
+                                <span>{t.pinned ? '取消置顶' : '置顶会话'}</span>
+                              </button>
+                              <button type="button" role="menuitem"
+                                      onClick={() => { props.threads.setArchived(t.id, !t.archived); setRowMenu(null) }}>
+                                {t.archived ? <ArchiveRestore size={13} /> : <Archive size={13} />}
+                                <span>{t.archived ? '取消归档' : '归档会话'}</span>
+                              </button>
+                              <button type="button" role="menuitem" data-danger
+                                      onClick={() => { props.threads.remove(t.id); setRowMenu(null) }}>
+                                <Trash2 size={13} /><span>删除会话</span>
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>
