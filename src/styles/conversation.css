@@ -84,7 +84,10 @@
 html[data-theme="light"] #pane-conversation {
   --panel: var(--hole);
   --panel2: var(--surf);
-  --line2: var(--line);
+  /* ⚠️ 必须显式覆盖 --line：不覆盖就继承暗色块的 rgba(255,255,255,.06)，
+     白线在浅底上等于没有边线（实测按钮/卡片描边全消失）。 */
+  --line: rgba(25, 25, 50, .06);
+  --line2: #cdcdd6;
   --hover: rgba(38, 49, 72, .06);
   --tx1: var(--fg);
   --tx2: var(--dim);
@@ -898,16 +901,43 @@ html[data-theme="tactile"] #pane-conversation {
   cursor: pointer;
 }
 
+/* 主/次按钮 —— 补齐工作台 .mini / .mini-strong 的悬停与禁用态 */
 .cv3-primary {
   border: 1px solid var(--acc);
   background: var(--acc);
   color: var(--on-accent, #fff);
+  transition: background-color .14s, border-color .14s, color .14s, transform .14s;
+}
+
+.cv3-primary:hover:not(:disabled) {
+  background: var(--acc-d);
+  border-color: var(--acc-d);
+  transform: translateY(-1px);
+}
+
+/* 禁用：收起填充（同 .mini-strong:disabled），不要用半透明 */
+.cv3-primary:disabled {
+  background: var(--hole);
+  border-color: var(--line);
+  color: var(--ph);
+  cursor: default;
 }
 
 .cv3-secondary {
   border: 1px solid var(--line2);
-  background: transparent;
+  background: var(--surf);
   color: var(--tx1);
+  transition: color .14s, background-color .14s, border-color .14s;
+}
+
+.cv3-secondary:hover:not(:disabled) {
+  color: var(--acc-d);
+  border-color: var(--acc);
+}
+
+.cv3-secondary:disabled {
+  color: var(--ph);
+  cursor: default;
 }
 
 .cv3-pending {
@@ -1168,23 +1198,36 @@ html[data-theme="tactile"] #pane-conversation {
 }
 
 /* 发送钮（dsh InputBar primary：34px 圆、品牌蓝底白字，空态 0.4） */
+/* 发送钮 —— 对齐工作台主按钮 .mini-strong（workbench.css:310）：
+   胶囊 + --acc 底 + --on-accent 字；悬停变 --acc-d 并上移 1px。
+   ⚠️ 禁用态不能用 opacity 压半透明：半透明黄/蓝会读成「能按但坏了」，
+      工作台的做法是**收起填充**（--hole 底 + --line 描边 + --ph 字），
+      明确表示「还不能按」。 */
 .cv3-send {
   display: grid;
   flex: none;
   place-items: center;
   width: 34px;
   height: 34px;
-  border: 0;
+  border: 1px solid var(--acc);
   border-radius: 999px;
   background: var(--acc);
   color: var(--on-accent, #fff);
   cursor: pointer;
   transform: translateY(-2px);
-  transition: background-color 100ms cubic-bezier(0.4, 0, 0.2, 1);
+  transition: background-color .14s, border-color .14s, color .14s, transform .14s;
+}
+
+.cv3-send:hover:not(:disabled) {
+  background: var(--acc-d);
+  border-color: var(--acc-d);
+  transform: translateY(-3px);
 }
 
 .cv3-send:disabled {
-  opacity: 0.4;
+  background: var(--hole);
+  border-color: var(--line);
+  color: var(--ph);
   cursor: default;
 }
 
