@@ -37,6 +37,7 @@ function Chars({ text, cls, start }: { text: string; cls: string; start: number 
 export function Home(props: { onStart?: (draft: string) => void }) {
   const [ready, setReady] = useState(false)
   const [draft, setDraft] = useState('')
+  const [sending, setSending] = useState(false)
   const [workdirOpen, setWorkdirOpen] = useState(false)
   const [workdir, setWorkdir] = useState('~/workspace/fengmotion')
   const [phraseIndex, setPhraseIndex] = useState(0)
@@ -184,10 +185,19 @@ export function Home(props: { onStart?: (draft: string) => void }) {
                 <span className="hf-spacer" />
                 <span className="hf-count">{draft.length || ''}</span>
                 <span className="hf-model"><i />deepseek-chat</span>
-                <button className="hf-send" type="button" disabled={!draft.trim()}
-                        onClick={() => { if (draft.trim()) props.onStart?.(draft) }}
-                        title={draft.trim() ? '开始制作' : '发送'} aria-label="发送">
-                  <svg viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7" /></svg>
+                <button className="hf-send" type="button" disabled={!draft.trim() || sending}
+                        onClick={() => { 
+                          if (draft.trim()) {
+                            setSending(true)
+                            props.onStart?.(draft)
+                          }
+                        }}
+                        title={sending ? '正在创建任务...' : draft.trim() ? '开始制作' : '发送'} aria-label="发送">
+                  {sending ? (
+                    <svg viewBox="0 0 24 24" className="hf-spinner"><path d="M12 3a9 9 0 1 0 9 9h-2.5a6.5 6.5 0 1 1-6.5-6.5V3z" /></svg>
+                  ) : (
+                    <svg viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7" /></svg>
+                  )}
                 </button>
               </div>
             </div>

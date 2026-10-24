@@ -294,6 +294,9 @@ html[data-theme="tactile"] .hf-page {
 .hf-send:hover:not(:disabled) svg { transform: translateY(-1.5px); }
 .hf-send:active:not(:disabled) { transform: scale(.93); }
 .hf-send:disabled { opacity: .32; cursor: default; }
+/* 发送中 spinner */
+.hf-send .hf-spinner { animation: hf-spin 1s linear infinite; }
+@keyframes hf-spin { to { transform: rotate(360deg); } }
 .hf-sample-hint { margin-top: 13px; text-align: center; color: var(--hf-tx3); font: 12px var(--hf-sans); }
 .hf-sample-hint b { color: var(--hf-tx2); font-weight: 600; }
 
