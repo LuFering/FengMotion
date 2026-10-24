@@ -5,6 +5,8 @@ export interface ChatMessage {
   role: 'user' | 'ai'
   text: string
   taskId?: string
+  /** 消息时间（对话视图轨迹 tab 用；工作台对话 tab 只渲染 text，本字段对它无影响） */
+  at?: number
   /** 对话视图的演示附加块（工作台对话 tab 只渲染 text，本字段对它无影响） */
   thinking?: string
   toolCalls?: { label: string; detail: string }[]
@@ -26,13 +28,18 @@ export function useChat() {
   const [messages, setMessages] = useState(INITIAL_MESSAGES)
   const [draft, setDraft] = useState('')
   const addUserMessage = (text: string, taskId?: string) => {
-    setMessages((items) => [...items, { id: makeId(), role: 'user', text, taskId }])
+    setMessages((items) => [...items, { id: makeId(), role: 'user', text, taskId, at: Date.now() }])
   }
   /* 对话视图的演示 agent 回复（原型：本地生成，未连接 Agent） */
   const addAiMessage = (m: { text: string; thinking?: string; toolCalls?: { label: string; detail: string }[]; plan?: string[] }) => {
-    setMessages((items) => [...items, { id: makeId(), role: 'ai', ...m }])
+    setMessages((items) => [...items, { id: makeId(), role: 'ai', at: Date.now(), ...m }])
   }
-  return { messages, draft, setDraft, addUserMessage, addAiMessage }
+  /* 开新会话：回到初始状态（保留工作台对话 tab 的 intro 免责句，不动任何持久化数据） */
+  const clearChat = () => {
+    setMessages(INITIAL_MESSAGES)
+    setDraft('')
+  }
+  return { messages, draft, setDraft, addUserMessage, addAiMessage, clearChat }
 }
 
 export type ChatState = ReturnType<typeof useChat>

@@ -1,5 +1,6 @@
-/* 项目 agent 对话视图（原型）——只用三主题共有的 token，不自带色板。
-   布局：顶栏 + 消息流 + 底栏输入；消息列居中收窄，窄屏放开。 */
+/* 项目 agent 对话视图（完整常驻界面，第二版）——只用三主题共有的 token，不自带色板。
+   布局（抄 dsh Web UI 的交互结构）：内侧会话栏 + 主列（顶栏 / 消息流·轨迹 / 输入框 / 状态条）。
+   窄屏：会话栏收为覆盖式抽屉，不挤压主列；主列 min-width:0，禁止内部横向溢出。 */
 #pane-conversation {
   height: 100%;
   min-height: 0;
@@ -7,46 +8,163 @@
   margin-left: var(--hm-sidebar, 68px);
 }
 
-.cv {
+.cv2 {
+  position: relative;
   display: flex;
-  flex-direction: column;
   height: 100%;
   min-height: 0;
+  overflow: hidden;
   background: var(--panel);
   color: var(--tx1);
 }
 
-.cv-head {
+/* ---- 内侧会话栏 ---- */
+.cv2-side {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  width: 240px;
+  min-height: 0;
+  padding: 14px 12px;
+  border-right: 1px solid var(--line);
+  background: var(--panel2);
+}
+
+.cv2-new {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
+  gap: 6px;
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--line2);
+  border-radius: 10px;
+  background: var(--panel);
+  color: var(--tx1);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.cv2-side-sec {
+  margin: 18px 4px 8px;
+  font-size: 11.5px;
+  color: var(--tx3);
+}
+
+.cv2-session {
+  padding: 9px 10px;
+  border: 1px solid var(--line2);
+  border-radius: 10px;
+  background: var(--panel);
+}
+
+.cv2-session b {
+  display: block;
+  overflow: hidden;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cv2-session span {
+  display: block;
+  margin-top: 3px;
+  font-size: 11.5px;
+  color: var(--tx3);
+}
+
+.cv2-side-hint {
+  margin: 0 4px;
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--tx3);
+}
+
+.cv2-side-note {
+  margin: auto 4px 0;
+  font-size: 11.5px;
+  line-height: 1.7;
+  color: var(--tx3);
+}
+
+.cv2-backdrop {
+  display: none;
+}
+
+/* ---- 主列 ---- */
+.cv2-main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.cv2-top {
+  display: flex;
   flex: none;
-  padding: 14px 24px;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
   border-bottom: 1px solid var(--line);
 }
 
-.cv-head-main {
+.cv2-menu {
+  display: inline-flex;
+  flex: none;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--tx2);
+  cursor: pointer;
+}
+
+.cv2-top-title {
   display: flex;
+  flex: 1 1 auto;
   align-items: baseline;
-  gap: 12px;
+  gap: 10px;
   min-width: 0;
 }
 
-.cv-title {
-  font-size: 16px;
-  white-space: nowrap;
+.cv2-top-title b {
   overflow: hidden;
+  font-size: 15px;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.cv-demo {
+.cv2-demo {
+  flex: none;
   font-size: 11.5px;
   color: var(--tx3);
   white-space: nowrap;
 }
 
-.cv-switch {
+.cv2-tabs {
+  display: flex;
+  flex: none;
+  gap: 16px;
+}
+
+.cv2-tabs button {
+  padding: 6px 2px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--tx2);
+  font-size: 13.5px;
+  cursor: pointer;
+}
+
+.cv2-tabs button[aria-selected="true"] {
+  border-bottom-color: var(--acc);
+  color: var(--tx1);
+  font-weight: 600;
+}
+
+.cv2-switch {
   display: flex;
   flex: none;
   gap: 4px;
@@ -56,7 +174,7 @@
   background: var(--panel2);
 }
 
-.cv-switch button {
+.cv2-switch button {
   padding: 5px 14px;
   border: 0;
   border-radius: 999px;
@@ -66,53 +184,37 @@
   cursor: pointer;
 }
 
-.cv-switch button[data-on] {
+.cv2-switch button[data-on] {
   background: var(--acc);
   color: #fff;
 }
 
-.cv-switch button:disabled {
+.cv2-switch button:disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }
 
-.cv-launched {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex: none;
-  padding: 10px 24px;
-  border-bottom: 1px solid var(--line);
-  font-size: 12.5px;
-  color: var(--tx2);
-}
-
-.cv-launched button {
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--acc);
-  font-size: 12.5px;
-  cursor: pointer;
-}
-
-.cv-stream {
+/* ---- 消息流 / 轨迹 ---- */
+.cv2-stream,
+.cv2-trace {
   flex: 1;
+  min-width: 0;
   min-height: 0;
   overflow-y: auto;
   scrollbar-width: thin;
 }
 
-.cv-col {
+.cv2-col {
   display: flex;
   flex-direction: column;
   gap: 22px;
   max-width: 780px;
+  min-width: 0;
   margin: 0 auto;
   padding: 28px 24px 32px;
 }
 
-.cv-user {
+.cv2-user {
   align-self: flex-end;
   max-width: 85%;
   margin: 0;
@@ -123,23 +225,24 @@
   font-size: 14.5px;
   line-height: 1.7;
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
-.cv-ai-block {
+.cv2-ai-block {
   display: flex;
   flex-direction: column;
   gap: 10px;
   min-width: 0;
 }
 
-.cv-ai {
+.cv2-ai {
   display: flex;
   gap: 10px;
   align-items: flex-start;
   min-width: 0;
 }
 
-.cv-avatar {
+.cv2-avatar {
   flex: none;
   width: 28px;
   height: 28px;
@@ -151,7 +254,40 @@
   text-align: center;
 }
 
-.cv-ai > p {
+.cv2-rich {
+  min-width: 0;
+  font-size: 14.5px;
+  line-height: 1.75;
+  color: var(--tx2);
+}
+
+.cv2-rich p {
+  margin: 0 0 10px;
+  overflow-wrap: anywhere;
+}
+
+.cv2-rich p:last-child {
+  margin-bottom: 0;
+}
+
+.cv2-rich ol {
+  margin: 8px 0 10px;
+  padding-left: 20px;
+  line-height: 1.8;
+  /* Tailwind preflight 会清掉 ol 的 marker，这里显式要回编号 */
+  list-style: decimal;
+}
+
+.cv2-rich code {
+  padding: 1px 6px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel2);
+  font-size: 12.5px;
+  color: var(--tx1);
+}
+
+.cv2-ai > p {
   margin: 0;
   font-size: 14.5px;
   line-height: 1.75;
@@ -159,22 +295,22 @@
   white-space: pre-wrap;
 }
 
-.cv-pending {
+.cv2-pending {
   display: flex;
   align-items: center;
   gap: 6px;
   color: var(--tx3);
 }
 
-.cv-spin {
-  animation: cv-spin 1s linear infinite;
+.cv2-spin {
+  animation: cv2-spin 1s linear infinite;
 }
 
-@keyframes cv-spin {
+@keyframes cv2-spin {
   to { transform: rotate(360deg); }
 }
 
-.cv-think {
+.cv2-think {
   margin-left: 38px;
   padding: 10px 12px;
   border: 1px solid var(--line);
@@ -185,24 +321,24 @@
   color: var(--tx3);
 }
 
-.cv-think summary {
+.cv2-think summary {
   cursor: pointer;
   color: var(--tx2);
 }
 
-.cv-think p {
+.cv2-think p {
   margin: 8px 0 0;
   white-space: pre-wrap;
 }
 
-.cv-tools {
+.cv2-tools {
   display: flex;
   flex-direction: column;
   gap: 6px;
   margin-left: 38px;
 }
 
-.cv-tool {
+.cv2-tool {
   display: flex;
   align-items: baseline;
   gap: 8px;
@@ -210,7 +346,7 @@
   line-height: 1.7;
 }
 
-.cv-tool-dot {
+.cv2-tool-dot {
   flex: none;
   width: 6px;
   height: 6px;
@@ -219,17 +355,18 @@
   transform: translateY(-1px);
 }
 
-.cv-tool b {
+.cv2-tool b {
   flex: none;
   color: var(--tx2);
   font-weight: 600;
 }
 
-.cv-tool span {
+.cv2-tool span {
   color: var(--tx3);
+  overflow-wrap: anywhere;
 }
 
-.cv-plan {
+.cv2-plan {
   margin-left: 38px;
   padding: 14px 16px;
   border: 1px solid var(--line);
@@ -237,19 +374,20 @@
   background: var(--panel2);
 }
 
-.cv-plan-title {
+.cv2-plan-title {
   font-size: 13.5px;
 }
 
-.cv-plan ol {
+.cv2-plan ol {
   margin: 10px 0 0;
   padding-left: 20px;
   font-size: 13.5px;
   line-height: 1.8;
   color: var(--tx2);
+  list-style: decimal;
 }
 
-.cv-plan-path {
+.cv2-plan-path {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -258,67 +396,115 @@
   color: var(--tx3);
 }
 
-.cv-plan-actions {
+.cv2-plan-actions {
   display: flex;
   gap: 8px;
   margin-top: 12px;
   flex-wrap: wrap;
 }
 
-.cv-primary,
-.cv-secondary {
+.cv2-primary,
+.cv2-secondary {
   padding: 8px 16px;
   border-radius: 999px;
   font-size: 13px;
   cursor: pointer;
 }
 
-.cv-primary {
+.cv2-primary {
   border: 1px solid var(--acc);
   background: var(--acc);
   color: #fff;
 }
 
-.cv-secondary {
+.cv2-secondary {
   border: 1px solid var(--line2);
   background: transparent;
   color: var(--tx1);
 }
 
-.cv-startrow {
+/* 轨迹时间线：时间 | 圆点 | 内容，只列本会话真实事件 */
+.cv2-timeline {
   display: flex;
-  align-items: center;
-  gap: 10px;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cv2-tl {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.cv2-tl-time {
   flex: none;
-  padding: 10px 24px;
-  border-top: 1px solid var(--line);
-  font-size: 12.5px;
-  color: var(--tx2);
+  width: 44px;
+  font-size: 12px;
+  color: var(--tx3);
 }
 
-.cv-startrow button {
-  padding: 6px 12px;
-  border: 1px solid var(--line2);
-  border-radius: 999px;
-  background: transparent;
-  color: var(--tx1);
-  font-size: 12.5px;
-  cursor: pointer;
+.cv2-tl-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--tx3);
+  transform: translateY(-1px);
 }
 
-.cv-startrow button:first-of-type {
-  border-color: var(--acc);
+.cv2-tl-tool .cv2-tl-dot,
+.cv2-tl-plan .cv2-tl-dot,
+.cv2-tl-launch .cv2-tl-dot {
   background: var(--acc);
-  color: #fff;
 }
 
-.cv-compose {
+.cv2-tl-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  font-size: 13px;
+}
+
+.cv2-tl-body b {
+  color: var(--tx1);
+}
+
+.cv2-tl-body span {
+  color: var(--tx3);
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+
+.cv2-trace-empty {
+  padding: 32px 0;
+  text-align: center;
+}
+
+.cv2-trace-empty b {
+  font-size: 14px;
+}
+
+.cv2-trace-empty p {
+  margin: 8px 0 0;
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--tx3);
+}
+
+/* ---- 输入框 / 状态条 ---- */
+.cv2-compose {
   flex: none;
-  padding: 12px 24px 16px;
-  border-top: 1px solid var(--line);
+  min-width: 0;
+  padding: 12px 24px 8px;
 }
 
-.cv-sheet {
+.cv2-sheet {
+  position: relative;
   max-width: 780px;
   margin: 0 auto;
   padding: 10px 14px 8px;
@@ -327,11 +513,50 @@
   background: var(--panel2);
 }
 
-.cv-sheet:focus-within {
+.cv2-sheet:focus-within {
   border-color: var(--acc);
 }
 
-.cv-input {
+.cv2-picker {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 6px);
+  left: 0;
+  z-index: 6;
+  max-height: 240px;
+  overflow-y: auto;
+  padding: 6px;
+  border: 1px solid var(--line2);
+  border-radius: 12px;
+  background: var(--panel);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.25);
+}
+
+.cv2-picker button {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--tx1);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cv2-picker button[data-active] {
+  background: var(--panel2);
+}
+
+.cv2-picker button span {
+  font-size: 11.5px;
+  color: var(--tx3);
+}
+
+.cv2-input {
   width: 100%;
   resize: none;
   border: 0;
@@ -342,21 +567,43 @@
   line-height: 1.7;
 }
 
-.cv-input::placeholder {
+.cv2-input::placeholder {
   color: var(--tx3);
 }
 
-.cv-sheet-foot {
+.cv2-sheet-foot {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
   margin-top: 6px;
-  font-size: 11.5px;
-  color: var(--tx3);
 }
 
-.cv-send {
+.cv2-foot-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.cv2-at {
+  display: inline-flex;
+  flex: none;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--tx2);
+  cursor: pointer;
+}
+
+.cv2-foot-hint {
+  font-size: 11.5px;
+  color: var(--tx3);
+  white-space: nowrap;
+}
+
+.cv2-send {
   display: inline-flex;
   align-items: center;
   gap: 5px;
@@ -370,41 +617,85 @@
   cursor: pointer;
 }
 
-.cv-send:disabled {
+.cv2-send:disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }
 
+.cv2-status {
+  flex: none;
+  padding: 2px 24px 12px;
+  font-size: 11.5px;
+  color: var(--tx3);
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
 @media (max-width: 640px) {
-  .cv-head {
-    padding: 12px 16px;
-    flex-wrap: wrap;
+  /* 窄屏：会话栏变覆盖式抽屉，主列不被挤压 */
+  .cv2-side {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 8;
+    transform: translateX(-105%);
+    transition: transform 0.18s ease;
+    box-shadow: 8px 0 24px rgb(0 0 0 / 0.25);
   }
 
-  .cv-demo {
+  .cv2-side[data-open="true"] {
+    transform: translateX(0);
+  }
+
+  .cv2-backdrop {
+    position: absolute;
+    inset: 0;
+    z-index: 7;
+    display: block;
+    padding: 0;
+    border: 0;
+    background: rgb(0 0 0 / 0.4);
+    cursor: pointer;
+  }
+
+  .cv2-top {
+    padding: 10px 14px;
+    gap: 10px;
+  }
+
+  .cv2-demo {
     display: none;
   }
 
-  .cv-col {
+  .cv2-switch button {
+    padding: 4px 10px;
+    font-size: 12px;
+  }
+
+  .cv2-col {
     padding: 20px 16px 28px;
   }
 
-  .cv-user {
+  .cv2-user {
     max-width: 92%;
   }
 
-  .cv-think,
-  .cv-tools,
-  .cv-plan {
+  .cv2-think,
+  .cv2-tools,
+  .cv2-plan {
     margin-left: 0;
   }
 
-  .cv-compose {
-    padding: 10px 16px 14px;
+  .cv2-compose {
+    padding: 10px 16px 6px;
   }
 
-  .cv-startrow {
-    padding: 10px 16px;
-    flex-wrap: wrap;
+  .cv2-status {
+    padding: 2px 16px 10px;
+  }
+
+  .cv2-foot-hint {
+    display: none;
   }
 }
