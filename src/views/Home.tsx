@@ -130,15 +130,15 @@ function HeroTitle({ copy, cycle }: { copy: HeroCycle; cycle: number }) {
 
 type Attachment = { name: string; size: number; kind: 'file' | 'image' | 'video' }
 
-type Harness = { id: string; name: string; short: string; mark: string; icon: string; models: string[]; ready: boolean }
+type Harness = { id: string; name: string; short: string; mark: string; icon: string; color: string; models: string[]; ready: boolean }
 /** 每个模型的本地偏好（演示态只存内存 + localStorage）：思考强度与最大上下文 */
 type ModelPrefs = { reasoning: 'off' | 'standard' | 'enhanced'; context: 32 | 64 | 128 }
 
 /** 执行引擎列表：只有 deepseek 标为已配置，其余如实标注「未接入」 */
 const HARNESSES: Harness[] = [
-  { id: 'deepseek', name: 'DeepSeek Harness', short: 'DeepSeek', mark: 'DS', icon: './assets/brand/deepseek.svg', models: ['deepseek-chat', 'deepseek-reasoner', 'deepseek-v4.1-flash'], ready: true },
-  { id: 'claude', name: 'Claude Code', short: 'Claude', mark: 'CC', icon: './assets/brand/claude.svg', models: ['claude-sonnet-4', 'claude-opus-4'], ready: false },
-  { id: 'codex', name: 'Codex', short: 'Codex', mark: 'CX', icon: './assets/brand/openai.svg', models: ['gpt-5-codex'], ready: false },
+  { id: 'deepseek', name: 'DeepSeek Harness', short: 'DeepSeek', mark: 'DS', icon: './assets/brand/deepseek.svg', color: '#4D6BFE', models: ['deepseek-chat', 'deepseek-reasoner', 'deepseek-v4.1-flash'], ready: true },
+  { id: 'claude', name: 'Claude Code', short: 'Claude', mark: 'CC', icon: './assets/brand/claude.svg', color: '#D97757', models: ['claude-sonnet-4', 'claude-opus-4'], ready: false },
+  { id: 'codex', name: 'Codex', short: 'Codex', mark: 'CX', icon: './assets/brand/openai.svg', color: '#10A37F', models: ['gpt-5-codex'], ready: false },
 ]
 
 const fmtSize = (bytes: number) =>
@@ -359,7 +359,7 @@ export function Home(props: { onStart?: (draft: string) => void }) {
               <button type="button" className="hf-brandstart" onClick={() => taRef.current?.focus()}>开始创作</button>
             </div>
             <div className="hf-sample">
-            <div className="hf-composer">
+            <div className="hf-composer" style={{ '--brand': harness.color } as React.CSSProperties}>
               {attachments.length > 0 && (
                 <div className="hf-chips">
                   {attachments.map((a) => (
@@ -459,7 +459,9 @@ export function Home(props: { onStart?: (draft: string) => void }) {
                 </div>
                 <span className="hf-spacer" />
                 <span className="hf-count">{draft.length || ''}</span>
-                <div className="hf-btnwrap hf-harnesswrap">
+                <div className="hf-btnwrap hf-harnesswrap"
+                     data-connected={harness.ready || undefined}
+                     style={{ '--brand': harness.color } as React.CSSProperties}>
                   {/* 引擎按钮：接入 = 绿点 + 引擎图标 | 模型名；未接入 = 黄点 + 引擎图标 + 未接入AI */}
                   <button className="hf-harness" type="button" aria-haspopup="dialog"
                           data-off={notReady || undefined}
@@ -467,7 +469,8 @@ export function Home(props: { onStart?: (draft: string) => void }) {
                           onClick={() => { setHarnessPane(null); setMenu(menu === 'harness' ? null : 'harness') }}>
                     <span className="hf-harness-seg" data-off={notReady || undefined}>
                       <i aria-hidden="true" />
-                      <span className="hf-harness-mark" aria-hidden="true"><img src={harness.icon} alt="" /></span>
+                      <span className="hf-harness-mark" aria-hidden="true"
+                            style={{ '--brand': harness.color, maskImage: `url(${harness.icon})`, WebkitMaskImage: `url(${harness.icon})` } as React.CSSProperties} />
                       {notReady ? <span className="hf-harness-off">未接入AI</span>
                         : <><span className="hf-harness-div" aria-hidden="true" /><span className="hf-harness-model">{model}</span></>}
                     </span>
@@ -487,9 +490,10 @@ export function Home(props: { onStart?: (draft: string) => void }) {
                                       onClick={() => {
                                         setHarnessId(h.id); setModel(h.models[0]); setHarnessPane(h.id)
                                       }}>
-                                <span className="hf-hp-logo" aria-hidden="true"><img src={h.icon} alt="" /></span>
+                                <span className="hf-hp-logo" aria-hidden="true"
+                                      style={{ '--brand': h.color, maskImage: `url(${h.icon})`, WebkitMaskImage: `url(${h.icon})` } as React.CSSProperties} />
                                 <span className="hf-hp-txt">
-                                  <b>{h.name}</b>
+                                  <b style={{ color: h.color }}>{h.name}</b>
                                   <small>{h.ready ? '本机已配置' : '未接入，仅展示'}</small>
                                 </span>
                                 {h.id === harnessId && <span className="hf-hp-ck" aria-hidden="true">✓</span>}

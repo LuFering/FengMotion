@@ -220,6 +220,17 @@ html[data-theme="tactile"] .hf-page {
 
 /* 输入框样本：结构取自 composer-input.html */
 .hf-sample { width: min(640px, 92%); }
+/* ── 引擎接入后的外圈顺时针光 / 聊天框聚焦的逆时针光 ──
+   用可动画的 conic 起始角实现「光绕着走」，环体靠 mask-composite 抠成描边，
+   再叠 drop-shadow 做辉光；不旋转元素本身，避免圆角形状被转歪。 */
+@property --hf-spin {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+@keyframes hf-spin-cw { to { --hf-spin: 360deg; } }
+@keyframes hf-spin-ccw { to { --hf-spin: -360deg; } }
+
 .hf-composer {
   position: relative;
   background: var(--hf-panel);
@@ -229,9 +240,29 @@ html[data-theme="tactile"] .hf-page {
   transition: box-shadow .25s var(--eo, cubic-bezier(.23,1,.32,1)), border-color .25s var(--eo, cubic-bezier(.23,1,.32,1));
 }
 .hf-composer:focus-within {
-  border-color: var(--hf-line2);
-  box-shadow: var(--hf-shadow-focus), 0 0 0 3.5px var(--hf-acc-tint);
+  border-color: color-mix(in srgb, var(--brand, var(--hf-acc)) 45%, var(--hf-line2));
+  box-shadow: var(--hf-shadow-focus);
 }
+/* 聚焦：外缘逆时针亮起当前引擎品牌色的光，比常态更亮 */
+.hf-composer::before {
+  content: ''; position: absolute; inset: -1.5px; border-radius: inherit;
+  padding: 1.5px; pointer-events: none; opacity: 0;
+  transition: opacity .22s var(--eo, cubic-bezier(.23,1,.32,1));
+  background: conic-gradient(from var(--hf-spin),
+    transparent 0deg, transparent 150deg,
+    color-mix(in srgb, var(--brand, var(--hf-acc)) 70%, transparent) 235deg,
+    var(--brand, var(--hf-acc)) 300deg,
+    #fff 330deg,
+    var(--brand, var(--hf-acc)) 348deg,
+    transparent 360deg);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--brand, var(--hf-acc)) 85%, transparent))
+          drop-shadow(0 0 14px color-mix(in srgb, var(--brand, var(--hf-acc)) 55%, transparent));
+}
+.hf-composer:focus-within::before { opacity: 1; animation: hf-spin-ccw 3.4s linear infinite; }
 .hf-composer textarea {
   display: block;
   width: 100%;
@@ -293,18 +324,41 @@ html[data-theme="tactile"] .hf-page {
 .hf-harness-seg { display: flex; align-items: center; gap: 6px; color: var(--hf-tx); font: 600 12px var(--hf-sans); white-space: nowrap; }
 .hf-harness-seg i { width: 7px; height: 7px; border-radius: 50%; background: #3fb96f; }
 .hf-harness-seg[data-off] i { background: #d08a2c; }
+/* 引擎图标：无底色，SVG 作遮罩、品牌色作填充，尺寸放大到 17px */
 .hf-harness-mark {
-  display: grid; place-items: center; width: 18px; height: 18px;
-  border-radius: 5px; background: var(--hf-acc-tint); color: var(--hf-acc);
+  display: block;
+  width: 17px; height: 17px; flex: 0 0 17px;
+  background-color: var(--brand, var(--hf-acc));
+  -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+  -webkit-mask-position: center; mask-position: center;
+  -webkit-mask-size: contain; mask-size: contain;
 }
-.hf-harness-mark img { width: 11px; height: 11px; display: block; }
-.hf-harness[data-off] .hf-harness-mark { background: rgba(208, 138, 44, .14); color: #b97f2a; }
-.hf-harness[data-off] .hf-harness-mark img { opacity: .78; }
+.hf-harness[data-off] .hf-harness-mark { background-color: #b97f2a; opacity: .82; }
 .hf-harness-off { color: #b97f2a; font-weight: 600; }
 .hf-harness-div { width: 1px; height: 13px; background: var(--hf-line2); opacity: .6; }
 .hf-harness-model { font: 12px var(--hf-mono); color: var(--hf-tx2); white-space: nowrap; max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
 .hf-harness .hf-chev { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 2; opacity: .7; }
 .hf-harnesswrap { position: relative; }
+/* 已接入引擎时，按钮外缘顺时针跑一圈品牌色光 */
+.hf-harnesswrap[data-connected]::before {
+  content: ''; position: absolute; inset: -2px; border-radius: 999px;
+  padding: 2px; pointer-events: none;
+  background: conic-gradient(from var(--hf-spin),
+    transparent 0deg, transparent 130deg,
+    color-mix(in srgb, var(--brand) 45%, transparent) 200deg,
+    var(--brand) 265deg,
+    #fff 292deg,
+    var(--brand) 315deg,
+    color-mix(in srgb, var(--brand) 45%, transparent) 350deg,
+    transparent 360deg);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--brand) 90%, transparent))
+          drop-shadow(0 0 11px color-mix(in srgb, var(--brand) 60%, transparent));
+  animation: hf-spin-cw 2.8s linear infinite;
+}
 .hf-harness-pop {
   position: absolute; right: 0; top: calc(100% + 9px); width: 300px; padding: 8px;
   border: 1px solid var(--hf-line2); border-radius: 14px; background: var(--hf-panel);
@@ -366,10 +420,16 @@ html[data-theme="tactile"] .hf-page {
 .hf-hp-list { display: flex; flex-direction: column; gap: 2px; }
 .hf-hp-item { display: flex; align-items: center; gap: 9px; width: 100%; padding: 7px 8px; border: 0; border-radius: 10px; background: transparent; text-align: left; cursor: pointer; }
 .hf-hp-item:hover { background: var(--hf-panel2); }
-.hf-hp-logo { display: grid; place-items: center; width: 24px; height: 24px; flex: 0 0 auto; border-radius: 7px; background: var(--hf-acc-tint); color: var(--hf-acc); }
-.hf-hp-logo img { width: 14px; height: 14px; display: block; }
-.hf-hp-item[data-off] .hf-hp-logo { background: var(--hf-panel2); color: var(--hf-tx3); }
-.hf-hp-item[data-off] .hf-hp-logo img { opacity: .55; }
+/* 弹窗里的引擎图标：无底色、放大到 22px、品牌色 */
+.hf-hp-logo {
+  display: block;
+  width: 22px; height: 22px; flex: 0 0 22px;
+  background-color: var(--brand, var(--hf-acc));
+  -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+  -webkit-mask-position: center; mask-position: center;
+  -webkit-mask-size: contain; mask-size: contain;
+}
+.hf-hp-item[data-off] .hf-hp-logo { background-color: var(--hf-tx3); opacity: .5; }
 .hf-hp-txt { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .hf-hp-txt b { font: 600 13px var(--hf-sans); color: var(--hf-tx); }
 .hf-hp-txt small { font: 11px var(--hf-sans); color: var(--hf-tx3); }
@@ -403,7 +463,7 @@ html[data-theme="tactile"] .hf-harness-pop { border: 2.5px solid var(--hf-line2)
 html[data-theme="tactile"] .hf-hp-drawer { border: 1.5px solid var(--hf-line2); background: var(--hf-raised); }
 html[data-theme="tactile"] .hf-hp-seg { border: 1.5px solid var(--hf-line2); }
 html[data-theme="tactile"] .hf-hp-seg button.on { box-shadow: 2px 2px 0 rgba(34, 35, 31, .5); }
-html[data-theme="tactile"] .hf-hp-logo { border: 1.5px solid var(--hf-line2); }
+html[data-theme="tactile"] .hf-hp-logo { opacity: .95; }
 html[data-theme="tactile"] .hf-send { border: 2.5px solid var(--hf-line2); box-shadow: 0 4px 0 #000; }
 html[data-theme="tactile"] .hf-menu { border: 2.5px solid var(--hf-line2); box-shadow: 6px 6px 0 rgba(34,35,31,.85); }
 
