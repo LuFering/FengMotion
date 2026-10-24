@@ -585,7 +585,7 @@ export function Home(props: { onStart?: (draft: string) => void }) {
             <div className="hf-sample-hint" data-off={notReady || undefined}>
               {notReady
                 ? `${harness.name} 未接入，切换回已配置引擎才能发送`
-                : 'Enter 发送 · Shift + Enter 换行 · 附件只做展示，不上传'}
+                : 'Enter 发送 · Shift + Enter 换行 · 支持拖放 / 粘贴文件'}
             </div>
             </div>
           </div>
