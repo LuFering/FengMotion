@@ -333,6 +333,27 @@ export function Home(props: { onStart?: (draft: string) => void }) {
   return (
     <div className="hf-page" data-ready={ready || undefined}>
 
+      {/* 右上角：平台入口与仓库链接（取自产品介绍页 nav，去掉「开始创作」） */}
+      <div className="hf-social" aria-label="关注与源码">
+        <a className="hf-soc" href="#" title="小红书" aria-label="小红书">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4.5h9.5A2.5 2.5 0 0 1 17 7v12.5H7.5A2.5 2.5 0 0 1 5 17z" /><path d="M17 8.5h2v11h-2" /><path d="M8.5 8.5h5M8.5 11.5h5" /></svg>
+        </a>
+        <a className="hf-soc" href="#" title="抖音" aria-label="抖音">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3v11.2a3.4 3.4 0 1 1-3-3.4" /><path d="M14 3c.4 2.6 2.1 4.2 4.7 4.4" /></svg>
+        </a>
+        <a className="hf-soc" href="#" title="快手" aria-label="快手">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="4" /><path d="M9.5 8.5v7M9.5 12l4-3.5M9.5 12l4 3.5" /></svg>
+        </a>
+        <a className="hf-soc" href="#" title="B站" aria-label="B站">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6.5" width="18" height="12.5" rx="3" /><path d="M7.5 3.5 10 6M16.5 3.5 14 6" /><path d="M9 11.5v2.5M15 11.5v2.5" /></svg>
+        </a>
+        <span className="hf-soc-sep" aria-hidden="true" />
+        <a className="hf-gh" href="https://github.com/LuFering/FengMotion" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 19c-4 1.2-4-2-5.5-2.5M15 21v-3.4a3 3 0 0 0-.9-2.4c3-.3 6.1-1.5 6.1-6.7a5.2 5.2 0 0 0-1.4-3.6 4.8 4.8 0 0 0-.1-3.6s-1.1-.3-3.6 1.4a12.4 12.4 0 0 0-6.4 0C6.2 1.2 5.1 1.5 5.1 1.5a4.8 4.8 0 0 0-.1 3.6A5.2 5.2 0 0 0 3.6 8.7c0 5.2 3.1 6.4 6.1 6.7a3 3 0 0 0-.9 2.3V21" /></svg>
+          GitHub
+        </a>
+      </div>
+
       <section className="hf-hero">
         <div className="hf-media">
           <div className="hf-left-module" ref={moduleRef}>
