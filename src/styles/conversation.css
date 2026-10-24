@@ -82,6 +82,9 @@ html[data-theme="tactile"] #pane-conversation {
   --tx2: #5c5a50;
   --tx3: #8a877c;
   --cv-elev: #eae6da;
+  /* ⚠️ 必须显式给：漏了会继承深色默认值 #2c2c2e（深底）+ 本主题深色文字 #22231f
+     —— 深底深字，用户气泡几乎看不见（截图实测确认过） */
+  --cv-bubble: #ddd8c9;
   --cv-hairline: rgb(34 35 31 / 0.28);
   --cv-hairline-w: 1px;
 }
@@ -95,13 +98,17 @@ html[data-theme="tactile"] #pane-conversation {
   margin-left: var(--hm-sidebar, 68px);
 }
 
+/* 右区底色 = 应用壳/导航栏那一层（body 的 --bg），不是对话内自己那套 --panel。
+   ⚠️ 之前 .cv3 铺了 --panel（深 #151517 / 浅 #fcfcfd），而导航栏是透明的、透出 body
+      （深 #000 / 浅 #e0e2e9）—— 两套色板并列，右区就和导航栏对不上。
+      现在右区透出同一层，只有左侧会话栏铺自己的面（--panel2），层级才自洽。 */
 .cv3 {
   position: relative;
   display: flex;
   height: 100%;
   min-height: 0;
   overflow: hidden;
-  background: var(--panel);
+  background: transparent;
   color: var(--tx1);
   font-size: 14px;
 }
