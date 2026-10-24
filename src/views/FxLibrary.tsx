@@ -1,14 +1,16 @@
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   ArrowUpDown,
   Check,
+  ChevronDown,
   ChevronRight,
+  Clock,
   Copy,
   Info,
   Pause,
   Play,
-  RotateCcw,
-  Search,
+  SlidersHorizontal,
+  Sparkles,
   Star,
   Workflow,
   X,
@@ -25,18 +27,31 @@ import {
   type FxInputKind,
   type FxTechnique,
 } from '@/data/fxTechniques'
+import { PROJECTS, STAGE_LABEL } from '@/data/projects'
+import { EmptyState } from '@/components/fm/EmptyState'
+import { SearchField } from '@/components/SearchField'
 
 /**
- * 特效技法库 —— 技法库自己的布局，不是 Workbench 的三栏骨架。
+ * 特效技法库 —— 按《前端下一步开发计划》§4.4（04-B）落地：
  *
- * 结构：顶部标题/搜索 → 分类页签 → 筛选条 → 全宽技法索引（表格式行）
- *       → 点任意技法打开右侧配方抽屉（overlay，不常驻）。
+ * 结构：页头（标题 + 搜索）→ 工具栏（范围 / 更多筛选 / 排序 / 视图切换）
+ *       → 分类 chips →（有技术筛选时）已选条件 chips → 效果预览卡片网格
+ *       （紧凑列表为可选视图）→ 点卡打开右侧详情抽屉（overlay，不常驻）。
  *
- * 与 Workbench 的关系：只共享 A2 云端岛屿 V3 的视觉 token（颜色/字号/圆角/阴影/动效/主题），
- * 不共享它的三栏布局、监看器、时间线或状态栏语义。
+ * 与旧版的差别：三组技术筛选（执行状态 / 输入 / 实现 / 复杂度）不再常驻，
+ * 收进「更多筛选」展开带，已选条件以可逐项移除的 chips 显示；
+ * 分类按效果用途组织；详情抽屉按 预览 → 用途 → 实现方法 → 参数 → 调用方式 分层。
  *
- * 能力语义：可直接执行 / 可组合 / 知识参考逐字保留，但它们是**源库元数据**；
- * 本页不提供执行、渲染或插入动作，抽屉底部与状态栏写明这一点。
+ * 排版定稿（2026-10-23 与 ChatGPT 两轮对话定案，见 goals 文档《三库排版优化定案》）：
+ * 单行命令条（标题+搜索+筛选按钮）+ 一行元信息（计数/已选条件/范围/排序）+ 海报墙；
+ * 分类与技术条件全部收进锚定筛选按钮的浮层，即时生效；不设常驻分类条与底部状态栏。
+ *
+ * 能力语义：可直接执行 / 可组合 / 知识参考是**源库元数据**，逐字保留；
+ * 本页不提供执行器。「用于工作流」打开目标选择弹窗：调用链未接入，
+ * 选择只记入本地意向清单（fm-fx-usage-outbox-v1），不假装插入成功。
+ * 收藏 / 最近使用存本地（fm-fx-library-v1）。
+ *
+ * 视觉只共享 A2 云端岛屿 V3 的 token（含浅白 / 触感主题根），不共享工作台骨架。
  */
 
 const CATEGORY_IDS = FX_CATEGORIES.map((c) => c.id)
@@ -45,7 +60,37 @@ const IMPL_IDS = Object.keys(FX_IMPLS) as FxImpl[]
 const INPUT_IDS = Object.keys(FX_INPUT_TYPES) as FxInputKind[]
 const COMPLEXITY_STEPS = [1, 2, 3, 4, 5]
 
-type SortKey = 'cat' | 'name' | 'complexity'
+const categoryLabel = (id: FxCategory) => FX_CATEGORIES.find((c) => c.id === id)?.label ?? id
+const execLabel = (id: FxExecType) => FX_EXEC_TYPES[id].label
+const implLabel = (id: FxImpl) => FX_IMPLS[id]
+const inputLabel = (id: FxInputKind) => FX_INPUT_TYPES[id]
+
+const LIB_KEY = 'fm-fx-library-v1'
+const OUTBOX_KEY = 'fm-fx-usage-outbox-v1'
+
+type SortKey = 'cat' | 'name' | 'complexity' | 'updated'
+type Scope = 'all' | 'featured' | 'favorites' | 'recent'
+
+interface FxLibState {
+  favorites: string[]
+  recent: string[]
+}
+
+function loadLibState(): FxLibState {
+  try {
+    const raw = localStorage.getItem(LIB_KEY)
+    if (raw) {
+      const parsed = JSON.parse(raw) as Partial<FxLibState>
+      return {
+        favorites: Array.isArray(parsed.favorites) ? parsed.favorites : [],
+        recent: Array.isArray(parsed.recent) ? parsed.recent : [],
+      }
+    }
+  } catch {
+    /* 存档不可用时以空状态起步 */
+  }
+  return { favorites: [], recent: [] }
+}
 
 /** 搜索范围：技法名 / 英文名 / 别名 / 关键词 / 意图 / 场景 / 分类 / 能力标签 */
 function searchBlob(t: FxTechnique) {
@@ -66,6 +111,7 @@ function searchBlob(t: FxTechnique) {
     .toLowerCase()
 }
 
+/** 复制配方：纯文本，含参数 + 制作步骤 + 调用配置（输入/输出），页首写明语义 */
 function copyText(t: FxTechnique) {
   const params = t.params.map((p) => `- ${p.label}：${p.value}${p.hint ? `（${p.hint}）` : ''}`).join('\n')
   const steps = t.steps.map((s, i) => `${i + 1}. ${s}`).join('\n')
@@ -94,51 +140,93 @@ function copyText(t: FxTechnique) {
 
 export function FxLibrary() {
   const [query, setQuery] = useState('')
+  const [scope, setScope] = useState<Scope>('all')
   const [cat, setCat] = useState<FxCategory | 'all'>('all')
   const [exec, setExec] = useState<FxExecType | 'all'>('all')
   const [inputKind, setInputKind] = useState<FxInputKind | 'all'>('all')
   const [impl, setImpl] = useState<FxImpl | 'all'>('all')
   const [maxComplexity, setMaxComplexity] = useState(5)
+  const [previewKind, setPreviewKind] = useState<'all' | 'motion' | 'still'>('all')
   const [sort, setSort] = useState<SortKey>('cat')
+  const [filtersOpen, setFiltersOpen] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [playingId, setPlayingId] = useState<string | null>(null)
   const [copied, setCopied] = useState<'idle' | 'ok' | 'fail'>('idle')
+  const [workflowFor, setWorkflowFor] = useState<FxTechnique | null>(null)
+  const [toast, setToast] = useState<string | null>(null)
+  const [lib, setLib] = useState<FxLibState>(loadLibState)
 
   const searchRef = useRef<HTMLInputElement>(null)
   const drawerRef = useRef<HTMLElement>(null)
   const closeRef = useRef<HTMLButtonElement>(null)
   const copyTimer = useRef<number | null>(null)
+  const toastTimer = useRef<number | null>(null)
 
-  /** 只应用搜索：分类/状态的计数不受其它分面影响，避免数字塌陷 */
+  useEffect(() => {
+    try {
+      localStorage.setItem(LIB_KEY, JSON.stringify(lib))
+    } catch {
+      /* 持久化失败不阻塞页面 */
+    }
+  }, [lib])
+
+  function showToast(msg: string) {
+    setToast(msg)
+    if (toastTimer.current) window.clearTimeout(toastTimer.current)
+    toastTimer.current = window.setTimeout(() => setToast(null), 2600)
+  }
+
+  function toggleFavorite(id: string) {
+    setLib((prev) => ({
+      ...prev,
+      favorites: prev.favorites.includes(id)
+        ? prev.favorites.filter((f) => f !== id)
+        : [id, ...prev.favorites],
+    }))
+  }
+
+  function pushRecent(id: string) {
+    setLib((prev) => ({
+      ...prev,
+      recent: [id, ...prev.recent.filter((r) => r !== id)].slice(0, 12),
+    }))
+  }
+
+  /** 只应用搜索：分类/范围的计数不受其它分面影响，避免数字塌陷 */
   const searched = useMemo(() => {
     const key = query.trim().toLowerCase()
     if (!key) return FX_TECHNIQUES
     return FX_TECHNIQUES.filter((t) => searchBlob(t).includes(key))
   }, [query])
 
+  const scoped = useMemo(() => {
+    if (scope === 'featured') return searched.filter((t) => t.featured)
+    if (scope === 'favorites') return searched.filter((t) => lib.favorites.includes(t.id))
+    if (scope === 'recent') {
+      const order = new Map(lib.recent.map((id, i) => [id, i]))
+      return searched
+        .filter((t) => order.has(t.id))
+        .sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0))
+    }
+    return searched
+  }, [searched, scope, lib])
+
   const visible = useMemo(
     () =>
-      searched.filter(
+      scoped.filter(
         (t) =>
           (cat === 'all' || t.category === cat) &&
           (exec === 'all' || t.execType === exec) &&
           (inputKind === 'all' || t.inputKinds.includes(inputKind)) &&
           (impl === 'all' || t.impl === impl) &&
-          t.complexity <= maxComplexity,
+          t.complexity <= maxComplexity &&
+          (previewKind === 'all' || (previewKind === 'motion' ? !!t.previewVideo : !t.previewVideo)),
       ),
-    [searched, cat, exec, inputKind, impl, maxComplexity],
+    [scoped, cat, exec, inputKind, impl, maxComplexity, previewKind],
   )
 
-  const current = selectedId ? visible.find((t) => t.id === selectedId) ?? null : null
-
-  /** 筛选把已选技法藏起来时，收起抽屉并清掉选中，避免高亮和详情对不上 */
-  useEffect(() => {
-    if (selectedId && !visible.some((t) => t.id === selectedId)) {
-      setSelectedId(null)
-      setDrawerOpen(false)
-    }
-  }, [visible, selectedId])
+  const current = selectedId ? FX_TECHNIQUES.find((t) => t.id === selectedId) ?? null : null
 
   const sorted = useMemo(() => {
     const arr = [...visible]
@@ -146,60 +234,56 @@ export function FxLibrary() {
     if (sort === 'complexity') {
       arr.sort((a, b) => a.complexity - b.complexity || a.name.localeCompare(b.name, 'zh-Hans-CN'))
     }
+    if (sort === 'updated') arr.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
     return arr
   }, [visible, sort])
 
-  const groups = useMemo(() => {
-    if (sort !== 'cat') return [{ id: 'flat', label: '结果', items: sorted }]
-    return FX_CATEGORIES.map((c) => ({
-      id: c.id,
-      label: c.label,
-      items: sorted.filter((t) => t.category === c.id),
-    })).filter((g) => g.items.length > 0)
-  }, [sorted, sort])
-
   const counts = useMemo(() => {
-    const by = <T extends string>(get: (t: FxTechnique) => T) => {
-      const map = new Map<T, number>()
-      for (const t of searched) {
-        const k = get(t)
-        map.set(k, (map.get(k) ?? 0) + 1)
-      }
-      return map
-    }
+    const category = new Map<FxCategory, number>()
+    for (const t of searched) category.set(t.category, (category.get(t.category) ?? 0) + 1)
     return {
-      category: by((t) => t.category),
-      exec: by((t) => t.execType),
+      category,
+      featured: searched.filter((t) => t.featured).length,
+      favorites: searched.filter((t) => lib.favorites.includes(t.id)).length,
+      recent: searched.filter((t) => lib.recent.includes(t.id)).length,
     }
-  }, [searched])
+  }, [searched, lib])
 
-  const activeCount =
-    (cat !== 'all' ? 1 : 0) +
+  const techActiveCount =
     (exec !== 'all' ? 1 : 0) +
     (inputKind !== 'all' ? 1 : 0) +
     (impl !== 'all' ? 1 : 0) +
-    (maxComplexity < 5 ? 1 : 0)
+    (maxComplexity < 5 ? 1 : 0) +
+    (previewKind !== 'all' ? 1 : 0)
+  const activeCount = techActiveCount + (cat !== 'all' ? 1 : 0)
 
-  const lastUpdated = useMemo(() => FX_TECHNIQUES.map((t) => t.updatedAt).sort().at(-1) ?? '', [])
-  const flatIndex = useMemo(() => visible.map((t) => t.id), [visible])
   const playing = current !== null && playingId === current.id
 
-  function resetFilters() {
-    setCat('all')
+  function resetTechFilters() {
     setExec('all')
     setInputKind('all')
     setImpl('all')
     setMaxComplexity(5)
+    setPreviewKind('all')
+  }
+
+  /** 清空全部筛选（含分类），不清搜索词与范围 */
+  function clearFilters() {
+    resetTechFilters()
+    setCat('all')
   }
 
   function resetAll() {
-    resetFilters()
+    resetTechFilters()
+    setCat('all')
+    setScope('all')
     setQuery('')
   }
 
   function openDrawer(id: string) {
     setSelectedId(id)
     setDrawerOpen(true)
+    pushRecent(id)
   }
 
   function closeDrawer() {
@@ -239,13 +323,13 @@ export function FxLibrary() {
     document.addEventListener('keydown', onKey)
     window.requestAnimationFrame(() => closeRef.current?.focus())
     return () => document.removeEventListener('keydown', onKey)
-    // closeDrawer 读取的是本次渲染的 selectedId
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [drawerOpen])
 
   useEffect(() => {
     return () => {
       if (copyTimer.current) window.clearTimeout(copyTimer.current)
+      if (toastTimer.current) window.clearTimeout(toastTimer.current)
     }
   }, [])
 
@@ -268,27 +352,15 @@ export function FxLibrary() {
     return () => window.removeEventListener('keydown', onKey)
   }, [query, drawerOpen])
 
-  function moveSelection(id: string, dir: 1 | -1 | 'home' | 'end') {
-    if (!flatIndex.length) return
-    const at = flatIndex.indexOf(id)
-    let next = at
-    if (dir === 'home') next = 0
-    else if (dir === 'end') next = flatIndex.length - 1
-    else next = Math.max(0, Math.min(flatIndex.length - 1, at + dir))
-    const nextId = flatIndex[next]
-    if (!nextId) return
-    setSelectedId(nextId)
-    window.requestAnimationFrame(() => {
-      document.querySelector<HTMLElement>(`[data-fx-id="${nextId}"]`)?.focus()
-    })
-  }
-
-  function onRowKey(e: ReactKeyboardEvent<HTMLButtonElement>, id: string) {
-    if (e.key === 'ArrowDown') { e.preventDefault(); moveSelection(id, 1) }
-    else if (e.key === 'ArrowUp') { e.preventDefault(); moveSelection(id, -1) }
-    else if (e.key === 'Home') { e.preventDefault(); moveSelection(id, 'home') }
-    else if (e.key === 'End') { e.preventDefault(); moveSelection(id, 'end') }
-  }
+  /** 筛选浮层：Esc 关闭 */
+  useEffect(() => {
+    if (!filtersOpen) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setFiltersOpen(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [filtersOpen])
 
   async function copyRecipe() {
     if (!current) return
@@ -302,279 +374,286 @@ export function FxLibrary() {
     copyTimer.current = window.setTimeout(() => setCopied('idle'), 1800)
   }
 
-  return (
-    <div className="fxlib" data-mode="dark">
-      {/* 一个库面板：控件在上，索引铺满，详情走抽屉 */}
-      <section className="fx-panel" aria-label="特效技法库" inert={drawerOpen ? true : undefined}>
-        <header className="fx-masthead">
-          <div className="fx-title-group">
-            <h1>特效技法库</h1>
-            <span className="fx-top-sub">
-              视频视觉技法 · 源库 <b className="num">{FX_TECHNIQUES.length}</b> 项 ·{' '}
-              <b className="num">{FX_CATEGORIES.length}</b> 类
-            </span>
-          </div>
-          <span className="fx-spacer" />
-          <label className="fx-search">
-            <Search size={14} aria-hidden="true" />
-            <input
-              ref={searchRef}
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="搜索技法 / 意图 / 场景 / 别名"
-              aria-label="搜索技法"
-            />
-            {query ? (
-              <button type="button" className="fx-search-clear" onClick={() => setQuery('')} aria-label="清除搜索">
-                <X size={12} aria-hidden="true" />
-              </button>
-            ) : (
-              <kbd aria-hidden="true">/</kbd>
-            )}
-          </label>
-        </header>
+  function recordWorkflowIntent(projectId: string, projectName: string) {
+    if (!workflowFor) return
+    try {
+      const raw = localStorage.getItem(OUTBOX_KEY)
+      const list = raw ? (JSON.parse(raw) as unknown[]) : []
+      list.push({
+        techniqueId: workflowFor.id,
+        techniqueName: workflowFor.name,
+        projectId,
+        projectName,
+        at: new Date().toISOString(),
+      })
+      localStorage.setItem(OUTBOX_KEY, JSON.stringify(list))
+    } catch {
+      /* 记录失败不阻塞 */
+    }
+    setWorkflowFor(null)
+    showToast(`已记入意向清单：${workflowFor.name} → ${projectName}（调用链未接入，不会执行）`)
+  }
 
-        <div className="fx-tabs">
-          <div className="fx-tabs-scroll" aria-label="按分类筛选">
+  const SCOPES: Array<{ id: Scope; label: string; count: number; icon: React.ReactNode }> = [
+    { id: 'all', label: '全部', count: searched.length, icon: null },
+    { id: 'featured', label: '精选', count: counts.featured, icon: <Sparkles size={12} aria-hidden="true" /> },
+    { id: 'favorites', label: '收藏', count: counts.favorites, icon: <Star size={12} aria-hidden="true" /> },
+    { id: 'recent', label: '最近使用', count: counts.recent, icon: <Clock size={12} aria-hidden="true" /> },
+  ]
+
+  return (
+    <div className="fxlib">
+      <section className="fx-panel" aria-label="特效技法库" inert={drawerOpen || workflowFor ? true : undefined}>
+        <div className="fx-cmd">
+          <h1 className="fx-cmd-title">特效技法库</h1>
+          <div className="fx-cmd-search">
+            <SearchField
+              inputRef={searchRef}
+              value={query}
+              onChange={setQuery}
+              placeholder="搜索技法名称、用途或实现方式…（按 / 聚焦）"
+              ariaLabel="搜索技法"
+            />
+          </div>
+          <div className="fx-filterwrap">
             <button
               type="button"
-              className="fx-cat-tab"
-              aria-pressed={cat === 'all'}
-              onClick={() => setCat('all')}
+              className="fx-toolbtn"
+              aria-expanded={filtersOpen}
+              data-on={filtersOpen || activeCount > 0 ? '' : undefined}
+              onClick={() => setFiltersOpen((v) => !v)}
             >
-              全部 <em className="num">{searched.length}</em>
+              <SlidersHorizontal size={14} strokeWidth={2} />
+              筛选
+              {activeCount > 0 && <b className="fx-badge num">{activeCount}</b>}
+              <ChevronDown size={13} strokeWidth={2} className={filtersOpen ? 'fx-chev is-open' : 'fx-chev'} />
             </button>
-            {CATEGORY_IDS.map((id) => (
-              <button
-                key={id}
-                type="button"
-                className="fx-cat-tab"
-                aria-pressed={cat === id}
-                onClick={() => setCat(id)}
-              >
-                {FX_CATEGORIES.find((c) => c.id === id)?.label} <em className="num">{counts.category.get(id) ?? 0}</em>
-              </button>
-            ))}
+            {filtersOpen && (
+              <>
+                <div className="fx-pop-backdrop" onClick={() => setFiltersOpen(false)} />
+                <div className="fx-pop" role="dialog" aria-label="筛选条件">
+                  <div className="fx-filtergroup">
+                    <span className="fx-filterlabel" id="fx-fg-cat">分类</span>
+                    <div className="fx-chips" role="group" aria-labelledby="fx-fg-cat">
+                      <button type="button" className="fx-chip" aria-pressed={cat === 'all'} data-on={cat === 'all' ? '' : undefined} onClick={() => setCat('all')}>
+                        全部<em className="num">{searched.length}</em>
+                      </button>
+                      {CATEGORY_IDS.map((id) => (
+                        <button key={id} type="button" className="fx-chip" aria-pressed={cat === id} data-on={cat === id ? '' : undefined} onClick={() => setCat(cat === id ? 'all' : id)}>
+                          {categoryLabel(id)}<em className="num">{counts.category.get(id) ?? 0}</em>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="fx-filtergroup">
+                    <span className="fx-filterlabel" id="fx-fg-exec">源库能力</span>
+                    <div className="fx-chips" role="group" aria-labelledby="fx-fg-exec">
+                      <button type="button" className="fx-chip" aria-pressed={exec === 'all'} data-on={exec === 'all' ? '' : undefined} onClick={() => setExec('all')}>全部</button>
+                      {EXEC_IDS.map((id) => (
+                        <button key={id} type="button" className="fx-chip" aria-pressed={exec === id} data-on={exec === id ? '' : undefined} onClick={() => setExec(exec === id ? 'all' : id)}>
+                          <i className="fx-dot" data-cap={id} aria-hidden="true" />{execLabel(id)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="fx-filtergroup">
+                    <span className="fx-filterlabel" id="fx-fg-preview">预览类型</span>
+                    <div className="fx-chips" role="group" aria-labelledby="fx-fg-preview">
+                      {([['all', '全部'], ['motion', '有动态预览'], ['still', '静态海报']] as const).map(([id, label]) => (
+                        <button key={id} type="button" className="fx-chip" aria-pressed={previewKind === id} data-on={previewKind === id ? '' : undefined} onClick={() => setPreviewKind(id)}>
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="fx-filtergroup">
+                    <span className="fx-filterlabel" id="fx-fg-impl">实现方式</span>
+                    <div className="fx-chips" role="group" aria-labelledby="fx-fg-impl">
+                      <button type="button" className="fx-chip" aria-pressed={impl === 'all'} data-on={impl === 'all' ? '' : undefined} onClick={() => setImpl('all')}>全部</button>
+                      {IMPL_IDS.map((id) => (
+                        <button key={id} type="button" className="fx-chip" aria-pressed={impl === id} data-on={impl === id ? '' : undefined} onClick={() => setImpl(impl === id ? 'all' : id)}>
+                          {implLabel(id)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="fx-filtergroup">
+                    <span className="fx-filterlabel" id="fx-fg-input">输入素材</span>
+                    <div className="fx-chips" role="group" aria-labelledby="fx-fg-input">
+                      <button type="button" className="fx-chip" aria-pressed={inputKind === 'all'} data-on={inputKind === 'all' ? '' : undefined} onClick={() => setInputKind('all')}>全部</button>
+                      {INPUT_IDS.map((id) => (
+                        <button key={id} type="button" className="fx-chip" aria-pressed={inputKind === id} data-on={inputKind === id ? '' : undefined} onClick={() => setInputKind(inputKind === id ? 'all' : id)}>
+                          {inputLabel(id)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="fx-filtergroup">
+                    <span className="fx-filterlabel" id="fx-fg-cx">实现复杂度 ≤</span>
+                    <div className="fx-chips" role="group" aria-labelledby="fx-fg-cx">
+                      {COMPLEXITY_STEPS.map((n) => (
+                        <button key={n} type="button" className="fx-chip num" aria-pressed={maxComplexity === n} data-on={maxComplexity === n ? '' : undefined} onClick={() => setMaxComplexity(n)}>
+                          {n}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="fx-pop-foot">
+                    <span>选择即生效 · 能力标签为源库元数据，本页不触发执行</span>
+                    <button type="button" className="fx-textbtn" onClick={clearFilters} disabled={activeCount === 0}>
+                      清空筛选
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
-          <span className="fx-tab-total">
-            当前 <b className="num">{visible.length}</b> / {FX_TECHNIQUES.length}
-          </span>
         </div>
 
-        <div className="fx-filterbar" aria-label="筛选">
-          <div className="fx-filtergroup">
-            <span className="fx-filterlabel">执行状态</span>
-            <div className="fx-chips">
-              <button type="button" className="fx-chip" aria-pressed={exec === 'all'} onClick={() => setExec('all')}>
-                全部
-              </button>
-              {EXEC_IDS.map((id) => (
-                <button
-                  key={id}
-                  type="button"
-                  className="fx-chip"
-                  aria-pressed={exec === id}
-                  title={FX_EXEC_TYPES[id].hint}
-                  onClick={() => setExec(exec === id ? 'all' : id)}
-                >
-                  <i className={`fx-dot fx-dot-${id}`} aria-hidden="true" />
-                  {FX_EXEC_TYPES[id].label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="fx-filtergroup">
-            <span className="fx-filterlabel">输入</span>
-            <div className="fx-chips">
-              <button type="button" className="fx-chip" aria-pressed={inputKind === 'all'} onClick={() => setInputKind('all')}>
-                全部
-              </button>
-              {INPUT_IDS.map((id) => (
-                <button
-                  key={id}
-                  type="button"
-                  className="fx-chip"
-                  aria-pressed={inputKind === id}
-                  onClick={() => setInputKind(inputKind === id ? 'all' : id)}
-                >
-                  {FX_INPUT_TYPES[id]}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="fx-filtergroup">
-            <span className="fx-filterlabel">实现</span>
-            <div className="fx-chips">
-              <button type="button" className="fx-chip" aria-pressed={impl === 'all'} onClick={() => setImpl('all')}>
-                全部
-              </button>
-              {IMPL_IDS.map((id) => (
-                <button
-                  key={id}
-                  type="button"
-                  className="fx-chip"
-                  aria-pressed={impl === id}
-                  onClick={() => setImpl(impl === id ? 'all' : id)}
-                >
-                  {FX_IMPLS[id]}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="fx-filtergroup">
-            <span className="fx-filterlabel">复杂度</span>
-            <div className="fx-complexity" role="group" aria-label="复杂度上限">
-              {COMPLEXITY_STEPS.map((n) => (
-                <button
-                  key={n}
-                  type="button"
-                  className="num"
-                  aria-pressed={maxComplexity === n}
-                  onClick={() => setMaxComplexity(n)}
-                >
-                  ≤{n}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <button type="button" className="fx-textbtn" onClick={resetFilters} disabled={activeCount === 0}>
-            <RotateCcw size={12} aria-hidden="true" />
-            重置{activeCount > 0 && <b className="num"> {activeCount}</b>}
-          </button>
-
+        <div className="fx-meta">
+          <span className="fx-meta-count"><b className="num">{visible.length}</b> 项技法</span>
+          {cat !== 'all' && (
+            <span className="fx-activechip">
+              分类 · {categoryLabel(cat)}
+              <button type="button" aria-label="移除分类筛选" onClick={() => setCat('all')}><X size={11} strokeWidth={2.4} /></button>
+            </span>
+          )}
+          {exec !== 'all' && (
+            <span className="fx-activechip">
+              能力 · {execLabel(exec)}
+              <button type="button" aria-label="移除能力筛选" onClick={() => setExec('all')}><X size={11} strokeWidth={2.4} /></button>
+            </span>
+          )}
+          {previewKind !== 'all' && (
+            <span className="fx-activechip">
+              预览 · {previewKind === 'motion' ? '有动态预览' : '静态海报'}
+              <button type="button" aria-label="移除预览类型筛选" onClick={() => setPreviewKind('all')}><X size={11} strokeWidth={2.4} /></button>
+            </span>
+          )}
+          {impl !== 'all' && (
+            <span className="fx-activechip">
+              实现 · {implLabel(impl)}
+              <button type="button" aria-label="移除实现方式筛选" onClick={() => setImpl('all')}><X size={11} strokeWidth={2.4} /></button>
+            </span>
+          )}
+          {inputKind !== 'all' && (
+            <span className="fx-activechip">
+              输入 · {inputLabel(inputKind)}
+              <button type="button" aria-label="移除输入素材筛选" onClick={() => setInputKind('all')}><X size={11} strokeWidth={2.4} /></button>
+            </span>
+          )}
+          {maxComplexity < 5 && (
+            <span className="fx-activechip">
+              复杂度 ≤ {maxComplexity}
+              <button type="button" aria-label="移除复杂度筛选" onClick={() => setMaxComplexity(5)}><X size={11} strokeWidth={2.4} /></button>
+            </span>
+          )}
           <span className="fx-spacer" />
-
+          <nav className="fx-meta-scope" aria-label="范围">
+            {SCOPES.map((s) => (
+              <button key={s.id} type="button" data-on={scope === s.id ? '' : undefined} aria-pressed={scope === s.id} onClick={() => setScope(s.id)}>
+                {s.label}<em className="num">{s.count}</em>
+              </button>
+            ))}
+          </nav>
           <label className="fx-sort">
-            <ArrowUpDown size={12} aria-hidden="true" />
-            <span>排序</span>
+            <ArrowUpDown size={12} strokeWidth={2} aria-hidden="true" />
             <select value={sort} onChange={(e) => setSort(e.target.value as SortKey)} aria-label="排序方式">
               <option value="cat">按分类</option>
-              <option value="name">按名称</option>
-              <option value="complexity">按复杂度</option>
+              <option value="name">名称</option>
+              <option value="complexity">复杂度</option>
+              <option value="updated">最近更新</option>
             </select>
           </label>
         </div>
 
-        <div className="fx-colhead" aria-hidden="true">
-          <span />
-          <span>技法 / 意图</span>
-          <span className="fx-col-scenes">适用场景</span>
-          <span className="fx-col-input">输入</span>
-          <span className="fx-col-impl">实现</span>
-          <span className="fx-col-complexity">复杂度</span>
-          <span>能力</span>
-          <span />
-        </div>
-
-        <div className="fx-list" role="listbox" aria-label="技法列表">
+        <div className="fx-content">
           {visible.length === 0 ? (
-            <div className="fx-empty">
-              <Search size={22} aria-hidden="true" />
-              <p>没有匹配的技法</p>
-              <span>换个词，或清除分类 / 状态 / 输入 / 实现 / 复杂度筛选。</span>
-              <button type="button" className="fx-btn" onClick={resetAll}>
-                <RotateCcw size={12} aria-hidden="true" />
-                清除搜索与筛选
-              </button>
-            </div>
+            scope === 'favorites' && !query && activeCount === 0 ? (
+              <EmptyState
+                icon="star"
+                title="还没有收藏的技法"
+                body="在卡片或详情里点星标，常用的技法会收进这里。"
+                action={{ label: '去看全部技法', onClick: () => setScope('all') }}
+              />
+            ) : scope === 'recent' && !query && activeCount === 0 ? (
+              <EmptyState
+                icon="film"
+                title="还没有最近使用"
+                body="打开任意技法的详情，它就会出现在这里。"
+                action={{ label: '去看全部技法', onClick: () => setScope('all') }}
+              />
+            ) : (
+              <EmptyState
+                icon="search"
+                title="没有匹配的技法"
+                body="换个词，或清除分类 / 状态 / 输入 / 实现 / 复杂度筛选。"
+                action={{ label: '清除搜索与筛选', onClick: resetAll }}
+              />
+            )
           ) : (
-            groups.map((group) => (
-              <section key={group.id} className="fx-group" role="group" aria-label={group.label}>
-                {sort === 'cat' && (
-                  <h2 className="fx-group-head">
-                    <span>{group.label}</span>
-                    <em className="num">{group.items.length}</em>
-                    <i aria-hidden="true" />
-                  </h2>
-                )}
-                {group.items.map((t) => (
-                  <button
+            <div className="fx-grid">
+              {sorted.map((t) => {
+                const fav = lib.favorites.includes(t.id)
+                const isPlaying = playingId === t.id
+                return (
+                  <article
                     key={t.id}
-                    type="button"
-                    role="option"
-                    aria-selected={current?.id === t.id}
+                    className="fxc fxc-poster"
                     data-fx-id={t.id}
-                    className="fx-row"
-                    onClick={() => openDrawer(t.id)}
-                    onKeyDown={(e) => onRowKey(e, t.id)}
-                    title={`${t.name} · ${t.execLabel} · 复杂度 ${t.complexity}/5`}
+                    onMouseEnter={() => t.previewVideo && setPlayingId(t.id)}
+                    onMouseLeave={() => setPlayingId((p) => (p === t.id ? null : p))}
                   >
-                    <span className="fx-row-thumb">
-                      <img
-                        src={t.previewImage}
-                        alt=""
-                        loading="lazy"
-                        decoding="async"
-                        onError={(e) => e.currentTarget.classList.add('is-broken')}
-                      />
+                    <div className="fxc-media">
+                      {isPlaying && t.previewVideo ? (
+                        <video src={t.previewVideo} poster={t.previewImage} autoPlay muted loop playsInline aria-label={`${t.name} 动态预览`} />
+                      ) : (
+                        <img src={t.previewImage} alt={`${t.name} 效果预览`} loading="lazy" />
+                      )}
+                      <span className="fxc-catlabel">{categoryLabel(t.category)}</span>
                       {t.previewVideo && (
-                        <span className="fx-thumb-motion" aria-hidden="true">
-                          <Play size={8} fill="currentColor" />
+                        <span className="fxc-motion" aria-label="有动态预览">
+                          <Play size={10} strokeWidth={2.4} aria-hidden="true" />
                         </span>
                       )}
-                    </span>
-                    <span className="fx-row-main">
-                      <span className="fx-row-title">
-                        <b>{t.name}</b>
-                        <em>{t.nameEn}</em>
-                        {t.featured && <Star size={10} className="fx-star" aria-label="源库精选" />}
-                      </span>
-                      <span className="fx-row-intent">{t.intent}</span>
-                    </span>
-                    <span className="fx-row-scenes fx-col-scenes" title={t.scenes.join(' / ')}>
-                      {t.scenes.slice(0, 2).join(' · ')}
-                    </span>
-                    <span className="fx-row-meta fx-col-input">{t.inputLabels.join(' / ')}</span>
-                    <span className="fx-row-meta fx-col-impl">{t.implLabel}</span>
-                    <span
-                      className="fx-row-complexity fx-col-complexity"
-                      title={`复杂度 ${t.complexity}/5`}
-                      aria-label={`复杂度 ${t.complexity}/5`}
-                    >
-                      {COMPLEXITY_STEPS.map((n) => (
-                        <i key={n} data-on={n <= t.complexity ? '' : undefined} />
-                      ))}
-                    </span>
-                    <span
-                      className={`fx-cap fx-cap-${t.execType}`}
-                      title={FX_EXEC_TYPES[t.execType].hint}
-                    >
-                      {t.execLabel}
-                    </span>
-                    <ChevronRight size={13} className="fx-row-chev" aria-hidden="true" />
-                  </button>
-                ))}
-              </section>
-            ))
+                      <button
+                        type="button"
+                        className="fxc-fav"
+                        data-on={fav ? '' : undefined}
+                        aria-pressed={fav}
+                        aria-label={fav ? `取消收藏 ${t.name}` : `收藏 ${t.name}`}
+                        onClick={() => toggleFavorite(t.id)}
+                      >
+                        <Star size={14} strokeWidth={2} fill={fav ? 'currentColor' : 'none'} />
+                      </button>
+                    </div>
+                    <button type="button" className="fxc-hit" aria-label={`查看技法：${t.name}`} onClick={() => openDrawer(t.id)} />
+                    <div className="fxc-body">
+                      <h3 className="fxc-title">{t.name}</h3>
+                      <p className="fxc-intent">{t.intent}</p>
+                      <div className="fxc-meta">
+                        <span className="fx-cap" data-cap={t.execType}>
+                          <i className="fx-dot" data-cap={t.execType} aria-hidden="true" />
+                          {execLabel(t.execType)}
+                        </span>
+                        <span className="fxc-dots" role="img" aria-label={`复杂度 ${t.complexity} / 5`}>
+                          {Array.from({ length: 5 }, (_, i) => (
+                            <i key={i} data-on={i < t.complexity ? '' : undefined} aria-hidden="true" />
+                          ))}
+                        </span>
+                        <span>{t.inputLabels.join(" · ")}</span>
+                      </div>
+                    </div>
+                  </article>
+                )
+              })}
+            </div>
           )}
         </div>
 
-        <footer className="fx-status" aria-label="状态">
-          <span className="fx-status-item">
-            <i className="fx-dot fx-dot-ok" aria-hidden="true" />
-            本地源库
-          </span>
-          <span className="fx-status-sep" aria-hidden="true" />
-          <span className="fx-status-item">
-            <b className="num">{FX_TECHNIQUES.length}</b> 项 · 可见 <b className="num">{visible.length}</b>
-          </span>
-          {activeCount > 0 && (
-            <span className="fx-status-item">
-              筛选 <b className="num">{activeCount}</b> 项
-            </span>
-          )}
-          {query && <span className="fx-status-item">搜索 “{query}”</span>}
-          <span className="fx-spacer" />
-          <span className="fx-status-note">能力标签为源库元数据 · 本页不触发执行</span>
-          {lastUpdated && <span className="fx-status-note num">最后更新 {lastUpdated}</span>}
-        </footer>
       </section>
 
-      {/* ── 配方抽屉（overlay，不常驻）──────────────────────── */}
+      {/* ── 详情抽屉：预览 → 用途 → 实现方法 → 参数 → 调用方式 ── */}
       {drawerOpen && current && (
         <div
           className="fx-scrim"
@@ -613,7 +692,7 @@ export function FxLibrary() {
                   <button
                     type="button"
                     className="fx-preview-toggle"
-                    onClick={() => setPlayingId((p) => (current && p === current.id ? null : current?.id ?? null))}
+                    onClick={() => setPlayingId((p) => (p === current.id ? null : current.id))}
                     aria-label={playing ? '暂停动作预览' : '播放动作预览'}
                     title={playing ? '暂停动作预览' : '播放动作预览'}
                   >
@@ -630,40 +709,48 @@ export function FxLibrary() {
                 >
                   <X size={15} aria-hidden="true" />
                 </button>
-                <span
-                  className={`fx-cap fx-cap-${current.execType} fx-preview-cap`}
-                  title={FX_EXEC_TYPES[current.execType].hint}
-                >
+                <span className={`fx-cap fx-cap-${current.execType} fx-preview-cap`} title={FX_EXEC_TYPES[current.execType].hint}>
                   {current.execLabel}
                 </span>
                 {current.previewCaption && <span className="fx-preview-caption">{current.previewCaption}</span>}
               </div>
 
               <div className="fx-drawer-body">
-                <div className="fx-drawer-title" aria-live="polite">
+                <div className="fx-drawer-title">
                   <h2 id="fx-drawer-title">{current.name}</h2>
                   <span>{current.nameEn} · {current.categoryLabel}</span>
                   {current.featured && (
                     <em className="fx-featured">
-                      <Star size={9} aria-hidden="true" />
+                      <Sparkles size={9} aria-hidden="true" />
                       源库精选
                     </em>
                   )}
+                  <button
+                    type="button"
+                    className="fx-favbtn"
+                    data-on={lib.favorites.includes(current.id) ? '' : undefined}
+                    aria-pressed={lib.favorites.includes(current.id)}
+                    onClick={() => toggleFavorite(current.id)}
+                  >
+                    <Star
+                      size={12}
+                      fill={lib.favorites.includes(current.id) ? 'currentColor' : 'none'}
+                      aria-hidden="true"
+                    />
+                    {lib.favorites.includes(current.id) ? '已收藏' : '收藏'}
+                  </button>
                 </div>
                 <p className="fx-detail-intent">{current.intent}</p>
 
                 <div className="fx-detail-cap">
-                  <span
-                    className={`fx-cap fx-cap-${current.execType}`}
-                    title={FX_EXEC_TYPES[current.execType].hint}
-                  >
+                  <span className={`fx-cap fx-cap-${current.execType}`} title={FX_EXEC_TYPES[current.execType].hint}>
                     {current.execLabel}
                   </span>
                   <span>{FX_EXEC_TYPES[current.execType].hint}</span>
                 </div>
 
                 <section className="fx-dsec">
-                  <h3 className="fx-label">适用 / 不适用</h3>
+                  <h3 className="fx-label">用途</h3>
                   <div className="fx-taggroup">
                     <span className="fx-taggroup-label">适用</span>
                     <div className="fx-taglist">
@@ -683,17 +770,7 @@ export function FxLibrary() {
                 </section>
 
                 <section className="fx-dsec">
-                  <h3 className="fx-label">输入 / 输出</h3>
-                  <dl className="fx-io">
-                    <div><dt>输入</dt><dd>{current.inputRequirement || '—'}</dd></div>
-                    <div><dt>输出</dt><dd>{current.output || '—'}</dd></div>
-                    <div><dt>实现</dt><dd>{current.implLabel}</dd></div>
-                    <div><dt>复杂度</dt><dd className="num">{current.complexity} / 5</dd></div>
-                  </dl>
-                </section>
-
-                <section className="fx-dsec">
-                  <h3 className="fx-label">制作步骤 <em className="num">{current.steps.length}</em></h3>
+                  <h3 className="fx-label">实现方法 <em className="num">{current.steps.length}</em></h3>
                   <ol className="fx-steps">
                     {current.steps.map((s, i) => (
                       <li key={i}>
@@ -702,34 +779,17 @@ export function FxLibrary() {
                       </li>
                     ))}
                   </ol>
+                  <dl className="fx-io">
+                    <div><dt>实现</dt><dd>{current.implLabel}</dd></div>
+                    <div><dt>复杂度</dt><dd className="num">{current.complexity} / 5</dd></div>
+                    {current.dependencies.length > 0 && (
+                      <div><dt>依赖</dt><dd>{current.dependencies.join('；')}</dd></div>
+                    )}
+                    {current.compatibility.length > 0 && (
+                      <div><dt>兼容</dt><dd>{current.compatibility.join('；')}</dd></div>
+                    )}
+                  </dl>
                 </section>
-
-                <section className="fx-dsec">
-                  <h3 className="fx-label">参数 <em className="num">{current.params.length}</em></h3>
-                  <ul className="fx-params">
-                    {current.params.map((p) => (
-                      <li key={p.key}>
-                        <span>{p.label}</span>
-                        <b className="num">{p.value}</b>
-                        {p.hint && <em title={p.hint}>{p.hint}</em>}
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-
-                {(current.dependencies.length > 0 || current.compatibility.length > 0) && (
-                  <section className="fx-dsec">
-                    <h3 className="fx-label">前置 / 交付</h3>
-                    <ul className="fx-bullets">
-                      {current.dependencies.map((s) => (
-                        <li key={s}>{s}</li>
-                      ))}
-                      {current.compatibility.map((s) => (
-                        <li key={s} className="fx-bullet-dim">{s}</li>
-                      ))}
-                    </ul>
-                  </section>
-                )}
 
                 {current.limitations.length > 0 && (
                   <section className="fx-dsec">
@@ -752,6 +812,64 @@ export function FxLibrary() {
                   </section>
                 )}
 
+                <section className="fx-dsec">
+                  <h3 className="fx-label">参数 <em className="num">{current.params.length}</em></h3>
+                  <ul className="fx-params">
+                    {current.params.map((p) => (
+                      <li key={p.key}>
+                        <span>{p.label}</span>
+                        <b className="num">{p.value}</b>
+                        {p.hint && <em title={p.hint}>{p.hint}</em>}
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+
+                <section className="fx-dsec">
+                  <h3 className="fx-label">调用方式</h3>
+                  <dl className="fx-io">
+                    <div><dt>输入</dt><dd>{current.inputRequirement || '—'}</dd></div>
+                    <div><dt>输出</dt><dd>{current.output || '—'}</dd></div>
+                  </dl>
+                  <div className="fx-callacts">
+                    <button type="button" className="fx-btn fx-btn-primary" onClick={copyRecipe}>
+                      {copied === 'ok' ? <Check size={13} aria-hidden="true" /> : <Copy size={13} aria-hidden="true" />}
+                      {copied === 'ok' ? '已复制配方' : copied === 'fail' ? '复制失败' : '复制配方'}
+                    </button>
+                    <button type="button" className="fx-btn" onClick={() => setWorkflowFor(current)}>
+                      <Workflow size={13} aria-hidden="true" />
+                      用于工作流
+                    </button>
+                  </div>
+                  <p className="fx-actions-note">
+                    <Info size={11} aria-hidden="true" />
+                    复制的是配方文本（参数 + 制作步骤 + 调用配置）。执行与工作流插入尚未接入，选目标只记意向。
+                  </p>
+                </section>
+
+                {(current.related.length > 0 || current.alternatives.length > 0) && (
+                  <section className="fx-dsec">
+                    <h3 className="fx-label">相关技法</h3>
+                    <div className="fx-related">
+                      {[...current.related, ...current.alternatives].map((id) => {
+                        const rel = FX_TECHNIQUES.find((t) => t.id === id)
+                        if (!rel) return null
+                        return (
+                          <button
+                            key={id}
+                            type="button"
+                            className="fx-relchip"
+                            onClick={() => openDrawer(id)}
+                          >
+                            {rel.name}
+                            <ChevronRight size={11} aria-hidden="true" />
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </section>
+                )}
+
                 <div className="fx-source">
                   <span className="num">v{current.version}</span>
                   <span>更新 {current.updatedAt}</span>
@@ -759,27 +877,52 @@ export function FxLibrary() {
                 </div>
               </div>
             </div>
-
-            <div className="fx-actions">
-              <button type="button" className="fx-btn fx-btn-primary" onClick={copyRecipe}>
-                {copied === 'ok' ? <Check size={13} aria-hidden="true" /> : <Copy size={13} aria-hidden="true" />}
-                {copied === 'ok' ? '已复制配方' : copied === 'fail' ? '复制失败' : '复制配方'}
-              </button>
-              <button
-                type="button"
-                className="fx-btn"
-                disabled
-                title="工作流插入尚未接入；本页不会执行、渲染或插入任何内容"
-              >
-                <Workflow size={13} aria-hidden="true" />
-                加入工作流
-              </button>
-              <p className="fx-actions-note">
-                <Info size={11} aria-hidden="true" />
-                只读源库；执行与工作流插入尚未接入。
-              </p>
-            </div>
           </aside>
+        </div>
+      )}
+
+      {/* ── 用于工作流：目标选择（调用链未接入，只记意向） ── */}
+      {workflowFor && (
+        <div
+          className="fx-scrim fx-scrim-center"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) setWorkflowFor(null)
+          }}
+        >
+          <div className="fx-dialog" role="dialog" aria-modal="true" aria-labelledby="fx-dialog-title">
+            <div className="fx-dialog-head">
+              <h3 id="fx-dialog-title">将「{workflowFor.name}」用于项目</h3>
+              <button type="button" className="fx-dialog-close" onClick={() => setWorkflowFor(null)} aria-label="关闭">
+                <X size={14} aria-hidden="true" />
+              </button>
+            </div>
+            <p className="fx-dialog-note">
+              <Info size={12} aria-hidden="true" />
+              工作流调用链尚未接入。选择目标后只会把意向记入本地清单，不会真正插入或执行。
+            </p>
+            <div className="fx-dialog-list">
+              {PROJECTS.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  className="fx-dialog-item"
+                  onClick={() => recordWorkflowIntent(p.id, p.name)}
+                >
+                  <span className="fx-dialog-item-main">
+                    <b>{p.name}</b>
+                    <em>{STAGE_LABEL[p.stage]}</em>
+                  </span>
+                  <ChevronRight size={13} aria-hidden="true" />
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {toast && (
+        <div className="fx-toast" role="status">
+          {toast}
         </div>
       )}
     </div>

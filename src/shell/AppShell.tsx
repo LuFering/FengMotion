@@ -38,16 +38,16 @@ export function AppShell({
           <a className="hm-brand" href="#project" aria-label="FengMotion 项目"
              onClick={(e) => { e.preventDefault(); onNavigate('project') }}>
             <span className="hm-brand-mark">
-              <img src="/assets/brand/fengmotion-mark.png" alt="" width={26} height={26} />
+              <img src="./assets/brand/fengmotion-mark.png" alt="" width={26} height={26} />
             </span>
             <span className="hm-brand-word app-brand-logo">
-              <img src="/assets/brand/fengmotion-word.png" alt="FengMotion" style={{ height: 14, width: 'auto' }} />
+              <img src="./assets/brand/fengmotion-word.png" alt="FengMotion" style={{ height: 14, width: 'auto' }} />
             </span>
           </a>
           <button className="hm-sidebar-toggle" id="hm-sidebar-toggle" type="button"
                   aria-label="展开边栏" aria-expanded={false} onClick={onToggleNav}>
-            <svg className="ui-icon hm-icon-open" aria-hidden="true"><use href="/assets/paba-icons.svg#panel-left-open" /></svg>
-            <svg className="ui-icon hm-icon-close" aria-hidden="true"><use href="/assets/paba-icons.svg#panel-left-close" /></svg>
+            <svg className="ui-icon hm-icon-open" aria-hidden="true"><use href="./assets/paba-icons.svg#panel-left-open" /></svg>
+            <svg className="ui-icon hm-icon-close" aria-hidden="true"><use href="./assets/paba-icons.svg#panel-left-close" /></svg>
           </button>
         </div>
 

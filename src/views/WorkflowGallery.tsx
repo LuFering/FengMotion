@@ -23,7 +23,7 @@ export function WorkflowGallery() {
     <div className="wgr">
       <iframe
         className="wgr-frame"
-        src="/replica/workflow-gallery.html"
+        src="./replica/workflow-gallery.html"
         title="工作流"
       />
     </div>

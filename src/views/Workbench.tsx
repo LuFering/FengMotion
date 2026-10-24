@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
   ArrowDownToLine, ArrowLeftRight, ArrowUpRight, BookOpen, Check,
   ChevronDown, ChevronLeft, Clock3, FileCode2, FileText, FolderOpen, History, ListTree, LoaderCircle, Maximize2,
@@ -6,6 +6,7 @@ import {
   PanelBottom, Pause, Play, Plus, RotateCcw, Send, Settings2,
   SkipBack, SkipForward, Square, Volume2, X,
 } from 'lucide-react'
+import { CreationTaskPanel } from './CreationTask'
 import { ACTIVE_SCENES, SCENES } from '@/data/projectModel'
 import { PROJECTS } from '@/data/projects'
 import type { StoryboardEntry } from '@/data/projectModel'
@@ -41,7 +42,7 @@ import { Switch } from '@/components/ui/switch'
  */
 
 /** 项目里实际存在的那份成片。演示适配器不改它，只播放/下载。 */
-const EXISTING_FILM_SOURCE = '/media/token-full-legacy.mp4'
+const EXISTING_FILM_SOURCE = './media/token-full-legacy.mp4'
 
 /**
  * 首屏默认停在场景内的「代表帧」而不是 0s。
@@ -98,9 +99,14 @@ interface WorkbenchProps {
   onBack: () => void
   /** 换一个项目（工作台里直接切，不用先回列表） */
   onSwitchProject: (id: string) => void
+  /** 创作启动层刚建好的「本次制作」——双路径都落工作台，在这里执行与呈现 */
+  launch?: { workflowId: string; autoRun: boolean } | null
+  /** 从本次制作深链回方法工坊（工作流编辑器） */
+  onOpenWorkflowEditor?: (workflowId: string) => void
+  onDismissLaunch?: () => void
 }
 
-export function Workbench({ chat, tasks, onNavigate, projectId, onBack, onSwitchProject }: WorkbenchProps) {
+export function Workbench({ chat, tasks, onNavigate, projectId, onBack, onSwitchProject, launch, onOpenWorkflowEditor, onDismissLaunch }: WorkbenchProps) {
   const playerRef = useRef<PlayerRef | null>(null)
   /** 打开的哪个项目 —— 从一级目录传下来的 id 解析 */
   const project = PROJECTS.find((p) => p.id === projectId) ?? PROJECTS[0]
@@ -500,7 +506,15 @@ export function Workbench({ chat, tasks, onNavigate, projectId, onBack, onSwitch
                      open={railOpen} onClose={() => setRailOpen(false)}
                      tab={railTab} onTab={setRailTab}
                      selectedArtifactId={selectedArtifactId} onSelectArtifact={selectArtifact}
-                     modifiedIds={Object.keys(shotOverrides)} />
+                     modifiedIds={Object.keys(shotOverrides)}
+                     creation={launch ? (
+                       <CreationTaskPanel
+                         workflowId={launch.workflowId}
+                         autoRun={launch.autoRun}
+                         onOpenEditor={() => onOpenWorkflowEditor?.(launch.workflowId)}
+                         onClose={() => onDismissLaunch?.()}
+                       />
+                     ) : undefined} />
 
         {/* 中栏：监看器 */}
         <main className="fw-canvas">
@@ -571,7 +585,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, onBack, onSwitch
                 ) : (
                   <div className="relative flex size-full overflow-hidden bg-black">
                     <div className="relative h-full overflow-hidden" style={{ width: `${compareSplit}%` }}>
-                      <img src={selectedScene.frame ?? '/frames/u01.jpg'} alt="项目抽帧"
+                      <img src={selectedScene.frame ?? './frames/u01.jpg'} alt="项目抽帧"
                            className="absolute inset-0 size-full object-contain" />
                       <span className="absolute left-2 top-2 bg-black/75 px-1.5 py-1 text-[10px]">已存抽帧</span>
                     </div>
@@ -710,15 +724,16 @@ function ArtifactIcon({ type }: { type: WorkbenchArtifact['type'] }) {
 }
 
 function ProjectRail({ selectedId, onSelect, projectName, open, onClose, tab, onTab,
-  selectedArtifactId, onSelectArtifact, modifiedIds }:
+  selectedArtifactId, onSelectArtifact, modifiedIds, creation }:
   { selectedId: string; onSelect: (id: string, storyboardId?: string | null) => void
     projectName: string; open: boolean; onClose: () => void
     tab: 'structure' | 'artifacts'; onTab: (tab: 'structure' | 'artifacts') => void
     selectedArtifactId: string | null; onSelectArtifact: (id: string) => void
-    modifiedIds: string[] }) {
+    modifiedIds: string[]; creation?: ReactNode }) {
   const acts = [...new Set(ACTIVE_SCENES.map((s) => s.scene?.storyboard?.幕 ?? (s.storyboardId ? '计划草稿' : '当前成片')))]
   return (
     <aside className="fw-ing" data-open={open ? '' : undefined} aria-label="镜头库与产物">
+      {creation}
       <div className="fw-ing-hd">
         <h2>{tab === 'structure' ? '镜头库' : '产物'}</h2>
         <span className="fw-count">{tab === 'structure' ? `${ACTIVE_SCENES.length} 场` : `${WORKBENCH_ARTIFACTS.length} 产物`}</span>

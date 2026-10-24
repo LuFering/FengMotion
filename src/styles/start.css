@@ -1,0 +1,78 @@
+/* 创作启动层（M1）——首页发送后的就地承接层，颜色全走主题变量，三主题通用 */
+.stc-overlay {
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(4, 6, 9, 0.58);
+  backdrop-filter: blur(3px);
+  display: flex; align-items: flex-start; justify-content: center;
+  padding: 9vh 16px 16px;
+}
+.stc-panel {
+  width: 560px; max-width: 100%;
+  background: var(--surf); color: var(--fg);
+  border: 1px solid var(--line); border-radius: 14px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.45);
+  padding: 18px 20px 16px;
+  max-height: 82vh; overflow-y: auto;
+}
+.stc-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.stc-head b { font-size: 16px; font-weight: 650; }
+.stc-x {
+  background: none; border: 0; color: var(--dim); font-size: 13px; cursor: pointer;
+  width: 28px; height: 28px; border-radius: 8px;
+}
+.stc-x:hover { background: var(--soft); color: var(--fg); }
+.stc-label { display: block; font-size: 12px; color: var(--dim); margin: 12px 0 6px; }
+.stc-text {
+  width: 100%; resize: vertical; min-height: 66px;
+  background: var(--hole, var(--soft)); color: var(--fg);
+  border: 1px solid var(--line); border-radius: 10px;
+  padding: 9px 11px; font: inherit; font-size: 13.5px; line-height: 1.55;
+}
+.stc-text:focus { outline: none; border-color: var(--acc); }
+.stc-chips { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.stc-chip {
+  background: var(--soft); color: var(--fg);
+  border: 1px solid var(--line); border-radius: 999px;
+  padding: 5px 13px; font-size: 13px; cursor: pointer;
+}
+.stc-chip[data-on] { border-color: var(--acc); color: var(--acc); background: transparent; font-weight: 600; }
+.stc-chip-note { font-size: 12px; color: var(--hint, var(--dim)); }
+.stc-select {
+  width: 100%; background: var(--hole, var(--soft)); color: var(--fg);
+  border: 1px solid var(--line); border-radius: 10px;
+  padding: 8px 10px; font: inherit; font-size: 13.5px;
+}
+.stc-primary {
+  width: 100%; margin-top: 16px;
+  background: var(--acc); color: #fff; border: 0; border-radius: 10px;
+  padding: 11px; font-size: 14.5px; font-weight: 600; cursor: pointer;
+}
+.stc-primary:disabled { opacity: 0.45; cursor: not-allowed; }
+.stc-fine { font-size: 11.5px; color: var(--hint, var(--dim)); margin-top: 8px; line-height: 1.5; }
+.stc-pro-toggle {
+  margin-top: 14px; background: none; border: 0; padding: 4px 0;
+  color: var(--acc); font-size: 13px; cursor: pointer;
+}
+.stc-pro { border-top: 1px solid var(--line); margin-top: 8px; padding-top: 12px; }
+.stc-seg { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.stc-seg button {
+  text-align: left; background: var(--soft); color: var(--fg);
+  border: 1px solid var(--line); border-radius: 10px;
+  padding: 9px 11px; font-size: 13.5px; font-weight: 600; cursor: pointer;
+}
+.stc-seg button span { display: block; font-size: 11.5px; font-weight: 400; color: var(--dim); margin-top: 2px; }
+.stc-seg button[data-on] { border-color: var(--acc); }
+.stc-libs { display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 12.5px; color: var(--dim); flex-wrap: wrap; }
+.stc-libs button {
+  background: none; border: 1px solid var(--line); border-radius: 999px;
+  color: var(--fg); padding: 4px 11px; font-size: 12.5px; cursor: pointer;
+}
+.stc-libs button:hover { border-color: var(--acc); color: var(--acc); }
+.stc-secondary {
+  width: 100%; margin-top: 12px;
+  background: transparent; color: var(--fg);
+  border: 1px solid var(--line); border-radius: 10px;
+  padding: 10px; font-size: 13.5px; cursor: pointer;
+}
+.stc-secondary:hover { border-color: var(--acc); }
+.stc-secondary:disabled { opacity: 0.45; cursor: not-allowed; }
