@@ -545,8 +545,6 @@ export function Workbench({ chat, tasks, onNavigate, projectId, onBack, onSwitch
                   regionMode={regionMode} editMode={editMode}
                   onEdit={openEdit}
                 />
-                <span className="wb-divider" />
-                <span className="wb-viewer-meta">{FILM_WIDTH}×{FILM_HEIGHT} · {FILM_FPS}fps · {selectedScene.duration.toFixed(1)}s</span>
               </>
             )}
           </div>

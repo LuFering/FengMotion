@@ -272,12 +272,7 @@ html[data-theme='tactile'] .fxlib {
 .fx-dot[data-cap='reference'] { background: var(--warn); }
 
 /* Round 3（审计 23）：图例行——状态点与难度点阵的含义，页头下一行常驻 */
-.fx-legend {
-  display: flex; align-items: center; flex-wrap: wrap; gap: 6px 16px;
-  margin: 10px 2px 0; font-size: 11.5px; color: var(--tx3);
-}
-.fx-legend > span { display: inline-flex; align-items: center; gap: 5px; }
-.fx-legend-sep { width: 1px; height: 12px; background: var(--line2); }
+/* 去 AI 味：fx-legend 整行已删，样式同步移除（能力与复杂度改写进卡片元信息行） */
 
 /* ── 元信息行：计数 + 已选条件 + 范围 + 排序（只一行） ──────────── */
 
@@ -435,9 +430,7 @@ html[data-theme='tactile'] .fxlib {
   color: var(--tx3);
   flex-wrap: wrap;
 }
-.fxc-dots { display: inline-flex; gap: 3px; align-items: center; }
-.fxc-dots i { width: 5px; height: 5px; border-radius: 50%; background: var(--line2); }
-.fxc-dots i[data-on] { background: var(--tx2); }
+/* 去 AI 味：圆点复杂度已改成文字，点阵样式同步移除 */
 
 /* 能力标签：低对比胶囊（圆点 + 短文字），如实表达源库能力 */
 .fx-cap {
@@ -473,8 +466,6 @@ html[data-theme='tactile'] .fxlib {
 .fxc-poster { border-color: var(--line2); }
 .fxc-poster .fxc-meta { color: rgba(235, 237, 240, 0.66); }
 .fxc-poster .fx-cap { border-color: rgba(255, 255, 255, 0.28); color: rgba(255, 255, 255, 0.88); background: rgba(10, 10, 12, 0.35); }
-.fxc-poster .fxc-dots i { background: rgba(255, 255, 255, 0.25); }
-.fxc-poster .fxc-dots i[data-on] { background: rgba(255, 255, 255, 0.85); }
 .fxc-catlabel {
   position: absolute;
   top: 8px;
@@ -723,3 +714,29 @@ button.fx-mini:hover { background: var(--hover); color: var(--tx); }
   .fx-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
   .fx-pop { position: fixed; left: 12px; right: 12px; top: 108px; width: auto; }
 }
+
+/* ── 去 AI 味：详情抽屉正文（此前 fx-dsec / fx-label / fx-io 等类无样式，
+   全靠浏览器默认排版，才显得像教程文档）──────────────────────── */
+.fx-drawer-title h2 { font-size: 17px; font-weight: 700; line-height: 1.35; margin: 0; }
+.fx-drawer-title > span { display: block; margin-top: 3px; font-size: 12px; color: var(--tx3); }
+.fx-featured { font-style: normal; font-size: 11px; color: var(--tx2); }
+.fx-detail-intent { margin: 0; font-size: 13px; line-height: 1.7; color: var(--tx2); }
+.fx-detail-capline { margin: 0; font-size: 12px; line-height: 1.65; color: var(--tx2); }
+.fx-dsec { display: flex; flex-direction: column; gap: 6px; }
+.fx-label { margin: 0; font-size: 11px; font-weight: 700; letter-spacing: .08em; color: var(--tx3); }
+.fx-use-line { margin: 0; font-size: 13px; line-height: 1.7; color: var(--tx2); }
+.fx-use-line b { color: var(--tx3); font-weight: 600; margin-right: 6px; }
+.fx-steps { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
+.fx-steps li { font-size: 13px; line-height: 1.65; color: var(--tx2); }
+.fx-steps li::marker { color: var(--tx3); }
+.fx-io { display: grid; grid-template-columns: 64px 1fr; gap: 4px 12px; margin: 4px 0 0; font-size: 12.5px; }
+.fx-io dt { color: var(--tx3); }
+.fx-io dd { margin: 0; color: var(--tx2); line-height: 1.6; }
+.fx-bullets { margin: 0; padding-left: 17px; display: flex; flex-direction: column; gap: 4px; }
+.fx-bullets li { font-size: 13px; line-height: 1.65; color: var(--tx2); }
+.fx-bullets li::marker { color: var(--tx3); }
+.fx-subhead { margin: 6px 0 0; font-size: 12px; font-weight: 600; color: var(--tx2); }
+.fx-favbtn { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border: 1px solid var(--line2); border-radius: 999px; background: transparent; color: var(--tx2); font-size: 12px; cursor: pointer; }
+.fx-related { display: flex; flex-wrap: wrap; gap: 6px; }
+.fx-relchip { padding: 4px 10px; border: 1px solid var(--line2); border-radius: 999px; background: transparent; color: var(--tx2); font-size: 12px; cursor: pointer; }
+.fx-relchip:hover, .fx-favbtn:hover { background: var(--hover); color: var(--tx); }

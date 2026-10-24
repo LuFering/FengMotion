@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   LICENSE_LABEL, MEDIA_ICON, MEDIA_LABEL, REVIEW_LABEL, SOURCE_LABEL,
   type LicenseStatus, type MediaType, type MyAsset, type ReviewStatus,
@@ -655,11 +655,10 @@ export function Assets({ projectName }: { projectName?: string } = {}) {
                 )
               ) : viewMode === 'grid' ? (
                 <div className="mya-grid" key={`${node}|${typeFilter}|${sortKey}`} onKeyDown={onGridKeys}>
-                  {visible.map((a, i) => {
+                  {visible.map((a) => {
                     const flag = assetFlag(a)
                     return (
                       <div key={a.id} className="mya-card"
-                           style={{ '--d': `${Math.min(i, 20) * 30}ms` } as CSSProperties}
                            data-on={detailId === a.id || undefined}
                            data-picked={selected.has(a.id) || undefined}
                            role="option" aria-selected={detailId === a.id} tabIndex={0}

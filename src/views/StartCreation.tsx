@@ -44,13 +44,15 @@ export function StartCreation(props: {
   }, [props])
 
   const firstLine = useMemo(() => text.trim().split('\n')[0] ?? '', [text])
-  const wfName = firstLine.slice(0, 24) || '未命名创作'
+  /* 去 AI 味：首行太短 / 只有数字标点时不直接当名字（如测试输入“1”就成了工作流名“1”） */
+  const usableName = firstLine.length >= 2 && !/^[\d\s\p{P}]+$/u.test(firstLine) ? firstLine : ''
+  const wfName = usableName.slice(0, 24) || '未命名创作'
   const canStart = text.trim().length > 0
 
   const resolveProjectId = (): string | null => {
     if (belong !== 'auto') return belong
     const p = props.onCreateProject({
-      name: firstLine.slice(0, 14) || '未命名创作',
+      name: usableName.slice(0, 14) || '未命名创作',
       genome: presetId === 'talking' ? 'explainer' : (GENOMES[0]?.id ?? 'explainer'),
       targetDuration: 180,
     })

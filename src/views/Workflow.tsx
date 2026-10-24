@@ -16,7 +16,6 @@ import {
   History,
   Layers,
   Plus,
-  Sparkles,
   Trash2,
   Workflow as WorkflowIcon,
 } from 'lucide-react'
@@ -27,6 +26,14 @@ import { WorkflowEditor } from './WorkflowEditor'
 import '../styles/workflow.css'
 
 type Page = { kind: 'home' } | { kind: 'create' } | { kind: 'editor'; id: string }
+
+/* 去 AI 味：工作流显示名——去掉名字里拼的路径后缀；纯数字 / 空 / 只有标点
+   的名字（多为测试输入直接当了名字，如“1”）一律显示“未命名创作” */
+function displayWorkflowName(name: string): string {
+  const base = name.split(' · ')[0]?.trim() ?? ''
+  if (!base || /^[\d\s\p{P}]+$/u.test(base)) return '未命名创作'
+  return base
+}
 
 function fmtTime(iso: string): string {
   const d = new Date(iso)
@@ -140,7 +147,7 @@ function WorkflowHome(props: {
       <div className="wfh-meta">
         <span><b className="num">{workflows.length}</b> 个工作流</span>
         <span>默认路径 Prompt-first · Structured 按需</span>
-        <span className="wfh-meta-demo">演示执行器 · Mock 数据（Agent 后端未连接）</span>
+        <span className="wfh-meta-demo">演示执行器（Agent 后端未连接）</span>
       </div>
 
       <div className="wfh-body">
@@ -148,7 +155,7 @@ function WorkflowHome(props: {
           <section aria-label="创作入口">
             <div className="wfh-paths">
               <div className="wfh-path is-hero">
-                <span className="wfh-path-tag"><Sparkles size={12} strokeWidth={2.2} /> 默认推荐 · Prompt-first</span>
+                <span className="wfh-path-tag">默认推荐 · Prompt-first</span>
                 <b>从提示词直接开始创作</b>
                 <p>写下原始需求就能进入创作与渲染；Lookdev、Film-plan 是随手可用的工作稿，不是审批门。需要时再加入参考、能力检索和 Finishing。</p>
                 <div className="wfh-path-actions">
@@ -189,11 +196,13 @@ function WorkflowHome(props: {
                         <span className="wfh-row-info">
                           {/* Round 3（审计 26）：工作流名已含路径（Token 科普视频 · Prompt-first），行内 chip 重复，删掉 */}
                           <span className="wfh-row-title">
-                            <b>{w.name}</b>
+                            {/* 去 AI 味：标题不再把路径用“·”拼在名字后面（种子名“Token 科普视频 · Prompt-first”
+                                之类），也不再把纯数字/空名字原样上屏；路径改放元信息行首 */}
+                            <b>{displayWorkflowName(w.name)}</b>
                           </span>
                           <span className="wfh-row-meta">
-                            {w.nodes.filter((n) => n.type !== 'lane').length} 个节点 · 修订 {w.revision} · {fmtTime(w.updatedAt)}
-                            {last ? ` · 最近${w.path === 'structured' ? '评估' : '运行'}：${last.artifacts[0]?.summary ?? RUN_STATUS_LABEL[last.status]}` : ' · 尚未运行'}
+                            {w.path === 'structured' ? 'Structured' : 'Prompt-first'} · {w.nodes.filter((n) => n.type !== 'lane').length} 个节点 · {fmtTime(w.updatedAt)}
+                            {last ? ` · 最近${w.path === 'structured' ? '评估' : '运行'}：${last.artifacts[0]?.summary ?? RUN_STATUS_LABEL[last.status]}` : ' · 未运行'}
                           </span>
                         </span>
                         {primaryGate && (
@@ -211,7 +220,7 @@ function WorkflowHome(props: {
                         <button
                           type="button"
                           className="wfh-iconbtn"
-                          aria-label={`复制 ${w.name}`}
+                          aria-label={`复制 ${displayWorkflowName(w.name)}`}
                           title="复制"
                           onClick={() => { workflowService.duplicateWorkflow(w.id); props.onChanged() }}
                         >
@@ -220,7 +229,7 @@ function WorkflowHome(props: {
                         <button
                           type="button"
                           className="wfh-iconbtn"
-                          aria-label={`删除 ${w.name}`}
+                          aria-label={`删除 ${displayWorkflowName(w.name)}`}
                           title="删除"
                           onClick={() => { workflowService.deleteWorkflow(w.id); props.onChanged() }}
                         >

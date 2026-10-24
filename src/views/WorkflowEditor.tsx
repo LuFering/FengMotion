@@ -53,6 +53,13 @@ import {
 } from '../data/workflowTemplates'
 import { BUILTIN_ASSETS, MEDIA_LABEL } from '../data/myAssets'
 import { FX_TECHNIQUES } from '../data/fxTechniques'
+
+/* 去 AI 味（与 Workflow.tsx 同口径）：标题去路径后缀，纯数字 / 空名字显示“未命名创作” */
+function displayWorkflowName(name: string): string {
+  const base = name.split(' · ')[0]?.trim() ?? ''
+  if (!base || /^[\d\s\p{P}]+$/u.test(base)) return '未命名创作'
+  return base
+}
 import { REFERENCE_SEGMENTS, REFERENCE_VIDEOS } from '../data/referenceLibrary'
 import {
   workflowService,
@@ -888,8 +895,8 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
         </button>
         <input className="wfe-name" value={name} onChange={(e) => { setName(e.target.value); markDirty() }} aria-label="工作流名称" />
         <span className="wfe-pathbadge" data-p={workflow.path}>{isStructured ? 'Structured' : 'Prompt-first'}</span>
-        <span className="wfe-savestate">{dirty ? '有未保存更改' : `已保存 · 修订 ${workflow.revision}`}</span>
-        <span className="wfe-demo">DEMO 执行器</span>
+        <span className="wfe-savestate">{dirty ? '有未保存更改' : '已保存'}</span>
+        <span className="wfe-demo">演示执行器</span>
         <span className="wfe-spacer" />
         {running && (
           <button type="button" className="wfe-btn" onClick={() => runHandle.current?.cancel()}>
@@ -1106,20 +1113,22 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
           ) : (
             <div className="wfe-insp">
               <h3>检查器</h3>
-              <p className="wfe-hint">选中节点查看并编辑；选中 Gate 查看确认范围与阻塞原因。</p>
+              {/* 去 AI 味：不再倾倒内部字段表（修订 / 节点连线计数 / Mock 术语 / 零值三连）。
+                  未选中时只给三条与任务有关的信息；点一个节点或 Gate 才看详情 */}
               <dl className="wfe-kv">
-                <dt>工作流</dt><dd>{workflow.name}</dd>
-                <dt>路径</dt><dd>{isStructured ? 'Structured（按需）' : 'Prompt-first（默认）'}</dd>
-                <dt>修订</dt><dd className="num">{workflow.revision}</dd>
-                <dt>节点 / 连线</dt><dd className="num">{nodes.filter((n) => n.type === 'fm').length} / {edges.length}</dd>
-                <dt>执行器</dt><dd>DEMO（Mock 适配器，本地持久化）</dd>
-                <dt>最近运行</dt><dd>{lastRun ? `${lastRun.status === 'completed' ? '已完成' : lastRun.status} · ${lastRun.artifacts.length} 项产物 · ${new Date(lastRun.startedAt).toLocaleTimeString('zh-CN')}` : '暂无'}</dd>
-                <dt>检查点</dt><dd>{(() => {
+                <dt>工作流</dt><dd>{displayWorkflowName(workflow.name)}</dd>
+                <dt>路径</dt><dd>{isStructured ? 'Structured' : 'Prompt-first'}</dd>
+                <dt>执行器</dt><dd>演示执行器</dd>
+                {(() => {
                   const gates = nodes.filter((n) => n.data.defType === 'gate')
+                  if (gates.length === 0) return null
                   const confirmed = gates.filter((g) => g.data.gateEval?.decision === 'confirmed' && !g.data.gateEval?.stale).length
-                  return `${gates.length} 个 · ${confirmed} 已确认 · ${gates.length - confirmed} 待确认/未开始`
-                })()}</dd>
+                  const pending = gates.length - confirmed
+                  return (<><dt>检查点</dt><dd>{pending > 0 ? `${pending} 个待确认` : '全部已确认'}</dd></>)
+                })()}
+                {lastRun && (<><dt>最近运行</dt><dd>{`${lastRun.status === 'completed' ? '已完成' : lastRun.status} · ${lastRun.artifacts.length} 项产物`}</dd></>)}
               </dl>
+              <p className="wfe-hint">点画布上的节点查看详情，点 Gate 做确认。</p>
             </div>
           )}
         </aside>

@@ -609,8 +609,8 @@ html[data-theme="light"] .mya {
   align-content: start;
 }
 @keyframes myaCardIn {
-  from { opacity: 0; transform: translateY(12px) scale(.985); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 .mya-card {
   min-width: 0;
@@ -622,10 +622,8 @@ html[data-theme="light"] .mya {
   border: 1px solid var(--line);
   border-radius: var(--r-card);
   cursor: pointer;
-  /* 入场：逐张错峰升起（--d 由 JSX 按序号给，封顶 20 张）；backwards 让
-     动画结束后把 transform 还给 hover/active 规则 */
-  animation: myaCardIn .5s var(--eo) backwards;
-  animation-delay: var(--d, 0ms);
+  /* 去 AI 味：取消逐张错峰升起，整网只做一次淡入 */
+  animation: myaCardIn .25s var(--eo) backwards;
   transition: transform .22s var(--eo), box-shadow .22s var(--eo), background-color .22s var(--eo), border-color .22s var(--eo);
 }
 .mya-card:hover {
