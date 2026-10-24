@@ -121,7 +121,7 @@ html[data-theme="tactile"] #pane-conversation {
   overflow: hidden;
   background: transparent;
   color: var(--tx1);
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .cv3-backdrop {
@@ -152,10 +152,10 @@ html[data-theme="tactile"] #pane-conversation {
   /* 侧栏不再用「直角 + 右边贯穿长线」划分，改成一张圆角浮动面板：
      层级靠 --panel2 的灰阶面 + 圆角浮起，和其余界面（圆角卡片、无长线）同一语言。
      ⚠️ 原来 border-right + 铺满全高，是 dsh 的三栏硬分割；本产品其余视图都没有这种线。 */
-  border-radius: 16px;
+  border-radius: var(--fm-radius-panel);
   background: var(--panel2);
   color: var(--tx1);
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .cv3-side-top {
@@ -178,7 +178,7 @@ html[data-theme="tactile"] #pane-conversation {
   height: 28px;
   padding: 0;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--fm-radius-mark);
   background: transparent;
   color: var(--tx2);
   cursor: pointer;
@@ -204,10 +204,10 @@ html[data-theme="tactile"] #pane-conversation {
   padding: 8px 12px;
   box-sizing: border-box;
   border: 0.5px solid var(--line);
-  border-radius: 12px;
+  border-radius: var(--fm-radius-ctl);
   background: var(--cv-elev);
   color: var(--tx1);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
   line-height: 22px;
   cursor: pointer;
@@ -245,7 +245,7 @@ html[data-theme="tactile"] #pane-conversation {
    拖放高亮用左边框 + 底色，不用大色块（保持左栏安静）。 */
 .cv3-group {
   margin-bottom: 2px;
-  border-radius: 12px;
+  border-radius: var(--fm-radius-ctl);
 }
 
 .cv3-group-head {
@@ -255,7 +255,7 @@ html[data-theme="tactile"] #pane-conversation {
   width: 100%;
   padding: 6px 8px;
   border: 0;
-  border-radius: 12px;
+  border-radius: var(--fm-radius-ctl);
   background: transparent;
   color: var(--tx2);
   font: inherit;
@@ -319,9 +319,9 @@ html[data-theme="tactile"] #pane-conversation {
   align-items: center;
   gap: 6px;
   padding: 5px 8px;
-  border-radius: 10px;
+  border-radius: var(--fm-radius-ctl);
   color: var(--tx2);
-  font-size: 12.5px;
+  font-size: 12px;
   line-height: 18px;
   cursor: pointer;
   transition: background-color 100ms cubic-bezier(0.4, 0, 0.2, 1),
@@ -366,7 +366,7 @@ html[data-theme="tactile"] #pane-conversation {
   width: 100%;
   padding: 7px 8px;
   border: 0;
-  border-radius: 12px;
+  border-radius: var(--fm-radius-ctl);
   background: transparent;
   color: var(--tx1);
   font: inherit;
@@ -384,7 +384,7 @@ html[data-theme="tactile"] #pane-conversation {
   flex: 1;
   min-width: 0;
   overflow: hidden;
-  font-size: 13.5px;
+  font-size: 13px;
   line-height: 20px;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -404,7 +404,7 @@ html[data-theme="tactile"] #pane-conversation {
   margin: 6px 4px 10px;
   padding: 7px 10px;
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: var(--fm-radius-ctl);
   background: transparent;
   color: var(--tx2);
   font: inherit;
@@ -441,7 +441,7 @@ html[data-theme="tactile"] #pane-conversation {
   bottom: 0;
   z-index: 8;
   margin: 10px;
-  border-radius: 16px;
+  border-radius: var(--fm-radius-panel);
   box-shadow: 0 10px 30px rgb(0 0 0 / 0.5);
 }
 
@@ -484,7 +484,7 @@ html[data-theme="tactile"] #pane-conversation {
   overflow: hidden;
   padding: 4px 8px;
   color: var(--tx1);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
   line-height: 20px;
   text-overflow: ellipsis;
@@ -511,7 +511,7 @@ html[data-theme="tactile"] #pane-conversation {
   max-width: 220px;
   padding: 0 4px 0 8px;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--fm-radius-mark);
   outline: 0;
   background: transparent;
   color: var(--tx2);
@@ -549,7 +549,7 @@ html[data-theme="tactile"] #pane-conversation {
   max-width: 280px;
   padding: 12px;
   border: 0;
-  border-radius: 12px;
+  border-radius: var(--fm-radius-ctl);
   background: var(--cv-elev);
   box-shadow: inset 0 0 0 var(--cv-hairline-w) var(--cv-hairline), 0 3px 8px rgb(0 0 0 / 0.04), 0 0 20px rgb(0 0 0 / 0.05);
   color: var(--tx2);
@@ -569,7 +569,7 @@ html[data-theme="tactile"] #pane-conversation {
   border-radius: 999px;
   background: var(--acc);
   color: var(--on-accent, #fff);
-  font-size: 12.5px;
+  font-size: 12px;
   cursor: pointer;
 }
 
@@ -632,8 +632,8 @@ html[data-theme="tactile"] #pane-conversation {
   border-radius: 20px;
   background: var(--cv-bubble, var(--soft));
   color: var(--tx1);
-  font-size: 14px;
-  line-height: 22px;
+  font-size: 13px;
+  line-height: 19.5px;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
@@ -641,8 +641,8 @@ html[data-theme="tactile"] #pane-conversation {
 .cv3-ai-intro {
   margin: 0;
   color: var(--tx2);
-  font-size: 14px;
-  line-height: 24px;
+  font-size: 13px;
+  line-height: 19.5px;
   white-space: pre-wrap;
 }
 
@@ -657,8 +657,8 @@ html[data-theme="tactile"] #pane-conversation {
 .cv3-rich {
   min-width: 0;
   color: var(--tx1);
-  font-size: 14px;
-  line-height: 24px;
+  font-size: 13px;
+  line-height: 19.5px;
 }
 
 .cv3-rich p {
@@ -744,8 +744,8 @@ html[data-theme="tactile"] #pane-conversation {
   margin: 0;
   padding: 4px 0 4px 22px;
   color: var(--tx2);
-  font-size: 14px;
-  line-height: 24px;
+  font-size: 13px;
+  line-height: 19.5px;
   white-space: pre-wrap;
 }
 
@@ -781,8 +781,8 @@ html[data-theme="tactile"] #pane-conversation {
 .cv3-changes-title {
   display: block;
   margin-bottom: 8px;
-  font-size: 14px;
-  line-height: 22px;
+  font-size: 13px;
+  line-height: 19.5px;
 }
 
 .cv3-changes table {
@@ -803,8 +803,8 @@ html[data-theme="tactile"] #pane-conversation {
 .cv3-changes td {
   padding: 6px 8px;
   border-bottom: 0.5px solid var(--line);
-  font-size: 14px;
-  line-height: 24px;
+  font-size: 13px;
+  line-height: 19.5px;
 }
 
 .cv3-changes td code {
@@ -817,22 +817,22 @@ html[data-theme="tactile"] #pane-conversation {
 /* 方案卡（FengMotion 自有组件，落 dsh 卡片语言：16px 圆角、面填充、细描边） */
 .cv3-plan {
   padding: 16px;
-  border-radius: 16px;
+  border-radius: var(--fm-radius-panel);
   background: var(--cv-elev);
   box-shadow: inset 0 0 0 var(--cv-hairline-w) var(--cv-hairline);
 }
 
 .cv3-plan-title {
-  font-size: 14px;
-  line-height: 22px;
+  font-size: 13px;
+  line-height: 19.5px;
 }
 
 .cv3-plan ol {
   margin: 10px 0 0;
   padding-left: 20px;
   color: var(--tx2);
-  font-size: 14px;
-  line-height: 24px;
+  font-size: 13px;
+  line-height: 19.5px;
   list-style: decimal;
 }
 
@@ -842,7 +842,7 @@ html[data-theme="tactile"] #pane-conversation {
   gap: 12px;
   margin-top: 14px;
   color: var(--tx3);
-  font-size: 12.5px;
+  font-size: 12px;
 }
 
 .cv3-plan-actions {
@@ -955,7 +955,7 @@ html[data-theme="tactile"] #pane-conversation {
 }
 
 .cv3-trace-empty b {
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .cv3-trace-empty p {
@@ -993,11 +993,11 @@ html[data-theme="tactile"] #pane-conversation {
   margin: 0 auto;
   padding-top: 8px;
   border: 0;
-  border-radius: 28px;
+  border-radius: 20px;
   background: var(--cv-elev);
   box-shadow: inset 0 0 0 var(--cv-hairline-w) var(--cv-hairline), 0 4px 16px rgb(0 0 0 / 0.03), 0 0 24px rgb(0 0 0 / 0.03);
-  font-size: 14px;
-  line-height: 24px;
+  font-size: 13px;
+  line-height: 19.5px;
   transition: box-shadow 150ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -1017,7 +1017,7 @@ html[data-theme="tactile"] #pane-conversation {
   overflow-y: auto;
   padding: 4px;
   border: 0;
-  border-radius: 12px;
+  border-radius: var(--fm-radius-ctl);
   background: var(--cv-elev);
   box-shadow: inset 0 0 0 var(--cv-hairline-w) var(--cv-hairline), 0 3px 8px rgb(0 0 0 / 0.04), 0 0 20px rgb(0 0 0 / 0.05);
 }
@@ -1030,7 +1030,7 @@ html[data-theme="tactile"] #pane-conversation {
   min-height: 34px;
   padding: 6px 8px;
   border: 0;
-  border-radius: 12px;
+  border-radius: var(--fm-radius-ctl);
   background: transparent;
   color: var(--tx1);
   font-size: 13px;
@@ -1070,8 +1070,8 @@ html[data-theme="tactile"] #pane-conversation {
   background: transparent;
   color: var(--tx1);
   font-family: inherit;
-  font-size: 14px;
-  line-height: 24px;
+  font-size: 13px;
+  line-height: 19.5px;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   caret-color: var(--acc);
@@ -1165,7 +1165,7 @@ html[data-theme="tactile"] #pane-conversation {
   display: inline-flex;
   align-items: center;
   padding: 1px 8px;
-  border-radius: 8px;
+  border-radius: var(--fm-radius-mark);
   white-space: nowrap;
 }
 
