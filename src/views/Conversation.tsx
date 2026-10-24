@@ -184,6 +184,8 @@ export function Conversation(props: {
   const [inputFocused, setInputFocused] = useState(false)
   const [demoNote, setDemoNote] = useState<DemoNoteKey | null>(null)
   const repliedRef = useRef(new Set<string>())
+  const replyTimer = useRef<number | null>(null)
+  const aliveRef = useRef(true)
   const scrollRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
 
@@ -191,6 +193,13 @@ export function Conversation(props: {
     const onResize = () => setNarrow(window.innerWidth < 1024)
     window.addEventListener('resize', onResize)
     return () => window.removeEventListener('resize', onResize)
+  }, [])
+
+  /* 真实卸载后不再 setState。StrictMode 首次挂载会模拟一轮卸载，
+     所以这里只置位、不做业务决定（见下方演示回复的 effect）。 */
+  useEffect(() => {
+    aliveRef.current = true
+    return () => { aliveRef.current = false }
   }, [])
 
   /* 工作台对话 tab 的 intro 免责句不属于创作会话，对话视图里滤掉 */
@@ -239,17 +248,24 @@ export function Conversation(props: {
     return entries
   }, [messages])
 
-  /* 有新用户消息且还没回：演示 agent 900ms 后回一条（原型延迟，非真实推理耗时） */
+  /* 有新用户消息且还没回：演示 agent 900ms 后回一条（原型延迟，非真实推理耗时）
+     ⚠️ 不能在这里 clearTimeout：StrictMode 挂载后会立刻跑一次 cleanup，
+        定时器被清掉，而 repliedRef 已标记该条 → 第二次进入直接 return，
+        回复永远不会来、pending 永远为 true（表现：一直「正在思考…」，
+        从首页进入会话必现，输入框与发送键全被锁死）。
+        定时器的生命周期改由 newSession / 卸载守卫处理。 */
   useEffect(() => {
     const last = messages[messages.length - 1]
     if (!last || last.role !== 'user' || repliedRef.current.has(last.id)) return
     repliedRef.current.add(last.id)
     setPending(true)
-    const t = window.setTimeout(() => {
+    replyTimer.current = window.setTimeout(() => {
+      replyTimer.current = null
+      /* 卸载时放弃本条回复，并撤销“已回复”标记：再次进入本视图时会重新排期 */
+      if (!aliveRef.current) { repliedRef.current.delete(last.id); return }
       chat.addAiMessage(demoReply(last.text, userMessages.length - 1))
       setPending(false)
     }, 900)
-    return () => window.clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages])
 
@@ -279,6 +295,12 @@ export function Conversation(props: {
   }
 
   const newSession = () => {
+    /* 开新会话时把未落地的演示回复一起取消，否则旧对话的回复会插进新会话 */
+    if (replyTimer.current !== null) {
+      window.clearTimeout(replyTimer.current)
+      replyTimer.current = null
+    }
+    setPending(false)
     chat.clearChat()
     setTab('chat')
   }
