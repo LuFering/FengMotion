@@ -139,9 +139,6 @@ export function SettingsDialog({
           </Row>
         </section>
 
-        <p className="settings-note">
-          演示适配器：以上设置只保存在本地，不会连接真实后端，也不验证凭证。
-        </p>
       </div>
 
       <div className="delete-dialog-actions">
