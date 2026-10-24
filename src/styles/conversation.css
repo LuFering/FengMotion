@@ -1446,13 +1446,69 @@ html[data-theme="tactile"] #pane-conversation {
    上一版是手写 div 菜单：没有键盘导航、没有焦点管理、没有碰撞翻转，
    内容也只是把文字排成列表。改用 Radix 后键盘/ARIA/定位都由库负责，
    这里只负责把它压成产品的视觉语言（面 + 边线 + 卡片圆角 + 投影，同首页浮层）。 */
+/* ⚠️ 必须显式压掉 shadcn 的默认类：
+   DropdownMenuContent 自带 bg-popover / text-popover-foreground / ring-foreground/10，
+   而 --color-popover 在 :root 里解析为全局 --surf —— CSS 变量在声明处求值，
+   到了对话 pane 里不会跟随 --surf 的主题覆盖，于是菜单底色和本页不一致（实测三主题全透明）。
+   这里用 !important 级别的显式声明把三主题色值钉死。 */
+/* 用 ID 提升特异性压过 shadcn 的 utility 类（不用 !important：
+   试过 !important 覆盖 --tw-ring-* 会把整页打白屏，Tailwind 变量不能这样覆盖）。
+   DropdownMenuContent 自带 bg-popover / ring-foreground/10，--color-popover 在 :root
+   就解析成全局 --surf，到对话 pane 里不跟随主题覆盖，所以必须在这里重设。 */
+/* Radix 把菜单 Portal 到 body，脱离 #pane-conversation 作用域 ——
+   实测菜单上 --cv-elev / --tx1 / --tx2 / --tx3 / --hole / --acc 全是空值，
+   只剩 :root 的 --surf 可用，于是底色错、次级文字层级也塌成一个亮度。
+   所以菜单需要的**整套**变量必须在菜单自己身上按主题声明，不能依赖祖先。 */
 .cv3-ddm {
   min-width: 216px;
   padding: 5px;
-  border: 1px solid var(--cv-line-strong);
+  border: 1px solid rgba(255, 255, 255, .16);
   border-radius: var(--fm-radius-card);
-  background: var(--cv-elev);
+  background: #16171d;
+  color: #EDEDED;
   box-shadow: 0 20px 44px rgb(0 0 0 / .3);
+  --tw-ring-shadow: 0 0 #0000;
+  --tw-ring-color: transparent;
+  /* 三主题变量（深色为默认档） */
+  --cv-elev: #16171d;
+  --hole: #151517;
+  --hover: rgba(255, 255, 255, .06);
+  --line: rgba(255, 255, 255, .10);
+  --tx1: #EDEDED;
+  --tx2: #a4a7b1;
+  --tx3: #71717a;
+  --acc: #3B8CF8;
+  --warn: #E0A64B;
+}
+
+html[data-theme="light"] .cv3-ddm {
+  border-color: rgba(25, 25, 50, .18);
+  background: #ffffff;
+  color: #191a20;
+  --cv-elev: #ffffff;
+  --hole: #eef0f4;
+  --hover: rgba(25, 25, 50, .05);
+  --line: rgba(25, 25, 50, .10);
+  --tx1: #191a20;
+  --tx2: #5b5e66;
+  --tx3: #94969e;
+  --acc: #2F6FE4;
+  --warn: #b7791f;
+}
+
+html[data-theme="tactile"] .cv3-ddm {
+  border-color: #22231f;
+  background: #f0ede4;
+  color: #22231f;
+  --cv-elev: #f0ede4;
+  --hole: #ddd8c9;
+  --hover: rgba(34, 35, 31, .06);
+  --line: rgba(34, 35, 31, .16);
+  --tx1: #22231f;
+  --tx2: #55534a;
+  --tx3: #8a8676;
+  --acc: #f7c948;
+  --warn: #8a5a00;
 }
 
 /* Radix 菜单项默认样式压掉，统一成左图标 + 文本 */
