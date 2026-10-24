@@ -62,7 +62,15 @@
   --tx1: var(--fg);
   --tx2: var(--dim);
   --tx3: var(--ph);
-  --cv-elev: var(--hole);
+  /* 纸片元素（输入卡/方案卡/浮层）复用首页已验收的 --hf-* 语言：
+     面板面 + 1px 边线 + 大圆角 + 投影，与首页输入框同一套外观。
+     ⚠️ 我此前按「不靠边线阴影」字面理解把它们删了，结果和首页明显不同 ——
+        那句说的是别用边线做层次，而输入框是浮起的纸片，本来就带边线和投影。 */
+  --cv-elev: var(--hf-panel, #16171d);
+  --cv-line: var(--hf-line, rgba(255, 255, 255, .09));
+  --cv-line-strong: var(--hf-line2, rgba(255, 255, 255, .16));
+  --cv-shadow: var(--hf-shadow, 0 24px 60px rgba(0, 0, 0, .5), 0 4px 16px rgba(0, 0, 0, .35));
+  --cv-shadow-focus: var(--hf-shadow-focus, 0 28px 70px rgba(0, 0, 0, .55));
   --cv-bubble: var(--surf);
   /* 右区这一层 = 应用壳/导航栏透出的 body 底色，也就是全局 --bg */
   --cv-page: var(--bg);
@@ -81,8 +89,11 @@ html[data-theme="light"] #pane-conversation {
   --tx1: var(--fg);
   --tx2: var(--dim);
   --tx3: var(--ph);
-  /* 浅色下 --surf(#fcfcfd) 是页面(#e0e2e9)之上最亮的一档，卡片就用它 */
-  --cv-elev: var(--surf);
+  --cv-elev: var(--hf-panel, #ffffff);
+  --cv-line: var(--hf-line, rgba(25, 25, 50, .10));
+  --cv-line-strong: var(--hf-line2, rgba(25, 25, 50, .18));
+  --cv-shadow: var(--hf-shadow, 0 24px 55px rgba(30, 30, 60, .13), 0 4px 14px rgba(30, 30, 60, .07));
+  --cv-shadow-focus: var(--hf-shadow-focus, 0 28px 65px rgba(30, 30, 60, .17));
   --cv-bubble: #edf3fe;
   --cv-page: var(--bg);
   --cv-hairline: var(--line);
@@ -98,7 +109,11 @@ html[data-theme="tactile"] #pane-conversation {
   --tx1: var(--fg);
   --tx2: var(--dim);
   --tx3: var(--ph);
-  --cv-elev: var(--surf);
+  --cv-elev: var(--hf-panel, #f0ede4);
+  --cv-line: var(--hf-line, rgba(34, 35, 31, .35));
+  --cv-line-strong: var(--hf-line2, #22231f);
+  --cv-shadow: var(--hf-shadow, 3px 3px 0 #22231f);
+  --cv-shadow-focus: var(--hf-shadow-focus, 3px 3px 0 #22231f);
   /* ⚠️ 必须显式给：漏了会继承深色默认值 #2c2c2e（深底）+ 本主题深色文字
      —— 深底深字，用户气泡几乎看不见（截图实测确认过） */
   --cv-bubble: var(--hole);
@@ -156,11 +171,14 @@ html[data-theme="tactile"] #pane-conversation {
   margin: 10px 0 10px 10px;
   padding: 6px 12px;
   box-sizing: border-box;
-  /* 按 docs/design/design-system.md §一：表面靠**明度递进**建立层次，
-     不靠边线和阴影。所以左栏不画 border：--surf 比 --bg 亮一档，本身就浮起来了。
-     圆角按 §三「卡片 10–12px」。 */
-  border-radius: var(--fm-radius-card);
-  background: var(--panel2);
+  /* 左栏 = 一张纸片，配方同首页（.hf-menu / .hf-panel 系列）：
+     面 + 1px 边线 + 圆角 + 投影。首页所有浮起元素都带边线与投影，
+     只有这样才能和首页是同一套设计语言。 */
+  border: 1px solid var(--cv-line);
+  border-radius: 18px;
+  /* 面与输入卡同一档（--hf-panel），首页菜单/浮层也是这个面 */
+  background: var(--cv-elev);
+  box-shadow: var(--cv-shadow);
   color: var(--tx1);
   font-size: 13px;
 }
@@ -821,11 +839,13 @@ html[data-theme="tactile"] #pane-conversation {
   overflow-wrap: anywhere;
 }
 
-/* 方案卡：靠 --hole 面与页面区分，不画边线（规范 §一：不靠边线/阴影建层次） */
+/* 方案卡 —— 与输入卡同一套纸片配方（面 + 边线 + 大圆角 + 投影） */
 .cv3-plan {
   padding: 16px;
-  border-radius: var(--fm-radius-card);
-  background: var(--hole);
+  border: 1px solid var(--cv-line);
+  border-radius: 24px;
+  background: var(--cv-elev);
+  box-shadow: var(--cv-shadow);
 }
 
 .cv3-plan-title {
@@ -988,7 +1008,9 @@ html[data-theme="tactile"] #pane-conversation {
   padding: 0 32px 4px;
 }
 
-/* 输入卡（dsh InputBar：28px 圆角、输入面填充、柔和投影、细描边） */
+/* 输入卡 —— 直接套首页输入框（.hf-composer）的配方：
+   面 --hf-panel + 1px --hf-line + 24px 大圆角 + --hf-shadow。
+   ⚠️ 之前用 12px 卡片圆角、无边框、无投影，和首页完全是两种东西。 */
 .cv3-card {
   position: relative;
   display: flex;
@@ -998,10 +1020,10 @@ html[data-theme="tactile"] #pane-conversation {
   max-width: calc(min(920px, max(680px, 64%), calc(100% - 32px)) + 32px);
   margin: 0 auto;
   padding-top: 8px;
-  border: 0;
-  border-radius: var(--fm-radius-card);
-  /* 输入面用 --hole（凹陷槽），靠明度与页面区分，不画边线、不加装饰性阴影 */
-  background: var(--hole);
+  border: 1px solid var(--cv-line);
+  border-radius: 24px;
+  background: var(--cv-elev);
+  box-shadow: var(--cv-shadow);
   font-size: 13px;
   line-height: 19.5px;
   transition: box-shadow 150ms cubic-bezier(0.4, 0, 0.2, 1);
@@ -1009,8 +1031,9 @@ html[data-theme="tactile"] #pane-conversation {
 
 /* 输入框聚焦晕染：dsh focus.css 的 2px 业务色环，做 35% 透明晕染而非硬环 */
 .cv3-card:focus-within {
-  /* 聚焦不靠加边框/发光：换成 --soft 选中衬底（规范 §一 --soft = 选中底） */
-  background: color-mix(in srgb, var(--acc) 6%, var(--hole));
+  /* 聚焦与首页一致：边线转品牌色 + 投影加强（不是加发光环） */
+  border-color: color-mix(in srgb, var(--brand, var(--acc)) 45%, var(--cv-line-strong));
+  box-shadow: var(--cv-shadow-focus);
 }
 
 /* @// 菜单（dsh MenuView：卡片内绝对定位，bottom 100%+4px，padding 4px） */
