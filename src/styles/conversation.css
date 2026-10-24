@@ -117,7 +117,7 @@ html[data-theme="tactile"] #pane-conversation {
 }
 
 /* hover 反馈统一 100ms（dsh TurnProcess 的 color 100ms 口径，缓动取主题 cubic-bezier） */
-.cv3-icon-btn, .cv3-new, .cv3-panel-row, .cv3-chip, .cv3-picker button, .cv3-session, .cv3-primary, .cv3-secondary {
+.cv3-icon-btn, .cv3-new, .cv3-project, .cv3-side-add, .cv3-primary, .cv3-secondary {
   transition: background-color 100ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -196,47 +196,7 @@ html[data-theme="tactile"] #pane-conversation {
   background: var(--hover);
 }
 
-.cv3-panel-list {
-  display: flex;
-  flex: none;
-  flex-direction: column;
-  gap: 2px;
-  margin-bottom: 8px;
-}
 
-.cv3-panel-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 36px;
-  margin: 0 2px;
-  padding: 7px 8px;
-  box-sizing: border-box;
-  border: 0;
-  border-radius: 12px;
-  background: transparent;
-  color: var(--tx1);
-  font-size: 14px;
-  line-height: 22px;
-  text-align: left;
-  cursor: pointer;
-}
-
-.cv3-panel-row:hover:not(:disabled) {
-  background: var(--hover);
-}
-
-.cv3-panel-row:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
-.cv3-panel-ico {
-  display: none;
-  flex: none;
-  align-items: center;
-  justify-content: center;
-}
 
 .cv3-side-sec {
   margin: 12px 4px 6px;
@@ -252,35 +212,81 @@ html[data-theme="tactile"] #pane-conversation {
   overflow-y: auto;
 }
 
-.cv3-session {
-  display: flex;
-  align-items: center;
-  gap: 0;
-  height: 32px;
-  padding: 0 8px;
-  box-sizing: border-box;
-  border-radius: 12px;
-  background: var(--hover);
-  color: var(--tx1);
-  cursor: pointer;
+.cv3-side-count {
+  margin-left: 6px;
+  color: var(--tx3);
+  font-size: 10px;
 }
 
-.cv3-session-title {
+/* 我的项目行 —— 左栏主体。
+   深度适配：dsh 原来这里是「会话清单」，本产品换成「项目」：
+   创作者的活是按片子组织的，不是按聊天记录。 */
+.cv3-project {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--tx1);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 100ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.cv3-project:hover,
+.cv3-project[data-current] {
+  background: var(--hover);
+}
+
+.cv3-project-name {
   flex: 1;
   min-width: 0;
   overflow: hidden;
-  font-size: 14px;
+  font-size: 13.5px;
   line-height: 20px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.cv3-session-time {
+.cv3-project-meta {
   flex: none;
-  margin-left: 6px;
   color: var(--tx3);
-  font-size: 10px;
+  font-size: 10.5px;
   line-height: 16px;
+}
+
+.cv3-project-check {
+  flex: none;
+  color: var(--acc);
+}
+
+.cv3-side-add {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: 6px 4px 10px;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--tx2);
+  font: inherit;
+  font-size: 12px;
+  line-height: 18px;
+  cursor: pointer;
+  transition: background-color 100ms cubic-bezier(0.4, 0, 0.2, 1),
+              color 100ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.cv3-side-add:hover {
+  background: var(--hover);
+  color: var(--tx1);
 }
 
 .cv3-side-hint {
@@ -330,31 +336,13 @@ html[data-theme="tactile"] #pane-conversation {
 .cv3-side[data-rail] .cv3-new-label,
 .cv3-side[data-rail] .cv3-side-sec,
 .cv3-side[data-rail] .cv3-side-list,
+.cv3-side[data-rail] .cv3-side-add,
 .cv3-side[data-rail] .cv3-side-note {
   display: none;
 }
 
 /* 轨内面板行：只留 36px 图标（dsh rail 规范） */
-.cv3-side[data-rail] .cv3-panel-list {
-  gap: 12px;
-  margin-bottom: 12px;
-}
 
-.cv3-side[data-rail] .cv3-panel-row {
-  width: 36px;
-  height: 36px;
-  justify-content: center;
-  margin: 0;
-  padding: 0;
-}
-
-.cv3-side[data-rail] .cv3-panel-row-label {
-  display: none;
-}
-
-.cv3-side[data-rail] .cv3-panel-ico {
-  display: inline-flex;
-}
 
 /* 覆盖式抽屉（窄屏手动展开）：盖住主列，不挤压 */
 .cv3-side[data-drawer] {
@@ -375,13 +363,16 @@ html[data-theme="tactile"] #pane-conversation {
   min-height: 0;
 }
 
-/* ---- 顶栏（dsh ConversationRoot header） ---- */
+/* ---- 顶栏（dsh ConversationRoot header） ----
+   深度适配后这里只剩「标题行」：dsh 的 对话/轨迹 两个 tab 已删，
+   所以不再需要 76px 的两行高度，收到 56px，标题行贴顶。 */
 .cv3-head {
   position: relative;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
   flex: none;
-  min-height: 76px;
+  min-height: 56px;
   padding: 10px 28px 0 20px;
   box-sizing: border-box;
   border-bottom: 0.5px solid var(--line);
@@ -510,54 +501,6 @@ html[data-theme="tactile"] #pane-conversation {
    两个视图共用一份；这里只负责把它推到标题行最右侧 */
 .cv3-title-row > .view-switch {
   margin-left: auto;
-}
-
-.cv3-tabs {
-  grid-column: 1 / -1;
-  position: relative;
-  z-index: 1;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 32px;
-  width: 100%;
-  min-width: 0;
-  min-height: 25px;
-  margin-top: 10px;
-  padding-left: 8px;
-  box-sizing: border-box;
-}
-
-.cv3-tabs button {
-  position: relative;
-  min-height: 35px;
-  margin: -10px -10px 0;
-  padding: 10px 10px 9px;
-  border: 0;
-  background: transparent;
-  color: var(--tx3);
-  font-size: 13px;
-  font-weight: 500;
-  line-height: 16px;
-  cursor: pointer;
-}
-
-.cv3-tabs button::after {
-  content: '';
-  position: absolute;
-  right: 10px;
-  bottom: -1px;
-  left: 10px;
-  height: 2px;
-  border-radius: 2px;
-  background: transparent;
-}
-
-.cv3-tabs button[aria-selected="true"] {
-  color: var(--acc);
-}
-
-.cv3-tabs button[aria-selected="true"]::after {
-  background: var(--acc);
 }
 
 /* ---- 滚动区 + 粘性输入席（dsh ConversationRoot body） ---- */

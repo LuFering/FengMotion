@@ -60,7 +60,7 @@ export const CONTEXT_VIEWS: ViewId[] = ['assets']
 export const VIEW_META: Record<ViewId, { title: string; hint: string }> = {
   home:       { title: '首页', hint: '从一句话开始' },
   production: { title: '制作工作台', hint: '场景列表 + 监看器 + AI 对话' },
-  project:    { title: '我的创作', hint: '视频任务：正在制作、等待处理、已完成' },
+  project:    { title: '我的创作', hint: '全部项目：从对话进入，或直接进制作工作台' },
   assets:     { title: '我的素材', hint: '自己的图片/视频/音频/生成文件，导入与复用' },
   render:     { title: '发布与验收', hint: '能交付什么、缺什么、验收结果' },
   knowledge:  { title: '特效库', hint: '特效/场景设计/转场/动画的实现方法，供工作流检索调用' },

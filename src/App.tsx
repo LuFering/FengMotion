@@ -9,7 +9,7 @@ import { Home } from '@/views/Home'
 import { Workbench } from '@/views/Workbench'
 import { WorkbenchCatalog } from '@/views/WorkbenchCatalog'
 import { Assets } from '@/views/Assets'
-import { ProjectOverview, ProjectBar, PickProject } from '@/views/ProjectOverview'
+import { ProjectBar, PickProject } from '@/views/ProjectBar'
 import { NewProjectDialog } from '@/shell/NewProjectDialog'
 import { RenderDelivery } from '@/views/RenderDelivery'
 import { FxLibrary } from '@/views/FxLibrary'
@@ -120,10 +120,8 @@ export default function App() {
 
   /** 制作工作台：必须有当前项目（列表已归项目管理，这里不再兼当目录） */
   const isFlow = view === 'production' && current !== null
-  /** 项目列表：制作工作台没项目时、项目总览没项目时，都落到它 */
-  const isCatalog = (view === 'production' || view === 'project') && current === null
-  /** 项目这一层：总览 / 子视图 */
-  const isOverview = view === 'project' && current !== null
+  /** 项目列表：制作工作台没项目时落到它；「我的创作」这一层也永远是它 */
+  const isCatalog = (view === 'production' && current === null) || view === 'project'
   const SUB_VIEWS = ['assets', 'render']
   const isSub = SUB_VIEWS.includes(view as string)
 
@@ -133,26 +131,14 @@ export default function App() {
                 onOpenSettings={() => setSettingsOpen(true)}
                 onThemeChange={changeTheme} onToggleNav={toggleNav}>
 
-        {/* 项目列表（一级）—— 「列表 → 项目 → 子视图」的第一层 */}
+        {/* 项目列表（一级）—— 「列表 → 对话/工作台」的第一层 */}
         {isCatalog && (
           <main id="pane-project" className="hm-main">
             <WorkbenchCatalog projects={projects.list}
-                              onOpen={(id) => { setOpenProject(id); setView('project') }}
+                              onOpen={(id) => { setOpenProject(id); setView('conversation') }}
                               onNew={() => setNewProjectOpen(true)}
                               onRename={projects.rename}
-                              onRemove={(id) => { projects.remove(id); if (id === openProject) openList() }} />
-          </main>
-        )}
-
-        {/* 项目指挥中心（二级）—— 顶栏由复刻页自带（callour-studio v2 整包挂载） */}
-        {isOverview && current && (
-          <main id="pane-project" className="hm-main">
-            <div className="hm-content" data-view="project">
-              <ProjectOverview project={current} records={tasks.records}
-                               onBack={openList}
-                               onOpenView={(id) => go(id)}
-                               onOpenWorkbench={() => setView('production')} />
-            </div>
+                              onRemove={(id) => { projects.remove(id); if (id === openProject) setOpenProject(null) }} />
           </main>
         )}
 
@@ -164,12 +150,16 @@ export default function App() {
           </div>
         )}
 
-        {/* 项目对话视图（原型）—— 与工作台共用 useChat 会话，不进侧栏导航 */}
+        {/* 项目对话视图 —— 与工作台共用 useChat 会话；
+            左栏是「我的项目」（原项目列表页的那份数据），所以这里也是项目入口 */}
         {view === 'conversation' && (
           <div id="pane-conversation">
             <Conversation chat={chat}
+                          projects={projects.list}
                           onCreateProject={(input) => projects.create(input)}
                           openProject={openProject}
+                          onSelectProject={(id) => setOpenProject(id)}
+                          onNewProject={() => setNewProjectOpen(true)}
                           onLaunch={handleLaunch}
                           onOpenWorkbench={() => { if (openProject) setView('production') }} />
           </div>
@@ -237,13 +227,13 @@ export default function App() {
           />
         )}
 
-        {/* 新建项目 —— 建完直接落在它的总览页（列表 → 项目） */}
+        {/* 新建项目 —— 建完直接进它的对话（左栏列表里已是当前项目，可随时进工作台） */}
         <NewProjectDialog open={newProjectOpen} onClose={() => setNewProjectOpen(false)}
                           onCreate={(input) => {
                             const p = projects.create(input)
                             setNewProjectOpen(false)
                             setOpenProject(p.id)
-                            setView('project')
+                            setView('conversation')
                             return p
                           }} />
       </AppShell>
