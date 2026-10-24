@@ -130,15 +130,15 @@ function HeroTitle({ copy, cycle }: { copy: HeroCycle; cycle: number }) {
 
 type Attachment = { name: string; size: number; kind: 'file' | 'image' | 'video' }
 
-type Harness = { id: string; name: string; short: string; mark: string; models: string[]; ready: boolean }
+type Harness = { id: string; name: string; short: string; mark: string; icon: string; models: string[]; ready: boolean }
 /** 每个模型的本地偏好（演示态只存内存 + localStorage）：思考强度与最大上下文 */
 type ModelPrefs = { reasoning: 'off' | 'standard' | 'enhanced'; context: 32 | 64 | 128 }
 
 /** 执行引擎列表：只有 deepseek 标为已配置，其余如实标注「未接入」 */
 const HARNESSES: Harness[] = [
-  { id: 'deepseek', name: 'DeepSeek Harness', short: 'DeepSeek', mark: 'DS', models: ['deepseek-chat', 'deepseek-reasoner', 'deepseek-v4.1-flash'], ready: true },
-  { id: 'claude', name: 'Claude Code', short: 'Claude', mark: 'CC', models: ['claude-sonnet-4', 'claude-opus-4'], ready: false },
-  { id: 'codex', name: 'Codex', short: 'Codex', mark: 'CX', models: ['gpt-5-codex'], ready: false },
+  { id: 'deepseek', name: 'DeepSeek Harness', short: 'DeepSeek', mark: 'DS', icon: './assets/brand/deepseek.svg', models: ['deepseek-chat', 'deepseek-reasoner', 'deepseek-v4.1-flash'], ready: true },
+  { id: 'claude', name: 'Claude Code', short: 'Claude', mark: 'CC', icon: './assets/brand/claude.svg', models: ['claude-sonnet-4', 'claude-opus-4'], ready: false },
+  { id: 'codex', name: 'Codex', short: 'Codex', mark: 'CX', icon: './assets/brand/openai.svg', models: ['gpt-5-codex'], ready: false },
 ]
 
 const fmtSize = (bytes: number) =>
@@ -467,7 +467,7 @@ export function Home(props: { onStart?: (draft: string) => void }) {
                           onClick={() => { setHarnessPane(null); setMenu(menu === 'harness' ? null : 'harness') }}>
                     <span className="hf-harness-seg" data-off={notReady || undefined}>
                       <i aria-hidden="true" />
-                      <span className="hf-harness-mark" aria-hidden="true">{harness.mark}</span>
+                      <span className="hf-harness-mark" aria-hidden="true"><img src={harness.icon} alt="" /></span>
                       {notReady ? <span className="hf-harness-off">未接入AI</span>
                         : <><span className="hf-harness-div" aria-hidden="true" /><span className="hf-harness-model">{model}</span></>}
                     </span>
@@ -487,7 +487,7 @@ export function Home(props: { onStart?: (draft: string) => void }) {
                                       onClick={() => {
                                         setHarnessId(h.id); setModel(h.models[0]); setHarnessPane(h.id)
                                       }}>
-                                <span className="hf-hp-logo" aria-hidden="true">{h.mark}</span>
+                                <span className="hf-hp-logo" aria-hidden="true"><img src={h.icon} alt="" /></span>
                                 <span className="hf-hp-txt">
                                   <b>{h.name}</b>
                                   <small>{h.ready ? '本机已配置' : '未接入，仅展示'}</small>
