@@ -363,7 +363,7 @@ function ConnectMenuView(props: {
 let seq = 0
 const nid = () => `n-${Date.now().toString(36)}${(seq += 1).toString(36)}`
 
-export function WorkflowEditor(props: { workflowId: string; onBack: () => void }) {
+export function WorkflowEditor(props: { workflowId: string; onBack: () => void; autoRun?: boolean }) {
   return (
     <ReactFlowProvider>
       <EditorInner {...props} />
@@ -385,7 +385,7 @@ function toRfEdge(e: WfEdgeInstance, nodes: Array<{ id: string; type: string; pa
   }
 }
 
-function EditorInner({ workflowId, onBack }: { workflowId: string; onBack: () => void }) {
+function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBack: () => void; autoRun?: boolean }) {
   const initial = useMemo(() => workflowService.getWorkflow(workflowId), [workflowId])
   const [workflow, setWorkflow] = useState<WorkflowDef | null>(initial)
   const [name, setName] = useState(initial?.name ?? '')
@@ -769,6 +769,14 @@ function EditorInner({ workflowId, onBack }: { workflowId: string; onBack: () =>
       if (run.status === 'completed') setDrawerTab('artifacts')
     })
   }, [snapshot, running])
+
+  /* 创作启动层快速路径：带 autoRun 进来时，工作流载入后自动跑一次（仅一次） */
+  const autoRanRef = useRef(false)
+  useEffect(() => {
+    if (!autoRun || !workflow || autoRanRef.current) return
+    autoRanRef.current = true
+    doRun()
+  }, [autoRun, workflow, doRun])
 
   /* 单节点运行（检查器「只运行此节点 / 评估此节点」） */
   const doRunNode = useCallback(

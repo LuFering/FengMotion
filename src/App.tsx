@@ -15,6 +15,7 @@ import { RenderDelivery } from '@/views/RenderDelivery'
 import { FxLibrary } from '@/views/FxLibrary'
 import { RefLibrary } from '@/views/RefLibrary'
 import { Workflow } from '@/views/Workflow'
+import { StartCreation } from '@/views/StartCreation'
 import { TooltipProvider } from '@/components/ui/tooltip'
 
 /**
@@ -67,6 +68,8 @@ export default function App() {
     window.addEventListener('message', onMsg)
     return () => window.removeEventListener('message', onMsg)
   }, [])
+  /** 创作启动层（M1）：首页发送后带着草稿打开，null = 关闭 */
+  const [startDraft, setStartDraft] = useState<string | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [settings, setSettings] = useState<Settings>(() => {
     const saved = typeof localStorage === 'undefined' ? null : localStorage.getItem('fengmotion:theme')
@@ -142,7 +145,7 @@ export default function App() {
         {/* 首页 · 首屏 from home-film-v3 */}
         {view === 'home' && (
           <div id="pane-home">
-            <Home />
+            <Home onStart={(draft) => setStartDraft(draft)} />
           </div>
         )}
 
@@ -184,6 +187,26 @@ export default function App() {
         )}
         <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)}
                         settings={settings} onChange={setSettings} />
+
+        {/* 创作启动层：承接首页需求 → 建项目与工作流 → 交接给工作流视图打开
+            （快速路径在编辑器里自动运行；专业路径只创建不运行） */}
+        {startDraft !== null && (
+          <StartCreation
+            initialDraft={startDraft}
+            projects={projects.list}
+            onClose={() => setStartDraft(null)}
+            onCreateProject={(input) => projects.create(input)}
+            onBrowseLibrary={(v) => { setStartDraft(null); setView(v) }}
+            onLaunch={(r) => {
+              try {
+                localStorage.setItem('fm-open-workflow-v1', JSON.stringify({ id: r.workflowId, autoRun: r.autoRun }))
+              } catch { /* localStorage 不可用时仅跳视图 */ }
+              if (r.projectId) setOpenProject(r.projectId)
+              setStartDraft(null)
+              setView('methods')
+            }}
+          />
+        )}
 
         {/* 新建项目 —— 建完直接落在它的总览页（列表 → 项目） */}
         <NewProjectDialog open={newProjectOpen} onClose={() => setNewProjectOpen(false)}

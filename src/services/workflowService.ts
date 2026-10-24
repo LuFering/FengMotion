@@ -166,16 +166,28 @@ export const workflowService = {
     return loadWorkflows().find((w) => w.id === id) ?? null
   },
 
-  createFromPath(path: WfPath, presetId: string, name?: string): WorkflowDef {
+  createFromPath(
+    path: WfPath,
+    presetId: string,
+    name?: string,
+    opts?: { projectId?: string | null; seedPrompt?: string },
+  ): WorkflowDef {
     const graph = path === 'prompt-first' ? promptFirstGraph(presetId) : structuredGraph()
+    /* 创作启动层带入的用户需求：PF 写进提示词节点的 text（主干第一节点），
+       同时全文留在 description 里，两条路径都可追溯原始需求。 */
+    const seed = opts?.seedPrompt?.trim()
+    if (seed && path === 'prompt-first') {
+      const promptNode = graph.nodes.find((n) => n.type === 'prompt')
+      if (promptNode) promptNode.params = { ...promptNode.params, text: seed }
+    }
     const now = new Date().toISOString()
     const wf: WorkflowDef = {
       id: uid('wf'),
       name: name ?? (path === 'prompt-first' ? '未命名创作' : '未命名结构化制作'),
-      description: '',
+      description: seed ?? '',
       path,
       presetId,
-      projectId: presetId === 'talking' ? 'token' : null,
+      projectId: opts?.projectId !== undefined ? opts.projectId : presetId === 'talking' ? 'token' : null,
       revision: 1,
       createdAt: now,
       updatedAt: now,

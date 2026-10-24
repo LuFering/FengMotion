@@ -34,7 +34,7 @@ function Chars({ text, cls, start }: { text: string; cls: string; start: number 
   )
 }
 
-export function Home() {
+export function Home(props: { onStart?: (draft: string) => void }) {
   const [ready, setReady] = useState(false)
   const [draft, setDraft] = useState('')
   const [workdirOpen, setWorkdirOpen] = useState(false)
@@ -134,7 +134,14 @@ export function Home() {
                 <textarea ref={taRef} rows={1} value={draft}
                           placeholder=""
                           onChange={(e) => setDraft(e.target.value)}
-                          aria-label="输入框样本" />
+                          onKeyDown={(e) => {
+                            /* Enter 发送（与下方提示一致）；中文输入法组字中不触发，Shift+Enter 换行 */
+                            if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing && draft.trim() && props.onStart) {
+                              e.preventDefault()
+                              props.onStart(draft)
+                            }
+                          }}
+                          aria-label="描述你想做的视频" />
                 {!draft && (
                   <div className="hf-ph" aria-hidden="true" key={phrase}>
                     {phraseChunks.map((chunk, i) => (
@@ -178,7 +185,8 @@ export function Home() {
                 <span className="hf-count">{draft.length || ''}</span>
                 <span className="hf-model"><i />deepseek-chat</span>
                 <button className="hf-send" type="button" disabled={!draft.trim()}
-                        title={draft.trim() ? '示例输入框：发送未接入' : '发送'} aria-label="发送">
+                        onClick={() => { if (draft.trim()) props.onStart?.(draft) }}
+                        title={draft.trim() ? '开始制作' : '发送'} aria-label="发送">
                   <svg viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7" /></svg>
                 </button>
               </div>

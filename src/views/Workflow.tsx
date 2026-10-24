@@ -6,7 +6,7 @@
  * 首页工作流卡显示路径、最近产物与真实 Gate 进度（服务层同一评估口径）。
  * 数据只经 workflowService。
  */
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   ArrowLeft,
   ArrowRight,
@@ -54,6 +54,21 @@ const GATE_DECISION_SHORT: Record<string, string> = {
 
 export function Workflow() {
   const [page, setPage] = useState<Page>({ kind: 'home' })
+  /* 外部入口交接（创作启动层）：挂载时读一次 fm-open-workflow-v1，
+     命中就直开对应工作流的编辑器；autoRun 的在编辑器里自动跑一次。 */
+  const [autoRunId, setAutoRunId] = useState<string | null>(null)
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('fm-open-workflow-v1')
+      if (!raw) return
+      localStorage.removeItem('fm-open-workflow-v1')
+      const h = JSON.parse(raw) as { id?: string; autoRun?: boolean }
+      if (h.id && workflowService.getWorkflow(h.id)) {
+        if (h.autoRun) setAutoRunId(h.id)
+        setPage({ kind: 'editor', id: h.id })
+      }
+    } catch { /* 交接数据损坏则忽略，停在首页 */ }
+  }, [])
   const [tick, setTick] = useState(0)
   const refresh = () => setTick((t) => t + 1)
 
@@ -63,7 +78,7 @@ export function Workflow() {
   if (page.kind === 'editor') {
     return (
       <div className="wfl">
-        <WorkflowEditor workflowId={page.id} onBack={() => { setPage({ kind: 'home' }); refresh() }} />
+        <WorkflowEditor workflowId={page.id} autoRun={autoRunId === page.id} onBack={() => { setPage({ kind: 'home' }); refresh() }} />
       </div>
     )
   }
