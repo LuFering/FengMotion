@@ -25,7 +25,22 @@
    颜色全部走 FengMotion 现有三主题 token（--panel/--panel2/--tx1/--tx2/
    --tx3/--line/--line2/--acc/--hover/--soft），不自带色板；
    品牌蓝 --acc 对应 dsh 的 business-primary / info-fill。
-   窄屏：会话栏按 dsh 响应式收轨/抽屉，主列 min-width:0，禁止内部横向溢出。 */
+   窄屏：会话栏按 dsh 响应式收轨/抽屉，主列 min-width:0，禁止内部横向溢出。
+   打磨轮 cv4（用户 21:29 拍板，数值仍以 dsh 源码为准）：
+   - 抽屉投影：dsh 无抽屉专属阴影 token，浮层用 elevation-prominent；抽屉边缘
+     按任务授权 fallback 取 0 10px 30px rgb(0 0 0 / 0.5)，遮罩本身不动（已有）。
+   - 气泡：dsh UserMessageBubble 浅 #EDF3FE（deepseek-50）/ 深 #2C2C2E
+     （bluish-850）；此前浅色走全局 --soft 蓝 tint、深色走 #13233A，均改回 dsh 值。
+   - 卡片硬边：dsh elevation 用 0.5px l2 发丝线 + 极淡投影（soft/prominent），
+     表面靠色阶区分（深 950 #151517 → 900 #1B1B1C → 850 #2C2C2E）；卡片 1px
+     line2 描边全部改发丝线，l2 值：浅 rgb(0 0 0 / 0.10)，深 rgb(255 255 255 / 0.12)，
+     卡片面统一再压到 rgb(255 255 255 / 0.08)（任务授权的极低透明度白线）。
+   - 标签：标题行 gap 8px → 12px；演示 pill 高 24px 一档（chip 仍为 dsh InputBar 28px）。
+   - 微交互：dsh 折叠无高度动画（ReasoningRow 用 contain 收起、chevron 转 100ms），
+     故不发明高度动画；hover 背景统一 100ms cubic-bezier(0.4,0,0.2,1)；
+     输入框聚焦按 dsh focus.css 的 2px 业务色环、做 35% 透明晕染。
+   - 双侧栏：cv3 已含 dsh narrowExpanded 机制（280 ↔ 56 轨、1024 断点、窄屏抽屉），
+     本轮保留机制，只补收起/展开钮的 hover title 做可发现性；68px 应用壳不动。 */
 
 /* 注意：--panel/--panel2/--line2/--tx/--hover 在对话 pane 内并无定义（CDP 实测为空，
    导致卡片/侧栏面全透明、次级文字全继承纯白）——须在此按三主题显式补齐，取值与
@@ -39,6 +54,9 @@
   --tx2: #a1a1aa;
   --tx3: #71717a;
   --cv-elev: #2c2c2e;
+  --cv-bubble: #2c2c2e;
+  --cv-hairline: rgb(255 255 255 / 0.08);
+  --cv-hairline-w: 0.5px;
 }
 
 html[data-theme="light"] #pane-conversation {
@@ -50,6 +68,9 @@ html[data-theme="light"] #pane-conversation {
   --tx2: #666a73;
   --tx3: #8c8f99;
   --cv-elev: #ffffff;
+  --cv-bubble: #edf3fe;
+  --cv-hairline: rgb(0 0 0 / 0.10);
+  --cv-hairline-w: 0.5px;
 }
 
 html[data-theme="tactile"] #pane-conversation {
@@ -61,6 +82,8 @@ html[data-theme="tactile"] #pane-conversation {
   --tx2: #5c5a50;
   --tx3: #8a877c;
   --cv-elev: #eae6da;
+  --cv-hairline: rgb(34 35 31 / 0.28);
+  --cv-hairline-w: 1px;
 }
 
 #pane-conversation {
@@ -89,6 +112,11 @@ html[data-theme="tactile"] #pane-conversation {
   border: 0;
   background: rgb(0 0 0 / 0.4);
   cursor: pointer;
+}
+
+/* hover 反馈统一 100ms（dsh TurnProcess 的 color 100ms 口径，缓动取主题 cubic-bezier） */
+.cv3-icon-btn, .cv3-new, .cv3-panel-row, .cv3-chip, .cv3-picker button, .cv3-session, .cv3-primary, .cv3-secondary, .cv3-switch button {
+  transition: background-color 100ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* ---- 内侧会话栏（dsh SidebarRoot） ---- */
@@ -333,7 +361,7 @@ html[data-theme="tactile"] #pane-conversation {
   top: 0;
   bottom: 0;
   z-index: 8;
-  box-shadow: 8px 0 24px rgb(0 0 0 / 0.25);
+  box-shadow: 0 10px 30px rgb(0 0 0 / 0.5);
 }
 
 /* ---- 主列 ---- */
@@ -361,7 +389,7 @@ html[data-theme="tactile"] #pane-conversation {
   grid-column: 2;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
   min-width: 0;
   min-height: 30px;
 }
@@ -380,8 +408,12 @@ html[data-theme="tactile"] #pane-conversation {
 }
 
 .cv3-demo-pill {
+  display: inline-flex;
   flex: none;
-  padding: 1px 8px;
+  align-items: center;
+  height: 24px;
+  padding: 2px 8px;
+  box-sizing: border-box;
   border: 1px solid var(--line);
   border-radius: 999px;
   color: var(--tx3);
@@ -447,10 +479,10 @@ html[data-theme="tactile"] #pane-conversation {
   width: max-content;
   max-width: 280px;
   padding: 12px;
-  border: 1px solid var(--line2);
+  border: 0;
   border-radius: 12px;
   background: var(--cv-elev);
-  box-shadow: 0 8px 24px rgb(0 0 0 / 0.25);
+  box-shadow: inset 0 0 0 var(--cv-hairline-w) var(--cv-hairline), 0 3px 8px rgb(0 0 0 / 0.04), 0 0 20px rgb(0 0 0 / 0.05);
   color: var(--tx2);
   font-size: 13px;
   line-height: 20px;
@@ -604,7 +636,7 @@ html[data-theme="tactile"] #pane-conversation {
   margin: 0;
   padding: 10px 16px;
   border-radius: 20px;
-  background: var(--soft);
+  background: var(--cv-bubble, var(--soft));
   color: var(--tx1);
   font-size: 14px;
   line-height: 22px;
@@ -796,7 +828,7 @@ html[data-theme="tactile"] #pane-conversation {
   padding: 16px;
   border-radius: 16px;
   background: var(--cv-elev);
-  box-shadow: inset 0 0 0 1px var(--line2);
+  box-shadow: inset 0 0 0 var(--cv-hairline-w) var(--cv-hairline);
 }
 
 .cv3-plan-title {
@@ -969,9 +1001,15 @@ html[data-theme="tactile"] #pane-conversation {
   border: 0;
   border-radius: 28px;
   background: var(--cv-elev);
-  box-shadow: inset 0 0 0 1px var(--line2), 0 8px 24px rgb(0 0 0 / 0.16);
+  box-shadow: inset 0 0 0 var(--cv-hairline-w) var(--cv-hairline), 0 4px 16px rgb(0 0 0 / 0.03), 0 0 24px rgb(0 0 0 / 0.03);
   font-size: 14px;
   line-height: 24px;
+  transition: box-shadow 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 输入框聚焦晕染：dsh focus.css 的 2px 业务色环，做 35% 透明晕染而非硬环 */
+.cv3-card:focus-within {
+  box-shadow: inset 0 0 0 var(--cv-hairline-w) var(--cv-hairline), 0 0 0 2px color-mix(in srgb, var(--acc) 35%, transparent), 0 4px 16px rgb(0 0 0 / 0.03), 0 0 24px rgb(0 0 0 / 0.03);
 }
 
 /* @// 菜单（dsh MenuView：卡片内绝对定位，bottom 100%+4px，padding 4px） */
@@ -984,10 +1022,10 @@ html[data-theme="tactile"] #pane-conversation {
   max-height: 400px;
   overflow-y: auto;
   padding: 4px;
-  border: 1px solid var(--line2);
+  border: 0;
   border-radius: 12px;
   background: var(--cv-elev);
-  box-shadow: 0 8px 24px rgb(0 0 0 / 0.25);
+  box-shadow: inset 0 0 0 var(--cv-hairline-w) var(--cv-hairline), 0 3px 8px rgb(0 0 0 / 0.04), 0 0 20px rgb(0 0 0 / 0.05);
 }
 
 .cv3-picker button {

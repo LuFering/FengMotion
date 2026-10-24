@@ -12,7 +12,8 @@ import { FX_TECHNIQUES } from '../data/fxTechniques'
 import '../styles/conversation.css'
 
 /**
- * 项目 agent 对话视图（第三版：照抄 dsh 对话界面源码）。
+ * 项目 agent 对话视图（第三版照抄 dsh 源码 + cv4 打磨轮：抽屉投影、气泡色、卡片发丝线、
+ * 标签 24px、聚焦晕染、hover 100ms、会话栏收起机制沿用 dsh narrowExpanded）。
  *
  * 抄自 deepseek-ai/deepseek-harness（dsh）Web UI 源码的实际结构与数值
  * （只抄版式与交互，不抄品牌、模型名、吉祥物、dsh 字样）：
@@ -360,7 +361,7 @@ export function Conversation(props: {
 
       <aside className="cv3-side" data-rail={rail || undefined} data-drawer={drawer || undefined} aria-label="会话栏">
         <div className="cv3-side-top">
-          <button type="button" className="cv3-icon-btn" aria-label={sideExpanded ? '收起会话栏' : '展开会话栏'} onClick={() => setSideExpanded((o) => !o)}>
+          <button type="button" className="cv3-icon-btn" aria-label={sideExpanded ? '收起会话栏' : '展开会话栏'} title={sideExpanded ? '收起会话栏' : '展开会话栏'} onClick={() => setSideExpanded((o) => !o)}>
             <PanelLeft size={16} />
           </button>
         </div>
@@ -391,7 +392,7 @@ export function Conversation(props: {
       <div className="cv3-main">
         <header className="cv3-head">
           <div className="cv3-title-row">
-            <button type="button" className="cv3-icon-btn" aria-label={sideExpanded ? '收起会话栏' : '展开会话栏'} onClick={() => setSideExpanded((o) => !o)}>
+            <button type="button" className="cv3-icon-btn" aria-label={sideExpanded ? '收起会话栏' : '展开会话栏'} title={sideExpanded ? '收起会话栏' : '展开会话栏'} onClick={() => setSideExpanded((o) => !o)}>
               <PanelLeft size={16} />
             </button>
             <div className="cv3-crumb" title={title}>{title}</div>
