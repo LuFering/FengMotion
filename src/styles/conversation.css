@@ -55,6 +55,9 @@
   --tx3: #71717a;
   --cv-elev: #2c2c2e;
   --cv-bubble: #2c2c2e;
+  /* 右区这一层（= 应用壳/导航栏透出的 body 底色）。
+     ⚠️ 别用全局 --bg：它和 body 实色不总相等（浅色主题 --bg #f5f6f6 vs body #e0e2e9）。 */
+  --cv-page: #000000;
   --cv-hairline: rgb(255 255 255 / 0.08);
   --cv-hairline-w: 0.5px;
 }
@@ -69,6 +72,7 @@ html[data-theme="light"] #pane-conversation {
   --tx3: #8c8f99;
   --cv-elev: #ffffff;
   --cv-bubble: #edf3fe;
+  --cv-page: #e0e2e9;
   --cv-hairline: rgb(0 0 0 / 0.10);
   --cv-hairline-w: 0.5px;
 }
@@ -85,6 +89,7 @@ html[data-theme="tactile"] #pane-conversation {
   /* ⚠️ 必须显式给：漏了会继承深色默认值 #2c2c2e（深底）+ 本主题深色文字 #22231f
      —— 深底深字，用户气泡几乎看不见（截图实测确认过） */
   --cv-bubble: #ddd8c9;
+  --cv-page: #e6e1d5;
   --cv-hairline: rgb(34 35 31 / 0.28);
   --cv-hairline-w: 1px;
 }
@@ -982,13 +987,16 @@ html[data-theme="tactile"] #pane-conversation {
   line-height: 20px;
 }
 
-/* ---- 输入席（dsh ConversationRoot composerSeat：粘性底部 + 36px 渐隐） ---- */
+/* ---- 输入席（dsh ConversationRoot composerSeat：粘性底部 + 36px 渐隐） ----
+   渐隐终点色必须与「页面那一层」一致，不能用对话内自己的 --panel：
+   --panel 是 dsh 色板（深 #151517 / 浅 #fcfcfd），而右区现在透出 body（深 #000 / 浅 #e0e2e9），
+   两者不同 → 输入席底部会出现一条与页面不一致的色带（深色主题下最明显）。 */
 .cv3-seat {
   position: sticky;
   bottom: 0;
   z-index: 7;
   padding-top: 36px;
-  background: linear-gradient(180deg, rgb(0 0 0 / 0) 0, var(--panel) 36px);
+  background: linear-gradient(180deg, rgb(0 0 0 / 0) 0, var(--cv-page) 36px);
 }
 
 .cv3-compose {
