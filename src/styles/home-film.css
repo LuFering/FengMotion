@@ -269,12 +269,12 @@ html[data-theme="tactile"] .hf-page {
 .hf-modechip .hf-mic { width: 15px; height: 15px; }
 .hf-modewrap[data-open] .hf-chev { transform: rotate(180deg); }
 .hf-menu {
-  position: absolute; left: 0; bottom: calc(100% + 9px); width: 190px; padding: 5px;
+  position: absolute; left: 0; bottom: calc(100% + 9px); width: 190px; padding: 6px;
   border: 1px solid var(--hf-line2); border-radius: 14px; background: var(--hf-panel);
   box-shadow: 0 22px 55px rgba(0,0,0,.28); z-index: 50;
 }
 .hf-menu button {
-  display: flex; align-items: center; width: 100%; padding: 8px 10px;
+  display: flex; align-items: center; gap: 9px; width: 100%; min-height: 36px; padding: 7px 10px;
   border: 0; border-radius: 9px; background: transparent; color: var(--hf-tx);
   font: 13.5px var(--hf-sans); text-align: left; cursor: pointer;
 }
@@ -634,6 +634,15 @@ html[data-theme="tactile"] .hf-brandsep { color: #8a8676; }
 .hf-menu .hf-mt { display: flex; flex-direction: column; gap: 2px; }
 .hf-menu .hf-mt b { font-weight: 600; }
 .hf-menu .hf-mt small { color: var(--hf-tx3); font-size: 11px; }
+/* 附件菜单单行样式：左图标 + 名称。
+   图标放进 16px 固定盒里水平居中，保证三行文字起点对齐 */
+.hf-menu .hf-mi {
+  box-sizing: content-box;
+  width: 16px; height: 16px; padding: 0; flex: 0 0 16px;
+  fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round;
+  color: var(--hf-tx2);
+}
+.hf-menu .hf-mi + span { flex: 1; min-width: 0; }
 .hf-chips { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 14px 0; }
 .hf-chip {
   display: inline-flex; align-items: center; gap: 7px; max-width: 260px;

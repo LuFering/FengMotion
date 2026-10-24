@@ -394,14 +394,18 @@ export function Home(props: { onStart?: (draft: string) => void }) {
                   </button>
                   {menu === 'add' && (
                     <div className="hf-menu">
+                      {/* 单行样式：左侧类型图标 + 名称，不接受更长的解释文字 */}
                       <button type="button" onClick={() => fileRef.current?.click()}>
-                        <span className="hf-mt"><b>文件</b><small>任意类型</small></span>
+                        <svg className="hf-mi" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" /><path d="M14 3v5h5" /></svg>
+                        <span>文件</span>
                       </button>
                       <button type="button" onClick={() => imageRef.current?.click()}>
-                        <span className="hf-mt"><b>图片</b><small>png / jpg / webp</small></span>
+                        <svg className="hf-mi" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3" /><circle cx="9" cy="10" r="1.6" /><path d="M4 17l5-4 4 3 3-2 4 3" /></svg>
+                        <span>图片</span>
                       </button>
                       <button type="button" onClick={() => videoRef.current?.click()}>
-                        <span className="hf-mt"><b>视频</b><small>mp4 / mov / webm</small></span>
+                        <svg className="hf-mi" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="3" /><path d="M10 9l5 3-5 3z" /></svg>
+                        <span>视频</span>
                       </button>
                     </div>
                   )}
