@@ -987,3 +987,21 @@ html.theme-switching #pane-flow .fw-canvas,
 html.theme-switching #pane-flow .fw-panel {
   transition: background-color .28s ease, color .28s ease, border-color .28s ease;
 }
+
+/* ── Round 1（UI 施工定案）：窄屏顶栏收拢 ─────────────────────
+   390px 下顶栏只留：返回 + 项目名 + 场景名（省略号）+ 演示 chip + 导出；
+   规格元信息与撤销/重做/历史收起（桌面端不受影响）。 */
+@media (max-width: 640px) {
+  #pane-flow .wb-a2 .wb-projectbar { min-width: 0; }
+  #pane-flow .wb-a2 .wb-crumb { min-width: 0; }
+  #pane-flow .wb-a2 .wb-project-name,
+  #pane-flow .wb-a2 .wb-crumb-scene {
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;
+  }
+  #pane-flow .wb-a2 .wb-meta,
+  #pane-flow .wb-a2 .wb-top-actions .wb-divider,
+  #pane-flow .wb-a2 .wb-top-actions .fw-toolbtn { display: none; }
+  #pane-flow .wb-a2 .wb-agent-status,
+  #pane-flow .wb-a2 .wb-export { white-space: nowrap; }
+  #pane-flow .wb-a2 .fw-playbar { overflow-x: auto; }
+}

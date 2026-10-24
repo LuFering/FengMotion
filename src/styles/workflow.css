@@ -297,7 +297,8 @@ html[data-theme='tactile'] .wfl {
 .wfe-canvas .react-flow__controls { box-shadow: var(--shadow-base); border-radius: 9px; overflow: hidden; }
 .wfe-canvas .react-flow__controls-button { background: var(--panel); border-bottom: 1px solid var(--line); fill: var(--tx2); width: 26px; height: 26px; }
 .wfe-canvas .react-flow__controls-button:hover { background: var(--hover); }
-.wfe-canvas .react-flow__minimap { background: var(--panel); border: 1px solid var(--line); border-radius: 9px; overflow: hidden; }
+.wfe-canvas .react-flow__minimap { background: #1c1c21; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; }
+.wfe-canvas .react-flow__minimap-node { fill: #8a8d98; stroke: #3a3b44; }
 .wfe-canvas .react-flow__edge.selected .react-flow__edge-path { stroke: var(--acc); stroke-width: 2px; }
 .wfe-canvas .react-flow__edge:hover .react-flow__edge-path { stroke-width: 2px; }
 .wfe-canvas .react-flow__handle { width: 8px; height: 8px; border: 2px solid var(--canvas); transition: width 0.12s var(--eo), height 0.12s var(--eo); }
@@ -357,11 +358,11 @@ html[data-theme='tactile'] .wfl {
 .wfn-status[data-s='failed'] { color: var(--danger); }
 .wfn-spin { animation: wfn-spin 1s linear infinite; }
 @keyframes wfn-spin { to { transform: rotate(360deg); } }
-.wfn-summary { margin: 6px 0 8px; font-size: 12px; line-height: 18px; color: var(--tx2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wfn-summary { margin: 6px 0 8px; font-size: 12.5px; line-height: 18px; color: var(--tx); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; white-space: normal; }
 .wfn-ports { display: flex; justify-content: space-between; gap: 10px; }
 .wfn-col { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
 .wfn-col.out { align-items: flex-end; text-align: right; }
-.wfn-port { position: relative; display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; color: var(--tx3); white-space: nowrap; }
+.wfn-port { position: relative; display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: var(--tx2); white-space: nowrap; }
 .wfn-port em { font-style: normal; color: var(--danger); }
 .wfn-port.in .wfn-handle { left: -18px; }
 .wfn-port.out .wfn-handle { right: -18px; }

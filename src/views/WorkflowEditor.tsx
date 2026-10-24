@@ -1113,6 +1113,12 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
                 <dt>修订</dt><dd className="num">{workflow.revision}</dd>
                 <dt>节点 / 连线</dt><dd className="num">{nodes.filter((n) => n.type === 'fm').length} / {edges.length}</dd>
                 <dt>执行器</dt><dd>DEMO（Mock 适配器，本地持久化）</dd>
+                <dt>最近运行</dt><dd>{lastRun ? `${lastRun.status === 'completed' ? '已完成' : lastRun.status} · ${lastRun.artifacts.length} 项产物 · ${new Date(lastRun.startedAt).toLocaleTimeString('zh-CN')}` : '暂无'}</dd>
+                <dt>检查点</dt><dd>{(() => {
+                  const gates = nodes.filter((n) => n.data.defType === 'gate')
+                  const confirmed = gates.filter((g) => g.data.gateEval?.decision === 'confirmed' && !g.data.gateEval?.stale).length
+                  return `${gates.length} 个 · ${confirmed} 已确认 · ${gates.length - confirmed} 待确认/未开始`
+                })()}</dd>
               </dl>
             </div>
           )}

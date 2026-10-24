@@ -9,6 +9,7 @@
  * 数据边界：复刻页当前仍是其示范内容（Callour Studio / Key Scenes 及示例图）；
  * 下一阶段把其中数据换成 FengMotion 真实项目数据（UNITS / 分镜备注）。
  */
+import { useState } from 'react'
 import { PROJECT_SUBVIEWS, STAGE_LABEL, type ProjectSummary } from '@/data/projects'
 import type { TaskRecord } from '@/hooks/useAgentTasks'
 
@@ -27,13 +28,22 @@ export function ProjectOverview(_props: {
   onOpenView: (id: string) => void
   onOpenWorkbench: () => void
 }) {
+  // Round 1：与 RenderDelivery 同一壳层问题，iframe onLoad 前盖骨架提示。
+  const [loaded, setLoaded] = useState(false)
   return (
     <div className="acr" style={{ background: '#000801', overflow: 'hidden' }}>
+      {!loaded && (
+        <div className="acr-loading" role="status" aria-live="polite">
+          <span className="acr-loading-spin" aria-hidden="true" />
+          正在加载项目指挥中心…
+        </div>
+      )}
       <iframe
         className="acr-frame"
         src="./replica/callour/index.html"
         title="项目指挥中心"
         style={{ width: '100%', height: '100%', borderRadius: 0, background: '#000801' }}
+        onLoad={() => setLoaded(true)}
       />
     </div>
   )

@@ -158,7 +158,7 @@ body.home-one-page {
   --hf-line2: rgba(255,255,255,.16);
   --hf-tx: #edeef3;
   --hf-tx2: #a4a7b1;
-  --hf-tx3: #62646e;
+  --hf-tx3: #9a9ca8;
   --hf-acc: #3B8CF8;
   --hf-acc-tint: rgba(59,140,248,.15);
   --hf-send-bg: #26272f;
@@ -209,7 +209,7 @@ html[data-theme="tactile"] .hf-page {
   --hf-line2: #22231f;
   --hf-tx: #22231f;
   --hf-tx2: #55534a;
-  --hf-tx3: #8a8676;
+  --hf-tx3: #6b6759;
   --hf-acc: #f7c948;
   --hf-acc-tint: rgba(247,201,72,.35);
   --hf-send-bg: #22231f;
@@ -505,4 +505,23 @@ html[data-theme="tactile"] .hf-brandsep { color: #8a8676; }
   .hf-brandline img { width: 34px; height: 34px; }
   .hf-brandname { font-size: 22px; }
   .hf-brandstart { font-size: 15px; }
+}
+
+/* ── Round 1（UI 施工定案）：窄屏不溢出 + 占位对比 ─────────────── */
+/* 占位文字在深黑/触感下用二级文字色，保证与输入面板对比 ≥4.5:1 */
+html[data-theme="dark"] .hf-composer textarea::placeholder,
+html[data-theme="tactile"] .hf-composer textarea::placeholder { color: var(--hf-tx2); }
+
+.hf-page { overflow-x: clip; }
+
+@media (max-width: 640px) {
+  .hf-hero { grid-template-columns: minmax(0, 1fr); }
+  .hf-copy, .hf-media, .hf-composer, .hf-sample { min-width: 0; width: 100%; }
+  .hf-title { font-size: 34px; }
+  .hf-media { padding-top: 64px; }
+  /* 工具栏换行不断裂：模型 chip 可压缩截断，发送按钮永不被挤出 */
+  .hf-toolbar { flex-wrap: wrap; }
+  .hf-modewrap { min-width: 0; }
+  .hf-model { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .hf-send { flex: 0 0 auto; }
 }
