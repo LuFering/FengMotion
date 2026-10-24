@@ -325,11 +325,15 @@ html[data-theme="tactile"] .hf-page {
 }
 .hf-hp-pane[data-active] { position: relative; transform: none; opacity: 1; }
 .hf-hp-pane.hf-hp-models:not([data-active]) { transform: translateX(-14px); }
+/* 行尾图标列：勾与箭头都贴弹窗右缘（与顶部「N 个已接入」右对齐）。
+   箭头固定 13px 列宽；勾用绝对定位叠到同一右缘，出现时替代箭头位置。 */
+.hf-hp-item { position: relative; }
 .hf-hp-go { width: 13px; height: 13px; flex: 0 0 13px; margin-left: auto; fill: none; stroke: var(--hf-tx3); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-.hf-hp-item .hf-hp-ck { margin-left: 0; }
-.hf-hp-item:has(.hf-hp-ck) .hf-hp-go, .hf-hp-models .hf-hp-go { margin-left: auto; }
-.hf-hp-item .hf-hp-ck + .hf-hp-go { margin-left: 8px; }
-.hf-hp-item .hf-hp-ck ~ .hf-hp-go { margin-left: 8px; }
+.hf-hp-item .hf-hp-ck {
+  position: absolute; right: 10px; top: 50%;
+  transform: translateY(-50%);
+  margin-left: 0;
+}
 .hf-hp-back {
   display: inline-flex; align-items: center; gap: 3px; padding: 3px 8px;
   border: 0; border-radius: 8px; background: transparent; color: var(--hf-tx2);
@@ -372,6 +376,7 @@ html[data-theme="tactile"] .hf-page {
 .hf-hp-radio { width: 12px; height: 12px; flex: 0 0 auto; border: 1.5px solid var(--hf-line2); border-radius: 50%; }
 .hf-hp-item[aria-selected="true"] .hf-hp-radio { border-color: var(--hf-acc); box-shadow: inset 0 0 0 3px var(--hf-acc); }
 .hf-hp-model .hf-hp-txt b { font: 12.5px var(--hf-mono); font-weight: 500; }
+.hf-hp-model .hf-hp-go-down { position: relative; }
 .hf-send {
   display: grid; place-items: center; width: 40px; height: 40px; flex: 0 0 auto;
   padding: 0; border: 0; border-radius: 50%; background: var(--hf-send-bg); color: var(--hf-send-fg);
