@@ -145,19 +145,64 @@ const fmtSize = (bytes: number) =>
       : `${bytes}B`
 
 
+/** 工作目录条目：label 是显示名（目录名），path 是完整路径（演示态可为 ~ 前缀示意） */
+interface Workdir { label: string; path: string }
+
+/** 按钮上的目录名按显示宽度截断：上限 6 个中文字符宽（全角 1、半角 0.5），
+    超出截断加省略号；半角名（如 FengMotion）因此能显示更多字符 */
+function shortenDir(name: string): string {
+  const chars = Array.from(name.trim())
+  const width = (c: string) => /[\u2E80-\u9FFF\uF900-\uFAFF\uFF00-\uFFEF]/.test(c) ? 1 : 0.5
+  let used = 0
+  let end = chars.length
+  for (let i = 0; i < chars.length; i++) {
+    used += width(chars[i])
+    if (used > 6) { end = i; break }
+  }
+  const cut = chars.slice(0, end).join('').replace(/[\s]+$/,'')
+  return end < chars.length ? `${cut}…` : cut
+}
+
 export function Home(props: { onStart?: (draft: string) => void }) {
   const [ready, setReady] = useState(false)
   const [draft, setDraft] = useState('')
   const [menu, setMenu] = useState<null | 'workdir' | 'add' | 'harness'>(null)
-  /* 工作目录：内存态演示列表（与页面其它演示数据同口径）。
-     label 显示名，path 是示意路径；当前选中单独存 path。 */
-  const [workdirs, setWorkdirs] = useState([
-    { label: 'FengMotion', path: '~/workspace/fengmotion' },
-    { label: '小凤 AI 口播片', path: '~/workspace/video-production' },
-    { label: 'workspace 根目录', path: '~/workspace' },
-  ])
-  const [workdir, setWorkdir] = useState('~/workspace/fengmotion')
+  /* 工作目录。真实链路按 docs/dev/前后端协议 与后端 workspace 包的规划走：
+     Electron 主进程 dialog.showOpenDialog（DSH 的 dsh-desktop:directory-pick 同款），
+     前端只经适配器拿「显示名 + 路径」。当前是演示适配器：列表存 localStorage，
+     「选择文件夹」在浏览器里拿不到绝对路径（input webkitdirectory 只有名字），
+     所以选择器失败/不可用时回退为手动输入真实路径。接 Electron/后端时只换实现。 */
+  const [workdirs, setWorkdirs] = useState<Workdir[]>(() => {
+    try {
+      const saved = localStorage.getItem('fengmotion:workdirs')
+      if (saved) {
+        const parsed: unknown = JSON.parse(saved)
+        if (Array.isArray(parsed)) return parsed.filter((d): d is Workdir => !!d && typeof d.path === 'string' && typeof d.label === 'string')
+      }
+    } catch { /* localStorage 不可用则用种子 */ }
+    return [
+      { label: 'FengMotion', path: '~/workspace/fengmotion' },
+      { label: '小凤 AI 口播片', path: '~/workspace/video-production' },
+      { label: 'workspace 根目录', path: '~/workspace' },
+    ]
+  })
+  const [workdirPath, setWorkdirPath] = useState(() => localStorage.getItem('fengmotion:workdir') ?? '~/workspace/fengmotion')
   const dirInputRef = useRef<HTMLInputElement>(null)
+  const currentWorkdir = workdirs.find((d) => d.path === workdirPath) ?? null
+  const addWorkdir = (label: string, path: string) => {
+    setWorkdirs((list) => {
+      const next = list.some((d) => d.path === path) ? list : [...list, { label, path }]
+      try { localStorage.setItem('fengmotion:workdirs', JSON.stringify(next)) } catch { /* 忽略持久化失败 */ }
+      return next
+    })
+    setWorkdirPath(path)
+    try { localStorage.setItem('fengmotion:workdir', path) } catch { /* 同上 */ }
+  }
+  const selectWorkdir = (path: string) => {
+    setWorkdirPath(path)
+    try { localStorage.setItem('fengmotion:workdir', path) } catch { /* 同上 */ }
+    setMenu(null)
+  }
   const [attachments, setAttachments] = useState<Attachment[]>([])
   const [harnessId, setHarnessId] = useState(HARNESSES[0].id)
   const [model, setModel] = useState(HARNESSES[0].models[0])
@@ -275,15 +320,17 @@ export function Home(props: { onStart?: (draft: string) => void }) {
         <div className="hf-media">
           <div className="hf-left-module" ref={moduleRef}>
             <input ref={fileRef} type="file" multiple hidden onChange={pickFiles('file')} />
-            {/* 选文件夹：webkitdirectory 在 Chromium/Firefox 下直接调起系统目录选择器；
-                演示阶段只取文件夹名进列表并选中，不读内容 */}
+            {/* 选文件夹：浏览器里 webkitdirectory 拿不到绝对路径（这是 Electron 主进程
+                dialog.showOpenDialog 才有的能力，见 DSH dsh-desktop:directory-pick）。
+                演示阶段先用名字兜底并如实提示；接入桌面壳后这里整个换掉。 */}
             <input ref={dirInputRef} type="file" {...({ webkitdirectory: "" } as Record<string, string>)} hidden
                    onChange={(e) => {
                      const dirName = e.target.files?.[0]?.webkitRelativePath?.split('/')[0]
-                     if (!dirName) return
-                     setWorkdirs((list) => list.some((d) => d.label === dirName) ? list : [...list, { label: dirName, path: `~/${dirName}` }])
-                     setWorkdir(`~/${dirName}`)
+                     if (dirName) addWorkdir(dirName, `~/${dirName}`)
                      setMenu(null)
+                     setToast(dirName
+                       ? `已添加「${shortenDir(dirName)}」（浏览器演示：完整路径要等桌面版）`
+                       : '浏览器里拿不到文件夹路径，桌面版才能直接选择')
                      e.target.value = ''
                    }} />
             <input ref={imageRef} type="file" accept="image/*" multiple hidden onChange={pickFiles('image')} />
@@ -363,16 +410,19 @@ export function Home(props: { onStart?: (draft: string) => void }) {
                   <button className="hf-modechip hf-workdir-chip" type="button" aria-expanded={menu === 'workdir'}
                           onClick={() => setMenu(menu === 'workdir' ? null : 'workdir')}>
                     <svg className="hf-folder" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></svg>
-                    <span>工作目录</span>
+                    {/* 按钮显示当前目录名（超长截到 6 个字符加省略号），未选时才是「工作目录」 */}
+                    <span title={currentWorkdir ? currentWorkdir.path : undefined}>
+                      {currentWorkdir ? shortenDir(currentWorkdir.label) : '工作目录'}
+                    </span>
                     <svg className="hf-chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" /></svg>
                   </button>
                   {menu === 'workdir' && (
                     <div className="hf-menu hf-workdir-menu">
                       <div className="hf-wd-list">
                         {workdirs.map((d) => (
-                          <button key={d.path} type="button" className={workdir === d.path ? 'is-sel' : undefined}
+                          <button key={d.path} type="button" className={workdirPath === d.path ? 'is-sel' : undefined}
                                   title={d.path}
-                                  onClick={() => { setWorkdir(d.path); setMenu(null) }}>
+                                  onClick={() => selectWorkdir(d.path)}>
                             <svg className="hf-wd-folder" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></svg>
                             <span>{d.label}</span><span className="hf-ck">✓</span>
                           </button>

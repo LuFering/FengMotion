@@ -371,7 +371,7 @@ html[data-theme="tactile"] .hf-seal circle { stroke: currentColor; }
 .hf-wd-list button.is-sel > i { opacity: 1; }
 
 /* 工作目录取代原型 chip：只显示中文名，不放路径 */
-.hf-workdir-chip { max-width: 160px; }
+.hf-workdir-chip { max-width: 150px; }
 .hf-workdir-chip .hf-folder { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
 .hf-workdir-chip > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* 工作目录菜单：列表区最长 4 项，超出滚动；底部固定「添加工作目录…」 */
