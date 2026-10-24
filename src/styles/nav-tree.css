@@ -46,6 +46,32 @@
 body:not(.hm-nav-expanded) .nav-leaf,
 body:not(.hm-nav-expanded) .nav-parent { height: 40px }
 
+/* Round 2：收起态图标轨加微型文字标签（审计 35）——68px 轨内放得下 2–4 字，
+   新手不用逐个试图标；展开态不受影响。 */
+body:not(.hm-nav-expanded) .nav-leaf,
+body:not(.hm-nav-expanded) .nav-parent {
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  height: 52px;
+  padding: 4px 0;
+  border-radius: 12px;
+}
+/* 注意：studio-shell 底样式有同名规则 opacity:0（后加载、同特异性），
+   此处用 body.studio-shell 提升特异性，否则标签只占位不显形。 */
+body.studio-shell:not(.hm-nav-expanded) .nav-leaf .hm-nav-text,
+body.studio-shell:not(.hm-nav-expanded) .nav-parent .hm-nav-text {
+  display: block;
+  max-width: 100%;
+  font-size: 9.5px; /* 4 字标签（我的创作/参考片库）恰好占满 40px 轨宽，留 2px 余量防截断 */
+  line-height: 1.2;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 1;
+}
+
 /* ── 可展开的分组 ─────────────────────────────────────────── */
 .nav-group { display: flex; flex-direction: column; gap: 2px }
 

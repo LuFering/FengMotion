@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   LICENSE_LABEL, MEDIA_ICON, MEDIA_LABEL, REVIEW_LABEL, SOURCE_LABEL,
   type LicenseStatus, type MediaType, type MyAsset, type ReviewStatus,
@@ -655,11 +655,10 @@ export function Assets({ projectName }: { projectName?: string } = {}) {
                 )
               ) : viewMode === 'grid' ? (
                 <div className="mya-grid" key={`${node}|${typeFilter}|${sortKey}`} onKeyDown={onGridKeys}>
-                  {visible.map((a, i) => {
+                  {visible.map((a) => {
                     const flag = assetFlag(a)
                     return (
                       <div key={a.id} className="mya-card"
-                           style={{ '--d': `${Math.min(i, 20) * 30}ms` } as CSSProperties}
                            data-on={detailId === a.id || undefined}
                            data-picked={selected.has(a.id) || undefined}
                            role="option" aria-selected={detailId === a.id} tabIndex={0}
@@ -673,8 +672,7 @@ export function Assets({ projectName }: { projectName?: string } = {}) {
                           {thumbs[a.id]
                             ? <img src={thumbs[a.id]} alt="" loading="lazy" />
                             : <span className="mya-thumb-ph"><Icon name={MEDIA_ICON[a.mediaType]} /></span>}
-                          {a.duration != null && (a.mediaType === 'video' || a.mediaType === 'audio') &&
-                            <span className="mya-dur mono">{formatDur(a.duration)}</span>}
+                          {/* Round 3（审计 18）：时长只留元信息行，缩略图上只留引用关系 */}
                           {a.refs.length > 0 &&
                             <span className="mya-refs-badge"><Icon name="link" />{a.refs.length} 处引用</span>}
                           {a.mediaType === 'video' && <span className="mya-scrub" aria-hidden="true" />}

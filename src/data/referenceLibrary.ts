@@ -54,10 +54,10 @@ export interface ReferenceCollection {
 export const REFERENCE_VIDEOS: ReferenceVideo[] = [
   {
     "id": "ref-dolly-zoom",
-    "title": "沙漠公路 · 多莉变焦",
+    "title": "沙漠公路",
     "duration": 10,
     "source": "AI 生成",
-    "description": "人物剪影立于沙漠公路中央，背景空间剧烈伸缩的眩晕镜头。",
+    "description": "人物剪影居中，背景纵深持续拉伸的多莉变焦片段。",
     "tags": [
       "多莉变焦",
       "眩晕",
@@ -108,7 +108,7 @@ export const REFERENCE_VIDEOS: ReferenceVideo[] = [
   },
   {
     "id": "ref-teal",
-    "title": "海岸悬崖 · 青橙调",
+    "title": "海岸悬崖",
     "duration": 10,
     "source": "AI 生成",
     "description": "青橙商业片调色的海岸悬崖大远景。",

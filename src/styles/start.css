@@ -33,9 +33,9 @@
 .stc-chip {
   background: var(--soft); color: var(--fg);
   border: 1px solid var(--line); border-radius: 999px;
-  padding: 5px 13px; font-size: 13px; cursor: pointer;
+  padding: 8px 16px; font-size: 13px; cursor: pointer;
 }
-.stc-chip[data-on] { border-color: var(--acc); color: var(--acc); background: transparent; font-weight: 600; }
+.stc-chip[data-on] { border-color: var(--acc); color: var(--acc); background: color-mix(in srgb, var(--acc) 13%, transparent); font-weight: 600; }
 .stc-chip-note { font-size: 12px; color: var(--hint, var(--dim)); }
 .stc-select {
   width: 100%; background: var(--hole, var(--soft)); color: var(--fg);
@@ -48,11 +48,12 @@
   padding: 11px; font-size: 14.5px; font-weight: 600; cursor: pointer;
 }
 .stc-primary:disabled { opacity: 0.45; cursor: not-allowed; }
-.stc-fine { font-size: 11.5px; color: var(--hint, var(--dim)); margin-top: 8px; line-height: 1.5; }
+.stc-fine { font-size: 12px; color: var(--dim); margin-top: 8px; line-height: 1.5; }
 .stc-pro-toggle {
-  margin-top: 14px; background: none; border: 0; padding: 4px 0;
-  color: var(--acc); font-size: 13px; cursor: pointer;
+  margin-top: 14px; background: transparent; border: 1px solid var(--line); border-radius: 999px;
+  padding: 7px 14px; color: var(--acc); font-size: 13px; cursor: pointer;
 }
+.stc-pro-toggle:hover { border-color: var(--acc); }
 .stc-pro { border-top: 1px solid var(--line); margin-top: 8px; padding-top: 12px; }
 .stc-seg { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .stc-seg button {

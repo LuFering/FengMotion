@@ -25,6 +25,20 @@
   background: #0E1116;
 }
 
+/* Round 1：复刻 iframe 加载骨架（壳层，不动复刻内容） */
+.acr { position: relative; }
+.acr-loading {
+  position: absolute; inset: 0; z-index: 2;
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  background: #0E1116; color: #9A9A9A; font-size: 13px;
+}
+.acr-loading-spin {
+  width: 16px; height: 16px; border-radius: 50%;
+  border: 2px solid rgba(255,255,255,.18); border-top-color: #3B8CF8;
+  animation: acr-spin .8s linear infinite;
+}
+@keyframes acr-spin { to { transform: rotate(360deg); } }
+
 .hm-main:has(.acr),
 .hm-main:has(.wgr) { margin: 0 0 0 var(--hm-sidebar, 68px) !important; padding: 0 !important }
 .hm-content:has(.acr),

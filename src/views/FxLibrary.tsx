@@ -10,7 +10,6 @@ import {
   Pause,
   Play,
   SlidersHorizontal,
-  Sparkles,
   Star,
   Workflow,
   X,
@@ -396,7 +395,7 @@ export function FxLibrary() {
 
   const SCOPES: Array<{ id: Scope; label: string; count: number; icon: React.ReactNode }> = [
     { id: 'all', label: '全部', count: searched.length, icon: null },
-    { id: 'featured', label: '精选', count: counts.featured, icon: <Sparkles size={12} aria-hidden="true" /> },
+    { id: 'featured', label: '精选', count: counts.featured, icon: null },
     { id: 'favorites', label: '收藏', count: counts.favorites, icon: <Star size={12} aria-hidden="true" /> },
     { id: 'recent', label: '最近使用', count: counts.recent, icon: <Clock size={12} aria-hidden="true" /> },
   ]
@@ -499,7 +498,7 @@ export function FxLibrary() {
                     </div>
                   </div>
                   <div className="fx-pop-foot">
-                    <span>选择即生效 · 能力标签为源库元数据，本页不触发执行</span>
+                    <span>选择即生效</span>
                     <button type="button" className="fx-textbtn" onClick={clearFilters} disabled={activeCount === 0}>
                       清空筛选
                     </button>
@@ -510,6 +509,7 @@ export function FxLibrary() {
           </div>
         </div>
 
+        {/* 去 AI 味：整行图例删除——组件不再解释自己；能力与复杂度直接写进卡片元信息行 */}
         <div className="fx-meta">
           <span className="fx-meta-count"><b className="num">{visible.length}</b> 项技法</span>
           {cat !== 'all' && (
@@ -631,17 +631,9 @@ export function FxLibrary() {
                     <div className="fxc-body">
                       <h3 className="fxc-title">{t.name}</h3>
                       <p className="fxc-intent">{t.intent}</p>
+                      {/* 去 AI 味：能力 pill + 圆点复杂度 + 输入标签云，改成一行普通元信息文字 */}
                       <div className="fxc-meta">
-                        <span className="fx-cap" data-cap={t.execType}>
-                          <i className="fx-dot" data-cap={t.execType} aria-hidden="true" />
-                          {execLabel(t.execType)}
-                        </span>
-                        <span className="fxc-dots" role="img" aria-label={`复杂度 ${t.complexity} / 5`}>
-                          {Array.from({ length: 5 }, (_, i) => (
-                            <i key={i} data-on={i < t.complexity ? '' : undefined} aria-hidden="true" />
-                          ))}
-                        </span>
-                        <span>{t.inputLabels.join(" · ")}</span>
+                        <span>{execLabel(t.execType)} · 复杂度 {t.complexity}/5 · {t.inputLabels.join("、")}</span>
                       </div>
                     </div>
                   </article>
@@ -718,10 +710,9 @@ export function FxLibrary() {
               <div className="fx-drawer-body">
                 <div className="fx-drawer-title">
                   <h2 id="fx-drawer-title">{current.name}</h2>
-                  <span>{current.nameEn} · {current.categoryLabel}</span>
+                  <span>{current.nameEn}</span>
                   {current.featured && (
                     <em className="fx-featured">
-                      <Sparkles size={9} aria-hidden="true" />
                       源库精选
                     </em>
                   )}
@@ -742,45 +733,28 @@ export function FxLibrary() {
                 </div>
                 <p className="fx-detail-intent">{current.intent}</p>
 
-                <div className="fx-detail-cap">
-                  <span className={`fx-cap fx-cap-${current.execType}`} title={FX_EXEC_TYPES[current.execType].hint}>
-                    {current.execLabel}
-                  </span>
-                  <span>{FX_EXEC_TYPES[current.execType].hint}</span>
-                </div>
+                {/* 去 AI 味：能力 pill 与说明句重复，合成一行普通文字；分类放进这行，不再与英文名用“·”拼标题 */}
+                <p className="fx-detail-capline">
+                  {current.categoryLabel} · {current.execLabel}：{FX_EXEC_TYPES[current.execType].hint}
+                </p>
 
                 <section className="fx-dsec">
                   <h3 className="fx-label">用途</h3>
-                  <div className="fx-taggroup">
-                    <span className="fx-taggroup-label">适用</span>
-                    <div className="fx-taglist">
-                      {current.scenes.map((s) => (
-                        <span key={s} className="fx-tag">{s}</span>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="fx-taggroup">
-                    <span className="fx-taggroup-label">不适用</span>
-                    <div className="fx-taglist">
-                      {current.antiScenes.map((s) => (
-                        <span key={s} className="fx-tag fx-tag-mute">{s}</span>
-                      ))}
-                    </div>
-                  </div>
+                  <p className="fx-use-line"><b>适用</b>{current.scenes.join('、')}</p>
+                  <p className="fx-use-line"><b>不适用</b>{current.antiScenes.join('、')}</p>
                 </section>
 
                 <section className="fx-dsec">
-                  <h3 className="fx-label">实现方法 <em className="num">{current.steps.length}</em></h3>
+                  <h3 className="fx-label">实现方法</h3>
                   <ol className="fx-steps">
                     {current.steps.map((s, i) => (
                       <li key={i}>
-                        <i className="num">{String(i + 1).padStart(2, '0')}</i>
                         <span>{s}</span>
                       </li>
                     ))}
                   </ol>
                   <dl className="fx-io">
-                    <div><dt>实现</dt><dd>{current.implLabel}</dd></div>
+                    <div><dt>实现方式</dt><dd>{current.implLabel}</dd></div>
                     <div><dt>复杂度</dt><dd className="num">{current.complexity} / 5</dd></div>
                     {current.dependencies.length > 0 && (
                       <div><dt>依赖</dt><dd>{current.dependencies.join('；')}</dd></div>
@@ -793,7 +767,7 @@ export function FxLibrary() {
 
                 {current.limitations.length > 0 && (
                   <section className="fx-dsec">
-                    <h3 className="fx-label">已知限制 <em className="num">{current.limitations.length}</em></h3>
+                    <h3 className="fx-label">已知限制</h3>
                     <ul className="fx-bullets fx-bullets-warn">
                       {current.limitations.map((s) => (
                         <li key={s}>{s}</li>
@@ -813,7 +787,7 @@ export function FxLibrary() {
                 )}
 
                 <section className="fx-dsec">
-                  <h3 className="fx-label">参数 <em className="num">{current.params.length}</em></h3>
+                  <h3 className="fx-label">参数</h3>
                   <ul className="fx-params">
                     {current.params.map((p) => (
                       <li key={p.key}>

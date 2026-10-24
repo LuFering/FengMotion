@@ -112,7 +112,7 @@ function seedWorkflows(): WorkflowDef[] {
   return [
     {
       id: 'wf-token-pf',
-      name: 'Token 科普视频 · Prompt-first',
+      name: 'Token 科普视频',
       description: '默认路径：从提示词直接创作。带 Token 项目的真实素材引用作基线。',
       path: 'prompt-first',
       presetId: 'talking',
@@ -125,7 +125,7 @@ function seedWorkflows(): WorkflowDef[] {
     },
     {
       id: 'wf-token-structured',
-      name: 'Token 科普视频 · Structured',
+      name: 'Token 科普视频',
       description: '按需路径：阶段泳道 + Gate 检查点的演示骨架；产物状态如实为空缺起步。',
       path: 'structured',
       presetId: 'talking',
@@ -363,7 +363,7 @@ function pfArtifact(node: WfNodeInstance): WfArtifact {
         ratio: String(p.ratio ?? '16:9'),
         source: '用户原始输入快照',
       }
-      return { ...base, kind: 'prompt', title: '提示词输入 · 原始快照', filename: 'prompt.original.md', summary: `原始提示词快照 · ${data.text.length} 字`, content: json(data) }
+      return { ...base, kind: 'prompt', title: '提示词输入 · 原始快照', filename: 'prompt.original.md', summary: data.text ? `原始提示词：${data.text.slice(0, 24)}${data.text.length > 24 ? '…' : ''}` : '原始提示词快照', content: json(data) }
     }
     case 'refs': {
       const assetIds = (p.assetIds as string[] | undefined) ?? []

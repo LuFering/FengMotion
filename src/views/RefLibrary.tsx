@@ -354,22 +354,28 @@ export function RefLibrary() {
         <div className="rfc-scrim rfc-scrim-b" />
 
         <header className="rfc-head">
-          <div className="rfc-eyebrow">参考片库 · 片段拆解</div>
+          <div className="rfc-eyebrow">参考片库</div>
           <h1 className="rfc-title">{film.title}</h1>
           <p className="rfc-desc">{film.description}</p>
+          {/* 去 AI 味：来源 / 进度 / 状态不再做成 pill 标签云，压成一行普通元信息；
+              只留真正区分片段的属性（景别、运镜）作标签 */}
+          <div className="rfc-meta-line">
+            {film.source} · 片段 {segment.index + 1} / {filmSegments.length} · {STATUS_META[segment.status].label}
+            {pendingCount > 0 && ` · ${pendingCount} 项待分析`}
+          </div>
           <div className="rfc-chips">
-            <span className="rfc-glass">{film.source}</span>
-            <span className="rfc-glass">片段 {segment.index + 1} / {filmSegments.length}</span>
-            <StatusPill status={segment.status} />
             {!segment.analysis.scale.pending && <span className="rfc-glass">{shortValue(segment.analysis.scale.value)}</span>}
             {!segment.analysis.cameraMove.pending && <span className="rfc-glass">{shortValue(segment.analysis.cameraMove.value)}</span>}
-            {pendingCount > 0 && <span className="rfc-glass warn">{pendingCount} 项待分析</span>}
           </div>
         </header>
 
         <div className="rfc-actions">
           <button type="button" className="rfc-gbtn" onClick={() => setBrowseOpen(true)}>
             <Icon name="layout-grid" /> 片库
+          </button>
+          {/* Round 3（审计 20）：搜索与筛选由底部传输条移回顶部工具栏，不再贴检查器面板边缘 */}
+          <button type="button" className="rfc-gbtn" onClick={() => setBrowseOpen(true)}>
+            <Icon name="search" /> 搜索与筛选
           </button>
           <button
             type="button"
@@ -465,10 +471,12 @@ export function RefLibrary() {
                 })}
               </div>
             ))}
-            <div className="rfc-notes">
-              <div className="rfc-note"><div className="rfc-note-k">观察</div><p>{segment.observation}</p></div>
-              <div className="rfc-note"><div className="rfc-note-k">推断</div><p>{segment.inference}</p></div>
-              <div className="rfc-note"><div className="rfc-note-k">建议</div><p>{segment.suggestion}</p></div>
+            {/* 去 AI 味：不再用“观察 / 推断 / 建议”三段论 + 虚线分隔写分析报告，
+                改成一段带行内标签的分析文字，内容不变 */}
+            <div className="rfc-analysis">
+              <p><b>画面</b>{segment.observation}</p>
+              <p><b>效果</b>{segment.inference}</p>
+              <p><b>适用</b>{segment.suggestion}</p>
             </div>
             {segment.tags.length > 0 && (
               <div className="rfc-tags">
@@ -498,9 +506,6 @@ export function RefLibrary() {
             </span>
             <span className="rfc-transport-hint">逐帧预览 · 空格播放/暂停 · ←/→ 切片段</span>
             <span className="rfc-spacer" />
-            <button type="button" className="rfc-gbtn" onClick={() => setBrowseOpen(true)}>
-              <Icon name="search" /> 搜索与筛选
-            </button>
           </div>
           <div className="rfc-segbar" role="tablist" aria-label="片段">
             {filmSegments.map((s) => {
@@ -525,7 +530,6 @@ export function RefLibrary() {
           <div className="rfc-films">
             {REFERENCE_VIDEOS.map((v) => {
               const ss = segmentsOf(v.id)
-              const done = ss.filter((s) => s.status === 'analyzed').length
               return (
                 <button
                   key={v.id}
@@ -537,7 +541,8 @@ export function RefLibrary() {
                   <img src={`./reference/shots/${ss[0]?.id}.webp`} alt="" loading="lazy" />
                   <span className="rfc-film-lb">
                     <span className="rfc-film-t">{v.title}</span>
-                    <span className="rfc-film-m num">{ss.length} 片段 · 已分析 {done}/{ss.length}</span>
+                    {/* 去 AI 味：分析进度已由片段条上的状态点表达，不再把“已分析 x/y”当副标题 */}
+                    <span className="rfc-film-m num">{ss.length} 片段</span>
                   </span>
                 </button>
               )

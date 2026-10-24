@@ -545,8 +545,6 @@ export function Workbench({ chat, tasks, onNavigate, projectId, onBack, onSwitch
                   regionMode={regionMode} editMode={editMode}
                   onEdit={openEdit}
                 />
-                <span className="wb-divider" />
-                <span className="wb-viewer-meta">{FILM_WIDTH}×{FILM_HEIGHT} · {FILM_FPS}fps · {selectedScene.duration.toFixed(1)}s</span>
               </>
             )}
           </div>
@@ -661,9 +659,8 @@ export function Workbench({ chat, tasks, onNavigate, projectId, onBack, onSwitch
           <PanelBottom className="size-3" />{trayOpen ? '收起任务面板' : '任务面板'}
           {tasks.active?.task ? ` · ${tasks.active.task.title}` : ''}
         </button>
-        <span className="wb-status-chip">{ACTIVE_SCENES.length} 场 · {ACTIVE_DURATION.toFixed(1)}s</span>
+        <span className="wb-status-chip">成片 {ACTIVE_SCENES.length} 场 · {ACTIVE_DURATION.toFixed(1)}s</span>
         <span className="wb-spacer" />
-        <span className="wb-status-chip is-quiet">演示模式 · Agent 与渲染未连接</span>
       </div>
     </div>
   )
@@ -735,7 +732,7 @@ function ProjectRail({ selectedId, onSelect, projectName, open, onClose, tab, on
     <aside className="fw-ing" data-open={open ? '' : undefined} aria-label="镜头库与产物">
       {creation}
       <div className="fw-ing-hd">
-        <h2>{tab === 'structure' ? '镜头库' : '产物'}</h2>
+        <h2>{tab === 'structure' ? '场景结构' : '产物'}</h2>
         <span className="fw-count">{tab === 'structure' ? `${ACTIVE_SCENES.length} 场` : `${WORKBENCH_ARTIFACTS.length} 产物`}</span>
         <span className="spacer" />
         <button className="iconbtn fw-mobile" type="button" title="收起" onClick={onClose}>
@@ -1185,7 +1182,6 @@ function SceneInspector({ scene, clip, selectedId, storyboard, settings, savedAt
 
       <div className="wb-insp-foot">
         <button className="wb-btn-primary" type="button" onClick={onOpenChat}><Send />让 AI 修改本场</button>
-        <div className="wb-demo-line"><i className="wb-demo-dot" />演示模式 · Agent 与渲染未连接</div>
       </div>
     </div>
   )

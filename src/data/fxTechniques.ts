@@ -70,8 +70,8 @@ export const FX_CATEGORIES: Array<{ id: FxCategory; label: string }> = [
 
 /** 能力标签逐字保留源库文案；hint 说明它只是来源库元数据。 */
 export const FX_EXEC_TYPES: Record<FxExecType, { label: string; hint: string }> = {
-  runnable: { label: '可直接执行', hint: '源库标记为有执行实现；本页只读展示，不触发执行' },
-  composable: { label: '可组合', hint: '源库标记为与其他节点组合使用；本页不提供组合操作' },
+  runnable: { label: '可直接执行', hint: '源库标记为有执行实现' },
+  composable: { label: '可组合', hint: '源库标记为与其他节点组合使用' },
   reference: { label: '知识参考', hint: '源库标记为仅供学习参考，无执行实现' },
 }
 

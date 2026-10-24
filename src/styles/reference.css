@@ -177,6 +177,12 @@ html[data-theme='tactile'] .rfc {
 .rfc-title { font-size: 27px; font-weight: 700; line-height: 1.25; color: #fff; margin-top: 5px; text-shadow: 0 2px 16px rgba(0, 0, 0, 0.55); }
 .rfc-desc { color: var(--ink-dim); font-size: 13.5px; margin-top: 5px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-shadow: 0 1px 8px rgba(0, 0, 0, 0.6); }
 .rfc-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 11px; }
+/* 去 AI 味：来源 / 进度 / 状态压成的普通元信息行，不再是 pill */
+.rfc-meta-line { margin-top: 8px; font-size: 12px; color: var(--ink-dim); text-shadow: 0 1px 8px rgba(0, 0, 0, .6); }
+/* 去 AI 味：分析改成带行内标签的连续文字，取消三段论虚线分隔 */
+.rfc-analysis { margin-top: 12px; display: flex; flex-direction: column; gap: 7px; }
+.rfc-analysis p { margin: 0; font-size: 13px; line-height: 1.7; color: var(--tx); }
+.rfc-analysis b { color: var(--tx2); font-weight: 600; margin-right: 6px; }
 .rfc-glass {
   display: inline-flex; align-items: center; gap: 5px;
   background: var(--glass); border: 1px solid var(--glass-line);
@@ -226,14 +232,16 @@ html[data-theme='tactile'] .rfc {
 
 /* ── 分析面板（右侧玻璃覆层） ────────────────────────────── */
 .rfc-panel {
-  position: absolute; top: 78px; right: 20px;
+  position: absolute; top: 78px; right: 20px; z-index: 3;
+  /* Round 3：检查器限高 + 内部滚动，不再垂到传输条/片段条区域压住控件 */
+  max-height: calc(100% - 190px); overflow-y: auto; overscroll-behavior: contain;
   width: 348px; max-height: calc(100% - 268px);
   overflow-y: auto; overscroll-behavior: contain;
   background: var(--panel-glass); border: 1px solid var(--panel-line);
   border-radius: var(--r-panel);
   backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
   box-shadow: var(--shadow-float);
-  padding: 16px 18px 14px;
+  padding: 16px 18px 24px;
   animation: rfc-panel-in 0.28s var(--eo);
 }
 @keyframes rfc-panel-in { from { opacity: 0; transform: translateX(14px); } to { opacity: 1; transform: none; } }
@@ -308,10 +316,15 @@ html[data-theme='tactile'] .rfc {
 .rfc-time { color: var(--ink); font-size: 13px; text-shadow: 0 1px 6px rgba(0, 0, 0, 0.6); }
 .rfc-transport-hint { color: var(--ink-dim); font-size: 12px; }
 .rfc-segbar { display: flex; gap: 3px; margin-bottom: 11px; }
-.rfc-seg {
+/* Round 3（审计 21）：片段条给实底 + 模糊，标签与状态点落在可见的条内，
+   不再像残留元素浮在画面上。
+   注意：.rfc button 通用复位（0,1,1）会压掉单类名规则的背景与边框，
+   此处用 .rfc-segbar 后代选择器（0,2,0）压回去——此前条带隐形就是这个原因。 */
+.rfc-segbar .rfc-seg {
   position: relative; height: 38px; flex-basis: 0; min-width: 0;
   border-radius: 9px; overflow: hidden; text-align: left;
-  background: rgba(255, 255, 255, 0.10); border: 1px solid rgba(255, 255, 255, 0.10);
+  background: rgba(9, 11, 15, 0.62); border: 1px solid rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
   transition: border-color 0.15s var(--eo);
 }
 .rfc-seg:hover { border-color: rgba(255, 255, 255, 0.45); }
