@@ -7,6 +7,7 @@ import { GENOMES } from '../data/genomes'
 import type { NewProjectInput } from '../shell/useProjects'
 import type { WfPath } from '../data/workflowTemplates'
 import { SegmentedControl } from '../components/ui/segmented-control'
+import { ViewSwitch } from '../components/ViewSwitch'
 import { REFERENCE_VIDEOS } from '../data/referenceLibrary'
 import { FX_TECHNIQUES } from '../data/fxTechniques'
 import '../styles/conversation.css'
@@ -433,13 +434,8 @@ export function Conversation(props: {
                 {demoNote === 'mode' && demoPop('mode')}
               </div>
             </div>
-            <div className="cv3-switch" role="group" aria-label="对话与工作台切换">
-              <button type="button" data-on aria-current="page">对话</button>
-              <button type="button" disabled={!launched} onClick={props.onOpenWorkbench}
-                      title={launched ? '进入工作台查看完整制作过程' : '开始制作后可进入工作台'}>
-                工作台
-              </button>
-            </div>
+            <ViewSwitch current="conversation" workbenchDisabled={!launched}
+                        onSwitch={(target) => { if (target === 'workbench') props.onOpenWorkbench() }} />
           </div>
           <div className="cv3-tabs" role="tablist" aria-label="对话与轨迹">
             <button type="button" role="tab" aria-selected={tab === 'chat'} onClick={() => setTab('chat')}>对话</button>

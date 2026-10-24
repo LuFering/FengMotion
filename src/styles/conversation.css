@@ -117,7 +117,7 @@ html[data-theme="tactile"] #pane-conversation {
 }
 
 /* hover 反馈统一 100ms（dsh TurnProcess 的 color 100ms 口径，缓动取主题 cubic-bezier） */
-.cv3-icon-btn, .cv3-new, .cv3-panel-row, .cv3-chip, .cv3-picker button, .cv3-session, .cv3-primary, .cv3-secondary, .cv3-switch button {
+.cv3-icon-btn, .cv3-new, .cv3-panel-row, .cv3-chip, .cv3-picker button, .cv3-session, .cv3-primary, .cv3-secondary {
   transition: background-color 100ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -506,37 +506,10 @@ html[data-theme="tactile"] #pane-conversation {
   cursor: pointer;
 }
 
-.cv3-switch {
-  display: flex;
-  flex: none;
-  gap: 4px;
+/* 视图切换器（对话 ⇄ 工作台）的样式在 styles/view-switch.css 里统一定义，
+   两个视图共用一份；这里只负责把它推到标题行最右侧 */
+.cv3-title-row > .view-switch {
   margin-left: auto;
-  padding: 2px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: var(--panel2);
-}
-
-/* 切换器总高 30px，与 dsh 标题行 30px 齐平，不把顶栏顶到 76px 以上 */
-.cv3-switch button {
-  padding: 3px 10px;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
-  color: var(--tx2);
-  font-size: 12px;
-  line-height: 18px;
-  cursor: pointer;
-}
-
-.cv3-switch button[data-on] {
-  background: var(--acc);
-  color: var(--on-accent, #fff);
-}
-
-.cv3-switch button:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
 }
 
 .cv3-tabs {

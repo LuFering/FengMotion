@@ -24,6 +24,7 @@ import type { EditableShotSettings } from '@/remotion/EditableShot'
 import { defaultShotSettings, loadShotOverrides, saveShotOverrides, type ShotOverrideMap } from '@/data/shotOverrides'
 import type { ViewId } from '@/shell/views'
 import { SegmentedControl } from '@/components/ui/segmented-control'
+import { ViewSwitch } from '@/components/ViewSwitch'
 import { EditParamsIcon, FrameRefIcon, RangeRefIcon, RegionRefIcon } from '@/components/icons/WorkbenchActionIcons'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Switch } from '@/components/ui/switch'
@@ -496,6 +497,9 @@ export function Workbench({ chat, tasks, onNavigate, projectId, onBack, onSwitch
             <TooltipContent side="bottom" sideOffset={6}>下载现有本地影片（演示：不启动新渲染）。</TooltipContent>
           </Tooltip>
         </div>
+        {/* 与对话视图右上角同一个切换器（styles/view-switch.css）：工作台是当前视图，
+            对话可一键切回，消除“进了工作台就回不去会话”的单向门 */}
+        <ViewSwitch current="workbench" onSwitch={(target) => { if (target === 'conversation') onNavigate('conversation') }} />
       </div>
 
       {/* ═══ 三栏（paba .fw 网格）══════════════════════════════ */}
