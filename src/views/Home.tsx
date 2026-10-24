@@ -149,7 +149,15 @@ export function Home(props: { onStart?: (draft: string) => void }) {
   const [ready, setReady] = useState(false)
   const [draft, setDraft] = useState('')
   const [menu, setMenu] = useState<null | 'workdir' | 'add' | 'harness'>(null)
+  /* 工作目录：内存态演示列表（与页面其它演示数据同口径）。
+     label 显示名，path 是示意路径；当前选中单独存 path。 */
+  const [workdirs, setWorkdirs] = useState([
+    { label: 'FengMotion', path: '~/workspace/fengmotion' },
+    { label: '小凤 AI 口播片', path: '~/workspace/video-production' },
+    { label: 'workspace 根目录', path: '~/workspace' },
+  ])
   const [workdir, setWorkdir] = useState('~/workspace/fengmotion')
+  const dirInputRef = useRef<HTMLInputElement>(null)
   const [attachments, setAttachments] = useState<Attachment[]>([])
   const [harnessId, setHarnessId] = useState(HARNESSES[0].id)
   const [model, setModel] = useState(HARNESSES[0].models[0])
@@ -267,6 +275,17 @@ export function Home(props: { onStart?: (draft: string) => void }) {
         <div className="hf-media">
           <div className="hf-left-module" ref={moduleRef}>
             <input ref={fileRef} type="file" multiple hidden onChange={pickFiles('file')} />
+            {/* 选文件夹：webkitdirectory 在 Chromium/Firefox 下直接调起系统目录选择器；
+                演示阶段只取文件夹名进列表并选中，不读内容 */}
+            <input ref={dirInputRef} type="file" {...({ webkitdirectory: "" } as Record<string, string>)} hidden
+                   onChange={(e) => {
+                     const dirName = e.target.files?.[0]?.webkitRelativePath?.split('/')[0]
+                     if (!dirName) return
+                     setWorkdirs((list) => list.some((d) => d.label === dirName) ? list : [...list, { label: dirName, path: `~/${dirName}` }])
+                     setWorkdir(`~/${dirName}`)
+                     setMenu(null)
+                     e.target.value = ''
+                   }} />
             <input ref={imageRef} type="file" accept="image/*" multiple hidden onChange={pickFiles('image')} />
             <input ref={videoRef} type="file" accept="video/*" multiple hidden onChange={pickFiles('video')} />
             <div className="hf-brandline">
@@ -349,16 +368,21 @@ export function Home(props: { onStart?: (draft: string) => void }) {
                   </button>
                   {menu === 'workdir' && (
                     <div className="hf-menu hf-workdir-menu">
-                      {[
-                        ['~/workspace/fengmotion', 'FengMotion'],
-                        ['~/workspace/video-production', '小凤 AI 口播片'],
-                        ['~/workspace', 'workspace 根目录'],
-                      ].map(([path, label]) => (
-                        <button key={path} type="button" className={workdir === path ? 'is-sel' : undefined}
-                                onClick={() => { setWorkdir(path); setMenu(null) }}>
-                          <span>{label}</span><span className="hf-ck">✓</span>
-                        </button>
-                      ))}
+                      <div className="hf-wd-list">
+                        {workdirs.map((d) => (
+                          <button key={d.path} type="button" className={workdir === d.path ? 'is-sel' : undefined}
+                                  title={d.path}
+                                  onClick={() => { setWorkdir(d.path); setMenu(null) }}>
+                            <svg className="hf-wd-folder" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></svg>
+                            <span>{d.label}</span><span className="hf-ck">✓</span>
+                          </button>
+                        ))}
+                      </div>
+                      <div className="hf-wd-sep" />
+                      <button type="button" className="hf-wd-add" onClick={() => dirInputRef.current?.click()}>
+                        <svg className="hf-wd-plus" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+                        <span>添加工作目录…</span>
+                      </button>
                     </div>
                   )}
                 </div>

@@ -374,8 +374,40 @@ html[data-theme="tactile"] .hf-seal circle { stroke: currentColor; }
 .hf-workdir-chip { max-width: 160px; }
 .hf-workdir-chip .hf-folder { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
 .hf-workdir-chip > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.hf-workdir-menu { width: 170px; }
-.hf-workdir-menu button > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 工作目录菜单：列表区最长 4 项，超出滚动；底部固定「添加工作目录…」 */
+.hf-workdir-menu { width: 216px; padding-bottom: 4px; }
+.hf-wd-list {
+  max-height: 152px;            /* 4 行 × 36px + 缝隙 */
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+.hf-wd-list button {
+  gap: 9px;
+  min-height: 36px;
+  padding: 7px 10px;
+}
+.hf-wd-list button > span:first-of-type {
+  flex: 1; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.hf-wd-folder {
+  width: 15px; height: 15px; flex: 0 0 15px;
+  fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
+  color: var(--hf-tx2, var(--hf-tx));
+}
+.hf-wd-sep { height: 1px; margin: 5px 6px; background: var(--hf-line2); opacity: .7; }
+.hf-wd-add {
+  gap: 9px;
+  min-height: 36px;
+  padding: 7px 10px;
+  color: var(--hf-tx2, var(--hf-tx));
+}
+.hf-wd-add:hover { background: var(--hf-panel2); }
+.hf-wd-plus {
+  width: 14px; height: 14px; flex: 0 0 14px;
+  fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round;
+}
 
 /* 雾现：空输入时提示短语从 blur 中显现、停留、散开 */
 .hf-ta { position: relative; }
