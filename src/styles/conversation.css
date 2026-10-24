@@ -140,9 +140,13 @@ html[data-theme="tactile"] #pane-conversation {
   flex-direction: column;
   width: 280px;
   min-height: 0;
+  margin: 10px 0 10px 10px;
   padding: 6px 12px;
   box-sizing: border-box;
-  border-right: 0.5px solid var(--line);
+  /* 侧栏不再用「直角 + 右边贯穿长线」划分，改成一张圆角浮动面板：
+     层级靠 --panel2 的灰阶面 + 圆角浮起，和其余界面（圆角卡片、无长线）同一语言。
+     ⚠️ 原来 border-right + 铺满全高，是 dsh 的三栏硬分割；本产品其余视图都没有这种线。 */
+  border-radius: 16px;
   background: var(--panel2);
   color: var(--tx1);
   font-size: 14px;
@@ -421,13 +425,17 @@ html[data-theme="tactile"] #pane-conversation {
    收起态下左栏没有任何需要常驻的图标，留一条空轨道只是视觉噪音。
    原来那套 [data-rail] 收窄样式已随组件改动一并删除。 */
 
-/* 覆盖式抽屉（窄屏手动展开）：盖住主列，不挤压 */
+/* 覆盖式抽屉（窄屏手动展开）：盖住主列，不挤压。
+   抽屉是浮层，留边距会显得没贴住容器，所以这里把浮动面板的 margin 收掉，
+   改用四边同宽的 inset 让它像一块真正的浮板压在主列上。 */
 .cv3-side[data-drawer] {
   position: absolute;
   left: 0;
   top: 0;
   bottom: 0;
   z-index: 8;
+  margin: 10px;
+  border-radius: 16px;
   box-shadow: 0 10px 30px rgb(0 0 0 / 0.5);
 }
 
@@ -452,7 +460,7 @@ html[data-theme="tactile"] #pane-conversation {
   min-height: 56px;
   padding: 10px 28px 0 20px;
   box-sizing: border-box;
-  border-bottom: 0.5px solid var(--line);
+  /* 不画贯穿全宽的底边线：靠留白与内容分层，线只在需要的地方出现 */
 }
 
 .cv3-title-row {
@@ -741,18 +749,15 @@ html[data-theme="tactile"] #pane-conversation {
   flex-direction: column;
 }
 
+/* 检索到的参考/特效：不逐行画分隔线（长线在窄栏里像表格），
+   靠行间距与次级色区分即可 */
 .cv3-tool {
   display: flex;
   align-items: baseline;
   gap: 8px;
   padding: 8px 0;
-  border-bottom: 0.5px solid var(--line);
   font-size: 13px;
   line-height: 20px;
-}
-
-.cv3-tool:last-child {
-  border-bottom: 0;
 }
 
 .cv3-tool b {
