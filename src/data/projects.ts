@@ -69,7 +69,7 @@ export const PROJECTS: ProjectSummary[] = [
     totalClips: PRODUCTION_FACTS.progressRecorded,
     segments: PRODUCTION_FACTS.storyboardSegments,
     compositions: PRODUCTION_FACTS.compositions,
-    cover: '/frames/film/s01.jpg',
+    cover: './frames/film/s01.jpg',
     path: '/home/lufering/video-cut/token',
     updatedAt: '2026-10-08T04:49:00',
   },

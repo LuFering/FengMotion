@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { STAGE_LABEL, type ProjectSummary } from '@/data/projects'
+import { SearchField } from '@/components/SearchField'
 
 /**
  * 项目管理 · 一级 —— **项目列表**（「列表 → 项目 → 子视图」的第一层）
@@ -17,7 +18,7 @@ import { STAGE_LABEL, type ProjectSummary } from '@/data/projects'
 function Icon({ name, className = 'ui-icon' }: { name: string; className?: string }) {
   return (
     <svg className={className} aria-hidden="true">
-      <use href={`/assets/paba-icons.svg#${name}`} />
+      <use href={`./assets/paba-icons.svg#${name}`} />
     </svg>
   )
 }
@@ -92,12 +93,7 @@ export function WorkbenchCatalog({ projects, onOpen, onNew, onRename, onRemove }
         <em className="fm-hd-slug" aria-hidden="true">PROJECTS</em>
         <span className="fm-hd-rule" aria-hidden="true" />
         <span className="fm-hd-meta num">{projects.length} 个项目</span>
-        <label className="fm-search">
-          <Icon name="search" />
-          <input type="search" value={q} placeholder="搜索项目"
-                 aria-label="搜索项目"
-                 onChange={(e) => setQ(e.target.value)} />
-        </label>
+        <SearchField value={q} onChange={setQ} placeholder="搜索项目" ariaLabel="搜索项目" onClear={() => setQ('')} />
         <button onClick={onNew}>
           新建<Icon name="plus" className="ui-icon fm-go-arrow" />
         </button>

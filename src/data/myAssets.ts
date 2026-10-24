@@ -88,7 +88,7 @@ const D = (s: string) => Date.parse(s)
 export const BUILTIN_ASSETS: MyAsset[] = [
   // ── 成片（生成结果）──
   {
-    id: 'b-film', name: 'token-full-legacy.mp4', filePath: '/media/token-full-legacy.mp4',
+    id: 'b-film', name: 'token-full-legacy.mp4', filePath: './media/token-full-legacy.mp4',
     mimeType: 'video/mp4', sizeBytes: 24485125, mediaType: 'video',
     duration: 152, width: 1920, height: 1080,
     tags: ['成片', 'Token 科普'], folderId: null, sourceType: 'generated',
@@ -98,7 +98,7 @@ export const BUILTIN_ASSETS: MyAsset[] = [
   },
   // ── 生成片段 ──
   ...Array.from({ length: 8 }, (_, i): MyAsset => ({
-    id: `b-clip-${i + 1}`, name: `c${i + 1}.mp4`, filePath: `/media/clips/c${i + 1}.mp4`,
+    id: `b-clip-${i + 1}`, name: `c${i + 1}.mp4`, filePath: `./media/clips/c${i + 1}.mp4`,
     mimeType: 'video/mp4', sizeBytes: [21312, 15723, 22087, 12361, 10604, 20805, 9723, 17957][i],
     mediaType: 'video', duration: 3, width: 480, height: 270,
     tags: ['片段', 'Token 科普'], folderId: null, sourceType: 'generated',
@@ -110,11 +110,11 @@ export const BUILTIN_ASSETS: MyAsset[] = [
   ...Array.from({ length: 8 }, (_, i): MyAsset => ({
     id: `b-frame-s${String(i + 1).padStart(2, '0')}`,
     name: `s${String(i + 1).padStart(2, '0')}.jpg`,
-    filePath: `/frames/film/s${String(i + 1).padStart(2, '0')}.jpg`,
+    filePath: `./frames/film/s${String(i + 1).padStart(2, '0')}.jpg`,
     mimeType: 'image/jpeg',
     sizeBytes: [5267, 8380, 7789, 1885, 4034, 6163, 2365, 985][i],
     mediaType: 'image', width: 480, height: 270,
-    thumbnailPath: `/frames/film/s${String(i + 1).padStart(2, '0')}.jpg`,
+    thumbnailPath: `./frames/film/s${String(i + 1).padStart(2, '0')}.jpg`,
     tags: ['抽帧'], folderId: null, sourceType: 'generated',
     licenseStatus: 'allowed', reviewStatus: 'approved',
     createdAt: D('2026-10-14T06:28:00+08:00'),

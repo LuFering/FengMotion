@@ -121,6 +121,18 @@
 .fm-searchfield-clear:hover { background: var(--hole); color: var(--fg) }
 .fm-searchfield-clear .ui-icon { width: 12px; height: 12px }
 
+.fm-searchfield-kbd {
+  flex: 0 0 auto;
+  padding: 1px 5px;
+  border: 1px solid var(--line);
+  border-radius: var(--fm-radius-mark);
+  background: var(--surf);
+  color: var(--ph);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 10px;
+  line-height: 1.4;
+}
+
 /* ── 工具栏 ───────────────────────────────────────────────── */
 .fm-toolbar {
   display: flex;

@@ -14,7 +14,8 @@ import { NewProjectDialog } from '@/shell/NewProjectDialog'
 import { RenderDelivery } from '@/views/RenderDelivery'
 import { FxLibrary } from '@/views/FxLibrary'
 import { RefLibrary } from '@/views/RefLibrary'
-import { WorkflowGallery } from '@/views/WorkflowGallery'
+import { Workflow } from '@/views/Workflow'
+import { StartCreation } from '@/views/StartCreation'
 import { TooltipProvider } from '@/components/ui/tooltip'
 
 /**
@@ -56,16 +57,21 @@ export default function App() {
   // 复刻页（项目指挥中心）通过 postMessage 请求跨页导航
   useEffect(() => {
     const onMsg = (e: MessageEvent) => {
-      const d = e.data as { type?: string; id?: string } | null
+      const d = e.data as { type?: string; id?: string; projectId?: string } | null
       if (!d) return
       if (d.type !== 'fm-nav' || !d.id) return
       if (d.id === '__list') { openList(); return }
       if (d.id === '__home') { setView('home'); return }
+      if (d.projectId) setOpenProject(d.projectId)
       setView(d.id as Parameters<typeof setView>[0])
     }
     window.addEventListener('message', onMsg)
     return () => window.removeEventListener('message', onMsg)
   }, [])
+  /** 创作启动层（M1）：首页发送后带着草稿打开，null = 关闭 */
+  const [startDraft, setStartDraft] = useState<string | null>(null)
+  /** 启动层刚建好的「本次制作」：双路径都落工作台，由工作台的任务面执行与呈现 */
+  const [pendingLaunch, setPendingLaunch] = useState<{ workflowId: string; projectId: string | null; autoRun: boolean } | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [settings, setSettings] = useState<Settings>(() => {
     const saved = typeof localStorage === 'undefined' ? null : localStorage.getItem('fengmotion:theme')
@@ -141,7 +147,7 @@ export default function App() {
         {/* 首页 · 首屏 from home-film-v3 */}
         {view === 'home' && (
           <div id="pane-home">
-            <Home />
+            <Home onStart={(draft) => setStartDraft(draft)} />
           </div>
         )}
 
@@ -151,7 +157,17 @@ export default function App() {
             <Workbench chat={chat} tasks={tasks} onNavigate={(next) => setView(next)}
                        projectId={openProject!}
                        onBack={openList}
-                       onSwitchProject={(id) => setOpenProject(id)} />
+                       onSwitchProject={(id) => setOpenProject(id)}
+                       launch={pendingLaunch && pendingLaunch.projectId === openProject
+                         ? { workflowId: pendingLaunch.workflowId, autoRun: pendingLaunch.autoRun }
+                         : null}
+                       onOpenWorkflowEditor={(workflowId) => {
+                         try {
+                           localStorage.setItem('fm-open-workflow-v1', JSON.stringify({ id: workflowId, autoRun: false }))
+                         } catch { /* localStorage 不可用时仅跳视图 */ }
+                         setView('methods')
+                       }}
+                       onDismissLaunch={() => setPendingLaunch(null)} />
           </div>
         )}
 
@@ -177,12 +193,32 @@ export default function App() {
               )}
               {view === 'knowledge' && <FxLibrary />}
               {view === 'reference' && <RefLibrary />}
-              {view === 'methods' && <WorkflowGallery />}
+              {view === 'methods' && <Workflow />}
             </div>
           </div>
         )}
         <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)}
                         settings={settings} onChange={setSettings} />
+
+        {/* 创作启动层：承接首页需求 → 建项目与工作流 → 落工作台呈现「本次制作」
+            （快速路径在工作台自动运行；专业路径只创建不运行） */}
+        {startDraft !== null && (
+          <StartCreation
+            initialDraft={startDraft}
+            projects={projects.list}
+            onClose={() => setStartDraft(null)}
+            onCreateProject={(input) => projects.create(input)}
+            onBrowseLibrary={(v) => { setStartDraft(null); setView(v) }}
+            onLaunch={(r) => {
+              /* 落点 = 工作台（创作者做片子的地方）；工作流编辑器只是方法工坊，
+                 从工作台的「本次制作」深链回去，不再作为创作落点。 */
+              setPendingLaunch(r)
+              if (r.projectId) setOpenProject(r.projectId)
+              setStartDraft(null)
+              setView('production')
+            }}
+          />
+        )}
 
         {/* 新建项目 —— 建完直接落在它的总览页（列表 → 项目） */}
         <NewProjectDialog open={newProjectOpen} onClose={() => setNewProjectOpen(false)}

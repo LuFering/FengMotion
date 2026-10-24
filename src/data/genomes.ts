@@ -96,7 +96,7 @@ export const GENOMES: Genome[] = [
         "v": "−19.5 LUFS"
       }
     ],
-    "img": "/frames/film/s09.jpg",
+    "img": "./frames/film/s09.jpg",
     "traits": [
       "旁白字幕烧入全片",
       "素材插片（新闻/影片/照片）",
@@ -158,7 +158,7 @@ export const GENOMES: Genome[] = [
         "v": "−16.1 LUFS"
       }
     ],
-    "img": "/frames/film/s01.jpg",
+    "img": "./frames/film/s01.jpg",
     "traits": [
       "呼吸级锚点（每 3 秒回一次）",
       "大量图卡做数据可视化",
@@ -220,7 +220,7 @@ export const GENOMES: Genome[] = [
         "v": "−9.0（过载）"
       }
     ],
-    "img": "/frames/film/s13.jpg",
+    "img": "./frames/film/s13.jpg",
     "traits": [
       "全程书页/截图",
       "页内动画，无实拍",
