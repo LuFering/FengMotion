@@ -170,6 +170,7 @@ export default function App() {
           <div id="pane-flow">
             <Workbench chat={chat} tasks={tasks} onNavigate={(next) => setView(next)}
                        projectId={openProject!}
+                       projects={projects.list}
                        onBack={openList}
                        onSwitchProject={(id) => setOpenProject(id)}
                        launch={pendingLaunch && pendingLaunch.projectId === openProject

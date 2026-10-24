@@ -8,7 +8,7 @@ import {
 } from 'lucide-react'
 import { CreationTaskPanel } from './CreationTask'
 import { ACTIVE_SCENES, SCENES } from '@/data/projectModel'
-import { PROJECTS } from '@/data/projects'
+import { PROJECTS, type ProjectSummary } from '@/data/projects'
 import type { StoryboardEntry } from '@/data/projectModel'
 import { ARTIFACT_STATUS_LABEL, ARTIFACT_TYPE_LABEL, WORKBENCH_ARTIFACTS, type WorkbenchArtifact } from '@/data/workbenchArtifacts'
 import { ACTIVE_DURATION, FILM_FPS, FILM_HEIGHT, FILM_WIDTH } from '@/data/timeline'
@@ -96,6 +96,8 @@ interface WorkbenchProps {
   onNavigate: (view: ViewId) => void
   /** 当前打开的项目 id —— 由一级目录传入 */
   projectId: string
+  /** 项目目录（含内存里新建的项目）；不传时退回种子数据 */
+  projects?: ProjectSummary[]
   /** 返回项目列表 */
   onBack: () => void
   /** 换一个项目（工作台里直接切，不用先回列表） */
@@ -107,10 +109,13 @@ interface WorkbenchProps {
   onDismissLaunch?: () => void
 }
 
-export function Workbench({ chat, tasks, onNavigate, projectId, onBack, onSwitchProject, launch, onOpenWorkflowEditor, onDismissLaunch }: WorkbenchProps) {
+export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack, onSwitchProject, launch, onOpenWorkflowEditor, onDismissLaunch }: WorkbenchProps) {
   const playerRef = useRef<PlayerRef | null>(null)
-  /** 打开的哪个项目 —— 从一级目录传下来的 id 解析 */
-  const project = PROJECTS.find((p) => p.id === projectId) ?? PROJECTS[0]
+  /** 打开的哪个项目 —— 从一级目录传下来的 id 解析。
+      ⚠️ 必须用传入的目录：对话视图里新建的项目只存在于内存态，
+        拿静态 PROJECTS 查不到会静默落回第一个种子项目（顶栏名字对不上）。 */
+  const catalog = projects?.length ? projects : PROJECTS
+  const project = catalog.find((p) => p.id === projectId) ?? catalog[0]
   const [selectedId, setSelectedId] = useState('s01')
   const [selectedStoryboardId, setSelectedStoryboardId] = useState<string | null>(null)
   // 调试直达：?artifact=artifact-content-contract 直接打开产物只读视图。
@@ -443,9 +448,9 @@ export function Workbench({ chat, tasks, onNavigate, projectId, onBack, onSwitch
               <div className="wb-switch-menu" role="menu">
                 <div className="wb-switch-head">
                   <span>切换项目</span>
-                  <span className="fw-count">{PROJECTS.length}</span>
+                  <span className="fw-count">{catalog.length}</span>
                 </div>
-                {PROJECTS.map((p) => (
+                {catalog.map((p) => (
                   <button key={p.id} type="button" role="menuitem"
                           aria-current={p.id === project.id ? 'true' : undefined}
                           onClick={() => { setSwitchOpen(false); if (p.id !== project.id) onSwitchProject(p.id) }}>
