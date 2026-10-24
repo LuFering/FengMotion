@@ -1,0 +1,410 @@
+/* 项目 agent 对话视图（原型）——只用三主题共有的 token，不自带色板。
+   布局：顶栏 + 消息流 + 底栏输入；消息列居中收窄，窄屏放开。 */
+#pane-conversation {
+  height: 100%;
+  min-height: 0;
+  /* 侧栏 position:fixed 不占文档流，各 pane 都要自己让出 68px（同 home-film / technique 口径） */
+  margin-left: var(--hm-sidebar, 68px);
+}
+
+.cv {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: var(--panel);
+  color: var(--tx1);
+}
+
+.cv-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex: none;
+  padding: 14px 24px;
+  border-bottom: 1px solid var(--line);
+}
+
+.cv-head-main {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  min-width: 0;
+}
+
+.cv-title {
+  font-size: 16px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cv-demo {
+  font-size: 11.5px;
+  color: var(--tx3);
+  white-space: nowrap;
+}
+
+.cv-switch {
+  display: flex;
+  flex: none;
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel2);
+}
+
+.cv-switch button {
+  padding: 5px 14px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--tx2);
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.cv-switch button[data-on] {
+  background: var(--acc);
+  color: #fff;
+}
+
+.cv-switch button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.cv-launched {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: none;
+  padding: 10px 24px;
+  border-bottom: 1px solid var(--line);
+  font-size: 12.5px;
+  color: var(--tx2);
+}
+
+.cv-launched button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--acc);
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.cv-stream {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.cv-col {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  max-width: 780px;
+  margin: 0 auto;
+  padding: 28px 24px 32px;
+}
+
+.cv-user {
+  align-self: flex-end;
+  max-width: 85%;
+  margin: 0;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel2);
+  font-size: 14.5px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+}
+
+.cv-ai-block {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.cv-ai {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.cv-avatar {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--panel2);
+  color: var(--tx3);
+  font-size: 10px;
+  line-height: 28px;
+  text-align: center;
+}
+
+.cv-ai > p {
+  margin: 0;
+  font-size: 14.5px;
+  line-height: 1.75;
+  color: var(--tx2);
+  white-space: pre-wrap;
+}
+
+.cv-pending {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--tx3);
+}
+
+.cv-spin {
+  animation: cv-spin 1s linear infinite;
+}
+
+@keyframes cv-spin {
+  to { transform: rotate(360deg); }
+}
+
+.cv-think {
+  margin-left: 38px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel2);
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--tx3);
+}
+
+.cv-think summary {
+  cursor: pointer;
+  color: var(--tx2);
+}
+
+.cv-think p {
+  margin: 8px 0 0;
+  white-space: pre-wrap;
+}
+
+.cv-tools {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-left: 38px;
+}
+
+.cv-tool {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 12.5px;
+  line-height: 1.7;
+}
+
+.cv-tool-dot {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--acc);
+  transform: translateY(-1px);
+}
+
+.cv-tool b {
+  flex: none;
+  color: var(--tx2);
+  font-weight: 600;
+}
+
+.cv-tool span {
+  color: var(--tx3);
+}
+
+.cv-plan {
+  margin-left: 38px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel2);
+}
+
+.cv-plan-title {
+  font-size: 13.5px;
+}
+
+.cv-plan ol {
+  margin: 10px 0 0;
+  padding-left: 20px;
+  font-size: 13.5px;
+  line-height: 1.8;
+  color: var(--tx2);
+}
+
+.cv-plan-path {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 14px;
+  font-size: 12.5px;
+  color: var(--tx3);
+}
+
+.cv-plan-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.cv-primary,
+.cv-secondary {
+  padding: 8px 16px;
+  border-radius: 999px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.cv-primary {
+  border: 1px solid var(--acc);
+  background: var(--acc);
+  color: #fff;
+}
+
+.cv-secondary {
+  border: 1px solid var(--line2);
+  background: transparent;
+  color: var(--tx1);
+}
+
+.cv-startrow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+  padding: 10px 24px;
+  border-top: 1px solid var(--line);
+  font-size: 12.5px;
+  color: var(--tx2);
+}
+
+.cv-startrow button {
+  padding: 6px 12px;
+  border: 1px solid var(--line2);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--tx1);
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.cv-startrow button:first-of-type {
+  border-color: var(--acc);
+  background: var(--acc);
+  color: #fff;
+}
+
+.cv-compose {
+  flex: none;
+  padding: 12px 24px 16px;
+  border-top: 1px solid var(--line);
+}
+
+.cv-sheet {
+  max-width: 780px;
+  margin: 0 auto;
+  padding: 10px 14px 8px;
+  border: 1px solid var(--line2);
+  border-radius: 14px;
+  background: var(--panel2);
+}
+
+.cv-sheet:focus-within {
+  border-color: var(--acc);
+}
+
+.cv-input {
+  width: 100%;
+  resize: none;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--tx1);
+  font-size: 14.5px;
+  line-height: 1.7;
+}
+
+.cv-input::placeholder {
+  color: var(--tx3);
+}
+
+.cv-sheet-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 6px;
+  font-size: 11.5px;
+  color: var(--tx3);
+}
+
+.cv-send {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: none;
+  padding: 7px 14px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--acc);
+  color: #fff;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.cv-send:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+@media (max-width: 640px) {
+  .cv-head {
+    padding: 12px 16px;
+    flex-wrap: wrap;
+  }
+
+  .cv-demo {
+    display: none;
+  }
+
+  .cv-col {
+    padding: 20px 16px 28px;
+  }
+
+  .cv-user {
+    max-width: 92%;
+  }
+
+  .cv-think,
+  .cv-tools,
+  .cv-plan {
+    margin-left: 0;
+  }
+
+  .cv-compose {
+    padding: 10px 16px 14px;
+  }
+
+  .cv-startrow {
+    padding: 10px 16px;
+    flex-wrap: wrap;
+  }
+}

@@ -5,6 +5,10 @@ export interface ChatMessage {
   role: 'user' | 'ai'
   text: string
   taskId?: string
+  /** 对话视图的演示附加块（工作台对话 tab 只渲染 text，本字段对它无影响） */
+  thinking?: string
+  toolCalls?: { label: string; detail: string }[]
+  plan?: string[]
 }
 
 let sequence = 0
@@ -24,7 +28,11 @@ export function useChat() {
   const addUserMessage = (text: string, taskId?: string) => {
     setMessages((items) => [...items, { id: makeId(), role: 'user', text, taskId }])
   }
-  return { messages, draft, setDraft, addUserMessage }
+  /* 对话视图的演示 agent 回复（原型：本地生成，未连接 Agent） */
+  const addAiMessage = (m: { text: string; thinking?: string; toolCalls?: { label: string; detail: string }[]; plan?: string[] }) => {
+    setMessages((items) => [...items, { id: makeId(), role: 'ai', ...m }])
+  }
+  return { messages, draft, setDraft, addUserMessage, addAiMessage }
 }
 
 export type ChatState = ReturnType<typeof useChat>

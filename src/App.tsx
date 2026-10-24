@@ -16,6 +16,7 @@ import { FxLibrary } from '@/views/FxLibrary'
 import { RefLibrary } from '@/views/RefLibrary'
 import { Workflow } from '@/views/Workflow'
 import { StartCreation } from '@/views/StartCreation'
+import { Conversation } from '@/views/Conversation'
 import { TooltipProvider } from '@/components/ui/tooltip'
 
 /**
@@ -68,10 +69,21 @@ export default function App() {
     window.addEventListener('message', onMsg)
     return () => window.removeEventListener('message', onMsg)
   }, [])
-  /** 创作启动层（M1）：首页发送后带着草稿打开，null = 关闭 */
+  /** 创作启动层（M1）：首页发送后带着草稿打开，null = 关闭
+      原型分支：首页发送改走项目对话视图（见 Home 的 onStart），启动层本体保留未删，
+      目前没有入口触发它；M1 去留待定案后再统一收口。 */
   const [startDraft, setStartDraft] = useState<string | null>(null)
   /** 启动层刚建好的「本次制作」：双路径都落工作台，由工作台的任务面执行与呈现 */
   const [pendingLaunch, setPendingLaunch] = useState<{ workflowId: string; projectId: string | null; autoRun: boolean } | null>(null)
+  /** 落工作台的统一入口：启动层与对话视图共用。
+      落点 = 工作台（创作者做片子的地方）；工作流编辑器只是方法工坊，
+      从工作台的「本次制作」深链回去，不再作为创作落点。 */
+  const handleLaunch = (r: { workflowId: string; projectId: string | null; autoRun: boolean }) => {
+    setPendingLaunch(r)
+    if (r.projectId) setOpenProject(r.projectId)
+    setStartDraft(null)
+    setView('production')
+  }
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [settings, setSettings] = useState<Settings>(() => {
     const saved = typeof localStorage === 'undefined' ? null : localStorage.getItem('fengmotion:theme')
@@ -144,10 +156,22 @@ export default function App() {
           </main>
         )}
 
-        {/* 首页 · 首屏 from home-film-v3 */}
+        {/* 首页 · 首屏 from home-film-v3
+            原型分支：发送后不再开启动层，需求直接作为首条消息进项目对话视图 */}
         {view === 'home' && (
           <div id="pane-home">
-            <Home onStart={(draft) => setStartDraft(draft)} />
+            <Home onStart={(draft) => { chat.addUserMessage(draft); setView('conversation') }} />
+          </div>
+        )}
+
+        {/* 项目对话视图（原型）—— 与工作台共用 useChat 会话，不进侧栏导航 */}
+        {view === 'conversation' && (
+          <div id="pane-conversation">
+            <Conversation chat={chat}
+                          onCreateProject={(input) => projects.create(input)}
+                          openProject={openProject}
+                          onLaunch={handleLaunch}
+                          onOpenWorkbench={() => { if (openProject) setView('production') }} />
           </div>
         )}
 
@@ -171,8 +195,8 @@ export default function App() {
           </div>
         )}
 
-        {/* 其余视图 */}
-        {!isFlow && !isCatalog && (
+        {/* 其余视图（对话视图已在上面单独分发） */}
+        {!isFlow && !isCatalog && view !== 'conversation' && (
           <div id={`pane-${view}`} className="hm-main">
             <div className="hm-content" data-view={view}>
               {/* 项目管理组的视图都挂在当前项目上：顶上先给一条项目条
@@ -209,14 +233,7 @@ export default function App() {
             onClose={() => setStartDraft(null)}
             onCreateProject={(input) => projects.create(input)}
             onBrowseLibrary={(v) => { setStartDraft(null); setView(v) }}
-            onLaunch={(r) => {
-              /* 落点 = 工作台（创作者做片子的地方）；工作流编辑器只是方法工坊，
-                 从工作台的「本次制作」深链回去，不再作为创作落点。 */
-              setPendingLaunch(r)
-              if (r.projectId) setOpenProject(r.projectId)
-              setStartDraft(null)
-              setView('production')
-            }}
+            onLaunch={handleLaunch}
           />
         )}
 

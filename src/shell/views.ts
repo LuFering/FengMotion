@@ -20,6 +20,7 @@ export type ViewId =
   | 'knowledge'
   | 'reference'
   | 'methods'
+  | 'conversation'
 
 export interface NavLeaf {
   id: ViewId
@@ -65,4 +66,6 @@ export const VIEW_META: Record<ViewId, { title: string; hint: string }> = {
   knowledge:  { title: '特效库', hint: '特效/场景设计/转场/动画的实现方法，供工作流检索调用' },
   reference:  { title: '参考片库', hint: '参考视频的画面段、机位运动、节奏与风格知识' },
   methods:    { title: '工作流', hint: '制作方案：步骤、节点、提示词与检查要求' },
+  /* 原型：项目 agent 对话视图 —— 不进侧栏 NAV，只从首页发送与工作台切入 */
+  conversation: { title: '项目对话', hint: '先聊清楚，再开始制作' },
 }
