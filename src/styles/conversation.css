@@ -1,0 +1,1224 @@
+/* 项目 agent 对话视图（第三版：照抄 dsh 对话界面源码）。
+   数值来源（dsh-ref 源码实测，非凭印象）：
+   - AppFrame/columns：会话栏默认 280（可拖 264–420），收起轨 56，
+     1024 以下自动收轨、手动展开为覆盖式抽屉；中心最小 400。
+   - SidebarRoot：padding 6/12，14px；新会话条 38px 高、12px 圆角、
+     0.5px 边框；面板行 36px 高、12px 圆角；会话行 32px 高、12px 圆角、
+     标题 14/20、时间 10/16；轨内控件 36px、padding 18/10/6。
+   - ConversationRoot header：最小高 76px，padding 10/28/0/20，
+     0.5px 底边；标题行 30px；标题 14/20 500；tab 行 margin-top 10px、
+     gap 32px，tab 13/16 500，激活品牌蓝 + 2px 下划线。
+   - ChatView：滚动区 padding 16 + 两侧各 16；内容列
+     clamp(680, 列宽×0.64, 920)；流间距默认 4px，回复 12px。
+   - AssistantMarkdown：正文 14/24，块间距 16。
+   - ReasoningRow：思考行 24px，摘要 13/20 三级色，展开体缩进 22px。
+   - UserMessageBubble：气泡 20px 圆角，padding 10/16，14/22。
+   - InputBar：卡片 28px 圆角、输入面填充、柔和投影；文本 14/24，
+     padding 4/8/0/14，停靠最小高 36、最高 336；工具行 padding 2/8/6，
+     gap 12；+ 钮 28px 圆；权限/模型 chip 28px 高、13/20；
+     发送钮 34px 圆、品牌蓝底白字，空态 0.4。
+   - MenuView（@// 菜单）：卡片内绝对定位，bottom 100%+4px，padding 4px；
+     行最小高 34px，padding 6/8，12px 圆角，13/20；分组标题 11/16 500。
+   - StatsPills（状态条）：12px，三级色，等宽数字，pill padding 1/8，8px 圆角。
+   - 圆角：sm 8 / md 12 / lg 16 / xl 20 / panel 28；
+     缓动 cubic-bezier(0.4, 0, 0.2, 1)。
+   颜色全部走 FengMotion 现有三主题 token（--panel/--panel2/--tx1/--tx2/
+   --tx3/--line/--line2/--acc/--hover/--soft），不自带色板；
+   品牌蓝 --acc 对应 dsh 的 business-primary / info-fill。
+   窄屏：会话栏按 dsh 响应式收轨/抽屉，主列 min-width:0，禁止内部横向溢出。
+   打磨轮 cv4（用户 21:29 拍板，数值仍以 dsh 源码为准）：
+   - 抽屉投影：dsh 无抽屉专属阴影 token，浮层用 elevation-prominent；抽屉边缘
+     按任务授权 fallback 取 0 10px 30px rgb(0 0 0 / 0.5)，遮罩本身不动（已有）。
+   - 气泡：dsh UserMessageBubble 浅 #EDF3FE（deepseek-50）/ 深 #2C2C2E
+     （bluish-850）；此前浅色走全局 --soft 蓝 tint、深色走 #13233A，均改回 dsh 值。
+   - 卡片硬边：dsh elevation 用 0.5px l2 发丝线 + 极淡投影（soft/prominent），
+     表面靠色阶区分（深 950 #151517 → 900 #1B1B1C → 850 #2C2C2E）；卡片 1px
+     line2 描边全部改发丝线，l2 值：浅 rgb(0 0 0 / 0.10)，深 rgb(255 255 255 / 0.12)，
+     卡片面统一再压到 rgb(255 255 255 / 0.08)（任务授权的极低透明度白线）。
+   - 标签：标题行 gap 8px → 12px；演示 pill 高 24px 一档（chip 仍为 dsh InputBar 28px）。
+   - 微交互：dsh 折叠无高度动画（ReasoningRow 用 contain 收起、chevron 转 100ms），
+     故不发明高度动画；hover 背景统一 100ms cubic-bezier(0.4,0,0.2,1)；
+     输入框聚焦按 dsh focus.css 的 2px 业务色环、做 35% 透明晕染。
+   - 双侧栏：cv3 已含 dsh narrowExpanded 机制（280 ↔ 56 轨、1024 断点、窄屏抽屉），
+     本轮保留机制，只补收起/展开钮的 hover title 做可发现性；68px 应用壳不动。 */
+
+/* 注意：--panel/--panel2/--line2/--tx/--hover 在对话 pane 内并无定义（CDP 实测为空，
+   导致卡片/侧栏面全透明、次级文字全继承纯白）——须在此按三主题显式补齐，取值与
+   现有主题 token 一致（深黑取 brand/myassets 深色值，浅白取 myassets 浅色值）。 */
+#pane-conversation {
+  --panel: #151517;
+  --panel2: #1b1b1c;
+  --line2: #34353f;
+  --hover: rgba(255, 255, 255, .08);
+  --tx1: #f5f5f7;
+  --tx2: #a1a1aa;
+  --tx3: #71717a;
+  --cv-elev: #2c2c2e;
+  --cv-bubble: #2c2c2e;
+  --cv-hairline: rgb(255 255 255 / 0.08);
+  --cv-hairline-w: 0.5px;
+}
+
+html[data-theme="light"] #pane-conversation {
+  --panel: #fcfcfd;
+  --panel2: #eef0f4;
+  --line2: #cdcdd6;
+  --hover: rgba(38, 49, 72, .06);
+  --tx1: #191919;
+  --tx2: #666a73;
+  --tx3: #8c8f99;
+  --cv-elev: #ffffff;
+  --cv-bubble: #edf3fe;
+  --cv-hairline: rgb(0 0 0 / 0.10);
+  --cv-hairline-w: 0.5px;
+}
+
+html[data-theme="tactile"] #pane-conversation {
+  --panel: #e6e1d5;
+  --panel2: #ddd8c9;
+  --line2: rgba(34, 35, 31, .28);
+  --hover: rgba(34, 35, 31, .08);
+  --tx1: #22231f;
+  --tx2: #5c5a50;
+  --tx3: #8a877c;
+  --cv-elev: #eae6da;
+  --cv-hairline: rgb(34 35 31 / 0.28);
+  --cv-hairline-w: 1px;
+}
+
+#pane-conversation {
+  height: 100%;
+  min-height: 0;
+  /* 侧栏 position:fixed 不占文档流，各 pane 都要自己让出 68px（同 home-film / technique 口径） */
+  margin-left: var(--hm-sidebar, 68px);
+}
+
+.cv3 {
+  position: relative;
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--panel);
+  color: var(--tx1);
+  font-size: 14px;
+}
+
+.cv3-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 7;
+  padding: 0;
+  border: 0;
+  background: rgb(0 0 0 / 0.4);
+  cursor: pointer;
+}
+
+/* hover 反馈统一 100ms（dsh TurnProcess 的 color 100ms 口径，缓动取主题 cubic-bezier） */
+.cv3-icon-btn, .cv3-new, .cv3-panel-row, .cv3-chip, .cv3-picker button, .cv3-session, .cv3-primary, .cv3-secondary, .cv3-switch button {
+  transition: background-color 100ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ---- 内侧会话栏（dsh SidebarRoot） ---- */
+.cv3-side {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  width: 280px;
+  min-height: 0;
+  padding: 6px 12px;
+  box-sizing: border-box;
+  border-right: 0.5px solid var(--line);
+  background: var(--panel2);
+  color: var(--tx1);
+  font-size: 14px;
+}
+
+.cv3-side-top {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: flex-end;
+  height: 52px;
+  margin: -6px -12px 0;
+  padding: 0 12px 2px;
+  box-sizing: border-box;
+}
+
+.cv3-icon-btn {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--tx2);
+  cursor: pointer;
+}
+
+.cv3-icon-btn:hover {
+  background: var(--hover);
+}
+
+.cv3-icon-btn:focus-visible {
+  outline: 2px solid var(--acc);
+  outline-offset: -2px;
+}
+
+.cv3-new {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 38px;
+  margin: 0 2px 12px;
+  padding: 8px 12px;
+  box-sizing: border-box;
+  border: 0.5px solid var(--line);
+  border-radius: 12px;
+  background: var(--cv-elev);
+  color: var(--tx1);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 22px;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.cv3-new:hover {
+  background: var(--hover);
+}
+
+.cv3-panel-list {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 8px;
+}
+
+.cv3-panel-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  margin: 0 2px;
+  padding: 7px 8px;
+  box-sizing: border-box;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--tx1);
+  font-size: 14px;
+  line-height: 22px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cv3-panel-row:hover:not(:disabled) {
+  background: var(--hover);
+}
+
+.cv3-panel-row:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.cv3-panel-ico {
+  display: none;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+}
+
+.cv3-side-sec {
+  margin: 12px 4px 6px;
+  color: var(--tx3);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 16px;
+}
+
+.cv3-side-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.cv3-session {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  height: 32px;
+  padding: 0 8px;
+  box-sizing: border-box;
+  border-radius: 12px;
+  background: var(--hover);
+  color: var(--tx1);
+  cursor: pointer;
+}
+
+.cv3-session-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 14px;
+  line-height: 20px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cv3-session-time {
+  flex: none;
+  margin-left: 6px;
+  color: var(--tx3);
+  font-size: 10px;
+  line-height: 16px;
+}
+
+.cv3-side-hint {
+  margin: 0 4px;
+  color: var(--tx3);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.cv3-side-note {
+  margin: auto 4px 0;
+  color: var(--tx3);
+  font-size: 12px;
+  line-height: 20px;
+}
+
+/* 收起轨：56px，控件 36px 居中，列表与文字全部隐藏 */
+.cv3-side[data-rail] {
+  width: 56px;
+  padding: 18px 10px 6px;
+}
+
+.cv3-side[data-rail] .cv3-side-top {
+  height: auto;
+  margin: 0 0 12px;
+  padding: 0;
+  justify-content: center;
+}
+
+.cv3-side[data-rail] .cv3-icon-btn,
+.cv3-side[data-rail] .cv3-new {
+  width: 36px;
+  height: 36px;
+  margin: 0 0 12px;
+  padding: 0;
+  border-color: transparent;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--tx1);
+}
+
+.cv3-side[data-rail] .cv3-icon-btn:hover,
+.cv3-side[data-rail] .cv3-new:hover {
+  background: var(--hover);
+}
+
+.cv3-side[data-rail] .cv3-new-label,
+.cv3-side[data-rail] .cv3-side-sec,
+.cv3-side[data-rail] .cv3-side-list,
+.cv3-side[data-rail] .cv3-side-note {
+  display: none;
+}
+
+/* 轨内面板行：只留 36px 图标（dsh rail 规范） */
+.cv3-side[data-rail] .cv3-panel-list {
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.cv3-side[data-rail] .cv3-panel-row {
+  width: 36px;
+  height: 36px;
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+}
+
+.cv3-side[data-rail] .cv3-panel-row-label {
+  display: none;
+}
+
+.cv3-side[data-rail] .cv3-panel-ico {
+  display: inline-flex;
+}
+
+/* 覆盖式抽屉（窄屏手动展开）：盖住主列，不挤压 */
+.cv3-side[data-drawer] {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 8;
+  box-shadow: 0 10px 30px rgb(0 0 0 / 0.5);
+}
+
+/* ---- 主列 ---- */
+.cv3-main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* ---- 顶栏（dsh ConversationRoot header） ---- */
+.cv3-head {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  flex: none;
+  min-height: 76px;
+  padding: 10px 28px 0 20px;
+  box-sizing: border-box;
+  border-bottom: 0.5px solid var(--line);
+}
+
+.cv3-title-row {
+  grid-column: 2;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  min-height: 30px;
+}
+
+.cv3-crumb {
+  min-width: 0;
+  max-width: 220px;
+  overflow: hidden;
+  padding: 4px 8px;
+  color: var(--tx1);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cv3-demo-pill {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  height: 24px;
+  padding: 2px 8px;
+  box-sizing: border-box;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--tx3);
+  font-size: 11px;
+  line-height: 18px;
+  white-space: nowrap;
+}
+
+.cv3-head-actions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  margin-left: 10px;
+}
+
+.cv3-chip-wrap {
+  position: relative;
+}
+
+.cv3-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 28px;
+  max-width: 220px;
+  padding: 0 4px 0 8px;
+  border: 0;
+  border-radius: 8px;
+  outline: 0;
+  background: transparent;
+  color: var(--tx2);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 20px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.cv3-chip-model {
+  font-weight: 400;
+}
+
+.cv3-chip:hover:not(:disabled) {
+  background: var(--hover);
+}
+
+.cv3-chip:focus-visible {
+  box-shadow: 0 0 0 2px var(--acc);
+}
+
+.cv3-chip svg {
+  flex: none;
+  color: var(--tx3);
+}
+
+/* 演示说明卡：点开即说明，不做死按钮 */
+.cv3-pop {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 30;
+  width: max-content;
+  max-width: 280px;
+  padding: 12px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--cv-elev);
+  box-shadow: inset 0 0 0 var(--cv-hairline-w) var(--cv-hairline), 0 3px 8px rgb(0 0 0 / 0.04), 0 0 20px rgb(0 0 0 / 0.05);
+  color: var(--tx2);
+  font-size: 13px;
+  line-height: 20px;
+  white-space: normal;
+}
+
+.cv3-pop p {
+  margin: 0;
+}
+
+.cv3-pop button {
+  margin-top: 8px;
+  padding: 4px 12px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--acc);
+  color: var(--on-accent, #fff);
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.cv3-switch {
+  display: flex;
+  flex: none;
+  gap: 4px;
+  margin-left: auto;
+  padding: 2px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel2);
+}
+
+/* 切换器总高 30px，与 dsh 标题行 30px 齐平，不把顶栏顶到 76px 以上 */
+.cv3-switch button {
+  padding: 3px 10px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--tx2);
+  font-size: 12px;
+  line-height: 18px;
+  cursor: pointer;
+}
+
+.cv3-switch button[data-on] {
+  background: var(--acc);
+  color: var(--on-accent, #fff);
+}
+
+.cv3-switch button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.cv3-tabs {
+  grid-column: 1 / -1;
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 32px;
+  width: 100%;
+  min-width: 0;
+  min-height: 25px;
+  margin-top: 10px;
+  padding-left: 8px;
+  box-sizing: border-box;
+}
+
+.cv3-tabs button {
+  position: relative;
+  min-height: 35px;
+  margin: -10px -10px 0;
+  padding: 10px 10px 9px;
+  border: 0;
+  background: transparent;
+  color: var(--tx3);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 16px;
+  cursor: pointer;
+}
+
+.cv3-tabs button::after {
+  content: '';
+  position: absolute;
+  right: 10px;
+  bottom: -1px;
+  left: 10px;
+  height: 2px;
+  border-radius: 2px;
+  background: transparent;
+}
+
+.cv3-tabs button[aria-selected="true"] {
+  color: var(--acc);
+}
+
+.cv3-tabs button[aria-selected="true"]::after {
+  background: var(--acc);
+}
+
+/* ---- 滚动区 + 粘性输入席（dsh ConversationRoot body） ---- */
+.cv3-scroll {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.cv3-view {
+  flex: 1 0 auto;
+  min-width: 0;
+  padding: 16px 32px;
+}
+
+.cv3-col {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: min(920px, max(680px, 64%), calc(100% - 32px));
+  min-width: 0;
+  margin: 0 auto;
+}
+
+.cv3-col > * {
+  margin-top: 4px;
+}
+
+.cv3-col > :first-child {
+  margin-top: 0;
+}
+
+.cv3-col > .cv3-user,
+.cv3-col > .cv3-ai-block,
+.cv3-col > .cv3-pending {
+  margin-top: 12px;
+}
+
+.cv3-col > .cv3-user:first-child,
+.cv3-col > .cv3-ai-block:first-child {
+  margin-top: 0;
+}
+
+/* 用户气泡（dsh UserMessageBubble：20px 圆角，10/16，14/22，着色填充） */
+.cv3-user {
+  align-self: flex-end;
+  max-width: 70.2%;
+  margin: 0;
+  padding: 10px 16px;
+  border-radius: 20px;
+  background: var(--cv-bubble, var(--soft));
+  color: var(--tx1);
+  font-size: 14px;
+  line-height: 22px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.cv3-ai-intro {
+  margin: 0;
+  color: var(--tx2);
+  font-size: 14px;
+  line-height: 24px;
+  white-space: pre-wrap;
+}
+
+/* 助手块：正文 + 思考 + 工具 + 改了什么 + 方案 */
+.cv3-ai-block {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.cv3-rich {
+  min-width: 0;
+  color: var(--tx1);
+  font-size: 14px;
+  line-height: 24px;
+}
+
+.cv3-rich p {
+  margin: 0 0 16px;
+  overflow-wrap: anywhere;
+}
+
+.cv3-rich p:last-child {
+  margin-bottom: 0;
+}
+
+.cv3-rich ol {
+  margin: 8px 0 16px;
+  padding-left: 20px;
+  line-height: 24px;
+  /* Tailwind preflight 会清掉 ol 的 marker，这里显式要回编号 */
+  list-style: decimal;
+}
+
+.cv3-rich code {
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: var(--panel2);
+  font-family: var(--font-mono, ui-monospace, Consolas, monospace);
+  font-size: 13px;
+  color: var(--tx1);
+}
+
+/* 思考行（dsh ReasoningRow：24px 行，摘要 13/20，展开体缩进 22px，无卡片） */
+.cv3-think {
+  color: var(--tx3);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.cv3-think summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  min-width: 0;
+  overflow: hidden;
+  cursor: pointer;
+  list-style: none;
+}
+
+.cv3-think summary::-webkit-details-marker {
+  display: none;
+}
+
+.cv3-think-chev {
+  flex: none;
+  transition: transform 100ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.cv3-think[open] .cv3-think-chev {
+  transform: rotate(180deg);
+}
+
+.cv3-think-title {
+  flex: none;
+  font-weight: 400;
+}
+
+.cv3-think-sep {
+  flex: none;
+  width: 2px;
+  height: 2px;
+  margin: 0 8px;
+  border-radius: 1px;
+  background: var(--tx3);
+}
+
+.cv3-think-sum {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cv3-think p {
+  margin: 0;
+  padding: 4px 0 4px 22px;
+  color: var(--tx2);
+  font-size: 14px;
+  line-height: 24px;
+  white-space: pre-wrap;
+}
+
+/* 工具调用行：0.5px 底边分隔，标签 + 详情 */
+.cv3-tools {
+  display: flex;
+  flex-direction: column;
+}
+
+.cv3-tool {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 0.5px solid var(--line);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.cv3-tool:last-child {
+  border-bottom: 0;
+}
+
+.cv3-tool b {
+  flex: none;
+  color: var(--tx2);
+  font-weight: 600;
+}
+
+.cv3-tool span {
+  color: var(--tx3);
+  overflow-wrap: anywhere;
+}
+
+/* 改了什么表（dsh 消息内 markdown 表格口径：文件/改动两列） */
+.cv3-changes-title {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 14px;
+  line-height: 22px;
+}
+
+.cv3-changes table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.cv3-changes th {
+  padding: 6px 8px;
+  border-bottom: 0.5px solid var(--line);
+  color: var(--tx3);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 20px;
+  text-align: left;
+}
+
+.cv3-changes td {
+  padding: 6px 8px;
+  border-bottom: 0.5px solid var(--line);
+  font-size: 14px;
+  line-height: 24px;
+}
+
+.cv3-changes td code {
+  color: var(--acc);
+  font-family: var(--font-mono, ui-monospace, Consolas, monospace);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+/* 方案卡（FengMotion 自有组件，落 dsh 卡片语言：16px 圆角、面填充、细描边） */
+.cv3-plan {
+  padding: 16px;
+  border-radius: 16px;
+  background: var(--cv-elev);
+  box-shadow: inset 0 0 0 var(--cv-hairline-w) var(--cv-hairline);
+}
+
+.cv3-plan-title {
+  font-size: 14px;
+  line-height: 22px;
+}
+
+.cv3-plan ol {
+  margin: 10px 0 0;
+  padding-left: 20px;
+  color: var(--tx2);
+  font-size: 14px;
+  line-height: 24px;
+  list-style: decimal;
+}
+
+.cv3-plan-path {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 14px;
+  color: var(--tx3);
+  font-size: 12.5px;
+}
+
+.cv3-plan-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.cv3-primary,
+.cv3-secondary {
+  padding: 8px 16px;
+  border-radius: 999px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.cv3-primary {
+  border: 1px solid var(--acc);
+  background: var(--acc);
+  color: var(--on-accent, #fff);
+}
+
+.cv3-secondary {
+  border: 1px solid var(--line2);
+  background: transparent;
+  color: var(--tx1);
+}
+
+.cv3-pending {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: var(--tx3);
+  font-size: 12px;
+  line-height: 22px;
+}
+
+.cv3-spin {
+  animation: cv3-spin 1s linear infinite;
+}
+
+@keyframes cv3-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* 轨迹时间线：时间 | 圆点 | 内容，只列本会话真实事件 */
+.cv3-timeline {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cv3-tl {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.cv3-tl-time {
+  flex: none;
+  width: 44px;
+  color: var(--tx3);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.cv3-tl-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--tx3);
+  transform: translateY(-1px);
+}
+
+.cv3-tl-tool .cv3-tl-dot,
+.cv3-tl-plan .cv3-tl-dot,
+.cv3-tl-launch .cv3-tl-dot {
+  background: var(--acc);
+}
+
+.cv3-tl-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.cv3-tl-body b {
+  color: var(--tx1);
+}
+
+.cv3-tl-body span {
+  color: var(--tx3);
+  line-height: 20px;
+  overflow-wrap: anywhere;
+}
+
+.cv3-trace-empty {
+  padding: 32px 0;
+  text-align: center;
+}
+
+.cv3-trace-empty b {
+  font-size: 14px;
+}
+
+.cv3-trace-empty p {
+  margin: 8px 0 0;
+  color: var(--tx3);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+/* ---- 输入席（dsh ConversationRoot composerSeat：粘性底部 + 36px 渐隐） ---- */
+.cv3-seat {
+  position: sticky;
+  bottom: 0;
+  z-index: 7;
+  padding-top: 36px;
+  background: linear-gradient(180deg, rgb(0 0 0 / 0) 0, var(--panel) 36px);
+}
+
+.cv3-compose {
+  min-width: 0;
+  padding: 0 32px 4px;
+}
+
+/* 输入卡（dsh InputBar：28px 圆角、输入面填充、柔和投影、细描边） */
+.cv3-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  max-width: calc(min(920px, max(680px, 64%), calc(100% - 32px)) + 32px);
+  margin: 0 auto;
+  padding-top: 8px;
+  border: 0;
+  border-radius: 28px;
+  background: var(--cv-elev);
+  box-shadow: inset 0 0 0 var(--cv-hairline-w) var(--cv-hairline), 0 4px 16px rgb(0 0 0 / 0.03), 0 0 24px rgb(0 0 0 / 0.03);
+  font-size: 14px;
+  line-height: 24px;
+  transition: box-shadow 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 输入框聚焦晕染：dsh focus.css 的 2px 业务色环，做 35% 透明晕染而非硬环 */
+.cv3-card:focus-within {
+  box-shadow: inset 0 0 0 var(--cv-hairline-w) var(--cv-hairline), 0 0 0 2px color-mix(in srgb, var(--acc) 35%, transparent), 0 4px 16px rgb(0 0 0 / 0.03), 0 0 24px rgb(0 0 0 / 0.03);
+}
+
+/* @// 菜单（dsh MenuView：卡片内绝对定位，bottom 100%+4px，padding 4px） */
+.cv3-picker {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 4px);
+  left: 0;
+  z-index: 100;
+  max-height: 400px;
+  overflow-y: auto;
+  padding: 4px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--cv-elev);
+  box-shadow: inset 0 0 0 var(--cv-hairline-w) var(--cv-hairline), 0 3px 8px rgb(0 0 0 / 0.04), 0 0 20px rgb(0 0 0 / 0.05);
+}
+
+.cv3-picker button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 34px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--tx1);
+  font-size: 13px;
+  line-height: 20px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cv3-picker button[data-active] {
+  background: var(--hover);
+}
+
+.cv3-picker button span {
+  margin-left: auto;
+  color: var(--tx3);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+/* 卡片内的演示说明卡：与 @// 菜单同锚点，右对齐 */
+.cv3-card > .cv3-pop {
+  top: auto;
+  bottom: calc(100% + 4px);
+  right: 8px;
+  left: auto;
+}
+
+.cv3-input {
+  width: 100%;
+  min-height: 36px;
+  max-height: 336px;
+  padding: 4px 8px 0 14px;
+  box-sizing: border-box;
+  resize: none;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--tx1);
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 24px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  caret-color: var(--acc);
+}
+
+.cv3-input::placeholder {
+  color: var(--tx3);
+}
+
+/* 工具行（dsh InputBar row：padding 2/8/6，gap 12，可换行） */
+.cv3-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  padding: 2px 8px 6px;
+}
+
+.cv3-tools-left,
+.cv3-trailing {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 12px;
+}
+
+.cv3-trailing {
+  flex: none;
+  margin-left: auto;
+}
+
+.cv3-add,
+.cv3-at {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--tx1) 10%, transparent);
+  color: var(--tx1);
+  cursor: pointer;
+}
+
+.cv3-add:hover,
+.cv3-at:hover {
+  background: color-mix(in srgb, var(--tx1) 16%, transparent);
+}
+
+/* 发送钮（dsh InputBar primary：34px 圆、品牌蓝底白字，空态 0.4） */
+.cv3-send {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--acc);
+  color: var(--on-accent, #fff);
+  cursor: pointer;
+  transform: translateY(-2px);
+  transition: background-color 100ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.cv3-send:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* 状态条（dsh StatsPills：12px，三级色，等宽数字） */
+.cv3-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  width: 100%;
+  max-width: calc(min(920px, max(680px, 64%), calc(100% - 32px)) + 32px);
+  margin: 0 auto;
+  padding: 8px 0 12px;
+  color: var(--tx3);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  line-height: 20px;
+}
+
+.cv3-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 8px;
+  border-radius: 8px;
+  white-space: nowrap;
+}
+
+.cv3-sep {
+  margin: 0 6px;
+  color: var(--tx3);
+}
+
+/* ---- 窄屏 ---- */
+@media (max-width: 900px) {
+  .cv3-head-actions {
+    display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .cv3-head {
+    padding: 10px 16px 0 14px;
+  }
+
+  .cv3-demo-pill {
+    display: none;
+  }
+
+  .cv3-switch button {
+    padding: 4px 10px;
+    font-size: 12px;
+  }
+
+  .cv3-view {
+    padding: 16px 16px;
+  }
+
+  .cv3-compose {
+    padding: 0 16px 4px;
+  }
+
+  .cv3-user {
+    max-width: 82%;
+  }
+
+  .cv3-row {
+    gap: 8px;
+  }
+
+  .cv3-tools-left,
+  .cv3-trailing {
+    gap: 8px;
+  }
+}

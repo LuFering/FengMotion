@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
   ArrowDownToLine, ArrowLeftRight, ArrowUpRight, BookOpen, Check,
-  ChevronDown, ChevronLeft, Clock3, FileCode2, FileText, FolderOpen, History, ListTree, LoaderCircle, Maximize2,
+  ChevronDown, ChevronLeft, Clock3, FileCode2, FileText, FolderOpen, History, ListTree, LoaderCircle, Maximize2, MessagesSquare,
   ShieldCheck,
   PanelBottom, Pause, Play, Plus, RotateCcw, Send, Settings2,
   SkipBack, SkipForward, Square, Volume2, X,
@@ -912,6 +912,10 @@ function RightPanel({ chat, sideTab, setSideTab, scope, selectedId, scene, clip,
                           options={[{ value: 'scene', label: '场景' }, { value: 'chat', label: '对话' }, { value: 'edit', label: '参数' }]} />
         <ToolButton label="修改设置" active={sideTab === 'settings'} onClick={() => setSideTab('settings')}>
           <Settings2 className="size-3.5" />
+        </ToolButton>
+        {/* 原型：从工作台切回完整对话视图（同一份 useChat 会话） */}
+        <ToolButton label="完整对话" onClick={() => onNavigate('conversation')}>
+          <MessagesSquare className="size-3.5" />
         </ToolButton>
       </div>
 
