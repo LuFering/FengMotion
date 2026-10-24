@@ -114,7 +114,7 @@ export function StartCreation(props: {
         <button type="button" className="stc-primary" disabled={!canStart} onClick={() => launch(true)}>
           开始制作
         </button>
-        <p className="stc-fine">开始后自动运行到产物生成，可在编辑器里看进度与结果。当前为 DEMO 执行器：产出结构化快照，不生成真实视频。</p>
+        <p className="stc-fine">开始后进入工作台自动运行，在工作台里看进度、预览与修改。当前为 DEMO 执行器：产出结构化快照，不生成真实视频。</p>
 
         <button type="button" className="stc-pro-toggle" onClick={() => setProOpen((v) => !v)} aria-expanded={proOpen}>
           进入专业制作 {proOpen ? '▴' : '▾'}
@@ -138,7 +138,7 @@ export function StartCreation(props: {
               <button type="button" onClick={() => props.onBrowseLibrary('knowledge')}>特效库</button>
             </div>
             <button type="button" className="stc-secondary" disabled={!canStart} onClick={() => launch(false)}>
-              创建并打开编辑器（不自动运行）
+              创建并进入工作台（不自动运行）
             </button>
           </div>
         )}
