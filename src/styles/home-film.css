@@ -323,11 +323,14 @@ html[data-theme="tactile"] .hf-seal circle { stroke: currentColor; }
 
 /* 左右两块向中轴靠近：左侧右移，右侧左移 */
 .hf-sample { transform: translateX(40px); }
-/* Round 2：纵向落差 68px → 28px，内容带向屏中央收拢，弱化上下空置感 */
-.hf-copy { transform: translate(24px, 28px); }
+/* Round 3 跟进：右列（标题+导语）与左列（品牌+输入框）上下中心对齐。
+   实测 1440×900：左块 387–615（中心 501），右块 262–519（中心 390），差 111px；
+   右列下移 111px 后两中心重合。左列 43vh 顶部锚点不动（输入框向下生长的锚点）。 */
+.hf-copy { transform: translate(24px, 139px); }
 @media (max-width: 1400px) {
   .hf-sample { transform: translateX(16px); }
-  .hf-copy { transform: translate(8px, 28px); }
+  /* 同上：实测 1280×800 左中心 455、右视觉中心 368，差 87px，补齐 */
+  .hf-copy { transform: translate(8px, 115px); }
 }
 @media (max-width: 1100px) {
   .hf-sample { transform: none; }
