@@ -10,7 +10,6 @@ import { Home } from '@/views/Home'
 import { Workbench } from '@/views/Workbench'
 import { Assets } from '@/views/Assets'
 import { ProjectBar, PickProject } from '@/views/ProjectBar'
-import { NewProjectDialog } from '@/shell/NewProjectDialog'
 import { RenderDelivery } from '@/views/RenderDelivery'
 import { FxLibrary } from '@/views/FxLibrary'
 import { RefLibrary } from '@/views/RefLibrary'
@@ -49,7 +48,6 @@ export default function App() {
    */
   const [openProject, setOpenProject] = useState<string | null>(initialQuery.get('project'))
   /** 新建项目对话卡（演示：只在内存里建，不落盘） */
-  const [newProjectOpen, setNewProjectOpen] = useState(false)
   const tasks = useAgentTasks()
   const projects = useProjects()
   /** 当前项目 —— 项目管理组的每个视图都要它 */
@@ -173,7 +171,13 @@ export default function App() {
                           onCreateProject={(input) => projects.create(input)}
                           openProject={openProject}
                           onSelectProject={(id) => setOpenProject(id)}
-                          onNewProject={() => setNewProjectOpen(true)}
+                          /* 左栏直建（dsh workspace.create）：不弹表单，建完在行内改名 */
+                          onNewProject={() => {
+                            const p = projects.createBlank()
+                            setOpenProject(p.id)
+                            return p
+                          }}
+                          onRenameProject={(id, name) => projects.rename(id, name)}
                           onLaunch={handleLaunch}
                           onOpenWorkbench={() => { if (openProject) setView('production') }} />
           </div>
@@ -242,15 +246,8 @@ export default function App() {
           />
         )}
 
-        {/* 新建项目 —— 建完直接进它的对话（左栏列表里已是当前项目，可随时进工作台） */}
-        <NewProjectDialog open={newProjectOpen} onClose={() => setNewProjectOpen(false)}
-                          onCreate={(input) => {
-                            const p = projects.create(input)
-                            setNewProjectOpen(false)
-                            setOpenProject(p.id)
-                            setView('conversation')
-                            return p
-                          }} />
+        {/* 新建项目不再走弹窗：左栏「新建项目」直接建出来并就地改名
+            （dsh workspace.create 的语义 —— 只接管，不问片型/时长）。 */}
       </AppShell>
     </TooltipProvider>
   )

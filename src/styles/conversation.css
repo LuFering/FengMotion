@@ -563,6 +563,37 @@ html[data-theme="tactile"] #pane-conversation {
   white-space: nowrap;
 }
 
+/* 新建后就地改名（对齐 dsh Rows.module.css 的 renameInput：
+   .5px 边线 + radius-sm + button-elevated-fill 底 + 与标题同字号行高）。
+   不用弹窗：建出来的那一刻光标已经在名字里，直接打字即可。 */
+.cv3-group-editrow {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 8px;
+  border-radius: var(--fm-radius-ctl);
+}
+
+.cv3-group-edit {
+  flex: 1;
+  min-width: 0;
+  height: 18px;
+  padding: 0 2px;
+  border: 0.5px solid var(--line);
+  border-radius: 4px;
+  background: var(--hole);
+  color: var(--tx1);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 18px;
+  outline: none;
+}
+
+.cv3-group-edit:focus {
+  border-color: var(--acc);
+}
+
 .cv3-group-count {
   flex: none;
   color: var(--tx3);

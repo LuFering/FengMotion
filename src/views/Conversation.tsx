@@ -152,7 +152,10 @@ export function Conversation(props: {
   projects: ProjectSummary[]
   openProject: string | null
   onSelectProject: (id: string) => void
-  onNewProject: () => void
+  /** 左栏直建项目（dsh workspace.create 语义：不弹表单，建完就地改名） */
+  onNewProject: () => { id: string }
+  /** 左栏行内改名（Enter/失焦提交，Esc 放弃） */
+  onRenameProject?: (id: string, name: string) => void
   onCreateProject: (input: NewProjectInput) => { id: string }
   onLaunch: (r: { workflowId: string; projectId: string | null; autoRun: boolean }) => void
   onOpenWorkbench: () => void
@@ -404,6 +407,21 @@ export function Conversation(props: {
     loadedRef.current = t.id
   }
 
+  /* 左栏直建项目（对齐 dsh：不弹表单、不问片型时长，建出来就是一个空项目，
+     紧接着进「行内改名」态 —— dsh 的 create 也只是接管一个目录，
+     名字之后再 rename，不需要先填一张表）。 */
+  const createProjectInline = () => {
+    const p = props.onNewProject()
+    setEditing(p.id)
+    setEditText('未命名项目')
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev)
+      next.delete(p.id)
+      return next
+    })
+    return p
+  }
+
   const onInputKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); submit() }
   }
@@ -449,7 +467,7 @@ export function Conversation(props: {
             <MessageSquarePlus size={15} />
           </button>
           <button type="button" className="cv3-icon-btn" aria-label="新建项目" title="新建项目"
-                  onClick={props.onNewProject}>
+                  onClick={createProjectInline}>
             <FolderPlus size={15} />
           </button>
           {/* 视图选项（对齐 dsh viewOptions：分组方式 / 排序方式 / 归档筛选） */}
@@ -502,8 +520,14 @@ export function Conversation(props: {
         </label>
 
         <div className="cv3-side-list">
-          {grouped.length === 0 || noMatches ? (
-            <p className="cv3-side-hint">{query.trim() ? '无匹配结果' : '暂无会话'}</p>
+          {/* 只有「真的一条会话都没有、也没有任何项目」时才整块换成提示。
+              原来用 noMatches（= 没有会话）挡掉整个列表，导致左栏直建出来的
+              空项目根本不显示 —— 新建项目点了没反应。dsh 的项目行是常驻的，
+              哪怕它下面一条会话都没有。 */}
+          {query.trim() && noMatches ? (
+            <p className="cv3-side-hint">无匹配结果</p>
+          ) : grouped.length === 0 ? (
+            <p className="cv3-side-hint">暂无会话</p>
           ) : grouped.map((g) => {
             const isUng = g.projectId === UNGROUPED
             const flat = g.key === 'flat'
@@ -528,6 +552,27 @@ export function Conversation(props: {
                    }}>
                 {!flat && (
                   <div className="cv3-group-row">
+                    {/* 新建后立刻在这里就地改名（dsh 的 renameInput：建完就打字，
+                        不用先填弹窗里的表单再确认一遍） */}
+                    {!isUng && proj && editing === proj.id ? (
+                      <div className="cv3-group-head cv3-group-editrow">
+                        <ChevronRight size={13} className="cv3-group-caret" data-open={!collapsed || undefined} />
+                        <input className="cv3-group-edit" autoFocus value={editText}
+                               aria-label="项目名称"
+                               onChange={(e) => setEditText(e.target.value)}
+                               onBlur={() => {
+                                 props.onRenameProject?.(proj.id, editText)
+                                 setEditing(null)
+                               }}
+                               onKeyDown={(e) => {
+                                 if (e.key === 'Enter') {
+                                   props.onRenameProject?.(proj.id, editText)
+                                   setEditing(null)
+                                 }
+                                 if (e.key === 'Escape') setEditing(null)
+                               }} />
+                      </div>
+                    ) : (
                     <button type="button" className="cv3-group-head"
                             data-drop={dropTarget === g.projectId || undefined}
                             onClick={() => setCollapsedGroups((prev) => {
@@ -541,6 +586,7 @@ export function Conversation(props: {
                       <span className="cv3-group-name">{isUng ? '未分组' : proj?.name ?? '未命名项目'}</span>
                       <span className="cv3-group-count num">{g.sessions.length}</span>
                     </button>
+                    )}
                     {!isUng && proj && (
                       <>
                         <div className="cv3-rowmenu-wrap">
