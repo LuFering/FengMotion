@@ -8,7 +8,6 @@ import { AppShell } from '@/shell/AppShell'
 import { SettingsDialog, DEFAULT_SETTINGS, type Settings } from '@/shell/SettingsDialog'
 import { Home } from '@/views/Home'
 import { Workbench } from '@/views/Workbench'
-import { WorkbenchCatalog } from '@/views/WorkbenchCatalog'
 import { Assets } from '@/views/Assets'
 import { ProjectBar, PickProject } from '@/views/ProjectBar'
 import { NewProjectDialog } from '@/shell/NewProjectDialog'
@@ -55,7 +54,9 @@ export default function App() {
   const projects = useProjects()
   /** 当前项目 —— 项目管理组的每个视图都要它 */
   const current = projects.list.find((p) => p.id === openProject) ?? null
-  const openList = () => { setOpenProject(null); setView('project') }
+  /* 「返回项目目录」：项目列表页已移除，回「我的创作」（对话视图）。
+     保留当前选中项目，便于从对话视图一键回工作台。 */
+  const openList = () => { setView('conversation') }
   // 复刻页（项目指挥中心）通过 postMessage 请求跨页导航
   useEffect(() => {
     const onMsg = (e: MessageEvent) => {
@@ -122,8 +123,8 @@ export default function App() {
 
   /** 制作工作台：必须有当前项目（列表已归项目管理，这里不再兼当目录） */
   const isFlow = view === 'production' && current !== null
-  /** 项目列表：制作工作台没项目时落到它；「我的创作」这一层也永远是它 */
-  const isCatalog = (view === 'production' && current === null) || view === 'project'
+  /** production 无项目时不再落项目列表（已移除），回对话视图 */
+  const isCatalog = false
   const SUB_VIEWS = ['assets', 'render']
   const isSub = SUB_VIEWS.includes(view as string)
 
@@ -132,17 +133,6 @@ export default function App() {
       <AppShell view={view as ViewId} onNavigate={go} theme={settings.theme}
                 onOpenSettings={() => setSettingsOpen(true)}
                 onThemeChange={changeTheme} onToggleNav={toggleNav}>
-
-        {/* 项目列表（一级）—— 「列表 → 对话/工作台」的第一层 */}
-        {isCatalog && (
-          <main id="pane-project" className="hm-main">
-            <WorkbenchCatalog projects={projects.list}
-                              onOpen={(id) => { setOpenProject(id); setView('conversation') }}
-                              onNew={() => setNewProjectOpen(true)}
-                              onRename={projects.rename}
-                              onRemove={(id) => { projects.remove(id); if (id === openProject) setOpenProject(null) }} />
-          </main>
-        )}
 
         {/* 首页 · 首屏 from home-film-v3
             原型分支：发送后不再开启动层，需求直接作为首条消息进项目对话视图 */}

@@ -3,7 +3,7 @@
  *
  * 原先这里还有「项目指挥中心」（callour-studio v2 复刻页整包 iframe 挂载），
  * 作者看过之后判定没用，已删除；项目列表也移进了创作对话的左栏。
- * 现在项目条只保留：回全部项目 / 当前项目名与阶段 / 子视图切换 / Agent 状态 / 进工作台。
+ * 现在项目条只保留：回我的创作 / 当前项目名与阶段 / 子视图切换 / Agent 状态 / 进工作台。
  */
 import { PROJECT_SUBVIEWS, STAGE_LABEL, type ProjectSummary } from '@/data/projects'
 
@@ -24,7 +24,7 @@ export function ProjectBar({ project: p, view, onNav, onBack, onOpenWorkbench }:
 }) {
   return (
     <div className="pj-bar">
-      <button className="pj-bar-back" type="button" onClick={onBack} title="回全部项目">
+      <button className="pj-bar-back" type="button" onClick={onBack} title="回我的创作">
         <Icon name="folder-open" />全部项目
       </button>
       <span className="pj-bar-name" title={p.name}>{p.name}</span>

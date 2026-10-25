@@ -430,7 +430,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
 
       {/* ═══ 基岛：顶栏 ═════════════════════════════════════════ */}
       <div className="wb-projectbar">
-        <ToolButton label="返回项目目录" onClick={onBack}><ChevronLeft /></ToolButton>
+        <ToolButton label="返回我的创作" onClick={onBack}><ChevronLeft /></ToolButton>
         <button className="mini fw-mobile" type="button" title="场景列表"
                 onClick={() => setRailOpen((v) => !v)}>
           <PanelBottom className="size-3.5" />
