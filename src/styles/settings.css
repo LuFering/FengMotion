@@ -39,7 +39,9 @@
 }
 .set-dlg-title {
   margin: 0;
-  font-size: 15px;   /* .t-title 这一级：视图主标题 15px/600（CLAUDE.md 字阶） */
+  /* 页面主标题字阶（fm-page-head-title 同级）：24px/600 */
+  font-size: var(--fm-text-title);
+  line-height: var(--fm-leading-title);
   font-weight: 600;
   color: var(--fg);
 }
