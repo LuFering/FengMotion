@@ -1,73 +1,61 @@
 /* ═══════════════════════════════════════════════════════════════
-   设置 —— 全屏接管页。
+   设置 —— 大窗弹窗（shadcn Dialog，双栏：分区导航 + 内容面板）。
 
-   视觉语言沿用项目既有范式（不另造一套）：
-   · 顶栏 = pj-bar（ghost 返回 + 13px/600 标题 + 发丝线，project.css）；
-   · 分区导航 = hm-nav 的 pill 项（40px 高 / 大圆角 / 选中 soft + acc）；
-   · 内容 = 一个岛面板（surf + 发丝边 + --fm-radius-panel，同三库岛屿）；
+   视觉沿用项目范式（不另造一套）：
+   · 窗体 = 岛面板语言（surf + 发丝边 + --fm-radius-panel）；
+   · 分区导航 = hm-nav 的 pill 项（选中 soft 底 + acc 字）；
    · 行 = 引擎选择器弹层的行（透明底 / hover hole / 选中 soft + 勾）；
-   · 单选圆点 = cv3-hp-radio（选中 acc 内嵌 3px）。
+   · 单选圆点 = cv3-hp-radio（选中 acc 内嵌 3px）；
+   · 标题 = pj-bar 的 13px/600。
    颜色全走壳层 token；唯一硬编码：主题样片色带（各主题设计常量，
    与 brand.css 的 token 值一致，样片不能跟随当前主题）。
    ═══════════════════════════════════════════════════════════════ */
 
-.set-screen {
-  position: fixed;
-  inset: 0;
-  z-index: 300;
+.set-dlg {
   display: flex;
   flex-direction: column;
-  padding: 18px 28px 0;
-  background: var(--bg);
-  color: var(--fg);
-  animation: setIn .26s cubic-bezier(.23, 1, .32, 1) both;
+  width: min(920px, calc(100vw - 48px));
+  height: min(640px, calc(100vh - 48px));
+  max-width: none;
+  padding: 0;
+  gap: 0;
+  overflow: hidden;
+  background: var(--surf);
+  border-radius: var(--fm-radius-panel);
+  box-shadow: 0 24px 64px rgb(0 0 0 / .35);
 }
-@keyframes setIn {
-  from { opacity: 0; transform: translateY(8px) }
-  to   { opacity: 1; transform: none }
-}
-@media (prefers-reduced-motion: reduce) { .set-screen { animation: none } }
-
-/* ── 顶栏（pj-bar 语言）───────────────────────────────────── */
-.set-top {
+.set-dlg-head {
   flex: 0 0 auto;
   display: flex;
-  align-items: center;
-  gap: 9px;
-  padding: 0 0 12px;
+  align-items: baseline;
+  gap: 10px;
+  padding: 14px 44px 12px 20px;
   border-bottom: 1px solid var(--line);
 }
-.set-back {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 8px 4px 4px;
-  border: 0;
-  border-radius: 6px;
-  background: none;
-  color: var(--dim);
-  font: inherit;
-  font-size: 12px;
-  cursor: pointer;
-  transition: color .14s, background-color .14s;
+.set-dlg-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg);
 }
-.set-back:hover { color: var(--fg); background: var(--hole); }
-.set-back .ui-icon { width: 14px; height: 14px; }
-.set-title { margin: 0; font-size: 13px; font-weight: 600; color: var(--fg); }
-
-/* ── 主体：pill 分区导航 + 岛面板 ──────────────────────────── */
-.set-body {
+.set-dlg-sub {
+  font-size: 11px;
+  color: var(--dim);
+}
+.set-dlg-body {
   flex: 1;
   display: flex;
-  gap: 20px;
   min-height: 0;
-  padding: 18px 0 22px;
 }
+
+/* ── 左：分区导航（hm-nav 的 pill 项）──────────────────────── */
 .set-nav {
   flex: 0 0 188px;
   display: flex;
   flex-direction: column;
   gap: 2px;
+  padding: 14px 10px;
+  border-right: 1px solid var(--line);
 }
 .set-nav-item {
   display: flex;
@@ -89,27 +77,24 @@
 .set-nav-item[data-on] { background: var(--soft); color: var(--acc); font-weight: 600; }
 .set-nav-item .ui-icon { width: 16px; height: 16px; flex: 0 0 16px; }
 
-/* 岛面板：同三库岛屿的表面语言 */
+/* ── 右：内容面板 ─────────────────────────────────────────── */
 .set-panel {
   flex: 1;
   min-width: 0;
-  max-width: 680px;
   overflow-y: auto;
-  padding: 10px 20px 16px;
-  border: 1px solid var(--line);
-  border-radius: var(--fm-radius-panel);
-  background: var(--surf);
+  padding: 14px 22px 18px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
 }
-.set-sec { padding-bottom: 6px; }
 .set-sec-head {
-  margin: 8px 0 0;
+  margin: 0 0 2px;
   font-size: 12px;
   font-weight: 650;
   letter-spacing: .02em;
   color: var(--fg);
 }
 .set-subhead {
-  margin: 18px 0 0;
+  margin: 18px 0 4px;
   font-size: 12px;
   font-weight: 650;
   letter-spacing: .02em;
@@ -221,7 +206,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 11px 2px;
+  padding: 10px 2px;
   border-bottom: 1px solid var(--line);
 }
 .set-sec > .set-row:last-child { border-bottom: 0; }
@@ -238,7 +223,7 @@
   text-align: right;
 }
 .set-input {
-  width: 300px;
+  width: 280px;
   max-width: 100%;
   height: 32px;
   padding: 0 10px;
@@ -253,13 +238,8 @@
 }
 .set-input:focus { border-color: var(--acc); }
 
-/* ── 窄窗：分区导航收成窄条 ───────────────────────────────── */
-@media (max-width: 760px) {
-  .set-screen { padding: 14px 16px 0; }
-  .set-nav { flex-basis: 56px; }
-  .set-nav-item { justify-content: center; padding: 0; }
-  .set-nav-item span { display: none; }
-  .set-body { gap: 12px; }
-  .set-row { flex-direction: column; align-items: flex-start; gap: 8px; }
+/* 窄屏：端点行换列 */
+@media (max-width: 560px) {
+  .set-row { flex-direction: column; align-items: flex-start; gap: 6px; }
   .set-row-control { text-align: left; }
 }

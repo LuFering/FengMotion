@@ -86,8 +86,6 @@ export default function App() {
     setView('production')
   }
   const [settingsOpen, setSettingsOpen] = useState(false)
-  /** 设置的来路：打开时记住当前视图，左上角「返回」回这里（设置是全屏接管页） */
-  const [settingsFrom, setSettingsFrom] = useState<View>('home')
   const [settings, setSettings] = useState<Settings>(loadSettings)
   const chat = useChat()
   const threads = useSessions()
@@ -128,7 +126,7 @@ export default function App() {
   return (
     <TooltipProvider delayDuration={300}>
       <AppShell view={view as ViewId} onNavigate={go} theme={settings.theme}
-                onOpenSettings={() => { setSettingsFrom(view); setSettingsOpen(true) }}
+                onOpenSettings={() => setSettingsOpen(true)}
                 onThemeChange={changeTheme} onToggleNav={toggleNav}>
 
         {/* 首页 · 首屏 from home-film-v3
@@ -229,12 +227,10 @@ export default function App() {
             </div>
           </div>
         )}
-        {/* 设置：全屏接管页，盖住导航轨；左上角返回进入前的视图 */}
-        {settingsOpen && (
-          <SettingsScreen from={settingsFrom} settings={settings}
-                          onChange={setSettings} onThemeChange={changeTheme}
-                          onBack={() => setSettingsOpen(false)} />
-        )}
+        {/* 设置：居中弹窗（Esc / 遮罩 / X 关闭），即改即生效存本机 */}
+        <SettingsScreen open={settingsOpen} onClose={() => setSettingsOpen(false)}
+                        settings={settings} onChange={setSettings}
+                        onThemeChange={changeTheme} />
 
         {/* 创作启动层：承接首页需求 → 建项目与工作流 → 落工作台呈现「本次制作」
             （快速路径在工作台自动运行；专业路径只创建不运行） */}
