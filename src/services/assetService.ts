@@ -288,6 +288,30 @@ export function formatBytes(n: number): string {
   return `${(n / 1024 / 1024).toFixed(1)} MB`
 }
 
+/**
+ * 清空素材索引 —— 真的把 IndexedDB 删掉（含用户导入的文件本体与缩略图）。
+ *
+ * 为什么整库删除而不是逐条 delete：用户导入的文件本体是大的 Blob，
+ * 逐条删不会立刻收缩数据库；删库再重建是唯一能真正释放空间的做法。
+ * 调用方负责二次确认；这里只做事实。
+ */
+export async function resetLibrary(): Promise<void> {
+  for (const u of urlCache.values()) URL.revokeObjectURL(u)
+  urlCache.clear()
+  if (dbP) {
+    try { (await dbP).close() } catch { /* 已经关了 */ }
+    dbP = null
+  }
+  await new Promise<void>((resolve, reject) => {
+    const req = indexedDB.deleteDatabase(DB_NAME)
+    req.onsuccess = () => resolve()
+    req.onerror = () => reject(req.error)
+    req.onblocked = () => reject(new Error('有其它窗口正在占用素材库，请关闭后重试'))
+  })
+  // 重建并重新种入内置素材，界面立刻有可用的初始库
+  await initLibrary()
+}
+
 export function formatDur(sec?: number): string {
   if (sec == null) return '—'
   const s = Math.round(sec)

@@ -1,12 +1,16 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { HARNESSES, REASONING_LABEL, DEFAULT_PREFS, prefsKey, loadPrefs, savePrefs,
          type ModelPrefs, type Reasoning } from '@/data/harnesses'
-import { formatBytes, initLibrary, listAssets } from '@/services/assetService'
-import { type Settings, type ThemeId, DEFAULT_SETTINGS } from '@/shell/settings-model'
+import { formatBytes, initLibrary, listAssets, resetLibrary } from '@/services/assetService'
+import { type Settings, type ThemeId, DEFAULT_SETTINGS,
+         applyBackup, clearModelPrefs, downloadBackup, readBackup } from '@/shell/settings-model'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Button } from '@/components/ui/button'
+import pkg from '../../package.json'
+
+const APP_VERSION = pkg.version
 
 /**
  * 设置 —— 大窗弹窗（shadcn Dialog / Radix：Esc、遮罩点击、右上 X 都能关）。
@@ -88,17 +92,55 @@ export function SettingsScreen({
   const [prefs, setPrefs] = useState<Record<string, ModelPrefs>>(() => loadPrefs())
   /** 本地素材索引统计：打开弹窗时真实读取一次 */
   const [stats, setStats] = useState<{ count: number; bytes: number } | null>(null)
+  /** 数据分区的操作回执（导入成功/失败、清理结果），只活在本弹窗内 */
+  const [notice, setNotice] = useState('')
+  const backupInputRef = useRef<HTMLInputElement>(null)
+
+  /** 读一次索引统计（清库/导入后也要重新读） */
+  const refreshStats = () => {
+    void initLibrary()
+      .then(() => listAssets())
+      .then((list) => setStats({ count: list.length, bytes: list.reduce((s, a) => s + a.sizeBytes, 0) }))
+      .catch(() => setStats(null))
+  }
 
   useEffect(() => {
     if (!open) return
     setPrefs(loadPrefs())
-    let alive = true
-    void initLibrary()
-      .then(() => listAssets())
-      .then((list) => { if (alive) setStats({ count: list.length, bytes: list.reduce((s, a) => s + a.sizeBytes, 0) }) })
-      .catch(() => { if (alive) setStats(null) })
-    return () => { alive = false }
+    setNotice('')
+    refreshStats()
   }, [open])
+
+  /** 导入备份：读文件 → 校验 → 应用 → 回执 */
+  const onPickBackup = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    try {
+      const text = await file.text()
+      const backup = readBackup(text)
+      applyBackup(backup)
+      onChange(backup.settings)
+      onThemeChange(backup.settings.theme)
+      setPrefs(loadPrefs())
+      setNotice(`已导入 ${file.name}`)
+    } catch (err) {
+      setNotice(`导入失败：${err instanceof Error ? err.message : '文件读不出来'}`)
+    }
+  }
+
+  /** 重建素材索引：二次确认后真的删库并重新种入内置素材 */
+  const onResetLibrary = async () => {
+    if (!window.confirm('将删除本机素材索引（含你导入的文件），只用内置素材重建。不可撤销，确定继续？')) return
+    setNotice('正在重建…')
+    try {
+      await resetLibrary()
+      refreshStats()
+      setNotice('素材索引已重建')
+    } catch (err) {
+      setNotice(`重建失败：${err instanceof Error ? err.message : '未知错误'}`)
+    }
+  }
 
   const set = <K extends keyof Settings>(key: K, value: Settings[K]) =>
     onChange({ ...settings, [key]: value })
@@ -262,10 +304,49 @@ export function SettingsScreen({
             {section === 'data' && (
               <section className="set-sec">
                 <h3 className="set-sec-head">数据</h3>
-                <Row label="本地素材索引" hint="素材本体存本机 IndexedDB，刷新与重启都在。">
+
+                <h4 className="set-subhead">本机占用</h4>
+                <Row label="素材索引" hint="素材本体存在本机 IndexedDB，刷新与重启都在">
                   <span className="num">{stats ? `${stats.count} 项 · ${formatBytes(stats.bytes)}` : '读取中…'}</span>
                 </Row>
-                <Row label="恢复默认设置" hint="把主题、通用、对话偏好、引擎与模型全部恢复默认值">
+
+                <h4 className="set-subhead">备份与恢复</h4>
+                <Row label="导出设置" hint="下载一份 JSON：设置 + 每个模型的对话偏好（不含素材文件）">
+                  <Button variant="outline" size="sm"
+                          onClick={() => {
+                            const name = downloadBackup(settings)
+                            setNotice(`已导出 ${name}`)
+                          }}>
+                    导出…
+                  </Button>
+                </Row>
+                <Row label="导入设置" hint="从备份文件恢复；不合格的文件会被拒绝并说明原因">
+                  <Button variant="outline" size="sm" onClick={() => backupInputRef.current?.click()}>
+                    导入…
+                  </Button>
+                  <input ref={backupInputRef} type="file" accept="application/json,.json" hidden
+                         onChange={onPickBackup} />
+                </Row>
+                {notice && <p className="set-notice">{notice}</p>}
+
+                <h4 className="set-subhead">清理</h4>
+                <Row label="清除对话偏好" hint="思考强度与最大上下文回到默认（标准 · 64）">
+                  <Button variant="outline" size="sm"
+                          onClick={() => {
+                            const had = clearModelPrefs()
+                            setPrefs(loadPrefs())
+                            setNotice(had ? '对话偏好已清除' : '本来就没有自定义偏好')
+                          }}>
+                    清除
+                  </Button>
+                </Row>
+                <Row label="重建素材索引" hint="删掉本机素材索引（含导入的文件），重新种入内置素材；不可撤销">
+                  <Button variant="destructive" size="sm"
+                          onClick={onResetLibrary}>
+                    重建…
+                  </Button>
+                </Row>
+                <Row label="恢复默认设置" hint="主题、通用、对话偏好、引擎与模型全部回到默认值">
                   <Button variant="outline" size="sm"
                           onClick={() => { if (window.confirm('把所有设置恢复为默认值？')) onChange({ ...DEFAULT_SETTINGS }) }}>
                     恢复默认
@@ -277,7 +358,8 @@ export function SettingsScreen({
             {section === 'about' && (
               <section className="set-sec">
                 <h3 className="set-sec-head">关于</h3>
-                <Row label="产品"><span>FengMotion Desktop · 本地优先</span></Row>
+                <Row label="产品"><span>FengMotion Desktop</span></Row>
+                <Row label="版本"><span className="num">v{APP_VERSION}</span></Row>
                 <Row label="数据存放">
                   <span>素材索引存本机 IndexedDB；设置与会话偏好存 localStorage，不上传。</span>
                 </Row>
