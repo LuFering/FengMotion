@@ -1,34 +1,38 @@
-import { useState } from 'react'
-import { HARNESSES } from '@/data/harnesses'
-import { type Settings, type ThemeId } from '@/shell/settings-model'
+import { useEffect, useState } from 'react'
+import { HARNESSES, REASONING_LABEL, DEFAULT_PREFS, prefsKey, loadPrefs, savePrefs,
+         type ModelPrefs, type Reasoning } from '@/data/harnesses'
+import { formatBytes, initLibrary, listAssets } from '@/services/assetService'
+import { type Settings, type ThemeId, DEFAULT_SETTINGS } from '@/shell/settings-model'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Button } from '@/components/ui/button'
 
 /**
  * 设置 —— 大窗弹窗（shadcn Dialog / Radix：Esc、遮罩点击、右上 X 都能关）。
  *
- * 布局沿用全屏版的双栏：左侧分区导航（hm-nav 的 pill 项）+ 右侧内容面板，
- * 只是整体缩进一个居中大窗里，不再整屏接管。
- *
- * 视觉沿用项目范式：行 = 引擎选择器弹层的行（透明底 / hover hole / 选中 soft + 勾），
- * 单选圆点 = cv3-hp-radio；标题行走 pj-bar 的 13px/600。
- *
- * 即改即生效：没有「保存」按钮 —— 每项改动直接写回 App 的 settings
- * 并持久化到 localStorage（模型与读写见 settings-model.ts）。
- *
- * ⚠️ 演示态：引擎数据来自 data/harnesses.ts（与首页 / 对话输入区同一份，
- *    只有 DeepSeek 标记已接入）；服务端点只存本机，不验证连通性。
- *    旧版的 autoPreview / showTimeline / exportDir 没有任何消费方，已删除 ——
- *    设置弹窗里不放不生效的项。
+ * 布局沿用双栏：左侧分区导航（hm-nav 的 pill 项）+ 右侧内容面板。
+ * 每一项都必须真实生效，不放没有消费方的摆设：
+ *   · 通用     默认进入视图（App 启动时读取）；
+ *   · 外观     三主题即时切换 + 减弱动效（html[data-motion] 全局压平）；
+ *   · 对话     新会话默认偏好 —— 直接读写对话选择器用的同一份
+ *              loadPrefs/savePrefs（按当前默认引擎+模型记），下次进对话生效；
+ *   · 引擎与模型  默认引擎 / 默认模型 / 服务端点（与首页、对话同源）；
+ *   · 数据     本地素材索引的真实统计（listAssets）+ 恢复默认设置；
+ *   · 关于     产品与数据存放说明。
+ * 演示态边界：服务端点只存本机不验证；语言/账户等没有真实设施的东西不放假入口。
  */
 
 export type { Settings, ThemeId } from '@/shell/settings-model'
 
-type SectionId = 'appearance' | 'harness' | 'about'
+type SectionId = 'general' | 'appearance' | 'chat' | 'harness' | 'data' | 'about'
 
 const SECTIONS: Array<{ id: SectionId; label: string; icon: string }> = [
+  { id: 'general', label: '通用', icon: 'compass' },
   { id: 'appearance', label: '外观', icon: 'sun' },
+  { id: 'chat', label: '对话', icon: 'message-circle-question' },
   { id: 'harness', label: '引擎与模型', icon: 'boxes' },
+  { id: 'data', label: '数据', icon: 'cylinder' },
   { id: 'about', label: '关于', icon: 'circle-help' },
 ]
 
@@ -39,11 +43,33 @@ const THEMES: Array<{ id: ThemeId; label: string; desc: string }> = [
   { id: 'tactile', label: '纸感', desc: 'A2 触感 · 纸面' },
 ]
 
+const CONTEXTS = [32, 64, 128] as const
+
 function Icon({ name, className = 'ui-icon' }: { name: string; className?: string }) {
   return (
     <svg className={className} aria-hidden="true">
       <use href={`./assets/paba-icons.svg#${name}`} />
     </svg>
+  )
+}
+
+/** 分段选择：复用 paba 全局的 .ch-tabs（bg hole + 按下 surf） */
+function Seg({ value, options, onChange, ariaLabel }: {
+  value: string
+  options: Array<{ value: string; label: string }>
+  onChange: (v: string) => void
+  ariaLabel: string
+}) {
+  return (
+    <div className="ch-tabs" role="radiogroup" aria-label={ariaLabel}>
+      {options.map((o) => (
+        <button key={o.value} type="button" role="radio"
+                aria-pressed={value === o.value}
+                onClick={() => onChange(o.value)}>
+          {o.label}
+        </button>
+      ))}
+    </div>
   )
 }
 
@@ -57,7 +83,22 @@ export function SettingsScreen({
   /** 主题走 App 的 changeTheme：带全局过渡类，避免切换闪屏 */
   onThemeChange: (theme: ThemeId) => void
 }) {
-  const [section, setSection] = useState<SectionId>('appearance')
+  const [section, setSection] = useState<SectionId>('general')
+  /** 对话默认偏好：与对话选择器同一份 localStorage 数据，打开弹窗时刷新 */
+  const [prefs, setPrefs] = useState<Record<string, ModelPrefs>>(() => loadPrefs())
+  /** 本地素材索引统计：打开弹窗时真实读取一次 */
+  const [stats, setStats] = useState<{ count: number; bytes: number } | null>(null)
+
+  useEffect(() => {
+    if (!open) return
+    setPrefs(loadPrefs())
+    let alive = true
+    void initLibrary()
+      .then(() => listAssets())
+      .then((list) => { if (alive) setStats({ count: list.length, bytes: list.reduce((s, a) => s + a.sizeBytes, 0) }) })
+      .catch(() => { if (alive) setStats(null) })
+    return () => { alive = false }
+  }, [open])
 
   const set = <K extends keyof Settings>(key: K, value: Settings[K]) =>
     onChange({ ...settings, [key]: value })
@@ -68,6 +109,14 @@ export function SettingsScreen({
     const h = HARNESSES.find((x) => x.id === id)
     if (!h) return
     onChange({ ...settings, harness: id, model: h.models.includes(settings.model) ? settings.model : h.models[0] })
+  }
+
+  const prefKey = prefsKey(harness.id, settings.model)
+  const curPrefs = prefs[prefKey] ?? DEFAULT_PREFS
+  const setPref = (patch: Partial<ModelPrefs>) => {
+    const all = { ...prefs, [prefKey]: { ...(prefs[prefKey] ?? DEFAULT_PREFS), ...patch } }
+    setPrefs(all)
+    savePrefs(all)
   }
 
   return (
@@ -91,6 +140,17 @@ export function SettingsScreen({
           </nav>
 
           <div className="set-panel" key={section}>
+            {section === 'general' && (
+              <section className="set-sec">
+                <h3 className="set-sec-head">通用</h3>
+                <Row label="默认进入视图" hint="打开应用时先进入哪个界面">
+                  <Seg ariaLabel="默认进入视图" value={settings.startView}
+                       options={[{ value: 'home', label: '首页' }, { value: 'conversation', label: '我的创作' }]}
+                       onChange={(v) => set('startView', v as Settings['startView'])} />
+                </Row>
+              </section>
+            )}
+
             {section === 'appearance' && (
               <section className="set-sec">
                 <h3 className="set-sec-head">外观</h3>
@@ -111,6 +171,36 @@ export function SettingsScreen({
                     </button>
                   ))}
                 </div>
+                <div className="set-row">
+                  <div className="set-row-label">
+                    <b>减弱动效</b>
+                    <em>压平界面动画与过渡；低性能设备或容易晕动时开启</em>
+                  </div>
+                  <Checkbox checked={settings.reduceMotion}
+                            onCheckedChange={(v) => set('reduceMotion', v === true)}
+                            aria-label="减弱动效" />
+                </div>
+              </section>
+            )}
+
+            {section === 'chat' && (
+              <section className="set-sec">
+                <h3 className="set-sec-head">对话</h3>
+                <p className="set-hint">
+                  新会话默认的思考强度与最大上下文，作用于当前默认引擎与模型
+                  （{harness.short} · {settings.model}）；对话输入区的选择器可按模型单独调整，
+                  这里的改动下次进入对话时生效。
+                </p>
+                <Row label="思考强度">
+                  <Seg ariaLabel="默认思考强度" value={curPrefs.reasoning}
+                       options={(Object.keys(REASONING_LABEL) as Reasoning[]).map((r) => ({ value: r, label: REASONING_LABEL[r] }))}
+                       onChange={(v) => setPref({ reasoning: v as Reasoning })} />
+                </Row>
+                <Row label="最大上下文">
+                  <Seg ariaLabel="默认最大上下文" value={String(curPrefs.context)}
+                       options={CONTEXTS.map((c) => ({ value: String(c), label: String(c) }))}
+                       onChange={(v) => setPref({ context: Number(v) as ModelPrefs['context'] })} />
+                </Row>
               </section>
             )}
 
@@ -165,6 +255,21 @@ export function SettingsScreen({
                   <Input className="set-endpoint" value={settings.harnessEndpoint} spellCheck={false}
                          onChange={(e) => set('harnessEndpoint', e.target.value)}
                          placeholder="http://127.0.0.1:8788/v1" />
+                </Row>
+              </section>
+            )}
+
+            {section === 'data' && (
+              <section className="set-sec">
+                <h3 className="set-sec-head">数据</h3>
+                <Row label="本地素材索引" hint="素材本体存本机 IndexedDB，刷新与重启都在。">
+                  <span className="num">{stats ? `${stats.count} 项 · ${formatBytes(stats.bytes)}` : '读取中…'}</span>
+                </Row>
+                <Row label="恢复默认设置" hint="把主题、通用、对话偏好、引擎与模型全部恢复默认值">
+                  <Button variant="outline" size="sm"
+                          onClick={() => { if (window.confirm('把所有设置恢复为默认值？')) onChange({ ...DEFAULT_SETTINGS }) }}>
+                    恢复默认
+                  </Button>
                 </Row>
               </section>
             )}

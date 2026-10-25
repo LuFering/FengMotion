@@ -12,6 +12,10 @@ export type ThemeId = 'dark' | 'light' | 'tactile'
 
 export interface Settings {
   theme: ThemeId
+  /** 打开应用默认进入的视图 */
+  startView: 'home' | 'conversation'
+  /** 减弱动效：压平全局动画与过渡（无障碍） */
+  reduceMotion: boolean
   /** 新会话默认引擎（data/harnesses.ts 的 id） */
   harness: string
   /** 服务端点：演示态只存本机 */
@@ -22,6 +26,8 @@ export interface Settings {
 
 export const DEFAULT_SETTINGS: Settings = {
   theme: 'dark',
+  startView: 'home',
+  reduceMotion: false,
   harness: 'deepseek',
   harnessEndpoint: 'http://127.0.0.1:8788/v1',
   model: 'deepseek-chat',
@@ -42,8 +48,14 @@ export function loadSettings(): Settings {
       if (t === 'light' || t === 'tactile' || t === 'dark') s = { ...s, theme: t }
     }
   } catch { /* localStorage 不可用 → 默认值 */ }
+  if (s.startView !== 'home' && s.startView !== 'conversation') s.startView = DEFAULT_SETTINGS.startView
   const h = HARNESSES.find((x) => x.id === s.harness) ?? HARNESSES[0]
-  return { ...s, harness: h.id, model: h.models.includes(s.model) ? s.model : h.models[0] }
+  return {
+    ...s,
+    reduceMotion: typeof s.reduceMotion === 'boolean' ? s.reduceMotion : false,
+    harness: h.id,
+    model: h.models.includes(s.model) ? s.model : h.models[0],
+  }
 }
 
 export function saveSettings(s: Settings) {

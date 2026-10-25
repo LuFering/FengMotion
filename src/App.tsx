@@ -39,7 +39,10 @@ export default function App() {
   /** 开发调试入口：?view=production&project=token 直接进工作台；普通访问不变。 */
   const initialQuery = new URLSearchParams(window.location.search)
   const initialView = initialQuery.get('view') as View | null
-  const [view, setView] = useState<View>(initialView && initialView in VIEW_META ? initialView : 'home')
+  /** 启动视图：?view= 参数 > 设置里的「默认进入视图」> 首页 */
+  const [view, setView] = useState<View>(initialView && initialView in VIEW_META
+    ? initialView
+    : loadSettings().startView)
   /**
    * 制作工作台是**两级**的：
    *   null      → 一级：项目目录（铺满页面）
@@ -115,6 +118,10 @@ export default function App() {
   }, [view, settings.theme])
   /** 设置即改即存（loadSettings 读回；旧版 fengmotion:theme 由它迁移） */
   useEffect(() => { saveSettings(settings) }, [settings])
+  /** 减弱动效：手动开启时压平全局动画/过渡（CSS 见 settings.css） */
+  useEffect(() => {
+    document.documentElement.dataset.motion = settings.reduceMotion ? 'reduce' : 'normal'
+  }, [settings.reduceMotion])
 
   /** 制作工作台：必须有当前项目（列表已归项目管理，这里不再兼当目录） */
   const isFlow = view === 'production' && current !== null

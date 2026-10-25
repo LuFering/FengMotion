@@ -242,6 +242,16 @@
 /* 端点输入用项目标准 Input（ui/input.tsx），这里只定宽度与等宽字 */
 .set-endpoint { width: 240px; font-family: ui-monospace, Consolas, monospace; font-size: 11.5px; }
 
+/* ── 减弱动效（设置 → 外观）：手动压平全局动画/过渡 ──────────
+   写法沿用 myassets.css 对 prefers-reduced-motion 的处理 */
+html[data-motion="reduce"] *,
+html[data-motion="reduce"] *::before,
+html[data-motion="reduce"] *::after {
+  animation-duration: .01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: .01ms !important;
+}
+
 /* 窄屏：端点行换列 */
 @media (max-width: 560px) {
   .set-row { flex-direction: column; align-items: flex-start; gap: 6px; }
