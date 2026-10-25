@@ -805,7 +805,6 @@ body.flowon #pane-flow > * { flex: 1; min-height: 0 }
 .fw-artifact-meta { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 10px; color: var(--ph); font-size: 10.5px; }
 .fw-artifact-meta span[data-status="confirmed"] { color: var(--acc); }
 .fw-artifact-meta span[data-status="needs-review"] { color: var(--warn); }
-.fw-artifact-demo { color: var(--warn); border-left: 1px solid var(--line); padding-left: 10px; }
 .fw-artifact-body { max-width: 1000px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr) 230px; gap: 24px; align-items: start; }
 .fw-artifact-sheet {
   margin: 0; padding: 20px 22px;
@@ -1106,7 +1105,6 @@ textarea.fw-edit-input { resize: vertical; }
 #pane-flow .wb-crumb { display: flex; align-items: center; gap: 7px; min-width: 0; }
 #pane-flow .wb-crumb-sep { color: var(--wb-text-3); font-size: 11px; }
 #pane-flow .wb-crumb-scene { max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--wb-text-2); font-size: 12px; }
-#pane-flow .wb-crumb-version { padding-left: 8px; border-left: 1px solid var(--wb-line); color: var(--wb-text-3); font-size: 10px; }
 #pane-flow .wb-divider { width: 1px; height: 16px; background: var(--wb-line); margin: 0 4px; }
 #pane-flow .wb-agent-status { height: 24px; padding: 0 5px; color: var(--wb-text-3); font-size: var(--wb-fs-meta); }
 #pane-flow .wb-agent-status:hover { background: var(--wb-raised); color: var(--wb-text-2); }
@@ -1247,7 +1245,6 @@ textarea.fw-edit-input { resize: vertical; }
 }
 #pane-flow .tl-plan-toggle:hover { color: var(--wb-text); background: #1d2021; }
 #pane-flow .tl-plan-toggle[aria-pressed="true"] { color: var(--wb-accent); background: var(--wb-accent-soft); }
-#pane-flow .tl-plan-note { font-size: var(--wb-fs-micro); color: var(--wb-text-3); }
 #pane-flow .tl-selected {
   max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   font-size: var(--wb-fs-meta); color: var(--wb-text-2);
@@ -1374,7 +1371,6 @@ textarea.fw-edit-input { resize: vertical; }
 #pane-flow .wb-insp-kicker { font-size: var(--wb-fs-micro); color: var(--wb-text-3); letter-spacing: .02em; }
 
 #pane-flow .wb-insp-status .fm-dot { opacity: 1; }
-#pane-flow .wb-insp-dotsep { color: var(--wb-text-3); }
 #pane-flow .wb-insp-section {
   display: flex; flex-direction: column; gap: 6px;
   padding-top: 12px; border-top: 1px solid var(--wb-line);

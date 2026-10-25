@@ -53,9 +53,8 @@ export function StoryTimeline({
         <button className="tl-plan-toggle" type="button"
                 aria-pressed={showDraft}
                 onClick={() => setShowDraft((v) => !v)}>
-          {showDraft ? '隐藏计划段' : '计划段'}
+          {showDraft ? '隐藏草稿' : '草稿'}
         </button>
-        {showDraft && <span className="tl-plan-note">计划段仅作结构参考</span>}
         <span className="wb-spacer" />
         {/* 只显示画面名。原来前面还挂着内部编号（S01），用户不需要知道数据层的 id。 */}
         {selected && <span className="tl-selected">{selected.title}</span>}

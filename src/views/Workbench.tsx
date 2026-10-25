@@ -250,7 +250,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
   }, [switchOpen])
   const currentShotRef = useMemo<AgentReference>(() => ({
     id: `shot:${selectedId}`, role: 'target', kind: 'shot', shotId: selectedId,
-    label: `${selectedId.toUpperCase()} · ${selectedScene.label}`,
+    label: selectedScene.label,
   }), [selectedId, selectedScene.label])
   const currentProjectRef = useMemo<AgentReference>(() => ({
     id: `project:${projectId}`, role: 'target', kind: 'project', projectId,
@@ -310,7 +310,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
     const tc = formatTime(frame / FILM_FPS)
     setTargetReference({
       id: `frame:${selectedId}:${frame}`, role: 'target', kind: 'frame', shotId: selectedId,
-      frame, timecode: tc, label: `${selectedId.toUpperCase()} · ${frame}f · ${tc}`,
+      frame, timecode: tc, label: `第 ${frame} 帧`,
     })
   }
   const referenceRange = () => {
@@ -321,14 +321,14 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
       id: `range:${selectedId}:${startFrame}:${endFrame}`, role: 'target', kind: 'range',
       shotId: selectedId, startFrame, endFrame,
       timecode: `${formatTime(startFrame / FILM_FPS)}–${formatTime(endFrame / FILM_FPS)}`,
-      label: `${selectedId.toUpperCase()} · ${startFrame}–${endFrame}f`,
+      label: '本场时段',
     })
   }
   const referenceRegion = (bbox: { x: number; y: number; w: number; h: number }) => {
     setTargetReference({
       id: `region:${selectedId}:${frame}:${bbox.x.toFixed(2)}:${bbox.y.toFixed(2)}:${bbox.w.toFixed(2)}:${bbox.h.toFixed(2)}`,
       role: 'target', kind: 'region', shotId: selectedId, frame, bbox,
-      label: `${selectedId.toUpperCase()} · ${frame}f · 区域 ${Math.round(bbox.w * 100)}×${Math.round(bbox.h * 100)}%`,
+      label: `画面区域 ${Math.round(bbox.w * 100)}×${Math.round(bbox.h * 100)}%`,
     })
   }
   const referenceArtifact = (artifact: WorkbenchArtifact) => {
@@ -598,7 +598,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
                     <div className="relative h-full overflow-hidden" style={{ width: `${compareSplit}%` }}>
                       <img src={selectedScene.frame ?? './frames/u01.jpg'} alt="项目抽帧"
                            className="absolute inset-0 size-full object-contain" />
-                      <span className="absolute left-2 top-2 bg-black/75 px-1.5 py-1 text-[10px]">已存抽帧</span>
+                      <span className="absolute left-2 top-2 bg-black/75 px-1.5 py-1 text-[10px]">已存画面</span>
                     </div>
                     <div className="relative h-full flex-1 overflow-hidden border-l border-acc">
                       <FilmPlayer onPlayer={(p) => { playerRef.current = p }} onFrame={setFrame} onReady={setPlayerReady} />
@@ -622,7 +622,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
                 )}
                 {regionMode && (
                   <div className="fw-region-layer" onPointerDown={startRegion} onPointerMove={moveRegion} onPointerUp={endRegion}>
-                    <div className="fw-region-hint">拖拽框选画面区域；松开后加入引用</div>
+                    <div className="fw-region-hint">拖拽框选画面区域</div>
                     {regionRect && <div className="fw-region-box" style={{ left: `${regionRect.x * 100}%`, top: `${regionRect.y * 100}%`, width: `${regionRect.w * 100}%`, height: `${regionRect.h * 100}%` }} />}
                   </div>
                 )}
@@ -645,7 +645,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
 
         {/* 右栏：对话 / 设置 */}
         <RightPanel chat={chat} sideTab={sideTab} setSideTab={selectSideTab}
-                    scope={scope} selectedId={selectedId}
+                    scope={scope}
                     scene={selectedScene} storyboard={storyboard}
                     onOpenChat={openChatForScene} onOpenTask={openTaskRecords}
                     constraints={constraints} setConstraints={setConstraints}
@@ -694,7 +694,7 @@ function ArtifactView({ artifact, onLocate, onReference, onClose }:
           <span>{artifact.version}</span>
           <span data-status={artifact.status}>{ARTIFACT_STATUS_LABEL[artifact.status]}</span>
           <span>{artifact.updatedAt}</span>
-          {artifact.demo && <span className="fw-artifact-demo">演示样例</span>}
+
         </div>
       </div>
       <div className="fw-artifact-body">
@@ -706,13 +706,13 @@ function ArtifactView({ artifact, onLocate, onReference, onClose }:
             return scene ? (
               <button key={id} className="mini h-7 w-full justify-start text-[10.5px]" type="button"
                       onClick={() => onLocate(id)}>
-                {id.toUpperCase()} · {scene.title}
+                {scene.title}
               </button>
             ) : null
           })}
           <div className="wb-sep" />
           <div className="text-[10.5px] leading-relaxed text-dim">
-            这是产物只读预览，不是编辑/批准状态。点击关联场景可回到监看。
+            点击关联场景可回到监看。
           </div>
           <button className="mini h-7 w-full justify-start text-[10.5px]" type="button" onClick={onReference}>
             引用为上下文
@@ -850,11 +850,11 @@ function ShotActionBar({ onFrame, onRange, onRegion, regionMode, editMode, onEdi
 }) {
   return (
     <div className="fw-actionbar" aria-label="场景操作">
-      <ToolButton label="引用此帧（加入 Agent 目标）" onClick={onFrame}><FrameRefIcon size={20} /></ToolButton>
-      <ToolButton label="引用本场（当前场景时段）" onClick={onRange}><RangeRefIcon size={20} /></ToolButton>
+      <ToolButton label="引用此帧" onClick={onFrame}><FrameRefIcon size={20} /></ToolButton>
+      <ToolButton label="引用本场" onClick={onRange}><RangeRefIcon size={20} /></ToolButton>
       <ToolButton label="框选画面区域（加入引用）" onClick={onRegion} active={regionMode}><RegionRefIcon size={20} /></ToolButton>
       <span className="fw-actionbar-sep" />
-      <ToolButton label={editMode ? '退出 Remotion 编辑' : 'Remotion 编辑（改标题/颜色/动效/时长）'}
+      <ToolButton label={editMode ? '退出编辑' : '编辑画面参数'}
                   onClick={onEdit} active={editMode}><EditParamsIcon size={20} /></ToolButton>
     </div>
   )
@@ -897,7 +897,7 @@ function PlayerBar({ playerRef, frame, onSeek, playing, onToggle, rate, onRate, 
 }
 
 /* ── 右栏：对话 / 修改设置 ──────────────────────────────────── */
-function RightPanel({ chat, sideTab, setSideTab, scope, selectedId, scene, storyboard,
+function RightPanel({ chat, sideTab, setSideTab, scope, scene, storyboard,
   onOpenChat, onOpenTask,
   constraints, setConstraints, activeTask, cancelTask, records, onSubmit, onQuickAction,
   onNavigate, selectedVersion, editSettings, editSavedAt, editOverridden, references, onRemoveReference,
@@ -905,7 +905,7 @@ function RightPanel({ chat, sideTab, setSideTab, scope, selectedId, scene, story
   onApplyEdit, onResetEdit, onCloseEdit, onOpenEdit }:
   { chat: ChatState; sideTab: SideTab; setSideTab: (v: SideTab) => void
     scope: 'project'|'scene'|'selection'
-    selectedId: string; scene: (typeof SCENES)[number]
+    scene: (typeof SCENES)[number]
     storyboard: StoryboardEntry | null; onOpenChat: () => void; onOpenTask: () => void
     constraints: ModificationConstraints
     setConstraints: React.Dispatch<React.SetStateAction<ModificationConstraints>>
@@ -954,13 +954,13 @@ function RightPanel({ chat, sideTab, setSideTab, scope, selectedId, scene, story
                 {scene.frame && <img src={scene.frame} alt="" />}
                 <div className="min-w-0">
                   <b>{scene.label}</b>
-                  <div className="num truncate">{selectedId.toUpperCase()} · 当前场景</div>
+
                 </div>
               </div>
 
               {/* 消息：AI 不用气泡，用户用 --soft 底（fm-components §9） */}
               <ReferenceChips references={references}
-                              defaultLabel={`默认目标：当前场景 ${selectedId.toUpperCase()}`}
+                              defaultLabel="默认目标：当前场景"
                               onRemoveReference={onRemoveReference}
                               onLocateReference={onLocateReference}
                               onToggleReferenceRole={onToggleReferenceRole}
@@ -983,7 +983,6 @@ function RightPanel({ chat, sideTab, setSideTab, scope, selectedId, scene, story
 
               {storyboard && (
                 <div className="wb-chat-block">
-                  <div className="wb-chat-block-hd">计划段 {storyboard.段} · {storyboard.幕}</div>
                   <p>{storyboard.旁白}</p>
                   <details>
                     <summary>查看画面与动效要求</summary>
@@ -1035,7 +1034,7 @@ function RightPanel({ chat, sideTab, setSideTab, scope, selectedId, scene, story
         </>
       ) : sideTab === 'task' ? (
         <TaskPanel activeTask={activeTask} records={records} cancelTask={cancelTask}
-                   scope={scope} selectedId={selectedId} constraints={constraints}
+                   scope={scope} constraints={constraints}
                    onBack={() => setSideTab('scene')} />
       ) : sideTab === 'edit' ? (
         <RemotionEditPanel settings={editSettings} savedAt={editSavedAt} isOverridden={editOverridden}
@@ -1048,7 +1047,7 @@ function RightPanel({ chat, sideTab, setSideTab, scope, selectedId, scene, story
                               ariaLabel="修改作用范围"
                               className="fw-scope-seg"
                               options={[
-                                { value: 'scene', label: `当前场景 · ${selectedId}` },
+                                { value: 'scene', label: '当前场景' },
                                 { value: 'selection', label: '所选场景' },
                                 { value: 'project', label: '整个项目' },
                               ]} />
@@ -1108,7 +1107,6 @@ function SceneInspector({ scene, storyboard, settings, savedAt, overridden,
     onOpenChat: () => void; onOpenEdit: () => void; onOpenTask: () => void }) {
   const state = statusOf(scene.status)
   const sceneStart = scene.start ?? 0
-  const enabledConstraints = CONSTRAINT_LABELS.filter(([key]) => constraints[key]).length
   const taskDot = activeTask?.status === 'failed' ? 'failed'
     : activeTask?.status === 'completed' ? 'done'
     : activeTask?.status === 'cancelled' ? 'idle' : 'running'
@@ -1135,14 +1133,15 @@ function SceneInspector({ scene, storyboard, settings, savedAt, overridden,
         <h3>镜头信息</h3>
         <div className="wb-insp-kv"><span>时间</span><b className="num">{formatTime(sceneStart)} – {formatTime(sceneStart + scene.duration)}</b></div>
         {/* 原来这一行是「时长 / 轨道」+ `3.9s · V1 · {clip.track}`：
-            轨道号是写死的 V1，后面又跟一个恒为 0 的内部字段 —— 典型的零值倾倒。 */}
+            「V1」是写死的轨道名，后面跟的数字又是内部轨道序号（s01=0、s02=1…
+            逐镜递增）—— 一个写死的名字加一个内部序号并列，是典型的字段倾倒。 */}
         <div className="wb-insp-kv"><span>时长</span><b>{fmtSec(scene.duration)}</b></div>
         {/* 「计划段 1 · 第1幕」也是把分镜表的内部字段（段/幕）直接倒出来，删掉。 */}
       </section>
 
       {storyboard && (
         <section className="wb-insp-section">
-          <h3>计划旁白</h3>
+          <h3>旁白</h3>
           <p className="wb-insp-text">{storyboard.旁白}</p>
         </section>
       )}
@@ -1152,7 +1151,8 @@ function SceneInspector({ scene, storyboard, settings, savedAt, overridden,
         <div className="wb-insp-kv"><span>标题</span><b className="truncate" title={settings.title}>{settings.title}</b></div>
         <div className="wb-insp-kv"><span>强调色</span><b><i className="wb-swatch" style={{ background: settings.accent }} />{settings.accent}</b></div>
         <div className="wb-insp-kv"><span>动效</span><b>{MOTION_LABEL[settings.motion]}</b></div>
-        <div className="wb-insp-kv"><span>时长</span><b>{fmtSec(settings.durationSeconds)}</b></div>
+        {/* 这一行原来还有一个「时长」，与本面板上方「镜头信息」里的时长是同一个数
+            （defaultShotSettings 就是按场景时长算的）—— 同一个数不在同一屏写两遍。 */}
         <div className="wb-insp-actions">
           <button className="wb-btn-ghost" type="button" onClick={onOpenEdit}><Settings2 />编辑参数</button>
           {overridden && <span className="wb-insp-tag">{savedAt ? `本地已存 ${savedAt}` : '本地已覆盖'}</span>}
@@ -1164,7 +1164,6 @@ function SceneInspector({ scene, storyboard, settings, savedAt, overridden,
       <details className="wb-insp-details">
         <summary>
           <span>修改约束</span>
-          <span className="wb-insp-tag">{enabledConstraints}/{CONSTRAINT_LABELS.length} 开启</span>
         </summary>
         <div className="wb-insp-details-body">
           {CONSTRAINT_LABELS.map(([key, label]) => (
@@ -1236,12 +1235,13 @@ function ReferenceChips({ references, defaultLabel, onRemoveReference, onLocateR
 }
 
 /* ── 右栏：当前任务 ─────────────────────────────────────────── */
-function TaskPanel({ activeTask, records, cancelTask, scope, selectedId, constraints, onBack }:
+function TaskPanel({ activeTask, records, cancelTask, scope, constraints, onBack }:
   { activeTask: AgentTask | null; records: TaskRecord[]; cancelTask: (id: string) => void
-    scope: 'project'|'scene'|'selection'; selectedId: string; constraints: ModificationConstraints
+    scope: 'project'|'scene'|'selection'; constraints: ModificationConstraints
     onBack: () => void }) {
   const record = activeTask ? records.find((r) => r.task.id === activeTask.id) : null
-  const scopeLabel = scope === 'project' ? '整个项目' : scope === 'scene' ? `场景 · ${selectedId}` : '所选场景'
+  /* 作用范围只说「当前场景」：原来拼的是 `场景 · s01`，又把数据层 id 露出来了。 */
+  const scopeLabel = scope === 'project' ? '整个项目' : scope === 'scene' ? '当前场景' : '所选场景'
   return (
     <div className="fw-scroll">
       <div className="flex flex-col gap-3 p-3.5">
@@ -1254,7 +1254,7 @@ function TaskPanel({ activeTask, records, cancelTask, scope, selectedId, constra
             <div className="flex items-center gap-2">
               <LoaderCircle className="size-3 animate-spin text-acc" />
               <b>{activeTask.title}</b>
-              <span className="fw-count ml-auto">{activeTask.status}</span>
+              <span className="fw-count ml-auto">{TASK_STATUS_LABEL[activeTask.status] ?? activeTask.status}</span>
             </div>
             {record?.events.slice(-5).map((e) => (
               <div key={e.id} className="mt-1.5 text-[10.5px] text-dim">· {e.message}</div>
@@ -1310,7 +1310,7 @@ function BottomTray({ records, activeId, onCancel, tab, setTab }:
                   <div key={r.task.id} className="fw-tray-row" data-status={r.task.status}>
                     <span className="num">{r.task.createdAt}</span>
                     <span className="tray-msg">{r.events.at(-1)?.message ?? r.task.title}</span>
-                    <span className="fw-count">{r.task.status}</span>
+                    <span className="fw-count">{TASK_STATUS_LABEL[r.task.status] ?? r.task.status}</span>
                     {activeId === r.task.id && (
                       <button className="iconbtn" type="button" title="停止" onClick={() => onCancel(r.task.id)}>
                         <Square className="size-3" />
