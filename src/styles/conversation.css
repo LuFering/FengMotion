@@ -2279,11 +2279,6 @@ html[data-theme="tactile"] .cv3-ddm {
   white-space: nowrap;
 }
 
-.cv3-sep {
-  margin: 0 6px;
-  color: var(--tx3);
-}
-
 /* ---- 窄屏 ---- */
 @media (max-width: 900px) {
   .cv3-head-actions {

@@ -980,9 +980,11 @@ export function Conversation(props: {
                        onChange={(e) => addFiles(Array.from(e.target.files ?? []), 'image', () => { if (imageRef.current) imageRef.current.value = '' })} />
               </div>
             </form>
+            {/* 「N 条需求」计数已去掉：它数的是用户消息条数，不是需求条数
+                （用户可能只发一句「继续」），挂在这里既不准也没人看。
+                「已开始制作」是真实状态，保留。 */}
             <footer className="cv3-status">
-              <span className="cv3-pill">{userMessages.length} 条需求</span>
-              {launched && (<><span className="cv3-sep">·</span><span className="cv3-pill">已开始制作</span></>)}
+              {launched && <span className="cv3-pill">已开始制作</span>}
             </footer>
           </div>
         </div>
