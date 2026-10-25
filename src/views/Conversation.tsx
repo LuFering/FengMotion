@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
 import {
-  Archive, ArchiveRestore, Check, ChevronRight, Cpu, Ellipsis, FileText, ImageIcon,
-  ListFilter, LoaderCircle, PanelLeft, Pencil, Pin, PinOff, Plus, Search, Send, Shield,
+  Archive, ArchiveRestore, Check, ChevronRight, Cpu, Ellipsis, FileText, FolderPlus, ImageIcon,
+  ListFilter, LoaderCircle, MessageSquarePlus, PanelLeft, Pencil, Pin, PinOff, Plus, Search, Send, Shield,
   ShieldAlert, ShieldCheck, Trash2, X,
 } from 'lucide-react'
 import { HARNESSES, REASONING_LABEL, DEFAULT_PREFS, prefsKey, loadPrefs, savePrefs, type ModelPrefs, type Reasoning } from '../data/harnesses'
@@ -384,7 +384,9 @@ export function Conversation(props: {
     props.onDeleteProject?.(projectId)
   }
 
-  const newSession = () => {
+  /* `intoProject` 让项目行上的「在此项目新建对话」按钮能指定归属；
+     不传时沿用当前打开的项目（旧行为）。 */
+  const newSession = (intoProject?: string | null) => {
     /* 开新会话时把未落地的演示回复一起取消，否则旧对话的回复会插进新会话 */
     if (replyTimer.current !== null) {
       window.clearTimeout(replyTimer.current)
@@ -392,10 +394,13 @@ export function Conversation(props: {
     }
     setPending(false)
     chat.clearChat()
-    /* 左栏也要真的多一条会话，否则「新对话」只清空了内容、树上什么都没变。
-       归属沿用当前项目（在项目里开新对话，默认还是这个项目的活）；
-       当前没有项目时落未分组，之后可拖过去。 */
-    const t = props.threads.create({ projectId: props.openProject, workdir: null })
+    /* 左栏也要真的多一条会话，否则新建只清空了内容、树上什么都没变。
+       归属：行内按钮给了就用它，否则沿用当前项目（在项目里开新对话，
+       默认还是这个项目的活）；都没有就落未分组，之后可拖过去。 */
+    const t = props.threads.create({
+      projectId: intoProject === undefined ? props.openProject : intoProject,
+      workdir: null,
+    })
     loadedRef.current = t.id
   }
 
@@ -436,9 +441,16 @@ export function Conversation(props: {
       {/* 收起时整块不渲染：不留 56px 竖条（那是 dsh 的「图标轨」，本产品收起后
           左栏里没有任何还需要常驻的图标，留一条空轨道只是视觉噪音）。 */}
       {!rail && <aside className="cv3-side" data-drawer={drawer || undefined} aria-label="项目与对话">
+        {/* 动作条只放小图标（对齐 dsh sectionHeader[headerActions]：左栏没有整行的大按钮，
+            新建动作退回图标级）。视图选项在最右，与下面要管的那个列表挨着。 */}
         <div className="cv3-side-top">
-          <button type="button" className="cv3-new" onClick={newSession} title="新建对话">
-            <Plus size={15} /><span className="cv3-new-label">新对话</span>
+          <button type="button" className="cv3-icon-btn" aria-label="新建对话" title="新建对话"
+                  onClick={() => newSession()}>
+            <MessageSquarePlus size={15} />
+          </button>
+          <button type="button" className="cv3-icon-btn" aria-label="新建项目" title="新建项目"
+                  onClick={props.onNewProject}>
+            <FolderPlus size={15} />
           </button>
           {/* 视图选项（对齐 dsh viewOptions：分组方式 / 排序方式 / 归档筛选） */}
           <div className="cv3-viewwrap">
@@ -530,29 +542,38 @@ export function Conversation(props: {
                       <span className="cv3-group-count num">{g.sessions.length}</span>
                     </button>
                     {!isUng && proj && (
-                      <div className="cv3-rowmenu-wrap">
-                        <button type="button" className="cv3-row-more" aria-label={`${proj.name} 的操作`}
-                                aria-expanded={rowMenu === proj.id}
-                                onClick={(e) => { e.stopPropagation(); setRowMenu(rowMenu === proj.id ? null : proj.id); setViewMenu(false) }}>
-                          <Ellipsis size={14} />
+                      <>
+                        <div className="cv3-rowmenu-wrap">
+                          <button type="button" className="cv3-row-more" aria-label={`${proj.name} 的操作`}
+                                  aria-expanded={rowMenu === proj.id}
+                                  onClick={(e) => { e.stopPropagation(); setRowMenu(rowMenu === proj.id ? null : proj.id); setViewMenu(false) }}>
+                            <Ellipsis size={14} />
+                          </button>
+                          {rowMenu === proj.id && (
+                            <div className="cv3-menu cv3-rowmenu" role="menu">
+                              <button type="button" role="menuitem"
+                                      onClick={() => { props.onSelectProject(proj.id); setRowMenu(null) }}>
+                                <PanelLeft size={13} /><span>打开项目</span>
+                              </button>
+                              <button type="button" role="menuitem"
+                                      onClick={() => { setEditing(proj.id); setEditText(proj.name); setRowMenu(null) }}>
+                                <Pencil size={13} /><span>重命名项目</span>
+                              </button>
+                              <button type="button" role="menuitem" data-danger
+                                      onClick={() => { setRowMenu(null); onDeleteProject(proj.id) }}>
+                                <Trash2 size={13} /><span>删除项目</span>
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                        {/* 在此项目里新建对话（对齐 dsh ProjectRowItem 的 rowActions：
+                            小图标、悬停才现身，放在操作钮最右，点一下就把新会话挂到这个项目下） */}
+                        <button type="button" className="cv3-row-new" aria-label={`在 ${proj.name} 中新建对话`}
+                                title={`在 ${proj.name} 中新建对话`}
+                                onClick={(e) => { e.stopPropagation(); newSession(proj.id) }}>
+                          <MessageSquarePlus size={14} />
                         </button>
-                        {rowMenu === proj.id && (
-                          <div className="cv3-menu cv3-rowmenu" role="menu">
-                            <button type="button" role="menuitem"
-                                    onClick={() => { props.onSelectProject(proj.id); setRowMenu(null) }}>
-                              <PanelLeft size={13} /><span>打开项目</span>
-                            </button>
-                            <button type="button" role="menuitem"
-                                    onClick={() => { setEditing(proj.id); setEditText(proj.name); setRowMenu(null) }}>
-                              <Pencil size={13} /><span>重命名项目</span>
-                            </button>
-                            <button type="button" role="menuitem" data-danger
-                                    onClick={() => { setRowMenu(null); onDeleteProject(proj.id) }}>
-                              <Trash2 size={13} /><span>删除项目</span>
-                            </button>
-                          </div>
-                        )}
-                      </div>
+                      </>
                     )}
                   </div>
                 )}
@@ -629,9 +650,8 @@ export function Conversation(props: {
             )
           })}
         </div>
-        <button type="button" className="cv3-side-add" onClick={props.onNewProject}>
-          <Plus size={14} />新建项目
-        </button>
+        {/* 底部的整行「新建项目」已移除（dsh 左栏没有整行大按钮）：
+            新建入口收到顶部图标条，项目行上另有「在此项目新建对话」。 */}
       </aside>}
 
       <div className="cv3-main">
