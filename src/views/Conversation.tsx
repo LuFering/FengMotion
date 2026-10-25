@@ -584,7 +584,11 @@ export function Conversation(props: {
                             title={isUng ? '没有归属项目的对话，可拖到项目下' : proj?.name}>
                       <ChevronRight size={13} className="cv3-group-caret" data-open={!collapsed || undefined} />
                       <span className="cv3-group-name">{isUng ? '未分组' : proj?.name ?? '未命名项目'}</span>
-                      <span className="cv3-group-count num">{g.sessions.length}</span>
+                      {/* 0 不显示：空项目挂一个「0」只是噪音，还会和下面的
+                          「还没有对话。」重复表达同一件事。dsh 的行也没有计数。 */}
+                      {g.sessions.length > 0 && (
+                        <span className="cv3-group-count num">{g.sessions.length}</span>
+                      )}
                     </button>
                     )}
                     {!isUng && proj && (

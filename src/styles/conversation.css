@@ -237,7 +237,9 @@ html[data-theme="tactile"] #pane-conversation {
   border-radius: var(--fm-radius-mark);
   background: var(--hole);
   color: var(--tx3);
-  font-size: 12px;
+  /* 正文档 13px：搜索框下面管的就是 13px 的项目名/会话名，
+     输入框自己 12px 会显得小一号。 */
+  font-size: 13px;
 }
 
 .cv3-search:focus-within {
@@ -252,7 +254,7 @@ html[data-theme="tactile"] #pane-conversation {
   background: transparent;
   color: var(--tx1);
   font: inherit;
-  font-size: 12px;
+  font-size: 13px;
   outline: none;
 }
 
@@ -393,7 +395,7 @@ html[data-theme="tactile"] #pane-conversation {
 .cv3-session-time {
   flex: none;
   color: var(--tx3);
-  font-size: 10.5px;
+  font-size: 11px;
 }
 
 .cv3-session-flag {
@@ -421,7 +423,7 @@ html[data-theme="tactile"] #pane-conversation {
   background: var(--hole);
   color: var(--tx1);
   font: inherit;
-  font-size: 12.5px;
+  font-size: 13px;
   outline: none;
 }
 
@@ -481,13 +483,6 @@ html[data-theme="tactile"] #pane-conversation {
 
 
 
-.cv3-side-sec {
-  margin: 12px 4px 6px;
-  color: var(--tx3);
-  font-size: 11px;
-  font-weight: 500;
-  line-height: 16px;
-}
 
 .cv3-side-list {
   flex: 1;
@@ -495,11 +490,6 @@ html[data-theme="tactile"] #pane-conversation {
   overflow-y: auto;
 }
 
-.cv3-side-count {
-  margin-left: 6px;
-  color: var(--tx3);
-  font-size: 10px;
-}
 
 /* ── 两级树：项目（分组）→ 对话 ──
    参照 dsh 的工作区模型：分组头可折叠、会话行可拖拽改归属。
@@ -520,9 +510,11 @@ html[data-theme="tactile"] #pane-conversation {
   background: transparent;
   color: var(--tx2);
   font: inherit;
-  font-size: 12px;
+  /* 项目名是左栏的「标题」：13px/600，必须比会话名（13px/400）更醒目。
+     原来 12px/600 比空提示（13px）还小 —— 层级是倒的。 */
+  font-size: 13px;
   font-weight: 600;
-  line-height: 18px;
+  line-height: 20px;
   text-align: left;
   cursor: pointer;
   transition: background-color 100ms cubic-bezier(0.4, 0, 0.2, 1),
@@ -577,16 +569,16 @@ html[data-theme="tactile"] #pane-conversation {
 .cv3-group-edit {
   flex: 1;
   min-width: 0;
-  height: 18px;
+  height: 20px;
   padding: 0 2px;
   border: 0.5px solid var(--line);
   border-radius: 4px;
   background: var(--hole);
   color: var(--tx1);
   font: inherit;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
-  line-height: 18px;
+  line-height: 20px;
   outline: none;
 }
 
@@ -596,9 +588,13 @@ html[data-theme="tactile"] #pane-conversation {
 
 .cv3-group-count {
   flex: none;
+  margin-left: 2px;
   color: var(--tx3);
-  font-size: 10px;
+  /* 元数据档 11px（规范：正文 13 / 元数据 11 / 次要 10.5）。
+     原来 10px 是自造的第 4 档，与 .cv3-session-time 的 10.5 又不一样。 */
+  font-size: 11px;
   font-weight: 400;
+  line-height: 20px;
 }
 
 .cv3-group-body {
@@ -613,8 +609,11 @@ html[data-theme="tactile"] #pane-conversation {
   padding: 5px 8px;
   border-radius: var(--fm-radius-ctl);
   color: var(--tx2);
-  font-size: 12px;
-  line-height: 18px;
+  /* 正文档 13px：会话名和项目名同档，靠字重（600 vs 400）分层，
+     而不是靠字号差 —— 原来 12px 让第二级比第一级还小，
+     整列看起来像「标题被压扁了」。 */
+  font-size: 13px;
+  line-height: 20px;
   cursor: pointer;
   transition: background-color 100ms cubic-bezier(0.4, 0, 0.2, 1),
               color 100ms cubic-bezier(0.4, 0, 0.2, 1);
@@ -643,55 +642,28 @@ html[data-theme="tactile"] #pane-conversation {
   white-space: nowrap;
 }
 
-.cv3-session-check {
-  flex: none;
-  color: var(--acc);
-}
 
 /* 我的项目行 —— 左栏主体。
    深度适配：dsh 原来这里是「会话清单」，本产品换成「项目」：
    创作者的活是按片子组织的，不是按聊天记录。 */
-.cv3-project {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  padding: 7px 8px;
-  border: 0;
-  border-radius: var(--fm-radius-ctl);
-  background: transparent;
-  color: var(--tx1);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-  transition: background-color 100ms cubic-bezier(0.4, 0, 0.2, 1);
-}
 
 .cv3-project:hover,
 .cv3-project[data-current] {
   background: var(--hover);
 }
 
-.cv3-project-name {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  font-size: 13px;
-  line-height: 20px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 
-.cv3-project-check {
-  flex: none;
-  color: var(--acc);
-}
 
 .cv3-side-hint {
-  margin: 0 4px;
+  /* 左内边距 8px + 分组体的 17px 缩进 = 与会话名的 122px 对齐
+     （原来用 margin:0 4px 会左偏 4px，空提示和上面的会话名不在一条竖线上）。 */
+  margin: 0;
+  padding: 0 8px;
   color: var(--tx3);
-  font-size: 13px;
-  line-height: 20px;
+  /* 次要说明档 11px：原来 13px 和正文同大，还比项目名（12px）大，
+     空项目的「还没有对话。」看起来像标题。 */
+  font-size: 11px;
+  line-height: 18px;
 }
 
 /* 收起后左栏整块不渲染（不是缩成 56px 图标轨）：
