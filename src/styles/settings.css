@@ -17,8 +17,8 @@
 .set-dlg {
   display: flex;
   flex-direction: column;
-  width: min(920px, calc(100vw - 48px));
-  height: min(640px, calc(100vh - 48px));
+  width: min(1060px, calc(100vw - 40px));
+  height: min(740px, calc(100vh - 40px));
   max-width: none;
   padding: 0;
   gap: 0;
@@ -30,9 +30,10 @@
 .set-dlg-head {
   flex: 0 0 auto;
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 10px;
-  padding: 14px 44px 12px 20px;
+  min-height: 56px;
+  padding: 0 44px 0 20px;
   /* 头与内容靠灰阶递进分层，不画横线（CLAUDE.md：表面靠灰阶递进，不靠边线） */
   background: var(--hole);
 }
