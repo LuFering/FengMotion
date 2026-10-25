@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState, type CSSProperties, type ChangeEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ChangeEvent } from 'react'
+import { HARNESSES, DEFAULT_PREFS, prefsKey, loadPrefs, savePrefs, type ModelPrefs } from '@/data/harnesses'
 
 /**
  * 首页 · 第一屏
@@ -130,14 +131,7 @@ function HeroTitle({ copy, cycle }: { copy: HeroCycle; cycle: number }) {
 
 type Attachment = { name: string; size: number; kind: 'file' | 'image' | 'video' }
 
-type Harness = { id: string; name: string; short: string; mark: string; models: string[]; ready: boolean }
 
-/** 执行引擎列表：只有 deepseek 标为已配置，其余如实标注「未接入」 */
-const HARNESSES: Harness[] = [
-  { id: 'deepseek', name: 'DeepSeek Harness', short: 'DeepSeek', mark: 'DS', models: ['deepseek-chat', 'deepseek-reasoner', 'deepseek-v4.1-flash'], ready: true },
-  { id: 'claude', name: 'Claude Code', short: 'Claude', mark: 'CC', models: ['claude-sonnet-4', 'claude-opus-4'], ready: false },
-  { id: 'codex', name: 'Codex', short: 'Codex', mark: 'CX', models: ['gpt-5-codex'], ready: false },
-]
 
 const fmtSize = (bytes: number) =>
   bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)}MB`
@@ -145,14 +139,95 @@ const fmtSize = (bytes: number) =>
       : `${bytes}B`
 
 
-export function Home(props: { onStart?: (draft: string) => void }) {
+/** 工作目录条目：label 是显示名（目录名），path 是完整路径（演示态可为 ~ 前缀示意） */
+interface Workdir { label: string; path: string }
+
+/** 按钮上的目录名按显示宽度截断：上限 6 个中文字符宽（全角 1、半角 0.5），
+    超出截断加省略号；半角名（如 FengMotion）因此能显示更多字符 */
+function shortenDir(name: string): string {
+  const chars = Array.from(name.trim())
+  const width = (c: string) => /[\u2E80-\u9FFF\uF900-\uFAFF\uFF00-\uFFEF]/.test(c) ? 1 : 0.5
+  let used = 0
+  let end = chars.length
+  for (let i = 0; i < chars.length; i++) {
+    used += width(chars[i])
+    if (used > 6) { end = i; break }
+  }
+  const cut = chars.slice(0, end).join('').replace(/[\s]+$/,'')
+  return end < chars.length ? `${cut}…` : cut
+}
+
+/** 发送时交给上层的上下文：草稿 + 这次用的工作目录 + 引擎 */
+export interface StartPayload {
+  draft: string
+  workdir: { label: string; path: string } | null
+  harness: { id: string; name: string; model: string }
+}
+
+export function Home(props: {
+  onStart?: (payload: StartPayload) => void
+  /** 真实项目列表 —— 工作目录下拉的目录来自它，路径与项目一一对应 */
+  projects?: { id: string; name: string; path: string }[]
+}) {
   const [ready, setReady] = useState(false)
   const [draft, setDraft] = useState('')
   const [menu, setMenu] = useState<null | 'workdir' | 'add' | 'harness'>(null)
-  const [workdir, setWorkdir] = useState('~/workspace/fengmotion')
+  /* 工作目录。真实链路按 docs/dev/前后端协议 与后端 workspace 包的规划走：
+     Electron 主进程 dialog.showOpenDialog（DSH 的 dsh-desktop:directory-pick 同款），
+     前端只经适配器拿「显示名 + 路径」。
+     列表 = 真实项目目录（上层传入，路径能对上项目，发送后会话才挂得进去）
+          + 用户手动添加的目录（演示态存 localStorage；对不上项目就落未分组）。
+     ⚠️ 不能再用虚构路径当种子：`~/workspace/fengmotion` 与项目真实路径对不上，
+        选了目录发送，会话照样进未分组 —— 那等于目录选择器是假的。 */
+  const [extraDirs, setExtraDirs] = useState<Workdir[]>(() => {
+    try {
+      const saved = localStorage.getItem('fengmotion:workdirs')
+      if (saved) {
+        const parsed: unknown = JSON.parse(saved)
+        if (Array.isArray(parsed)) return parsed.filter((d): d is Workdir => !!d && typeof d.path === 'string' && typeof d.label === 'string')
+      }
+    } catch { /* localStorage 不可用则没有额外目录 */ }
+    return []
+  })
+  const workdirs = useMemo<Workdir[]>(() => {
+    const base = (props.projects ?? []).map((p) => ({ label: p.name, path: p.path }))
+    const seen = new Set(base.map((d) => d.path))
+    return [...base, ...extraDirs.filter((d) => !seen.has(d.path))]
+  }, [props.projects, extraDirs])
+  /* 首页初始化一律「未选择工作目录」：不继承上次的选择。
+     这样「不选目录直接发送 → 会话落进未分组」这条路径才成立；
+     目录列表本身仍持久化（用户不必每次重新录入）。 */
+  const [workdirPath, setWorkdirPath] = useState<string | null>(null)
+  const dirInputRef = useRef<HTMLInputElement>(null)
+  const currentWorkdir = workdirs.find((d) => d.path === workdirPath) ?? null
+  const addWorkdir = (label: string, path: string) => {
+    setExtraDirs((list) => {
+      const next = list.some((d) => d.path === path) ? list : [...list, { label, path }]
+      try { localStorage.setItem('fengmotion:workdirs', JSON.stringify(next)) } catch { /* 忽略持久化失败 */ }
+      return next
+    })
+    setWorkdirPath(path)
+  }
+  const selectWorkdir = (path: string) => {
+    setWorkdirPath(path)
+    setMenu(null)
+  }
   const [attachments, setAttachments] = useState<Attachment[]>([])
   const [harnessId, setHarnessId] = useState(HARNESSES[0].id)
   const [model, setModel] = useState(HARNESSES[0].models[0])
+  /* 引擎弹窗两级导航：null=一级引擎列表，'deepseek'…=二级模型列表 */
+  const [harnessPane, setHarnessPane] = useState<string | null>(null)
+  /* 模型偏好：key = `${harnessId}:${model}`；持久化在 localStorage */
+  const [prefs, setPrefs] = useState<Record<string, ModelPrefs>>(loadPrefs)
+  const prefKey = prefsKey(harnessId, model)
+  const setPref = (patch: Partial<ModelPrefs>) => {
+    setPrefs((all) => {
+      const next = { ...all, [prefKey]: { ...all[prefKey], ...patch } }
+      savePrefs(next)
+      return next
+    })
+  }
+  const currentPrefs: ModelPrefs = prefs[prefKey] ?? DEFAULT_PREFS
   const [toast, setToast] = useState('')
   const [phraseIndex, setPhraseIndex] = useState(0)
   const taRef = useRef<HTMLTextAreaElement>(null)
@@ -231,9 +306,20 @@ export function Home(props: { onStart?: (draft: string) => void }) {
     return () => window.clearTimeout(id)
   }, [toast])
 
-  const pickFiles = (kind: Attachment['kind']) => (e: ChangeEvent<HTMLInputElement>) => {
-    const picked = Array.from(e.target.files ?? []).map((f) => ({ name: f.name, size: f.size, kind }))
+  const [dragging, setDragging] = useState(false)
+  /* 按 MIME 判类型：拖放和粘贴拿不到 input 的 accept，只能看 File.type */
+  const kindOf = (f: File): Attachment['kind'] =>
+    f.type.startsWith('image/') ? 'image' : f.type.startsWith('video/') ? 'video' : 'file'
+
+  /** 统一的附件入列口：文件选择、拖放、粘贴都走这里，上限 6 个 */
+  const addFiles = (files: File[], forced?: Attachment['kind']) => {
+    if (!files.length) return
+    const picked = files.map((f) => ({ name: f.name, size: f.size, kind: forced ?? kindOf(f) }))
     setAttachments((prev) => [...prev, ...picked].slice(0, 6))
+  }
+
+  const pickFiles = (kind: Attachment['kind']) => (e: ChangeEvent<HTMLInputElement>) => {
+    addFiles(Array.from(e.target.files ?? []), kind)
     e.target.value = ''
     setMenu(null)
   }
@@ -247,9 +333,14 @@ export function Home(props: { onStart?: (draft: string) => void }) {
       setToast(`${harness.name} 未接入：不会创建任务，请切回已配置引擎。`)
       return
     }
-    /* 创作启动层已接入：引擎可用时发送即进入开始制作（M1） */
+    /* 发送 → 进对话：把「这次用的工作目录与引擎」一并交出去，
+       由上层建一条会话；没选目录就发，会话落进未分组 */
     if (props.onStart && draft.trim()) {
-      props.onStart(draft)
+      props.onStart({
+        draft,
+        workdir: currentWorkdir,
+        harness: { id: harness.id, name: harness.name, model },
+      })
       return
     }
     setToast('演示输入框：发送未接入，未创建任务。')
@@ -263,10 +354,45 @@ export function Home(props: { onStart?: (draft: string) => void }) {
   return (
     <div className="hf-page" data-ready={ready || undefined}>
 
+      {/* 右上角：平台入口与仓库链接（取自产品介绍页 nav，去掉「开始创作」） */}
+      <div className="hf-social" aria-label="关注与源码">
+        <span className="hf-soc-note">欢迎关注作者 <em>(๑•ᴗ•๑)</em></span>
+        <a className="hf-soc" href="#" title="小红书" aria-label="小红书">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4.5h9.5A2.5 2.5 0 0 1 17 7v12.5H7.5A2.5 2.5 0 0 1 5 17z" /><path d="M17 8.5h2v11h-2" /><path d="M8.5 8.5h5M8.5 11.5h5" /></svg>
+        </a>
+        <a className="hf-soc" href="#" title="抖音" aria-label="抖音">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3v11.2a3.4 3.4 0 1 1-3-3.4" /><path d="M14 3c.4 2.6 2.1 4.2 4.7 4.4" /></svg>
+        </a>
+        <a className="hf-soc" href="#" title="快手" aria-label="快手">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="4" /><path d="M9.5 8.5v7M9.5 12l4-3.5M9.5 12l4 3.5" /></svg>
+        </a>
+        <a className="hf-soc" href="#" title="B站" aria-label="B站">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6.5" width="18" height="12.5" rx="3" /><path d="M7.5 3.5 10 6M16.5 3.5 14 6" /><path d="M9 11.5v2.5M15 11.5v2.5" /></svg>
+        </a>
+        <span className="hf-soc-sep" aria-hidden="true" />
+        <a className="hf-gh" href="https://github.com/LuFering/FengMotion" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 19c-4 1.2-4-2-5.5-2.5M15 21v-3.4a3 3 0 0 0-.9-2.4c3-.3 6.1-1.5 6.1-6.7a5.2 5.2 0 0 0-1.4-3.6 4.8 4.8 0 0 0-.1-3.6s-1.1-.3-3.6 1.4a12.4 12.4 0 0 0-6.4 0C6.2 1.2 5.1 1.5 5.1 1.5a4.8 4.8 0 0 0-.1 3.6A5.2 5.2 0 0 0 3.6 8.7c0 5.2 3.1 6.4 6.1 6.7a3 3 0 0 0-.9 2.3V21" /></svg>
+          GitHub
+        </a>
+      </div>
+
       <section className="hf-hero">
         <div className="hf-media">
           <div className="hf-left-module" ref={moduleRef}>
             <input ref={fileRef} type="file" multiple hidden onChange={pickFiles('file')} />
+            {/* 选文件夹：浏览器里 webkitdirectory 拿不到绝对路径（这是 Electron 主进程
+                dialog.showOpenDialog 才有的能力，见 DSH dsh-desktop:directory-pick）。
+                演示阶段先用名字兜底并如实提示；接入桌面壳后这里整个换掉。 */}
+            <input ref={dirInputRef} type="file" {...({ webkitdirectory: "" } as Record<string, string>)} hidden
+                   onChange={(e) => {
+                     const dirName = e.target.files?.[0]?.webkitRelativePath?.split('/')[0]
+                     if (dirName) addWorkdir(dirName, `~/${dirName}`)
+                     setMenu(null)
+                     setToast(dirName
+                       ? `已添加「${shortenDir(dirName)}」（浏览器演示：完整路径要等桌面版）`
+                       : '浏览器里拿不到文件夹路径，桌面版才能直接选择')
+                     e.target.value = ''
+                   }} />
             <input ref={imageRef} type="file" accept="image/*" multiple hidden onChange={pickFiles('image')} />
             <input ref={videoRef} type="file" accept="video/*" multiple hidden onChange={pickFiles('video')} />
             <div className="hf-brandline">
@@ -276,7 +402,27 @@ export function Home(props: { onStart?: (draft: string) => void }) {
               <button type="button" className="hf-brandstart" onClick={() => taRef.current?.focus()}>开始创作</button>
             </div>
             <div className="hf-sample">
-            <div className="hf-composer">
+            <div className="hf-composer" data-drag={dragging || undefined}
+                 style={{ '--brand': harness.color } as React.CSSProperties}
+                 onDragOver={(e) => {
+                   if (!e.dataTransfer.types.includes('Files')) return
+                   e.preventDefault()
+                   setDragging(true)
+                 }}
+                 onDragLeave={(e) => {
+                   /* 只有真正离开 composer 才收高亮，避免掠过子元素时闪 */
+                   if (e.currentTarget.contains(e.relatedTarget as Node | null)) return
+                   setDragging(false)
+                 }}
+                 onDrop={(e) => {
+                   e.preventDefault()
+                   setDragging(false)
+                   const files = Array.from(e.dataTransfer.files ?? [])
+                   if (!files.length) return
+                   addFiles(files)
+                   setMenu(null)
+                 }}>
+              {dragging && <div className="hf-dropmask" aria-hidden="true">松手添加为附件</div>}
               {attachments.length > 0 && (
                 <div className="hf-chips">
                   {attachments.map((a) => (
@@ -301,6 +447,13 @@ export function Home(props: { onStart?: (draft: string) => void }) {
                 <textarea ref={taRef} rows={1} value={draft}
                           placeholder=""
                           onChange={(e) => setDraft(e.target.value)}
+                          onPaste={(e) => {
+                            /* 截图粘贴 / 复制文件：有文件就走附件，纯文本交给默认行为 */
+                            const files = Array.from(e.clipboardData?.files ?? [])
+                            if (!files.length) return
+                            e.preventDefault()
+                            addFiles(files)
+                          }}
                           onKeyDown={(e) => {
                             /* Enter 发送（与下方提示一致）；中文输入法组字中不触发，Shift+Enter 换行 */
                             if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
@@ -328,14 +481,18 @@ export function Home(props: { onStart?: (draft: string) => void }) {
                   </button>
                   {menu === 'add' && (
                     <div className="hf-menu">
+                      {/* 单行样式：左侧类型图标 + 名称，不接受更长的解释文字 */}
                       <button type="button" onClick={() => fileRef.current?.click()}>
-                        <span className="hf-mt"><b>文件</b><small>任意类型</small></span>
+                        <svg className="hf-mi" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" /><path d="M14 3v5h5" /></svg>
+                        <span>文件</span>
                       </button>
                       <button type="button" onClick={() => imageRef.current?.click()}>
-                        <span className="hf-mt"><b>图片</b><small>png / jpg / webp</small></span>
+                        <svg className="hf-mi" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3" /><circle cx="9" cy="10" r="1.6" /><path d="M4 17l5-4 4 3 3-2 4 3" /></svg>
+                        <span>图片</span>
                       </button>
                       <button type="button" onClick={() => videoRef.current?.click()}>
-                        <span className="hf-mt"><b>视频</b><small>mp4 / mov / webm</small></span>
+                        <svg className="hf-mi" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="3" /><path d="M10 9l5 3-5 3z" /></svg>
+                        <span>视频</span>
                       </button>
                     </div>
                   )}
@@ -344,66 +501,124 @@ export function Home(props: { onStart?: (draft: string) => void }) {
                   <button className="hf-modechip hf-workdir-chip" type="button" aria-expanded={menu === 'workdir'}
                           onClick={() => setMenu(menu === 'workdir' ? null : 'workdir')}>
                     <svg className="hf-folder" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></svg>
-                    <span>工作目录</span>
+                    {/* 按钮显示当前目录名（超长截到 6 个字符加省略号），未选时才是「工作目录」 */}
+                    <span title={currentWorkdir ? currentWorkdir.path : undefined}>
+                      {currentWorkdir ? shortenDir(currentWorkdir.label) : '工作目录'}
+                    </span>
                     <svg className="hf-chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" /></svg>
                   </button>
                   {menu === 'workdir' && (
                     <div className="hf-menu hf-workdir-menu">
-                      {[
-                        ['~/workspace/fengmotion', 'FengMotion'],
-                        ['~/workspace/video-production', '小凤 AI 口播片'],
-                        ['~/workspace', 'workspace 根目录'],
-                      ].map(([path, label]) => (
-                        <button key={path} type="button" className={workdir === path ? 'is-sel' : undefined}
-                                onClick={() => { setWorkdir(path); setMenu(null) }}>
-                          <span>{label}</span><span className="hf-ck">✓</span>
-                        </button>
-                      ))}
+                      <div className="hf-wd-list">
+                        {workdirs.map((d) => (
+                          <button key={d.path} type="button" className={workdirPath === d.path ? 'is-sel' : undefined}
+                                  title={d.path}
+                                  onClick={() => selectWorkdir(d.path)}>
+                            <svg className="hf-wd-folder" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></svg>
+                            <span>{d.label}</span><span className="hf-ck">✓</span>
+                          </button>
+                        ))}
+                      </div>
+                      <div className="hf-wd-sep" />
+                      <button type="button" className="hf-wd-add" onClick={() => dirInputRef.current?.click()}>
+                        <svg className="hf-wd-plus" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+                        <span>添加工作目录…</span>
+                      </button>
                     </div>
                   )}
                 </div>
                 <span className="hf-spacer" />
                 <span className="hf-count">{draft.length || ''}</span>
-                <div className="hf-btnwrap hf-harnesswrap">
+                <div className="hf-btnwrap hf-harnesswrap"
+                     data-connected={harness.ready || undefined}
+                     style={{ '--brand': harness.color } as React.CSSProperties}>
+                  {/* 引擎按钮：接入 = 绿点 + 引擎图标 | 模型名；未接入 = 黄点 + 引擎图标 + 未接入AI */}
                   <button className="hf-harness" type="button" aria-haspopup="dialog"
                           data-off={notReady || undefined}
                           aria-expanded={menu === 'harness'} title={notReady ? '该引擎未接入' : '切换执行引擎'}
-                          onClick={() => setMenu(menu === 'harness' ? null : 'harness')}>
-                    <span className="hf-harness-seg" data-off={notReady || undefined}><i />{harness.short}</span>
-                    <span className="hf-harness-div" aria-hidden="true" />
-                    <span className="hf-harness-model">{model}</span>
-                    {notReady && <span className="hf-harness-warn">未接入</span>}
+                          onClick={() => { setHarnessPane(null); setMenu(menu === 'harness' ? null : 'harness') }}>
+                    <span className="hf-harness-seg" data-off={notReady || undefined}>
+                      <i aria-hidden="true" />
+                      <span className="hf-harness-mark" aria-hidden="true"
+                            style={{ '--brand': harness.color, maskImage: `url(${harness.icon})`, WebkitMaskImage: `url(${harness.icon})` } as React.CSSProperties} />
+                      {notReady ? <span className="hf-harness-off">未接入AI</span>
+                        : <><span className="hf-harness-div" aria-hidden="true" /><span className="hf-harness-model">{model}</span></>}
+                    </span>
                     <svg className="hf-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
                   </button>
                   {menu === 'harness' && (
-                    <div className="hf-harness-pop" role="dialog" aria-label="执行引擎">
-                      <div className="hf-hp-head"><b>执行引擎</b><span>演示：只切换界面状态</span></div>
-                      <div className="hf-hp-list" role="listbox" aria-label="引擎">
-                        {HARNESSES.map((h) => (
-                          <button key={h.id} type="button" className="hf-hp-item" role="option"
-                                  aria-selected={h.id === harnessId}
-                                  data-off={!h.ready || undefined}
-                                  onClick={() => { setHarnessId(h.id); setModel(h.models[0]) }}>
-                            <span className="hf-hp-logo" aria-hidden="true">{h.mark}</span>
-                            <span className="hf-hp-txt">
-                              <b>{h.name}</b>
-                              <small>{h.ready ? '本机已配置' : '未接入，仅展示'}</small>
-                            </span>
-                            <span className="hf-hp-ck" aria-hidden="true">✓</span>
-                          </button>
-                        ))}
-                      </div>
-                      <div className="hf-hp-sep" />
-                      <div className="hf-hp-head"><b>模型</b><span>{harness.short}</span></div>
-                      <div className="hf-hp-list" role="listbox" aria-label="模型">
-                        {harness.models.map((m) => (
-                          <button key={m} type="button" className="hf-hp-item hf-hp-model" role="option"
-                                  aria-selected={m === model} onClick={() => setModel(m)}>
-                            <span className="hf-hp-radio" aria-hidden="true" />
-                            <span className="hf-hp-txt"><b>{m}</b></span>
-                            <span className="hf-hp-ck" aria-hidden="true">✓</span>
-                          </button>
-                        ))}
+                    <div className="hf-harness-pop" role="dialog" aria-label="执行引擎" data-pane={harnessPane || undefined}>
+                      <div className="hf-hp-scroll">
+                        {/* 一级：引擎列表；二级：该引擎的模型（从右侧滑入） */}
+                        <div className="hf-hp-pane" data-active={harnessPane === null || undefined}>
+                          <div className="hf-hp-head"><b>执行引擎</b><span>{HARNESSES.filter((h) => h.ready).length} 个已接入</span></div>
+                          <div className="hf-hp-list" role="listbox" aria-label="引擎">
+                            {HARNESSES.map((h) => (
+                              <button key={h.id} type="button" className="hf-hp-item" role="option"
+                                      aria-selected={h.id === harnessId}
+                                      data-off={!h.ready || undefined}
+                                      onClick={() => {
+                                        setHarnessId(h.id); setModel(h.models[0]); setHarnessPane(h.id)
+                                      }}>
+                                <span className="hf-hp-logo" aria-hidden="true"
+                                      style={{ '--brand': h.color, maskImage: `url(${h.icon})`, WebkitMaskImage: `url(${h.icon})` } as React.CSSProperties} />
+                                <span className="hf-hp-txt">
+                                  <b style={{ color: h.color }}>{h.name}</b>
+                                  <small>{h.ready ? '本机已配置' : '未接入，仅展示'}</small>
+                                </span>
+                                {h.id === harnessId && <span className="hf-hp-ck" aria-hidden="true">✓</span>}
+                                <svg className="hf-hp-go" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="hf-hp-pane hf-hp-models" data-active={harnessPane !== null || undefined}>
+                          <div className="hf-hp-head">
+                            <button type="button" className="hf-hp-back" onClick={() => setHarnessPane(null)}>
+                              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6" /></svg>引擎
+                            </button>
+                            <b>{harness.name}</b>
+                          </div>
+                          <div className="hf-hp-list" role="listbox" aria-label="模型">
+                            {harness.models.map((m) => (
+                              <div key={m} className="hf-hp-modelwrap" data-open={(model === m && harnessPane !== null) || undefined}>
+                                <button type="button" className="hf-hp-item hf-hp-model" role="option"
+                                        aria-selected={m === model} aria-expanded={model === m && harnessPane !== null}
+                                        onClick={() => setModel(m)}>
+                                  <span className="hf-hp-radio" aria-hidden="true" />
+                                  <span className="hf-hp-txt"><b>{m}</b></span>
+                                  <span className="hf-hp-ck" aria-hidden="true">✓</span>
+                                  <svg className="hf-hp-go hf-hp-go-down" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
+                                </button>
+                                {/* 选中模型下方展开的设置抽屉：思考强度 + 最大上下文 */}
+                                {model === m && harnessPane !== null && (
+                                  <div className="hf-hp-drawer">
+                                    <div className="hf-hp-row">
+                                      <span className="hf-hp-label">思考强度</span>
+                                      <div className="hf-hp-seg" role="radiogroup" aria-label="思考强度">
+                                        {([['off', '关闭'], ['standard', '标准'], ['enhanced', '增强']] as const).map(([v, label]) => (
+                                          <button key={v} type="button" role="radio" aria-checked={currentPrefs.reasoning === v}
+                                                  className={currentPrefs.reasoning === v ? 'on' : undefined}
+                                                  onClick={() => setPref({ reasoning: v })}>{label}</button>
+                                        ))}
+                                      </div>
+                                    </div>
+                                    <div className="hf-hp-row">
+                                      <span className="hf-hp-label">最大上下文</span>
+                                      <div className="hf-hp-seg" role="radiogroup" aria-label="最大上下文">
+                                        {([32, 64, 128] as const).map((v) => (
+                                          <button key={v} type="button" role="radio" aria-checked={currentPrefs.context === v}
+                                                  className={currentPrefs.context === v ? 'on' : undefined}
+                                                  onClick={() => setPref({ context: v })}>{v}K</button>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
                       </div>
                     </div>
                   )}
@@ -418,7 +633,7 @@ export function Home(props: { onStart?: (draft: string) => void }) {
             <div className="hf-sample-hint" data-off={notReady || undefined}>
               {notReady
                 ? `${harness.name} 未接入，切换回已配置引擎才能发送`
-                : 'Enter 发送 · Shift + Enter 换行 · 附件只做展示，不上传'}
+                : 'Enter 发送 · Shift + Enter 换行 · 支持拖放 / 粘贴文件'}
             </div>
             </div>
           </div>

@@ -131,10 +131,6 @@
   max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   color: var(--tx2); font-size: 12px;
 }
-#pane-flow .wb-a2 .wb-crumb-version {
-  padding-left: 8px; border-left: 1px solid var(--line);
-  color: var(--tx3); font-size: 10.5px;
-}
 #pane-flow .wb-a2 .wb-project-switch {
   height: 28px; max-width: 230px; padding: 0 5px;
   border: 1px solid transparent; border-radius: var(--r-ctl);
@@ -146,7 +142,6 @@
 #pane-flow .wb-a2 .wb-project-switch:hover { background: var(--hover); border-color: var(--line); }
 #pane-flow .wb-a2 .wb-project-name { max-width: 210px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #pane-flow .wb-a2 .wb-caret { width: 14px; height: 14px; color: var(--tx3); flex: 0 0 auto; }
-#pane-flow .wb-a2 .wb-meta { color: var(--tx3); font-size: 11.5px; white-space: nowrap; }
 #pane-flow .wb-a2 .wb-top-actions { display: flex; align-items: center; gap: 2px; }
 #pane-flow .wb-a2 .wb-divider { width: 1px; height: 16px; background: var(--line); margin: 0 4px; }
 #pane-flow .wb-a2 .wb-agent-status {
@@ -364,7 +359,6 @@
   pointer-events: none;
 }
 #pane-flow .wb-a2 .wb-frame-cap-t { font-size: 14.5px; font-weight: 650; }
-#pane-flow .wb-a2 .wb-frame-cap-s { font-size: 11px; opacity: .78; margin-top: 1px; }
 #pane-flow .wb-a2 .fw-media-fit video { border-radius: inherit; }
 
 /* ── 播放控制 ─────────────────────────────────────────────── */
@@ -449,7 +443,6 @@
 }
 #pane-flow .wb-a2 .tl-plan-toggle:hover { background: var(--hover); color: var(--tx); }
 #pane-flow .wb-a2 .tl-plan-toggle[aria-pressed="true"] { color: var(--acc-tx); background: var(--sel); }
-#pane-flow .wb-a2 .tl-plan-note { font-size: 10.5px; color: var(--tx3); }
 #pane-flow .wb-a2 .tl-selected {
   max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   font-size: 11px; color: var(--tx3);
@@ -584,7 +577,6 @@
   font-variant-numeric: tabular-nums;
 }
 #pane-flow .wb-a2 .wb-insp-kicker .fm-dot { opacity: 1; }
-#pane-flow .wb-a2 .wb-insp-dotsep { color: var(--tx3); opacity: .7; }
 #pane-flow .wb-a2 .wb-insp-section {
   display: flex; flex-direction: column; gap: 7px;
   padding-top: 10px; border-top: 1px solid var(--line);
@@ -866,10 +858,8 @@
 
 /* ── 响应式：不硬挤三栏 ─────────────────────────────────── */
 @media (max-width: 1400px) {
-  #pane-flow .wb-a2 .wb-meta { display: none; }
 }
 @media (max-width: 1280px) {
-  #pane-flow .wb-a2 .wb-crumb-version { display: none; }
 }
 @media (max-width: 1200px) {
   #pane-flow .wb-a2 .fw { grid-template-columns: minmax(0, 1fr) 272px; }
@@ -998,7 +988,6 @@ html.theme-switching #pane-flow .fw-panel {
   #pane-flow .wb-a2 .wb-crumb-scene {
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;
   }
-  #pane-flow .wb-a2 .wb-meta,
   #pane-flow .wb-a2 .wb-top-actions .wb-divider,
   #pane-flow .wb-a2 .wb-top-actions .fw-toolbtn { display: none; }
   #pane-flow .wb-a2 .wb-agent-status,

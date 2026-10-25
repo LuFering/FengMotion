@@ -1,155 +1,267 @@
 /* ═══════════════════════════════════════════════════════════════
-   设置弹窗 —— 复用 paba 的 .delete-dialog（原生 <dialog> + ::backdrop），
-   只补内容区的排版。不引入新颜色，全部走 paba 的 token。
+   设置 —— 大窗弹窗（shadcn Dialog，双栏：分区导航 + 内容面板）。
+
+   视觉沿用项目范式（不另造一套）：
+   · 窗体 = shadcn Dialog + 岛面板圆角（--fm-radius-panel）；
+   · 内部分层全靠灰阶递进（--hole / --soft），不画分隔线
+     （CLAUDE.md：表面靠灰阶递进，不靠边线和阴影）；
+   · 分区导航 = hm-nav 的 pill 项（选中 soft 底 + acc 字）；
+   · 行 = 引擎选择器弹层的行（透明底 / hover hole / 选中 soft + 勾）；
+   · 单选圆点 = cv3-hp-radio（选中 acc 内嵌 3px）；
+   · 输入 = 项目标准 Input（ui/input.tsx）；
+   · 标题 = pj-bar 的 13px/600。
+   颜色全走壳层 token；唯一硬编码：主题样片色带（各主题设计常量，
+   与 brand.css 的 token 值一致，样片不能跟随当前主题）。
    ═══════════════════════════════════════════════════════════════ */
 
-#settings-dialog { width: min(560px, calc(100vw - 32px)) }
-
-/* ── 分组 ─────────────────────────────────────────────────── */
-.settings-body {
+.set-dlg {
   display: flex;
   flex-direction: column;
-  gap: 24px;
-  margin-top: 20px;
+  width: min(920px, calc(100vw - 48px));
+  height: min(640px, calc(100vh - 48px));
+  max-width: none;
+  padding: 0;
+  gap: 0;
+  overflow: hidden;
+  background: var(--surf);
+  border-radius: var(--fm-radius-panel);
+  box-shadow: 0 24px 64px rgb(0 0 0 / .35);
 }
-.settings-section { display: flex; flex-direction: column; gap: 4px }
-.settings-section > h3 {
+.set-dlg-head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  /* 高度由 24px 标题自然撑出（12px 上下内边距），不写死 */
+  padding: 12px 44px 12px 20px;
+  /* 头与内容靠灰阶递进分层，不画横线（CLAUDE.md：表面靠灰阶递进，不靠边线） */
+  background: var(--hole);
+}
+.set-dlg-title {
+  margin: 0;
+  /* 页面主标题字阶（fm-page-head-title 同级）：24px/600 */
+  font-size: var(--fm-text-title);
+  line-height: var(--fm-leading-title);
+  font-weight: 600;
+  color: var(--fg);
+}
+.set-dlg-body {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+/* ── 左：分区导航（hm-nav 的 pill 项）──────────────────────── */
+.set-nav {
+  position: relative;
+  flex: 0 0 188px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 14px 10px;
+}
+/* 左右两栏之间的柔和竖线：两端渐隐、低透明度，不是 1px 硬边 */
+.set-nav::after {
+  content: "";
+  position: absolute;
+  top: 14px;
+  bottom: 14px;
+  right: 0;
+  width: 1px;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    color-mix(in srgb, var(--fg) 14%, transparent) 16%,
+    color-mix(in srgb, var(--fg) 14%, transparent) 84%,
+    transparent
+  );
+}
+.set-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  height: 38px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 19px;
+  background: none;
+  color: var(--dim);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color .15s, color .15s;
+}
+.set-nav-item:hover { background: color-mix(in srgb, var(--fg) 6%, transparent); color: var(--fg); }
+.set-nav-item[data-on] { background: var(--soft); color: var(--acc); font-weight: 600; }
+.set-nav-item .ui-icon { width: 16px; height: 16px; flex: 0 0 16px; }
+
+/* ── 右：内容面板 ─────────────────────────────────────────── */
+.set-panel {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  padding: 14px 22px 18px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+}
+.set-sec-head {
   margin: 0 0 2px;
   font-size: 12px;
   font-weight: 650;
-  color: var(--fg);
   letter-spacing: .02em;
-}
-.settings-hint {
-  margin: 0 0 10px;
-  color: var(--dim);
-  font-size: 11.5px;
-  line-height: 1.6;
-}
-
-/* ── 逐行设置项 ───────────────────────────────────────────── */
-.settings-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  min-height: 52px;
-  padding: 10px 0;
-  border-bottom: 1px solid var(--line);
-}
-.settings-row:last-child { border-bottom: 0 }
-.settings-row-label { display: flex; flex-direction: column; gap: 3px; min-width: 0 }
-.settings-row-label b { font-size: 13px; font-weight: 550; color: var(--fg) }
-.settings-row-label em { font-size: 11px; font-style: normal; color: var(--dim); line-height: 1.5 }
-.settings-row-control { flex: 0 0 auto; display: flex; align-items: center; gap: 8px }
-
-.settings-input {
-  width: 240px;
-  height: 34px;
-  padding: 0 10px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: var(--hole);
   color: var(--fg);
-  font: inherit;
+}
+.set-subhead {
+  margin: 18px 0 4px;
   font-size: 12px;
-  outline: 0;
-  transition: border-color .15s;
-}
-.settings-input:focus { border-color: var(--acc) }
-
-/* ── 开关 ─────────────────────────────────────────────────── */
-.settings-toggle {
-  position: relative;
-  width: 40px;
-  height: 22px;
-  padding: 0;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: var(--hole);
-  cursor: pointer;
-  transition: background-color .16s, border-color .16s;
-}
-.settings-toggle > span {
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: var(--dim);
-  transition: transform .16s, background-color .16s;
-}
-.settings-toggle[data-on] { background: var(--acc); border-color: var(--acc) }
-.settings-toggle[data-on] > span { transform: translateX(18px); background: var(--on-accent) }
-
-/* ── Harness 卡片 ─────────────────────────────────────────── */
-.harness-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-  margin: 6px 0 14px;
-}
-.harness-card {
-  display: flex;
-  align-items: flex-start;
-  gap: 9px;
-  padding: 11px 12px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--surf);
+  font-weight: 650;
+  letter-spacing: .02em;
   color: var(--fg);
-  text-align: left;
-  cursor: pointer;
-  transition: border-color .15s, background-color .15s;
 }
-.harness-card:hover { border-color: color-mix(in srgb, var(--acc) 50%, var(--line)) }
-.harness-card[data-active] {
-  border-color: var(--acc);
-  background: color-mix(in srgb, var(--acc) 10%, var(--surf));
-}
-.harness-check {
-  display: grid;
-  place-items: center;
-  width: 16px;
-  height: 16px;
-  flex: 0 0 16px;
-  margin-top: 1px;
-  border: 1px solid var(--line);
-  border-radius: 4px;
-  color: var(--acc);
-}
-.harness-card[data-active] .harness-check { border-color: var(--acc) }
-.harness-check .ui-icon { width: 12px; height: 12px }
-.harness-text { display: flex; flex-direction: column; gap: 3px; min-width: 0 }
-.harness-text b { font-size: 12.5px; font-weight: 600 }
-.harness-text em { font-size: 11px; font-style: normal; color: var(--dim); line-height: 1.45 }
-
-/* ── 底部提示 ─────────────────────────────────────────────── */
-.settings-note {
-  margin: 0;
-  padding: 10px 12px;
-  border: 1px solid color-mix(in srgb, var(--warn) 34%, transparent);
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--warn) 10%, transparent);
-  color: var(--warn);
+.set-hint {
+  margin: 3px 0 8px;
+  color: var(--dim);
   font-size: 11px;
   line-height: 1.6;
 }
 
-/* ── 次要按钮（paba 的 .delete-dialog-actions 只定义了 confirm）── */
-.settings-btn {
+/* ── 行（引擎选择器弹层的行语言）──────────────────────────── */
+.set-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.set-rowbtn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color .14s;
+}
+.set-rowbtn:hover { background: var(--hole); }
+.set-rowbtn[data-on] { background: var(--soft); }
+.set-rowtxt {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.set-rowtxt b { font-size: 13px; font-weight: 600; }
+.set-rowtxt small { color: var(--dim); font-size: 11px; }
+.set-ck { flex: 0 0 auto; width: 14px; height: 14px; color: var(--acc); }
+
+/* 主题样片：30×20 三色带（各主题 bg / surf / acc 的设计常量） */
+.set-swatch {
+  display: flex;
+  flex: 0 0 30px;
+  width: 30px;
+  height: 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--fm-radius-thumb);
+  overflow: hidden;
+}
+.set-swatch i { flex: 1; }
+.set-swatch[data-theme="dark"] i:nth-child(1) { background: #000000; }
+.set-swatch[data-theme="dark"] i:nth-child(2) { background: #0d0d0f; }
+.set-swatch[data-theme="dark"] i:nth-child(3) { background: #3B8CF8; }
+.set-swatch[data-theme="light"] i:nth-child(1) { background: #e0e2e9; }
+.set-swatch[data-theme="light"] i:nth-child(2) { background: #fcfcfd; }
+.set-swatch[data-theme="light"] i:nth-child(3) { background: #2F6FE4; }
+.set-swatch[data-theme="tactile"] i:nth-child(1) { background: #e6e1d5; }
+.set-swatch[data-theme="tactile"] i:nth-child(2) { background: #eae6da; }
+.set-swatch[data-theme="tactile"] i:nth-child(3) { background: #f7c948; }
+
+/* 引擎行 */
+.set-hmark {
+  flex: 0 0 22px;
+  width: 22px;
+  height: 22px;
+  background-color: var(--h-color, var(--acc));
+  mask-position: center;
+  mask-size: contain;
+  mask-repeat: no-repeat;
+}
+.set-hstate {
+  flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: 7px;
-  padding: 0 14px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: 0 0;
-  color: var(--fg);
-  cursor: pointer;
-  font-weight: 500;
-  transition: background-color .15s, border-color .15s;
+  gap: 5px;
+  margin-right: 2px;
+  color: var(--ph);
+  font-size: 11px;
 }
-.settings-btn:hover { background: var(--hole); border-color: var(--dim) }
+.set-hstate i { width: 6px; height: 6px; border-radius: 999px; background: var(--ph); }
+.set-hstate[data-ready] { color: var(--ok); }
+.set-hstate[data-ready] i { background: var(--ok); }
+
+/* 模型行：cv3-hp-radio 的单选圆点 */
+.set-mrow code { font-size: 11.5px; }
+.set-radio {
+  flex: 0 0 auto;
+  width: 12px;
+  height: 12px;
+  border: 1.5px solid var(--line);
+  border-radius: 50%;
+  transition: border-color .14s, box-shadow .14s;
+}
+.set-mrow[data-on] .set-radio {
+  border-color: var(--acc);
+  box-shadow: inset 0 0 0 3px var(--acc);
+}
+
+/* ── 逐行设置项（端点 / 关于）：只靠间距，不画横线 ──────────── */
+.set-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 8px 2px;
+}
+.set-row-label { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.set-row-label b { font-size: 12.5px; font-weight: 600; }
+.set-row-label em { font-size: 11px; font-style: normal; color: var(--dim); line-height: 1.5; }
+.set-row-control {
+  flex: 0 1 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--fg);
+  text-align: right;
+}
+/* 端点输入用项目标准 Input（ui/input.tsx），这里只定宽度与等宽字 */
+.set-endpoint { width: 240px; font-family: ui-monospace, Consolas, monospace; font-size: 11.5px; }
+
+/* 数据分区的操作回执：一行说明字，不加底色不加框 */
+.set-notice {
+  margin: 8px 2px 0;
+  color: var(--dim);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+/* ── 减弱动效（设置 → 外观）：手动压平全局动画/过渡 ──────────
+   写法沿用 myassets.css 对 prefers-reduced-motion 的处理 */
+html[data-motion="reduce"] *,
+html[data-motion="reduce"] *::before,
+html[data-motion="reduce"] *::after {
+  animation-duration: .01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: .01ms !important;
+}
+
+/* 窄屏：端点行换列 */
+@media (max-width: 560px) {
+  .set-row { flex-direction: column; align-items: flex-start; gap: 6px; }
+  .set-row-control { text-align: left; }
+}

@@ -14,7 +14,6 @@
 export type ViewId =
   | 'home'
   | 'production'
-  | 'project'
   | 'assets'
   | 'render'
   | 'knowledge'
@@ -44,7 +43,7 @@ export interface NavNode {
  */
 export const NAV: NavNode[] = [
   { id: 'home',       label: '首页',   icon: 'house' },
-  { id: 'project',    label: '我的创作', icon: 'clapperboard' },
+  { id: 'conversation', label: '我的创作', icon: 'clapperboard' },
   { id: 'methods',    label: '工作流',   icon: 'workflow' },
   { id: 'knowledge',  label: '特效库',   icon: 'panels-top-left' },
   { id: 'reference',  label: '参考片库', icon: 'film' },
@@ -60,12 +59,10 @@ export const CONTEXT_VIEWS: ViewId[] = ['assets']
 export const VIEW_META: Record<ViewId, { title: string; hint: string }> = {
   home:       { title: '首页', hint: '从一句话开始' },
   production: { title: '制作工作台', hint: '场景列表 + 监看器 + AI 对话' },
-  project:    { title: '我的创作', hint: '视频任务：正在制作、等待处理、已完成' },
   assets:     { title: '我的素材', hint: '自己的图片/视频/音频/生成文件，导入与复用' },
   render:     { title: '发布与验收', hint: '能交付什么、缺什么、验收结果' },
   knowledge:  { title: '特效库', hint: '特效/场景设计/转场/动画的实现方法，供工作流检索调用' },
   reference:  { title: '参考片库', hint: '参考视频的画面段、机位运动、节奏与风格知识' },
   methods:    { title: '工作流', hint: '制作方案：步骤、节点、提示词与检查要求' },
-  /* 原型：项目 agent 对话视图 —— 不进侧栏 NAV，只从首页发送与工作台切入 */
-  conversation: { title: '项目对话', hint: '先聊清楚，再开始制作' },
+  conversation: { title: '我的创作', hint: '项目与对话：先聊清楚，再开始制作' },
 }

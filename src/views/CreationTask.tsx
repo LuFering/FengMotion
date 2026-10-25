@@ -76,7 +76,7 @@ export function CreationTaskPanel(props: {
     <section className="ctk" aria-label="本次制作">
       <header className="ctk-head">
         <b>本次制作</b>
-        <span className="ctk-demo">DEMO 执行器</span>
+        <span className="ctk-demo">演示执行器</span>
         <span className="ctk-spacer" />
         <button type="button" className="ctk-x" onClick={props.onClose} aria-label="收起本次制作">✕</button>
       </header>
@@ -107,14 +107,9 @@ export function CreationTaskPanel(props: {
           {artifacts.map((a) => (
             <div key={a.id} className="ctk-art" title={a.summary}>
               <span>{a.title}</span>
-              <em>快照</em>
             </div>
           ))}
         </div>
-      )}
-
-      {wf.path === 'structured' && (
-        <p className="ctk-note">Structured 的 Gate 确认在工作流编辑器的检查器里进行。</p>
       )}
 
       <div className="ctk-actions">

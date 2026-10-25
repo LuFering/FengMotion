@@ -1,83 +1,62 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { ReactNode } from 'react'
-import { AtSign, ChevronDown, Clapperboard, LoaderCircle, PanelLeft, Plus, Send } from 'lucide-react'
+import type { CSSProperties, ReactNode } from 'react'
+import {
+  Archive, ArchiveRestore, Check, ChevronDown, ChevronLeft, ChevronRight, Ellipsis, FileText, FolderPlus, ImageIcon,
+  ListFilter, LoaderCircle, MessageSquarePlus, PanelLeft, Pencil, Pin, PinOff, Plus, Search, Send, Shield,
+  ShieldAlert, ShieldCheck, Trash2, X,
+} from 'lucide-react'
+import { HARNESSES, REASONING_LABEL, DEFAULT_PREFS, prefsKey, loadPrefs, savePrefs, type ModelPrefs, type Reasoning } from '../data/harnesses'
 import type { ChatState } from '../shell/useChat'
+import { UNGROUPED, sessionTitle, type SessionsState } from '../shell/useSessions'
 import { workflowService } from '../services/workflowService'
 import { GENOMES } from '../data/genomes'
 import type { NewProjectInput } from '../shell/useProjects'
 import type { WfPath } from '../data/workflowTemplates'
 import { SegmentedControl } from '../components/ui/segmented-control'
-import { REFERENCE_VIDEOS } from '../data/referenceLibrary'
-import { FX_TECHNIQUES } from '../data/fxTechniques'
+import {
+  Popover, PopoverContent, PopoverTrigger,
+} from '../components/ui/popover'
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuTrigger,
+  DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem,
+} from '../components/ui/dropdown-menu'
+import { ViewSwitch } from '../components/ViewSwitch'
+import type { ProjectSummary } from '../data/projects'
 import '../styles/conversation.css'
 
 /**
- * 项目 agent 对话视图（第三版照抄 dsh 源码 + cv4 打磨轮：抽屉投影、气泡色、卡片发丝线、
- * 标签 24px、聚焦晕染、hover 100ms、会话栏收起机制沿用 dsh narrowExpanded）。
+ * 创作对话视图 —— 先聊清楚，再开始制作。
  *
- * 抄自 deepseek-ai/deepseek-harness（dsh）Web UI 源码的实际结构与数值
- * （只抄版式与交互，不抄品牌、模型名、吉祥物、dsh 字样）：
- *   - 壳：AppFrame 三栏（会话栏 280，可拖范围 264–420；收起为 56 轨；
- *     1024 以下自动收轨，手动展开为覆盖式抽屉）→ 本视图在应用壳 68px
- *     图标栏右侧 pane 内，只抄内侧会话栏这一栏。
- *   - 会话栏：SidebarRoot（padding 6/12，14px；新会话条 38px 高、12px 圆角、
- *     0.5px 边框；会话行 32px 高、12px 圆角、标题 14/20、时间 10/16）。
- *   - 顶栏：ConversationRoot header（最小高 76px，padding 10/28/0/20，
- *     0.5px 底边；标题行 30px；标题为 14/20 500 的面包屑；tab 行
- *     margin-top 10px、gap 32px，tab 13/16 500，激活为品牌蓝 + 2px 下划线）。
- *   - 消息流：ChatView（滚动区 padding 16 + 两侧各 16；内容列
- *     clamp(680, 列宽×0.64, 920)；流间距默认 4px，回复 12px）+
- *     AssistantMarkdown（正文 14/24，块间距 16）+
- *     ReasoningRow（思考行 24px，摘要 13/20 三级色，展开体缩进 22px）+
- *     UserMessageBubble（用户气泡 20px 圆角，padding 10/16，14/22）。
- *   - 输入框：InputBar（卡片 28px 圆角、输入面填充、柔和投影；
- *     文本 14/24，padding 4/8/0/14，停靠态最小高 36，最高 336；
- *     工具行 padding 2/8/6，gap 12；+ 钮 28px 圆；权限/模型 chip
- *     28px 高、13/20；发送钮 34px 圆、品牌蓝底白字，空态 0.4）。
- *   - @// 菜单：MenuView（卡片内绝对定位，bottom 100%+4px，padding 4px；
- *     行最小高 34px，padding 6/8，12px 圆角，13/20；分组标题 11/16 500）。
- *   - 状态条：StatsPills（12px，三级色，等宽数字，pill padding 1/8，8px 圆角）。
- *   - 圆角：sm 8 / md 12 / lg 16 / xl 20 / panel 28；缓动 cubic-bezier(0.4,0,0.2,1)。
+ * 版式最初照抄 deepseek-harness 的 Web 对话界面（三栏、气泡、思考过程、轨迹 tab…），
+ * 这一轮**按本产品做深度适配**（作者要求）：
+ *   - 左侧会话栏换成「我的项目」：这里是创作者的活，不是聊天记录清单；
+ *   - 删掉 dsh 的通用 Agent 概念：智能体团队、创造模式、完全权限、演示模型、
+ *     轨迹 tab、思考过程、@ 提及与 / 指令 —— 本产品没有这些东西，留着只会误导；
+ *   - 保留与本产品对得上的部分：对话气泡、制作方案卡（含制作路径与「开始制作」）、
+ *     检索到的参考/特效、以及「已创建了什么」的实话表。
  *
- * 对话视图与工作台是同一个 agent 会话的两种呈现，可随时彼此切换：
- *   对话视图 = 完整的思考过程（消息 + 思考 + 工具调用 + 方案 + 改了什么）
- *   工作台   = 完整的制作过程（场景 / 时间线 / 产物 / 任务状态）
- * 两边共用 App 的 useChat 会话：首页那句需求就是首条用户消息，
- * 工作台右栏的对话 tab 看到的是同一份消息（它只渲染 text）。
+ * 与工作台的关系：同一个会话的两种呈现，顶部用同一个 ViewSwitch 互相切换；
+ * 工作台右栏的对话 tab 也读同一份 chat 状态。
  *
- * 诚实边界（不假装真实 Agent，不加死按钮）：
- *   - agent 回复是本地演示生成，未连接 Agent；思考与工具调用均为演示内容。
- *   - 会话栏只放真实会话（当前会话 + 新会话入口），不编造历史会话。
- *   - 状态条只写真实内容（消息数、演示模式、会话仅内存），不编 tok/s 与 token 量。
- *   - @ 只从真实库数据（参考片标题、特效名）里选，插入为文本提及；
- *     / 菜单只放真实可用的 /new（开新会话）。
- *   - 轨迹 tab 只列本会话真实的工具调用与方案事件，没有则为空态。
- *   - “改了什么”表只列开始制作时真实创建的项目与工作流，不编造文件改动。
- *   - dsh 有、FengMotion 暂无真实功能的控件（智能体团队 / 创造模式 /
- *     权限 / 模型 / 附件 +）：照抄其可见形态，点开是明确标注演示的说明卡，
- *     不是点了没反应的死按钮；真实功能接通后再替换。
- *   - 开始制作复用 StartCreation 的同一套创建逻辑（建项目 + createFromPath + 落工作台），
- *     只是把“填表”换成了“聊完再点按钮”；StartCreation 本体保留未删。
- *   - 会话只在内存里，刷新即失；会话持久化与真实思考事件流是接后端后的事。
+ * 演示口径：回复由本地演示生成（未接 Agent）；会话与项目在内存里。
  */
 
 interface DemoReply {
   text: string
-  thinking: string
   toolCalls: { label: string; detail: string }[]
   plan?: string[]
 }
 
 const GENERIC_PLAN = [
-  '开场：先立一个问题钩子，让观众有理由往下看',
-  '中段：分 2–3 个点讲清核心，每点配一个画面',
-  '结尾：回到观众自己的场景收束，留一个可带走的结论',
+  '开场先说一件让人想看下去的事',
+  '中间分两三点讲清楚，每点配一个画面',
+  '结尾落回观众自己的处境',
 ]
 
 const TOKEN_PLAN = [
-  '开场：一个问题钩子，先把 Token 的陌生感立起来',
-  '中段：用生活类比讲清 Token 是什么、以及怎么计费',
-  '结尾：回到观众自己的使用场景，留一个可复用的结论',
+  '开场先让人意识到自己见过 Token 但说不清',
+  '中间用生活里的东西打比方，讲清它是什么、怎么算钱',
+  '结尾说回观众自己的使用场景',
 ]
 
 function demoReply(userText: string, turn: number): DemoReply {
@@ -85,21 +64,19 @@ function demoReply(userText: string, turn: number): DemoReply {
     const aboutToken = /token/i.test(userText)
     return {
       text: aboutToken
-        ? '收到，这条我理解为一支 Token 科普短片。先跟你对三个点：\n1. 讲给谁听\n2. 想做到多长\n3. 想要什么感觉\n你先回其中任何一点，我再往下细化方案。'
-        : '收到。先跟你对三个点：\n1. 这条片子讲给谁听\n2. 想做到多长\n3. 想要什么感觉\n你先回其中任何一点，我再往下细化方案。',
-      thinking: '先拆这条需求：受众、时长、感觉、结构。受众和时长还没给，我先按默认假设出方案，错了你直接改，不用重说整段需求。',
+        ? '这条像 Token 科普。先定三件事：\n1. 讲给谁\n2. 多长\n3. 什么感觉\n回一个就行，剩下的我按常规补。'
+        : '先定三件事：\n1. 讲给谁\n2. 多长\n3. 什么感觉\n回一个就行，剩下的我按常规补。',
       toolCalls: [
-        { label: '检索参考片库', detail: '沙漠公路 · 多莉变焦：人物居中、背景纵深拉伸，可作开场情绪锚点' },
-        { label: '检索特效库', detail: '多莉变焦：主体大小恒定、背景剧烈伸缩，适合揭示时刻' },
+        { label: '参考片库', detail: '沙漠公路那条片的推镜：人不动，背景往后拉' },
+        { label: '特效库', detail: '多莉变焦：人保持大小，背景快速缩放' },
       ],
       plan: aboutToken ? TOKEN_PLAN : GENERIC_PLAN,
     }
   }
   const snippet = userText.trim().slice(0, 24)
   return {
-    text: `收到，你刚补的“${snippet}”我并进了方案。没提到的部分保持上一版，你再补一点，或者直接点开始制作。`,
-    thinking: '按你刚补的信息调整方案里对应的点；没提到的部分保持上一版，不推翻重来。',
-    toolCalls: [{ label: '更新方案', detail: '把你刚说的点并入方案要点' }],
+    text: `“${snippet}”已经加进方案，其余照上一版。还要补就接着说，不用了直接开始制作。`,
+    toolCalls: [{ label: '改方案', detail: '把这条并进方案要点' }],
   }
 }
 
@@ -109,9 +86,39 @@ function usableName(text: string): string {
   return first.length >= 2 && !/^[\d\s\p{P}]+$/u.test(first) ? first : ''
 }
 
-function fmtTime(at?: number): string {
-  if (!at) return '—'
-  return new Date(at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+/* 权限模式文案（对齐 dsh preset.readOnly / workspaceWrite / fullAccess）
+   每个模式配一句说明：权限是「放开多少」的选择，只说名字看不出后果。 */
+const PERM_LABEL = {
+  readOnly: '仅可查看',
+  workspaceWrite: '工作区内修改',
+  fullAccess: '完全权限',
+} as const
+
+const PERM_MODES = [
+  { id: 'readOnly' as const, label: '仅可查看', desc: '只读取文件，不做任何修改', Icon: Shield },
+  { id: 'workspaceWrite' as const, label: '工作区内修改', desc: '只允许改当前工作目录内的文件', Icon: ShieldCheck },
+  { id: 'fullAccess' as const, label: '完全权限', desc: '减少确认步骤，可执行敏感操作', Icon: ShieldAlert },
+]
+
+/* 相对时间（对齐 dsh time.ago：刚刚 / N分钟 / N小时 / N天 / N个月 / N年） */
+function fmtAgo(t: number): string {
+  const d = Date.now() - t
+  const m = Math.floor(d / 60000)
+  if (m < 1) return '刚刚'
+  if (m < 60) return `${m}分钟前`
+  const h = Math.floor(m / 60)
+  if (h < 24) return `${h}小时前`
+  const day = Math.floor(h / 24)
+  if (day < 30) return `${day}天前`
+  const mo = Math.floor(day / 30)
+  if (mo < 12) return `${mo}个月前`
+  return `${Math.floor(mo / 12)}年前`
+}
+
+/* 绝对时间（对齐 dsh date.ymd / hover.created 的「创建于」） */
+function fmtWhen(t: number): string {
+  const d = new Date(t)
+  return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`
 }
 
 /* 富文本小渲染：段落 + 数字编号列表 + 行内 `代码` 与 **加粗**（只渲染文本自带的结构，不编造内容） */
@@ -142,48 +149,67 @@ function renderRich(text: string): ReactNode {
   return blocks
 }
 
-/* @ 提及候选：全部来自真实库数据，不编造 */
-const MENTIONS: { label: string; kind: string }[] = [
-  ...REFERENCE_VIDEOS.map((v) => ({ label: v.title, kind: '参考片' })),
-  ...FX_TECHNIQUES.map((f) => ({ label: f.name, kind: '特效' })),
-]
-
-interface TraceEntry {
-  key: string
-  time: string
-  kind: 'user' | 'tool' | 'plan' | 'launch'
-  title: string
-  detail?: string
-}
-
-type DemoNoteKey = 'team' | 'mode' | 'perm' | 'model' | 'attach'
-
-const DEMO_NOTE: Record<DemoNoteKey, string> = {
-  team: '智能体团队：演示占位。FengMotion 暂无多智能体团队功能，接通 Agent 后这里会显示真实团队。',
-  mode: '创造模式：演示占位。FengMotion 暂无创造模式切换，接通 Agent 后这里会显示真实模式。',
-  perm: '完全权限：演示占位。演示模式下不执行真实操作，权限选择待 Agent 接通后生效。',
-  model: '演示模型：演示占位。未连接真实模型，回复均为本地演示生成。',
-  attach: '添加附件：演示占位。演示模式下不支持真实附件上传，接通 Agent 后可用。',
-}
-
 export function Conversation(props: {
   chat: ChatState
-  onCreateProject: (input: NewProjectInput) => { id: string }
+  projects: ProjectSummary[]
   openProject: string | null
+  onSelectProject: (id: string) => void
+  /** 左栏直建项目（dsh workspace.create 语义：不弹表单，建完就地改名） */
+  onNewProject: () => { id: string }
+  /** 左栏行内改名（Enter/失焦提交，Esc 放弃） */
+  onRenameProject?: (id: string, name: string) => void
+  onCreateProject: (input: NewProjectInput) => { id: string }
   onLaunch: (r: { workflowId: string; projectId: string | null; autoRun: boolean }) => void
   onOpenWorkbench: () => void
+  /** 会话树（项目 + 对话两级）：左栏用它，拖拽改归属也走它 */
+  threads: SessionsState
+  /** 当前会话 id；null = 还没有会话（从空白进入） */
+  activeSessionId: string | null
+  /** 删除项目（会话会先落回未分组，由本视图负责搬迁） */
+  onDeleteProject?: (projectId: string) => void
 }) {
   const { chat } = props
   const [proPath, setProPath] = useState<WfPath>('prompt-first')
   const [pending, setPending] = useState(false)
-  const [tab, setTab] = useState<'chat' | 'trace'>('chat')
-  /* dsh 响应式：1024 以下会话栏自动收为 56px 轨，手动展开为覆盖式抽屉 */
+  /* dsh 响应式：1024 以下左栏自动收为 56px 轨，手动展开为覆盖式抽屉 */
   const [narrow, setNarrow] = useState(() => (typeof window === 'undefined' ? false : window.innerWidth < 1024))
   const [sideExpanded, setSideExpanded] = useState(() => (typeof window === 'undefined' ? true : window.innerWidth >= 1024))
-  const [mentionIdx, setMentionIdx] = useState(0)
-  const [inputFocused, setInputFocused] = useState(false)
-  const [demoNote, setDemoNote] = useState<DemoNoteKey | null>(null)
+  /* 左栏两级树：折叠状态、正在拖的会话、拖放目标组 */
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(() => new Set())
+  const [dragId, setDragId] = useState<string | null>(null)
+  const [dropTarget, setDropTarget] = useState<string | null>(null)
+  /* ── 左栏视图选项（对齐 dsh 的 viewOptions / groupBy / orderBy / filterBy）──
+     query=搜索会话名称；groupMode=按项目/单列表；orderMode=最近更新/手动；
+     archiveFilter=隐藏已归档/全部/仅已归档 */
+  const [query, setQuery] = useState('')
+  const [groupMode, setGroupMode] = useState<'project' | 'flat'>('project')
+  const [orderMode, setOrderMode] = useState<'updated' | 'manual'>('updated')
+  const [archiveFilter, setArchiveFilter] = useState<'hide' | 'show' | 'only'>('hide')
+  const [viewMenu, setViewMenu] = useState(false)
+  /* 每行的「更多」菜单：记录当前展开的是哪个 id（项目/会话共用一套浮层） */
+  const [rowMenu, setRowMenu] = useState<string | null>(null)
+  /* 引擎/模型弹窗：modelOpen = 是否展开，modelPane = 当前在哪一级
+     （null = 引擎列表；某引擎 id = 该引擎的模型页）。对齐首页的 harnessPane。 */
+  const [modelOpen, setModelOpen] = useState(false)
+  const [modelPane, setModelPane] = useState<string | null>(null)
+  /* 行内重命名：editing = 正在编辑的 id，editText = 输入值 */
+  const [editing, setEditing] = useState<string | null>(null)
+  const [editText, setEditText] = useState('')
+
+  /* ── 输入区工具栏（对齐 dsh InputBar：左侧附件/权限，右侧模型/发送）──
+     attachments=待发送附件；permission=权限模式（dsh preset.readOnly/workspaceWrite/fullAccess）；
+     harnessId/model/prefs=引擎与模型配置（与首页共用同一份 data/harnesses）；
+     composerMenu=当前展开的弹层（'add' 附件菜单 / 'perm' 权限 / 'model' 模型） */
+  const [attachments, setAttachments] = useState<{ name: string; size: number; kind: 'file' | 'image' | 'video' }[]>([])
+  const [permission, setPermission] = useState<'readOnly' | 'workspaceWrite' | 'fullAccess'>('workspaceWrite')
+  const [harnessId, setHarnessId] = useState(HARNESSES[0].id)
+  const [model, setModel] = useState(HARNESSES[0].models[0])
+  const [prefs, setPrefs] = useState<Record<string, ModelPrefs>>(loadPrefs)
+  const fileRef = useRef<HTMLInputElement>(null)
+  const imageRef = useRef<HTMLInputElement>(null)
   const repliedRef = useRef(new Set<string>())
+  const replyTimer = useRef<number | null>(null)
+  const aliveRef = useRef(true)
   const scrollRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
 
@@ -193,63 +219,116 @@ export function Conversation(props: {
     return () => window.removeEventListener('resize', onResize)
   }, [])
 
+  /* 真实卸载后不再 setState。StrictMode 首次挂载会模拟一轮卸载，
+     所以这里只置位、不做业务决定（见下方演示回复的 effect）。 */
+  useEffect(() => {
+    aliveRef.current = true
+    return () => { aliveRef.current = false }
+  }, [])
+
+  /* 会话 ⇄ 当前对话的双向同步：
+     - 切到另一条会话：把它的消息装进 chat（正在思考中不切，避免丢回复）
+     - 当前对话有新消息：写回这条会话（左栏顺序、后续拖拽都以它为准） */
+  const loadedRef = useRef<string | null>(null)
+  /* 装载会话后的第一次写回必须跳过：
+     切换会话时 replaceMessages 是本轮 effect 里排的队，写回 effect 在同一个 commit
+     里读到的 chat.messages 还是**上一条会话**的 —— 直接写就会把旧内容盖进新会话。 */
+  const skipWriteRef = useRef(false)
+  const activeThread = props.threads.sessions.find((t) => t.id === props.activeSessionId) ?? null
+  useEffect(() => {
+    if (!activeThread || pending) return
+    if (loadedRef.current === activeThread.id) return
+    loadedRef.current = activeThread.id
+    skipWriteRef.current = true
+    if (activeThread.messages.length > 0) chat.replaceMessages(activeThread.messages)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeThread?.id, pending])
+  useEffect(() => {
+    if (!props.activeSessionId) return
+    if (loadedRef.current !== props.activeSessionId) return
+    if (skipWriteRef.current) { skipWriteRef.current = false; return }
+    const mine = chat.messages.filter((m) => m.id !== 'intro')
+    if (mine.length === 0) return
+    const t = props.threads.sessions.find((x) => x.id === props.activeSessionId)
+    if (t && t.messages.length === mine.length) return
+    /* 标题：会话还是「未命名对话」时，用首条需求补上（之后不覆盖用户/既有标题） */
+    const firstUser = mine.find((m) => m.role === 'user')
+    const patch: { messages: typeof mine; title?: string } = { messages: mine }
+    if (firstUser && (!t || t.title === '未命名对话')) patch.title = sessionTitle(firstUser.text)
+    props.threads.update(props.activeSessionId, patch)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chat.messages, props.activeSessionId])
+
   /* 工作台对话 tab 的 intro 免责句不属于创作会话，对话视图里滤掉 */
   const messages = useMemo(() => chat.messages.filter((m) => m.id !== 'intro'), [chat.messages])
   const userMessages = useMemo(() => messages.filter((m) => m.role === 'user'), [messages])
   const firstBrief = userMessages[0]?.text ?? ''
-  const title = usableName(firstBrief).slice(0, 14) || '未命名创作'
-  const launched = props.openProject !== null
+  const currentProject = props.projects.find((p) => p.id === props.openProject) ?? null
+  /* 标题优先用当前项目名：左栏选项目之后，这里应该跟着变，
+     否则用户会不知道现在聊的是哪一支片子 */
+  const title = currentProject?.name ?? (usableName(firstBrief).slice(0, 14) || '未命名创作')
+  /* 「制作已开始」只认本会话里真的创建过东西（AI 消息带 changes），
+     不能拿「左栏选中了某个项目」当依据 —— 那是切换当前项目，不是开始制作 */
+  const launched = messages.some((m) => m.role === 'ai' && m.changes && m.changes.length > 0)
+  /* ── 左栏数据管线（对齐 dsh：筛选 → 搜索 → 排序 → 分组）──
+     1. archiveFilter：隐藏已归档（默认）/ 全部 / 仅已归档
+     2. query：按会话名称过滤（大小写不敏感）
+     3. orderMode：最近更新 / 手动（手动=用户拖拽后的既有顺序）
+        置顶的永远在最前（dsh pinSession 语义）
+     4. groupMode：按项目两级 / 单列表 */
+  const visibleSessions = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    return props.threads.sessions
+      .filter((t) => {
+        if (archiveFilter === 'hide' && t.archived) return false
+        if (archiveFilter === 'only' && !t.archived) return false
+        if (q && !t.title.toLowerCase().includes(q)) return false
+        return true
+      })
+      .sort((a, b) => {
+        if (!!b.pinned !== !!a.pinned) return a.pinned ? -1 : 1
+        if (orderMode === 'updated') return b.updatedAt - a.updatedAt
+        return 0
+      })
+  }, [props.threads.sessions, archiveFilter, query, orderMode])
+
+  const grouped = useMemo(() => {
+    if (groupMode === 'flat') {
+      return [{ key: 'flat', projectId: UNGROUPED, sessions: visibleSessions }]
+    }
+    const groups = props.projects.map((p) => ({
+      key: p.id,
+      projectId: p.id,
+      sessions: visibleSessions.filter((t) => t.projectId === p.id),
+    }))
+    const orphans = visibleSessions.filter((t) => !t.projectId || !props.projects.some((p) => p.id === t.projectId))
+    if (orphans.length > 0) groups.push({ key: UNGROUPED, projectId: UNGROUPED, sessions: orphans })
+    return groups
+  }, [props.projects, visibleSessions, groupMode])
+
+  const noMatches = visibleSessions.length === 0
+
   const drawer = narrow && sideExpanded
   const rail = !sideExpanded
 
-  /* @ 提及：光标前 @xxx（xxx 不含空白）时弹出真实库候选 */
-  const mention = useMemo(() => {
-    const el = inputRef.current
-    if (!el || !inputFocused) return null
-    const before = chat.draft.slice(0, el.selectionStart ?? chat.draft.length)
-    const m = before.match(/(?:^|\s)@([^\s@]*)$/)
-    if (!m) return null
-    const query = m[1]
-    const start = before.length - query.length - 1
-    const items = MENTIONS.filter((it) => it.label.includes(query)).slice(0, 8)
-    return { query, start, items }
-  }, [chat.draft, inputFocused])
-
-  /* / 菜单：整行就是 /xxx 时才出现，只放真实可用的 /new */
-  const slashMenu = useMemo(() => {
-    if (!/^\/[^\s]*$/.test(chat.draft)) return null
-    return chat.draft === '/' || '/new'.startsWith(chat.draft) ? [{ cmd: '/new', desc: '开新会话' }] : []
-  }, [chat.draft])
-
-  /* 轨迹 tab：只列本会话真实的工具调用与方案事件，没有则为空态 */
-  const trace = useMemo<TraceEntry[]>(() => {
-    const entries: TraceEntry[] = []
-    messages.forEach((m) => {
-      if (m.role === 'user') {
-        entries.push({ key: m.id, time: fmtTime(m.at), kind: 'user', title: '用户消息', detail: usableName(m.text) || m.text.slice(0, 24) })
-      } else {
-        ;(m.toolCalls ?? []).forEach((t, i) => {
-          entries.push({ key: `${m.id}-t${i}`, time: fmtTime(m.at), kind: 'tool', title: t.label, detail: t.detail })
-        })
-        if (m.plan) entries.push({ key: `${m.id}-plan`, time: fmtTime(m.at), kind: 'plan', title: '制作方案已生成（演示）', detail: `${m.plan.length} 个要点` })
-        if (m.changes) entries.push({ key: `${m.id}-changes`, time: fmtTime(m.at), kind: 'launch', title: '制作已开始', detail: `${m.changes.length} 项已创建` })
-      }
-    })
-    /* 不补 app 级 fallback：制作记录只属于产生它的那次会话，/new 开新会话后轨迹应为空 */
-    return entries
-  }, [messages])
-
-  /* 有新用户消息且还没回：演示 agent 900ms 后回一条（原型延迟，非真实推理耗时） */
+  /* 有新用户消息且还没回：演示 agent 900ms 后回一条（原型延迟，非真实推理耗时）
+     ⚠️ 不能在这里 clearTimeout：StrictMode 挂载后会立刻跑一次 cleanup，
+        定时器被清掉，而 repliedRef 已标记该条 → 第二次进入直接 return，
+        回复永远不会来、pending 永远为 true（表现：一直「正在思考…」，
+        从首页进入会话必现，输入框与发送键全被锁死）。
+        定时器的生命周期改由 newSession / 卸载守卫处理。 */
   useEffect(() => {
     const last = messages[messages.length - 1]
     if (!last || last.role !== 'user' || repliedRef.current.has(last.id)) return
     repliedRef.current.add(last.id)
     setPending(true)
-    const t = window.setTimeout(() => {
+    replyTimer.current = window.setTimeout(() => {
+      replyTimer.current = null
+      /* 卸载时放弃本条回复，并撤销“已回复”标记：再次进入本视图时会重新排期 */
+      if (!aliveRef.current) { repliedRef.current.delete(last.id); return }
       chat.addAiMessage(demoReply(last.text, userMessages.length - 1))
       setPending(false)
     }, 900)
-    return () => window.clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages])
 
@@ -278,59 +357,90 @@ export function Conversation(props: {
     })
   }
 
-  const newSession = () => {
+  /* ── 输入区派生值 ── */
+  const harness = HARNESSES.find((h) => h.id === harnessId) ?? HARNESSES[0]
+  const prefKey = prefsKey(harnessId, model)
+  const currentPrefs: ModelPrefs = prefs[prefKey] ?? DEFAULT_PREFS
+  const setPref = (patch: Partial<ModelPrefs>) => {
+    setPrefs((all) => {
+      const next = { ...all, [prefKey]: { ...(all[prefKey] ?? DEFAULT_PREFS), ...patch } }
+      savePrefs(next)
+      return next
+    })
+  }
+  /* 未接入的引擎不许发送（与首页同口径），附件/草稿至少有一个才算有内容 */
+  const canSend = !pending && harness.ready && (chat.draft.trim().length > 0 || attachments.length > 0)
+
+  /* 附件：kind 按 MIME 判定；最多 6 个（同首页上限） */
+  const addFiles = (files: File[], forced?: 'file' | 'image' | 'video', done?: () => void) => {
+    if (files.length > 0) {
+      const picked = files.map((f) => ({
+        name: f.name,
+        size: f.size,
+        kind: forced ?? (f.type.startsWith('image/') ? 'image' : f.type.startsWith('video/') ? 'video' : 'file'),
+      }))
+      setAttachments((prev) => [...prev, ...picked].slice(0, 6))
+    }
+    done?.()
+  }
+  const onPickFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
+    addFiles(Array.from(e.target.files ?? []), undefined, () => { e.target.value = '' })
+  }
+
+  /* 删除项目：会话不跟着删，按 dsh delete.desc 的语义落进「未分组」 */
+  const onDeleteProject = (projectId: string) => {
+    props.threads.sessions.filter((t) => t.projectId === projectId).forEach((t) => props.threads.moveTo(t.id, null))
+    props.onDeleteProject?.(projectId)
+  }
+
+  /* `intoProject` 让项目行上的「在此项目新建对话」按钮能指定归属；
+     不传时沿用当前打开的项目（旧行为）。 */
+  const newSession = (intoProject?: string | null) => {
+    /* 开新会话时把未落地的演示回复一起取消，否则旧对话的回复会插进新会话 */
+    if (replyTimer.current !== null) {
+      window.clearTimeout(replyTimer.current)
+      replyTimer.current = null
+    }
+    setPending(false)
     chat.clearChat()
-    setTab('chat')
+    /* 左栏也要真的多一条会话，否则新建只清空了内容、树上什么都没变。
+       归属：行内按钮给了就用它，否则沿用当前项目（在项目里开新对话，
+       默认还是这个项目的活）；都没有就落未分组，之后可拖过去。 */
+    const t = props.threads.create({
+      projectId: intoProject === undefined ? props.openProject : intoProject,
+      workdir: null,
+    })
+    loadedRef.current = t.id
   }
 
-  const insertMention = (label: string) => {
-    if (!mention) return
-    const el = inputRef.current
-    const cursor = el?.selectionStart ?? chat.draft.length
-    const next = `${chat.draft.slice(0, mention.start)}@${label} ${chat.draft.slice(cursor)}`
-    chat.setDraft(next)
-    requestAnimationFrame(() => {
-      el?.focus()
-      const pos = mention.start + label.length + 2
-      el?.setSelectionRange(pos, pos)
-      growInput()
+  /* 左栏直建项目（对齐 dsh：不弹表单、不问片型时长，建出来就是一个空项目，
+     紧接着进「行内改名」态 —— dsh 的 create 也只是接管一个目录，
+     名字之后再 rename，不需要先填一张表）。 */
+  const createProjectInline = () => {
+    const p = props.onNewProject()
+    setEditing(p.id)
+    setEditText('未命名项目')
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev)
+      next.delete(p.id)
+      return next
     })
-  }
-
-  const insertAtSign = () => {
-    const el = inputRef.current
-    const cursor = el?.selectionStart ?? chat.draft.length
-    const next = `${chat.draft.slice(0, cursor)}@${chat.draft.slice(cursor)}`
-    chat.setDraft(next)
-    requestAnimationFrame(() => {
-      el?.focus()
-      el?.setSelectionRange(cursor + 1, cursor + 1)
-      growInput()
-    })
+    return p
   }
 
   const onInputKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (mention && mention.items.length > 0) {
-      if (e.key === 'ArrowDown') { e.preventDefault(); setMentionIdx((i) => (i + 1) % mention.items.length); return }
-      if (e.key === 'ArrowUp') { e.preventDefault(); setMentionIdx((i) => (i - 1 + mention.items.length) % mention.items.length); return }
-      if (e.key === 'Enter') { e.preventDefault(); insertMention(mention.items[Math.min(mentionIdx, mention.items.length - 1)].label); return }
-      if (e.key === 'Escape') { e.preventDefault(); inputRef.current?.blur(); return }
-    }
-    if (slashMenu && slashMenu.length > 0) {
-      if (e.key === 'Enter') { e.preventDefault(); newSession(); return }
-      if (e.key === 'Escape') { e.preventDefault(); inputRef.current?.blur(); return }
-    }
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit() }
+    if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); submit() }
   }
 
   /* 开始制作：与 StartCreation 同一套创建逻辑（建项目 + createFromPath + 落工作台）；
-     先把真实创建的项目与工作流记进“改了什么”表，再切工作台 */
+     先把真实创建的项目与工作流记进“已创建”表，再切工作台 */
   const launch = (quick: boolean) => {
     const brief = firstBrief
     if (!brief.trim()) return
     const name = usableName(brief)
+    const projectName = name.slice(0, 14) || '未命名创作'
     const project = props.onCreateProject({
-      name: name.slice(0, 14) || '未命名创作',
+      name: projectName,
       genome: GENOMES[0]?.id ?? 'explainer',
       targetDuration: 180,
     })
@@ -339,264 +449,542 @@ export function Conversation(props: {
       seedPrompt: brief,
     })
     chat.addAiMessage({
-      text: '制作已开始，已创建以下内容：',
+      text: '项目建好了，制作方案也备了一份。',
       changes: [
-        { file: `项目 / ${project.id}`, change: '新增' },
-        { file: `工作流 / ${wf.name}`, change: '新增' },
+        { file: projectName, change: '项目' },
+        { file: wf.name, change: '工作流' },
       ],
     })
     props.onLaunch({ workflowId: wf.id, projectId: project.id, autoRun: quick })
   }
 
-  const demoPop = (key: DemoNoteKey) => (
-    <div className="cv3-pop" role="note">
-      <p>{DEMO_NOTE[key]}</p>
-      <button type="button" onClick={() => setDemoNote(null)}>知道了</button>
-    </div>
-  )
-
   return (
     <div className="cv3">
-      {drawer && <button type="button" aria-label="关闭会话栏" className="cv3-backdrop" onClick={() => setSideExpanded(false)} />}
+      {drawer && <button type="button" aria-label="关闭项目栏" className="cv3-backdrop" onClick={() => setSideExpanded(false)} />}
 
-      <aside className="cv3-side" data-rail={rail || undefined} data-drawer={drawer || undefined} aria-label="会话栏">
+      {/* 收起时整块不渲染：不留 56px 竖条（那是 dsh 的「图标轨」，本产品收起后
+          左栏里没有任何还需要常驻的图标，留一条空轨道只是视觉噪音）。 */}
+      {!rail && <aside className="cv3-side" data-drawer={drawer || undefined} aria-label="项目与对话">
+        {/* 动作条只放小图标（对齐 dsh sectionHeader[headerActions]：左栏没有整行的大按钮，
+            新建动作退回图标级）。视图选项在最右，与下面要管的那个列表挨着。 */}
         <div className="cv3-side-top">
-          <button type="button" className="cv3-icon-btn" aria-label={sideExpanded ? '收起会话栏' : '展开会话栏'} title={sideExpanded ? '收起会话栏' : '展开会话栏'} onClick={() => setSideExpanded((o) => !o)}>
-            <PanelLeft size={16} />
+          <button type="button" className="cv3-icon-btn" aria-label="新建对话" title="新建对话"
+                  onClick={() => newSession()}>
+            <MessageSquarePlus size={15} />
           </button>
-        </div>
-        <button type="button" className="cv3-new" onClick={newSession} title="新会话">
-          <Plus size={15} /><span className="cv3-new-label">新会话</span>
-        </button>
-        <div className="cv3-panel-list">
-          <button type="button" className="cv3-panel-row" disabled={!launched} onClick={props.onOpenWorkbench}
-                  title={launched ? '进入工作台查看完整制作过程' : '开始制作后可进入工作台'}>
-            <span className="cv3-panel-ico"><Clapperboard size={16} /></span>
-            <span className="cv3-panel-row-label">工作台</span>
+          <button type="button" className="cv3-icon-btn" aria-label="新建项目" title="新建项目"
+                  onClick={createProjectInline}>
+            <FolderPlus size={15} />
           </button>
+          {/* 视图选项（对齐 dsh viewOptions：分组方式 / 排序方式 / 归档筛选） */}
+          <div className="cv3-viewwrap">
+            <button type="button" className="cv3-icon-btn" aria-label="视图选项" title="视图选项"
+                    aria-expanded={viewMenu} data-on={viewMenu || undefined}
+                    onClick={() => { setViewMenu((o) => !o); setRowMenu(null) }}>
+              <ListFilter size={15} />
+            </button>
+            {viewMenu && (
+              <div className="cv3-menu cv3-viewmenu" role="menu">
+                <div className="cv3-menu-sec">分组方式</div>
+                <button type="button" role="menuitemradio" aria-checked={groupMode === 'project'}
+                        onClick={() => { setGroupMode('project'); setViewMenu(false) }}>
+                  <span>按项目</span>{groupMode === 'project' && <Check size={13} />}
+                </button>
+                <button type="button" role="menuitemradio" aria-checked={groupMode === 'flat'}
+                        onClick={() => { setGroupMode('flat'); setViewMenu(false) }}>
+                  <span>单列表</span>{groupMode === 'flat' && <Check size={13} />}
+                </button>
+                <div className="cv3-menu-sec">排序方式</div>
+                <button type="button" role="menuitemradio" aria-checked={orderMode === 'updated'}
+                        onClick={() => { setOrderMode('updated'); setViewMenu(false) }}>
+                  <span>最近更新</span>{orderMode === 'updated' && <Check size={13} />}
+                </button>
+                <button type="button" role="menuitemradio" aria-checked={orderMode === 'manual'}
+                        onClick={() => { setOrderMode('manual'); setViewMenu(false) }}>
+                  <span>手动排序</span>{orderMode === 'manual' && <Check size={13} />}
+                </button>
+                <div className="cv3-menu-sec">筛选会话</div>
+                {([['hide', '隐藏已归档'], ['show', '全部对话（显示已归档）'], ['only', '仅显示已归档']] as const).map(([v, label]) => (
+                  <button key={v} type="button" role="menuitemradio" aria-checked={archiveFilter === v}
+                          onClick={() => { setArchiveFilter(v); setViewMenu(false) }}>
+                    <span>{label}</span>{archiveFilter === v && <Check size={13} />}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
-        <div className="cv3-side-sec">会话</div>
-        <div className="cv3-side-list">
-          {userMessages.length > 0 ? (
-            <div className="cv3-session" aria-current="true">
-              <span className="cv3-session-title">{title}</span>
-              <span className="cv3-session-time">{fmtTime(userMessages[0].at)}</span>
-            </div>
-          ) : (
-            <p className="cv3-side-hint">还没有会话，发送第一条消息后出现在这里。</p>
+
+        {/* 搜索会话（对齐 dsh search.placeholder / search.noMatches） */}
+        <label className="cv3-search">
+          <Search size={13} aria-hidden="true" />
+          <input value={query} onChange={(e) => setQuery(e.target.value)}
+                 placeholder="搜索对话名称" aria-label="搜索对话" />
+          {query && (
+            <button type="button" aria-label="清除搜索" onClick={() => setQuery('')}><X size={12} /></button>
           )}
+        </label>
+
+        <div className="cv3-side-list">
+          {/* 只有「真的一条会话都没有、也没有任何项目」时才整块换成提示。
+              原来用 noMatches（= 没有会话）挡掉整个列表，导致左栏直建出来的
+              空项目根本不显示 —— 新建项目点了没反应。dsh 的项目行是常驻的，
+              哪怕它下面一条会话都没有。 */}
+          {query.trim() && noMatches ? (
+            <p className="cv3-side-hint">无匹配结果</p>
+          ) : grouped.length === 0 ? (
+            <p className="cv3-side-hint">暂无会话</p>
+          ) : grouped.map((g) => {
+            const isUng = g.projectId === UNGROUPED
+            const flat = g.key === 'flat'
+            const proj = isUng || flat ? null : props.projects.find((p) => p.id === g.projectId) ?? null
+            const collapsed = collapsedGroups.has(g.key)
+            return (
+              <div key={g.key} className="cv3-group" data-ungrouped={isUng && !flat || undefined}
+                   onDragOver={(e) => {
+                     if (!dragId || flat) return
+                     e.preventDefault()
+                     setDropTarget(g.projectId)
+                   }}
+                   onDragLeave={(e) => {
+                     if (e.currentTarget.contains(e.relatedTarget as Node | null)) return
+                     setDropTarget((t) => (t === g.projectId ? null : t))
+                   }}
+                   onDrop={(e) => {
+                     e.preventDefault()
+                     if (dragId && !flat) props.threads.moveTo(dragId, isUng ? null : g.projectId)
+                     setDragId(null)
+                     setDropTarget(null)
+                   }}>
+                {!flat && (
+                  <div className="cv3-group-row">
+                    {/* 新建后立刻在这里就地改名（dsh 的 renameInput：建完就打字，
+                        不用先填弹窗里的表单再确认一遍） */}
+                    {!isUng && proj && editing === proj.id ? (
+                      <div className="cv3-group-head cv3-group-editrow">
+                        <ChevronRight size={13} className="cv3-group-caret" data-open={!collapsed || undefined} />
+                        <input className="cv3-group-edit" autoFocus value={editText}
+                               aria-label="项目名称"
+                               onChange={(e) => setEditText(e.target.value)}
+                               onBlur={() => {
+                                 props.onRenameProject?.(proj.id, editText)
+                                 setEditing(null)
+                               }}
+                               onKeyDown={(e) => {
+                                 if (e.key === 'Enter') {
+                                   props.onRenameProject?.(proj.id, editText)
+                                   setEditing(null)
+                                 }
+                                 if (e.key === 'Escape') setEditing(null)
+                               }} />
+                      </div>
+                    ) : (
+                    <button type="button" className="cv3-group-head"
+                            data-drop={dropTarget === g.projectId || undefined}
+                            onClick={() => setCollapsedGroups((prev) => {
+                              const next = new Set(prev)
+                              if (next.has(g.key)) next.delete(g.key)
+                              else next.add(g.key)
+                              return next
+                            })}
+                            title={isUng ? '没有归属项目的对话，可拖到项目下' : proj?.name}>
+                      <ChevronRight size={13} className="cv3-group-caret" data-open={!collapsed || undefined} />
+                      <span className="cv3-group-name">{isUng ? '未分组' : proj?.name ?? '未命名项目'}</span>
+                      {/* 0 不显示：空项目挂一个「0」只是噪音，还会和下面的
+                          「还没有对话。」重复表达同一件事。dsh 的行也没有计数。 */}
+                      {g.sessions.length > 0 && (
+                        <span className="cv3-group-count num">{g.sessions.length}</span>
+                      )}
+                    </button>
+                    )}
+                    {!isUng && proj && (
+                      <>
+                        <div className="cv3-rowmenu-wrap">
+                          <button type="button" className="cv3-row-more" aria-label={`${proj.name} 的操作`}
+                                  aria-expanded={rowMenu === proj.id}
+                                  onClick={(e) => { e.stopPropagation(); setRowMenu(rowMenu === proj.id ? null : proj.id); setViewMenu(false) }}>
+                            <Ellipsis size={14} />
+                          </button>
+                          {rowMenu === proj.id && (
+                            <div className="cv3-menu cv3-rowmenu" role="menu">
+                              <button type="button" role="menuitem"
+                                      onClick={() => { props.onSelectProject(proj.id); setRowMenu(null) }}>
+                                <PanelLeft size={13} /><span>打开项目</span>
+                              </button>
+                              <button type="button" role="menuitem"
+                                      onClick={() => { setEditing(proj.id); setEditText(proj.name); setRowMenu(null) }}>
+                                <Pencil size={13} /><span>重命名项目</span>
+                              </button>
+                              <button type="button" role="menuitem" data-danger
+                                      onClick={() => { setRowMenu(null); onDeleteProject(proj.id) }}>
+                                <Trash2 size={13} /><span>删除项目</span>
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                        {/* 在此项目里新建对话（对齐 dsh ProjectRowItem 的 rowActions：
+                            小图标、悬停才现身，放在操作钮最右，点一下就把新会话挂到这个项目下） */}
+                        <button type="button" className="cv3-row-new" aria-label={`在 ${proj.name} 中新建对话`}
+                                title={`在 ${proj.name} 中新建对话`}
+                                onClick={(e) => { e.stopPropagation(); newSession(proj.id) }}>
+                          <MessageSquarePlus size={14} />
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
+                {!collapsed && (
+                  <div className="cv3-group-body">
+                    {g.sessions.length === 0 ? (
+                      <p className="cv3-side-hint">{flat ? '暂无会话' : isUng ? '没有未分组的对话。' : '还没有对话。'}</p>
+                    ) : g.sessions.map((t) => (
+                      <div key={t.id} className="cv3-session"
+                           draggable
+                           data-current={t.id === props.activeSessionId || undefined}
+                           data-dragging={dragId === t.id || undefined}
+                           data-archived={t.archived || undefined}
+                           onDragStart={(e) => { setDragId(t.id); e.dataTransfer.effectAllowed = 'move' }}
+                           onDragEnd={() => { setDragId(null); setDropTarget(null) }}
+                           onClick={() => {
+                             if (editing === t.id) return
+                             props.threads.setActiveId(t.id)
+                             if (!isUng && !flat && proj) props.onSelectProject(proj.id)
+                           }}
+                           title={`${t.title} · 创建于 ${fmtWhen(t.createdAt)}`}>
+                        {editing === t.id ? (
+                          <input className="cv3-session-edit" autoFocus value={editText}
+                                 onChange={(e) => setEditText(e.target.value)}
+                                 onBlur={() => { props.threads.rename(t.id, editText); setEditing(null) }}
+                                 onKeyDown={(e) => {
+                                   if (e.key === 'Enter') { props.threads.rename(t.id, editText); setEditing(null) }
+                                   if (e.key === 'Escape') setEditing(null)
+                                 }}
+                                 onClick={(e) => e.stopPropagation()} />
+                        ) : (
+                          <>
+                            {t.pinned && <Pin size={11} className="cv3-session-pin" aria-label="已置顶" />}
+                            <span className="cv3-session-name">{t.title}</span>
+                            {t.archived
+                              ? <span className="cv3-session-flag">已归档</span>
+                              : <span className="cv3-session-time num">{fmtAgo(t.updatedAt)}</span>}
+                          </>
+                        )}
+                        <div className="cv3-rowmenu-wrap">
+                          <button type="button" className="cv3-row-more" aria-label={`${t.title} 的操作`}
+                                  aria-expanded={rowMenu === t.id}
+                                  onClick={(e) => { e.stopPropagation(); setRowMenu(rowMenu === t.id ? null : t.id); setViewMenu(false) }}>
+                            <Ellipsis size={13} />
+                          </button>
+                          {rowMenu === t.id && (
+                            <div className="cv3-menu cv3-rowmenu" role="menu">
+                              <button type="button" role="menuitem"
+                                      onClick={() => { setEditing(t.id); setEditText(t.title); setRowMenu(null) }}>
+                                <Pencil size={13} /><span>重命名</span>
+                              </button>
+                              <button type="button" role="menuitem"
+                                      onClick={() => { props.threads.setPinned(t.id, !t.pinned); setRowMenu(null) }}>
+                                {t.pinned ? <PinOff size={13} /> : <Pin size={13} />}
+                                <span>{t.pinned ? '取消置顶' : '置顶会话'}</span>
+                              </button>
+                              <button type="button" role="menuitem"
+                                      onClick={() => { props.threads.setArchived(t.id, !t.archived); setRowMenu(null) }}>
+                                {t.archived ? <ArchiveRestore size={13} /> : <Archive size={13} />}
+                                <span>{t.archived ? '取消归档' : '归档会话'}</span>
+                              </button>
+                              <button type="button" role="menuitem" data-danger
+                                      onClick={() => { props.threads.remove(t.id); setRowMenu(null) }}>
+                                <Trash2 size={13} /><span>删除会话</span>
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+          })}
         </div>
-        <p className="cv3-side-note">演示模式 · 未连接 Agent。会话只在内存里，刷新即失。</p>
-      </aside>
+        {/* 底部的整行「新建项目」已移除（dsh 左栏没有整行大按钮）：
+            新建入口收到顶部图标条，项目行上另有「在此项目新建对话」。 */}
+      </aside>}
 
       <div className="cv3-main">
         <header className="cv3-head">
           <div className="cv3-title-row">
-            <button type="button" className="cv3-icon-btn" aria-label={sideExpanded ? '收起会话栏' : '展开会话栏'} title={sideExpanded ? '收起会话栏' : '展开会话栏'} onClick={() => setSideExpanded((o) => !o)}>
+            <button type="button" className="cv3-icon-btn" aria-label={sideExpanded ? '收起项目栏' : '展开项目栏'} title={sideExpanded ? '收起项目栏' : '展开项目栏'} onClick={() => setSideExpanded((o) => !o)}>
               <PanelLeft size={16} />
             </button>
             <div className="cv3-crumb" title={title}>{title}</div>
-            <span className="cv3-demo-pill">演示模式</span>
-            <div className="cv3-head-actions">
-              <div className="cv3-chip-wrap">
-                <button type="button" className="cv3-chip" aria-expanded={demoNote === 'team'} onClick={() => setDemoNote(demoNote === 'team' ? null : 'team')}>
-                  智能体团队<ChevronDown size={12} />
-                </button>
-                {demoNote === 'team' && demoPop('team')}
-              </div>
-              <div className="cv3-chip-wrap">
-                <button type="button" className="cv3-chip" aria-expanded={demoNote === 'mode'} onClick={() => setDemoNote(demoNote === 'mode' ? null : 'mode')}>
-                  创造模式<ChevronDown size={12} />
-                </button>
-                {demoNote === 'mode' && demoPop('mode')}
-              </div>
-            </div>
-            <div className="cv3-switch" role="group" aria-label="对话与工作台切换">
-              <button type="button" data-on aria-current="page">对话</button>
-              <button type="button" disabled={!launched} onClick={props.onOpenWorkbench}
-                      title={launched ? '进入工作台查看完整制作过程' : '开始制作后可进入工作台'}>
-                工作台
-              </button>
-            </div>
-          </div>
-          <div className="cv3-tabs" role="tablist" aria-label="对话与轨迹">
-            <button type="button" role="tab" aria-selected={tab === 'chat'} onClick={() => setTab('chat')}>对话</button>
-            <button type="button" role="tab" aria-selected={tab === 'trace'} onClick={() => setTab('trace')}>轨迹</button>
+            <ViewSwitch current="conversation" workbenchDisabled={props.openProject === null}
+                        onSwitch={(target) => { if (target === 'workbench') props.onOpenWorkbench() }} />
           </div>
         </header>
 
         <div className="cv3-scroll" ref={scrollRef}>
           <div className="cv3-view">
-            {tab === 'chat' ? (
-              <div className="cv3-col">
-                {userMessages.length === 0 && (
-                  <p className="cv3-ai-intro">说说你想做的片子——讲给谁、讲什么、想要什么感觉。先聊清楚，再开始制作。</p>
-                )}
+            <div className="cv3-col">
+              {userMessages.length === 0 && (
+                <p className="cv3-ai-intro">说说你想做的片子：讲给谁、多长、什么感觉。</p>
+              )}
 
-                {messages.map((m) => m.role === 'user' ? (
-                  <p key={m.id} className="cv3-user">{m.text}</p>
-                ) : (
-                  <div key={m.id} className="cv3-ai-block">
-                    <div className="cv3-rich">{renderRich(m.text)}</div>
-                    {m.thinking && (
-                      <details className="cv3-think">
-                        <summary>
-                          <ChevronDown size={14} className="cv3-think-chev" />
-                          <span className="cv3-think-title">思考过程</span>
-                          <i className="cv3-think-sep" />
-                          <span className="cv3-think-sum">{m.thinking}</span>
-                        </summary>
-                        <p>{m.thinking}</p>
-                      </details>
-                    )}
-                    {m.toolCalls && m.toolCalls.length > 0 && (
-                      <div className="cv3-tools">
-                        {m.toolCalls.map((t, i) => (
-                          <div key={i} className="cv3-tool">
-                            <b>{t.label}</b>
-                            <span>{t.detail}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    {m.changes && m.changes.length > 0 && (
-                      <div className="cv3-changes">
-                        <b className="cv3-changes-title">改了什么</b>
-                        <table>
-                          <thead><tr><th>文件</th><th>改动</th></tr></thead>
-                          <tbody>
-                            {m.changes.map((c, i) => (
-                              <tr key={i}><td><code>{c.file}</code></td><td>{c.change}</td></tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-                    {m.plan && (
-                      <div className="cv3-plan">
-                        <b className="cv3-plan-title">制作方案（演示）</b>
-                        <ol>
-                          {m.plan.map((p, i) => <li key={i}>{p}</li>)}
-                        </ol>
-                        {!launched && (
-                          <>
-                            <div className="cv3-plan-path">
-                              <span>专业制作路径</span>
-                              <SegmentedControl value={proPath}
-                                                onChange={(v) => setProPath(v as WfPath)}
-                                                ariaLabel="专业制作路径"
-                                                options={[{ value: 'prompt-first', label: 'Prompt-first' }, { value: 'structured', label: 'Structured' }]} />
-                            </div>
-                            <div className="cv3-plan-actions">
-                              <button type="button" className="cv3-primary" onClick={() => launch(true)}>开始制作（快速，自动运行）</button>
-                              <button type="button" className="cv3-secondary" onClick={() => launch(false)}>创建并进入工作台（不自动运行）</button>
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ))}
-
-                {pending && (
-                  <p className="cv3-pending"><LoaderCircle className="cv3-spin" size={14} /> 正在思考…（演示）</p>
-                )}
-              </div>
-            ) : (
-              <div className="cv3-col">
-                {trace.length === 0 ? (
-                  <div className="cv3-trace-empty">
-                    <b>暂无任务事件</b>
-                    <p>发一条消息，agent 的工具调用会按时间出现在这里。演示模式下不产生真实任务。</p>
-                  </div>
-                ) : (
-                  <ol className="cv3-timeline">
-                    {trace.map((e) => (
-                      <li key={e.key} className={`cv3-tl cv3-tl-${e.kind}`}>
-                        <span className="cv3-tl-time">{e.time}</span>
-                        <i className="cv3-tl-dot" />
-                        <div className="cv3-tl-body">
-                          <b>{e.title}</b>
-                          {e.detail && <span>{e.detail}</span>}
+              {messages.map((m) => m.role === 'user' ? (
+                <p key={m.id} className="cv3-user">{m.text}</p>
+              ) : (
+                <div key={m.id} className="cv3-ai-block">
+                  <div className="cv3-rich">{renderRich(m.text)}</div>
+                  {m.toolCalls && m.toolCalls.length > 0 && (
+                    <div className="cv3-tools">
+                      {m.toolCalls.map((t, i) => (
+                        <div key={i} className="cv3-tool">
+                          <b>{t.label}</b>
+                          <span>{t.detail}</span>
                         </div>
-                      </li>
-                    ))}
-                  </ol>
-                )}
-              </div>
-            )}
+                      ))}
+                    </div>
+                  )}
+                  {m.changes && m.changes.length > 0 && (
+                    <div className="cv3-changes">
+                      <b className="cv3-changes-title">新建的东西</b>
+                      <table>
+                        <thead><tr><th>名字</th><th>类型</th></tr></thead>
+                        <tbody>
+                          {m.changes.map((c, i) => (
+                            <tr key={i}><td><code>{c.file}</code></td><td>{c.change}</td></tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                  {m.plan && (
+                    <div className="cv3-plan">
+                      <b className="cv3-plan-title">制作方案</b>
+                      <ol>
+                        {m.plan.map((p, i) => <li key={i}>{p}</li>)}
+                      </ol>
+                      {!launched && (
+                        <>
+                          <div className="cv3-plan-path">
+                            <span>专业制作路径</span>
+                            <SegmentedControl value={proPath}
+                                              onChange={(v) => setProPath(v as WfPath)}
+                                              ariaLabel="专业制作路径"
+                                              options={[{ value: 'prompt-first', label: 'Prompt-first' }, { value: 'structured', label: 'Structured' }]} />
+                          </div>
+                          <div className="cv3-plan-actions">
+                            <button type="button" className="cv3-primary" onClick={() => launch(true)}>开始制作</button>
+                            <button type="button" className="cv3-secondary" onClick={() => launch(false)}>先去工作台看看</button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
+
+              {pending && (
+                <p className="cv3-pending"><LoaderCircle className="cv3-spin" size={14} /> 正在整理…</p>
+              )}
+            </div>
           </div>
 
           <div className="cv3-seat">
             <form className="cv3-compose" onSubmit={(e) => { e.preventDefault(); submit() }}>
               <div className="cv3-card">
-                {mention && mention.items.length > 0 && (
-                  <div className="cv3-picker" role="listbox" aria-label="引用参考片或特效">
-                    {mention.items.map((it, i) => (
-                      <button key={it.label} type="button" role="option" aria-selected={i === mentionIdx}
-                              data-active={i === mentionIdx || undefined}
-                              onMouseEnter={() => setMentionIdx(i)}
-                              onMouseDown={(e) => e.preventDefault()}
-                              onClick={() => insertMention(it.label)}>
-                        <b>{it.label}</b><span>{it.kind}</span>
-                      </button>
+                {/* 待发送附件（对齐 dsh attachment.pending：可逐个移除） */}
+                {attachments.length > 0 && (
+                  <div className="cv3-attach-row">
+                    {attachments.map((a, i) => (
+                      <span key={`${a.name}-${i}`} className="cv3-attach-chip" data-kind={a.kind}>
+                        {a.kind === 'image' ? <ImageIcon size={12} /> : <FileText size={12} />}
+                        <span className="cv3-attach-name">{a.name}</span>
+                        <button type="button" aria-label={`移除文件 ${a.name}`}
+                                onClick={() => setAttachments((l) => l.filter((_, j) => j !== i))}>
+                          <X size={11} />
+                        </button>
+                      </span>
                     ))}
                   </div>
                 )}
-                {slashMenu && slashMenu.length > 0 && (
-                  <div className="cv3-picker" role="listbox" aria-label="指令">
-                    {slashMenu.map((it) => (
-                      <button key={it.cmd} type="button" role="option" aria-selected
-                              onClick={newSession}>
-                        <b>{it.cmd}</b><span>{it.desc}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-                {demoNote === 'perm' && demoPop('perm')}
-                {demoNote === 'model' && demoPop('model')}
-                {demoNote === 'attach' && demoPop('attach')}
                 <textarea className="cv3-input" rows={1} ref={inputRef}
                           value={chat.draft}
-                          onChange={(e) => { chat.setDraft(e.target.value); setMentionIdx(0); growInput() }}
-                          onFocus={() => setInputFocused(true)} onBlur={() => setInputFocused(false)}
+                          onChange={(e) => { chat.setDraft(e.target.value); growInput() }}
                           onKeyDown={onInputKeyDown}
-                          placeholder="发消息或创建任务，/ 调用指令，@ 文件或对话" />
+                          placeholder="说说你想做的片子，或补充制作要求" />
                 <div className="cv3-row">
-                  <div className="cv3-tools-left">
-                    <button type="button" className="cv3-add" title="添加附件（演示）" aria-label="添加附件（演示）"
-                            onClick={() => setDemoNote(demoNote === 'attach' ? null : 'attach')}>
-                      <Plus size={16} />
-                    </button>
-                    <button type="button" className="cv3-at" title="引用参考片或特效" onClick={insertAtSign}>
-                      <AtSign size={15} />
-                    </button>
-                    <button type="button" className="cv3-chip" aria-expanded={demoNote === 'perm'}
-                            onClick={() => setDemoNote(demoNote === 'perm' ? null : 'perm')}>
-                      完全权限<ChevronDown size={12} />
-                    </button>
+                  {/* 左侧：添加文件 / 权限模式 */}
+                  <div className="cv3-leading">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button type="button" className="cv3-chip-btn" aria-label="添加文件或调用指令" title="添加文件或调用指令">
+                          <Plus size={14} />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent side="top" align="start" sideOffset={8} className="cv3-ddm cv3-ddm-add">
+                        <DropdownMenuLabel className="cv3-ddm-label">添加到这条对话</DropdownMenuLabel>
+                        <div className="cv3-addgrid">
+                          <button type="button" onClick={() => fileRef.current?.click()}>
+                            <span className="cv3-addicon"><FileText size={16} /></span>
+                            <b>文件</b>
+                            <em>剧本、分镜表</em>
+                          </button>
+                          <button type="button" onClick={() => imageRef.current?.click()}>
+                            <span className="cv3-addicon"><ImageIcon size={16} /></span>
+                            <b>图片</b>
+                            <em>参考画面</em>
+                          </button>
+                        </div>
+                        <p className="cv3-ddm-note">也可以直接把文件拖进输入框</p>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button type="button" className="cv3-chip-btn cv3-perm-btn" aria-label="权限设置" title="权限设置">
+                          {permission === 'readOnly' ? <Shield size={13} />
+                            : permission === 'fullAccess' ? <ShieldAlert size={13} /> : <ShieldCheck size={13} />}
+                          <span className="cv3-chip-label">{PERM_LABEL[permission]}</span>
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent side="top" align="start" sideOffset={8} className="cv3-ddm cv3-ddm-perm">
+                        <DropdownMenuLabel className="cv3-ddm-label">权限模式</DropdownMenuLabel>
+                        <DropdownMenuRadioGroup value={permission} onValueChange={(v) => setPermission(v as typeof permission)}>
+                          {PERM_MODES.map(({ id, label, desc, Icon }) => (
+                            <DropdownMenuRadioItem key={id} value={id} className="cv3-ddm-permrow">
+                              <span className="cv3-perm-icon" data-danger={id === 'fullAccess' || undefined}><Icon size={14} /></span>
+                              <span className="cv3-perm-text">
+                                <b>{label}</b>
+                                <em>{desc}</em>
+                              </span>
+                            </DropdownMenuRadioItem>
+                          ))}
+                        </DropdownMenuRadioGroup>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
+                  {/* 右侧：引擎与模型、发送。
+                      引擎/模型选择器照首页那套做（两段式 chip + 两级弹窗），
+                      原来是一个通用 CPU 图标 + 扁平菜单，和首页明显不是同一个东西。 */}
                   <div className="cv3-trailing">
-                    <button type="button" className="cv3-chip cv3-chip-model" aria-expanded={demoNote === 'model'}
-                            onClick={() => setDemoNote(demoNote === 'model' ? null : 'model')}>
-                      演示模型<ChevronDown size={12} />
-                    </button>
-                    <button className="cv3-send" type="submit" disabled={!chat.draft.trim() || pending} aria-label="发送">
-                      <Send size={16} />
+                    <Popover open={modelPane !== null || modelOpen} onOpenChange={(o) => {
+                      if (!o) { setModelOpen(false); setModelPane(null) }
+                      else setModelOpen(true)
+                    }}>
+                      <PopoverTrigger asChild>
+                        <button type="button" className="cv3-hbtn"
+                                data-off={!harness.ready || undefined}
+                                data-connected={harness.ready || undefined}
+                                aria-label="选择执行引擎与模型" title={harness.ready ? '切换执行引擎' : '该引擎未接入'}
+                                style={{ '--h-color': harness.color } as CSSProperties}>
+                          <span className="cv3-hseg" data-off={!harness.ready || undefined}>
+                            <i aria-hidden="true" />
+                            <span className="cv3-hmark-img" aria-hidden="true"
+                                  style={{ maskImage: `url(${harness.icon})`, WebkitMaskImage: `url(${harness.icon})` }} />
+                            {harness.ready
+                              ? <><span className="cv3-hdiv" aria-hidden="true" /><span className="cv3-hmodel">{model}</span></>
+                              : <span className="cv3-hoff">未接入AI</span>}
+                          </span>
+                          <ChevronDown size={12} className="cv3-hchev" aria-hidden="true" />
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent side="top" align="end" sideOffset={9} className="cv3-hpop">
+                        <div className="cv3-hp-scroll">
+                          {/* 一级：引擎列表；二级：该引擎的模型 + 模型设置（从右侧滑入） */}
+                          <div className="cv3-hp-pane" data-active={modelPane === null || undefined}>
+                            <div className="cv3-hp-head">
+                              <b>执行引擎</b>
+                              <span>{HARNESSES.filter((h) => h.ready).length} 个已接入</span>
+                            </div>
+                            <div className="cv3-hp-list" role="listbox" aria-label="执行引擎">
+                              {HARNESSES.map((h) => (
+                                <button key={h.id} type="button" className="cv3-hp-item" role="option"
+                                        aria-selected={h.id === harnessId}
+                                        data-off={!h.ready || undefined}
+                                        style={{ '--h-color': h.color } as CSSProperties}
+                                        onClick={() => { setHarnessId(h.id); setModel(h.models[0]); setModelPane(h.id) }}>
+                                  <span className="cv3-hp-logo" aria-hidden="true"
+                                        style={{ maskImage: `url(${h.icon})`, WebkitMaskImage: `url(${h.icon})` }} />
+                                  <span className="cv3-hp-txt">
+                                    <b>{h.name}</b>
+                                    <small>{h.ready ? '本机已配置' : '未接入，仅展示'}</small>
+                                  </span>
+                                  {h.id === harnessId && <Check size={13} className="cv3-hp-ck" aria-hidden="true" />}
+                                  <ChevronRight size={13} className="cv3-hp-go" aria-hidden="true" />
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                          <div className="cv3-hp-pane cv3-hp-models" data-active={modelPane !== null || undefined}>
+                            <div className="cv3-hp-head">
+                              <button type="button" className="cv3-hp-back" onClick={() => setModelPane(null)}>
+                                <ChevronLeft size={11} aria-hidden="true" />引擎
+                              </button>
+                              <b>{harness.name}</b>
+                            </div>
+                            <div className="cv3-hp-list" role="listbox" aria-label="模型">
+                              {harness.models.map((m) => (
+                                <div key={m} className="cv3-hp-modelwrap">
+                                  <button type="button" className="cv3-hp-item cv3-hp-model" role="option"
+                                          aria-selected={m === model}
+                                          onClick={() => setModel(m)}>
+                                    <span className="cv3-hp-radio" aria-hidden="true" />
+                                    <span className="cv3-hp-txt"><b className="num">{m}</b></span>
+                                    {m === model && <Check size={13} className="cv3-hp-ck" aria-hidden="true" />}
+                                  </button>
+                                  {/* 选中模型下方展开设置抽屉：思考强度 + 最大上下文。
+                                      首页两个都给了，这里原来只有推理等级、缺最大上下文。 */}
+                                  {m === model && (
+                                    <div className="cv3-hp-drawer">
+                                      <div className="cv3-hp-row">
+                                        <span className="cv3-hp-label">思考强度</span>
+                                        <div className="cv3-hp-seg" role="radiogroup" aria-label="思考强度">
+                                          {(['off', 'standard', 'enhanced'] as Reasoning[]).map((v) => (
+                                            <button key={v} type="button" role="radio"
+                                                    aria-checked={currentPrefs.reasoning === v}
+                                                    className={currentPrefs.reasoning === v ? 'on' : undefined}
+                                                    onClick={() => setPref({ reasoning: v })}>{REASONING_LABEL[v]}</button>
+                                          ))}
+                                        </div>
+                                      </div>
+                                      <div className="cv3-hp-row">
+                                        <span className="cv3-hp-label">最大上下文</span>
+                                        <div className="cv3-hp-seg" role="radiogroup" aria-label="最大上下文">
+                                          {([32, 64, 128] as const).map((v) => (
+                                            <button key={v} type="button" role="radio"
+                                                    aria-checked={currentPrefs.context === v}
+                                                    className={currentPrefs.context === v ? 'on' : undefined}
+                                                    onClick={() => setPref({ context: v })}>{v}K</button>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                            {!harness.ready && (
+                              <p className="cv3-hp-note">{harness.name} 未接入：不会真的执行，切回已配置引擎才能发送。</p>
+                            )}
+                          </div>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                    <button className="cv3-send" type="submit" disabled={!canSend} aria-label="发送">
+                      {pending ? <LoaderCircle size={16} className="cv3-spin" /> : <Send size={16} />}
                     </button>
                   </div>
                 </div>
+                {/* 隐藏的文件选择器（对齐 dsh 的 file input：多选） */}
+                <input ref={fileRef} type="file" multiple hidden onChange={onPickFiles} />
+                <input ref={imageRef} type="file" accept="image/*" multiple hidden
+                       onChange={(e) => addFiles(Array.from(e.target.files ?? []), 'image', () => { if (imageRef.current) imageRef.current.value = '' })} />
               </div>
             </form>
+            {/* 「N 条需求」计数已去掉：它数的是用户消息条数，不是需求条数
+                （用户可能只发一句「继续」），挂在这里既不准也没人看。
+                「已开始制作」是真实状态，保留。 */}
             <footer className="cv3-status">
-              <span className="cv3-pill">{messages.length} 条消息</span>
-              <span className="cv3-sep">·</span>
-              <span className="cv3-pill">演示模式</span>
-              <span className="cv3-sep">·</span>
-              <span className="cv3-pill">未连接 Agent</span>
-              <span className="cv3-sep">·</span>
-              <span className="cv3-pill">会话仅内存</span>
-              {launched && (<><span className="cv3-sep">·</span><span className="cv3-pill">制作已开始</span></>)}
+              {launched && <span className="cv3-pill">已开始制作</span>}
             </footer>
           </div>
         </div>

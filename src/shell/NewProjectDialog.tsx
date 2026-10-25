@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { GENOMES } from '@/data/genomes'
-import { PROJECTS_ROOT, type ProjectSummary } from '@/data/projects'
+import { type ProjectSummary } from '@/data/projects'
 
 function Icon({ name, className = 'ui-icon' }: { name: string; className?: string }) {
   return (
@@ -43,7 +43,6 @@ export function NewProjectDialog({ open, onClose, onCreate }: {
 
   if (!open) return null
 
-  const slug = name.trim().replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, '-').slice(0, 40) || '项目名'
   const g = GENOMES.find((x) => x.id === genome)
 
   return (
@@ -67,7 +66,7 @@ export function NewProjectDialog({ open, onClose, onCreate }: {
           </label>
 
           <div className="pj-field">
-            <span>片型 <em>决定这套做法的默认值</em></span>
+            <span>片型</span>
             <div className="pj-genomes">
               {GENOMES.map((x) => (
                 <button key={x.id} type="button" aria-pressed={genome === x.id}
@@ -91,14 +90,9 @@ export function NewProjectDialog({ open, onClose, onCreate }: {
             </div>
           </div>
 
-          <p className="pj-preview num">
-            将建在 {PROJECTS_ROOT}/{slug}
-            {g && <em> · {g.method.name}（{g.method.lead}）</em>}
-          </p>
-
-          <p className="pj-demo">
-            <Icon name="circle-alert" />
-            演示适配器：不会真的建目录或调用 Agent —— 建出来的项目带「未落盘」标记。
+          <p className="pj-preview">
+            {name.trim() ? `${name.trim()}` : '未命名项目'}
+            {g && <em> · {g.method.name}</em>}
           </p>
 
           <footer className="pj-modal-ft">

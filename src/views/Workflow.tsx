@@ -147,7 +147,7 @@ function WorkflowHome(props: {
       <div className="wfh-meta">
         <span><b className="num">{workflows.length}</b> 个工作流</span>
         <span>默认路径 Prompt-first · Structured 按需</span>
-        <span className="wfh-meta-demo">演示执行器（Agent 后端未连接）</span>
+        <span className="wfh-meta-demo">演示执行器</span>
       </div>
 
       <div className="wfh-body">

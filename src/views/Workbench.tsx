@@ -8,7 +8,7 @@ import {
 } from 'lucide-react'
 import { CreationTaskPanel } from './CreationTask'
 import { ACTIVE_SCENES, SCENES } from '@/data/projectModel'
-import { PROJECTS } from '@/data/projects'
+import { PROJECTS, type ProjectSummary } from '@/data/projects'
 import type { StoryboardEntry } from '@/data/projectModel'
 import { ARTIFACT_STATUS_LABEL, ARTIFACT_TYPE_LABEL, WORKBENCH_ARTIFACTS, type WorkbenchArtifact } from '@/data/workbenchArtifacts'
 import { ACTIVE_DURATION, FILM_FPS, FILM_HEIGHT, FILM_WIDTH } from '@/data/timeline'
@@ -24,6 +24,7 @@ import type { EditableShotSettings } from '@/remotion/EditableShot'
 import { defaultShotSettings, loadShotOverrides, saveShotOverrides, type ShotOverrideMap } from '@/data/shotOverrides'
 import type { ViewId } from '@/shell/views'
 import { SegmentedControl } from '@/components/ui/segmented-control'
+import { ViewSwitch } from '@/components/ViewSwitch'
 import { EditParamsIcon, FrameRefIcon, RangeRefIcon, RegionRefIcon } from '@/components/icons/WorkbenchActionIcons'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Switch } from '@/components/ui/switch'
@@ -95,6 +96,8 @@ interface WorkbenchProps {
   onNavigate: (view: ViewId) => void
   /** 当前打开的项目 id —— 由一级目录传入 */
   projectId: string
+  /** 项目目录（含内存里新建的项目）；不传时退回种子数据 */
+  projects?: ProjectSummary[]
   /** 返回项目列表 */
   onBack: () => void
   /** 换一个项目（工作台里直接切，不用先回列表） */
@@ -106,10 +109,13 @@ interface WorkbenchProps {
   onDismissLaunch?: () => void
 }
 
-export function Workbench({ chat, tasks, onNavigate, projectId, onBack, onSwitchProject, launch, onOpenWorkflowEditor, onDismissLaunch }: WorkbenchProps) {
+export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack, onSwitchProject, launch, onOpenWorkflowEditor, onDismissLaunch }: WorkbenchProps) {
   const playerRef = useRef<PlayerRef | null>(null)
-  /** 打开的哪个项目 —— 从一级目录传下来的 id 解析 */
-  const project = PROJECTS.find((p) => p.id === projectId) ?? PROJECTS[0]
+  /** 打开的哪个项目 —— 从一级目录传下来的 id 解析。
+      ⚠️ 必须用传入的目录：对话视图里新建的项目只存在于内存态，
+        拿静态 PROJECTS 查不到会静默落回第一个种子项目（顶栏名字对不上）。 */
+  const catalog = projects?.length ? projects : PROJECTS
+  const project = catalog.find((p) => p.id === projectId) ?? catalog[0]
   const [selectedId, setSelectedId] = useState('s01')
   const [selectedStoryboardId, setSelectedStoryboardId] = useState<string | null>(null)
   // 调试直达：?artifact=artifact-content-contract 直接打开产物只读视图。
@@ -154,7 +160,6 @@ export function Workbench({ chat, tasks, onNavigate, projectId, onBack, onSwitch
   const [switchOpen, setSwitchOpen] = useState(false)
   const switchRef = useRef<HTMLDivElement | null>(null)
   const selectedScene = useMemo(() => SCENES.find((s) => s.id === selectedId) ?? SCENES[0], [selectedId])
-  const selectedClip = useMemo(() => ACTIVE_SCENES.find((s) => s.id === selectedId) ?? ACTIVE_SCENES[0], [selectedId])
   const selectedArtifact = useMemo(() => WORKBENCH_ARTIFACTS.find((a) => a.id === selectedArtifactId) ?? null, [selectedArtifactId])
   const currentShotSettings = useMemo<EditableShotSettings>(() => shotOverrides[selectedId] ?? defaultShotSettings(selectedScene), [selectedId, selectedScene, shotOverrides])
   useEffect(() => {
@@ -245,7 +250,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, onBack, onSwitch
   }, [switchOpen])
   const currentShotRef = useMemo<AgentReference>(() => ({
     id: `shot:${selectedId}`, role: 'target', kind: 'shot', shotId: selectedId,
-    label: `${selectedId.toUpperCase()} · ${selectedScene.label}`,
+    label: selectedScene.label,
   }), [selectedId, selectedScene.label])
   const currentProjectRef = useMemo<AgentReference>(() => ({
     id: `project:${projectId}`, role: 'target', kind: 'project', projectId,
@@ -305,7 +310,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, onBack, onSwitch
     const tc = formatTime(frame / FILM_FPS)
     setTargetReference({
       id: `frame:${selectedId}:${frame}`, role: 'target', kind: 'frame', shotId: selectedId,
-      frame, timecode: tc, label: `${selectedId.toUpperCase()} · ${frame}f · ${tc}`,
+      frame, timecode: tc, label: `第 ${frame} 帧`,
     })
   }
   const referenceRange = () => {
@@ -316,14 +321,14 @@ export function Workbench({ chat, tasks, onNavigate, projectId, onBack, onSwitch
       id: `range:${selectedId}:${startFrame}:${endFrame}`, role: 'target', kind: 'range',
       shotId: selectedId, startFrame, endFrame,
       timecode: `${formatTime(startFrame / FILM_FPS)}–${formatTime(endFrame / FILM_FPS)}`,
-      label: `${selectedId.toUpperCase()} · ${startFrame}–${endFrame}f`,
+      label: '本场时段',
     })
   }
   const referenceRegion = (bbox: { x: number; y: number; w: number; h: number }) => {
     setTargetReference({
       id: `region:${selectedId}:${frame}:${bbox.x.toFixed(2)}:${bbox.y.toFixed(2)}:${bbox.w.toFixed(2)}:${bbox.h.toFixed(2)}`,
       role: 'target', kind: 'region', shotId: selectedId, frame, bbox,
-      label: `${selectedId.toUpperCase()} · ${frame}f · 区域 ${Math.round(bbox.w * 100)}×${Math.round(bbox.h * 100)}%`,
+      label: `画面区域 ${Math.round(bbox.w * 100)}×${Math.round(bbox.h * 100)}%`,
     })
   }
   const referenceArtifact = (artifact: WorkbenchArtifact) => {
@@ -400,7 +405,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, onBack, onSwitch
   }
   const runQuickAction = (action: (typeof quickActions)[number]) => {
     if (action.compare) { setCompare((v) => !v); return }
-    if (action.constraint === 'attachment') { setNotice('演示模式：素材上传未连接。'); return }
+    if (action.constraint === 'attachment') { setNotice('素材上传还没接通。'); return }
     if (action.constraint) {
       const enabled = !constraints[action.constraint]
       setConstraints((old) => ({ ...old, [action.constraint as keyof ModificationConstraints]: enabled }))
@@ -408,7 +413,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, onBack, onSwitch
       return
     }
     if (action.id === 'undo' || action.id === 'redo') {
-      setNotice('演示适配器没有改动源文件；没有可撤销或重做的真实修改。')
+      setNotice('没有可撤销的修改。')
       return
     }
     if (action.prompt) submit(action.prompt)
@@ -424,7 +429,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, onBack, onSwitch
 
       {/* ═══ 基岛：顶栏 ═════════════════════════════════════════ */}
       <div className="wb-projectbar">
-        <ToolButton label="返回项目目录" onClick={onBack}><ChevronLeft /></ToolButton>
+        <ToolButton label="返回我的创作" onClick={onBack}><ChevronLeft /></ToolButton>
         <button className="mini fw-mobile" type="button" title="场景列表"
                 onClick={() => setRailOpen((v) => !v)}>
           <PanelBottom className="size-3.5" />
@@ -442,9 +447,9 @@ export function Workbench({ chat, tasks, onNavigate, projectId, onBack, onSwitch
               <div className="wb-switch-menu" role="menu">
                 <div className="wb-switch-head">
                   <span>切换项目</span>
-                  <span className="fw-count">{PROJECTS.length}</span>
+                  <span className="fw-count">{catalog.length}</span>
                 </div>
-                {PROJECTS.map((p) => (
+                {catalog.map((p) => (
                   <button key={p.id} type="button" role="menuitem"
                           aria-current={p.id === project.id ? 'true' : undefined}
                           onClick={() => { setSwitchOpen(false); if (p.id !== project.id) onSwitchProject(p.id) }}>
@@ -462,20 +467,22 @@ export function Workbench({ chat, tasks, onNavigate, projectId, onBack, onSwitch
               </div>
             )}
           </div>
+          {/* 面包屑只留「项目 / 场景名」。原来还挂着内部编号（S01）与「当前成片」
+              —— 编号是数据层的 id，用户不需要；「当前成片」是默认态，说出来等于没说。
+              同理删掉右侧的分辨率/帧率/时长：分辨率与帧率画面角标已经有了，
+              总时长底部状态条也有，这里是第三遍。 */}
           <span className="wb-crumb-sep">/</span>
-          <span className="wb-crumb-scene" title={selectedScene.label}>{selectedId.toUpperCase()} · {selectedScene.label}</span>
-          <span className="wb-crumb-version">当前成片</span>
+          <span className="wb-crumb-scene" title={selectedScene.label}>{selectedScene.label}</span>
         </div>
-        <span className="wb-meta num">{FILM_WIDTH}×{FILM_HEIGHT} · {FILM_FPS}fps · {ACTIVE_DURATION.toFixed(1)}s</span>
         <span className="wb-spacer" />
         <div className="wb-top-actions">
           <Tooltip>
             <TooltipTrigger asChild>
-              <button className="wb-agent-status" type="button" aria-label="演示模式：Agent 与渲染未连接">
-                <span className="wb-agent-dot" />演示模式
+              <button className="wb-agent-status" type="button" aria-label="离线：Agent 与渲染未连接">
+                <span className="wb-agent-dot" />离线
               </button>
             </TooltipTrigger>
-            <TooltipContent side="bottom" sideOffset={6}>本地演示：Agent 与真实渲染尚未连接；提交只模拟队列与状态，不改项目文件。</TooltipContent>
+            <TooltipContent side="bottom" sideOffset={6}>还没接 Agent 和渲染。提交只会记录，不会真的改项目文件。</TooltipContent>
           </Tooltip>
           <span className="wb-divider" />
           <ToolButton label="撤销（Ctrl+Z）" onClick={() => runQuickAction(quickActions[0])}><RotateCcw /></ToolButton>
@@ -488,14 +495,17 @@ export function Workbench({ chat, tasks, onNavigate, projectId, onBack, onSwitch
                       onClick={() => {
                         const a = document.createElement('a')
                         a.href = EXISTING_FILM_SOURCE; a.download = 'token-full-legacy.mp4'; a.click()
-                        setNotice('下载现有本地影片；没有启动新渲染。')
+                        setNotice('已下载当前成片。')
                       }}>
                 <ArrowDownToLine className="size-3.5" />导出
               </button>
             </TooltipTrigger>
-            <TooltipContent side="bottom" sideOffset={6}>下载现有本地影片（演示：不启动新渲染）。</TooltipContent>
+            <TooltipContent side="bottom" sideOffset={6}>下载当前成片。</TooltipContent>
           </Tooltip>
         </div>
+        {/* 与对话视图右上角同一个切换器（styles/view-switch.css）：工作台是当前视图，
+            对话可一键切回，消除“进了工作台就回不去会话”的单向门 */}
+        <ViewSwitch current="workbench" onSwitch={(target) => { if (target === 'conversation') onNavigate('conversation') }} />
       </div>
 
       {/* ═══ 三栏（paba .fw 网格）══════════════════════════════ */}
@@ -531,7 +541,8 @@ export function Workbench({ chat, tasks, onNavigate, projectId, onBack, onSwitch
               </>
             ) : (
               <>
-                <span className="wb-viewer-index">{selectedId.toUpperCase()}</span>
+                {/* 原来这里挂一个场景编号徽标（S01）。那是数据层 id —— 场景号
+                    在左侧列表里已经编好，舞台只要显示画面名就够。 */}
                 <h2 className="wb-viewer-title truncate">{selectedScene.label}</h2>
                 <span className="wb-status" data-status={statusOf(selectedScene.status).s}>
                   <span className="fm-dot" data-s={statusOf(selectedScene.status).s} />
@@ -558,7 +569,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, onBack, onSwitch
             <>
               <div className="fw-stage fw-stage-edit">
                 <RemotionEditPreview settings={currentShotSettings} poster={selectedScene.frame ?? undefined} />
-                <div className="fw-edit-hint">Remotion 实时预览 · 修改右栏参数后点“应用”</div>
+                <div className="fw-edit-hint">实时预览</div>
               </div>
               <ShotActionBar
                 onFrame={referenceFrame} onRange={referenceRange}
@@ -577,7 +588,9 @@ export function Workbench({ chat, tasks, onNavigate, projectId, onBack, onSwitch
                     <span className="wb-frame-badge num">16:9 · {FILM_FPS}fps</span>
                     <div className="wb-frame-cap">
                       <div className="wb-frame-cap-t">{selectedScene.label}</div>
-                      <div className="wb-frame-cap-s num">{formatTime(selectedScene.start ?? 0)} · {selectedScene.duration.toFixed(1)}s</div>
+                      {/* 原来还有一行「00:00:00 · 3.9s」：时间码紧挨着的播放条
+                          已经实时显示（而且这场就是从 00:00:00 起，写出来等于没说），
+                          时长在下面的场景列表和右栏检查器里都有。字幕只留场景名。 */}
                     </div>
                   </div>
                 ) : (
@@ -585,7 +598,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, onBack, onSwitch
                     <div className="relative h-full overflow-hidden" style={{ width: `${compareSplit}%` }}>
                       <img src={selectedScene.frame ?? './frames/u01.jpg'} alt="项目抽帧"
                            className="absolute inset-0 size-full object-contain" />
-                      <span className="absolute left-2 top-2 bg-black/75 px-1.5 py-1 text-[10px]">已存抽帧</span>
+                      <span className="absolute left-2 top-2 bg-black/75 px-1.5 py-1 text-[10px]">已存画面</span>
                     </div>
                     <div className="relative h-full flex-1 overflow-hidden border-l border-acc">
                       <FilmPlayer onPlayer={(p) => { playerRef.current = p }} onFrame={setFrame} onReady={setPlayerReady} />
@@ -609,7 +622,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, onBack, onSwitch
                 )}
                 {regionMode && (
                   <div className="fw-region-layer" onPointerDown={startRegion} onPointerMove={moveRegion} onPointerUp={endRegion}>
-                    <div className="fw-region-hint">拖拽框选画面区域；松开后加入 Agent 目标</div>
+                    <div className="fw-region-hint">拖拽框选画面区域</div>
                     {regionRect && <div className="fw-region-box" style={{ left: `${regionRect.x * 100}%`, top: `${regionRect.y * 100}%`, width: `${regionRect.w * 100}%`, height: `${regionRect.h * 100}%` }} />}
                   </div>
                 )}
@@ -632,8 +645,8 @@ export function Workbench({ chat, tasks, onNavigate, projectId, onBack, onSwitch
 
         {/* 右栏：对话 / 设置 */}
         <RightPanel chat={chat} sideTab={sideTab} setSideTab={selectSideTab}
-                    scope={scope} selectedId={selectedId}
-                    scene={selectedScene} clip={selectedClip} storyboard={storyboard}
+                    scope={scope}
+                    scene={selectedScene} storyboard={storyboard}
                     onOpenChat={openChatForScene} onOpenTask={openTaskRecords}
                     constraints={constraints} setConstraints={setConstraints}
                     activeTask={tasks.active?.task ?? null} cancelTask={tasks.cancel}
@@ -659,7 +672,9 @@ export function Workbench({ chat, tasks, onNavigate, projectId, onBack, onSwitch
           <PanelBottom className="size-3" />{trayOpen ? '收起任务面板' : '任务面板'}
           {tasks.active?.task ? ` · ${tasks.active.task.title}` : ''}
         </button>
-        <span className="wb-status-chip">成片 {ACTIVE_SCENES.length} 场 · {ACTIVE_DURATION.toFixed(1)}s</span>
+        {/* 只留总时长：场数在左栏「场景结构 N 场」已经报过一次，
+            这里再说一遍就是同一件事写两处。 */}
+        <span className="wb-status-chip">总时长 {fmtSec(ACTIVE_DURATION)}</span>
         <span className="wb-spacer" />
       </div>
     </div>
@@ -672,14 +687,14 @@ function ArtifactView({ artifact, onLocate, onReference, onClose }:
   return (
     <div className="fw-artifact-view">
       <div className="fw-artifact-head">
-        <div className="fw-artifact-kicker">{ARTIFACT_TYPE_LABEL[artifact.type]} / ARTIFACT</div>
+        <div className="fw-artifact-kicker">{ARTIFACT_TYPE_LABEL[artifact.type]}</div>
         <h3>{artifact.title}</h3>
         <p>{artifact.summary}</p>
         <div className="fw-artifact-meta">
           <span>{artifact.version}</span>
           <span data-status={artifact.status}>{ARTIFACT_STATUS_LABEL[artifact.status]}</span>
           <span>{artifact.updatedAt}</span>
-          {artifact.demo && <span className="fw-artifact-demo">演示样例</span>}
+
         </div>
       </div>
       <div className="fw-artifact-body">
@@ -691,13 +706,13 @@ function ArtifactView({ artifact, onLocate, onReference, onClose }:
             return scene ? (
               <button key={id} className="mini h-7 w-full justify-start text-[10.5px]" type="button"
                       onClick={() => onLocate(id)}>
-                {id.toUpperCase()} · {scene.title}
+                {scene.title}
               </button>
             ) : null
           })}
           <div className="wb-sep" />
           <div className="text-[10.5px] leading-relaxed text-dim">
-            这是产物只读预览，不是编辑/批准状态。点击关联场景可回到监看。
+            点击关联场景可回到监看。
           </div>
           <button className="mini h-7 w-full justify-start text-[10.5px]" type="button" onClick={onReference}>
             引用为上下文
@@ -727,7 +742,10 @@ function ProjectRail({ selectedId, onSelect, projectName, open, onClose, tab, on
     tab: 'structure' | 'artifacts'; onTab: (tab: 'structure' | 'artifacts') => void
     selectedArtifactId: string | null; onSelectArtifact: (id: string) => void
     modifiedIds: string[]; creation?: ReactNode }) {
-  const acts = [...new Set(ACTIVE_SCENES.map((s) => s.scene?.storyboard?.幕 ?? (s.storyboardId ? '计划草稿' : '当前成片')))]
+  /* 分组标签：有分幕就用幕名，否则落「成片 / 草稿」两桶。
+     原来叫「当前成片 / 计划草稿」——「当前」「计划」是内部状态的措辞，
+     用户只需要知道这组是已成片的还是草稿。 */
+  const acts = [...new Set(ACTIVE_SCENES.map((s) => s.scene?.storyboard?.幕 ?? (s.storyboardId ? '草稿' : '成片')))]
   return (
     <aside className="fw-ing" data-open={open ? '' : undefined} aria-label="镜头库与产物">
       {creation}
@@ -762,7 +780,7 @@ function ProjectRail({ selectedId, onSelect, projectName, open, onClose, tab, on
       ) : (
       <div className="fw-ing-list">
         {acts.map((act) => {
-          const list = ACTIVE_SCENES.filter((s) => (s.scene?.storyboard?.幕 ?? (s.storyboardId ? '计划草稿' : '当前成片')) === act)
+          const list = ACTIVE_SCENES.filter((s) => (s.scene?.storyboard?.幕 ?? (s.storyboardId ? '草稿' : '成片')) === act)
           return (
             <section key={act}>
               <div className="fw-scene-hd">
@@ -787,7 +805,7 @@ function ProjectRail({ selectedId, onSelect, projectName, open, onClose, tab, on
                       <b>{scene.title}</b>
                       <span>
                         <span>{String(scene.scene?.index ?? 0).padStart(2, '0')}</span>
-                        <span>{scene.duration.toFixed(1)}s</span>
+                        <span>{fmtSec(scene.duration)}</span>
                       </span>
                     </span>
                     {/* 状态：正常态安静一个点，异常态必须带文字（shell/status.ts 是唯一来源） */}
@@ -832,11 +850,11 @@ function ShotActionBar({ onFrame, onRange, onRegion, regionMode, editMode, onEdi
 }) {
   return (
     <div className="fw-actionbar" aria-label="场景操作">
-      <ToolButton label="引用此帧（加入 Agent 目标）" onClick={onFrame}><FrameRefIcon size={20} /></ToolButton>
-      <ToolButton label="引用本场（当前场景时段）" onClick={onRange}><RangeRefIcon size={20} /></ToolButton>
-      <ToolButton label="框选画面区域（加入 Agent 目标）" onClick={onRegion} active={regionMode}><RegionRefIcon size={20} /></ToolButton>
+      <ToolButton label="引用此帧" onClick={onFrame}><FrameRefIcon size={20} /></ToolButton>
+      <ToolButton label="引用本场" onClick={onRange}><RangeRefIcon size={20} /></ToolButton>
+      <ToolButton label="框选画面区域（加入引用）" onClick={onRegion} active={regionMode}><RegionRefIcon size={20} /></ToolButton>
       <span className="fw-actionbar-sep" />
-      <ToolButton label={editMode ? '退出 Remotion 编辑' : 'Remotion 编辑（改标题/颜色/动效/时长）'}
+      <ToolButton label={editMode ? '退出编辑' : '编辑画面参数'}
                   onClick={onEdit} active={editMode}><EditParamsIcon size={20} /></ToolButton>
     </div>
   )
@@ -879,7 +897,7 @@ function PlayerBar({ playerRef, frame, onSeek, playing, onToggle, rate, onRate, 
 }
 
 /* ── 右栏：对话 / 修改设置 ──────────────────────────────────── */
-function RightPanel({ chat, sideTab, setSideTab, scope, selectedId, scene, clip, storyboard,
+function RightPanel({ chat, sideTab, setSideTab, scope, scene, storyboard,
   onOpenChat, onOpenTask,
   constraints, setConstraints, activeTask, cancelTask, records, onSubmit, onQuickAction,
   onNavigate, selectedVersion, editSettings, editSavedAt, editOverridden, references, onRemoveReference,
@@ -887,7 +905,7 @@ function RightPanel({ chat, sideTab, setSideTab, scope, selectedId, scene, clip,
   onApplyEdit, onResetEdit, onCloseEdit, onOpenEdit }:
   { chat: ChatState; sideTab: SideTab; setSideTab: (v: SideTab) => void
     scope: 'project'|'scene'|'selection'
-    selectedId: string; scene: (typeof SCENES)[number]; clip: (typeof ACTIVE_SCENES)[number]
+    scene: (typeof SCENES)[number]
     storyboard: StoryboardEntry | null; onOpenChat: () => void; onOpenTask: () => void
     constraints: ModificationConstraints
     setConstraints: React.Dispatch<React.SetStateAction<ModificationConstraints>>
@@ -920,7 +938,7 @@ function RightPanel({ chat, sideTab, setSideTab, scope, selectedId, scene, clip,
       </div>
 
       {sideTab === 'scene' ? (
-        <SceneInspector scene={scene} clip={clip} selectedId={selectedId} storyboard={storyboard}
+        <SceneInspector scene={scene} storyboard={storyboard}
                         settings={editSettings} savedAt={editSavedAt} overridden={editOverridden}
                         constraints={constraints} setConstraints={setConstraints}
                         activeTask={activeTask} references={references}
@@ -936,13 +954,13 @@ function RightPanel({ chat, sideTab, setSideTab, scope, selectedId, scene, clip,
                 {scene.frame && <img src={scene.frame} alt="" />}
                 <div className="min-w-0">
                   <b>{scene.label}</b>
-                  <div className="num truncate">{selectedId.toUpperCase()} · 当前场景</div>
+
                 </div>
               </div>
 
               {/* 消息：AI 不用气泡，用户用 --soft 底（fm-components §9） */}
               <ReferenceChips references={references}
-                              defaultLabel={`默认目标：当前场景 ${selectedId.toUpperCase()}`}
+                              defaultLabel="默认目标：当前场景"
                               onRemoveReference={onRemoveReference}
                               onLocateReference={onLocateReference}
                               onToggleReferenceRole={onToggleReferenceRole}
@@ -965,7 +983,6 @@ function RightPanel({ chat, sideTab, setSideTab, scope, selectedId, scene, clip,
 
               {storyboard && (
                 <div className="wb-chat-block">
-                  <div className="wb-chat-block-hd">计划段 {storyboard.段} · {storyboard.幕}</div>
                   <p>{storyboard.旁白}</p>
                   <details>
                     <summary>查看画面与动效要求</summary>
@@ -992,7 +1009,7 @@ function RightPanel({ chat, sideTab, setSideTab, scope, selectedId, scene, clip,
                 </div>
               )}
 
-              <div className="wb-demo-line"><i className="wb-demo-dot" />演示模式 · 提交只模拟队列与状态，不连接 Agent</div>
+              <div className="wb-demo-line"><i className="wb-demo-dot" />离线 · 提交只记录状态</div>
             </div>
           </div>
 
@@ -1004,7 +1021,7 @@ function RightPanel({ chat, sideTab, setSideTab, scope, selectedId, scene, clip,
                         onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit() } }}
                         placeholder="告诉 AI 要如何修改当前场景…" />
               <div className="mt-1.5 flex items-center gap-2">
-                <button className="iconbtn" type="button" title="素材上传尚未连接" disabled><Plus /></button>
+                <button className="iconbtn" type="button" title="上传还没接通" disabled><Plus /></button>
                 <span className="wb-compose-scope">
                   作用范围 · {scope === 'project' ? '整个项目' : scope === 'scene' ? '当前场景' : '所选场景'}
                 </span>
@@ -1017,7 +1034,7 @@ function RightPanel({ chat, sideTab, setSideTab, scope, selectedId, scene, clip,
         </>
       ) : sideTab === 'task' ? (
         <TaskPanel activeTask={activeTask} records={records} cancelTask={cancelTask}
-                   scope={scope} selectedId={selectedId} constraints={constraints}
+                   scope={scope} constraints={constraints}
                    onBack={() => setSideTab('scene')} />
       ) : sideTab === 'edit' ? (
         <RemotionEditPanel settings={editSettings} savedAt={editSavedAt} isOverridden={editOverridden}
@@ -1030,7 +1047,7 @@ function RightPanel({ chat, sideTab, setSideTab, scope, selectedId, scene, clip,
                               ariaLabel="修改作用范围"
                               className="fw-scope-seg"
                               options={[
-                                { value: 'scene', label: `当前场景 · ${selectedId}` },
+                                { value: 'scene', label: '当前场景' },
                                 { value: 'selection', label: '所选场景' },
                                 { value: 'project', label: '整个项目' },
                               ]} />
@@ -1076,11 +1093,11 @@ function RightPanel({ chat, sideTab, setSideTab, scope, selectedId, scene, clip,
 /* ── 右栏：场景检查器（默认）────────────────────────────────
    场景是编辑对象，AI 只是它的一个动作。这里把「改哪一场、这一场是什么、
    当前参数/约束/引用/执行状态」放在首屏；对话不再占用默认右栏。 */
-function SceneInspector({ scene, clip, selectedId, storyboard, settings, savedAt, overridden,
+function SceneInspector({ scene, storyboard, settings, savedAt, overridden,
   constraints, setConstraints, activeTask, references,
   onRemoveReference, onLocateReference, onToggleReferenceRole, onClearReferences,
   onOpenChat, onOpenEdit, onOpenTask }:
-  { scene: (typeof SCENES)[number]; clip: (typeof ACTIVE_SCENES)[number]; selectedId: string
+  { scene: (typeof SCENES)[number]
     storyboard: StoryboardEntry | null; settings: EditableShotSettings; savedAt: string; overridden: boolean
     constraints: ModificationConstraints
     setConstraints: React.Dispatch<React.SetStateAction<ModificationConstraints>>
@@ -1089,9 +1106,7 @@ function SceneInspector({ scene, clip, selectedId, storyboard, settings, savedAt
     onToggleReferenceRole: (id: string) => void; onClearReferences: () => void
     onOpenChat: () => void; onOpenEdit: () => void; onOpenTask: () => void }) {
   const state = statusOf(scene.status)
-  const sceneNo = String(scene.index).padStart(2, '0')
   const sceneStart = scene.start ?? 0
-  const enabledConstraints = CONSTRAINT_LABELS.filter(([key]) => constraints[key]).length
   const taskDot = activeTask?.status === 'failed' ? 'failed'
     : activeTask?.status === 'completed' ? 'done'
     : activeTask?.status === 'cancelled' ? 'idle' : 'running'
@@ -1105,10 +1120,11 @@ function SceneInspector({ scene, clip, selectedId, storyboard, settings, savedAt
         </span>
         <div className="min-w-0">
           <div className="wb-insp-obj">{scene.label}</div>
+          {/* kicker 只留状态。原来还跟着「镜 01」「当前成片」：
+              镜号就是左边的场景序号（列表里已经编好），「当前成片」又是默认态，
+              两段都是在重复用户已经看得见的东西。 */}
           <div className="wb-insp-kicker">
             <span className="fm-dot" data-s={state.s} />{state.label}
-            <span className="wb-insp-dotsep">·</span>镜 {sceneNo}
-            <span className="wb-insp-dotsep">·</span>{scene.inTimeline ? '当前成片' : '未纳入当前版本'}
           </div>
         </div>
       </div>
@@ -1116,34 +1132,38 @@ function SceneInspector({ scene, clip, selectedId, storyboard, settings, savedAt
       <section className="wb-insp-section">
         <h3>镜头信息</h3>
         <div className="wb-insp-kv"><span>时间</span><b className="num">{formatTime(sceneStart)} – {formatTime(sceneStart + scene.duration)}</b></div>
-        <div className="wb-insp-kv"><span>时长 / 轨道</span><b>{scene.duration.toFixed(1)}s · V1 · {clip.track}</b></div>
-        {storyboard && <div className="wb-insp-kv"><span>计划段</span><b>{storyboard.段} · {storyboard.幕}</b></div>}
+        {/* 原来这一行是「时长 / 轨道」+ `3.9s · V1 · {clip.track}`：
+            「V1」是写死的轨道名，后面跟的数字又是内部轨道序号（s01=0、s02=1…
+            逐镜递增）—— 一个写死的名字加一个内部序号并列，是典型的字段倾倒。 */}
+        <div className="wb-insp-kv"><span>时长</span><b>{fmtSec(scene.duration)}</b></div>
+        {/* 「计划段 1 · 第1幕」也是把分镜表的内部字段（段/幕）直接倒出来，删掉。 */}
       </section>
 
       {storyboard && (
         <section className="wb-insp-section">
-          <h3>计划旁白</h3>
+          <h3>旁白</h3>
           <p className="wb-insp-text">{storyboard.旁白}</p>
         </section>
       )}
 
       <section className="wb-insp-section">
-        <h3>镜头参数 <span className="wb-insp-tag">样例</span></h3>
+        <h3>镜头参数</h3>
         <div className="wb-insp-kv"><span>标题</span><b className="truncate" title={settings.title}>{settings.title}</b></div>
         <div className="wb-insp-kv"><span>强调色</span><b><i className="wb-swatch" style={{ background: settings.accent }} />{settings.accent}</b></div>
         <div className="wb-insp-kv"><span>动效</span><b>{MOTION_LABEL[settings.motion]}</b></div>
-        <div className="wb-insp-kv"><span>样例时长</span><b>{settings.durationSeconds.toFixed(1)}s</b></div>
+        {/* 这一行原来还有一个「时长」，与本面板上方「镜头信息」里的时长是同一个数
+            （defaultShotSettings 就是按场景时长算的）—— 同一个数不在同一屏写两遍。 */}
         <div className="wb-insp-actions">
           <button className="wb-btn-ghost" type="button" onClick={onOpenEdit}><Settings2 />编辑参数</button>
           {overridden && <span className="wb-insp-tag">{savedAt ? `本地已存 ${savedAt}` : '本地已覆盖'}</span>}
         </div>
-        <p className="wb-insp-note">仅覆盖标题层样例参数；写入本地 override，不写服务端。</p>
+        {/* 原来这里有一句「仅覆盖标题层样例参数；写入本地 override，不写服务端。」
+            —— 在跟用户交代实现（override 存哪、写不写服务端），不是在说产品，删掉。 */}
       </section>
 
       <details className="wb-insp-details">
         <summary>
           <span>修改约束</span>
-          <span className="wb-insp-tag">{enabledConstraints}/{CONSTRAINT_LABELS.length} 开启</span>
         </summary>
         <div className="wb-insp-details-body">
           {CONSTRAINT_LABELS.map(([key, label]) => (
@@ -1159,12 +1179,11 @@ function SceneInspector({ scene, clip, selectedId, storyboard, settings, savedAt
       <section className="wb-insp-section">
         <h3>Agent 引用</h3>
         <ReferenceChips references={references}
-                        defaultLabel={`默认目标：本场 ${selectedId.toUpperCase()}`}
+                        defaultLabel="默认目标：本场"
                         onRemoveReference={onRemoveReference}
                         onLocateReference={onLocateReference}
                         onToggleReferenceRole={onToggleReferenceRole}
                         onClearReferences={onClearReferences} />
-        <p className="wb-insp-note">监看器下方可加入「帧 / 本场 / 区域」目标；这里与对话共享同一组引用。</p>
       </section>
 
       <section className="wb-insp-section">
@@ -1176,7 +1195,7 @@ function SceneInspector({ scene, clip, selectedId, storyboard, settings, savedAt
             <span className="wb-insp-tag">{TASK_STATUS_LABEL[activeTask.status] ?? activeTask.status}</span>
           </div>
         ) : (
-          <p className="wb-insp-note">没有正在执行的任务。提交只模拟队列与状态，不连接 Agent。</p>
+          <p className="wb-insp-note">没有正在执行的任务。</p>
         )}
         <div className="wb-insp-actions">
           <button className="wb-btn-ghost" type="button" onClick={onOpenTask}><PanelBottom />任务记录</button>
@@ -1216,12 +1235,13 @@ function ReferenceChips({ references, defaultLabel, onRemoveReference, onLocateR
 }
 
 /* ── 右栏：当前任务 ─────────────────────────────────────────── */
-function TaskPanel({ activeTask, records, cancelTask, scope, selectedId, constraints, onBack }:
+function TaskPanel({ activeTask, records, cancelTask, scope, constraints, onBack }:
   { activeTask: AgentTask | null; records: TaskRecord[]; cancelTask: (id: string) => void
-    scope: 'project'|'scene'|'selection'; selectedId: string; constraints: ModificationConstraints
+    scope: 'project'|'scene'|'selection'; constraints: ModificationConstraints
     onBack: () => void }) {
   const record = activeTask ? records.find((r) => r.task.id === activeTask.id) : null
-  const scopeLabel = scope === 'project' ? '整个项目' : scope === 'scene' ? `场景 · ${selectedId}` : '所选场景'
+  /* 作用范围只说「当前场景」：原来拼的是 `场景 · s01`，又把数据层 id 露出来了。 */
+  const scopeLabel = scope === 'project' ? '整个项目' : scope === 'scene' ? '当前场景' : '所选场景'
   return (
     <div className="fw-scroll">
       <div className="flex flex-col gap-3 p-3.5">
@@ -1234,7 +1254,7 @@ function TaskPanel({ activeTask, records, cancelTask, scope, selectedId, constra
             <div className="flex items-center gap-2">
               <LoaderCircle className="size-3 animate-spin text-acc" />
               <b>{activeTask.title}</b>
-              <span className="fw-count ml-auto">{activeTask.status}</span>
+              <span className="fw-count ml-auto">{TASK_STATUS_LABEL[activeTask.status] ?? activeTask.status}</span>
             </div>
             {record?.events.slice(-5).map((e) => (
               <div key={e.id} className="mt-1.5 text-[10.5px] text-dim">· {e.message}</div>
@@ -1244,7 +1264,7 @@ function TaskPanel({ activeTask, records, cancelTask, scope, selectedId, constra
             </button>
           </div>
         ) : (
-          <div className="fw-tray-empty">没有正在执行的任务。提交修改后，这里显示目标、步骤和可停止状态。</div>
+          <div className="fw-tray-empty">没有正在执行的任务。</div>
         )}
         <div className="wb-sep" />
         <div className="fw-scene-hd">作用范围</div>
@@ -1279,18 +1299,18 @@ function BottomTray({ records, activeId, onCancel, tab, setTab }:
                             { value: 'versions', label: '版本记录' },
                           ]} />
         <span className="spacer" />
-        <span className="num tray-note">演示数据 · 未连接 Agent</span>
+        <span className="num tray-note">离线</span>
       </div>
       <div className="fw-scroll">
         <div className="fw-tray-body">
           {tab === 'activity' && (records.length === 0
-            ? <div className="fw-tray-empty">尚无任务。提交自然语言请求后，这里显示可验证的接受、队列和构建状态事件。</div>
+            ? <div className="fw-tray-empty">还没有任务。</div>
             : <div className="flex flex-col gap-0.5">
                 {records.map((r) => (
                   <div key={r.task.id} className="fw-tray-row" data-status={r.task.status}>
                     <span className="num">{r.task.createdAt}</span>
                     <span className="tray-msg">{r.events.at(-1)?.message ?? r.task.title}</span>
-                    <span className="fw-count">{r.task.status}</span>
+                    <span className="fw-count">{TASK_STATUS_LABEL[r.task.status] ?? r.task.status}</span>
                     {activeId === r.task.id && (
                       <button className="iconbtn" type="button" title="停止" onClick={() => onCancel(r.task.id)}>
                         <Square className="size-3" />
@@ -1303,7 +1323,7 @@ function BottomTray({ records, activeId, onCancel, tab, setTab }:
           {tab === 'changes' && (
             <div className="fw-tray-empty">
               <FileCode2 className="size-3 shrink-0" />
-              演示适配器未写入代码，因此没有 ChangeSet、diff 或构建结果。接入 Agent API 后显示实际文件变更。
+              还没有文件变更记录。
             </div>
           )}
           {tab === 'versions' && (
@@ -1316,7 +1336,7 @@ function BottomTray({ records, activeId, onCancel, tab, setTab }:
                   <div className="fw-card-note">{v.summary}</div>
                   <div className="num fw-card-src">{v.source}</div>
                   <button className="mini mini-s" type="button"
-                          disabled={!v.restorable} title="当前来源只读，未连接版本后端">
+                          disabled={!v.restorable} title="只读">
                     {v.restorable ? '恢复版本' : '只读来源'}
                   </button>
                 </div>
@@ -1337,4 +1357,12 @@ function formatTime(seconds: number) {
   const f = totalFrames % FILM_FPS
   const pad = (n: number) => String(n).padStart(2, '0')
   return `${pad(m)}:${pad(s)}:${pad(f)}`
+}
+
+/** 时长：有真实小数才写（3.9s），整数不挂尾随 .0（152.0s → 152s）。
+    「152.0s」这种写法是假精确 —— 没有任何来源能精确到 0.1 秒，
+    小数位只是 toFixed(1) 的产物，看起来却像测量结果。 */
+function fmtSec(seconds: number) {
+  const r = Math.round(seconds * 10) / 10
+  return `${Number.isInteger(r) ? r : r.toFixed(1)}s`
 }

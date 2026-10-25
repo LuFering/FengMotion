@@ -17,6 +17,74 @@
   -webkit-font-smoothing: antialiased;
 }
 
+/* 右上角：平台入口 + 仓库链接（取自产品介绍页 nav）
+   dark 沿用落地页原样（浅灰描边、hover 提亮 + 圆底）；
+   light / tactile 用各自 token 反向适配。 */
+.hf-social {
+  position: absolute; top: 26px; right: 34px; z-index: 20;
+  display: flex; align-items: center; gap: 6px;
+}
+/* 文案在按钮组最左侧，宋体；颜文字用衬线字形更有手写感 */
+.hf-soc-note {
+  margin-right: 8px; white-space: nowrap;
+  font: 13px/1 var(--hf-serif); letter-spacing: .04em; color: #9d9d9d;
+  transition: color .2s;
+}
+.hf-soc-note em {
+  margin-left: 4px; font: 13px/1 var(--hf-serif); font-style: normal;
+  color: #c8c8c8; letter-spacing: 0;
+}
+.hf-social:hover .hf-soc-note { color: #d2d2d2; }
+.hf-soc {
+  width: 30px; height: 30px; display: grid; place-items: center;
+  border-radius: 50%; color: #d2d2d2; text-decoration: none;
+  transition: color .2s, background .2s;
+}
+.hf-soc:hover { color: #fff; background: rgba(255, 255, 255, .10); }
+.hf-soc svg, .hf-gh svg {
+  width: 17px; height: 17px; fill: none; stroke: currentColor;
+  stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round;
+}
+.hf-soc-sep { width: 1px; height: 14px; margin: 0 6px; background: rgba(255, 255, 255, .18); }
+.hf-gh {
+  display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 4px;
+  color: #d2d2d2; text-decoration: none; font: 12px var(--hf-sans); letter-spacing: .02em;
+  transition: color .2s;
+}
+.hf-gh:hover { color: #fff; }
+
+/* light：文案转墨色系 */
+html[data-theme="light"] .hf-soc-note { color: #7b7e88; }
+html[data-theme="light"] .hf-soc-note em { color: #9a9ca4; }
+html[data-theme="light"] .hf-social:hover .hf-soc-note { color: #191a20; }
+
+/* light：深色图标、浅灰 hover 底 */
+html[data-theme="light"] .hf-soc { color: #6b6e78; }
+html[data-theme="light"] .hf-soc:hover { color: #191a20; background: rgba(25, 25, 50, .07); }
+html[data-theme="light"] .hf-soc-sep { background: rgba(25, 25, 50, .14); }
+html[data-theme="light"] .hf-gh { color: #6b6e78; }
+html[data-theme="light"] .hf-gh:hover { color: #191a20; }
+
+/* tactile：文案用墨色，与方框按钮同一质感 */
+html[data-theme="tactile"] .hf-soc-note { color: #55534a; }
+html[data-theme="tactile"] .hf-soc-note em { color: #22231f; }
+html[data-theme="tactile"] .hf-social:hover .hf-soc-note { color: #22231f; }
+
+/* tactile：墨线描边 + 实底按压感 */
+html[data-theme="tactile"] .hf-soc {
+  color: #22231f; border: 1.5px solid rgba(34, 35, 31, .5); border-radius: 8px;
+  background: var(--hf-raised);
+}
+html[data-theme="tactile"] .hf-soc:hover {
+  color: #22231f; background: var(--hf-acc); box-shadow: 2px 2px 0 rgba(34, 35, 31, .8);
+}
+html[data-theme="tactile"] .hf-soc-sep { background: rgba(34, 35, 31, .4); }
+html[data-theme="tactile"] .hf-gh {
+  color: #22231f; height: 30px; padding: 0 9px; border: 1.5px solid rgba(34, 35, 31, .5);
+  border-radius: 8px; background: var(--hf-raised); font-weight: 600;
+}
+html[data-theme="tactile"] .hf-gh:hover { background: var(--hf-acc); box-shadow: 2px 2px 0 rgba(34, 35, 31, .8); }
+
 /* 首屏 */
 .hf-hero { display: grid; grid-template-columns: 50% 50%; height: 100%; min-height: 820px; background: #000; }
 .hf-media { position: relative; display: flex; align-items: center; justify-content: center; background: #000; padding-bottom: 22px; }
@@ -220,6 +288,17 @@ html[data-theme="tactile"] .hf-page {
 
 /* 输入框样本：结构取自 composer-input.html */
 .hf-sample { width: min(640px, 92%); }
+/* ── 引擎接入后的外圈顺时针光 / 聊天框聚焦的逆时针光 ──
+   用可动画的 conic 起始角实现「光绕着走」，环体靠 mask-composite 抠成描边，
+   再叠 drop-shadow 做辉光；不旋转元素本身，避免圆角形状被转歪。 */
+@property --hf-spin {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+@keyframes hf-spin-cw { to { --hf-spin: 360deg; } }
+@keyframes hf-spin-ccw { to { --hf-spin: -360deg; } }
+
 .hf-composer {
   position: relative;
   background: var(--hf-panel);
@@ -229,9 +308,44 @@ html[data-theme="tactile"] .hf-page {
   transition: box-shadow .25s var(--eo, cubic-bezier(.23,1,.32,1)), border-color .25s var(--eo, cubic-bezier(.23,1,.32,1));
 }
 .hf-composer:focus-within {
-  border-color: var(--hf-line2);
-  box-shadow: var(--hf-shadow-focus), 0 0 0 3.5px var(--hf-acc-tint);
+  border-color: color-mix(in srgb, var(--brand, var(--hf-acc)) 45%, var(--hf-line2));
+  box-shadow: var(--hf-shadow-focus);
 }
+/* 拖放悬停：边框与底色转品牌色，提示「可以放这里」 */
+.hf-composer[data-drag] {
+  border-color: color-mix(in srgb, var(--brand, var(--hf-acc)) 65%, var(--hf-line2));
+  background: color-mix(in srgb, var(--brand, var(--hf-acc)) 7%, var(--hf-panel));
+}
+/* 用真实覆盖层而不是伪元素：composer 内部有 z-index 各异的子元素，
+   伪元素容易被盖住；覆盖层插在内容之上、发送按钮之下。 */
+.hf-dropmask {
+  position: absolute; inset: 0; z-index: 4; display: grid; place-items: center;
+  border-radius: inherit; pointer-events: none;
+  background: color-mix(in srgb, var(--brand, var(--hf-acc)) 9%, transparent);
+  color: var(--brand, var(--hf-acc));
+  font: 600 13px var(--hf-sans); letter-spacing: .02em;
+}
+
+/* 聚焦：外缘逆时针亮起当前引擎品牌色的光，比常态更亮 */
+.hf-composer::before {
+  content: ''; position: absolute; inset: -1.5px; border-radius: inherit;
+  padding: 1.5px; pointer-events: none; opacity: 0;
+  transition: opacity .22s var(--eo, cubic-bezier(.23,1,.32,1));
+  background: conic-gradient(from var(--hf-spin),
+    transparent 0deg, transparent 150deg,
+    color-mix(in srgb, var(--brand, var(--hf-acc)) 70%, transparent) 235deg,
+    var(--brand, var(--hf-acc)) 300deg,
+    #fff 330deg,
+    var(--brand, var(--hf-acc)) 348deg,
+    transparent 360deg);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--brand, var(--hf-acc)) 85%, transparent))
+          drop-shadow(0 0 14px color-mix(in srgb, var(--brand, var(--hf-acc)) 55%, transparent));
+}
+.hf-composer:focus-within::before { opacity: 1; animation: hf-spin-ccw 3.4s linear infinite; }
 .hf-composer textarea {
   display: block;
   width: 100%;
@@ -269,12 +383,12 @@ html[data-theme="tactile"] .hf-page {
 .hf-modechip .hf-mic { width: 15px; height: 15px; }
 .hf-modewrap[data-open] .hf-chev { transform: rotate(180deg); }
 .hf-menu {
-  position: absolute; left: 0; bottom: calc(100% + 9px); width: 190px; padding: 5px;
+  position: absolute; left: 0; bottom: calc(100% + 9px); width: 190px; padding: 6px;
   border: 1px solid var(--hf-line2); border-radius: 14px; background: var(--hf-panel);
   box-shadow: 0 22px 55px rgba(0,0,0,.28); z-index: 50;
 }
 .hf-menu button {
-  display: flex; align-items: center; width: 100%; padding: 8px 10px;
+  display: flex; align-items: center; gap: 9px; width: 100%; min-height: 36px; padding: 7px 10px;
   border: 0; border-radius: 9px; background: transparent; color: var(--hf-tx);
   font: 13.5px var(--hf-sans); text-align: left; cursor: pointer;
 }
@@ -293,22 +407,112 @@ html[data-theme="tactile"] .hf-page {
 .hf-harness-seg { display: flex; align-items: center; gap: 6px; color: var(--hf-tx); font: 600 12px var(--hf-sans); white-space: nowrap; }
 .hf-harness-seg i { width: 7px; height: 7px; border-radius: 50%; background: #3fb96f; }
 .hf-harness-seg[data-off] i { background: #d08a2c; }
+/* 引擎图标：无底色，SVG 作遮罩、品牌色作填充，尺寸放大到 17px */
+.hf-harness-mark {
+  display: block;
+  width: 17px; height: 17px; flex: 0 0 17px;
+  background-color: var(--brand, var(--hf-acc));
+  -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+  -webkit-mask-position: center; mask-position: center;
+  -webkit-mask-size: contain; mask-size: contain;
+}
+.hf-harness[data-off] .hf-harness-mark { background-color: #b97f2a; opacity: .82; }
+.hf-harness-off { color: #b97f2a; font-weight: 600; }
 .hf-harness-div { width: 1px; height: 13px; background: var(--hf-line2); opacity: .6; }
-.hf-harness-model { font: 12px var(--hf-mono); color: var(--hf-tx2); white-space: nowrap; }
+.hf-harness-model { font: 12px var(--hf-mono); color: var(--hf-tx2); white-space: nowrap; max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
 .hf-harness .hf-chev { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 2; opacity: .7; }
 .hf-harnesswrap { position: relative; }
+/* 已接入引擎时，按钮外缘顺时针跑一圈品牌色光 */
+.hf-harnesswrap[data-connected]::before {
+  content: ''; position: absolute; inset: -2px; border-radius: 999px;
+  padding: 2px; pointer-events: none;
+  background: conic-gradient(from var(--hf-spin),
+    transparent 0deg, transparent 130deg,
+    color-mix(in srgb, var(--brand) 45%, transparent) 200deg,
+    var(--brand) 265deg,
+    #fff 292deg,
+    var(--brand) 315deg,
+    color-mix(in srgb, var(--brand) 45%, transparent) 350deg,
+    transparent 360deg);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--brand) 90%, transparent))
+          drop-shadow(0 0 11px color-mix(in srgb, var(--brand) 60%, transparent));
+  animation: hf-spin-cw 2.8s linear infinite;
+}
 .hf-harness-pop {
   position: absolute; right: 0; top: calc(100% + 9px); width: 300px; padding: 8px;
   border: 1px solid var(--hf-line2); border-radius: 14px; background: var(--hf-panel);
   box-shadow: 0 22px 55px rgba(0, 0, 0, .28); z-index: 60;
+  overflow: hidden;
 }
+/* 两级 pane：等高叠放，按 data-active 滑动切换；高度取内容最大者但整体限高 */
+.hf-hp-scroll {
+  position: relative;
+  max-height: min(420px, calc(100vh - 220px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+.hf-hp-pane { transition: transform .18s cubic-bezier(.23,1,.32,1), opacity .18s; }
+.hf-hp-pane:not([data-active]) {
+  position: absolute; inset: 0 0 auto 0; visibility: hidden;
+  transform: translateX(14px); opacity: 0; pointer-events: none;
+}
+.hf-hp-pane[data-active] { position: relative; transform: none; opacity: 1; }
+.hf-hp-pane.hf-hp-models:not([data-active]) { transform: translateX(-14px); }
+/* 行尾图标列：勾与箭头都贴弹窗右缘（与顶部「N 个已接入」右对齐）。
+   箭头固定 13px 列宽；勾用绝对定位叠到同一右缘，出现时替代箭头位置。 */
+.hf-hp-item { position: relative; }
+.hf-hp-go { width: 13px; height: 13px; flex: 0 0 13px; margin-left: auto; fill: none; stroke: var(--hf-tx3); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.hf-hp-item .hf-hp-ck {
+  position: absolute; right: 10px; top: 50%;
+  transform: translateY(-50%);
+  margin-left: 0;
+}
+.hf-hp-back {
+  display: inline-flex; align-items: center; gap: 3px; padding: 3px 8px;
+  border: 0; border-radius: 8px; background: transparent; color: var(--hf-tx2);
+  font: 600 11px var(--hf-sans); cursor: pointer;
+}
+.hf-hp-back:hover { background: var(--hf-panel2); color: var(--hf-tx); }
+.hf-hp-back svg { width: 11px; height: 11px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+/* 模型行 + 展开抽屉 */
+.hf-hp-modelwrap { display: flex; flex-direction: column; }
+/* 抽屉：从行下方展开 */
+.hf-hp-drawer {
+  display: flex; flex-direction: column; gap: 8px;
+  margin: 2px 0 6px; padding: 10px 10px 12px;
+  border: 1px solid var(--hf-line); border-radius: 10px; background: var(--hf-panel2);
+  animation: hf-drawer-in .18s cubic-bezier(.23,1,.32,1);
+}
+@keyframes hf-drawer-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+.hf-hp-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.hf-hp-label { font: 11.5px var(--hf-sans); color: var(--hf-tx2); white-space: nowrap; }
+.hf-hp-seg { display: flex; padding: 2px; gap: 2px; border-radius: 8px; background: var(--hf-panel); border: 1px solid var(--hf-line); }
+.hf-hp-seg button {
+  padding: 3px 9px; border: 0; border-radius: 6px; background: transparent;
+  color: var(--hf-tx3); font: 11px var(--hf-sans); cursor: pointer; white-space: nowrap;
+}
+.hf-hp-seg button:hover { color: var(--hf-tx); }
+.hf-hp-seg button.on { background: var(--hf-acc-tint); color: var(--hf-acc); font-weight: 600; }
 .hf-hp-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 6px 8px; font: 11px var(--hf-sans); color: var(--hf-tx3); }
 .hf-hp-head b { color: var(--hf-tx2); font-weight: 600; letter-spacing: .02em; }
 .hf-hp-list { display: flex; flex-direction: column; gap: 2px; }
 .hf-hp-item { display: flex; align-items: center; gap: 9px; width: 100%; padding: 7px 8px; border: 0; border-radius: 10px; background: transparent; text-align: left; cursor: pointer; }
 .hf-hp-item:hover { background: var(--hf-panel2); }
-.hf-hp-logo { display: grid; place-items: center; width: 24px; height: 24px; flex: 0 0 auto; border-radius: 7px; background: var(--hf-acc-tint); color: var(--hf-acc); font: 700 10px var(--hf-sans); letter-spacing: .02em; }
-.hf-hp-item[data-off] .hf-hp-logo { background: var(--hf-panel2); color: var(--hf-tx3); }
+/* 弹窗里的引擎图标：无底色、放大到 22px、品牌色 */
+.hf-hp-logo {
+  display: block;
+  width: 22px; height: 22px; flex: 0 0 22px;
+  background-color: var(--brand, var(--hf-acc));
+  -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+  -webkit-mask-position: center; mask-position: center;
+  -webkit-mask-size: contain; mask-size: contain;
+}
+.hf-hp-item[data-off] .hf-hp-logo { background-color: var(--hf-tx3); opacity: .5; }
 .hf-hp-txt { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .hf-hp-txt b { font: 600 13px var(--hf-sans); color: var(--hf-tx); }
 .hf-hp-txt small { font: 11px var(--hf-sans); color: var(--hf-tx3); }
@@ -318,6 +522,7 @@ html[data-theme="tactile"] .hf-page {
 .hf-hp-radio { width: 12px; height: 12px; flex: 0 0 auto; border: 1.5px solid var(--hf-line2); border-radius: 50%; }
 .hf-hp-item[aria-selected="true"] .hf-hp-radio { border-color: var(--hf-acc); box-shadow: inset 0 0 0 3px var(--hf-acc); }
 .hf-hp-model .hf-hp-txt b { font: 12.5px var(--hf-mono); font-weight: 500; }
+.hf-hp-model .hf-hp-go-down { position: relative; }
 .hf-send {
   display: grid; place-items: center; width: 40px; height: 40px; flex: 0 0 auto;
   padding: 0; border: 0; border-radius: 50%; background: var(--hf-send-bg); color: var(--hf-send-fg);
@@ -338,7 +543,10 @@ html[data-theme="tactile"] .hf-ibtn:active { transform: translateY(2px); box-sha
 html[data-theme="tactile"] .hf-modechip { border: 2px solid var(--hf-line2); background: var(--hf-acc); color: var(--hf-tx); box-shadow: 0 3px 0 var(--hf-line2); }
 html[data-theme="tactile"] .hf-harness { border: 2px solid var(--hf-line2); background: var(--hf-raised); color: var(--hf-tx); }
 html[data-theme="tactile"] .hf-harness-pop { border: 2.5px solid var(--hf-line2); box-shadow: 6px 6px 0 rgba(34, 35, 31, .85); }
-html[data-theme="tactile"] .hf-hp-logo { border: 1.5px solid var(--hf-line2); }
+html[data-theme="tactile"] .hf-hp-drawer { border: 1.5px solid var(--hf-line2); background: var(--hf-raised); }
+html[data-theme="tactile"] .hf-hp-seg { border: 1.5px solid var(--hf-line2); }
+html[data-theme="tactile"] .hf-hp-seg button.on { box-shadow: 2px 2px 0 rgba(34, 35, 31, .5); }
+html[data-theme="tactile"] .hf-hp-logo { opacity: .95; }
 html[data-theme="tactile"] .hf-send { border: 2.5px solid var(--hf-line2); box-shadow: 0 4px 0 #000; }
 html[data-theme="tactile"] .hf-menu { border: 2.5px solid var(--hf-line2); box-shadow: 6px 6px 0 rgba(34,35,31,.85); }
 
@@ -371,11 +579,43 @@ html[data-theme="tactile"] .hf-seal circle { stroke: currentColor; }
 .hf-wd-list button.is-sel > i { opacity: 1; }
 
 /* 工作目录取代原型 chip：只显示中文名，不放路径 */
-.hf-workdir-chip { max-width: 160px; }
+.hf-workdir-chip { max-width: 150px; }
 .hf-workdir-chip .hf-folder { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
 .hf-workdir-chip > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.hf-workdir-menu { width: 170px; }
-.hf-workdir-menu button > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 工作目录菜单：列表区最长 4 项，超出滚动；底部固定「添加工作目录…」 */
+.hf-workdir-menu { width: 216px; padding-bottom: 4px; }
+.hf-wd-list {
+  max-height: 152px;            /* 4 行 × 36px + 缝隙 */
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+.hf-wd-list button {
+  gap: 9px;
+  min-height: 36px;
+  padding: 7px 10px;
+}
+.hf-wd-list button > span:first-of-type {
+  flex: 1; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.hf-wd-folder {
+  width: 15px; height: 15px; flex: 0 0 15px;
+  fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
+  color: var(--hf-tx2, var(--hf-tx));
+}
+.hf-wd-sep { height: 1px; margin: 5px 6px; background: var(--hf-line2); opacity: .7; }
+.hf-wd-add {
+  gap: 9px;
+  min-height: 36px;
+  padding: 7px 10px;
+  color: var(--hf-tx2, var(--hf-tx));
+}
+.hf-wd-add:hover { background: var(--hf-panel2); }
+.hf-wd-plus {
+  width: 14px; height: 14px; flex: 0 0 14px;
+  fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round;
+}
 
 /* 雾现：空输入时提示短语从 blur 中显现、停留、散开 */
 .hf-ta { position: relative; }
@@ -602,6 +842,15 @@ html[data-theme="tactile"] .hf-brandsep { color: #8a8676; }
 .hf-menu .hf-mt { display: flex; flex-direction: column; gap: 2px; }
 .hf-menu .hf-mt b { font-weight: 600; }
 .hf-menu .hf-mt small { color: var(--hf-tx3); font-size: 11px; }
+/* 附件菜单单行样式：左图标 + 名称。
+   图标放进 16px 固定盒里水平居中，保证三行文字起点对齐 */
+.hf-menu .hf-mi {
+  box-sizing: content-box;
+  width: 16px; height: 16px; padding: 0; flex: 0 0 16px;
+  fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round;
+  color: var(--hf-tx2);
+}
+.hf-menu .hf-mi + span { flex: 1; min-width: 0; }
 .hf-chips { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 14px 0; }
 .hf-chip {
   display: inline-flex; align-items: center; gap: 7px; max-width: 260px;

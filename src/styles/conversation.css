@@ -46,43 +46,82 @@
    导致卡片/侧栏面全透明、次级文字全继承纯白）——须在此按三主题显式补齐，取值与
    现有主题 token 一致（深黑取 brand/myassets 深色值，浅白取 myassets 浅色值）。 */
 #pane-conversation {
-  --panel: #151517;
-  --panel2: #1b1b1c;
-  --line2: #34353f;
+  /* 灰阶一律接全局三档（--bg 页底 / --surf 面板 / --hole 凹陷），不再自带一套 dsh 色板：
+     之前这里写死 --panel #151517 / --panel2 #1b1b1c，与全局 --hole #151517 / --surf #0D0D0F
+     不是同一套，暗色主题下侧栏就比其他界面的面亮一档 —— 三套主题都对齐回全局值。 */
+  /* 层级：页面(--bg) < 会话栏(--surf) < 卡片/浮层(--hole)
+     ⚠️ 卡片必须比它所在的页面亮一档才浮得起来：暗色下 --surf(#0D0D0F) 只比 --bg 亮一点点，
+        输入卡放上去几乎看不出边界，所以卡片取 --hole(#151517)。 */
+  --panel: var(--hole);
+  --panel2: var(--surf);
+  --line2: var(--line);
+  /* 描边：与其余 pane（workflow/technique/reference）一致，暗色用半透明白发丝线，
+     而不是全局 --line 的实色 #2A2A2E —— 实色在暗底上偏重，看起来像框死。 */
+  --line: rgba(255, 255, 255, 0.06);
   --hover: rgba(255, 255, 255, .08);
-  --tx1: #f5f5f7;
-  --tx2: #a1a1aa;
-  --tx3: #71717a;
-  --cv-elev: #2c2c2e;
-  --cv-bubble: #2c2c2e;
-  --cv-hairline: rgb(255 255 255 / 0.08);
-  --cv-hairline-w: 0.5px;
+  --tx1: var(--fg);
+  --tx2: var(--dim);
+  --tx3: var(--ph);
+  /* 纸片元素（输入卡/方案卡/浮层）复用首页已验收的 --hf-* 语言：
+     面板面 + 1px 边线 + 大圆角 + 投影，与首页输入框同一套外观。
+     ⚠️ 我此前按「不靠边线阴影」字面理解把它们删了，结果和首页明显不同 ——
+        那句说的是别用边线做层次，而输入框是浮起的纸片，本来就带边线和投影。 */
+  --cv-elev: var(--hf-panel, #16171d);
+  --cv-line: var(--hf-line, rgba(255, 255, 255, .09));
+  --cv-line-strong: var(--hf-line2, rgba(255, 255, 255, .16));
+  --cv-shadow: var(--hf-shadow, 0 24px 60px rgba(0, 0, 0, .5), 0 4px 16px rgba(0, 0, 0, .35));
+  --cv-shadow-focus: var(--hf-shadow-focus, 0 28px 70px rgba(0, 0, 0, .55));
+  --cv-bubble: var(--surf);
+  /* 右区这一层 = 应用壳/导航栏透出的 body 底色，也就是全局 --bg */
+  --cv-page: var(--bg);
+  /* 描边一律用全局 --line（其他界面的唯一边线来源），不再自造半透明白/黑：
+     原来暗色用 rgb(255 255 255 / 0.08)、触感用 rgba(34,35,31,.28)，
+     与全局 --line(#2A2A2E / rgba(34,35,31,.18)) 不是同一个东西。 */
+  --cv-hairline: var(--line);
+  --cv-hairline-w: 1px;
 }
 
 html[data-theme="light"] #pane-conversation {
-  --panel: #fcfcfd;
-  --panel2: #eef0f4;
+  --panel: var(--hole);
+  --panel2: var(--surf);
+  /* ⚠️ 必须显式覆盖 --line：不覆盖就继承暗色块的 rgba(255,255,255,.06)，
+     白线在浅底上等于没有边线（实测按钮/卡片描边全消失）。 */
+  --line: rgba(25, 25, 50, .06);
   --line2: #cdcdd6;
   --hover: rgba(38, 49, 72, .06);
-  --tx1: #191919;
-  --tx2: #666a73;
-  --tx3: #8c8f99;
-  --cv-elev: #ffffff;
+  --tx1: var(--fg);
+  --tx2: var(--dim);
+  --tx3: var(--ph);
+  --cv-elev: var(--hf-panel, #ffffff);
+  --cv-line: var(--hf-line, rgba(25, 25, 50, .10));
+  --cv-line-strong: var(--hf-line2, rgba(25, 25, 50, .18));
+  --cv-shadow: var(--hf-shadow, 0 24px 55px rgba(30, 30, 60, .13), 0 4px 14px rgba(30, 30, 60, .07));
+  --cv-shadow-focus: var(--hf-shadow-focus, 0 28px 65px rgba(30, 30, 60, .17));
   --cv-bubble: #edf3fe;
-  --cv-hairline: rgb(0 0 0 / 0.10);
-  --cv-hairline-w: 0.5px;
+  --cv-page: var(--bg);
+  --cv-hairline: var(--line);
+  --cv-hairline-w: 1px;
 }
 
 html[data-theme="tactile"] #pane-conversation {
-  --panel: #e6e1d5;
-  --panel2: #ddd8c9;
-  --line2: rgba(34, 35, 31, .28);
+  --panel: var(--hole);
+  --panel2: var(--surf);
+  --line2: var(--line);
+  --line: rgba(34, 35, 31, .16);
   --hover: rgba(34, 35, 31, .08);
-  --tx1: #22231f;
-  --tx2: #5c5a50;
-  --tx3: #8a877c;
-  --cv-elev: #eae6da;
-  --cv-hairline: rgb(34 35 31 / 0.28);
+  --tx1: var(--fg);
+  --tx2: var(--dim);
+  --tx3: var(--ph);
+  --cv-elev: var(--hf-panel, #f0ede4);
+  --cv-line: var(--hf-line, rgba(34, 35, 31, .35));
+  --cv-line-strong: var(--hf-line2, #22231f);
+  --cv-shadow: var(--hf-shadow, 3px 3px 0 #22231f);
+  --cv-shadow-focus: var(--hf-shadow-focus, 3px 3px 0 #22231f);
+  /* ⚠️ 必须显式给：漏了会继承深色默认值 #2c2c2e（深底）+ 本主题深色文字
+     —— 深底深字，用户气泡几乎看不见（截图实测确认过） */
+  --cv-bubble: var(--hole);
+  --cv-page: var(--bg);
+  --cv-hairline: var(--line);
   --cv-hairline-w: 1px;
 }
 
@@ -95,15 +134,22 @@ html[data-theme="tactile"] #pane-conversation {
   margin-left: var(--hm-sidebar, 68px);
 }
 
+/* 右区底色 = 应用壳/导航栏那一层（body 的 --bg），不是对话内自己那套 --panel。
+   ⚠️ 之前 .cv3 铺了 --panel（深 #151517 / 浅 #fcfcfd），而导航栏是透明的、透出 body
+      （深 #000 / 浅 #e0e2e9）—— 两套色板并列，右区就和导航栏对不上。
+      现在右区透出同一层，只有左侧会话栏铺自己的面（--panel2），层级才自洽。 */
 .cv3 {
   position: relative;
   display: flex;
   height: 100%;
   min-height: 0;
-  overflow: hidden;
-  background: var(--panel);
+  /* 不能 overflow:hidden：左栏/输入卡都带投影（触感主题是硬阴影 3px 3px 0），
+     裁掉后右下角的圆弧会被切成斜边，看起来像「缺了一块」。
+     横向溢出由各栏自己 min-width:0 控制，不需要在这里裁。 */
+  overflow: visible;
+  background: transparent;
   color: var(--tx1);
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .cv3-backdrop {
@@ -117,7 +163,7 @@ html[data-theme="tactile"] #pane-conversation {
 }
 
 /* hover 反馈统一 100ms（dsh TurnProcess 的 color 100ms 口径，缓动取主题 cubic-bezier） */
-.cv3-icon-btn, .cv3-new, .cv3-panel-row, .cv3-chip, .cv3-picker button, .cv3-session, .cv3-primary, .cv3-secondary, .cv3-switch button {
+.cv3-icon-btn, .cv3-row-new, .cv3-project, .cv3-primary, .cv3-secondary {
   transition: background-color 100ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -128,23 +174,257 @@ html[data-theme="tactile"] #pane-conversation {
   flex-direction: column;
   width: 280px;
   min-height: 0;
+  /* 四边同距 16px（规范：页面内容区左右 24、窄窗 16；这里取窄窗档，
+     因为左栏外还有 68px 导航轨）。原来写 10px 0 10px 10px —— 右边没边距，
+     左栏就贴着主区、贴着导航轨，看起来像浮在界面上的卡片。 */
+  margin: 16px 0 16px 16px;
   padding: 6px 12px;
   box-sizing: border-box;
-  border-right: 0.5px solid var(--line);
-  background: var(--panel2);
+  /* 左栏 = 一张纸片，配方同首页（.hf-menu / .hf-panel 系列）：
+     面 + 1px 边线 + 圆角 + 投影。首页所有浮起元素都带边线与投影，
+     只有这样才能和首页是同一套设计语言。 */
+  border: 1px solid var(--cv-line);
+  border-radius: 18px;
+  /* 面与输入卡同一档（--hf-panel），首页菜单/浮层也是这个面 */
+  background: var(--cv-elev);
+  box-shadow: var(--cv-shadow);
   color: var(--tx1);
-  font-size: 14px;
+  font-size: 13px;
 }
 
+/* 动作条：左「新建对话 / 新建项目」，右「视图选项」。
+   对齐 dsh sectionHeader —— 那一行只有 36px 高、只放 28px 的小图标按钮，
+   没有整行的大按钮。原来的整行「新对话」把左栏最贵的第一屏浪费在一个
+   每个人都会用的动作上，视觉重量也不对（像主操作，其实是日常动作）。 */
 .cv3-side-top {
   display: flex;
   flex: none;
   align-items: center;
-  justify-content: flex-end;
-  height: 52px;
-  margin: -6px -12px 0;
-  padding: 0 12px 2px;
+  gap: 4px;
+  height: 36px;
+  margin: -6px -4px 0;
+  padding: 0 4px;
   box-sizing: border-box;
+}
+
+/* 视图选项推到最右（dsh headerActions 也是 justify-content:flex-end） */
+.cv3-side-top .cv3-viewwrap {
+  margin-left: auto;
+}
+
+.cv3-viewwrap,
+.cv3-rowmenu-wrap {
+  position: relative;
+  flex: none;
+}
+
+/* 视图选项按钮按下态 */
+.cv3-icon-btn[data-on] {
+  background: var(--hover);
+  color: var(--tx1);
+}
+
+/* ── 搜索框（对齐 dsh search.placeholder：搜索会话名称）── */
+.cv3-search {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  margin: 2px 0 8px;
+  padding: 0 9px;
+  box-sizing: border-box;
+  border-radius: var(--fm-radius-mark);
+  background: var(--hole);
+  color: var(--tx3);
+  /* 正文档 13px：搜索框下面管的就是 13px 的项目名/会话名，
+     输入框自己 12px 会显得小一号。 */
+  font-size: 13px;
+}
+
+.cv3-search:focus-within {
+  color: var(--tx2);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--acc) 45%, transparent);
+}
+
+.cv3-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--tx1);
+  font: inherit;
+  font-size: 13px;
+  outline: none;
+}
+
+.cv3-search input::placeholder {
+  color: var(--tx3);
+}
+
+.cv3-search button {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--tx3);
+  cursor: pointer;
+}
+
+.cv3-search button:hover {
+  background: var(--hover);
+  color: var(--tx1);
+}
+
+/* ── 左栏浮层菜单（视图选项 / 行操作）──
+   与首页 .hf-menu 同一套：面 + 边线 + 投影 */
+.cv3-menu {
+  position: absolute;
+  z-index: 60;
+  min-width: 190px;
+  padding: 5px;
+  border: 1px solid var(--cv-line-strong);
+  border-radius: var(--fm-radius-card);
+  background: var(--cv-elev);
+  box-shadow: 0 18px 40px rgb(0 0 0 / .28);
+}
+
+.cv3-viewmenu {
+  top: calc(100% + 6px);
+  right: 0;
+}
+
+.cv3-rowmenu {
+  top: calc(100% + 4px);
+  right: 0;
+  min-width: 168px;
+}
+
+.cv3-menu-sec {
+  padding: 7px 9px 4px;
+  color: var(--tx3);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: .02em;
+}
+
+.cv3-menu button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 9px;
+  border: 0;
+  border-radius: var(--fm-radius-mark);
+  background: transparent;
+  color: var(--tx1);
+  font: inherit;
+  font-size: 12.5px;
+  line-height: 18px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cv3-menu button:hover {
+  background: var(--hover);
+}
+
+.cv3-menu button[data-danger] {
+  color: var(--bad);
+}
+
+.cv3-menu button span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── 行内「更多」按钮：默认隐形，悬停/展开才出现（同 dsh 会话行的操作钮）── */
+.cv3-row-more {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--fm-radius-mark);
+  background: transparent;
+  color: var(--tx3);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity .12s, background-color .12s, color .12s;
+}
+
+.cv3-group-row:hover .cv3-row-more,
+.cv3-session:hover .cv3-row-more,
+.cv3-row-more[aria-expanded="true"] {
+  opacity: 1;
+}
+
+.cv3-row-more:hover {
+  background: var(--hover);
+  color: var(--tx1);
+}
+
+/* 组头行：折叠按钮 + 更多按钮 */
+.cv3-group-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding-right: 4px;
+}
+
+.cv3-group-row .cv3-group-head {
+  flex: 1;
+  min-width: 0;
+}
+
+/* 会话行内：置顶图标 / 时间 / 归档标记 */
+.cv3-session-pin {
+  flex: none;
+  color: var(--acc);
+}
+
+.cv3-session-time {
+  flex: none;
+  color: var(--tx3);
+  font-size: 11px;
+}
+
+.cv3-session-flag {
+  flex: none;
+  padding: 0 5px;
+  border-radius: 3px;
+  background: var(--hole);
+  color: var(--tx3);
+  font-size: 10px;
+  line-height: 15px;
+}
+
+.cv3-session[data-archived] .cv3-session-name {
+  color: var(--tx3);
+}
+
+/* 行内重命名输入 */
+.cv3-session-edit {
+  flex: 1;
+  min-width: 0;
+  height: 20px;
+  padding: 0 4px;
+  border: 1px solid var(--acc);
+  border-radius: 4px;
+  background: var(--hole);
+  color: var(--tx1);
+  font: inherit;
+  font-size: 13px;
+  outline: none;
 }
 
 .cv3-icon-btn {
@@ -156,7 +436,7 @@ html[data-theme="tactile"] #pane-conversation {
   height: 28px;
   padding: 0;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--fm-radius-mark);
   background: transparent;
   color: var(--tx2);
   cursor: pointer;
@@ -171,80 +451,38 @@ html[data-theme="tactile"] #pane-conversation {
   outline-offset: -2px;
 }
 
-.cv3-new {
-  display: flex;
+/* 项目行上的「在此项目新建对话」：与 .cv3-row-more 同一档，
+   默认隐形、悬停/展开才现身（对齐 dsh rowActions 的 display:none → inline-flex）。
+   比 row-more 小 2px 且排在最右，因为在 dsh 里新会话钮是「顺路可点」，
+   不是每行都要看的主操作。 */
+.cv3-row-new {
+  display: grid;
+  place-items: center;
   flex: none;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  height: 38px;
-  margin: 0 2px 12px;
-  padding: 8px 12px;
-  box-sizing: border-box;
-  border: 0.5px solid var(--line);
-  border-radius: 12px;
-  background: var(--cv-elev);
-  color: var(--tx1);
-  font-size: 14px;
-  font-weight: 500;
-  line-height: 22px;
-  cursor: pointer;
-  overflow: hidden;
-}
-
-.cv3-new:hover {
-  background: var(--hover);
-}
-
-.cv3-panel-list {
-  display: flex;
-  flex: none;
-  flex-direction: column;
-  gap: 2px;
-  margin-bottom: 8px;
-}
-
-.cv3-panel-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 36px;
-  margin: 0 2px;
-  padding: 7px 8px;
-  box-sizing: border-box;
+  width: 22px;
+  height: 22px;
+  padding: 0;
   border: 0;
-  border-radius: 12px;
+  border-radius: var(--fm-radius-mark);
   background: transparent;
-  color: var(--tx1);
-  font-size: 14px;
-  line-height: 22px;
-  text-align: left;
-  cursor: pointer;
-}
-
-.cv3-panel-row:hover:not(:disabled) {
-  background: var(--hover);
-}
-
-.cv3-panel-row:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
-.cv3-panel-ico {
-  display: none;
-  flex: none;
-  align-items: center;
-  justify-content: center;
-}
-
-.cv3-side-sec {
-  margin: 12px 4px 6px;
   color: var(--tx3);
-  font-size: 11px;
-  font-weight: 500;
-  line-height: 16px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity .12s, background-color .12s, color .12s;
 }
+
+.cv3-group-row:hover .cv3-row-new,
+.cv3-row-new:focus-visible {
+  opacity: 1;
+}
+
+.cv3-row-new:hover {
+  background: var(--hover);
+  color: var(--acc);
+}
+
+
+
 
 .cv3-side-list {
   flex: 1;
@@ -252,117 +490,200 @@ html[data-theme="tactile"] #pane-conversation {
   overflow-y: auto;
 }
 
-.cv3-session {
-  display: flex;
-  align-items: center;
-  gap: 0;
-  height: 32px;
-  padding: 0 8px;
-  box-sizing: border-box;
-  border-radius: 12px;
-  background: var(--hover);
-  color: var(--tx1);
-  cursor: pointer;
+
+/* ── 两级树：项目（分组）→ 对话 ──
+   参照 dsh 的工作区模型：分组头可折叠、会话行可拖拽改归属。
+   拖放高亮用左边框 + 底色，不用大色块（保持左栏安静）。 */
+.cv3-group {
+  margin-bottom: 2px;
+  border-radius: var(--fm-radius-ctl);
 }
 
-.cv3-session-title {
+.cv3-group-head {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: 100%;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: var(--fm-radius-ctl);
+  background: transparent;
+  color: var(--tx2);
+  font: inherit;
+  /* 项目名是左栏的「标题」：13px/600，必须比会话名（13px/400）更醒目。
+     原来 12px/600 比空提示（13px）还小 —— 层级是倒的。 */
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 20px;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 100ms cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 100ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.cv3-group-head:hover {
+  background: var(--hover);
+}
+
+/* 拖放目标：分组头亮起，提示「放到这个项目下」 */
+.cv3-group-head[data-drop] {
+  background: var(--hover);
+  box-shadow: inset 2px 0 0 var(--acc);
+  color: var(--tx1);
+}
+
+.cv3-group[data-ungrouped] .cv3-group-head {
+  color: var(--tx3);
+  font-weight: 500;
+}
+
+.cv3-group-caret {
+  flex: none;
+  color: var(--tx3);
+  transition: transform 140ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.cv3-group-caret[data-open] {
+  transform: rotate(90deg);
+}
+
+.cv3-group-name {
   flex: 1;
   min-width: 0;
   overflow: hidden;
-  font-size: 14px;
-  line-height: 20px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.cv3-session-time {
-  flex: none;
-  margin-left: 6px;
-  color: var(--tx3);
-  font-size: 10px;
-  line-height: 16px;
+/* 新建后就地改名（对齐 dsh Rows.module.css 的 renameInput：
+   .5px 边线 + radius-sm + button-elevated-fill 底 + 与标题同字号行高）。
+   不用弹窗：建出来的那一刻光标已经在名字里，直接打字即可。 */
+.cv3-group-editrow {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 8px;
+  border-radius: var(--fm-radius-ctl);
 }
 
-.cv3-side-hint {
-  margin: 0 4px;
+.cv3-group-edit {
+  flex: 1;
+  min-width: 0;
+  height: 20px;
+  padding: 0 2px;
+  border: 0.5px solid var(--line);
+  border-radius: 4px;
+  background: var(--hole);
+  color: var(--tx1);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 20px;
+  outline: none;
+}
+
+.cv3-group-edit:focus {
+  border-color: var(--acc);
+}
+
+.cv3-group-count {
+  flex: none;
+  margin-left: 2px;
   color: var(--tx3);
+  /* 元数据档 11px（规范：正文 13 / 元数据 11 / 次要 10.5）。
+     原来 10px 是自造的第 4 档，与 .cv3-session-time 的 10.5 又不一样。 */
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 20px;
+}
+
+.cv3-group-body {
+  padding: 1px 0 4px 17px;
+}
+
+/* 会话行 —— 第二级。可拖拽：拖到别的项目分组头上改归属 */
+.cv3-session {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  border-radius: var(--fm-radius-ctl);
+  color: var(--tx2);
+  /* 正文档 13px：会话名和项目名同档，靠字重（600 vs 400）分层，
+     而不是靠字号差 —— 原来 12px 让第二级比第一级还小，
+     整列看起来像「标题被压扁了」。 */
   font-size: 13px;
   line-height: 20px;
+  cursor: pointer;
+  transition: background-color 100ms cubic-bezier(0.4, 0, 0.2, 1),
+              color 100ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.cv3-side-note {
-  margin: auto 4px 0;
-  color: var(--tx3);
-  font-size: 12px;
-  line-height: 20px;
-}
-
-/* 收起轨：56px，控件 36px 居中，列表与文字全部隐藏 */
-.cv3-side[data-rail] {
-  width: 56px;
-  padding: 18px 10px 6px;
-}
-
-.cv3-side[data-rail] .cv3-side-top {
-  height: auto;
-  margin: 0 0 12px;
-  padding: 0;
-  justify-content: center;
-}
-
-.cv3-side[data-rail] .cv3-icon-btn,
-.cv3-side[data-rail] .cv3-new {
-  width: 36px;
-  height: 36px;
-  margin: 0 0 12px;
-  padding: 0;
-  border-color: transparent;
-  border-radius: 12px;
-  background: transparent;
+.cv3-session:hover {
+  background: var(--hover);
   color: var(--tx1);
 }
 
-.cv3-side[data-rail] .cv3-icon-btn:hover,
-.cv3-side[data-rail] .cv3-new:hover {
+.cv3-session[data-current] {
+  background: var(--hover);
+  color: var(--tx1);
+  font-weight: 500;
+}
+
+.cv3-session[data-dragging] {
+  opacity: 0.45;
+}
+
+.cv3-session-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+
+/* 我的项目行 —— 左栏主体。
+   深度适配：dsh 原来这里是「会话清单」，本产品换成「项目」：
+   创作者的活是按片子组织的，不是按聊天记录。 */
+
+.cv3-project:hover,
+.cv3-project[data-current] {
   background: var(--hover);
 }
 
-.cv3-side[data-rail] .cv3-new-label,
-.cv3-side[data-rail] .cv3-side-sec,
-.cv3-side[data-rail] .cv3-side-list,
-.cv3-side[data-rail] .cv3-side-note {
-  display: none;
-}
 
-/* 轨内面板行：只留 36px 图标（dsh rail 规范） */
-.cv3-side[data-rail] .cv3-panel-list {
-  gap: 12px;
-  margin-bottom: 12px;
-}
 
-.cv3-side[data-rail] .cv3-panel-row {
-  width: 36px;
-  height: 36px;
-  justify-content: center;
+.cv3-side-hint {
+  /* 左内边距 8px + 分组体的 17px 缩进 = 与会话名的 122px 对齐
+     （原来用 margin:0 4px 会左偏 4px，空提示和上面的会话名不在一条竖线上）。 */
   margin: 0;
-  padding: 0;
+  padding: 0 8px;
+  color: var(--tx3);
+  /* 次要说明档 11px：原来 13px 和正文同大，还比项目名（12px）大，
+     空项目的「还没有对话。」看起来像标题。 */
+  font-size: 11px;
+  line-height: 18px;
 }
 
-.cv3-side[data-rail] .cv3-panel-row-label {
-  display: none;
-}
+/* 收起后左栏整块不渲染（不是缩成 56px 图标轨）：
+   收起态下左栏没有任何需要常驻的图标，留一条空轨道只是视觉噪音。
+   原来那套 [data-rail] 收窄样式已随组件改动一并删除。 */
 
-.cv3-side[data-rail] .cv3-panel-ico {
-  display: inline-flex;
-}
-
-/* 覆盖式抽屉（窄屏手动展开）：盖住主列，不挤压 */
+/* 覆盖式抽屉（窄屏手动展开）：盖住主列，不挤压。
+   抽屉是浮层，留边距会显得没贴住容器，所以这里把浮动面板的 margin 收掉，
+   改用四边同宽的 inset 让它像一块真正的浮板压在主列上。 */
 .cv3-side[data-drawer] {
   position: absolute;
   left: 0;
   top: 0;
-  bottom: 0;
+  /* bottom 留 40px 而不是 0：抽屉投影是 0 10px 30px（向下偏 10 + 扩散 30），
+     贴到底边时投影会被视口切掉，右下角看起来「缺了一块」。
+     40px = 10 偏移 + 30 扩散。 */
+  bottom: 40px;
   z-index: 8;
+  margin: 10px;
+  border-radius: var(--fm-radius-panel);
   box-shadow: 0 10px 30px rgb(0 0 0 / 0.5);
 }
 
@@ -373,18 +694,24 @@ html[data-theme="tactile"] #pane-conversation {
   flex-direction: column;
   min-width: 0;
   min-height: 0;
+  /* 与左栏同一套边距（16px 四边）：原来只有左栏有 margin，主区贴到右边缘，
+     两边不对称，看着像左栏浮在界面上。 */
+  margin: 16px 16px 16px 16px;
 }
 
-/* ---- 顶栏（dsh ConversationRoot header） ---- */
+/* ---- 顶栏（dsh ConversationRoot header） ----
+   深度适配后这里只剩「标题行」：dsh 的 对话/轨迹 两个 tab 已删，
+   所以不再需要 76px 的两行高度，收到 56px，标题行贴顶。 */
 .cv3-head {
   position: relative;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
   flex: none;
-  min-height: 76px;
+  min-height: 56px;
   padding: 10px 28px 0 20px;
   box-sizing: border-box;
-  border-bottom: 0.5px solid var(--line);
+  /* 不画贯穿全宽的底边线：靠留白与内容分层，线只在需要的地方出现 */
 }
 
 .cv3-title-row {
@@ -402,25 +729,10 @@ html[data-theme="tactile"] #pane-conversation {
   overflow: hidden;
   padding: 4px 8px;
   color: var(--tx1);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
   line-height: 20px;
   text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.cv3-demo-pill {
-  display: inline-flex;
-  flex: none;
-  align-items: center;
-  height: 24px;
-  padding: 2px 8px;
-  box-sizing: border-box;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  color: var(--tx3);
-  font-size: 11px;
-  line-height: 18px;
   white-space: nowrap;
 }
 
@@ -444,7 +756,7 @@ html[data-theme="tactile"] #pane-conversation {
   max-width: 220px;
   padding: 0 4px 0 8px;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--fm-radius-mark);
   outline: 0;
   background: transparent;
   color: var(--tx2);
@@ -482,9 +794,9 @@ html[data-theme="tactile"] #pane-conversation {
   max-width: 280px;
   padding: 12px;
   border: 0;
-  border-radius: 12px;
+  border-radius: var(--fm-radius-ctl);
   background: var(--cv-elev);
-  box-shadow: inset 0 0 0 var(--cv-hairline-w) var(--cv-hairline), 0 3px 8px rgb(0 0 0 / 0.04), 0 0 20px rgb(0 0 0 / 0.05);
+  box-shadow: 0 3px 8px rgb(0 0 0 / 0.04);
   color: var(--tx2);
   font-size: 13px;
   line-height: 20px;
@@ -502,89 +814,14 @@ html[data-theme="tactile"] #pane-conversation {
   border-radius: 999px;
   background: var(--acc);
   color: var(--on-accent, #fff);
-  font-size: 12.5px;
-  cursor: pointer;
-}
-
-.cv3-switch {
-  display: flex;
-  flex: none;
-  gap: 4px;
-  margin-left: auto;
-  padding: 2px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: var(--panel2);
-}
-
-/* 切换器总高 30px，与 dsh 标题行 30px 齐平，不把顶栏顶到 76px 以上 */
-.cv3-switch button {
-  padding: 3px 10px;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
-  color: var(--tx2);
   font-size: 12px;
-  line-height: 18px;
   cursor: pointer;
 }
 
-.cv3-switch button[data-on] {
-  background: var(--acc);
-  color: var(--on-accent, #fff);
-}
-
-.cv3-switch button:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
-.cv3-tabs {
-  grid-column: 1 / -1;
-  position: relative;
-  z-index: 1;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 32px;
-  width: 100%;
-  min-width: 0;
-  min-height: 25px;
-  margin-top: 10px;
-  padding-left: 8px;
-  box-sizing: border-box;
-}
-
-.cv3-tabs button {
-  position: relative;
-  min-height: 35px;
-  margin: -10px -10px 0;
-  padding: 10px 10px 9px;
-  border: 0;
-  background: transparent;
-  color: var(--tx3);
-  font-size: 13px;
-  font-weight: 500;
-  line-height: 16px;
-  cursor: pointer;
-}
-
-.cv3-tabs button::after {
-  content: '';
-  position: absolute;
-  right: 10px;
-  bottom: -1px;
-  left: 10px;
-  height: 2px;
-  border-radius: 2px;
-  background: transparent;
-}
-
-.cv3-tabs button[aria-selected="true"] {
-  color: var(--acc);
-}
-
-.cv3-tabs button[aria-selected="true"]::after {
-  background: var(--acc);
+/* 视图切换器（对话 ⇄ 工作台）的样式在 styles/view-switch.css 里统一定义，
+   两个视图共用一份；这里只负责把它推到标题行最右侧 */
+.cv3-title-row > .view-switch {
+  margin-left: auto;
 }
 
 /* ---- 滚动区 + 粘性输入席（dsh ConversationRoot body） ---- */
@@ -640,8 +877,8 @@ html[data-theme="tactile"] #pane-conversation {
   border-radius: 20px;
   background: var(--cv-bubble, var(--soft));
   color: var(--tx1);
-  font-size: 14px;
-  line-height: 22px;
+  font-size: 13px;
+  line-height: 19.5px;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
@@ -649,8 +886,8 @@ html[data-theme="tactile"] #pane-conversation {
 .cv3-ai-intro {
   margin: 0;
   color: var(--tx2);
-  font-size: 14px;
-  line-height: 24px;
+  font-size: 13px;
+  line-height: 19.5px;
   white-space: pre-wrap;
 }
 
@@ -665,8 +902,8 @@ html[data-theme="tactile"] #pane-conversation {
 .cv3-rich {
   min-width: 0;
   color: var(--tx1);
-  font-size: 14px;
-  line-height: 24px;
+  font-size: 13px;
+  line-height: 19.5px;
 }
 
 .cv3-rich p {
@@ -752,8 +989,8 @@ html[data-theme="tactile"] #pane-conversation {
   margin: 0;
   padding: 4px 0 4px 22px;
   color: var(--tx2);
-  font-size: 14px;
-  line-height: 24px;
+  font-size: 13px;
+  line-height: 19.5px;
   white-space: pre-wrap;
 }
 
@@ -763,18 +1000,15 @@ html[data-theme="tactile"] #pane-conversation {
   flex-direction: column;
 }
 
+/* 检索到的参考/特效：不逐行画分隔线（长线在窄栏里像表格），
+   靠行间距与次级色区分即可 */
 .cv3-tool {
   display: flex;
   align-items: baseline;
   gap: 8px;
   padding: 8px 0;
-  border-bottom: 0.5px solid var(--line);
   font-size: 13px;
   line-height: 20px;
-}
-
-.cv3-tool:last-child {
-  border-bottom: 0;
 }
 
 .cv3-tool b {
@@ -792,8 +1026,8 @@ html[data-theme="tactile"] #pane-conversation {
 .cv3-changes-title {
   display: block;
   margin-bottom: 8px;
-  font-size: 14px;
-  line-height: 22px;
+  font-size: 13px;
+  line-height: 19.5px;
 }
 
 .cv3-changes table {
@@ -803,7 +1037,7 @@ html[data-theme="tactile"] #pane-conversation {
 
 .cv3-changes th {
   padding: 6px 8px;
-  border-bottom: 0.5px solid var(--line);
+  border-bottom: 1px solid var(--line);
   color: var(--tx3);
   font-size: 13px;
   font-weight: 500;
@@ -813,9 +1047,9 @@ html[data-theme="tactile"] #pane-conversation {
 
 .cv3-changes td {
   padding: 6px 8px;
-  border-bottom: 0.5px solid var(--line);
-  font-size: 14px;
-  line-height: 24px;
+  border-bottom: 1px solid var(--line);
+  font-size: 13px;
+  line-height: 19.5px;
 }
 
 .cv3-changes td code {
@@ -825,25 +1059,26 @@ html[data-theme="tactile"] #pane-conversation {
   overflow-wrap: anywhere;
 }
 
-/* 方案卡（FengMotion 自有组件，落 dsh 卡片语言：16px 圆角、面填充、细描边） */
+/* 方案卡 —— 与输入卡同一套纸片配方（面 + 边线 + 大圆角 + 投影） */
 .cv3-plan {
   padding: 16px;
-  border-radius: 16px;
+  border: 1px solid var(--cv-line);
+  border-radius: 24px;
   background: var(--cv-elev);
-  box-shadow: inset 0 0 0 var(--cv-hairline-w) var(--cv-hairline);
+  box-shadow: var(--cv-shadow);
 }
 
 .cv3-plan-title {
-  font-size: 14px;
-  line-height: 22px;
+  font-size: 13px;
+  line-height: 19.5px;
 }
 
 .cv3-plan ol {
   margin: 10px 0 0;
   padding-left: 20px;
   color: var(--tx2);
-  font-size: 14px;
-  line-height: 24px;
+  font-size: 13px;
+  line-height: 19.5px;
   list-style: decimal;
 }
 
@@ -853,7 +1088,7 @@ html[data-theme="tactile"] #pane-conversation {
   gap: 12px;
   margin-top: 14px;
   color: var(--tx3);
-  font-size: 12.5px;
+  font-size: 12px;
 }
 
 .cv3-plan-actions {
@@ -871,16 +1106,43 @@ html[data-theme="tactile"] #pane-conversation {
   cursor: pointer;
 }
 
+/* 主/次按钮 —— 补齐工作台 .mini / .mini-strong 的悬停与禁用态 */
 .cv3-primary {
   border: 1px solid var(--acc);
   background: var(--acc);
   color: var(--on-accent, #fff);
+  transition: background-color .14s, border-color .14s, color .14s, transform .14s;
+}
+
+.cv3-primary:hover:not(:disabled) {
+  background: var(--acc-d);
+  border-color: var(--acc-d);
+  transform: translateY(-1px);
+}
+
+/* 禁用：收起填充（同 .mini-strong:disabled），不要用半透明 */
+.cv3-primary:disabled {
+  background: var(--hole);
+  border-color: var(--line);
+  color: var(--ph);
+  cursor: default;
 }
 
 .cv3-secondary {
   border: 1px solid var(--line2);
-  background: transparent;
+  background: var(--surf);
   color: var(--tx1);
+  transition: color .14s, background-color .14s, border-color .14s;
+}
+
+.cv3-secondary:hover:not(:disabled) {
+  color: var(--acc-d);
+  border-color: var(--acc);
+}
+
+.cv3-secondary:disabled {
+  color: var(--ph);
+  cursor: default;
 }
 
 .cv3-pending {
@@ -966,7 +1228,7 @@ html[data-theme="tactile"] #pane-conversation {
 }
 
 .cv3-trace-empty b {
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .cv3-trace-empty p {
@@ -976,13 +1238,16 @@ html[data-theme="tactile"] #pane-conversation {
   line-height: 20px;
 }
 
-/* ---- 输入席（dsh ConversationRoot composerSeat：粘性底部 + 36px 渐隐） ---- */
+/* ---- 输入席（dsh ConversationRoot composerSeat：粘性底部 + 36px 渐隐） ----
+   渐隐终点色必须与「页面那一层」一致，不能用对话内自己的 --panel：
+   --panel 是 dsh 色板（深 #151517 / 浅 #fcfcfd），而右区现在透出 body（深 #000 / 浅 #e0e2e9），
+   两者不同 → 输入席底部会出现一条与页面不一致的色带（深色主题下最明显）。 */
 .cv3-seat {
   position: sticky;
   bottom: 0;
   z-index: 7;
   padding-top: 36px;
-  background: linear-gradient(180deg, rgb(0 0 0 / 0) 0, var(--panel) 36px);
+  background: linear-gradient(180deg, rgb(0 0 0 / 0) 0, var(--cv-page) 36px);
 }
 
 .cv3-compose {
@@ -990,7 +1255,9 @@ html[data-theme="tactile"] #pane-conversation {
   padding: 0 32px 4px;
 }
 
-/* 输入卡（dsh InputBar：28px 圆角、输入面填充、柔和投影、细描边） */
+/* 输入卡 —— 直接套首页输入框（.hf-composer）的配方：
+   面 --hf-panel + 1px --hf-line + 24px 大圆角 + --hf-shadow。
+   ⚠️ 之前用 12px 卡片圆角、无边框、无投影，和首页完全是两种东西。 */
 .cv3-card {
   position: relative;
   display: flex;
@@ -1000,18 +1267,20 @@ html[data-theme="tactile"] #pane-conversation {
   max-width: calc(min(920px, max(680px, 64%), calc(100% - 32px)) + 32px);
   margin: 0 auto;
   padding-top: 8px;
-  border: 0;
-  border-radius: 28px;
+  border: 1px solid var(--cv-line);
+  border-radius: 24px;
   background: var(--cv-elev);
-  box-shadow: inset 0 0 0 var(--cv-hairline-w) var(--cv-hairline), 0 4px 16px rgb(0 0 0 / 0.03), 0 0 24px rgb(0 0 0 / 0.03);
-  font-size: 14px;
-  line-height: 24px;
+  box-shadow: var(--cv-shadow);
+  font-size: 13px;
+  line-height: 19.5px;
   transition: box-shadow 150ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* 输入框聚焦晕染：dsh focus.css 的 2px 业务色环，做 35% 透明晕染而非硬环 */
 .cv3-card:focus-within {
-  box-shadow: inset 0 0 0 var(--cv-hairline-w) var(--cv-hairline), 0 0 0 2px color-mix(in srgb, var(--acc) 35%, transparent), 0 4px 16px rgb(0 0 0 / 0.03), 0 0 24px rgb(0 0 0 / 0.03);
+  /* 聚焦与首页一致：边线转品牌色 + 投影加强（不是加发光环） */
+  border-color: color-mix(in srgb, var(--brand, var(--acc)) 45%, var(--cv-line-strong));
+  box-shadow: var(--cv-shadow-focus);
 }
 
 /* @// 菜单（dsh MenuView：卡片内绝对定位，bottom 100%+4px，padding 4px） */
@@ -1025,9 +1294,9 @@ html[data-theme="tactile"] #pane-conversation {
   overflow-y: auto;
   padding: 4px;
   border: 0;
-  border-radius: 12px;
+  border-radius: var(--fm-radius-ctl);
   background: var(--cv-elev);
-  box-shadow: inset 0 0 0 var(--cv-hairline-w) var(--cv-hairline), 0 3px 8px rgb(0 0 0 / 0.04), 0 0 20px rgb(0 0 0 / 0.05);
+  box-shadow: 0 3px 8px rgb(0 0 0 / 0.04);
 }
 
 .cv3-picker button {
@@ -1038,7 +1307,7 @@ html[data-theme="tactile"] #pane-conversation {
   min-height: 34px;
   padding: 6px 8px;
   border: 0;
-  border-radius: 12px;
+  border-radius: var(--fm-radius-ctl);
   background: transparent;
   color: var(--tx1);
   font-size: 13px;
@@ -1078,8 +1347,8 @@ html[data-theme="tactile"] #pane-conversation {
   background: transparent;
   color: var(--tx1);
   font-family: inherit;
-  font-size: 14px;
-  line-height: 24px;
+  font-size: 13px;
+  line-height: 19.5px;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   caret-color: var(--acc);
@@ -1098,6 +1367,826 @@ html[data-theme="tactile"] #pane-conversation {
   gap: 12px;
   min-width: 0;
   padding: 2px 8px 6px;
+}
+
+/* ── 输入区工具栏（对齐 dsh InputBar：左附件/权限，右模型/发送）── */
+.cv3-leading,
+.cv3-trailing {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+/* 弹层锚点 */
+.cv3-cw {
+  position: relative;
+  flex: none;
+  min-width: 0;
+}
+
+/* 工具条上的胶囊按钮（dsh InputBar 的 chip：28px 高、13/20） */
+.cv3-chip-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  max-width: 100%;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--fm-radius-mark);
+  background: transparent;
+  color: var(--tx3);
+  font: inherit;
+  font-size: 12px;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color .12s, color .12s;
+}
+
+.cv3-chip-btn:hover,
+.cv3-chip-btn[data-on] {
+  background: var(--hover);
+  color: var(--tx1);
+}
+
+.cv3-chip-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ══ 引擎/模型选择器（照首页 .hf-harness / .hf-harness-pop 那套做）══
+   原来是一个通用 Cpu 图标 + 扁平菜单；首页早就是「两段式 chip
+   （状态点 · 品牌图标 | 模型名 · 箭头）+ 两级弹窗」，同一个产品里
+   两个入口不该长得不一样。数值直接取首页：chip 高 36/999px 圆角、
+   图标 17px、模型名 12px 等宽、弹窗 300px 宽 14px 圆角。 */
+
+/* 触发钮：两段式。状态点用绿/黄区分已接入/未接入，
+   品牌图标用 mask 上色（不用底色块），模型名等宽避免抖动。 */
+/* 跑光圈要动画一个自定义角度属性，必须先注册成 <angle> */
+@property --cv-spin {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@keyframes cv3-spin-cw {
+  to { --cv-spin: 360deg; }
+}
+
+.cv3-hbtn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 28px;
+  max-width: 220px;
+  padding: 0 7px 0 9px;
+  border: 1px solid var(--cv-line);
+  border-radius: 999px;
+  background: var(--hole);
+  color: var(--tx2);
+  font: inherit;
+  cursor: pointer;
+  transition: border-color .18s, background-color .18s;
+}
+
+/* 已接入引擎时，按钮外缘顺时针跑一圈品牌色光
+   （同首页 .hf-harnesswrap[data-connected]::before，数值一致）。
+   用 ::after + inset:-2px 画在按钮外缘；遮罩只留 2px 环，中间镂空。 */
+.cv3-hbtn[data-connected]::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  padding: 2px;
+  border-radius: 999px;
+  pointer-events: none;
+  background: conic-gradient(from var(--cv-spin),
+    transparent 0deg, transparent 130deg,
+    color-mix(in srgb, var(--h-color) 45%, transparent) 200deg,
+    var(--h-color) 265deg,
+    #fff 292deg,
+    var(--h-color) 315deg,
+    color-mix(in srgb, var(--h-color) 45%, transparent) 350deg,
+    transparent 360deg);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--h-color) 90%, transparent))
+          drop-shadow(0 0 11px color-mix(in srgb, var(--h-color) 60%, transparent));
+  animation: cv3-spin-cw 2.8s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cv3-hbtn[data-connected]::after { animation: none; }
+}
+
+.cv3-hbtn:hover {
+  border-color: var(--cv-line-strong);
+  background: var(--panel2);
+}
+
+.cv3-hbtn[data-off] {
+  border-color: color-mix(in srgb, var(--warn) 40%, var(--cv-line));
+}
+
+.cv3-hseg {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: var(--tx1);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* 状态点：已接入绿 / 未接入黄（不能只靠颜色，旁边还有文字） */
+.cv3-hseg i {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #3fb96f;
+}
+
+.cv3-hseg[data-off] i {
+  background: var(--warn);
+}
+
+/* 品牌图标：无底色、mask 上色、17px（同首页 .hf-harness-mark） */
+.cv3-hseg .cv3-hmark-img {
+  flex: 0 0 15px;
+  width: 15px;
+  height: 15px;
+  background-color: var(--h-color, var(--acc));
+  mask-position: center;
+  mask-size: contain;
+  mask-repeat: no-repeat;
+}
+
+.cv3-hbtn[data-off] .cv3-hseg .cv3-hmark-img {
+  background-color: var(--warn);
+  opacity: .82;
+}
+
+.cv3-hdiv {
+  width: 1px;
+  height: 12px;
+  background: var(--cv-line-strong);
+  opacity: .6;
+}
+
+.cv3-hmodel {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--tx2);
+  font-size: 11.5px;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+}
+
+.cv3-hoff {
+  color: var(--warn);
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.cv3-hchev {
+  flex: none;
+  opacity: .7;
+}
+
+/* ── 弹窗：两级 pane，等高叠放按 data-active 滑动切换 ── */
+.cv3-hpop {
+  width: 300px;
+  padding: 8px;
+  border: 1px solid var(--cv-line-strong);
+  border-radius: 14px;
+  background: var(--cv-elev);
+  color: var(--tx1);
+  box-shadow: var(--cv-shadow);
+  /* Radix Portal 到 body，脱离 #pane-conversation 作用域，变量必须在
+     弹窗自己身上按主题声明（同 .cv3-ddm 的处理方式）。 */
+  --cv-elev: #16171d;
+  --panel2: #1e1f27;
+  --hole: #151517;
+  --hover: rgba(255, 255, 255, .06);
+  --cv-line: rgba(255, 255, 255, .10);
+  --cv-line-strong: rgba(255, 255, 255, .16);
+  --tx1: #EDEDED;
+  --tx2: #a4a7b1;
+  --tx3: #71717a;
+  --acc: #3B8CF8;
+  --warn: #E0A64B;
+  --cv-shadow: 0 22px 55px rgb(0 0 0 / .28);
+}
+
+html[data-theme="light"] .cv3-hpop {
+  border-color: rgba(25, 25, 50, .18);
+  background: #ffffff;
+  color: #191a20;
+  --cv-elev: #ffffff;
+  --panel2: #f4f4f7;
+  --hole: #eef0f4;
+  --hover: rgba(25, 25, 50, .05);
+  --cv-line: rgba(25, 25, 50, .10);
+  --cv-line-strong: rgba(25, 25, 50, .18);
+  --tx1: #191a20;
+  --tx2: #5b5e66;
+  --tx3: #94969e;
+  --acc: #2F6FE4;
+  --warn: #b7791f;
+  --cv-shadow: 0 22px 55px rgba(30, 30, 60, .16);
+}
+
+/* 触感主题：首页把这三个控件的边线加粗（.hf-harness 2px / .hf-harness-pop 2.5px /
+   .hf-hp-drawer 与 .hf-hp-seg 1.5px），这里照同一口径补上 —— 否则触感主题的
+   「厚描边」语言只在首页成立，对话页这边会显得比首页单薄。 */
+html[data-theme="tactile"] .cv3-hbtn {
+  border-width: 2px;
+  background: var(--panel2);
+}
+
+html[data-theme="tactile"] .cv3-hpop {
+  border-width: 2.5px;
+  border-color: #22231f;
+  background: #f0ede4;
+  color: #22231f;
+  --cv-elev: #f0ede4;
+  --panel2: #e6e1d5;
+  --hole: #ddd8c9;
+  --hover: rgba(34, 35, 31, .06);
+  --cv-line: rgba(34, 35, 31, .16);
+  --cv-line-strong: rgba(34, 35, 31, .28);
+  --tx1: #22231f;
+  --tx2: #55534a;
+  --tx3: #8a8676;
+  --acc: #f7c948;
+  --warn: #8a5a00;
+  --cv-shadow: 3px 3px 0 #22231f;
+}
+
+.cv3-hp-scroll {
+  position: relative;
+  max-height: min(420px, calc(100vh - 220px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+
+.cv3-hp-pane {
+  transition: transform .18s cubic-bezier(.23, 1, .32, 1), opacity .18s;
+}
+
+.cv3-hp-pane:not([data-active]) {
+  position: absolute;
+  inset: 0 0 auto 0;
+  visibility: hidden;
+  transform: translateX(14px);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.cv3-hp-pane[data-active] {
+  position: relative;
+  transform: none;
+  opacity: 1;
+}
+
+.cv3-hp-models:not([data-active]) {
+  transform: translateX(-14px);
+}
+
+/* 弹窗头：左标题右说明（引擎页）／左返回右引擎名（模型页） */
+.cv3-hp-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 8px;
+  color: var(--tx3);
+  font-size: 11px;
+}
+
+.cv3-hp-head b {
+  color: var(--tx2);
+  font-weight: 600;
+  letter-spacing: .02em;
+}
+
+.cv3-hp-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--tx2);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cv3-hp-back:hover {
+  background: var(--panel2);
+  color: var(--tx1);
+}
+
+.cv3-hp-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cv3-hp-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--tx1);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cv3-hp-item:hover {
+  background: var(--panel2);
+}
+
+/* 弹窗里的引擎图标：无底色、22px、品牌色（同首页 .hf-hp-logo） */
+.cv3-hp-logo {
+  flex: 0 0 22px;
+  width: 22px;
+  height: 22px;
+  background-color: var(--h-color, var(--acc));
+  mask-position: center;
+  mask-size: contain;
+  mask-repeat: no-repeat;
+}
+
+.cv3-hp-item[data-off] .cv3-hp-logo {
+  background-color: var(--tx3);
+  opacity: .5;
+}
+
+.cv3-hp-txt {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.cv3-hp-txt b {
+  color: var(--tx1);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.cv3-hp-txt small {
+  color: var(--tx3);
+  font-size: 11px;
+}
+
+/* 行尾图标：勾固定在右缘，箭头也贴右缘，出现时互相替代 */
+.cv3-hp-ck {
+  margin-left: auto;
+  color: var(--acc);
+  flex: none;
+}
+
+.cv3-hp-item .cv3-hp-ck {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  margin-left: 0;
+}
+
+.cv3-hp-go {
+  flex: 0 0 13px;
+  margin-left: auto;
+  color: var(--tx3);
+}
+
+/* 模型行：单选圆点 + 等宽模型名 */
+.cv3-hp-model .cv3-hp-txt b {
+  font-size: 12.5px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.cv3-hp-radio {
+  flex: 0 0 auto;
+  width: 12px;
+  height: 12px;
+  border: 1.5px solid var(--cv-line-strong);
+  border-radius: 50%;
+}
+
+.cv3-hp-model[aria-selected="true"] .cv3-hp-radio {
+  border-color: var(--acc);
+  box-shadow: inset 0 0 0 3px var(--acc);
+}
+
+/* 选中模型下方展开的设置抽屉 */
+.cv3-hp-modelwrap {
+  display: flex;
+  flex-direction: column;
+}
+
+.cv3-hp-drawer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 2px 0 6px;
+  padding: 10px 10px 12px;
+  border: 1px solid var(--cv-line);
+  border-radius: 10px;
+  background: var(--panel2);
+  animation: cv3-drawer-in .18s cubic-bezier(.23, 1, .32, 1);
+}
+
+html[data-theme="tactile"] .cv3-hp-drawer {
+  border-width: 1.5px;
+}
+
+html[data-theme="tactile"] .cv3-hp-seg {
+  border-width: 1.5px;
+}
+
+html[data-theme="tactile"] .cv3-hp-seg button.on {
+  box-shadow: 2px 2px 0 rgba(34, 35, 31, .5);
+}
+
+@keyframes cv3-drawer-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: none; }
+}
+
+.cv3-hp-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.cv3-hp-label {
+  color: var(--tx2);
+  font-size: 11.5px;
+  white-space: nowrap;
+}
+
+/* 分段控件：两档并排，比三行菜单省高度（同首页 .hf-hp-seg） */
+.cv3-hp-seg {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--cv-line);
+  border-radius: 8px;
+  background: var(--hole);
+}
+
+.cv3-hp-seg button {
+  padding: 3px 9px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--tx3);
+  font: inherit;
+  font-size: 11px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.cv3-hp-seg button:hover {
+  color: var(--tx1);
+}
+
+.cv3-hp-seg button.on {
+  background: color-mix(in srgb, var(--acc) 15%, transparent);
+  color: var(--acc);
+  font-weight: 600;
+}
+
+.cv3-hp-note {
+  margin: 6px 8px 2px;
+  padding: 7px 9px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--warn) 10%, transparent);
+  color: var(--tx2);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+/* ══ 输入区弹层：用 Radix DropdownMenu（src/components/ui/dropdown-menu）══
+   上一版是手写 div 菜单：没有键盘导航、没有焦点管理、没有碰撞翻转，
+   内容也只是把文字排成列表。改用 Radix 后键盘/ARIA/定位都由库负责，
+   这里只负责把它压成产品的视觉语言（面 + 边线 + 卡片圆角 + 投影，同首页浮层）。 */
+/* ⚠️ 必须显式压掉 shadcn 的默认类：
+   DropdownMenuContent 自带 bg-popover / text-popover-foreground / ring-foreground/10，
+   而 --color-popover 在 :root 里解析为全局 --surf —— CSS 变量在声明处求值，
+   到了对话 pane 里不会跟随 --surf 的主题覆盖，于是菜单底色和本页不一致（实测三主题全透明）。
+   这里用 !important 级别的显式声明把三主题色值钉死。 */
+/* 用 ID 提升特异性压过 shadcn 的 utility 类（不用 !important：
+   试过 !important 覆盖 --tw-ring-* 会把整页打白屏，Tailwind 变量不能这样覆盖）。
+   DropdownMenuContent 自带 bg-popover / ring-foreground/10，--color-popover 在 :root
+   就解析成全局 --surf，到对话 pane 里不跟随主题覆盖，所以必须在这里重设。 */
+/* Radix 把菜单 Portal 到 body，脱离 #pane-conversation 作用域 ——
+   实测菜单上 --cv-elev / --tx1 / --tx2 / --tx3 / --hole / --acc 全是空值，
+   只剩 :root 的 --surf 可用，于是底色错、次级文字层级也塌成一个亮度。
+   所以菜单需要的**整套**变量必须在菜单自己身上按主题声明，不能依赖祖先。 */
+.cv3-ddm {
+  min-width: 216px;
+  padding: 5px;
+  border: 1px solid rgba(255, 255, 255, .16);
+  border-radius: var(--fm-radius-card);
+  background: #16171d;
+  color: #EDEDED;
+  box-shadow: 0 20px 44px rgb(0 0 0 / .3);
+  --tw-ring-shadow: 0 0 #0000;
+  --tw-ring-color: transparent;
+  /* 三主题变量（深色为默认档） */
+  --cv-elev: #16171d;
+  --hole: #151517;
+  --hover: rgba(255, 255, 255, .06);
+  --line: rgba(255, 255, 255, .10);
+  --tx1: #EDEDED;
+  --tx2: #a4a7b1;
+  --tx3: #71717a;
+  --acc: #3B8CF8;
+  --warn: #E0A64B;
+}
+
+html[data-theme="light"] .cv3-ddm {
+  border-color: rgba(25, 25, 50, .18);
+  background: #ffffff;
+  color: #191a20;
+  --cv-elev: #ffffff;
+  --hole: #eef0f4;
+  --hover: rgba(25, 25, 50, .05);
+  --line: rgba(25, 25, 50, .10);
+  --tx1: #191a20;
+  --tx2: #5b5e66;
+  --tx3: #94969e;
+  --acc: #2F6FE4;
+  --warn: #b7791f;
+}
+
+html[data-theme="tactile"] .cv3-ddm {
+  border-color: #22231f;
+  background: #f0ede4;
+  color: #22231f;
+  --cv-elev: #f0ede4;
+  --hole: #ddd8c9;
+  --hover: rgba(34, 35, 31, .06);
+  --line: rgba(34, 35, 31, .16);
+  --tx1: #22231f;
+  --tx2: #55534a;
+  --tx3: #8a8676;
+  --acc: #f7c948;
+  --warn: #8a5a00;
+}
+
+/* Radix 菜单项默认样式压掉，统一成左图标 + 文本 */
+.cv3-ddm [data-slot="dropdown-menu-item"],
+.cv3-ddm [data-slot="dropdown-menu-radio-item"] {
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: var(--fm-radius-mark);
+  color: var(--tx2);
+  font-size: 12.5px;
+  line-height: 18px;
+}
+
+.cv3-ddm [data-slot="dropdown-menu-item"]:focus,
+.cv3-ddm [data-slot="dropdown-menu-radio-item"]:focus {
+  background: var(--hover);
+  color: var(--tx1);
+}
+
+/* Radix 的选中标记在右侧，给引擎行的「未接入」徽标留出位置 */
+.cv3-ddm [data-slot="dropdown-menu-radio-item"] > span:first-child {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.cv3-ddm-label {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 8px 4px;
+  color: var(--tx3);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+/* 权限卡片行：图标 + 名称 + 一句后果说明 */
+.cv3-ddm-perm {
+  min-width: 280px;
+}
+
+.cv3-ddm-permrow {
+  align-items: flex-start;
+  padding: 8px;
+}
+
+.cv3-perm-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  background: var(--hole);
+  color: var(--tx2);
+}
+
+.cv3-perm-icon[data-danger] {
+  color: var(--warn);
+}
+
+.cv3-ddm-permrow[data-highlighted] .cv3-perm-icon {
+  background: color-mix(in srgb, var(--acc) 16%, transparent);
+  color: var(--acc);
+}
+
+.cv3-perm-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.cv3-perm-text b {
+  color: var(--tx1);
+  font-size: 12.5px;
+  font-weight: 550;
+  line-height: 18px;
+}
+
+.cv3-perm-text em {
+  color: var(--tx3);
+  font-size: 11px;
+  font-style: normal;
+  line-height: 15px;
+}
+
+/* 添加面板：两格图标宫格 */
+.cv3-ddm-add {
+  width: 258px;
+}
+
+.cv3-addgrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 2px 4px 4px;
+}
+
+.cv3-addgrid button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 9px;
+  border: 0;
+  border-radius: var(--fm-radius-mark);
+  background: var(--hole);
+  color: var(--tx2);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color .12s, color .12s;
+}
+
+.cv3-addgrid button:hover {
+  background: var(--hover);
+  color: var(--tx1);
+}
+
+.cv3-addicon {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin-bottom: 3px;
+  border-radius: 7px;
+  background: var(--cv-elev);
+  color: var(--acc);
+}
+
+.cv3-addgrid b {
+  color: var(--tx1);
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 18px;
+}
+
+.cv3-addgrid em {
+  color: var(--tx3);
+  font-size: 10.5px;
+  font-style: normal;
+  line-height: 14px;
+}
+
+.cv3-ddm-note {
+  margin: 4px 4px 2px;
+  padding: 7px 6px 2px;
+  border-top: 1px solid var(--line);
+  color: var(--tx3);
+  font-size: 11px;
+  line-height: 16px;
+}
+
+/* 输入区弹层：向上展开（输入框在底部） */
+.cv3-pop {
+  bottom: calc(100% + 6px);
+  top: auto;
+  left: 0;
+  right: auto;
+}
+
+.cv3-perm-menu,
+.cv3-model-menu {
+  min-width: 208px;
+}
+
+.cv3-menu button[data-disabled] {
+  color: var(--tx3);
+}
+
+.cv3-menu-note {
+  margin: 6px 9px 4px;
+  padding-top: 6px;
+  border-top: 1px solid var(--line);
+  color: var(--tx3);
+  font-size: 11px;
+  line-height: 16px;
+  white-space: normal;
+}
+
+/* 待发送附件行 */
+.cv3-attach-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 2px 8px 0;
+}
+
+.cv3-attach-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 200px;
+  height: 24px;
+  padding: 0 4px 0 7px;
+  border-radius: var(--fm-radius-mark);
+  background: var(--hole);
+  color: var(--tx2);
+  font-size: 11px;
+  line-height: 1;
+}
+
+.cv3-attach-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cv3-attach-chip button {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--tx3);
+  cursor: pointer;
+}
+
+.cv3-attach-chip button:hover {
+  background: var(--hover);
+  color: var(--tx1);
 }
 
 .cv3-tools-left,
@@ -1134,23 +2223,36 @@ html[data-theme="tactile"] #pane-conversation {
 }
 
 /* 发送钮（dsh InputBar primary：34px 圆、品牌蓝底白字，空态 0.4） */
+/* 发送钮 —— 对齐工作台主按钮 .mini-strong（workbench.css:310）：
+   胶囊 + --acc 底 + --on-accent 字；悬停变 --acc-d 并上移 1px。
+   ⚠️ 禁用态不能用 opacity 压半透明：半透明黄/蓝会读成「能按但坏了」，
+      工作台的做法是**收起填充**（--hole 底 + --line 描边 + --ph 字），
+      明确表示「还不能按」。 */
 .cv3-send {
   display: grid;
   flex: none;
   place-items: center;
   width: 34px;
   height: 34px;
-  border: 0;
+  border: 1px solid var(--acc);
   border-radius: 999px;
   background: var(--acc);
   color: var(--on-accent, #fff);
   cursor: pointer;
   transform: translateY(-2px);
-  transition: background-color 100ms cubic-bezier(0.4, 0, 0.2, 1);
+  transition: background-color .14s, border-color .14s, color .14s, transform .14s;
+}
+
+.cv3-send:hover:not(:disabled) {
+  background: var(--acc-d);
+  border-color: var(--acc-d);
+  transform: translateY(-3px);
 }
 
 .cv3-send:disabled {
-  opacity: 0.4;
+  background: var(--hole);
+  border-color: var(--line);
+  color: var(--ph);
   cursor: default;
 }
 
@@ -1173,13 +2275,8 @@ html[data-theme="tactile"] #pane-conversation {
   display: inline-flex;
   align-items: center;
   padding: 1px 8px;
-  border-radius: 8px;
+  border-radius: var(--fm-radius-mark);
   white-space: nowrap;
-}
-
-.cv3-sep {
-  margin: 0 6px;
-  color: var(--tx3);
 }
 
 /* ---- 窄屏 ---- */
@@ -1192,10 +2289,6 @@ html[data-theme="tactile"] #pane-conversation {
 @media (max-width: 640px) {
   .cv3-head {
     padding: 10px 16px 0 14px;
-  }
-
-  .cv3-demo-pill {
-    display: none;
   }
 
   .cv3-switch button {

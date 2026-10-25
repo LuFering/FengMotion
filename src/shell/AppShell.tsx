@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { SidebarNav, SidebarFooter } from '@/shell/SidebarNav'
 import type { ViewId } from '@/shell/views'
-import type { ThemeId } from '@/shell/SettingsDialog'
+import type { ThemeId } from '@/shell/settings-model'
 
 /**
  * 应用外壳 —— 侧栏 + 内容区。
@@ -35,8 +35,8 @@ export function AppShell({
     <div id="app">
       <aside className="hm-sidebar" id="hm-sidebar" aria-label="主导航">
         <div className="hm-sidebar-head">
-          <a className="hm-brand" href="#project" aria-label="FengMotion 项目"
-             onClick={(e) => { e.preventDefault(); onNavigate('project') }}>
+          <a className="hm-brand" href="#conversation" aria-label="FengMotion 我的创作"
+             onClick={(e) => { e.preventDefault(); onNavigate('conversation') }}>
             <span className="hm-brand-mark">
               <img src="./assets/brand/fengmotion-mark.png" alt="" width={26} height={26} />
             </span>

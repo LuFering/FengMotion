@@ -46,6 +46,29 @@ export function useProjects() {
     return p
   }, [])
 
+  /* 左栏「新建项目」走的直建入口（对齐 dsh workspace.create：只接管，不预设表单）。
+     片型与时长留空，等第一条对话或工作台再定 —— dsh 的新工作区也只是
+     「选一个已存在的目录」，没有任何片型/时长之类的预设问题。 */
+  const createBlank = useCallback((name?: string) => {
+    const p: ProjectSummary = {
+      id: `p-${Date.now().toString(36)}`,
+      name: name?.trim() || '未命名项目',
+      tagline: '还没定片型',
+      stage: 'idea',
+      duration: 0,
+      doneClips: 0,
+      totalClips: 0,
+      segments: 0,
+      compositions: 0,
+      cover: './frames/film/s01.jpg',
+      path: `${PROJECTS_ROOT}/${slug(name?.trim() || `未命名项目-${Date.now().toString(36)}`)}`,
+      updatedAt: nowIso(),
+      planned: true,
+    }
+    setList((l) => [p, ...l])
+    return p
+  }, [])
+
   const rename = useCallback((id: string, name: string) => {
     setList((l) => l.map((p) => (p.id === id ? { ...p, name: name.trim() || p.name, updatedAt: nowIso() } : p)))
   }, [])
@@ -54,7 +77,7 @@ export function useProjects() {
     setList((l) => l.filter((p) => p.id !== id))
   }, [])
 
-  return { list, create, rename, remove }
+  return { list, create, createBlank, rename, remove }
 }
 
 /** 目录名：中文也能用（去掉文件系统不认的字符，空格变 -） */

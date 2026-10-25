@@ -1,16 +1,16 @@
 import { useEffect, useState } from 'react'
 import { useChat } from '@/shell/useChat'
+import { useSessions } from '@/shell/useSessions'
 import { useProjects } from '@/shell/useProjects'
 import { useAgentTasks } from '@/hooks/useAgentTasks'
 import { VIEW_META, type ViewId } from '@/shell/views'
 import { AppShell } from '@/shell/AppShell'
-import { SettingsDialog, DEFAULT_SETTINGS, type Settings } from '@/shell/SettingsDialog'
+import { SettingsScreen } from '@/shell/SettingsScreen'
+import { loadSettings, saveSettings, type Settings } from '@/shell/settings-model'
 import { Home } from '@/views/Home'
 import { Workbench } from '@/views/Workbench'
-import { WorkbenchCatalog } from '@/views/WorkbenchCatalog'
 import { Assets } from '@/views/Assets'
-import { ProjectOverview, ProjectBar, PickProject } from '@/views/ProjectOverview'
-import { NewProjectDialog } from '@/shell/NewProjectDialog'
+import { ProjectBar, PickProject } from '@/views/ProjectBar'
 import { RenderDelivery } from '@/views/RenderDelivery'
 import { FxLibrary } from '@/views/FxLibrary'
 import { RefLibrary } from '@/views/RefLibrary'
@@ -39,7 +39,10 @@ export default function App() {
   /** 开发调试入口：?view=production&project=token 直接进工作台；普通访问不变。 */
   const initialQuery = new URLSearchParams(window.location.search)
   const initialView = initialQuery.get('view') as View | null
-  const [view, setView] = useState<View>(initialView && initialView in VIEW_META ? initialView : 'home')
+  /** 启动视图：?view= 参数 > 设置里的「默认进入视图」> 首页 */
+  const [view, setView] = useState<View>(initialView && initialView in VIEW_META
+    ? initialView
+    : loadSettings().startView)
   /**
    * 制作工作台是**两级**的：
    *   null      → 一级：项目目录（铺满页面）
@@ -49,12 +52,13 @@ export default function App() {
    */
   const [openProject, setOpenProject] = useState<string | null>(initialQuery.get('project'))
   /** 新建项目对话卡（演示：只在内存里建，不落盘） */
-  const [newProjectOpen, setNewProjectOpen] = useState(false)
   const tasks = useAgentTasks()
   const projects = useProjects()
   /** 当前项目 —— 项目管理组的每个视图都要它 */
   const current = projects.list.find((p) => p.id === openProject) ?? null
-  const openList = () => { setOpenProject(null); setView('project') }
+  /* 「返回项目目录」：项目列表页已移除，回「我的创作」（对话视图）。
+     保留当前选中项目，便于从对话视图一键回工作台。 */
+  const openList = () => { setView('conversation') }
   // 复刻页（项目指挥中心）通过 postMessage 请求跨页导航
   useEffect(() => {
     const onMsg = (e: MessageEvent) => {
@@ -85,13 +89,9 @@ export default function App() {
     setView('production')
   }
   const [settingsOpen, setSettingsOpen] = useState(false)
-  const [settings, setSettings] = useState<Settings>(() => {
-    const saved = typeof localStorage === 'undefined' ? null : localStorage.getItem('fengmotion:theme')
-    return saved === 'dark' || saved === 'light' || saved === 'tactile'
-      ? { ...DEFAULT_SETTINGS, theme: saved }
-      : DEFAULT_SETTINGS
-  })
+  const [settings, setSettings] = useState<Settings>(loadSettings)
   const chat = useChat()
+  const threads = useSessions()
 
   /** 切视图**不清**项目上下文：项目管理组的子视图（素材/交付）都挂在
       当前项目上；要回列表就走 openList()（项目条上的「全部项目」或总览的返回）。 */
@@ -113,17 +113,20 @@ export default function App() {
    */
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', settings.theme)
-    try { localStorage.setItem('fengmotion:theme', settings.theme) } catch { /* local-only */ }
     document.body.classList.add('studio-shell')   // 本产品所有视图都在 shell 内
     document.body.classList.toggle('flowon', view === 'production')
   }, [view, settings.theme])
+  /** 设置即改即存（loadSettings 读回；旧版 fengmotion:theme 由它迁移） */
+  useEffect(() => { saveSettings(settings) }, [settings])
+  /** 减弱动效：手动开启时压平全局动画/过渡（CSS 见 settings.css） */
+  useEffect(() => {
+    document.documentElement.dataset.motion = settings.reduceMotion ? 'reduce' : 'normal'
+  }, [settings.reduceMotion])
 
   /** 制作工作台：必须有当前项目（列表已归项目管理，这里不再兼当目录） */
   const isFlow = view === 'production' && current !== null
-  /** 项目列表：制作工作台没项目时、项目总览没项目时，都落到它 */
-  const isCatalog = (view === 'production' || view === 'project') && current === null
-  /** 项目这一层：总览 / 子视图 */
-  const isOverview = view === 'project' && current !== null
+  /** production 无项目时不再落项目列表（已移除），回对话视图 */
+  const isCatalog = false
   const SUB_VIEWS = ['assets', 'render']
   const isSub = SUB_VIEWS.includes(view as string)
 
@@ -133,43 +136,52 @@ export default function App() {
                 onOpenSettings={() => setSettingsOpen(true)}
                 onThemeChange={changeTheme} onToggleNav={toggleNav}>
 
-        {/* 项目列表（一级）—— 「列表 → 项目 → 子视图」的第一层 */}
-        {isCatalog && (
-          <main id="pane-project" className="hm-main">
-            <WorkbenchCatalog projects={projects.list}
-                              onOpen={(id) => { setOpenProject(id); setView('project') }}
-                              onNew={() => setNewProjectOpen(true)}
-                              onRename={projects.rename}
-                              onRemove={(id) => { projects.remove(id); if (id === openProject) openList() }} />
-          </main>
-        )}
-
-        {/* 项目指挥中心（二级）—— 顶栏由复刻页自带（callour-studio v2 整包挂载） */}
-        {isOverview && current && (
-          <main id="pane-project" className="hm-main">
-            <div className="hm-content" data-view="project">
-              <ProjectOverview project={current} records={tasks.records}
-                               onBack={openList}
-                               onOpenView={(id) => go(id)}
-                               onOpenWorkbench={() => setView('production')} />
-            </div>
-          </main>
-        )}
-
         {/* 首页 · 首屏 from home-film-v3
             原型分支：发送后不再开启动层，需求直接作为首条消息进项目对话视图 */}
         {view === 'home' && (
           <div id="pane-home">
-            <Home onStart={(draft) => { chat.addUserMessage(draft); setView('conversation') }} />
+            <Home projects={projects.list}
+                  onStart={(payload) => {
+              /* 发送 → 建一条会话：选了工作目录的会话挂在该目录对应的项目下，
+                 没选的落进未分组（之后可拖到项目里） */
+              const project = payload.workdir
+                ? projects.list.find((p) => p.path === payload.workdir!.path) ?? null
+                : null
+              /* 只建会话，不往 chat 里再塞一份：会话是唯一来源，
+                 对话视图装载时会把它的消息装进 chat。
+                 两边都塞会出现两个不同 id 的同一条需求 → 演示回复各排一次 → 回两条。 */
+              const s = threads.create({
+                firstText: payload.draft,
+                projectId: project?.id ?? null,
+                workdir: payload.workdir,
+                messages: [{ id: `m-${Date.now().toString(36)}`, role: 'user', text: payload.draft, at: Date.now() }],
+              })
+              if (project) setOpenProject(project.id)
+              else setOpenProject(null)
+              void s
+              setView('conversation')
+            }} />
           </div>
         )}
 
-        {/* 项目对话视图（原型）—— 与工作台共用 useChat 会话，不进侧栏导航 */}
+        {/* 项目对话视图 —— 与工作台共用 useChat 会话；
+            左栏是「我的项目」（原项目列表页的那份数据），所以这里也是项目入口 */}
         {view === 'conversation' && (
           <div id="pane-conversation">
             <Conversation chat={chat}
+                          threads={threads}
+                          activeSessionId={threads.activeId}
+                          projects={projects.list}
                           onCreateProject={(input) => projects.create(input)}
                           openProject={openProject}
+                          onSelectProject={(id) => setOpenProject(id)}
+                          /* 左栏直建（dsh workspace.create）：不弹表单，建完在行内改名 */
+                          onNewProject={() => {
+                            const p = projects.createBlank()
+                            setOpenProject(p.id)
+                            return p
+                          }}
+                          onRenameProject={(id, name) => projects.rename(id, name)}
                           onLaunch={handleLaunch}
                           onOpenWorkbench={() => { if (openProject) setView('production') }} />
           </div>
@@ -180,6 +192,7 @@ export default function App() {
           <div id="pane-flow">
             <Workbench chat={chat} tasks={tasks} onNavigate={(next) => setView(next)}
                        projectId={openProject!}
+                       projects={projects.list}
                        onBack={openList}
                        onSwitchProject={(id) => setOpenProject(id)}
                        launch={pendingLaunch && pendingLaunch.projectId === openProject
@@ -221,8 +234,10 @@ export default function App() {
             </div>
           </div>
         )}
-        <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)}
-                        settings={settings} onChange={setSettings} />
+        {/* 设置：居中弹窗（Esc / 遮罩 / X 关闭），即改即生效存本机 */}
+        <SettingsScreen open={settingsOpen} onClose={() => setSettingsOpen(false)}
+                        settings={settings} onChange={setSettings}
+                        onThemeChange={changeTheme} />
 
         {/* 创作启动层：承接首页需求 → 建项目与工作流 → 落工作台呈现「本次制作」
             （快速路径在工作台自动运行；专业路径只创建不运行） */}
@@ -237,15 +252,8 @@ export default function App() {
           />
         )}
 
-        {/* 新建项目 —— 建完直接落在它的总览页（列表 → 项目） */}
-        <NewProjectDialog open={newProjectOpen} onClose={() => setNewProjectOpen(false)}
-                          onCreate={(input) => {
-                            const p = projects.create(input)
-                            setNewProjectOpen(false)
-                            setOpenProject(p.id)
-                            setView('project')
-                            return p
-                          }} />
+        {/* 新建项目不再走弹窗：左栏「新建项目」直接建出来并就地改名
+            （dsh workspace.create 的语义 —— 只接管，不问片型/时长）。 */}
       </AppShell>
     </TooltipProvider>
   )
