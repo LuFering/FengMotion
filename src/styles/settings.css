@@ -2,10 +2,13 @@
    设置 —— 大窗弹窗（shadcn Dialog，双栏：分区导航 + 内容面板）。
 
    视觉沿用项目范式（不另造一套）：
-   · 窗体 = 岛面板语言（surf + 发丝边 + --fm-radius-panel）；
+   · 窗体 = shadcn Dialog + 岛面板圆角（--fm-radius-panel）；
+   · 内部分层全靠灰阶递进（--hole / --soft），不画分隔线
+     （CLAUDE.md：表面靠灰阶递进，不靠边线和阴影）；
    · 分区导航 = hm-nav 的 pill 项（选中 soft 底 + acc 字）；
    · 行 = 引擎选择器弹层的行（透明底 / hover hole / 选中 soft + 勾）；
    · 单选圆点 = cv3-hp-radio（选中 acc 内嵌 3px）；
+   · 输入 = 项目标准 Input（ui/input.tsx）；
    · 标题 = pj-bar 的 13px/600。
    颜色全走壳层 token；唯一硬编码：主题样片色带（各主题设计常量，
    与 brand.css 的 token 值一致，样片不能跟随当前主题）。
@@ -30,7 +33,8 @@
   align-items: baseline;
   gap: 10px;
   padding: 14px 44px 12px 20px;
-  border-bottom: 1px solid var(--line);
+  /* 头与内容靠灰阶递进分层，不画横线（CLAUDE.md：表面靠灰阶递进，不靠边线） */
+  background: var(--hole);
 }
 .set-dlg-title {
   margin: 0;
@@ -55,7 +59,6 @@
   flex-direction: column;
   gap: 2px;
   padding: 14px 10px;
-  border-right: 1px solid var(--line);
 }
 .set-nav-item {
   display: flex;
@@ -200,16 +203,14 @@
   box-shadow: inset 0 0 0 3px var(--acc);
 }
 
-/* ── 逐行设置项（端点 / 关于）：发丝线行 ───────────────────── */
+/* ── 逐行设置项（端点 / 关于）：只靠间距，不画横线 ──────────── */
 .set-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 10px 2px;
-  border-bottom: 1px solid var(--line);
+  padding: 8px 2px;
 }
-.set-sec > .set-row:last-child { border-bottom: 0; }
 .set-row-label { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .set-row-label b { font-size: 12.5px; font-weight: 600; }
 .set-row-label em { font-size: 11px; font-style: normal; color: var(--dim); line-height: 1.5; }
@@ -222,21 +223,8 @@
   color: var(--fg);
   text-align: right;
 }
-.set-input {
-  width: 280px;
-  max-width: 100%;
-  height: 32px;
-  padding: 0 10px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--hole);
-  color: var(--fg);
-  font-family: ui-monospace, Consolas, monospace;
-  font-size: 11.5px;
-  outline: 0;
-  transition: border-color .15s;
-}
-.set-input:focus { border-color: var(--acc); }
+/* 端点输入用项目标准 Input（ui/input.tsx），这里只定宽度与等宽字 */
+.set-endpoint { width: 240px; font-family: ui-monospace, Consolas, monospace; font-size: 11.5px; }
 
 /* 窄屏：端点行换列 */
 @media (max-width: 560px) {

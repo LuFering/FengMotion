@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { HARNESSES } from '@/data/harnesses'
 import { type Settings, type ThemeId } from '@/shell/settings-model'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
 
 /**
  * 设置 —— 大窗弹窗（shadcn Dialog / Radix：Esc、遮罩点击、右上 X 都能关）。
@@ -162,7 +163,7 @@ export function SettingsScreen({
 
                 <h4 className="set-subhead">服务端点</h4>
                 <Row label="API Base URL" hint="演示态：只保存在本机，不做连通性验证">
-                  <input className="set-input" value={settings.harnessEndpoint} spellCheck={false}
+                  <Input className="set-endpoint" value={settings.harnessEndpoint} spellCheck={false}
                          onChange={(e) => set('harnessEndpoint', e.target.value)}
                          placeholder="http://127.0.0.1:8788/v1" />
                 </Row>
