@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { SidebarNav, SidebarFooter } from '@/shell/SidebarNav'
 import type { ViewId } from '@/shell/views'
-import type { ThemeId } from '@/shell/SettingsDialog'
+import type { ThemeId } from '@/shell/settings-model'
 
 /**
  * 应用外壳 —— 侧栏 + 内容区。

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { ThemeId } from '@/shell/SettingsDialog'
+import type { ThemeId } from '@/shell/settings-model'
 import { NAV, DEFAULT_EXPANDED, type NavNode, type ViewId } from '@/shell/views'
 
 /**

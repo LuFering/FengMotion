@@ -5,7 +5,8 @@ import { useProjects } from '@/shell/useProjects'
 import { useAgentTasks } from '@/hooks/useAgentTasks'
 import { VIEW_META, type ViewId } from '@/shell/views'
 import { AppShell } from '@/shell/AppShell'
-import { SettingsDialog, DEFAULT_SETTINGS, type Settings } from '@/shell/SettingsDialog'
+import { SettingsScreen } from '@/shell/SettingsScreen'
+import { loadSettings, saveSettings, type Settings } from '@/shell/settings-model'
 import { Home } from '@/views/Home'
 import { Workbench } from '@/views/Workbench'
 import { Assets } from '@/views/Assets'
@@ -85,12 +86,9 @@ export default function App() {
     setView('production')
   }
   const [settingsOpen, setSettingsOpen] = useState(false)
-  const [settings, setSettings] = useState<Settings>(() => {
-    const saved = typeof localStorage === 'undefined' ? null : localStorage.getItem('fengmotion:theme')
-    return saved === 'dark' || saved === 'light' || saved === 'tactile'
-      ? { ...DEFAULT_SETTINGS, theme: saved }
-      : DEFAULT_SETTINGS
-  })
+  /** 设置的来路：打开时记住当前视图，左上角「返回」回这里（设置是全屏接管页） */
+  const [settingsFrom, setSettingsFrom] = useState<View>('home')
+  const [settings, setSettings] = useState<Settings>(loadSettings)
   const chat = useChat()
   const threads = useSessions()
 
@@ -114,10 +112,11 @@ export default function App() {
    */
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', settings.theme)
-    try { localStorage.setItem('fengmotion:theme', settings.theme) } catch { /* local-only */ }
     document.body.classList.add('studio-shell')   // 本产品所有视图都在 shell 内
     document.body.classList.toggle('flowon', view === 'production')
   }, [view, settings.theme])
+  /** 设置即改即存（loadSettings 读回；旧版 fengmotion:theme 由它迁移） */
+  useEffect(() => { saveSettings(settings) }, [settings])
 
   /** 制作工作台：必须有当前项目（列表已归项目管理，这里不再兼当目录） */
   const isFlow = view === 'production' && current !== null
@@ -129,7 +128,7 @@ export default function App() {
   return (
     <TooltipProvider delayDuration={300}>
       <AppShell view={view as ViewId} onNavigate={go} theme={settings.theme}
-                onOpenSettings={() => setSettingsOpen(true)}
+                onOpenSettings={() => { setSettingsFrom(view); setSettingsOpen(true) }}
                 onThemeChange={changeTheme} onToggleNav={toggleNav}>
 
         {/* 首页 · 首屏 from home-film-v3
@@ -230,8 +229,12 @@ export default function App() {
             </div>
           </div>
         )}
-        <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)}
-                        settings={settings} onChange={setSettings} />
+        {/* 设置：全屏接管页，盖住导航轨；左上角返回进入前的视图 */}
+        {settingsOpen && (
+          <SettingsScreen from={settingsFrom} settings={settings}
+                          onChange={setSettings} onThemeChange={changeTheme}
+                          onBack={() => setSettingsOpen(false)} />
+        )}
 
         {/* 创作启动层：承接首页需求 → 建项目与工作流 → 落工作台呈现「本次制作」
             （快速路径在工作台自动运行；专业路径只创建不运行） */}

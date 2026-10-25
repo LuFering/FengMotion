@@ -1,155 +1,265 @@
 /* ═══════════════════════════════════════════════════════════════
-   设置弹窗 —— 复用 paba 的 .delete-dialog（原生 <dialog> + ::backdrop），
-   只补内容区的排版。不引入新颜色，全部走 paba 的 token。
+   设置 —— 全屏接管页。
+
+   视觉语言沿用项目既有范式（不另造一套）：
+   · 顶栏 = pj-bar（ghost 返回 + 13px/600 标题 + 发丝线，project.css）；
+   · 分区导航 = hm-nav 的 pill 项（40px 高 / 大圆角 / 选中 soft + acc）；
+   · 内容 = 一个岛面板（surf + 发丝边 + --fm-radius-panel，同三库岛屿）；
+   · 行 = 引擎选择器弹层的行（透明底 / hover hole / 选中 soft + 勾）；
+   · 单选圆点 = cv3-hp-radio（选中 acc 内嵌 3px）。
+   颜色全走壳层 token；唯一硬编码：主题样片色带（各主题设计常量，
+   与 brand.css 的 token 值一致，样片不能跟随当前主题）。
    ═══════════════════════════════════════════════════════════════ */
 
-#settings-dialog { width: min(560px, calc(100vw - 32px)) }
-
-/* ── 分组 ─────────────────────────────────────────────────── */
-.settings-body {
+.set-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
   display: flex;
   flex-direction: column;
-  gap: 24px;
-  margin-top: 20px;
-}
-.settings-section { display: flex; flex-direction: column; gap: 4px }
-.settings-section > h3 {
-  margin: 0 0 2px;
-  font-size: 12px;
-  font-weight: 650;
+  padding: 18px 28px 0;
+  background: var(--bg);
   color: var(--fg);
-  letter-spacing: .02em;
+  animation: setIn .26s cubic-bezier(.23, 1, .32, 1) both;
 }
-.settings-hint {
-  margin: 0 0 10px;
-  color: var(--dim);
-  font-size: 11.5px;
-  line-height: 1.6;
+@keyframes setIn {
+  from { opacity: 0; transform: translateY(8px) }
+  to   { opacity: 1; transform: none }
 }
+@media (prefers-reduced-motion: reduce) { .set-screen { animation: none } }
 
-/* ── 逐行设置项 ───────────────────────────────────────────── */
-.settings-row {
+/* ── 顶栏（pj-bar 语言）───────────────────────────────────── */
+.set-top {
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  min-height: 52px;
-  padding: 10px 0;
+  gap: 9px;
+  padding: 0 0 12px;
   border-bottom: 1px solid var(--line);
 }
-.settings-row:last-child { border-bottom: 0 }
-.settings-row-label { display: flex; flex-direction: column; gap: 3px; min-width: 0 }
-.settings-row-label b { font-size: 13px; font-weight: 550; color: var(--fg) }
-.settings-row-label em { font-size: 11px; font-style: normal; color: var(--dim); line-height: 1.5 }
-.settings-row-control { flex: 0 0 auto; display: flex; align-items: center; gap: 8px }
-
-.settings-input {
-  width: 240px;
-  height: 34px;
-  padding: 0 10px;
-  border: 1px solid var(--line);
+.set-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px 4px 4px;
+  border: 0;
   border-radius: 6px;
-  background: var(--hole);
-  color: var(--fg);
+  background: none;
+  color: var(--dim);
   font: inherit;
   font-size: 12px;
-  outline: 0;
-  transition: border-color .15s;
-}
-.settings-input:focus { border-color: var(--acc) }
-
-/* ── 开关 ─────────────────────────────────────────────────── */
-.settings-toggle {
-  position: relative;
-  width: 40px;
-  height: 22px;
-  padding: 0;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: var(--hole);
   cursor: pointer;
-  transition: background-color .16s, border-color .16s;
+  transition: color .14s, background-color .14s;
 }
-.settings-toggle > span {
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: var(--dim);
-  transition: transform .16s, background-color .16s;
-}
-.settings-toggle[data-on] { background: var(--acc); border-color: var(--acc) }
-.settings-toggle[data-on] > span { transform: translateX(18px); background: var(--on-accent) }
+.set-back:hover { color: var(--fg); background: var(--hole); }
+.set-back .ui-icon { width: 14px; height: 14px; }
+.set-title { margin: 0; font-size: 13px; font-weight: 600; color: var(--fg); }
 
-/* ── Harness 卡片 ─────────────────────────────────────────── */
-.harness-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-  margin: 6px 0 14px;
-}
-.harness-card {
+/* ── 主体：pill 分区导航 + 岛面板 ──────────────────────────── */
+.set-body {
+  flex: 1;
   display: flex;
-  align-items: flex-start;
-  gap: 9px;
-  padding: 11px 12px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--surf);
-  color: var(--fg);
+  gap: 20px;
+  min-height: 0;
+  padding: 18px 0 22px;
+}
+.set-nav {
+  flex: 0 0 188px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.set-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  height: 38px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 19px;
+  background: none;
+  color: var(--dim);
+  font: inherit;
+  font-size: 13px;
   text-align: left;
   cursor: pointer;
-  transition: border-color .15s, background-color .15s;
+  transition: background-color .15s, color .15s;
 }
-.harness-card:hover { border-color: color-mix(in srgb, var(--acc) 50%, var(--line)) }
-.harness-card[data-active] {
-  border-color: var(--acc);
-  background: color-mix(in srgb, var(--acc) 10%, var(--surf));
-}
-.harness-check {
-  display: grid;
-  place-items: center;
-  width: 16px;
-  height: 16px;
-  flex: 0 0 16px;
-  margin-top: 1px;
-  border: 1px solid var(--line);
-  border-radius: 4px;
-  color: var(--acc);
-}
-.harness-card[data-active] .harness-check { border-color: var(--acc) }
-.harness-check .ui-icon { width: 12px; height: 12px }
-.harness-text { display: flex; flex-direction: column; gap: 3px; min-width: 0 }
-.harness-text b { font-size: 12.5px; font-weight: 600 }
-.harness-text em { font-size: 11px; font-style: normal; color: var(--dim); line-height: 1.45 }
+.set-nav-item:hover { background: color-mix(in srgb, var(--fg) 6%, transparent); color: var(--fg); }
+.set-nav-item[data-on] { background: var(--soft); color: var(--acc); font-weight: 600; }
+.set-nav-item .ui-icon { width: 16px; height: 16px; flex: 0 0 16px; }
 
-/* ── 底部提示 ─────────────────────────────────────────────── */
-.settings-note {
-  margin: 0;
-  padding: 10px 12px;
-  border: 1px solid color-mix(in srgb, var(--warn) 34%, transparent);
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--warn) 10%, transparent);
-  color: var(--warn);
+/* 岛面板：同三库岛屿的表面语言 */
+.set-panel {
+  flex: 1;
+  min-width: 0;
+  max-width: 680px;
+  overflow-y: auto;
+  padding: 10px 20px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--fm-radius-panel);
+  background: var(--surf);
+}
+.set-sec { padding-bottom: 6px; }
+.set-sec-head {
+  margin: 8px 0 0;
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: .02em;
+  color: var(--fg);
+}
+.set-subhead {
+  margin: 18px 0 0;
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: .02em;
+  color: var(--fg);
+}
+.set-hint {
+  margin: 3px 0 8px;
+  color: var(--dim);
   font-size: 11px;
   line-height: 1.6;
 }
 
-/* ── 次要按钮（paba 的 .delete-dialog-actions 只定义了 confirm）── */
-.settings-btn {
+/* ── 行（引擎选择器弹层的行语言）──────────────────────────── */
+.set-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.set-rowbtn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color .14s;
+}
+.set-rowbtn:hover { background: var(--hole); }
+.set-rowbtn[data-on] { background: var(--soft); }
+.set-rowtxt {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.set-rowtxt b { font-size: 13px; font-weight: 600; }
+.set-rowtxt small { color: var(--dim); font-size: 11px; }
+.set-ck { flex: 0 0 auto; width: 14px; height: 14px; color: var(--acc); }
+
+/* 主题样片：30×20 三色带（各主题 bg / surf / acc 的设计常量） */
+.set-swatch {
+  display: flex;
+  flex: 0 0 30px;
+  width: 30px;
+  height: 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--fm-radius-thumb);
+  overflow: hidden;
+}
+.set-swatch i { flex: 1; }
+.set-swatch[data-theme="dark"] i:nth-child(1) { background: #000000; }
+.set-swatch[data-theme="dark"] i:nth-child(2) { background: #0d0d0f; }
+.set-swatch[data-theme="dark"] i:nth-child(3) { background: #3B8CF8; }
+.set-swatch[data-theme="light"] i:nth-child(1) { background: #e0e2e9; }
+.set-swatch[data-theme="light"] i:nth-child(2) { background: #fcfcfd; }
+.set-swatch[data-theme="light"] i:nth-child(3) { background: #2F6FE4; }
+.set-swatch[data-theme="tactile"] i:nth-child(1) { background: #e6e1d5; }
+.set-swatch[data-theme="tactile"] i:nth-child(2) { background: #eae6da; }
+.set-swatch[data-theme="tactile"] i:nth-child(3) { background: #f7c948; }
+
+/* 引擎行 */
+.set-hmark {
+  flex: 0 0 22px;
+  width: 22px;
+  height: 22px;
+  background-color: var(--h-color, var(--acc));
+  mask-position: center;
+  mask-size: contain;
+  mask-repeat: no-repeat;
+}
+.set-hstate {
+  flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: 7px;
-  padding: 0 14px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: 0 0;
-  color: var(--fg);
-  cursor: pointer;
-  font-weight: 500;
-  transition: background-color .15s, border-color .15s;
+  gap: 5px;
+  margin-right: 2px;
+  color: var(--ph);
+  font-size: 11px;
 }
-.settings-btn:hover { background: var(--hole); border-color: var(--dim) }
+.set-hstate i { width: 6px; height: 6px; border-radius: 999px; background: var(--ph); }
+.set-hstate[data-ready] { color: var(--ok); }
+.set-hstate[data-ready] i { background: var(--ok); }
+
+/* 模型行：cv3-hp-radio 的单选圆点 */
+.set-mrow code { font-size: 11.5px; }
+.set-radio {
+  flex: 0 0 auto;
+  width: 12px;
+  height: 12px;
+  border: 1.5px solid var(--line);
+  border-radius: 50%;
+  transition: border-color .14s, box-shadow .14s;
+}
+.set-mrow[data-on] .set-radio {
+  border-color: var(--acc);
+  box-shadow: inset 0 0 0 3px var(--acc);
+}
+
+/* ── 逐行设置项（端点 / 关于）：发丝线行 ───────────────────── */
+.set-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 11px 2px;
+  border-bottom: 1px solid var(--line);
+}
+.set-sec > .set-row:last-child { border-bottom: 0; }
+.set-row-label { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.set-row-label b { font-size: 12.5px; font-weight: 600; }
+.set-row-label em { font-size: 11px; font-style: normal; color: var(--dim); line-height: 1.5; }
+.set-row-control {
+  flex: 0 1 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--fg);
+  text-align: right;
+}
+.set-input {
+  width: 300px;
+  max-width: 100%;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--hole);
+  color: var(--fg);
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 11.5px;
+  outline: 0;
+  transition: border-color .15s;
+}
+.set-input:focus { border-color: var(--acc); }
+
+/* ── 窄窗：分区导航收成窄条 ───────────────────────────────── */
+@media (max-width: 760px) {
+  .set-screen { padding: 14px 16px 0; }
+  .set-nav { flex-basis: 56px; }
+  .set-nav-item { justify-content: center; padding: 0; }
+  .set-nav-item span { display: none; }
+  .set-body { gap: 12px; }
+  .set-row { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .set-row-control { text-align: left; }
+}
