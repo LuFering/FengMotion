@@ -75,7 +75,6 @@ export function SettingsScreen({
       <DialogContent className="set-dlg" showCloseButton aria-describedby={undefined}>
         <div className="set-dlg-head">
           <DialogTitle className="set-dlg-title">设置</DialogTitle>
-          <span className="set-dlg-sub">即改即生效，存在本机。</span>
         </div>
 
         <div className="set-dlg-body">

@@ -42,10 +42,6 @@
   font-weight: 600;
   color: var(--fg);
 }
-.set-dlg-sub {
-  font-size: 11px;
-  color: var(--dim);
-}
 .set-dlg-body {
   flex: 1;
   display: flex;
