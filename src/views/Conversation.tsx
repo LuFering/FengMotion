@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
 import {
-  Archive, ArchiveRestore, Check, ChevronRight, Cpu, Ellipsis, FileText, FolderPlus, ImageIcon,
+  Archive, ArchiveRestore, Check, ChevronDown, ChevronLeft, ChevronRight, Ellipsis, FileText, FolderPlus, ImageIcon,
   ListFilter, LoaderCircle, MessageSquarePlus, PanelLeft, Pencil, Pin, PinOff, Plus, Search, Send, Shield,
   ShieldAlert, ShieldCheck, Trash2, X,
 } from 'lucide-react'
@@ -14,9 +14,11 @@ import type { NewProjectInput } from '../shell/useProjects'
 import type { WfPath } from '../data/workflowTemplates'
 import { SegmentedControl } from '../components/ui/segmented-control'
 import {
+  Popover, PopoverContent, PopoverTrigger,
+} from '../components/ui/popover'
+import {
   DropdownMenu, DropdownMenuContent, DropdownMenuTrigger,
   DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem,
-  DropdownMenuItem, DropdownMenuSeparator,
 } from '../components/ui/dropdown-menu'
 import { ViewSwitch } from '../components/ViewSwitch'
 import type { ProjectSummary } from '../data/projects'
@@ -186,6 +188,10 @@ export function Conversation(props: {
   const [viewMenu, setViewMenu] = useState(false)
   /* 每行的「更多」菜单：记录当前展开的是哪个 id（项目/会话共用一套浮层） */
   const [rowMenu, setRowMenu] = useState<string | null>(null)
+  /* 引擎/模型弹窗：modelOpen = 是否展开，modelPane = 当前在哪一级
+     （null = 引擎列表；某引擎 id = 该引擎的模型页）。对齐首页的 harnessPane。 */
+  const [modelOpen, setModelOpen] = useState(false)
+  const [modelPane, setModelPane] = useState<string | null>(null)
   /* 行内重命名：editing = 正在编辑的 id，editText = 输入值 */
   const [editing, setEditing] = useState<string | null>(null)
   const [editText, setEditText] = useState('')
@@ -856,59 +862,113 @@ export function Conversation(props: {
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
-                  {/* 右侧：引擎与模型、发送 */}
+                  {/* 右侧：引擎与模型、发送。
+                      引擎/模型选择器照首页那套做（两段式 chip + 两级弹窗），
+                      原来是一个通用 CPU 图标 + 扁平菜单，和首页明显不是同一个东西。 */}
                   <div className="cv3-trailing">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <button type="button" className="cv3-chip-btn cv3-model-btn" aria-label="选择引擎与模型"
-                                title="选择引擎与模型">
-                          <Cpu size={13} />
-                          <span className="cv3-chip-label">{harness.short} · {model}</span>
+                    <Popover open={modelPane !== null || modelOpen} onOpenChange={(o) => {
+                      if (!o) { setModelOpen(false); setModelPane(null) }
+                      else setModelOpen(true)
+                    }}>
+                      <PopoverTrigger asChild>
+                        <button type="button" className="cv3-hbtn"
+                                data-off={!harness.ready || undefined}
+                                data-connected={harness.ready || undefined}
+                                aria-label="选择执行引擎与模型" title={harness.ready ? '切换执行引擎' : '该引擎未接入'}
+                                style={{ '--h-color': harness.color } as CSSProperties}>
+                          <span className="cv3-hseg" data-off={!harness.ready || undefined}>
+                            <i aria-hidden="true" />
+                            <span className="cv3-hmark-img" aria-hidden="true"
+                                  style={{ maskImage: `url(${harness.icon})`, WebkitMaskImage: `url(${harness.icon})` }} />
+                            {harness.ready
+                              ? <><span className="cv3-hdiv" aria-hidden="true" /><span className="cv3-hmodel">{model}</span></>
+                              : <span className="cv3-hoff">未接入AI</span>}
+                          </span>
+                          <ChevronDown size={12} className="cv3-hchev" aria-hidden="true" />
                         </button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent side="top" align="end" sideOffset={8} className="cv3-ddm cv3-ddm-model">
-                        <DropdownMenuLabel className="cv3-ddm-label">执行引擎</DropdownMenuLabel>
-                        {/* 引擎用普通 MenuItem + 自定义当前态：
-                            RadioItem 自带左侧勾选占位，会和品牌图标叠在一起挤成一行 */}
-                        {HARNESSES.map((h) => (
-                          <DropdownMenuItem key={h.id} className="cv3-ddm-hrow"
-                                            data-current={harnessId === h.id || undefined}
-                                            onSelect={() => { setHarnessId(h.id); setModel(h.models[0]) }}>
-                            <span className="cv3-hmark" style={{ '--h-color': h.color } as CSSProperties}>
-                              <span className="cv3-hmark-img" style={{ maskImage: `url(${h.icon})`, WebkitMaskImage: `url(${h.icon})` }} />
-                            </span>
-                            <span className="cv3-hname">{h.name}</span>
-                            {!h.ready && <span className="cv3-hoff">未接入</span>}
-                            {harnessId === h.id && <Check size={13} className="cv3-ddm-ck" />}
-                          </DropdownMenuItem>
-                        ))}
-                        <DropdownMenuSeparator />
-                        <DropdownMenuLabel className="cv3-ddm-label">
-                          模型<span className="cv3-ddm-cur num">{model}</span>
-                        </DropdownMenuLabel>
-                        <DropdownMenuRadioGroup value={model} onValueChange={setModel}>
-                          {harness.models.map((m) => (
-                            <DropdownMenuRadioItem key={m} value={m} className="cv3-ddm-item num">
-                              {m}
-                            </DropdownMenuRadioItem>
-                          ))}
-                        </DropdownMenuRadioGroup>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuLabel className="cv3-ddm-label">推理等级</DropdownMenuLabel>
-                        {/* 三档并排，比三行菜单省一半高度；分段控件复用项目已有组件 */}
-                        <DropdownMenuRadioGroup value={currentPrefs.reasoning}
-                                                onValueChange={(v) => setPref({ reasoning: v as Reasoning })}>
-                          {(['off', 'standard', 'enhanced'] as Reasoning[]).map((v) => (
-                            <DropdownMenuRadioItem key={v} value={v} className="cv3-ddm-item-plain">
-                              {REASONING_LABEL[v]}
-                            </DropdownMenuRadioItem>
-                          ))}
-                        </DropdownMenuRadioGroup>
-                        {!harness.ready && (
-                          <p className="cv3-ddm-note">{harness.name} 未接入：不会真的执行，切回已配置引擎才能发送。</p>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                      </PopoverTrigger>
+                      <PopoverContent side="top" align="end" sideOffset={9} className="cv3-hpop">
+                        <div className="cv3-hp-scroll">
+                          {/* 一级：引擎列表；二级：该引擎的模型 + 模型设置（从右侧滑入） */}
+                          <div className="cv3-hp-pane" data-active={modelPane === null || undefined}>
+                            <div className="cv3-hp-head">
+                              <b>执行引擎</b>
+                              <span>{HARNESSES.filter((h) => h.ready).length} 个已接入</span>
+                            </div>
+                            <div className="cv3-hp-list" role="listbox" aria-label="执行引擎">
+                              {HARNESSES.map((h) => (
+                                <button key={h.id} type="button" className="cv3-hp-item" role="option"
+                                        aria-selected={h.id === harnessId}
+                                        data-off={!h.ready || undefined}
+                                        style={{ '--h-color': h.color } as CSSProperties}
+                                        onClick={() => { setHarnessId(h.id); setModel(h.models[0]); setModelPane(h.id) }}>
+                                  <span className="cv3-hp-logo" aria-hidden="true"
+                                        style={{ maskImage: `url(${h.icon})`, WebkitMaskImage: `url(${h.icon})` }} />
+                                  <span className="cv3-hp-txt">
+                                    <b>{h.name}</b>
+                                    <small>{h.ready ? '本机已配置' : '未接入，仅展示'}</small>
+                                  </span>
+                                  {h.id === harnessId && <Check size={13} className="cv3-hp-ck" aria-hidden="true" />}
+                                  <ChevronRight size={13} className="cv3-hp-go" aria-hidden="true" />
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                          <div className="cv3-hp-pane cv3-hp-models" data-active={modelPane !== null || undefined}>
+                            <div className="cv3-hp-head">
+                              <button type="button" className="cv3-hp-back" onClick={() => setModelPane(null)}>
+                                <ChevronLeft size={11} aria-hidden="true" />引擎
+                              </button>
+                              <b>{harness.name}</b>
+                            </div>
+                            <div className="cv3-hp-list" role="listbox" aria-label="模型">
+                              {harness.models.map((m) => (
+                                <div key={m} className="cv3-hp-modelwrap">
+                                  <button type="button" className="cv3-hp-item cv3-hp-model" role="option"
+                                          aria-selected={m === model}
+                                          onClick={() => setModel(m)}>
+                                    <span className="cv3-hp-radio" aria-hidden="true" />
+                                    <span className="cv3-hp-txt"><b className="num">{m}</b></span>
+                                    {m === model && <Check size={13} className="cv3-hp-ck" aria-hidden="true" />}
+                                  </button>
+                                  {/* 选中模型下方展开设置抽屉：思考强度 + 最大上下文。
+                                      首页两个都给了，这里原来只有推理等级、缺最大上下文。 */}
+                                  {m === model && (
+                                    <div className="cv3-hp-drawer">
+                                      <div className="cv3-hp-row">
+                                        <span className="cv3-hp-label">思考强度</span>
+                                        <div className="cv3-hp-seg" role="radiogroup" aria-label="思考强度">
+                                          {(['off', 'standard', 'enhanced'] as Reasoning[]).map((v) => (
+                                            <button key={v} type="button" role="radio"
+                                                    aria-checked={currentPrefs.reasoning === v}
+                                                    className={currentPrefs.reasoning === v ? 'on' : undefined}
+                                                    onClick={() => setPref({ reasoning: v })}>{REASONING_LABEL[v]}</button>
+                                          ))}
+                                        </div>
+                                      </div>
+                                      <div className="cv3-hp-row">
+                                        <span className="cv3-hp-label">最大上下文</span>
+                                        <div className="cv3-hp-seg" role="radiogroup" aria-label="最大上下文">
+                                          {([32, 64, 128] as const).map((v) => (
+                                            <button key={v} type="button" role="radio"
+                                                    aria-checked={currentPrefs.context === v}
+                                                    className={currentPrefs.context === v ? 'on' : undefined}
+                                                    onClick={() => setPref({ context: v })}>{v}K</button>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                            {!harness.ready && (
+                              <p className="cv3-hp-note">{harness.name} 未接入：不会真的执行，切回已配置引擎才能发送。</p>
+                            )}
+                          </div>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
                     <button className="cv3-send" type="submit" disabled={!canSend} aria-label="发送">
                       {pending ? <LoaderCircle size={16} className="cv3-spin" /> : <Send size={16} />}
                     </button>

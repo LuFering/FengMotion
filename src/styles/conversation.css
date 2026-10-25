@@ -1417,13 +1417,477 @@ html[data-theme="tactile"] #pane-conversation {
   white-space: nowrap;
 }
 
-/* 引擎/模型按钮给短名留空间，但别把发送钮挤走 */
-.cv3-model-btn {
-  max-width: 210px;
+/* ══ 引擎/模型选择器（照首页 .hf-harness / .hf-harness-pop 那套做）══
+   原来是一个通用 Cpu 图标 + 扁平菜单；首页早就是「两段式 chip
+   （状态点 · 品牌图标 | 模型名 · 箭头）+ 两级弹窗」，同一个产品里
+   两个入口不该长得不一样。数值直接取首页：chip 高 36/999px 圆角、
+   图标 17px、模型名 12px 等宽、弹窗 300px 宽 14px 圆角。 */
+
+/* 触发钮：两段式。状态点用绿/黄区分已接入/未接入，
+   品牌图标用 mask 上色（不用底色块），模型名等宽避免抖动。 */
+/* 跑光圈要动画一个自定义角度属性，必须先注册成 <angle> */
+@property --cv-spin {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
 }
 
-.cv3-model-btn .cv3-chip-label {
+@keyframes cv3-spin-cw {
+  to { --cv-spin: 360deg; }
+}
+
+.cv3-hbtn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 28px;
+  max-width: 220px;
+  padding: 0 7px 0 9px;
+  border: 1px solid var(--cv-line);
+  border-radius: 999px;
+  background: var(--hole);
+  color: var(--tx2);
+  font: inherit;
+  cursor: pointer;
+  transition: border-color .18s, background-color .18s;
+}
+
+/* 已接入引擎时，按钮外缘顺时针跑一圈品牌色光
+   （同首页 .hf-harnesswrap[data-connected]::before，数值一致）。
+   用 ::after + inset:-2px 画在按钮外缘；遮罩只留 2px 环，中间镂空。 */
+.cv3-hbtn[data-connected]::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  padding: 2px;
+  border-radius: 999px;
+  pointer-events: none;
+  background: conic-gradient(from var(--cv-spin),
+    transparent 0deg, transparent 130deg,
+    color-mix(in srgb, var(--h-color) 45%, transparent) 200deg,
+    var(--h-color) 265deg,
+    #fff 292deg,
+    var(--h-color) 315deg,
+    color-mix(in srgb, var(--h-color) 45%, transparent) 350deg,
+    transparent 360deg);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--h-color) 90%, transparent))
+          drop-shadow(0 0 11px color-mix(in srgb, var(--h-color) 60%, transparent));
+  animation: cv3-spin-cw 2.8s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cv3-hbtn[data-connected]::after { animation: none; }
+}
+
+.cv3-hbtn:hover {
+  border-color: var(--cv-line-strong);
+  background: var(--panel2);
+}
+
+.cv3-hbtn[data-off] {
+  border-color: color-mix(in srgb, var(--warn) 40%, var(--cv-line));
+}
+
+.cv3-hseg {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: var(--tx1);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* 状态点：已接入绿 / 未接入黄（不能只靠颜色，旁边还有文字） */
+.cv3-hseg i {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #3fb96f;
+}
+
+.cv3-hseg[data-off] i {
+  background: var(--warn);
+}
+
+/* 品牌图标：无底色、mask 上色、17px（同首页 .hf-harness-mark） */
+.cv3-hseg .cv3-hmark-img {
+  flex: 0 0 15px;
+  width: 15px;
+  height: 15px;
+  background-color: var(--h-color, var(--acc));
+  mask-position: center;
+  mask-size: contain;
+  mask-repeat: no-repeat;
+}
+
+.cv3-hbtn[data-off] .cv3-hseg .cv3-hmark-img {
+  background-color: var(--warn);
+  opacity: .82;
+}
+
+.cv3-hdiv {
+  width: 1px;
+  height: 12px;
+  background: var(--cv-line-strong);
+  opacity: .6;
+}
+
+.cv3-hmodel {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--tx2);
+  font-size: 11.5px;
+  font-weight: 400;
   font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+}
+
+.cv3-hoff {
+  color: var(--warn);
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.cv3-hchev {
+  flex: none;
+  opacity: .7;
+}
+
+/* ── 弹窗：两级 pane，等高叠放按 data-active 滑动切换 ── */
+.cv3-hpop {
+  width: 300px;
+  padding: 8px;
+  border: 1px solid var(--cv-line-strong);
+  border-radius: 14px;
+  background: var(--cv-elev);
+  color: var(--tx1);
+  box-shadow: var(--cv-shadow);
+  /* Radix Portal 到 body，脱离 #pane-conversation 作用域，变量必须在
+     弹窗自己身上按主题声明（同 .cv3-ddm 的处理方式）。 */
+  --cv-elev: #16171d;
+  --panel2: #1e1f27;
+  --hole: #151517;
+  --hover: rgba(255, 255, 255, .06);
+  --cv-line: rgba(255, 255, 255, .10);
+  --cv-line-strong: rgba(255, 255, 255, .16);
+  --tx1: #EDEDED;
+  --tx2: #a4a7b1;
+  --tx3: #71717a;
+  --acc: #3B8CF8;
+  --warn: #E0A64B;
+  --cv-shadow: 0 22px 55px rgb(0 0 0 / .28);
+}
+
+html[data-theme="light"] .cv3-hpop {
+  border-color: rgba(25, 25, 50, .18);
+  background: #ffffff;
+  color: #191a20;
+  --cv-elev: #ffffff;
+  --panel2: #f4f4f7;
+  --hole: #eef0f4;
+  --hover: rgba(25, 25, 50, .05);
+  --cv-line: rgba(25, 25, 50, .10);
+  --cv-line-strong: rgba(25, 25, 50, .18);
+  --tx1: #191a20;
+  --tx2: #5b5e66;
+  --tx3: #94969e;
+  --acc: #2F6FE4;
+  --warn: #b7791f;
+  --cv-shadow: 0 22px 55px rgba(30, 30, 60, .16);
+}
+
+/* 触感主题：首页把这三个控件的边线加粗（.hf-harness 2px / .hf-harness-pop 2.5px /
+   .hf-hp-drawer 与 .hf-hp-seg 1.5px），这里照同一口径补上 —— 否则触感主题的
+   「厚描边」语言只在首页成立，对话页这边会显得比首页单薄。 */
+html[data-theme="tactile"] .cv3-hbtn {
+  border-width: 2px;
+  background: var(--panel2);
+}
+
+html[data-theme="tactile"] .cv3-hpop {
+  border-width: 2.5px;
+  border-color: #22231f;
+  background: #f0ede4;
+  color: #22231f;
+  --cv-elev: #f0ede4;
+  --panel2: #e6e1d5;
+  --hole: #ddd8c9;
+  --hover: rgba(34, 35, 31, .06);
+  --cv-line: rgba(34, 35, 31, .16);
+  --cv-line-strong: rgba(34, 35, 31, .28);
+  --tx1: #22231f;
+  --tx2: #55534a;
+  --tx3: #8a8676;
+  --acc: #f7c948;
+  --warn: #8a5a00;
+  --cv-shadow: 3px 3px 0 #22231f;
+}
+
+.cv3-hp-scroll {
+  position: relative;
+  max-height: min(420px, calc(100vh - 220px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+
+.cv3-hp-pane {
+  transition: transform .18s cubic-bezier(.23, 1, .32, 1), opacity .18s;
+}
+
+.cv3-hp-pane:not([data-active]) {
+  position: absolute;
+  inset: 0 0 auto 0;
+  visibility: hidden;
+  transform: translateX(14px);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.cv3-hp-pane[data-active] {
+  position: relative;
+  transform: none;
+  opacity: 1;
+}
+
+.cv3-hp-models:not([data-active]) {
+  transform: translateX(-14px);
+}
+
+/* 弹窗头：左标题右说明（引擎页）／左返回右引擎名（模型页） */
+.cv3-hp-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 8px;
+  color: var(--tx3);
+  font-size: 11px;
+}
+
+.cv3-hp-head b {
+  color: var(--tx2);
+  font-weight: 600;
+  letter-spacing: .02em;
+}
+
+.cv3-hp-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--tx2);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cv3-hp-back:hover {
+  background: var(--panel2);
+  color: var(--tx1);
+}
+
+.cv3-hp-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cv3-hp-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--tx1);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cv3-hp-item:hover {
+  background: var(--panel2);
+}
+
+/* 弹窗里的引擎图标：无底色、22px、品牌色（同首页 .hf-hp-logo） */
+.cv3-hp-logo {
+  flex: 0 0 22px;
+  width: 22px;
+  height: 22px;
+  background-color: var(--h-color, var(--acc));
+  mask-position: center;
+  mask-size: contain;
+  mask-repeat: no-repeat;
+}
+
+.cv3-hp-item[data-off] .cv3-hp-logo {
+  background-color: var(--tx3);
+  opacity: .5;
+}
+
+.cv3-hp-txt {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.cv3-hp-txt b {
+  color: var(--tx1);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.cv3-hp-txt small {
+  color: var(--tx3);
+  font-size: 11px;
+}
+
+/* 行尾图标：勾固定在右缘，箭头也贴右缘，出现时互相替代 */
+.cv3-hp-ck {
+  margin-left: auto;
+  color: var(--acc);
+  flex: none;
+}
+
+.cv3-hp-item .cv3-hp-ck {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  margin-left: 0;
+}
+
+.cv3-hp-go {
+  flex: 0 0 13px;
+  margin-left: auto;
+  color: var(--tx3);
+}
+
+/* 模型行：单选圆点 + 等宽模型名 */
+.cv3-hp-model .cv3-hp-txt b {
+  font-size: 12.5px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.cv3-hp-radio {
+  flex: 0 0 auto;
+  width: 12px;
+  height: 12px;
+  border: 1.5px solid var(--cv-line-strong);
+  border-radius: 50%;
+}
+
+.cv3-hp-model[aria-selected="true"] .cv3-hp-radio {
+  border-color: var(--acc);
+  box-shadow: inset 0 0 0 3px var(--acc);
+}
+
+/* 选中模型下方展开的设置抽屉 */
+.cv3-hp-modelwrap {
+  display: flex;
+  flex-direction: column;
+}
+
+.cv3-hp-drawer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 2px 0 6px;
+  padding: 10px 10px 12px;
+  border: 1px solid var(--cv-line);
+  border-radius: 10px;
+  background: var(--panel2);
+  animation: cv3-drawer-in .18s cubic-bezier(.23, 1, .32, 1);
+}
+
+html[data-theme="tactile"] .cv3-hp-drawer {
+  border-width: 1.5px;
+}
+
+html[data-theme="tactile"] .cv3-hp-seg {
+  border-width: 1.5px;
+}
+
+html[data-theme="tactile"] .cv3-hp-seg button.on {
+  box-shadow: 2px 2px 0 rgba(34, 35, 31, .5);
+}
+
+@keyframes cv3-drawer-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: none; }
+}
+
+.cv3-hp-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.cv3-hp-label {
+  color: var(--tx2);
+  font-size: 11.5px;
+  white-space: nowrap;
+}
+
+/* 分段控件：两档并排，比三行菜单省高度（同首页 .hf-hp-seg） */
+.cv3-hp-seg {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--cv-line);
+  border-radius: 8px;
+  background: var(--hole);
+}
+
+.cv3-hp-seg button {
+  padding: 3px 9px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--tx3);
+  font: inherit;
+  font-size: 11px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.cv3-hp-seg button:hover {
+  color: var(--tx1);
+}
+
+.cv3-hp-seg button.on {
+  background: color-mix(in srgb, var(--acc) 15%, transparent);
+  color: var(--acc);
+  font-weight: 600;
+}
+
+.cv3-hp-note {
+  margin: 6px 8px 2px;
+  padding: 7px 9px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--warn) 10%, transparent);
+  color: var(--tx2);
+  font-size: 11px;
+  line-height: 1.5;
 }
 
 /* ══ 输入区弹层：用 Radix DropdownMenu（src/components/ui/dropdown-menu）══
@@ -1531,92 +1995,6 @@ html[data-theme="tactile"] .cv3-ddm {
   font-weight: 600;
   letter-spacing: .04em;
   text-transform: uppercase;
-}
-
-/* 分组标题右侧的当前值 */
-.cv3-ddm-cur {
-  color: var(--acc);
-  font-size: 10.5px;
-  font-weight: 500;
-  letter-spacing: 0;
-  text-transform: none;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.cv3-ddm-seg {
-  padding: 2px 4px 6px;
-}
-
-/* 引擎行：品牌色图标 + 名称 + 未接入徽标 */
-.cv3-hmark {
-  display: grid;
-  flex: none;
-  place-items: center;
-  width: 20px;
-  height: 20px;
-  border-radius: 5px;
-  background: color-mix(in srgb, var(--h-color) 14%, transparent);
-}
-
-.cv3-hmark-img {
-  display: block;
-  width: 12px;
-  height: 12px;
-  background-color: var(--h-color);
-  mask-position: center;
-  mask-size: contain;
-  mask-repeat: no-repeat;
-}
-
-.cv3-hname {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.cv3-hoff {
-  flex: none;
-  margin-left: auto;
-  padding: 0 4px;
-  border-radius: 3px;
-  background: var(--hole);
-  color: var(--tx3);
-  font-size: 9.5px;
-  font-weight: 400;
-  line-height: 14px;
-}
-
-/* 引擎行：普通 MenuItem，当前项靠底色 + 右侧勾选标记 */
-.cv3-ddm-hrow {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.cv3-ddm-hrow[data-current] {
-  background: var(--hover);
-  color: var(--tx1);
-  font-weight: 600;
-}
-
-.cv3-ddm-ck {
-  flex: none;
-  color: var(--acc);
-}
-
-/* 推理等级行（纯文本单选） */
-.cv3-ddm-item-plain {
-  justify-content: flex-start;
-}
-
-/* 模型行用等宽字体（模型名是标识符） */
-.cv3-ddm-item {
-  font-family: var(--font-mono, ui-monospace, Consolas, monospace);
-  font-size: 12px;
 }
 
 /* 权限卡片行：图标 + 名称 + 一句后果说明 */
