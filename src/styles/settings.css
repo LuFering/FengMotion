@@ -53,11 +53,28 @@
 
 /* ── 左：分区导航（hm-nav 的 pill 项）──────────────────────── */
 .set-nav {
+  position: relative;
   flex: 0 0 188px;
   display: flex;
   flex-direction: column;
   gap: 2px;
   padding: 14px 10px;
+}
+/* 左右两栏之间的柔和竖线：两端渐隐、低透明度，不是 1px 硬边 */
+.set-nav::after {
+  content: "";
+  position: absolute;
+  top: 14px;
+  bottom: 14px;
+  right: 0;
+  width: 1px;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    color-mix(in srgb, var(--fg) 14%, transparent) 16%,
+    color-mix(in srgb, var(--fg) 14%, transparent) 84%,
+    transparent
+  );
 }
 .set-nav-item {
   display: flex;
