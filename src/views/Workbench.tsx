@@ -171,6 +171,35 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
       })
     return out
   }, [projectId, workflowsSnapshot])
+  /* 已确认：与待决定同一快照、同一遍历，只是过滤条件反过来——
+     看片已通过 + Gate 已确认，按 decidedAt 倒序。返工不算定下来，
+     不进这里（它回工作流返工）。 */
+  const confirmed = useMemo(() => {
+    if (!projectId) return []
+    const out: { id: string; title: string; meta: string; decidedAt: string }[] = []
+    workflowsSnapshot
+      .filter((w) => w.projectId === projectId)
+      .forEach((w) => {
+        w.nodes.forEach((n) => {
+          if (n.type === 'review') {
+            const c = (n.params.checks ?? {}) as Record<string, boolean>
+            if (!c.done) return
+            const day = fmtDay(String(n.params.decidedAt ?? ''))
+            out.push({ id: n.id, title: '看片与修改', meta: `已通过${day ? ` · ${day}` : ''}`, decidedAt: String(n.params.decidedAt ?? '') })
+          }
+          if (n.type === 'gate') {
+            if (n.params.decision !== 'confirmed') return
+            const ev = evaluateGate(w, n)
+            const cf = (n.params.confirmedFor ?? {}) as { kind?: string; version?: string }
+            const day = fmtDay(String(n.params.decidedAt ?? ''))
+            out.push({ id: n.id, title: ev.label, meta: `已确认${cf.version ? ` · ${cf.version}` : ''}${day ? ` · ${day}` : ''}`, decidedAt: String(n.params.decidedAt ?? '') })
+          }
+        })
+      })
+    out.sort((a, b) => (b.decidedAt || '').localeCompare(a.decidedAt || ''))
+    return out
+  }, [projectId, workflowsSnapshot])
+  const confirmedShown = confirmed.slice(0, 3)
   const decideNode = (wfId: string, nodeId: string, verdict: 'done' | 'rework') => {
     const target = workflowService.getWorkflow(wfId)
     if (!target || !target.nodes.some((n) => n.id === nodeId)) return
@@ -593,9 +622,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
                      open={railOpen} onClose={() => setRailOpen(false)}
                      tab={railTab} onTab={setRailTab}
                      selectedArtifactId={selectedArtifactId} onSelectArtifact={selectArtifact}
-                     references={references}
-                     onRemoveReference={removeReference} onLocateReference={locateReference}
-                     onToggleReferenceRole={toggleReferenceRole} onClearReferences={clearReferences}
+                     confirmed={confirmedShown} confirmedTotal={confirmed.length}
                      decisions={decisions} onDecide={decideNode}
                      workflowId={workflow?.id ?? null}
                      onOpenWorkflowEditor={onOpenWorkflowEditor}
@@ -817,16 +844,28 @@ function ArtifactIcon({ type }: { type: WorkbenchArtifact['type'] }) {
   return <Icon className="size-3.5" />
 }
 
+function fmtDay(iso: string) {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  const now = new Date()
+  const sameDay = (a: Date, b: Date) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
+  const yesterday = new Date(now)
+  yesterday.setDate(now.getDate() - 1)
+  if (sameDay(d, now)) return '今天'
+  if (sameDay(d, yesterday)) return '昨天'
+  return `${d.getMonth() + 1}月${d.getDate()}日`
+}
+
 function ProjectRail({ projectName, open, onClose, tab, onTab,
-  selectedArtifactId, onSelectArtifact, references,
-  onRemoveReference, onLocateReference, onToggleReferenceRole, onClearReferences,
+  selectedArtifactId, onSelectArtifact,
+  confirmed, confirmedTotal,
   decisions, onDecide, workflowId, onOpenWorkflowEditor, creation }:
   { projectName: string; open: boolean; onClose: () => void
     tab: 'structure' | 'artifacts'; onTab: (tab: 'structure' | 'artifacts') => void
     selectedArtifactId: string | null; onSelectArtifact: (id: string) => void
-    references: AgentReference[]
-    onRemoveReference: (id: string) => void; onLocateReference: (ref: AgentReference) => void
-    onToggleReferenceRole: (id: string) => void; onClearReferences: () => void
+    confirmed: { id: string; title: string; meta: string }[]
+    confirmedTotal: number
     decisions: { wfId: string; id: string; title: string; hint: string; detail: string }[]
     onDecide: (wfId: string, nodeId: string, verdict: 'done' | 'rework') => void
     workflowId: string | null
@@ -932,7 +971,7 @@ function ProjectRail({ projectName, open, onClose, tab, onTab,
       <div className="fw-ing-hd">
         <h2>{tab === 'structure' ? '概览' : '产物'}</h2>
         <span className="fw-count">{tab === 'structure'
-          ? `${decisions.length + references.length} 项`
+          ? `${decisions.length + confirmed.length} 项`
           : `${WORKBENCH_ARTIFACTS.length}`}</span>
         <span className="spacer" />
         <button className="iconbtn fw-mobile" type="button" title="收起" onClick={onClose}>
@@ -1035,18 +1074,28 @@ function ProjectRail({ projectName, open, onClose, tab, onTab,
             )}
           </section>
 
-          <section>
-            <div className="fw-scene-hd">
-              <span>引用</span><span className="spacer" />
-              <span className="hint">{references.length}</span>
-            </div>
-            <ReferenceChips references={references}
-                            defaultLabel="引用此帧 / 引用本场 / 框选画面区域 会加到这里"
-                            onRemoveReference={onRemoveReference}
-                            onLocateReference={onLocateReference}
-                            onToggleReferenceRole={onToggleReferenceRole}
-                            onClearReferences={onClearReferences} />
-          </section>
+          {confirmed.length > 0 && (
+            <section>
+              <div className="fw-scene-hd">
+                <span>已确认</span><span className="spacer" />
+                <span className="hint">{confirmedTotal}</span>
+              </div>
+              <div className="fw-confirmed-list">
+                {confirmed.map((c) => (
+                  <div key={c.id} className="fw-confirmed-item">
+                    <span className="fm-dot" data-s="done" />
+                    <span className="fw-rail-decision-main">
+                      <b>{c.title}</b>
+                      <small>{c.meta}</small>
+                    </span>
+                  </div>
+                ))}
+              </div>
+              {confirmedTotal > confirmed.length && (
+                <p className="fw-confirmed-more">共 {confirmedTotal} 条，仅显示最近 {confirmed.length} 条</p>
+              )}
+            </section>
+          )}
 
         </div>
       )}
