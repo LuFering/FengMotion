@@ -833,7 +833,7 @@ function ProjectRail({ projectName, open, onClose, tab, onTab,
     onOpenWorkflowEditor?: (workflowId: string) => void
     creation?: ReactNode }) {
   /* 牌堆交互（无大卡片）：牌堆态与列表态是同一批卡片节点在两种形态间切换。
-     牌堆态：下方 ‹ › 切换最前卡（循环，中间带计数），点主卡散开成列表；
+     牌堆态：下方 ‹ › 切换最前卡（循环，中间圆点指示位置、可点选），点主卡散开成列表；
      列表态：每张小卡右侧 › 键开弹窗看详情、做结论，控制区只剩聚拢键；
      形态切换用 FLIP（切换前量位置、切换后反向位移再过渡回自然位置），
      与切换动效同一套过渡（transform/背景/阴影/标题色）。
@@ -991,7 +991,13 @@ function ProjectRail({ projectName, open, onClose, tab, onTab,
                   <span className="fw-deck-switch">
                     <button type="button" className="fw-deck-switch-btn" aria-label="上一张"
                             disabled={decisions.length <= 1} onClick={() => stepFront(-1)}>‹</button>
-                    <span className="fw-deck-switch-count">{frontIndex + 1} / {decisions.length}</span>
+                    <span className="fw-deck-dots">
+                      {decisions.map((d) => (
+                        <button key={d.id} type="button" className="fw-deck-dot"
+                                data-active={d.id === decisions[frontIndex]?.id || undefined}
+                                aria-label={`看${d.title}`} onClick={() => setFrontId(d.id)} />
+                      ))}
+                    </span>
                     <button type="button" className="fw-deck-switch-btn" aria-label="下一张"
                             disabled={decisions.length <= 1} onClick={() => stepFront(1)}>›</button>
                   </span>

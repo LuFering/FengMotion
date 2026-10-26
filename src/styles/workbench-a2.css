@@ -1127,7 +1127,7 @@ html[data-theme="light"] #pane-flow .wb-a2 .fw-panel { box-shadow: 0 8px 24px rg
 #pane-flow .wb-a2 .fw-deck-card[data-pos="0"] { cursor: pointer; }
 #pane-flow .wb-a2 .fw-deck-card[data-pos="1"] .fw-deck-marker,
 #pane-flow .wb-a2 .fw-deck-card[data-pos="2"] .fw-deck-marker { visibility: hidden; }
-#pane-flow .wb-a2 .fw-deck.is-list { margin-right: 10px; margin-bottom: 12px; }
+#pane-flow .wb-a2 .fw-deck.is-list { margin-bottom: 12px; }
 #pane-flow .wb-a2 .fw-deck.is-list .fw-deck-card {
   position: relative; inset: auto; transform: none; margin-bottom: 6px;
   pointer-events: auto; cursor: default;
@@ -1149,7 +1149,13 @@ html[data-theme="light"] #pane-flow .wb-a2 .fw-panel { box-shadow: 0 8px 24px rg
 }
 #pane-flow .wb-a2 .fw-deck-switch-btn:hover:not(:disabled) { color: var(--acc); border-color: var(--acc); }
 #pane-flow .wb-a2 .fw-deck-switch-btn:disabled { opacity: .4; cursor: default; }
-#pane-flow .wb-a2 .fw-deck-switch-count { min-width: 28px; text-align: center; font-size: 11px; color: var(--tx3); }
+#pane-flow .wb-a2 .fw-deck-dots { display: flex; align-items: center; gap: 6px; }
+#pane-flow .wb-a2 .fw-deck-dot {
+  width: 8px; height: 8px; padding: 0; border: 0; border-radius: 50%;
+  background: var(--line2); cursor: pointer;
+  transition: width .2s ease, background-color .2s ease;
+}
+#pane-flow .wb-a2 .fw-deck-dot[data-active] { width: 18px; border-radius: 4px; background: var(--acc); }
 #pane-flow .wb-a2 .fw-deck-gather {
   padding: 3px 10px; border: 1px solid var(--line2); border-radius: 999px;
   background: transparent; color: var(--tx2); font-size: 11px; cursor: pointer;
