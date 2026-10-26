@@ -279,6 +279,41 @@
 #pane-flow .wb-a2 .fw-rail-decision .fm-dot { margin-top: 4px; flex: none; }
 #pane-flow .wb-a2 .fw-rail-decision-main { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 #pane-flow .wb-a2 .fw-rail-decision-main b { font-size: 12px; font-weight: 600; color: var(--tx); }
+#pane-flow .wb-a2 details.fw-rail-decision {
+  cursor: pointer;
+  display: block;               /* details 会被基础规则带成 flex，摘要与详情挤成一行 */
+  flex-direction: column;
+}
+#pane-flow .wb-a2 details.fw-rail-decision > summary {
+  display: flex; align-items: flex-start; gap: 7px;
+  list-style: none;
+}
+#pane-flow .wb-a2 details.fw-rail-decision > summary::-webkit-details-marker { display: none; }
+#pane-flow .wb-a2 .fw-rail-decision-body {
+  margin-top: 8px; padding-top: 8px;
+  border-top: 1px solid var(--line);
+  display: flex; flex-direction: column; gap: 8px;
+  cursor: default;
+}
+#pane-flow .wb-a2 .fw-rail-decision-body p { margin: 0; font-size: 11px; line-height: 1.55; color: var(--tx2); }
+#pane-flow .wb-a2 .fw-rail-decision-acts { display: flex; gap: 6px; }
+#pane-flow .wb-a2 .fw-decide-btn {
+  flex: 1; padding: 6px 0; border-radius: var(--r-card);
+  border: 1px solid var(--line); background: transparent;
+  color: var(--tx2); font-size: 12px; font-weight: 600; cursor: pointer;
+  transition: border-color .15s, background-color .15s, color .15s;
+}
+#pane-flow .wb-a2 .fw-decide-btn:hover { border-color: var(--acc); color: var(--acc); }
+#pane-flow .wb-a2 .fw-decide-btn[data-kind="done"]:hover { background: color-mix(in srgb, var(--acc) 12%, transparent); }
+#pane-flow .wb-a2 .fw-decide-btn[data-kind="rework"]:hover {
+  border-color: var(--warn, #d08a2c); color: var(--warn, #d08a2c);
+  background: color-mix(in srgb, var(--warn, #d08a2c) 10%, transparent);
+}
+#pane-flow .wb-a2 .fw-rail-decision-more {
+  padding: 0; border: 0; background: none; text-align: left;
+  font-size: 11px; color: var(--tx3); cursor: pointer;
+}
+#pane-flow .wb-a2 .fw-rail-decision-more:hover { color: var(--acc); text-decoration: underline; }
 #pane-flow .wb-a2 .fw-rail-decision-main small { font-size: 11px; line-height: 1.45; color: var(--tx3); }
 
 #pane-flow .wb-a2 .fw-artifacts { padding: 2px 10px 10px; gap: 6px; }
