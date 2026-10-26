@@ -441,6 +441,9 @@ function pfValidate(wf: WorkflowDef, node: WfNodeInstance): string | null {
 
 export interface DemoRunHandle {
   runId: string
+  /** 运行一开始就建好的任务。任务面板要靠它把这次运行登记进共享记录 ——
+      事件在 startDemoRun 返回前就已经开始 emit，拿不到 task 就没法先建记录。 */
+  task: AgentTask
   done: Promise<WorkflowRun>
   cancel: () => void
 }
@@ -603,7 +606,7 @@ export function startDemoRun(
     return run
   })()
 
-  return { runId, done, cancel: () => { cancelled = true } }
+  return { runId, task, done, cancel: () => { cancelled = true } }
 }
 
 /* ── 单节点运行（检查器三格契约的「只运行此节点」） ──────────────────
@@ -754,5 +757,5 @@ export function startSingleNodeRun(
     return run
   })()
 
-  return { runId, done, cancel: () => { cancelled = true } }
+  return { runId, task, done, cancel: () => { cancelled = true } }
 }

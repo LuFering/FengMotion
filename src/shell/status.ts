@@ -1,4 +1,5 @@
 import type { UnitStatus } from '@/data/productionData'
+import type { TaskStatus } from '@/services/studioApi'
 
 /**
  * 状态呈现的唯一来源（工作台语言）。
@@ -47,3 +48,26 @@ export const fmtDuration = (sec: number) =>
   sec >= 60
     ? `${Math.floor(sec / 60)}:${(sec % 60).toFixed(1).padStart(4, '0')}`
     : `${sec.toFixed(1)}s`
+
+/**
+ * 任务状态怎么念 —— 底部任务面板与左栏「本次制作」面板共用这一份词表。
+ *
+ * 同一条任务记录在两处读起来必须一样。这两处曾经各存一份，
+ * 一处写「运行中/已取消」另一处写「执行中/已停止」，同一条记录两种说法。
+ */
+export const TASK_STATUS_LABEL: Record<TaskStatus, string> = {
+  queued: '排队中', running: '执行中', building: '构建中',
+  completed: '已完成', failed: '失败', cancelled: '已停止',
+}
+
+/**
+ * 时刻：任务行的时间列。
+ *
+ * 任务自带的时间戳格式并不统一 —— 修改/导出任务是 HH:MM:SS，工作流运行是 ISO。
+ * 直接铺出去会让同一列里一条是 05:12:03、另一条是 2026-10-27T05:12:03.123Z 并折行。
+ * 统一按本地时钟显示；解析不出来就原样返回，不吞掉内容。
+ */
+export const fmtClock = (value: string) => {
+  const d = new Date(value)
+  return Number.isNaN(d.getTime()) ? value : d.toLocaleTimeString('zh-CN', { hour12: false })
+}

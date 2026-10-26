@@ -686,6 +686,36 @@ body.flowon #pane-flow > * { flex: 1; min-height: 0 }
 .fw-card-src { margin-top: 4px; font-size: 10px; color: var(--ph) }
 .mini-s { height: 24px; padding: 0 9px; font-size: 10.5px; margin-top: 7px }
 
+/* ── 任务行下面的产物与变更 ───────────────────────────────────
+   产物属于**那条任务**，所以缩进一格、用一条细线挂在它下面，
+   而不是另起一份列表 —— 否则用户分不清产物是这次运行产的还是上次剩的。
+   缩进量对齐任务行的第一列（时间码 70px + gap 8px）。 */
+.fw-tray-arts { margin: 2px 0 7px 86px; padding-left: 9px; border-left: 1px solid var(--line) }
+.fw-tray-arts-hd { display: flex; align-items: center; gap: 6px; font-size: 10.5px; color: var(--dim) }
+.fw-tray-demo {
+  padding: 0 5px; border: 1px solid var(--line); border-radius: 999px;
+  font-size: 10px; color: var(--warn);
+}
+.fw-tray-art {
+  display: grid; grid-template-columns: 138px minmax(0, 1fr);
+  align-items: center; gap: 8px; padding: 3px 6px; border-radius: 5px;
+}
+.fw-tray-art:hover { background: var(--hole) }
+.fw-tray-art > .num {
+  font-size: 10px; color: var(--ph);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.fw-tray-change {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center; gap: 2px 8px; margin-top: 6px;
+}
+.fw-tray-change-path {
+  font-size: 10px; color: var(--ph);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.fw-tray-change-diff { font-size: 10px; color: var(--dim) }
+.fw-tray-change > .tray-msg { grid-column: 1 / -1; font-size: 11px }
+
 /* ── 对话输入：与首页同一张「纸片」──────────────────────────
    首页的创作输入是 24px 纸片（--ht-paper + --ht-raised，focus 变墨色）。
    工作台的 AI 输入是**同一个动作**，所以用同一张纸 —— 只是窄一些。

@@ -18,7 +18,7 @@ import { studioAdapter } from '@/services/studioAdapter'
 import { evaluateGate, GATE_PRIMARY_KIND, workflowService } from '@/services/workflowService'
 import { GATE_DEFS } from '@/data/workflowTemplates'
 import type { ChatState } from '@/shell/useChat'
-import { statusOf } from '@/shell/status'
+import { fmtClock, statusOf, TASK_STATUS_LABEL } from '@/shell/status'
 import { FilmPlayer, type PlayerRef } from '@/remotion/FilmPlayer'
 import { StoryTimeline } from '@/views/StoryTimeline'
 import { RemotionEditPanel, RemotionEditPreview } from '@/views/RemotionEditPanel'
@@ -61,9 +61,9 @@ const scenePreviewOffset = (durationFrames: number) =>
 
 type SideTab = 'scene' | 'chat' | 'task' | 'edit' | 'settings'
 
-const TASK_STATUS_LABEL: Record<string, string> = {
-  queued: '排队中', running: '执行中', building: '构建中',
-  completed: '已完成', cancelled: '已停止', failed: '失败',
+/** 变更集里的构建状态。演示执行器不真的跑构建，所以不写「通过/失败」以外的推断。 */
+const BUILD_LABEL: Record<string, string> = {
+  'not-run': '未构建', passed: '构建通过', failed: '构建失败',
 }
 
 type ConstraintKey = 'preserveCamera' | 'preserveCaptions' | 'limitToSelection' | 'reuseExistingComponents'
@@ -630,6 +630,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
                        <CreationTaskPanel
                          workflowId={launch.workflowId}
                          autoRun={launch.autoRun}
+                         tasks={tasks}
                          onOpenEditor={() => onOpenWorkflowEditor?.(launch.workflowId)}
                          onClose={() => onDismissLaunch?.()}
                        />
@@ -1566,6 +1567,13 @@ function TaskPanel({ activeTask, records, cancelTask, scope, constraints, onBack
 function BottomTray({ records, activeId, onCancel, tab, setTab }:
   { records: TaskRecord[]; activeId: string | null; onCancel: (id: string) => void
     tab: 'activity'|'changes'|'versions'; setTab: (t: 'activity'|'changes'|'versions') => void }) {
+  /* 变更卡：正在看的那条排最前，其余按记录顺序。
+     只有真的带 changes（工作流运行会产生）的记录才进这里。 */
+  const activeRecord = records.find((r) => r.task.id === activeId) ?? null
+  const changeRecords = [
+    ...(activeRecord?.changes?.files.length ? [activeRecord] : []),
+    ...records.filter((r) => r !== activeRecord && r.changes?.files.length),
+  ]
   return (
     <div className="fw-tray">
       <div className="fw-tray-hd">
@@ -1585,24 +1593,63 @@ function BottomTray({ records, activeId, onCancel, tab, setTab }:
             ? <div className="fw-tray-empty">还没有任务。</div>
             : <div className="flex flex-col gap-0.5">
                 {records.map((r) => (
-                  <div key={r.task.id} className="fw-tray-row" data-status={r.task.status}>
-                    <span className="num">{r.task.createdAt}</span>
-                    <span className="tray-msg">{r.events.at(-1)?.message ?? r.task.title}</span>
-                    <span className="fw-count">{TASK_STATUS_LABEL[r.task.status] ?? r.task.status}</span>
-                    {activeId === r.task.id && (
-                      <button className="iconbtn" type="button" title="停止" onClick={() => onCancel(r.task.id)}>
-                        <Square className="size-3" />
-                      </button>
+                  <div key={r.task.id}>
+                    <div className="fw-tray-row" data-status={r.task.status}>
+                      <span className="num">{fmtClock(r.task.createdAt)}</span>
+                      <span className="tray-msg">{r.events.at(-1)?.message ?? r.task.title}</span>
+                      <span className="fw-count">{TASK_STATUS_LABEL[r.task.status] ?? r.task.status}</span>
+                      {activeId === r.task.id && (
+                        <button className="iconbtn" type="button" title="停止" onClick={() => onCancel(r.task.id)}>
+                          <Square className="size-3" />
+                        </button>
+                      )}
+                    </div>
+                    {/* 工作流运行的产物挂在这条任务自己的行下面：产物与事件同源，
+                        不另立一份列表，也不与别的任务混在一起。 */}
+                    {r.workflow && r.workflow.artifacts.length > 0 && (
+                      <div className="fw-tray-arts">
+                        <div className="fw-tray-arts-hd">
+                          产物 {r.workflow.artifacts.length} 项
+                          <span className="fw-tray-demo">演示执行器</span>
+                        </div>
+                        {r.workflow.artifacts.map((a) => (
+                          <div key={a.id} className="fw-tray-art" title={a.summary}>
+                            <span className="num">{a.filename}</span>
+                            <span className="tray-msg">{a.title}</span>
+                          </div>
+                        ))}
+                      </div>
                     )}
                   </div>
                 ))}
               </div>
           )}
-          {tab === 'changes' && (
-            <div className="fw-tray-empty">
-              <FileCode2 className="size-3 shrink-0" />
-              还没有文件变更记录。
-            </div>
+          {tab === 'changes' && (changeRecords.length === 0
+            ? <div className="fw-tray-empty">
+                <FileCode2 className="size-3 shrink-0" />
+                还没有文件变更记录。
+              </div>
+            : <div className="fw-tray-cards">
+                {changeRecords.map((r) => (
+                  <div key={r.task.id} className="fw-card">
+                    <div className="fw-card-hd">
+                      <FileCode2 className="size-3 text-acc" />{r.task.title}
+                      <span className="spacer" />
+                      <span className="fw-count">{BUILD_LABEL[r.changes?.buildStatus ?? 'not-run']}</span>
+                    </div>
+                    {r.changes?.files.map((f) => (
+                      <div key={f.path} className="fw-tray-change">
+                        <span className="num fw-tray-change-path">{f.path}</span>
+                        <span className="tray-msg">{f.summary}</span>
+                        <span className="num fw-tray-change-diff">+{f.additions} −{f.deletions}</span>
+                      </div>
+                    ))}
+                    <div className="fw-card-note">
+                      {fmtClock(r.task.createdAt)} · 演示执行器快照：未修改项目文件、未执行真实构建。
+                    </div>
+                  </div>
+                ))}
+              </div>
           )}
           {tab === 'versions' && (
             <div className="fw-tray-cards">
