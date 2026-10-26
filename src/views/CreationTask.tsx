@@ -1,42 +1,41 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import {
-  startDemoRun,
-  workflowService,
-  type WorkflowRun,
-  type WfNodeStatus,
-} from '../services/workflowService'
+import { startDemoRun, workflowService, type WorkflowRun, type WfNodeStatus } from '../services/workflowService'
 import { WF_NODE_DEFS } from '../data/workflowTemplates'
 import '../styles/creation-task.css'
 
 /**
- * 工作台「本次制作」任务面 —— 创作启动层建好的工作流实例在这里执行与呈现：
- * 阶段进度、产物、再运行，以及回方法工坊（工作流编辑器）的深链。
- * 它读的是工作流同一份运行记录（workflowService），不另立状态；
- * Gate 的确认动作目前仍在编辑器检查器里，这里如实指路，不假装内联。
+ * 工作台左栏的「正在制作」——一条简短状态，不是阶段清单。
+ *
+ * 左栏是导航，用途是「这部片有哪些内容、要去哪里改」。工作流有几个阶段、跑到第几步、
+ * 产出了哪几份产物，属于工作流编辑器与底部任务面板；铺进 230px 的左栏会把导航淹掉。
+ * 所以这里只回答三个问题：在做什么、做到哪、要去哪里看细节。
+ *
+ * 「查看执行」去底部任务面板（那里有事件与产物），「工作流」去编辑器看阶段与 Gate。
+ * Gate 的确认动作仍在编辑器检查器里，这里如实指路，不假装内联。
+ *
+ * 运行仍是演示执行器（不调 AI、不写文件、不出片），所以标记保留、不删。
  */
 
-const STATUS_MARK: Record<WfNodeStatus, string> = {
-  pending: '·',
-  running: '…',
-  completed: '✓',
-  failed: '✕',
-  skipped: '—',
+/** 把节点状态压成一句进度话，而不是把每个节点列出来。 */
+function progressOf(stages: { id: string }[], statuses: Record<string, WfNodeStatus>, run: WorkflowRun | null) {
+  if (stages.length === 0) return '没有可运行的阶段'
+  const done = stages.filter((n) => (statuses[n.id] ?? (run ? 'completed' : 'pending')) === 'completed').length
+  if (run) return `${done}/${stages.length} 阶段 · ${run.status === 'completed' ? '已完成' : run.status === 'cancelled' ? '已停止' : '失败'}`
+  return `${done}/${stages.length} 阶段 · 未运行`
 }
 
 export function CreationTaskPanel(props: {
   workflowId: string
   autoRun: boolean
   onOpenEditor: () => void
+  /** 去看这次到底跑了什么 —— 底部任务面板的执行过程 */
+  onOpenExecution: () => void
   onClose: () => void
 }) {
   const wf = useMemo(() => workflowService.getWorkflow(props.workflowId), [props.workflowId])
   const stages = useMemo(
     () => (wf?.nodes ?? []).filter((n) => WF_NODE_DEFS.some((d) => d.type === n.type)),
     [wf],
-  )
-  const labelOf = useCallback(
-    (type: string) => WF_NODE_DEFS.find((d) => d.type === type)?.label ?? type,
-    [],
   )
   const [statuses, setStatuses] = useState<Record<string, WfNodeStatus>>({})
   const [running, setRunning] = useState(false)
@@ -50,10 +49,11 @@ export function CreationTaskPanel(props: {
     setRunning(true)
     setRun(null)
     setStatuses({})
+    /* 这里不需要事件回调：事件属于底部任务面板，这一格只显示一行进度。
+       （onEvent 仍然是必须传的 —— startDemoRun 用不到时会断言失败。） */
     const handle = startDemoRun(wf, {
       onEvent: () => {},
-      onNodeStatus: (nodeId, status) =>
-        setStatuses((prev) => ({ ...prev, [nodeId]: status })),
+      onNodeStatus: (nodeId, status) => setStatuses((prev) => ({ ...prev, [nodeId]: status })),
     })
     void handle.done.then((r) => {
       setRun(r)
@@ -70,55 +70,30 @@ export function CreationTaskPanel(props: {
   }, [])
 
   if (!wf) return null
-  const artifacts = run?.artifacts ?? []
+  const progress = progressOf(stages, statuses, run)
 
   return (
-    <section className="ctk" aria-label="本次制作">
+    <section className="ctk" aria-label="正在制作">
       <header className="ctk-head">
-        <b>本次制作</b>
+        <b>正在制作</b>
         <span className="ctk-demo">演示执行器</span>
         <span className="ctk-spacer" />
-        <button type="button" className="ctk-x" onClick={props.onClose} aria-label="收起本次制作">✕</button>
+        <button type="button" className="ctk-x" onClick={props.onClose} aria-label="收起正在制作">✕</button>
       </header>
       <div className="ctk-name" title={wf.name}>{wf.name}</div>
-      <div className="ctk-meta">
-        {wf.path === 'prompt-first' ? 'Prompt-first' : 'Structured'} · {stages.length} 个阶段
-        {run ? ` · ${run.status === 'completed' ? '已完成' : run.status}` : running ? ' · 运行中' : ' · 未运行'}
+      <div className="ctk-meta" data-running={running || undefined}>
+        {running ? <span className="fm-dot" data-s="running" /> : null}
+        {progress}
       </div>
-
-      <ul className="ctk-stages">
-        {stages.map((n) => {
-          const s = statuses[n.id] ?? (run ? 'completed' : 'pending')
-          return (
-            <li key={n.id} data-s={s}>
-              <span className="ctk-mark">{STATUS_MARK[s]}</span>
-              <span className="ctk-stage-name">{labelOf(n.type)}</span>
-              <span className="ctk-stage-status">
-                {s === 'completed' ? '已完成' : s === 'running' ? '运行中' : s === 'failed' ? '失败' : ''}
-              </span>
-            </li>
-          )
-        })}
-      </ul>
-
-      {artifacts.length > 0 && (
-        <div className="ctk-artifacts">
-          <div className="ctk-sub">产物 {artifacts.length} 项</div>
-          {artifacts.map((a) => (
-            <div key={a.id} className="ctk-art" title={a.summary}>
-              <span>{a.title}</span>
-            </div>
-          ))}
-        </div>
-      )}
-
       <div className="ctk-actions">
         <button type="button" className="ctk-run" disabled={running} onClick={doRun}>
           {running ? '运行中…' : run ? '再运行一次' : '开始运行'}
         </button>
-        <button type="button" className="ctk-editor" onClick={props.onOpenEditor}>
-          打开工作流编辑器
-        </button>
+        {/* 两个深链放第二行：挤在同一行会把主动作压成「开始…」 */}
+        <div className="ctk-links">
+          <button type="button" className="ctk-mini" onClick={props.onOpenExecution}>查看执行</button>
+          <button type="button" className="ctk-mini" onClick={props.onOpenEditor}>工作流</button>
+        </div>
       </div>
     </section>
   )

@@ -1,45 +1,42 @@
-/* 工作台「本次制作」任务面——左栏顶部，颜色走主题变量 */
+/* 工作台左栏「正在制作」——一条简短状态，颜色走主题变量。
+   这里刻意不画阶段清单与产物清单：左栏是导航，工作流跑到哪一步属于工作流编辑器与
+   底部任务面板。样式只服务三行内容：标题行 / 在做什么 / 做到哪 + 三个动作。 */
 .ctk {
   border-bottom: 1px solid var(--line);
-  padding: 12px 14px 12px;
+  padding: 11px 14px 12px;
   background: var(--soft);
 }
 .ctk-head { display: flex; align-items: center; gap: 8px; }
-.ctk-head b { font-size: 13.5px; font-weight: 650; color: var(--fg); }
+/* 左栏只有 230px：头部几项都不许换行，否则「正在制作」会被拆成两行 */
+.ctk-head b { font-size: 13.5px; font-weight: 650; color: var(--fg); white-space: nowrap; }
 .ctk-demo {
-  font-size: 10.5px; color: var(--warn, #e8a13c);
+  font-size: 10.5px; color: var(--warn, #e8a13c); white-space: nowrap; flex: 0 0 auto;
   border: 1px solid currentColor; border-radius: 999px; padding: 0 6px; line-height: 16px;
 }
 .ctk-spacer { flex: 1; }
-.ctk-x { background: none; border: 0; color: var(--dim); cursor: pointer; font-size: 12px; padding: 2px 4px; }
+.ctk-x { background: none; border: 0; color: var(--dim); cursor: pointer; font-size: 12px; padding: 2px 4px; flex: 0 0 auto; }
 .ctk-x:hover { color: var(--fg); }
 .ctk-name {
   margin-top: 6px; font-size: 13px; color: var(--fg); font-weight: 600;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.ctk-meta { font-size: 11.5px; color: var(--dim); margin-top: 1px; }
-.ctk-stages { list-style: none; margin: 9px 0 0; padding: 0; }
-.ctk-stages li { display: flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--dim); padding: 2.5px 0; }
-.ctk-stages li[data-s="completed"] { color: var(--fg); }
-.ctk-stages li[data-s="running"] { color: var(--acc); }
-.ctk-mark { width: 14px; text-align: center; font-size: 11px; flex: 0 0 auto; }
-.ctk-stages li[data-s="completed"] .ctk-mark { color: var(--ok, #4cc38a); }
-.ctk-stage-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ctk-stage-status { font-size: 11px; color: var(--hint, var(--dim)); }
-.ctk-artifacts { margin-top: 9px; border-top: 1px dashed var(--line); padding-top: 8px; }
-.ctk-sub { font-size: 11.5px; color: var(--dim); margin-bottom: 4px; }
-.ctk-art { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--fg); padding: 2px 0; }
-.ctk-art span { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ctk-art em { font-style: normal; font-size: 10.5px; color: var(--hint, var(--dim)); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; }
-.ctk-actions { display: flex; gap: 8px; margin-top: 11px; }
+.ctk-meta {
+  display: flex; align-items: center; gap: 5px;
+  margin-top: 2px; font-size: 11.5px; color: var(--dim);
+}
+.ctk-meta[data-running] { color: var(--acc); }
+.ctk-actions { display: flex; flex-direction: column; gap: 6px; margin-top: 9px; }
 .ctk-run {
-  flex: 1; background: var(--acc); color: #fff; border: 0; border-radius: 8px;
-  padding: 7px 10px; font-size: 12.5px; font-weight: 600; cursor: pointer;
+  width: 100%; background: var(--acc); color: #fff; border: 0; border-radius: 8px;
+  padding: 6px 8px; font-size: 12px; font-weight: 600; cursor: pointer;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .ctk-run:disabled { opacity: 0.5; cursor: wait; }
-.ctk-editor {
-  flex: 1; background: transparent; color: var(--fg);
+/* 「查看执行」「工作流」都是去别处看细节的深链，做得比主动作轻 */
+.ctk-links { display: flex; gap: 6px; }
+.ctk-mini {
+  flex: 1; background: transparent; color: var(--dim);
   border: 1px solid var(--line); border-radius: 8px;
-  padding: 7px 10px; font-size: 12.5px; cursor: pointer;
+  padding: 6px 8px; font-size: 11.5px; cursor: pointer; white-space: nowrap;
 }
-.ctk-editor:hover { border-color: var(--acc); color: var(--acc); }
+.ctk-mini:hover { border-color: var(--acc); color: var(--acc); }

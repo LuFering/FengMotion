@@ -11,6 +11,7 @@ import { ACTIVE_SCENES, SCENES } from '@/data/projectModel'
 import { PROJECTS, type ProjectSummary } from '@/data/projects'
 import type { StoryboardEntry } from '@/data/projectModel'
 import { ARTIFACT_STATUS_LABEL, ARTIFACT_TYPE_LABEL, WORKBENCH_ARTIFACTS, type WorkbenchArtifact } from '@/data/workbenchArtifacts'
+import { BUILTIN_ASSETS } from '@/data/myAssets'
 import { ACTIVE_DURATION, FILM_FPS, FILM_HEIGHT, FILM_WIDTH } from '@/data/timeline'
 import { useAgentTasks, type TaskRecord } from '@/hooks/useAgentTasks'
 import type { AgentReference, AgentTask, ModificationConstraints, ProjectVersion, TaskRequest } from '@/services/studioApi'
@@ -626,11 +627,21 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
                      decisions={decisions} onDecide={decideNode}
                      workflowId={workflow?.id ?? null}
                      onOpenWorkflowEditor={onOpenWorkflowEditor}
+                     wholeFilmActive={scope === 'project'}
+                     onSelectWholeFilm={() => {
+                       /* 选整片 = 把修改范围设成整个项目。submit() 是按引用推范围，
+                          所以这里必须同时换掉 target 引用，否则输入框仍会落到当前场景。 */
+                       setScope('project')
+                       setTargetReference(currentProjectRef)
+                       setRailTab('structure')
+                     }}
+                     onOpenAssets={() => onNavigate('assets')}
                      creation={launch ? (
                        <CreationTaskPanel
                          workflowId={launch.workflowId}
                          autoRun={launch.autoRun}
                          onOpenEditor={() => onOpenWorkflowEditor?.(launch.workflowId)}
+                         onOpenExecution={() => { setBottomTab('activity'); setTrayOpen(true) }}
                          onClose={() => onDismissLaunch?.()}
                        />
                      ) : undefined} />
@@ -860,7 +871,8 @@ function fmtDay(iso: string) {
 function ProjectRail({ projectName, open, onClose, tab, onTab,
   selectedArtifactId, onSelectArtifact,
   confirmed, confirmedTotal,
-  decisions, onDecide, workflowId, onOpenWorkflowEditor, creation }:
+  decisions, onDecide, workflowId, onOpenWorkflowEditor,
+  wholeFilmActive, onSelectWholeFilm, onOpenAssets, creation }:
   { projectName: string; open: boolean; onClose: () => void
     tab: 'structure' | 'artifacts'; onTab: (tab: 'structure' | 'artifacts') => void
     selectedArtifactId: string | null; onSelectArtifact: (id: string) => void
@@ -870,6 +882,11 @@ function ProjectRail({ projectName, open, onClose, tab, onTab,
     onDecide: (wfId: string, nodeId: string, verdict: 'done' | 'rework') => void
     workflowId: string | null
     onOpenWorkflowEditor?: (workflowId: string) => void
+    /** 整片：不管项目有没有分镜都固定存在的入口，选中即把修改范围设为整个项目。 */
+    wholeFilmActive: boolean
+    onSelectWholeFilm: () => void
+    /** 素材与参考只放入口，正文在素材库里看，不铺在这一栏。 */
+    onOpenAssets: () => void
     creation?: ReactNode }) {
   /* 牌堆交互（无大卡片）：牌堆态与列表态是同一批卡片节点在两种形态间切换。
      牌堆态：下方 ‹ › 切换最前卡（循环，中间圆点指示位置、可点选），点主卡散开成列表；
@@ -967,7 +984,6 @@ function ProjectRail({ projectName, open, onClose, tab, onTab,
   }
   return (
     <aside className="fw-ing" data-open={open ? '' : undefined} aria-label="镜头库与产物">
-      {creation}
       <div className="fw-ing-hd">
         <h2>{tab === 'structure' ? '概览' : '产物'}</h2>
         <span className="fw-count">{tab === 'structure'
@@ -1000,6 +1016,11 @@ function ProjectRail({ projectName, open, onClose, tab, onTab,
         </div>
       ) : (
         <div className="fw-ing-list">
+          {/* 正在制作：确实在跑的时候才出现。工作流阶段与产物清单属于工作流编辑器
+              和底部任务面板 —— 左栏是导航，不是日志，铺满「有几阶段、跑到哪」会淹没
+              它真正的用途：这部片有哪些内容、要去哪里改。 */}
+          {creation}
+
           <section>
             <div className="fw-scene-hd">
               <span>待你决定</span><span className="spacer" />
@@ -1096,6 +1117,44 @@ function ProjectRail({ projectName, open, onClose, tab, onTab,
               )}
             </section>
           )}
+
+          {/* 视频内容 —— 这一栏的主要导航：找到某个画面，并把修改范围明确给 AI。
+              整片固定存在（不然用户没法说「整部片的节奏太慢」）；场景/镜头行只在项目
+              真有可靠结构时出现。
+              ⚠️ 现在这个项目还没有任何描述画面结构的产物（工作流里对应 film-plan 的
+              叙事阶段，或结构化路径的 scene-intents），所以只有整片一行：没有结构就
+              保留整片，不强行拆段，也不拿渲染切片冒充内容。 */}
+          <section>
+            <div className="fw-scene-hd">
+              <span>视频内容</span><span className="spacer" />
+            </div>
+            <button type="button" className="fm-unit" data-state="whole"
+                    aria-current={wholeFilmActive ? 'true' : undefined}
+                    onClick={onSelectWholeFilm}>
+              <span className="fm-unit-body">
+                <b>整片 · {projectName}</b>
+                <span>需求与视觉方向</span>
+              </span>
+            </button>
+          </section>
+
+          {/* 项目资料 —— 只放入口。产物正文、素材细节都在它们自己的视图里看，
+              这一栏不该被几十张图和整篇方案正文占满。 */}
+          <section>
+            <div className="fw-scene-hd">
+              <span>项目资料</span><span className="spacer" />
+            </div>
+            <button type="button" className="fw-res" onClick={() => onTab('artifacts')}>
+              <span className="fw-res-name">产物</span>
+              <span className="fw-count">{WORKBENCH_ARTIFACTS.length}</span>
+              <span className="fw-res-go" aria-hidden="true">›</span>
+            </button>
+            <button type="button" className="fw-res" onClick={onOpenAssets}>
+              <span className="fw-res-name">素材与参考</span>
+              <span className="fw-count">{BUILTIN_ASSETS.length}</span>
+              <span className="fw-res-go" aria-hidden="true">›</span>
+            </button>
+          </section>
 
         </div>
       )}
