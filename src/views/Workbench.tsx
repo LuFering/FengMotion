@@ -15,7 +15,8 @@ import { ACTIVE_DURATION, FILM_FPS, FILM_HEIGHT, FILM_WIDTH } from '@/data/timel
 import { useAgentTasks, type TaskRecord } from '@/hooks/useAgentTasks'
 import type { AgentReference, AgentTask, ModificationConstraints, ProjectVersion, TaskRequest } from '@/services/studioApi'
 import { studioAdapter } from '@/services/studioAdapter'
-import { workflowService } from '@/services/workflowService'
+import { evaluateGate, GATE_PRIMARY_KIND, workflowService } from '@/services/workflowService'
+import { GATE_DEFS } from '@/data/workflowTemplates'
 import type { ChatState } from '@/shell/useChat'
 import { statusOf } from '@/shell/status'
 import { FilmPlayer, type PlayerRef } from '@/remotion/FilmPlayer'
@@ -130,24 +131,95 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
   const refreshWorkflow = () => {
     if (workflow) setWorkflow(workflowService.getWorkflow(workflow.id))
   }
-  /* 看片确认：Prompt-first 的用户决策点。
-     checks.done = 通过；checks.rework = 要改（写回节点，工作流编辑器同一份状态）。 */
-  const reviewNode = workflow?.nodes.find((n) => n.type === 'review') ?? null
-  const reviewChecks = (reviewNode?.params.checks ?? {}) as Record<string, boolean>
-  const reviewDecided = Boolean(reviewChecks.done || reviewChecks.rework)
-  void reviewDecided
-  const decideReview = (key: 'done' | 'rework') => {
-    if (!workflow || !reviewNode) return
-    const nextChecks = { ...reviewChecks, [key]: true }
-    workflowService.saveWorkflow(workflow.id, {
-      nodes: workflow.nodes.map((n) =>
-        n.id === reviewNode.id
-          ? { ...n, params: { ...n.params, checks: nextChecks, decidedAt: new Date().toISOString() } }
-          : n),
-      edges: workflow.edges,
+  /* 待你决定：本项目所有工作流里真正等你拍板的节点。
+     Prompt-first 的看片结论 + Structured 的门禁（Gate，pending 态）。
+     没有数据就不出现，不编造待办；结论写回各自节点，与工作流编辑器
+     读同一份状态。上一版堆叠把 Gate 的结论写进了 status 字段，
+     而 evaluateGate 只读 decision——通过后卡片根本不会离开待办，
+     这次按 decision/confirmedFor 写，与编辑器确认卡同一口径。
+     渲染里不直接读存储：快照 state 由决定写回时刷新，视图切换重挂载
+     时重取，计算本身是快照的纯函数。 */
+  type Decision = { wfId: string; id: string; title: string; hint: string; detail: string }
+  const [workflowsSnapshot, setWorkflowsSnapshot] = useState(() => workflowService.listWorkflows())
+  const decisions = useMemo(() => {
+    if (!projectId) return []
+    const out: Decision[] = []
+    workflowsSnapshot
+      .filter((w) => w.projectId === projectId)
+      .forEach((w) => {
+        w.nodes.forEach((n) => {
+          if (n.type === 'review') {
+            const c = (n.params.checks ?? {}) as Record<string, boolean>
+            if (c.done || c.rework) return
+            out.push({
+              wfId: w.id, id: n.id, title: '看片与修改',
+              hint: '对着预览给出结论：通过，或指出要改的地方',
+              detail: '结论会写进工作流的看片节点，后续制作按它执行。',
+            })
+          }
+          if (n.type === 'gate') {
+            if (n.params.rework) return
+            const ev = evaluateGate(w, n)
+            if (ev.decision !== 'pending') return
+            out.push({
+              wfId: w.id, id: n.id, title: ev.label,
+              hint: ev.blocked.length ? ev.blocked.join('；') : '等待你确认',
+              detail: GATE_DEFS[String(n.params.gate ?? '')]?.question ?? '确认这一层的产物是否成立。',
+            })
+          }
+        })
+      })
+    return out
+  }, [projectId, workflowsSnapshot])
+  /* 已确认：与待决定同一快照、同一遍历，只是过滤条件反过来——
+     看片已通过 + Gate 已确认，按 decidedAt 倒序。返工不算定下来，
+     不进这里（它回工作流返工）。 */
+  const confirmed = useMemo(() => {
+    if (!projectId) return []
+    const out: { id: string; title: string; meta: string; decidedAt: string }[] = []
+    workflowsSnapshot
+      .filter((w) => w.projectId === projectId)
+      .forEach((w) => {
+        w.nodes.forEach((n) => {
+          if (n.type === 'review') {
+            const c = (n.params.checks ?? {}) as Record<string, boolean>
+            if (!c.done) return
+            const day = fmtDay(String(n.params.decidedAt ?? ''))
+            out.push({ id: n.id, title: '看片与修改', meta: `已通过${day ? ` · ${day}` : ''}`, decidedAt: String(n.params.decidedAt ?? '') })
+          }
+          if (n.type === 'gate') {
+            if (n.params.decision !== 'confirmed') return
+            const ev = evaluateGate(w, n)
+            const cf = (n.params.confirmedFor ?? {}) as { kind?: string; version?: string }
+            const day = fmtDay(String(n.params.decidedAt ?? ''))
+            out.push({ id: n.id, title: ev.label, meta: `已确认${cf.version ? ` · ${cf.version}` : ''}${day ? ` · ${day}` : ''}`, decidedAt: String(n.params.decidedAt ?? '') })
+          }
+        })
+      })
+    out.sort((a, b) => (b.decidedAt || '').localeCompare(a.decidedAt || ''))
+    return out
+  }, [projectId, workflowsSnapshot])
+  const confirmedShown = confirmed.slice(0, 3)
+  const decideNode = (wfId: string, nodeId: string, verdict: 'done' | 'rework') => {
+    const target = workflowService.getWorkflow(wfId)
+    if (!target || !target.nodes.some((n) => n.id === nodeId)) return
+    workflowService.saveWorkflow(target.id, {
+      nodes: target.nodes.map((n) => {
+        if (n.id !== nodeId) return n
+        if (n.type === 'review') {
+          return { ...n, params: { ...n.params, checks: { ...(n.params.checks as Record<string, boolean> | undefined), [verdict]: true }, decidedAt: new Date().toISOString() } }
+        }
+        const primaryKind = GATE_PRIMARY_KIND[String(n.params.gate ?? '')] ?? ''
+        const primary = target.nodes.find((m) => m.type === 'artifact' && String(m.params.kind ?? '') === primaryKind)
+        return { ...n, params: verdict === 'done'
+          ? { ...n.params, decision: 'confirmed', confirmedFor: { kind: primaryKind, version: String(primary?.params.version ?? '') }, decidedAt: new Date().toISOString() }
+          : { ...n.params, decision: 'not-started', rework: true, decidedAt: new Date().toISOString() } }
+      }),
+      edges: target.edges,
     })
-    refreshWorkflow()
-    setNotice(key === 'done' ? '看片通过，已记录到工作流。' : '已标记需要修改，工作流已更新。')
+    if (workflow && workflow.id === target.id) refreshWorkflow()
+    setWorkflowsSnapshot(workflowService.listWorkflows())
+    setNotice(verdict === 'done' ? '已确认，记录到工作流。' : '已标记需要修改。')
   }
   const [selectedId, setSelectedId] = useState('s01')
   const [selectedStoryboardId, setSelectedStoryboardId] = useState<string | null>(null)
@@ -550,10 +622,8 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
                      open={railOpen} onClose={() => setRailOpen(false)}
                      tab={railTab} onTab={setRailTab}
                      selectedArtifactId={selectedArtifactId} onSelectArtifact={selectArtifact}
-                     references={references}
-                     onRemoveReference={removeReference} onLocateReference={locateReference}
-                     onToggleReferenceRole={toggleReferenceRole} onClearReferences={clearReferences}
-                     review={{ decided: reviewDecided, onDecide: decideReview }}
+                     confirmed={confirmedShown} confirmedTotal={confirmed.length}
+                     decisions={decisions} onDecide={decideNode}
                      workflowId={workflow?.id ?? null}
                      onOpenWorkflowEditor={onOpenWorkflowEditor}
                      creation={launch ? (
@@ -774,27 +844,134 @@ function ArtifactIcon({ type }: { type: WorkbenchArtifact['type'] }) {
   return <Icon className="size-3.5" />
 }
 
+function fmtDay(iso: string) {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  const now = new Date()
+  const sameDay = (a: Date, b: Date) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
+  const yesterday = new Date(now)
+  yesterday.setDate(now.getDate() - 1)
+  if (sameDay(d, now)) return '今天'
+  if (sameDay(d, yesterday)) return '昨天'
+  return `${d.getMonth() + 1}月${d.getDate()}日`
+}
+
 function ProjectRail({ projectName, open, onClose, tab, onTab,
-  selectedArtifactId, onSelectArtifact, references,
-  onRemoveReference, onLocateReference, onToggleReferenceRole, onClearReferences,
-  review, workflowId, onOpenWorkflowEditor, creation }:
+  selectedArtifactId, onSelectArtifact,
+  confirmed, confirmedTotal,
+  decisions, onDecide, workflowId, onOpenWorkflowEditor, creation }:
   { projectName: string; open: boolean; onClose: () => void
     tab: 'structure' | 'artifacts'; onTab: (tab: 'structure' | 'artifacts') => void
     selectedArtifactId: string | null; onSelectArtifact: (id: string) => void
-    references: AgentReference[]
-    onRemoveReference: (id: string) => void; onLocateReference: (ref: AgentReference) => void
-    onToggleReferenceRole: (id: string) => void; onClearReferences: () => void
-    review: { decided: boolean; onDecide: (key: 'done' | 'rework') => void }
+    confirmed: { id: string; title: string; meta: string }[]
+    confirmedTotal: number
+    decisions: { wfId: string; id: string; title: string; hint: string; detail: string }[]
+    onDecide: (wfId: string, nodeId: string, verdict: 'done' | 'rework') => void
     workflowId: string | null
     onOpenWorkflowEditor?: (workflowId: string) => void
     creation?: ReactNode }) {
+  /* 牌堆交互（无大卡片）：牌堆态与列表态是同一批卡片节点在两种形态间切换。
+     牌堆态：下方 ‹ › 切换最前卡（循环，中间圆点指示位置、可点选），点主卡散开成列表；
+     列表态：每张小卡右侧 › 键开弹窗看详情、做结论，控制区只剩聚拢键；
+     形态切换用 FLIP（切换前量位置、切换后反向位移再过渡回自然位置），
+     与切换动效同一套过渡（transform/背景/阴影/标题色）。
+     卡片尺寸固定：小卡高度写死、内容裁切（标题单行省略、提示最多两行），
+     最前卡矮、后层卡长时也不再从牌堆底下漏字。 */
+  const [leaving, setLeaving] = useState<{ id: string; verdict: 'done' | 'rework' } | null>(null)
+  const [removing, setRemoving] = useState<string | null>(null)
+  const [listOpen, setListOpen] = useState(false)
+  const [frontId, setFrontId] = useState<string | null>(null)
+  const [modal, setModal] = useState<{ d: (typeof decisions)[number]; source: 'stack' | 'list' } | null>(null)
+  const leavingTimer = useRef<number | null>(null)
+  const removingTimer = useRef<number | null>(null)
+  const deckRef = useRef<HTMLDivElement | null>(null)
+  const flipSnap = useRef<{ rects: Map<string, { left: number; top: number }>; height: number } | null>(null)
+  useEffect(() => () => {
+    if (leavingTimer.current) window.clearTimeout(leavingTimer.current)
+    if (removingTimer.current) window.clearTimeout(removingTimer.current)
+  }, [])
+  useEffect(() => {
+    if (!modal) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setModal(null) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [modal])
+  const effectiveFrontId = frontId && decisions.some((d) => d.id === frontId) ? frontId : null
+  const frontCardId = effectiveFrontId ?? decisions[0]?.id
+  const frontIndex = frontCardId ? decisions.findIndex((d) => d.id === frontCardId) : 0
+  const ordered = frontCardId
+    ? [...decisions.filter((d) => d.id === frontCardId), ...decisions.filter((d) => d.id !== frontCardId)]
+    : decisions
+  const stepFront = (dir: 1 | -1) => {
+    if (decisions.length <= 1) return
+    setFrontId(decisions[(frontIndex + dir + decisions.length) % decisions.length].id)
+  }
+  /* 牌堆态 DOM 顺序固定为原始顺序，只用 data-pos 换前后——切卡时不挪节点，
+     否则被挪的节点会丢过渡（实测：旧卡 30ms 就跳到最终位置，新卡却正常过渡）。
+     pos 超出 2 的卡停在后层同位但透明（data-parked），切到它时同样有过渡。 */
+  const nonFront = decisions.filter((d) => d.id !== frontCardId)
+  const stackCards = decisions.map((d) => {
+    const pos = d.id === frontCardId ? 0 : 1 + nonFront.findIndex((x) => x.id === d.id)
+    return { d, pos: pos <= 2 ? pos : 2, parked: pos > 2 }
+  })
+  const shown = listOpen ? ordered.map((d) => ({ d, pos: undefined as number | undefined, parked: false })) : stackCards
+  const captureFlip = () => {
+    const deckEl = deckRef.current
+    if (!deckEl) return
+    const rects = new Map<string, { left: number; top: number }>()
+    deckEl.querySelectorAll('.fw-deck-card').forEach((el) => {
+      const id = (el as HTMLElement).dataset.id
+      if (!id) return
+      const r = el.getBoundingClientRect()
+      rects.set(id, { left: r.left, top: r.top })
+    })
+    flipSnap.current = { rects, height: deckEl.getBoundingClientRect().height }
+  }
+  const toggleList = (next: boolean) => { captureFlip(); setListOpen(next) }
+  useEffect(() => {
+    const snap = flipSnap.current
+    const deckEl = deckRef.current
+    if (!snap || !deckEl) return
+    flipSnap.current = null
+    const cards = [...deckEl.querySelectorAll('.fw-deck-card')] as HTMLElement[]
+    const newH = deckEl.getBoundingClientRect().height
+    cards.forEach((el) => {
+      const old = snap.rects.get(el.dataset.id || '')
+      if (!old) return
+      const r = el.getBoundingClientRect()
+      el.style.transition = 'none'
+      el.style.transform = `translate(${old.left - r.left}px, ${old.top - r.top}px)`
+    })
+    void deckEl.offsetHeight
+    cards.forEach((el) => { el.style.transition = ''; el.style.transform = '' })
+    deckEl.style.transition = 'height .3s ease'
+    deckEl.style.height = `${snap.height}px`
+    void deckEl.offsetHeight
+    deckEl.style.height = `${newH}px`
+    const clear = () => { deckEl.style.transition = ''; deckEl.style.height = '' }
+    deckEl.addEventListener('transitionend', clear, { once: true })
+    window.setTimeout(clear, 350)
+  }, [listOpen])
+  const decideFromModal = (verdict: 'done' | 'rework') => {
+    if (!modal || leaving || removing) return
+    const { d, source } = modal
+    setModal(null)
+    if (source === 'list') {
+      setRemoving(d.id)
+      removingTimer.current = window.setTimeout(() => { onDecide(d.wfId, d.id, verdict); setRemoving(null) }, 220)
+    } else {
+      setLeaving({ id: d.id, verdict })
+      leavingTimer.current = window.setTimeout(() => { onDecide(d.wfId, d.id, verdict); setLeaving(null) }, 280)
+    }
+  }
   return (
     <aside className="fw-ing" data-open={open ? '' : undefined} aria-label="镜头库与产物">
       {creation}
       <div className="fw-ing-hd">
         <h2>{tab === 'structure' ? '概览' : '产物'}</h2>
         <span className="fw-count">{tab === 'structure'
-          ? `${(review.decided ? 0 : 1) + references.length} 项`
+          ? `${decisions.length + confirmed.length} 项`
           : `${WORKBENCH_ARTIFACTS.length}`}</span>
         <span className="spacer" />
         <button className="iconbtn fw-mobile" type="button" title="收起" onClick={onClose}>
@@ -826,46 +1003,99 @@ function ProjectRail({ projectName, open, onClose, tab, onTab,
           <section>
             <div className="fw-scene-hd">
               <span>待你决定</span><span className="spacer" />
-              <span className="hint">{review.decided ? 0 : 1}</span>
+              <span className="hint">{decisions.length}</span>
             </div>
-            {review.decided ? (
-              <p className="fw-rail-none">这一轮看片已有结论，可继续下一轮制作。</p>
+            {decisions.length === 0 ? (
+              <p className="fw-rail-none">这一轮的事都已定下，可以继续下一轮制作。</p>
             ) : (
-              <details className="fw-rail-decision">
-                <summary>
-                  <span className="fm-dot" data-s="waiting" />
-                  <span className="fw-rail-decision-main">
-                    <b>看片与修改</b>
-                    <small>对着预览给出结论：通过，或指出要改的地方</small>
+              /* 多条决定：牌堆态（小卡叠放，圆点选最前）与列表态（向下排列）
+                 共用同一批卡片节点；详情只在弹窗里，不再有展开的大卡片。 */
+              <>
+              <div className={`fw-deck${listOpen ? ' is-list' : ''}`} ref={deckRef}>
+                {shown.map(({ d, pos, parked }) => {
+                  const front = !listOpen && pos === 0
+                  return (
+                    <div key={d.id} data-id={d.id} className="fw-rail-decision fw-deck-card"
+                         data-pos={pos}
+                         data-parked={parked || undefined}
+                         data-leaving={leaving?.id === d.id || undefined}
+                         data-removing={removing === d.id || undefined}
+                         aria-hidden={!listOpen && !front ? true : undefined}
+                         onClick={!listOpen && front ? () => toggleList(true) : undefined}>
+                      <span className="fm-dot" data-s="waiting" />
+                      <span className="fw-rail-decision-main">
+                        <b>{d.title}</b>
+                        <small>{d.hint}</small>
+                      </span>
+                      <button type="button" className="fw-deck-marker" aria-label={`查看${d.title}详情`}
+                              onClick={(e) => { e.stopPropagation(); setModal({ d, source: listOpen ? 'list' : 'stack' }) }}>›</button>
+                    </div>
+                  )
+                })}
+              </div>
+              <div className="fw-deck-controls">
+                {listOpen ? (
+                  <button type="button" className="fw-deck-gather" onClick={() => toggleList(false)}>聚拢 ↑</button>
+                ) : (
+                  <span className="fw-deck-switch">
+                    <button type="button" className="fw-deck-switch-btn" aria-label="上一张"
+                            disabled={decisions.length <= 1} onClick={() => stepFront(-1)}>‹</button>
+                    <span className="fw-deck-dots">
+                      {decisions.map((d) => (
+                        <button key={d.id} type="button" className="fw-deck-dot"
+                                data-active={d.id === decisions[frontIndex]?.id || undefined}
+                                aria-label={`看${d.title}`} onClick={() => setFrontId(d.id)} />
+                      ))}
+                    </span>
+                    <button type="button" className="fw-deck-switch-btn" aria-label="下一张"
+                            disabled={decisions.length <= 1} onClick={() => stepFront(1)}>›</button>
                   </span>
-                </summary>
-                <div className="fw-rail-decision-body">
-                  <p>看完当前预览后给出结论。结论会写进工作流的看片节点，后续制作按它执行。</p>
-                  <div className="fw-rail-decision-acts">
-                    <button type="button" className="fw-decide-btn" data-kind="done"
-                            onClick={() => review.onDecide('done')}>通过</button>
-                    <button type="button" className="fw-decide-btn" data-kind="rework"
-                            onClick={() => review.onDecide('rework')}>要改</button>
+                )}
+              </div>
+              {modal && (
+                <div className="fw-modal-backdrop" onClick={() => setModal(null)}>
+                  <div className="fw-modal" role="dialog" aria-modal="true" aria-label={`${modal.d.title}详情`} onClick={(e) => e.stopPropagation()}>
+                    <div className="fw-modal-head">
+                      <span className="fm-dot" data-s="waiting" />
+                      <span className="fw-rail-decision-main"><b>{modal.d.title}</b><small>{modal.d.hint}</small></span>
+                      <button type="button" className="fw-modal-close" aria-label="关闭" onClick={() => setModal(null)}>×</button>
+                    </div>
+                    <p className="fw-modal-detail">{modal.d.detail}</p>
+                    <div className="fw-rail-decision-acts">
+                      <button type="button" className="fw-decide-btn" data-kind="done" onClick={() => decideFromModal('done')}>通过</button>
+                      <button type="button" className="fw-decide-btn" data-kind="rework" onClick={() => decideFromModal('rework')}>要改</button>
+                    </div>
+                    <button type="button" className="fw-rail-decision-more"
+                            onClick={() => { setModal(null); if (workflowId) onOpenWorkflowEditor?.(workflowId) }}>打开工作流查看详情</button>
                   </div>
-                  <button type="button" className="fw-rail-decision-more"
-                          onClick={() => { if (workflowId) onOpenWorkflowEditor?.(workflowId) }}>打开工作流查看详情</button>
                 </div>
-              </details>
+              )}
+              </>
             )}
           </section>
 
-          <section>
-            <div className="fw-scene-hd">
-              <span>引用</span><span className="spacer" />
-              <span className="hint">{references.length}</span>
-            </div>
-            <ReferenceChips references={references}
-                            defaultLabel="引用此帧 / 引用本场 / 框选画面区域 会加到这里"
-                            onRemoveReference={onRemoveReference}
-                            onLocateReference={onLocateReference}
-                            onToggleReferenceRole={onToggleReferenceRole}
-                            onClearReferences={onClearReferences} />
-          </section>
+          {confirmed.length > 0 && (
+            <section>
+              <div className="fw-scene-hd">
+                <span>已确认</span><span className="spacer" />
+                <span className="hint">{confirmedTotal}</span>
+              </div>
+              <div className="fw-confirmed-list">
+                {confirmed.map((c) => (
+                  <div key={c.id} className="fw-confirmed-item">
+                    <span className="fm-dot" data-s="done" />
+                    <span className="fw-rail-decision-main">
+                      <b>{c.title}</b>
+                      <small>{c.meta}</small>
+                    </span>
+                  </div>
+                ))}
+              </div>
+              {confirmedTotal > confirmed.length && (
+                <p className="fw-confirmed-more">共 {confirmedTotal} 条，仅显示最近 {confirmed.length} 条</p>
+              )}
+            </section>
+          )}
 
         </div>
       )}
