@@ -270,33 +270,71 @@
   font-size: 11px; color: var(--tx3);
 }
 /* 待决定条目 */
-#pane-flow .wb-a2 .fw-rail-decision {
-  display: flex; align-items: flex-start; gap: 7px;
-  padding: 7px 9px; margin-bottom: 4px;
-  border: 1px solid var(--line); border-radius: var(--r-card);
+
+/* ── 待决定牌堆 ──────────────────────────────────────────────
+   多条决定叠放：最前方正常显示、不旋转；后面 1–2 张往左上/右下
+   轻微错开 8–16px 并带 ±3° 以内的角度，浅灰低饱和，层层递进。
+   克制、柔和，不做 3D 透视与厚重阴影。 */
+#pane-flow .wb-a2 .fw-deck {
+  position: relative;
+  margin: 4px 10px 10px;
+  padding-top: 20px;            /* 给后方卡片的错位留出空间 */
+  padding-bottom: 4px;
+}
+#pane-flow .wb-a2 .fw-deck-card {
+  position: absolute; inset: 20px 0 auto 0;
+  border-radius: var(--r-card);
+  background: color-mix(in srgb, var(--surface-2, var(--panel2)) 100%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--line) 60%, transparent);
+  border: 1px solid var(--line);
+  transition: transform .18s ease, opacity .18s ease;
+}
+/* 后方两张：往上方错开，只露出顶边与两侧，形成牌堆轮廓 */
+#pane-flow .wb-a2 .fw-deck-card[style*="--i: 1"] {
+  transform: translate(-6px, -7px) rotate(-2.4deg);
+  opacity: .9;
+  filter: brightness(1.16);
+}
+#pane-flow .wb-a2 .fw-deck-card[style*="--i: 2"] {
+  transform: translate(6px, -13px) rotate(1.8deg);
+  opacity: .7;
+  filter: brightness(1.08);
+}
+/* 最前方：正常位置、不旋转，落在上方并带极轻的投影 */
+#pane-flow .wb-a2 .fw-deck-card[data-front] {
+  position: relative; inset: auto;
+  z-index: 3;
   background: var(--panel2);
+  box-shadow: 0 1px 2px rgb(0 0 0 / .06);
 }
-#pane-flow .wb-a2 .fw-rail-decision .fm-dot { margin-top: 4px; flex: none; }
-#pane-flow .wb-a2 .fw-rail-decision-main { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
-#pane-flow .wb-a2 .fw-rail-decision-main b { font-size: 12px; font-weight: 600; color: var(--tx); }
-#pane-flow .wb-a2 details.fw-rail-decision {
-  cursor: pointer;
-  display: block;               /* details 会被基础规则带成 flex，摘要与详情挤成一行 */
-  flex-direction: column;
+#pane-flow .wb-a2 .fw-deck-card:not([data-front]) {
+  z-index: 1;
+  pointer-events: none;
+  overflow: hidden;
 }
-#pane-flow .wb-a2 details.fw-rail-decision > summary {
+/* 后方卡片只作为轮廓存在：内容不显示，避免露出半截文字 */
+#pane-flow .wb-a2 .fw-deck-card:not([data-front]) .fw-deck-inner { visibility: hidden; }
+#pane-flow .wb-a2 details.fw-deck-inner { display: block; }
+#pane-flow .wb-a2 details.fw-deck-inner > summary {
   display: flex; align-items: flex-start; gap: 7px;
-  list-style: none;
+  padding: 9px 10px; list-style: none; cursor: pointer;
 }
-#pane-flow .wb-a2 details.fw-rail-decision > summary::-webkit-details-marker { display: none; }
-#pane-flow .wb-a2 .fw-rail-decision-body {
-  margin-top: 8px; padding-top: 8px;
-  border-top: 1px solid var(--line);
+#pane-flow .wb-a2 details.fw-deck-inner > summary::-webkit-details-marker { display: none; }
+#pane-flow .wb-a2 .fw-deck-inner .fm-dot { margin-top: 4px; flex: none; }
+#pane-flow .wb-a2 .fw-deck-main { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+#pane-flow .wb-a2 .fw-deck-main b { font-size: 12px; font-weight: 600; color: var(--tx); }
+#pane-flow .wb-a2 .fw-deck-main small { font-size: 11px; line-height: 1.45; color: var(--tx3); }
+/* 后方卡片只露一层轮廓，不放正文 */
+#pane-flow .wb-a2 .fw-deck-ghost { display: flex; align-items: center; gap: 7px; padding: 9px 10px; }
+#pane-flow .wb-a2 .fw-deck-ghost b { font-size: 12px; font-weight: 600; color: var(--tx3); }
+#pane-flow .wb-a2 .fw-deck-body {
   display: flex; flex-direction: column; gap: 8px;
-  cursor: default;
+  padding: 0 10px 10px 10px;
+  margin-top: 2px; padding-top: 8px;
+  border-top: 1px solid var(--line);
 }
-#pane-flow .wb-a2 .fw-rail-decision-body p { margin: 0; font-size: 11px; line-height: 1.55; color: var(--tx2); }
-#pane-flow .wb-a2 .fw-rail-decision-acts { display: flex; gap: 6px; }
+#pane-flow .wb-a2 .fw-deck-body p { margin: 0; font-size: 11px; line-height: 1.55; color: var(--tx2); }
+#pane-flow .wb-a2 .fw-deck-acts { display: flex; gap: 6px; }
 #pane-flow .wb-a2 .fw-decide-btn {
   flex: 1; padding: 6px 0; border-radius: var(--r-card);
   border: 1px solid var(--line); background: transparent;
@@ -304,17 +342,14 @@
   transition: border-color .15s, background-color .15s, color .15s;
 }
 #pane-flow .wb-a2 .fw-decide-btn:hover { border-color: var(--acc); color: var(--acc); }
-#pane-flow .wb-a2 .fw-decide-btn[data-kind="done"]:hover { background: color-mix(in srgb, var(--acc) 12%, transparent); }
 #pane-flow .wb-a2 .fw-decide-btn[data-kind="rework"]:hover {
   border-color: var(--warn, #d08a2c); color: var(--warn, #d08a2c);
-  background: color-mix(in srgb, var(--warn, #d08a2c) 10%, transparent);
 }
-#pane-flow .wb-a2 .fw-rail-decision-more {
+#pane-flow .wb-a2 .fw-deck-more {
   padding: 0; border: 0; background: none; text-align: left;
   font-size: 11px; color: var(--tx3); cursor: pointer;
 }
-#pane-flow .wb-a2 .fw-rail-decision-more:hover { color: var(--acc); text-decoration: underline; }
-#pane-flow .wb-a2 .fw-rail-decision-main small { font-size: 11px; line-height: 1.45; color: var(--tx3); }
+#pane-flow .wb-a2 .fw-deck-more:hover { color: var(--acc); text-decoration: underline; }
 
 #pane-flow .wb-a2 .fw-artifacts { padding: 2px 10px 10px; gap: 6px; }
 #pane-flow .wb-a2 .fw-artifact {
