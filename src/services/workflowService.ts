@@ -581,7 +581,11 @@ export function startDemoRun(
               additions: a.content.split('\n').length,
               deletions: 0,
             })),
-            buildStatus: status === 'completed' ? 'passed' : 'failed',
+            /* 一律 not-run：这次运行只产出工作稿/引用/请求记录快照，没有写项目文件、
+               也没有跑构建。原先写 status === 'completed' ? 'passed' : 'failed' 会
+               两头失真 —— 演示跑完显示「构建通过」（其实什么都没构建），而用户主动
+               取消反而显示「构建失败」（把用户的选择说成失败）。 */
+            buildStatus: 'not-run',
             mock: true,
           }
         : null

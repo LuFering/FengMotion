@@ -62,27 +62,48 @@ export function useAgentTasks() {
     }))
   }, [patchRecord])
 
-  const start = useCallback((request: TaskRequest) => {
-    let runRef: TaskRun
-    runRef = studioApi.startTask(request, (event) => applyEvent(runRef, event))
-    runs.current.set(runRef.task.id, runRef)
-    setActiveTaskId(runRef.task.id)
-    setRecords((prev) => [{ task: runRef.task, events: [], changes: null }, ...prev])
-    void runRef.done.finally(() => {
-      runs.current.delete(runRef.task.id)
+  /**
+   * 接收一次 studioApi 运行，并把它登记进记录。
+   *
+   * ⚠️ studioApi 的首条事件同样是**同步** emit 的：MockStudioApi.run 里
+   * `emit({kind:'accepted'…})` 是 async IIFE 的第一条语句，在 startTask 返回之前就跑了。
+   * 所以不能写成 `runRef = studioApi.startTask(req, e => applyEvent(runRef, e))` ——
+   * 回调触发时 runRef 还是 undefined，`run.task.id` 直接抛 TypeError；那个异常被
+   * studioApi 的 catch 接住又 emit 一条 error，再次抛出，最后变成页面上一个没人处理的
+   * rejection，而任务永久停在「排队中」、一条事件都不进记录。
+   * 与 runWorkflow 同一处理：先缓冲，拿到 handle 之后再按序回放。
+   */
+  const adopt = useCallback((begin: (onEvent: (event: TaskEvent) => void) => TaskRun) => {
+    const pending: TaskEvent[] = []
+    let live = false
+    let handle: TaskRun | null = null
+    const started = begin((event) => {
+      if (!live || !handle) { pending.push(event); return }
+      applyEvent(handle, event)
     })
-    return runRef.task.id
+    handle = started
+    live = true
+    runs.current.set(started.task.id, started)
+    setActiveTaskId(started.task.id)
+    setRecords((prev) => [{ task: started.task, events: [], changes: null }, ...prev])
+    pending.forEach((event) => applyEvent(started, event))
+    void started.done.catch(() => {
+      /* 失败已经在事件里如实发过；这里只是别让它变成未处理的 rejection */
+    }).finally(() => {
+      runs.current.delete(started.task.id)
+    })
+    return started.task.id
   }, [applyEvent])
 
-  const render = useCallback(() => {
-    let runRef: TaskRun
-    runRef = studioApi.render((event) => applyEvent(runRef, event))
-    runs.current.set(runRef.task.id, runRef)
-    setActiveTaskId(runRef.task.id)
-    setRecords((prev) => [{ task: runRef.task, events: [], changes: null }, ...prev])
-    void runRef.done.finally(() => runs.current.delete(runRef.task.id))
-    return runRef.task.id
-  }, [applyEvent])
+  const start = useCallback(
+    (request: TaskRequest) => adopt((onEvent) => studioApi.startTask(request, onEvent)),
+    [adopt],
+  )
+
+  const render = useCallback(
+    () => adopt((onEvent) => studioApi.render(onEvent)),
+    [adopt],
+  )
 
   /**
    * 运行一次工作流实例，并把这次运行登记进同一份记录。
