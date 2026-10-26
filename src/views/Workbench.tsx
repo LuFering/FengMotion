@@ -832,19 +832,83 @@ function ProjectRail({ projectName, open, onClose, tab, onTab,
     workflowId: string | null
     onOpenWorkflowEditor?: (workflowId: string) => void
     creation?: ReactNode }) {
-  /* 牌堆切换动效：主卡先滑出淡出（280ms），写回才真正提交；下一张是
-     同一 DOM 节点（按 id 复用），位置 1→0 时 transform/背景/阴影一起
-     过渡顶上来，颜色随位置从灰化褪回正色，颜色逻辑始终对应位置。 */
+  /* 牌堆交互（无大卡片）：牌堆态与列表态是同一批卡片节点在两种形态间切换。
+     牌堆态：下方控制区圆点选哪张在最前，点主卡或展开键散开成列表；
+     列表态：每张小卡右侧 › 键开弹窗看详情、做结论，控制区只剩聚拢键；
+     形态切换用 FLIP（切换前量位置、切换后反向位移再过渡回自然位置），
+     与切换动效同一套过渡（transform/背景/阴影/标题色）。 */
   const [leaving, setLeaving] = useState<{ id: string; verdict: 'done' | 'rework' } | null>(null)
+  const [removing, setRemoving] = useState<string | null>(null)
+  const [listOpen, setListOpen] = useState(false)
+  const [frontId, setFrontId] = useState<string | null>(null)
+  const [modal, setModal] = useState<{ d: (typeof decisions)[number]; source: 'stack' | 'list' } | null>(null)
   const leavingTimer = useRef<number | null>(null)
-  useEffect(() => () => { if (leavingTimer.current) window.clearTimeout(leavingTimer.current) }, [])
-  const handleDecide = (d: { wfId: string; id: string }, verdict: 'done' | 'rework') => {
-    if (leaving) return
-    setLeaving({ id: d.id, verdict })
-    leavingTimer.current = window.setTimeout(() => {
-      onDecide(d.wfId, d.id, verdict)
-      setLeaving(null)
-    }, 280)
+  const removingTimer = useRef<number | null>(null)
+  const deckRef = useRef<HTMLDivElement | null>(null)
+  const flipSnap = useRef<{ rects: Map<string, { left: number; top: number }>; height: number } | null>(null)
+  useEffect(() => () => {
+    if (leavingTimer.current) window.clearTimeout(leavingTimer.current)
+    if (removingTimer.current) window.clearTimeout(removingTimer.current)
+  }, [])
+  useEffect(() => {
+    if (!modal) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setModal(null) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [modal])
+  const effectiveFrontId = frontId && decisions.some((d) => d.id === frontId) ? frontId : null
+  const ordered = effectiveFrontId
+    ? [...decisions.filter((d) => d.id === effectiveFrontId), ...decisions.filter((d) => d.id !== effectiveFrontId)]
+    : decisions
+  const shown = listOpen ? ordered : ordered.slice(0, 3)
+  const captureFlip = () => {
+    const deckEl = deckRef.current
+    if (!deckEl) return
+    const rects = new Map<string, { left: number; top: number }>()
+    deckEl.querySelectorAll('.fw-deck-card').forEach((el) => {
+      const id = (el as HTMLElement).dataset.id
+      if (!id) return
+      const r = el.getBoundingClientRect()
+      rects.set(id, { left: r.left, top: r.top })
+    })
+    flipSnap.current = { rects, height: deckEl.getBoundingClientRect().height }
+  }
+  const toggleList = (next: boolean) => { captureFlip(); setListOpen(next) }
+  useEffect(() => {
+    const snap = flipSnap.current
+    const deckEl = deckRef.current
+    if (!snap || !deckEl) return
+    flipSnap.current = null
+    const cards = [...deckEl.querySelectorAll('.fw-deck-card')] as HTMLElement[]
+    const newH = deckEl.getBoundingClientRect().height
+    cards.forEach((el) => {
+      const old = snap.rects.get(el.dataset.id || '')
+      if (!old) return
+      const r = el.getBoundingClientRect()
+      el.style.transition = 'none'
+      el.style.transform = `translate(${old.left - r.left}px, ${old.top - r.top}px)`
+    })
+    void deckEl.offsetHeight
+    cards.forEach((el) => { el.style.transition = ''; el.style.transform = '' })
+    deckEl.style.transition = 'height .3s ease'
+    deckEl.style.height = `${snap.height}px`
+    void deckEl.offsetHeight
+    deckEl.style.height = `${newH}px`
+    const clear = () => { deckEl.style.transition = ''; deckEl.style.height = '' }
+    deckEl.addEventListener('transitionend', clear, { once: true })
+    window.setTimeout(clear, 350)
+  }, [listOpen])
+  const decideFromModal = (verdict: 'done' | 'rework') => {
+    if (!modal || leaving || removing) return
+    const { d, source } = modal
+    setModal(null)
+    if (source === 'list') {
+      setRemoving(d.id)
+      removingTimer.current = window.setTimeout(() => { onDecide(d.wfId, d.id, verdict); setRemoving(null) }, 220)
+    } else {
+      setLeaving({ id: d.id, verdict })
+      leavingTimer.current = window.setTimeout(() => { onDecide(d.wfId, d.id, verdict); setLeaving(null) }, 280)
+    }
   }
   return (
     <aside className="fw-ing" data-open={open ? '' : undefined} aria-label="镜头库与产物">
@@ -889,43 +953,65 @@ function ProjectRail({ projectName, open, onClose, tab, onTab,
             {decisions.length === 0 ? (
               <p className="fw-rail-none">这一轮的事都已定下，可以继续下一轮制作。</p>
             ) : (
-              /* 多条决定叠成牌堆：每张都是真实的卡（按 id 复用同一节点），
-                 位置决定样式——主卡正常显示、不旋转、底色最正；后层 1–2 张
-                 与主卡同尺寸、绝对定位贴合主卡，往右下错开 10/16px 并带
-                 ±3°、缩小 .99/.97，底色按位置递进灰化；切换时主卡滑出淡出，
-                 下一张 transform/颜色/阴影过渡顶上来。容器右下留出 24/28px
-                 余量，后层边缘不顶分区标题、不出左栏。 */
-              <div className="fw-deck">
-                {decisions.slice(0, 3).map((d, i) => {
-                  const front = i === 0
+              /* 多条决定：牌堆态（小卡叠放，圆点选最前）与列表态（向下排列）
+                 共用同一批卡片节点；详情只在弹窗里，不再有展开的大卡片。 */
+              <>
+              <div className={`fw-deck${listOpen ? ' is-list' : ''}`} ref={deckRef}>
+                {shown.map((d, i) => {
+                  const front = !listOpen && i === 0
                   return (
-                    <details key={d.id} className="fw-rail-decision fw-deck-card" data-pos={i}
-                             data-leaving={leaving?.id === d.id || undefined}
-                             aria-hidden={front ? undefined : true}>
-                      <summary>
-                        <span className="fm-dot" data-s="waiting" />
-                        <span className="fw-rail-decision-main">
-                          <b>{d.title}</b>
-                          <small>{d.hint}</small>
-                        </span>
-                      </summary>
-                      {front && (
-                        <div className="fw-rail-decision-body">
-                          <p>{d.detail}</p>
-                          <div className="fw-rail-decision-acts">
-                            <button type="button" className="fw-decide-btn" data-kind="done" disabled={leaving !== null}
-                                    onClick={() => handleDecide(d, 'done')}>通过</button>
-                            <button type="button" className="fw-decide-btn" data-kind="rework" disabled={leaving !== null}
-                                    onClick={() => handleDecide(d, 'rework')}>要改</button>
-                          </div>
-                          <button type="button" className="fw-rail-decision-more"
-                                  onClick={() => { if (workflowId) onOpenWorkflowEditor?.(workflowId) }}>打开工作流查看详情</button>
-                        </div>
-                      )}
-                    </details>
+                    <div key={d.id} data-id={d.id} className="fw-rail-decision fw-deck-card"
+                         data-pos={listOpen ? undefined : i}
+                         data-leaving={leaving?.id === d.id || undefined}
+                         data-removing={removing === d.id || undefined}
+                         aria-hidden={!listOpen && !front ? true : undefined}
+                         onClick={!listOpen && front ? () => toggleList(true) : undefined}>
+                      <span className="fm-dot" data-s="waiting" />
+                      <span className="fw-rail-decision-main">
+                        <b>{d.title}</b>
+                        <small>{d.hint}</small>
+                      </span>
+                      <button type="button" className="fw-deck-marker" aria-label={`查看${d.title}详情`}
+                              onClick={(e) => { e.stopPropagation(); setModal({ d, source: listOpen ? 'list' : 'stack' }) }}>›</button>
+                    </div>
                   )
                 })}
               </div>
+              <div className="fw-deck-controls">
+                {listOpen ? (
+                  <button type="button" className="fw-deck-gather" onClick={() => toggleList(false)}>聚拢 ↑</button>
+                ) : (
+                  <>
+                    <span className="fw-deck-dots">
+                      {decisions.map((d) => (
+                        <button key={d.id} type="button" className="fw-deck-dot"
+                                data-active={(effectiveFrontId ? d.id === effectiveFrontId : d.id === decisions[0]?.id) || undefined}
+                                aria-label={`看${d.title}`} onClick={() => setFrontId(d.id)} />
+                      ))}
+                    </span>
+                    <button type="button" className="fw-deck-expand" onClick={() => toggleList(true)}>展开列表 ▾</button>
+                  </>
+                )}
+              </div>
+              {modal && (
+                <div className="fw-modal-backdrop" onClick={() => setModal(null)}>
+                  <div className="fw-modal" role="dialog" aria-modal="true" aria-label={`${modal.d.title}详情`} onClick={(e) => e.stopPropagation()}>
+                    <div className="fw-modal-head">
+                      <span className="fm-dot" data-s="waiting" />
+                      <span className="fw-rail-decision-main"><b>{modal.d.title}</b><small>{modal.d.hint}</small></span>
+                      <button type="button" className="fw-modal-close" aria-label="关闭" onClick={() => setModal(null)}>×</button>
+                    </div>
+                    <p className="fw-modal-detail">{modal.d.detail}</p>
+                    <div className="fw-rail-decision-acts">
+                      <button type="button" className="fw-decide-btn" data-kind="done" onClick={() => decideFromModal('done')}>通过</button>
+                      <button type="button" className="fw-decide-btn" data-kind="rework" onClick={() => decideFromModal('rework')}>要改</button>
+                    </div>
+                    <button type="button" className="fw-rail-decision-more"
+                            onClick={() => { setModal(null); if (workflowId) onOpenWorkflowEditor?.(workflowId) }}>打开工作流查看详情</button>
+                  </div>
+                </div>
+              )}
+              </>
             )}
           </section>
 

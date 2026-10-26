@@ -1109,3 +1109,70 @@ html[data-theme="light"] #pane-flow .wb-a2 .fw-panel { box-shadow: 0 8px 24px rg
   transform: translate(20px, -14px) rotate(4deg);
   opacity: 0;
 }
+
+/* ── 待决定：牌堆态 ↔ 列表态（无大卡片，详情只在弹窗）──────────
+   列表态是同一批卡片节点换形态：相对定位向下排列、底色回正、
+   标题回亮、标志键可用；牌堆态后层的标志键藏起（只露边不露键）。
+   形态切换由 FLIP（JS 量位置、反向位移再过渡）驱动，容器高度
+   也一起过渡；列表里删卡用右滑淡出，牌堆里删卡沿用滑出淡出。 */
+#pane-flow .wb-a2 .fw-deck-card .fw-rail-decision-main { flex: 1; min-width: 0; }
+#pane-flow .wb-a2 .fw-deck-card[data-pos="0"] { cursor: pointer; }
+#pane-flow .wb-a2 .fw-deck-card[data-pos="1"] .fw-deck-marker,
+#pane-flow .wb-a2 .fw-deck-card[data-pos="2"] .fw-deck-marker { visibility: hidden; }
+#pane-flow .wb-a2 .fw-deck.is-list { margin-right: 10px; margin-bottom: 12px; }
+#pane-flow .wb-a2 .fw-deck.is-list .fw-deck-card {
+  position: relative; inset: auto; transform: none; margin-bottom: 6px;
+  pointer-events: auto; cursor: default;
+  background: var(--panel2);
+  box-shadow: 0 1px 3px rgb(0 0 0 / .06);
+}
+#pane-flow .wb-a2 .fw-deck.is-list .fw-deck-card:last-child { margin-bottom: 0; }
+#pane-flow .wb-a2 .fw-deck.is-list .fw-deck-card[data-removing] {
+  opacity: 0; transform: translateX(12px);
+}
+#pane-flow .wb-a2 .fw-deck-controls {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  margin: 2px 10px 0;
+}
+#pane-flow .wb-a2 .fw-deck-dots { display: flex; align-items: center; gap: 6px; }
+#pane-flow .wb-a2 .fw-deck-dot {
+  width: 8px; height: 8px; padding: 0; border: 0; border-radius: 50%;
+  background: var(--line2); cursor: pointer;
+  transition: width .2s ease, background-color .2s ease;
+}
+#pane-flow .wb-a2 .fw-deck-dot[data-active] { width: 18px; border-radius: 4px; background: var(--acc); }
+#pane-flow .wb-a2 .fw-deck-expand,
+#pane-flow .wb-a2 .fw-deck-gather {
+  padding: 3px 10px; border: 1px solid var(--line2); border-radius: 999px;
+  background: transparent; color: var(--tx2); font-size: 11px; cursor: pointer;
+}
+#pane-flow .wb-a2 .fw-deck-expand:hover,
+#pane-flow .wb-a2 .fw-deck-gather:hover { color: var(--acc); border-color: var(--acc); }
+#pane-flow .wb-a2 .fw-deck-marker {
+  flex: none; width: 22px; height: 22px; margin-top: 1px;
+  border-radius: 50%; border: 1px solid var(--line2);
+  background: transparent; color: var(--tx2); font-size: 15px; line-height: 1;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+}
+#pane-flow .wb-a2 .fw-deck-marker:hover { color: var(--acc); border-color: var(--acc); }
+#pane-flow .wb-a2 .fw-modal-backdrop {
+  position: fixed; inset: 0; z-index: 60;
+  display: flex; align-items: center; justify-content: center; padding: 16px;
+  background: rgb(0 0 0 / .45);
+}
+#pane-flow .wb-a2 .fw-modal {
+  width: min(320px, 92vw); background: var(--panel2);
+  border: 1px solid var(--line2); border-radius: var(--r-card); padding: 14px;
+  box-shadow: 0 12px 32px rgb(0 0 0 / .25);
+  animation: fw-modal-in .18s ease;
+}
+@keyframes fw-modal-in { from { opacity: 0; transform: translateY(6px) scale(.98); } to { opacity: 1; transform: none; } }
+#pane-flow .wb-a2 .fw-modal-head { display: flex; align-items: flex-start; gap: 7px; }
+#pane-flow .wb-a2 .fw-modal-head .fm-dot { margin-top: 4px; flex: none; }
+#pane-flow .wb-a2 .fw-modal-head .fw-rail-decision-main { flex: 1; min-width: 0; }
+#pane-flow .wb-a2 .fw-modal-close {
+  flex: none; width: 22px; height: 22px; border: 0; background: none;
+  color: var(--tx3); font-size: 16px; line-height: 1; cursor: pointer;
+}
+#pane-flow .wb-a2 .fw-modal-detail { margin: 10px 0; font-size: 12px; line-height: 1.6; color: var(--tx2); }
+#pane-flow .wb-a2 .fw-modal .fw-rail-decision-acts { display: flex; gap: 6px; margin-bottom: 8px; }
