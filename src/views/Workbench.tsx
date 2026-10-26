@@ -282,6 +282,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
     setReferences((old) => old.some((item) => item.id === ref.id) ? old : [...old, ref])
   }
   const removeReference = (id: string) => setReferences((old) => old.filter((item) => item.id !== id))
+  const clearReferences = () => setReferences([])
   const locateReference = (ref: AgentReference) => {
     if (ref.kind === 'artifact') { setSelectedArtifactId(ref.artifactId); setRailTab('artifacts'); return }
     if (ref.kind === 'project') { setSelectedArtifactId(null); setRailTab('structure'); return }
@@ -512,11 +513,13 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
       <div className="fw relative">
         {railOpen && <button className="fw-scrim" aria-label="收起场景列表" onClick={() => setRailOpen(false)} />}
 
-        <ProjectRail selectedId={selectedId} onSelect={selectScene} projectName={project.name}
+        <ProjectRail projectName={project.name}
                      open={railOpen} onClose={() => setRailOpen(false)}
                      tab={railTab} onTab={setRailTab}
                      selectedArtifactId={selectedArtifactId} onSelectArtifact={selectArtifact}
-                     modifiedIds={Object.keys(shotOverrides)}
+                     references={references}
+                     onRemoveReference={removeReference} onLocateReference={locateReference}
+                     onToggleReferenceRole={toggleReferenceRole} onClearReferences={clearReferences}
                      creation={launch ? (
                        <CreationTaskPanel
                          workflowId={launch.workflowId}
@@ -656,7 +659,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
                     editOverridden={!!shotOverrides[selectedId]}
                     references={references} onRemoveReference={removeReference}
                     onLocateReference={locateReference} onToggleReferenceRole={toggleReferenceRole}
-                    onClearReferences={() => setReferences([])} onScopeChange={(next) => { setScope(next); setTargetReference(next === 'project' ? currentProjectRef : currentShotRef) }}
+                    onClearReferences={clearReferences} onScopeChange={(next) => { setScope(next); setTargetReference(next === 'project' ? currentProjectRef : currentShotRef) }}
                     onApplyEdit={applyShotSettings} onResetEdit={resetShotSettings}
                     onCloseEdit={closeEdit} onOpenEdit={openEdit} />
       </div>
@@ -735,23 +738,22 @@ function ArtifactIcon({ type }: { type: WorkbenchArtifact['type'] }) {
   return <Icon className="size-3.5" />
 }
 
-function ProjectRail({ selectedId, onSelect, projectName, open, onClose, tab, onTab,
-  selectedArtifactId, onSelectArtifact, modifiedIds, creation }:
-  { selectedId: string; onSelect: (id: string, storyboardId?: string | null) => void
-    projectName: string; open: boolean; onClose: () => void
+function ProjectRail({ projectName, open, onClose, tab, onTab,
+  selectedArtifactId, onSelectArtifact, references,
+  onRemoveReference, onLocateReference, onToggleReferenceRole, onClearReferences, creation }:
+  { projectName: string; open: boolean; onClose: () => void
     tab: 'structure' | 'artifacts'; onTab: (tab: 'structure' | 'artifacts') => void
     selectedArtifactId: string | null; onSelectArtifact: (id: string) => void
-    modifiedIds: string[]; creation?: ReactNode }) {
-  /* 分组标签：有分幕就用幕名，否则落「成片 / 草稿」两桶。
-     原来叫「当前成片 / 计划草稿」——「当前」「计划」是内部状态的措辞，
-     用户只需要知道这组是已成片的还是草稿。 */
-  const acts = [...new Set(ACTIVE_SCENES.map((s) => s.scene?.storyboard?.幕 ?? (s.storyboardId ? '草稿' : '成片')))]
+    references: AgentReference[]
+    onRemoveReference: (id: string) => void; onLocateReference: (ref: AgentReference) => void
+    onToggleReferenceRole: (id: string) => void; onClearReferences: () => void
+    creation?: ReactNode }) {
   return (
     <aside className="fw-ing" data-open={open ? '' : undefined} aria-label="镜头库与产物">
       {creation}
       <div className="fw-ing-hd">
         <h2>{tab === 'structure' ? '场景结构' : '产物'}</h2>
-        <span className="fw-count">{tab === 'structure' ? `${ACTIVE_SCENES.length} 场` : `${WORKBENCH_ARTIFACTS.length} 产物`}</span>
+        <span className="fw-count">{tab === 'structure' ? `${DECISIONS.length + references.length + WORKBENCH_ARTIFACTS.length} 项` : `${WORKBENCH_ARTIFACTS.length} 产物`}</span>
         <span className="spacer" />
         <button className="iconbtn fw-mobile" type="button" title="收起" onClick={onClose}>
           <X className="size-4" />
@@ -778,54 +780,66 @@ function ProjectRail({ selectedId, onSelect, projectName, open, onClose, tab, on
           ))}
         </div>
       ) : (
-      <div className="fw-ing-list">
-        {acts.map((act) => {
-          const list = ACTIVE_SCENES.filter((s) => (s.scene?.storyboard?.幕 ?? (s.storyboardId ? '草稿' : '成片')) === act)
-          return (
-            <section key={act}>
-              <div className="fw-scene-hd">
-                <span>{act}</span>
-                <span className="spacer" />
-                <span className="hint">{list.length}</span>
+        <div className="fw-ing-list">
+          <section>
+            <div className="fw-scene-hd">
+              <span>待你决定</span><span className="spacer" />
+              <span className="hint">{DECISIONS.length}</span>
+            </div>
+            {DECISIONS.map((d) => (
+              <div key={d.id} className="fw-rail-decision">
+                <span className="fm-dot" data-s="waiting" />
+                <span className="fw-rail-decision-main">
+                  <b>{d.label}</b>
+                  <small>{d.hint}</small>
+                </span>
               </div>
-              {list.map((scene) => {
-                const sel = scene.id === selectedId
-                const state = statusOf(scene.status)
-                return (
-                  <button key={`${scene.id}-${scene.start}`} type="button"
-                          onClick={() => onSelect(scene.id, scene.storyboardId)}
-                          aria-current={sel ? 'true' : undefined}
-                          className="fm-unit" style={{ marginBottom: 2 }}>
-                    <span className="fm-unit-frame">
-                      {scene.frame
-                        ? <img src={scene.frame} alt="" loading="lazy" />
-                        : <span className="grid size-full place-items-center text-[10px] text-dim">无帧</span>}
-                    </span>
-                    <span className="fm-unit-body">
-                      <b>{scene.title}</b>
-                      <span>
-                        <span>{String(scene.scene?.index ?? 0).padStart(2, '0')}</span>
-                        <span>{fmtSec(scene.duration)}</span>
-                      </span>
-                    </span>
-                    {/* 状态：正常态安静一个点，异常态必须带文字（shell/status.ts 是唯一来源） */}
-                    {modifiedIds.includes(scene.id) && <span className="fm-tag" data-s="modified">已改</span>}
-                    {state.s === 'done'
-                      ? <span className="fm-dot" data-s="done" title={state.label} />
-                      : <span className="fm-tag" data-s={state.s}>{state.label}</span>}
-                  </button>
-                )
-              })}
-            </section>
-          )
-        })}
-      </div>
+            ))}
+          </section>
+
+          <section>
+            <div className="fw-scene-hd">
+              <span>引用</span><span className="spacer" />
+              <span className="hint">{references.length}</span>
+            </div>
+            <ReferenceChips references={references}
+                            defaultLabel="引用此帧 / 引用本场 / 框选画面区域 会加到这里"
+                            onRemoveReference={onRemoveReference}
+                            onLocateReference={onLocateReference}
+                            onToggleReferenceRole={onToggleReferenceRole}
+                            onClearReferences={onClearReferences} />
+          </section>
+
+          <section>
+            <div className="fw-scene-hd">
+              <span>产物</span><span className="spacer" />
+              <span className="hint">{WORKBENCH_ARTIFACTS.length}</span>
+            </div>
+            {WORKBENCH_ARTIFACTS.map((a) => (
+              <button key={a.id} type="button" className="fw-artifact"
+                      aria-current={a.id === selectedArtifactId ? 'true' : undefined}
+                      onClick={() => onSelectArtifact(a.id)}>
+                <span className="fw-artifact-ic"><ArtifactIcon type={a.type} /></span>
+                <span className="fw-artifact-main">
+                  <b>{a.title}</b>
+                  <small>{ARTIFACT_TYPE_LABEL[a.type]} · {a.version}</small>
+                </span>
+                <span className="fw-artifact-status" data-status={a.status}>{ARTIFACT_STATUS_LABEL[a.status]}</span>
+              </button>
+            ))}
+          </section>
+        </div>
       )}
 
       <div className="fw-ing-footer">{projectName}</div>
     </aside>
   )
 }
+
+const DECISIONS = [
+  { id: 'd1', label: 'Gate B · 场景布局待确认', hint: '5 场布局图已出，等待你过目' },
+  { id: 'd2', label: '第 2 轮修改待验收', hint: '计量段的局部预览已渲染' },
+]
 
 function ToolButton({ label, onClick, active, disabled, children }: {
   label: string; onClick: () => void; active?: boolean; disabled?: boolean; children: React.ReactNode
