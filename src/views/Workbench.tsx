@@ -752,8 +752,10 @@ function ProjectRail({ projectName, open, onClose, tab, onTab,
     <aside className="fw-ing" data-open={open ? '' : undefined} aria-label="镜头库与产物">
       {creation}
       <div className="fw-ing-hd">
-        <h2>{tab === 'structure' ? '场景结构' : '产物'}</h2>
-        <span className="fw-count">{tab === 'structure' ? `${DECISIONS.length + references.length + WORKBENCH_ARTIFACTS.length} 项` : `${WORKBENCH_ARTIFACTS.length} 产物`}</span>
+        <h2>{tab === 'structure' ? '概览' : '产物'}</h2>
+        <span className="fw-count">{tab === 'structure'
+          ? `${DECISIONS.length + references.length} 项`
+          : `${WORKBENCH_ARTIFACTS.length}`}</span>
         <span className="spacer" />
         <button className="iconbtn fw-mobile" type="button" title="收起" onClick={onClose}>
           <X className="size-4" />
@@ -773,7 +775,7 @@ function ProjectRail({ projectName, open, onClose, tab, onTab,
               <span className="fw-artifact-ic"><ArtifactIcon type={a.type} /></span>
               <span className="fw-artifact-main">
                 <b>{a.title}</b>
-                <small>{ARTIFACT_TYPE_LABEL[a.type]} · {a.version} · {a.updatedAt}</small>
+                <small>{ARTIFACT_TYPE_LABEL[a.type]} · {a.version}</small>
               </span>
               <span className="fw-artifact-status" data-status={a.status}>{ARTIFACT_STATUS_LABEL[a.status]}</span>
             </button>
@@ -810,24 +812,6 @@ function ProjectRail({ projectName, open, onClose, tab, onTab,
                             onClearReferences={onClearReferences} />
           </section>
 
-          <section>
-            <div className="fw-scene-hd">
-              <span>产物</span><span className="spacer" />
-              <span className="hint">{WORKBENCH_ARTIFACTS.length}</span>
-            </div>
-            {WORKBENCH_ARTIFACTS.map((a) => (
-              <button key={a.id} type="button" className="fw-artifact"
-                      aria-current={a.id === selectedArtifactId ? 'true' : undefined}
-                      onClick={() => onSelectArtifact(a.id)}>
-                <span className="fw-artifact-ic"><ArtifactIcon type={a.type} /></span>
-                <span className="fw-artifact-main">
-                  <b>{a.title}</b>
-                  <small>{ARTIFACT_TYPE_LABEL[a.type]} · {a.version}</small>
-                </span>
-                <span className="fw-artifact-status" data-status={a.status}>{ARTIFACT_STATUS_LABEL[a.status]}</span>
-              </button>
-            ))}
-          </section>
         </div>
       )}
 
