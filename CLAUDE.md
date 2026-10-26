@@ -7,9 +7,21 @@
 
 ## 动手前必读
 
-1. **`src/index.css` 是约束文件，不是建议。** 颜色/字体/间距/圆角只能用它定义的。
-2. **`src/views/Production.tsx` 是范式层**，其余是通用层。见下方「分层边界」。
-3. **一次只做一个视图。** 做完让作者看截图，确认后再继续。不要一次生成多个页面。
+1. **内容模型只看工作流，不看那条演示视频。**
+   `public/media/token-full-legacy.mp4` 和由它派生的东西 ——
+   `src/data/activeFilm.ts` 的 25 个成片片段、`src/data/productionData.ts` 的
+   `UNITS` / `STORYBOARD`、`src/data/projectModel.ts` 的 152s 时间轴 ——
+   **全部是占位演示数据，不是工作流的内容模型。**
+   工作流没有「镜」这个单位，也没有「第几秒到第几秒是什么画面」这种映射；
+   那是 HyperFrames 渲染的实现切片（`film/index.html` 的 `.clip`），
+   属于「这条片这次怎么渲的」，不属于内容。
+   **工作台 / 工作流界面该显示什么，一律以 `workflow-v5/` 目录、
+   `src/data/workflowTemplates.ts`（节点与产物定义）、
+   `src/services/workflowService.ts`（图与 Gate 求值）为准。**
+   拿成片切片当内容搬进界面，是已经犯过的错。
+2. **`src/index.css` 是约束文件，不是建议。** 颜色/字体/间距/圆角只能用它定义的。
+3. **`src/views/Production.tsx` 是范式层**，其余是通用层。见下方「分层边界」。
+4. **一次只做一个视图。** 做完让作者看截图，确认后再继续。不要一次生成多个页面。
 
 ---
 
