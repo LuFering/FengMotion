@@ -832,6 +832,20 @@ function ProjectRail({ projectName, open, onClose, tab, onTab,
     workflowId: string | null
     onOpenWorkflowEditor?: (workflowId: string) => void
     creation?: ReactNode }) {
+  /* 牌堆切换动效：主卡先滑出淡出（280ms），写回才真正提交；下一张是
+     同一 DOM 节点（按 id 复用），位置 1→0 时 transform/背景/阴影一起
+     过渡顶上来，颜色随位置从灰化褪回正色，颜色逻辑始终对应位置。 */
+  const [leaving, setLeaving] = useState<{ id: string; verdict: 'done' | 'rework' } | null>(null)
+  const leavingTimer = useRef<number | null>(null)
+  useEffect(() => () => { if (leavingTimer.current) window.clearTimeout(leavingTimer.current) }, [])
+  const handleDecide = (d: { wfId: string; id: string }, verdict: 'done' | 'rework') => {
+    if (leaving) return
+    setLeaving({ id: d.id, verdict })
+    leavingTimer.current = window.setTimeout(() => {
+      onDecide(d.wfId, d.id, verdict)
+      setLeaving(null)
+    }, 280)
+  }
   return (
     <aside className="fw-ing" data-open={open ? '' : undefined} aria-label="镜头库与产物">
       {creation}
@@ -875,38 +889,42 @@ function ProjectRail({ projectName, open, onClose, tab, onTab,
             {decisions.length === 0 ? (
               <p className="fw-rail-none">这一轮的事都已定下，可以继续下一轮制作。</p>
             ) : (
-              /* 多条决定叠成牌堆：最前方一张正常显示、不旋转；后面 1–2 张
+              /* 多条决定叠成牌堆：每张都是真实的卡（按 id 复用同一节点），
+                 位置决定样式——主卡正常显示、不旋转、底色最正；后层 1–2 张
                  与主卡同尺寸、绝对定位贴合主卡，往右下错开 10/16px 并带
-                 -2°/+2°，用递进的浅灰实色填充（不用透明度虚化），只露边
-                 不露字。容器右下留出 24/28px 余量，后层边缘不顶分区标题、
-                 不出左栏。 */
+                 ±3°、缩小 .99/.97，底色按位置递进灰化；切换时主卡滑出淡出，
+                 下一张 transform/颜色/阴影过渡顶上来。容器右下留出 24/28px
+                 余量，后层边缘不顶分区标题、不出左栏。 */
               <div className="fw-deck">
-                {decisions.length > 1 && (
-                  <div className="fw-deck-back" data-layer="1" aria-hidden="true" />
-                )}
-                {decisions.length > 2 && (
-                  <div className="fw-deck-back" data-layer="2" aria-hidden="true" />
-                )}
-                <details className="fw-rail-decision fw-deck-front">
-                  <summary>
-                    <span className="fm-dot" data-s="waiting" />
-                    <span className="fw-rail-decision-main">
-                      <b>{decisions[0].title}</b>
-                      <small>{decisions[0].hint}</small>
-                    </span>
-                  </summary>
-                  <div className="fw-rail-decision-body">
-                    <p>{decisions[0].detail}</p>
-                    <div className="fw-rail-decision-acts">
-                      <button type="button" className="fw-decide-btn" data-kind="done"
-                              onClick={() => onDecide(decisions[0].wfId, decisions[0].id, 'done')}>通过</button>
-                      <button type="button" className="fw-decide-btn" data-kind="rework"
-                              onClick={() => onDecide(decisions[0].wfId, decisions[0].id, 'rework')}>要改</button>
-                    </div>
-                    <button type="button" className="fw-rail-decision-more"
-                            onClick={() => { if (workflowId) onOpenWorkflowEditor?.(workflowId) }}>打开工作流查看详情</button>
-                  </div>
-                </details>
+                {decisions.slice(0, 3).map((d, i) => {
+                  const front = i === 0
+                  return (
+                    <details key={d.id} className="fw-rail-decision fw-deck-card" data-pos={i}
+                             data-leaving={leaving?.id === d.id || undefined}
+                             aria-hidden={front ? undefined : true}>
+                      <summary>
+                        <span className="fm-dot" data-s="waiting" />
+                        <span className="fw-rail-decision-main">
+                          <b>{d.title}</b>
+                          <small>{d.hint}</small>
+                        </span>
+                      </summary>
+                      {front && (
+                        <div className="fw-rail-decision-body">
+                          <p>{d.detail}</p>
+                          <div className="fw-rail-decision-acts">
+                            <button type="button" className="fw-decide-btn" data-kind="done" disabled={leaving !== null}
+                                    onClick={() => handleDecide(d, 'done')}>通过</button>
+                            <button type="button" className="fw-decide-btn" data-kind="rework" disabled={leaving !== null}
+                                    onClick={() => handleDecide(d, 'rework')}>要改</button>
+                          </div>
+                          <button type="button" className="fw-rail-decision-more"
+                                  onClick={() => { if (workflowId) onOpenWorkflowEditor?.(workflowId) }}>打开工作流查看详情</button>
+                        </div>
+                      )}
+                    </details>
+                  )
+                })}
               </div>
             )}
           </section>
