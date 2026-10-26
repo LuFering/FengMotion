@@ -833,10 +833,12 @@ function ProjectRail({ projectName, open, onClose, tab, onTab,
     onOpenWorkflowEditor?: (workflowId: string) => void
     creation?: ReactNode }) {
   /* 牌堆交互（无大卡片）：牌堆态与列表态是同一批卡片节点在两种形态间切换。
-     牌堆态：下方控制区圆点选哪张在最前，点主卡或展开键散开成列表；
+     牌堆态：下方 ‹ › 切换最前卡（循环，中间带计数），点主卡散开成列表；
      列表态：每张小卡右侧 › 键开弹窗看详情、做结论，控制区只剩聚拢键；
      形态切换用 FLIP（切换前量位置、切换后反向位移再过渡回自然位置），
-     与切换动效同一套过渡（transform/背景/阴影/标题色）。 */
+     与切换动效同一套过渡（transform/背景/阴影/标题色）。
+     卡片尺寸固定：小卡高度写死、内容裁切（标题单行省略、提示最多两行），
+     最前卡矮、后层卡长时也不再从牌堆底下漏字。 */
   const [leaving, setLeaving] = useState<{ id: string; verdict: 'done' | 'rework' } | null>(null)
   const [removing, setRemoving] = useState<string | null>(null)
   const [listOpen, setListOpen] = useState(false)
@@ -857,9 +859,14 @@ function ProjectRail({ projectName, open, onClose, tab, onTab,
     return () => window.removeEventListener('keydown', onKey)
   }, [modal])
   const effectiveFrontId = frontId && decisions.some((d) => d.id === frontId) ? frontId : null
+  const frontIndex = effectiveFrontId ? decisions.findIndex((d) => d.id === effectiveFrontId) : 0
   const ordered = effectiveFrontId
     ? [...decisions.filter((d) => d.id === effectiveFrontId), ...decisions.filter((d) => d.id !== effectiveFrontId)]
     : decisions
+  const stepFront = (dir: 1 | -1) => {
+    if (decisions.length <= 1) return
+    setFrontId(decisions[(frontIndex + dir + decisions.length) % decisions.length].id)
+  }
   const shown = listOpen ? ordered : ordered.slice(0, 3)
   const captureFlip = () => {
     const deckEl = deckRef.current
@@ -981,16 +988,13 @@ function ProjectRail({ projectName, open, onClose, tab, onTab,
                 {listOpen ? (
                   <button type="button" className="fw-deck-gather" onClick={() => toggleList(false)}>聚拢 ↑</button>
                 ) : (
-                  <>
-                    <span className="fw-deck-dots">
-                      {decisions.map((d) => (
-                        <button key={d.id} type="button" className="fw-deck-dot"
-                                data-active={(effectiveFrontId ? d.id === effectiveFrontId : d.id === decisions[0]?.id) || undefined}
-                                aria-label={`看${d.title}`} onClick={() => setFrontId(d.id)} />
-                      ))}
-                    </span>
-                    <button type="button" className="fw-deck-expand" onClick={() => toggleList(true)}>展开列表 ▾</button>
-                  </>
+                  <span className="fw-deck-switch">
+                    <button type="button" className="fw-deck-switch-btn" aria-label="上一张"
+                            disabled={decisions.length <= 1} onClick={() => stepFront(-1)}>‹</button>
+                    <span className="fw-deck-switch-count">{frontIndex + 1} / {decisions.length}</span>
+                    <button type="button" className="fw-deck-switch-btn" aria-label="下一张"
+                            disabled={decisions.length <= 1} onClick={() => stepFront(1)}>›</button>
+                  </span>
                 )}
               </div>
               {modal && (
