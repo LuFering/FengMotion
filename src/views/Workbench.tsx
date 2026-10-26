@@ -859,15 +859,24 @@ function ProjectRail({ projectName, open, onClose, tab, onTab,
     return () => window.removeEventListener('keydown', onKey)
   }, [modal])
   const effectiveFrontId = frontId && decisions.some((d) => d.id === frontId) ? frontId : null
-  const frontIndex = effectiveFrontId ? decisions.findIndex((d) => d.id === effectiveFrontId) : 0
-  const ordered = effectiveFrontId
-    ? [...decisions.filter((d) => d.id === effectiveFrontId), ...decisions.filter((d) => d.id !== effectiveFrontId)]
+  const frontCardId = effectiveFrontId ?? decisions[0]?.id
+  const frontIndex = frontCardId ? decisions.findIndex((d) => d.id === frontCardId) : 0
+  const ordered = frontCardId
+    ? [...decisions.filter((d) => d.id === frontCardId), ...decisions.filter((d) => d.id !== frontCardId)]
     : decisions
   const stepFront = (dir: 1 | -1) => {
     if (decisions.length <= 1) return
     setFrontId(decisions[(frontIndex + dir + decisions.length) % decisions.length].id)
   }
-  const shown = listOpen ? ordered : ordered.slice(0, 3)
+  /* 牌堆态 DOM 顺序固定为原始顺序，只用 data-pos 换前后——切卡时不挪节点，
+     否则被挪的节点会丢过渡（实测：旧卡 30ms 就跳到最终位置，新卡却正常过渡）。
+     pos 超出 2 的卡停在后层同位但透明（data-parked），切到它时同样有过渡。 */
+  const nonFront = decisions.filter((d) => d.id !== frontCardId)
+  const stackCards = decisions.map((d) => {
+    const pos = d.id === frontCardId ? 0 : 1 + nonFront.findIndex((x) => x.id === d.id)
+    return { d, pos: pos <= 2 ? pos : 2, parked: pos > 2 }
+  })
+  const shown = listOpen ? ordered.map((d) => ({ d, pos: undefined as number | undefined, parked: false })) : stackCards
   const captureFlip = () => {
     const deckEl = deckRef.current
     if (!deckEl) return
@@ -964,11 +973,12 @@ function ProjectRail({ projectName, open, onClose, tab, onTab,
                  共用同一批卡片节点；详情只在弹窗里，不再有展开的大卡片。 */
               <>
               <div className={`fw-deck${listOpen ? ' is-list' : ''}`} ref={deckRef}>
-                {shown.map((d, i) => {
-                  const front = !listOpen && i === 0
+                {shown.map(({ d, pos, parked }) => {
+                  const front = !listOpen && pos === 0
                   return (
                     <div key={d.id} data-id={d.id} className="fw-rail-decision fw-deck-card"
-                         data-pos={listOpen ? undefined : i}
+                         data-pos={pos}
+                         data-parked={parked || undefined}
                          data-leaving={leaving?.id === d.id || undefined}
                          data-removing={removing === d.id || undefined}
                          aria-hidden={!listOpen && !front ? true : undefined}

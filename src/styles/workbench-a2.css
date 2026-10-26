@@ -1127,6 +1127,7 @@ html[data-theme="light"] #pane-flow .wb-a2 .fw-panel { box-shadow: 0 8px 24px rg
 #pane-flow .wb-a2 .fw-deck-card[data-pos="0"] { cursor: pointer; }
 #pane-flow .wb-a2 .fw-deck-card[data-pos="1"] .fw-deck-marker,
 #pane-flow .wb-a2 .fw-deck-card[data-pos="2"] .fw-deck-marker { visibility: hidden; }
+#pane-flow .wb-a2 .fw-deck-card[data-parked] { opacity: 0; }
 #pane-flow .wb-a2 .fw-deck.is-list { margin-bottom: 12px; }
 #pane-flow .wb-a2 .fw-deck.is-list .fw-deck-card {
   position: relative; inset: auto; transform: none; margin-bottom: 6px;
