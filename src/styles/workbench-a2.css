@@ -1055,9 +1055,12 @@ html[data-theme="light"] #pane-flow .wb-a2 .fw-panel { box-shadow: 0 8px 24px rg
    上一版失败点：后层内容 visibility:hidden 后高度塌成细条、往上错开
    顶到分区标题、透明度提亮后在深色底上看不清。
    这版修正：后层与主卡同尺寸（absolute inset:0 贴合主卡高度），只往
-   右下错开（10/16px，-2°/+2°），容器右下留足余量；后层用递进的
+   右下错开（10/16px，-3°/+3°），容器右下留足余量；后层用递进的
    浅灰实色填充、不用透明度虚化，边框用 --line2 保证三主题下都可辨；
-   主卡正常显示、不旋转，带清晰边缘与轻微阴影。 */
+   主卡正常显示、不旋转，带清晰边缘与轻微阴影。
+   拟真版（用户嫌上一版不够拟真）：每层加递进轻阴影、后层轻微缩小
+   （.99/.97）出远近感、纸边上沿高光模拟纸张厚度；仍克制，无重阴影
+   与 3D 透视。 */
 #pane-flow .wb-a2 .fw-deck {
   position: relative;
   margin: 4px 24px 28px 10px;
@@ -1065,21 +1068,27 @@ html[data-theme="light"] #pane-flow .wb-a2 .fw-panel { box-shadow: 0 8px 24px rg
 #pane-flow .wb-a2 .fw-deck-front {
   position: relative; z-index: 3;
   margin-bottom: 0;
-  box-shadow: 0 2px 8px rgb(0 0 0 / .08);
+  box-shadow: 0 4px 14px rgb(0 0 0 / .12);
 }
 #pane-flow .wb-a2 .fw-deck-back {
   position: absolute; inset: 0; z-index: 1;
   border-radius: var(--r-card);
   border: 1px solid var(--line2);
+  /* 纸边高光：上沿 catch 一点光，模拟纸张厚度 */
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--tx) 14%, transparent);
   pointer-events: none;
 }
 #pane-flow .wb-a2 .fw-deck-back[data-layer="1"] {
   z-index: 2;
-  transform: translate(10px, 10px) rotate(-2deg);
+  transform: translate(10px, 10px) rotate(-3deg) scale(.99);
   background: color-mix(in srgb, var(--panel2) 80%, #8a8f98 20%);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--tx) 14%, transparent),
+              0 3px 10px rgb(0 0 0 / .10);
 }
 #pane-flow .wb-a2 .fw-deck-back[data-layer="2"] {
   z-index: 1;
-  transform: translate(16px, 16px) rotate(2deg);
+  transform: translate(16px, 16px) rotate(3deg) scale(.97);
   background: color-mix(in srgb, var(--panel2) 60%, #8a8f98 40%);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--tx) 14%, transparent),
+              0 2px 8px rgb(0 0 0 / .08);
 }
