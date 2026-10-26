@@ -15,7 +15,8 @@ import { ACTIVE_DURATION, FILM_FPS, FILM_HEIGHT, FILM_WIDTH } from '@/data/timel
 import { useAgentTasks, type TaskRecord } from '@/hooks/useAgentTasks'
 import type { AgentReference, AgentTask, ModificationConstraints, ProjectVersion, TaskRequest } from '@/services/studioApi'
 import { studioAdapter } from '@/services/studioAdapter'
-import { workflowService } from '@/services/workflowService'
+import { evaluateGate, GATE_PRIMARY_KIND, workflowService } from '@/services/workflowService'
+import { GATE_DEFS } from '@/data/workflowTemplates'
 import type { ChatState } from '@/shell/useChat'
 import { statusOf } from '@/shell/status'
 import { FilmPlayer, type PlayerRef } from '@/remotion/FilmPlayer'
@@ -130,24 +131,66 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
   const refreshWorkflow = () => {
     if (workflow) setWorkflow(workflowService.getWorkflow(workflow.id))
   }
-  /* 看片确认：Prompt-first 的用户决策点。
-     checks.done = 通过；checks.rework = 要改（写回节点，工作流编辑器同一份状态）。 */
-  const reviewNode = workflow?.nodes.find((n) => n.type === 'review') ?? null
-  const reviewChecks = (reviewNode?.params.checks ?? {}) as Record<string, boolean>
-  const reviewDecided = Boolean(reviewChecks.done || reviewChecks.rework)
-  void reviewDecided
-  const decideReview = (key: 'done' | 'rework') => {
-    if (!workflow || !reviewNode) return
-    const nextChecks = { ...reviewChecks, [key]: true }
-    workflowService.saveWorkflow(workflow.id, {
-      nodes: workflow.nodes.map((n) =>
-        n.id === reviewNode.id
-          ? { ...n, params: { ...n.params, checks: nextChecks, decidedAt: new Date().toISOString() } }
-          : n),
-      edges: workflow.edges,
+  /* 待你决定：本项目所有工作流里真正等你拍板的节点。
+     Prompt-first 的看片结论 + Structured 的门禁（Gate，pending 态）。
+     没有数据就不出现，不编造待办；结论写回各自节点，与工作流编辑器
+     读同一份状态。上一版堆叠把 Gate 的结论写进了 status 字段，
+     而 evaluateGate 只读 decision——通过后卡片根本不会离开待办，
+     这次按 decision/confirmedFor 写，与编辑器确认卡同一口径。
+     渲染里不直接读存储：快照 state 由决定写回时刷新，视图切换重挂载
+     时重取，计算本身是快照的纯函数。 */
+  type Decision = { wfId: string; id: string; title: string; hint: string; detail: string }
+  const [workflowsSnapshot, setWorkflowsSnapshot] = useState(() => workflowService.listWorkflows())
+  const decisions = useMemo(() => {
+    if (!projectId) return []
+    const out: Decision[] = []
+    workflowsSnapshot
+      .filter((w) => w.projectId === projectId)
+      .forEach((w) => {
+        w.nodes.forEach((n) => {
+          if (n.type === 'review') {
+            const c = (n.params.checks ?? {}) as Record<string, boolean>
+            if (c.done || c.rework) return
+            out.push({
+              wfId: w.id, id: n.id, title: '看片与修改',
+              hint: '对着预览给出结论：通过，或指出要改的地方',
+              detail: '结论会写进工作流的看片节点，后续制作按它执行。',
+            })
+          }
+          if (n.type === 'gate') {
+            if (n.params.rework) return
+            const ev = evaluateGate(w, n)
+            if (ev.decision !== 'pending') return
+            out.push({
+              wfId: w.id, id: n.id, title: ev.label,
+              hint: ev.blocked.length ? ev.blocked.join('；') : '等待你确认',
+              detail: GATE_DEFS[String(n.params.gate ?? '')]?.question ?? '确认这一层的产物是否成立。',
+            })
+          }
+        })
+      })
+    return out
+  }, [projectId, workflowsSnapshot])
+  const decideNode = (wfId: string, nodeId: string, verdict: 'done' | 'rework') => {
+    const target = workflowService.getWorkflow(wfId)
+    if (!target || !target.nodes.some((n) => n.id === nodeId)) return
+    workflowService.saveWorkflow(target.id, {
+      nodes: target.nodes.map((n) => {
+        if (n.id !== nodeId) return n
+        if (n.type === 'review') {
+          return { ...n, params: { ...n.params, checks: { ...(n.params.checks as Record<string, boolean> | undefined), [verdict]: true }, decidedAt: new Date().toISOString() } }
+        }
+        const primaryKind = GATE_PRIMARY_KIND[String(n.params.gate ?? '')] ?? ''
+        const primary = target.nodes.find((m) => m.type === 'artifact' && String(m.params.kind ?? '') === primaryKind)
+        return { ...n, params: verdict === 'done'
+          ? { ...n.params, decision: 'confirmed', confirmedFor: { kind: primaryKind, version: String(primary?.params.version ?? '') }, decidedAt: new Date().toISOString() }
+          : { ...n.params, decision: 'not-started', rework: true, decidedAt: new Date().toISOString() } }
+      }),
+      edges: target.edges,
     })
-    refreshWorkflow()
-    setNotice(key === 'done' ? '看片通过，已记录到工作流。' : '已标记需要修改，工作流已更新。')
+    if (workflow && workflow.id === target.id) refreshWorkflow()
+    setWorkflowsSnapshot(workflowService.listWorkflows())
+    setNotice(verdict === 'done' ? '已确认，记录到工作流。' : '已标记需要修改。')
   }
   const [selectedId, setSelectedId] = useState('s01')
   const [selectedStoryboardId, setSelectedStoryboardId] = useState<string | null>(null)
@@ -553,7 +596,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
                      references={references}
                      onRemoveReference={removeReference} onLocateReference={locateReference}
                      onToggleReferenceRole={toggleReferenceRole} onClearReferences={clearReferences}
-                     review={{ decided: reviewDecided, onDecide: decideReview }}
+                     decisions={decisions} onDecide={decideNode}
                      workflowId={workflow?.id ?? null}
                      onOpenWorkflowEditor={onOpenWorkflowEditor}
                      creation={launch ? (
@@ -777,14 +820,15 @@ function ArtifactIcon({ type }: { type: WorkbenchArtifact['type'] }) {
 function ProjectRail({ projectName, open, onClose, tab, onTab,
   selectedArtifactId, onSelectArtifact, references,
   onRemoveReference, onLocateReference, onToggleReferenceRole, onClearReferences,
-  review, workflowId, onOpenWorkflowEditor, creation }:
+  decisions, onDecide, workflowId, onOpenWorkflowEditor, creation }:
   { projectName: string; open: boolean; onClose: () => void
     tab: 'structure' | 'artifacts'; onTab: (tab: 'structure' | 'artifacts') => void
     selectedArtifactId: string | null; onSelectArtifact: (id: string) => void
     references: AgentReference[]
     onRemoveReference: (id: string) => void; onLocateReference: (ref: AgentReference) => void
     onToggleReferenceRole: (id: string) => void; onClearReferences: () => void
-    review: { decided: boolean; onDecide: (key: 'done' | 'rework') => void }
+    decisions: { wfId: string; id: string; title: string; hint: string; detail: string }[]
+    onDecide: (wfId: string, nodeId: string, verdict: 'done' | 'rework') => void
     workflowId: string | null
     onOpenWorkflowEditor?: (workflowId: string) => void
     creation?: ReactNode }) {
@@ -794,7 +838,7 @@ function ProjectRail({ projectName, open, onClose, tab, onTab,
       <div className="fw-ing-hd">
         <h2>{tab === 'structure' ? '概览' : '产物'}</h2>
         <span className="fw-count">{tab === 'structure'
-          ? `${(review.decided ? 0 : 1) + references.length} 项`
+          ? `${decisions.length + references.length} 项`
           : `${WORKBENCH_ARTIFACTS.length}`}</span>
         <span className="spacer" />
         <button className="iconbtn fw-mobile" type="button" title="收起" onClick={onClose}>
@@ -826,31 +870,44 @@ function ProjectRail({ projectName, open, onClose, tab, onTab,
           <section>
             <div className="fw-scene-hd">
               <span>待你决定</span><span className="spacer" />
-              <span className="hint">{review.decided ? 0 : 1}</span>
+              <span className="hint">{decisions.length}</span>
             </div>
-            {review.decided ? (
-              <p className="fw-rail-none">这一轮看片已有结论，可继续下一轮制作。</p>
+            {decisions.length === 0 ? (
+              <p className="fw-rail-none">这一轮的事都已定下，可以继续下一轮制作。</p>
             ) : (
-              <details className="fw-rail-decision">
-                <summary>
-                  <span className="fm-dot" data-s="waiting" />
-                  <span className="fw-rail-decision-main">
-                    <b>看片与修改</b>
-                    <small>对着预览给出结论：通过，或指出要改的地方</small>
-                  </span>
-                </summary>
-                <div className="fw-rail-decision-body">
-                  <p>看完当前预览后给出结论。结论会写进工作流的看片节点，后续制作按它执行。</p>
-                  <div className="fw-rail-decision-acts">
-                    <button type="button" className="fw-decide-btn" data-kind="done"
-                            onClick={() => review.onDecide('done')}>通过</button>
-                    <button type="button" className="fw-decide-btn" data-kind="rework"
-                            onClick={() => review.onDecide('rework')}>要改</button>
+              /* 多条决定叠成牌堆：最前方一张正常显示、不旋转；后面 1–2 张
+                 与主卡同尺寸、绝对定位贴合主卡，往右下错开 10/16px 并带
+                 -2°/+2°，用递进的浅灰实色填充（不用透明度虚化），只露边
+                 不露字。容器右下留出 24/28px 余量，后层边缘不顶分区标题、
+                 不出左栏。 */
+              <div className="fw-deck">
+                {decisions.length > 1 && (
+                  <div className="fw-deck-back" data-layer="1" aria-hidden="true" />
+                )}
+                {decisions.length > 2 && (
+                  <div className="fw-deck-back" data-layer="2" aria-hidden="true" />
+                )}
+                <details className="fw-rail-decision fw-deck-front">
+                  <summary>
+                    <span className="fm-dot" data-s="waiting" />
+                    <span className="fw-rail-decision-main">
+                      <b>{decisions[0].title}</b>
+                      <small>{decisions[0].hint}</small>
+                    </span>
+                  </summary>
+                  <div className="fw-rail-decision-body">
+                    <p>{decisions[0].detail}</p>
+                    <div className="fw-rail-decision-acts">
+                      <button type="button" className="fw-decide-btn" data-kind="done"
+                              onClick={() => onDecide(decisions[0].wfId, decisions[0].id, 'done')}>通过</button>
+                      <button type="button" className="fw-decide-btn" data-kind="rework"
+                              onClick={() => onDecide(decisions[0].wfId, decisions[0].id, 'rework')}>要改</button>
+                    </div>
+                    <button type="button" className="fw-rail-decision-more"
+                            onClick={() => { if (workflowId) onOpenWorkflowEditor?.(workflowId) }}>打开工作流查看详情</button>
                   </div>
-                  <button type="button" className="fw-rail-decision-more"
-                          onClick={() => { if (workflowId) onOpenWorkflowEditor?.(workflowId) }}>打开工作流查看详情</button>
-                </div>
-              </details>
+                </details>
+              </div>
             )}
           </section>
 

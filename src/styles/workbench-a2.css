@@ -1050,3 +1050,36 @@ html[data-theme="dark"] #pane-flow .wb-a2 .fw-ing,
 html[data-theme="dark"] #pane-flow .wb-a2 .fw-panel { box-shadow: 0 8px 24px rgba(0, 0, 0, .22); }
 html[data-theme="light"] #pane-flow .wb-a2 .fw-ing,
 html[data-theme="light"] #pane-flow .wb-a2 .fw-panel { box-shadow: 0 8px 24px rgba(30, 30, 60, .10); }
+
+/* ── 待决定牌堆（feat/card-stack）────────────────────────────────
+   上一版失败点：后层内容 visibility:hidden 后高度塌成细条、往上错开
+   顶到分区标题、透明度提亮后在深色底上看不清。
+   这版修正：后层与主卡同尺寸（absolute inset:0 贴合主卡高度），只往
+   右下错开（10/16px，-2°/+2°），容器右下留足余量；后层用递进的
+   浅灰实色填充、不用透明度虚化，边框用 --line2 保证三主题下都可辨；
+   主卡正常显示、不旋转，带清晰边缘与轻微阴影。 */
+#pane-flow .wb-a2 .fw-deck {
+  position: relative;
+  margin: 4px 24px 28px 10px;
+}
+#pane-flow .wb-a2 .fw-deck-front {
+  position: relative; z-index: 3;
+  margin-bottom: 0;
+  box-shadow: 0 2px 8px rgb(0 0 0 / .08);
+}
+#pane-flow .wb-a2 .fw-deck-back {
+  position: absolute; inset: 0; z-index: 1;
+  border-radius: var(--r-card);
+  border: 1px solid var(--line2);
+  pointer-events: none;
+}
+#pane-flow .wb-a2 .fw-deck-back[data-layer="1"] {
+  z-index: 2;
+  transform: translate(10px, 10px) rotate(-2deg);
+  background: color-mix(in srgb, var(--panel2) 80%, #8a8f98 20%);
+}
+#pane-flow .wb-a2 .fw-deck-back[data-layer="2"] {
+  z-index: 1;
+  transform: translate(16px, 16px) rotate(2deg);
+  background: color-mix(in srgb, var(--panel2) 60%, #8a8f98 40%);
+}
