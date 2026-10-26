@@ -13,7 +13,7 @@ import type { StoryboardEntry } from '@/data/projectModel'
 import { ARTIFACT_STATUS_LABEL, ARTIFACT_TYPE_LABEL, WORKBENCH_ARTIFACTS, type WorkbenchArtifact } from '@/data/workbenchArtifacts'
 import { ACTIVE_DURATION, FILM_FPS, FILM_HEIGHT, FILM_WIDTH } from '@/data/timeline'
 import { useAgentTasks, type TaskRecord } from '@/hooks/useAgentTasks'
-import type { AgentReference, AgentTask, ModificationConstraints, ProjectVersion, TaskRequest, TaskStatus } from '@/services/studioApi'
+import type { AgentReference, AgentTask, ModificationConstraints, ProjectVersion, TaskRequest } from '@/services/studioApi'
 import { studioAdapter } from '@/services/studioAdapter'
 import { evaluateGate, GATE_PRIMARY_KIND, workflowService } from '@/services/workflowService'
 import { GATE_DEFS } from '@/data/workflowTemplates'
@@ -65,14 +65,6 @@ type SideTab = 'scene' | 'chat' | 'task' | 'edit' | 'settings'
 const BUILD_LABEL: Record<string, string> = {
   'not-run': '未构建', passed: '构建通过', failed: '构建失败',
 }
-
-/** 状态栏那颗圆点的语义键：文字与圆点必须说同一件事。
-    原先圆点只看「有没有 active 任务」，而 activeTaskId 从不清空 ——
-    任务跑完之后文字是「已完成」、圆点却还是进行中的橙色。 */
-const statusDotOf = (status: TaskStatus | undefined) =>
-  status === 'queued' || status === 'running' || status === 'building' ? 'running'
-    : status === 'failed' ? 'failed'
-    : undefined
 
 type ConstraintKey = 'preserveCamera' | 'preserveCaptions' | 'limitToSelection' | 'reuseExistingComponents'
 
@@ -782,7 +774,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
       {/* ═══ 基岛：状态栏（独立胶囊，不铺整条底板）═══════════════ */}
       <div className="wb-statusbar">
         <span className="wb-status-chip">
-          <i className="wb-status-dot" data-s={statusDotOf(tasks.active?.task.status)} />
+          <i className="wb-status-dot" data-s={tasks.active ? 'running' : 'ok'} />
           {tasks.active ? (TASK_STATUS_LABEL[tasks.active.task.status] ?? tasks.active.task.status) : '就绪'}
         </span>
         <button className="wb-status-chip is-btn" type="button" aria-pressed={trayOpen}

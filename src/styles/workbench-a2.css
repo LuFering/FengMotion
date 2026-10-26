@@ -863,8 +863,6 @@
 #pane-flow .wb-a2 .wb-status-chip.is-quiet { color: var(--tx3); }
 #pane-flow .wb-a2 .wb-status-dot { width: 5px; height: 5px; flex: 0 0 5px; border-radius: 50%; background: var(--ok); }
 #pane-flow .wb-a2 .wb-status-dot[data-s="running"] { background: var(--mark); }
-/* 失败必须有自己的颜色：没有这条规则时它会落回默认的绿色（= 一切正常）。 */
-#pane-flow .wb-a2 .wb-status-dot[data-s="failed"] { background: var(--bad); }
 
 /* ── 动效（Emil / A2 §7）────────────────────────────────── */
 @keyframes wbRiseIn {
