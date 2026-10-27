@@ -1,12 +1,13 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
   ArrowDownToLine, ArrowLeftRight, ArrowUpRight, BookOpen, Check,
-  ChevronDown, ChevronLeft, Clock3, FileCode2, FileText, FolderOpen, History, ListTree, LoaderCircle, Maximize2, MessagesSquare,
+  ChevronDown, ChevronLeft, Clock3, FileCode2, FileText, Film, FolderOpen, History,
+  Image as ImageIcon, ListTree, LoaderCircle, Maximize2, MessagesSquare, Music2, Type as TypeIcon,
   ShieldCheck,
   PanelBottom, Pause, Play, Plus, RotateCcw, Send, Settings2,
   SkipBack, SkipForward, Square, Volume2, X,
 } from 'lucide-react'
-import { CreationTaskPanel } from './CreationTask'
+import { RailProgressPanel } from './RailProgress'
 import { ACTIVE_SCENES, SCENES } from '@/data/projectModel'
 import { PROJECTS, type ProjectSummary } from '@/data/projects'
 import type { StoryboardEntry } from '@/data/projectModel'
@@ -17,8 +18,12 @@ import type { AgentReference, AgentTask, ModificationConstraints, ProjectVersion
 import { studioAdapter } from '@/services/studioAdapter'
 import { evaluateGate, GATE_PRIMARY_KIND, workflowService } from '@/services/workflowService'
 import { GATE_DEFS } from '@/data/workflowTemplates'
+import { contentOutline, type ContentOutline, type ContentRow } from '@/data/contentOutline'
+import { hasOwnPicture, materialShelves, type MaterialFile, type MaterialShelf } from '@/data/materialDeck'
+import { BUILTIN_ASSETS } from '@/data/myAssets'
+import { RequirementStage } from './RequirementStage'
 import type { ChatState } from '@/shell/useChat'
-import { statusOf } from '@/shell/status'
+import { fmtClock, fmtDay, statusOf, TASK_STATUS_LABEL } from '@/shell/status'
 import { FilmPlayer, type PlayerRef } from '@/remotion/FilmPlayer'
 import { StoryTimeline } from '@/views/StoryTimeline'
 import { RemotionEditPanel, RemotionEditPreview } from '@/views/RemotionEditPanel'
@@ -61,10 +66,8 @@ const scenePreviewOffset = (durationFrames: number) =>
 
 type SideTab = 'scene' | 'chat' | 'task' | 'edit' | 'settings'
 
-const TASK_STATUS_LABEL: Record<string, string> = {
-  queued: '排队中', running: '执行中', building: '构建中',
-  completed: '已完成', cancelled: '已停止', failed: '失败',
-}
+/** 左栏的四个页签：概览（要你决定的事）/ 产物 / 内容（这部片有哪些画面）/ 资料。 */
+type RailTab = 'overview' | 'artifacts' | 'content' | 'materials'
 
 type ConstraintKey = 'preserveCamera' | 'preserveCaptions' | 'limitToSelection' | 'reuseExistingComponents'
 
@@ -139,7 +142,10 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
      这次按 decision/confirmedFor 写，与编辑器确认卡同一口径。
      渲染里不直接读存储：快照 state 由决定写回时刷新，视图切换重挂载
      时重取，计算本身是快照的纯函数。 */
-  type Decision = { wfId: string; id: string; title: string; hint: string; detail: string }
+  /* id 必须带上工作流：节点 id 在各自图里唯一，但跨工作流会重名（每个 prompt-first
+     图都叫 n-review）。牌堆是按 id 认卡的，重名会让两张卡被当成同一张、只渲染出一张。
+     写回工作流时要的是原始 nodeId，所以两个字段分开存，不要合成一个。 */
+  type Decision = { wfId: string; nodeId: string; id: string; title: string; hint: string; detail: string }
   const [workflowsSnapshot, setWorkflowsSnapshot] = useState(() => workflowService.listWorkflows())
   const decisions = useMemo(() => {
     if (!projectId) return []
@@ -152,7 +158,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
             const c = (n.params.checks ?? {}) as Record<string, boolean>
             if (c.done || c.rework) return
             out.push({
-              wfId: w.id, id: n.id, title: '看片与修改',
+              wfId: w.id, nodeId: n.id, id: `${w.id}:${n.id}`, title: '看片与修改',
               hint: '对着预览给出结论：通过，或指出要改的地方',
               detail: '结论会写进工作流的看片节点，后续制作按它执行。',
             })
@@ -162,7 +168,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
             const ev = evaluateGate(w, n)
             if (ev.decision !== 'pending') return
             out.push({
-              wfId: w.id, id: n.id, title: ev.label,
+              wfId: w.id, nodeId: n.id, id: `${w.id}:${n.id}`, title: ev.label,
               hint: ev.blocked.length ? ev.blocked.join('；') : '等待你确认',
               detail: GATE_DEFS[String(n.params.gate ?? '')]?.question ?? '确认这一层的产物是否成立。',
             })
@@ -176,7 +182,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
      不进这里（它回工作流返工）。 */
   const confirmed = useMemo(() => {
     if (!projectId) return []
-    const out: { id: string; title: string; meta: string; decidedAt: string }[] = []
+    const out: { id: string; title: string; hint: string; decidedAt: string }[] = []
     workflowsSnapshot
       .filter((w) => w.projectId === projectId)
       .forEach((w) => {
@@ -185,21 +191,26 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
             const c = (n.params.checks ?? {}) as Record<string, boolean>
             if (!c.done) return
             const day = fmtDay(String(n.params.decidedAt ?? ''))
-            out.push({ id: n.id, title: '看片与修改', meta: `已通过${day ? ` · ${day}` : ''}`, decidedAt: String(n.params.decidedAt ?? '') })
+            out.push({ id: `${w.id}:${n.id}`, title: '看片与修改', hint: `已通过${day ? ` · ${day}` : ''}`, decidedAt: String(n.params.decidedAt ?? '') })
           }
           if (n.type === 'gate') {
             if (n.params.decision !== 'confirmed') return
             const ev = evaluateGate(w, n)
             const cf = (n.params.confirmedFor ?? {}) as { kind?: string; version?: string }
             const day = fmtDay(String(n.params.decidedAt ?? ''))
-            out.push({ id: n.id, title: ev.label, meta: `已确认${cf.version ? ` · ${cf.version}` : ''}${day ? ` · ${day}` : ''}`, decidedAt: String(n.params.decidedAt ?? '') })
+            out.push({ id: `${w.id}:${n.id}`, title: ev.label, hint: `已确认${cf.version ? ` · ${cf.version}` : ''}${day ? ` · ${day}` : ''}`, decidedAt: String(n.params.decidedAt ?? '') })
           }
         })
       })
     out.sort((a, b) => (b.decidedAt || '').localeCompare(a.decidedAt || ''))
     return out
   }, [projectId, workflowsSnapshot])
-  const confirmedShown = confirmed.slice(0, 3)
+  /* 当前进度卡跟着「最近更新的那个工作流」走 —— 与上面两份快照同一来源，
+     决定写回后快照刷新，卡片里的「看片有没有留下结论」才能跟着变。 */
+  const progressWorkflow = useMemo(
+    () => workflowsSnapshot.find((w) => w.projectId === projectId) ?? null,
+    [projectId, workflowsSnapshot],
+  )
   const decideNode = (wfId: string, nodeId: string, verdict: 'done' | 'rework') => {
     const target = workflowService.getWorkflow(wfId)
     if (!target || !target.nodes.some((n) => n.id === nodeId)) return
@@ -225,7 +236,51 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
   const [selectedStoryboardId, setSelectedStoryboardId] = useState<string | null>(null)
   // 调试直达：?artifact=artifact-content-contract 直接打开产物只读视图。
   const initialArtifact = new URLSearchParams(window.location.search).get('artifact')
-  const [railTab, setRailTab] = useState<'structure' | 'artifacts'>(initialArtifact ? 'artifacts' : 'structure')
+  const [railTab, setRailTab] = useState<RailTab>(initialArtifact ? 'artifacts' : 'overview')
+  /** 资料页开着哪一格（素材 / 参考 / 缺失）；内容行缺素材时也会把「素材」打开 */
+  const [openShelf, setOpenShelf] = useState<string | null>(null)
+  /* 「正在制作」：AI 任务此刻在哪个内容上。只认真的还在跑的状态（排队/执行/构建）——
+     完成、停止、失败都不算在跑，整块随卡片一起不显示，左栏不常驻「暂无任务」。
+     内容名取这次请求的目标引用：内容单元用自己的名字，整片级任务说「整片」，
+     目标是渲染切片时说「当前预览画面」（那是这条片这次怎么渲的，不冒充内容）。 */
+  const liveTask = useMemo(() => {
+    const record = tasks.active
+    if (!record || !['queued', 'running', 'building'].includes(record.task.status)) return null
+    const target = record.request?.references?.find((ref) => ref.role === 'target')
+    const label = target?.kind === 'scene' ? target.label
+      : !target || target.kind === 'project' ? '整片'
+      : '当前预览画面'
+    return { label, state: TASK_STATUS_LABEL[record.task.status] ?? record.task.status }
+  }, [tasks.active])
+
+  /* 中栏显示什么，看这个项目**真的有没有画面文件** ——
+     没有就换成「创作需求 + 参考素材」，不拿项目里那份旧片或任何占位视频冒充产出
+     （作者的表：刚开始这一阶段，无画面时不要放假视频）。 */
+  const hasPicture = useMemo(() => hasOwnPicture(projectId), [projectId])
+  /* 需求原文：工作流提示词节点里用户真正提的那句话 */
+  const promptText = useMemo(
+    () => String(progressWorkflow?.nodes.find((n) => n.type === 'prompt')?.params.text ?? ''),
+    [progressWorkflow],
+  )
+  /* 参考：引用节点真实绑定的素材（有缩略图就给缩略图） */
+  const referenceAssets = useMemo(() => {
+    const ids = new Set((progressWorkflow?.nodes.find((n) => n.type === 'refs')?.params.assetIds as string[] | undefined) ?? [])
+    return BUILTIN_ASSETS.filter((a) => ids.has(a.id))
+  }, [progressWorkflow])
+  /* 资料页那摞素材卡：本项目真实文件按格式堆叠，外加一张「缺失 / 不可用」。
+     工作流引用节点绑定了哪些，卡片上如实标出（不吹成「AI 精选」）。 */
+  const materials = useMemo(
+    () => materialShelves(projectId, progressWorkflow?.nodes.find((n) => n.type === 'refs')?.params.assetIds as string[] ?? []),
+    [projectId, progressWorkflow],
+  )
+
+  /* 内容页的行：整片之外，这部片真实有哪些内容单元。
+     只在这一页读运行记录 —— 结构挂在产物上（见 data/contentOutline.ts），
+     切走这一页就不读，也就不用为它维护第三份快照。 */
+  const outline = useMemo(
+    () => contentOutline(workflowsSnapshot.filter((w) => w.projectId === projectId), railTab === 'content' ? workflowService.listRuns() : []),
+    [workflowsSnapshot, projectId, railTab],
+  )
   const [selectedArtifactId, setSelectedArtifactId] = useState<string | null>(initialArtifact)
   const [editMode, setEditMode] = useState(new URLSearchParams(window.location.search).get('edit') === '1')
   const [shotOverrides, setShotOverrides] = useState<ShotOverrideMap>(() => loadShotOverrides(projectId))
@@ -302,7 +357,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
     setSelectedArtifactId(null)
     setEditMode(false)
     setReferences([])
-    setRailTab('structure')
+    setRailTab('overview')
     const clip = ACTIVE_SCENES.find((item) => item.id === id)
     // 0s 往往是黑场/入点，镜头发车时先落到该场有画面的代表帧。
     if (clip) {
@@ -359,16 +414,58 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
   }), [selectedId, selectedScene.label])
   const currentProjectRef = useMemo<AgentReference>(() => ({
     id: `project:${projectId}`, role: 'target', kind: 'project', projectId,
-    label: `整个项目 · ${project.name}`,
+    label: `整片 · ${project.name}`,
   }), [projectId, project.name])
   const scopeFromReferences = (refs: AgentReference[]): TaskRequest['scope'] => {
     const target = refs.find((ref) => ref.role === 'target')
     if (!target || target.kind === 'project' || target.kind === 'artifact') return 'project'
     return 'scene'
   }
+  /* 输入框上那行作用范围，和 submit() 用同一个「有效目标」：
+     没有引用时 submit 会退回当前画面，所以显示也必须跟着退回，不能各说一套。
+     只说枚举（当前场景/整个项目）不够 —— 用户以为改一场、AI 却改了整片，
+     就是这么来的，所以这里报的是真名。 */
+  const effectiveTarget = useMemo(
+    () => references.find((ref) => ref.role === 'target') ?? currentShotRef,
+    [references, currentShotRef],
+  )
+  const scopeText = (ref: AgentReference): string => {
+    switch (ref.kind) {
+      /* 整片就是整片：项目名在顶栏与左栏页脚都有，这里再写一遍会把这行挤成两行 */
+      case 'project': return '整片'
+      case 'scene': return `场景 · ${ref.label}`
+      case 'shot': return `当前画面 · ${ref.label}`
+      case 'frame': return `帧 · ${ref.timecode}`
+      case 'range': return `范围 · ${ref.timecode}`
+      case 'region': return `区域 · ${ref.label}`
+      case 'artifact': return `产物 · ${ref.label}`
+    }
+  }
+  const scopeLabel = scopeText(effectiveTarget)
+  /* 占位文案用短名：整片 / 03 S03 / 当前画面 */
+  const scopeShort = effectiveTarget.kind === 'project' ? '整片'
+    : effectiveTarget.kind === 'scene' || effectiveTarget.kind === 'shot' ? effectiveTarget.label
+    : effectiveTarget.kind === 'artifact' ? effectiveTarget.label : '当前画面'
+
+  /* 现在被设为 AI 修改范围的那个内容单元 */
+  const activeSceneId = useMemo(() => {
+    const target = references.find((ref) => ref.role === 'target')
+    return target && target.kind === 'scene' ? target.sceneId : null
+  }, [references])
   const setTargetReference = (ref: AgentReference) => {
     setScope(ref.kind === 'project' || ref.kind === 'artifact' ? 'project' : 'scene')
     setReferences((old) => [ref, ...old.filter((item) => item.role !== 'target')])
+  }
+  /** 左栏内容页点中一个单元：把它设成 AI 的修改范围，右栏切到对话，
+      于是可以直接说「这一段……」。监看器与底部时间线不动 —— 它们放的是渲染切片
+      （占位数据），拿它去对应真实内容会串。 */
+  const selectContentRow = (row: ContentRow) => {
+    setTargetReference(row.ref)
+    setEditMode(false)
+    setSideTab('chat')
+    setNotice(row.span
+      ? `已把「${row.ref.label}」设为修改范围（${fmtClock(row.span.from)} 起，${row.span.duration.toFixed(1)}s）。`
+      : `已把「${row.ref.label}」设为修改范围。这一段还没有真实画面，监看与时间线暂时定位不过去。`)
   }
   /** 从场景检查器显式进入 AI 修改：把本场设为目标，再打开对话。 */
   const openChatForScene = () => {
@@ -390,14 +487,17 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
   const clearReferences = () => setReferences([])
   const locateReference = (ref: AgentReference) => {
     if (ref.kind === 'artifact') { setSelectedArtifactId(ref.artifactId); setRailTab('artifacts'); return }
-    if (ref.kind === 'project') { setSelectedArtifactId(null); setRailTab('structure'); return }
+    if (ref.kind === 'project') { setSelectedArtifactId(null); setRailTab('overview'); return }
+    /* 内容单元：监看器播的是渲染切片，定位不过去；把它在左栏那一页高亮出来。
+       真实画面接上之后，这里再换成按时间轴 seek。 */
+    if (ref.kind === 'scene') { setSelectedArtifactId(null); setRailTab('content'); return }
     const clip = ACTIVE_SCENES.find((item) => item.id === ref.shotId)
     if (!clip) return
     setSelectedId(ref.shotId)
     setSelectedStoryboardId(clip.storyboardId)
     setSelectedArtifactId(null)
     setEditMode(false)
-    setRailTab('structure')
+    setRailTab('overview')
     const targetFrame = ref.kind === 'frame' || ref.kind === 'region'
       ? ref.frame
       : ref.kind === 'range'
@@ -502,7 +602,12 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
   const submit = (prompt: string, kind: TaskRequest['kind'] = 'modify') => {
     const requestRefs = references.some((ref) => ref.role === 'target') ? references : [currentShotRef, ...references]
     const derivedScope = scopeFromReferences(requestRefs)
-    const sceneIds = derivedScope === 'project' ? [] : [selectedId]
+    /* 范围里的场景：目标是左栏选中的内容单元时用它自己的 id —— 它来自工作流产物，
+       和当前选中的渲染切片（selectedId，占位数据）不是一回事，不能互相顶替。 */
+    const target = requestRefs.find((ref) => ref.role === 'target')
+    const sceneIds = derivedScope === 'project'
+      ? []
+      : target?.kind === 'scene' ? [target.sceneId] : [selectedId]
     const request: TaskRequest = { kind, prompt, scope: derivedScope, sceneIds, references: requestRefs, constraints, attachments: [] }
     const id = tasks.start(request)
     chat.addUserMessage(prompt, id)
@@ -622,23 +727,52 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
                      open={railOpen} onClose={() => setRailOpen(false)}
                      tab={railTab} onTab={setRailTab}
                      selectedArtifactId={selectedArtifactId} onSelectArtifact={selectArtifact}
-                     confirmed={confirmedShown} confirmedTotal={confirmed.length}
+                     confirmed={confirmed}
                      decisions={decisions} onDecide={decideNode}
                      workflowId={workflow?.id ?? null}
+                     outline={outline}
+                     materials={materials}
+                     openShelf={openShelf}
+                     onToggleShelf={(id) => setOpenShelf((cur) => (cur === id ? null : id))}
+                     activeSceneId={activeSceneId}
+                     liveState={liveTask?.state ?? null}
+                     onSelectContent={selectContentRow}
                      onOpenWorkflowEditor={onOpenWorkflowEditor}
-                     creation={launch ? (
-                       <CreationTaskPanel
-                         workflowId={launch.workflowId}
-                         autoRun={launch.autoRun}
-                         onOpenEditor={() => onOpenWorkflowEditor?.(launch.workflowId)}
-                         onClose={() => onDismissLaunch?.()}
+                     wholeFilmActive={effectiveTarget.kind === 'project'}
+                     onSelectWholeFilm={() => {
+                       /* 选整片 = 把修改范围设成整个项目。submit() 是按引用推范围，
+                          所以这里必须同时换掉 target 引用，否则输入框仍会落到当前场景。 */
+                       setScope('project')
+                       setTargetReference(currentProjectRef)
+                       setEditMode(false)
+                     }}
+                     onOpenMaterials={() => { setRailTab('materials'); setOpenShelf('material') }}
+                     /* 概览第一格：当前进度 + 运行入口。原来这里还有一块「正在制作」
+                        面板，两块都在报同一件事，已并进这一张卡。 */
+                     progressPanel={
+                       <RailProgressPanel
+                         key={progressWorkflow?.id ?? 'none'}
+                         workflow={progressWorkflow}
+                         task={liveTask}
+                         onOpenTask={openTaskRecords}
+                         autoRun={!!(launch && progressWorkflow && launch.workflowId === progressWorkflow.id && launch.autoRun)}
+                         onRunStart={() => { if (launch) onDismissLaunch?.() }}
+                         onOpenEditor={() => progressWorkflow && onOpenWorkflowEditor?.(progressWorkflow.id)}
+                         onOpenExecution={() => { setBottomTab('activity'); setTrayOpen(true) }}
                        />
-                     ) : undefined} />
+                     } />
 
-        {/* 中栏：监看器 */}
+        {/* 中栏：监看器。没产出画面时换「需求与参考」形态（同一块区域，不是另一个页面）*/}
         <main className="fw-canvas">
           <div className="fw-toolbar">
-            {selectedArtifact ? (
+            {!hasPicture && !selectedArtifact ? (
+              <>
+                <h2 className="wb-viewer-title truncate">创作需求与参考</h2>
+                <span className="wb-status" data-status="idle">
+                  <span className="fm-dot" data-s="idle" />还没有产出画面
+                </span>
+              </>
+            ) : selectedArtifact ? (
               <>
                 <span className="wb-viewer-index">产物</span>
                 <h2 className="wb-viewer-title truncate">{selectedArtifact.title}</h2>
@@ -669,7 +803,10 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
             )}
           </div>
 
-          {selectedArtifact ? (
+          {!hasPicture && !selectedArtifact ? (
+            <RequirementStage promptText={promptText} references={referenceAssets}
+                              onOpenMaterials={() => { setRailTab('materials'); setOpenShelf('reference') }} />
+          ) : selectedArtifact ? (
             <ArtifactView artifact={selectedArtifact}
                           onLocate={(id) => selectScene(id)}
                           onReference={() => referenceArtifact(selectedArtifact)}
@@ -755,6 +892,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
         {/* 右栏：对话 / 设置 */}
         <RightPanel chat={chat} sideTab={sideTab} setSideTab={selectSideTab}
                     scope={scope}
+                    scopeLabel={scopeLabel} scopeShort={scopeShort}
                     scene={selectedScene} storyboard={storyboard}
                     onOpenChat={openChatForScene} onOpenTask={openTaskRecords}
                     constraints={constraints} setConstraints={setConstraints}
@@ -844,74 +982,61 @@ function ArtifactIcon({ type }: { type: WorkbenchArtifact['type'] }) {
   return <Icon className="size-3.5" />
 }
 
-function fmtDay(iso: string) {
-  if (!iso) return ''
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return ''
-  const now = new Date()
-  const sameDay = (a: Date, b: Date) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
-  const yesterday = new Date(now)
-  yesterday.setDate(now.getDate() - 1)
-  if (sameDay(d, now)) return '今天'
-  if (sameDay(d, yesterday)) return '昨天'
-  return `${d.getMonth() + 1}月${d.getDate()}日`
-}
+/* ── 牌堆 ────────────────────────────────────────────────────────
+   待决定与已确认共用同一套交互（原来只有待决定有，已确认是一行行平铺的记录）：
+   牌堆态：下方 ‹ › 切换最前卡（循环，中间圆点指示位置、可点选），点主卡散开成列表；
+   列表态：每张小卡右侧 › 键开弹窗看详情，控制区只剩聚拢键；
+   形态切换用 FLIP（切换前量位置、切换后反向位移再过渡回自然位置），
+   与切换动效同一套过渡（transform/背景/阴影/标题色）。
+   卡片尺寸固定：小卡高度写死、内容裁切（标题单行省略、提示最多两行），
+   最前卡矮、后层卡长时也不再从牌堆底下漏字。
 
-function ProjectRail({ projectName, open, onClose, tab, onTab,
-  selectedArtifactId, onSelectArtifact,
-  confirmed, confirmedTotal,
-  decisions, onDecide, workflowId, onOpenWorkflowEditor, creation }:
-  { projectName: string; open: boolean; onClose: () => void
-    tab: 'structure' | 'artifacts'; onTab: (tab: 'structure' | 'artifacts') => void
-    selectedArtifactId: string | null; onSelectArtifact: (id: string) => void
-    confirmed: { id: string; title: string; meta: string }[]
-    confirmedTotal: number
-    decisions: { wfId: string; id: string; title: string; hint: string; detail: string }[]
-    onDecide: (wfId: string, nodeId: string, verdict: 'done' | 'rework') => void
-    workflowId: string | null
-    onOpenWorkflowEditor?: (workflowId: string) => void
-    creation?: ReactNode }) {
-  /* 牌堆交互（无大卡片）：牌堆态与列表态是同一批卡片节点在两种形态间切换。
-     牌堆态：下方 ‹ › 切换最前卡（循环，中间圆点指示位置、可点选），点主卡散开成列表；
-     列表态：每张小卡右侧 › 键开弹窗看详情、做结论，控制区只剩聚拢键；
-     形态切换用 FLIP（切换前量位置、切换后反向位移再过渡回自然位置），
-     与切换动效同一套过渡（transform/背景/阴影/标题色）。
-     卡片尺寸固定：小卡高度写死、内容裁切（标题单行省略、提示最多两行），
-     最前卡矮、后层卡长时也不再从牌堆底下漏字。 */
-  const [leaving, setLeaving] = useState<{ id: string; verdict: 'done' | 'rework' } | null>(null)
-  const [removing, setRemoving] = useState<string | null>(null)
+   两处只有三件事不同，都由 props 决定：圆点语义、卡片高度（记事的正文只有一行）、
+   弹窗正文。所以抽成一个组件，而不是抄两份 —— 抄两份迟早会漂移。 */
+type DeckEntry = { id: string; title: string; hint: string
+  /** 单张卡自己的圆点语义；不给就随整摞的 dotStatus */
+  s?: 'done' | 'waiting' | 'running' | 'failed' | 'idle'
+  /** 文件卡的卡面：有缩略图就用它，没有就落到 icon（按格式认） */
+  thumb?: string
+  icon?: ReactNode }
+
+function RailDeck<T extends DeckEntry>({ items, dotStatus, variant, leavingId, removingId, renderModal }: {
+  items: T[]
+  dotStatus: 'waiting' | 'done' | 'idle'
+  /** decision / record = 文字卡（决定与记录）；file = 文件卡（卡面就是那个文件） */
+  variant: 'decision' | 'record' | 'file'
+  /** 父级给出结论后触发滑出 / 右滑淡出；动画结束后父级再把这条从 items 里去掉 */
+  leavingId?: string | null
+  removingId?: string | null
+  /** › 打开的弹窗正文。ctx.source 是这条当前所在的形态 —— 两种形态退场动画不同 */
+  renderModal: (item: T, ctx: { close: () => void; source: 'stack' | 'list' }) => ReactNode
+}) {
   const [listOpen, setListOpen] = useState(false)
   const [frontId, setFrontId] = useState<string | null>(null)
-  const [modal, setModal] = useState<{ d: (typeof decisions)[number]; source: 'stack' | 'list' } | null>(null)
-  const leavingTimer = useRef<number | null>(null)
-  const removingTimer = useRef<number | null>(null)
+  const [modal, setModal] = useState<T | null>(null)
   const deckRef = useRef<HTMLDivElement | null>(null)
   const flipSnap = useRef<{ rects: Map<string, { left: number; top: number }>; height: number } | null>(null)
-  useEffect(() => () => {
-    if (leavingTimer.current) window.clearTimeout(leavingTimer.current)
-    if (removingTimer.current) window.clearTimeout(removingTimer.current)
-  }, [])
   useEffect(() => {
     if (!modal) return
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setModal(null) }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [modal])
-  const effectiveFrontId = frontId && decisions.some((d) => d.id === frontId) ? frontId : null
-  const frontCardId = effectiveFrontId ?? decisions[0]?.id
-  const frontIndex = frontCardId ? decisions.findIndex((d) => d.id === frontCardId) : 0
+  const effectiveFrontId = frontId && items.some((d) => d.id === frontId) ? frontId : null
+  const frontCardId = effectiveFrontId ?? items[0]?.id
+  const frontIndex = frontCardId ? items.findIndex((d) => d.id === frontCardId) : 0
   const ordered = frontCardId
-    ? [...decisions.filter((d) => d.id === frontCardId), ...decisions.filter((d) => d.id !== frontCardId)]
-    : decisions
+    ? [...items.filter((d) => d.id === frontCardId), ...items.filter((d) => d.id !== frontCardId)]
+    : items
   const stepFront = (dir: 1 | -1) => {
-    if (decisions.length <= 1) return
-    setFrontId(decisions[(frontIndex + dir + decisions.length) % decisions.length].id)
+    if (items.length <= 1) return
+    setFrontId(items[(frontIndex + dir + items.length) % items.length].id)
   }
   /* 牌堆态 DOM 顺序固定为原始顺序，只用 data-pos 换前后——切卡时不挪节点，
      否则被挪的节点会丢过渡（实测：旧卡 30ms 就跳到最终位置，新卡却正常过渡）。
      pos 超出 2 的卡停在后层同位但透明（data-parked），切到它时同样有过渡。 */
-  const nonFront = decisions.filter((d) => d.id !== frontCardId)
-  const stackCards = decisions.map((d) => {
+  const nonFront = items.filter((d) => d.id !== frontCardId)
+  const stackCards = items.map((d) => {
     const pos = d.id === frontCardId ? 0 : 1 + nonFront.findIndex((x) => x.id === d.id)
     return { d, pos: pos <= 2 ? pos : 2, parked: pos > 2 }
   })
@@ -953,35 +1078,150 @@ function ProjectRail({ projectName, open, onClose, tab, onTab,
     deckEl.addEventListener('transitionend', clear, { once: true })
     window.setTimeout(clear, 350)
   }, [listOpen])
-  const decideFromModal = (verdict: 'done' | 'rework') => {
-    if (!modal || leaving || removing) return
-    const { d, source } = modal
-    setModal(null)
+  if (items.length === 0) return null
+  return (
+    <>
+      <div className={`fw-deck fw-deck--${variant}${listOpen ? ' is-list' : ''}`} ref={deckRef}>
+        {shown.map(({ d, pos, parked }) => {
+          const front = !listOpen && pos === 0
+          /* 文件卡：卡面就是那个文件（缩略图 / 格式图标），卡脚是文件名 + 授权审核；
+             点卡即预览（不做「散开成列表」——那是决定卡用来翻多条记录的形态）。 */
+          if (variant === 'file') {
+            return (
+              <div key={d.id} data-id={d.id} className="fw-deck-card"
+                   data-pos={pos}
+                   data-parked={parked || undefined}
+                   aria-hidden={!front ? true : undefined}
+                   onClick={front ? () => setModal(d) : undefined}>
+                <span className="fw-file-face">
+                  {d.thumb ? <img src={d.thumb} alt="" /> : <span className="fw-file-ph">{d.icon}</span>}
+                </span>
+                <span className="fw-file-cap">
+                  <b>{d.title}</b>
+                  <small>{d.hint}</small>
+                </span>
+              </div>
+            )
+          }
+          return (
+            <div key={d.id} data-id={d.id} className="fw-rail-decision fw-deck-card"
+                 data-pos={pos}
+                 data-parked={parked || undefined}
+                 data-leaving={leavingId === d.id || undefined}
+                 data-removing={removingId === d.id || undefined}
+                 aria-hidden={!listOpen && !front ? true : undefined}
+                 onClick={!listOpen && front ? () => toggleList(true) : undefined}>
+              <span className="fm-dot" data-s={d.s ?? dotStatus} />
+              <span className="fw-rail-decision-main">
+                <b>{d.title}</b>
+                <small>{d.hint}</small>
+              </span>
+              <button type="button" className="fw-deck-marker" aria-label={`查看${d.title}详情`}
+                      onClick={(e) => { e.stopPropagation(); setModal(d) }}>›</button>
+            </div>
+          )
+        })}
+      </div>
+      <div className="fw-deck-controls">
+        {listOpen ? (
+          <button type="button" className="fw-deck-gather" onClick={() => toggleList(false)}>聚拢 ↑</button>
+        ) : (
+          <span className="fw-deck-switch">
+            <button type="button" className="fw-deck-switch-btn" aria-label="上一张"
+                    disabled={items.length <= 1} onClick={() => stepFront(-1)}>‹</button>
+            <span className="fw-deck-dots">
+              {items.map((d) => (
+                <button key={d.id} type="button" className="fw-deck-dot"
+                        data-active={d.id === items[frontIndex]?.id || undefined}
+                        aria-label={`看${d.title}`} onClick={() => setFrontId(d.id)} />
+              ))}
+            </span>
+            <button type="button" className="fw-deck-switch-btn" aria-label="下一张"
+                    disabled={items.length <= 1} onClick={() => stepFront(1)}>›</button>
+          </span>
+        )}
+      </div>
+      {modal && (
+        <div className="fw-modal-backdrop" onClick={() => setModal(null)}>
+          <div className="fw-modal" role="dialog" aria-modal="true" aria-label={`${modal.title}详情`}
+               onClick={(e) => e.stopPropagation()}>
+            {renderModal(modal, { close: () => setModal(null), source: listOpen ? 'list' : 'stack' })}
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
+
+function ProjectRail({ projectName, open, onClose, tab, onTab,
+  selectedArtifactId, onSelectArtifact,
+  confirmed,
+  decisions, onDecide, workflowId, outline, materials, openShelf, onToggleShelf,
+  activeSceneId, liveState, onSelectContent, onOpenWorkflowEditor,
+  wholeFilmActive, onSelectWholeFilm, onOpenMaterials, progressPanel }:
+  { projectName: string; open: boolean; onClose: () => void
+    tab: RailTab; onTab: (tab: RailTab) => void
+    selectedArtifactId: string | null; onSelectArtifact: (id: string) => void
+    confirmed: { id: string; title: string; hint: string }[]
+    decisions: { wfId: string; nodeId: string; id: string; title: string; hint: string; detail: string }[]
+    onDecide: (wfId: string, nodeId: string, verdict: 'done' | 'rework') => void
+    workflowId: string | null
+    /** 内容页的行（整片之外真实存在的内容单元）与它从哪来 */
+    outline: ContentOutline
+    /** 资料页的三格：素材 / 参考 / 缺失（素材与参考分开，每格按格式一摞一摞堆） */
+    materials: MaterialShelf[]
+    openShelf: string | null
+    onToggleShelf: (id: string) => void
+    /** 现在被设为 AI 修改范围的那个单元 */
+    activeSceneId: string | null
+    /** AI 任务正在跑时的状态词（执行中…）；没在跑就是 null —— 正在处理的那一行自己显示它 */
+    liveState: string | null
+    onSelectContent: (row: ContentRow) => void
+    onOpenWorkflowEditor?: (workflowId: string) => void
+    /** 整片：不管项目有没有分镜都固定存在的入口，选中即把修改范围设为整个项目。 */
+    wholeFilmActive: boolean
+    onSelectWholeFilm: () => void
+    /** 内容行缺素材时，把人带到资料页那摞素材卡上 */
+    onOpenMaterials: () => void
+    /** 概览第一格：当前进度卡（读数 + 运行入口，见 RailProgress.tsx） */
+    progressPanel?: ReactNode }) {
+  /* 给结论后先让那张卡退场（牌堆态滑出、列表态右滑淡出），动画结束再写回工作流。
+     卡片的形态、位移与弹窗都在 RailDeck 里，这里只留「哪张正在退场」和它的定时器。 */
+  const [leaving, setLeaving] = useState<{ id: string; verdict: 'done' | 'rework' } | null>(null)
+  const [removing, setRemoving] = useState<string | null>(null)
+  const leavingTimer = useRef<number | null>(null)
+  const removingTimer = useRef<number | null>(null)
+  useEffect(() => () => {
+    if (leavingTimer.current) window.clearTimeout(leavingTimer.current)
+    if (removingTimer.current) window.clearTimeout(removingTimer.current)
+  }, [])
+  const decideFromModal = (d: (typeof decisions)[number], source: 'stack' | 'list', verdict: 'done' | 'rework') => {
+    if (leaving || removing) return
     if (source === 'list') {
       setRemoving(d.id)
-      removingTimer.current = window.setTimeout(() => { onDecide(d.wfId, d.id, verdict); setRemoving(null) }, 220)
+      removingTimer.current = window.setTimeout(() => { onDecide(d.wfId, d.nodeId, verdict); setRemoving(null) }, 220)
     } else {
       setLeaving({ id: d.id, verdict })
-      leavingTimer.current = window.setTimeout(() => { onDecide(d.wfId, d.id, verdict); setLeaving(null) }, 280)
+      leavingTimer.current = window.setTimeout(() => { onDecide(d.wfId, d.nodeId, verdict); setLeaving(null) }, 280)
     }
   }
   return (
-    <aside className="fw-ing" data-open={open ? '' : undefined} aria-label="镜头库与产物">
-      {creation}
+    <aside className="fw-ing" data-open={open ? '' : undefined} aria-label="项目导航">
+      {/* 四个页签就是这一栏的全部导航。原来那行「概览 1 项」标题只是把页签名和
+          一个计数又写了一遍，还把首屏高度花在标题上，去掉。 */}
       <div className="fw-ing-hd">
-        <h2>{tab === 'structure' ? '概览' : '产物'}</h2>
-        <span className="fw-count">{tab === 'structure'
-          ? `${decisions.length + confirmed.length} 项`
-          : `${WORKBENCH_ARTIFACTS.length}`}</span>
-        <span className="spacer" />
+        <SegmentedControl value={tab} onChange={onTab} ariaLabel="工作区导航"
+                          className="fw-rail-seg"
+                          options={[
+                            { value: 'overview', label: '概览' },
+                            { value: 'artifacts', label: '产物' },
+                            { value: 'content', label: '内容' },
+                            { value: 'materials', label: '资料' },
+                          ]} />
         <button className="iconbtn fw-mobile" type="button" title="收起" onClick={onClose}>
           <X className="size-4" />
         </button>
       </div>
-
-      <SegmentedControl value={tab} onChange={onTab} ariaLabel="工作区导航"
-                        className="fw-rail-seg"
-                        options={[{ value: 'structure', label: '结构' }, { value: 'artifacts', label: '产物' }]} />
 
       {tab === 'artifacts' ? (
         <div className="fw-artifacts" role="tabpanel">
@@ -998,102 +1238,181 @@ function ProjectRail({ projectName, open, onClose, tab, onTab,
             </button>
           ))}
         </div>
+      ) : tab === 'content' ? (
+        /* 内容 —— 这部片有哪些画面，是这一栏的主要导航：找到某个画面，并把修改范围
+           明确给 AI。整片固定存在（不然用户没法说「整部片的节奏太慢」）；下面的行
+           只在项目真有可靠结构时出现（见 data/contentOutline.ts）。
+
+           行只显示它真有的东西：名称、产物的状态、产物里真写了帧号才有时间、指到
+           预览文件才有缩略图。没有画面就不留空缩略图位，也不拿渲染切片冒充内容。 */
+        <div className="fw-ing-list">
+          <button type="button" className="fm-unit" data-state="whole"
+                  aria-current={wholeFilmActive ? 'true' : undefined}
+                  onClick={onSelectWholeFilm}>
+            <span className="fm-unit-body">
+              <b>整片 · {projectName}</b>
+              <span>需求与视觉方向</span>
+            </span>
+          </button>
+
+          {outline.rows.map((row) => {
+            /* 正在处理的就是这一行：状态改成实时状态、圆点亮起来 ——
+               「当前进度」卡在概览页，用户浏览内容列表时看不到它，所以让行自己说。
+               这不新开栏目，也不铺执行细节（细节在右侧任务页与底部面板）。 */
+            const busy = liveState !== null && row.ref.sceneId === activeSceneId
+            return (
+              <Fragment key={row.id}>
+              <button type="button" className="fm-unit" data-part={row.depth}
+                      data-busy={busy || undefined}
+                      aria-current={row.ref.sceneId === activeSceneId ? 'true' : undefined}
+                      onClick={() => onSelectContent(row)}>
+                {row.thumb && <span className="fm-unit-frame"><img src={row.thumb} alt="" /></span>}
+                {busy && <i className="fm-dot" data-s="running" />}
+                <span className="fm-unit-body">
+                  <b>{row.index && <span className="fm-unit-index">{row.index}</span>}{row.name}</b>
+                  <span>
+                    {busy ? `正在制作 · ${liveState}` : row.status}
+                    {row.span ? ` · ${fmtClock(row.span.from)}–${fmtClock(row.span.from + row.span.duration)}` : ''}
+                  </span>
+                </span>
+              </button>
+              {/* 这一行自己声明要外部素材、而素材索引里没有场景级绑定时，就地提醒一次；
+                  点它去资料页看那摞素材卡（不是跳素材库）。 */}
+              {row.needs && (
+                <button type="button" className="fm-unit-need" onClick={onOpenMaterials}>
+                  需要{row.needs} · 还没绑定素材 ›
+                </button>
+              )}
+              </Fragment>
+            )
+          })}
+
+          {outline.rows.length === 0 && (
+            <p className="fw-rail-none">
+              还没有能拆开的内容结构：工作流产出场景规格或导演处理之后，这里才会出现画面单元。
+            </p>
+          )}
+        </div>
+      ) : tab === 'materials' ? (
+        /* 资料 —— 素材与参考**分开两格**，各自按格式一摞一摞地堆（图片/视频/音频）。
+           不做抽屉、不跳素材库：几十张图铺进左栏会挤掉内容导航，跳走又会丢掉来路。
+           「产物」入口已按作者定稿去掉。 */
+        <div className="fw-ing-list">
+          {materials.map((shelf) => (
+            <Fragment key={shelf.id}>
+              <button type="button" className="fw-res" aria-expanded={openShelf === shelf.id}
+                      onClick={() => onToggleShelf(shelf.id)}>
+                <span className="fw-res-name">{shelf.title}</span>
+                <span className="fw-count">{shelf.count}</span>
+                <span className="fw-res-go" aria-hidden="true">{openShelf === shelf.id ? '⌃' : '›'}</span>
+              </button>
+
+              {openShelf === shelf.id && (
+                shelf.piles.length === 0 ? (
+                  <p className="fw-rail-none">{shelf.empty ?? '这一格现在是空的。'}</p>
+                ) : (
+                  /* 和概览同一套牌堆，同一套叠放与翻卡 —— 区别只在卡片本身：
+                     这里的每张卡就是一个文件（卡面是它自己的缩略图），
+                     相同格式的文件堆成一摞：图片一摞、视频一摞、音频一摞。 */
+                  shelf.piles.map((pile) => (
+                    <Fragment key={pile.id}>
+                      <div className="fw-stack-hd">
+                        {pile.title}
+                        <span className="spacer" />
+                        <span className="hint num">{pile.files.length}</span>
+                      </div>
+                      <RailDeck items={pile.files.map(fileEntry)} dotStatus="idle" variant="file"
+                                renderModal={(file, { close }) => (
+                                  <>
+                                    <div className="fw-modal-head">
+                                      <span className="fw-rail-decision-main">
+                                        <b>{file.title}</b><small>{file.hint}</small>
+                                      </span>
+                                      <button type="button" className="fw-modal-close" aria-label="关闭" onClick={close}>×</button>
+                                    </div>
+                                    <span className="fw-asset-preview">
+                                      {file.thumb
+                                        ? <img src={file.thumb} alt={file.title} />
+                                        : <span className="fw-file-ph">{file.icon}</span>}
+                                    </span>
+                                  </>
+                                )} />
+                    </Fragment>
+                  ))
+                )
+              )}
+            </Fragment>
+          ))}
+
+          {materials.length === 0 && (
+            <p className="fw-rail-none">这个项目还没有素材文件。</p>
+          )}
+          <p className="fw-rail-none">
+            素材索引只记「属于哪个项目 / 工作流 / 任务」，还没有「属于哪一场」这个字段，
+            所以场景级关联暂时是空的。
+          </p>
+
+        </div>
       ) : (
         <div className="fw-ing-list">
+          {/* 概览第一格：当前进度（读数 + 运行入口）。原来这里还并排一块「正在制作」
+              面板，两块报同一件事、同屏出现两个阶段数，已合成一张卡（RailProgress.tsx）。
+              下面两段是同一份快照的两种过滤：等你拍板的、和你已经定下的。 */}
+          {progressPanel}
+
           <section>
             <div className="fw-scene-hd">
-              <span>待你决定</span><span className="spacer" />
+              <span>待决定</span><span className="spacer" />
               <span className="hint">{decisions.length}</span>
             </div>
             {decisions.length === 0 ? (
               <p className="fw-rail-none">这一轮的事都已定下，可以继续下一轮制作。</p>
             ) : (
-              /* 多条决定：牌堆态（小卡叠放，圆点选最前）与列表态（向下排列）
-                 共用同一批卡片节点；详情只在弹窗里，不再有展开的大卡片。 */
-              <>
-              <div className={`fw-deck${listOpen ? ' is-list' : ''}`} ref={deckRef}>
-                {shown.map(({ d, pos, parked }) => {
-                  const front = !listOpen && pos === 0
-                  return (
-                    <div key={d.id} data-id={d.id} className="fw-rail-decision fw-deck-card"
-                         data-pos={pos}
-                         data-parked={parked || undefined}
-                         data-leaving={leaving?.id === d.id || undefined}
-                         data-removing={removing === d.id || undefined}
-                         aria-hidden={!listOpen && !front ? true : undefined}
-                         onClick={!listOpen && front ? () => toggleList(true) : undefined}>
-                      <span className="fm-dot" data-s="waiting" />
-                      <span className="fw-rail-decision-main">
-                        <b>{d.title}</b>
-                        <small>{d.hint}</small>
-                      </span>
-                      <button type="button" className="fw-deck-marker" aria-label={`查看${d.title}详情`}
-                              onClick={(e) => { e.stopPropagation(); setModal({ d, source: listOpen ? 'list' : 'stack' }) }}>›</button>
-                    </div>
-                  )
-                })}
-              </div>
-              <div className="fw-deck-controls">
-                {listOpen ? (
-                  <button type="button" className="fw-deck-gather" onClick={() => toggleList(false)}>聚拢 ↑</button>
-                ) : (
-                  <span className="fw-deck-switch">
-                    <button type="button" className="fw-deck-switch-btn" aria-label="上一张"
-                            disabled={decisions.length <= 1} onClick={() => stepFront(-1)}>‹</button>
-                    <span className="fw-deck-dots">
-                      {decisions.map((d) => (
-                        <button key={d.id} type="button" className="fw-deck-dot"
-                                data-active={d.id === decisions[frontIndex]?.id || undefined}
-                                aria-label={`看${d.title}`} onClick={() => setFrontId(d.id)} />
-                      ))}
-                    </span>
-                    <button type="button" className="fw-deck-switch-btn" aria-label="下一张"
-                            disabled={decisions.length <= 1} onClick={() => stepFront(1)}>›</button>
-                  </span>
-                )}
-              </div>
-              {modal && (
-                <div className="fw-modal-backdrop" onClick={() => setModal(null)}>
-                  <div className="fw-modal" role="dialog" aria-modal="true" aria-label={`${modal.d.title}详情`} onClick={(e) => e.stopPropagation()}>
-                    <div className="fw-modal-head">
-                      <span className="fm-dot" data-s="waiting" />
-                      <span className="fw-rail-decision-main"><b>{modal.d.title}</b><small>{modal.d.hint}</small></span>
-                      <button type="button" className="fw-modal-close" aria-label="关闭" onClick={() => setModal(null)}>×</button>
-                    </div>
-                    <p className="fw-modal-detail">{modal.d.detail}</p>
-                    <div className="fw-rail-decision-acts">
-                      <button type="button" className="fw-decide-btn" data-kind="done" onClick={() => decideFromModal('done')}>通过</button>
-                      <button type="button" className="fw-decide-btn" data-kind="rework" onClick={() => decideFromModal('rework')}>要改</button>
-                    </div>
-                    <button type="button" className="fw-rail-decision-more"
-                            onClick={() => { setModal(null); if (workflowId) onOpenWorkflowEditor?.(workflowId) }}>打开工作流查看详情</button>
-                  </div>
-                </div>
-              )}
-              </>
+              /* 多条决定：牌堆态（小卡叠放，圆点选最前）与列表态（向下排列）共用同一批
+                 卡片节点；详情只在弹窗里，不再有展开的大卡片。 */
+              <RailDeck items={decisions} dotStatus="waiting" variant="decision"
+                        leavingId={leaving?.id ?? null} removingId={removing}
+                        renderModal={(d, { close, source }) => (
+                          <>
+                            <div className="fw-modal-head">
+                              <span className="fm-dot" data-s="waiting" />
+                              <span className="fw-rail-decision-main"><b>{d.title}</b><small>{d.hint}</small></span>
+                              <button type="button" className="fw-modal-close" aria-label="关闭" onClick={close}>×</button>
+                            </div>
+                            <p className="fw-modal-detail">{d.detail}</p>
+                            <div className="fw-rail-decision-acts">
+                              <button type="button" className="fw-decide-btn" data-kind="done"
+                                      onClick={() => decideFromModal(d, source, 'done')}>通过</button>
+                              <button type="button" className="fw-decide-btn" data-kind="rework"
+                                      onClick={() => decideFromModal(d, source, 'rework')}>要改</button>
+                            </div>
+                            <button type="button" className="fw-rail-decision-more"
+                                    onClick={() => { close(); if (workflowId) onOpenWorkflowEditor?.(workflowId) }}>打开工作流查看详情</button>
+                          </>
+                        )} />
             )}
           </section>
 
           {confirmed.length > 0 && (
+            /* 已确认和待决定用同一套牌堆：卡多了叠起来、‹ › 翻、点主卡散开成列表。
+               区别只在内容 —— 它是记录，没有可操作项，所以弹窗里只给深链。 */
             <section>
               <div className="fw-scene-hd">
-                <span>已确认</span><span className="spacer" />
-                <span className="hint">{confirmedTotal}</span>
+                <span>最近已决定</span><span className="spacer" />
+                <span className="hint">{confirmed.length}</span>
               </div>
-              <div className="fw-confirmed-list">
-                {confirmed.map((c) => (
-                  <div key={c.id} className="fw-confirmed-item">
-                    <span className="fm-dot" data-s="done" />
-                    <span className="fw-rail-decision-main">
-                      <b>{c.title}</b>
-                      <small>{c.meta}</small>
-                    </span>
-                  </div>
-                ))}
-              </div>
-              {confirmedTotal > confirmed.length && (
-                <p className="fw-confirmed-more">共 {confirmedTotal} 条，仅显示最近 {confirmed.length} 条</p>
-              )}
+              <RailDeck items={confirmed} dotStatus="done" variant="record"
+                        renderModal={(c, { close }) => (
+                          <>
+                            <div className="fw-modal-head">
+                              <span className="fm-dot" data-s="done" />
+                              <span className="fw-rail-decision-main"><b>{c.title}</b><small>{c.hint}</small></span>
+                              <button type="button" className="fw-modal-close" aria-label="关闭" onClick={close}>×</button>
+                            </div>
+                            <button type="button" className="fw-rail-decision-more"
+                                    onClick={() => { close(); if (workflowId) onOpenWorkflowEditor?.(workflowId) }}>打开工作流查看详情</button>
+                          </>
+                        )} />
             </section>
           )}
 
@@ -1104,6 +1423,24 @@ function ProjectRail({ projectName, open, onClose, tab, onTab,
     </aside>
   )
 }
+
+/** 文件格式 → 占位图标（没有缩略图时用；不画空框） */
+const MEDIA_NODE: Record<MaterialFile['media'], ReactNode> = {
+  image: <ImageIcon className="size-5" />,
+  video: <Film className="size-5" />,
+  audio: <Music2 className="size-5" />,
+  font: <TypeIcon className="size-5" />,
+  doc: <FileText className="size-5" />,
+}
+
+/** 一个文件 → 牌堆里的一张卡。卡面就是文件本身，卡脚是名字与授权/审核。 */
+const fileEntry = (f: MaterialFile) => ({
+  id: f.id,
+  title: f.name,
+  hint: `${f.adopted ? '引用 · ' : ''}${f.meta}`,
+  thumb: f.thumb,
+  icon: MEDIA_NODE[f.media],
+})
 
 function ToolButton({ label, onClick, active, disabled, children }: {
   label: string; onClick: () => void; active?: boolean; disabled?: boolean; children: React.ReactNode
@@ -1175,7 +1512,7 @@ function PlayerBar({ playerRef, frame, onSeek, playing, onToggle, rate, onRate, 
 }
 
 /* ── 右栏：对话 / 修改设置 ──────────────────────────────────── */
-function RightPanel({ chat, sideTab, setSideTab, scope, scene, storyboard,
+function RightPanel({ chat, sideTab, setSideTab, scope, scopeLabel, scopeShort, scene, storyboard,
   onOpenChat, onOpenTask,
   constraints, setConstraints, activeTask, cancelTask, records, onSubmit, onQuickAction,
   onNavigate, selectedVersion, editSettings, editSavedAt, editOverridden, references, onRemoveReference,
@@ -1183,6 +1520,8 @@ function RightPanel({ chat, sideTab, setSideTab, scope, scene, storyboard,
   onApplyEdit, onResetEdit, onCloseEdit, onOpenEdit }:
   { chat: ChatState; sideTab: SideTab; setSideTab: (v: SideTab) => void
     scope: 'project'|'scene'|'selection'
+    /** 输入框上显示的作用范围（真名，不是枚举）与它的短名（占位文案用） */
+    scopeLabel: string; scopeShort: string
     scene: (typeof SCENES)[number]
     storyboard: StoryboardEntry | null; onOpenChat: () => void; onOpenTask: () => void
     constraints: ModificationConstraints
@@ -1294,16 +1633,18 @@ function RightPanel({ chat, sideTab, setSideTab, scope, scene, storyboard,
           {/* 对话输入：与首页同一张纸片（.fw-sheet），主按钮是胶囊 */}
           <form className="fw-compose" onSubmit={(e) => { e.preventDefault(); submit() }}>
             <div className="fw-sheet">
+              {/* 作用范围独占输入框上方一行：写在按钮旁边会被挤成两行、还会把名字截掉，
+                  而它是「AI 到底会动哪一块」的唯一提示 —— 不能被截。 */}
+              <div className="wb-compose-scope" title={scopeLabel}>
+                作用于 <b>{scopeLabel}</b>
+              </div>
               <textarea className="wb-input" rows={3}
                         value={chat.draft} onChange={(e) => chat.setDraft(e.target.value)}
                         onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit() } }}
-                        placeholder="告诉 AI 要如何修改当前场景…" />
+                        placeholder={`告诉 AI 要如何修改「${scopeShort}」…`} />
               <div className="mt-1.5 flex items-center gap-2">
                 <button className="iconbtn" type="button" title="上传还没接通" disabled><Plus /></button>
-                <span className="wb-compose-scope">
-                  作用范围 · {scope === 'project' ? '整个项目' : scope === 'scene' ? '当前场景' : '所选场景'}
-                </span>
-                <button className="mini mini-strong" type="submit" disabled={!chat.draft.trim()}>
+                <button className="mini mini-strong ml-auto" type="submit" disabled={!chat.draft.trim()}>
                   <Send className="size-3" />提交
                 </button>
               </div>
