@@ -1302,10 +1302,25 @@ html[data-theme="light"] #pane-flow .wb-a2 .fw-panel { box-shadow: 0 8px 24px rg
 }
 #pane-flow .wb-a2 .fw-modal-detail { margin: 10px 0; font-size: 12px; line-height: 1.6; color: var(--tx2); }
 
-/* ── 素材与参考 · 同类堆叠（资料页展开）────────────────────────
-   作者定稿：不做抽屉、不跳素材库 —— 用概览那套牌堆：同一格式的文件叠成一张卡，
-   几张卡再叠成一摞，点开看这一摞里的文件。样式复用 .fw-deck（同源），
-   这里只补点开之后那张纸上的缩略图网格。 */
+/* ── 资料页 · 素材 / 参考（分开两格，按格式一摞一摞堆）──────────
+   作者定稿：不做抽屉、不跳素材库；素材与参考分开展示；同一格式的文件叠成一摞
+   （图片一摞、视频一摞、音频一摞）。缩略图错开 + 轻转，像一叠照片；
+   没有缩略图的格式（字体/文档）用字标，不画空框。 */
+/* 牌堆里那张素材卡的左侧：一摞缩略图错开叠着（正面一张、后面两张露边），
+   没有缩略图的格式用字标。卡壳、叠放、翻卡、弹窗全部复用 .fw-deck，不另造。 */
+#pane-flow .wb-a2 .fw-deck-art { position: relative; flex: none; width: 58px; height: 32px; }
+#pane-flow .wb-a2 .fw-deck-art img {
+  position: absolute; top: 0; left: 0; width: 48px; height: 28px; object-fit: cover;
+  border: 1px solid var(--line2); border-radius: var(--r-thumb); background: var(--panel);
+}
+#pane-flow .wb-a2 .fw-deck-art img[data-i="0"] { z-index: 3; }
+#pane-flow .wb-a2 .fw-deck-art img[data-i="1"] { left: 6px; top: 3px; transform: rotate(3deg); z-index: 2; }
+#pane-flow .wb-a2 .fw-deck-art img[data-i="2"] { left: 10px; top: 5px; transform: rotate(6deg); z-index: 1; opacity: .85; }
+#pane-flow .wb-a2 .fw-deck-glyph {
+  display: grid; place-items: center; width: 48px; height: 28px;
+  border: 1px solid var(--line2); border-radius: var(--r-thumb);
+  background: var(--panel); color: var(--tx3); font-size: 12px;
+}
 #pane-flow .wb-a2 .fw-asset-grid {
   display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px;
   max-height: 190px; overflow-y: auto; margin: 0 0 8px;
@@ -1314,7 +1329,7 @@ html[data-theme="light"] #pane-flow .wb-a2 .fw-panel { box-shadow: 0 8px 24px rg
   width: 100%; aspect-ratio: 16 / 10; object-fit: cover;
   border: 1px solid var(--line); border-radius: var(--r-thumb); background: var(--panel2);
 }
-#pane-flow .wb-a2 .fw-asset-list { margin: 0; padding: 0; list-style: none; max-height: 140px; overflow-y: auto; }
+#pane-flow .wb-a2 .fw-asset-list { margin: 0; padding: 0; list-style: none; max-height: 150px; overflow-y: auto; }
 #pane-flow .wb-a2 .fw-asset-list > li {
   display: flex; align-items: baseline; gap: 8px;
   padding: 4px 0; border-top: 1px solid var(--line);
@@ -1336,6 +1351,10 @@ html[data-theme="light"] #pane-flow .wb-a2 .fw-panel { box-shadow: 0 8px 24px rg
      · 标题用次级色 —— 它是记录，不该和「等你拍板」抢注意力。
    一条都没确认时整个区不渲染，不留说明文字。 */
 #pane-flow .wb-a2 .fw-deck--record .fw-deck-card { height: 52px; }
+/* 记事的卡只有一行说明：带上缩略图之后文本区只剩 ~90px，允许折行会顶出卡外 */
+#pane-flow .wb-a2 .fw-deck--record .fw-deck-card .fw-rail-decision-main small {
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 #pane-flow .wb-a2 .fw-deck--record .fw-deck-card .fw-rail-decision-main b { color: var(--tx2); }
 /* 记录条数可能比待决定多，圆点不参与收缩、放不下就横向滚，不要挤成椭圆 */
 #pane-flow .wb-a2 .fw-deck-dots { min-width: 0; overflow-x: auto; scrollbar-width: none; }
