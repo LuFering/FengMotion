@@ -16,12 +16,14 @@ import { ACTIVE_DURATION, FILM_FPS, FILM_HEIGHT, FILM_WIDTH } from '@/data/timel
 import { useAgentTasks, type TaskRecord } from '@/hooks/useAgentTasks'
 import type { AgentReference, AgentTask, ModificationConstraints, ProjectVersion, TaskRequest } from '@/services/studioApi'
 import { studioAdapter } from '@/services/studioAdapter'
-import { evaluateGate, GATE_PRIMARY_KIND, workflowService } from '@/services/workflowService'
+import { evaluateGate, gateSummaryOf, GATE_PRIMARY_KIND, workflowService } from '@/services/workflowService'
 import { GATE_DEFS } from '@/data/workflowTemplates'
 import { contentOutline, type ContentOutline, type ContentRow } from '@/data/contentOutline'
 import { hasOwnPicture, materialShelves, type MaterialFile, type MaterialShelf } from '@/data/materialDeck'
 import { BUILTIN_ASSETS } from '@/data/myAssets'
 import { RequirementStage } from './RequirementStage'
+import { DeliverStage, ExploreStage, ProduceStage, ReviseStage, type StageProblem } from './CenterStages'
+import { STAGE_LABEL, type CenterStage } from '@/data/centerStage'
 import type { ChatState } from '@/shell/useChat'
 import { fmtClock, fmtDay, statusOf, TASK_STATUS_LABEL } from '@/shell/status'
 import { FilmPlayer, type PlayerRef } from '@/remotion/FilmPlayer'
@@ -205,6 +207,32 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
     out.sort((a, b) => (b.decidedAt || '').localeCompare(a.decidedAt || ''))
     return out
   }, [projectId, workflowsSnapshot])
+  /* 修改中这一档的问题清单：看片要改 + Gate 返工 —— 与待决定、已确认同一快照同一遍历。
+     返工项目在那两边都不出现，点了要改等于没记，所以中栏这一档单列一支；
+     review 同时有 done + rework 时以 done 为准（已通过的不再算问题）。 */
+  const problems = useMemo((): StageProblem[] => {
+    if (!projectId) return []
+    const out: (StageProblem & { decidedAt: string })[] = []
+    workflowsSnapshot
+      .filter((w) => w.projectId === projectId)
+      .forEach((w) => {
+        w.nodes.forEach((n) => {
+          if (n.type === 'review') {
+            const c = (n.params.checks ?? {}) as Record<string, boolean>
+            if (!c.rework || c.done) return
+            const day = fmtDay(String(n.params.decidedAt ?? ''))
+            out.push({ id: `${w.id}:${n.id}`, title: '看片要改', meta: `工作流「${w.name}」· 看片${day ? ` · ${day}` : ''}`, decidedAt: String(n.params.decidedAt ?? '') })
+          }
+          if (n.type === 'gate' && n.params.rework) {
+            const ev = evaluateGate(w, n)
+            const day = fmtDay(String(n.params.decidedAt ?? ''))
+            out.push({ id: `${w.id}:${n.id}`, title: `${ev.label}返工`, meta: `工作流「${w.name}」· ${ev.label}${day ? ` · ${day}` : ''}`, decidedAt: String(n.params.decidedAt ?? '') })
+          }
+        })
+      })
+    out.sort((a, b) => (b.decidedAt || '').localeCompare(a.decidedAt || ''))
+    return out
+  }, [projectId, workflowsSnapshot])
   /* 当前进度卡跟着「最近更新的那个工作流」走 —— 与上面两份快照同一来源，
      决定写回后快照刷新，卡片里的「看片有没有留下结论」才能跟着变。 */
   const progressWorkflow = useMemo(
@@ -267,6 +295,27 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
     const ids = new Set((progressWorkflow?.nodes.find((n) => n.type === 'refs')?.params.assetIds as string[] | undefined) ?? [])
     return BUILTIN_ASSETS.filter((a) => ids.has(a.id))
   }, [progressWorkflow])
+  /* 中栏处在哪个阶段 —— 按当前产物判，不是按页面名猜。优先级：
+     有返工先改（修改中）→ 有任务在跑先做（制作中）→ 门全确认了待交付（交付前）
+     → 有画面就审片（审片时）→ 只绑了参考就比方向（探索方向）→ 否则刚开始。
+     产物视图（选了产物）和编辑预览是覆盖层，不算阶段，仍走原分支。 */
+  const stageGates = useMemo(() => {
+    if (!projectId) return []
+    return workflowsSnapshot.filter((w) => w.projectId === projectId).flatMap((w) => gateSummaryOf(w))
+  }, [projectId, workflowsSnapshot])
+  const gatesConfirmed = stageGates.length > 0 && stageGates.every((g) => g.decision === 'confirmed')
+  const finishingNotes = useMemo(() => {
+    const notes = String(progressWorkflow?.nodes.find((n) => n.type === 'finishing')?.params.notes ?? '').trim()
+    return notes || undefined
+  }, [progressWorkflow])
+  const centerStage = useMemo((): CenterStage => {
+    if (problems.length > 0) return 'revise'
+    if (liveTask) return 'produce'
+    if (gatesConfirmed) return 'deliver'
+    if (hasPicture) return 'review'
+    if (referenceAssets.length > 0) return 'explore'
+    return 'start'
+  }, [problems.length, liveTask, gatesConfirmed, hasPicture, referenceAssets.length])
   /* 资料页那摞素材卡：本项目真实文件按格式堆叠，外加一张「缺失 / 不可用」。
      工作流引用节点绑定了哪些，卡片上如实标出（不吹成「AI 精选」）。 */
   const materials = useMemo(
@@ -765,14 +814,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
         {/* 中栏：监看器。没产出画面时换「需求与参考」形态（同一块区域，不是另一个页面）*/}
         <main className="fw-canvas">
           <div className="fw-toolbar">
-            {!hasPicture && !selectedArtifact ? (
-              <>
-                <h2 className="wb-viewer-title truncate">创作需求与参考</h2>
-                <span className="wb-status" data-status="idle">
-                  <span className="fm-dot" data-s="idle" />还没有产出画面
-                </span>
-              </>
-            ) : selectedArtifact ? (
+            {selectedArtifact ? (
               <>
                 <span className="wb-viewer-index">产物</span>
                 <h2 className="wb-viewer-title truncate">{selectedArtifact.title}</h2>
@@ -782,10 +824,51 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
                 <span className="spacer" />
                 <span className="wb-viewer-meta">{ARTIFACT_TYPE_LABEL[selectedArtifact.type]} · {selectedArtifact.version} · 只读预览</span>
               </>
+            ) : centerStage === 'start' ? (
+              <>
+                <span className="wb-viewer-index">刚开始</span>
+                <h2 className="wb-viewer-title truncate">创作需求与参考</h2>
+                <span className="wb-status" data-status="idle">
+                  <span className="fm-dot" data-s="idle" />还没有产出画面
+                </span>
+              </>
+            ) : centerStage === 'explore' ? (
+              <>
+                <span className="wb-viewer-index">探索方向</span>
+                <h2 className="wb-viewer-title truncate">方向对比</h2>
+                <span className="wb-status" data-status="idle">
+                  参考 {referenceAssets.length} 项 · 测试帧尚未生成
+                </span>
+              </>
+            ) : centerStage === 'produce' && !hasPicture ? (
+              <>
+                <span className="wb-viewer-index">制作中</span>
+                <h2 className="wb-viewer-title truncate">正在制作{liveTask ? `：${liveTask.label}` : ''}</h2>
+                <span className="wb-status" data-status="running">
+                  {liveTask?.state ?? '暂无任务'}
+                </span>
+              </>
+            ) : centerStage === 'revise' && !hasPicture ? (
+              <>
+                <span className="wb-viewer-index">修改中</span>
+                <h2 className="wb-viewer-title truncate">发现的问题</h2>
+                <span className="wb-status" data-status="failed">
+                  {problems.length} 个问题待改
+                </span>
+              </>
+            ) : centerStage === 'deliver' && !hasPicture ? (
+              <>
+                <span className="wb-viewer-index">交付前</span>
+                <h2 className="wb-viewer-title truncate">检查结果</h2>
+                <span className="wb-status" data-status="idle">
+                  {stageGates.filter((g) => g.decision === 'confirmed').length}/{stageGates.length} 项已确认
+                </span>
+              </>
             ) : (
               <>
                 {/* 原来这里挂一个场景编号徽标（S01）。那是数据层 id —— 场景号
                     在左侧列表里已经编好，舞台只要显示画面名就够。 */}
+                <span className="wb-viewer-index">{STAGE_LABEL[centerStage]}</span>
                 <h2 className="wb-viewer-title truncate">{selectedScene.label}</h2>
                 <span className="wb-status" data-status={statusOf(selectedScene.status).s}>
                   <span className="fm-dot" data-s={statusOf(selectedScene.status).s} />
@@ -803,14 +886,22 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
             )}
           </div>
 
-          {!hasPicture && !selectedArtifact ? (
-            <RequirementStage promptText={promptText} references={referenceAssets}
-                              onOpenMaterials={() => { setRailTab('materials'); setOpenShelf('reference') }} />
-          ) : selectedArtifact ? (
+          {selectedArtifact ? (
             <ArtifactView artifact={selectedArtifact}
                           onLocate={(id) => selectScene(id)}
                           onReference={() => referenceArtifact(selectedArtifact)}
                           onClose={() => setSelectedArtifactId(null)} />
+          ) : centerStage === 'start' ? (
+            <RequirementStage promptText={promptText} references={referenceAssets}
+                              onOpenMaterials={() => { setRailTab('materials'); setOpenShelf('reference') }} />
+          ) : centerStage === 'explore' ? (
+            <ExploreStage references={referenceAssets} onAskAI={() => selectSideTab('chat')} />
+          ) : centerStage === 'produce' && !hasPicture ? (
+            <ProduceStage task={liveTask} onViewTask={openTaskRecords} onAskAI={() => selectSideTab('chat')} />
+          ) : centerStage === 'revise' && !hasPicture ? (
+            <ReviseStage problems={problems} onAskAI={() => selectSideTab('chat')} />
+          ) : centerStage === 'deliver' && !hasPicture ? (
+            <DeliverStage gates={stageGates} finishingNotes={finishingNotes} onAskAI={() => selectSideTab('chat')} />
           ) : editMode ? (
             <>
               <div className="fw-stage fw-stage-edit">
@@ -826,6 +917,25 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
             </>
           ) : (
             <>
+              {/* 有画面时，修改中 / 交付前不另起视图：播放器仍是主画面，
+                  阶段信息以一条 strip 贴在舞台上方 —— 问题清单、检查结果都是真实评估。 */}
+              {centerStage === 'revise' && (
+                <div className="fw-stage-strip" data-kind="revise">
+                  <span className="fm-dot" data-s="failed" />
+                  <span className="fw-stage-strip-text">发现的问题：{problems.slice(0, 2).map((p) => p.title).join('、')}{problems.length > 2 ? ` 等 ${problems.length} 个` : ''}</span>
+                  <span className="spacer" />
+                  <button type="button" className="fw-stage-strip-btn" onClick={() => setCompare(true)}>前后对比 ›</button>
+                </div>
+              )}
+              {centerStage === 'deliver' && (
+                <div className="fw-stage-strip" data-kind="deliver">
+                  <span className="fw-stage-strip-text">
+                    检查结果：{stageGates.map((g) => `${g.label}已确认`).join(' · ')}
+                    {stageGates.flatMap((g) => g.blocked).length > 0 && ` · ${stageGates.flatMap((g) => g.blocked).length} 项仍受阻`}
+                    {stageGates.some((g) => g.stale) && ' · 有检查项对应旧版本'}
+                  </span>
+                </div>
+              )}
               {/* 舞台：paba .fw-stage */}
               <div className="fw-stage" ref={stageRef}>
                 {!compare ? (

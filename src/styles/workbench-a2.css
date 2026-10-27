@@ -1353,6 +1353,77 @@ html[data-theme="light"] #pane-flow .wb-a2 .fw-panel { box-shadow: 0 8px 24px rg
   font-size: 11.5px; line-height: 1.7; color: var(--tx3);
 }
 
+/* ── 中栏阶段视图 · 探索方向 / 制作中 / 修改中 / 交付前（无画面时）──
+   与 RequirementStage 同一套板式（块 + 脚注），只换内容；有画面时这些阶段
+   不另起视图，直接在播放器上方贴一条 strip（见 .fw-stage-strip）。 */
+#pane-flow .wb-a2 .fw-cstage {
+  flex: 1; min-height: 0; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 14px;
+  padding: 18px 20px 22px;
+}
+#pane-flow .wb-a2 .fw-cstage-block {
+  border: 1px solid var(--line); border-radius: var(--r-card);
+  background: var(--panel2); padding: 12px 13px;
+}
+#pane-flow .wb-a2 .fw-cstage-hd {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
+  font-size: 12px; font-weight: 650; color: var(--tx);
+}
+#pane-flow .wb-a2 .fw-cstage-hd .spacer { flex: 1; }
+#pane-flow .wb-a2 .fw-cstage-src { font-size: 10.5px; font-weight: 400; color: var(--tx3); }
+#pane-flow .wb-a2 .fw-cstage-note { margin: 0 0 10px; font-size: 11.5px; line-height: 1.65; color: var(--tx3); }
+#pane-flow .wb-a2 .fw-cstage-none { margin: 0; font-size: 11.5px; line-height: 1.65; color: var(--tx3); }
+#pane-flow .wb-a2 .fw-cstage-refs {
+  margin: 0; padding: 0; list-style: none;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px 10px;
+}
+#pane-flow .wb-a2 .fw-cstage-refs > li { display: flex; align-items: center; gap: 8px; min-width: 0; }
+#pane-flow .wb-a2 .fw-cstage-thumb {
+  display: grid; place-items: center; flex: none; width: 48px; height: 30px;
+  overflow: hidden; border: 1px solid var(--line); border-radius: var(--r-thumb);
+  background: var(--panel); color: var(--tx3); font-size: 9px;
+}
+#pane-flow .wb-a2 .fw-cstage-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+#pane-flow .wb-a2 .fw-cstage-refname {
+  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 11.5px; color: var(--tx2);
+}
+#pane-flow .wb-a2 .fw-cstage-refmeta { flex: none; font-size: 10.5px; color: var(--tx3); }
+#pane-flow .wb-a2 .fw-cstage-task { margin: 0; font-size: 13px; line-height: 1.75; color: var(--tx); }
+#pane-flow .wb-a2 .fw-cstage-rows {
+  margin: 0; padding: 0; list-style: none;
+  display: flex; flex-direction: column; gap: 8px;
+}
+#pane-flow .wb-a2 .fw-cstage-row { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+#pane-flow .wb-a2 .fw-cstage-row-t { flex: 1; min-width: 0; font-size: 12px; line-height: 1.6; color: var(--tx); }
+#pane-flow .wb-a2 .fw-cstage-row-m { flex: none; font-size: 10.5px; color: var(--tx3); }
+#pane-flow .wb-a2 .fw-cstage-blocked { display: block; margin-top: 2px; font-size: 11px; line-height: 1.6; color: var(--warn); }
+#pane-flow .wb-a2 .fw-cstage-actions { display: flex; gap: 8px; }
+#pane-flow .wb-a2 .fw-cstage-btn {
+  padding: 7px 12px; border: 1px solid var(--line); border-radius: 8px;
+  background: var(--panel2); color: var(--tx); font: inherit; font-size: 12px; cursor: pointer;
+}
+#pane-flow .wb-a2 .fw-cstage-btn:hover { border-color: var(--acc); color: var(--acc-tx); }
+#pane-flow .wb-a2 .fw-cstage-foot {
+  margin: 0; padding: 10px 12px;
+  border: 1px dashed var(--line2); border-radius: var(--r-card);
+  font-size: 11.5px; line-height: 1.7; color: var(--tx3);
+}
+#pane-flow .wb-a2 .fw-stage-strip {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 14px; border-bottom: 1px solid var(--line);
+  background: var(--panel2); font-size: 11.5px; color: var(--tx2);
+}
+#pane-flow .wb-a2 .fw-stage-strip .spacer { flex: 1; }
+#pane-flow .wb-a2 .fw-stage-strip-text {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+#pane-flow .wb-a2 .fw-stage-strip-btn {
+  flex: none; padding: 0; border: 0; background: none;
+  color: var(--acc-tx); font: inherit; font-size: 11.5px; cursor: pointer;
+}
+#pane-flow .wb-a2 .fw-stage-strip-btn:hover { color: var(--acc); }
+
 
 /* ── 资料页 · 素材 / 参考（分开两格，按格式一摞一摞堆）──────────
    作者定稿：不做抽屉、不跳素材库；素材与参考分开展示；同一格式的文件叠成一摞
