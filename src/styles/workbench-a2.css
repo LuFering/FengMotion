@@ -1104,8 +1104,11 @@ html[data-theme="light"] #pane-flow .wb-a2 .fw-panel { box-shadow: 0 8px 24px rg
   box-shadow: inset 0 1px 0 color-mix(in srgb, var(--tx) 14%, transparent),
               0 2px 8px rgb(0 0 0 / .08);
 }
-#pane-flow .wb-a2 .fw-deck-card[data-pos="1"] .fw-rail-decision-main b,
-#pane-flow .wb-a2 .fw-deck-card[data-pos="2"] .fw-rail-decision-main b { color: var(--tx3); }
+/* 后层卡只该露出边缘。它们和前排卡同尺寸，只是被 translate/rotate 挪开，
+   内容不藏起来就会从底下漏出字 —— 提示行尤其明显（标题曾经只调暗，不够）。
+   做法是留卡片壳、藏内容：前排是卡，后排是压暗的卡边，这就是这套牌堆的观感。 */
+#pane-flow .wb-a2 .fw-deck-card[data-pos="1"] > *,
+#pane-flow .wb-a2 .fw-deck-card[data-pos="2"] > * { visibility: hidden; }
 #pane-flow .wb-a2 .fw-deck-card .fw-rail-decision-main b,
 #pane-flow .wb-a2 .fw-deck-card .fw-rail-decision-main small { transition: color .28s ease; }
 #pane-flow .wb-a2 .fw-deck-card[data-leaving] {
@@ -1128,8 +1131,6 @@ html[data-theme="light"] #pane-flow .wb-a2 .fw-panel { box-shadow: 0 8px 24px rg
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
 #pane-flow .wb-a2 .fw-deck-card[data-pos="0"] { cursor: pointer; }
-#pane-flow .wb-a2 .fw-deck-card[data-pos="1"] .fw-deck-marker,
-#pane-flow .wb-a2 .fw-deck-card[data-pos="2"] .fw-deck-marker { visibility: hidden; }
 #pane-flow .wb-a2 .fw-deck-card[data-parked] { opacity: 0; }
 #pane-flow .wb-a2 .fw-deck.is-list { margin-bottom: 12px; }
 #pane-flow .wb-a2 .fw-deck.is-list .fw-deck-card {
@@ -1195,22 +1196,19 @@ html[data-theme="light"] #pane-flow .wb-a2 .fw-panel { box-shadow: 0 8px 24px rg
 #pane-flow .wb-a2 .fw-modal .fw-rail-decision-acts { display: flex; gap: 6px; margin-bottom: 8px; }
 
 /* ── 概览栏 · 已确认（待决定下方）──────────────────────────────
-   和待决定一样是卡片（同一套壳：--line 边 + --panel2 底 + --r-card 圆角），
-   否则这一栏里别处都是卡片、只有这里是一行裸文字，形状对不上。
-   层级仍靠内容区分而不是靠去掉壳：标题用次级色、没有 › 键、绿点表示已定 ——
-   它是记录，不是可操作项，不该和「等你拍板」抢注意力。
+   已确认和待决定共用同一套牌堆（见 Workbench.tsx 的 RailDeck）：卡片外壳、叠放、
+   ‹ › 翻卡、圆点、点主卡散开成列表、FLIP 过渡全部同源，所以这里只需要声明
+   两者的差别：
+     · 卡片矮一档 —— 待决定的说明是最多两行，已确认只有一行「已通过 · 今天」，
+       同样高度会空出一截；
+     · 标题用次级色 —— 它是记录，不该和「等你拍板」抢注意力。
    一条都没确认时整个区不渲染，不留说明文字。 */
-#pane-flow .wb-a2 .fw-confirmed-item {
-  display: flex; align-items: flex-start; gap: 7px;
-  padding: 7px 9px; margin-bottom: 4px;
-  border: 1px solid var(--line); border-radius: var(--r-card);
-  background: var(--panel2);
-}
-#pane-flow .wb-a2 .fw-confirmed-item .fm-dot { margin-top: 4px; flex: none; }
-#pane-flow .wb-a2 .fw-confirmed-item .fw-rail-decision-main { flex: 1; min-width: 0; }
-#pane-flow .wb-a2 .fw-confirmed-item b { font-size: 12px; font-weight: 600; color: var(--tx2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-#pane-flow .wb-a2 .fw-confirmed-item small { font-size: 11px; color: var(--tx3); }
-#pane-flow .wb-a2 .fw-confirmed-more { margin: 2px 10px 0; font-size: 11px; color: var(--tx3); }
+#pane-flow .wb-a2 .fw-deck--record .fw-deck-card { height: 52px; }
+#pane-flow .wb-a2 .fw-deck--record .fw-deck-card .fw-rail-decision-main b { color: var(--tx2); }
+/* 记录条数可能比待决定多，圆点不参与收缩、放不下就横向滚，不要挤成椭圆 */
+#pane-flow .wb-a2 .fw-deck-dots { min-width: 0; overflow-x: auto; scrollbar-width: none; }
+#pane-flow .wb-a2 .fw-deck-dots::-webkit-scrollbar { display: none; }
+#pane-flow .wb-a2 .fw-deck-dot { flex: none; }
 
 /* ── 概览栏 · 视频内容 与 项目资料 ─────────────────────────────
    视频内容：这一栏的主要导航。整片行复用 .fm-unit（缩略帧 + 标题 + 元信息行），

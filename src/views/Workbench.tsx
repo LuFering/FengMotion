@@ -143,7 +143,10 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
      这次按 decision/confirmedFor 写，与编辑器确认卡同一口径。
      渲染里不直接读存储：快照 state 由决定写回时刷新，视图切换重挂载
      时重取，计算本身是快照的纯函数。 */
-  type Decision = { wfId: string; id: string; title: string; hint: string; detail: string }
+  /* id 必须带上工作流：节点 id 在各自图里唯一，但跨工作流会重名（每个 prompt-first
+     图都叫 n-review）。牌堆是按 id 认卡的，重名会让两张卡被当成同一张、只渲染出一张。
+     写回工作流时要的是原始 nodeId，所以两个字段分开存，不要合成一个。 */
+  type Decision = { wfId: string; nodeId: string; id: string; title: string; hint: string; detail: string }
   const [workflowsSnapshot, setWorkflowsSnapshot] = useState(() => workflowService.listWorkflows())
   const decisions = useMemo(() => {
     if (!projectId) return []
@@ -156,7 +159,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
             const c = (n.params.checks ?? {}) as Record<string, boolean>
             if (c.done || c.rework) return
             out.push({
-              wfId: w.id, id: n.id, title: '看片与修改',
+              wfId: w.id, nodeId: n.id, id: `${w.id}:${n.id}`, title: '看片与修改',
               hint: '对着预览给出结论：通过，或指出要改的地方',
               detail: '结论会写进工作流的看片节点，后续制作按它执行。',
             })
@@ -166,7 +169,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
             const ev = evaluateGate(w, n)
             if (ev.decision !== 'pending') return
             out.push({
-              wfId: w.id, id: n.id, title: ev.label,
+              wfId: w.id, nodeId: n.id, id: `${w.id}:${n.id}`, title: ev.label,
               hint: ev.blocked.length ? ev.blocked.join('；') : '等待你确认',
               detail: GATE_DEFS[String(n.params.gate ?? '')]?.question ?? '确认这一层的产物是否成立。',
             })
@@ -180,7 +183,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
      不进这里（它回工作流返工）。 */
   const confirmed = useMemo(() => {
     if (!projectId) return []
-    const out: { id: string; title: string; meta: string; decidedAt: string }[] = []
+    const out: { id: string; title: string; hint: string; decidedAt: string }[] = []
     workflowsSnapshot
       .filter((w) => w.projectId === projectId)
       .forEach((w) => {
@@ -189,21 +192,20 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
             const c = (n.params.checks ?? {}) as Record<string, boolean>
             if (!c.done) return
             const day = fmtDay(String(n.params.decidedAt ?? ''))
-            out.push({ id: n.id, title: '看片与修改', meta: `已通过${day ? ` · ${day}` : ''}`, decidedAt: String(n.params.decidedAt ?? '') })
+            out.push({ id: `${w.id}:${n.id}`, title: '看片与修改', hint: `已通过${day ? ` · ${day}` : ''}`, decidedAt: String(n.params.decidedAt ?? '') })
           }
           if (n.type === 'gate') {
             if (n.params.decision !== 'confirmed') return
             const ev = evaluateGate(w, n)
             const cf = (n.params.confirmedFor ?? {}) as { kind?: string; version?: string }
             const day = fmtDay(String(n.params.decidedAt ?? ''))
-            out.push({ id: n.id, title: ev.label, meta: `已确认${cf.version ? ` · ${cf.version}` : ''}${day ? ` · ${day}` : ''}`, decidedAt: String(n.params.decidedAt ?? '') })
+            out.push({ id: `${w.id}:${n.id}`, title: ev.label, hint: `已确认${cf.version ? ` · ${cf.version}` : ''}${day ? ` · ${day}` : ''}`, decidedAt: String(n.params.decidedAt ?? '') })
           }
         })
       })
     out.sort((a, b) => (b.decidedAt || '').localeCompare(a.decidedAt || ''))
     return out
   }, [projectId, workflowsSnapshot])
-  const confirmedShown = confirmed.slice(0, 3)
   const decideNode = (wfId: string, nodeId: string, verdict: 'done' | 'rework') => {
     const target = workflowService.getWorkflow(wfId)
     if (!target || !target.nodes.some((n) => n.id === nodeId)) return
@@ -626,7 +628,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
                      open={railOpen} onClose={() => setRailOpen(false)}
                      tab={railTab} onTab={setRailTab}
                      selectedArtifactId={selectedArtifactId} onSelectArtifact={selectArtifact}
-                     confirmed={confirmedShown} confirmedTotal={confirmed.length}
+                     confirmed={confirmed}
                      decisions={decisions} onDecide={decideNode}
                      workflowId={workflow?.id ?? null}
                      onOpenWorkflowEditor={onOpenWorkflowEditor}
@@ -871,67 +873,55 @@ function fmtDay(iso: string) {
   return `${d.getMonth() + 1}月${d.getDate()}日`
 }
 
-function ProjectRail({ projectName, open, onClose, tab, onTab,
-  selectedArtifactId, onSelectArtifact,
-  confirmed, confirmedTotal,
-  decisions, onDecide, workflowId, onOpenWorkflowEditor,
-  wholeFilmActive, onSelectWholeFilm, onOpenAssets, creation }:
-  { projectName: string; open: boolean; onClose: () => void
-    tab: RailTab; onTab: (tab: RailTab) => void
-    selectedArtifactId: string | null; onSelectArtifact: (id: string) => void
-    confirmed: { id: string; title: string; meta: string }[]
-    confirmedTotal: number
-    decisions: { wfId: string; id: string; title: string; hint: string; detail: string }[]
-    onDecide: (wfId: string, nodeId: string, verdict: 'done' | 'rework') => void
-    workflowId: string | null
-    onOpenWorkflowEditor?: (workflowId: string) => void
-    /** 整片：不管项目有没有分镜都固定存在的入口，选中即把修改范围设为整个项目。 */
-    wholeFilmActive: boolean
-    onSelectWholeFilm: () => void
-    /** 素材与参考只放入口，正文在素材库里看，不铺在这一栏。 */
-    onOpenAssets: () => void
-    creation?: ReactNode }) {
-  /* 牌堆交互（无大卡片）：牌堆态与列表态是同一批卡片节点在两种形态间切换。
-     牌堆态：下方 ‹ › 切换最前卡（循环，中间圆点指示位置、可点选），点主卡散开成列表；
-     列表态：每张小卡右侧 › 键开弹窗看详情、做结论，控制区只剩聚拢键；
-     形态切换用 FLIP（切换前量位置、切换后反向位移再过渡回自然位置），
-     与切换动效同一套过渡（transform/背景/阴影/标题色）。
-     卡片尺寸固定：小卡高度写死、内容裁切（标题单行省略、提示最多两行），
-     最前卡矮、后层卡长时也不再从牌堆底下漏字。 */
-  const [leaving, setLeaving] = useState<{ id: string; verdict: 'done' | 'rework' } | null>(null)
-  const [removing, setRemoving] = useState<string | null>(null)
+/* ── 牌堆 ────────────────────────────────────────────────────────
+   待决定与已确认共用同一套交互（原来只有待决定有，已确认是一行行平铺的记录）：
+   牌堆态：下方 ‹ › 切换最前卡（循环，中间圆点指示位置、可点选），点主卡散开成列表；
+   列表态：每张小卡右侧 › 键开弹窗看详情，控制区只剩聚拢键；
+   形态切换用 FLIP（切换前量位置、切换后反向位移再过渡回自然位置），
+   与切换动效同一套过渡（transform/背景/阴影/标题色）。
+   卡片尺寸固定：小卡高度写死、内容裁切（标题单行省略、提示最多两行），
+   最前卡矮、后层卡长时也不再从牌堆底下漏字。
+
+   两处只有三件事不同，都由 props 决定：圆点语义、卡片高度（记事的正文只有一行）、
+   弹窗正文。所以抽成一个组件，而不是抄两份 —— 抄两份迟早会漂移。 */
+type DeckEntry = { id: string; title: string; hint: string }
+
+function RailDeck<T extends DeckEntry>({ items, dotStatus, variant, leavingId, removingId, renderModal }: {
+  items: T[]
+  dotStatus: 'waiting' | 'done'
+  variant: 'decision' | 'record'
+  /** 父级给出结论后触发滑出 / 右滑淡出；动画结束后父级再把这条从 items 里去掉 */
+  leavingId?: string | null
+  removingId?: string | null
+  /** › 打开的弹窗正文。ctx.source 是这条当前所在的形态 —— 两种形态退场动画不同 */
+  renderModal: (item: T, ctx: { close: () => void; source: 'stack' | 'list' }) => ReactNode
+}) {
   const [listOpen, setListOpen] = useState(false)
   const [frontId, setFrontId] = useState<string | null>(null)
-  const [modal, setModal] = useState<{ d: (typeof decisions)[number]; source: 'stack' | 'list' } | null>(null)
-  const leavingTimer = useRef<number | null>(null)
-  const removingTimer = useRef<number | null>(null)
+  const [modal, setModal] = useState<T | null>(null)
   const deckRef = useRef<HTMLDivElement | null>(null)
   const flipSnap = useRef<{ rects: Map<string, { left: number; top: number }>; height: number } | null>(null)
-  useEffect(() => () => {
-    if (leavingTimer.current) window.clearTimeout(leavingTimer.current)
-    if (removingTimer.current) window.clearTimeout(removingTimer.current)
-  }, [])
   useEffect(() => {
     if (!modal) return
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setModal(null) }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [modal])
-  const effectiveFrontId = frontId && decisions.some((d) => d.id === frontId) ? frontId : null
-  const frontCardId = effectiveFrontId ?? decisions[0]?.id
-  const frontIndex = frontCardId ? decisions.findIndex((d) => d.id === frontCardId) : 0
+  const effectiveFrontId = frontId && items.some((d) => d.id === frontId) ? frontId : null
+  const frontCardId = effectiveFrontId ?? items[0]?.id
+  const frontIndex = frontCardId ? items.findIndex((d) => d.id === frontCardId) : 0
   const ordered = frontCardId
-    ? [...decisions.filter((d) => d.id === frontCardId), ...decisions.filter((d) => d.id !== frontCardId)]
-    : decisions
+    ? [...items.filter((d) => d.id === frontCardId), ...items.filter((d) => d.id !== frontCardId)]
+    : items
   const stepFront = (dir: 1 | -1) => {
-    if (decisions.length <= 1) return
-    setFrontId(decisions[(frontIndex + dir + decisions.length) % decisions.length].id)
+    if (items.length <= 1) return
+    setFrontId(items[(frontIndex + dir + items.length) % items.length].id)
   }
   /* 牌堆态 DOM 顺序固定为原始顺序，只用 data-pos 换前后——切卡时不挪节点，
      否则被挪的节点会丢过渡（实测：旧卡 30ms 就跳到最终位置，新卡却正常过渡）。
      pos 超出 2 的卡停在后层同位但透明（data-parked），切到它时同样有过渡。 */
-  const nonFront = decisions.filter((d) => d.id !== frontCardId)
-  const stackCards = decisions.map((d) => {
+  const nonFront = items.filter((d) => d.id !== frontCardId)
+  const stackCards = items.map((d) => {
     const pos = d.id === frontCardId ? 0 : 1 + nonFront.findIndex((x) => x.id === d.id)
     return { d, pos: pos <= 2 ? pos : 2, parked: pos > 2 }
   })
@@ -973,16 +963,99 @@ function ProjectRail({ projectName, open, onClose, tab, onTab,
     deckEl.addEventListener('transitionend', clear, { once: true })
     window.setTimeout(clear, 350)
   }, [listOpen])
-  const decideFromModal = (verdict: 'done' | 'rework') => {
-    if (!modal || leaving || removing) return
-    const { d, source } = modal
-    setModal(null)
+  if (items.length === 0) return null
+  return (
+    <>
+      <div className={`fw-deck fw-deck--${variant}${listOpen ? ' is-list' : ''}`} ref={deckRef}>
+        {shown.map(({ d, pos, parked }) => {
+          const front = !listOpen && pos === 0
+          return (
+            <div key={d.id} data-id={d.id} className="fw-rail-decision fw-deck-card"
+                 data-pos={pos}
+                 data-parked={parked || undefined}
+                 data-leaving={leavingId === d.id || undefined}
+                 data-removing={removingId === d.id || undefined}
+                 aria-hidden={!listOpen && !front ? true : undefined}
+                 onClick={!listOpen && front ? () => toggleList(true) : undefined}>
+              <span className="fm-dot" data-s={dotStatus} />
+              <span className="fw-rail-decision-main">
+                <b>{d.title}</b>
+                <small>{d.hint}</small>
+              </span>
+              <button type="button" className="fw-deck-marker" aria-label={`查看${d.title}详情`}
+                      onClick={(e) => { e.stopPropagation(); setModal(d) }}>›</button>
+            </div>
+          )
+        })}
+      </div>
+      <div className="fw-deck-controls">
+        {listOpen ? (
+          <button type="button" className="fw-deck-gather" onClick={() => toggleList(false)}>聚拢 ↑</button>
+        ) : (
+          <span className="fw-deck-switch">
+            <button type="button" className="fw-deck-switch-btn" aria-label="上一张"
+                    disabled={items.length <= 1} onClick={() => stepFront(-1)}>‹</button>
+            <span className="fw-deck-dots">
+              {items.map((d) => (
+                <button key={d.id} type="button" className="fw-deck-dot"
+                        data-active={d.id === items[frontIndex]?.id || undefined}
+                        aria-label={`看${d.title}`} onClick={() => setFrontId(d.id)} />
+              ))}
+            </span>
+            <button type="button" className="fw-deck-switch-btn" aria-label="下一张"
+                    disabled={items.length <= 1} onClick={() => stepFront(1)}>›</button>
+          </span>
+        )}
+      </div>
+      {modal && (
+        <div className="fw-modal-backdrop" onClick={() => setModal(null)}>
+          <div className="fw-modal" role="dialog" aria-modal="true" aria-label={`${modal.title}详情`}
+               onClick={(e) => e.stopPropagation()}>
+            {renderModal(modal, { close: () => setModal(null), source: listOpen ? 'list' : 'stack' })}
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
+
+function ProjectRail({ projectName, open, onClose, tab, onTab,
+  selectedArtifactId, onSelectArtifact,
+  confirmed,
+  decisions, onDecide, workflowId, onOpenWorkflowEditor,
+  wholeFilmActive, onSelectWholeFilm, onOpenAssets, creation }:
+  { projectName: string; open: boolean; onClose: () => void
+    tab: RailTab; onTab: (tab: RailTab) => void
+    selectedArtifactId: string | null; onSelectArtifact: (id: string) => void
+    confirmed: { id: string; title: string; hint: string }[]
+    decisions: { wfId: string; nodeId: string; id: string; title: string; hint: string; detail: string }[]
+    onDecide: (wfId: string, nodeId: string, verdict: 'done' | 'rework') => void
+    workflowId: string | null
+    onOpenWorkflowEditor?: (workflowId: string) => void
+    /** 整片：不管项目有没有分镜都固定存在的入口，选中即把修改范围设为整个项目。 */
+    wholeFilmActive: boolean
+    onSelectWholeFilm: () => void
+    /** 素材与参考只放入口，正文在素材库里看，不铺在这一栏。 */
+    onOpenAssets: () => void
+    creation?: ReactNode }) {
+  /* 给结论后先让那张卡退场（牌堆态滑出、列表态右滑淡出），动画结束再写回工作流。
+     卡片的形态、位移与弹窗都在 RailDeck 里，这里只留「哪张正在退场」和它的定时器。 */
+  const [leaving, setLeaving] = useState<{ id: string; verdict: 'done' | 'rework' } | null>(null)
+  const [removing, setRemoving] = useState<string | null>(null)
+  const leavingTimer = useRef<number | null>(null)
+  const removingTimer = useRef<number | null>(null)
+  useEffect(() => () => {
+    if (leavingTimer.current) window.clearTimeout(leavingTimer.current)
+    if (removingTimer.current) window.clearTimeout(removingTimer.current)
+  }, [])
+  const decideFromModal = (d: (typeof decisions)[number], source: 'stack' | 'list', verdict: 'done' | 'rework') => {
+    if (leaving || removing) return
     if (source === 'list') {
       setRemoving(d.id)
-      removingTimer.current = window.setTimeout(() => { onDecide(d.wfId, d.id, verdict); setRemoving(null) }, 220)
+      removingTimer.current = window.setTimeout(() => { onDecide(d.wfId, d.nodeId, verdict); setRemoving(null) }, 220)
     } else {
       setLeaving({ id: d.id, verdict })
-      leavingTimer.current = window.setTimeout(() => { onDecide(d.wfId, d.id, verdict); setLeaving(null) }, 280)
+      leavingTimer.current = window.setTimeout(() => { onDecide(d.wfId, d.nodeId, verdict); setLeaving(null) }, 280)
     }
   }
   return (
@@ -1065,92 +1138,51 @@ function ProjectRail({ projectName, open, onClose, tab, onTab,
             {decisions.length === 0 ? (
               <p className="fw-rail-none">这一轮的事都已定下，可以继续下一轮制作。</p>
             ) : (
-              /* 多条决定：牌堆态（小卡叠放，圆点选最前）与列表态（向下排列）
-                 共用同一批卡片节点；详情只在弹窗里，不再有展开的大卡片。 */
-              <>
-              <div className={`fw-deck${listOpen ? ' is-list' : ''}`} ref={deckRef}>
-                {shown.map(({ d, pos, parked }) => {
-                  const front = !listOpen && pos === 0
-                  return (
-                    <div key={d.id} data-id={d.id} className="fw-rail-decision fw-deck-card"
-                         data-pos={pos}
-                         data-parked={parked || undefined}
-                         data-leaving={leaving?.id === d.id || undefined}
-                         data-removing={removing === d.id || undefined}
-                         aria-hidden={!listOpen && !front ? true : undefined}
-                         onClick={!listOpen && front ? () => toggleList(true) : undefined}>
-                      <span className="fm-dot" data-s="waiting" />
-                      <span className="fw-rail-decision-main">
-                        <b>{d.title}</b>
-                        <small>{d.hint}</small>
-                      </span>
-                      <button type="button" className="fw-deck-marker" aria-label={`查看${d.title}详情`}
-                              onClick={(e) => { e.stopPropagation(); setModal({ d, source: listOpen ? 'list' : 'stack' }) }}>›</button>
-                    </div>
-                  )
-                })}
-              </div>
-              <div className="fw-deck-controls">
-                {listOpen ? (
-                  <button type="button" className="fw-deck-gather" onClick={() => toggleList(false)}>聚拢 ↑</button>
-                ) : (
-                  <span className="fw-deck-switch">
-                    <button type="button" className="fw-deck-switch-btn" aria-label="上一张"
-                            disabled={decisions.length <= 1} onClick={() => stepFront(-1)}>‹</button>
-                    <span className="fw-deck-dots">
-                      {decisions.map((d) => (
-                        <button key={d.id} type="button" className="fw-deck-dot"
-                                data-active={d.id === decisions[frontIndex]?.id || undefined}
-                                aria-label={`看${d.title}`} onClick={() => setFrontId(d.id)} />
-                      ))}
-                    </span>
-                    <button type="button" className="fw-deck-switch-btn" aria-label="下一张"
-                            disabled={decisions.length <= 1} onClick={() => stepFront(1)}>›</button>
-                  </span>
-                )}
-              </div>
-              {modal && (
-                <div className="fw-modal-backdrop" onClick={() => setModal(null)}>
-                  <div className="fw-modal" role="dialog" aria-modal="true" aria-label={`${modal.d.title}详情`} onClick={(e) => e.stopPropagation()}>
-                    <div className="fw-modal-head">
-                      <span className="fm-dot" data-s="waiting" />
-                      <span className="fw-rail-decision-main"><b>{modal.d.title}</b><small>{modal.d.hint}</small></span>
-                      <button type="button" className="fw-modal-close" aria-label="关闭" onClick={() => setModal(null)}>×</button>
-                    </div>
-                    <p className="fw-modal-detail">{modal.d.detail}</p>
-                    <div className="fw-rail-decision-acts">
-                      <button type="button" className="fw-decide-btn" data-kind="done" onClick={() => decideFromModal('done')}>通过</button>
-                      <button type="button" className="fw-decide-btn" data-kind="rework" onClick={() => decideFromModal('rework')}>要改</button>
-                    </div>
-                    <button type="button" className="fw-rail-decision-more"
-                            onClick={() => { setModal(null); if (workflowId) onOpenWorkflowEditor?.(workflowId) }}>打开工作流查看详情</button>
-                  </div>
-                </div>
-              )}
-              </>
+              /* 多条决定：牌堆态（小卡叠放，圆点选最前）与列表态（向下排列）共用同一批
+                 卡片节点；详情只在弹窗里，不再有展开的大卡片。 */
+              <RailDeck items={decisions} dotStatus="waiting" variant="decision"
+                        leavingId={leaving?.id ?? null} removingId={removing}
+                        renderModal={(d, { close, source }) => (
+                          <>
+                            <div className="fw-modal-head">
+                              <span className="fm-dot" data-s="waiting" />
+                              <span className="fw-rail-decision-main"><b>{d.title}</b><small>{d.hint}</small></span>
+                              <button type="button" className="fw-modal-close" aria-label="关闭" onClick={close}>×</button>
+                            </div>
+                            <p className="fw-modal-detail">{d.detail}</p>
+                            <div className="fw-rail-decision-acts">
+                              <button type="button" className="fw-decide-btn" data-kind="done"
+                                      onClick={() => decideFromModal(d, source, 'done')}>通过</button>
+                              <button type="button" className="fw-decide-btn" data-kind="rework"
+                                      onClick={() => decideFromModal(d, source, 'rework')}>要改</button>
+                            </div>
+                            <button type="button" className="fw-rail-decision-more"
+                                    onClick={() => { close(); if (workflowId) onOpenWorkflowEditor?.(workflowId) }}>打开工作流查看详情</button>
+                          </>
+                        )} />
             )}
           </section>
 
           {confirmed.length > 0 && (
+            /* 已确认和待决定用同一套牌堆：卡多了叠起来、‹ › 翻、点主卡散开成列表。
+               区别只在内容 —— 它是记录，没有可操作项，所以弹窗里只给深链。 */
             <section>
               <div className="fw-scene-hd">
                 <span>已确认</span><span className="spacer" />
-                <span className="hint">{confirmedTotal}</span>
+                <span className="hint">{confirmed.length}</span>
               </div>
-              <div className="fw-confirmed-list">
-                {confirmed.map((c) => (
-                  <div key={c.id} className="fw-confirmed-item">
-                    <span className="fm-dot" data-s="done" />
-                    <span className="fw-rail-decision-main">
-                      <b>{c.title}</b>
-                      <small>{c.meta}</small>
-                    </span>
-                  </div>
-                ))}
-              </div>
-              {confirmedTotal > confirmed.length && (
-                <p className="fw-confirmed-more">共 {confirmedTotal} 条，仅显示最近 {confirmed.length} 条</p>
-              )}
+              <RailDeck items={confirmed} dotStatus="done" variant="record"
+                        renderModal={(c, { close }) => (
+                          <>
+                            <div className="fw-modal-head">
+                              <span className="fm-dot" data-s="done" />
+                              <span className="fw-rail-decision-main"><b>{c.title}</b><small>{c.hint}</small></span>
+                              <button type="button" className="fw-modal-close" aria-label="关闭" onClick={close}>×</button>
+                            </div>
+                            <button type="button" className="fw-rail-decision-more"
+                                    onClick={() => { close(); if (workflowId) onOpenWorkflowEditor?.(workflowId) }}>打开工作流查看详情</button>
+                          </>
+                        )} />
             </section>
           )}
 
