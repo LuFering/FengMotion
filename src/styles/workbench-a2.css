@@ -900,7 +900,14 @@
   background: transparent; color: var(--tx); font-size: 13px;
 }
 #pane-flow .wb-a2 .fw-sheet .wb-input::placeholder { color: var(--tx3); }
-#pane-flow .wb-a2 .wb-compose-scope { flex: 1; font-size: 11px; color: var(--tx3); }
+/* 作用范围：输入框上方一行。整行独占，名字不会被按钮挤到换行或截断；
+   真名（整片 / 场景 · 03 S03 / 帧 · 00:12）用次级文字色，前两字更淡。 */
+#pane-flow .wb-a2 .wb-compose-scope {
+  margin: 0 0 4px; padding: 0 2px;
+  font-size: 10.5px; color: var(--tx3);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+#pane-flow .wb-a2 .wb-compose-scope > b { color: var(--tx2); font-weight: 500; }
 #pane-flow .wb-a2 .fw-sheet .mini-strong {
   min-height: 28px; padding: 0 12px; border-radius: 999px;
   background: var(--acc); border-color: var(--acc); color: var(--acc-ink);

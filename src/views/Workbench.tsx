@@ -388,13 +388,39 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
   }), [selectedId, selectedScene.label])
   const currentProjectRef = useMemo<AgentReference>(() => ({
     id: `project:${projectId}`, role: 'target', kind: 'project', projectId,
-    label: `整个项目 · ${project.name}`,
+    label: `整片 · ${project.name}`,
   }), [projectId, project.name])
   const scopeFromReferences = (refs: AgentReference[]): TaskRequest['scope'] => {
     const target = refs.find((ref) => ref.role === 'target')
     if (!target || target.kind === 'project' || target.kind === 'artifact') return 'project'
     return 'scene'
   }
+  /* 输入框上那行作用范围，和 submit() 用同一个「有效目标」：
+     没有引用时 submit 会退回当前画面，所以显示也必须跟着退回，不能各说一套。
+     只说枚举（当前场景/整个项目）不够 —— 用户以为改一场、AI 却改了整片，
+     就是这么来的，所以这里报的是真名。 */
+  const effectiveTarget = useMemo(
+    () => references.find((ref) => ref.role === 'target') ?? currentShotRef,
+    [references, currentShotRef],
+  )
+  const scopeText = (ref: AgentReference): string => {
+    switch (ref.kind) {
+      /* 整片就是整片：项目名在顶栏与左栏页脚都有，这里再写一遍会把这行挤成两行 */
+      case 'project': return '整片'
+      case 'scene': return `场景 · ${ref.label}`
+      case 'shot': return `当前画面 · ${ref.label}`
+      case 'frame': return `帧 · ${ref.timecode}`
+      case 'range': return `范围 · ${ref.timecode}`
+      case 'region': return `区域 · ${ref.label}`
+      case 'artifact': return `产物 · ${ref.label}`
+    }
+  }
+  const scopeLabel = scopeText(effectiveTarget)
+  /* 占位文案用短名：整片 / 03 S03 / 当前画面 */
+  const scopeShort = effectiveTarget.kind === 'project' ? '整片'
+    : effectiveTarget.kind === 'scene' || effectiveTarget.kind === 'shot' ? effectiveTarget.label
+    : effectiveTarget.kind === 'artifact' ? effectiveTarget.label : '当前画面'
+
   /* 现在被设为 AI 修改范围的那个内容单元 */
   const activeSceneId = useMemo(() => {
     const target = references.find((ref) => ref.role === 'target')
@@ -683,13 +709,13 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
                      liveState={liveTask?.state ?? null}
                      onSelectContent={selectContentRow}
                      onOpenWorkflowEditor={onOpenWorkflowEditor}
-                     wholeFilmActive={scope === 'project'}
+                     wholeFilmActive={effectiveTarget.kind === 'project'}
                      onSelectWholeFilm={() => {
                        /* 选整片 = 把修改范围设成整个项目。submit() 是按引用推范围，
                           所以这里必须同时换掉 target 引用，否则输入框仍会落到当前场景。 */
                        setScope('project')
                        setTargetReference(currentProjectRef)
-                       setRailTab('overview')
+                       setEditMode(false)
                      }}
                      onOpenAssets={() => onNavigate('assets')}
                      /* 概览第一格：当前进度 + 运行入口。原来这里还有一块「正在制作」
@@ -827,6 +853,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
         {/* 右栏：对话 / 设置 */}
         <RightPanel chat={chat} sideTab={sideTab} setSideTab={selectSideTab}
                     scope={scope}
+                    scopeLabel={scopeLabel} scopeShort={scopeShort}
                     scene={selectedScene} storyboard={storyboard}
                     onOpenChat={openChatForScene} onOpenTask={openTaskRecords}
                     constraints={constraints} setConstraints={setConstraints}
@@ -1344,7 +1371,7 @@ function PlayerBar({ playerRef, frame, onSeek, playing, onToggle, rate, onRate, 
 }
 
 /* ── 右栏：对话 / 修改设置 ──────────────────────────────────── */
-function RightPanel({ chat, sideTab, setSideTab, scope, scene, storyboard,
+function RightPanel({ chat, sideTab, setSideTab, scope, scopeLabel, scopeShort, scene, storyboard,
   onOpenChat, onOpenTask,
   constraints, setConstraints, activeTask, cancelTask, records, onSubmit, onQuickAction,
   onNavigate, selectedVersion, editSettings, editSavedAt, editOverridden, references, onRemoveReference,
@@ -1352,6 +1379,8 @@ function RightPanel({ chat, sideTab, setSideTab, scope, scene, storyboard,
   onApplyEdit, onResetEdit, onCloseEdit, onOpenEdit }:
   { chat: ChatState; sideTab: SideTab; setSideTab: (v: SideTab) => void
     scope: 'project'|'scene'|'selection'
+    /** 输入框上显示的作用范围（真名，不是枚举）与它的短名（占位文案用） */
+    scopeLabel: string; scopeShort: string
     scene: (typeof SCENES)[number]
     storyboard: StoryboardEntry | null; onOpenChat: () => void; onOpenTask: () => void
     constraints: ModificationConstraints
@@ -1463,16 +1492,18 @@ function RightPanel({ chat, sideTab, setSideTab, scope, scene, storyboard,
           {/* 对话输入：与首页同一张纸片（.fw-sheet），主按钮是胶囊 */}
           <form className="fw-compose" onSubmit={(e) => { e.preventDefault(); submit() }}>
             <div className="fw-sheet">
+              {/* 作用范围独占输入框上方一行：写在按钮旁边会被挤成两行、还会把名字截掉，
+                  而它是「AI 到底会动哪一块」的唯一提示 —— 不能被截。 */}
+              <div className="wb-compose-scope" title={scopeLabel}>
+                作用于 <b>{scopeLabel}</b>
+              </div>
               <textarea className="wb-input" rows={3}
                         value={chat.draft} onChange={(e) => chat.setDraft(e.target.value)}
                         onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit() } }}
-                        placeholder="告诉 AI 要如何修改当前场景…" />
+                        placeholder={`告诉 AI 要如何修改「${scopeShort}」…`} />
               <div className="mt-1.5 flex items-center gap-2">
                 <button className="iconbtn" type="button" title="上传还没接通" disabled><Plus /></button>
-                <span className="wb-compose-scope">
-                  作用范围 · {scope === 'project' ? '整个项目' : scope === 'scene' ? '当前场景' : '所选场景'}
-                </span>
-                <button className="mini mini-strong" type="submit" disabled={!chat.draft.trim()}>
+                <button className="mini mini-strong ml-auto" type="submit" disabled={!chat.draft.trim()}>
                   <Send className="size-3" />提交
                 </button>
               </div>
