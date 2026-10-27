@@ -23,6 +23,8 @@ import {
 export type MaterialFile = {
   id: string
   name: string
+  /** 卡片占位图标用（没有缩略图的格式靠它认出来） */
+  media: MediaType
   /** 时长 + 授权 + 审核，一行说完 */
   meta: string
   /** 有缩略图才给，没有就不占位 */
@@ -31,7 +33,7 @@ export type MaterialFile = {
   adopted: boolean
 }
 
-/** 一摞 = 一个格式的文件叠在一起 */
+/** 一摞 = 一个格式的文件叠在一起（每张卡是一个文件，见 Workbench 的文件牌堆） */
 export type MaterialPile = {
   id: string
   title: string
@@ -67,7 +69,8 @@ function pilesOf(items: MyAsset[], adopted: Set<string>): MaterialPile[] {
       id: `pile:${media}`,
       title: MEDIA_LABEL[media],
       files: group.map((a) => ({
-        id: a.id, name: a.name, meta: metaOf(a), thumb: a.thumbnailPath, adopted: adopted.has(a.id),
+        id: a.id, name: a.name, media: a.mediaType, meta: metaOf(a),
+        thumb: a.thumbnailPath, adopted: adopted.has(a.id),
       })),
     })
   }

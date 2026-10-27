@@ -1,7 +1,8 @@
 import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
   ArrowDownToLine, ArrowLeftRight, ArrowUpRight, BookOpen, Check,
-  ChevronDown, ChevronLeft, Clock3, FileCode2, FileText, FolderOpen, History, ListTree, LoaderCircle, Maximize2, MessagesSquare,
+  ChevronDown, ChevronLeft, Clock3, FileCode2, FileText, Film, FolderOpen, History,
+  Image as ImageIcon, ListTree, LoaderCircle, Maximize2, MessagesSquare, Music2, Type as TypeIcon,
   ShieldCheck,
   PanelBottom, Pause, Play, Plus, RotateCcw, Send, Settings2,
   SkipBack, SkipForward, Square, Volume2, X,
@@ -18,7 +19,7 @@ import { studioAdapter } from '@/services/studioAdapter'
 import { evaluateGate, GATE_PRIMARY_KIND, workflowService } from '@/services/workflowService'
 import { GATE_DEFS } from '@/data/workflowTemplates'
 import { contentOutline, type ContentOutline, type ContentRow } from '@/data/contentOutline'
-import { materialShelves, type MaterialPile, type MaterialShelf } from '@/data/materialDeck'
+import { materialShelves, type MaterialFile, type MaterialShelf } from '@/data/materialDeck'
 import type { ChatState } from '@/shell/useChat'
 import { fmtClock, fmtDay, statusOf, TASK_STATUS_LABEL } from '@/shell/status'
 import { FilmPlayer, type PlayerRef } from '@/remotion/FilmPlayer'
@@ -969,13 +970,15 @@ function ArtifactIcon({ type }: { type: WorkbenchArtifact['type'] }) {
 type DeckEntry = { id: string; title: string; hint: string
   /** 单张卡自己的圆点语义；不给就随整摞的 dotStatus */
   s?: 'done' | 'waiting' | 'running' | 'failed' | 'idle'
-  /** 卡里左侧的前置视觉（素材卡用它放一摞缩略图）；不给就是纯文字卡 */
-  art?: ReactNode }
+  /** 文件卡的卡面：有缩略图就用它，没有就落到 icon（按格式认） */
+  thumb?: string
+  icon?: ReactNode }
 
 function RailDeck<T extends DeckEntry>({ items, dotStatus, variant, leavingId, removingId, renderModal }: {
   items: T[]
   dotStatus: 'waiting' | 'done' | 'idle'
-  variant: 'decision' | 'record'
+  /** decision / record = 文字卡（决定与记录）；file = 文件卡（卡面就是那个文件） */
+  variant: 'decision' | 'record' | 'file'
   /** 父级给出结论后触发滑出 / 右滑淡出；动画结束后父级再把这条从 items 里去掉 */
   leavingId?: string | null
   removingId?: string | null
@@ -1055,6 +1058,25 @@ function RailDeck<T extends DeckEntry>({ items, dotStatus, variant, leavingId, r
       <div className={`fw-deck fw-deck--${variant}${listOpen ? ' is-list' : ''}`} ref={deckRef}>
         {shown.map(({ d, pos, parked }) => {
           const front = !listOpen && pos === 0
+          /* 文件卡：卡面就是那个文件（缩略图 / 格式图标），卡脚是文件名 + 授权审核；
+             点卡即预览（不做「散开成列表」——那是决定卡用来翻多条记录的形态）。 */
+          if (variant === 'file') {
+            return (
+              <div key={d.id} data-id={d.id} className="fw-deck-card"
+                   data-pos={pos}
+                   data-parked={parked || undefined}
+                   aria-hidden={!front ? true : undefined}
+                   onClick={front ? () => setModal(d) : undefined}>
+                <span className="fw-file-face">
+                  {d.thumb ? <img src={d.thumb} alt="" /> : <span className="fw-file-ph">{d.icon}</span>}
+                </span>
+                <span className="fw-file-cap">
+                  <b>{d.title}</b>
+                  <small>{d.hint}</small>
+                </span>
+              </div>
+            )
+          }
           return (
             <div key={d.id} data-id={d.id} className="fw-rail-decision fw-deck-card"
                  data-pos={pos}
@@ -1063,7 +1085,6 @@ function RailDeck<T extends DeckEntry>({ items, dotStatus, variant, leavingId, r
                  data-removing={removingId === d.id || undefined}
                  aria-hidden={!listOpen && !front ? true : undefined}
                  onClick={!listOpen && front ? () => toggleList(true) : undefined}>
-              {d.art}
               <span className="fm-dot" data-s={d.s ?? dotStatus} />
               <span className="fw-rail-decision-main">
                 <b>{d.title}</b>
@@ -1140,8 +1161,6 @@ function ProjectRail({ projectName, open, onClose, tab, onTab,
     progressPanel?: ReactNode }) {
   /* 给结论后先让那张卡退场（牌堆态滑出、列表态右滑淡出），动画结束再写回工作流。
      卡片的形态、位移与弹窗都在 RailDeck 里，这里只留「哪张正在退场」和它的定时器。 */
-  /** 资料页点开的那一摞：弹窗里看文件（不是抽屉，也不跳素材库） */
-  const [openPile, setOpenPile] = useState<MaterialPile | null>(null)
   const [leaving, setLeaving] = useState<{ id: string; verdict: 'done' | 'rework' } | null>(null)
   const [removing, setRemoving] = useState<string | null>(null)
   const leavingTimer = useRef<number | null>(null)
@@ -1266,34 +1285,34 @@ function ProjectRail({ projectName, open, onClose, tab, onTab,
                 shelf.piles.length === 0 ? (
                   <p className="fw-rail-none">{shelf.empty ?? '这一格现在是空的。'}</p>
                 ) : (
-                  /* 和概览同一套牌堆：正面一张卡、后面露边、‹ ●●● › 翻卡。
-                     区别只在卡片内容 —— 每张卡是一摞同格式的文件。 */
-                  <RailDeck items={shelf.piles.map(pileEntry)} dotStatus="idle" variant="record"
-                            renderModal={(card, { close }) => (
-                              <>
-                                <div className="fw-modal-head">
-                                  <span className="fw-rail-decision-main">
-                                    <b>{card.title}</b><small>{card.pile.files.length} 项</small>
-                                  </span>
-                                  <button type="button" className="fw-modal-close" aria-label="关闭" onClick={close}>×</button>
-                                </div>
-                                {card.pile.files.some((f) => f.thumb) && (
-                                  <div className="fw-asset-grid">
-                                    {card.pile.files.filter((f) => f.thumb).slice(0, 9).map((f) => (
-                                      <img key={f.id} src={f.thumb} alt={f.name} />
-                                    ))}
-                                  </div>
-                                )}
-                                <ul className="fw-asset-list">
-                                  {card.pile.files.map((f) => (
-                                    <li key={f.id}>
-                                      <span className="fw-asset-name" title={f.name}>{f.name}</span>
-                                      <span className="fw-asset-meta">{f.adopted ? '引用 · ' : ''}{f.meta}</span>
-                                    </li>
-                                  ))}
-                                </ul>
-                              </>
-                            )} />
+                  /* 和概览同一套牌堆，同一套叠放与翻卡 —— 区别只在卡片本身：
+                     这里的每张卡就是一个文件（卡面是它自己的缩略图），
+                     相同格式的文件堆成一摞：图片一摞、视频一摞、音频一摞。 */
+                  shelf.piles.map((pile) => (
+                    <Fragment key={pile.id}>
+                      <div className="fw-stack-hd">
+                        {pile.title}
+                        <span className="spacer" />
+                        <span className="hint num">{pile.files.length}</span>
+                      </div>
+                      <RailDeck items={pile.files.map(fileEntry)} dotStatus="idle" variant="file"
+                                renderModal={(file, { close }) => (
+                                  <>
+                                    <div className="fw-modal-head">
+                                      <span className="fw-rail-decision-main">
+                                        <b>{file.title}</b><small>{file.hint}</small>
+                                      </span>
+                                      <button type="button" className="fw-modal-close" aria-label="关闭" onClick={close}>×</button>
+                                    </div>
+                                    <span className="fw-asset-preview">
+                                      {file.thumb
+                                        ? <img src={file.thumb} alt={file.title} />
+                                        : <span className="fw-file-ph">{file.icon}</span>}
+                                    </span>
+                                  </>
+                                )} />
+                    </Fragment>
+                  ))
                 )
               )}
             </Fragment>
@@ -1307,37 +1326,6 @@ function ProjectRail({ projectName, open, onClose, tab, onTab,
             所以场景级关联暂时是空的。
           </p>
 
-          {openPile && (
-            <div className="fw-modal-backdrop" onClick={() => setOpenPile(null)}>
-              <div className="fw-modal" role="dialog" aria-modal="true"
-                   aria-label={`${openPile.title} ${openPile.files.length} 项`}
-                   onClick={(e) => e.stopPropagation()}>
-                <div className="fw-modal-head">
-                  <span className="fw-rail-decision-main">
-                    <b>{openPile.title}</b><small>{openPile.files.length} 项</small>
-                  </span>
-                  <button type="button" className="fw-modal-close" aria-label="关闭"
-                          onClick={() => setOpenPile(null)}>×</button>
-                </div>
-                {/* 有画面先给一眼图，再列文件名与授权 —— 预览优先于清单 */}
-                {openPile.files.some((f) => f.thumb) && (
-                  <div className="fw-asset-grid">
-                    {openPile.files.filter((f) => f.thumb).slice(0, 9).map((f) => (
-                      <img key={f.id} src={f.thumb} alt={f.name} />
-                    ))}
-                  </div>
-                )}
-                <ul className="fw-asset-list">
-                  {openPile.files.map((f) => (
-                    <li key={f.id}>
-                      <span className="fw-asset-name" title={f.name}>{f.name}</span>
-                      <span className="fw-asset-meta">{f.adopted ? '引用 · ' : ''}{f.meta}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          )}
         </div>
       ) : (
         <div className="fw-ing-list">
@@ -1410,26 +1398,23 @@ function ProjectRail({ projectName, open, onClose, tab, onTab,
   )
 }
 
-/** 一摞文件 → 牌堆里的一张卡：左侧放这一摞的缩略图（错开叠着），
-    没有缩略图的格式（视频/字体）用字标，不画空框。 */
-function pileEntry(pile: MaterialPile) {
-  return {
-    id: pile.id,
-    title: pile.title,
-    hint: `${pile.files.length} 项`,
-    pile,
-    art: (
-      <span className="fw-deck-art" aria-hidden="true">
-        {pile.files.filter((f) => f.thumb).slice(0, 3).map((f, i) => (
-          <img key={f.id} src={f.thumb} alt="" data-i={i} />
-        ))}
-        {pile.files.every((f) => !f.thumb) && (
-          <span className="fw-deck-glyph">{pile.title.slice(0, 1)}</span>
-        )}
-      </span>
-    ),
-  }
+/** 文件格式 → 占位图标（没有缩略图时用；不画空框） */
+const MEDIA_NODE: Record<MaterialFile['media'], ReactNode> = {
+  image: <ImageIcon className="size-5" />,
+  video: <Film className="size-5" />,
+  audio: <Music2 className="size-5" />,
+  font: <TypeIcon className="size-5" />,
+  doc: <FileText className="size-5" />,
 }
+
+/** 一个文件 → 牌堆里的一张卡。卡面就是文件本身，卡脚是名字与授权/审核。 */
+const fileEntry = (f: MaterialFile) => ({
+  id: f.id,
+  title: f.name,
+  hint: `${f.adopted ? '引用 · ' : ''}${f.meta}`,
+  thumb: f.thumb,
+  icon: MEDIA_NODE[f.media],
+})
 
 function ToolButton({ label, onClick, active, disabled, children }: {
   label: string; onClick: () => void; active?: boolean; disabled?: boolean; children: React.ReactNode
