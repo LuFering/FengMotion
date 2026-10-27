@@ -39,6 +39,10 @@ export type ContentRow = {
   span?: { from: number; duration: number }
   /** 真实画面：产物里指到预览文件才有。没有就不渲染缩略图位，不拿空框占位 */
   thumb?: string
+  /** 这一行自己声明要外部素材（不是程序化生成）时，把需求写出来。
+      素材索引目前没有场景级关联，所以「需要什么」是这一行唯一能证实的信号 ——
+      不去编「缺少哪张图」。 */
+  needs?: string
   /** 点这一行时交给 AI 的范围 */
   ref: SceneRef
 }
@@ -81,6 +85,17 @@ function spanOf(o: Json, fps: number | null): ContentRow['span'] {
   return { from: from / fps, duration: frames / fps }
 }
 
+/** 素材策略 → 缺什么。只认产物里真写了 strategy 的（procedural = 不需要外部素材） */
+const NEED_LABEL: Record<string, string> = {
+  'video-footage': '实拍 / 素材片段',
+  footage: '实拍 / 素材片段',
+  image: '图片素材',
+  photo: '图片素材',
+  audio: '音频',
+  music: '音乐',
+  'svg-asset': '矢量素材',
+}
+
 /** 子层：产物里叫 shots / scenes 的都认，认到什么渲染什么 */
 const childrenOf = (o: Json): Json[] => [...listOf(o.shots), ...listOf(o.scenes)]
 
@@ -98,6 +113,11 @@ function rowsOf(items: Json[], depth: number, ctx: { fps: number | null; status:
       status: ctx.status,
       span: spanOf(item, ctx.fps),
       thumb: str(item.preview) || str(item.thumb) || undefined,
+      needs: (() => {
+        const strategy = str(item.assetStrategy)
+        if (!strategy || strategy === 'procedural') return undefined
+        return NEED_LABEL[strategy] ?? `外部素材（${strategy}）`
+      })(),
       ref: {
         id: `scene:${id}`, role: 'target', kind: 'scene', sceneId: id,
         label: `${index ? `${index} ` : ''}${name}`,

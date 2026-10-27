@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
   ArrowDownToLine, ArrowLeftRight, ArrowUpRight, BookOpen, Check,
   ChevronDown, ChevronLeft, Clock3, FileCode2, FileText, FolderOpen, History, ListTree, LoaderCircle, Maximize2, MessagesSquare,
@@ -19,6 +19,7 @@ import { studioAdapter } from '@/services/studioAdapter'
 import { evaluateGate, GATE_PRIMARY_KIND, workflowService } from '@/services/workflowService'
 import { GATE_DEFS } from '@/data/workflowTemplates'
 import { contentOutline, type ContentOutline, type ContentRow } from '@/data/contentOutline'
+import { materialDeck, type MaterialCard } from '@/data/materialDeck'
 import type { ChatState } from '@/shell/useChat'
 import { fmtClock, fmtDay, statusOf, TASK_STATUS_LABEL } from '@/shell/status'
 import { FilmPlayer, type PlayerRef } from '@/remotion/FilmPlayer'
@@ -234,6 +235,8 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
   // 调试直达：?artifact=artifact-content-contract 直接打开产物只读视图。
   const initialArtifact = new URLSearchParams(window.location.search).get('artifact')
   const [railTab, setRailTab] = useState<RailTab>(initialArtifact ? 'artifacts' : 'overview')
+  /** 资料页「素材与参考」是否展开成那摞卡（内容行缺素材时也会把它打开） */
+  const [materialsOpen, setMaterialsOpen] = useState(false)
   /* 「正在制作」：AI 任务此刻在哪个内容上。只认真的还在跑的状态（排队/执行/构建）——
      完成、停止、失败都不算在跑，整块随卡片一起不显示，左栏不常驻「暂无任务」。
      内容名取这次请求的目标引用：内容单元用自己的名字，整片级任务说「整片」，
@@ -247,6 +250,13 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
       : '当前预览画面'
     return { label, state: TASK_STATUS_LABEL[record.task.status] ?? record.task.status }
   }, [tasks.active])
+
+  /* 资料页那摞素材卡：本项目真实文件按格式堆叠，外加一张「缺失 / 不可用」。
+     工作流引用节点绑定了哪些，卡片上如实标出（不吹成「AI 精选」）。 */
+  const materials = useMemo(
+    () => materialDeck(projectId, progressWorkflow?.nodes.find((n) => n.type === 'refs')?.params.assetIds as string[] ?? []),
+    [projectId, progressWorkflow],
+  )
 
   /* 内容页的行：整片之外，这部片真实有哪些内容单元。
      只在这一页读运行记录 —— 结构挂在产物上（见 data/contentOutline.ts），
@@ -705,6 +715,9 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
                      decisions={decisions} onDecide={decideNode}
                      workflowId={workflow?.id ?? null}
                      outline={outline}
+                     materials={materials}
+                     materialsOpen={materialsOpen}
+                     onToggleMaterials={() => setMaterialsOpen((v) => !v)}
                      activeSceneId={activeSceneId}
                      liveState={liveTask?.state ?? null}
                      onSelectContent={selectContentRow}
@@ -717,7 +730,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
                        setTargetReference(currentProjectRef)
                        setEditMode(false)
                      }}
-                     onOpenAssets={() => onNavigate('assets')}
+                     onOpenMaterials={() => { setRailTab('materials'); setMaterialsOpen(true) }}
                      /* 概览第一格：当前进度 + 运行入口。原来这里还有一块「正在制作」
                         面板，两块都在报同一件事，已并进这一张卡。 */
                      progressPanel={
@@ -954,11 +967,13 @@ function ArtifactIcon({ type }: { type: WorkbenchArtifact['type'] }) {
 
    两处只有三件事不同，都由 props 决定：圆点语义、卡片高度（记事的正文只有一行）、
    弹窗正文。所以抽成一个组件，而不是抄两份 —— 抄两份迟早会漂移。 */
-type DeckEntry = { id: string; title: string; hint: string }
+type DeckEntry = { id: string; title: string; hint: string
+  /** 单张卡自己的圆点语义；不给就随整摞的 dotStatus */
+  s?: 'done' | 'waiting' | 'running' | 'failed' | 'idle' }
 
 function RailDeck<T extends DeckEntry>({ items, dotStatus, variant, leavingId, removingId, renderModal }: {
   items: T[]
-  dotStatus: 'waiting' | 'done'
+  dotStatus: 'waiting' | 'done' | 'idle'
   variant: 'decision' | 'record'
   /** 父级给出结论后触发滑出 / 右滑淡出；动画结束后父级再把这条从 items 里去掉 */
   leavingId?: string | null
@@ -1047,7 +1062,7 @@ function RailDeck<T extends DeckEntry>({ items, dotStatus, variant, leavingId, r
                  data-removing={removingId === d.id || undefined}
                  aria-hidden={!listOpen && !front ? true : undefined}
                  onClick={!listOpen && front ? () => toggleList(true) : undefined}>
-              <span className="fm-dot" data-s={dotStatus} />
+              <span className="fm-dot" data-s={d.s ?? dotStatus} />
               <span className="fw-rail-decision-main">
                 <b>{d.title}</b>
                 <small>{d.hint}</small>
@@ -1092,8 +1107,9 @@ function RailDeck<T extends DeckEntry>({ items, dotStatus, variant, leavingId, r
 function ProjectRail({ projectName, open, onClose, tab, onTab,
   selectedArtifactId, onSelectArtifact,
   confirmed,
-  decisions, onDecide, workflowId, outline, activeSceneId, liveState, onSelectContent, onOpenWorkflowEditor,
-  wholeFilmActive, onSelectWholeFilm, onOpenAssets, progressPanel }:
+  decisions, onDecide, workflowId, outline, materials, materialsOpen, onToggleMaterials,
+  activeSceneId, liveState, onSelectContent, onOpenWorkflowEditor,
+  wholeFilmActive, onSelectWholeFilm, onOpenMaterials, progressPanel }:
   { projectName: string; open: boolean; onClose: () => void
     tab: RailTab; onTab: (tab: RailTab) => void
     selectedArtifactId: string | null; onSelectArtifact: (id: string) => void
@@ -1103,6 +1119,10 @@ function ProjectRail({ projectName, open, onClose, tab, onTab,
     workflowId: string | null
     /** 内容页的行（整片之外真实存在的内容单元）与它从哪来 */
     outline: ContentOutline
+    /** 资料页那摞素材卡：本项目真实文件按格式堆叠 */
+    materials: MaterialCard[]
+    materialsOpen: boolean
+    onToggleMaterials: () => void
     /** 现在被设为 AI 修改范围的那个单元 */
     activeSceneId: string | null
     /** AI 任务正在跑时的状态词（执行中…）；没在跑就是 null —— 正在处理的那一行自己显示它 */
@@ -1112,8 +1132,8 @@ function ProjectRail({ projectName, open, onClose, tab, onTab,
     /** 整片：不管项目有没有分镜都固定存在的入口，选中即把修改范围设为整个项目。 */
     wholeFilmActive: boolean
     onSelectWholeFilm: () => void
-    /** 素材与参考只放入口，正文在素材库里看，不铺在这一栏。 */
-    onOpenAssets: () => void
+    /** 内容行缺素材时，把人带到资料页那摞素材卡上 */
+    onOpenMaterials: () => void
     /** 概览第一格：当前进度卡（读数 + 运行入口，见 RailProgress.tsx） */
     progressPanel?: ReactNode }) {
   /* 给结论后先让那张卡退场（牌堆态滑出、列表态右滑淡出），动画结束再写回工作流。
@@ -1192,7 +1212,8 @@ function ProjectRail({ projectName, open, onClose, tab, onTab,
                这不新开栏目，也不铺执行细节（细节在右侧任务页与底部面板）。 */
             const busy = liveState !== null && row.ref.sceneId === activeSceneId
             return (
-              <button key={row.id} type="button" className="fm-unit" data-part={row.depth}
+              <Fragment key={row.id}>
+              <button type="button" className="fm-unit" data-part={row.depth}
                       data-busy={busy || undefined}
                       aria-current={row.ref.sceneId === activeSceneId ? 'true' : undefined}
                       onClick={() => onSelectContent(row)}>
@@ -1206,6 +1227,14 @@ function ProjectRail({ projectName, open, onClose, tab, onTab,
                   </span>
                 </span>
               </button>
+              {/* 这一行自己声明要外部素材、而素材索引里没有场景级绑定时，就地提醒一次；
+                  点它去资料页看那摞素材卡（不是跳素材库）。 */}
+              {row.needs && (
+                <button type="button" className="fm-unit-need" onClick={onOpenMaterials}>
+                  需要{row.needs} · 还没绑定素材 ›
+                </button>
+              )}
+              </Fragment>
             )
           })}
 
@@ -1216,19 +1245,57 @@ function ProjectRail({ projectName, open, onClose, tab, onTab,
           )}
         </div>
       ) : tab === 'materials' ? (
-        /* 资料 —— 只放入口。产物正文、素材细节都在它们自己的视图里看，
-           这一栏不该被几十张图和整篇方案正文占满。 */
+        /* 资料 —— 只放入口。素材展开是「按格式堆叠」的一摞卡，不是抽屉、也不跳素材库
+           （作者定稿）：几十张图铺进左栏会挤掉内容导航，跳走又会丢掉来路。 */
         <div className="fw-ing-list">
           <button type="button" className="fw-res" onClick={() => onTab('artifacts')}>
             <span className="fw-res-name">产物</span>
             <span className="fw-count">{WORKBENCH_ARTIFACTS.length}</span>
             <span className="fw-res-go" aria-hidden="true">›</span>
           </button>
-          <button type="button" className="fw-res" onClick={onOpenAssets}>
+          <button type="button" className="fw-res" aria-expanded={materialsOpen}
+                  onClick={onToggleMaterials}>
             <span className="fw-res-name">素材与参考</span>
             <span className="fw-count">{BUILTIN_ASSETS.length}</span>
-            <span className="fw-res-go" aria-hidden="true">›</span>
+            <span className="fw-res-go" aria-hidden="true">{materialsOpen ? '⌃' : '›'}</span>
           </button>
+
+          {materialsOpen && materials.length > 0 && (
+            <>
+              <RailDeck items={materials} dotStatus="idle" variant="record"
+                        renderModal={(card, { close }) => (
+                          <>
+                            <div className="fw-modal-head">
+                              <span className="fm-dot" data-s={card.s} />
+                              <span className="fw-rail-decision-main">
+                                <b>{card.title}</b><small>{card.hint}</small>
+                              </span>
+                              <button type="button" className="fw-modal-close" aria-label="关闭" onClick={close}>×</button>
+                            </div>
+                            {/* 有画面的格式先给一眼图，再列文件名与授权 —— 预览优先于清单 */}
+                            {card.files.some((f) => f.thumb) && (
+                              <div className="fw-asset-grid">
+                                {card.files.filter((f) => f.thumb).slice(0, 9).map((f) => (
+                                  <img key={f.id} src={f.thumb} alt={f.name} />
+                                ))}
+                              </div>
+                            )}
+                            <ul className="fw-asset-list">
+                              {card.files.map((f) => (
+                                <li key={f.id}>
+                                  <span className="fw-asset-name" title={f.name}>{f.name}</span>
+                                  <span className="fw-asset-meta">{f.meta}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </>
+                        )} />
+              <p className="fw-rail-none">
+                素材索引只记「属于哪个项目 / 工作流 / 任务」，还没有「属于哪一场」这个字段，
+                所以场景级关联暂时是空的。
+              </p>
+            </>
+          )}
         </div>
       ) : (
         <div className="fw-ing-list">
