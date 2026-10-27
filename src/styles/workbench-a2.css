@@ -320,6 +320,14 @@
   box-shadow: var(--shadow-sel);
 }
 #pane-flow .wb-a2 .fw-ing-list .fm-unit-frame { width: 44px; height: 26px; flex: 0 0 44px; border-radius: var(--r-thumb); }
+/* 内容行（整片之外真实存在的内容单元）。层级靠缩进 —— 产物里嵌套几层就缩几层，
+   不固定三级；行号用等宽数字，和名字之间留一点缝，念出来仍是「03 风格切换」。 */
+#pane-flow .wb-a2 .fw-ing-list .fm-unit[data-part] { min-height: 38px; }
+#pane-flow .wb-a2 .fw-ing-list .fm-unit[data-part="2"] { margin-left: 18px; width: calc(100% - 18px); }
+#pane-flow .wb-a2 .fw-ing-list .fm-unit-index {
+  margin-right: 5px; color: var(--tx3);
+  font-family: var(--font-mono); font-size: 11px; font-variant-numeric: tabular-nums;
+}
 #pane-flow .wb-a2 .fw-ing-list .fm-unit-body { gap: 1px; }
 #pane-flow .wb-a2 .fw-ing-list .fm-unit-body > b { font-size: 12.5px; font-weight: 550; color: var(--tx); }
 #pane-flow .wb-a2 .fw-ing-list .fm-unit-body > span {

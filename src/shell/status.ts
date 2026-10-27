@@ -48,6 +48,13 @@ export const fmtDuration = (sec: number) =>
     ? `${Math.floor(sec / 60)}:${(sec % 60).toFixed(1).padStart(4, '0')}`
     : `${sec.toFixed(1)}s`
 
+/** 片内时间码：0:05 / 1:20。左栏内容行显示「这一段在片子里的位置」用它 ——
+    只有产物里真写了帧号与 fps 才有这个数，没有就不显示。 */
+export const fmtClock = (sec: number) => {
+  const total = Math.max(0, Math.round(sec))
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`
+}
+
 /** 任务状态的中文名。工作台的状态条、左栏的「当前进度」都读它 ——
     以前这张表长在 Workbench 里，别的组件要用只能再抄一份。 */
 export const TASK_STATUS_LABEL: Record<string, string> = {

@@ -18,8 +18,9 @@ import type { AgentReference, AgentTask, ModificationConstraints, ProjectVersion
 import { studioAdapter } from '@/services/studioAdapter'
 import { evaluateGate, GATE_PRIMARY_KIND, workflowService } from '@/services/workflowService'
 import { GATE_DEFS } from '@/data/workflowTemplates'
+import { contentOutline, type ContentOutline, type ContentRow } from '@/data/contentOutline'
 import type { ChatState } from '@/shell/useChat'
-import { fmtDay, statusOf, TASK_STATUS_LABEL } from '@/shell/status'
+import { fmtClock, fmtDay, statusOf, TASK_STATUS_LABEL } from '@/shell/status'
 import { FilmPlayer, type PlayerRef } from '@/remotion/FilmPlayer'
 import { StoryTimeline } from '@/views/StoryTimeline'
 import { RemotionEditPanel, RemotionEditPreview } from '@/views/RemotionEditPanel'
@@ -233,6 +234,13 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
   // 调试直达：?artifact=artifact-content-contract 直接打开产物只读视图。
   const initialArtifact = new URLSearchParams(window.location.search).get('artifact')
   const [railTab, setRailTab] = useState<RailTab>(initialArtifact ? 'artifacts' : 'overview')
+  /* 内容页的行：整片之外，这部片真实有哪些内容单元。
+     只在这一页读运行记录 —— 结构挂在产物上（见 data/contentOutline.ts），
+     切走这一页就不读，也就不用为它维护第三份快照。 */
+  const outline = useMemo(
+    () => contentOutline(workflowsSnapshot.filter((w) => w.projectId === projectId), railTab === 'content' ? workflowService.listRuns() : []),
+    [workflowsSnapshot, projectId, railTab],
+  )
   const [selectedArtifactId, setSelectedArtifactId] = useState<string | null>(initialArtifact)
   const [editMode, setEditMode] = useState(new URLSearchParams(window.location.search).get('edit') === '1')
   const [shotOverrides, setShotOverrides] = useState<ShotOverrideMap>(() => loadShotOverrides(projectId))
@@ -377,6 +385,17 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
     setScope(ref.kind === 'project' || ref.kind === 'artifact' ? 'project' : 'scene')
     setReferences((old) => [ref, ...old.filter((item) => item.role !== 'target')])
   }
+  /** 左栏内容页点中一个单元：把它设成 AI 的修改范围，右栏切到对话，
+      于是可以直接说「这一段……」。监看器与底部时间线不动 —— 它们放的是渲染切片
+      （占位数据），拿它去对应真实内容会串。 */
+  const selectContentRow = (row: ContentRow) => {
+    setTargetReference(row.ref)
+    setEditMode(false)
+    setSideTab('chat')
+    setNotice(row.span
+      ? `已把「${row.ref.label}」设为修改范围（${fmtClock(row.span.from)} 起，${row.span.duration.toFixed(1)}s）。`
+      : `已把「${row.ref.label}」设为修改范围。这一段还没有真实画面，监看与时间线暂时定位不过去。`)
+  }
   /** 从场景检查器显式进入 AI 修改：把本场设为目标，再打开对话。 */
   const openChatForScene = () => {
     setScope('scene')
@@ -398,6 +417,9 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
   const locateReference = (ref: AgentReference) => {
     if (ref.kind === 'artifact') { setSelectedArtifactId(ref.artifactId); setRailTab('artifacts'); return }
     if (ref.kind === 'project') { setSelectedArtifactId(null); setRailTab('overview'); return }
+    /* 内容单元：监看器播的是渲染切片，定位不过去；把它在左栏那一页高亮出来。
+       真实画面接上之后，这里再换成按时间轴 seek。 */
+    if (ref.kind === 'scene') { setSelectedArtifactId(null); setRailTab('content'); return }
     const clip = ACTIVE_SCENES.find((item) => item.id === ref.shotId)
     if (!clip) return
     setSelectedId(ref.shotId)
@@ -509,7 +531,12 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
   const submit = (prompt: string, kind: TaskRequest['kind'] = 'modify') => {
     const requestRefs = references.some((ref) => ref.role === 'target') ? references : [currentShotRef, ...references]
     const derivedScope = scopeFromReferences(requestRefs)
-    const sceneIds = derivedScope === 'project' ? [] : [selectedId]
+    /* 范围里的场景：目标是左栏选中的内容单元时用它自己的 id —— 它来自工作流产物，
+       和当前选中的渲染切片（selectedId，占位数据）不是一回事，不能互相顶替。 */
+    const target = requestRefs.find((ref) => ref.role === 'target')
+    const sceneIds = derivedScope === 'project'
+      ? []
+      : target?.kind === 'scene' ? [target.sceneId] : [selectedId]
     const request: TaskRequest = { kind, prompt, scope: derivedScope, sceneIds, references: requestRefs, constraints, attachments: [] }
     const id = tasks.start(request)
     chat.addUserMessage(prompt, id)
@@ -632,6 +659,11 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
                      confirmed={confirmed}
                      decisions={decisions} onDecide={decideNode}
                      workflowId={workflow?.id ?? null}
+                     outline={outline}
+                     activeSceneId={references.find((ref) => ref.role === 'target' && ref.kind === 'scene')?.kind === 'scene'
+                       ? (references.find((ref) => ref.role === 'target' && ref.kind === 'scene') as Extract<AgentReference, { kind: 'scene' }>).sceneId
+                       : null}
+                     onSelectContent={selectContentRow}
                      onOpenWorkflowEditor={onOpenWorkflowEditor}
                      wholeFilmActive={scope === 'project'}
                      onSelectWholeFilm={() => {
@@ -1013,7 +1045,7 @@ function RailDeck<T extends DeckEntry>({ items, dotStatus, variant, leavingId, r
 function ProjectRail({ projectName, open, onClose, tab, onTab,
   selectedArtifactId, onSelectArtifact,
   confirmed,
-  decisions, onDecide, workflowId, onOpenWorkflowEditor,
+  decisions, onDecide, workflowId, outline, activeSceneId, onSelectContent, onOpenWorkflowEditor,
   wholeFilmActive, onSelectWholeFilm, onOpenAssets, progressPanel }:
   { projectName: string; open: boolean; onClose: () => void
     tab: RailTab; onTab: (tab: RailTab) => void
@@ -1022,6 +1054,11 @@ function ProjectRail({ projectName, open, onClose, tab, onTab,
     decisions: { wfId: string; nodeId: string; id: string; title: string; hint: string; detail: string }[]
     onDecide: (wfId: string, nodeId: string, verdict: 'done' | 'rework') => void
     workflowId: string | null
+    /** 内容页的行（整片之外真实存在的内容单元）与它从哪来 */
+    outline: ContentOutline
+    /** 现在被设为 AI 修改范围的那个单元 */
+    activeSceneId: string | null
+    onSelectContent: (row: ContentRow) => void
     onOpenWorkflowEditor?: (workflowId: string) => void
     /** 整片：不管项目有没有分镜都固定存在的入口，选中即把修改范围设为整个项目。 */
     wholeFilmActive: boolean
@@ -1085,11 +1122,11 @@ function ProjectRail({ projectName, open, onClose, tab, onTab,
         </div>
       ) : tab === 'content' ? (
         /* 内容 —— 这部片有哪些画面，是这一栏的主要导航：找到某个画面，并把修改范围
-           明确给 AI。整片固定存在（不然用户没法说「整部片的节奏太慢」）；场景/镜头行
-           只在项目真有可靠结构时出现。
-           ⚠️ 现在这个项目还没有任何描述画面结构的产物（工作流里对应 film-plan 的
-           叙事阶段，或结构化路径的 scene-intents），所以只有整片一行：没有结构就
-           保留整片，不强行拆段，也不拿渲染切片冒充内容。 */
+           明确给 AI。整片固定存在（不然用户没法说「整部片的节奏太慢」）；下面的行
+           只在项目真有可靠结构时出现（见 data/contentOutline.ts）。
+
+           行只显示它真有的东西：名称、产物的状态、产物里真写了帧号才有时间、指到
+           预览文件才有缩略图。没有画面就不留空缩略图位，也不拿渲染切片冒充内容。 */
         <div className="fw-ing-list">
           <button type="button" className="fm-unit" data-state="whole"
                   aria-current={wholeFilmActive ? 'true' : undefined}
@@ -1099,6 +1136,27 @@ function ProjectRail({ projectName, open, onClose, tab, onTab,
               <span>需求与视觉方向</span>
             </span>
           </button>
+
+          {outline.rows.map((row) => (
+            <button key={row.id} type="button" className="fm-unit" data-part={row.depth}
+                    aria-current={row.ref.kind === 'scene' && row.ref.sceneId === activeSceneId ? 'true' : undefined}
+                    onClick={() => onSelectContent(row)}>
+              {row.thumb && <span className="fm-unit-frame"><img src={row.thumb} alt="" /></span>}
+              <span className="fm-unit-body">
+                <b>{row.index && <span className="fm-unit-index">{row.index}</span>}{row.name}</b>
+                <span>
+                  {row.status}
+                  {row.span ? ` · ${fmtClock(row.span.from)}–${fmtClock(row.span.from + row.span.duration)}` : ''}
+                </span>
+              </span>
+            </button>
+          ))}
+
+          {outline.rows.length === 0 && (
+            <p className="fw-rail-none">
+              还没有能拆开的内容结构：工作流产出场景规格或导演处理之后，这里才会出现画面单元。
+            </p>
+          )}
         </div>
       ) : tab === 'materials' ? (
         /* 资料 —— 只放入口。产物正文、素材细节都在它们自己的视图里看，

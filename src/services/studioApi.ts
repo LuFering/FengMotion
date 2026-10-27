@@ -25,6 +25,11 @@ export type AgentReference =
   | { id: string; role: 'target' | 'context'; kind: 'range'; shotId: string; startFrame: number; endFrame: number; timecode: string; label: string }
   | { id: string; role: 'target' | 'context'; kind: 'region'; shotId: string; frame: number; bbox: { x: number; y: number; w: number; h: number }; label: string }
   | { id: string; role: 'target' | 'context'; kind: 'artifact'; artifactId: string; version: string; label: string }
+  /* 场景：左栏「内容」页里真实存在的内容单元（workflow-v5 就把它叫 scene ——
+     scene-intents / scene-spec / sceneId 一套词）。它来自工作流产出的产物，
+     不是那条占位视频的渲染切片，所以不复用 shot：shot 指向的是占位数据。
+     范围靠稳定 id + 名字表达，不让模型从「这一段」猜。 */
+  | { id: string; role: 'target' | 'context'; kind: 'scene'; sceneId: string; label: string }
 
 export interface TaskRequest {
   kind: TaskKind

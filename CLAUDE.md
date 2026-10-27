@@ -19,6 +19,9 @@
    `src/data/workflowTemplates.ts`（节点与产物定义）、
    `src/services/workflowService.ts`（图与 Gate 求值）为准。**
    拿成片切片当内容搬进界面，是已经犯过的错。
+   左栏「内容」页的内容单元（场景/叙事阶段/镜头）同样只从**工作流产出的产物**里读
+   （`src/data/contentOutline.ts`：scene-spec / scene-intents / film-plan）；
+   没有可靠结构就只显示「整片」，不强行拆段、不空占位、不编缩略图。
 2. **`src/index.css` 是约束文件，不是建议。** 颜色/字体/间距/圆角只能用它定义的。
 3. **`src/views/Production.tsx` 是范式层**，其余是通用层。见下方「分层边界」。
 4. **一次只做一个视图。** 做完让作者看截图，确认后再继续。不要一次生成多个页面。
