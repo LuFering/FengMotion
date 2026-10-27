@@ -1195,9 +1195,17 @@ html[data-theme="light"] #pane-flow .wb-a2 .fw-panel { box-shadow: 0 8px 24px rg
 #pane-flow .wb-a2 .fw-modal .fw-rail-decision-acts { display: flex; gap: 6px; margin-bottom: 8px; }
 
 /* ── 概览栏 · 已确认（待决定下方）──────────────────────────────
-   已定下来的事，不抢待决定的视觉：无卡片背景、无交互，标题用次级
-   文字色、绿点表示已定；一条都没确认时整个区不渲染，不留说明文字。 */
-#pane-flow .wb-a2 .fw-confirmed-item { display: flex; align-items: flex-start; gap: 7px; padding: 6px 10px; }
+   和待决定一样是卡片（同一套壳：--line 边 + --panel2 底 + --r-card 圆角），
+   否则这一栏里别处都是卡片、只有这里是一行裸文字，形状对不上。
+   层级仍靠内容区分而不是靠去掉壳：标题用次级色、没有 › 键、绿点表示已定 ——
+   它是记录，不是可操作项，不该和「等你拍板」抢注意力。
+   一条都没确认时整个区不渲染，不留说明文字。 */
+#pane-flow .wb-a2 .fw-confirmed-item {
+  display: flex; align-items: flex-start; gap: 7px;
+  padding: 7px 9px; margin-bottom: 4px;
+  border: 1px solid var(--line); border-radius: var(--r-card);
+  background: var(--panel2);
+}
 #pane-flow .wb-a2 .fw-confirmed-item .fm-dot { margin-top: 4px; flex: none; }
 #pane-flow .wb-a2 .fw-confirmed-item .fw-rail-decision-main { flex: 1; min-width: 0; }
 #pane-flow .wb-a2 .fw-confirmed-item b { font-size: 12px; font-weight: 600; color: var(--tx2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
