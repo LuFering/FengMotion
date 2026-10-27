@@ -245,6 +245,28 @@
   font-size: 11.5px; line-height: 1.65;
   color: var(--tx2);
 }
+/* 当前进度：一条读数卡 —— 进度条 + 这一步落在哪个阶段 + 最近一次运行。
+   不做仪表盘：阶段清单属于工作流编辑器，这里只回答「做到哪了」。 */
+#pane-flow .wb-a2 .fw-ing-list .fw-prog {
+  display: flex; flex-direction: column; gap: 8px;
+  width: 100%; margin: 0; padding: 9px 9px 10px;
+  border: 1px solid var(--line); border-radius: var(--r-card);
+  background: var(--panel2); color: var(--tx2);
+  font: inherit; font-size: 11.5px; text-align: left; cursor: pointer;
+  transition: border-color 160ms var(--eo), color 160ms var(--eo);
+}
+#pane-flow .wb-a2 .fw-ing-list .fw-prog:hover { border-color: var(--line2); }
+/* 进度条用 shadcn 的 Progress，只换 A2 token：底槽取岛下底色（读数未填的一段），
+   填充取强调色。高度 4px，和这一栏的其它细线一致。 */
+#pane-flow .wb-a2 .fw-ing-list .fw-prog [data-slot="progress"] { height: 4px; background: var(--bg); }
+#pane-flow .wb-a2 .fw-ing-list .fw-prog [data-slot="progress-indicator"] { background: var(--acc); }
+#pane-flow .wb-a2 .fw-prog-now { display: flex; align-items: center; gap: 6px; min-width: 0; }
+#pane-flow .wb-a2 .fw-prog-now b {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: var(--tx); font-size: 12px; font-weight: 500;
+}
+#pane-flow .wb-a2 .fw-prog-state { flex: none; margin-left: auto; color: var(--tx3); font-size: 10.5px; }
+#pane-flow .wb-a2 .fw-prog-meta { color: var(--tx3); font-size: 10.5px; font-variant-numeric: tabular-nums; }
 #pane-flow .wb-a2 .fw-ing-list .fm-unit {
   width: 100%;
   min-height: 40px;

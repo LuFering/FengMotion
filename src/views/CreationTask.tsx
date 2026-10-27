@@ -17,11 +17,17 @@ import '../styles/creation-task.css'
  */
 
 /** 把节点状态压成一句进度话，而不是把每个节点列出来。 */
-function progressOf(stages: { id: string }[], statuses: Record<string, WfNodeStatus>, run: WorkflowRun | null) {
+/** 这一格报的是「这次执行器跑到哪」，不是「这部片做到哪」。
+    制作进度归左栏「当前进度」—— 它还要看结论有没有落下来（没人看片就不算完），
+    所以两个数天然不同。以前两边都写「x/y 阶段」，同一个屏幕上会并排出现
+    3/3 和 2/3 两个读数，看着像 bug。单位分开：这里说「步」。 */
+function progressOf(stages: { id: string }[], statuses: Record<string, WfNodeStatus>, run: WorkflowRun | null, running: boolean) {
   if (stages.length === 0) return '没有可运行的阶段'
   const done = stages.filter((n) => (statuses[n.id] ?? (run ? 'completed' : 'pending')) === 'completed').length
-  if (run) return `${done}/${stages.length} 阶段 · ${run.status === 'completed' ? '已完成' : run.status === 'cancelled' ? '已停止' : '失败'}`
-  return `${done}/${stages.length} 阶段 · 未运行`
+  if (running) return `运行中 · ${done}/${stages.length} 步`
+  if (!run) return `未运行 · ${stages.length} 个步骤`
+  if (run.status === 'completed') return `本次运行已完成 · ${stages.length} 步`
+  return `本次运行${run.status === 'cancelled' ? '已停止' : '失败'} · ${done}/${stages.length} 步`
 }
 
 export function CreationTaskPanel(props: {
@@ -30,9 +36,13 @@ export function CreationTaskPanel(props: {
   onOpenEditor: () => void
   /** 去看这次到底跑了什么 —— 底部任务面板的执行过程 */
   onOpenExecution: () => void
+  /** 跑完一次运行后通知外面重取运行记录：左栏「当前进度」读的是同一份存储，
+      不通知它就会一格说「已完成」、一格还停在「未运行」。 */
+  onRan?: () => void
   onClose: () => void
 }) {
   const wf = useMemo(() => workflowService.getWorkflow(props.workflowId), [props.workflowId])
+  const onRan = props.onRan
   const stages = useMemo(
     () => (wf?.nodes ?? []).filter((n) => WF_NODE_DEFS.some((d) => d.type === n.type)),
     [wf],
@@ -58,8 +68,9 @@ export function CreationTaskPanel(props: {
     void handle.done.then((r) => {
       setRun(r)
       setRunning(false)
+      onRan?.()
     })
-  }, [wf, running])
+  }, [wf, running, onRan])
 
   useEffect(() => {
     if (!props.autoRun || startedRef.current) return
@@ -70,7 +81,7 @@ export function CreationTaskPanel(props: {
   }, [])
 
   if (!wf) return null
-  const progress = progressOf(stages, statuses, run)
+  const progress = progressOf(stages, statuses, run, running)
 
   return (
     <section className="ctk" aria-label="正在制作">

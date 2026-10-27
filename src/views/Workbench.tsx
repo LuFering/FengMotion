@@ -16,8 +16,8 @@ import { ACTIVE_DURATION, FILM_FPS, FILM_HEIGHT, FILM_WIDTH } from '@/data/timel
 import { useAgentTasks, type TaskRecord } from '@/hooks/useAgentTasks'
 import type { AgentReference, AgentTask, ModificationConstraints, ProjectVersion, TaskRequest } from '@/services/studioApi'
 import { studioAdapter } from '@/services/studioAdapter'
-import { evaluateGate, GATE_PRIMARY_KIND, workflowService } from '@/services/workflowService'
-import { GATE_DEFS } from '@/data/workflowTemplates'
+import { evaluateGate, GATE_PRIMARY_KIND, workflowService, type WfNodeStatus } from '@/services/workflowService'
+import { GATE_DEFS, WF_NODE_DEFS } from '@/data/workflowTemplates'
 import type { ChatState } from '@/shell/useChat'
 import { statusOf } from '@/shell/status'
 import { FilmPlayer, type PlayerRef } from '@/remotion/FilmPlayer'
@@ -27,6 +27,7 @@ import type { EditableShotSettings } from '@/remotion/EditableShot'
 import { defaultShotSettings, loadShotOverrides, saveShotOverrides, type ShotOverrideMap } from '@/data/shotOverrides'
 import type { ViewId } from '@/shell/views'
 import { SegmentedControl } from '@/components/ui/segmented-control'
+import { Progress } from '@/components/ui/progress'
 import { ViewSwitch } from '@/components/ViewSwitch'
 import { EditParamsIcon, FrameRefIcon, RangeRefIcon, RegionRefIcon } from '@/components/icons/WorkbenchActionIcons'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -64,6 +65,16 @@ type SideTab = 'scene' | 'chat' | 'task' | 'edit' | 'settings'
 
 /** 左栏的四个页签：概览（要你决定的事）/ 产物 / 内容（这部片有哪些画面）/ 资料。 */
 type RailTab = 'overview' | 'artifacts' | 'content' | 'materials'
+
+/** 左栏「当前进度」：只放工作流真实有的读数 —— 阶段总数、已完成数、下一步、
+    最近一次运行。没有百分比刻度，也没有「第几秒 / 第几个镜头」。 */
+type RailProgress = {
+  wfId: string
+  total: number
+  done: number
+  stage: { label: string; s: 'idle' | 'running' | 'done'; state: string }
+  run: { status: string; at: string } | null
+}
 
 const TASK_STATUS_LABEL: Record<string, string> = {
   queued: '排队中', running: '执行中', building: '构建中',
@@ -206,6 +217,48 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
     out.sort((a, b) => (b.decidedAt || '').localeCompare(a.decidedAt || ''))
     return out
   }, [projectId, workflowsSnapshot])
+  /* 运行记录也走快照 —— 与 workflowsSnapshot 同一约定：渲染里不直接读存储。
+     跑完一次运行由「正在制作」面板回一个信号，这里重取（run 落在 localStorage，
+     面板与左栏是两个组件，不重取就会一格说「已完成」、一格还停在「未运行」）。 */
+  const [runsSnapshot, setRunsSnapshot] = useState(() => workflowService.listRuns())
+  /* 当前进度：阶段清单与「正在制作」同一份口径（节点图里的阶段节点），
+     已完成数来自最近一次运行的 nodeStatus。
+     没跑过就如实写「未运行」，不按内容猜、不编百分比 ——
+     工作流里没有「第几秒、第几个镜头」这种刻度，那属于渲染切片。 */
+  const progress = useMemo<RailProgress | null>(() => {
+    if (!projectId) return null
+    const wf = workflowsSnapshot.find((w) => w.projectId === projectId)
+    if (!wf) return null
+    const stages = wf.nodes.filter((n) => WF_NODE_DEFS.some((d) => d.type === n.type))
+    if (!stages.length) return null
+    const run = runsSnapshot.find((r) => r.workflowId === wf.id) ?? null
+    const statusOfNode = (id: string): WfNodeStatus => run?.nodeStatus?.[id] ?? 'pending'
+    /* 一个阶段算「做完」要同时满足两条：运行把它标成 completed，并且它真的留下了
+       结论 —— 看片节点要有 checks.done，门禁要有 decision。只看运行状态会出现
+       「所有阶段都已完成」和下面「待决定 1」并排的假读数（演示执行器跑完就是
+       这个情形：步骤执行了，但没人看片）。skipped 当作不需要再等。 */
+    const stageDone = (n: (typeof stages)[number]) => {
+      const st = statusOfNode(n.id)
+      if (st === 'skipped') return true
+      if (st !== 'completed') return false
+      if (n.type === 'review') return !!(n.params.checks as Record<string, boolean> | undefined)?.done
+      if (n.type === 'gate') return n.params.decision === 'confirmed'
+      return true
+    }
+    const done = stages.filter(stageDone).length
+    const running = stages.find((n) => statusOfNode(n.id) === 'running' && !stageDone(n))
+    const next = running ?? stages.find((n) => !stageDone(n))
+    const labelOf = (n: (typeof stages)[number]) => WF_NODE_DEFS.find((d) => d.type === n.type)?.label ?? n.type
+    return {
+      wfId: wf.id,
+      total: stages.length,
+      done,
+      stage: next
+        ? { label: labelOf(next), s: running ? 'running' as const : 'idle' as const, state: running ? '进行中' : '待做' }
+        : { label: '所有阶段都已完成', s: 'done' as const, state: '已完成' },
+      run: run ? { status: run.status, at: run.finishedAt || run.startedAt } : null,
+    }
+  }, [projectId, workflowsSnapshot, runsSnapshot])
   const decideNode = (wfId: string, nodeId: string, verdict: 'done' | 'rework') => {
     const target = workflowService.getWorkflow(wfId)
     if (!target || !target.nodes.some((n) => n.id === nodeId)) return
@@ -630,6 +683,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
                      selectedArtifactId={selectedArtifactId} onSelectArtifact={selectArtifact}
                      confirmed={confirmed}
                      decisions={decisions} onDecide={decideNode}
+                     progress={progress}
                      workflowId={workflow?.id ?? null}
                      onOpenWorkflowEditor={onOpenWorkflowEditor}
                      wholeFilmActive={scope === 'project'}
@@ -648,6 +702,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
                          onOpenEditor={() => onOpenWorkflowEditor?.(launch.workflowId)}
                          onOpenExecution={() => { setBottomTab('activity'); setTrayOpen(true) }}
                          onClose={() => onDismissLaunch?.()}
+                         onRan={() => setRunsSnapshot(workflowService.listRuns())}
                        />
                      ) : undefined} />
 
@@ -1022,7 +1077,7 @@ function RailDeck<T extends DeckEntry>({ items, dotStatus, variant, leavingId, r
 function ProjectRail({ projectName, open, onClose, tab, onTab,
   selectedArtifactId, onSelectArtifact,
   confirmed,
-  decisions, onDecide, workflowId, onOpenWorkflowEditor,
+  decisions, onDecide, progress, workflowId, onOpenWorkflowEditor,
   wholeFilmActive, onSelectWholeFilm, onOpenAssets, creation }:
   { projectName: string; open: boolean; onClose: () => void
     tab: RailTab; onTab: (tab: RailTab) => void
@@ -1030,6 +1085,8 @@ function ProjectRail({ projectName, open, onClose, tab, onTab,
     confirmed: { id: string; title: string; hint: string }[]
     decisions: { wfId: string; nodeId: string; id: string; title: string; hint: string; detail: string }[]
     onDecide: (wfId: string, nodeId: string, verdict: 'done' | 'rework') => void
+    /** 工作流真实的执行进度；算不出来（项目下没有工作流）时为 null，整节不出现 */
+    progress: RailProgress | null
     workflowId: string | null
     onOpenWorkflowEditor?: (workflowId: string) => void
     /** 整片：不管项目有没有分镜都固定存在的入口，选中即把修改范围设为整个项目。 */
@@ -1130,9 +1187,37 @@ function ProjectRail({ projectName, open, onClose, tab, onTab,
               它真正的用途：这部片有哪些内容、要去哪里改。 */}
           {creation}
 
+          {/* 当前进度：工作流真实的执行进度。阶段清单与「正在制作」同一份口径
+              （节点图里的阶段节点），已完成数来自最近一次运行的 nodeStatus；
+              没跑过就如实写「未运行」，不按内容猜、不编百分比。
+              点它去工作流编辑器看完整的阶段与 Gate —— 这一栏只报读数，
+              不在这里铺开阶段清单。 */}
+          {progress && (
+            <section>
+              <div className="fw-scene-hd">
+                <span>当前进度</span><span className="spacer" />
+                <span className="hint num">{progress.done}/{progress.total}</span>
+              </div>
+              <button type="button" className="fw-prog" onClick={() => onOpenWorkflowEditor?.(progress.wfId)}>
+                <Progress value={(progress.done / progress.total) * 100}
+                          aria-label={`阶段进度 ${progress.done}/${progress.total}`} />
+                <span className="fw-prog-now">
+                  <i className="fm-dot" data-s={progress.stage.s} />
+                  <b>{progress.stage.label}</b>
+                  <span className="fw-prog-state">{progress.stage.state}</span>
+                </span>
+                <span className="fw-prog-meta">
+                  {progress.run
+                    ? `最近一次运行 · ${fmtDay(progress.run.at)} · ${TASK_STATUS_LABEL[progress.run.status] ?? progress.run.status}`
+                    : `${progress.total} 个阶段 · 未运行`}
+                </span>
+              </button>
+            </section>
+          )}
+
           <section>
             <div className="fw-scene-hd">
-              <span>待你决定</span><span className="spacer" />
+              <span>待决定</span><span className="spacer" />
               <span className="hint">{decisions.length}</span>
             </div>
             {decisions.length === 0 ? (
@@ -1168,7 +1253,7 @@ function ProjectRail({ projectName, open, onClose, tab, onTab,
                区别只在内容 —— 它是记录，没有可操作项，所以弹窗里只给深链。 */
             <section>
               <div className="fw-scene-hd">
-                <span>已确认</span><span className="spacer" />
+                <span>最近已决定</span><span className="spacer" />
                 <span className="hint">{confirmed.length}</span>
               </div>
               <RailDeck items={confirmed} dotStatus="done" variant="record"
