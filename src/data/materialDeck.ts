@@ -77,6 +77,16 @@ function pilesOf(items: MyAsset[], adopted: Set<string>): MaterialPile[] {
   return piles
 }
 
+/** 这个项目有没有属于它自己的画面文件（成片/片段/抽帧；参考图不算）。
+    没有就说明还没产出画面 —— 中间不该摆一台播放器放别的片子。 */
+export function hasOwnPicture(projectId: string): boolean {
+  return BUILTIN_ASSETS.some((a) =>
+    a.refs.some((r) => r.kind === 'project' && r.id === projectId) &&
+    !a.tags.includes(REFERENCE_TAG) &&
+    (a.mediaType === 'video' || a.mediaType === 'image'),
+  )
+}
+
 export function materialShelves(projectId: string, adoptedIds: string[]): MaterialShelf[] {
   const mine = BUILTIN_ASSETS.filter((a) => a.refs.some((r) => r.kind === 'project' && r.id === projectId))
   if (mine.length === 0) return []

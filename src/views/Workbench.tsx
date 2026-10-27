@@ -19,7 +19,9 @@ import { studioAdapter } from '@/services/studioAdapter'
 import { evaluateGate, GATE_PRIMARY_KIND, workflowService } from '@/services/workflowService'
 import { GATE_DEFS } from '@/data/workflowTemplates'
 import { contentOutline, type ContentOutline, type ContentRow } from '@/data/contentOutline'
-import { materialShelves, type MaterialFile, type MaterialShelf } from '@/data/materialDeck'
+import { hasOwnPicture, materialShelves, type MaterialFile, type MaterialShelf } from '@/data/materialDeck'
+import { BUILTIN_ASSETS } from '@/data/myAssets'
+import { RequirementStage } from './RequirementStage'
 import type { ChatState } from '@/shell/useChat'
 import { fmtClock, fmtDay, statusOf, TASK_STATUS_LABEL } from '@/shell/status'
 import { FilmPlayer, type PlayerRef } from '@/remotion/FilmPlayer'
@@ -251,6 +253,20 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
     return { label, state: TASK_STATUS_LABEL[record.task.status] ?? record.task.status }
   }, [tasks.active])
 
+  /* 中栏显示什么，看这个项目**真的有没有画面文件** ——
+     没有就换成「创作需求 + 参考素材」，不拿项目里那份旧片或任何占位视频冒充产出
+     （作者的表：刚开始这一阶段，无画面时不要放假视频）。 */
+  const hasPicture = useMemo(() => hasOwnPicture(projectId), [projectId])
+  /* 需求原文：工作流提示词节点里用户真正提的那句话 */
+  const promptText = useMemo(
+    () => String(progressWorkflow?.nodes.find((n) => n.type === 'prompt')?.params.text ?? ''),
+    [progressWorkflow],
+  )
+  /* 参考：引用节点真实绑定的素材（有缩略图就给缩略图） */
+  const referenceAssets = useMemo(() => {
+    const ids = new Set((progressWorkflow?.nodes.find((n) => n.type === 'refs')?.params.assetIds as string[] | undefined) ?? [])
+    return BUILTIN_ASSETS.filter((a) => ids.has(a.id))
+  }, [progressWorkflow])
   /* 资料页那摞素材卡：本项目真实文件按格式堆叠，外加一张「缺失 / 不可用」。
      工作流引用节点绑定了哪些，卡片上如实标出（不吹成「AI 精选」）。 */
   const materials = useMemo(
@@ -746,10 +762,17 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
                        />
                      } />
 
-        {/* 中栏：监看器 */}
+        {/* 中栏：监看器。没产出画面时换「需求与参考」形态（同一块区域，不是另一个页面）*/}
         <main className="fw-canvas">
           <div className="fw-toolbar">
-            {selectedArtifact ? (
+            {!hasPicture && !selectedArtifact ? (
+              <>
+                <h2 className="wb-viewer-title truncate">创作需求与参考</h2>
+                <span className="wb-status" data-status="idle">
+                  <span className="fm-dot" data-s="idle" />还没有产出画面
+                </span>
+              </>
+            ) : selectedArtifact ? (
               <>
                 <span className="wb-viewer-index">产物</span>
                 <h2 className="wb-viewer-title truncate">{selectedArtifact.title}</h2>
@@ -780,7 +803,10 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
             )}
           </div>
 
-          {selectedArtifact ? (
+          {!hasPicture && !selectedArtifact ? (
+            <RequirementStage promptText={promptText} references={referenceAssets}
+                              onOpenMaterials={() => { setRailTab('materials'); setOpenShelf('reference') }} />
+          ) : selectedArtifact ? (
             <ArtifactView artifact={selectedArtifact}
                           onLocate={(id) => selectScene(id)}
                           onReference={() => referenceArtifact(selectedArtifact)}

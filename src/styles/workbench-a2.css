@@ -1302,6 +1302,58 @@ html[data-theme="light"] #pane-flow .wb-a2 .fw-panel { box-shadow: 0 8px 24px rg
 }
 #pane-flow .wb-a2 .fw-modal-detail { margin: 10px 0; font-size: 12px; line-height: 1.6; color: var(--tx2); }
 
+/* ── 中栏 · 还没有产出画面时（刚开始这一阶段）──────────────────
+   作者的表：刚开始给创作需求摘要 + 参考素材，「无画面时不要放假视频」。
+   所以这里没有播放器、没有时间线，只有真东西：提示词节点的原文 +
+   引用节点绑定的素材。灰阶递进，不做大卡片。 */
+#pane-flow .wb-a2 .fw-req {
+  flex: 1; min-height: 0; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 14px;
+  padding: 18px 20px 22px;
+}
+#pane-flow .wb-a2 .fw-req-block {
+  border: 1px solid var(--line); border-radius: var(--r-card);
+  background: var(--panel2); padding: 12px 13px;
+}
+#pane-flow .wb-a2 .fw-req-hd {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
+  font-size: 12px; font-weight: 650; color: var(--tx);
+}
+#pane-flow .wb-a2 .fw-req-hd .spacer { flex: 1; }
+#pane-flow .wb-a2 .fw-req-src { font-size: 10.5px; font-weight: 400; color: var(--tx3); }
+#pane-flow .wb-a2 .fw-req-text {
+  margin: 0; font-size: 13px; line-height: 1.75; color: var(--tx);
+  white-space: pre-wrap; overflow-wrap: anywhere;
+}
+#pane-flow .wb-a2 .fw-req-none { margin: 0; font-size: 11.5px; line-height: 1.65; color: var(--tx3); }
+#pane-flow .wb-a2 .fw-req-refs {
+  margin: 0; padding: 0; list-style: none;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px 10px;
+}
+#pane-flow .wb-a2 .fw-req-refs > li { display: flex; align-items: center; gap: 8px; min-width: 0; }
+#pane-flow .wb-a2 .fw-req-thumb {
+  display: grid; place-items: center; flex: none; width: 48px; height: 30px;
+  overflow: hidden; border: 1px solid var(--line); border-radius: var(--r-thumb);
+  background: var(--panel); color: var(--tx3); font-size: 9px;
+}
+#pane-flow .wb-a2 .fw-req-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+#pane-flow .wb-a2 .fw-req-refname {
+  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 11.5px; color: var(--tx2);
+}
+#pane-flow .wb-a2 .fw-req-refmeta { flex: none; font-size: 10.5px; color: var(--tx3); }
+#pane-flow .wb-a2 .fw-req-more {
+  margin-top: 10px; padding: 0; border: 0; background: none;
+  color: var(--acc-tx); font: inherit; font-size: 11.5px; cursor: pointer;
+}
+#pane-flow .wb-a2 .fw-req-more:hover { color: var(--acc); }
+#pane-flow .wb-a2 .fw-req-foot {
+  margin: 0; padding: 10px 12px;
+  border: 1px dashed var(--line2); border-radius: var(--r-card);
+  font-size: 11.5px; line-height: 1.7; color: var(--tx3);
+}
+
+
 /* ── 资料页 · 素材 / 参考（分开两格，按格式一摞一摞堆）──────────
    作者定稿：不做抽屉、不跳素材库；素材与参考分开展示；同一格式的文件叠成一摞
    （图片一摞、视频一摞、音频一摞）。缩略图错开 + 轻转，像一叠照片；
