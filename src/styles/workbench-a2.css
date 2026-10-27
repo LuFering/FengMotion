@@ -223,14 +223,28 @@
   display: flex; flex-direction: column;
   mask-image: none;
 }
+/* 分区标题（待你决定 / 已确认）——原来 10.5px/--tx3 比它下面的正文还小还暗，
+   两者又同底色，读起来是一小行灰字压着一大段亮字，层级是倒的。
+   标题改用面板头字号（12px/650/--tx），并给它一条加深一层的底：
+   --panel2 就是「岛内次级面」，和这一栏里的小卡同源，不引入新色。 */
 #pane-flow .wb-a2 .fw-ing-list .fw-scene-hd {
-  margin: 10px 2px 2px;
-  padding: 0;
-  font-size: 10.5px; font-weight: 700; letter-spacing: .08em;
-  color: var(--tx3);
+  margin: 10px 0 2px;
+  padding: 5px 9px;
+  border-radius: var(--r-ctl);
+  background: var(--panel2);
+  font-size: 12px; font-weight: 650; letter-spacing: .02em;
+  color: var(--tx);
   display: flex; align-items: center; gap: 6px;
 }
-#pane-flow .wb-a2 .fw-ing-list .fw-scene-hd .hint { font-size: 10.5px; color: var(--tx3); font-weight: 400; }
+#pane-flow .wb-a2 .fw-ing-list .fw-scene-hd .hint { font-size: 11px; color: var(--tx2); font-weight: 400; }
+/* 空状态正文（「这一轮的事都已定下…」）此前在这个表里没有任何规则，
+   它按段落继承到 13px/--tx，于是正文大于也亮于标题。降到次级说明字号与色阶。 */
+#pane-flow .wb-a2 .fw-ing-list .fw-rail-none {
+  margin: 0;
+  padding: 6px 9px 2px;
+  font-size: 11.5px; line-height: 1.65;
+  color: var(--tx2);
+}
 #pane-flow .wb-a2 .fw-ing-list .fm-unit {
   width: 100%;
   min-height: 40px;
