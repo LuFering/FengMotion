@@ -214,6 +214,9 @@
 #pane-flow .wb-a2 .fw-ing-hd h2 { font-size: 12px; font-weight: 650; color: var(--tx); }
 #pane-flow .wb-a2 .fw-count { font-size: 11px; color: var(--tx3); background: transparent; padding: 0; font-variant-numeric: tabular-nums; }
 #pane-flow .wb-a2 .fw-rail-seg { margin: 0 10px 8px; }
+/* 四个页签直接坐在头部行里（原来那行「概览 1 项」标题已去掉）：段控占满剩余宽度，
+   并去掉它作为独立一行时用的外边距。右栏的段控不是 .fw-rail-seg，不受影响。 */
+#pane-flow .wb-a2 .fw-ing-hd .fw-rail-seg { flex: 1; min-width: 0; margin: 0; }
 #pane-flow .wb-a2 .fw-ing-list {
   flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
   padding: 4px 10px 10px; gap: 6px;

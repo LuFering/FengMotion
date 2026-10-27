@@ -62,6 +62,9 @@ const scenePreviewOffset = (durationFrames: number) =>
 
 type SideTab = 'scene' | 'chat' | 'task' | 'edit' | 'settings'
 
+/** 左栏的四个页签：概览（要你决定的事）/ 产物 / 内容（这部片有哪些画面）/ 资料。 */
+type RailTab = 'overview' | 'artifacts' | 'content' | 'materials'
+
 const TASK_STATUS_LABEL: Record<string, string> = {
   queued: '排队中', running: '执行中', building: '构建中',
   completed: '已完成', cancelled: '已停止', failed: '失败',
@@ -226,7 +229,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
   const [selectedStoryboardId, setSelectedStoryboardId] = useState<string | null>(null)
   // 调试直达：?artifact=artifact-content-contract 直接打开产物只读视图。
   const initialArtifact = new URLSearchParams(window.location.search).get('artifact')
-  const [railTab, setRailTab] = useState<'structure' | 'artifacts'>(initialArtifact ? 'artifacts' : 'structure')
+  const [railTab, setRailTab] = useState<RailTab>(initialArtifact ? 'artifacts' : 'overview')
   const [selectedArtifactId, setSelectedArtifactId] = useState<string | null>(initialArtifact)
   const [editMode, setEditMode] = useState(new URLSearchParams(window.location.search).get('edit') === '1')
   const [shotOverrides, setShotOverrides] = useState<ShotOverrideMap>(() => loadShotOverrides(projectId))
@@ -303,7 +306,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
     setSelectedArtifactId(null)
     setEditMode(false)
     setReferences([])
-    setRailTab('structure')
+    setRailTab('overview')
     const clip = ACTIVE_SCENES.find((item) => item.id === id)
     // 0s 往往是黑场/入点，镜头发车时先落到该场有画面的代表帧。
     if (clip) {
@@ -391,14 +394,14 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
   const clearReferences = () => setReferences([])
   const locateReference = (ref: AgentReference) => {
     if (ref.kind === 'artifact') { setSelectedArtifactId(ref.artifactId); setRailTab('artifacts'); return }
-    if (ref.kind === 'project') { setSelectedArtifactId(null); setRailTab('structure'); return }
+    if (ref.kind === 'project') { setSelectedArtifactId(null); setRailTab('overview'); return }
     const clip = ACTIVE_SCENES.find((item) => item.id === ref.shotId)
     if (!clip) return
     setSelectedId(ref.shotId)
     setSelectedStoryboardId(clip.storyboardId)
     setSelectedArtifactId(null)
     setEditMode(false)
-    setRailTab('structure')
+    setRailTab('overview')
     const targetFrame = ref.kind === 'frame' || ref.kind === 'region'
       ? ref.frame
       : ref.kind === 'range'
@@ -633,7 +636,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
                           所以这里必须同时换掉 target 引用，否则输入框仍会落到当前场景。 */
                        setScope('project')
                        setTargetReference(currentProjectRef)
-                       setRailTab('structure')
+                       setRailTab('overview')
                      }}
                      onOpenAssets={() => onNavigate('assets')}
                      creation={launch ? (
@@ -874,7 +877,7 @@ function ProjectRail({ projectName, open, onClose, tab, onTab,
   decisions, onDecide, workflowId, onOpenWorkflowEditor,
   wholeFilmActive, onSelectWholeFilm, onOpenAssets, creation }:
   { projectName: string; open: boolean; onClose: () => void
-    tab: 'structure' | 'artifacts'; onTab: (tab: 'structure' | 'artifacts') => void
+    tab: RailTab; onTab: (tab: RailTab) => void
     selectedArtifactId: string | null; onSelectArtifact: (id: string) => void
     confirmed: { id: string; title: string; meta: string }[]
     confirmedTotal: number
@@ -983,21 +986,22 @@ function ProjectRail({ projectName, open, onClose, tab, onTab,
     }
   }
   return (
-    <aside className="fw-ing" data-open={open ? '' : undefined} aria-label="镜头库与产物">
+    <aside className="fw-ing" data-open={open ? '' : undefined} aria-label="项目导航">
+      {/* 四个页签就是这一栏的全部导航。原来那行「概览 1 项」标题只是把页签名和
+          一个计数又写了一遍，还把首屏高度花在标题上，去掉。 */}
       <div className="fw-ing-hd">
-        <h2>{tab === 'structure' ? '概览' : '产物'}</h2>
-        <span className="fw-count">{tab === 'structure'
-          ? `${decisions.length + confirmed.length} 项`
-          : `${WORKBENCH_ARTIFACTS.length}`}</span>
-        <span className="spacer" />
+        <SegmentedControl value={tab} onChange={onTab} ariaLabel="工作区导航"
+                          className="fw-rail-seg"
+                          options={[
+                            { value: 'overview', label: '概览' },
+                            { value: 'artifacts', label: '产物' },
+                            { value: 'content', label: '内容' },
+                            { value: 'materials', label: '资料' },
+                          ]} />
         <button className="iconbtn fw-mobile" type="button" title="收起" onClick={onClose}>
           <X className="size-4" />
         </button>
       </div>
-
-      <SegmentedControl value={tab} onChange={onTab} ariaLabel="工作区导航"
-                        className="fw-rail-seg"
-                        options={[{ value: 'structure', label: '结构' }, { value: 'artifacts', label: '产物' }]} />
 
       {tab === 'artifacts' ? (
         <div className="fw-artifacts" role="tabpanel">
@@ -1013,6 +1017,38 @@ function ProjectRail({ projectName, open, onClose, tab, onTab,
               <span className="fw-artifact-status" data-status={a.status}>{ARTIFACT_STATUS_LABEL[a.status]}</span>
             </button>
           ))}
+        </div>
+      ) : tab === 'content' ? (
+        /* 内容 —— 这部片有哪些画面，是这一栏的主要导航：找到某个画面，并把修改范围
+           明确给 AI。整片固定存在（不然用户没法说「整部片的节奏太慢」）；场景/镜头行
+           只在项目真有可靠结构时出现。
+           ⚠️ 现在这个项目还没有任何描述画面结构的产物（工作流里对应 film-plan 的
+           叙事阶段，或结构化路径的 scene-intents），所以只有整片一行：没有结构就
+           保留整片，不强行拆段，也不拿渲染切片冒充内容。 */
+        <div className="fw-ing-list">
+          <button type="button" className="fm-unit" data-state="whole"
+                  aria-current={wholeFilmActive ? 'true' : undefined}
+                  onClick={onSelectWholeFilm}>
+            <span className="fm-unit-body">
+              <b>整片 · {projectName}</b>
+              <span>需求与视觉方向</span>
+            </span>
+          </button>
+        </div>
+      ) : tab === 'materials' ? (
+        /* 资料 —— 只放入口。产物正文、素材细节都在它们自己的视图里看，
+           这一栏不该被几十张图和整篇方案正文占满。 */
+        <div className="fw-ing-list">
+          <button type="button" className="fw-res" onClick={() => onTab('artifacts')}>
+            <span className="fw-res-name">产物</span>
+            <span className="fw-count">{WORKBENCH_ARTIFACTS.length}</span>
+            <span className="fw-res-go" aria-hidden="true">›</span>
+          </button>
+          <button type="button" className="fw-res" onClick={onOpenAssets}>
+            <span className="fw-res-name">素材与参考</span>
+            <span className="fw-count">{BUILTIN_ASSETS.length}</span>
+            <span className="fw-res-go" aria-hidden="true">›</span>
+          </button>
         </div>
       ) : (
         <div className="fw-ing-list">
@@ -1117,44 +1153,6 @@ function ProjectRail({ projectName, open, onClose, tab, onTab,
               )}
             </section>
           )}
-
-          {/* 视频内容 —— 这一栏的主要导航：找到某个画面，并把修改范围明确给 AI。
-              整片固定存在（不然用户没法说「整部片的节奏太慢」）；场景/镜头行只在项目
-              真有可靠结构时出现。
-              ⚠️ 现在这个项目还没有任何描述画面结构的产物（工作流里对应 film-plan 的
-              叙事阶段，或结构化路径的 scene-intents），所以只有整片一行：没有结构就
-              保留整片，不强行拆段，也不拿渲染切片冒充内容。 */}
-          <section>
-            <div className="fw-scene-hd">
-              <span>视频内容</span><span className="spacer" />
-            </div>
-            <button type="button" className="fm-unit" data-state="whole"
-                    aria-current={wholeFilmActive ? 'true' : undefined}
-                    onClick={onSelectWholeFilm}>
-              <span className="fm-unit-body">
-                <b>整片 · {projectName}</b>
-                <span>需求与视觉方向</span>
-              </span>
-            </button>
-          </section>
-
-          {/* 项目资料 —— 只放入口。产物正文、素材细节都在它们自己的视图里看，
-              这一栏不该被几十张图和整篇方案正文占满。 */}
-          <section>
-            <div className="fw-scene-hd">
-              <span>项目资料</span><span className="spacer" />
-            </div>
-            <button type="button" className="fw-res" onClick={() => onTab('artifacts')}>
-              <span className="fw-res-name">产物</span>
-              <span className="fw-count">{WORKBENCH_ARTIFACTS.length}</span>
-              <span className="fw-res-go" aria-hidden="true">›</span>
-            </button>
-            <button type="button" className="fw-res" onClick={onOpenAssets}>
-              <span className="fw-res-name">素材与参考</span>
-              <span className="fw-count">{BUILTIN_ASSETS.length}</span>
-              <span className="fw-res-go" aria-hidden="true">›</span>
-            </button>
-          </section>
 
         </div>
       )}
