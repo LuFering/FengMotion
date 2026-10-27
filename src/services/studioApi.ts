@@ -178,6 +178,11 @@ export class MockStudioApi implements StudioApi {
     }
 
     const done = (async () => {
+      /* 先让出一个微任务，再发第一条事件。
+         调用方要拿到 startTask 的返回值才有 runRef（useAgentTasks 就是这个写法），
+         在返回之前同步 emit，第一条事件会打在 undefined 上 —— 提交必崩、
+         任务永远停在「排队中」，之前就是这个坑。 */
+      await Promise.resolve()
       const refs = request.references ?? []
       const targetRef = refs.find((ref) => ref.role === 'target')
       const target = kind === 'render' ? '渲染队列' : targetRef?.label ?? (request.scope === 'scene'

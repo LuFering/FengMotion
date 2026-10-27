@@ -25,13 +25,19 @@ import { Progress } from '@/components/ui/progress'
  * 运行仍是演示执行器（不调 AI、不写文件、不出片），所以标记保留、不删。
  */
 
-export function RailProgressPanel({ workflow, autoRun, onRunStart, onOpenEditor, onOpenExecution }: {
+export function RailProgressPanel({ workflow, autoRun, task, onRunStart, onOpenTask, onOpenEditor, onOpenExecution }: {
   /** 当前项目的工作流；节点参数由外面传进来（写回决定后外面会重取，这里才跟着更新） */
   workflow: WorkflowDef | null
   /** 从创作启动层带过来的「建好就开跑」 */
   autoRun: boolean
+  /** AI 任务此刻在哪个内容上。只在真的还在跑时有值 —— 没有就整块不显示，
+      左栏不常驻一条「暂无任务」。指令、文件变化、错误详情不在这里，
+      它们在右侧任务页与底部面板。 */
+  task: { label: string; state: string } | null
   /** 真的跑起来了 —— 外面据此消费掉启动信号，避免下次进工作台又自动跑一遍 */
   onRunStart?: () => void
+  /** 点这一块：右侧跳到当前任务（那里才是执行过程） */
+  onOpenTask: () => void
   onOpenEditor: () => void
   /** 去看这次到底跑了什么 —— 底部任务面板的执行过程 */
   onOpenExecution: () => void
@@ -98,6 +104,21 @@ export function RailProgressPanel({ workflow, autoRun, onRunStart, onOpenEditor,
         <span className="hint num">{done}/{stages.length}</span>
       </div>
       <div className="fw-prog">
+        {/* 正在制作：压在这一张卡的第一行，不另开栏目。说的是「在哪个内容上」，
+            具体做了什么去右侧看。 */}
+        {task && (
+          <button type="button" className="fw-prog-live" onClick={onOpenTask}>
+            <span className="fw-prog-live-hd">
+              <i className="fm-dot" data-s="running" />
+              <b>正在制作</b>
+              <span className="fw-prog-state">{task.state}</span>
+            </span>
+            <span className="fw-prog-live-now">
+              <b>{task.label}</b>
+              <span className="fw-prog-live-go" aria-hidden="true">›</span>
+            </span>
+          </button>
+        )}
         <Progress value={(done / stages.length) * 100}
                   aria-label={`阶段进度 ${done}/${stages.length}`} />
         <span className="fw-prog-now">

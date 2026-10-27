@@ -1,6 +1,9 @@
 import type { AgentReference } from '@/services/studioApi'
 import type { WorkflowDef, WorkflowRun } from '@/services/workflowService'
 
+/** 内容行的引用只能是场景一种 —— 别的地方就不用再对联合类型做窄化了 */
+export type SceneRef = Extract<AgentReference, { kind: 'scene' }>
+
 /**
  * 左栏「内容」页要的行：整片之外，这部片真实有哪些内容单元。
  *
@@ -37,7 +40,7 @@ export type ContentRow = {
   /** 真实画面：产物里指到预览文件才有。没有就不渲染缩略图位，不拿空框占位 */
   thumb?: string
   /** 点这一行时交给 AI 的范围 */
-  ref: AgentReference
+  ref: SceneRef
 }
 
 export type ContentOutline = {

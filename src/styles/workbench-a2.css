@@ -265,7 +265,24 @@
 #pane-flow .wb-a2 .fw-ing-list .fw-prog [data-slot="progress"] { height: 4px; background: var(--bg); }
 #pane-flow .wb-a2 .fw-ing-list .fw-prog [data-slot="progress-indicator"] { background: var(--acc); }
 #pane-flow .wb-a2 .fw-prog-now { display: flex; align-items: center; gap: 6px; min-width: 0; }
-#pane-flow .wb-a2 .fw-prog-now b {
+/* 「正在制作」压在这张卡的第一行，不另开栏目、也不给整块高亮底 —— 克制到两行：
+   一行「正在制作 + 当前状态」，一行「在哪个内容上 + 去右侧看执行」。
+   底下一条细线把它和下面的整片进度分开：上面是「这一刻」，下面是「这部片」。 */
+#pane-flow .wb-a2 .fw-prog-live {
+  display: flex; flex-direction: column; gap: 3px;
+  width: 100%; margin: 0; padding: 0 0 8px;
+  border: 0; border-bottom: 1px solid var(--line);
+  background: none; font: inherit; text-align: left; cursor: pointer;
+}
+#pane-flow .wb-a2 .fw-prog-live-hd { display: flex; align-items: center; gap: 6px; min-width: 0; }
+#pane-flow .wb-a2 .fw-prog-live-hd > b { color: var(--tx2); font-size: 11px; font-weight: 500; }
+#pane-flow .wb-a2 .fw-prog-live-now { display: flex; align-items: center; gap: 6px; min-width: 0; }
+#pane-flow .wb-a2 .fw-prog-live-now > b {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: var(--tx); font-size: 12px; font-weight: 550;
+}
+#pane-flow .wb-a2 .fw-prog-live-go { flex: none; margin-left: auto; color: var(--tx3); font-size: 11px; }
+#pane-flow .wb-a2 .fw-prog-live:hover .fw-prog-live-go { color: var(--tx); }#pane-flow .wb-a2 .fw-prog-now b {
   min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   color: var(--tx); font-size: 12px; font-weight: 500;
 }

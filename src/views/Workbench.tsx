@@ -234,6 +234,20 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
   // 调试直达：?artifact=artifact-content-contract 直接打开产物只读视图。
   const initialArtifact = new URLSearchParams(window.location.search).get('artifact')
   const [railTab, setRailTab] = useState<RailTab>(initialArtifact ? 'artifacts' : 'overview')
+  /* 「正在制作」：AI 任务此刻在哪个内容上。只认真的还在跑的状态（排队/执行/构建）——
+     完成、停止、失败都不算在跑，整块随卡片一起不显示，左栏不常驻「暂无任务」。
+     内容名取这次请求的目标引用：内容单元用自己的名字，整片级任务说「整片」，
+     目标是渲染切片时说「当前预览画面」（那是这条片这次怎么渲的，不冒充内容）。 */
+  const liveTask = useMemo(() => {
+    const record = tasks.active
+    if (!record || !['queued', 'running', 'building'].includes(record.task.status)) return null
+    const target = record.request?.references?.find((ref) => ref.role === 'target')
+    const label = target?.kind === 'scene' ? target.label
+      : !target || target.kind === 'project' ? '整片'
+      : '当前预览画面'
+    return { label, state: TASK_STATUS_LABEL[record.task.status] ?? record.task.status }
+  }, [tasks.active])
+
   /* 内容页的行：整片之外，这部片真实有哪些内容单元。
      只在这一页读运行记录 —— 结构挂在产物上（见 data/contentOutline.ts），
      切走这一页就不读，也就不用为它维护第三份快照。 */
@@ -381,6 +395,11 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
     if (!target || target.kind === 'project' || target.kind === 'artifact') return 'project'
     return 'scene'
   }
+  /* 现在被设为 AI 修改范围的那个内容单元 */
+  const activeSceneId = useMemo(() => {
+    const target = references.find((ref) => ref.role === 'target')
+    return target && target.kind === 'scene' ? target.sceneId : null
+  }, [references])
   const setTargetReference = (ref: AgentReference) => {
     setScope(ref.kind === 'project' || ref.kind === 'artifact' ? 'project' : 'scene')
     setReferences((old) => [ref, ...old.filter((item) => item.role !== 'target')])
@@ -660,9 +679,8 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
                      decisions={decisions} onDecide={decideNode}
                      workflowId={workflow?.id ?? null}
                      outline={outline}
-                     activeSceneId={references.find((ref) => ref.role === 'target' && ref.kind === 'scene')?.kind === 'scene'
-                       ? (references.find((ref) => ref.role === 'target' && ref.kind === 'scene') as Extract<AgentReference, { kind: 'scene' }>).sceneId
-                       : null}
+                     activeSceneId={activeSceneId}
+                     liveState={liveTask?.state ?? null}
                      onSelectContent={selectContentRow}
                      onOpenWorkflowEditor={onOpenWorkflowEditor}
                      wholeFilmActive={scope === 'project'}
@@ -680,6 +698,8 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
                        <RailProgressPanel
                          key={progressWorkflow?.id ?? 'none'}
                          workflow={progressWorkflow}
+                         task={liveTask}
+                         onOpenTask={openTaskRecords}
                          autoRun={!!(launch && progressWorkflow && launch.workflowId === progressWorkflow.id && launch.autoRun)}
                          onRunStart={() => { if (launch) onDismissLaunch?.() }}
                          onOpenEditor={() => progressWorkflow && onOpenWorkflowEditor?.(progressWorkflow.id)}
@@ -1045,7 +1065,7 @@ function RailDeck<T extends DeckEntry>({ items, dotStatus, variant, leavingId, r
 function ProjectRail({ projectName, open, onClose, tab, onTab,
   selectedArtifactId, onSelectArtifact,
   confirmed,
-  decisions, onDecide, workflowId, outline, activeSceneId, onSelectContent, onOpenWorkflowEditor,
+  decisions, onDecide, workflowId, outline, activeSceneId, liveState, onSelectContent, onOpenWorkflowEditor,
   wholeFilmActive, onSelectWholeFilm, onOpenAssets, progressPanel }:
   { projectName: string; open: boolean; onClose: () => void
     tab: RailTab; onTab: (tab: RailTab) => void
@@ -1058,6 +1078,8 @@ function ProjectRail({ projectName, open, onClose, tab, onTab,
     outline: ContentOutline
     /** 现在被设为 AI 修改范围的那个单元 */
     activeSceneId: string | null
+    /** AI 任务正在跑时的状态词（执行中…）；没在跑就是 null —— 正在处理的那一行自己显示它 */
+    liveState: string | null
     onSelectContent: (row: ContentRow) => void
     onOpenWorkflowEditor?: (workflowId: string) => void
     /** 整片：不管项目有没有分镜都固定存在的入口，选中即把修改范围设为整个项目。 */
@@ -1137,20 +1159,28 @@ function ProjectRail({ projectName, open, onClose, tab, onTab,
             </span>
           </button>
 
-          {outline.rows.map((row) => (
-            <button key={row.id} type="button" className="fm-unit" data-part={row.depth}
-                    aria-current={row.ref.kind === 'scene' && row.ref.sceneId === activeSceneId ? 'true' : undefined}
-                    onClick={() => onSelectContent(row)}>
-              {row.thumb && <span className="fm-unit-frame"><img src={row.thumb} alt="" /></span>}
-              <span className="fm-unit-body">
-                <b>{row.index && <span className="fm-unit-index">{row.index}</span>}{row.name}</b>
-                <span>
-                  {row.status}
-                  {row.span ? ` · ${fmtClock(row.span.from)}–${fmtClock(row.span.from + row.span.duration)}` : ''}
+          {outline.rows.map((row) => {
+            /* 正在处理的就是这一行：状态改成实时状态、圆点亮起来 ——
+               「当前进度」卡在概览页，用户浏览内容列表时看不到它，所以让行自己说。
+               这不新开栏目，也不铺执行细节（细节在右侧任务页与底部面板）。 */
+            const busy = liveState !== null && row.ref.sceneId === activeSceneId
+            return (
+              <button key={row.id} type="button" className="fm-unit" data-part={row.depth}
+                      data-busy={busy || undefined}
+                      aria-current={row.ref.sceneId === activeSceneId ? 'true' : undefined}
+                      onClick={() => onSelectContent(row)}>
+                {row.thumb && <span className="fm-unit-frame"><img src={row.thumb} alt="" /></span>}
+                {busy && <i className="fm-dot" data-s="running" />}
+                <span className="fm-unit-body">
+                  <b>{row.index && <span className="fm-unit-index">{row.index}</span>}{row.name}</b>
+                  <span>
+                    {busy ? `正在制作 · ${liveState}` : row.status}
+                    {row.span ? ` · ${fmtClock(row.span.from)}–${fmtClock(row.span.from + row.span.duration)}` : ''}
+                  </span>
                 </span>
-              </span>
-            </button>
-          ))}
+              </button>
+            )
+          })}
 
           {outline.rows.length === 0 && (
             <p className="fw-rail-none">
