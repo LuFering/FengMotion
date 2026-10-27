@@ -47,3 +47,24 @@ export const fmtDuration = (sec: number) =>
   sec >= 60
     ? `${Math.floor(sec / 60)}:${(sec % 60).toFixed(1).padStart(4, '0')}`
     : `${sec.toFixed(1)}s`
+
+/** 任务状态的中文名。工作台的状态条、左栏的「当前进度」都读它 ——
+    以前这张表长在 Workbench 里，别的组件要用只能再抄一份。 */
+export const TASK_STATUS_LABEL: Record<string, string> = {
+  queued: '排队中', running: '执行中', building: '构建中',
+  completed: '已完成', cancelled: '已停止', failed: '失败',
+}
+
+/** 日期说成人话：今天 / 昨天 / 9月3日。左栏记录的「已通过 · 今天」用它。 */
+export function fmtDay(iso: string) {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  const now = new Date()
+  const sameDay = (a: Date, b: Date) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
+  const yesterday = new Date(now)
+  yesterday.setDate(now.getDate() - 1)
+  if (sameDay(d, now)) return '今天'
+  if (sameDay(d, yesterday)) return '昨天'
+  return `${d.getMonth() + 1}月${d.getDate()}日`
+}
