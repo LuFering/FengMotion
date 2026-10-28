@@ -11,3 +11,9 @@
 | [决策记录](决策记录/README.md) | 重要取舍的留痕（问题、决定、替代项、后果） | 决策提出方 |
 
 根目录另有：[ARCHITECTURE.md](../../ARCHITECTURE.md)（代码地图）、[CONTRIBUTING.md](../../CONTRIBUTING.md)（参与开发要点）、[CLAUDE.md](../../CLAUDE.md)（给 AI 的工作约定）。
+
+## 前端协作
+
+- [前端开发者协作规范](前端开发者协作规范.md)
+- [前端设计原则与已确认界面](../design/前端设计原则与已确认界面.md)
+- [前端开发 AI 工作规范](../design/前端开发AI工作规范.md)
