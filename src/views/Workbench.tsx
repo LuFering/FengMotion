@@ -19,11 +19,14 @@ import { studioAdapter } from '@/services/studioAdapter'
 import { evaluateGate, gateSummaryOf, GATE_PRIMARY_KIND, workflowService } from '@/services/workflowService'
 import { GATE_DEFS } from '@/data/workflowTemplates'
 import { contentOutline, type ContentOutline, type ContentRow } from '@/data/contentOutline'
-import { hasOwnPicture, materialShelves, type MaterialFile, type MaterialShelf } from '@/data/materialDeck'
-import { BUILTIN_ASSETS } from '@/data/myAssets'
-import { RequirementStage } from './RequirementStage'
-import { DeliverStage, ExploreStage, ProduceStage, ReviseStage, type StageProblem } from './CenterStages'
-import { STAGE_LABEL, type CenterStage } from '@/data/centerStage'
+import { materialShelves, type MaterialFile, type MaterialShelf } from '@/data/materialDeck'
+import { LICENSE_LABEL, MEDIA_LABEL, SOURCE_LABEL, type MyAsset } from '@/data/myAssets'
+import { initLibrary, listAssets } from '@/services/assetService'
+import {
+  MonitorDelivery, MonitorEmpty, MonitorGallery, MonitorMediaPreview, MonitorProblems, MonitorTaskLine,
+  type MonitorProblem, type MonitorVisualItem,
+} from './MonitorZones'
+import { VISUAL_KIND_LABEL } from '@/data/monitorVisual'
 import type { ChatState } from '@/shell/useChat'
 import { fmtClock, fmtDay, statusOf, TASK_STATUS_LABEL } from '@/shell/status'
 import { FilmPlayer, type PlayerRef } from '@/remotion/FilmPlayer'
@@ -207,32 +210,8 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
     out.sort((a, b) => (b.decidedAt || '').localeCompare(a.decidedAt || ''))
     return out
   }, [projectId, workflowsSnapshot])
-  /* 修改中这一档的问题清单：看片要改 + Gate 返工 —— 与待决定、已确认同一快照同一遍历。
-     返工项目在那两边都不出现，点了要改等于没记，所以中栏这一档单列一支；
-     review 同时有 done + rework 时以 done 为准（已通过的不再算问题）。 */
-  const problems = useMemo((): StageProblem[] => {
-    if (!projectId) return []
-    const out: (StageProblem & { decidedAt: string })[] = []
-    workflowsSnapshot
-      .filter((w) => w.projectId === projectId)
-      .forEach((w) => {
-        w.nodes.forEach((n) => {
-          if (n.type === 'review') {
-            const c = (n.params.checks ?? {}) as Record<string, boolean>
-            if (!c.rework || c.done) return
-            const day = fmtDay(String(n.params.decidedAt ?? ''))
-            out.push({ id: `${w.id}:${n.id}`, title: '看片要改', meta: `工作流「${w.name}」· 看片${day ? ` · ${day}` : ''}`, decidedAt: String(n.params.decidedAt ?? '') })
-          }
-          if (n.type === 'gate' && n.params.rework) {
-            const ev = evaluateGate(w, n)
-            const day = fmtDay(String(n.params.decidedAt ?? ''))
-            out.push({ id: `${w.id}:${n.id}`, title: `${ev.label}返工`, meta: `工作流「${w.name}」· ${ev.label}${day ? ` · ${day}` : ''}`, decidedAt: String(n.params.decidedAt ?? '') })
-          }
-        })
-      })
-    out.sort((a, b) => (b.decidedAt || '').localeCompare(a.decidedAt || ''))
-    return out
-  }, [projectId, workflowsSnapshot])
+  /* 监看区的问题清单见下面 monitorProblems：工作流返工 + 场景缺素材（带真实场景与时间）。
+     返工项目在待决定、已确认两边都不出现，review 同时有 done + rework 时以 done 为准。 */
   /* 当前进度卡跟着「最近更新的那个工作流」走 —— 与上面两份快照同一来源，
      决定写回后快照刷新，卡片里的「看片有没有留下结论」才能跟着变。 */
   const progressWorkflow = useMemo(
@@ -281,41 +260,52 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
     return { label, state: TASK_STATUS_LABEL[record.task.status] ?? record.task.status }
   }, [tasks.active])
 
-  /* 中栏显示什么，看这个项目**真的有没有画面文件** ——
-     没有就换成「创作需求 + 参考素材」，不拿项目里那份旧片或任何占位视频冒充产出
-     （作者的表：刚开始这一阶段，无画面时不要放假视频）。 */
-  const hasPicture = useMemo(() => hasOwnPicture(projectId), [projectId])
+  /* 中栏素材：走素材服务（IndexedDB：内置种子 + 用户导入），不再只读内建表。
+     工作台进来先保证种子已写入，再读全量 —— 引用节点绑了导入素材也能显示。 */
+  const [serviceAssets, setServiceAssets] = useState<MyAsset[] | null>(null)
+  useEffect(() => {
+    let on = true
+    void initLibrary().then(() => listAssets()).then((rows) => { if (on) setServiceAssets(rows) }).catch(() => { if (on) setServiceAssets([]) })
+    return () => { on = false }
+  }, [])
   /* 需求原文：工作流提示词节点里用户真正提的那句话 */
   const promptText = useMemo(
     () => String(progressWorkflow?.nodes.find((n) => n.type === 'prompt')?.params.text ?? ''),
     [progressWorkflow],
   )
-  /* 参考：引用节点真实绑定的素材（有缩略图就给缩略图） */
+  /* 参考：引用节点真实绑定的素材 —— 绑定关系是工作流的，素材本体走服务。 */
+  const refsNodeIds = useMemo(
+    () => (progressWorkflow?.nodes.find((n) => n.type === 'refs')?.params.assetIds as string[] | undefined) ?? [],
+    [progressWorkflow],
+  )
   const referenceAssets = useMemo(() => {
-    const ids = new Set((progressWorkflow?.nodes.find((n) => n.type === 'refs')?.params.assetIds as string[] | undefined) ?? [])
-    return BUILTIN_ASSETS.filter((a) => ids.has(a.id))
-  }, [progressWorkflow])
-  /* 中栏处在哪个阶段 —— 按当前产物判，不是按页面名猜。优先级：
-     有返工先改（修改中）→ 有任务在跑先做（制作中）→ 门全确认了待交付（交付前）
-     → 有画面就审片（审片时）→ 只绑了参考就比方向（探索方向）→ 否则刚开始。
-     产物视图（选了产物）和编辑预览是覆盖层，不算阶段，仍走原分支。 */
+    if (!serviceAssets) return []
+    const ids = new Set(refsNodeIds)
+    return serviceAssets.filter((a) => ids.has(a.id))
+  }, [serviceAssets, refsNodeIds])
+  /* 监看影片：本项目在素材服务里有没有视频文件。token 有旧版影片（演示适配器），
+     其他项目没有 —— 没有就不放播放器，不拿别项目的片子充数。 */
+  const filmAvailable = useMemo(
+    () => !!serviceAssets?.some((a) => a.mediaType === 'video' && a.refs.some((r) => r.kind === 'project' && r.id === projectId)),
+    [serviceAssets, projectId],
+  )
+  /* 可播放版本：版本记录里来源是视频文件的才算。当前只有一个（旧版影片），
+     前后对比需要新旧两个 —— 达不到就禁用，不用抽帧或默认图冒充旧版。 */
+  const playableVersions = useMemo(
+    () => studioAdapter.versions().filter((v) => /\.(mp4|mov|webm)$/i.test(v.source)),
+    [],
+  )
+  const compareAvailable = playableVersions.length >= 2
+  const compareReason = '没有可对比的旧版本：当前只有一个可播放版本。'
+  /* Gate 评估：交付检查项之一，但不直接推导交付（交付另看最终文件与规格）。 */
   const stageGates = useMemo(() => {
     if (!projectId) return []
     return workflowsSnapshot.filter((w) => w.projectId === projectId).flatMap((w) => gateSummaryOf(w))
   }, [projectId, workflowsSnapshot])
-  const gatesConfirmed = stageGates.length > 0 && stageGates.every((g) => g.decision === 'confirmed')
   const finishingNotes = useMemo(() => {
     const notes = String(progressWorkflow?.nodes.find((n) => n.type === 'finishing')?.params.notes ?? '').trim()
     return notes || undefined
   }, [progressWorkflow])
-  const centerStage = useMemo((): CenterStage => {
-    if (problems.length > 0) return 'revise'
-    if (liveTask) return 'produce'
-    if (gatesConfirmed) return 'deliver'
-    if (hasPicture) return 'review'
-    if (referenceAssets.length > 0) return 'explore'
-    return 'start'
-  }, [problems.length, liveTask, gatesConfirmed, hasPicture, referenceAssets.length])
   /* 资料页那摞素材卡：本项目真实文件按格式堆叠，外加一张「缺失 / 不可用」。
      工作流引用节点绑定了哪些，卡片上如实标出（不吹成「AI 精选」）。 */
   const materials = useMemo(
@@ -324,11 +314,11 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
   )
 
   /* 内容页的行：整片之外，这部片真实有哪些内容单元。
-     只在这一页读运行记录 —— 结构挂在产物上（见 data/contentOutline.ts），
-     切走这一页就不读，也就不用为它维护第三份快照。 */
+     只读工作流运行产物（见 data/contentOutline.ts）。监看区的问题定位也用同一份行。
+     运行记录在快照变化时重读 —— 执行器完成时快照不变，但目前执行器不产出场景结构，行不受影响。 */
   const outline = useMemo(
-    () => contentOutline(workflowsSnapshot.filter((w) => w.projectId === projectId), railTab === 'content' ? workflowService.listRuns() : []),
-    [workflowsSnapshot, projectId, railTab],
+    () => contentOutline(workflowsSnapshot.filter((w) => w.projectId === projectId), workflowService.listRuns()),
+    [workflowsSnapshot, projectId],
   )
   const [selectedArtifactId, setSelectedArtifactId] = useState<string | null>(initialArtifact)
   const [editMode, setEditMode] = useState(new URLSearchParams(window.location.search).get('edit') === '1')
@@ -399,6 +389,123 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
     ? null : selectedScene.storyboard
   const selectedVersion = studioAdapter.versions()[0]
   const totalFrames = Math.round(ACTIVE_DURATION * FILM_FPS)
+
+  /* ── 监看区：展示对象、预览版本、任务状态、问题状态四路并存，不推断一个互斥阶段 ── */
+  const filmVersion = filmAvailable ? selectedVersion : null
+  const projectName = catalog.find((p) => p.id === projectId)?.name ?? projectId
+  /* 问题：工作流返工（未关联场景）+ 场景缺素材（带真实场景与时间，来自运行产物）。 */
+  const monitorProblems = useMemo((): MonitorProblem[] => {
+    if (!projectId) return []
+    const out: (MonitorProblem & { decidedAt: string })[] = []
+    workflowsSnapshot
+      .filter((w) => w.projectId === projectId)
+      .forEach((w) => {
+        w.nodes.forEach((n) => {
+          if (n.type === 'review') {
+            const c = (n.params.checks ?? {}) as Record<string, boolean>
+            if (!c.rework || c.done) return
+            const day = fmtDay(String(n.params.decidedAt ?? ''))
+            out.push({ id: `${w.id}:${n.id}`, title: '看片要改', meta: `工作流「${w.name}」· 看片${day ? ` · ${day}` : ''}`, location: '未关联场景', locatable: false, decidedAt: String(n.params.decidedAt ?? '') })
+          }
+          if (n.type === 'gate' && n.params.rework) {
+            const ev = evaluateGate(w, n)
+            const day = fmtDay(String(n.params.decidedAt ?? ''))
+            out.push({ id: `${w.id}:${n.id}`, title: `${ev.label}返工`, meta: `工作流「${w.name}」· ${ev.label}${day ? ` · ${day}` : ''}`, location: '未关联场景', locatable: false, decidedAt: String(n.params.decidedAt ?? '') })
+          }
+        })
+      })
+    out.sort((a, b) => (b.decidedAt || '').localeCompare(a.decidedAt || ''))
+    const located: MonitorProblem[] = outline.rows
+      .filter((row) => row.needs)
+      .map((row) => ({
+        id: `need:${row.id}`, title: `${row.name}缺素材`, meta: `需要${row.needs}`,
+        location: row.span ? `${row.ref.label} · ${fmtClock(row.span.from)}–${fmtClock(row.span.from + row.span.duration)}` : `${row.ref.label} · 时间未标`,
+        locatable: true, sceneRef: row.ref,
+      }))
+    return [...out.map(({ decidedAt: _d, ...p }) => p), ...located]
+  }, [projectId, workflowsSnapshot, outline])
+  /* 视觉资料：参考素材（服务 + 工作流绑定）+ 方向样稿 / 试片（运行产物里真带视觉文件的才算）。 */
+  const galleryRefs = useMemo((): MonitorVisualItem[] => referenceAssets.map((a) => ({
+    id: a.id, name: a.name, kind: 'ref', mediaType: a.mediaType,
+    thumb: a.thumbnailPath, filePath: a.filePath, assetId: a.id,
+    license: LICENSE_LABEL[a.licenseStatus], sourceLabel: SOURCE_LABEL[a.sourceType],
+  })), [referenceAssets])
+  const galleryProduced = useMemo((): { samples: MonitorVisualItem[]; testfilms: MonitorVisualItem[] } => {
+    const samples: MonitorVisualItem[] = []
+    const testfilms: MonitorVisualItem[] = []
+    if (!projectId) return { samples, testfilms }
+    const wfIds = new Set(workflowsSnapshot.filter((w) => w.projectId === projectId).map((w) => w.id))
+    const push = (list: MonitorVisualItem[], kind: MonitorVisualItem['kind'], file: string) => {
+      const isVideo = /\.(mp4|mov|webm)$/i.test(file)
+      list.push({ id: `${kind}:${file}`, name: file.split('/').pop() ?? file, kind, mediaType: isVideo ? 'video' : 'image', filePath: file, sourceLabel: '运行产物' })
+    }
+    for (const run of workflowService.listRuns()) {
+      if (!wfIds.has(run.workflowId)) continue
+      for (const art of run.artifacts) {
+        let json: Record<string, unknown> | null = null
+        try { json = JSON.parse(art.content) as Record<string, unknown> } catch { json = null }
+        if (!json) continue
+        const images = Array.isArray(json.images) ? json.images.filter((x): x is string => typeof x === 'string') : []
+        const video = typeof json.video === 'string' ? json.video : null
+        if (art.kind === 'direction-samples') images.forEach((f) => push(samples, 'sample', f))
+        if (art.kind === 'proof-10s' || art.kind === 'animatic') {
+          images.forEach((f) => push(testfilms, 'testfilm', f))
+          if (video) push(testfilms, 'testfilm', video)
+        }
+      }
+    }
+    return { samples, testfilms }
+  }, [projectId, workflowsSnapshot])
+  /* 交付事实：最终文件（成片交付节点）+ 输出规格（创作节点 + 提示词）+ 审片（看片节点）+ 检查（Gate 评估）。 */
+  const delivery = useMemo(() => {
+    const deliveryNode = workflowsSnapshot
+      .filter((w) => w.projectId === projectId)
+      .flatMap((w) => w.nodes)
+      .find((n) => n.type === 'artifact' && String(n.params.kind ?? '') === 'delivery')
+    const deliveryStatus = String(deliveryNode?.params.status ?? 'missing')
+    const deliveryVersion = String(deliveryNode?.params.version ?? '')
+    const finalFile = deliveryStatus !== 'missing'
+      ? `有${deliveryVersion ? ` · ${deliveryVersion}` : ''}`
+      : '无（成片交付产物缺失）'
+    const create = progressWorkflow?.nodes.find((n) => n.type === 'create')
+    const prompt = progressWorkflow?.nodes.find((n) => n.type === 'prompt')
+    const specParts = [String(create?.params.resolution ?? ''), String(prompt?.params.ratio ?? ''), String(create?.params.mode ?? '')].filter(Boolean)
+    const specs = specParts.length ? specParts.join(' · ') : '未设定'
+    const review = progressWorkflow?.nodes.find((n) => n.type === 'review')
+    const rc = (review?.params.checks ?? {}) as Record<string, boolean>
+    const rday = review ? fmtDay(String(review.params.decidedAt ?? '')) : ''
+    const reviewText = rc.done ? `已通过${rday ? ` · ${rday}` : ''}` : rc.rework ? `已标记要改${rday ? ` · ${rday}` : ''}` : '待决定'
+    const confirmed = stageGates.filter((g) => g.decision === 'confirmed').length
+    const blocked = stageGates.flatMap((g) => g.blocked).length
+    const stale = stageGates.some((g) => g.stale)
+    const checks = stageGates.length === 0
+      ? '暂无检查项'
+      : `${confirmed}/${stageGates.length} 项已确认${blocked > 0 ? ` · ${blocked} 项受阻` : ''}${stale ? ' · 有检查项对应旧版本' : ''}`
+    return { finalFile, specs, review: reviewText, checks }
+  }, [projectId, workflowsSnapshot, progressWorkflow, stageGates])
+  /* 视觉选择按项目派生：切项目后旧选择自动失效，不用 effect 清。 */
+  const [visualSel, setVisualSel] = useState<{ projectId: string; item: MonitorVisualItem | null }>({ projectId, item: null })
+  const selectedVisual = visualSel.projectId === projectId ? visualSel.item : null
+  const setSelectedVisual = (item: MonitorVisualItem | null) => setVisualSel({ projectId, item })
+  /* 问题定位：设为修改范围 + 在左栏内容页高亮那一行。监看与时间线不动 —— 它们放的是渲染切片，拿它对应真实内容会串。 */
+  const locateProblem = (p: MonitorProblem) => {
+    if (!p.sceneRef) return
+    setTargetReference(p.sceneRef)
+    locateReference(p.sceneRef)
+    setNotice(`已定位到 ${p.location}。`)
+  }
+  /* 让 AI 修改：问题 + 目标写进对话草稿，打开对话等用户发送 —— 不只切面板。 */
+  const askFix = (p: MonitorProblem) => {
+    if (p.sceneRef) setTargetReference(p.sceneRef)
+    else setTargetReference(currentProjectRef)
+    chat.setDraft(`请修改：${p.title}。${p.meta}。目标：${p.sceneRef ? p.sceneRef.label : `整片 · ${projectName}`}。`)
+    selectSideTab('chat')
+  }
+  /* 画廊点开的视觉项：向 AI 说这个 —— 名字 + 类型带进草稿。 */
+  const askVisual = (item: MonitorVisualItem) => {
+    chat.setDraft(`关于${VISUAL_KIND_LABEL[item.kind]}「${item.name}」：`)
+    selectSideTab('chat')
+  }
 
   const selectScene = (id: string, storyboardId?: string | null) => {
     setSelectedId(id)
@@ -664,7 +771,10 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
     setTrayOpen(true)
   }
   const runQuickAction = (action: (typeof quickActions)[number]) => {
-    if (action.compare) { setCompare((v) => !v); return }
+    if (action.compare) {
+      if (!compareAvailable) { setNotice(compareReason); return }
+      setCompare((v) => !v); return
+    }
     if (action.constraint === 'attachment') { setNotice('素材上传还没接通。'); return }
     if (action.constraint) {
       const enabled = !constraints[action.constraint]
@@ -824,64 +934,44 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
                 <span className="spacer" />
                 <span className="wb-viewer-meta">{ARTIFACT_TYPE_LABEL[selectedArtifact.type]} · {selectedArtifact.version} · 只读预览</span>
               </>
-            ) : centerStage === 'start' ? (
+            ) : selectedVisual ? (
               <>
-                <span className="wb-viewer-index">刚开始</span>
-                <h2 className="wb-viewer-title truncate">创作需求与参考</h2>
-                <span className="wb-status" data-status="idle">
-                  <span className="fm-dot" data-s="idle" />还没有产出画面
+                <button type="button" className="fw-mon-btn" onClick={() => setSelectedVisual(null)}>‹ 返回监看</button>
+                <h2 className="wb-viewer-title truncate">{selectedVisual.name}</h2>
+                <span className="wb-status" data-status="idle">{VISUAL_KIND_LABEL[selectedVisual.kind]}</span>
+                <span className="wb-viewer-meta">
+                  {MEDIA_LABEL[selectedVisual.mediaType] ?? selectedVisual.mediaType}
+                  {selectedVisual.sourceLabel ? ` · ${selectedVisual.sourceLabel}` : ''}
+                  {selectedVisual.license ? ` · ${selectedVisual.license}` : ''}
                 </span>
+                <span className="spacer" />
+                <button type="button" className="fw-mon-btn strong" onClick={() => askVisual(selectedVisual)}>向 AI 说这个 ›</button>
               </>
-            ) : centerStage === 'explore' ? (
+            ) : filmAvailable ? (
               <>
-                <span className="wb-viewer-index">探索方向</span>
-                <h2 className="wb-viewer-title truncate">方向对比</h2>
-                <span className="wb-status" data-status="idle">
-                  参考 {referenceAssets.length} 项 · 测试帧尚未生成
-                </span>
-              </>
-            ) : centerStage === 'produce' && !hasPicture ? (
-              <>
-                <span className="wb-viewer-index">制作中</span>
-                <h2 className="wb-viewer-title truncate">正在制作{liveTask ? `：${liveTask.label}` : ''}</h2>
-                <span className="wb-status" data-status="running">
-                  {liveTask?.state ?? '暂无任务'}
-                </span>
-              </>
-            ) : centerStage === 'revise' && !hasPicture ? (
-              <>
-                <span className="wb-viewer-index">修改中</span>
-                <h2 className="wb-viewer-title truncate">发现的问题</h2>
-                <span className="wb-status" data-status="failed">
-                  {problems.length} 个问题待改
-                </span>
-              </>
-            ) : centerStage === 'deliver' && !hasPicture ? (
-              <>
-                <span className="wb-viewer-index">交付前</span>
-                <h2 className="wb-viewer-title truncate">检查结果</h2>
-                <span className="wb-status" data-status="idle">
-                  {stageGates.filter((g) => g.decision === 'confirmed').length}/{stageGates.length} 项已确认
-                </span>
-              </>
-            ) : (
-              <>
-                {/* 原来这里挂一个场景编号徽标（S01）。那是数据层 id —— 场景号
-                    在左侧列表里已经编好，舞台只要显示画面名就够。 */}
-                <span className="wb-viewer-index">{STAGE_LABEL[centerStage]}</span>
-                <h2 className="wb-viewer-title truncate">{selectedScene.label}</h2>
-                <span className="wb-status" data-status={statusOf(selectedScene.status).s}>
-                  <span className="fm-dot" data-s={statusOf(selectedScene.status).s} />
-                  {statusOf(selectedScene.status).label}
-                </span>
+                {/* 监看身份：项目 + 版本 + 来源 + 演示标记 —— 播放器、时间线、场景、引用共用这一身份。 */}
+                <span className="wb-viewer-index">监看</span>
+                <h2 className="wb-viewer-title truncate">{projectName}</h2>
+                <span className="wb-viewer-meta">{filmVersion?.name} · {filmVersion?.source}</span>
+                <span className="wb-status" data-status="waiting">演示旧版</span>
                 {!selectedScene.inTimeline && <span className="wb-status" data-status="waiting">未纳入当前版本</span>}
                 <span className="wb-spacer" />
+                <button type="button" className="fw-mon-btn" disabled={!compareAvailable}
+                        title={compareAvailable ? '' : compareReason}
+                        onClick={() => setCompare(true)}>前后对比</button>
+                {!compareAvailable && <span className="fw-mon-compare-reason">没有可对比的旧版本</span>}
                 <ShotActionBar
                   onFrame={referenceFrame} onRange={referenceRange}
                   onRegion={() => { setRegionMode((v) => !v); setRegionRect(null) }}
                   regionMode={regionMode} editMode={editMode}
                   onEdit={openEdit}
                 />
+              </>
+            ) : (
+              <>
+                <span className="wb-viewer-index">监看</span>
+                <h2 className="wb-viewer-title truncate">{projectName}</h2>
+                <span className="wb-status" data-status="idle">无可播放预览</span>
               </>
             )}
           </div>
@@ -891,22 +981,17 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
                           onLocate={(id) => selectScene(id)}
                           onReference={() => referenceArtifact(selectedArtifact)}
                           onClose={() => setSelectedArtifactId(null)} />
-          ) : centerStage === 'start' ? (
-            <RequirementStage promptText={promptText} references={referenceAssets}
-                              onOpenMaterials={() => { setRailTab('materials'); setOpenShelf('reference') }} />
-          ) : centerStage === 'explore' ? (
-            <ExploreStage references={referenceAssets} onAskAI={() => selectSideTab('chat')} />
-          ) : centerStage === 'produce' && !hasPicture ? (
-            <ProduceStage task={liveTask} onViewTask={openTaskRecords} onAskAI={() => selectSideTab('chat')} />
-          ) : centerStage === 'revise' && !hasPicture ? (
-            <ReviseStage problems={problems} onAskAI={() => selectSideTab('chat')} />
-          ) : centerStage === 'deliver' && !hasPicture ? (
-            <DeliverStage gates={stageGates} finishingNotes={finishingNotes} onAskAI={() => selectSideTab('chat')} />
           ) : editMode ? (
             <>
               <div className="fw-stage fw-stage-edit">
                 <RemotionEditPreview settings={currentShotSettings} poster={selectedScene.frame ?? undefined} />
                 <div className="fw-edit-hint">实时预览</div>
+                {notice && (
+                  <button className="absolute bottom-3 right-3 z-20 max-w-[75%] rounded-md border border-warn/30 bg-surf px-2 py-1 text-[10px] text-warn"
+                          onClick={() => setNotice('')}>
+                    {notice}<X className="ml-1 inline size-3" />
+                  </button>
+                )}
               </div>
               <ShotActionBar
                 onFrame={referenceFrame} onRange={referenceRange}
@@ -916,27 +1001,11 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
               />
             </>
           ) : (
-            <>
-              {/* 有画面时，修改中 / 交付前不另起视图：播放器仍是主画面，
-                  阶段信息以一条 strip 贴在舞台上方 —— 问题清单、检查结果都是真实评估。 */}
-              {centerStage === 'revise' && (
-                <div className="fw-stage-strip" data-kind="revise">
-                  <span className="fm-dot" data-s="failed" />
-                  <span className="fw-stage-strip-text">发现的问题：{problems.slice(0, 2).map((p) => p.title).join('、')}{problems.length > 2 ? ` 等 ${problems.length} 个` : ''}</span>
-                  <span className="spacer" />
-                  <button type="button" className="fw-stage-strip-btn" onClick={() => setCompare(true)}>前后对比 ›</button>
-                </div>
-              )}
-              {centerStage === 'deliver' && (
-                <div className="fw-stage-strip" data-kind="deliver">
-                  <span className="fw-stage-strip-text">
-                    检查结果：{stageGates.map((g) => `${g.label}已确认`).join(' · ')}
-                    {stageGates.flatMap((g) => g.blocked).length > 0 && ` · ${stageGates.flatMap((g) => g.blocked).length} 项仍受阻`}
-                    {stageGates.some((g) => g.stale) && ' · 有检查项对应旧版本'}
-                  </span>
-                </div>
-              )}
-              {/* 舞台：paba .fw-stage */}
+            <div className="fw-monitor">
+              <div className="fw-mon-visual">
+                {selectedVisual ? (
+                  <MonitorMediaPreview key={selectedVisual.id} item={selectedVisual} onBack={() => setSelectedVisual(null)} onAsk={askVisual} />
+                ) : filmAvailable ? (
               <div className="fw-stage" ref={stageRef}>
                 {!compare ? (
                   <div className={`fw-media-fit${framePulse ? ' chg' : ''}`} ref={playerBoxRef}>
@@ -952,8 +1021,14 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
                 ) : (
                   <div className="relative flex size-full overflow-hidden bg-black">
                     <div className="relative h-full overflow-hidden" style={{ width: `${compareSplit}%` }}>
-                      <img src={selectedScene.frame ?? './frames/u01.jpg'} alt="项目抽帧"
-                           className="absolute inset-0 size-full object-contain" />
+                      {selectedScene.frame ? (
+                        <img src={selectedScene.frame} alt="项目抽帧"
+                             className="absolute inset-0 size-full object-contain" />
+                      ) : (
+                        <div className="absolute inset-0 flex items-center justify-center px-4 text-center text-[12px] text-tx3">
+                          没有可对比的旧画面
+                        </div>
+                      )}
                       <span className="absolute left-2 top-2 bg-black/75 px-1.5 py-1 text-[10px]">已存画面</span>
                     </div>
                     <div className="relative h-full flex-1 overflow-hidden border-l border-acc">
@@ -983,19 +1058,37 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
                   </div>
                 )}
               </div>
-
+                ) : (
+                  <MonitorEmpty promptText={promptText} />
+                )}
+              </div>
+              {filmAvailable && !selectedVisual && (
+                <>
               <PlayerBar playerRef={playerRef} frame={frame} onSeek={seek} playing={playing}
                          onToggle={playToggle} rate={previewRate} onRate={setPreviewRate} totalFrames={totalFrames} />
 
               <div className="tl-wrap">
                 <StoryTimeline selectedId={selectedId} onSelect={selectScene} activeFrame={frame} onSeek={seek} />
               </div>
+                </>
+              )}
+              <div className="fw-mon-zones">
+                {notice && (!filmAvailable || selectedVisual) && (
+                  <button type="button" className="fw-mon-notice" onClick={() => setNotice('')}>
+                    {notice}<X className="ml-1 inline size-3" />
+                  </button>
+                )}
+                {liveTask && <MonitorTaskLine label={liveTask.label} state={liveTask.state} onViewTask={openTaskRecords} />}
+                <MonitorProblems problems={monitorProblems} onLocate={locateProblem} onAskFix={askFix} />
+                <MonitorGallery refs={galleryRefs} samples={galleryProduced.samples} testfilms={galleryProduced.testfilms} onSelect={setSelectedVisual} />
+                <MonitorDelivery finalFile={delivery.finalFile} specs={delivery.specs} review={delivery.review} checks={delivery.checks} note={finishingNotes ? `Finishing：${finishingNotes}` : undefined} />
+              </div>
 
               {trayOpen && (
                 <BottomTray records={tasks.records} activeId={tasks.active?.task.id ?? null}
                             onCancel={tasks.cancel} tab={bottomTab} setTab={setBottomTab} />
               )}
-            </>
+            </div>
           )}
         </main>
 

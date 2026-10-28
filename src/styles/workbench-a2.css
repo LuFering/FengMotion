@@ -456,6 +456,7 @@
   color: var(--tx3); white-space: nowrap;
 }
 #pane-flow .wb-a2 .wb-viewer-title { margin: 0; font-size: 13px; font-weight: 650; color: var(--tx); white-space: nowrap; }
+#pane-flow .wb-a2 .fw-toolbar .wb-viewer-title { flex: 1 1 auto; min-width: 60px; }
 #pane-flow .wb-a2 .wb-viewer-meta { font-size: 11.5px; color: var(--tx3); font-variant-numeric: tabular-nums; white-space: nowrap; }
 #pane-flow .wb-a2 .wb-status { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; color: var(--tx2); white-space: nowrap; }
 #pane-flow .wb-a2 .wb-status[data-status="waiting"] { color: var(--mark); }
@@ -1302,127 +1303,90 @@ html[data-theme="light"] #pane-flow .wb-a2 .fw-panel { box-shadow: 0 8px 24px rg
 }
 #pane-flow .wb-a2 .fw-modal-detail { margin: 10px 0; font-size: 12px; line-height: 1.6; color: var(--tx2); }
 
-/* ── 中栏 · 还没有产出画面时（刚开始这一阶段）──────────────────
-   作者的表：刚开始给创作需求摘要 + 参考素材，「无画面时不要放假视频」。
-   所以这里没有播放器、没有时间线，只有真东西：提示词节点的原文 +
-   引用节点绑定的素材。灰阶递进，不做大卡片。 */
-#pane-flow .wb-a2 .fw-req {
-  flex: 1; min-height: 0; overflow-y: auto;
-  display: flex; flex-direction: column; gap: 14px;
-  padding: 18px 20px 22px;
+/* ── 监看区 · 画面为主，四路并存 ─────────────────────────────
+   不再按互斥阶段换整块卡片：大画面 + 瘦状态行 + 问题行 + 视觉画廊 + 交付事实，
+   各区只在数据存在时出现，用间距、字号、对齐分层，不套卡片边框。 */
+#pane-flow .wb-a2 .fw-monitor {
+  flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden;
 }
-#pane-flow .wb-a2 .fw-req-block {
-  border: 1px solid var(--line); border-radius: var(--r-card);
-  background: var(--panel2); padding: 12px 13px;
+#pane-flow .wb-a2 .fw-mon-visual {
+  flex: 1 1 0; min-height: 0; display: flex; flex-direction: column;
+  background: var(--stage-bg);
 }
-#pane-flow .wb-a2 .fw-req-hd {
-  display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
-  font-size: 12px; font-weight: 650; color: var(--tx);
+#pane-flow .wb-a2 .fw-mon-visual > .fw-stage { flex: 1; min-height: 0; }
+#pane-flow .wb-a2 .fw-mon-zones {
+  flex: 0 1 42%; min-height: 0; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 22px;
+  padding: 14px 20px 24px;
 }
-#pane-flow .wb-a2 .fw-req-hd .spacer { flex: 1; }
-#pane-flow .wb-a2 .fw-req-src { font-size: 10.5px; font-weight: 400; color: var(--tx3); }
-#pane-flow .wb-a2 .fw-req-text {
-  margin: 0; font-size: 13px; line-height: 1.75; color: var(--tx);
+#pane-flow .wb-a2 .fw-mon-btn {
+  flex: none; padding: 0; border: 0; background: none;
+  color: var(--acc-tx); font: inherit; font-size: 12px; cursor: pointer; white-space: nowrap;
+}
+#pane-flow .wb-a2 .fw-mon-btn:hover { color: var(--acc); }
+#pane-flow .wb-a2 .fw-mon-btn.strong { font-weight: 650; }
+#pane-flow .wb-a2 .fw-mon-btn:disabled { color: var(--tx3); cursor: not-allowed; }
+#pane-flow .wb-a2 .fw-mon-btn:disabled:hover { color: var(--tx3); }
+#pane-flow .wb-a2 .fw-mon-compare-reason { font-size: 11px; color: var(--tx3); white-space: nowrap; }
+#pane-flow .wb-a2 .fw-mon-notice {
+  display: flex; align-items: center; gap: 4px; width: fit-content; max-width: 100%;
+  padding: 6px 10px; border: 1px solid var(--warn); border-radius: 8px;
+  background: var(--panel2); color: var(--warn); font: inherit; font-size: 11.5px; cursor: pointer; text-align: left;
+}
+#pane-flow .wb-a2 .fw-mon-taskline {
+  display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--tx);
+}
+#pane-flow .wb-a2 .fw-mon-taskline .spacer,
+#pane-flow .wb-a2 .fw-mon-prob-main .spacer,
+#pane-flow .wb-a2 .fw-mon-preview-bar .spacer { flex: 1; }
+#pane-flow .wb-a2 .fw-mon-note { font-size: 11.5px; color: var(--tx3); }
+#pane-flow .wb-a2 .fw-mon-sec-title {
+  margin-bottom: 8px; font-size: 12px; font-weight: 650; color: var(--tx);
+}
+#pane-flow .wb-a2 .fw-mon-prob { padding: 9px 0; border-bottom: 1px solid var(--line); }
+#pane-flow .wb-a2 .fw-mon-prob:last-child { border-bottom: 0; }
+#pane-flow .wb-a2 .fw-mon-prob-main { display: flex; align-items: center; gap: 8px; min-width: 0; }
+#pane-flow .wb-a2 .fw-mon-prob-title { flex: 1; min-width: 0; font-size: 13px; color: var(--tx); }
+#pane-flow .wb-a2 .fw-mon-prob-meta { margin: 3px 0 0 20px; font-size: 11.5px; color: var(--tx3); }
+#pane-flow .wb-a2 .fw-mon-gallery-group + .fw-mon-gallery-group { margin-top: 14px; }
+#pane-flow .wb-a2 .fw-mon-gallery {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px;
+}
+#pane-flow .wb-a2 .fw-mon-tile {
+  min-width: 0; padding: 0; border: 0; background: none;
+  display: flex; flex-direction: column; gap: 5px; text-align: left; cursor: pointer;
+}
+#pane-flow .wb-a2 .fw-mon-tile-media {
+  display: block; aspect-ratio: 16 / 9; overflow: hidden; border-radius: 10px; background: var(--panel2);
+}
+#pane-flow .wb-a2 .fw-mon-tile-media img { width: 100%; height: 100%; object-fit: cover; display: block; }
+#pane-flow .wb-a2 .fw-mon-tile-file {
+  width: 100%; height: 100%; display: grid; place-items: center; color: var(--tx3); font-size: 12px;
+}
+#pane-flow .wb-a2 .fw-mon-tile-name { font-size: 12px; color: var(--tx2); }
+#pane-flow .wb-a2 .fw-mon-tile-meta { font-size: 11px; color: var(--tx3); }
+#pane-flow .wb-a2 .fw-mon-facts { display: flex; flex-wrap: wrap; gap: 6px 24px; font-size: 13px; color: var(--tx); }
+#pane-flow .wb-a2 .fw-mon-fact-label { color: var(--tx3); margin-right: 6px; }
+#pane-flow .wb-a2 .fw-mon-empty {
+  flex: 1; min-height: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 10px; padding: 24px; text-align: center;
+}
+#pane-flow .wb-a2 .fw-mon-empty-title { font-size: 15px; font-weight: 650; color: var(--tx); }
+#pane-flow .wb-a2 .fw-mon-empty-prompt {
+  margin: 0; max-width: 560px; font-size: 13px; line-height: 1.75; color: var(--tx2);
   white-space: pre-wrap; overflow-wrap: anywhere;
 }
-#pane-flow .wb-a2 .fw-req-none { margin: 0; font-size: 11.5px; line-height: 1.65; color: var(--tx3); }
-#pane-flow .wb-a2 .fw-req-refs {
-  margin: 0; padding: 0; list-style: none;
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px 10px;
+#pane-flow .wb-a2 .fw-mon-empty-sub { margin: 0; font-size: 12.5px; line-height: 1.7; color: var(--tx3); }
+#pane-flow .wb-a2 .fw-mon-preview {
+  flex: 1; min-height: 0; display: flex; flex-direction: column; background: #000;
 }
-#pane-flow .wb-a2 .fw-req-refs > li { display: flex; align-items: center; gap: 8px; min-width: 0; }
-#pane-flow .wb-a2 .fw-req-thumb {
-  display: grid; place-items: center; flex: none; width: 48px; height: 30px;
-  overflow: hidden; border: 1px solid var(--line); border-radius: var(--r-thumb);
-  background: var(--panel); color: var(--tx3); font-size: 9px;
+#pane-flow .wb-a2 .fw-mon-preview-media {
+  flex: 1; min-height: 0; width: 100%; object-fit: contain; display: block;
 }
-#pane-flow .wb-a2 .fw-req-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
-#pane-flow .wb-a2 .fw-req-refname {
-  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  font-size: 11.5px; color: var(--tx2);
+#pane-flow .wb-a2 .fw-mon-preview-bar {
+  flex: none; display: flex; align-items: center; gap: 10px; padding: 8px 14px;
+  background: var(--panel); border-top: 1px solid var(--line);
 }
-#pane-flow .wb-a2 .fw-req-refmeta { flex: none; font-size: 10.5px; color: var(--tx3); }
-#pane-flow .wb-a2 .fw-req-more {
-  margin-top: 10px; padding: 0; border: 0; background: none;
-  color: var(--acc-tx); font: inherit; font-size: 11.5px; cursor: pointer;
-}
-#pane-flow .wb-a2 .fw-req-more:hover { color: var(--acc); }
-#pane-flow .wb-a2 .fw-req-foot {
-  margin: 0; padding: 10px 12px;
-  border: 1px dashed var(--line2); border-radius: var(--r-card);
-  font-size: 11.5px; line-height: 1.7; color: var(--tx3);
-}
-
-/* ── 中栏阶段视图 · 探索方向 / 制作中 / 修改中 / 交付前（无画面时）──
-   与 RequirementStage 同一套板式（块 + 脚注），只换内容；有画面时这些阶段
-   不另起视图，直接在播放器上方贴一条 strip（见 .fw-stage-strip）。 */
-#pane-flow .wb-a2 .fw-cstage {
-  flex: 1; min-height: 0; overflow-y: auto;
-  display: flex; flex-direction: column; gap: 14px;
-  padding: 18px 20px 22px;
-}
-#pane-flow .wb-a2 .fw-cstage-block {
-  border: 1px solid var(--line); border-radius: var(--r-card);
-  background: var(--panel2); padding: 12px 13px;
-}
-#pane-flow .wb-a2 .fw-cstage-hd {
-  display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
-  font-size: 12px; font-weight: 650; color: var(--tx);
-}
-#pane-flow .wb-a2 .fw-cstage-hd .spacer { flex: 1; }
-#pane-flow .wb-a2 .fw-cstage-src { font-size: 10.5px; font-weight: 400; color: var(--tx3); }
-#pane-flow .wb-a2 .fw-cstage-note { margin: 0 0 10px; font-size: 11.5px; line-height: 1.65; color: var(--tx3); }
-#pane-flow .wb-a2 .fw-cstage-none { margin: 0; font-size: 11.5px; line-height: 1.65; color: var(--tx3); }
-#pane-flow .wb-a2 .fw-cstage-refs {
-  margin: 0; padding: 0; list-style: none;
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px 10px;
-}
-#pane-flow .wb-a2 .fw-cstage-refs > li { display: flex; align-items: center; gap: 8px; min-width: 0; }
-#pane-flow .wb-a2 .fw-cstage-thumb {
-  display: grid; place-items: center; flex: none; width: 48px; height: 30px;
-  overflow: hidden; border: 1px solid var(--line); border-radius: var(--r-thumb);
-  background: var(--panel); color: var(--tx3); font-size: 9px;
-}
-#pane-flow .wb-a2 .fw-cstage-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
-#pane-flow .wb-a2 .fw-cstage-refname {
-  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  font-size: 11.5px; color: var(--tx2);
-}
-#pane-flow .wb-a2 .fw-cstage-refmeta { flex: none; font-size: 10.5px; color: var(--tx3); }
-#pane-flow .wb-a2 .fw-cstage-task { margin: 0; font-size: 13px; line-height: 1.75; color: var(--tx); }
-#pane-flow .wb-a2 .fw-cstage-rows {
-  margin: 0; padding: 0; list-style: none;
-  display: flex; flex-direction: column; gap: 8px;
-}
-#pane-flow .wb-a2 .fw-cstage-row { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
-#pane-flow .wb-a2 .fw-cstage-row-t { flex: 1; min-width: 0; font-size: 12px; line-height: 1.6; color: var(--tx); }
-#pane-flow .wb-a2 .fw-cstage-row-m { flex: none; font-size: 10.5px; color: var(--tx3); }
-#pane-flow .wb-a2 .fw-cstage-blocked { display: block; margin-top: 2px; font-size: 11px; line-height: 1.6; color: var(--warn); }
-#pane-flow .wb-a2 .fw-cstage-actions { display: flex; gap: 8px; }
-#pane-flow .wb-a2 .fw-cstage-btn {
-  padding: 7px 12px; border: 1px solid var(--line); border-radius: 8px;
-  background: var(--panel2); color: var(--tx); font: inherit; font-size: 12px; cursor: pointer;
-}
-#pane-flow .wb-a2 .fw-cstage-btn:hover { border-color: var(--acc); color: var(--acc-tx); }
-#pane-flow .wb-a2 .fw-cstage-foot {
-  margin: 0; padding: 10px 12px;
-  border: 1px dashed var(--line2); border-radius: var(--r-card);
-  font-size: 11.5px; line-height: 1.7; color: var(--tx3);
-}
-#pane-flow .wb-a2 .fw-stage-strip {
-  display: flex; align-items: center; gap: 8px;
-  padding: 8px 14px; border-bottom: 1px solid var(--line);
-  background: var(--panel2); font-size: 11.5px; color: var(--tx2);
-}
-#pane-flow .wb-a2 .fw-stage-strip .spacer { flex: 1; }
-#pane-flow .wb-a2 .fw-stage-strip-text {
-  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-#pane-flow .wb-a2 .fw-stage-strip-btn {
-  flex: none; padding: 0; border: 0; background: none;
-  color: var(--acc-tx); font: inherit; font-size: 11.5px; cursor: pointer;
-}
-#pane-flow .wb-a2 .fw-stage-strip-btn:hover { color: var(--acc); }
 
 
 /* ── 资料页 · 素材 / 参考（分开两格，按格式一摞一摞堆）──────────
