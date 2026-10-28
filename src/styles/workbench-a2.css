@@ -920,6 +920,32 @@
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 #pane-flow .wb-a2 .wb-compose-scope > b { color: var(--tx2); font-weight: 500; }
+/* 次级视图标题：段控在任务/设置视图不选中时，标题补上当前视图名。 */
+#pane-flow .wb-a2 .fw-panel-title { font-size: 12px; font-weight: 650; color: var(--tx); white-space: nowrap; }
+/* 排队注记：贴在用户消息下方，不另开卡片。 */
+#pane-flow .wb-a2 .wb-queue-note {
+  display: flex; align-items: center; gap: 8px; padding-top: 3px;
+  font-size: 11px; color: var(--tx3);
+}
+#pane-flow .wb-a2 .wb-queue-note button { background: none; border: 0; padding: 0; color: var(--acc); cursor: pointer; }
+#pane-flow .wb-a2 .wb-queue-note button:disabled { color: var(--tx3); cursor: default; }
+/* 保留条件摘要：只列已启用的，改约束走次级视图，不在输入框旁铺开关。 */
+#pane-flow .wb-a2 .wb-compose-constraints {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding-top: 2px; font-size: 11px; color: var(--tx3);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+#pane-flow .wb-a2 .wb-compose-constraints button { background: none; border: 0; padding: 0; color: var(--acc); cursor: pointer; flex: 0 0 auto; }
+/* 右栏收起：宽屏留一条对话入口窄列，窄屏留一个浮层入口。 */
+#pane-flow .wb-a2 .fw[data-panel="closed"] { grid-template-columns: 232px minmax(0, 1fr) 36px; }
+#pane-flow .wb-a2 .fw-panel-reopen {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: 10px 0; min-height: 0;
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-panel);
+  color: var(--tx2); cursor: pointer;
+}
+#pane-flow .wb-a2 .fw-panel-reopen span { writing-mode: vertical-rl; font-size: 11px; }
+#pane-flow .wb-a2 .fw-panel-reopen-float { display: none; }
 #pane-flow .wb-a2 .fw-sheet .mini-strong {
   min-height: 28px; padding: 0 12px; border-radius: 999px;
   background: var(--acc); border-color: var(--acc); color: var(--acc-ink);
@@ -1022,6 +1048,7 @@
 }
 @media (max-width: 1200px) {
   #pane-flow .wb-a2 .fw { grid-template-columns: minmax(0, 1fr) 272px; }
+  #pane-flow .wb-a2 .fw[data-panel="closed"] { grid-template-columns: minmax(0, 1fr) 36px; }
   #pane-flow .wb-a2 .fw-ing {
     position: absolute; inset: 0 auto 0 0; z-index: 31;
     width: 232px;
@@ -1040,7 +1067,19 @@
 }
 @media (max-width: 900px) {
   #pane-flow .wb-a2 .fw { grid-template-columns: minmax(0, 1fr); }
-  #pane-flow .wb-a2 .fw-panel { display: none; }
+  /* 窄屏右栏不再直接消失：改走覆盖中央的浮层，收起后留一个浮层入口。 */
+  #pane-flow .wb-a2 .fw-panel {
+    position: absolute; top: 0; bottom: 0; right: 0; z-index: 32;
+    width: min(320px, 92vw); box-shadow: var(--shadow-float);
+  }
+  #pane-flow .wb-a2 .fw-panel-reopen { display: none; }
+  #pane-flow .wb-a2 .fw-panel-reopen-float {
+    display: flex; align-items: center; gap: 6px;
+    position: absolute; top: 10px; right: 10px; z-index: 33;
+    padding: 8px 12px; border-radius: 999px;
+    background: var(--panel); border: 1px solid var(--line); box-shadow: var(--shadow-float);
+    color: var(--tx2); font-size: 12px; cursor: pointer;
+  }
   #pane-flow .wb-a2 .wb-statusbar .wb-status-chip { display: none; }
   #pane-flow .wb-a2 .wb-statusbar .wb-status-chip:first-child { display: inline-flex; }
 }

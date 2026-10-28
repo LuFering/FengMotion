@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
   ArrowDownToLine, ArrowLeftRight, ArrowUpRight, BookOpen, Check,
-  ChevronDown, ChevronLeft, Clock3, FileCode2, FileText, Film, FolderOpen, History,
+  ChevronDown, ChevronLeft, ChevronRight, Clock3, FileCode2, FileText, Film, FolderOpen, History,
   Image as ImageIcon, ListTree, LoaderCircle, Maximize2, MessagesSquare, Music2, Type as TypeIcon,
   ShieldCheck,
   PanelBottom, Pause, Play, Plus, RotateCcw, Send, Settings2,
@@ -336,11 +336,18 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
     preserveCamera: true, preserveCaptions: true, limitToSelection: true, reuseExistingComponents: true,
   })
   const initialPanel = new URLSearchParams(window.location.search).get('panel')
-  // 默认打开「场景」检查器，而不是对话 —— AI 修改是一个显式动作，不是首屏主角。
+  /* 右栏默认就是对话：场景详情、执行记录、修改设置是次级视图，按需打开。
+     ?panel 仍可深链到指定视图。 */
   const [sideTab, setSideTab] = useState<SideTab>(
     initialPanel === 'scene' || initialPanel === 'chat' || initialPanel === 'task' || initialPanel === 'edit' || initialPanel === 'settings'
       ? initialPanel as SideTab
-      : 'scene')
+      : 'chat')
+  /* 右栏收起态：窄屏下改走浮层，宽屏下留一条对话入口窄列。 */
+  const [panelOpen, setPanelOpen] = useState(true)
+  /* 任务记录的返回视图：从对话进来回对话，从场景进来回场景。 */
+  const [taskReturnTab, setTaskReturnTab] = useState<SideTab>('chat')
+  /* 对话输入聚焦触发：问题/场景带入对话时加一，右栏切到对话后聚焦输入框。 */
+  const [focusChatKey, setFocusChatKey] = useState(0)
   const [bottomTab, setBottomTab] = useState<'activity'|'changes'|'versions'>('activity')
   const [trayOpen, setTrayOpen] = useState(false)
   const [compare, setCompare] = useState(false)
@@ -501,17 +508,19 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
     locateReference(p.sceneRef)
     setNotice(`已定位到 ${p.location}。`)
   }
-  /* 让 AI 修改：问题 + 目标写进对话草稿，打开对话等用户发送 —— 不只切面板。 */
+  /* 让 AI 修改：问题 + 目标写进对话草稿，打开对话、聚焦输入框，等用户发送 —— 不只切面板。 */
   const askFix = (p: MonitorProblem) => {
     if (p.sceneRef) setTargetReference(p.sceneRef)
     else setTargetReference(currentProjectRef)
     chat.setDraft(`请修改：${p.title}。${p.meta}。目标：${p.sceneRef ? p.sceneRef.label : `整片 · ${projectName}`}。`)
     selectSideTab('chat')
+    setFocusChatKey((k) => k + 1)
   }
-  /* 画廊点开的视觉项：向 AI 说这个 —— 名字 + 类型带进草稿。 */
+  /* 画廊点开的视觉项：向 AI 说这个 —— 名字 + 类型带进草稿，打开对话并聚焦。 */
   const askVisual = (item: MonitorVisualItem) => {
     chat.setDraft(`关于${VISUAL_KIND_LABEL[item.kind]}「${item.name}」：`)
     selectSideTab('chat')
+    setFocusChatKey((k) => k + 1)
   }
 
   const selectScene = (id: string, storyboardId?: string | null) => {
@@ -626,18 +635,24 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
     setTargetReference(row.ref)
     setEditMode(false)
     setSideTab('chat')
+    setFocusChatKey((k) => k + 1)
     setNotice(row.span
       ? `已把「${row.ref.label}」设为修改范围（${fmtClock(row.span.from)} 起，${row.span.duration.toFixed(1)}s）。`
       : `已把「${row.ref.label}」设为修改范围。这一段还没有真实画面，监看与时间线暂时定位不过去。`)
   }
-  /** 从场景检查器显式进入 AI 修改：把本场设为目标，再打开对话。 */
+  /** 从场景检查器显式进入 AI 修改：把本场设为目标，再打开对话并聚焦输入框。 */
   const openChatForScene = () => {
     setScope('scene')
     setTargetReference(currentShotRef)
     setEditMode(false)
     setSideTab('chat')
+    setFocusChatKey((k) => k + 1)
   }
-  const openTaskRecords = () => { setEditMode(false); setSideTab('task') }
+  const openTaskRecords = () => {
+    setTaskReturnTab(sideTab)
+    setEditMode(false)
+    setSideTab('task')
+  }
   /** 切换右栏页签时退出 Remotion 编辑态，避免「参数 → 场景」后监看器仍停在编辑预览。 */
   const selectSideTab = (next: SideTab) => {
     if (editMode && next !== 'edit') setEditMode(false)
@@ -655,7 +670,8 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
        真实画面接上之后，这里再换成按时间轴 seek。 */
     if (ref.kind === 'scene') { setSelectedArtifactId(null); setRailTab('content'); return }
     const clip = ACTIVE_SCENES.find((item) => item.id === ref.shotId)
-    if (!clip) return
+    /* 没有可靠定位数据时不假装跳转成功：给一句提示，而不是点下去毫无反应。 */
+    if (!clip) { setNotice('该引用没有可定位的画面。'); return }
     setSelectedId(ref.shotId)
     setSelectedStoryboardId(clip.storyboardId)
     setSelectedArtifactId(null)
@@ -680,6 +696,8 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
     setTargetReference({
       id: `frame:${selectedId}:${frame}`, role: 'target', kind: 'frame', shotId: selectedId,
       frame, timecode: tc, label: `第 ${frame} 帧`,
+      /* 帧引用顺带挂上当前可访问的画面（场景代表帧），别只剩一个帧号。 */
+      snapshotId: selectedScene.frame ?? undefined,
     })
   }
   const referenceRange = () => {
@@ -762,7 +780,16 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
     setRegionRect(null)
     setRegionBox(null)
   }
-  const submit = (prompt: string, kind: TaskRequest['kind'] = 'modify') => {
+  /* 制作中插话的排队规则（演示适配器没有实时干预接口）：
+     任务在跑时新发的不并行启动、不假装已干预 —— 先排队，当前任务结束（完成/失败）
+     后按序启动；用户点了停止后，排队的先不动，等用户点「现在开始」或新发指令时
+     再按序启动。请求在发送那一刻快照（引用与约束），排队期间改引用不影响已排的。 */
+  type PendingSubmit = { key: string; messageId: string; prompt: string; request: TaskRequest; status: 'waiting' | 'cancelled' }
+  const [pendingSubmits, setPendingSubmits] = useState<PendingSubmit[]>([])
+  const [holdQueue, setHoldQueue] = useState(false)
+  const isLiveTask = (task: AgentTask | null | undefined) =>
+    !!task && (task.status === 'queued' || task.status === 'running' || task.status === 'building')
+  const buildRequest = (prompt: string, kind: TaskRequest['kind'], useConstraints: ModificationConstraints): TaskRequest => {
     const requestRefs = references.some((ref) => ref.role === 'target') ? references : [currentShotRef, ...references]
     const derivedScope = scopeFromReferences(requestRefs)
     /* 范围里的场景：目标是左栏选中的内容单元时用它自己的 id —— 它来自工作流产物，
@@ -771,11 +798,65 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
     const sceneIds = derivedScope === 'project'
       ? []
       : target?.kind === 'scene' ? [target.sceneId] : [selectedId]
-    const request: TaskRequest = { kind, prompt, scope: derivedScope, sceneIds, references: requestRefs, constraints, attachments: [] }
-    const id = tasks.start(request)
-    chat.addUserMessage(prompt, id)
+    return { kind, prompt, scope: derivedScope, sceneIds, references: requestRefs, constraints: useConstraints, attachments: [] }
+  }
+  const startNow = (item: { prompt: string; request: TaskRequest; messageId?: string }) => {
+    const id = tasks.start(item.request)
+    if (item.messageId) chat.setMessageTaskId(item.messageId, id)
+    else chat.addUserMessage(item.prompt, id)
     setBottomTab('activity')
     setTrayOpen(true)
+    return id
+  }
+  const startQueued = (key: string) => {
+    const item = pendingSubmits.find((p) => p.key === key && p.status === 'waiting')
+    if (!item || isLiveTask(tasks.active?.task)) return
+    setPendingSubmits((old) => old.filter((p) => p.key !== key))
+    setHoldQueue(false)
+    startNow(item)
+  }
+  const cancelQueued = (key: string) => {
+    setPendingSubmits((old) => old.map((p) => (p.key === key ? { ...p, status: 'cancelled' } : p)))
+  }
+  const submit = (prompt: string, kind: TaskRequest['kind'] = 'modify', useConstraints: ModificationConstraints = constraints) => {
+    const request = buildRequest(prompt, kind, useConstraints)
+    const waiting = pendingSubmits.filter((p) => p.status === 'waiting')
+    /* 没在跑、队里也没等待：即使之前按住过排队（刚叫停），这条新指令也直接跑 ——
+       按住只拦自动启动旧排队，不拦用户的新发送。 */
+    if (!isLiveTask(tasks.active?.task) && waiting.length === 0) {
+      if (holdQueue) setHoldQueue(false)
+      startNow({ prompt, request })
+      return
+    }
+    const messageId = chat.addUserMessage(prompt)
+    const item: PendingSubmit = { key: `${Date.now()}-${waiting.length}`, messageId, prompt, request, status: 'waiting' }
+    if (!isLiveTask(tasks.active?.task) && !holdQueue) {
+      /* 队里有等待、但当前没在跑：按序启动队头（可能是刚排的这一条），不插队。 */
+      const next = [...waiting, item]
+      const [head] = next
+      /* 只删队头：其余等待项与已取消项原样保留。 */
+      setPendingSubmits((old) => old.filter((p) => p.key !== head.key))
+      startNow(head)
+    } else {
+      setPendingSubmits((old) => [...old, item])
+    }
+  }
+  /* 队头自动启动：当前任务完成/失败后，按序启动下一条等待；被停止后不自动启动。 */
+  useEffect(() => {
+    if (holdQueue) return
+    const active = tasks.active?.task
+    if (isLiveTask(active)) return
+    const head = pendingSubmits.find((p) => p.status === 'waiting')
+    if (!head) return
+    setPendingSubmits((old) => old.filter((p) => p.key !== head.key))
+    startNow(head)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tasks.active?.task.status, holdQueue])
+  /* 右栏（对话流 / 任务记录）里点停止：中止任务，并按住排队 —— 别在用户刚叫停时
+     就把排队的下一条悄悄启动。底部托盘的停止走同一处理。 */
+  const cancelTaskAndHold = (taskId: string) => {
+    tasks.cancel(taskId)
+    setHoldQueue(true)
   }
   const runQuickAction = (action: (typeof quickActions)[number]) => {
     if (action.compare) {
@@ -785,8 +866,11 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
     if (action.constraint === 'attachment') { setNotice('素材上传还没接通。'); return }
     if (action.constraint) {
       const enabled = !constraints[action.constraint]
-      setConstraints((old) => ({ ...old, [action.constraint as keyof ModificationConstraints]: enabled }))
-      submit(`快捷约束：${action.label}（${enabled ? '开启' : '关闭'}）`)
+      const nextConstraints = { ...constraints, [action.constraint as keyof ModificationConstraints]: enabled }
+      setConstraints(nextConstraints)
+      /* 请求里的约束必须就是这次切换后的值：setConstraints 是异步的，
+         直接读 constraints 闭包会拿到切换前的一份。 */
+      submit(`快捷约束：${action.label}（${enabled ? '开启' : '关闭'}）`, 'modify', nextConstraints)
       return
     }
     if (action.id === 'undo' || action.id === 'redo') {
@@ -886,7 +970,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
       </div>
 
       {/* ═══ 三栏（paba .fw 网格）══════════════════════════════ */}
-      <div className="fw relative">
+      <div className="fw relative" data-panel={panelOpen ? 'open' : 'closed'}>
         {railOpen && <button className="fw-scrim" aria-label="收起场景列表" onClick={() => setRailOpen(false)} />}
 
         <ProjectRail projectName={project.name}
@@ -1100,29 +1184,46 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
 
               {trayOpen && (
                 <BottomTray records={tasks.records} activeId={tasks.active?.task.id ?? null}
-                            onCancel={tasks.cancel} tab={bottomTab} setTab={setBottomTab} />
+                            onCancel={cancelTaskAndHold} tab={bottomTab} setTab={setBottomTab} />
               )}
             </div>
           )}
         </main>
 
-        {/* 右栏：对话 / 设置 */}
-        <RightPanel chat={chat} sideTab={sideTab} setSideTab={selectSideTab}
-                    scope={scope}
-                    scopeLabel={scopeLabel} scopeShort={scopeShort}
-                    scene={selectedScene} storyboard={storyboard}
-                    onOpenChat={openChatForScene} onOpenTask={openTaskRecords}
-                    constraints={constraints} setConstraints={setConstraints}
-                    activeTask={tasks.active?.task ?? null} cancelTask={tasks.cancel}
-                    records={tasks.records} onSubmit={submit} onQuickAction={runQuickAction}
-                    onNavigate={onNavigate} selectedVersion={selectedVersion}
-                    editSettings={currentShotSettings} editSavedAt={savedAt}
-                    editOverridden={!!shotOverrides[selectedId]}
-                    references={references} onRemoveReference={removeReference}
-                    onLocateReference={locateReference} onToggleReferenceRole={toggleReferenceRole}
-                    onClearReferences={clearReferences} onScopeChange={(next) => { setScope(next); setTargetReference(next === 'project' ? currentProjectRef : currentShotRef) }}
-                    onApplyEdit={applyShotSettings} onResetEdit={resetShotSettings}
-                    onCloseEdit={closeEdit} onOpenEdit={openEdit} />
+        {/* 右栏：对话 / 设置 —— 收起后宽屏留一条对话入口窄列，窄屏留一个浮层入口。 */}
+        {panelOpen ? (
+          <RightPanel chat={chat} sideTab={sideTab} setSideTab={selectSideTab}
+                      focusChatKey={focusChatKey}
+                      scope={scope}
+                      scopeLabel={scopeLabel} scopeShort={scopeShort}
+                      scene={selectedScene} storyboard={storyboard}
+                      onOpenChat={openChatForScene} onOpenTask={openTaskRecords}
+                      onBackFromTask={() => { setEditMode(false); setSideTab(taskReturnTab) }}
+                      onCollapse={() => setPanelOpen(false)}
+                      constraints={constraints} setConstraints={setConstraints}
+                      activeTask={tasks.active?.task ?? null} cancelTask={cancelTaskAndHold}
+                      records={tasks.records} onSubmit={submit} onQuickAction={runQuickAction}
+                      pending={pendingSubmits} onStartQueued={startQueued} onCancelQueued={cancelQueued}
+                      onNavigate={onNavigate} selectedVersion={selectedVersion}
+                      editSettings={currentShotSettings} editSavedAt={savedAt}
+                      editOverridden={!!shotOverrides[selectedId]}
+                      references={references} onRemoveReference={removeReference}
+                      onLocateReference={locateReference} onToggleReferenceRole={toggleReferenceRole}
+                      onClearReferences={clearReferences} onScopeChange={(next) => { setScope(next); setTargetReference(next === 'project' ? currentProjectRef : currentShotRef) }}
+                      onApplyEdit={applyShotSettings} onResetEdit={resetShotSettings}
+                      onCloseEdit={closeEdit} onOpenEdit={openEdit} />
+        ) : (
+          <>
+            <button className="fw-panel-reopen" type="button" aria-label="打开对话"
+                    onClick={() => setPanelOpen(true)}>
+              <MessagesSquare className="size-4" /><span>对话</span>
+            </button>
+            <button className="fw-panel-reopen-float" type="button" aria-label="打开对话"
+                    onClick={() => setPanelOpen(true)}>
+              <MessagesSquare className="size-4" />对话
+            </button>
+          </>
+        )}
       </div>
 
       {/* ═══ 基岛：状态栏（独立胶囊，不铺整条底板）═══════════════ */}
@@ -1729,22 +1830,26 @@ function PlayerBar({ playerRef, frame, onSeek, playing, onToggle, rate, onRate, 
 }
 
 /* ── 右栏：对话 / 修改设置 ──────────────────────────────────── */
-function RightPanel({ chat, sideTab, setSideTab, scope, scopeLabel, scopeShort, scene, storyboard,
-  onOpenChat, onOpenTask,
+function RightPanel({ chat, sideTab, setSideTab, focusChatKey, scope, scopeLabel, scopeShort, scene, storyboard,
+  onOpenChat, onOpenTask, onBackFromTask, onCollapse,
   constraints, setConstraints, activeTask, cancelTask, records, onSubmit, onQuickAction,
+  pending, onStartQueued, onCancelQueued,
   onNavigate, selectedVersion, editSettings, editSavedAt, editOverridden, references, onRemoveReference,
   onLocateReference, onToggleReferenceRole, onClearReferences, onScopeChange,
   onApplyEdit, onResetEdit, onCloseEdit, onOpenEdit }:
-  { chat: ChatState; sideTab: SideTab; setSideTab: (v: SideTab) => void
+  { chat: ChatState; sideTab: SideTab; setSideTab: (v: SideTab) => void; focusChatKey: number
     scope: 'project'|'scene'|'selection'
     /** 输入框上显示的作用范围（真名，不是枚举）与它的短名（占位文案用） */
     scopeLabel: string; scopeShort: string
     scene: (typeof SCENES)[number]
     storyboard: StoryboardEntry | null; onOpenChat: () => void; onOpenTask: () => void
+    onBackFromTask: () => void; onCollapse: () => void
     constraints: ModificationConstraints
     setConstraints: React.Dispatch<React.SetStateAction<ModificationConstraints>>
     activeTask: AgentTask | null; cancelTask: (id: string) => void; records: TaskRecord[]
     onSubmit: (p: string) => void; onQuickAction: (a: (typeof quickActions)[number]) => void
+    pending: Array<{ key: string; messageId: string; prompt: string; status: 'waiting' | 'cancelled' }>
+    onStartQueued: (key: string) => void; onCancelQueued: (key: string) => void
     onNavigate: (v: ViewId) => void; selectedVersion: ProjectVersion
     editSettings: EditableShotSettings; editSavedAt: string; editOverridden: boolean
     references: AgentReference[]; onRemoveReference: (id: string) => void
@@ -1753,21 +1858,43 @@ function RightPanel({ chat, sideTab, setSideTab, scope, scopeLabel, scopeShort, 
     onApplyEdit: (settings: EditableShotSettings) => void; onResetEdit: () => void
     onCloseEdit: () => void; onOpenEdit: () => void }) {
   const submit = () => { const v = chat.draft.trim(); if (v) { onSubmit(v); chat.setDraft('') } }
+  const inputRef = useRef<HTMLTextAreaElement | null>(null)
+  /* 问题/场景带入对话时聚焦输入框：只在切到对话后触发，不抢其他视图的焦点。 */
+  useEffect(() => {
+    if (sideTab === 'chat' && focusChatKey > 0) inputRef.current?.focus()
+  }, [focusChatKey, sideTab])
+  const activeRecord = activeTask ? records.find((r) => r.task.id === activeTask.id) ?? null : null
+  const activeLive = !!activeTask && (activeTask.status === 'queued' || activeTask.status === 'running' || activeTask.status === 'building')
+  const activeDone = !!activeTask && (activeTask.status === 'completed' || activeTask.status === 'failed' || activeTask.status === 'cancelled')
+  const latestEvent = activeRecord?.events.at(-1)
+  /* 输入框附近的保留条件摘要：只列已启用的，默认全开时也不铺开关 ——
+     用户能看见当前约束（不再默默限制），改约束去次级视图。 */
+  const enabledConstraints = ([
+    ['preserveCamera', '机位'],
+    ['preserveCaptions', '字幕'],
+    ['limitToSelection', '仅选中范围'],
+    ['reuseExistingComponents', '复用组件'],
+  ] as const).filter(([key]) => constraints[key])
 
   return (
-    <aside className="fw-panel" aria-label="场景检查器与 AI 修改">
+    <aside className="fw-panel" aria-label="AI 对话">
       <div className="fw-ing-hd fw-panel-hd">
         <SegmentedControl value={sideTab === 'settings' || sideTab === 'task' ? '' : sideTab}
                           onChange={(next) => next === 'edit' ? onOpenEdit() : setSideTab(next as SideTab)}
                           ariaLabel="场景与 AI 工作区"
                           className="fw-panel-seg"
                           options={[{ value: 'scene', label: '场景' }, { value: 'chat', label: '对话' }, { value: 'edit', label: '参数' }]} />
+        {sideTab === 'task' && <span className="fw-panel-title">执行记录</span>}
+        {sideTab === 'settings' && <span className="fw-panel-title">修改设置</span>}
         <ToolButton label="修改设置" active={sideTab === 'settings'} onClick={() => setSideTab('settings')}>
           <Settings2 className="size-3.5" />
         </ToolButton>
         {/* 原型：从工作台切回完整对话视图（同一份 useChat 会话） */}
         <ToolButton label="完整对话" onClick={() => onNavigate('conversation')}>
           <MessagesSquare className="size-3.5" />
+        </ToolButton>
+        <ToolButton label="收起右侧栏" onClick={onCollapse}>
+          <ChevronRight className="size-3.5" />
         </ToolButton>
       </div>
 
@@ -1806,7 +1933,22 @@ function RightPanel({ chat, sideTab, setSideTab, scope, scopeLabel, scopeShort, 
               </div>
               {chat.messages.slice(1).map((m) => (
                 m.role === 'user'
-                  ? <p key={m.id} className="fm-msg-user">{m.text}</p>
+                  ? (
+                    <div key={m.id}>
+                      <p className="fm-msg-user">{m.text}</p>
+                      {pending.filter((p) => p.messageId === m.id).map((p) => (
+                        p.status === 'waiting' ? (
+                          <div key={p.key} className="wb-queue-note">
+                            <span>等待处理 · 当前任务结束后处理</span>
+                            <button type="button" disabled={activeLive} onClick={() => onStartQueued(p.key)}>现在开始</button>
+                            <button type="button" onClick={() => onCancelQueued(p.key)}>取消</button>
+                          </div>
+                        ) : (
+                          <div key={p.key} className="wb-queue-note"><span>已取消等待</span></div>
+                        )
+                      ))}
+                    </div>
+                  )
                   : (
                     <div key={m.id} className="fw-msg">
                       <span className="fw-msg-avatar">AI</span>
@@ -1815,31 +1957,45 @@ function RightPanel({ chat, sideTab, setSideTab, scope, scopeLabel, scopeShort, 
                   )
               ))}
 
-              {storyboard && (
-                <div className="wb-chat-block">
-                  <p>{storyboard.旁白}</p>
-                  <details>
-                    <summary>查看画面与动效要求</summary>
-                    <p>画面：{storyboard.画面}</p>
-                    <p>动效：{storyboard.动效}</p>
-                    <p>衔接：{storyboard.衔接}</p>
-                  </details>
-                </div>
-              )}
-
-              {activeTask && (
+              {/* 执行项只插在消息流里，不另开大卡片：进行中只露最新一条关键事件，
+                  演示身份挂在项上（不是只靠底部的离线行）。 */}
+              {activeTask && activeLive && (
                 <div className="wb-chat-block">
                   <div className="wb-chat-task">
                     <LoaderCircle className="size-3 animate-spin" />
-                    <b className="truncate">{activeTask.title}</b>
+                    <b className="truncate">{activeRecord?.request
+                      ? `正在修改 ${activeRecord.request.references?.find((r) => r.role === 'target')?.label ?? '整片'}`
+                      : activeTask.title}</b>
+                    <span className="wb-insp-tag">演示</span>
                     <span className="wb-insp-tag">{TASK_STATUS_LABEL[activeTask.status] ?? activeTask.status}</span>
                   </div>
-                  {records.find((r) => r.task.id === activeTask.id)?.events.slice(-3).map((e) => (
-                    <div key={e.id} className="wb-chat-event">{e.message}</div>
-                  ))}
-                  <button className="wb-btn-ghost" type="button" onClick={() => cancelTask(activeTask.id)}>
-                    <Square className="size-3" />停止任务
-                  </button>
+                  {latestEvent && <div className="wb-chat-event">{latestEvent.message}</div>}
+                  <div className="flex gap-1.5">
+                    <button className="wb-btn-ghost" type="button" onClick={onOpenTask}>查看执行</button>
+                    <button className="wb-btn-ghost" type="button" onClick={() => cancelTask(activeTask.id)}>
+                      <Square className="size-3" />停止
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* 任务结束不是结果卡：演示适配器不产预览、不改文件、不建版本，
+                  所以只报结束与验证缺位，不给查看预览、前后对比、恢复。 */}
+              {activeTask && activeDone && (
+                <div className="wb-chat-block">
+                  <div className="wb-chat-task">
+                    <span className="fm-dot" data-s={activeTask.status === 'completed' ? 'done' : activeTask.status === 'failed' ? 'failed' : 'idle'} />
+                    <b className="truncate">
+                      {activeTask.status === 'completed' ? '演示任务已完成' : activeTask.status === 'failed' ? '任务失败' : '任务已停止'}
+                    </b>
+                    <span className="wb-insp-tag">演示</span>
+                  </div>
+                  <div className="wb-chat-event">
+                    {activeTask.status === 'completed'
+                      ? '没有生成新预览，也没有文件变更。'
+                      : latestEvent?.message ?? '没有执行详情。'}
+                  </div>
+                  <button className="wb-btn-ghost" type="button" onClick={onOpenTask}>查看执行</button>
                 </div>
               )}
 
@@ -1855,10 +2011,16 @@ function RightPanel({ chat, sideTab, setSideTab, scope, scopeLabel, scopeShort, 
               <div className="wb-compose-scope" title={scopeLabel}>
                 作用于 <b>{scopeLabel}</b>
               </div>
-              <textarea className="wb-input" rows={3}
+              <textarea className="wb-input" rows={3} ref={inputRef}
                         value={chat.draft} onChange={(e) => chat.setDraft(e.target.value)}
                         onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit() } }}
                         placeholder={`告诉 AI 要如何修改「${scopeShort}」…`} />
+              {enabledConstraints.length > 0 && (
+                <div className="wb-compose-constraints">
+                  <span>保留：{enabledConstraints.map(([, label]) => label).join(' · ')}</span>
+                  <button type="button" onClick={() => setSideTab('settings')}>修改约束 ›</button>
+                </div>
+              )}
               <div className="mt-1.5 flex items-center gap-2">
                 <button className="iconbtn" type="button" title="上传还没接通" disabled><Plus /></button>
                 <button className="mini mini-strong ml-auto" type="submit" disabled={!chat.draft.trim()}>
@@ -1871,13 +2033,19 @@ function RightPanel({ chat, sideTab, setSideTab, scope, scopeLabel, scopeShort, 
       ) : sideTab === 'task' ? (
         <TaskPanel activeTask={activeTask} records={records} cancelTask={cancelTask}
                    scope={scope} constraints={constraints}
-                   onBack={() => setSideTab('scene')} />
+                   onBack={onBackFromTask} />
       ) : sideTab === 'edit' ? (
         <RemotionEditPanel settings={editSettings} savedAt={editSavedAt} isOverridden={editOverridden}
                            onApply={onApplyEdit} onReset={onResetEdit} onClose={onCloseEdit} />
       ) : (
         <div className="fw-scroll">
           <div className="flex flex-col gap-3 p-3.5">
+            <div className="flex items-center gap-2">
+              <button className="wb-btn-ghost wb-insp-back" type="button" onClick={() => setSideTab('chat')}>
+                <ChevronLeft className="size-3" />返回对话
+              </button>
+              <span className="fw-panel-title">修改设置</span>
+            </div>
             <div className="fw-scene-hd">修改作用范围</div>
             <SegmentedControl value={scope} onChange={onScopeChange}
                               ariaLabel="修改作用范围"
@@ -1926,9 +2094,9 @@ function RightPanel({ chat, sideTab, setSideTab, scope, scopeLabel, scopeShort, 
   )
 }
 
-/* ── 右栏：场景检查器（默认）────────────────────────────────
+/* ── 右栏：场景检查器（次级视图）────────────────────────────
    场景是编辑对象，AI 只是它的一个动作。这里把「改哪一场、这一场是什么、
-   当前参数/约束/引用/执行状态」放在首屏；对话不再占用默认右栏。 */
+   当前参数/约束/引用/执行状态」放在一处；默认右栏是对话。 */
 function SceneInspector({ scene, storyboard, settings, savedAt, overridden,
   constraints, setConstraints, activeTask, references,
   onRemoveReference, onLocateReference, onToggleReferenceRole, onClearReferences,
@@ -2082,22 +2250,26 @@ function TaskPanel({ activeTask, records, cancelTask, scope, constraints, onBack
     <div className="fw-scroll">
       <div className="flex flex-col gap-3 p-3.5">
         <button className="wb-btn-ghost wb-insp-back" type="button" onClick={onBack}>
-          <ChevronLeft className="size-3" />返回场景
+          <ChevronLeft className="size-3" />返回
         </button>
         <div className="fw-scene-hd">当前任务</div>
         {activeTask ? (
           <div className="fw-task-card">
             <div className="flex items-center gap-2">
-              <LoaderCircle className="size-3 animate-spin text-acc" />
+              {(activeTask.status === 'queued' || activeTask.status === 'running' || activeTask.status === 'building')
+                ? <LoaderCircle className="size-3 animate-spin text-acc" />
+                : <span className="fm-dot" data-s={activeTask.status === 'completed' ? 'done' : activeTask.status === 'failed' ? 'failed' : 'idle'} />}
               <b>{activeTask.title}</b>
               <span className="fw-count ml-auto">{TASK_STATUS_LABEL[activeTask.status] ?? activeTask.status}</span>
             </div>
             {record?.events.slice(-5).map((e) => (
               <div key={e.id} className="mt-1.5 text-[10.5px] text-dim">· {e.message}</div>
             ))}
-            <button className="mini mt-2 h-6 px-2 text-[10.5px]" type="button" onClick={() => cancelTask(activeTask.id)}>
-              <Square className="size-2.5" />停止任务
-            </button>
+            {(activeTask.status === 'queued' || activeTask.status === 'running' || activeTask.status === 'building') && (
+              <button className="mini mt-2 h-6 px-2 text-[10.5px]" type="button" onClick={() => cancelTask(activeTask.id)}>
+                <Square className="size-2.5" />停止任务
+              </button>
+            )}
           </div>
         ) : (
           <div className="fw-tray-empty">没有正在执行的任务。</div>
