@@ -456,6 +456,7 @@
   color: var(--tx3); white-space: nowrap;
 }
 #pane-flow .wb-a2 .wb-viewer-title { margin: 0; font-size: 13px; font-weight: 650; color: var(--tx); white-space: nowrap; }
+#pane-flow .wb-a2 .fw-toolbar .wb-viewer-title { flex: 1 1 auto; min-width: 60px; }
 #pane-flow .wb-a2 .wb-viewer-meta { font-size: 11.5px; color: var(--tx3); font-variant-numeric: tabular-nums; white-space: nowrap; }
 #pane-flow .wb-a2 .wb-status { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; color: var(--tx2); white-space: nowrap; }
 #pane-flow .wb-a2 .wb-status[data-status="waiting"] { color: var(--mark); }
@@ -919,6 +920,32 @@
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 #pane-flow .wb-a2 .wb-compose-scope > b { color: var(--tx2); font-weight: 500; }
+/* 次级视图标题：段控在任务/设置视图不选中时，标题补上当前视图名。 */
+#pane-flow .wb-a2 .fw-panel-title { font-size: 12px; font-weight: 650; color: var(--tx); white-space: nowrap; }
+/* 排队注记：贴在用户消息下方，不另开卡片。 */
+#pane-flow .wb-a2 .wb-queue-note {
+  display: flex; align-items: center; gap: 8px; padding-top: 3px;
+  font-size: 11px; color: var(--tx3);
+}
+#pane-flow .wb-a2 .wb-queue-note button { background: none; border: 0; padding: 0; color: var(--acc); cursor: pointer; }
+#pane-flow .wb-a2 .wb-queue-note button:disabled { color: var(--tx3); cursor: default; }
+/* 保留条件摘要：只列已启用的，改约束走次级视图，不在输入框旁铺开关。 */
+#pane-flow .wb-a2 .wb-compose-constraints {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding-top: 2px; font-size: 11px; color: var(--tx3);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+#pane-flow .wb-a2 .wb-compose-constraints button { background: none; border: 0; padding: 0; color: var(--acc); cursor: pointer; flex: 0 0 auto; }
+/* 右栏收起：宽屏留一条对话入口窄列，窄屏留一个浮层入口。 */
+#pane-flow .wb-a2 .fw[data-panel="closed"] { grid-template-columns: 232px minmax(0, 1fr) 36px; }
+#pane-flow .wb-a2 .fw-panel-reopen {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: 10px 0; min-height: 0;
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-panel);
+  color: var(--tx2); cursor: pointer;
+}
+#pane-flow .wb-a2 .fw-panel-reopen span { writing-mode: vertical-rl; font-size: 11px; }
+#pane-flow .wb-a2 .fw-panel-reopen-float { display: none; }
 #pane-flow .wb-a2 .fw-sheet .mini-strong {
   min-height: 28px; padding: 0 12px; border-radius: 999px;
   background: var(--acc); border-color: var(--acc); color: var(--acc-ink);
@@ -1021,6 +1048,7 @@
 }
 @media (max-width: 1200px) {
   #pane-flow .wb-a2 .fw { grid-template-columns: minmax(0, 1fr) 272px; }
+  #pane-flow .wb-a2 .fw[data-panel="closed"] { grid-template-columns: minmax(0, 1fr) 36px; }
   #pane-flow .wb-a2 .fw-ing {
     position: absolute; inset: 0 auto 0 0; z-index: 31;
     width: 232px;
@@ -1039,7 +1067,19 @@
 }
 @media (max-width: 900px) {
   #pane-flow .wb-a2 .fw { grid-template-columns: minmax(0, 1fr); }
-  #pane-flow .wb-a2 .fw-panel { display: none; }
+  /* 窄屏右栏不再直接消失：改走覆盖中央的浮层，收起后留一个浮层入口。 */
+  #pane-flow .wb-a2 .fw-panel {
+    position: absolute; top: 0; bottom: 0; right: 0; z-index: 32;
+    width: min(320px, 92vw); box-shadow: var(--shadow-float);
+  }
+  #pane-flow .wb-a2 .fw-panel-reopen { display: none; }
+  #pane-flow .wb-a2 .fw-panel-reopen-float {
+    display: flex; align-items: center; gap: 6px;
+    position: absolute; top: 10px; right: 10px; z-index: 33;
+    padding: 8px 12px; border-radius: 999px;
+    background: var(--panel); border: 1px solid var(--line); box-shadow: var(--shadow-float);
+    color: var(--tx2); font-size: 12px; cursor: pointer;
+  }
   #pane-flow .wb-a2 .wb-statusbar .wb-status-chip { display: none; }
   #pane-flow .wb-a2 .wb-statusbar .wb-status-chip:first-child { display: inline-flex; }
 }
@@ -1302,55 +1342,80 @@ html[data-theme="light"] #pane-flow .wb-a2 .fw-panel { box-shadow: 0 8px 24px rg
 }
 #pane-flow .wb-a2 .fw-modal-detail { margin: 10px 0; font-size: 12px; line-height: 1.6; color: var(--tx2); }
 
-/* ── 中栏 · 还没有产出画面时（刚开始这一阶段）──────────────────
-   作者的表：刚开始给创作需求摘要 + 参考素材，「无画面时不要放假视频」。
-   所以这里没有播放器、没有时间线，只有真东西：提示词节点的原文 +
-   引用节点绑定的素材。灰阶递进，不做大卡片。 */
-#pane-flow .wb-a2 .fw-req {
-  flex: 1; min-height: 0; overflow-y: auto;
-  display: flex; flex-direction: column; gap: 14px;
-  padding: 18px 20px 22px;
+/* ── 监看区 · 画面优先 ─────────────────────────────
+   一块大画面 + 一行缩略入口 + 一行收起的问题，别的都不常驻：
+   任务只剩短状态、交付只在有最终文件时出现、空状态只留四个字。
+   分层靠灰阶与字号，不用边框、渐变、发光、虚线装饰。 */
+#pane-flow .wb-a2 .fw-monitor {
+  flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden;
 }
-#pane-flow .wb-a2 .fw-req-block {
-  border: 1px solid var(--line); border-radius: var(--r-card);
-  background: var(--panel2); padding: 12px 13px;
+#pane-flow .wb-a2 .fw-mon-visual {
+  flex: 1 1 0; min-height: 0; display: flex; flex-direction: column;
+  background: var(--stage-bg);
 }
-#pane-flow .wb-a2 .fw-req-hd {
-  display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
-  font-size: 12px; font-weight: 650; color: var(--tx);
+#pane-flow .wb-a2 .fw-mon-visual > .fw-stage { flex: 1; min-height: 0; }
+#pane-flow .wb-a2 .fw-mon-btn {
+  flex: none; padding: 0; border: 0; background: none;
+  color: var(--acc-tx); font: inherit; font-size: 12px; cursor: pointer; white-space: nowrap;
 }
-#pane-flow .wb-a2 .fw-req-hd .spacer { flex: 1; }
-#pane-flow .wb-a2 .fw-req-src { font-size: 10.5px; font-weight: 400; color: var(--tx3); }
-#pane-flow .wb-a2 .fw-req-text {
-  margin: 0; font-size: 13px; line-height: 1.75; color: var(--tx);
-  white-space: pre-wrap; overflow-wrap: anywhere;
+#pane-flow .wb-a2 .fw-mon-btn:hover { color: var(--acc); }
+#pane-flow .wb-a2 .fw-mon-btn.strong { font-weight: 650; }
+#pane-flow .wb-a2 .fw-mon-btn:disabled { color: var(--tx3); cursor: not-allowed; }
+#pane-flow .wb-a2 .fw-mon-btn:disabled:hover { color: var(--tx3); }
+#pane-flow .wb-a2 .fw-mon-notice {
+  flex: none; padding: 8px 16px 0; border: 0; background: none;
+  color: var(--warn); font: inherit; font-size: 11.5px; cursor: pointer; text-align: left;
 }
-#pane-flow .wb-a2 .fw-req-none { margin: 0; font-size: 11.5px; line-height: 1.65; color: var(--tx3); }
-#pane-flow .wb-a2 .fw-req-refs {
-  margin: 0; padding: 0; list-style: none;
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px 10px;
+#pane-flow .wb-a2 .fw-mon-rail {
+  flex: none; display: flex; align-items: center; gap: 16px;
+  padding: 10px 16px; background: var(--panel);
 }
-#pane-flow .wb-a2 .fw-req-refs > li { display: flex; align-items: center; gap: 8px; min-width: 0; }
-#pane-flow .wb-a2 .fw-req-thumb {
-  display: grid; place-items: center; flex: none; width: 48px; height: 30px;
-  overflow: hidden; border: 1px solid var(--line); border-radius: var(--r-thumb);
-  background: var(--panel); color: var(--tx3); font-size: 9px;
+#pane-flow .wb-a2 .fw-mon-thumbs {
+  flex: 1; min-width: 0; display: flex; gap: 8px; overflow-x: auto;
 }
-#pane-flow .wb-a2 .fw-req-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
-#pane-flow .wb-a2 .fw-req-refname {
-  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  font-size: 11.5px; color: var(--tx2);
+#pane-flow .wb-a2 .fw-mon-thumb {
+  flex: none; width: 84px; height: 48px; padding: 0; border: 0; background: var(--panel2);
+  border-radius: 6px; overflow: hidden; cursor: pointer;
 }
-#pane-flow .wb-a2 .fw-req-refmeta { flex: none; font-size: 10.5px; color: var(--tx3); }
-#pane-flow .wb-a2 .fw-req-more {
-  margin-top: 10px; padding: 0; border: 0; background: none;
-  color: var(--acc-tx); font: inherit; font-size: 11.5px; cursor: pointer;
+#pane-flow .wb-a2 .fw-mon-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+#pane-flow .wb-a2 .fw-mon-thumb[aria-selected="true"] { outline: 2px solid var(--acc); outline-offset: 1px; }
+#pane-flow .wb-a2 .fw-mon-thumb-file {
+  width: 100%; height: 100%; display: grid; place-items: center; color: var(--tx3); font-size: 11px;
 }
-#pane-flow .wb-a2 .fw-req-more:hover { color: var(--acc); }
-#pane-flow .wb-a2 .fw-req-foot {
-  margin: 0; padding: 10px 12px;
-  border: 1px dashed var(--line2); border-radius: var(--r-card);
-  font-size: 11.5px; line-height: 1.7; color: var(--tx3);
+#pane-flow .wb-a2 .fw-mon-task {
+  flex: none; display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--tx); white-space: nowrap;
+}
+#pane-flow .wb-a2 .fw-mon-problems {
+  flex: none; display: flex; flex-direction: column; gap: 6px; padding: 8px 16px 12px;
+}
+#pane-flow .wb-a2 .fw-mon-problem-row { display: flex; align-items: center; gap: 10px; min-width: 0; }
+#pane-flow .wb-a2 .fw-mon-problem-label { flex: none; font-size: 12px; font-weight: 650; color: var(--tx); }
+#pane-flow .wb-a2 .fw-mon-problem-btn {
+  display: flex; align-items: center; gap: 6px; min-width: 0; padding: 0; border: 0; background: none;
+  color: var(--tx2); font: inherit; font-size: 12px; cursor: pointer; white-space: nowrap;
+}
+#pane-flow .wb-a2 .fw-mon-problem-btn[aria-expanded="true"] { color: var(--acc-tx); }
+#pane-flow .wb-a2 .fw-mon-problem-detail {
+  display: flex; align-items: center; gap: 10px; min-width: 0; font-size: 11.5px; color: var(--tx3);
+}
+#pane-flow .wb-a2 .fw-mon-problem-detail .spacer { flex: 1; }
+#pane-flow .wb-a2 .fw-mon-problem-meta { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#pane-flow .wb-a2 .fw-mon-delivery {
+  flex: none; display: flex; flex-wrap: wrap; gap: 6px 24px;
+  padding: 10px 16px 12px; font-size: 13px; color: var(--tx);
+}
+#pane-flow .wb-a2 .fw-mon-fact-label { color: var(--tx3); margin-right: 6px; }
+#pane-flow .wb-a2 .fw-mon-empty {
+  flex: 1; min-height: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; padding: 24px; text-align: center;
+}
+#pane-flow .wb-a2 .fw-mon-empty-title { font-size: 15px; font-weight: 650; color: var(--tx); }
+#pane-flow .wb-a2 .fw-mon-empty-sub { margin: 0; font-size: 12.5px; line-height: 1.7; color: var(--tx3); }
+#pane-flow .wb-a2 .fw-mon-preview {
+  flex: 1; min-height: 0; display: flex; flex-direction: column; background: #000;
+}
+#pane-flow .wb-a2 .fw-mon-preview-media {
+  flex: 1; min-height: 0; width: 100%; object-fit: contain; display: block;
 }
 
 

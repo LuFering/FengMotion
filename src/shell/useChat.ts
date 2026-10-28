@@ -29,8 +29,14 @@ const INITIAL_MESSAGES: ChatMessage[] = [
 export function useChat() {
   const [messages, setMessages] = useState(INITIAL_MESSAGES)
   const [draft, setDraft] = useState('')
+  /* 返回新消息 id：排队中的消息先占位，任务真正启动时再把 taskId 补上去。 */
   const addUserMessage = (text: string, taskId?: string) => {
-    setMessages((items) => [...items, { id: makeId(), role: 'user', text, taskId, at: Date.now() }])
+    const id = makeId()
+    setMessages((items) => [...items, { id, role: 'user', text, taskId, at: Date.now() }])
+    return id
+  }
+  const setMessageTaskId = (messageId: string, taskId: string) => {
+    setMessages((items) => items.map((m) => (m.id === messageId ? { ...m, taskId } : m)))
   }
   /* 对话视图的演示 agent 回复（本地生成） */
   const addAiMessage = (m: { text: string; thinking?: string; toolCalls?: { label: string; detail: string }[]; plan?: string[]; changes?: { file: string; change: string }[] }) => {
@@ -43,7 +49,7 @@ export function useChat() {
     setMessages(INITIAL_MESSAGES)
     setDraft('')
   }
-  return { messages, draft, setDraft, addUserMessage, addAiMessage, clearChat, replaceMessages }
+  return { messages, draft, setDraft, addUserMessage, setMessageTaskId, addAiMessage, clearChat, replaceMessages }
 }
 
 export type ChatState = ReturnType<typeof useChat>

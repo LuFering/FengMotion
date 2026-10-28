@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
   ArrowDownToLine, ArrowLeftRight, ArrowUpRight, BookOpen, Check,
-  ChevronDown, ChevronLeft, Clock3, FileCode2, FileText, Film, FolderOpen, History,
+  ChevronDown, ChevronLeft, ChevronRight, Clock3, FileCode2, FileText, Film, FolderOpen, History,
   Image as ImageIcon, ListTree, LoaderCircle, Maximize2, MessagesSquare, Music2, Type as TypeIcon,
   ShieldCheck,
   PanelBottom, Pause, Play, Plus, RotateCcw, Send, Settings2,
@@ -16,12 +16,17 @@ import { ACTIVE_DURATION, FILM_FPS, FILM_HEIGHT, FILM_WIDTH } from '@/data/timel
 import { useAgentTasks, type TaskRecord } from '@/hooks/useAgentTasks'
 import type { AgentReference, AgentTask, ModificationConstraints, ProjectVersion, TaskRequest } from '@/services/studioApi'
 import { studioAdapter } from '@/services/studioAdapter'
-import { evaluateGate, GATE_PRIMARY_KIND, workflowService } from '@/services/workflowService'
+import { evaluateGate, gateSummaryOf, GATE_PRIMARY_KIND, workflowService } from '@/services/workflowService'
 import { GATE_DEFS } from '@/data/workflowTemplates'
 import { contentOutline, type ContentOutline, type ContentRow } from '@/data/contentOutline'
-import { hasOwnPicture, materialShelves, type MaterialFile, type MaterialShelf } from '@/data/materialDeck'
-import { BUILTIN_ASSETS } from '@/data/myAssets'
-import { RequirementStage } from './RequirementStage'
+import { materialShelves, type MaterialFile, type MaterialShelf } from '@/data/materialDeck'
+import { LICENSE_LABEL, MEDIA_LABEL, SOURCE_LABEL, type MyAsset } from '@/data/myAssets'
+import { initLibrary, listAssets } from '@/services/assetService'
+import {
+  MonitorDelivery, MonitorEmpty, MonitorMediaPreview, MonitorProblemsCollapsed, MonitorThumbRail,
+  type MonitorProblem, type MonitorVisualItem,
+} from './MonitorZones'
+import { VISUAL_KIND_LABEL } from '@/data/monitorVisual'
 import type { ChatState } from '@/shell/useChat'
 import { fmtClock, fmtDay, statusOf, TASK_STATUS_LABEL } from '@/shell/status'
 import { FilmPlayer, type PlayerRef } from '@/remotion/FilmPlayer'
@@ -205,6 +210,8 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
     out.sort((a, b) => (b.decidedAt || '').localeCompare(a.decidedAt || ''))
     return out
   }, [projectId, workflowsSnapshot])
+  /* 监看区的问题清单见下面 monitorProblems：工作流返工 + 场景缺素材（带真实场景与时间）。
+     返工项目在待决定、已确认两边都不出现，review 同时有 done + rework 时以 done 为准。 */
   /* 当前进度卡跟着「最近更新的那个工作流」走 —— 与上面两份快照同一来源，
      决定写回后快照刷新，卡片里的「看片有没有留下结论」才能跟着变。 */
   const progressWorkflow = useMemo(
@@ -253,20 +260,43 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
     return { label, state: TASK_STATUS_LABEL[record.task.status] ?? record.task.status }
   }, [tasks.active])
 
-  /* 中栏显示什么，看这个项目**真的有没有画面文件** ——
-     没有就换成「创作需求 + 参考素材」，不拿项目里那份旧片或任何占位视频冒充产出
-     （作者的表：刚开始这一阶段，无画面时不要放假视频）。 */
-  const hasPicture = useMemo(() => hasOwnPicture(projectId), [projectId])
-  /* 需求原文：工作流提示词节点里用户真正提的那句话 */
-  const promptText = useMemo(
-    () => String(progressWorkflow?.nodes.find((n) => n.type === 'prompt')?.params.text ?? ''),
+  /* 中栏素材：走素材服务（IndexedDB：内置种子 + 用户导入），不再只读内建表。
+     工作台进来先保证种子已写入，再读全量 —— 引用节点绑了导入素材也能显示。 */
+  const [serviceAssets, setServiceAssets] = useState<MyAsset[] | null>(null)
+  useEffect(() => {
+    let on = true
+    void initLibrary().then(() => listAssets()).then((rows) => { if (on) setServiceAssets(rows) }).catch(() => { if (on) setServiceAssets([]) })
+    return () => { on = false }
+  }, [])
+  /* 参考：引用节点真实绑定的素材 —— 绑定关系是工作流的，素材本体走服务。 */
+  const refsNodeIds = useMemo(
+    () => (progressWorkflow?.nodes.find((n) => n.type === 'refs')?.params.assetIds as string[] | undefined) ?? [],
     [progressWorkflow],
   )
-  /* 参考：引用节点真实绑定的素材（有缩略图就给缩略图） */
   const referenceAssets = useMemo(() => {
-    const ids = new Set((progressWorkflow?.nodes.find((n) => n.type === 'refs')?.params.assetIds as string[] | undefined) ?? [])
-    return BUILTIN_ASSETS.filter((a) => ids.has(a.id))
-  }, [progressWorkflow])
+    if (!serviceAssets) return []
+    const ids = new Set(refsNodeIds)
+    return serviceAssets.filter((a) => ids.has(a.id))
+  }, [serviceAssets, refsNodeIds])
+  /* 监看影片：本项目在素材服务里有没有视频文件。token 有旧版影片（演示适配器），
+     其他项目没有 —— 没有就不放播放器，不拿别项目的片子充数。 */
+  const filmAvailable = useMemo(
+    () => !!serviceAssets?.some((a) => a.mediaType === 'video' && a.refs.some((r) => r.kind === 'project' && r.id === projectId)),
+    [serviceAssets, projectId],
+  )
+  /* 可播放版本：版本记录里来源是视频文件的才算。当前只有一个（旧版影片），
+     前后对比需要新旧两个 —— 达不到就禁用，不用抽帧或默认图冒充旧版。 */
+  const playableVersions = useMemo(
+    () => studioAdapter.versions().filter((v) => /\.(mp4|mov|webm)$/i.test(v.source)),
+    [],
+  )
+  const compareAvailable = playableVersions.length >= 2
+  const compareReason = '没有可对比的旧版本：当前只有一个可播放版本。'
+  /* Gate 评估：交付检查项之一，但不直接推导交付（交付另看最终文件与规格）。 */
+  const stageGates = useMemo(() => {
+    if (!projectId) return []
+    return workflowsSnapshot.filter((w) => w.projectId === projectId).flatMap((w) => gateSummaryOf(w))
+  }, [projectId, workflowsSnapshot])
   /* 资料页那摞素材卡：本项目真实文件按格式堆叠，外加一张「缺失 / 不可用」。
      工作流引用节点绑定了哪些，卡片上如实标出（不吹成「AI 精选」）。 */
   const materials = useMemo(
@@ -275,11 +305,11 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
   )
 
   /* 内容页的行：整片之外，这部片真实有哪些内容单元。
-     只在这一页读运行记录 —— 结构挂在产物上（见 data/contentOutline.ts），
-     切走这一页就不读，也就不用为它维护第三份快照。 */
+     只读工作流运行产物（见 data/contentOutline.ts）。监看区的问题定位也用同一份行。
+     运行记录在快照变化时重读 —— 执行器完成时快照不变，但目前执行器不产出场景结构，行不受影响。 */
   const outline = useMemo(
-    () => contentOutline(workflowsSnapshot.filter((w) => w.projectId === projectId), railTab === 'content' ? workflowService.listRuns() : []),
-    [workflowsSnapshot, projectId, railTab],
+    () => contentOutline(workflowsSnapshot.filter((w) => w.projectId === projectId), workflowService.listRuns()),
+    [workflowsSnapshot, projectId],
   )
   const [selectedArtifactId, setSelectedArtifactId] = useState<string | null>(initialArtifact)
   const [editMode, setEditMode] = useState(new URLSearchParams(window.location.search).get('edit') === '1')
@@ -306,11 +336,18 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
     preserveCamera: true, preserveCaptions: true, limitToSelection: true, reuseExistingComponents: true,
   })
   const initialPanel = new URLSearchParams(window.location.search).get('panel')
-  // 默认打开「场景」检查器，而不是对话 —— AI 修改是一个显式动作，不是首屏主角。
+  /* 右栏默认就是对话：场景详情、执行记录、修改设置是次级视图，按需打开。
+     ?panel 仍可深链到指定视图。 */
   const [sideTab, setSideTab] = useState<SideTab>(
     initialPanel === 'scene' || initialPanel === 'chat' || initialPanel === 'task' || initialPanel === 'edit' || initialPanel === 'settings'
       ? initialPanel as SideTab
-      : 'scene')
+      : 'chat')
+  /* 右栏收起态：窄屏下改走浮层，宽屏下留一条对话入口窄列。 */
+  const [panelOpen, setPanelOpen] = useState(true)
+  /* 任务记录的返回视图：从对话进来回对话，从场景进来回场景。 */
+  const [taskReturnTab, setTaskReturnTab] = useState<SideTab>('chat')
+  /* 对话输入聚焦触发：问题/场景带入对话时加一，右栏切到对话后聚焦输入框。 */
+  const [focusChatKey, setFocusChatKey] = useState(0)
   const [bottomTab, setBottomTab] = useState<'activity'|'changes'|'versions'>('activity')
   const [trayOpen, setTrayOpen] = useState(false)
   const [compare, setCompare] = useState(false)
@@ -350,6 +387,141 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
     ? null : selectedScene.storyboard
   const selectedVersion = studioAdapter.versions()[0]
   const totalFrames = Math.round(ACTIVE_DURATION * FILM_FPS)
+
+  /* ── 监看区：展示对象、预览版本、任务状态、问题状态四路并存，不推断一个互斥阶段 ── */
+  const filmVersion = filmAvailable ? selectedVersion : null
+  const projectName = catalog.find((p) => p.id === projectId)?.name ?? projectId
+  /* 问题：工作流返工（未关联场景）+ 场景缺素材（带真实场景与时间，来自运行产物）。 */
+  const monitorProblems = useMemo((): MonitorProblem[] => {
+    if (!projectId) return []
+    const out: (MonitorProblem & { decidedAt: string })[] = []
+    workflowsSnapshot
+      .filter((w) => w.projectId === projectId)
+      .forEach((w) => {
+        w.nodes.forEach((n) => {
+          if (n.type === 'review') {
+            const c = (n.params.checks ?? {}) as Record<string, boolean>
+            if (!c.rework || c.done) return
+            const day = fmtDay(String(n.params.decidedAt ?? ''))
+            out.push({ id: `${w.id}:${n.id}`, title: '看片要改', meta: `工作流「${w.name}」· 看片${day ? ` · ${day}` : ''}`, location: '未关联场景', locatable: false, decidedAt: String(n.params.decidedAt ?? '') })
+          }
+          if (n.type === 'gate' && n.params.rework) {
+            const ev = evaluateGate(w, n)
+            const day = fmtDay(String(n.params.decidedAt ?? ''))
+            out.push({ id: `${w.id}:${n.id}`, title: `${ev.label}返工`, meta: `工作流「${w.name}」· ${ev.label}${day ? ` · ${day}` : ''}`, location: '未关联场景', locatable: false, decidedAt: String(n.params.decidedAt ?? '') })
+          }
+        })
+      })
+    out.sort((a, b) => (b.decidedAt || '').localeCompare(a.decidedAt || ''))
+    const located: MonitorProblem[] = outline.rows
+      .filter((row) => row.needs)
+      .map((row) => ({
+        id: `need:${row.id}`, title: `${row.name}缺素材`, meta: `需要${row.needs}`,
+        location: row.span ? `${row.ref.label} · ${fmtClock(row.span.from)}–${fmtClock(row.span.from + row.span.duration)}` : `${row.ref.label} · 时间未标`,
+        locatable: true, sceneRef: row.ref,
+      }))
+    return [...out.map(({ decidedAt: _d, ...p }) => p), ...located]
+  }, [projectId, workflowsSnapshot, outline])
+  /* 视觉资料：参考素材（服务 + 工作流绑定）+ 方向样稿 / 试片（运行产物里真带视觉文件的才算）。 */
+  const galleryRefs = useMemo((): MonitorVisualItem[] => referenceAssets.map((a) => ({
+    id: a.id, name: a.name, kind: 'ref', mediaType: a.mediaType,
+    thumb: a.thumbnailPath, filePath: a.filePath, assetId: a.id,
+    license: LICENSE_LABEL[a.licenseStatus], sourceLabel: SOURCE_LABEL[a.sourceType],
+  })), [referenceAssets])
+  const galleryProduced = useMemo((): { samples: MonitorVisualItem[]; testfilms: MonitorVisualItem[] } => {
+    const samples: MonitorVisualItem[] = []
+    const testfilms: MonitorVisualItem[] = []
+    if (!projectId) return { samples, testfilms }
+    const wfIds = new Set(workflowsSnapshot.filter((w) => w.projectId === projectId).map((w) => w.id))
+    const push = (list: MonitorVisualItem[], kind: MonitorVisualItem['kind'], file: string) => {
+      const isVideo = /\.(mp4|mov|webm)$/i.test(file)
+      list.push({ id: `${kind}:${file}`, name: file.split('/').pop() ?? file, kind, mediaType: isVideo ? 'video' : 'image', filePath: file, sourceLabel: '运行产物' })
+    }
+    for (const run of workflowService.listRuns()) {
+      if (!wfIds.has(run.workflowId)) continue
+      for (const art of run.artifacts) {
+        let json: Record<string, unknown> | null = null
+        try { json = JSON.parse(art.content) as Record<string, unknown> } catch { json = null }
+        if (!json) continue
+        const images = Array.isArray(json.images) ? json.images.filter((x): x is string => typeof x === 'string') : []
+        const video = typeof json.video === 'string' ? json.video : null
+        if (art.kind === 'direction-samples') images.forEach((f) => push(samples, 'sample', f))
+        if (art.kind === 'proof-10s' || art.kind === 'animatic') {
+          images.forEach((f) => push(testfilms, 'testfilm', f))
+          if (video) push(testfilms, 'testfilm', video)
+        }
+      }
+    }
+    return { samples, testfilms }
+  }, [projectId, workflowsSnapshot])
+  /* 交付事实：最终文件（成片交付节点）+ 输出规格（创作节点 + 提示词）+ 审片（看片节点）+ 检查（Gate 评估）。 */
+  const delivery = useMemo(() => {
+    const deliveryNode = workflowsSnapshot
+      .filter((w) => w.projectId === projectId)
+      .flatMap((w) => w.nodes)
+      .find((n) => n.type === 'artifact' && String(n.params.kind ?? '') === 'delivery')
+    const deliveryStatus = String(deliveryNode?.params.status ?? 'missing')
+    const deliveryVersion = String(deliveryNode?.params.version ?? '')
+    const hasFinalFile = deliveryStatus !== 'missing'
+    const finalFile = deliveryVersion ? `版本 ${deliveryVersion}` : '已生成'
+    const create = progressWorkflow?.nodes.find((n) => n.type === 'create')
+    const prompt = progressWorkflow?.nodes.find((n) => n.type === 'prompt')
+    const specParts = [String(create?.params.resolution ?? ''), String(prompt?.params.ratio ?? ''), String(create?.params.mode ?? '')].filter(Boolean)
+    const specs = specParts.length ? specParts.join(' · ') : '未设定'
+    const review = progressWorkflow?.nodes.find((n) => n.type === 'review')
+    const rc = (review?.params.checks ?? {}) as Record<string, boolean>
+    const rday = review ? fmtDay(String(review.params.decidedAt ?? '')) : ''
+    const reviewText = rc.done ? `已通过${rday ? ` · ${rday}` : ''}` : rc.rework ? `已标记要改${rday ? ` · ${rday}` : ''}` : '待决定'
+    const confirmed = stageGates.filter((g) => g.decision === 'confirmed').length
+    const blocked = stageGates.flatMap((g) => g.blocked).length
+    const stale = stageGates.some((g) => g.stale)
+    const checks = stageGates.length === 0
+      ? '暂无检查项'
+      : `${confirmed}/${stageGates.length} 项已确认${blocked > 0 ? ` · ${blocked} 项受阻` : ''}${stale ? ' · 有检查项对应旧版本' : ''}`
+    return { hasFinalFile, finalFile, specs, review: reviewText, checks }
+  }, [projectId, workflowsSnapshot, progressWorkflow, stageGates])
+  /* 视觉选择按项目派生：切项目后旧选择自动失效，不用 effect 清。 */
+  const [visualSel, setVisualSel] = useState<{ projectId: string; item: MonitorVisualItem | null }>({ projectId, item: null })
+  const selectedVisual = visualSel.projectId === projectId ? visualSel.item : null
+  const setSelectedVisual = (item: MonitorVisualItem | null) => setVisualSel({ projectId, item })
+  /* 缩略入口：一行，当前预览在前，其后是参考、样稿、试片 —— 不分组标题、不铺网格。 */
+  const railItems = useMemo((): MonitorVisualItem[] => {
+    const items: MonitorVisualItem[] = []
+    if (filmAvailable) {
+      items.push({ id: '__film__', name: filmVersion?.name ?? '当前预览', kind: 'film', mediaType: 'video', thumb: selectedScene.frame ?? undefined })
+    }
+    items.push(...galleryRefs, ...galleryProduced.samples, ...galleryProduced.testfilms)
+    return items
+  }, [filmAvailable, filmVersion, selectedScene.frame, galleryRefs, galleryProduced])
+  const railSelectedId = selectedVisual ? selectedVisual.id : (filmAvailable ? '__film__' : null)
+  const onRailSelect = (item: MonitorVisualItem) => {
+    if (item.id === '__film__') setSelectedVisual(null)
+    else setSelectedVisual(item)
+  }
+  /* 问题收起态：只记展开了哪一条，默认全部收起。 */
+  const [expandedProblemId, setExpandedProblemId] = useState<string | null>(null)
+  const toggleProblem = (id: string) => setExpandedProblemId((cur) => (cur === id ? null : id))
+  /* 问题定位：设为修改范围 + 在左栏内容页高亮那一行。监看与时间线不动 —— 它们放的是渲染切片，拿它对应真实内容会串。 */
+  const locateProblem = (p: MonitorProblem) => {
+    if (!p.sceneRef) return
+    setTargetReference(p.sceneRef)
+    locateReference(p.sceneRef)
+    setNotice(`已定位到 ${p.location}。`)
+  }
+  /* 让 AI 修改：问题 + 目标写进对话草稿，打开对话、聚焦输入框，等用户发送 —— 不只切面板。 */
+  const askFix = (p: MonitorProblem) => {
+    if (p.sceneRef) setTargetReference(p.sceneRef)
+    else setTargetReference(currentProjectRef)
+    chat.setDraft(`请修改：${p.title}。${p.meta}。目标：${p.sceneRef ? p.sceneRef.label : `整片 · ${projectName}`}。`)
+    selectSideTab('chat')
+    setFocusChatKey((k) => k + 1)
+  }
+  /* 画廊点开的视觉项：向 AI 说这个 —— 名字 + 类型带进草稿，打开对话并聚焦。 */
+  const askVisual = (item: MonitorVisualItem) => {
+    chat.setDraft(`关于${VISUAL_KIND_LABEL[item.kind]}「${item.name}」：`)
+    selectSideTab('chat')
+    setFocusChatKey((k) => k + 1)
+  }
 
   const selectScene = (id: string, storyboardId?: string | null) => {
     setSelectedId(id)
@@ -463,18 +635,24 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
     setTargetReference(row.ref)
     setEditMode(false)
     setSideTab('chat')
+    setFocusChatKey((k) => k + 1)
     setNotice(row.span
       ? `已把「${row.ref.label}」设为修改范围（${fmtClock(row.span.from)} 起，${row.span.duration.toFixed(1)}s）。`
       : `已把「${row.ref.label}」设为修改范围。这一段还没有真实画面，监看与时间线暂时定位不过去。`)
   }
-  /** 从场景检查器显式进入 AI 修改：把本场设为目标，再打开对话。 */
+  /** 从场景检查器显式进入 AI 修改：把本场设为目标，再打开对话并聚焦输入框。 */
   const openChatForScene = () => {
     setScope('scene')
     setTargetReference(currentShotRef)
     setEditMode(false)
     setSideTab('chat')
+    setFocusChatKey((k) => k + 1)
   }
-  const openTaskRecords = () => { setEditMode(false); setSideTab('task') }
+  const openTaskRecords = () => {
+    setTaskReturnTab(sideTab)
+    setEditMode(false)
+    setSideTab('task')
+  }
   /** 切换右栏页签时退出 Remotion 编辑态，避免「参数 → 场景」后监看器仍停在编辑预览。 */
   const selectSideTab = (next: SideTab) => {
     if (editMode && next !== 'edit') setEditMode(false)
@@ -492,7 +670,8 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
        真实画面接上之后，这里再换成按时间轴 seek。 */
     if (ref.kind === 'scene') { setSelectedArtifactId(null); setRailTab('content'); return }
     const clip = ACTIVE_SCENES.find((item) => item.id === ref.shotId)
-    if (!clip) return
+    /* 没有可靠定位数据时不假装跳转成功：给一句提示，而不是点下去毫无反应。 */
+    if (!clip) { setNotice('该引用没有可定位的画面。'); return }
     setSelectedId(ref.shotId)
     setSelectedStoryboardId(clip.storyboardId)
     setSelectedArtifactId(null)
@@ -517,6 +696,8 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
     setTargetReference({
       id: `frame:${selectedId}:${frame}`, role: 'target', kind: 'frame', shotId: selectedId,
       frame, timecode: tc, label: `第 ${frame} 帧`,
+      /* 帧引用顺带挂上当前可访问的画面（场景代表帧），别只剩一个帧号。 */
+      snapshotId: selectedScene.frame ?? undefined,
     })
   }
   const referenceRange = () => {
@@ -599,7 +780,16 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
     setRegionRect(null)
     setRegionBox(null)
   }
-  const submit = (prompt: string, kind: TaskRequest['kind'] = 'modify') => {
+  /* 制作中插话的排队规则（演示适配器没有实时干预接口）：
+     任务在跑时新发的不并行启动、不假装已干预 —— 先排队，当前任务结束（完成/失败）
+     后按序启动；用户点了停止后，排队的先不动，等用户点「现在开始」或新发指令时
+     再按序启动。请求在发送那一刻快照（引用与约束），排队期间改引用不影响已排的。 */
+  type PendingSubmit = { key: string; messageId: string; prompt: string; request: TaskRequest; status: 'waiting' | 'cancelled' }
+  const [pendingSubmits, setPendingSubmits] = useState<PendingSubmit[]>([])
+  const [holdQueue, setHoldQueue] = useState(false)
+  const isLiveTask = (task: AgentTask | null | undefined) =>
+    !!task && (task.status === 'queued' || task.status === 'running' || task.status === 'building')
+  const buildRequest = (prompt: string, kind: TaskRequest['kind'], useConstraints: ModificationConstraints): TaskRequest => {
     const requestRefs = references.some((ref) => ref.role === 'target') ? references : [currentShotRef, ...references]
     const derivedScope = scopeFromReferences(requestRefs)
     /* 范围里的场景：目标是左栏选中的内容单元时用它自己的 id —— 它来自工作流产物，
@@ -608,19 +798,79 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
     const sceneIds = derivedScope === 'project'
       ? []
       : target?.kind === 'scene' ? [target.sceneId] : [selectedId]
-    const request: TaskRequest = { kind, prompt, scope: derivedScope, sceneIds, references: requestRefs, constraints, attachments: [] }
-    const id = tasks.start(request)
-    chat.addUserMessage(prompt, id)
+    return { kind, prompt, scope: derivedScope, sceneIds, references: requestRefs, constraints: useConstraints, attachments: [] }
+  }
+  const startNow = (item: { prompt: string; request: TaskRequest; messageId?: string }) => {
+    const id = tasks.start(item.request)
+    if (item.messageId) chat.setMessageTaskId(item.messageId, id)
+    else chat.addUserMessage(item.prompt, id)
     setBottomTab('activity')
     setTrayOpen(true)
+    return id
+  }
+  const startQueued = (key: string) => {
+    const item = pendingSubmits.find((p) => p.key === key && p.status === 'waiting')
+    if (!item || isLiveTask(tasks.active?.task)) return
+    setPendingSubmits((old) => old.filter((p) => p.key !== key))
+    setHoldQueue(false)
+    startNow(item)
+  }
+  const cancelQueued = (key: string) => {
+    setPendingSubmits((old) => old.map((p) => (p.key === key ? { ...p, status: 'cancelled' } : p)))
+  }
+  const submit = (prompt: string, kind: TaskRequest['kind'] = 'modify', useConstraints: ModificationConstraints = constraints) => {
+    const request = buildRequest(prompt, kind, useConstraints)
+    const waiting = pendingSubmits.filter((p) => p.status === 'waiting')
+    /* 没在跑、队里也没等待：即使之前按住过排队（刚叫停），这条新指令也直接跑 ——
+       按住只拦自动启动旧排队，不拦用户的新发送。 */
+    if (!isLiveTask(tasks.active?.task) && waiting.length === 0) {
+      if (holdQueue) setHoldQueue(false)
+      startNow({ prompt, request })
+      return
+    }
+    const messageId = chat.addUserMessage(prompt)
+    const item: PendingSubmit = { key: `${Date.now()}-${waiting.length}`, messageId, prompt, request, status: 'waiting' }
+    if (!isLiveTask(tasks.active?.task) && !holdQueue) {
+      /* 队里有等待、但当前没在跑：按序启动队头（可能是刚排的这一条），不插队。 */
+      const next = [...waiting, item]
+      const [head] = next
+      /* 只删队头：其余等待项与已取消项原样保留。 */
+      setPendingSubmits((old) => old.filter((p) => p.key !== head.key))
+      startNow(head)
+    } else {
+      setPendingSubmits((old) => [...old, item])
+    }
+  }
+  /* 队头自动启动：当前任务完成/失败后，按序启动下一条等待；被停止后不自动启动。 */
+  useEffect(() => {
+    if (holdQueue) return
+    const active = tasks.active?.task
+    if (isLiveTask(active)) return
+    const head = pendingSubmits.find((p) => p.status === 'waiting')
+    if (!head) return
+    setPendingSubmits((old) => old.filter((p) => p.key !== head.key))
+    startNow(head)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tasks.active?.task.status, holdQueue])
+  /* 右栏（对话流 / 任务记录）里点停止：中止任务，并按住排队 —— 别在用户刚叫停时
+     就把排队的下一条悄悄启动。底部托盘的停止走同一处理。 */
+  const cancelTaskAndHold = (taskId: string) => {
+    tasks.cancel(taskId)
+    setHoldQueue(true)
   }
   const runQuickAction = (action: (typeof quickActions)[number]) => {
-    if (action.compare) { setCompare((v) => !v); return }
+    if (action.compare) {
+      if (!compareAvailable) { setNotice(compareReason); return }
+      setCompare((v) => !v); return
+    }
     if (action.constraint === 'attachment') { setNotice('素材上传还没接通。'); return }
     if (action.constraint) {
       const enabled = !constraints[action.constraint]
-      setConstraints((old) => ({ ...old, [action.constraint as keyof ModificationConstraints]: enabled }))
-      submit(`快捷约束：${action.label}（${enabled ? '开启' : '关闭'}）`)
+      const nextConstraints = { ...constraints, [action.constraint as keyof ModificationConstraints]: enabled }
+      setConstraints(nextConstraints)
+      /* 请求里的约束必须就是这次切换后的值：setConstraints 是异步的，
+         直接读 constraints 闭包会拿到切换前的一份。 */
+      submit(`快捷约束：${action.label}（${enabled ? '开启' : '关闭'}）`, 'modify', nextConstraints)
       return
     }
     if (action.id === 'undo' || action.id === 'redo') {
@@ -720,7 +970,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
       </div>
 
       {/* ═══ 三栏（paba .fw 网格）══════════════════════════════ */}
-      <div className="fw relative">
+      <div className="fw relative" data-panel={panelOpen ? 'open' : 'closed'}>
         {railOpen && <button className="fw-scrim" aria-label="收起场景列表" onClick={() => setRailOpen(false)} />}
 
         <ProjectRail projectName={project.name}
@@ -765,14 +1015,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
         {/* 中栏：监看器。没产出画面时换「需求与参考」形态（同一块区域，不是另一个页面）*/}
         <main className="fw-canvas">
           <div className="fw-toolbar">
-            {!hasPicture && !selectedArtifact ? (
-              <>
-                <h2 className="wb-viewer-title truncate">创作需求与参考</h2>
-                <span className="wb-status" data-status="idle">
-                  <span className="fm-dot" data-s="idle" />还没有产出画面
-                </span>
-              </>
-            ) : selectedArtifact ? (
+            {selectedArtifact ? (
               <>
                 <span className="wb-viewer-index">产物</span>
                 <h2 className="wb-viewer-title truncate">{selectedArtifact.title}</h2>
@@ -782,17 +1025,31 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
                 <span className="spacer" />
                 <span className="wb-viewer-meta">{ARTIFACT_TYPE_LABEL[selectedArtifact.type]} · {selectedArtifact.version} · 只读预览</span>
               </>
-            ) : (
+            ) : selectedVisual ? (
               <>
-                {/* 原来这里挂一个场景编号徽标（S01）。那是数据层 id —— 场景号
-                    在左侧列表里已经编好，舞台只要显示画面名就够。 */}
-                <h2 className="wb-viewer-title truncate">{selectedScene.label}</h2>
-                <span className="wb-status" data-status={statusOf(selectedScene.status).s}>
-                  <span className="fm-dot" data-s={statusOf(selectedScene.status).s} />
-                  {statusOf(selectedScene.status).label}
+                <button type="button" className="fw-mon-btn" onClick={() => setSelectedVisual(null)}>‹ 返回监看</button>
+                <h2 className="wb-viewer-title truncate">{selectedVisual.name}</h2>
+                <span className="wb-status" data-status="idle">{VISUAL_KIND_LABEL[selectedVisual.kind]}</span>
+                <span className="wb-viewer-meta">
+                  {MEDIA_LABEL[selectedVisual.mediaType] ?? selectedVisual.mediaType}
+                  {selectedVisual.sourceLabel ? ` · ${selectedVisual.sourceLabel}` : ''}
+                  {selectedVisual.license ? ` · ${selectedVisual.license}` : ''}
                 </span>
+                <span className="spacer" />
+                <button type="button" className="fw-mon-btn strong" onClick={() => askVisual(selectedVisual)}>向 AI 说这个 ›</button>
+              </>
+            ) : filmAvailable ? (
+              <>
+                {/* 监看身份：项目 + 版本 + 来源 + 演示标记 —— 播放器、时间线、场景、引用共用这一身份。 */}
+                <span className="wb-viewer-index">监看</span>
+                <h2 className="wb-viewer-title truncate">{projectName}</h2>
+                <span className="wb-viewer-meta">{filmVersion?.name} · {filmVersion?.source}</span>
+                <span className="wb-status" data-status="waiting">演示旧版</span>
                 {!selectedScene.inTimeline && <span className="wb-status" data-status="waiting">未纳入当前版本</span>}
                 <span className="wb-spacer" />
+                <button type="button" className="fw-mon-btn" disabled={!compareAvailable}
+                        title={compareAvailable ? '' : compareReason}
+                        onClick={() => setCompare(true)}>前后对比</button>
                 <ShotActionBar
                   onFrame={referenceFrame} onRange={referenceRange}
                   onRegion={() => { setRegionMode((v) => !v); setRegionRect(null) }}
@@ -800,13 +1057,16 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
                   onEdit={openEdit}
                 />
               </>
+            ) : (
+              <>
+                <span className="wb-viewer-index">监看</span>
+                <h2 className="wb-viewer-title truncate">{projectName}</h2>
+                <span className="wb-status" data-status="idle">无可播放预览</span>
+              </>
             )}
           </div>
 
-          {!hasPicture && !selectedArtifact ? (
-            <RequirementStage promptText={promptText} references={referenceAssets}
-                              onOpenMaterials={() => { setRailTab('materials'); setOpenShelf('reference') }} />
-          ) : selectedArtifact ? (
+          {selectedArtifact ? (
             <ArtifactView artifact={selectedArtifact}
                           onLocate={(id) => selectScene(id)}
                           onReference={() => referenceArtifact(selectedArtifact)}
@@ -816,6 +1076,12 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
               <div className="fw-stage fw-stage-edit">
                 <RemotionEditPreview settings={currentShotSettings} poster={selectedScene.frame ?? undefined} />
                 <div className="fw-edit-hint">实时预览</div>
+                {notice && (
+                  <button className="absolute bottom-3 right-3 z-20 max-w-[75%] rounded-md border border-warn/30 bg-surf px-2 py-1 text-[10px] text-warn"
+                          onClick={() => setNotice('')}>
+                    {notice}<X className="ml-1 inline size-3" />
+                  </button>
+                )}
               </div>
               <ShotActionBar
                 onFrame={referenceFrame} onRange={referenceRange}
@@ -825,8 +1091,11 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
               />
             </>
           ) : (
-            <>
-              {/* 舞台：paba .fw-stage */}
+            <div className="fw-monitor">
+              <div className="fw-mon-visual">
+                {selectedVisual ? (
+                  <MonitorMediaPreview key={selectedVisual.id} item={selectedVisual} />
+                ) : filmAvailable ? (
               <div className="fw-stage" ref={stageRef}>
                 {!compare ? (
                   <div className={`fw-media-fit${framePulse ? ' chg' : ''}`} ref={playerBoxRef}>
@@ -842,8 +1111,14 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
                 ) : (
                   <div className="relative flex size-full overflow-hidden bg-black">
                     <div className="relative h-full overflow-hidden" style={{ width: `${compareSplit}%` }}>
-                      <img src={selectedScene.frame ?? './frames/u01.jpg'} alt="项目抽帧"
-                           className="absolute inset-0 size-full object-contain" />
+                      {selectedScene.frame ? (
+                        <img src={selectedScene.frame} alt="项目抽帧"
+                             className="absolute inset-0 size-full object-contain" />
+                      ) : (
+                        <div className="absolute inset-0 flex items-center justify-center px-4 text-center text-[12px] text-tx3">
+                          没有可对比的旧画面
+                        </div>
+                      )}
                       <span className="absolute left-2 top-2 bg-black/75 px-1.5 py-1 text-[10px]">已存画面</span>
                     </div>
                     <div className="relative h-full flex-1 overflow-hidden border-l border-acc">
@@ -873,39 +1148,82 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
                   </div>
                 )}
               </div>
-
+                ) : (
+                  <MonitorEmpty />
+                )}
+              </div>
+              {notice && (!filmAvailable || selectedVisual) && (
+                <button type="button" className="fw-mon-notice" onClick={() => setNotice('')}>
+                  {notice}<X className="ml-1 inline size-3" />
+                </button>
+              )}
+              <div className="fw-mon-rail">
+                <MonitorThumbRail items={railItems} selectedId={railSelectedId} onSelect={onRailSelect} />
+                {liveTask && (
+                  <span className="fw-mon-task">
+                    <span className="fm-dot" data-s="running" />
+                    {liveTask.state} · {liveTask.label}
+                  </span>
+                )}
+              </div>
+              <MonitorProblemsCollapsed problems={monitorProblems} expandedId={expandedProblemId}
+                                        onToggle={toggleProblem} onLocate={locateProblem} onAskFix={askFix} />
+              {filmAvailable && !selectedVisual && (
+                <>
               <PlayerBar playerRef={playerRef} frame={frame} onSeek={seek} playing={playing}
                          onToggle={playToggle} rate={previewRate} onRate={setPreviewRate} totalFrames={totalFrames} />
 
               <div className="tl-wrap">
                 <StoryTimeline selectedId={selectedId} onSelect={selectScene} activeFrame={frame} onSeek={seek} />
               </div>
+                </>
+              )}
+              {delivery.hasFinalFile && (
+                <MonitorDelivery finalFile={delivery.finalFile} specs={delivery.specs} review={delivery.review} checks={delivery.checks} />
+              )}
 
               {trayOpen && (
                 <BottomTray records={tasks.records} activeId={tasks.active?.task.id ?? null}
-                            onCancel={tasks.cancel} tab={bottomTab} setTab={setBottomTab} />
+                            onCancel={cancelTaskAndHold} tab={bottomTab} setTab={setBottomTab} />
               )}
-            </>
+            </div>
           )}
         </main>
 
-        {/* 右栏：对话 / 设置 */}
-        <RightPanel chat={chat} sideTab={sideTab} setSideTab={selectSideTab}
-                    scope={scope}
-                    scopeLabel={scopeLabel} scopeShort={scopeShort}
-                    scene={selectedScene} storyboard={storyboard}
-                    onOpenChat={openChatForScene} onOpenTask={openTaskRecords}
-                    constraints={constraints} setConstraints={setConstraints}
-                    activeTask={tasks.active?.task ?? null} cancelTask={tasks.cancel}
-                    records={tasks.records} onSubmit={submit} onQuickAction={runQuickAction}
-                    onNavigate={onNavigate} selectedVersion={selectedVersion}
-                    editSettings={currentShotSettings} editSavedAt={savedAt}
-                    editOverridden={!!shotOverrides[selectedId]}
-                    references={references} onRemoveReference={removeReference}
-                    onLocateReference={locateReference} onToggleReferenceRole={toggleReferenceRole}
-                    onClearReferences={clearReferences} onScopeChange={(next) => { setScope(next); setTargetReference(next === 'project' ? currentProjectRef : currentShotRef) }}
-                    onApplyEdit={applyShotSettings} onResetEdit={resetShotSettings}
-                    onCloseEdit={closeEdit} onOpenEdit={openEdit} />
+        {/* 右栏：对话 / 设置 —— 收起后宽屏留一条对话入口窄列，窄屏留一个浮层入口。 */}
+        {panelOpen ? (
+          <RightPanel chat={chat} sideTab={sideTab} setSideTab={selectSideTab}
+                      focusChatKey={focusChatKey}
+                      scope={scope}
+                      scopeLabel={scopeLabel} scopeShort={scopeShort}
+                      scene={selectedScene} storyboard={storyboard}
+                      onOpenChat={openChatForScene} onOpenTask={openTaskRecords}
+                      onBackFromTask={() => { setEditMode(false); setSideTab(taskReturnTab) }}
+                      onCollapse={() => setPanelOpen(false)}
+                      constraints={constraints} setConstraints={setConstraints}
+                      activeTask={tasks.active?.task ?? null} cancelTask={cancelTaskAndHold}
+                      records={tasks.records} onSubmit={submit} onQuickAction={runQuickAction}
+                      pending={pendingSubmits} onStartQueued={startQueued} onCancelQueued={cancelQueued}
+                      onNavigate={onNavigate} selectedVersion={selectedVersion}
+                      editSettings={currentShotSettings} editSavedAt={savedAt}
+                      editOverridden={!!shotOverrides[selectedId]}
+                      references={references} onRemoveReference={removeReference}
+                      onLocateReference={locateReference} onToggleReferenceRole={toggleReferenceRole}
+                      onClearReferences={clearReferences} onScopeChange={(next) => { setScope(next); setTargetReference(next === 'project' ? currentProjectRef : currentShotRef) }}
+                      onApplyEdit={applyShotSettings} onResetEdit={resetShotSettings}
+                      onCloseEdit={closeEdit} onOpenEdit={openEdit} />
+        ) : (
+          <>
+            <button className="fw-panel-reopen" type="button" aria-label="打开对话"
+                    onClick={() => setPanelOpen(true)}>
+              <MessagesSquare className="size-4" /><span>对话</span>
+            </button>
+            <button className="fw-panel-reopen-float" type="button" aria-label="打开对话"
+                    onClick={() => setPanelOpen(true)}>
+              <MessagesSquare className="size-4" />对话
+            </button>
+          </>
+        )}
       </div>
 
       {/* ═══ 基岛：状态栏（独立胶囊，不铺整条底板）═══════════════ */}
@@ -1512,22 +1830,26 @@ function PlayerBar({ playerRef, frame, onSeek, playing, onToggle, rate, onRate, 
 }
 
 /* ── 右栏：对话 / 修改设置 ──────────────────────────────────── */
-function RightPanel({ chat, sideTab, setSideTab, scope, scopeLabel, scopeShort, scene, storyboard,
-  onOpenChat, onOpenTask,
+function RightPanel({ chat, sideTab, setSideTab, focusChatKey, scope, scopeLabel, scopeShort, scene, storyboard,
+  onOpenChat, onOpenTask, onBackFromTask, onCollapse,
   constraints, setConstraints, activeTask, cancelTask, records, onSubmit, onQuickAction,
+  pending, onStartQueued, onCancelQueued,
   onNavigate, selectedVersion, editSettings, editSavedAt, editOverridden, references, onRemoveReference,
   onLocateReference, onToggleReferenceRole, onClearReferences, onScopeChange,
   onApplyEdit, onResetEdit, onCloseEdit, onOpenEdit }:
-  { chat: ChatState; sideTab: SideTab; setSideTab: (v: SideTab) => void
+  { chat: ChatState; sideTab: SideTab; setSideTab: (v: SideTab) => void; focusChatKey: number
     scope: 'project'|'scene'|'selection'
     /** 输入框上显示的作用范围（真名，不是枚举）与它的短名（占位文案用） */
     scopeLabel: string; scopeShort: string
     scene: (typeof SCENES)[number]
     storyboard: StoryboardEntry | null; onOpenChat: () => void; onOpenTask: () => void
+    onBackFromTask: () => void; onCollapse: () => void
     constraints: ModificationConstraints
     setConstraints: React.Dispatch<React.SetStateAction<ModificationConstraints>>
     activeTask: AgentTask | null; cancelTask: (id: string) => void; records: TaskRecord[]
     onSubmit: (p: string) => void; onQuickAction: (a: (typeof quickActions)[number]) => void
+    pending: Array<{ key: string; messageId: string; prompt: string; status: 'waiting' | 'cancelled' }>
+    onStartQueued: (key: string) => void; onCancelQueued: (key: string) => void
     onNavigate: (v: ViewId) => void; selectedVersion: ProjectVersion
     editSettings: EditableShotSettings; editSavedAt: string; editOverridden: boolean
     references: AgentReference[]; onRemoveReference: (id: string) => void
@@ -1536,21 +1858,43 @@ function RightPanel({ chat, sideTab, setSideTab, scope, scopeLabel, scopeShort, 
     onApplyEdit: (settings: EditableShotSettings) => void; onResetEdit: () => void
     onCloseEdit: () => void; onOpenEdit: () => void }) {
   const submit = () => { const v = chat.draft.trim(); if (v) { onSubmit(v); chat.setDraft('') } }
+  const inputRef = useRef<HTMLTextAreaElement | null>(null)
+  /* 问题/场景带入对话时聚焦输入框：只在切到对话后触发，不抢其他视图的焦点。 */
+  useEffect(() => {
+    if (sideTab === 'chat' && focusChatKey > 0) inputRef.current?.focus()
+  }, [focusChatKey, sideTab])
+  const activeRecord = activeTask ? records.find((r) => r.task.id === activeTask.id) ?? null : null
+  const activeLive = !!activeTask && (activeTask.status === 'queued' || activeTask.status === 'running' || activeTask.status === 'building')
+  const activeDone = !!activeTask && (activeTask.status === 'completed' || activeTask.status === 'failed' || activeTask.status === 'cancelled')
+  const latestEvent = activeRecord?.events.at(-1)
+  /* 输入框附近的保留条件摘要：只列已启用的，默认全开时也不铺开关 ——
+     用户能看见当前约束（不再默默限制），改约束去次级视图。 */
+  const enabledConstraints = ([
+    ['preserveCamera', '机位'],
+    ['preserveCaptions', '字幕'],
+    ['limitToSelection', '仅选中范围'],
+    ['reuseExistingComponents', '复用组件'],
+  ] as const).filter(([key]) => constraints[key])
 
   return (
-    <aside className="fw-panel" aria-label="场景检查器与 AI 修改">
+    <aside className="fw-panel" aria-label="AI 对话">
       <div className="fw-ing-hd fw-panel-hd">
         <SegmentedControl value={sideTab === 'settings' || sideTab === 'task' ? '' : sideTab}
                           onChange={(next) => next === 'edit' ? onOpenEdit() : setSideTab(next as SideTab)}
                           ariaLabel="场景与 AI 工作区"
                           className="fw-panel-seg"
                           options={[{ value: 'scene', label: '场景' }, { value: 'chat', label: '对话' }, { value: 'edit', label: '参数' }]} />
+        {sideTab === 'task' && <span className="fw-panel-title">执行记录</span>}
+        {sideTab === 'settings' && <span className="fw-panel-title">修改设置</span>}
         <ToolButton label="修改设置" active={sideTab === 'settings'} onClick={() => setSideTab('settings')}>
           <Settings2 className="size-3.5" />
         </ToolButton>
         {/* 原型：从工作台切回完整对话视图（同一份 useChat 会话） */}
         <ToolButton label="完整对话" onClick={() => onNavigate('conversation')}>
           <MessagesSquare className="size-3.5" />
+        </ToolButton>
+        <ToolButton label="收起右侧栏" onClick={onCollapse}>
+          <ChevronRight className="size-3.5" />
         </ToolButton>
       </div>
 
@@ -1589,7 +1933,22 @@ function RightPanel({ chat, sideTab, setSideTab, scope, scopeLabel, scopeShort, 
               </div>
               {chat.messages.slice(1).map((m) => (
                 m.role === 'user'
-                  ? <p key={m.id} className="fm-msg-user">{m.text}</p>
+                  ? (
+                    <div key={m.id}>
+                      <p className="fm-msg-user">{m.text}</p>
+                      {pending.filter((p) => p.messageId === m.id).map((p) => (
+                        p.status === 'waiting' ? (
+                          <div key={p.key} className="wb-queue-note">
+                            <span>等待处理 · 当前任务结束后处理</span>
+                            <button type="button" disabled={activeLive} onClick={() => onStartQueued(p.key)}>现在开始</button>
+                            <button type="button" onClick={() => onCancelQueued(p.key)}>取消</button>
+                          </div>
+                        ) : (
+                          <div key={p.key} className="wb-queue-note"><span>已取消等待</span></div>
+                        )
+                      ))}
+                    </div>
+                  )
                   : (
                     <div key={m.id} className="fw-msg">
                       <span className="fw-msg-avatar">AI</span>
@@ -1598,31 +1957,45 @@ function RightPanel({ chat, sideTab, setSideTab, scope, scopeLabel, scopeShort, 
                   )
               ))}
 
-              {storyboard && (
-                <div className="wb-chat-block">
-                  <p>{storyboard.旁白}</p>
-                  <details>
-                    <summary>查看画面与动效要求</summary>
-                    <p>画面：{storyboard.画面}</p>
-                    <p>动效：{storyboard.动效}</p>
-                    <p>衔接：{storyboard.衔接}</p>
-                  </details>
-                </div>
-              )}
-
-              {activeTask && (
+              {/* 执行项只插在消息流里，不另开大卡片：进行中只露最新一条关键事件，
+                  演示身份挂在项上（不是只靠底部的离线行）。 */}
+              {activeTask && activeLive && (
                 <div className="wb-chat-block">
                   <div className="wb-chat-task">
                     <LoaderCircle className="size-3 animate-spin" />
-                    <b className="truncate">{activeTask.title}</b>
+                    <b className="truncate">{activeRecord?.request
+                      ? `正在修改 ${activeRecord.request.references?.find((r) => r.role === 'target')?.label ?? '整片'}`
+                      : activeTask.title}</b>
+                    <span className="wb-insp-tag">演示</span>
                     <span className="wb-insp-tag">{TASK_STATUS_LABEL[activeTask.status] ?? activeTask.status}</span>
                   </div>
-                  {records.find((r) => r.task.id === activeTask.id)?.events.slice(-3).map((e) => (
-                    <div key={e.id} className="wb-chat-event">{e.message}</div>
-                  ))}
-                  <button className="wb-btn-ghost" type="button" onClick={() => cancelTask(activeTask.id)}>
-                    <Square className="size-3" />停止任务
-                  </button>
+                  {latestEvent && <div className="wb-chat-event">{latestEvent.message}</div>}
+                  <div className="flex gap-1.5">
+                    <button className="wb-btn-ghost" type="button" onClick={onOpenTask}>查看执行</button>
+                    <button className="wb-btn-ghost" type="button" onClick={() => cancelTask(activeTask.id)}>
+                      <Square className="size-3" />停止
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* 任务结束不是结果卡：演示适配器不产预览、不改文件、不建版本，
+                  所以只报结束与验证缺位，不给查看预览、前后对比、恢复。 */}
+              {activeTask && activeDone && (
+                <div className="wb-chat-block">
+                  <div className="wb-chat-task">
+                    <span className="fm-dot" data-s={activeTask.status === 'completed' ? 'done' : activeTask.status === 'failed' ? 'failed' : 'idle'} />
+                    <b className="truncate">
+                      {activeTask.status === 'completed' ? '演示任务已完成' : activeTask.status === 'failed' ? '任务失败' : '任务已停止'}
+                    </b>
+                    <span className="wb-insp-tag">演示</span>
+                  </div>
+                  <div className="wb-chat-event">
+                    {activeTask.status === 'completed'
+                      ? '没有生成新预览，也没有文件变更。'
+                      : latestEvent?.message ?? '没有执行详情。'}
+                  </div>
+                  <button className="wb-btn-ghost" type="button" onClick={onOpenTask}>查看执行</button>
                 </div>
               )}
 
@@ -1638,10 +2011,16 @@ function RightPanel({ chat, sideTab, setSideTab, scope, scopeLabel, scopeShort, 
               <div className="wb-compose-scope" title={scopeLabel}>
                 作用于 <b>{scopeLabel}</b>
               </div>
-              <textarea className="wb-input" rows={3}
+              <textarea className="wb-input" rows={3} ref={inputRef}
                         value={chat.draft} onChange={(e) => chat.setDraft(e.target.value)}
                         onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit() } }}
                         placeholder={`告诉 AI 要如何修改「${scopeShort}」…`} />
+              {enabledConstraints.length > 0 && (
+                <div className="wb-compose-constraints">
+                  <span>保留：{enabledConstraints.map(([, label]) => label).join(' · ')}</span>
+                  <button type="button" onClick={() => setSideTab('settings')}>修改约束 ›</button>
+                </div>
+              )}
               <div className="mt-1.5 flex items-center gap-2">
                 <button className="iconbtn" type="button" title="上传还没接通" disabled><Plus /></button>
                 <button className="mini mini-strong ml-auto" type="submit" disabled={!chat.draft.trim()}>
@@ -1654,13 +2033,19 @@ function RightPanel({ chat, sideTab, setSideTab, scope, scopeLabel, scopeShort, 
       ) : sideTab === 'task' ? (
         <TaskPanel activeTask={activeTask} records={records} cancelTask={cancelTask}
                    scope={scope} constraints={constraints}
-                   onBack={() => setSideTab('scene')} />
+                   onBack={onBackFromTask} />
       ) : sideTab === 'edit' ? (
         <RemotionEditPanel settings={editSettings} savedAt={editSavedAt} isOverridden={editOverridden}
                            onApply={onApplyEdit} onReset={onResetEdit} onClose={onCloseEdit} />
       ) : (
         <div className="fw-scroll">
           <div className="flex flex-col gap-3 p-3.5">
+            <div className="flex items-center gap-2">
+              <button className="wb-btn-ghost wb-insp-back" type="button" onClick={() => setSideTab('chat')}>
+                <ChevronLeft className="size-3" />返回对话
+              </button>
+              <span className="fw-panel-title">修改设置</span>
+            </div>
             <div className="fw-scene-hd">修改作用范围</div>
             <SegmentedControl value={scope} onChange={onScopeChange}
                               ariaLabel="修改作用范围"
@@ -1709,9 +2094,9 @@ function RightPanel({ chat, sideTab, setSideTab, scope, scopeLabel, scopeShort, 
   )
 }
 
-/* ── 右栏：场景检查器（默认）────────────────────────────────
+/* ── 右栏：场景检查器（次级视图）────────────────────────────
    场景是编辑对象，AI 只是它的一个动作。这里把「改哪一场、这一场是什么、
-   当前参数/约束/引用/执行状态」放在首屏；对话不再占用默认右栏。 */
+   当前参数/约束/引用/执行状态」放在一处；默认右栏是对话。 */
 function SceneInspector({ scene, storyboard, settings, savedAt, overridden,
   constraints, setConstraints, activeTask, references,
   onRemoveReference, onLocateReference, onToggleReferenceRole, onClearReferences,
@@ -1865,22 +2250,26 @@ function TaskPanel({ activeTask, records, cancelTask, scope, constraints, onBack
     <div className="fw-scroll">
       <div className="flex flex-col gap-3 p-3.5">
         <button className="wb-btn-ghost wb-insp-back" type="button" onClick={onBack}>
-          <ChevronLeft className="size-3" />返回场景
+          <ChevronLeft className="size-3" />返回
         </button>
         <div className="fw-scene-hd">当前任务</div>
         {activeTask ? (
           <div className="fw-task-card">
             <div className="flex items-center gap-2">
-              <LoaderCircle className="size-3 animate-spin text-acc" />
+              {(activeTask.status === 'queued' || activeTask.status === 'running' || activeTask.status === 'building')
+                ? <LoaderCircle className="size-3 animate-spin text-acc" />
+                : <span className="fm-dot" data-s={activeTask.status === 'completed' ? 'done' : activeTask.status === 'failed' ? 'failed' : 'idle'} />}
               <b>{activeTask.title}</b>
               <span className="fw-count ml-auto">{TASK_STATUS_LABEL[activeTask.status] ?? activeTask.status}</span>
             </div>
             {record?.events.slice(-5).map((e) => (
               <div key={e.id} className="mt-1.5 text-[10.5px] text-dim">· {e.message}</div>
             ))}
-            <button className="mini mt-2 h-6 px-2 text-[10.5px]" type="button" onClick={() => cancelTask(activeTask.id)}>
-              <Square className="size-2.5" />停止任务
-            </button>
+            {(activeTask.status === 'queued' || activeTask.status === 'running' || activeTask.status === 'building') && (
+              <button className="mini mt-2 h-6 px-2 text-[10.5px]" type="button" onClick={() => cancelTask(activeTask.id)}>
+                <Square className="size-2.5" />停止任务
+              </button>
+            )}
           </div>
         ) : (
           <div className="fw-tray-empty">没有正在执行的任务。</div>
