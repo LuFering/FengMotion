@@ -23,7 +23,7 @@ import { materialShelves, type MaterialFile, type MaterialShelf } from '@/data/m
 import { LICENSE_LABEL, MEDIA_LABEL, SOURCE_LABEL, type MyAsset } from '@/data/myAssets'
 import { initLibrary, listAssets } from '@/services/assetService'
 import {
-  MonitorDelivery, MonitorEmpty, MonitorGallery, MonitorMediaPreview, MonitorProblems, MonitorTaskLine,
+  MonitorDelivery, MonitorEmpty, MonitorMediaPreview, MonitorProblemsCollapsed, MonitorThumbRail,
   type MonitorProblem, type MonitorVisualItem,
 } from './MonitorZones'
 import { VISUAL_KIND_LABEL } from '@/data/monitorVisual'
@@ -268,11 +268,6 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
     void initLibrary().then(() => listAssets()).then((rows) => { if (on) setServiceAssets(rows) }).catch(() => { if (on) setServiceAssets([]) })
     return () => { on = false }
   }, [])
-  /* 需求原文：工作流提示词节点里用户真正提的那句话 */
-  const promptText = useMemo(
-    () => String(progressWorkflow?.nodes.find((n) => n.type === 'prompt')?.params.text ?? ''),
-    [progressWorkflow],
-  )
   /* 参考：引用节点真实绑定的素材 —— 绑定关系是工作流的，素材本体走服务。 */
   const refsNodeIds = useMemo(
     () => (progressWorkflow?.nodes.find((n) => n.type === 'refs')?.params.assetIds as string[] | undefined) ?? [],
@@ -302,10 +297,6 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
     if (!projectId) return []
     return workflowsSnapshot.filter((w) => w.projectId === projectId).flatMap((w) => gateSummaryOf(w))
   }, [projectId, workflowsSnapshot])
-  const finishingNotes = useMemo(() => {
-    const notes = String(progressWorkflow?.nodes.find((n) => n.type === 'finishing')?.params.notes ?? '').trim()
-    return notes || undefined
-  }, [progressWorkflow])
   /* 资料页那摞素材卡：本项目真实文件按格式堆叠，外加一张「缺失 / 不可用」。
      工作流引用节点绑定了哪些，卡片上如实标出（不吹成「AI 精选」）。 */
   const materials = useMemo(
@@ -464,9 +455,8 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
       .find((n) => n.type === 'artifact' && String(n.params.kind ?? '') === 'delivery')
     const deliveryStatus = String(deliveryNode?.params.status ?? 'missing')
     const deliveryVersion = String(deliveryNode?.params.version ?? '')
-    const finalFile = deliveryStatus !== 'missing'
-      ? `有${deliveryVersion ? ` · ${deliveryVersion}` : ''}`
-      : '无（成片交付产物缺失）'
+    const hasFinalFile = deliveryStatus !== 'missing'
+    const finalFile = deliveryVersion ? `版本 ${deliveryVersion}` : '已生成'
     const create = progressWorkflow?.nodes.find((n) => n.type === 'create')
     const prompt = progressWorkflow?.nodes.find((n) => n.type === 'prompt')
     const specParts = [String(create?.params.resolution ?? ''), String(prompt?.params.ratio ?? ''), String(create?.params.mode ?? '')].filter(Boolean)
@@ -481,12 +471,29 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
     const checks = stageGates.length === 0
       ? '暂无检查项'
       : `${confirmed}/${stageGates.length} 项已确认${blocked > 0 ? ` · ${blocked} 项受阻` : ''}${stale ? ' · 有检查项对应旧版本' : ''}`
-    return { finalFile, specs, review: reviewText, checks }
+    return { hasFinalFile, finalFile, specs, review: reviewText, checks }
   }, [projectId, workflowsSnapshot, progressWorkflow, stageGates])
   /* 视觉选择按项目派生：切项目后旧选择自动失效，不用 effect 清。 */
   const [visualSel, setVisualSel] = useState<{ projectId: string; item: MonitorVisualItem | null }>({ projectId, item: null })
   const selectedVisual = visualSel.projectId === projectId ? visualSel.item : null
   const setSelectedVisual = (item: MonitorVisualItem | null) => setVisualSel({ projectId, item })
+  /* 缩略入口：一行，当前预览在前，其后是参考、样稿、试片 —— 不分组标题、不铺网格。 */
+  const railItems = useMemo((): MonitorVisualItem[] => {
+    const items: MonitorVisualItem[] = []
+    if (filmAvailable) {
+      items.push({ id: '__film__', name: filmVersion?.name ?? '当前预览', kind: 'film', mediaType: 'video', thumb: selectedScene.frame ?? undefined })
+    }
+    items.push(...galleryRefs, ...galleryProduced.samples, ...galleryProduced.testfilms)
+    return items
+  }, [filmAvailable, filmVersion, selectedScene.frame, galleryRefs, galleryProduced])
+  const railSelectedId = selectedVisual ? selectedVisual.id : (filmAvailable ? '__film__' : null)
+  const onRailSelect = (item: MonitorVisualItem) => {
+    if (item.id === '__film__') setSelectedVisual(null)
+    else setSelectedVisual(item)
+  }
+  /* 问题收起态：只记展开了哪一条，默认全部收起。 */
+  const [expandedProblemId, setExpandedProblemId] = useState<string | null>(null)
+  const toggleProblem = (id: string) => setExpandedProblemId((cur) => (cur === id ? null : id))
   /* 问题定位：设为修改范围 + 在左栏内容页高亮那一行。监看与时间线不动 —— 它们放的是渲染切片，拿它对应真实内容会串。 */
   const locateProblem = (p: MonitorProblem) => {
     if (!p.sceneRef) return
@@ -959,7 +966,6 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
                 <button type="button" className="fw-mon-btn" disabled={!compareAvailable}
                         title={compareAvailable ? '' : compareReason}
                         onClick={() => setCompare(true)}>前后对比</button>
-                {!compareAvailable && <span className="fw-mon-compare-reason">没有可对比的旧版本</span>}
                 <ShotActionBar
                   onFrame={referenceFrame} onRange={referenceRange}
                   onRegion={() => { setRegionMode((v) => !v); setRegionRect(null) }}
@@ -1004,7 +1010,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
             <div className="fw-monitor">
               <div className="fw-mon-visual">
                 {selectedVisual ? (
-                  <MonitorMediaPreview key={selectedVisual.id} item={selectedVisual} onBack={() => setSelectedVisual(null)} onAsk={askVisual} />
+                  <MonitorMediaPreview key={selectedVisual.id} item={selectedVisual} />
                 ) : filmAvailable ? (
               <div className="fw-stage" ref={stageRef}>
                 {!compare ? (
@@ -1059,9 +1065,25 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
                 )}
               </div>
                 ) : (
-                  <MonitorEmpty promptText={promptText} />
+                  <MonitorEmpty />
                 )}
               </div>
+              {notice && (!filmAvailable || selectedVisual) && (
+                <button type="button" className="fw-mon-notice" onClick={() => setNotice('')}>
+                  {notice}<X className="ml-1 inline size-3" />
+                </button>
+              )}
+              <div className="fw-mon-rail">
+                <MonitorThumbRail items={railItems} selectedId={railSelectedId} onSelect={onRailSelect} />
+                {liveTask && (
+                  <span className="fw-mon-task">
+                    <span className="fm-dot" data-s="running" />
+                    {liveTask.state} · {liveTask.label}
+                  </span>
+                )}
+              </div>
+              <MonitorProblemsCollapsed problems={monitorProblems} expandedId={expandedProblemId}
+                                        onToggle={toggleProblem} onLocate={locateProblem} onAskFix={askFix} />
               {filmAvailable && !selectedVisual && (
                 <>
               <PlayerBar playerRef={playerRef} frame={frame} onSeek={seek} playing={playing}
@@ -1072,17 +1094,9 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
               </div>
                 </>
               )}
-              <div className="fw-mon-zones">
-                {notice && (!filmAvailable || selectedVisual) && (
-                  <button type="button" className="fw-mon-notice" onClick={() => setNotice('')}>
-                    {notice}<X className="ml-1 inline size-3" />
-                  </button>
-                )}
-                {liveTask && <MonitorTaskLine label={liveTask.label} state={liveTask.state} onViewTask={openTaskRecords} />}
-                <MonitorProblems problems={monitorProblems} onLocate={locateProblem} onAskFix={askFix} />
-                <MonitorGallery refs={galleryRefs} samples={galleryProduced.samples} testfilms={galleryProduced.testfilms} onSelect={setSelectedVisual} />
-                <MonitorDelivery finalFile={delivery.finalFile} specs={delivery.specs} review={delivery.review} checks={delivery.checks} note={finishingNotes ? `Finishing：${finishingNotes}` : undefined} />
-              </div>
+              {delivery.hasFinalFile && (
+                <MonitorDelivery finalFile={delivery.finalFile} specs={delivery.specs} review={delivery.review} checks={delivery.checks} />
+              )}
 
               {trayOpen && (
                 <BottomTray records={tasks.records} activeId={tasks.active?.task.id ?? null}
