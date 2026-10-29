@@ -1,0 +1,213 @@
+/* 非首页界面的排版收口。只调整 chrome / 字阶 / 控件，不选择卡片或网格。 */
+/* 库页命令栏：标题与动作保持一条稳定的基线。 */
+.fxlib .fx-cmd { gap:14px; align-items:center; }
+.fxlib .fx-cmd-title,
+.mya .fm-page-head-title { font-size:18px; font-weight:550; line-height:26px; letter-spacing:-.025em; }
+.mya .fm-page-head-main { gap:14px; align-items:baseline; }
+.mya .fm-page-head-meta { font-size:11px; font-weight:400; color:var(--tx3); }
+.mya .fm-page-head-actions { gap:9px; min-width:0; }
+.fxlib .fx-cmd-search .fm-searchfield,
+.mya .fm-page-head-actions .fm-searchfield,
+.wfl .wfshop-search .fm-searchfield {
+  height:34px; border-radius:7px; background:var(--panel2,var(--hole));
+  border-color:var(--line); transition:border-color .15s,box-shadow .15s;
+}
+.fxlib .fx-cmd-search .fm-searchfield-input,
+.mya .fm-page-head-actions .fm-searchfield-input,
+.wfl .wfshop-search .fm-searchfield-input { font-size:12px; line-height:1.5; }
+.fxlib .fx-cmd-search .fm-searchfield:focus-within,
+.mya .fm-page-head-actions .fm-searchfield:focus-within,
+.wfl .wfshop-search .fm-searchfield:focus-within { outline:none; border-color:var(--acc); box-shadow:0 0 0 2px var(--sel); }
+.fxlib .fx-toolbtn,
+.mya .fm-page-head-actions .mya-pickbtn,
+.mya .fm-page-head-actions .mya-primary { min-height:34px; border-radius:7px; font-size:11px; font-weight:500; gap:7px; }
+.fxlib .fx-meta { gap:12px; align-items:center; }
+.fxlib .fx-meta-count,
+.mya .mya-result-count { font-size:11px; font-variant-numeric:tabular-nums; }
+.fxlib .fx-meta-count b { font-weight:550; }
+.fxlib .fx-meta-scope { gap:3px; }
+.fxlib .fx-meta-scope button { font-size:11px; font-weight:500; border-radius:6px; }
+.fxlib .fx-meta-scope button em { font-size:10px; font-variant-numeric:tabular-nums; }
+.fxlib .fx-sort-select { font-size:11px; }
+/* 筛选浮层靠分组和行距组织，不影响下面的海报墙。 */
+.fxlib .fx-pop { padding:18px; border-radius:11px; }
+.fxlib .fx-pop .fx-filtergroup + .fx-filtergroup { margin-top:18px; }
+.fxlib .fx-filterlabel { font-size:11px; font-weight:550; letter-spacing:.02em; line-height:1.7; }
+.fxlib .fx-chips { gap:7px; }
+.fxlib .fx-chip { font-size:11px; line-height:1.5; border-radius:6px; }
+.fxlib .fx-pop-foot { margin-top:16px; padding-top:12px; }
+.fxlib .fx-drawer-titles h2 { font-size:18px; font-weight:550; letter-spacing:-.025em; line-height:1.5; }
+.fxlib .fx-drawer-sub { font-size:11px; line-height:1.7; gap:9px; }
+/* 素材组织栏与筛选行：计数安静、名称清楚。 */
+.mya .mya-org-head { font-size:11px; letter-spacing:.02em; font-weight:500; }
+.mya .mya-org-row { font-size:12px; font-weight:400; }
+.mya .mya-org-row[data-on] { font-weight:550; }
+.mya .mya-org-row em { font-size:10px; font-variant-numeric:tabular-nums; }
+.mya .mya-org-sec { font-size:10px; font-weight:500; letter-spacing:.035em; }
+.mya .mya-org-foot { font-size:10px; line-height:1.7; }
+.mya .mya-toolbar { box-shadow:none; }
+.mya .mya-crumb { font-size:12px; letter-spacing:-.01em; }
+.mya .mya-toolbtn { border-radius:7px; font-size:11px; font-weight:500; }
+.mya .mya-seg { border-radius:7px; }
+.mya .mya-seg button { border-radius:5px; font-size:11px; font-weight:500; }
+.mya .mya-pop { border-radius:10px; padding:6px; }
+.mya .mya-poprow { border-radius:6px; font-size:12px; }
+/* 工作流保留横幅、货架及全部卡片，仅调整周围文字和控件。 */
+.wfl .wfshop-header h1 { font-weight:550; letter-spacing:-.035em; }
+.wfl .wfshop-eyebrow { font-size:9px; font-weight:500; letter-spacing:.14em; }
+.wfl .wfshop-header p { line-height:1.8; color:var(--tx2); }
+.wfl .wfshop-create { font-size:12px; font-weight:550; border-radius:8px; gap:8px; }
+.wfl .wfshop-tabs button { font-size:12px; font-weight:500; letter-spacing:0; }
+.wfl .wfshop-tabs button span { font-size:11px; font-variant-numeric:tabular-nums; }
+.wfl .wfshop-tabs small { font-size:9px; font-weight:400; }
+.wfl .wfshop-section-head h2 { font-size:16px; font-weight:550; letter-spacing:-.02em; }
+.wfl .wfshop-section-head p { font-size:11px; line-height:1.7; }
+.wfl .wfshop-section-head > span { font-size:11px; font-variant-numeric:tabular-nums; }
+.wfl .wfshop-footnote { font-size:10px; line-height:1.7; }
+.wfl .wfh-cmd-title { font-size:20px; font-weight:550; letter-spacing:-.025em; }
+.wfl .wfe-cmd h1,.wfl .wfe-cmd-title { font-weight:550; letter-spacing:-.02em; }
+.wfl .wfe-cmd .wfe-btn { font-size:11px; border-radius:6px; }
+/* 影院页保留影片与缩略图排布，调整标题、分析阅读节奏和控制区。 */
+.rfc .rfc-eyebrow { font-size:10px; font-weight:500; letter-spacing:.12em; }
+.rfc .rfc-title { font-size:28px; font-weight:550; letter-spacing:-.035em; line-height:1.25; }
+.rfc .rfc-desc { font-size:12px; line-height:1.8; }
+.rfc .rfc-meta-line { font-size:11px; line-height:1.7; }
+.rfc .rfc-actions { align-items:center; gap:7px; }
+.rfc .rfc-gbtn { min-height:34px; border-radius:7px; font-size:11px; font-weight:500; gap:7px; }
+.rfc .rfc-panel-head h2 { font-size:16px; font-weight:550; letter-spacing:-.02em; }
+.rfc .rfc-panel-tc { font-size:10px; line-height:1.8; }
+.rfc .rfc-panel-acts { margin-top:16px; margin-bottom:9px; }
+.rfc .rfc-btn { border-radius:7px; font-size:12px; font-weight:500; }
+.rfc .rfc-field-k { font-size:11px; line-height:1.6; }
+.rfc .rfc-field-hint { font-size:9px; line-height:1.6; }
+.rfc .rfc-field-v { font-size:12px; line-height:1.8; font-weight:500; }
+.rfc .rfc-time { font-size:11px; letter-spacing:.01em; }
+.rfc .rfc-transport-hint { font-size:10px; }
+.rfc .rfc-browse-head { align-items:center; }
+.rfc .rfc-tabs { border-radius:8px; }
+.rfc .rfc-tab { font-size:11px; font-weight:500; border-radius:5px; }
+.rfc .rfc-search { height:34px; border-radius:7px; font-size:12px; }
+.rfc .rfc-selfield { font-size:10px; gap:7px; }
+.rfc .rfc-selfield select { border-radius:6px; font-size:11px; }
+.rfc .rfc-browse-count { font-size:10px; }
+/* 我的创作：不动会话条目、制作卡片或输入框几何，仅整理顶部导航。 */
+.cv3 .cv3-head { align-items:center; padding-top:0; }
+.cv3 .cv3-title-row { gap:10px; }
+.cv3 .cv3-crumb { font-size:14px; font-weight:550; line-height:22px; letter-spacing:-.02em; }
+.cv3 .cv3-search { height:34px; border:1px solid transparent; border-radius:7px; }
+.cv3 .cv3-search input { font-size:12px; }
+.cv3 .cv3-search:focus-within { border-color:var(--acc); box-shadow:0 0 0 2px color-mix(in srgb,var(--acc) 12%,transparent); }
+.cv3 .cv3-menu { border-radius:10px; }
+.cv3 .cv3-menu-sec { font-size:10px; font-weight:500; letter-spacing:.035em; }
+.cv3 .cv3-menu button { font-size:12px; border-radius:6px; }
+/* 已完成的工作台与设置只收口辅助字阶，保留卡片定稿。 */
+#pane-flow .wb-studio .wb-current-preview-meta { font-size:10px; line-height:1.6; font-variant-numeric:tabular-nums; }
+#pane-flow .wb-studio .wb-preview-clock { font-size:10px; letter-spacing:.015em; }
+#pane-flow .wb-studio .wb-desk-caption { line-height:1.8; }
+.set-refined .set-section-heading p { line-height:1.7; }
+/* 键盘反馈只覆盖导航与工具，不改变任何卡片悬停语言。 */
+.fxlib .fx-toolbtn:focus-visible,.mya .mya-toolbtn:focus-visible,
+.wfl .wfshop-tabs button:focus-visible,.rfc .rfc-gbtn:focus-visible,
+.cv3 .cv3-icon-btn:focus-visible { outline:2px solid var(--acc); outline-offset:3px; }
+@media(max-width:900px) {
+  .fxlib .fx-cmd { gap:10px; }
+  .fxlib .fx-cmd-title,.mya .fm-page-head-title { font-size:16px; }
+  .mya .fm-page-head-meta { font-size:10px; }
+  .rfc .rfc-actions { gap:5px; }
+  .rfc .rfc-actions .rfc-gbtn { font-size:10px; padding-left:9px; padding-right:9px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .fxlib .fx-cmd .fm-searchfield,.mya .fm-page-head-actions .fm-searchfield,
+  .wfl .wfshop-search .fm-searchfield { transition:none; }
+}
+/* 筛选面板根据可用高度滚动，底部操作仍可到达。 */
+.fxlib .fx-pop { max-height:min(660px,calc(100dvh - 210px)); scrollbar-width:thin; overscroll-behavior:contain; }
+/* 内容页构图：页头负责身份与主要动作，内容工具归到浏览区域。 */
+.fxlib .fx-cmd { min-height:82px; padding:22px 16px 18px; gap:18px; border-bottom:0; }
+.fxlib .fx-heading-group { flex:1; min-width:0; }
+.fxlib .fx-cmd-title,.mya .fm-page-head-title { font-size:25px; font-weight:550; line-height:1.3; letter-spacing:-.035em; }
+.fxlib .fx-meta { position:relative; z-index:35; min-height:50px; padding:0 16px 14px; gap:14px; border-bottom:1px solid var(--line); overflow:visible; flex-wrap:wrap; }
+.fxlib .fx-meta-scope { order:0; gap:20px; align-self:center; }
+.fxlib .fx-meta-scope button { border-radius:0; padding:9px 0; background:transparent; border-bottom:2px solid transparent; color:var(--tx3); font-size:12px; }
+.fxlib .fx-meta-scope button[data-on] { background:transparent; border-bottom-color:var(--acc); color:var(--tx); }
+.fxlib .fx-meta-scope button:hover { background:transparent; color:var(--tx); }
+.fxlib .fx-meta-scope button em { margin-left:3px; }
+.fxlib .fx-cmd-search { order:1; flex:0 1 250px; min-width:180px; max-width:300px; margin:0 0 0 auto; }
+.fxlib .fx-cmd-search .fm-searchfield { width:100%; max-width:none; }
+.fxlib .fx-filterwrap { order:2; }
+.fxlib .fx-sort { order:3; flex:none; font-size:11px; }
+.fxlib .fx-spacer { display:none; }
+.fxlib .fx-activechip { order:4; }
+.fxlib .fx-result-summary { order:5; color:var(--tx3); font-size:11px; white-space:nowrap; }
+/* 素材管理：页头去掉独立面板，搜索与视图控制进入内容工具条。 */
+.mya > .fm-page-head { min-height:72px; align-items:center; padding:6px 16px 12px; background:transparent; border:0; border-radius:0; box-shadow:none; }
+.mya .fm-page-head-main { display:flex; flex-direction:column; align-items:flex-start; gap:5px; min-width:0; }
+.mya .fm-page-head-meta { display:block; line-height:1.5; }
+.mya .mya-heading-project { display:block; color:var(--tx3); font-size:11px; max-width:280px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+.mya .mya-toolbar { padding:0 20px 12px; min-height:46px; background:transparent; border:0; border-bottom:1px solid var(--line); border-radius:0; box-shadow:none; gap:10px; flex-wrap:wrap; }
+.mya .mya-content-search { flex:1 1 200px; max-width:300px; min-width:160px; }
+.mya .mya-content-search .fm-searchfield { width:100%; max-width:none; height:34px; border-radius:7px; }
+.mya .mya-content-search .fm-searchfield-input { font-size:12px; }
+.mya .mya-content-search .fm-searchfield:focus-within { border-color:var(--acc); box-shadow:0 0 0 2px var(--sel); }
+.mya .mya-crumb[hidden] { display:none; }
+.mya .mya-toolbar .mya-crumb { color:var(--tx2); max-width:150px; }
+.mya .mya-toolbar .mya-crumb b { font-weight:500; }
+.mya .mya-org-head { min-height:42px; padding-bottom:10px; border-bottom:1px solid var(--line); }
+.mya .mya-org-sec { width:auto; margin:18px 0 5px; padding:0 9px; background:none; color:var(--tx3); clip-path:none; line-height:1.6; }
+/* 工作流：搜索回到页级动作，分类只负责切换货架范围。 */
+.wfl .wfshop-header { align-items:center; min-height:42px; }
+.wfl .wfshop-heading-line h1 { margin:0; font-size:25px; }
+.wfl .wfshop-header-actions { display:flex; align-items:center; gap:12px; min-width:0; }
+.wfl .wfshop-header .wfshop-search { width:230px; padding:0; }
+.wfl .wfshop-header .wfshop-create { min-height:36px; padding:8px 14px; }
+.wfl .wfshop-toolbar { margin-bottom:18px; min-height:40px; align-items:stretch; }
+.wfl .wfshop-tabs { align-items:stretch; }
+.wfl .wfshop-tabs button { padding:8px 0 11px; }
+/* 创作页：左栏有清楚的归属，项目标题、展开按钮与视图切换各占一端。 */
+.cv3 .cv3-side-top { height:44px; margin-bottom:8px; gap:3px; }
+.cv3 .cv3-library-title { flex:1; margin:0 8px 0 4px; font-size:16px; font-weight:550; letter-spacing:-.025em; white-space:nowrap; }
+.cv3 .cv3-side-top .cv3-viewwrap { margin-left:0; }
+.cv3 .cv3-head { display:flex; align-items:center; min-height:64px; padding:8px 28px 8px 20px; }
+.cv3 .cv3-title-row { width:100%; min-width:0; gap:10px; }
+.cv3 .cv3-crumb { padding-left:0; max-width:min(420px,50vw); font-size:15px; }
+/* 参考片浏览：先辨识片库，再选范围；检索与筛选保留相邻关系。 */
+.rfc .rfc-browse { background:var(--panel2); }
+.rfc .rfc-browse-head { padding:18px 16px 14px; gap:24px; flex-wrap:wrap; }
+.rfc .rfc-browse-title { margin:0; font-size:22px; line-height:1.3; letter-spacing:-.03em; font-weight:550; color:var(--tx); }
+.rfc .rfc-tabs { padding:0; background:none; border:0; gap:20px; border-radius:0; }
+.rfc .rfc-tab { padding:7px 0; border-radius:0; border-bottom:2px solid transparent; font-size:12px; }
+.rfc .rfc-tab.is-on { background:none; color:var(--tx); border-color:var(--acc); }
+.rfc .rfc-browse-tools { padding:0 16px 14px; gap:12px; }
+.rfc .rfc-browse-tools .rfc-search { flex:1 1 220px; min-width:190px; }
+.rfc .rfc-selfield { gap:6px; }
+.rfc .rfc-selfield select { max-width:140px; }
+.rfc .rfc-browse-count { margin-left:auto; white-space:nowrap; }
+@media(max-width:1100px) {
+  .fxlib .fx-cmd-search { flex-basis:200px; }
+  .fxlib .fx-meta { gap:12px; }
+  .fxlib .fx-meta-scope { gap:16px; }
+  .rfc .rfc-browse-tools { gap:9px; }
+}
+@media(max-width:850px) {
+  .fxlib .fx-meta-scope { flex:1 0 100%; }
+  .fxlib .fx-pop { max-height:calc(100dvh - 260px); }
+  .fxlib .fx-cmd-search { margin-left:0; flex:1; max-width:none; }
+  .mya .mya-content-search { max-width:none; }
+  .mya .mya-toolbar .mya-crumb { order:4; flex-basis:100%; max-width:none; }
+  .wfl .wfshop-header .wfshop-search { width:180px; }
+  .rfc .rfc-browse-head { gap:14px; }
+  .rfc .rfc-browse-title { font-size:20px; }
+  .rfc .rfc-tabs { gap:14px; }
+  .rfc .rfc-browse-tools .rfc-search { flex-basis:100%; }
+}
+@media(max-width:600px) {
+  .fxlib .fx-cmd { min-height:70px; padding-top:16px; padding-bottom:14px; }
+  .fxlib .fx-cmd-title,.mya .fm-page-head-title { font-size:22px; }
+  .mya .mya-toolbar { padding-left:12px; padding-right:12px; }
+  .mya .mya-content-search { flex-basis:100%; }
+  .wfl .wfshop-header { flex-wrap:wrap; gap:12px; }
+  .wfl .wfshop-header-actions { width:100%; }
+  .wfl .wfshop-header .wfshop-search { flex:1; width:auto; }
+  .rfc .rfc-browse-head .rfc-tabs { order:3; width:100%; }
+  .cv3 .cv3-head { padding-right:16px; padding-left:12px; }
+}

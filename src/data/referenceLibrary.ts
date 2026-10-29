@@ -15,20 +15,32 @@ export interface ReferenceVideo {
   duration: number
   source: string
   description: string
+  /** 对应现有技法动态示例；缺失时只展示静帧，不模拟视频播放。 */
+  previewVideo?: string
   tags: string[]
 }
 
+/**
+ * 参考片段的「可借鉴点」—— 给用户看的那一层，不是工作流内部记账。
+ *
+ * 口径（2026-10-29 与作者对齐）：
+ *   分析由后端视觉模型完成，前端只负责展示与交互；
+ *   用户要回答的是「这条片段能不能拿来创作」，所以只留创作时用得上的六项。
+ *
+ * 已删掉的：confidence 百分比（编造的数字，工作流只认 high/medium/low）、
+ *            「关键帧 00:02」这类无出处的佐证、景别/主体运动/色彩/叙事等
+ *            技术分类（用户无法据此决策）。
+ */
 export interface AnalysisValue {
   value: string
-  confidence: number | null
-  evidence: string
+  /** 该值的来源：后端实测（切点/亮度/运动量）还是模型判断。
+   *  界面上要能区分 —— 用户需要知道哪些数字是真的量出来的。 */
+  source: 'measured' | 'model'
   pending: boolean
 }
 
 export type AnalysisKey =
-  | 'scale' | 'composition' | 'cameraMove' | 'subjectMove'
-  | 'color' | 'lighting' | 'rhythm' | 'transition'
-  | 'narrative' | 'shotType'
+  | 'cameraMove' | 'rhythm' | 'lighting' | 'composition' | 'transition' | 'reusable'
 
 export interface ReferenceSegment {
   id: string
@@ -54,6 +66,7 @@ export interface ReferenceCollection {
 export const REFERENCE_VIDEOS: ReferenceVideo[] = [
   {
     "id": "ref-dolly-zoom",
+    "previewVideo": "./fx/motion/fx-dolly-zoom.mp4",
     "title": "沙漠公路",
     "duration": 10,
     "source": "AI 生成",
@@ -68,6 +81,7 @@ export const REFERENCE_VIDEOS: ReferenceVideo[] = [
   },
   {
     "id": "ref-glitch",
+    "previewVideo": "./fx/motion/fx-glitch-transition.mp4",
     "title": "霓虹故障转场",
     "duration": 10,
     "source": "AI 生成",
@@ -81,6 +95,7 @@ export const REFERENCE_VIDEOS: ReferenceVideo[] = [
   },
   {
     "id": "ref-light-leak",
+    "previewVideo": "./fx/motion/fx-light-leak.mp4",
     "title": "黄昏山地漏光",
     "duration": 10,
     "source": "AI 生成",
@@ -95,6 +110,7 @@ export const REFERENCE_VIDEOS: ReferenceVideo[] = [
   },
   {
     "id": "ref-ember",
+    "previewVideo": "./fx/motion/fx-ember-particles.mp4",
     "title": "暗夜余烬粒子",
     "duration": 10,
     "source": "AI 生成",
@@ -108,6 +124,7 @@ export const REFERENCE_VIDEOS: ReferenceVideo[] = [
   },
   {
     "id": "ref-teal",
+    "previewVideo": "./fx/motion/fx-teal-orange.mp4",
     "title": "海岸悬崖",
     "duration": 10,
     "source": "AI 生成",
@@ -122,6 +139,7 @@ export const REFERENCE_VIDEOS: ReferenceVideo[] = [
   },
   {
     "id": "ref-kinetic",
+    "previewVideo": "./fx/motion/fx-kinetic-type.mp4",
     "title": "动态排版律动",
     "duration": 10,
     "source": "AI 生成",
@@ -135,6 +153,7 @@ export const REFERENCE_VIDEOS: ReferenceVideo[] = [
   },
   {
     "id": "ref-title",
+    "previewVideo": "./fx/motion/fx-title-reveal.mp4",
     "title": "黑底标题揭示",
     "duration": 3,
     "source": "AI 生成",
@@ -223,64 +242,34 @@ export const REFERENCE_SEGMENTS: ReferenceSegment[] = [
       "推进"
     ],
     "analysis": {
-      "shotType": {
-        "value": "AI 生成",
-        "confidence": 95,
-        "evidence": "生成记录",
-        "pending": false
-      },
-      "scale": {
-        "value": "中景",
-        "confidence": 88,
-        "evidence": "00:02 关键帧",
-        "pending": false
-      },
-      "composition": {
-        "value": "中心构图",
-        "confidence": 85,
-        "evidence": "00:02 关键帧",
-        "pending": false
-      },
       "cameraMove": {
         "value": "多莉变焦 · 推进",
-        "confidence": 92,
-        "evidence": "背景透视连续变化",
-        "pending": false
-      },
-      "subjectMove": {
-        "value": "静止",
-        "confidence": 90,
-        "evidence": "主体成像大小恒定",
-        "pending": false
-      },
-      "color": {
-        "value": "暖黄主调",
-        "confidence": 80,
-        "evidence": "色彩直方图",
-        "pending": false
-      },
-      "lighting": {
-        "value": "逆光剪影",
-        "confidence": 85,
-        "evidence": "主体无细节",
+        "source": "model",
         "pending": false
       },
       "rhythm": {
         "value": "舒缓转紧凑",
-        "confidence": 70,
-        "evidence": "",
+        "source": "measured",
+        "pending": false
+      },
+      "lighting": {
+        "value": "逆光剪影",
+        "source": "model",
+        "pending": false
+      },
+      "composition": {
+        "value": "中心构图",
+        "source": "model",
         "pending": false
       },
       "transition": {
         "value": "硬切入（段落首镜）",
-        "confidence": 75,
-        "evidence": "",
+        "source": "measured",
         "pending": false
       },
-      "narrative": {
-        "value": "建立不安基调",
-        "confidence": 65,
-        "evidence": "多莉变焦的常规用法",
+      "reusable": {
+        "value": "可借鉴结构，不建议照搬画面",
+        "source": "model",
         "pending": false
       }
     }
@@ -301,64 +290,34 @@ export const REFERENCE_SEGMENTS: ReferenceSegment[] = [
       "拉远"
     ],
     "analysis": {
-      "shotType": {
-        "value": "AI 生成",
-        "confidence": 95,
-        "evidence": "生成记录",
-        "pending": false
-      },
-      "scale": {
-        "value": "中景",
-        "confidence": 86,
-        "evidence": "00:07 关键帧",
-        "pending": false
-      },
-      "composition": {
-        "value": "中心构图",
-        "confidence": 85,
-        "evidence": "00:07 关键帧",
-        "pending": false
-      },
       "cameraMove": {
         "value": "多莉变焦 · 拉远",
-        "confidence": 88,
-        "evidence": "背景透视反向变化",
-        "pending": false
-      },
-      "subjectMove": {
-        "value": "静止",
-        "confidence": 90,
-        "evidence": "",
-        "pending": false
-      },
-      "color": {
-        "value": "暖黄主调",
-        "confidence": 80,
-        "evidence": "",
-        "pending": false
-      },
-      "lighting": {
-        "value": "逆光剪影",
-        "confidence": 82,
-        "evidence": "",
+        "source": "model",
         "pending": false
       },
       "rhythm": {
         "value": "紧凑",
-        "confidence": 70,
-        "evidence": "",
+        "source": "measured",
+        "pending": false
+      },
+      "lighting": {
+        "value": "逆光剪影",
+        "source": "model",
+        "pending": false
+      },
+      "composition": {
+        "value": "中心构图",
+        "source": "model",
         "pending": false
       },
       "transition": {
         "value": "延续（无剪辑点）",
-        "confidence": 90,
-        "evidence": "",
+        "source": "measured",
         "pending": false
       },
-      "narrative": {
-        "value": "情绪抽离",
-        "confidence": 60,
-        "evidence": "",
+      "reusable": {
+        "value": "可借鉴结构，不建议照搬画面",
+        "source": "model",
         "pending": false
       }
     }
@@ -379,64 +338,34 @@ export const REFERENCE_SEGMENTS: ReferenceSegment[] = [
       "跳切"
     ],
     "analysis": {
-      "shotType": {
-        "value": "AI 生成",
-        "confidence": 95,
-        "evidence": "生成记录",
-        "pending": false
-      },
-      "scale": {
-        "value": "不适用（抽象画面）",
-        "confidence": 90,
-        "evidence": "无明确主体",
-        "pending": false
-      },
-      "composition": {
-        "value": "碎片化",
-        "confidence": 75,
-        "evidence": "00:02 关键帧",
-        "pending": false
-      },
       "cameraMove": {
         "value": "固定机位",
-        "confidence": 88,
-        "evidence": "",
-        "pending": false
-      },
-      "subjectMove": {
-        "value": "高速位移伪影",
-        "confidence": 80,
-        "evidence": "",
-        "pending": false
-      },
-      "color": {
-        "value": "霓虹品蓝",
-        "confidence": 85,
-        "evidence": "色彩直方图",
-        "pending": false
-      },
-      "lighting": {
-        "value": "自发光",
-        "confidence": 70,
-        "evidence": "",
+        "source": "model",
         "pending": false
       },
       "rhythm": {
         "value": "急促",
-        "confidence": 90,
-        "evidence": "",
+        "source": "measured",
+        "pending": false
+      },
+      "lighting": {
+        "value": "自发光",
+        "source": "model",
+        "pending": false
+      },
+      "composition": {
+        "value": "碎片化",
+        "source": "model",
         "pending": false
       },
       "transition": {
         "value": "故障撕裂切入",
-        "confidence": 85,
-        "evidence": "",
+        "source": "measured",
         "pending": false
       },
-      "narrative": {
-        "value": "能量释放",
-        "confidence": 70,
-        "evidence": "",
+      "reusable": {
+        "value": "可借鉴结构，不建议照搬画面",
+        "source": "model",
         "pending": false
       }
     }
@@ -456,65 +385,35 @@ export const REFERENCE_SEGMENTS: ReferenceSegment[] = [
       "新场景"
     ],
     "analysis": {
-      "shotType": {
-        "value": "AI 生成",
-        "confidence": 95,
-        "evidence": "生成记录",
-        "pending": false
-      },
-      "scale": {
-        "value": "不适用（抽象画面）",
-        "confidence": 88,
-        "evidence": "",
-        "pending": false
-      },
-      "composition": {
-        "value": "碎片化",
-        "confidence": 70,
-        "evidence": "",
-        "pending": false
-      },
       "cameraMove": {
         "value": "固定机位",
-        "confidence": 85,
-        "evidence": "",
+        "source": "model",
         "pending": false
       },
-      "subjectMove": {
-        "value": "位移减弱",
-        "confidence": 75,
-        "evidence": "",
-        "pending": false
-      },
-      "color": {
-        "value": "霓虹品蓝",
-        "confidence": 82,
-        "evidence": "",
+      "rhythm": {
+        "value": "中速",
+        "source": "measured",
         "pending": false
       },
       "lighting": {
         "value": "待分析",
-        "confidence": null,
-        "evidence": "",
-        "pending": true
+        "source": "model",
+        "pending": false
       },
-      "rhythm": {
-        "value": "中速",
-        "confidence": 72,
-        "evidence": "",
+      "composition": {
+        "value": "碎片化",
+        "source": "model",
         "pending": false
       },
       "transition": {
         "value": "故障收尾",
-        "confidence": 80,
-        "evidence": "",
+        "source": "measured",
         "pending": false
       },
-      "narrative": {
-        "value": "待分析",
-        "confidence": null,
-        "evidence": "",
-        "pending": true
+      "reusable": {
+        "value": "可借鉴结构，不建议照搬画面",
+        "source": "model",
+        "pending": false
       }
     }
   },
@@ -535,64 +434,34 @@ export const REFERENCE_SEGMENTS: ReferenceSegment[] = [
       "复古"
     ],
     "analysis": {
-      "shotType": {
-        "value": "AI 生成",
-        "confidence": 95,
-        "evidence": "生成记录",
-        "pending": false
-      },
-      "scale": {
-        "value": "全景",
-        "confidence": 85,
-        "evidence": "00:02 关键帧",
-        "pending": false
-      },
-      "composition": {
-        "value": "三分法 · 地平线",
-        "confidence": 80,
-        "evidence": "00:02 关键帧",
-        "pending": false
-      },
       "cameraMove": {
         "value": "缓慢横移",
-        "confidence": 75,
-        "evidence": "",
-        "pending": false
-      },
-      "subjectMove": {
-        "value": "无主体",
-        "confidence": 90,
-        "evidence": "",
-        "pending": false
-      },
-      "color": {
-        "value": "暖橙",
-        "confidence": 88,
-        "evidence": "色彩直方图",
-        "pending": false
-      },
-      "lighting": {
-        "value": "自然黄昏光 + 漏光",
-        "confidence": 80,
-        "evidence": "",
+        "source": "model",
         "pending": false
       },
       "rhythm": {
         "value": "舒缓",
-        "confidence": 90,
-        "evidence": "",
+        "source": "measured",
+        "pending": false
+      },
+      "lighting": {
+        "value": "自然黄昏光 + 漏光",
+        "source": "model",
+        "pending": false
+      },
+      "composition": {
+        "value": "三分法 · 地平线",
+        "source": "model",
         "pending": false
       },
       "transition": {
         "value": "硬切入（段落首镜）",
-        "confidence": 75,
-        "evidence": "",
+        "source": "measured",
         "pending": false
       },
-      "narrative": {
-        "value": "情绪铺垫",
-        "confidence": 65,
-        "evidence": "",
+      "reusable": {
+        "value": "可借鉴结构，不建议照搬画面",
+        "source": "model",
         "pending": false
       }
     }
@@ -613,64 +482,34 @@ export const REFERENCE_SEGMENTS: ReferenceSegment[] = [
       "减弱"
     ],
     "analysis": {
-      "shotType": {
-        "value": "AI 生成",
-        "confidence": 95,
-        "evidence": "生成记录",
-        "pending": false
-      },
-      "scale": {
-        "value": "全景",
-        "confidence": 85,
-        "evidence": "",
-        "pending": false
-      },
-      "composition": {
-        "value": "三分法 · 地平线",
-        "confidence": 80,
-        "evidence": "",
-        "pending": false
-      },
       "cameraMove": {
         "value": "缓慢横移",
-        "confidence": 75,
-        "evidence": "",
-        "pending": false
-      },
-      "subjectMove": {
-        "value": "无主体",
-        "confidence": 90,
-        "evidence": "",
-        "pending": false
-      },
-      "color": {
-        "value": "暖橙减弱",
-        "confidence": 82,
-        "evidence": "",
-        "pending": false
-      },
-      "lighting": {
-        "value": "自然黄昏光",
-        "confidence": 82,
-        "evidence": "",
+        "source": "model",
         "pending": false
       },
       "rhythm": {
         "value": "舒缓",
-        "confidence": 90,
-        "evidence": "",
+        "source": "measured",
+        "pending": false
+      },
+      "lighting": {
+        "value": "自然黄昏光",
+        "source": "model",
+        "pending": false
+      },
+      "composition": {
+        "value": "三分法 · 地平线",
+        "source": "model",
         "pending": false
       },
       "transition": {
         "value": "延续（无剪辑点）",
-        "confidence": 90,
-        "evidence": "",
+        "source": "measured",
         "pending": false
       },
-      "narrative": {
-        "value": "情绪延续",
-        "confidence": 65,
-        "evidence": "",
+      "reusable": {
+        "value": "可借鉴结构，不建议照搬画面",
+        "source": "model",
         "pending": false
       }
     }
@@ -692,64 +531,34 @@ export const REFERENCE_SEGMENTS: ReferenceSegment[] = [
       "氛围"
     ],
     "analysis": {
-      "shotType": {
-        "value": "AI 生成",
-        "confidence": 95,
-        "evidence": "生成记录",
-        "pending": false
-      },
-      "scale": {
-        "value": "不适用（氛围空镜）",
-        "confidence": 88,
-        "evidence": "",
-        "pending": false
-      },
-      "composition": {
-        "value": "散点构图",
-        "confidence": 70,
-        "evidence": "00:02 关键帧",
-        "pending": false
-      },
       "cameraMove": {
         "value": "固定机位",
-        "confidence": 90,
-        "evidence": "",
-        "pending": false
-      },
-      "subjectMove": {
-        "value": "粒子上浮",
-        "confidence": 92,
-        "evidence": "",
-        "pending": false
-      },
-      "color": {
-        "value": "暗调 + 暖橙点",
-        "confidence": 88,
-        "evidence": "色彩直方图",
-        "pending": false
-      },
-      "lighting": {
-        "value": "点光源",
-        "confidence": 75,
-        "evidence": "",
+        "source": "model",
         "pending": false
       },
       "rhythm": {
         "value": "舒缓",
-        "confidence": 85,
-        "evidence": "",
+        "source": "measured",
+        "pending": false
+      },
+      "lighting": {
+        "value": "点光源",
+        "source": "model",
+        "pending": false
+      },
+      "composition": {
+        "value": "散点构图",
+        "source": "model",
         "pending": false
       },
       "transition": {
         "value": "硬切入（段落首镜）",
-        "confidence": 75,
-        "evidence": "",
+        "source": "measured",
         "pending": false
       },
-      "narrative": {
-        "value": "氛围营造",
-        "confidence": 80,
-        "evidence": "",
+      "reusable": {
+        "value": "可借鉴结构，不建议照搬画面",
+        "source": "model",
         "pending": false
       }
     }
@@ -770,65 +579,35 @@ export const REFERENCE_SEGMENTS: ReferenceSegment[] = [
       "延续"
     ],
     "analysis": {
-      "shotType": {
-        "value": "AI 生成",
-        "confidence": 95,
-        "evidence": "生成记录",
-        "pending": false
-      },
-      "scale": {
-        "value": "不适用（氛围空镜）",
-        "confidence": 86,
-        "evidence": "",
-        "pending": false
-      },
-      "composition": {
-        "value": "散点构图",
-        "confidence": 68,
-        "evidence": "",
-        "pending": false
-      },
       "cameraMove": {
         "value": "固定机位",
-        "confidence": 88,
-        "evidence": "",
+        "source": "model",
         "pending": false
       },
-      "subjectMove": {
-        "value": "粒子上浮",
-        "confidence": 90,
-        "evidence": "",
-        "pending": false
-      },
-      "color": {
-        "value": "暗调 + 暖橙点",
-        "confidence": 85,
-        "evidence": "",
+      "rhythm": {
+        "value": "舒缓",
+        "source": "measured",
         "pending": false
       },
       "lighting": {
         "value": "待分析",
-        "confidence": null,
-        "evidence": "",
-        "pending": true
+        "source": "model",
+        "pending": false
       },
-      "rhythm": {
-        "value": "舒缓",
-        "confidence": 85,
-        "evidence": "",
+      "composition": {
+        "value": "散点构图",
+        "source": "model",
         "pending": false
       },
       "transition": {
         "value": "延续（无剪辑点）",
-        "confidence": 90,
-        "evidence": "",
+        "source": "measured",
         "pending": false
       },
-      "narrative": {
-        "value": "待分析",
-        "confidence": null,
-        "evidence": "",
-        "pending": true
+      "reusable": {
+        "value": "可借鉴结构，不建议照搬画面",
+        "source": "model",
+        "pending": false
       }
     }
   },
@@ -849,64 +628,34 @@ export const REFERENCE_SEGMENTS: ReferenceSegment[] = [
       "史诗"
     ],
     "analysis": {
-      "shotType": {
-        "value": "AI 生成",
-        "confidence": 95,
-        "evidence": "生成记录",
-        "pending": false
-      },
-      "scale": {
-        "value": "大远景",
-        "confidence": 90,
-        "evidence": "00:02 关键帧",
-        "pending": false
-      },
-      "composition": {
-        "value": "三分法",
-        "confidence": 85,
-        "evidence": "00:02 关键帧",
-        "pending": false
-      },
       "cameraMove": {
         "value": "缓慢推镜",
-        "confidence": 78,
-        "evidence": "",
-        "pending": false
-      },
-      "subjectMove": {
-        "value": "无主体",
-        "confidence": 88,
-        "evidence": "",
-        "pending": false
-      },
-      "color": {
-        "value": "青橙对比",
-        "confidence": 92,
-        "evidence": "色彩直方图",
-        "pending": false
-      },
-      "lighting": {
-        "value": "黄昏侧光",
-        "confidence": 80,
-        "evidence": "",
+        "source": "model",
         "pending": false
       },
       "rhythm": {
         "value": "舒缓",
-        "confidence": 88,
-        "evidence": "",
+        "source": "measured",
+        "pending": false
+      },
+      "lighting": {
+        "value": "黄昏侧光",
+        "source": "model",
+        "pending": false
+      },
+      "composition": {
+        "value": "三分法",
+        "source": "model",
         "pending": false
       },
       "transition": {
         "value": "硬切入（段落首镜）",
-        "confidence": 75,
-        "evidence": "",
+        "source": "measured",
         "pending": false
       },
-      "narrative": {
-        "value": "史诗建立",
-        "confidence": 70,
-        "evidence": "",
+      "reusable": {
+        "value": "可借鉴结构，不建议照搬画面",
+        "source": "model",
         "pending": false
       }
     }
@@ -927,65 +676,35 @@ export const REFERENCE_SEGMENTS: ReferenceSegment[] = [
       "延续"
     ],
     "analysis": {
-      "shotType": {
-        "value": "AI 生成",
-        "confidence": 95,
-        "evidence": "生成记录",
-        "pending": false
-      },
-      "scale": {
-        "value": "大远景",
-        "confidence": 90,
-        "evidence": "",
-        "pending": false
-      },
-      "composition": {
-        "value": "三分法",
-        "confidence": 82,
-        "evidence": "",
-        "pending": false
-      },
       "cameraMove": {
         "value": "缓慢推镜",
-        "confidence": 78,
-        "evidence": "",
+        "source": "model",
         "pending": false
       },
-      "subjectMove": {
-        "value": "无主体",
-        "confidence": 88,
-        "evidence": "",
-        "pending": false
-      },
-      "color": {
-        "value": "青橙对比",
-        "confidence": 90,
-        "evidence": "",
+      "rhythm": {
+        "value": "舒缓",
+        "source": "measured",
         "pending": false
       },
       "lighting": {
         "value": "待分析",
-        "confidence": null,
-        "evidence": "",
-        "pending": true
+        "source": "model",
+        "pending": false
       },
-      "rhythm": {
-        "value": "舒缓",
-        "confidence": 88,
-        "evidence": "",
+      "composition": {
+        "value": "三分法",
+        "source": "model",
         "pending": false
       },
       "transition": {
         "value": "延续（无剪辑点）",
-        "confidence": 90,
-        "evidence": "",
+        "source": "measured",
         "pending": false
       },
-      "narrative": {
-        "value": "待分析",
-        "confidence": null,
-        "evidence": "",
-        "pending": true
+      "reusable": {
+        "value": "可借鉴结构，不建议照搬画面",
+        "source": "model",
+        "pending": false
       }
     }
   },
@@ -1005,64 +724,34 @@ export const REFERENCE_SEGMENTS: ReferenceSegment[] = [
       "节奏"
     ],
     "analysis": {
-      "shotType": {
-        "value": "AI 生成",
-        "confidence": 95,
-        "evidence": "生成记录",
-        "pending": false
-      },
-      "scale": {
-        "value": "不适用（平面动画）",
-        "confidence": 90,
-        "evidence": "",
-        "pending": false
-      },
-      "composition": {
-        "value": "居中排印",
-        "confidence": 80,
-        "evidence": "00:02 关键帧",
-        "pending": false
-      },
       "cameraMove": {
         "value": "固定机位",
-        "confidence": 95,
-        "evidence": "",
-        "pending": false
-      },
-      "subjectMove": {
-        "value": "缩放位移",
-        "confidence": 90,
-        "evidence": "",
-        "pending": false
-      },
-      "color": {
-        "value": "高对比黑白",
-        "confidence": 85,
-        "evidence": "色彩直方图",
-        "pending": false
-      },
-      "lighting": {
-        "value": "不适用",
-        "confidence": 90,
-        "evidence": "",
+        "source": "model",
         "pending": false
       },
       "rhythm": {
         "value": "紧凑",
-        "confidence": 85,
-        "evidence": "",
+        "source": "measured",
+        "pending": false
+      },
+      "lighting": {
+        "value": "不适用",
+        "source": "model",
+        "pending": false
+      },
+      "composition": {
+        "value": "居中排印",
+        "source": "model",
         "pending": false
       },
       "transition": {
         "value": "硬切入（段落首镜）",
-        "confidence": 75,
-        "evidence": "",
+        "source": "measured",
         "pending": false
       },
-      "narrative": {
-        "value": "信息强调",
-        "confidence": 75,
-        "evidence": "",
+      "reusable": {
+        "value": "可借鉴结构，不建议照搬画面",
+        "source": "model",
         "pending": false
       }
     }
@@ -1082,64 +771,34 @@ export const REFERENCE_SEGMENTS: ReferenceSegment[] = [
       "延续"
     ],
     "analysis": {
-      "shotType": {
-        "value": "AI 生成",
-        "confidence": 95,
-        "evidence": "生成记录",
-        "pending": false
-      },
-      "scale": {
-        "value": "不适用（平面动画）",
-        "confidence": 90,
-        "evidence": "",
-        "pending": false
-      },
-      "composition": {
-        "value": "居中排印",
-        "confidence": 78,
-        "evidence": "",
-        "pending": false
-      },
       "cameraMove": {
         "value": "固定机位",
-        "confidence": 95,
-        "evidence": "",
-        "pending": false
-      },
-      "subjectMove": {
-        "value": "缩放位移",
-        "confidence": 88,
-        "evidence": "",
-        "pending": false
-      },
-      "color": {
-        "value": "高对比黑白",
-        "confidence": 85,
-        "evidence": "",
-        "pending": false
-      },
-      "lighting": {
-        "value": "不适用",
-        "confidence": 90,
-        "evidence": "",
+        "source": "model",
         "pending": false
       },
       "rhythm": {
         "value": "紧凑",
-        "confidence": 85,
-        "evidence": "",
+        "source": "measured",
+        "pending": false
+      },
+      "lighting": {
+        "value": "不适用",
+        "source": "model",
+        "pending": false
+      },
+      "composition": {
+        "value": "居中排印",
+        "source": "model",
         "pending": false
       },
       "transition": {
         "value": "延续（无剪辑点）",
-        "confidence": 90,
-        "evidence": "",
+        "source": "measured",
         "pending": false
       },
-      "narrative": {
-        "value": "信息强调",
-        "confidence": 72,
-        "evidence": "",
+      "reusable": {
+        "value": "可借鉴结构，不建议照搬画面",
+        "source": "model",
         "pending": false
       }
     }
@@ -1160,64 +819,34 @@ export const REFERENCE_SEGMENTS: ReferenceSegment[] = [
       "极简"
     ],
     "analysis": {
-      "shotType": {
-        "value": "AI 生成",
-        "confidence": 95,
-        "evidence": "生成记录",
-        "pending": false
-      },
-      "scale": {
-        "value": "不适用（平面）",
-        "confidence": 95,
-        "evidence": "",
-        "pending": false
-      },
-      "composition": {
-        "value": "居中排印",
-        "confidence": 90,
-        "evidence": "00:01 关键帧",
-        "pending": false
-      },
       "cameraMove": {
         "value": "固定机位",
-        "confidence": 95,
-        "evidence": "",
-        "pending": false
-      },
-      "subjectMove": {
-        "value": "光扫",
-        "confidence": 90,
-        "evidence": "",
-        "pending": false
-      },
-      "color": {
-        "value": "黑白",
-        "confidence": 95,
-        "evidence": "",
-        "pending": false
-      },
-      "lighting": {
-        "value": "不适用",
-        "confidence": 90,
-        "evidence": "",
+        "source": "model",
         "pending": false
       },
       "rhythm": {
         "value": "舒缓",
-        "confidence": 85,
-        "evidence": "",
+        "source": "measured",
+        "pending": false
+      },
+      "lighting": {
+        "value": "不适用",
+        "source": "model",
+        "pending": false
+      },
+      "composition": {
+        "value": "居中排印",
+        "source": "model",
         "pending": false
       },
       "transition": {
         "value": "渐显 + 光扫",
-        "confidence": 90,
-        "evidence": "",
+        "source": "measured",
         "pending": false
       },
-      "narrative": {
-        "value": "片头 / 章节",
-        "confidence": 85,
-        "evidence": "",
+      "reusable": {
+        "value": "可借鉴结构，不建议照搬画面",
+        "source": "model",
         "pending": false
       }
     }
@@ -1240,64 +869,34 @@ export const REFERENCE_SEGMENTS: ReferenceSegment[] = [
       "都市"
     ],
     "analysis": {
-      "shotType": {
-        "value": "AI 生成",
-        "confidence": 95,
-        "evidence": "生成记录",
-        "pending": false
-      },
-      "scale": {
-        "value": "全景",
-        "confidence": 85,
-        "evidence": "00:02 关键帧",
-        "pending": false
-      },
-      "composition": {
-        "value": "引导线 · 街道纵深",
-        "confidence": 82,
-        "evidence": "00:02 关键帧",
-        "pending": false
-      },
       "cameraMove": {
         "value": "缓慢推镜",
-        "confidence": 85,
-        "evidence": "",
-        "pending": false
-      },
-      "subjectMove": {
-        "value": "车流缓慢",
-        "confidence": 75,
-        "evidence": "",
-        "pending": false
-      },
-      "color": {
-        "value": "青品霓虹",
-        "confidence": 88,
-        "evidence": "色彩直方图",
-        "pending": false
-      },
-      "lighting": {
-        "value": "霓虹实用光 + 雨反射",
-        "confidence": 85,
-        "evidence": "",
+        "source": "model",
         "pending": false
       },
       "rhythm": {
         "value": "舒缓",
-        "confidence": 85,
-        "evidence": "",
+        "source": "measured",
+        "pending": false
+      },
+      "lighting": {
+        "value": "霓虹实用光 + 雨反射",
+        "source": "model",
+        "pending": false
+      },
+      "composition": {
+        "value": "引导线 · 街道纵深",
+        "source": "model",
         "pending": false
       },
       "transition": {
         "value": "硬切入（段落首镜）",
-        "confidence": 75,
-        "evidence": "",
+        "source": "measured",
         "pending": false
       },
-      "narrative": {
-        "value": "都市忧郁建立",
-        "confidence": 70,
-        "evidence": "",
+      "reusable": {
+        "value": "可借鉴结构，不建议照搬画面",
+        "source": "model",
         "pending": false
       }
     }
@@ -1319,65 +918,35 @@ export const REFERENCE_SEGMENTS: ReferenceSegment[] = [
       "延续"
     ],
     "analysis": {
-      "shotType": {
-        "value": "AI 生成",
-        "confidence": 95,
-        "evidence": "生成记录",
-        "pending": false
-      },
-      "scale": {
-        "value": "全景转中景",
-        "confidence": 78,
-        "evidence": "",
-        "pending": false
-      },
-      "composition": {
-        "value": "待分析",
-        "confidence": null,
-        "evidence": "",
-        "pending": true
-      },
       "cameraMove": {
         "value": "缓慢推镜",
-        "confidence": 85,
-        "evidence": "",
-        "pending": false
-      },
-      "subjectMove": {
-        "value": "车流缓慢",
-        "confidence": 72,
-        "evidence": "",
-        "pending": false
-      },
-      "color": {
-        "value": "青品霓虹",
-        "confidence": 86,
-        "evidence": "",
-        "pending": false
-      },
-      "lighting": {
-        "value": "霓虹实用光",
-        "confidence": 80,
-        "evidence": "",
+        "source": "model",
         "pending": false
       },
       "rhythm": {
         "value": "舒缓",
-        "confidence": 85,
-        "evidence": "",
+        "source": "measured",
+        "pending": false
+      },
+      "lighting": {
+        "value": "霓虹实用光",
+        "source": "model",
+        "pending": false
+      },
+      "composition": {
+        "value": "待分析",
+        "source": "model",
         "pending": false
       },
       "transition": {
         "value": "延续（无剪辑点）",
-        "confidence": 90,
-        "evidence": "",
+        "source": "measured",
         "pending": false
       },
-      "narrative": {
-        "value": "待分析",
-        "confidence": null,
-        "evidence": "",
-        "pending": true
+      "reusable": {
+        "value": "可借鉴结构，不建议照搬画面",
+        "source": "model",
+        "pending": false
       }
     }
   },
@@ -1398,64 +967,34 @@ export const REFERENCE_SEGMENTS: ReferenceSegment[] = [
       "室内"
     ],
     "analysis": {
-      "shotType": {
-        "value": "AI 生成",
-        "confidence": 95,
-        "evidence": "生成记录",
-        "pending": false
-      },
-      "scale": {
-        "value": "中景",
-        "confidence": 88,
-        "evidence": "00:02 关键帧",
-        "pending": false
-      },
-      "composition": {
-        "value": "双人对称",
-        "confidence": 80,
-        "evidence": "00:02 关键帧",
-        "pending": false
-      },
       "cameraMove": {
         "value": "固定机位",
-        "confidence": 90,
-        "evidence": "",
-        "pending": false
-      },
-      "subjectMove": {
-        "value": "微表情 / 手势",
-        "confidence": 70,
-        "evidence": "",
-        "pending": false
-      },
-      "color": {
-        "value": "暖调",
-        "confidence": 88,
-        "evidence": "色彩直方图",
-        "pending": false
-      },
-      "lighting": {
-        "value": "实用光源 · 暖",
-        "confidence": 85,
-        "evidence": "",
+        "source": "model",
         "pending": false
       },
       "rhythm": {
         "value": "舒缓",
-        "confidence": 85,
-        "evidence": "",
+        "source": "measured",
+        "pending": false
+      },
+      "lighting": {
+        "value": "实用光源 · 暖",
+        "source": "model",
+        "pending": false
+      },
+      "composition": {
+        "value": "双人对称",
+        "source": "model",
         "pending": false
       },
       "transition": {
         "value": "硬切入（段落首镜）",
-        "confidence": 75,
-        "evidence": "",
+        "source": "measured",
         "pending": false
       },
-      "narrative": {
-        "value": "关系建立",
-        "confidence": 75,
-        "evidence": "",
+      "reusable": {
+        "value": "可借鉴结构，不建议照搬画面",
+        "source": "model",
         "pending": false
       }
     }
@@ -1476,64 +1015,34 @@ export const REFERENCE_SEGMENTS: ReferenceSegment[] = [
       "延续"
     ],
     "analysis": {
-      "shotType": {
-        "value": "AI 生成",
-        "confidence": 95,
-        "evidence": "生成记录",
-        "pending": false
-      },
-      "scale": {
-        "value": "中景",
-        "confidence": 86,
-        "evidence": "",
-        "pending": false
-      },
-      "composition": {
-        "value": "双人对称",
-        "confidence": 78,
-        "evidence": "",
-        "pending": false
-      },
       "cameraMove": {
         "value": "固定机位",
-        "confidence": 90,
-        "evidence": "",
-        "pending": false
-      },
-      "subjectMove": {
-        "value": "微表情 / 手势",
-        "confidence": 68,
-        "evidence": "",
-        "pending": false
-      },
-      "color": {
-        "value": "暖调",
-        "confidence": 86,
-        "evidence": "",
-        "pending": false
-      },
-      "lighting": {
-        "value": "实用光源 · 暖",
-        "confidence": 83,
-        "evidence": "",
+        "source": "model",
         "pending": false
       },
       "rhythm": {
         "value": "舒缓",
-        "confidence": 85,
-        "evidence": "",
+        "source": "measured",
+        "pending": false
+      },
+      "lighting": {
+        "value": "实用光源 · 暖",
+        "source": "model",
+        "pending": false
+      },
+      "composition": {
+        "value": "双人对称",
+        "source": "model",
         "pending": false
       },
       "transition": {
         "value": "延续（无剪辑点）",
-        "confidence": 90,
-        "evidence": "",
+        "source": "measured",
         "pending": false
       },
-      "narrative": {
-        "value": "关系推进",
-        "confidence": 70,
-        "evidence": "",
+      "reusable": {
+        "value": "可借鉴结构，不建议照搬画面",
+        "source": "model",
         "pending": false
       }
     }
@@ -1555,64 +1064,34 @@ export const REFERENCE_SEGMENTS: ReferenceSegment[] = [
       "影棚"
     ],
     "analysis": {
-      "shotType": {
-        "value": "AI 生成",
-        "confidence": 95,
-        "evidence": "生成记录",
-        "pending": false
-      },
-      "scale": {
-        "value": "特写",
-        "confidence": 92,
-        "evidence": "00:02 关键帧",
-        "pending": false
-      },
-      "composition": {
-        "value": "中心构图",
-        "confidence": 88,
-        "evidence": "00:02 关键帧",
-        "pending": false
-      },
       "cameraMove": {
         "value": "固定机位 · 主体旋转",
-        "confidence": 90,
-        "evidence": "",
-        "pending": false
-      },
-      "subjectMove": {
-        "value": "匀速旋转",
-        "confidence": 90,
-        "evidence": "",
-        "pending": false
-      },
-      "color": {
-        "value": "暗调金棕",
-        "confidence": 85,
-        "evidence": "色彩直方图",
-        "pending": false
-      },
-      "lighting": {
-        "value": "轮廓光",
-        "confidence": 88,
-        "evidence": "",
+        "source": "model",
         "pending": false
       },
       "rhythm": {
         "value": "中速",
-        "confidence": 80,
-        "evidence": "",
+        "source": "measured",
+        "pending": false
+      },
+      "lighting": {
+        "value": "轮廓光",
+        "source": "model",
+        "pending": false
+      },
+      "composition": {
+        "value": "中心构图",
+        "source": "model",
         "pending": false
       },
       "transition": {
         "value": "硬切入（段落首镜）",
-        "confidence": 75,
-        "evidence": "",
+        "source": "measured",
         "pending": false
       },
-      "narrative": {
-        "value": "产品展示",
-        "confidence": 90,
-        "evidence": "",
+      "reusable": {
+        "value": "可借鉴结构，不建议照搬画面",
+        "source": "model",
         "pending": false
       }
     }
@@ -1633,65 +1112,35 @@ export const REFERENCE_SEGMENTS: ReferenceSegment[] = [
       "细节"
     ],
     "analysis": {
-      "shotType": {
-        "value": "AI 生成",
-        "confidence": 95,
-        "evidence": "生成记录",
-        "pending": false
-      },
-      "scale": {
-        "value": "大特写",
-        "confidence": 85,
-        "evidence": "",
-        "pending": false
-      },
-      "composition": {
-        "value": "中心构图",
-        "confidence": 85,
-        "evidence": "",
-        "pending": false
-      },
       "cameraMove": {
         "value": "固定机位 · 主体旋转",
-        "confidence": 88,
-        "evidence": "",
+        "source": "model",
         "pending": false
       },
-      "subjectMove": {
-        "value": "匀速旋转",
-        "confidence": 88,
-        "evidence": "",
-        "pending": false
-      },
-      "color": {
-        "value": "暗调金棕",
-        "confidence": 83,
-        "evidence": "",
+      "rhythm": {
+        "value": "中速",
+        "source": "measured",
         "pending": false
       },
       "lighting": {
         "value": "待分析",
-        "confidence": null,
-        "evidence": "",
-        "pending": true
+        "source": "model",
+        "pending": false
       },
-      "rhythm": {
-        "value": "中速",
-        "confidence": 80,
-        "evidence": "",
+      "composition": {
+        "value": "中心构图",
+        "source": "model",
         "pending": false
       },
       "transition": {
         "value": "跳切（景别变化）",
-        "confidence": 82,
-        "evidence": "",
+        "source": "measured",
         "pending": false
       },
-      "narrative": {
-        "value": "待分析",
-        "confidence": null,
-        "evidence": "",
-        "pending": true
+      "reusable": {
+        "value": "可借鉴结构，不建议照搬画面",
+        "source": "model",
+        "pending": false
       }
     }
   },
@@ -1712,64 +1161,34 @@ export const REFERENCE_SEGMENTS: ReferenceSegment[] = [
       "自然"
     ],
     "analysis": {
-      "shotType": {
-        "value": "AI 生成",
-        "confidence": 95,
-        "evidence": "生成记录",
-        "pending": false
-      },
-      "scale": {
-        "value": "大远景",
-        "confidence": 92,
-        "evidence": "00:02 关键帧",
-        "pending": false
-      },
-      "composition": {
-        "value": "纹理构图",
-        "confidence": 75,
-        "evidence": "00:02 关键帧",
-        "pending": false
-      },
       "cameraMove": {
         "value": "航拍悬停",
-        "confidence": 85,
-        "evidence": "",
-        "pending": false
-      },
-      "subjectMove": {
-        "value": "海浪涌动",
-        "confidence": 88,
-        "evidence": "",
-        "pending": false
-      },
-      "color": {
-        "value": "青绿 + 白",
-        "confidence": 90,
-        "evidence": "色彩直方图",
-        "pending": false
-      },
-      "lighting": {
-        "value": "阴天柔光",
-        "confidence": 80,
-        "evidence": "",
+        "source": "model",
         "pending": false
       },
       "rhythm": {
         "value": "舒缓",
-        "confidence": 90,
-        "evidence": "",
+        "source": "measured",
+        "pending": false
+      },
+      "lighting": {
+        "value": "阴天柔光",
+        "source": "model",
+        "pending": false
+      },
+      "composition": {
+        "value": "纹理构图",
+        "source": "model",
         "pending": false
       },
       "transition": {
         "value": "硬切入（段落首镜）",
-        "confidence": 75,
-        "evidence": "",
+        "source": "measured",
         "pending": false
       },
-      "narrative": {
-        "value": "冥想 / 转场呼吸",
-        "confidence": 70,
-        "evidence": "",
+      "reusable": {
+        "value": "可借鉴结构，不建议照搬画面",
+        "source": "model",
         "pending": false
       }
     }
@@ -1789,65 +1208,35 @@ export const REFERENCE_SEGMENTS: ReferenceSegment[] = [
       "待分析"
     ],
     "analysis": {
-      "shotType": {
-        "value": "待分析",
-        "confidence": null,
-        "evidence": "",
-        "pending": true
-      },
-      "scale": {
-        "value": "待分析",
-        "confidence": null,
-        "evidence": "",
-        "pending": true
-      },
-      "composition": {
-        "value": "待分析",
-        "confidence": null,
-        "evidence": "",
-        "pending": true
-      },
       "cameraMove": {
         "value": "待分析",
-        "confidence": null,
-        "evidence": "",
-        "pending": true
-      },
-      "subjectMove": {
-        "value": "待分析",
-        "confidence": null,
-        "evidence": "",
-        "pending": true
-      },
-      "color": {
-        "value": "待分析",
-        "confidence": null,
-        "evidence": "",
-        "pending": true
-      },
-      "lighting": {
-        "value": "待分析",
-        "confidence": null,
-        "evidence": "",
-        "pending": true
+        "source": "model",
+        "pending": false
       },
       "rhythm": {
         "value": "待分析",
-        "confidence": null,
-        "evidence": "",
-        "pending": true
+        "source": "measured",
+        "pending": false
+      },
+      "lighting": {
+        "value": "待分析",
+        "source": "model",
+        "pending": false
+      },
+      "composition": {
+        "value": "待分析",
+        "source": "model",
+        "pending": false
       },
       "transition": {
         "value": "待分析",
-        "confidence": null,
-        "evidence": "",
-        "pending": true
+        "source": "measured",
+        "pending": false
       },
-      "narrative": {
-        "value": "待分析",
-        "confidence": null,
-        "evidence": "",
-        "pending": true
+      "reusable": {
+        "value": "可借鉴结构，不建议照搬画面",
+        "source": "model",
+        "pending": false
       }
     }
   }
@@ -1907,16 +1296,17 @@ export const REFERENCE_COLLECTIONS: ReferenceCollection[] = [
   }
 ]
 
-export const ANALYSIS_FIELDS: Array<{ key: AnalysisKey; label: string; group: '画面' | '时间' }> = [
-  { key: 'scale', label: '景别', group: '画面' },
-  { key: 'composition', label: '构图', group: '画面' },
-  { key: 'cameraMove', label: '运镜', group: '画面' },
-  { key: 'subjectMove', label: '主体运动', group: '画面' },
-  { key: 'color', label: '色彩', group: '画面' },
-  { key: 'lighting', label: '光照', group: '画面' },
-  { key: 'rhythm', label: '节奏', group: '时间' },
-  { key: 'transition', label: '转场', group: '时间' },
-  { key: 'narrative', label: '叙事功能', group: '时间' },
+/**
+ * 参考片段的六项可借鉴点。
+ * 前五项是「怎么做出来的」（创作时照着模仿），最后一项是「能不能用」的结论。
+ * 分组只留两组：画面 / 时间后面再加「结论」由界面单独处理。
+ */
+export const ANALYSIS_FIELDS: Array<{ key: AnalysisKey; label: string; hint: string; group: '画面' | '时间' }> = [
+  { key: 'cameraMove',   label: '运镜', hint: '镜头怎么动',   group: '画面' },
+  { key: 'composition',  label: '构图', hint: '主体怎么放',   group: '画面' },
+  { key: 'lighting',     label: '光线', hint: '光从哪来',     group: '画面' },
+  { key: 'rhythm',       label: '节奏', hint: '快慢与停顿',   group: '时间' },
+  { key: 'transition',   label: '转场', hint: '镜头怎么接',   group: '时间' },
 ]
 
 export const STATUS_META: Record<ReferenceStatus, { label: string; short: string }> = {

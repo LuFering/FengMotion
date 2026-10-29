@@ -87,6 +87,23 @@ export function hasOwnPicture(projectId: string): boolean {
   )
 }
 
+/**
+ * 监看区缩略入口里能放什么：**只放参考，不放素材**。
+ *
+ * 监看区是「一块大画面 + 一行缩略入口」：大画面是这次制作做出来的东西
+ * （stageVisual.ts），缩略入口是可以拿来对照的参考（带「参考图」标签）。
+ * 素材（成片 / 片段 / 抽帧）归「资料」页，那里按格式成摞展示 ——
+ * 塞进监看区只会变成一排没有意义的文件块，还会把占位成片的片段混进画面区。
+ */
+export function monitorReferences(projectId: string): MaterialFile[] {
+  return BUILTIN_ASSETS
+    .filter((a) => a.refs.some((r) => r.kind === 'project' && r.id === projectId) && a.tags.includes(REFERENCE_TAG))
+    .map((a) => ({
+      id: a.id, name: a.name, media: a.mediaType, meta: metaOf(a),
+      thumb: a.thumbnailPath, adopted: false,
+    }))
+}
+
 export function materialShelves(projectId: string, adoptedIds: string[]): MaterialShelf[] {
   const mine = BUILTIN_ASSETS.filter((a) => a.refs.some((r) => r.kind === 'project' && r.id === projectId))
   if (mine.length === 0) return []

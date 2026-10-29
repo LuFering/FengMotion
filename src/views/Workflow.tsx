@@ -10,20 +10,16 @@ import { useEffect, useMemo, useState } from 'react'
 import {
   ArrowLeft,
   ArrowRight,
-  Clock3,
   Copy,
-  Flag,
-  History,
-  Layers,
   Plus,
   Trash2,
-  Workflow as WorkflowIcon,
 } from 'lucide-react'
 import { SearchField } from '@/components/SearchField'
-import { WF_PRESETS, type WfPath } from '../data/workflowTemplates'
-import { workflowService, gateSummaryOf, type WorkflowDef, type WorkflowRun } from '../services/workflowService'
+import { WF_PRESETS, defForNode, type WfPath } from '../data/workflowTemplates'
+import { workflowService, type WorkflowDef, type WorkflowRun } from '../services/workflowService'
 import { WorkflowEditor } from './WorkflowEditor'
 import '../styles/workflow.css'
+import '../styles/workflow-editor.css'
 
 type Page = { kind: 'home' } | { kind: 'create' } | { kind: 'editor'; id: string }
 
@@ -42,21 +38,6 @@ function fmtTime(iso: string): string {
   const mm = String(d.getMinutes()).padStart(2, '0')
   if (d.toDateString() === now.toDateString()) return `今天 ${hh}:${mm}`
   return `${d.getMonth() + 1}月${d.getDate()}日 ${hh}:${mm}`
-}
-
-const RUN_STATUS_LABEL: Record<WorkflowRun['status'], string> = {
-  queued: '排队中',
-  running: '进行中',
-  building: '处理中',
-  completed: '已完成',
-  failed: '失败',
-  cancelled: '已取消',
-}
-
-const GATE_DECISION_SHORT: Record<string, string> = {
-  confirmed: '已确认',
-  pending: '待确认',
-  'not-started': '未开始',
 }
 
 export function Workflow() {
@@ -123,185 +104,46 @@ function WorkflowHome(props: {
   onCreate: () => void
   onChanged: () => void
 }) {
-  const { workflows, runs } = props
   const [query, setQuery] = useState('')
-  const filtered = workflows.filter((w) => !query || w.name.includes(query) || w.description.includes(query))
-  const latestRunOf = (id: string) => runs.find((r) => r.workflowId === id)
-
-  const quickStart = (path: WfPath) => {
-    const wf = workflowService.createFromPath(path, 'general')
-    props.onOpen(wf.id)
-  }
-
+  const [filter, setFilter] = useState<'all' | 'used' | 'community'>('all')
+  const q = query.trim().toLocaleLowerCase()
+  const filtered = props.workflows.filter((w) => {
+    const matches = `${w.name} ${w.description}`.toLocaleLowerCase().includes(q)
+    return matches && (filter !== 'used' || props.runs.some((r) => r.workflowId === w.id))
+  })
   return (
-    <section className="wfh" aria-label="工作流首页">
-      <div className="wfh-cmd">
-        <h1 className="wfh-cmd-title">工作流</h1>
-        <div className="wfh-cmd-search">
-          <SearchField value={query} onChange={setQuery} placeholder="搜索我的工作流…" ariaLabel="搜索我的工作流" />
+    <section className="wfshop" aria-label="工作流首页">
+      <header className="wfshop-header">
+        <div className="wfshop-heading-line"><h1>工作流</h1></div>
+        <div className="wfshop-header-actions">
+          <div className="wfshop-search"><SearchField value={query} onChange={setQuery} placeholder="搜索工作流" ariaLabel="搜索工作流" /></div>
+          <button type="button" className="wfshop-create" onClick={props.onCreate}><Plus size={17} /> 新建工作流</button>
         </div>
-        <button type="button" className="wfh-btn is-primary" onClick={props.onCreate}>
-          <Plus size={14} strokeWidth={2.2} /> 新建工作流
-        </button>
+      </header>
+      <div className="wfshop-intro">
+        <div className="wfshop-intro-copy"><span className="wfshop-label">CREATE YOUR WAY <span>✳</span></span><h2>让想法，<br />找到自己的路径。</h2><p>从一条适合自己的制作流程开始。查看、调整、复用，让每一次创作都有迹可循。</p><button type="button" onClick={props.onCreate}>探索创建方式 <ArrowRight size={16} /></button></div>
+        <div className="wfshop-intro-art" aria-hidden="true"><div className="wfshop-orbit orbit-one"/><div className="wfshop-orbit orbit-two"/><div className="wfshop-art-node node-one">灵感 <span>01</span></div><div className="wfshop-art-node node-two">画面 <span>02</span></div><div className="wfshop-art-node node-three">成片 <span>03</span></div><div className="wfshop-art-star">✳</div></div>
       </div>
-      <div className="wfh-meta">
-        <span><b className="num">{workflows.length}</b> 个工作流</span>
-        <span>默认路径 Prompt-first · Structured 按需</span>
-        <span className="wfh-meta-demo">演示执行器</span>
-      </div>
-
-      <div className="wfh-body">
-        <div className="wfh-main">
-          <section aria-label="创作入口">
-            <div className="wfh-paths">
-              <div className="wfh-path is-hero">
-                <span className="wfh-path-tag">默认推荐 · Prompt-first</span>
-                <b>从提示词直接开始创作</b>
-                <p>写下原始需求就能进入创作与渲染；Lookdev、Film-plan 是随手可用的工作稿，不是审批门。需要时再加入参考、能力检索和 Finishing。</p>
-                <div className="wfh-path-actions">
-                  <button type="button" className="wfh-btn is-primary" onClick={() => quickStart('prompt-first')}>
-                    从提示词开始 <ArrowRight size={13} strokeWidth={2.2} />
-                  </button>
-                  <button type="button" className="wfh-btn" onClick={props.onCreate}>选预设创建</button>
-                </div>
-              </div>
-              <div className="wfh-path">
-                <span className="wfh-path-tag is-alt"><Layers size={12} strokeWidth={2.2} /> 按需 · Structured</span>
-                <b>需要阶段与确认门时用</b>
-                <p>复杂、多人或客户项目：8 个阶段泳道管理产物版本，Gate A–D 的确认绑定具体产物版本，阻塞原因可追溯。</p>
-                <div className="wfh-path-actions">
-                  <button type="button" className="wfh-btn is-ghost" onClick={() => quickStart('structured')}>
-                    新建结构化制作 <ArrowRight size={13} strokeWidth={2.2} />
-                  </button>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <section aria-label="我的工作流">
-            <h2 className="wfh-sect">我的工作流</h2>
-            {filtered.length === 0 ? (
-              <p className="wfh-empty">{query ? '没有匹配的工作流。换个关键词试试。' : '还没有工作流。用上面的入口从提示词开始，或点右上角「新建工作流」选预设。'}</p>
-            ) : (
-              <ul className="wfh-list">
-                {filtered.map((w) => {
-                  const last = latestRunOf(w.id)
-                  const gates = w.path === 'structured' ? gateSummaryOf(w) : []
-                  const rank = (g: (typeof gates)[number]) =>
-                    g.stale ? 0 : g.decision === 'pending' ? 1 : g.blocked.length > 0 ? 2 : g.decision === 'confirmed' ? 3 : 4
-                  const primaryGate = gates.length > 0 ? [...gates].sort((a, b) => rank(a) - rank(b))[0] : null
-                  return (
-                    <li key={w.id} className="wfh-row">
-                      <button type="button" className="wfh-row-main" onClick={() => props.onOpen(w.id)}>
-                        <span className="wfh-row-info">
-                          {/* Round 3（审计 26）：工作流名已含路径（Token 科普视频 · Prompt-first），行内 chip 重复，删掉 */}
-                          <span className="wfh-row-title">
-                            {/* 去 AI 味：标题不再把路径用“·”拼在名字后面（种子名“Token 科普视频 · Prompt-first”
-                                之类），也不再把纯数字/空名字原样上屏；路径改放元信息行首 */}
-                            <b>{displayWorkflowName(w.name)}</b>
-                          </span>
-                          <span className="wfh-row-meta">
-                            {w.path === 'structured' ? 'Structured' : 'Prompt-first'} · {w.nodes.filter((n) => n.type !== 'lane').length} 个节点 · {fmtTime(w.updatedAt)}
-                            {last ? ` · 最近${w.path === 'structured' ? '评估' : '运行'}：${last.artifacts[0]?.summary ?? RUN_STATUS_LABEL[last.status]}` : ' · 未运行'}
-                          </span>
-                        </span>
-                        {primaryGate && (
-                          <span className="wfh-row-gate">
-                            <span className="wfh-gate-chip" data-d={primaryGate.stale ? 'stale' : primaryGate.decision}>
-                              <Flag size={11} strokeWidth={2.2} />
-                              {primaryGate.label.replace(' · ', ' ')} {primaryGate.stale ? '已确认·已失效' : GATE_DECISION_SHORT[primaryGate.decision]}
-                              {primaryGate.blocked.length > 0 ? ` · 阻塞 ${primaryGate.blocked.length}` : ''}
-                            </span>
-                            {gates.length > 1 && <span className="wfh-gate-more">另有 {gates.length - 1} 个门</span>}
-                          </span>
-                        )}
-                      </button>
-                      <span className="wfh-row-actions">
-                        <button
-                          type="button"
-                          className="wfh-iconbtn"
-                          aria-label={`复制 ${displayWorkflowName(w.name)}`}
-                          title="复制"
-                          onClick={() => { workflowService.duplicateWorkflow(w.id); props.onChanged() }}
-                        >
-                          <Copy size={14} strokeWidth={2} />
-                        </button>
-                        <button
-                          type="button"
-                          className="wfh-iconbtn"
-                          aria-label={`删除 ${displayWorkflowName(w.name)}`}
-                          title="删除"
-                          onClick={() => { workflowService.deleteWorkflow(w.id); props.onChanged() }}
-                        >
-                          <Trash2 size={14} strokeWidth={2} />
-                        </button>
-                      </span>
-                    </li>
-                  )
-                })}
-              </ul>
-            )}
-          </section>
-        </div>
-
-        <div className="wfh-side">
-          <section aria-label="最近运行">
-            <h2 className="wfh-sect"><History size={13} strokeWidth={2.2} /> 最近运行 / 评估</h2>
-            {runs.length === 0 ? (
-              <p className="wfh-empty">
-                尚无运行记录。在编辑器里运行或评估一次，记录会出现在这里。
-                {/* Round 3（审计 28）：空态给下一步动作——有示例工作流则打开它，否则从提示词新建 */}
-                <button
-                  type="button"
-                  className="wfh-textbtn"
-                  onClick={() => {
-                    const seed = workflows.find((w) => w.id === 'wf-token-pf')
-                    if (seed) props.onOpen(seed.id)
-                    else quickStart('prompt-first')
-                  }}
-                >
-                  打开示例工作流 →
-                </button>
-              </p>
-            ) : (
-              <ul className="wfh-runs">
-                {runs.slice(0, 5).map((r) => {
-                  const owner = workflows.find((w) => w.id === r.workflowId)
-                  return (
-                    <li key={r.id}>
-                      <button type="button" className="wfh-run" onClick={() => props.onOpen(r.workflowId)}>
-                        <span className="wfh-run-top">
-                          <b>{r.workflowName}</b>
-                          <span className="wfh-run-status" data-s={r.status}>{RUN_STATUS_LABEL[r.status]}</span>
-                        </span>
-                        <span className="wfh-run-sub">
-                          <Clock3 size={11} strokeWidth={2} /> {fmtTime(r.startedAt)}
-                          {owner ? ` · ${owner.path === 'structured' ? 'Structured' : 'Prompt-first'}` : ''}
-                          {` · ${r.artifacts.length} 项产物 · 演示`}
-                        </span>
-                      </button>
-                    </li>
-                  )
-                })}
-              </ul>
-            )}
-          </section>
-          <section aria-label="说明">
-            <h2 className="wfh-sect"><WorkflowIcon size={13} strokeWidth={2.2} /> 路径说明</h2>
-            <dl className="wfh-pathnote">
-              <div>
-                <dt>Prompt-first</dt>
-                <dd>直接创作、渲染、看片、修改；工作稿不是审批门。</dd>
-              </div>
-              <div>
-                <dt>Structured</dt>
-                <dd>阶段产物 + 范围确认；确认绑产物版本，推荐不等于确认。</dd>
-              </div>
-            </dl>
-            <p className="wfh-pathnote-foot">演示运行只产出工作稿、引用与请求记录快照，不生成视频。</p>
-          </section>
+      <div className="wfshop-toolbar">
+        <div className="wfshop-tabs" aria-label="工作流分类">
+          <button type="button" className={filter === 'all' ? 'active' : ''} onClick={() => setFilter('all')}>我的工作流<span>{props.workflows.length}</span></button>
+          <button type="button" className={filter === 'used' ? 'active' : ''} onClick={() => setFilter('used')}>最近使用</button>
+          <button type="button" className={filter === 'community' ? 'active' : ''} onClick={() => setFilter('community')}>社区 <small>即将开放</small></button>
         </div>
       </div>
+      {filter === 'community' ? <div className="wfshop-empty"><span>✳</span><h3>好灵感，值得分享</h3><p>工作流社区正在筹备中，未来你可以在这里发现和获取其他创作者的工作流。</p></div> : <>
+        {filtered.length === 0 ? <div className="wfshop-empty"><span>✳</span><h3>{q ? '没有找到相关工作流' : filter === 'used' ? '还没有使用记录' : '从第一条工作流开始'}</h3><p>{q ? '试试其他关键词。' : filter === 'used' ? '运行过的工作流会出现在这里。' : '创建一条工作流，保存你的创作方法。'}</p>{!q && filter === 'all' && <button type="button" onClick={props.onCreate}>新建工作流 <ArrowRight size={14}/></button>}</div> :
+          <div className="wfshop-grid">{filtered.map((w, index) => {
+            const last = props.runs.find((r) => r.workflowId === w.id)
+            const preset = WF_PRESETS.find((p) => p.id === w.presetId)
+            const steps = w.nodes.filter((n) => n.type !== 'lane').slice(0, 3)
+            return <article className="wfshop-card" key={w.id}>
+              <button type="button" className={`wfshop-card-art art-${index % 4}`} onClick={() => props.onOpen(w.id)} aria-label={`打开 ${w.name}`}><span className="wfshop-card-number">WORKFLOW / {String(index + 1).padStart(2, '0')}</span><span className="wfshop-card-symbol">{w.path === 'structured' ? '◈' : '✳'}</span><span className="wfshop-card-flow">{steps.map((n, i) => <span key={n.id}>{i > 0 && <i>→</i>}{defForNode(n)?.label || n.type}</span>)}</span><span className="wfshop-card-open">↗</span></button>
+              <div className="wfshop-card-body"><div className="wfshop-card-tags"><span>{w.path === 'structured' ? '结构化制作' : '自由创作'}</span><span>{preset?.name || '通用'}</span></div><button type="button" className="wfshop-card-title" onClick={() => props.onOpen(w.id)}>{displayWorkflowName(w.name)}{w.name.includes(' · 副本') ? ' · 副本' : ''}</button><p>{w.description || (w.path === 'structured' ? '适合需要分阶段规划与确认的创作。' : '从你的想法出发，逐步构思、制作和修改。')}</p><div className="wfshop-card-footer"><span>{last ? `最近使用 ${fmtTime(last.startedAt)}` : `更新于 ${fmtTime(w.updatedAt)}`}</span><div><button type="button" aria-label={`复制 ${w.name}`} title="复制" onClick={() => { workflowService.duplicateWorkflow(w.id); props.onChanged() }}><Copy size={15}/></button><button type="button" aria-label={`删除 ${w.name}`} title="删除" onClick={() => { if (window.confirm(`删除“${w.name}”？`)) { workflowService.deleteWorkflow(w.id); props.onChanged() } }}><Trash2 size={15}/></button></div></div></div>
+            </article>
+          })}</div>}
+      </>}
+      <p className="wfshop-footnote">工作流运行目前为演示，生成工作稿与请求记录，尚未接入真实视频生成。</p>
     </section>
   )
 }

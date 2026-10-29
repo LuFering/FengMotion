@@ -112,33 +112,35 @@ html[data-theme=dark] body.studio-shell.studio-shell:is(.homeon, .toolson) {
   margin-top: 4px;
 }
 
-/* ── 导航选中态：品牌蓝底 ─────────────────────────────────── */
+/* ── 导航选中态 ─────────────────────────────────────────────
+   不再铺一块 #17273C 品牌蓝底（作者嫌像药丸），改为只染图标与文字；
+   竖条由 nav-tree.css 的 ::before 提供，三套主题同一套语言。 */
 body:not(.hm-nav-expanded) .nav-parent[data-active],
 .nav-leaf[aria-current="page"],
 .nav-children > a[aria-current="page"] {
-  background: #17273C;
+  background: none;
   color: var(--brand-blue);
 }
 
-/* ── 滚动条（深色主题统一处理）───────────────────────────────
-   ⚠️ 白色竖条的根因：paba 的 `:root { color-scheme: light }` ——
-      深色界面下浏览器仍按浅色画系统滚动条（镜头列表 / 时间轴那两根）。
-      这里把 color-scheme 改回 dark，再统一滚动条的画法。
-   策略：面板内的列表**不画**滚动条（paba 对自己的侧栏也是 scrollbar-width:none，
-        位置感交给「内容在边缘被截断」）；时间轴这类横向编辑控件保留
-        一根深色细条，静止时也看得见。 */
-html[data-theme=dark] * { scrollbar-width: thin; scrollbar-color: var(--line) transparent }
-
-/* 面板列表：完全不画（镜头列表 / 对话区 / 任务面板） */
-html[data-theme=dark] :is(.fw-ing-list, .fw-scroll) { scrollbar-width: none }
-html[data-theme=dark] :is(.fw-ing-list, .fw-scroll)::-webkit-scrollbar { width: 0; height: 0 }
-
-/* 其余滚动区（时间轴等）：8px、轨道透明、深色滑块 */
-html[data-theme=dark] ::-webkit-scrollbar { width: 8px; height: 8px }
-html[data-theme=dark] ::-webkit-scrollbar-track,
-html[data-theme=dark] ::-webkit-scrollbar-corner { background: transparent }
-html[data-theme=dark] ::-webkit-scrollbar-thumb { background: var(--line); border-radius: 4px }
-html[data-theme=dark] ::-webkit-scrollbar-thumb:hover { background: var(--dim) }
+/* ── 滚动条：全站不画（作者要求：不要可拖动的滚动框，滚动靠滚轮/触控板）──
+   ⚠️ 之前这里有两套打架的规则：`html[data-theme=dark] *` 把全局设为 thin
+   （特异性 0,1,1 压过 `*`），再叠加 `html[data-theme=dark] ::-webkit-scrollbar
+   { width: 8px }`，于是深色主题下滚动条又冒出来 —— 光靠截图看不出来，
+   因为 headless 浏览器默认不绘制经典滚动条，必须在带界面的浏览器里核对。
+   现在统一成一条带 !important 的规则：任何局部规则（包括以后新写的）都压不过它。
+   - Chromium / Electron：::-webkit-scrollbar 归零
+   - Firefox：scrollbar-width: none
+   - 同时把 color-scheme 跟主题对齐，避免系统按浅色画白条 */
+html[data-theme=dark] { color-scheme: dark }
+* {
+  scrollbar-width: none !important;
+  scrollbar-color: auto !important;
+}
+*::-webkit-scrollbar {
+  width: 0 !important;
+  height: 0 !important;
+  display: none !important;
+}
 
 /* ── A2 触感主题：全局 paba 变量（设置弹窗/外壳）────────────── */
 html[data-theme="tactile"] {
@@ -216,29 +218,3 @@ html[data-theme="tactile"] body.studio-shell.studio-shell {
   --hm-panel: #ddd8c9;
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   全局滚动条 —— 浏览器默认的白条和三套主题都不搭（设置弹窗里最扎眼）。
-   统一成细轨：颜色取 --line（悬停加深为 --dim），各主题自动跟随。
-   侧栏等已有 scrollbar-width:none 的局部规则不受影响（更特异者优先）。
-   ═══════════════════════════════════════════════════════════════ */
-* {
-  scrollbar-width: thin;
-  scrollbar-color: var(--line) transparent;
-}
-*::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-*::-webkit-scrollbar-track {
-  background: transparent;
-}
-*::-webkit-scrollbar-thumb {
-  border: 2px solid transparent;
-  border-radius: 999px;
-  background: var(--line);
-  background-clip: padding-box;
-}
-*::-webkit-scrollbar-thumb:hover {
-  background: var(--dim);
-  background-clip: padding-box;
-}

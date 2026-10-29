@@ -454,7 +454,7 @@ html[data-theme="tactile"] .hf-page {
   max-height: min(420px, calc(100vh - 220px));
   overflow-y: auto;
   overscroll-behavior: contain;
-  scrollbar-width: thin;
+  scrollbar-width: none;
 }
 .hf-hp-pane { transition: transform .18s cubic-bezier(.23,1,.32,1), opacity .18s; }
 .hf-hp-pane:not([data-active]) {
@@ -588,7 +588,7 @@ html[data-theme="tactile"] .hf-seal circle { stroke: currentColor; }
   max-height: 152px;            /* 4 行 × 36px + 缝隙 */
   overflow-y: auto;
   overscroll-behavior: contain;
-  scrollbar-width: thin;
+  scrollbar-width: none;
 }
 .hf-wd-list button {
   gap: 9px;

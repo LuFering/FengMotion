@@ -1,3 +1,5 @@
+import '@/styles/interface-polish.css'
+import '@/styles/card-details.css'
 import { useEffect, useState } from 'react'
 import { useChat } from '@/shell/useChat'
 import { useSessions } from '@/shell/useSessions'
@@ -96,7 +98,15 @@ export default function App() {
   /** 切视图**不清**项目上下文：项目管理组的子视图（素材/交付）都挂在
       当前项目上；要回列表就走 openList()（项目条上的「全部项目」或总览的返回）。 */
   const go = (v: string) => setView(v as View)
-  const toggleNav = () => document.body.classList.toggle('hm-nav-expanded')
+  /* 侧栏现在是「隐藏 / 显示」，不再做 68 ↔ 216 的展开切换：
+     作者要求 logo 当开关 —— 工具型界面要的是"把导航让出来给画布"，
+     半展开的图标轨既不省空间也没多给信息。
+     hm-nav-hidden 由 CSS 把 --hm-sidebar 归零、侧栏移出视口，主区自然占满。
+     状态记在 localStorage，刷新后保持用户的选择。 */
+  const toggleNav = () => {
+    const hidden = document.body.classList.toggle('hm-nav-hidden')
+    try { localStorage.setItem('fengmotion:nav-hidden', hidden ? '1' : '0') } catch { /* 隐私模式下忽略 */ }
+  }
   /** 切主题：加一个短暂的 theme-switching 类，让过渡不闪 */
   const changeTheme = (theme: Settings['theme']) => {
     document.documentElement.classList.add('theme-switching')
@@ -114,10 +124,32 @@ export default function App() {
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', settings.theme)
     document.body.classList.add('studio-shell')   // 本产品所有视图都在 shell 内
+    /* 恢复上次的侧栏隐藏状态 */
+    try {
+      if (localStorage.getItem('fengmotion:nav-hidden') === '1') document.body.classList.add('hm-nav-hidden')
+    } catch { /* 忽略 */ }
     document.body.classList.toggle('flowon', view === 'production')
   }, [view, settings.theme])
   /** 设置即改即存（loadSettings 读回；旧版 fengmotion:theme 由它迁移） */
   useEffect(() => { saveSettings(settings) }, [settings])
+  /**
+   * 当前视图该不该显示壁纸 —— 显示范围只在命中时挂载壁纸层。
+   * 「仅首页」按 home 判断；单视图范围按视图 id 判断；
+   * global 一律显示。壁纸永远垫在内容之下，工作台画面不受影响。
+   */
+  const activeWallpaper = (() => {
+    if (settings.wallpaper === 'none') return null
+    if (settings.wallpaper === 'custom' && !settings.wallpaperCustom) return null
+    const scope = settings.wallpaperScope
+    const hit = scope === 'global' || scope === view
+    if (!hit) return null
+    return {
+      id: settings.wallpaper,
+      src: settings.wallpaper === 'custom' ? settings.wallpaperCustom : null,
+      dim: settings.wallpaperDim,
+    }
+  })()
+
   /** 减弱动效：手动开启时压平全局动画/过渡（CSS 见 settings.css） */
   useEffect(() => {
     document.documentElement.dataset.motion = settings.reduceMotion ? 'reduce' : 'normal'
@@ -132,9 +164,10 @@ export default function App() {
 
   return (
     <TooltipProvider delayDuration={300}>
-      <AppShell view={view as ViewId} onNavigate={go} theme={settings.theme}
+      <AppShell view={view as ViewId} onNavigate={go}
+                wallpaper={activeWallpaper}
                 onOpenSettings={() => setSettingsOpen(true)}
-                onThemeChange={changeTheme} onToggleNav={toggleNav}>
+                onToggleNav={toggleNav}>
 
         {/* 首页 · 首屏 from home-film-v3
             原型分支：发送后不再开启动层，需求直接作为首条消息进项目对话视图 */}
@@ -190,7 +223,7 @@ export default function App() {
         {/* 制作工作台 · 二级：三栏工作台 */}
         {isFlow && (
           <div id="pane-flow">
-            <Workbench chat={chat} tasks={tasks} onNavigate={(next) => setView(next)}
+            <Workbench key={openProject!} chat={chat} tasks={tasks} onNavigate={(next) => setView(next)}
                        projectId={openProject!}
                        projects={projects.list}
                        onBack={openList}
