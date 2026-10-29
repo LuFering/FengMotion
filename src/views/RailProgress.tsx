@@ -5,6 +5,7 @@ import {
 } from '@/services/workflowService'
 import { WF_NODE_DEFS } from '@/data/workflowTemplates'
 import { fmtDay, TASK_STATUS_LABEL } from '@/shell/status'
+import type { TaskEvent } from '@/services/studioApi'
 import { Progress } from '@/components/ui/progress'
 
 /**
@@ -18,14 +19,14 @@ import { Progress } from '@/components/ui/progress'
  * 阶段清单与工作流编辑器同一份定义（节点图里的阶段节点）。一个阶段算「做完」要同时
  * 满足两条：运行把它标成 completed，**并且它真的留下了结论** —— 看片节点要有
  * checks.done、门禁要有 decision。只看运行状态，演示执行器跑完就会显示
- * 「所有阶段都已完成」，而下面「待决定」还挂着一条，自相矛盾。
+ * 「本次演示已结束」，而下面「待决定」还挂着一条，自相矛盾。
  * 没跑过就如实写「未运行」，不按内容猜、不编百分比 —— 工作流里没有「第几秒、
  * 第几个镜头」这种刻度，那是渲染切片，不是内容。
  *
  * 运行仍是演示执行器（不调 AI、不写文件、不出片），所以标记保留、不删。
  */
 
-export function RailProgressPanel({ workflow, autoRun, task, onRunStart, onOpenTask, onOpenEditor, onOpenExecution }: {
+export function RailProgressPanel({ workflow, autoRun, task, onRunStart, onRunEnd, onRunEvent, onRunningChange, onOpenTask, onOpenEditor, onOpenExecution }: {
   /** 当前项目的工作流；节点参数由外面传进来（写回决定后外面会重取，这里才跟着更新） */
   workflow: WorkflowDef | null
   /** 从创作启动层带过来的「建好就开跑」 */
@@ -36,6 +37,12 @@ export function RailProgressPanel({ workflow, autoRun, task, onRunStart, onOpenT
   task: { label: string; state: string } | null
   /** 真的跑起来了 —— 外面据此消费掉启动信号，避免下次进工作台又自动跑一遍 */
   onRunStart?: () => void
+  /** 这次跑完了 —— 中间那块画面要跟着重读产物，否则跑完了还写着「还没开始跑」 */
+  onRunEnd?: () => void
+  onRunEvent?: (event: TaskEvent) => void
+  /** 正在跑的时候告诉外面一声 —— 运行记录是跑完才写的，
+      中间那块画面在同一时刻还没有记录可读，得靠这个信号才能说「正在制作」。 */
+  onRunningChange?: (running: boolean) => void
   /** 点这一块：右侧跳到当前任务（那里才是执行过程） */
   onOpenTask: () => void
   onOpenEditor: () => void
@@ -50,6 +57,8 @@ export function RailProgressPanel({ workflow, autoRun, task, onRunStart, onOpenT
   const [running, setRunning] = useState(false)
   const [finished, setFinished] = useState<WorkflowRun | null>(null)
   const startedRef = useRef(false)
+  const execution = useRef<{ cancel: () => void } | null>(null)
+  useEffect(() => () => execution.current?.cancel(), [])
   /* 进来先看上次跑成什么样；自己再跑一次就换成本次的结果 */
   const run = finished ?? (workflow ? (workflowService.listRuns(workflow.id)[0] ?? null) : null)
 
@@ -59,17 +68,22 @@ export function RailProgressPanel({ workflow, autoRun, task, onRunStart, onOpenT
     setFinished(null)
     setStatuses({})
     onRunStart?.()
+    onRunningChange?.(true)
     /* 这里不需要事件回调：事件属于底部任务面板，这一格只显示一行进度。
        （onEvent 仍然是必须传的 —— startDemoRun 用不到时会断言失败。） */
     const handle = startDemoRun(workflow, {
-      onEvent: () => {},
+      onEvent: (event) => onRunEvent?.(event),
       onNodeStatus: (nodeId, status) => setStatuses((prev) => ({ ...prev, [nodeId]: status })),
     })
+    execution.current = handle
     void handle.done.then((r) => {
+      execution.current = null
       setFinished(r)
       setRunning(false)
+      onRunningChange?.(false)
+      onRunEnd?.()
     })
-  }, [workflow, running, onRunStart])
+  }, [workflow, running, onRunStart, onRunEnd, onRunEvent, onRunningChange])
 
   useEffect(() => {
     /* 只在挂载时判断一次：已经有运行记录就直接呈现，不重跑 */
@@ -87,8 +101,6 @@ export function RailProgressPanel({ workflow, autoRun, task, onRunStart, onOpenT
     const st = statusOfNode(n.id)
     if (st === 'skipped') return true
     if (st !== 'completed') return false
-    if (n.type === 'review') return !!(n.params.checks as Record<string, boolean> | undefined)?.done
-    if (n.type === 'gate') return n.params.decision === 'confirmed'
     return true
   }
   const done = stages.filter(stageDone).length
@@ -99,9 +111,10 @@ export function RailProgressPanel({ workflow, autoRun, task, onRunStart, onOpenT
 
   return (
     <section>
+      {/* 标题做成依附左边缘的标签页：数字并进标签内部，右侧不再单独挂一个计数。
+          形状是作者选定的 T1（单角斜切），样式见 workbench-a2.css 的 .fw-tag。 */}
       <div className="fw-scene-hd">
-        <span>当前进度</span><span className="spacer" />
-        <span className="hint num">{done}/{stages.length}</span>
+        <span className="fw-tag">演示执行<span className="fw-tag-n num">{done}/{stages.length}</span></span>
       </div>
       <div className="fw-prog">
         {/* 正在制作：压在这一张卡的第一行，不另开栏目。说的是「在哪个内容上」，
@@ -123,7 +136,7 @@ export function RailProgressPanel({ workflow, autoRun, task, onRunStart, onOpenT
                   aria-label={`阶段进度 ${done}/${stages.length}`} />
         <span className="fw-prog-now">
           <i className="fm-dot" data-s={next ? (runningStage ? 'running' : 'idle') : 'done'} />
-          <b>{next ? labelOf(next) : '所有阶段都已完成'}</b>
+          <b>{next ? labelOf(next) : '本次演示已结束'}</b>
           <span className="fw-prog-state">{next ? (runningStage ? '进行中' : '待做') : '已完成'}</span>
         </span>
         <span className="fw-prog-meta">
@@ -131,9 +144,9 @@ export function RailProgressPanel({ workflow, autoRun, task, onRunStart, onOpenT
           <span className="fw-prog-demo">演示执行器</span>
         </span>
         <div className="fw-prog-acts">
-          <button type="button" className="fw-prog-run" disabled={running} onClick={doRun}>
+          <button type="button" className="fw-prog-run" onClick={() => running ? execution.current?.cancel() : doRun()}>
             {/* 三个按钮平分这一行，5 个字会截断成「再运行…」，所以用 4 字 */}
-            {running ? '运行中…' : run ? '重新运行' : '开始运行'}
+            {running ? '停止演示' : run ? '再次演示' : '运行演示'}
           </button>
           <button type="button" className="fw-prog-mini" onClick={onOpenExecution}>查看执行</button>
           <button type="button" className="fw-prog-mini" onClick={onOpenEditor}>工作流</button>

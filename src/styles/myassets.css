@@ -88,6 +88,31 @@ html[data-theme="light"] .mya {
   --shadow-float: 0 32px 80px rgba(30, 30, 60, .28);
   --shadow-seg: 0 1px 4px rgba(30, 30, 60, .12);
 }
+/* 浅色主题：淡蓝底在白面上太轻，分组标签几乎看不出形状 ——
+   提高底浓度、加深文字，保持"有标签但不当主角"的分寸。 */
+html[data-theme="light"] .mya .mya-org-sec {
+  background: color-mix(in srgb, #2F6FE4 15%, transparent);
+  color: #1E5BBF;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, #2F6FE4 22%, transparent);
+}
+/* 触感主题：这一主题的 --acc 是暖墨色，套上去会变成米黄标签、几乎看不见。
+   作者要的是"工作台那个蓝色标签"，所以这枚标签在三套主题里都锁定蓝色系，
+   只调深浅去匹配各自的底色。 */
+/* 触感主题：这一主题是奶油纸 + 墨线 + 硬阴影，蓝色会显得是"从别的主题掉进来"的。
+   分组标签改用琥珀棕（纸面上的图章色），比该主题的亮黄强调色（--acc #f7c948）
+   更沉稳，两者对比清楚又不互相打架。选中态跟着走同一枚棕。
+   注意：这里刻意不用 var(--acc) —— 那是 #f7c948 亮黄，做标签底会晃眼。 */
+html[data-theme="tactile"] .mya .mya-org-sec {
+  background: color-mix(in srgb, #a9762a 34%, #efece3);
+  color: #4a3210;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, #8a5e1e 55%, transparent);
+}
+html[data-theme="tactile"] .mya .mya-org-row[data-on] {
+  background: color-mix(in srgb, #a9762a 15%, transparent);
+}
+html[data-theme="tactile"] .mya .mya-org-row[data-on]::before { background: #8a5e1e; }
+html[data-theme="tactile"] .mya .mya-org-row[data-on] .ui-icon { color: #6b4a14; }
+html[data-theme="tactile"] .mya .mya-org-row[data-on] em { color: #6b4a14; }
 
 /* ── 页面根：16px 机身留白 + 16px 岛间隙 ─────────────────────── */
 .mya {
@@ -240,15 +265,15 @@ html[data-theme="light"] .mya {
   box-shadow: var(--shadow-base);
   animation: myaRise .5s var(--eo) .03s both;
 }
+/* 面板头：弱化成次级说明，视觉重心交给下面的蓝色分组标签 */
 .mya-org-head {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
-  padding: 12px 10px 6px 14px;
+  padding: 10px 8px 2px 14px;
   font-size: 10.5px;
-  font-weight: 700;
-  letter-spacing: .08em;
-  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: .06em;
   color: var(--tx3);
 }
 .mya-org-head span { flex: 1; }
@@ -270,31 +295,43 @@ html[data-theme="light"] .mya {
   min-height: 0;
   overflow-y: auto;
   padding: 0 8px 10px;
-  scrollbar-width: thin;
+  scrollbar-width: none;
   scrollbar-color: var(--line2) transparent;
 }
-.mya-org-scroll::-webkit-scrollbar { width: 8px; }
-.mya-org-scroll::-webkit-scrollbar-thumb {
-  background: var(--line2);
-  border-radius: var(--r-scroll);
-  border: 2px solid transparent;
-  background-clip: content-box;
-}
+/* 分组标签：沿用工作台左栏的分组标签语法（右侧斜切尖角），但**实心蓝降为淡蓝**。
+   这一栏只有 216px，六个满蓝块连成一排会把下面真正的条目压下去；
+   淡底 + 蓝字 + 细尖角既保留"分组"的识别，又不抢焦点。
+   宽度按最长分组名（智能文件夹）定死，尖角落在同一竖线上。
+
+   左缘贴死这一列的侧边：滚动区左右各 8px 内边距，用 -8px 抵消掉；
+   再 -1px 抵掉面板自身 1px 边框，标签才是真正从侧边起笔，
+   浅色主题下不会被边框和面板圆角"推"出一点缩进感。
+   文字再右移到和下面的行首图标同一条竖线上。 */
 .mya-org-sec {
-  margin: 12px 6px 5px;
+  display: inline-flex;
+  align-items: center;
+  width: 97px;
+  margin: 15px 0 3px -9px;
+  padding: 3px 14px 3px 18px;
+  background: color-mix(in srgb, #3B8CF8 18%, transparent);
+  color: #8AB4FF;
+  clip-path: polygon(0 0, calc(100% - 7px) 0, 100% 50%, calc(100% - 7px) 100%, 0 100%);
   font-size: 10.5px;
-  font-weight: 700;
-  letter-spacing: .08em;
-  text-transform: uppercase;
-  color: var(--tx3);
+  font-weight: 650;
+  letter-spacing: .02em;
+  line-height: 1.35;
+  white-space: nowrap;
 }
+/* 第一个分组上方不留多余空白 */
+.mya-org-scroll > .mya-org-sec:first-child { margin-top: 2px; }
 .mya-org-row {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 9px;
   width: 100%;
-  min-height: 30px;
-  padding: 4px 8px;
+  min-height: 31px;
+  padding: 4px 10px 4px 9px;
   border: 0;
   border-radius: var(--r-ctl);
   background: none;
@@ -307,19 +344,42 @@ html[data-theme="light"] .mya {
 }
 .mya-org-row:hover { background: var(--hover); color: var(--tx); }
 .mya-org-row .ui-icon { width: 14px; height: 14px; color: var(--tx3); flex: 0 0 auto; }
+/* 选中：左侧一道强调竖条 + 淡蓝底，和上面的蓝色分组标签同一色系。
+   竖条贴在自己这行的左边缘（负 left 会伸到栏内边距里，所以用 left:0 让它
+   正好压住行首那一格，不压图标）。 */
 .mya-org-row[data-on] { background: var(--sel); color: var(--tx); font-weight: 600; }
+.mya-org-row[data-on]::before {
+  content: '';
+  position: absolute;
+  left: -8px;
+  top: 50%;
+  width: 2.5px;
+  height: 16px;
+  transform: translateY(-50%);
+  border-radius: 0 2px 2px 0;
+  background: var(--acc);
+}
 .mya-org-row[data-on] .ui-icon { color: var(--acc-tx); }
 .mya-org-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mya-org-row em { font-style: normal; font-size: 11px; color: var(--tx3); }
+/* 数字列：统一右对齐、等宽数字，扫一眼能比较大小 */
+.mya-org-row em {
+  font-style: normal;
+  flex: 0 0 auto;
+  min-width: 20px;
+  text-align: right;
+  font-size: 11px;
+  color: var(--tx3);
+  font-variant-numeric: tabular-nums;
+}
 .mya-org-row[data-on] em { color: var(--acc-tx); }
 .mya-tagdot { width: 8px; height: 8px; flex: 0 0 8px; border-radius: var(--r-pill); }
 .mya-org-add {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 9px;
   width: 100%;
-  min-height: 30px;
-  padding: 4px 8px;
+  min-height: 31px;
+  padding: 4px 10px 4px 9px;
   border: 0;
   border-radius: var(--r-ctl);
   background: none;
@@ -585,19 +645,7 @@ html[data-theme="light"] .mya {
 }
 .mya-grid { padding-top: 20px; }
 .mya-list { padding-top: 16px; }
-.mya-scroll::-webkit-scrollbar,
-.mya-drawer-body::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-.mya-scroll::-webkit-scrollbar-thumb,
-.mya-drawer-body::-webkit-scrollbar-thumb {
-  background: var(--line2);
-  border-radius: var(--r-scroll);
-  border: 2px solid transparent;
-  background-clip: content-box;
-}
-.mya-scroll, .mya-drawer-body { scrollbar-width: thin; scrollbar-color: var(--line2) transparent; }
+.mya-scroll, .mya-drawer-body { scrollbar-width: none; scrollbar-color: var(--line2) transparent; }
 
 /* ── 主岛内的素材卡 ─────────────────────────────────────────────
    网格密度参考 Eagle / Immich 一类素材库：卡片最小 264px，
@@ -613,9 +661,11 @@ html[data-theme="light"] .mya {
   to { opacity: 1; }
 }
 .mya-card {
+  position: relative;
   min-width: 0;
-  display: flex;
-  flex-direction: column;
+  /* 整张卡就是画面本身：媒体铺满，文字浮在画面上。
+     不再是「上面缩略图 + 下面一条信息栏」的上下两段。 */
+  aspect-ratio: 16 / 9;
   padding: 0;
   overflow: hidden;
   background: var(--panel2);
@@ -649,8 +699,9 @@ html[data-theme="light"] .mya {
 .mya-card:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
 
 .mya-thumb {
-  position: relative;
-  aspect-ratio: 16 / 9;
+  /* 铺满整张卡（卡片已经定好 16:9，这里不再自己定义比例） */
+  position: absolute;
+  inset: 0;
   overflow: hidden;
   background: var(--stage-bg);
 }
@@ -722,24 +773,22 @@ html[data-theme="light"] .mya {
 .mya-star[data-on] { color: var(--warn); }
 .mya-star .ui-icon { width: 14px; height: 14px; }
 .mya-refs-badge {
-  position: absolute;
-  left: 8px;
-  bottom: 8px;
+  /* 从「压在画面左下角」改成信息行里的一枚胶囊：
+     文字浮层现在占着画面底部，徽标再压在那里会互相遮挡。 */
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 2px 7px;
+  flex: 0 0 auto;
+  padding: 1px 6px;
   border-radius: var(--r-pill);
   /* Round 3（审计 19）：徽标底衬固定深色，不随主题变透明；触感下也看得见 */
-  background: rgba(8, 9, 11, .66);
+  background: rgba(8, 9, 11, .5);
   color: #f4f5f7;
-  backdrop-filter: blur(4px);
-  color: var(--tx);
   font-size: 10.5px;
-  line-height: 1.25;
+  line-height: 1.35;
   pointer-events: none;
 }
-.mya-refs-badge .ui-icon { width: 11px; height: 11px; color: var(--acc-tx); }
+.mya-refs-badge .ui-icon { width: 11px; height: 11px; color: #cfd6e4; }
 .mya-scrub {
   position: absolute;
   left: 0;
@@ -754,12 +803,46 @@ html[data-theme="light"] .mya {
 }
 .mya-card:hover .mya-scrub { opacity: 1; animation: myaScrub 1.6s linear infinite; }
 @keyframes myaScrub { from { transform: scaleX(0); } to { transform: scaleX(1); } }
-.mya-card-body { display: flex; flex-direction: column; gap: 4px; min-width: 0; padding: 11px 13px 12px; }
-.mya-card-name { font-size: 13.5px; font-weight: 600; line-height: 1.35; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mya-card-meta { display: flex; align-items: center; gap: 5px; min-width: 0; font-size: 11.5px; line-height: 1.4; color: var(--tx3); }
+/* 文字浮层：贴在画面底部，下面用一层渐变把画面压暗，保证任何图上都读得清。
+   渐变是固定深色（不跟主题走）—— 它压的是一张照片，不是面板。 */
+.mya-card-body {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 26px 11px 9px;
+  background: linear-gradient(to top,
+    rgb(6 7 9 / .86) 0%,
+    rgb(6 7 9 / .62) 42%,
+    rgb(6 7 9 / 0) 100%);
+  pointer-events: none;
+}
+.mya-card-name {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: #f7f8fa;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-shadow: 0 1px 2px rgb(0 0 0 / .5);
+}
+.mya-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: rgb(255 255 255 / .68);
+}
 .mya-card-spec { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mya-flag { flex: 0 0 auto; margin-left: auto; font-size: 10.5px; color: var(--warn); }
-.mya-flag[data-tone="bad"] { color: var(--danger); }
+.mya-flag { flex: 0 0 auto; margin-left: auto; font-size: 10.5px; color: #f0c07a; }
+.mya-flag[data-tone="bad"] { color: #ff9b9b; }
 
 /* ── 列表视图：对齐账本，行本身也是小卡 ───────────────────────── */
 .mya-list { display: flex; flex-direction: column; gap: 4px; }
@@ -884,7 +967,7 @@ html[data-theme="light"] .mya {
   min-height: 0;
   overflow-y: auto;
   padding: 12px 14px 18px;
-  scrollbar-width: thin;
+  scrollbar-width: none;
   scrollbar-color: var(--line2) transparent;
 }
 .mya-iconbtn {
@@ -1112,75 +1195,8 @@ button.mya-ref:hover { background: var(--hover); color: var(--tx); }
 .mya-doc a { color: var(--acc-tx); }
 .mya-doc p { margin: 0; }
 
-/* ── 浮层：导入队列 / 拖放 / 重命名（V3 8.8 浮层语言）────────── */
-.mya-queue {
-  position: fixed;
-  right: 18px;
-  bottom: 54px;
-  z-index: 80;
-  width: 320px;
-  overflow: hidden;
-  background: var(--panel);
-  border: 1px solid var(--line2);
-  border-radius: var(--r-float);
-  box-shadow: var(--shadow-float);
-  animation: myaPop .18s var(--eo) both;
-}
-.mya-queue-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 9px 12px;
-  border-bottom: 1px solid var(--line);
-  font-size: 12.5px;
-  font-weight: 650;
-}
-.mya-queue-count { font-weight: 400; font-size: 11px; color: var(--tx3); }
-.mya-queue-head .mya-iconbtn { margin-left: auto; }
-.mya-queue-list { max-height: 200px; overflow-y: auto; padding: 4px 0; }
-.mya-queue-row { display: flex; align-items: center; gap: 8px; padding: 5px 12px; font-size: 11.5px; }
-.mya-queue-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mya-queue-st { flex: 0 0 auto; font-size: 10.5px; color: var(--tx3); }
-.mya-queue-row[data-s="done"] .mya-queue-st { color: var(--ok); }
-.mya-queue-row[data-s="error"] .mya-queue-st { color: var(--danger); }
-.mya-queue-retry {
-  padding: 2px 8px;
-  border: 1px solid var(--line2);
-  border-radius: var(--r-ctl);
-  background: none;
-  color: var(--tx2);
-  font: inherit;
-  font-size: 10.5px;
-  cursor: pointer;
-}
-.mya-queue-retry:hover { color: var(--tx); border-color: var(--tx3); }
-
-.mya-drop {
-  position: fixed;
-  inset: 0;
-  z-index: 90;
-  display: grid;
-  place-items: center;
-  background: var(--overlay);
-  backdrop-filter: blur(2.5px);
-  pointer-events: none;
-}
-.mya-drop-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  padding: 24px 32px;
-  background: var(--panel);
-  border: 1px solid var(--acc);
-  border-radius: var(--r-float);
-  box-shadow: var(--shadow-float);
-  color: var(--tx);
-  animation: myaPop .18s var(--eo) both;
-}
-.mya-drop-card .ui-icon { width: 26px; height: 26px; color: var(--acc-tx); }
-.mya-drop-card strong { font-size: 13px; }
-.mya-drop-card span { font-size: 11.5px; color: var(--tx3); }
+/* ── 浮层：重命名（V3 8.8 浮层语言）──────────
+   导入队列 / 拖放提示两块浮层已按作者要求删除，样式一并清掉。 */
 
 .mya-modal {
   position: fixed;
@@ -1321,3 +1337,154 @@ html[data-theme="tactile"] .mya {
   --shadow-float: 8px 8px 0 #22231f;
   --shadow-seg: 2px 2px 0 #22231f;
 }
+
+/* ── 「选择素材」模式 ──────────────────────────────────────────
+   作者要的是一个实在的按钮：点下去整库进入可选中状态，选完一键进购物车。
+   和原来那套「hover 才出复选框、再去批量栏找操作」的区别是**目的单一**：
+   进了这个模式就只有"挑素材"一件事，所以：
+     · 复选框常驻显示（不再等 hover）；
+     · 卡片整块可点，点哪选中哪；
+     · 底部浮一条确认栏，只报数 + 全选 + 确认。 */
+.mya-pickbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 12px;
+  border: 1px solid var(--line2);
+  border-radius: var(--r-ctl);
+  background: transparent;
+  color: var(--tx);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.mya-pickbtn:hover { border-color: var(--acc); color: var(--acc); }
+.mya-pickbtn .ui-icon { width: 14px; height: 14px; }
+
+/* 模式内：复选框常驻，卡片整块是"可点选"的 */
+.mya-card[data-pickmode] { cursor: pointer; }
+.mya-card[data-pickmode] .mya-check,
+.mya-row[data-pickmode] .mya-col-check input {
+  opacity: 1;
+  transform: translateY(0);
+}
+/* 选中态再明显一档：模式内要能一眼数清选了几张 */
+.mya-card[data-pickmode][data-picked] {
+  box-shadow: inset 0 0 0 2px var(--acc);
+}
+.mya-card[data-pickmode][data-picked] .mya-thumb::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--acc) 14%, transparent);
+  pointer-events: none;
+}
+/* 模式内先收起那两枚悬浮按钮（收藏/加入待发送）——
+   它们和"点卡片=选中"会抢同一个点击，留着容易误触 */
+.mya-card[data-pickmode] .mya-star,
+.mya-card[data-pickmode] .mya-pending-btn { display: none; }
+
+.mya-pickbar {
+  position: fixed;
+  left: 50%;
+  bottom: 26px;
+  transform: translateX(-50%);
+  z-index: 95;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px 9px 16px;
+  border: 1px solid var(--line2);
+  border-radius: 999px;
+  background: var(--panel);
+  box-shadow: var(--shadow-float);
+  color: var(--tx);
+  font-size: 12px;
+  animation: myaPickIn .18s var(--eo) both;
+}
+@keyframes myaPickIn { from { opacity: 0; transform: translate(-50%, 8px) } to { opacity: 1; transform: translate(-50%, 0) } }
+.mya-pickbar-n { font-weight: 650; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.mya-pickbar-sep { width: 1px; height: 18px; background: var(--line2); }
+.mya-pickbar button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 12px;
+  border: 1px solid var(--line2);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--tx2);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.mya-pickbar button:hover:not(:disabled) { color: var(--tx); border-color: var(--tx3); }
+.mya-pickbar .mya-pickbar-all { color: var(--tx2); }
+.mya-pickbar .mya-primary {
+  border-color: transparent;
+  background: var(--acc);
+  color: #fff;
+}
+.mya-pickbar .mya-primary:hover:not(:disabled) { filter: brightness(1.06); color: #fff; }
+.mya-pickbar .mya-primary:disabled { opacity: .4; cursor: default; }
+.mya-pickbar .ui-icon { width: 14px; height: 14px; }
+
+html[data-theme="tactile"] .mya-pickbar { border: 2px solid #22231f; box-shadow: 3px 3px 0 #22231f; }
+html[data-theme="tactile"] .mya-pickbtn { border-color: #22231f; }
+
+/* 选择模式下的工具条位置：只说明当前在做什么，不放操作 ——
+   操作全在底部确认条上，避免两处都能"确认" */
+.mya-toolbar-pick {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  color: var(--tx2);
+  font-size: 12px;
+}
+.mya-toolbar-pick b { color: var(--tx); font-weight: 650; }
+.mya-toolbar-pick span { color: var(--tx3); }
+.mya-toolbar-pick .ui-icon { width: 15px; height: 15px; color: var(--acc); }
+
+/* ── 卡片顶部：文件名 / 大小等文字信息也浮在画面之上 ────────────
+   作者要求「卡片的全部信息都在卡片内部、文字悬浮在画面上」。
+   之前卡片下半条信息栏改成浮层后，文件那行（s04.jpg / 480×270）
+   仍留在卡片**之外**的网格里，被卡片压住只露出半行 ——
+   表现为网格顶部多出一排被裁掉的字。这里把它收回卡片内部当悬浮头。 */
+.mya-card-head {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 7px 40px 14px 10px;   /* 右侧让出两个悬浮按钮的宽度 */
+  background: linear-gradient(to bottom,
+    rgb(6 7 9 / .74) 0%,
+    rgb(6 7 9 / .38) 55%,
+    transparent 100%);
+  font-size: 11px;
+  line-height: 1.35;
+  color: rgb(255 255 255 / .82);
+  pointer-events: none;
+}
+.mya-card-head b {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #f3f5f8;
+  text-shadow: 0 1px 2px rgb(0 0 0 / .55);
+}
+.mya-card-head .num { flex: 0 0 auto; color: rgb(255 255 255 / .6); font-size: 10.5px; }
+.mya-card-head .mya-flag { flex: 0 0 auto; margin-left: 0; }

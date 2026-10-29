@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="zh" data-resolution="landscape">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>镜 10 · 两个小时</title>
+    <script src="../gsap.min.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1920px; height: 1080px; overflow: hidden; background: #000; }
+      @font-face { font-family: "Big Shoulders Display"; font-weight: 800;
+        src: url("../assets/fonts/big-shoulders-800.woff2") format("woff2"); font-display: block; }
+      @font-face { font-family: "IBM Plex Mono"; font-weight: 500;
+        src: url("../assets/fonts/plex-mono-500.woff2") format("woff2"); font-display: block; }
+
+      #root { position: relative; width: 1920px; height: 1080px; overflow: hidden; }
+      /* GTC 舞台：更宏大的空间，绿意只在很淡的环境光里 */
+      #space {
+        position: absolute; inset: 0;
+        background: radial-gradient(ellipse 130% 84% at 50% 30%,
+          #1e2430 0%, #171c24 40%, #0e1116 74%, #08090c 100%);
+      }
+      /* 舞台地面的横向层次（不是网格，是"台面"） */
+      #stageFloor {
+        position: absolute; left: -10%; right: -10%; bottom: -6%; height: 44%;
+        background:
+          linear-gradient(180deg, rgba(118,185,0,0.055) 0%, rgba(0,0,0,0) 52%),
+          repeating-linear-gradient(180deg, rgba(255,255,255,0.055) 0 1px, transparent 1px 86px);
+        transform: perspective(900px) rotateX(70deg);
+        transform-origin: 50% 0%;
+        -webkit-mask-image: linear-gradient(180deg, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0) 78%);
+        mask-image: linear-gradient(180deg, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0) 78%);
+        opacity: 0;
+      }
+      /* 屏幕（背景大屏）—— 演讲台后面那块 */
+      #backdrop {
+        position: absolute; left: 22%; right: 22%; top: 8%; height: 62%;
+        border-radius: 8px;
+        background: linear-gradient(180deg, rgba(255,255,255,0.045) 0%, rgba(255,255,255,0.012) 60%, rgba(0,0,0,0) 100%);
+        box-shadow: inset 0 0 0 1px rgba(255,255,255,0.055);
+        opacity: 0;
+      }
+
+      #stage { position: absolute; inset: 0; perspective: 1600px; perspective-origin: 50% 44%; }
+      #camera { position: absolute; inset: 0; transform-style: preserve-3d; }
+
+      /* 人物：缩小退到远处（承 s09 的人像） */
+      #portrait {
+        position: absolute; left: 150px; top: 90px;
+        width: 660px; height: 900px; border-radius: 6px; overflow: hidden;
+        box-shadow: 0 30px 80px rgba(0,0,0,0.7);
+      }
+      #portrait img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+      /* ── 时间符号：不是数字钟，是一个"尺度"本体 ── */
+      #dialWrap {
+        position: absolute; left: 50%; top: 50%;
+        width: 620px; height: 620px; margin-left: -310px; margin-top: -310px;
+        opacity: 0;
+      }
+      #dialRing {
+        position: absolute; inset: 0; border-radius: 50%;
+        box-shadow: inset 0 0 0 2px rgba(214,228,255,0.22);
+      }
+      /* 一圈刻度：读出"被切成很多份" */
+      .tick {
+        position: absolute; left: 50%; top: 50%; width: 2px; height: 14px;
+        margin-left: -1px; background: rgba(214,228,255,0.34);
+        transform-origin: 50% 310px;
+      }
+      /* 弧：走过的那一段（两小时被"走过"） */
+      #arc {
+        position: absolute; inset: 26px; border-radius: 50%;
+        background: conic-gradient(from -90deg, rgba(214,228,255,0.52) 0deg, rgba(214,228,255,0.52) 0deg, rgba(0,0,0,0) 0deg);
+      }
+      #dialCore {
+        position: absolute; left: 50%; top: 50%;
+        transform: translate(-50%, -50%);
+        font-family: "Big Shoulders Display", sans-serif; font-weight: 800;
+        font-size: 156px; line-height: 1; letter-spacing: 0.01em;
+        color: #eef0f3;
+        white-space: nowrap;
+      }
+      #dialCap {
+        position: absolute; left: 50%; top: 50%;
+        margin-top: 118px; transform: translateX(-50%);
+        font-family: "IBM Plex Mono", monospace; font-weight: 500;
+        font-size: 20px; letter-spacing: 0.30em; color: #9aa3b2;
+        white-space: nowrap;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="s10" data-start="0" data-duration="7.0"
+         data-width="1920" data-height="1080">
+      <div id="space"      class="clip" data-start="0" data-duration="7.0" data-track-index="0"></div>
+      <div id="stageFloor" class="clip" data-start="0" data-duration="7.0" data-track-index="1" data-layout-allow-overflow></div>
+      <div id="backdrop"   class="clip" data-start="0" data-duration="7.0" data-track-index="2"></div>
+
+      <div id="stage" class="clip" data-start="0" data-duration="7.0" data-track-index="3">
+        <div id="camera">
+          <div id="portrait"><img src="../assets/people/jensen.jpg" alt="" /></div>
+          <div id="dialWrap">
+            <div id="dialRing"></div>
+            <div id="ticks"></div>
+            <div id="arc"></div>
+            <div id="dialCore">02:00:00</div>
+            <div id="dialCap">GTC · KEYNOTE</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+
+      // 刻度：24 枚
+      const ticks = document.getElementById('ticks');
+      for (let i = 0; i < 24; i++) {
+        const t = document.createElement('div');
+        t.className = 'tick';
+        t.style.transform = `rotate(${i * 15}deg)`;
+        t.setAttribute('data-layout-ignore', '');
+        ticks.appendChild(t);
+      }
+
+      // 承 s09 末态：人物在左、z=-160、相机 x=-70
+      gsap.set('#portrait', { x: 0, y: 0, z: -160, scale: 1.0, opacity: 1 });
+      gsap.set('#camera', { x: -70 });
+      gsap.set('#dialWrap', { scale: 0.40 });
+
+      // ── 时间表（30fps）──────────────────────────────────────────
+      //  0.00–0.70  承 s09：人物仍在，空间开始"变大"
+      //  0.70–1.90  镜头**继续后拉**；人物缩小退到纵深远处
+      //  1.90–3.00  舞台显形（背屏 / 台面），时间符号从中心张开 ← 说「两个小时」
+      //  3.00–4.20  时间符号的弧被"走过"（两小时被填满）
+      //  4.20–5.00  数字落定
+      //  5.00–7.00  稳定 hold + 极慢呼吸
+      const T_PULL  = 0.70;
+      const T_DIAL  = 1.90;
+      const T_ARC   = 3.00;
+      const T_NUM   = 4.20;
+      const T_HOLD  = 5.00;
+
+      // ① 后拉：看见更多信息（判例：视野扩大 → 镜头后拉）
+      tl.to('#camera', { x: 0, z: -560, duration: 1.20, ease: 'power2.inOut' }, T_PULL);
+      tl.to('#portrait', { z: -1400, scale: 0.62, opacity: 0.55,
+                           duration: 1.20, ease: 'power2.inOut' }, T_PULL);
+      tl.to('#portrait', { x: -430, duration: 1.20, ease: 'power2.inOut' }, T_PULL);
+
+      // ② 舞台显形
+      tl.to('#backdrop',   { opacity: 1, duration: 0.70, ease: 'power2.out' }, T_DIAL - 0.30);
+      tl.to('#stageFloor', { opacity: 1, duration: 0.85, ease: 'power2.out' }, T_DIAL - 0.15);
+
+      // ③ 时间符号从中心张开 —— 尺度被"打开"
+      tl.to('#dialWrap', { opacity: 1, scale: 1.0, duration: 0.85, ease: 'power3.out' }, T_DIAL);
+
+      // ④ 弧被走过（conic-gradient 角度从 0 到 360）
+      const arcEl = document.getElementById('arc');
+      const arc = { a: 0 };
+      tl.to(arc, {
+        a: 360, duration: 1.15, ease: 'power2.inOut',
+        onUpdate: () => {
+          const d = arc.a.toFixed(1);
+          arcEl.style.background =
+            `conic-gradient(from -90deg, rgba(214,228,255,0.52) 0deg, rgba(214,228,255,0.52) ${d}deg, rgba(0,0,0,0) ${d}deg)`;
+        },
+      }, T_ARC);
+
+      // ⑤ 数字落定（有重量）
+      tl.fromTo('#dialCore', { opacity: 0, scale: 1.16 },
+        { opacity: 1, scale: 1.0, duration: 0.55, ease: 'power3.out' }, T_NUM);
+      tl.fromTo('#dialCap', { opacity: 0, y: 12 },
+        { opacity: 1, y: 0, duration: 0.45, ease: 'power2.out' }, T_NUM + 0.35);
+
+      // ⑥ hold + 极慢呼吸
+      tl.to('#dialWrap', { scale: 1.035, duration: 1.30, ease: 'sine.inOut' }, T_HOLD);
+      tl.to('#dialWrap', { scale: 1.0,   duration: 1.30, ease: 'sine.inOut' }, T_HOLD + 1.40);
+
+      window.__timelines['s10'] = tl;
+      tl.seek(0);
+    </script>
+  </body>
+</html>

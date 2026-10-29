@@ -9,6 +9,7 @@ import {
   Info,
   Pause,
   Play,
+  Plus,
   SlidersHorizontal,
   Star,
   Workflow,
@@ -26,8 +27,14 @@ import {
   type FxInputKind,
   type FxTechnique,
 } from '@/data/fxTechniques'
+import { SilentVideoPreview } from '@/components/SilentVideoPreview'
 import { PROJECTS, STAGE_LABEL } from '@/data/projects'
 import { EmptyState } from '@/components/fm/EmptyState'
+import { setAssetDragData, usePendingAssets, type PendingFxCard } from '@/shell/usePendingAssets'
+import { clearDragGhost, setDragGhost } from '@/shell/dragGhost'
+import { usePickMode } from '@/shell/usePickMode'
+import { PickBar, PickButton, PickCheck } from '@/shell/PickModeUI'
+import { toast as emitToast } from '@/shell/toast'
 import { SearchField } from '@/components/SearchField'
 
 /**
@@ -64,6 +71,8 @@ const execLabel = (id: FxExecType) => FX_EXEC_TYPES[id].label
 const implLabel = (id: FxImpl) => FX_IMPLS[id]
 const inputLabel = (id: FxInputKind) => FX_INPUT_TYPES[id]
 
+/** 拖拽时按特效 ID 暂存参数包（DataTransfer 只能传字符串） */
+const FX_STASH_KEY = 'fm-fx-card-stash-v1'
 const LIB_KEY = 'fm-fx-library-v1'
 const OUTBOX_KEY = 'fm-fx-usage-outbox-v1'
 
@@ -151,6 +160,37 @@ export function FxLibrary() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [playingId, setPlayingId] = useState<string | null>(null)
+  const pick = usePickMode()
+  const pendingStore = usePendingAssets()
+  const fxInPending = (id: string) => pendingStore.has(id)
+
+  /* 特效 → 待发送条目。特效不是文件，带过去的是「做法」本身：
+     分类、用途、实现方式、复杂度。这些正是 AI 照着复现所需的最小信息。
+     只丢一个名字过去，等于让 AI 重新猜一遍。 */
+  const toFxCard = (t: FxTechnique): PendingFxCard => ({
+    fxId: t.id,
+    name: t.name,
+    intent: t.intent,
+    categoryLabel: t.categoryLabel,
+    execLabel: t.execLabel,
+    complexity: t.complexity,
+    impl: t.implLabel,
+    poster: t.previewImage,
+  })
+
+  const stashFxCard = (t: FxTechnique) => {
+    try {
+      const raw = sessionStorage.getItem(FX_STASH_KEY)
+      const map = raw ? JSON.parse(raw) as Record<string, PendingFxCard> : {}
+      map[t.id] = toFxCard(t)
+      sessionStorage.setItem(FX_STASH_KEY, JSON.stringify(map))
+    } catch { /* 存储不可用时忽略 */ }
+  }
+
+  const addFxToPending = (list: FxTechnique[]) => {
+    const n = pendingStore.addFx(list.map(toFxCard))
+    emitToast(n > 0 ? `已加入待发送 ${n} 个特效` : '已在待发送中')
+  }
   const [copied, setCopied] = useState<'idle' | 'ok' | 'fail'>('idle')
   const [workflowFor, setWorkflowFor] = useState<FxTechnique | null>(null)
   const [toast, setToast] = useState<string | null>(null)
@@ -257,7 +297,6 @@ export function FxLibrary() {
   const activeCount = techActiveCount + (cat !== 'all' ? 1 : 0)
 
   const playing = current !== null && playingId === current.id
-
   function resetTechFilters() {
     setExec('all')
     setInputKind('all')
@@ -404,13 +443,26 @@ export function FxLibrary() {
     <div className="fxlib">
       <section className="fx-panel" aria-label="特效技法库" inert={drawerOpen || workflowFor ? true : undefined}>
         <div className="fx-cmd">
-          <h1 className="fx-cmd-title">特效技法库</h1>
+          <div className="fx-heading-group"><h1 className="fx-cmd-title">特效技法库</h1></div>
+          {!pick.active && <PickButton onClick={pick.enter} label="特效" />}
+        </div>
+
+        {/* 去 AI 味：整行图例删除——组件不再解释自己；能力与复杂度直接写进卡片元信息行 */}
+        <div className="fx-meta">
+          <nav className="fx-meta-scope" aria-label="范围">
+            {SCOPES.map((s) => (
+              <button key={s.id} type="button" data-on={scope === s.id ? '' : undefined} aria-pressed={scope === s.id} onClick={() => setScope(s.id)}>
+                {s.label}<em className="num">{s.count}</em>
+              </button>
+            ))}
+          </nav>
           <div className="fx-cmd-search">
             <SearchField
               inputRef={searchRef}
               value={query}
               onChange={setQuery}
-              placeholder="搜索技法名称、用途或实现方式…（按 / 聚焦）"
+              placeholder="搜索名称、用途或实现方式"
+              shortcutHint="/"
               ariaLabel="搜索技法"
             />
           </div>
@@ -507,11 +559,6 @@ export function FxLibrary() {
               </>
             )}
           </div>
-        </div>
-
-        {/* 去 AI 味：整行图例删除——组件不再解释自己；能力与复杂度直接写进卡片元信息行 */}
-        <div className="fx-meta">
-          <span className="fx-meta-count"><b className="num">{visible.length}</b> 项技法</span>
           {cat !== 'all' && (
             <span className="fx-activechip">
               分类 · {categoryLabel(cat)}
@@ -549,13 +596,8 @@ export function FxLibrary() {
             </span>
           )}
           <span className="fx-spacer" />
-          <nav className="fx-meta-scope" aria-label="范围">
-            {SCOPES.map((s) => (
-              <button key={s.id} type="button" data-on={scope === s.id ? '' : undefined} aria-pressed={scope === s.id} onClick={() => setScope(s.id)}>
-                {s.label}<em className="num">{s.count}</em>
-              </button>
-            ))}
-          </nav>
+          {(query.trim() || activeCount > 0) && <span className="fx-result-summary" role="status">找到 {visible.length} 项技法</span>}
+
           <label className="fx-sort">
             <ArrowUpDown size={12} strokeWidth={2} aria-hidden="true" />
             <select value={sort} onChange={(e) => setSort(e.target.value as SortKey)} aria-label="排序方式">
@@ -595,27 +637,46 @@ export function FxLibrary() {
             <div className="fx-grid">
               {sorted.map((t) => {
                 const fav = lib.favorites.includes(t.id)
-                const isPlaying = playingId === t.id
                 return (
                   <article
                     key={t.id}
                     className="fxc fxc-poster"
                     data-fx-id={t.id}
-                    onMouseEnter={() => t.previewVideo && setPlayingId(t.id)}
-                    onMouseLeave={() => setPlayingId((p) => (p === t.id ? null : p))}
+                    data-added={fxInPending(t.id) || undefined}
+                    data-pickmode={pick.active || undefined}
+                    data-picked={(pick.active && pick.has(t.id)) || undefined}
+                    draggable={!pick.active}
+                    onDragStart={(e) => {
+                      /* 与素材库/参考片库同一套：同一个 DataTransfer 类型，
+                         待发送那边不用改就能接住；拖动时把整卡快照换成 56px 小块，
+                         否则卡片举在鼠标边会盖住落点。 */
+                      stashFxCard(t)
+                      setAssetDragData(e.dataTransfer, [t.id])
+                      const ghostEl = setDragGhost({
+                        thumb: t.previewImage,
+                        label: t.name,
+                        count: 1,
+                      })
+                      e.dataTransfer.setDragImage(ghostEl, 28, 28)
+                    }}
+                    onDragEnd={clearDragGhost}
                   >
                     <div className="fxc-media">
-                      {isPlaying && t.previewVideo ? (
-                        <video src={t.previewVideo} poster={t.previewImage} autoPlay muted loop playsInline aria-label={`${t.name} 动态预览`} />
-                      ) : (
-                        <img src={t.previewImage} alt={`${t.name} 效果预览`} loading="lazy" />
-                      )}
-                      <span className="fxc-catlabel">{categoryLabel(t.category)}</span>
-                      {t.previewVideo && (
-                        <span className="fxc-motion" aria-label="有动态预览">
-                          <Play size={10} strokeWidth={2.4} aria-hidden="true" />
-                        </span>
-                      )}
+                      <SilentVideoPreview src={t.previewVideo} poster={t.previewImage}
+                        active={!drawerOpen && !workflowFor} label={`${t.name} 动态预览`} />
+                      {pick.active && <PickCheck checked={pick.has(t.id)} />}
+                      {t.previewVideo && <span className="fxc-preview-label"><Play size={10} aria-hidden="true" />动态预览</span>}
+                      {/* 加入待发送：与素材库/参考片库同一位置、同一规格 */}
+                      {!pick.active && <button
+                        type="button"
+                        className="fxc-add"
+                        data-added={fxInPending(t.id) || undefined}
+                        aria-label={fxInPending(t.id) ? `${t.name} 已在待发送` : `把 ${t.name} 加入待发送`}
+                        title={fxInPending(t.id) ? '已在待发送' : '加入待发送'}
+                        onClick={(e) => { e.stopPropagation(); addFxToPending([t]) }}
+                      >
+                        {fxInPending(t.id) ? <Check size={14} strokeWidth={2.4} /> : <Plus size={14} strokeWidth={2.4} />}
+                      </button>}
                       <button
                         type="button"
                         className="fxc-fav"
@@ -627,13 +688,20 @@ export function FxLibrary() {
                         <Star size={14} strokeWidth={2} fill={fav ? 'currentColor' : 'none'} />
                       </button>
                     </div>
-                    <button type="button" className="fxc-hit" aria-label={`查看技法：${t.name}`} onClick={() => openDrawer(t.id)} />
+                    {/* 覆盖层只负责"点开详情"。它是 <button> 且铺满整卡，
+                        从它上面起手拖拽时，浏览器会把"这个按钮"当成拖拽源，
+                        卡片上的 onDragStart 永远不触发 —— 拖拽因而失效。
+                        关掉它自身的可拖性，让拖拽落到父级 article 上。 */}
+                    <button type="button" className="fxc-hit" draggable={false}
+                            aria-label={pick.active ? `${pick.has(t.id) ? '取消选择' : '选择'} ${t.name}` : `查看技法：${t.name}`}
+                            onClick={() => { if (pick.active) pick.toggle(t.id); else openDrawer(t.id) }} />
                     <div className="fxc-body">
+                      <span className="fxc-category">{categoryLabel(t.category)}</span>
                       <h3 className="fxc-title">{t.name}</h3>
                       <p className="fxc-intent">{t.intent}</p>
-                      {/* 去 AI 味：能力 pill + 圆点复杂度 + 输入标签云，改成一行普通元信息文字 */}
                       <div className="fxc-meta">
-                        <span>{execLabel(t.execType)} · 复杂度 {t.complexity}/5 · {t.inputLabels.join("、")}</span>
+                        <span>{execLabel(t.execType)}</span>
+                        <span className="fxc-inputs">{t.inputLabels.join(' / ')}</span>
                       </div>
                     </div>
                   </article>
@@ -643,6 +711,19 @@ export function FxLibrary() {
           )}
         </div>
 
+        {pick.active && (
+          <PickBar
+            count={pick.selected.size}
+            total={sorted.length}
+            noun="个特效"
+            onSelectAll={() => pick.selectAll(sorted.map((x) => x.id))}
+            onCancel={pick.exit}
+            onConfirm={() => pick.confirm((ids) => {
+              const list = ids.map((id) => FX_TECHNIQUES.find((x) => x.id === id)).filter((x): x is FxTechnique => !!x)
+              addFxToPending(list)
+            })}
+          />
+        )}
       </section>
 
       {/* ── 详情抽屉：预览 → 用途 → 实现方法 → 参数 → 调用方式 ── */}

@@ -39,10 +39,13 @@
 }
 .set-dlg-title {
   margin: 0;
-  /* 页面主标题字阶（fm-page-head-title 同级）：24px/600 */
-  font-size: var(--fm-text-title);
-  line-height: var(--fm-leading-title);
+  /* 弹窗标题不该用页面主标题字阶（24px）：设置是工具面板，
+     标题一大就把左栏和正文全压成「小字」。这里用 15px/600，
+     与视图内 .t-title 同级，弹窗体感是「工具窗」而不是「页面」。 */
+  font-size: 15px;
+  line-height: 22px;
   font-weight: 600;
+  letter-spacing: .01em;
   color: var(--fg);
 }
 .set-dlg-body {
@@ -54,7 +57,7 @@
 /* ── 左：分区导航（hm-nav 的 pill 项）──────────────────────── */
 .set-nav {
   position: relative;
-  flex: 0 0 188px;
+  flex: 0 0 200px;
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -79,22 +82,43 @@
 .set-nav-item {
   display: flex;
   align-items: center;
-  gap: 11px;
-  height: 38px;
-  padding: 0 12px;
+  gap: 10px;
+  /* 两行导航（主标题 + 灰字副标题），高度由内容撑出 */
+  min-height: 44px;
+  padding: 6px 10px;
   border: 0;
   border-radius: 19px;
   background: none;
   color: var(--dim);
   font: inherit;
-  font-size: 13px;
+  /* 左栏是目录，不是正文：主标题 12px、副标题 10.5px，选中时才加重 */
+  font-size: 12px;
   text-align: left;
   cursor: pointer;
   transition: background-color .15s, color .15s;
 }
 .set-nav-item:hover { background: color-mix(in srgb, var(--fg) 6%, transparent); color: var(--fg); }
-.set-nav-item[data-on] { background: var(--soft); color: var(--acc); font-weight: 600; }
+.set-nav-item[data-on] { background: var(--soft); color: var(--acc); font-weight: 600; letter-spacing: .01em; }
 .set-nav-item .ui-icon { width: 16px; height: 16px; flex: 0 0 16px; }
+/* 主标题 / 副标题：和 open-design 的 nav-item 一样是 strong + small 两行 */
+.set-nav-txt {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  line-height: 1.25;
+}
+.set-nav-txt b { font-size: 12px; font-weight: 550; color: inherit; }
+.set-nav-txt small {
+  font-size: 10.5px;
+  font-weight: 400;
+  color: var(--ph);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.set-nav-item[data-on] .set-nav-txt b { font-weight: 600; }
+.set-nav-item[data-on] .set-nav-txt small { color: color-mix(in srgb, var(--acc) 62%, var(--ph)); }
 
 /* ── 右：内容面板 ─────────────────────────────────────────── */
 .set-panel {
@@ -102,20 +126,24 @@
   min-width: 0;
   overflow-y: auto;
   padding: 14px 22px 18px;
-  scrollbar-width: thin;
+  scrollbar-width: none;
   scrollbar-color: var(--line) transparent;
 }
 .set-sec-head {
-  margin: 0 0 2px;
-  font-size: 12px;
+  margin: 0 0 4px;
+  /* 分区标题：比正文(12.5px)略大且更重，视线先落这里 */
+  font-size: 13px;
+  line-height: 20px;
   font-weight: 650;
-  letter-spacing: .02em;
+  letter-spacing: .01em;
   color: var(--fg);
 }
 .set-subhead {
-  margin: 18px 0 4px;
+  margin: 20px 0 4px;
+  /* 子标题：和分区标题拉开一档，用字重而不是字号区分 */
   font-size: 12px;
-  font-weight: 650;
+  line-height: 18px;
+  font-weight: 600;
   letter-spacing: .02em;
   color: var(--fg);
 }
@@ -265,3 +293,399 @@ html[data-motion="reduce"] *::after {
   .set-row { flex-direction: column; align-items: flex-start; gap: 6px; }
   .set-row-control { text-align: left; }
 }
+
+/* ── 右栏内容宽度 ────────────────────────────────────────────
+   设置项是「左边标签 + 右边控件」的两端对齐行；行铺满整个内容宽度时，
+   视线要横穿 700px 才连得上标签和控件。内容收在 660px 内更紧凑，
+   竖向留白由 .set-row 的内边距给。 */
+.set-sec { max-width: 660px }
+/* 分段选择不能用 flex:1 平均分：文字一长（「仅我的创作」「时间码」）
+   就被压成两行，标签高度跟着参差。改成按内容宽度排，行内居中。 */
+.set-row-control .ch-tabs { flex: 0 0 auto; gap: 2px }
+.set-row-control .ch-tabs button {
+  flex: 0 0 auto;
+  padding: 6px 11px;
+  white-space: nowrap;
+  font-size: 12px;
+}
+/* 壁纸预览格子比通用行控件更宽，允许撑开 */
+.set-panel .set-walls { max-width: 100% }
+
+/* 主题行：名字要比左栏目录(12px)更醒目，否则「选项」看着像「目录」的子项 */
+.set-rowbtn .set-rowtxt b { font-size: 12.5px; font-weight: 600; }
+.set-rowbtn .set-rowtxt small { font-size: 11px; }
+/* 壁纸预览格子：浅色主题下白底/浅底格子会和弹窗底色糊在一起，补一圈内描边 */
+.set-wall-prev { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fg) 12%, transparent); }
+.set-wall[data-on] .set-wall-prev { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--acc) 30%, transparent); }
+
+/* ═══════════════════════════════════════════════════════════════
+   版式参照 open-design（apps/web SettingsDialog）：
+   · 左栏 nav-item = 图标 + 主标题 + 灰字副标题（两行）
+   · 右栏 = 「分区卡片」内若干字段块；卡片用面板底色区分，
+     不画边框、不加阴影（CLAUDE.md:表面靠灰阶递进）
+   · 字段标签 12px/600 大写间距，选项主体比它更亮
+   ═══════════════════════════════════════════════════════════════ */
+
+/* 分区卡片：一块内容 = 一个面板。多个子标题之间靠卡片内的分组间距分开 */
+.set-sec {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-width: 680px;
+}
+/* 卡片里的分组块：本机占用 / 备份与恢复 / 清理 … 各自成为一个面板 */
+.set-card {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 12px;
+  padding: 14px 16px 12px;
+  border-radius: 10px;
+  background: var(--hole);
+}
+.set-card:first-of-type { margin-top: 8px; }
+.set-card > .set-subhead:first-child { margin-top: 0; }
+
+/* 字段标签（Row 的名称）：比正文小一档、字重更实，读起来是「标签」不是「句子」 */
+.set-row-label b {
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: .01em;
+}
+/* 标签内的小标题（卡片内那几个字段名）用大写间距，和选项主体拉开层次 */
+.set-card .set-row-label b {
+  font-size: 12px;
+  letter-spacing: .02em;
+}
+.set-row { padding: 7px 0; }
+.set-card .set-row { padding: 7px 0; }
+.set-card .set-row + .set-row { box-shadow: inset 0 1px 0 color-mix(in srgb, var(--fg) 5%, transparent); }
+
+/* 弹窗标题栏：18px（和 open-design 的 settings modal-head h2 同档），
+   比之前的 15px 更有「窗口标题」的存在感，但不再是 24px 页面标题 */
+.set-dlg-head { padding: 14px 44px 14px 20px; }
+.set-dlg-title { font-size: 18px; line-height: 26px; font-weight: 600; letter-spacing: -.01em; }
+
+/* ═══════════════════════════════════════════════════════════════
+   AI 与模型 · 卡片网格
+   ─────────────────────────────────────────────────────────────
+   只借特效库的卡片形状与排布（.fx-grid / .fxc）：
+   minmax(300px, 1fr) 的等宽网格、16px 间距、圆角卡、1px 描边、hover 提亮。
+   卡内仍是原来那一行内容（方形 logo、名称 + 状态、模型块、开关）——
+   不铺图、不压渐变、不把徽标浮在角上。
+   ═══════════════════════════════════════════════════════════════ */
+
+.set-hcards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(248px, 1fr));
+  gap: 16px;
+  align-items: start;
+  margin: 12px 0 0;
+}
+
+.set-hcard {
+  /* 左列 = logo 整列，右列 = 名称/开关 + 模型长条 */
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  gap: 10px;
+  padding: 12px;
+  /* 卡片要有高度：左列 76 撑住，右列两行（名称区 + 模型长条）才不被压扁 */
+  min-height: 100px;
+  align-items: stretch;
+  background: var(--hole);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  transition: border-color .14s;
+}
+.set-hcard:hover { border-color: color-mix(in srgb, var(--fg) 22%, var(--line)); }
+.set-hcard[data-on] {
+  border-color: color-mix(in srgb, var(--acc) 45%, var(--line));
+  box-shadow: inset 2px 0 0 var(--acc);
+}
+
+/* 方形 logo 块（卡片行、待接入行共用）：固定正方格，品牌图标按 --h-color 上色 */
+.set-agent-ic {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--fg) 6%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fg) 8%, transparent);
+}
+.set-agent-ic > i {
+  display: block;
+  width: 19px;
+  height: 19px;
+  background-color: var(--h-color, var(--acc));
+  mask-position: center;
+  mask-size: contain;
+  mask-repeat: no-repeat;
+}
+
+/* 名称 + 一行状态 */
+.set-agent-who { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.set-agent-who b {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.set-agent-who small {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 11.5px;
+  color: var(--dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.set-agent-who small em {
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--ok);
+  font-style: normal;
+}
+
+/* 模型块（基础形态；卡片里再按 .set-hcard 覆写尺寸） */
+.set-agent-pick {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  height: 32px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--fg) 5%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fg) 8%, transparent);
+  color: var(--fg);
+  font: inherit;
+  cursor: pointer;
+  transition: background-color .14s, box-shadow .14s;
+}
+.set-agent-pick:hover { background: color-mix(in srgb, var(--fg) 9%, transparent); }
+.set-agent-pick:focus-visible { outline: 2px solid var(--acc); outline-offset: 1px; }
+.set-agent-pick[data-state="open"] { box-shadow: inset 0 0 0 1px var(--acc); }
+.set-agent-pick-ic { display: grid; place-items: center; flex: 0 0 14px; width: 14px; height: 14px; }
+.set-agent-pick-ic > i {
+  display: block;
+  width: 14px;
+  height: 14px;
+  background-color: var(--h-color, var(--acc));
+  mask-position: center;
+  mask-size: contain;
+  mask-repeat: no-repeat;
+}
+.set-agent-pick .v {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 500;
+  text-align: left;
+  font-variant-numeric: tabular-nums;
+}
+.set-agent-pick-chev { flex: 0 0 auto; width: 12px !important; height: 12px !important; color: var(--ph); }
+.set-agent-pick[data-state="open"] .set-agent-pick-chev { transform: rotate(180deg); }
+
+/* 左列：品牌 logo 占满这一整列（宽 68、高随卡片），不是行内小方块 */
+.set-hcard-side {
+  display: grid;
+  place-items: center;
+  align-self: stretch;
+  border-radius: 9px;
+  background:
+    radial-gradient(120% 120% at 50% 30%,
+      color-mix(in srgb, var(--h-color) 22%, transparent) 0%,
+      transparent 68%),
+    color-mix(in srgb, var(--fg) 5%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fg) 9%, transparent);
+}
+.set-hcard-side > i {
+  display: block;
+  width: 30px;
+  height: 30px;
+  background-color: var(--h-color, var(--acc));
+  mask-position: center;
+  mask-size: contain;
+  mask-repeat: no-repeat;
+}
+
+/* 右列：名称 + 状态 + 开关一行，模型长条贴在下面 */
+.set-hcard-main {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+}
+.set-hcard-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.set-hcard-top > .set-agent-who { flex: 0 0 auto; min-width: 0; }
+.set-hcard-top > :last-child { flex: 0 0 auto; }
+
+/* 模型块：整卡宽度的一条，和上面的 36px 高左右对齐 */
+.set-hcard .set-agent-pick {
+  /* 不再是整行横条：贴着 Harness 名称右侧的小胶囊，宽度按内容走 */
+  flex: 0 0 auto;
+  width: auto;
+  height: 24px;
+  gap: 6px;
+  padding: 0 7px;
+  background: color-mix(in srgb, var(--fg) 5%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fg) 8%, transparent);
+  border-radius: 7px;
+  color: var(--fg);
+}
+.set-hcard .set-agent-pick:hover { background: color-mix(in srgb, var(--fg) 9%, transparent); }
+.set-hcard .set-agent-pick .v { flex: 0 0 auto; font-size: 11.5px; }
+/* 卡内模型块左侧的品牌小图标要有固定宽度，否则被 .v 挤没 */
+.set-hcard .set-agent-pick-ic { flex: 0 0 12px; width: 12px; height: 12px; }
+.set-hcard .set-agent-pick-ic > i { width: 12px; height: 12px; }
+.set-agent-pick-chev { flex: 0 0 auto; width: 12px !important; height: 12px !important; color: var(--ph); }
+.set-agent-pick[data-state="open"] { box-shadow: inset 0 0 0 1px var(--acc); }
+.set-agent-pick[data-state="open"] .set-agent-pick-chev { transform: rotate(180deg); }
+
+/* 待接入：magpie 的 .ag-install —— 列表下方一行可展开的入口，标题 12.5px 灰字 */
+.set-agent-more { max-width: 560px; margin-top: 12px; }
+.set-agent-more-head {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 4px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--dim);
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+  transition: color .15s;
+}
+.set-agent-more-head:hover { color: var(--fg); }
+.set-agent-more-head > .ui-icon { width: 14px; height: 14px; }
+.set-agent-more-head small {
+  padding: 0 5px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--fg) 8%, transparent);
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+}
+.set-agent-more-chev { transition: transform .28s cubic-bezier(.22, 1, .36, 1); }
+.set-agent-more-head[aria-expanded] .set-agent-more-chev { transform: rotate(180deg); }
+.set-agent-more-body {
+  margin-top: 4px;
+  padding: 2px 0 0;
+  animation: setFoldIn .22s ease both;
+}
+@keyframes setFoldIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: none; }
+}
+/* 待接入行：和上面同构，但整体降一档亮度——它现在不可用，这是诚实的表达 */
+.set-agent-row {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 12px;
+  border: 1px solid color-mix(in srgb, var(--fg) 7%, transparent);
+  border-radius: 9px;
+  margin-bottom: 6px;
+  background: var(--hole);
+}
+.set-agent-row .set-agent-ic { background: color-mix(in srgb, var(--fg) 4%, transparent); }
+.set-agent-row .set-agent-ic > i { opacity: .82; }
+.set-agent-row .set-agent-who b { font-weight: 550; color: color-mix(in srgb, var(--fg) 82%, transparent); }
+.set-agent-tag {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--warn) 14%, transparent);
+  color: var(--warn);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   模型下拉浮层（Popover）
+   ─────────────────────────────────────────────────────────────
+   shadcn 的 PopoverContent 自带 bg-popover / p-4 / w-72 / rounded-md /
+   shadow-md 这一套 Tailwind 类，不覆盖它就是「一个白框 + 大内边距」。
+   这里全部改写成项目口味的紧凑列表：6px 内边距、30px 行高、12.5px 字，
+   当前项浅强调底 + 右侧打勾。参考 magpie 的 .pop。
+   ═══════════════════════════════════════════════════════════════ */
+.set-pick {
+  /* !important 不必要，但选择器要压过工具类：这里用 .set-pick 单类，
+     而工具类也多是单类 —— 靠加载顺序（本文件在 tailwind 之后 import）取胜 */
+  width: 224px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surf);
+  color: var(--fg);
+  box-shadow: 0 16px 40px rgb(0 0 0 / .42), 0 2px 6px rgb(0 0 0 / .18);
+  /* shadcn 默认给了 outline-hidden + 缩放动画，保留动画、去掉 4px 大内边距 */
+}
+.set-pick-head {
+  padding: 3px 8px 6px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  color: var(--ph);
+}
+.set-pick-list { display: flex; flex-direction: column; gap: 1px; }
+.set-pick-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 30px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color .12s;
+}
+.set-pick-item:hover { background: color-mix(in srgb, var(--fg) 7%, transparent); }
+.set-pick-item:focus-visible { outline: 2px solid var(--acc); outline-offset: -2px; }
+.set-pick-item[data-on] { background: color-mix(in srgb, var(--acc) 11%, transparent); }
+.set-pick-item-ic { display: grid; place-items: center; flex: 0 0 14px; width: 14px; height: 14px; }
+.set-pick-item-ic > i {
+  display: block;
+  width: 14px;
+  height: 14px;
+  background-color: var(--h-color, var(--acc));
+  mask-position: center;
+  mask-size: contain;
+  mask-repeat: no-repeat;
+}
+.set-pick-item-v {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 12.5px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.set-pick-item-ck { flex: 0 0 13px; width: 13px; height: 13px; color: var(--acc); }

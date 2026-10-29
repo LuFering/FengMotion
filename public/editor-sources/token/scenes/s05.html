@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="zh" data-resolution="landscape">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>镜 05 · 计量单位</title>
+    <script src="../gsap.min.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1920px; height: 1080px; overflow: hidden; background: #000; }
+      @font-face { font-family: "Big Shoulders Display"; font-weight: 800;
+        src: url("../assets/fonts/big-shoulders-800.woff2") format("woff2"); font-display: block; }
+      @font-face { font-family: "Noto Sans SC"; font-weight: 900;
+        src: url("../assets/fonts/noto-sans-sc-900.woff2") format("woff2"); font-display: block; }
+      @font-face { font-family: "IBM Plex Mono"; font-weight: 500;
+        src: url("../assets/fonts/plex-mono-500.woff2") format("woff2"); font-display: block; }
+
+      #root { position: relative; width: 1920px; height: 1080px; overflow: hidden; }
+      /* 与 04 相同的空间底色 —— 翻页进来是同一个空间，不是新开一个 */
+      #space {
+        position: absolute; inset: 0;
+        background: radial-gradient(ellipse 118% 76% at 50% 14%,
+          #23262e 0%, #1a1d23 40%, #111318 72%, #0b0d11 100%);
+      }
+      #lightpool {
+        position: absolute; left: 50%; top: -34%;
+        width: 1500px; height: 900px; margin-left: -750px;
+        background: radial-gradient(ellipse 50% 50% at 50% 50%,
+          rgba(214,228,255,0.15) 0%, rgba(180,200,240,0.06) 38%, rgba(0,0,0,0) 72%);
+      }
+      /* 背景网格：只作空间参照，很淡 */
+      #grid {
+        position: absolute; inset: 0;
+        background-image:
+          linear-gradient(rgba(255,255,255,0.024) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(255,255,255,0.024) 1px, transparent 1px);
+        background-size: 80px 80px;
+        opacity: 0;
+      }
+      /* 透视地面：token 落位要有"地面"承接，否则是浮在空气里
+         同时把画幅下半填实，构图不再重心塌陷 */
+      #ground {
+        position: absolute; left: -30%; right: -30%; bottom: -28%; height: 82%;
+        background:
+          linear-gradient(180deg, rgba(214,228,255,0.055) 0%, rgba(214,228,255,0) 46%),
+          repeating-linear-gradient(90deg,
+            rgba(214,228,255,0.16) 0 1px, transparent 1px 120px);
+        transform: perspective(760px) rotateX(71deg);
+        transform-origin: 50% 0%;
+        opacity: 0;
+        -webkit-mask-image: linear-gradient(180deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0) 74%);
+        mask-image: linear-gradient(180deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0) 74%);
+      }
+
+      #stage { position: absolute; inset: 0; perspective: 1500px; perspective-origin: 50% 46%; }
+      #camera { position: absolute; inset: 0; transform-style: preserve-3d; }
+
+      .label { font-family: "IBM Plex Mono", monospace; font-weight: 500;
+        font-size: 17px; letter-spacing: 0.26em; color: #8b8f98; text-transform: uppercase; }
+      /* 深色面板上的说明字必须提亮到可读（判例 Q11：要读的字要看得见） */
+      #countPlate .cap { color: #d2d7df !important; }
+      #engine .cap { color: #c9ced8 !important; }   /* lint 建议 ≥rgb(133,139,151)，再留余量 */
+      #inputPlate .cap { color: #3a3d43; }
+
+      /* ── 输入：一整段自然语言 ── */
+      #inputPlate {
+        position: absolute; left: 120px; top: 150px;
+        width: 780px;
+        padding: 30px 36px;
+        border-radius: 14px;
+        background: linear-gradient(158deg, #f6f4f0 0%, #e9e6df 62%, #dcd8cf 100%);
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.95), 0 24px 60px rgba(0,0,0,0.55);
+        opacity: 0;
+      }
+      #inputPlate .text {
+        font-family: "Noto Sans SC", sans-serif; font-weight: 900;
+        font-size: 40px; line-height: 1.5; color: #101216;
+        letter-spacing: 0.01em;
+      }
+      #inputPlate .cap { margin-bottom: 18px; color: #5e6167; letter-spacing: 0.2em;
+        font-family: "IBM Plex Mono", monospace; font-size: 14px; }
+
+      /* ── 模型处理区：一块会"过料"的实体 ── */
+      #engine {
+        position: absolute; left: 150px; top: 430px;
+        width: 320px; height: 180px;
+        border-radius: 16px;
+        background: linear-gradient(158deg, #2b3038 0%, #1a1e25 60%, #12151a 100%);
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.10), 0 20px 50px rgba(0,0,0,0.6);
+        opacity: 0;
+        display: flex; align-items: center; justify-content: center;
+      }
+      #engine .core {
+        width: 92px; height: 92px; border-radius: 50%;
+        background: radial-gradient(circle at 42% 38%, #dfe7f5 0%, #8fa3c4 42%, #3d4657 100%);
+        box-shadow: 0 0 0 10px rgba(255,255,255,0.045), 0 0 40px rgba(150,180,230,0.30);
+      }
+      #engine .cap { position: absolute; left: 20px; top: 16px; color: #6f7684; }
+
+      /* ── 输出：一个个不等长的 token 块 ── */
+      .tok {
+        position: absolute; left: 0; top: 0;
+        height: 54px; border-radius: 9px;
+        background: linear-gradient(158deg, #f6f4f0 0%, #e2ded6 100%);
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.95), 0 8px 22px rgba(0,0,0,0.45);
+        display: flex; align-items: center; justify-content: center;
+        font-family: "Noto Sans SC", sans-serif; font-weight: 900;
+        font-size: 26px; color: #0f1115;
+        opacity: 0;
+      }
+
+      /* ── 右侧计数面板：极简，只要 TOKEN / COUNT ── */
+      #countPlate {
+        position: absolute; left: 1180px; top: 330px;
+        width: 480px; padding: 34px 40px;
+        border-radius: 14px;
+        background: linear-gradient(158deg, #232830 0%, #161a20 100%);
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.08), 0 20px 50px rgba(0,0,0,0.6);
+        opacity: 0;
+      }
+      #countPlate .cap { margin-bottom: 22px; }   /* 132px 的数字需要足够行距，否则包围盒相交 */
+      #countValue {
+        font-family: "IBM Plex Mono", monospace; font-weight: 500;
+        font-size: 132px; line-height: 1.12; color: #f6f4f0;
+        font-variant-numeric: tabular-nums; letter-spacing: -0.01em;
+      }
+      #countBar {
+        margin-top: 16px; height: 4px; border-radius: 2px;
+        background: rgba(255,255,255,0.12); overflow: hidden;
+      }
+      #countBarFill { display: block; height: 100%; width: 0%;
+        background: linear-gradient(90deg, #8fa3c4, #dfe7f5); }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="s05" data-start="0" data-duration="9.0"
+         data-width="1920" data-height="1080">
+      <div id="space"     class="clip" data-start="0" data-duration="9.0" data-track-index="0"></div>
+      <div id="lightpool" class="clip" data-start="0" data-duration="9.0" data-track-index="1" data-layout-allow-overflow></div>
+      <div id="grid"      class="clip" data-start="0" data-duration="9.0" data-track-index="2"></div>
+      <div id="ground"    class="clip" data-start="0" data-duration="9.0" data-track-index="3" data-layout-allow-overflow></div>
+
+      <div id="stage" class="clip" data-start="0" data-duration="9.0" data-track-index="4">
+        <div id="camera">
+          <div id="inputPlate">
+            <div class="cap">INPUT</div>
+            <div class="text">今天推荐一款适合学生党的电脑</div>
+          </div>
+          <div id="engine">
+            <div class="cap">MODEL</div>
+            <div class="core"></div>
+          </div>
+          <div id="tokens"></div>
+          <div id="countPlate">
+            <div class="cap">TOKEN COUNT</div>
+            <div id="countValue">0</div>
+            <div id="countBar"><span id="countBarFill"></span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+
+      // ── 被拆出来的 token：长度不等（真实分词就是不等长）──────────
+      // 每个块带自己的宽度与文本，模拟"一段话被切成可计数的单位"
+      // 真实分词就是不等长 —— 宽度按字数给，读起来才像"被切开的单位"
+      const TOKENS = [
+        { t: '今天', w: 104 }, { t: '推荐', w: 104 }, { t: '一款', w: 104 },
+        { t: '适合', w: 104 }, { t: '学生', w: 104 }, { t: '党的', w: 104 },
+        { t: '电脑', w: 104 }, { t: '真的', w: 104 }, { t: '很', w: 72 },
+        { t: '划算', w: 104 },
+      ];
+      // 落点：模型区右下方的三行区，避开处理区
+      const BASE_X = 300, BASE_Y = 700, GAP = 22, ROW_H = 80;
+      const tokEls = TOKENS.map((tk, i) => {
+        const col = i % 5, row = Math.floor(i / 5);
+        const el = document.createElement('div');
+        el.className = 'tok';
+        el.textContent = tk.t;
+        el.style.width = tk.w + 'px';
+        document.getElementById('tokens').appendChild(el);
+        return { el, x: BASE_X + col * (104 + GAP), y: BASE_Y + row * ROW_H, i };
+      });
+
+      const counter = { v: 0 };
+      const countEl = document.getElementById('countValue');
+
+      gsap.set('#inputPlate', { y: -60 });
+      gsap.set('#engine', { scale: 0.9 });
+
+      // ── 时间表（30fps）──────────────────────────────────────────
+      //  0.00–0.50  承翻页：空间显形，网格亮起（"这里是计量现场"）
+      //  0.50–1.30  输入整段文字落位
+      //  1.30–2.10  文字"流"进模型处理区
+      //  2.10–2.90  处理区工作（核心亮起）
+      //  2.90–5.00  token 块逐个从处理区飞出、在网格里落位（错峰，越来越快）
+      //  3.10–5.20  右侧计数随块出现同步跳动 ← 说「计量单位」时正好在计数
+      //  5.00–6.20  排列整齐 + 计数走完
+      //  6.20–9.00  稳定（可读停留，交棒 s06）
+      const T_IN     = 0.50;
+      const T_FLOW   = 1.30;
+      const T_WORK   = 2.10;
+      const T_EMIT   = 2.90;
+      const T_ALIGN  = 5.00;
+      const T_SETTLE = 6.20;
+
+      tl.to('#grid', { opacity: 1, duration: 0.50, ease: 'power2.out' }, 0);
+tl.to('#ground', { opacity: 1, duration: 0.70, ease: 'power2.out' }, 0.10);
+
+      // 输入落位
+      tl.to('#inputPlate', { opacity: 1, y: 0, duration: 0.55, ease: 'power3.out' }, T_IN);
+      tl.to('#engine', { opacity: 1, scale: 1, duration: 0.45, ease: 'power3.out' }, T_IN + 0.30);
+      tl.to('#countPlate', { opacity: 1, duration: 0.45, ease: 'power2.out' }, T_IN + 0.50);
+
+      // 文字流进处理区（整块板向前推进并压暗，读作"被吃掉"）
+      tl.to('#inputPlate', { z: -260, opacity: 0, duration: 0.80, ease: 'power2.in' }, T_FLOW);
+      tl.to('#engine .core', { scale: 1.14, duration: 0.40, ease: 'power2.out' }, T_WORK);
+      tl.to('#engine .core', { scale: 1.00, duration: 0.40, ease: 'power2.inOut' }, T_WORK + 0.42);
+
+      // token 块飞出落位 —— 间隔收缩（越来越快，判例 R2）
+      tokEls.forEach((tk, i) => {
+        const k = i + 1;
+        const t0 = T_EMIT + 0.30 * k - 0.022 * k * (k - 1) * 0.5;
+        tl.set(tk.el, { x: 420, y: 560, opacity: 0, scale: 0.86 }, t0 - 1/30);
+        tl.to(tk.el, { opacity: 1, duration: 0.14, ease: 'power1.out' }, t0);
+        tl.to(tk.el, { x: tk.x, y: tk.y, scale: 1.0, duration: 0.52, ease: 'power3.out' }, t0);
+        tl.to(tk.el, { boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.95), 0 14px 30px rgba(0,0,0,0.62)',
+                       duration: 0.40, ease: 'power2.out' }, t0 + 0.32);
+        // 计数同步：每落一个块 +1
+        tl.to(counter, {
+          v: k, duration: 0.01, ease: 'none',
+          onUpdate: () => { countEl.textContent = String(Math.round(counter.v)); },
+        }, t0 + 0.34);
+      });
+
+      // 计数条走满 + 落定后的呼吸
+      tl.to('#countBarFill', { width: '100%', duration: 1.0, ease: 'power2.inOut' }, T_ALIGN - 0.6);
+      tl.to('#camera', { z: -160, duration: 1.60, ease: 'sine.inOut' }, T_SETTLE);
+      tl.to('#countPlate', { y: -7, duration: 1.10, ease: 'sine.inOut' }, T_SETTLE + 0.20);
+
+      window.__timelines['s05'] = tl;
+      tl.seek(0);
+    </script>
+  </body>
+</html>

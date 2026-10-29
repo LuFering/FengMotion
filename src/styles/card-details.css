@@ -1,0 +1,75 @@
+/* 只重排卡片内部，不修改容器尺寸、比例、列数与间距。 */
+.silent-media-preview { position:absolute; inset:0; overflow:hidden; pointer-events:none; }
+.silent-media-preview > img,.silent-media-preview > video { position:absolute; inset:0; display:block; width:100%; height:100%; object-fit:cover; }
+.silent-media-preview > video { opacity:0; }
+.silent-media-preview > video[data-ready] { opacity:1; }
+
+/* 特效：画面 + 名称为主，分类与用途辅助浏览，复杂参数留给详情。 */
+.fxlib .fxc-poster .fxc-body { padding:42px 18px 15px; gap:5px; background:linear-gradient(0deg,rgba(7,9,12,.93),rgba(7,9,12,.68) 50%,transparent); }
+.fxlib .fxc-category { color:rgba(255,255,255,.56); font-size:10px; line-height:1.4; letter-spacing:.08em; }
+.fxlib .fxc-poster .fxc-title { font-size:17px; font-weight:550; line-height:1.35; letter-spacing:-.02em; }
+.fxlib .fxc-poster .fxc-intent { font-size:12px; line-height:1.6; color:rgba(255,255,255,.7); -webkit-line-clamp:1; }
+.fxlib .fxc-poster .fxc-meta { margin-top:5px; gap:10px; flex-wrap:nowrap; justify-content:space-between; font-size:10px; color:rgba(255,255,255,.5); }
+.fxlib .fxc-inputs { white-space:nowrap; flex:none; }
+.fxlib .fxc-preview-label { position:absolute; left:13px; top:13px; display:flex; align-items:center; gap:5px; color:rgba(255,255,255,.88); background:rgba(8,10,13,.48); padding:4px 7px; border-radius:5px; font-size:10px; pointer-events:none; }
+.fxlib .fxc .fxc-fav,.fxlib .fxc .fxc-add { top:12px; width:28px; height:28px; border-radius:7px; background:rgba(12,14,18,.66); backdrop-filter:blur(8px); color:rgba(255,255,255,.85); opacity:0; transition:opacity .15s,background .15s; }
+.fxlib .fxc .fxc-fav { right:12px; }
+.fxlib .fxc .fxc-add { right:46px; }
+.fxlib .fxc:hover .fxc-fav,.fxlib .fxc:focus-within .fxc-fav,.fxlib .fxc .fxc-fav[data-on],
+.fxlib .fxc:hover .fxc-add,.fxlib .fxc:focus-within .fxc-add,.fxlib .fxc .fxc-add[data-added] { opacity:1; }
+.fxlib .fxc .fxc-fav[data-on] { color:var(--warn); }
+
+/* 素材：文件名只出现一次；类型/时长在上，名称/文件属性在下。 */
+.mya .mya-card-head { padding:10px 12px; min-height:0; gap:6px; background:linear-gradient(180deg,rgba(5,7,10,.4),transparent); transition:opacity .15s; }
+.mya .mya-media-kind { display:inline-flex; align-items:center; gap:5px; font-size:10px; color:rgba(255,255,255,.76); }
+.mya .mya-media-kind .ui-icon { width:12px; height:12px; }
+.mya .mya-media-duration { color:rgba(255,255,255,.7); font-size:10px; margin-left:2px; }
+.mya .mya-card:hover .mya-card-head,.mya .mya-card:focus-within .mya-card-head,.mya .mya-card[data-pickmode] .mya-card-head { opacity:0; }
+.mya .mya-card-body { padding:28px 12px 10px; gap:5px; background:linear-gradient(0deg,rgba(6,8,11,.92),rgba(6,8,11,.64) 50%,transparent); }
+.mya .mya-card-title-row { display:flex; align-items:center; gap:7px; min-width:0; }
+.mya .mya-card-name { flex:1; min-width:0; font-size:13px; line-height:1.35; font-weight:550; }
+.mya .mya-card-warning { color:#e5bb7c; flex:none; display:flex; pointer-events:auto; }
+.mya .mya-card-warning[data-tone="bad"] { color:#ff9b9b; }
+.mya .mya-card-warning .ui-icon { width:11px; height:11px; }
+.mya .mya-card-meta { gap:8px; font-size:10px; color:rgba(255,255,255,.55); }
+.mya .mya-refs-badge { margin-left:auto; flex:none; background:none; padding:0; gap:4px; font-size:10px; color:rgba(255,255,255,.65); }
+.mya .mya-refs-badge .ui-icon { width:11px; height:11px; opacity:.7; }
+.mya .mya-card .mya-star,.mya .mya-card .mya-pending-btn { width:26px; height:26px; top:8px; border-radius:7px; background:rgba(12,14,18,.66); color:rgba(255,255,255,.85); }
+.mya .mya-card .mya-star { right:8px; }
+.mya .mya-card .mya-pending-btn { right:40px; }
+.mya .mya-card .mya-star[data-on] { color:var(--warn); }
+
+/* 参考片：片段序号、名称、可借鉴的运镜和时间范围各有固定位置。 */
+.rfc .rfc-card-marker { position:absolute; top:10px; left:11px; display:inline-flex; align-items:center; gap:9px; color:rgba(255,255,255,.88); font-size:10px; background:rgba(8,10,13,.45); border-radius:5px; padding:3px 6px; }
+.rfc .rfc-card-marker > span { color:rgba(255,255,255,.55); font-variant-numeric:tabular-nums; }
+.rfc .rfc-card-body { padding:32px 13px 11px; background:linear-gradient(0deg,rgba(6,8,11,.93),rgba(6,8,11,.62) 48%,transparent); }
+.rfc .rfc-card-t { font-size:14px; line-height:1.35; font-weight:550; letter-spacing:-.01em; }
+.rfc .rfc-card-m { font-size:11px; color:rgba(255,255,255,.63); margin-top:4px; }
+.rfc .rfc-card-f { margin-top:9px; font-size:9px; color:rgba(255,255,255,.48); }
+.rfc .rfc-card-range { letter-spacing:.015em; }
+.rfc .rfc-card-status { display:inline-flex; align-items:center; gap:4px; font-size:9px; color:rgba(255,255,255,.58); }
+.rfc .rfc-card-status i { width:4px; height:4px; border-radius:50%; background:#74bfa3; }
+.rfc .rfc-card-status[data-s="partial"] i { background:#dbb66e; }
+.rfc .rfc-card-status[data-s="pending"] i { background:#a0a5b0; }
+.rfc .rfc-card .rfc-card-add { top:9px; right:9px; width:26px; height:26px; border-radius:7px; background:rgba(12,14,18,.66); }
+.rfc .rfc-video { animation:none; }
+.rfc .rfc-play:disabled { opacity:.4; cursor:default; }
+@media(prefers-reduced-motion:reduce) { .fxlib .fxc .fxc-fav,.fxlib .fxc .fxc-add,.mya .mya-card-head { transition:none; } }
+
+/* 参考片首页播放时只淡出导航，不改变导航占位或画面宽度。 */
+body.studio-shell:has(.rfc) .hm-sidebar { transition:opacity .32s ease,background-color .32s ease; }
+body.studio-shell:has(.rfc[data-previewing]) .hm-sidebar:not(:hover):not(:focus-within) { opacity:0; background:transparent; border-color:transparent; box-shadow:none; }
+.rfc .rfc-film-next { width:28px; height:28px; display:inline-flex; align-items:center; justify-content:center; color:var(--ink-dim); border-radius:6px; }
+.rfc .rfc-film-next:hover,.rfc .rfc-film-next:focus-visible { color:var(--media-ink); background:var(--media-scrim); }
+@media(prefers-reduced-motion:reduce) { body.studio-shell:has(.rfc) .hm-sidebar { transition:none; } }
+
+/* 画面从视口左边缘铺开；交互覆层保留原来的安全区，显隐导航不重排。 */
+body.studio-shell #pane-reference:has(.rfc) { margin-left:0 !important; width:100%; }
+.rfc .rfc-overlays { position:absolute; inset:0 0 0 var(--hm-sidebar,68px); }
+/* 底部随导航显现状态避让，视频舞台不参与布局变化。两处过渡相抵，播放键不横移。 */
+.rfc .rfc-dock { left:0; transition:left .32s ease; }
+.rfc .rfc-head { left:0; transition:left .32s ease,opacity .35s ease; }
+.rfc .rfc-transport { padding-left:0; transition:padding-left .32s ease; }
+body.studio-shell:has(.rfc[data-previewing]):not(:has(.hm-sidebar:hover,.hm-sidebar:focus-within)) :is(.rfc-dock,.rfc-head) { left:calc(-1 * var(--hm-sidebar,68px)); }
+body.studio-shell:has(.rfc[data-previewing]):not(:has(.hm-sidebar:hover,.hm-sidebar:focus-within)) .rfc-transport { padding-left:var(--hm-sidebar,68px); }
+@media(prefers-reduced-motion:reduce) { .rfc .rfc-dock,.rfc .rfc-transport,.rfc .rfc-head { transition:none; } }

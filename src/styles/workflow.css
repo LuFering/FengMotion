@@ -591,3 +591,74 @@ html[data-theme='tactile'] .wfl {
 .wfe-connectmenu-item b { font-size: 12.5px; font-weight: 600; color: var(--tx); }
 .wfe-connectmenu-item span { font-size: 11px; color: var(--tx3); }
 .wfe-connectmenu-foot { margin: 0; font-size: 10.5px; line-height: 1.5; color: var(--tx3); }
+
+/* 工作流货架：仅作用于首页，编辑器沿用原有样式。 */
+.wfshop { width:100%; height:100%; overflow:auto; padding:42px clamp(24px, 5vw, 76px) 50px; box-sizing:border-box; }
+.wfshop-header { display:flex; align-items:flex-end; justify-content:space-between; gap:20px; max-width:1450px; margin:auto; }
+.wfshop-eyebrow,.wfshop-label { color:var(--tx3); font-size:10px; letter-spacing:.17em; font-weight:700; }
+.wfshop-header h1 { margin:7px 0 4px; font-size:30px; letter-spacing:-.04em; }
+.wfshop-header p,.wfshop-section-head p { margin:0; color:var(--tx2); }
+/* 必须带 .wfl 前缀：文件开头的 `.wfl button { color: inherit }` 特异性是 (0,1,1)，
+   高于单独的 `.wfshop-create` (0,1,0)，会把这里写的文字色覆盖成继承色 ——
+   而底色是 var(--tx)、继承来的文字色也是 var(--tx)，于是按钮变成一个纯黑空块、
+   文字完全看不见（三套主题全中）。加一层类名后特异性 (0,2,0) 才压得住。 */
+.wfl .wfshop-create { display:flex; gap:8px; align-items:center; padding:12px 17px; background:var(--tx); color:var(--wf-bg); border-radius:10px; font-weight:700; white-space:nowrap; }
+.wfshop-intro { max-width:1450px; min-height:230px; margin:30px auto 35px; display:flex; overflow:hidden; border:1px solid var(--line2); border-radius:18px; background:var(--panel); }
+.wfshop-intro-copy { position:relative; z-index:1; flex:1; padding:29px 34px; }
+.wfshop-label span { color:#9aacff; margin-left:10px; }
+.wfshop-intro h2 { font-size:27px; line-height:1.25; margin:17px 0 9px; letter-spacing:-.04em; }
+.wfshop-intro p { color:var(--tx2); max-width:430px; margin:0; line-height:1.7; }
+.wfshop-intro-copy button,.wfshop-empty button { display:flex; gap:9px; align-items:center; margin-top:18px; color:var(--acc-tx); font-weight:700; }
+.wfshop-intro-art { position:relative; width:43%; min-width:280px; overflow:hidden; background:radial-gradient(ellipse at 55% 50%, #344569 0%, #20283c 42%, transparent 75%); }
+.wfshop-orbit { position:absolute; width:260px; height:260px; border:1px solid rgba(174,190,255,.2); border-radius:50%; left:50%; top:50%; transform:translate(-50%,-50%) rotate(-25deg) scaleY(.55); }
+.wfshop-orbit.orbit-two { transform:translate(-50%,-50%) rotate(35deg) scaleY(.55); }
+.wfshop-art-node { position:absolute; background:#e3eaff; color:#34415e; border-radius:9px; padding:9px 13px; width:90px; font-size:12px; font-weight:700; box-shadow:0 10px 30px #0003; }
+.wfshop-art-node span { float:right; opacity:.5; font-size:10px; }.node-one { top:24%; left:15%; transform:rotate(-7deg); }.node-two { top:52%; left:47%; transform:rotate(5deg); }.node-three { top:18%; right:6%; transform:rotate(7deg); background:#b7c9ff; }.wfshop-art-star { position:absolute; color:#cad6ff; font-size:43px; left:47%; top:24%; }
+.wfshop-toolbar,.wfshop-section-head { max-width:1450px; margin:auto; display:flex; align-items:center; justify-content:space-between; gap:20px; }.wfshop-toolbar { border-bottom:1px solid var(--line2); }.wfshop-tabs { display:flex; gap:26px; }.wfshop-tabs button { padding:0 0 16px; color:var(--tx3); border-bottom:2px solid transparent; font-weight:600; white-space:nowrap; }.wfshop-tabs button.active { color:var(--tx); border-color:var(--tx); }.wfshop-tabs button span { margin-left:4px; color:var(--tx3); }.wfshop-tabs small { font-size:10px; margin-left:4px; color:var(--tx3); }.wfshop-search { width:200px; padding-bottom:12px; }
+.wfshop-section-head { margin-top:28px; margin-bottom:18px; }.wfshop-section-head h2 { margin:0 0 4px; font-size:18px; }.wfshop-section-head>span { color:var(--tx3); font-size:12px; }
+.wfshop-grid { max-width:1450px; margin:auto; display:grid; grid-template-columns:repeat(auto-fill,minmax(245px,1fr)); gap:18px; }.wfshop-card { min-width:0; border:1px solid var(--line2); border-radius:14px; overflow:hidden; background:var(--panel); }.wfshop-card-art { position:relative; display:block; width:100%; height:150px; text-align:left; overflow:hidden; background:linear-gradient(135deg,#d6e3ff,#a8bbe8); color:#283f70; }.wfshop-card-art.art-1 { background:linear-gradient(135deg,#e5d9ef,#bda9d5); color:#58466e; }.wfshop-card-art.art-2 { background:linear-gradient(135deg,#d4e9dc,#9dc5b5); color:#325c51; }.wfshop-card-art.art-3 { background:linear-gradient(135deg,#f0dfc9,#d8b899); color:#71563e; }.wfshop-card-art:after { content:''; position:absolute; width:180px; height:180px; border:1px solid currentColor; opacity:.14; border-radius:50%; right:-15px; top:-34px; box-shadow:0 0 0 25px #ffffff15,0 0 0 50px #ffffff10; }.wfshop-card-number { position:absolute; top:17px; left:17px; font-size:9px; font-weight:800; letter-spacing:.13em; opacity:.65; }.wfshop-card-symbol { position:absolute; left:20px; top:40px; font-size:51px; line-height:1; }.wfshop-card-flow { position:absolute; bottom:16px; left:17px; right:15px; display:flex; gap:5px; overflow:hidden; white-space:nowrap; font-size:10px; font-weight:700; }.wfshop-card-flow i { font-style:normal; margin-right:5px; opacity:.5; }.wfshop-card-open { position:absolute; right:17px; top:15px; font-size:18px; }
+.wfshop-card-body { padding:17px; }.wfshop-card-tags { display:flex; gap:6px; margin-bottom:10px; }.wfshop-card-tags span { color:var(--tx2); background:var(--hover); border:1px solid var(--line); border-radius:5px; font-size:10px; padding:3px 6px; }.wfshop-card-title { display:block; width:100%; text-align:left; font-size:16px; font-weight:700; color:var(--tx); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }.wfshop-card-body>p { height:38px; overflow:hidden; color:var(--tx2); font-size:12px; line-height:1.6; margin:8px 0 16px; }.wfshop-card-footer { display:flex; align-items:center; justify-content:space-between; color:var(--tx3); font-size:11px; border-top:1px solid var(--line); padding-top:12px; }.wfshop-card-footer div { display:flex; gap:10px; }.wfshop-card-footer button { color:var(--tx3); }.wfshop-card-footer button:hover { color:var(--tx); }
+.wfshop-empty { max-width:1450px; margin:28px auto; padding:45px 20px; text-align:center; border:1px dashed var(--line2); border-radius:14px; color:var(--tx2); }.wfshop-empty>span { font-size:30px; color:var(--acc-tx); }.wfshop-empty h3 { color:var(--tx); margin:10px 0 5px; }.wfshop-empty p { margin:0; }.wfshop-empty button { margin:15px auto 0; }.wfshop-footnote { max-width:1450px; margin:28px auto 0; color:var(--tx3); font-size:11px; }
+@media(max-width:700px) { .wfshop { padding:24px 18px; }.wfshop-header h1 { font-size:25px; }.wfshop-intro-art { display:none; }.wfshop-toolbar { align-items:flex-start; flex-direction:column; gap:0; }.wfshop-tabs { gap:15px; }.wfshop-search { width:100%; }.wfshop-grid { grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); } }
+
+/* 首页固定在视口内，工作流货架独立滚动。 */
+.wfshop { display:flex; flex-direction:column; overflow:hidden; padding-top:24px; padding-bottom:18px; }
+.wfshop-header,.wfshop-intro,.wfshop-toolbar,.wfshop-section-head,.wfshop-footnote { width:100%; box-sizing:border-box; flex-shrink:0; }
+.wfshop-header h1 { margin:3px 0 2px; font-size:25px; }
+.wfshop-header p { font-size:12px; }
+.wfshop-create { padding:9px 15px; }
+/* 上半部分（标题 + 大横幅）压到 150px，把高度让给下面的货架。
+   原来 155px 装不下内容（实测 scrollHeight 165 > clientHeight 153，横幅底部被裁），
+   所以内边距和字号一起再收一档，让它在 150px 里真的放得下。 */
+.wfshop-intro { min-height:0; height:150px; margin-top:16px; margin-bottom:16px; }
+.wfshop-intro-copy { padding:15px 24px; }
+.wfshop-intro h2 { font-size:20px; line-height:1.15; margin:7px 0 4px; }
+.wfshop-intro p { font-size:11.5px; line-height:1.45; }
+.wfshop-intro-copy button { margin-top:7px; font-size:11.5px; }
+.wfshop-orbit { width:180px; height:180px; }
+.wfshop-art-node { padding:5px 9px; font-size:11px; }
+.wfshop-art-star { font-size:30px; }
+.wfshop-tabs button { padding-bottom:10px; }
+.wfshop-search { padding-bottom:7px; }
+.wfshop-section-head { margin-top:14px; margin-bottom:10px; }
+.wfshop-section-head h2 { font-size:16px; margin-bottom:1px; }
+.wfshop-section-head p { font-size:12px; }
+/* 货架自己滚。关键一条：grid-auto-rows 给行高一个下限。
+   不给的话，grid 在固定高度的滚动容器里会把行高压扁来塞下所有行 ——
+   实测 1440x780 卡片只剩 67px、1280x430 只剩 2px，卡片全被切掉。
+   给下限后行高不再被压缩，超出的部分交给滚动。 */
+.wfshop-grid { flex:1 1 auto; min-height:0; align-content:start; grid-auto-rows:min-content; overflow-y:auto; padding:0 5px 5px 0; }
+.wfshop-empty { flex:1 1 auto; min-height:0; overflow-y:auto; margin-top:16px; margin-bottom:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+.wfshop-footnote { margin-top:10px; }
+/* 窗口矮的时候继续收上半部分：横幅降到 108px、副文案隐藏、脚注隐藏，
+   保证矮窗口下货架至少还留得下一整张卡（卡高约 135px）再滚动。 */
+@media(max-height:760px) { .wfshop { padding-top:14px; padding-bottom:12px; }.wfshop-intro { height:108px; margin-top:10px; margin-bottom:10px; }.wfshop-intro-copy { padding:10px 20px; }.wfshop-intro h2 { font-size:17px; margin:4px 0 3px; }.wfshop-intro p { display:none; }.wfshop-intro-copy button { margin-top:5px; }.wfshop-orbit { width:140px; height:140px; }.wfshop-section-head { margin-top:10px; margin-bottom:8px; }.wfshop-footnote { display:none; } }
+
+/* 与参考片库一致：约束外层页面，滚动只发生在货架内部。 */
+#pane-methods:has(.wfshop) { height:100dvh; min-height:0 !important; max-height:100dvh; overflow:hidden; }
+#pane-methods .hm-content:has(.wfshop) { height:100%; min-height:0; overflow:hidden; }
+body:has(#pane-methods .wfshop) { overflow:hidden; }
+.wfl:has(.wfshop) { height:100%; min-height:0; }
+.wfshop { box-sizing:border-box; min-height:0; }
+.wfshop-grid { overscroll-behavior:contain; scrollbar-width:none; }
+

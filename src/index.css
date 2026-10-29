@@ -10,9 +10,14 @@
 @import "./styles/workbench.css";
 @import "./styles/project.css";
 @import "./styles/myassets.css";
+@import "./styles/pending-assets.css";
+@import "./styles/pick-mode.css";
+@import "./styles/library-drawer.css";
+@import "./styles/wallpaper.css";
 @import "./styles/technique.css";
 @import "./styles/reference.css";
 @import "./styles/workbench-a2.css";
+@import "./styles/workbench-studio.css";
 @import "./styles/embed.css";
 @import "./styles/home-film.css";
 @import "tw-animate-css";
@@ -96,5 +101,14 @@
   --radius-md: 6px;
   --radius-lg: 8px;
   --radius-xl: 12px;
+}
+
+/* ── 全局：禁止「拖拽图片」这种原生行为 ──────────────────────
+   缩略图、预览图铺满了可拖区域，浏览器默认会把它们当成可拖的图片：
+   从图上起手拖，拿到的是「一张图片」而不是所在卡片的拖拽数据，
+   松手还会附带一个 File —— 于是拖去待发送被误判成「导入文件」。
+   我们用 draggable 属性表达拖拽意图，图片不参与。 */
+img {
+  -webkit-user-drag: none;
 }
 

@@ -1,0 +1,682 @@
+/* ═══════════════════════════════════════════════════════════════
+   待发送素材 —— 导航栏入口 + 抽屉 + 素材库卡片状态
+
+   为什么单独一个文件：这套东西跨三个视图（导航栏 / 素材库 / 对话），
+   不属于任何一个视图的样式表。放这里，三处共用同一套 token，
+   改一处不会漂移。
+
+   全部颜色走主题 token（--panel / --line / --acc / --tx），
+   三套主题（dark / light / tactile）自动跟随，不写死色值。
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── 导航栏入口：常驻，带数量角标，同时是拖放目标 ─────────────── */
+.hm-pending {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  height: 44px;
+  margin: 2px 0 0;
+  padding: 0 10px;
+  border: 1px dashed transparent;
+  border-radius: 20px;
+  background: 0 0;
+  color: var(--dim);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 550;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+  /* 底部工具区的按钮默认 overflow:hidden（paba 的 .hm-sidebar-bottom>button，
+     特异性 0,2,1），会把探出按钮外沿的角标裁成蛋形 —— 这里必须放开。 */
+  overflow: visible;
+  transition: background-color .15s, color .15s, border-color .15s;
+}
+.hm-pending:hover { background: var(--hm-hover); color: var(--fg); }
+.hm-pending .ui-icon { width: 20px; height: 20px; flex: 0 0 20px; }
+/* 有内容时图标点亮一点：一眼看出"我攒了东西" */
+.hm-pending:not([data-empty]) { color: var(--fg); }
+.hm-pending:not([data-empty]) .ui-icon { color: var(--acc); }
+
+/* ── 拖拽接近：图标放大 + 等距扩散圆环 ───────────────────────
+   为什么要有这个：拖拽时用户最怕的是"到底能不能放这儿"。鼠标形态
+   （dropEffect 的 + 号）太弱，几乎看不见。这里给两个叠加信号：
+     · 图标放大 —— 目标在"迎上来"
+     · 三道等距圆环由内向外扩散淡出 —— 像涟漪，读作"还差一点就进去了"
+   只在接近时出现（NEAR_RADIUS=150px），不是一直动，避免噪音。 */
+.hm-pending-ico {
+  display: grid;
+  place-items: center;
+  flex: 0 0 20px;
+  width: 20px;
+  height: 20px;
+  transition: transform .18s cubic-bezier(.22, .61, .36, 1);
+}
+.hm-pending[data-near] .hm-pending-ico { transform: scale(1.35); }
+.hm-pending[data-near] .hm-pending-ico .ui-icon { color: var(--acc); }
+
+/* 圆环原点 = 图标中心，不是按钮中心 —— 圈要从图标长出来才读得懂。
+   图标在 padding-left 10px + 自身 20px 的一半 = 20px；纵向跟随 .hm-pending-ico。 */
+.hm-pending-rings {
+  position: absolute;
+  left: 20px;
+  top: 22px;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .14s ease;
+}
+body:not(.hm-nav-expanded) .hm-pending-rings { left: 50%; top: 16px; }
+/* 底部工具区的入口比导航项矮一档，圆环原点跟着上移 */
+.hm-sidebar-bottom .hm-pending-rings { top: 50%; }
+.hm-pending[data-near] .hm-pending-rings { opacity: 1; }
+
+.hm-pending-rings i {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 22px;
+  height: 22px;
+  margin: -11px 0 0 -11px;
+  border: 1.5px solid var(--acc);
+  border-radius: 50%;
+  opacity: 0;
+}
+/* 三道圈同一条动画、彼此错开 1/3 周期 —— 等距扩散，不是同时炸开 */
+.hm-pending[data-near] .hm-pending-rings i {
+  animation: hm-ring 1.5s cubic-bezier(.2, .6, .3, 1) infinite;
+}
+.hm-pending[data-near] .hm-pending-rings i:nth-child(2) { animation-delay: .5s; }
+.hm-pending[data-near] .hm-pending-rings i:nth-child(3) { animation-delay: 1s; }
+
+@keyframes hm-ring {
+  0%   { transform: scale(.55); opacity: 0; }
+  18%  { opacity: .55; }
+  /* 收到 2.1：再大就会压到上面的导航项（实测 2.9 时圈盖住「我的素材」的标签）。
+     半径约 23px，刚好一圈围住图标。 */
+  100% { transform: scale(2.1); opacity: 0; }
+}
+/* 已经压到按钮上：圈停住、变实，图标再放大一档 —— "现在松手就进去" */
+.hm-pending[data-over] .hm-pending-ico { transform: scale(1.5); }
+.hm-pending[data-over] .hm-pending-rings i { animation-play-state: paused; }
+.hm-pending[data-over] .hm-pending-rings i:nth-child(1) { transform: scale(1.55); opacity: .7; }
+.hm-pending[data-over] .hm-pending-rings i:nth-child(2) { transform: scale(1.25); opacity: .45; }
+.hm-pending[data-over] .hm-pending-rings i:nth-child(3) { transform: scale(.95); opacity: .28; }
+
+/* paba 的 `.studio-shell .hm-sidebar-bottom>button`（0,2,1）带 overflow:hidden，
+   会把探出按钮外沿的角标裁成蛋形。用 (0,3,0) 压过去。 */
+.studio-shell .hm-sidebar-bottom .hm-pending { overflow: visible; }
+
+@media (prefers-reduced-motion: reduce) {
+  .hm-pending-rings i { animation: none !important; }
+  .hm-pending-ico { transition: none; }
+  .hm-pending[data-near] .hm-pending-rings i:nth-child(1) { opacity: .5; transform: scale(1.5); }
+  .hm-pending[data-near] .hm-pending-rings i:nth-child(2) { opacity: .3; transform: scale(1.15); }
+  .hm-pending[data-near] .hm-pending-rings i:nth-child(3) { opacity: .18; transform: scale(.85); }
+}
+
+/* 角标：贴图标右上**外**沿，完全不压住购物车。
+   两版都错了：先是 left:24px 落在图标正中（把购物车糊成一坨），
+   然后 left:22px 仍然盖住购物车右侧一半，看着像个残缺图标。
+   现在图标占 x 10..30、y 居中，角标从 x=26 起、y 抬到图标上沿之上，
+   并带一圈背景色描边把它和图标分开。 */
+.hm-pending-badge {
+  position: absolute;
+  top: 2px;
+  left: 29px;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--acc);
+  color: #fff;
+  font-size: 8.5px;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 0 0 2px var(--bg, #101010);
+  pointer-events: none;
+}
+/* 拖拽悬停：整块变成可放置状态。用虚线边 + 浅底，不是"按钮按下" */
+.hm-pending[data-over] {
+  border-color: var(--acc);
+  border-style: dashed;
+  background: color-mix(in srgb, var(--acc) 14%, transparent);
+  color: var(--fg);
+}
+/* 提示气泡贴在按钮右侧。侧栏收起时按钮只有 40px 宽，气泡会探出侧栏 ——
+   这是有意的：它要能被看见，不能藏在侧栏里。侧栏 overflow 已放开。 */
+.hm-pending-hint {
+  /* fixed：侧栏 overflow-x:hidden 会裁掉 absolute 探出去的部分。
+     坐标由 JS 按按钮实际位置算（见 PendingAssets.tsx 的 hintAt）。 */
+  position: fixed;
+  transform: translateY(-50%);
+  padding: 5px 10px;
+  border-radius: 8px;
+  background: var(--acc);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 30;
+  box-shadow: var(--shadow-mid, 0 12px 30px rgb(0 0 0 / .3));
+}
+
+/* 侧栏收起成图标轨时：只留图标 + 角标，标签竖排（与 nav-leaf 一致） */
+body:not(.hm-nav-expanded) .hm-pending {
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  height: 52px;
+  padding: 4px 0;
+  border-radius: 12px;
+}
+/* 收起成图标轨时按钮是竖排（图标在上、文字在下）：
+   角标贴图标右上外侧，同样不能压在购物车上。 */
+body:not(.hm-nav-expanded) .hm-pending-badge { left: 50%; top: 0; transform: translateX(9px); }
+body.studio-shell:not(.hm-nav-expanded) .hm-pending .hm-nav-text {
+  display: block; max-width: 100%;
+  font-size: 9.5px; line-height: 1.2; font-weight: 500;
+  white-space: nowrap; overflow: hidden;
+}
+
+/* ── 抽屉 ──────────────────────────────────────────────────── */
+/* 作者定稿：中央弹窗，不是侧边抽屉 —— 待发送是一份"要确认的清单"，
+   居中才像在核对，贴边会像导航的一部分。 */
+.fmp-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  background: rgb(0 0 0 / .38);
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  animation: fmp-fade .16s ease both;
+}
+@keyframes fmp-fade { from { opacity: 0 } to { opacity: 1 } }
+
+.fmp {
+  width: min(560px, 94vw);
+  max-height: min(78vh, 720px);
+  display: flex;
+  flex-direction: column;
+  background: var(--surf);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  color: var(--fg);
+  font-size: 12.5px;
+  overflow: hidden;
+  box-shadow: 0 28px 70px rgb(0 0 0 / .42), 0 2px 8px rgb(0 0 0 / .18);
+  animation: fmp-pop .2s cubic-bezier(.22, .61, .36, 1) both;
+}
+@keyframes fmp-pop { from { transform: translateY(8px) scale(.985); opacity: 0 } to { transform: none; opacity: 1 } }
+
+.fmp-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 16px 12px;
+  border-bottom: 1px solid var(--line);
+}
+.fmp-head h2 { margin: 0 0 4px; font-size: 15px; font-weight: 700; letter-spacing: -.01em; }
+.fmp-head p { margin: 0; font-size: 11px; line-height: 1.55; color: var(--hint); max-width: 300px; }
+.fmp-x {
+  flex: none;
+  display: grid; place-items: center;
+  width: 26px; height: 26px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--dim);
+  cursor: pointer;
+}
+.fmp-x:hover { color: var(--fg); border-color: var(--hint); }
+
+.fmp-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 30px 26px;
+  text-align: center;
+  color: var(--hint);
+}
+.fmp-empty svg { color: var(--hint); opacity: .55; }
+.fmp-empty b { color: var(--dim); font-size: 13px; font-weight: 650; }
+.fmp-empty p { margin: 0; font-size: 11.5px; line-height: 1.65; max-width: 260px; }
+
+.fmp-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  margin: 0;
+  padding: 10px 12px;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.fmp-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--hole);
+}
+/* 素材已被删除：整条降饱和 + 虚线边，让人一眼看出这条发不出去 */
+.fmp-item[data-missing] {
+  border-style: dashed;
+  border-color: var(--warn, #d08a2c);
+  background: color-mix(in srgb, var(--warn, #d08a2c) 8%, var(--hole));
+}
+.fmp-item[data-missing] .fmp-meta { color: var(--warn, #d08a2c); }
+
+.fmp-thumb {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--surf) 70%, transparent);
+  border: 1px solid var(--line);
+  color: var(--hint);
+}
+.fmp-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.fmp-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.fmp-main > b {
+  font-size: 12.5px; font-weight: 600; color: var(--fg);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.fmp-meta {
+  font-size: 10.5px; color: var(--hint);
+  font-variant-numeric: tabular-nums;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+.fmp-ctl { display: flex; align-items: center; gap: 8px; margin-top: 5px; flex-wrap: wrap; }
+.fmp-purpose {
+  flex: none;
+  height: 24px;
+  padding: 0 6px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surf);
+  color: var(--fg);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+.fmp-purpose-hint { flex: 1; min-width: 0; font-size: 10px; color: var(--hint); line-height: 1.4; }
+
+.fmp-note {
+  width: 100%;
+  height: 26px;
+  margin-top: 3px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surf);
+  color: var(--fg);
+  font: inherit;
+  font-size: 11px;
+}
+.fmp-note::placeholder { color: var(--hint); }
+.fmp-note:focus { outline: none; border-color: var(--acc); }
+
+.fmp-rm {
+  flex: none;
+  display: grid; place-items: center;
+  width: 22px; height: 22px;
+  border: 0; border-radius: 50%;
+  background: transparent;
+  color: var(--hint);
+  cursor: pointer;
+}
+.fmp-rm:hover { color: var(--bad, #b4433e); background: color-mix(in srgb, var(--bad, #b4433e) 12%, transparent); }
+
+.fmp-foot {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-top: 1px solid var(--line);
+}
+.fmp-clear, .fmp-send {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 30px; padding: 0 12px;
+  border-radius: 8px;
+  font: inherit; font-size: 12px; font-weight: 600;
+  cursor: pointer;
+}
+.fmp-clear { border: 1px solid var(--line); background: transparent; color: var(--dim); }
+.fmp-clear:hover:not(:disabled) { color: var(--bad, #b4433e); border-color: var(--bad, #b4433e); }
+.fmp-send { margin-left: auto; border: 1px solid transparent; background: var(--acc); color: #fff; }
+.fmp-send:hover:not(:disabled) { filter: brightness(1.06); }
+.fmp-clear:disabled, .fmp-send:disabled { opacity: .42; cursor: default; }
+.fmp-foot-note { flex: 1; min-width: 0; font-size: 10px; color: var(--hint); line-height: 1.4; }
+
+/* ── 素材库卡片上的「＋」与已添加状态 ─────────────────────────── */
+.mya-pending-btn {
+  position: absolute;
+  /* 卡片底部现在是文字浮层，按钮让到右上角、紧挨收藏星标 */
+  right: 42px;
+  top: 8px;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  background: color-mix(in srgb, var(--surf) 85%, transparent);
+  backdrop-filter: blur(6px);
+  color: var(--dim);
+  cursor: pointer;
+  opacity: 0;
+  transform: translateY(-3px);
+  transition: opacity .18s var(--eo), transform .18s var(--eo), color .18s var(--eo);
+}
+.mya-pending-btn .ui-icon { width: 14px; height: 14px; }
+.mya-card:hover .mya-pending-btn,
+.mya-pending-btn[data-added],
+.mya-pending-btn:focus-visible { opacity: 1; transform: translateY(0); }
+/* 已加入：常驻显示并点亮 —— 这是"已经在待发送里"的唯一标记，
+   不再另加一个大标签，免得素材库被标签淹没。 */
+.mya-pending-btn[data-added] { color: var(--acc); border-color: color-mix(in srgb, var(--acc) 55%, transparent); }
+.mya-card[data-pending] .mya-thumb { box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--acc) 45%, transparent); }
+
+/* 批量工具栏里的「加入待发送」：多选之后的主操作，用强调色 */
+.mya-batch-pending {
+  color: var(--acc) !important;
+  font-weight: 650;
+  border-color: color-mix(in srgb, var(--acc) 45%, transparent) !important;
+}
+.mya-batch-pending:hover { background: color-mix(in srgb, var(--acc) 12%, transparent) !important; }
+
+/* 检查器里的「加入待发送」 */
+.mya-actrow-use { margin-bottom: 6px; }
+.mya-use-btn { color: var(--acc) !important; }
+.mya-use-btn[data-added] { color: var(--ok, #2e7d32) !important; }
+
+/* ── 对话输入框里的附件：显示用途 ─────────────────────────────── */
+.cv3-attach-purpose {
+  flex: none;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--acc) 16%, transparent);
+  color: var(--acc-tx, var(--acc));
+  font-size: 9.5px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.cv3-attach-chip[data-from-pending] { background: color-mix(in srgb, var(--acc) 9%, var(--hole)); }
+
+/* ── 轻提示 ────────────────────────────────────────────────── */
+.fm-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 34px;
+  transform: translateX(-50%);
+  z-index: 200;
+  padding: 8px 15px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--fg) 88%, transparent);
+  color: var(--bg, #fff);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: var(--shadow-mid, 0 12px 30px rgb(0 0 0 / .3));
+  animation: fm-toast-in .18s ease both;
+  pointer-events: none;
+}
+@keyframes fm-toast-in { from { opacity: 0; transform: translate(-50%, 6px) } to { opacity: 1; transform: translate(-50%, 0) } }
+
+/* 触感主题：纸片语法（墨线 + 硬偏移），与工作台卡片一致 */
+html[data-theme="tactile"] .fmp { border: 2px solid #22231f; box-shadow: 4px 4px 0 #22231f; }
+html[data-theme="tactile"] .fmp-item,
+html[data-theme="tactile"] .fmp-x { border-color: #22231f; box-shadow: 2px 2px 0 #22231f; }
+html[data-theme="tactile"] .fmp-send { border-color: #22231f; box-shadow: 2px 2px 0 #22231f; }
+html[data-theme="tactile"] .hm-pending[data-over] { border-color: #22231f; background: rgba(34, 35, 31, .08); }
+
+
+/* ── 拖影：鼠标边那一小块缩略图 ─────────────────────────────────
+   默认拖影是元素自身快照（素材卡 292×330），举起来盖住落点。
+   这里缩到 56px，比指针大一圈，认得出是哪个素材又不挡路。
+   注意：这个元素由 JS 同步插进 body 供 setDragImage 截图，
+   所以必须"可见且已布局"，不能用 display:none 或 opacity:0。 */
+.fm-drag-ghost {
+  position: fixed;
+  left: -1000px;
+  top: -1000px;
+  z-index: 9999;
+  width: 56px;
+  height: 56px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 10px;
+  background: var(--hole, #151517);
+  border: 1px solid color-mix(in srgb, var(--acc) 55%, transparent);
+  box-shadow: 0 8px 20px rgb(0 0 0 / .35);
+  color: var(--fg, #ededed);
+  pointer-events: none;
+}
+.fm-drag-ghost img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.fm-drag-ghost-ph {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--dim, #c0bec8);
+  letter-spacing: -.02em;
+}
+.fm-drag-ghost[data-multi="true"] { box-shadow: 0 8px 20px rgb(0 0 0 / .35), 3px 3px 0 color-mix(in srgb, var(--acc) 60%, transparent); }
+.fm-drag-ghost-n {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 4px;
+  display: grid;
+  place-items: center;
+  border-radius: 7px;
+  background: var(--acc);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   底部工具区按钮（待发送 / 设置）统一规格
+   ─────────────────────────────────────────────────────────────
+   作者反馈"下方的没排版好"。之前两者各写各的：
+     待发送 40×52 r12 column gap2
+     设置   40×56 r10 column gap5
+   高度、圆角、朝向都不同，堆在一起明显不齐。
+   这里统一成与导航项同一套：40 宽 / 56 高 / r10 / 图标在上文字在下 / gap5。
+   收起态空间只有 40px，所以统一用紧凑的纵向布局。
+   ═══════════════════════════════════════════════════════════════ */
+body.studio-shell:not(.hm-nav-expanded) .hm-sidebar-bottom > .hm-pending,
+body.studio-shell:not(.hm-nav-expanded) .hm-sidebar-bottom > .nav-parent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  width: 100%;
+  height: 56px;
+  min-height: 0;
+  margin: 0;
+  padding: 6px 0 5px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: 0 0;
+}
+/* 两个按钮的图标尺寸对齐（各写各的盒子，尺寸必须一致） */
+body.studio-shell:not(.hm-nav-expanded) .hm-sidebar-bottom > .hm-pending .hm-pending-ico,
+body.studio-shell:not(.hm-nav-expanded) .hm-sidebar-bottom > .nav-parent .ui-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 20px;
+  width: 20px;
+  height: 20px;
+}
+body.studio-shell:not(.hm-nav-expanded) .hm-sidebar-bottom > .nav-parent .ui-icon {
+  width: 20px;
+  height: 20px;
+}
+/* 收起态两个按钮都要显示微型标签。
+   注意「待发送」也要包含进来：paba 的 body:not(.hm-nav-expanded) .hm-nav-text{opacity:0}
+   会把它一起隐藏，而设置按钮有 body.studio-shell 前缀压过那条规则，
+   结果就是"待发送没文字、设置按钮有"。两者用同一组选择器才整齐。 */
+body.studio-shell:not(.hm-nav-expanded) .hm-sidebar-bottom > .hm-pending .hm-nav-text,
+body.studio-shell:not(.hm-nav-expanded) .hm-sidebar-bottom > .nav-parent .hm-nav-text {
+  display: block;
+  max-width: 100%;
+  font-size: 9px;
+  line-height: 1.3;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 1;
+}
+/* 底部区块的间距与上方导航一致：4px */
+body.studio-shell:not(.hm-nav-expanded) .hm-sidebar-bottom { gap: 4px; padding-top: 18px; }
+
+/* ── 待发送里的参考片段条目 ─────────────────────────────────────
+   参考片段和素材混在同一份清单里，但内容不同：
+   素材是"一个文件"，参考是"一段画面的可借鉴点"。
+   所以参考条目多一行参数摘要 —— 用户要能确认带过去的是什么。 */
+.fmp-item[data-kind="ref"] .fmp-thumb {
+  border-radius: 6px;
+  overflow: hidden;
+}
+.fmp-item[data-kind="ref"] .fmp-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.fmp-refparams {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+  margin-top: 6px;
+}
+.fmp-refparam {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--acc) 6%, transparent);
+  font-size: 10.5px;
+  line-height: 1.6;
+  color: var(--fg);
+  white-space: nowrap;
+}
+.fmp-refparam i {
+  font-style: normal;
+  font-size: 9.5px;
+  color: var(--hint);
+}
+
+/* ── 参考片库卡片上的「加入待发送」按钮 ─────────────────────────
+   与素材库 .mya-pending-btn 完全同一套规格：26px 圆点、半透明玻璃底、
+   悬停浮现、已加入常驻点亮。位置放在缩略图右上角（素材库那里是右上，
+   因为它的卡片底部是文字浮层；这里底部有信息行，同理让到右上）。
+   ⚠️ 之前写成 24px 且默认 opacity:0 且无 hover 触发器，
+      等于"看不见的按钮"，作者以为是没做。 */
+/* ⚠️ 必须带 .rfc 前缀：reference.css 里有 `.rfc button { background: none; border: 0 }`
+   （特异性 0,1,1），单类名 .rfc-card-add（0,1,0）会被它压掉背景与边框，
+   结果按钮变成一个"没有底的加号"。这里提到 0,2,0 才压得住。 */
+.rfc .rfc-card-add {
+  position: absolute;
+  /* 与素材库 .mya-pending-btn 同一坐标：缩略图右上、收藏星标左侧一格 */
+  right: 42px;
+  top: 8px;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  background: color-mix(in srgb, var(--surf) 85%, transparent);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  color: var(--dim);
+  cursor: pointer;
+  opacity: 0;
+  transform: translateY(-3px);
+  transition: opacity .18s var(--eo), transform .18s var(--eo), color .18s var(--eo);
+}
+.rfc-card-add .ui-icon { width: 14px; height: 14px; }
+.rfc-card:hover .rfc-card-add,
+.rfc-card-add[data-added],
+.rfc-card-add:focus-visible { opacity: 1; transform: translateY(0); }
+/* 已加入：常驻显示并点亮 —— 和素材库同一句语义 */
+.rfc-card-add[data-added] {
+  color: var(--acc);
+  border-color: color-mix(in srgb, var(--acc) 55%, transparent);
+}
+.rfc-card[data-added] .rfc-card-thumb {
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--acc) 45%, transparent);
+}
+
+/* ── 特效库卡片上的「加入待发送」按钮 ───────────────────────────
+   规格与素材库 .mya-pending-btn 一致：26px 圆点、半透明玻璃底、
+   悬停浮现、已加入常驻点亮。
+   ⚠️ 两点按 technique.css 的实际情况写：
+     ① 那里没有通用 `button` 复位，所以不必提高特异性，但仍加 .fxlib
+        前缀以防将来冲突；
+     ② 它的 token 块里没有 --r-pill，圆角直接写 999px；
+        背景用已有的 --panel2 而不是 --surf（后者在该作用域未定义）。
+   ⚠️ 位置：收藏星标在 top:8 right:8（28×28），按钮让到它左侧。 */
+.fxlib .fxc-add {
+  position: absolute;
+  top: 8px;
+  right: 44px;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--panel2) 85%, transparent);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  color: var(--tx2);
+  cursor: pointer;
+  opacity: 0;
+  transform: translateY(-3px);
+  transition: opacity .18s var(--eo), transform .18s var(--eo), color .18s var(--eo);
+}
+.fxc:hover .fxc-add,
+.fxc-add[data-added],
+.fxc-add:focus-visible { opacity: 1; transform: translateY(0); }
+.fxc-add[data-added] {
+  color: var(--acc);
+  border-color: color-mix(in srgb, var(--acc) 55%, transparent);
+}
+.fxc[data-added] .fxc-media {
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--acc) 45%, transparent);
+}

@@ -831,7 +831,7 @@ html[data-theme="tactile"] #pane-conversation {
   flex-direction: column;
   min-height: 0;
   overflow-y: auto;
-  scrollbar-width: thin;
+  scrollbar-width: none;
 }
 
 .cv3-view {
@@ -897,6 +897,36 @@ html[data-theme="tactile"] #pane-conversation {
   flex-direction: column;
   gap: 10px;
   min-width: 0;
+}
+
+/* 状态文字：正文字号 13 / 行高 19.5，状态比它弱一档才不抢内容 */
+.cv3-streaming {
+  margin: 0;
+  color: var(--tx3);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+/* 失败：明说这条没完成。不用中性色糊过去 —— 半截文本不是回复成功 */
+.cv3-failed {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bad) 12%, transparent);
+  color: var(--bad);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+/* 演示来源标记：必须看得见，但不能比正文还抢眼 */
+.cv3-demo-note {
+  margin: 0;
+  color: var(--tx3);
+  font-size: 11px;
+  line-height: 16px;
 }
 
 .cv3-rich {
@@ -1066,6 +1096,133 @@ html[data-theme="tactile"] #pane-conversation {
   border-radius: 24px;
   background: var(--cv-elev);
   box-shadow: var(--cv-shadow);
+}
+
+/* 需求确认卡：与方案卡同一套纸片语言（同 padding / 描边 / 圆角 / 底色），
+   它俩会同时出现在对话尾部，长得不一样会显得是两个东西 */
+.cv3-req {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid var(--cv-line);
+  border-radius: 24px;
+  background: var(--cv-elev);
+  box-shadow: var(--cv-shadow);
+}
+
+.cv3-req-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+}
+
+.cv3-req-head b {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 19.5px;
+  color: var(--tx1);
+}
+
+/* 副题比标题弱一档，不要两个都 13px/600 */
+.cv3-req-head span {
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--tx3);
+}
+
+.cv3-req-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.cv3-req-k {
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--tx3);
+}
+
+/* 原文块：左边一条线，明确这是「引用用户的话」，不是系统改写过的文本 */
+.cv3-req-orig {
+  margin: 0;
+  padding: 8px 12px;
+  border-left: 2px solid var(--acc);
+  border-radius: 0 8px 8px 0;
+  background: var(--panel2);
+  color: var(--tx1);
+  font-size: 13px;
+  line-height: 19.5px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.cv3-req-corrections {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--tx2);
+  font-size: 12.5px;
+  line-height: 19px;
+  list-style: disc;
+}
+
+.cv3-req-facts {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cv3-req-facts li {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.cv3-req-facts b {
+  flex: 0 0 auto;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--tx1);
+}
+
+.cv3-req-facts span {
+  min-width: 0;
+  color: var(--tx3);
+  font-size: 11px;
+  line-height: 16px;
+  overflow-wrap: anywhere;
+}
+
+.cv3-req-none,
+.cv3-req-missing,
+.cv3-req-model {
+  margin: 0;
+  color: var(--tx3);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+/* 「还没说」与「要等模型」是两种不同的话：前者是缺输入，后者是能力未接入，
+   用同一档灰会让人以为是同一件事 */
+.cv3-req-missing {
+  color: var(--tx2);
+}
+
+.cv3-req-model {
+  color: var(--tx3);
+  font-style: normal;
+}
+
+.cv3-req-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .cv3-plan-title {
@@ -1636,7 +1793,7 @@ html[data-theme="tactile"] .cv3-hpop {
   max-height: min(420px, calc(100vh - 220px));
   overflow-y: auto;
   overscroll-behavior: contain;
-  scrollbar-width: thin;
+  scrollbar-width: none;
 }
 
 .cv3-hp-pane {

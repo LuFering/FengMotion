@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="zh" data-resolution="landscape">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>镜 22 · 免费额度</title>
+    <script src="../gsap.min.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1920px; height: 1080px; overflow: hidden; background: #000; }
+      @font-face { font-family: "Noto Sans SC"; font-weight: 900;
+        src: url("../assets/fonts/noto-sans-sc-900.woff2") format("woff2"); font-display: block; }
+      @font-face { font-family: "IBM Plex Mono"; font-weight: 500;
+        src: url("../assets/fonts/plex-mono-500.woff2") format("woff2"); font-display: block; }
+      @font-face { font-family: "Big Shoulders Display"; font-weight: 800;
+        src: url("../assets/fonts/big-shoulders-800.woff2") format("woff2"); font-display: block; }
+
+      #root { position: relative; width: 1920px; height: 1080px; overflow: hidden; }
+      #space {
+        position: absolute; inset: 0;
+        background: radial-gradient(ellipse 120% 80% at 50% 46%,
+          #1c212a 0%, #151920 44%, #0d1014 76%, #08090c 100%);
+      }
+      /* 绿色环境的暗示（只在这里出现 —— 判例：发光不是默认材质） */
+      #greenHint {
+        position: absolute; inset: 0; opacity: 0;
+        background: radial-gradient(ellipse 44% 32% at 50% 52%,
+          rgba(118,185,0,0.13) 0%, rgba(118,185,0,0.035) 44%, rgba(0,0,0,0) 74%);
+      }
+      #stage { position: absolute; inset: 0; perspective: 1500px; perspective-origin: 50% 50%; }
+      #camera { position: absolute; inset: 0; transform-style: preserve-3d; }
+
+      /* ── 额度条：本镜的主角 —— 它被填满 ───────────────────────── */
+      #track {
+        position: absolute; left: 50%; top: 50%;
+        width: 1240px; height: 88px;
+        margin-left: -620px; margin-top: -44px;
+        border-radius: 44px;
+        background: linear-gradient(158deg, rgba(255,255,255,0.055) 0%, rgba(255,255,255,0.018) 60%, rgba(0,0,0,0.14) 100%);
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.10), 0 30px 70px rgba(0,0,0,0.6);
+        overflow: hidden;
+        opacity: 0;
+      }
+      #fill {
+        position: absolute; left: 0; top: 0; bottom: 0; width: 0%;
+        border-radius: 44px;
+        background: linear-gradient(90deg, rgba(118,185,0,0.42) 0%, rgba(150,210,40,0.60) 100%);
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.30);
+      }
+      /* 填满时的高光扫过 */
+      #shine {
+        position: absolute; top: 0; bottom: 0; width: 180px;
+        background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.34) 50%, rgba(255,255,255,0) 100%);
+        opacity: 0;
+      }
+      #amount {
+        position: absolute; left: 50%; top: 50%;
+        margin-top: -150px; margin-left: -400px;
+        font-family: "Big Shoulders Display", sans-serif; font-weight: 800;
+        font-size: 172px; line-height: 0.9; letter-spacing: 0.01em;
+        white-space: nowrap;
+        background: linear-gradient(180deg, #ffffff 0%, #f4f1ec 40%, #d6d0c6 100%);
+        -webkit-background-clip: text; background-clip: text;
+        -webkit-text-fill-color: transparent; color: transparent;
+        opacity: 0;
+      }
+      #amountCap {
+        position: absolute; left: 50%; top: 50%;
+        margin-top: -230px; margin-left: -260px;
+        font-family: "IBM Plex Mono", monospace; font-weight: 500;
+        font-size: 21px; letter-spacing: 0.32em; color: #9aa3b2;
+        white-space: nowrap; opacity: 0;
+      }
+      #srcTag {
+        position: absolute; left: 50%; top: 50%;
+        margin-top: 96px; margin-left: -180px;
+        font-family: "IBM Plex Mono", monospace; font-weight: 500;
+        font-size: 20px; letter-spacing: 0.26em; color: #8b93a1;
+        white-space: nowrap; opacity: 0;
+      }
+      /* 落进来的小币（"领"的动作 —— 有东西掉进额度里） */
+      .drop {
+        position: absolute; left: 0; top: 0;
+        width: 26px; height: 26px; border-radius: 50%;
+        background: radial-gradient(circle at 40% 34%, #fffaf0 0%, #e8dcc4 44%, #a89370 100%);
+        box-shadow: 0 0 14px rgba(255,226,180,0.5);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="s22" data-start="0" data-duration="7.0"
+         data-width="1920" data-height="1080">
+      <div id="space" class="clip" data-start="0" data-duration="7.0" data-track-index="0"></div>
+      <div id="greenHint" class="clip" data-start="0" data-duration="7.0" data-track-index="1"></div>
+      <div id="stage" class="clip" data-start="0" data-duration="7.0" data-track-index="2">
+        <div id="camera">
+          <div id="amountCap">免费额度</div>
+          <div id="amount">0</div>
+          <div id="track"><div id="fill"></div><div id="shine"></div></div>
+          <div id="srcTag">ALIYUN BAILIAN</div>
+        </div>
+      </div>
+    </div>
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+
+      const amountEl = document.getElementById('amount');
+      const TARGET = 10000000;   // 1000 万
+
+      // 落进来的小币（确定性）
+      let sd = 918273;
+      const rnd = () => { sd = (sd * 1664525 + 1013904223) % 4294967296; return sd / 4294967296; };
+      const drops = [];
+      const cam = document.getElementById('camera');
+      for (let i = 0; i < 14; i++) {
+        const el = document.createElement('div');
+        el.className = 'drop';
+        el.setAttribute('data-layout-ignore', '');
+        cam.appendChild(el);
+        drops.push({ el, x: -560 + rnd() * 1120, delay: rnd() * 0.9 });
+      }
+
+      gsap.set(drops.map((d) => d.el), { opacity: 0, y: -300 });
+
+      // ── 时间表（30fps）──────────────────────────────────────────
+      //  0.00–0.55  承 s21：结果淡出，额度条登场
+      //  0.55–1.20  空轨道成形（它一开始是空的 —— "要领"）
+      //  1.20–2.00  小币落进来（真的在"领"）
+      //  2.00–4.40  额度被填满：0 → 1000 万，条同步走满
+      //  4.40–4.90  填满时的光泽扫过（唯一的一处发光 —— 克制）
+      //  4.90–7.00  稳定 hold + 呼吸
+      const T_TRACK = 0.55;
+      const T_DROP  = 1.20;
+      const T_FILL  = 2.00;
+      const T_FULL  = 4.40;
+      const T_HOLD  = 4.90;
+
+      // ① 轨道成形
+      tl.to('#track', { opacity: 1, duration: 0.60, ease: 'power2.out' }, T_TRACK);
+      tl.to('#greenHint', { opacity: 1, duration: 0.90, ease: 'power2.out' }, T_TRACK + 0.20);
+
+      // ② 小币落进来
+      drops.forEach((d, i) => {
+        tl.to(d.el, { opacity: 1, duration: 0.12, ease: 'none' }, T_DROP + d.delay);
+        tl.to(d.el, { y: 52 + (i % 3) * 6, duration: 0.50, ease: 'power3.in' }, T_DROP + d.delay + 0.06);
+        tl.to(d.el, { opacity: 0, scale: 0.6, duration: 0.18, ease: 'power2.in' }, T_DROP + d.delay + 0.52);
+      });
+
+      // ③ 额度填满（数字 + 条同步）
+      const cnt = { v: 0 };
+      tl.to('#amount', { opacity: 1, duration: 0.40, ease: 'power2.out' }, T_FILL - 0.10);
+      tl.to('#amountCap', { opacity: 1, duration: 0.40, ease: 'power2.out' }, T_FILL - 0.30);
+      tl.to(cnt, {
+        v: TARGET, duration: T_FULL - T_FILL, ease: 'power2.inOut',
+        onUpdate: () => { amountEl.textContent = Math.round(cnt.v).toLocaleString('en-US'); },
+      }, T_FILL);
+      tl.to('#fill', { width: '100%', duration: T_FULL - T_FILL, ease: 'power2.inOut' }, T_FILL);
+
+      // ④ 填满时的光泽扫过（唯一一处发光）
+      tl.fromTo('#shine', { x: -180, opacity: 0.9 }, { x: 1240, opacity: 0, duration: 0.62, ease: 'power2.inOut' }, T_FULL - 0.12);
+      tl.to('#srcTag', { opacity: 1, duration: 0.45, ease: 'power2.out' }, T_FULL + 0.10);
+
+      // ⑤ hold + 呼吸
+      tl.to('#track', { scale: 1.012, duration: 1.20, ease: 'sine.inOut' }, T_HOLD);
+      tl.to('#track', { scale: 1.0,   duration: 1.20, ease: 'sine.inOut' }, T_HOLD + 1.30);
+      tl.to('#amount', { y: -8, duration: 1.20, ease: 'sine.inOut' }, T_HOLD + 0.20);
+
+      window.__timelines['s22'] = tl;
+      tl.seek(0);
+    </script>
+  </body>
+</html>

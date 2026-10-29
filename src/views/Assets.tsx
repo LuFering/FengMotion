@@ -6,11 +6,15 @@ import {
 import {
   captureBuiltinPoster, formatBytes, formatDur, getFileURL, getThumbURL,
   importFiles, initLibrary, listAssets, listFolders, removeAssets, saveFolders,
-  updateAsset, type FolderRow, type ImportEvent,
+  updateAsset, type FolderRow,
 } from '@/services/assetService'
+import { isAssetDrag, setAssetDragData, usePendingAssets } from '@/shell/usePendingAssets'
+import { toast as emitToast } from '@/shell/toast'
+import { clearDragGhost, setDragGhost } from '@/shell/dragGhost'
 import { EmptyState } from '@/components/fm/EmptyState'
 import { ErrorState } from '@/components/fm/ErrorState'
 import { LoadingState } from '@/components/fm/LoadingState'
+import { SilentVideoPreview } from '@/components/SilentVideoPreview'
 import { PageHeader } from '@/components/PageHeader'
 import { SearchField } from '@/components/SearchField'
 
@@ -124,7 +128,6 @@ function fullMeta(a: MyAsset): string {
   return `${a.name}\n${SOURCE_LABEL[a.sourceType]} · ${formatBytes(a.sizeBytes)}${dims}\n授权：${LICENSE_LABEL[a.licenseStatus]} · 审核：${REVIEW_LABEL[a.reviewStatus]}`
 }
 
-interface QueueRow extends ImportEvent { file: File }
 
 export function Assets({ projectName }: { projectName?: string } = {}) {
   const [assets, setAssets] = useState<MyAsset[]>([])
@@ -140,10 +143,31 @@ export function Assets({ projectName }: { projectName?: string } = {}) {
   const [sortKey, setSortKey] = useState<SortKey>('recent')
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [selected, setSelected] = useState<Set<string>>(new Set())
+  /* 待发送：素材库是「挑素材」的地方，这里只负责把选中项交给那份全局清单。
+     加入 ≠ 发送，也不改素材本身的任何字段。 */
+  const pending = usePendingAssets()
+  const addToPending = (ids: string[]) => {
+    const n = pending.add(ids)
+    emitToast(n > 0 ? `已添加 ${n} 个素材` : '已在待发送中')
+    return n
+  }
+  /* 「选择素材」模式 —— 作者要的是一个实在的按钮：点下去整库进入可选中状态，
+     选完点确认一键进购物车。
+     和原来那套「先勾复选框、再在批量栏里找操作」的差别：
+       · 进入模式前复选框是**隐藏的**（要 hover 才出现），没人知道能多选；
+       · 进入后每张卡都有明确的选中框和选中态，目标只有一个：挑素材。
+     退出方式三种：确认、取消、Esc。 */
+  const [pickMode, setPickMode] = useState(false)
+  const enterPick = () => { setPickMode(true); setSelected(new Set()); setDetailId(null) }
+  const exitPick = () => { setPickMode(false); setSelected(new Set()) }
+  const confirmPick = () => {
+    if (selected.size === 0) { exitPick(); return }
+    addToPending([...selected])
+    exitPick()
+  }
   const [detailId, setDetailId] = useState<string | null>(null)
+  const [hoveredVideo, setHoveredVideo] = useState<string | null>(null)
   const [thumbs, setThumbs] = useState<Record<string, string>>({})
-  const [queue, setQueue] = useState<QueueRow[] | null>(null)
-  const [dragOver, setDragOver] = useState(false)
   const [renaming, setRenaming] = useState<MyAsset | null>(null)
   const [renameText, setRenameText] = useState('')
   const [tagText, setTagText] = useState('')
@@ -151,6 +175,9 @@ export function Assets({ projectName }: { projectName?: string } = {}) {
   const inputRef = useRef<HTMLInputElement>(null)
 
   const dragDepth = useRef(0)
+  /* 本次拖拽是不是「在我们自己的界面里起手」的。
+     见下面导入监听的注释 —— 这是唯一可靠的判据。 */
+  const ownDrag = useRef(false)
 
   // ── 加载 ──
   useEffect(() => {
@@ -203,6 +230,9 @@ export function Assets({ projectName }: { projectName?: string } = {}) {
       setPop(null)
       setDetailId(null)
       setRenaming(null)
+      /* Esc 也能退出选择模式 —— 否则进了模式只能找那个按钮才能出来 */
+      setPickMode(false)
+      setSelected(new Set())
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
@@ -293,14 +323,23 @@ export function Assets({ projectName }: { projectName?: string } = {}) {
   }, [assets])
 
   // ── 导入 ──
+  /* 导入：不再弹「导入队列」面板（作者要求删掉）。但过程不能一声不响 ——
+     逐个文件导入要读尺寸/时长/抽缩略图，十个文件可能等好几秒。
+     所以用已有的全局 toast 汇报结果：成功入库 N 个，失败的指出名字。 */
   const runImport = useCallback(async (files: File[]) => {
     if (!files.length) return
-    const rows: QueueRow[] = files.map((file) => ({ file, fileIndex: 0, fileName: file.name, phase: 'queued' }))
-    setQueue(rows)
+    const failed: string[] = []
     const ok = await importFiles(files, (e) => {
-      setQueue((qs) => qs ? qs.map((r, i) => (i === e.fileIndex ? { ...r, ...e, file: r.file } : r)) : qs)
+      if (e.phase === 'error') failed.push(e.fileName)
     })
     if (ok.length) setAssets((prev) => [...ok, ...prev])
+    if (ok.length > 0 && failed.length === 0) {
+      emitToast(ok.length === 1 ? `已导入「${ok[0].name}」` : `已导入 ${ok.length} 个素材`)
+    } else if (ok.length > 0) {
+      emitToast(`导入 ${ok.length} 个，${failed.length} 个失败：${failed.slice(0, 2).join('、')}${failed.length > 2 ? ' 等' : ''}`)
+    } else if (failed.length > 0) {
+      emitToast(`导入失败：${failed.slice(0, 2).join('、')}${failed.length > 2 ? ' 等' : ''}`)
+    }
   }, [])
 
   const onPick = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -310,19 +349,48 @@ export function Assets({ projectName }: { projectName?: string } = {}) {
   }
 
   useEffect(() => {
-    const enter = (e: DragEvent) => { if (e.dataTransfer?.types.includes('Files')) { dragDepth.current++; setDragOver(true) } }
-    const over = (e: DragEvent) => { e.preventDefault() }
-    const leave = () => { dragDepth.current = Math.max(0, dragDepth.current - 1); if (!dragDepth.current) setDragOver(false) }
+    /* 只负责「把系统文件拖进来就导入」这个行为本身。原来那个铺满画布的
+       「松手导入到我的素材」浮层已按作者要求删掉 —— 导入不需要这么大的提示，
+       而那个浮层还会和「待发送」的拖拽提示混淆。
+
+       ⚠️ 判定「是不是外部文件」不能只看 dataTransfer.files ——
+       应用内拖一张**真实路径**的图片（内置素材缩略图就是 ./frames/film/s06.jpg）
+       时，Chrome 按原生图片拖拽处理，照样往 files 里塞一个名字为 s06.jpg 的 File。
+       于是用户只是想拖进待发送，松手却成了「导入」，还多出一张重复卡片。
+
+       可靠判据是**拖拽起点**：系统拖入不会在本页触发 dragstart，
+       应用内任何拖拽（卡片、缩略图、详情大图）都会冒泡到 window。
+       所以：本页起手的拖拽一律不导入，只有真正的系统文件才走导入。 */
+    const enter = (e: DragEvent) => {
+      if (ownDrag.current || isAssetDrag(e.dataTransfer)) return
+      if (e.dataTransfer?.types.includes('Files')) { dragDepth.current++ }
+    }
+    const over = (e: DragEvent) => {
+      if (ownDrag.current || isAssetDrag(e.dataTransfer)) return
+      e.preventDefault()
+    }
+    const leave = () => { dragDepth.current = Math.max(0, dragDepth.current - 1) }
     const drop = (e: DragEvent) => {
-      e.preventDefault(); dragDepth.current = 0; setDragOver(false)
+      const mine = ownDrag.current || isAssetDrag(e.dataTransfer)
+      ownDrag.current = false          // 兜底复位：某些路径下 dragend 可能不到
+      if (mine) return
+      e.preventDefault()
+      dragDepth.current = 0
       const files = Array.from(e.dataTransfer?.files ?? [])
       if (files.length) void runImport(files)
     }
+    /* 记录拖拽起点。dragstart 只在「拖拽源在本页」时触发 —— 这正是我们要的判据。 */
+    const markOwn = () => { ownDrag.current = true }
+    const clearOwn = () => { ownDrag.current = false }
+    window.addEventListener('dragstart', markOwn, true)
+    window.addEventListener('dragend', clearOwn, true)
     window.addEventListener('dragenter', enter)
     window.addEventListener('dragover', over)
     window.addEventListener('dragleave', leave)
     window.addEventListener('drop', drop)
     return () => {
+      window.removeEventListener('dragstart', markOwn, true)
+      window.removeEventListener('dragend', clearOwn, true)
       window.removeEventListener('dragenter', enter)
       window.removeEventListener('dragover', over)
       window.removeEventListener('dragleave', leave)
@@ -467,26 +535,14 @@ export function Assets({ projectName }: { projectName?: string } = {}) {
     <div className="mya">
       <PageHeader
         title="我的素材"
-        meta={projectName ? `${projectName} · ${assets.length} 项` : `${assets.length} 项`}
+        meta={projectName ? <span className="mya-heading-project">{projectName}</span> : undefined}
         actions={
           <>
-            <SearchField
-              value={search}
-              onChange={setSearch}
-              placeholder="搜索名称、标签、来源"
-              ariaLabel="搜索素材"
-              onClear={() => setSearch('')}
-            />
-            <div className="mya-seg" role="group" aria-label="视图模式">
-              <button type="button" className={viewMode === 'grid' ? 'on' : undefined}
-                      aria-pressed={viewMode === 'grid'} onClick={() => setViewMode('grid')}>
-                <Icon name="layout-grid" />网格
+            {!pickMode && (
+              <button type="button" className="mya-pickbtn" onClick={enterPick}>
+                <Icon name="square-check" />选择素材
               </button>
-              <button type="button" className={viewMode === 'list' ? 'on' : undefined}
-                      aria-pressed={viewMode === 'list'} onClick={() => setViewMode('list')}>
-                <Icon name="list" />列表
-              </button>
-            </div>
+            )}
             <button type="button" className="mya-primary" onClick={() => inputRef.current?.click()}>
               <Icon name="import" />导入素材
             </button>
@@ -548,9 +604,22 @@ export function Assets({ projectName }: { projectName?: string } = {}) {
 
         <div className="mya-main">
           <div className="mya-toolbar">
-            {selected.size > 0 ? (
+            {/* 选择模式下不显示这条旧批量栏：底部已经有确认条了，
+                两套"已选 N 项"同屏出现会让人不知道该看哪个。 */}
+            {pickMode ? (
+              <div className="mya-toolbar-pick">
+                <Icon name="square-check" />
+                <b>选择素材</b>
+                <span>点卡片选中，选完点底部「确认加入待发送」</span>
+              </div>
+            ) : selected.size > 0 ? (
               <div className="mya-batch" role="region" aria-label="批量操作">
                 <span className="mya-batch-n">已选 {selected.size} 项</span>
+                {/* 加入待发送放在最前：多选之后最常做的是"这次就用这几个" */}
+                <button type="button" className="mya-batch-pending"
+                        onClick={() => { addToPending([...selected]); setSelected(new Set()) }}>
+                  加入待发送
+                </button>
                 <button type="button" onClick={() => setSelected(new Set(visible.map((a) => a.id)))}>全选当前</button>
                 <button type="button" onClick={() => setSelected(new Set())}>清除选择</button>
                 <span className="mya-batch-sep" />
@@ -568,13 +637,30 @@ export function Assets({ projectName }: { projectName?: string } = {}) {
                     <Icon name="panel-left-open" />组织
                   </button>
                 )}
-                <span className="mya-crumb">
-                  我的素材
-                  {node !== 'all' && <>{' / '}<b>{activeLabel}</b></>}
+                <div className="mya-content-search">
+                  <SearchField
+                    value={search}
+                    onChange={setSearch}
+                    placeholder="搜索名称、标签、来源"
+                    ariaLabel="搜索素材"
+                    onClear={() => setSearch('')}
+                  />
+                </div>
+                <span className="mya-crumb" hidden={node === 'all' && typeFilter === 'all'}>
+                  <b>{node === 'all' ? '全部素材' : activeLabel}</b>
                   {typeFilter !== 'all' && <>{' / '}<b>{MEDIA_LABEL[typeFilter]}</b></>}
                 </span>
-                <span className="mya-result-count">{visible.length} 项</span>
                 <span className="mya-spacer" />
+                <div className="mya-seg" role="group" aria-label="视图模式">
+                  <button type="button" className={viewMode === 'grid' ? 'on' : undefined}
+                          aria-pressed={viewMode === 'grid'} onClick={() => setViewMode('grid')}>
+                    <Icon name="layout-grid" />网格
+                  </button>
+                  <button type="button" className={viewMode === 'list' ? 'on' : undefined}
+                          aria-pressed={viewMode === 'list'} onClick={() => setViewMode('list')}>
+                    <Icon name="list" />列表
+                  </button>
+                </div>
                 {(node !== 'all' || search || typeFilter !== 'all') && (
                   <button type="button" className="mya-clearbtn mya-clearbtn-sm" onClick={clearFilter}>清除筛选</button>
                 )}
@@ -659,23 +745,44 @@ export function Assets({ projectName }: { projectName?: string } = {}) {
                     const flag = assetFlag(a)
                     return (
                       <div key={a.id} className="mya-card"
+                           onMouseEnter={() => { if (a.mediaType === 'video') setHoveredVideo(a.id) }}
+                           onMouseLeave={() => setHoveredVideo((id) => id === a.id ? null : id)}
+                           onFocus={() => { if (a.mediaType === 'video') setHoveredVideo(a.id) }}
+                           onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setHoveredVideo((id) => id === a.id ? null : id) }}
                            data-on={detailId === a.id || undefined}
                            data-picked={selected.has(a.id) || undefined}
+                           data-pending={pending.has(a.id) || undefined}
                            role="option" aria-selected={detailId === a.id} tabIndex={0}
                            title={fullMeta(a)}
-                           onClick={() => openDetail(a)}
+                           draggable
+                           onDragStart={(e) => {
+                             /* 多选时拖一个等于拖全部 —— 用户选了 4 个再拖，
+                                预期是把这 4 个一起放进待发送。 */
+                             const ids = selected.has(a.id) && selected.size > 1 ? [...selected] : [a.id]
+                             setAssetDragData(e.dataTransfer, ids)
+                             /* 拖影缩成一小块：默认拖影是整张卡片快照，
+                                举在鼠标边会盖住落点，看不清要放到哪。 */
+                             const ghostEl = setDragGhost({
+                               thumb: thumbs[a.id], label: a.name, count: ids.length,
+                             })
+                             e.dataTransfer.setDragImage(ghostEl, 28, 28)
+                           }}
+                           onDragEnd={clearDragGhost}
+                           data-pickmode={pickMode || undefined}
+                           onClick={() => (pickMode ? toggleSelect(a.id) : openDetail(a))}
                            onKeyDown={(e) => {
                              if (e.target !== e.currentTarget) return
-                             if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDetail(a) }
+                             if (e.key === 'Enter' || e.key === ' ') {
+                               e.preventDefault()
+                               if (pickMode) toggleSelect(a.id); else openDetail(a)
+                             }
                            }}>
                         <div className="mya-thumb">
-                          {thumbs[a.id]
-                            ? <img src={thumbs[a.id]} alt="" loading="lazy" />
-                            : <span className="mya-thumb-ph"><Icon name={MEDIA_ICON[a.mediaType]} /></span>}
-                          {/* Round 3（审计 18）：时长只留元信息行，缩略图上只留引用关系 */}
-                          {a.refs.length > 0 &&
-                            <span className="mya-refs-badge"><Icon name="link" />{a.refs.length} 处引用</span>}
-                          {a.mediaType === 'video' && <span className="mya-scrub" aria-hidden="true" />}
+                          {a.mediaType === 'video'
+                            ? <AssetVideoThumb assetId={a.id} poster={thumbs[a.id]} active={hoveredVideo === a.id && !pickMode && !detailId} />
+                            : thumbs[a.id]
+                              ? <img src={thumbs[a.id]} alt="" loading="lazy" draggable={false} />
+                              : <span className="mya-thumb-ph"><Icon name={MEDIA_ICON[a.mediaType]} /></span>}
                           <label className="mya-check" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
                             <input type="checkbox" checked={selected.has(a.id)} onChange={() => toggleSelect(a.id)}
                                    aria-label={`选择 ${a.name}`} />
@@ -685,12 +792,30 @@ export function Assets({ projectName }: { projectName?: string } = {}) {
                                   onClick={(e) => { e.stopPropagation(); toggleFav(a) }}>
                             <Icon name="star" />
                           </button>
+                          {/* 加入待发送：拖拽之外的常驻入口 —— 拖拽不能是唯一方式。
+                              已加入的显示勾，点了不重复加（store 按 ID 去重）。 */}
+                          <button type="button" className="mya-pending-btn"
+                                  data-added={pending.has(a.id) || undefined}
+                                  aria-label={pending.has(a.id) ? `${a.name} 已在待发送` : `把 ${a.name} 加入待发送`}
+                                  title={pending.has(a.id) ? '已在待发送' : '加入待发送'}
+                                  onClick={(e) => { e.stopPropagation(); addToPending([a.id]) }}>
+                            {pending.has(a.id) ? <Icon name="square-check" /> : <Icon name="plus" />}
+                          </button>
+                        </div>
+                        <div className="mya-card-head">
+                          <span className="mya-media-kind"><Icon name={MEDIA_ICON[a.mediaType]} />{MEDIA_LABEL[a.mediaType]}</span>
+                          {a.mediaType === 'video' && a.duration != null && <span className="mya-media-duration num">{formatDur(a.duration)}</span>}
                         </div>
                         <div className="mya-card-body">
-                          <div className="mya-card-name">{a.name}</div>
+                          <div className="mya-card-title-row">
+                            <div className="mya-card-name">{a.name}</div>
+                            {flag && <span className="mya-card-warning" data-tone={flag.tone} title={flag.label} aria-label={flag.label}><Icon name="info" /></span>}
+                          </div>
                           <div className="mya-card-meta">
-                            <span className="mya-card-spec mono">{cardSpec(a)}</span>
-                            {flag && <span className="mya-flag" data-tone={flag.tone}>{flag.label}</span>}
+                            <span className="mya-card-spec">{a.mediaType === 'video'
+                              ? [a.width != null ? `${a.width} × ${a.height}` : null, formatBytes(a.sizeBytes)].filter(Boolean).join(' · ')
+                              : cardSpec(a)}</span>
+                            {a.refs.length > 0 && <span className="mya-refs-badge" title={`${a.refs.length} 处引用`}><Icon name="link" />{a.refs.length}</span>}
                           </div>
                         </div>
                       </div>
@@ -714,11 +839,26 @@ export function Assets({ projectName }: { projectName?: string } = {}) {
                     <div key={a.id} className="mya-row"
                          data-on={detailId === a.id || undefined}
                          data-picked={selected.has(a.id) || undefined}
+                         data-pending={pending.has(a.id) || undefined}
                          role="option" aria-selected={detailId === a.id} tabIndex={0}
-                         onClick={() => openDetail(a)}
+                         draggable
+                         onDragStart={(e) => {
+                           const ids = selected.has(a.id) && selected.size > 1 ? [...selected] : [a.id]
+                           setAssetDragData(e.dataTransfer, ids)
+                           const ghostEl = setDragGhost({
+                             thumb: thumbs[a.id], label: a.name, count: ids.length,
+                           })
+                           e.dataTransfer.setDragImage(ghostEl, 28, 28)
+                         }}
+                         onDragEnd={clearDragGhost}
+                         data-pickmode={pickMode || undefined}
+                         onClick={() => (pickMode ? toggleSelect(a.id) : openDetail(a))}
                          onKeyDown={(e) => {
                            if (e.target !== e.currentTarget) return
-                           if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDetail(a) }
+                           if (e.key === 'Enter' || e.key === ' ') {
+                             e.preventDefault()
+                             if (pickMode) toggleSelect(a.id); else openDetail(a)
+                           }
                          }}>
                       <span className="mya-col-check" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
                         <input type="checkbox" checked={selected.has(a.id)} onChange={() => toggleSelect(a.id)}
@@ -726,7 +866,7 @@ export function Assets({ projectName }: { projectName?: string } = {}) {
                       </span>
                       <span className="mya-col-name">
                         <span className="mya-row-thumb">
-                          {thumbs[a.id] ? <img src={thumbs[a.id]} alt="" loading="lazy" />
+                          {thumbs[a.id] ? <img src={thumbs[a.id]} alt="" loading="lazy" draggable={false} />
                                         : <Icon name={MEDIA_ICON[a.mediaType]} />}
                         </span>
                         <span className="mya-row-name" title={a.name}>{a.name}</span>
@@ -775,6 +915,16 @@ export function Assets({ projectName }: { projectName?: string } = {}) {
                   </button>
                 </div>
               )}
+
+              {/* 「如何使用」排在管理动作之前：用户打开详情多半是为了决定
+                  这个素材要不要用于这次任务，重命名/删除是次要动作。 */}
+              <div className="mya-actrow mya-actrow-use">
+                <button type="button" className="mya-use-btn" data-added={pending.has(detail.id) || undefined}
+                        onClick={() => addToPending([detail.id])}>
+                  <Icon name={pending.has(detail.id) ? 'square-check' : 'plus'} />
+                  {pending.has(detail.id) ? '已在待发送' : '加入待发送'}
+                </button>
+              </div>
 
               <div className="mya-actrow">
                 <button type="button" onClick={() => { setRenaming(detail); setRenameText(detail.name) }}><Icon name="pencil" />重命名</button>
@@ -845,42 +995,26 @@ export function Assets({ projectName }: { projectName?: string } = {}) {
         )}
       </div>
 
-      {queue && (
-        <div className="mya-queue">
-          <div className="mya-queue-head">
-            <span>导入队列</span>
-            <span className="mya-queue-count">
-              {queue.filter((r) => r.phase === 'done').length}/{queue.length} 完成
-              {queue.some((r) => r.phase === 'error') && ` · ${queue.filter((r) => r.phase === 'error').length} 失败`}
-            </span>
-            <button type="button" className="mya-iconbtn" onClick={() => setQueue(null)} title="关闭" aria-label="关闭导入队列"><Icon name="x" /></button>
-          </div>
-          <div className="mya-queue-list">
-            {queue.map((r, i) => (
-              <div key={i} className="mya-queue-row" data-s={r.phase}>
-                <span className="mya-queue-name" title={r.fileName}>{r.fileName}</span>
-                <span className="mya-queue-st">
-                  {r.phase === 'queued' && '排队中'}
-                  {r.phase === 'reading' && '读取中…'}
-                  {r.phase === 'done' && '已入库'}
-                  {r.phase === 'error' && (r.error ?? '失败')}
-                </span>
-                {r.phase === 'error' && (
-                  <button type="button" className="mya-queue-retry" onClick={() => { void runImport([r.file]) }}>重试</button>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
-      {dragOver && (
-        <div className="mya-drop">
-          <div className="mya-drop-card">
-            <Icon name="import" />
-            <strong>松手导入到「我的素材」</strong>
-            <span>支持图片 / 视频 / 音频 / 字体 / 文档</span>
-          </div>
+
+      {/* 选择模式的确认条：浮在底部中央。整库进入可选中状态后，
+          这里只做三件事 —— 报数、全选、确认。 */}
+      {pickMode && (
+        <div className="mya-pickbar" role="region" aria-label="选择素材">
+          <span className="mya-pickbar-n">
+            {selected.size > 0 ? `已选 ${selected.size} 项` : '点素材卡片选择'}
+          </span>
+          <button type="button" className="mya-pickbar-all"
+                  onClick={() => setSelected(new Set(visible.map((a) => a.id)))}>
+            全选当前 {visible.length} 项
+          </button>
+          <span className="mya-pickbar-sep" />
+          <button type="button" onClick={exitPick}>取消</button>
+          <button type="button" className="mya-primary" disabled={selected.size === 0}
+                  onClick={confirmPick}>
+            <Icon name="square-check" />
+            确认加入待发送{selected.size > 0 ? `（${selected.size}）` : ''}
+          </button>
         </div>
       )}
 
@@ -902,6 +1036,17 @@ export function Assets({ projectName }: { projectName?: string } = {}) {
 }
 
 /** 类型化预览：图片/视频/音频真实播放，字体真字样，文档给打开入口 */
+function AssetVideoThumb({ assetId, poster, active }: { assetId: string; poster?: string; active: boolean }) {
+  const [url, setUrl] = useState<string | null>(null)
+  useEffect(() => {
+    if (!active) return
+    let alive = true
+    void getFileURL(assetId).then((src) => { if (alive) setUrl(src) }).catch(() => { /* 静帧保留。 */ })
+    return () => { alive = false }
+  }, [assetId, active])
+  return <SilentVideoPreview key={assetId} src={url} poster={poster} active={active} label="素材静音预览" />
+}
+
 function Preview({ asset, poster }: { asset: MyAsset; poster?: string }) {
   const [url, setUrl] = useState<string | null>(null)
   useEffect(() => {

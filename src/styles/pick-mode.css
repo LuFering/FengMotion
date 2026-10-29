@@ -1,0 +1,136 @@
+/* ═══════════════════════════════════════════════════════════════
+   多选模式（素材库 / 参考片库 / 特效库 共用）
+   ─────────────────────────────────────────────────────────────
+   视觉沿用素材库定案：入口是描边按钮、确认条浮在底部居中。
+   token 只用三家库都定义了的：--line2 --tx --tx2 --acc --r-ctl --eo。
+   ═══════════════════════════════════════════════════════════════ */
+
+/* 入口按钮：与 .mya-pickbtn 同规格（30px 高、描边、悬停变强调色） */
+.pk-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 12px;
+  border: 1px solid var(--line2);
+  border-radius: var(--r-ctl, 10px);
+  background: transparent;
+  color: var(--tx);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color .15s var(--eo, ease), color .15s var(--eo, ease);
+}
+.pk-btn:hover { border-color: var(--acc); color: var(--acc); }
+.pk-ico { width: 14px; height: 14px; flex: none; }
+
+/* 卡片左上角的选中框：
+   默认不显示，多选模式下才出现（由卡片上的 data-pickmode 控制显隐）。 */
+.pk-check {
+  position: absolute;
+  /* 卡片左上角在主模式里已被序号/分类标签占用，选中框放到右上 */
+  right: 8px;
+  top: 8px;
+  z-index: 4;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  border: 1.5px solid rgb(255 255 255 / .7);
+  background: rgb(8 9 11 / .5);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  color: #fff;
+  pointer-events: none;
+  transition: background-color .12s, border-color .12s;
+}
+.pk-check svg { width: 13px; height: 13px; }
+.pk-check[data-on] {
+  background: var(--acc);
+  border-color: var(--acc);
+}
+
+/* 底部确认条：浮在视口底部居中 */
+.pk-bar {
+  position: fixed;
+  left: 50%;
+  bottom: 26px;
+  z-index: 95;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px 9px 16px;
+  border: 1px solid var(--line2);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--panel2, #101116) 94%, transparent);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 24px 60px rgb(0 0 0 / .45);
+  color: var(--tx);
+  font-size: 12px;
+  transform: translateX(-50%);
+  animation: pk-bar-in .18s var(--eo, ease) both;
+}
+@keyframes pk-bar-in {
+  from { opacity: 0; transform: translate(-50%, 8px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+.pk-bar-n {
+  font-weight: 650;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.pk-bar-all {
+  border: 0;
+  background: none;
+  color: var(--tx2, #a4a7b1);
+  font: inherit;
+  font-size: 11.5px;
+  cursor: pointer;
+  white-space: nowrap;
+  padding: 4px 2px;
+}
+.pk-bar-all:hover { color: var(--acc); }
+.pk-bar-sep { width: 1px; height: 18px; background: var(--line2); }
+.pk-bar-cancel {
+  border: 0;
+  background: none;
+  color: var(--tx2, #a4a7b1);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 5px 10px;
+  border-radius: 8px;
+}
+.pk-bar-cancel:hover { color: var(--tx); background: rgb(255 255 255 / .06); }
+.pk-bar-ok {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border: 1px solid var(--acc);
+  border-radius: 999px;
+  background: var(--acc);
+  color: #fff;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: filter .14s;
+}
+.pk-bar-ok:hover:not(:disabled) { filter: brightness(1.08); }
+.pk-bar-ok:disabled { opacity: .42; cursor: default; }
+
+/* 多选模式下的卡片：整块可点 + 选中描边 */
+.rfc-card[data-pickmode] { cursor: pointer; }
+.rfc-card[data-pickmode][data-picked] {
+  box-shadow: inset 0 0 0 2px var(--acc);
+}
+.fxc[data-pickmode] { cursor: pointer; }
+.fxc[data-pickmode][data-picked] {
+  box-shadow: inset 0 0 0 2px var(--acc);
+}

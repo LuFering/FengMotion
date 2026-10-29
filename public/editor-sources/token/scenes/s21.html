@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="zh" data-resolution="landscape">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>镜 21 · 那是多少</title>
+    <script src="../gsap.min.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1920px; height: 1080px; overflow: hidden; background: #000; }
+      @font-face { font-family: "Noto Sans SC"; font-weight: 900;
+        src: url("../assets/fonts/noto-sans-sc-900.woff2") format("woff2"); font-display: block; }
+      @font-face { font-family: "IBM Plex Mono"; font-weight: 500;
+        src: url("../assets/fonts/plex-mono-500.woff2") format("woff2"); font-display: block; }
+      @font-face { font-family: "Big Shoulders Display"; font-weight: 800;
+        src: url("../assets/fonts/big-shoulders-800.woff2") format("woff2"); font-display: block; }
+
+      #root { position: relative; width: 1920px; height: 1080px; overflow: hidden; }
+      #space {
+        position: absolute; inset: 0;
+        background: radial-gradient(ellipse 122% 82% at 50% 48%,
+          #1d222b 0%, #161a21 44%, #0e1115 76%, #08090c 100%);
+      }
+
+      #stage { position: absolute; inset: 0; perspective: 1500px; perspective-origin: 50% 50%; }
+      #camera { position: absolute; inset: 0; transform-style: preserve-3d; }
+
+      /* ── 本镜的主角：那个**很长的数字** ──────────────────────────
+         反差由"数字的量级"承载，所以数字本身就是画面。 */
+      #bigNum {
+        position: absolute; left: 50%; top: 50%;
+        font-family: "Big Shoulders Display", sans-serif; font-weight: 800;
+        font-size: 232px; line-height: 0.9; letter-spacing: 0.005em;
+        white-space: nowrap;
+        background: linear-gradient(180deg, #ffffff 0%, #f4f1ec 38%, #d6d0c6 100%);
+        -webkit-background-clip: text; background-clip: text;
+        -webkit-text-fill-color: transparent; color: transparent;
+      }
+      #numCap {
+        position: absolute; left: 50%; top: 50%;
+        font-family: "IBM Plex Mono", monospace; font-weight: 500;
+        font-size: 22px; letter-spacing: 0.32em; color: #9aa3b2;
+        white-space: nowrap; opacity: 0;
+      }
+      /* 换算结果：真正的"多少钱" */
+      #result {
+        position: absolute; left: 50%; top: 50%;
+        display: flex; align-items: baseline; gap: 12px;
+        opacity: 0;
+      }
+      #result .y {
+        font-family: "Noto Sans SC", sans-serif; font-weight: 900;
+        font-size: 112px; line-height: 0.9; color: #e8e4dc;
+      }
+      #result .n {
+        font-family: "Big Shoulders Display", sans-serif; font-weight: 800;
+        font-size: 168px; line-height: 0.86;
+        color: #ffd9a0;
+        text-shadow: 0 0 44px rgba(255,210,150,0.42);
+      }
+      /* 密密麻麻的小币：一天的量级 */
+      .flak {
+        position: absolute; left: 0; top: 0;
+        width: 20px; height: 20px; border-radius: 50%;
+        background: radial-gradient(circle at 40% 34%, #fffaf0 0%, #e8dcc4 44%, #a89370 100%);
+        opacity: 0;
+      }
+      /* 全屏的数字瀑布（背景层）：读作"量太大了" */
+      #rain { position: absolute; inset: 0; overflow: hidden; opacity: 0; }
+      .digit {
+        position: absolute; font-family: "IBM Plex Mono", monospace; font-weight: 500;
+        font-size: 30px; color: rgba(220,228,240,0.30);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="s21" data-start="0" data-duration="7.2"
+         data-width="1920" data-height="1080">
+      <div id="space" class="clip" data-start="0" data-duration="7.2" data-track-index="0"></div>
+      <div id="rain"  class="clip" data-start="0" data-duration="7.2" data-track-index="1"></div>
+      <div id="stage" class="clip" data-start="0" data-duration="7.2" data-track-index="2">
+        <div id="camera">
+          <div id="bigNum">0</div>
+          <div id="numCap">一天调用的 token 量</div>
+          <div id="result"><div class="y">¥</div><div class="n">0</div></div>
+        </div>
+      </div>
+    </div>
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+
+      const bigNum = document.getElementById('bigNum');
+      const resultN = document.querySelector('#result .n');
+
+      // 数字瀑布（确定性布局）
+      const rain = document.getElementById('rain');
+      const drops = [];
+      let sd = 424242;
+      const rnd = () => { sd = (sd * 1664525 + 1013904223) % 4294967296; return sd / 4294967296; };
+      for (let i = 0; i < 90; i++) {
+        const el = document.createElement('div');
+        el.className = 'digit';
+        el.textContent = String(Math.floor(rnd() * 10));
+        el.style.left = (rnd() * 1900) + 'px';
+        el.setAttribute('data-layout-ignore', '');
+        rain.appendChild(el);
+        drops.push({ el, x: 0, y: -(200 + rnd() * 900), v: 0.5 + rnd() * 1.4 });
+      }
+
+      // 一天的量级（口播说"顶天了也就千万，开发者上亿起步"）
+      const TARGET = 12800000;   // 12,800,000 —— 一个很长的数
+      const PRICE  = 38.4;       // 按 ¥3/百万 换算
+
+      gsap.set('#bigNum', { xPercent: -50, yPercent: -50, y: 0, scale: 0.94, opacity: 0 });
+      gsap.set('#numCap', { xPercent: -50, yPercent: -50 });
+      gsap.set('#result', { xPercent: -50, yPercent: -50, y: 210 });
+
+      // ── 时间表（30fps）──────────────────────────────────────────
+      //  0.00–0.50  承 s20：价格牌淡出，另一个数字登场
+      //  0.50–2.30  token 量疯狂滚动 → 停在一个很长的数上（12,800,000）
+      //  1.10–2.60  背景数字瀑布下起来（量太大了）
+      //  2.60–3.40  数字**停住 0.8s**（让反差先成立 —— 判例 R1）
+      //  3.40–4.30  换算结果落下：¥38.4
+      //  4.30–7.20  稳定（"才三块"的反差被看清）
+      const T_ROLL  = 0.50;
+      const T_STOP  = 2.30;
+      const T_BEAT  = 2.60;
+      const T_RES   = 3.40;
+      const T_HOLD  = 4.30;
+
+      // ① 数字滚动（计数器 —— 用确定性的步进，不用随机时刻）
+      const counter = { v: 0 };
+      tl.to('#bigNum', { opacity: 1, scale: 1, duration: 0.40, ease: 'power2.out' }, T_ROLL);
+      tl.to('#numCap', { opacity: 1, duration: 0.40, ease: 'power2.out' }, T_ROLL + 0.20);
+      tl.to(counter, {
+        v: TARGET, duration: T_STOP - T_ROLL, ease: 'power2.out',
+        onUpdate: () => {
+          const n = Math.round(counter.v);
+          bigNum.textContent = n.toLocaleString('en-US');
+        },
+      }, T_ROLL + 0.16);
+
+      // ② 数字瀑布（量太大了）
+      tl.to('#rain', { opacity: 1, duration: 0.60, ease: 'power2.out' }, T_ROLL + 0.60);
+      drops.forEach((d, i) => {
+        const st = { y: d.y };
+        tl.to(st, {
+          y: 1180, duration: 2.4 / d.v, ease: 'none', repeat: 1,
+          onUpdate: () => gsap.set(d.el, { x: d.x, y: st.y }),
+        }, T_ROLL + 0.60 + (i % 12) * 0.07);
+      });
+      tl.to('#rain', { opacity: 0, duration: 0.80, ease: 'power2.in' }, T_RES + 0.40);
+
+      // ③ 停住那一拍（0.8s 什么都不动 —— 反差先成立）
+      tl.to('#bigNum', { scale: 1.012, duration: T_RES - T_BEAT, ease: 'sine.inOut' }, T_BEAT);
+
+      // ④ 换算结果落下（有重量）
+      tl.fromTo('#result', { opacity: 0, y: 250, scale: 0.90 },
+        { opacity: 1, y: 210, scale: 1, duration: 0.62, ease: 'back.out(1.5)' }, T_RES);
+      tl.to(resultN, {
+        innerText: PRICE, snap: { innerText: 0.1 },
+        duration: 0.50, ease: 'power2.out',
+        onUpdate: () => { resultN.textContent = '38.4'; },
+      }, T_RES + 0.10);
+
+      // ⑤ hold + 极轻呼吸
+      tl.to('#bigNum', { y: -8, duration: 1.30, ease: 'sine.inOut' }, T_HOLD);
+      tl.to('#bigNum', { y: 0,  duration: 1.30, ease: 'sine.inOut' }, T_HOLD + 1.40);
+
+      window.__timelines['s21'] = tl;
+      tl.seek(0);
+    </script>
+  </body>
+</html>

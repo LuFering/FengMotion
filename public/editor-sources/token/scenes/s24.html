@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="zh" data-resolution="landscape">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>s24 · V3 段21 · 都在烧钱</title>
+    <!-- 服务 SCRIPT-EP1-V3.md 第 21 段：「你每问一个问题，都在烧钱。」 -->
+    <script src="../gsap.min.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1920px; height: 1080px; overflow: hidden; background: #000; }
+      @font-face { font-family: "Noto Sans SC"; font-weight: 900;
+        src: url("../assets/fonts/noto-sans-sc-900.woff2") format("woff2"); font-display: block; }
+      @font-face { font-family: "IBM Plex Mono"; font-weight: 500;
+        src: url("../assets/fonts/plex-mono-500.woff2") format("woff2"); font-display: block; }
+
+      #root { position: relative; width: 1920px; height: 1080px; overflow: hidden; }
+      #space { position: absolute; inset: 0;
+        background: radial-gradient(ellipse 118% 78% at 50% 40%,
+          #1e222a 0%, #161a20 44%, #0e1115 76%, #090a0d 100%); }
+      #stage { position: absolute; inset: 0; perspective: 1700px; perspective-origin: 50% 48%; }
+      #camera { position: absolute; inset: 0; transform-style: preserve-3d; }
+
+      /* 承 s15/s20：那层盖着计量的"膜"（免费的表象） */
+      #veil {
+        position: absolute; left: 50%; top: 50%;
+        width: 1180px; height: 660px;
+        margin-left: -590px; margin-top: -330px;
+        border-radius: 26px;
+        background: linear-gradient(158deg,
+          rgba(246,243,236,0.15) 0%, rgba(232,226,214,0.09) 52%, rgba(214,206,190,0.05) 100%);
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.20), 0 0 0 1px rgba(255,255,255,0.08);
+      }
+      #veilWord {
+        position: absolute; left: 50%; top: 50%;
+        width: 1180px; height: 660px; margin-left: -590px; margin-top: -330px;
+        display: flex; align-items: center; justify-content: center;
+        font-family: "Noto Sans SC", sans-serif; font-weight: 900;
+        font-size: 130px; color: rgba(246,243,236,0.12); letter-spacing: 0.22em;
+      }
+
+      /* 烧穿的洞 —— 焦边 + 内部全黑 */
+      #burn {
+        position: absolute; left: 50%; top: 50%;
+        width: 560px; height: 400px;
+        margin-left: -280px; margin-top: -200px;
+        border-radius: 50%;
+        background: radial-gradient(ellipse 50% 50% at 50% 50%,
+          rgba(255,186,96,0.90) 0%, rgba(228,110,40,0.62) 30%,
+          rgba(128,48,16,0.28) 60%, rgba(0,0,0,0) 100%);
+        filter: blur(10px);
+        mix-blend-mode: screen;
+        opacity: 0;
+      }
+      #burnCore {
+        position: absolute; left: 50%; top: 50%;
+        width: 330px; height: 226px;
+        margin-left: -165px; margin-top: -113px;
+        border-radius: 50%;
+        background: radial-gradient(ellipse 50% 50% at 50% 50%,
+          #07080b 0%, #0a0c10 60%, rgba(7,8,11,0) 100%);
+        opacity: 0;
+      }
+
+      /* 焦边（洞的边缘，比洞稍大一圈，暗褐色） */
+      #rim {
+        position: absolute; left: 50%; top: 50%;
+        width: 400px; height: 280px;
+        margin-left: -200px; margin-top: -140px;
+        border-radius: 50%;
+        border: 10px solid rgba(86,42,18,0.55);
+        filter: blur(7px);
+        opacity: 0;
+      }
+
+      #note {
+        position: absolute; left: 50%; bottom: 92px; transform: translateX(-50%);
+        font-family: "IBM Plex Mono", monospace; font-weight: 500;
+        font-size: 19px; letter-spacing: 0.34em; color: #5c636e;
+        white-space: nowrap; opacity: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="s24" data-start="0" data-duration="2.4"
+         data-width="1920" data-height="1080">
+      <div id="space" class="clip" data-start="0" data-duration="2.4" data-track-index="0"></div>
+      <div id="stage" class="clip" data-start="0" data-duration="2.4" data-track-index="1">
+        <div id="camera">
+          <div id="veil"></div>
+          <div id="veilWord">免费</div>
+          <div id="burn"></div>
+          <div id="rim"></div>
+          <div id="burnCore"></div>
+          <div id="note">每一次提问都在计费</div>
+        </div>
+      </div>
+    </div>
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+
+      gsap.set('#veil', { opacity: 1, scale: 1 });
+      gsap.set('#veilWord', { opacity: 1 });
+      gsap.set('#burn', { opacity: 0, scale: 0.30 });
+      gsap.set('#rim', { opacity: 0, scale: 0.30 });
+      gsap.set('#burnCore', { opacity: 0, scale: 0.30 });
+
+      // ── 2.4s ────────────────────────────────────────
+      //  0.00–0.75  膜上先出现一个小火星（缓入：先慢后猛）
+      //  0.75–1.35  洞迅速烧开
+      //  1.35–1.90  焦边扩散，洞内全黑（露出"底下有东西"）
+      //  1.90–2.40  注记浮现，留呼吸
+      const T_SPARK = 0.00;
+      const T_OPEN  = 0.75;
+      const T_RIM   = 1.35;
+      const T_NOTE  = 1.90;
+
+      // ① 火星 → 缓入（R2：速度来自加速度）
+      tl.to('#burn', { opacity: 1, scale: 0.42, duration: 0.60, ease: 'power2.in' }, T_SPARK);
+      // ② 猛扩（急出）
+      tl.to('#burn', { scale: 1.12, duration: 0.58, ease: 'power3.out' }, T_OPEN);
+      tl.to('#burnCore', { opacity: 1, scale: 1.0, duration: 0.52, ease: 'power2.out' }, T_OPEN + 0.06);
+
+      // ③ 焦边
+      tl.to('#rim', { opacity: 1, scale: 1.0, duration: 0.62, ease: 'power2.out' }, T_RIM);
+      // 膜退让（让位给洞里的东西）
+      tl.to('#veil', { scale: 1.05, opacity: 0.70, duration: 0.62, ease: 'power2.out' }, T_OPEN);
+      tl.to('#veilWord', { opacity: 0.05, duration: 0.55, ease: 'power2.out' }, T_OPEN);
+
+      // ④ 注记
+      tl.to('#note', { opacity: 1, duration: 0.42, ease: 'power2.out' }, T_NOTE);
+
+      window.__timelines['s24'] = tl;
+    </script>
+  </body>
+</html>

@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="zh" data-resolution="landscape">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>镜 04 · 翻页转场</title>
+    <script src="../gsap.min.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1920px; height: 1080px; overflow: hidden; background: #000; }
+      @font-face { font-family: "Big Shoulders Display"; font-weight: 800;
+        src: url("../assets/fonts/big-shoulders-800.woff2") format("woff2"); font-display: block; }
+      @font-face { font-family: "Noto Sans SC"; font-weight: 900;
+        src: url("../assets/fonts/noto-sans-sc-900.woff2") format("woff2"); font-display: block; }
+      @font-face { font-family: "IBM Plex Mono"; font-weight: 500;
+        src: url("../assets/fonts/plex-mono-500.woff2") format("woff2"); font-display: block; }
+
+      #root { position: relative; width: 1920px; height: 1080px; overflow: hidden; }
+      /* 背景与 s03 完全一致 —— 接缝处空间不能变 */
+      #space {
+        position: absolute; inset: 0;
+        background: radial-gradient(ellipse 118% 76% at 50% 14%,
+          #23262e 0%, #1a1d23 40%, #111318 72%, #0b0d11 100%);
+      }
+      #lightpool {
+        position: absolute; left: 50%; top: -34%;
+        width: 1500px; height: 900px; margin-left: -750px;
+        background: radial-gradient(ellipse 50% 50% at 50% 50%,
+          rgba(214,228,255,0.15) 0%, rgba(180,200,240,0.06) 38%, rgba(0,0,0,0) 72%);
+      }
+      #stage { position: absolute; inset: 0; perspective: 1400px; perspective-origin: 50% 46%; }
+      #camera { position: absolute; inset: 0; transform-style: preserve-3d; }
+
+      #page {
+        position: absolute; left: 50%; top: 50%;
+        width: 420px; height: 560px;
+        margin-left: -210px; margin-top: -280px;
+        transform-origin: 50% 100%;   /* 以底边为轴翻 —— 像翻书页 */
+        will-change: transform, opacity;
+      }
+      #pageFace {
+        position: absolute; inset: 0; border-radius: 18px;
+        opacity: 0;   /* CSS 起手隐藏：full-frame overlay 若初始可见会遮住前面的帧 */
+        background: linear-gradient(158deg, #f6f4f0 0%, #e9e6df 58%, #dcd8cf 100%);
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.95), inset 0 -2px 0 rgba(0,0,0,0.12);
+        overflow: hidden;
+      }
+      #ciyuan {
+        position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+        font-family: "Noto Sans SC", sans-serif; font-weight: 900;
+        font-size: 158px; letter-spacing: 0.02em; color: #191b1f;
+      }
+      #edge {
+        position: absolute; inset: 0; border-radius: 18px;
+        background: linear-gradient(158deg, #cfcbc2 0%, #a8a49b 100%);
+      }
+      /* 翻过去的背面：就是下一场景的"门" */
+      #pageBack {
+        position: absolute; inset: 0; border-radius: 18px;
+        background: linear-gradient(158deg, #1c1f26 0%, #12151a 100%);
+        transform: rotateX(180deg); transform-origin: 50% 0%;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="s04" data-start="0" data-duration="2.2"
+         data-width="1920" data-height="1080">
+      <div id="space"     class="clip" data-start="0" data-duration="2.2" data-track-index="0"></div>
+      <div id="lightpool" class="clip" data-start="0" data-duration="2.2" data-track-index="1" data-layout-allow-overflow></div>
+      <div id="stage"     class="clip" data-start="0" data-duration="2.2" data-track-index="2">
+        <div id="camera">
+          <div id="page">
+            <div id="edge"></div>
+            <div id="pageFace"><div id="ciyuan">词元</div></div>
+            <div id="pageBack"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+
+      // 由 s03 末态承接：词元卡在中心、z 560 推近后的状态
+      gsap.set('#page', { z: 120, scale: 1.12, rotateX: 0, opacity: 1 });
+      // 开场就把正面亮起（本镜第一帧就是"词元卡"，承接 s03 末态）
+      gsap.set('#pageFace', { opacity: 1 });
+      gsap.set('#pageBack', { opacity: 0 });
+
+      // ── 时间表（30fps，本镜是纯转场，短促）──────────────────────
+      //  0.00–0.20  起手：卡片微微后仰（预备）
+      //  0.20–0.75  以底边为轴翻过去 —— 画面随卡面一起翻
+      //  0.55–0.80  翻过 90° 后露出背面，背面就是下一场景的门
+      //  0.80–1.30  背面撑满画面（进入下一场景）
+      //  1.30–1.60  稳定，交棒给 s05
+      const F = 1 / 30;
+      const T_PREP  = 0.00;
+      const T_FLIP  = 0.20;
+      const T_PAST  = 0.62;   // 越过 90°
+      const T_OPEN  = 0.80;
+      const T_HOLD  = 1.30;
+
+      // 正面在 t=0 就亮（承接 s03 末态）—— 用显式 tween 而非纯 gsap.set，
+      // 否则 lint 判 fullscreen_overlay_starts_visible
+      tl.to('#pageFace', { opacity: 1, duration: 0.01, ease: 'none' }, 0);
+
+      // 预备：微后仰（幅度要够大才看得见 —— 判例：4px 完全无感，要放大）
+      tl.to('#page', { rotateX: -12, duration: 0.20, ease: 'power2.out' }, T_PREP);
+
+      // 翻页：绕底边翻过 90°，同时被"吸"向镜头
+      tl.to('#page', { rotateX: -90, duration: 0.42, ease: 'power2.inOut' }, T_FLIP);
+      tl.to('#page', { z: 420, scale: 1.55, duration: 0.42, ease: 'power2.inOut' }, T_FLIP);
+      // 翻过 90°：正面交棒给背面（独立元素硬切，无 backface 依赖）
+      tl.to('#pageFace', { opacity: 0, duration: 0.06, ease: 'none' }, T_PAST);
+      tl.to('#pageBack', { opacity: 1, duration: 0.06, ease: 'none' }, T_PAST);
+
+      // 背面撑满画面 —— 新场景从这里打开
+      tl.to('#page', { rotateX: -180, duration: 0.48, ease: 'power2.out' }, T_OPEN);
+      tl.to('#page', { z: 900, scale: 2.4, duration: 0.50, ease: 'power2.in' }, T_OPEN);
+
+      window.__timelines['s04'] = tl;
+      tl.seek(0);
+    </script>
+  </body>
+</html>

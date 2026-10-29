@@ -1,0 +1,228 @@
+/* ═══════════════════════════════════════════════════════════════
+   壁纸 —— 设置 → 外观。
+
+   为什么是一层独立的 fixed 图层，而不是给 body 加 background-image：
+   · body 的底色在 paba 的 `.studio-shell` 里，且首页/工具页还有一组
+     更高特异性的 token 覆盖层；直接改 body 背景会被它们压掉；
+   · 壁纸要能被「遮罩强度」单独压暗，用图层上一个伪元素渐变最直接；
+   · 图层贴在 z-index 0，壳层里所有内容（含工作台监看器画面）都在它之上 ——
+     这就是规划文档要的「播放器画面不受壁纸影响」。
+
+   内置壁纸用纯 CSS 画（渐变 + 重复条纹），不引入图片资源：
+   作者没有前端经验，少一个资源就少一处 404 的可能；
+   自定义壁纸走用户自己上传的 data URL，存在 localStorage。
+   ═══════════════════════════════════════════════════════════════ */
+
+.fm-wall {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-color: var(--bg);
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-position: center;
+}
+
+/* 遮罩：--wall-dim 由组件按用户设置写成 0–1。
+   用整层纯色压暗（而不是只压底部），这样任何壁纸上的正文都保持可读 */
+.fm-wall::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--bg);
+  opacity: var(--wall-dim, .4);
+  transition: opacity .18s ease;
+}
+/* 纸感/浅色主题下壁纸偏亮，遮罩改用白色才压得住（--bg 在浅色主题下是浅灰） */
+html[data-theme="light"] .fm-wall::after,
+html[data-theme="tactile"] .fm-wall::after { background: var(--bg) }
+
+/* ── 内置壁纸 ──────────────────────────────────────────────── */
+/* 极光：两团冷色光晕，偏蓝紫 —— 深色主题下最像"氛围光" */
+.fm-wall[data-wall="aurora"] {
+  background-image:
+    radial-gradient(60% 70% at 18% 8%, #2b4fa8 0%, transparent 62%),
+    radial-gradient(55% 65% at 82% 22%, #6b2f8f 0%, transparent 60%),
+    radial-gradient(70% 80% at 50% 108%, #0d5f6b 0%, transparent 66%),
+    linear-gradient(180deg, #05070d, #0a0c14);
+}
+/* 暮色：暖橙到深蓝的斜向渐变 */
+.fm-wall[data-wall="dusk"] {
+  background-image:
+    radial-gradient(60% 60% at 76% 84%, #b4562a 0%, transparent 62%),
+    radial-gradient(70% 70% at 12% 12%, #1c2f5e 0%, transparent 64%),
+    linear-gradient(160deg, #0b0b10, #12100f);
+}
+/* 纸纹：斜向细条纹 + 底部暖光，和纸感主题同一路语言 */
+.fm-wall[data-wall="paper"] {
+  background-color: #e8e3d6;
+  background-image:
+    repeating-linear-gradient(135deg, rgb(34 35 31 / .045) 0 1px, transparent 1px 7px),
+    radial-gradient(80% 70% at 50% 118%, rgb(247 201 72 / .30) 0%, transparent 66%),
+    linear-gradient(180deg, #ece7db, #e2ddd0);
+}
+/* 网格：等距网格线，像工作台的画布底 */
+.fm-wall[data-wall="grid"] {
+  background-color: #08090c;
+  background-image:
+    linear-gradient(rgb(255 255 255 / .05) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(255 255 255 / .05) 1px, transparent 1px),
+    radial-gradient(70% 60% at 50% 0%, rgb(59 140 248 / .16) 0%, transparent 64%);
+  background-size: 28px 28px, 28px 28px, auto;
+}
+html[data-theme="light"] .fm-wall[data-wall="grid"],
+html[data-theme="tactile"] .fm-wall[data-wall="grid"] {
+  background-color: #dcdcd6;
+  background-image:
+    linear-gradient(rgb(0 0 0 / .07) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(0 0 0 / .07) 1px, transparent 1px),
+    radial-gradient(70% 60% at 50% 0%, rgb(59 140 248 / .12) 0%, transparent 64%);
+}
+/* 自定义：真实上传的图，由组件内联 background-image，这里只兜底色 */
+.fm-wall[data-wall="custom"] { background-color: var(--bg) }
+
+/* 纸纹用于深色主题时压暗，避免整屏刺眼 */
+html[data-theme="dark"] .fm-wall[data-wall="paper"] { filter: brightness(.62) saturate(.85) }
+
+/* ── 设置里的壁纸选择器 ────────────────────────────────────── */
+.set-walls {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  gap: 10px;
+  margin: 2px 0 4px;
+}
+.set-wall {
+  position: relative;
+  display: block;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--hole);
+  cursor: pointer;
+  overflow: hidden;
+  transition: border-color .14s;
+}
+.set-wall:hover { border-color: color-mix(in srgb, var(--fg) 30%, var(--line)); }
+.set-wall[data-on] {
+  border-color: var(--acc);
+  box-shadow: 0 0 0 1px var(--acc);
+}
+.set-wall-prev {
+  display: block;
+  aspect-ratio: 16 / 10;
+  background-color: var(--bg);
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-position: center;
+}
+/* 预览缩略图沿用同一套壁纸配方（否则缩略图和实际效果对不上） */
+.set-wall-prev[data-wall="aurora"] {
+  background-image:
+    radial-gradient(60% 70% at 18% 8%, #2b4fa8 0%, transparent 62%),
+    radial-gradient(55% 65% at 82% 22%, #6b2f8f 0%, transparent 60%),
+    radial-gradient(70% 80% at 50% 108%, #0d5f6b 0%, transparent 66%),
+    linear-gradient(180deg, #05070d, #0a0c14);
+}
+.set-wall-prev[data-wall="dusk"] {
+  background-image:
+    radial-gradient(60% 60% at 76% 84%, #b4562a 0%, transparent 62%),
+    radial-gradient(70% 70% at 12% 12%, #1c2f5e 0%, transparent 64%),
+    linear-gradient(160deg, #0b0b10, #12100f);
+}
+.set-wall-prev[data-wall="paper"] {
+  background-color: #e8e3d6;
+  background-image:
+    repeating-linear-gradient(135deg, rgb(34 35 31 / .045) 0 1px, transparent 1px 7px),
+    radial-gradient(80% 70% at 50% 118%, rgb(247 201 72 / .30) 0%, transparent 66%),
+    linear-gradient(180deg, #ece7db, #e2ddd0);
+}
+.set-wall-prev[data-wall="grid"] {
+  background-color: #08090c;
+  background-image:
+    linear-gradient(rgb(255 255 255 / .05) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(255 255 255 / .05) 1px, transparent 1px),
+    radial-gradient(70% 60% at 50% 0%, rgb(59 140 248 / .16) 0%, transparent 64%);
+  background-size: 28px 28px, 28px 28px, auto;
+}
+.set-wall-prev[data-wall="none"] {
+  background-image: linear-gradient(135deg, var(--bg) 0 46%, var(--line) 46% 54%, var(--bg) 54% 100%);
+}
+.set-wall-name {
+  display: block;
+  padding: 5px 7px 6px;
+  font-size: 11px;
+  color: var(--dim);
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.set-wall[data-on] .set-wall-name { color: var(--acc); font-weight: 600; }
+/* 选中角标：白勾在深底上，跨主题都看得清 */
+.set-wall-ck {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: var(--acc);
+  color: #fff;
+}
+.set-wall-ck .ui-icon { width: 10px; height: 10px; }
+.set-wall-add {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 16 / 10;
+  color: var(--dim);
+}
+.set-wall-add .ui-icon { width: 18px; height: 18px; }
+
+/* 遮罩强度的滑块行：滑块用项目标准 Slider，这里只定宽 */
+.set-slider { width: 168px; }
+.set-range-val {
+  min-width: 34px;
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--dim);
+  text-align: right;
+}
+
+/* ── 快捷键表（通用）───────────────────────────────────────── */
+.set-keys { display: flex; flex-direction: column; gap: 1px; }
+.set-key {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 2px;
+  font-size: 12.5px;
+}
+.set-key > span { flex: 1; min-width: 0; color: var(--fg); }
+.set-key kbd {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  min-width: 22px;
+  justify-content: center;
+  padding: 2px 6px;
+  border: 1px solid var(--line);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  background: var(--hole);
+  color: var(--fg);
+  font: inherit;
+  font-size: 11px;
+  line-height: 1.4;
+}
+.set-key em {
+  flex: 0 0 auto;
+  font-style: normal;
+  font-size: 11px;
+  color: var(--ph);
+}
+
+/* ── 关于与反馈 ────────────────────────────────────────────── */
+.set-links { display: flex; flex-wrap: wrap; gap: 8px; }

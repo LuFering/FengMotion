@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="zh" data-resolution="landscape">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>镜 23 · 收</title>
+    <script src="../gsap.min.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1920px; height: 1080px; overflow: hidden; background: #000; }
+      @font-face { font-family: "Big Shoulders Display"; font-weight: 800;
+        src: url("../assets/fonts/big-shoulders-800.woff2") format("woff2"); font-display: block; }
+      @font-face { font-family: "IBM Plex Mono"; font-weight: 500;
+        src: url("../assets/fonts/plex-mono-500.woff2") format("woff2"); font-display: block; }
+      @font-face { font-family: "Noto Sans SC"; font-weight: 900;
+        src: url("../assets/fonts/noto-sans-sc-900.woff2") format("woff2"); font-display: block; }
+
+      #root { position: relative; width: 1920px; height: 1080px; overflow: hidden; }
+      /* 回到全片的起点：与 s01 完全相同的空间（首尾闭环） */
+      #space {
+        position: absolute; inset: 0;
+        background: radial-gradient(ellipse 118% 76% at 50% 14%,
+          #23262e 0%, #1a1d23 40%, #111318 72%, #0b0d11 100%);
+      }
+      #lightpool {
+        position: absolute; left: 50%; top: -34%;
+        width: 1500px; height: 900px; margin-left: -750px;
+        background: radial-gradient(ellipse 50% 50% at 50% 50%,
+          rgba(214,228,255,0.16) 0%, rgba(180,200,240,0.07) 38%, rgba(0,0,0,0) 72%);
+      }
+      #floor {
+        position: absolute; left: -20%; right: -20%; bottom: -16%; height: 48%;
+        background: linear-gradient(180deg, rgba(255,255,255,0.045) 0%, rgba(255,255,255,0) 68%);
+        transform: perspective(900px) rotateX(68deg); transform-origin: 50% 0%;
+      }
+
+      #stage { position: absolute; inset: 0; perspective: 1200px; perspective-origin: 50% 50%; }
+      #camera { position: absolute; inset: 0; transform-style: preserve-3d; }
+
+      /* 与 s01 同一个母题字（首尾闭环 —— 元素继承到极致） */
+      #word {
+        position: absolute; left: 50%; top: 50%;
+        font-family: "Big Shoulders Display", sans-serif; font-weight: 800;
+        font-size: 340px; line-height: 1; letter-spacing: 0.004em;
+        white-space: nowrap;
+        background: linear-gradient(180deg,
+          #ffffff 0%, #f4f1ec 34%, #ddd8d0 62%, #a8a49b 100%);
+        -webkit-background-clip: text; background-clip: text;
+        -webkit-text-fill-color: transparent; color: transparent;
+      }
+      #wordshadow {
+        position: absolute; left: 50%; top: 50%;
+        width: 1200px; height: 120px;
+        background: radial-gradient(ellipse 50% 50% at 50% 50%,
+          rgba(0,0,0,0.62) 0%, rgba(0,0,0,0) 70%);
+        opacity: 0;
+      }
+      #reflection {
+        position: absolute; left: 50%; top: 50%;
+        font-family: "Big Shoulders Display", sans-serif; font-weight: 800;
+        font-size: 340px; line-height: 1; letter-spacing: 0.004em;
+        color: #b9c4d6;
+        white-space: nowrap;
+        opacity: 0;
+        pointer-events: none;
+        -webkit-mask-image: linear-gradient(180deg, rgba(0,0,0,0.42) 0%, rgba(0,0,0,0) 58%);
+        mask-image: linear-gradient(180deg, rgba(0,0,0,0.42) 0%, rgba(0,0,0,0) 58%);
+      }
+      #tail {
+        position: absolute; left: 50%; top: 50%;
+        margin-top: 400px; margin-left: -140px;   /* 让开倒影（倒影延伸到 y≈966） */
+        font-family: "IBM Plex Mono", monospace; font-weight: 500;
+        font-size: 21px; letter-spacing: 0.32em; color: #8b93a1;
+        white-space: nowrap; opacity: 0;
+      }
+      /* 收黑（与开头 CRT 关机呼应） */
+      #blackout { position: absolute; inset: 0; background: #000; opacity: 0; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="s23" data-start="0" data-duration="6.8"
+         data-width="1920" data-height="1080">
+      <div id="space"     class="clip" data-start="0" data-duration="6.8" data-track-index="0"></div>
+      <div id="lightpool" class="clip" data-start="0" data-duration="6.8" data-track-index="1" data-layout-allow-overflow></div>
+      <div id="floor"     class="clip" data-start="0" data-duration="6.8" data-track-index="2" data-layout-allow-overflow></div>
+      <div id="stage" class="clip" data-start="0" data-duration="6.8" data-track-index="3">
+        <div id="camera">
+          <div id="reflection">Token</div>
+          <div id="wordshadow"></div>
+          <div id="word">Token</div>
+        </div>
+      </div>
+      <div id="tail" class="clip" data-start="0" data-duration="6.8" data-track-index="4">下期再见</div>
+      <div id="blackout" class="clip" data-start="0" data-duration="6.8" data-track-index="5"></div>
+    </div>
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+
+      gsap.set(['#word', '#wordshadow'], { xPercent: -50, yPercent: -50 });
+      gsap.set('#wordshadow', { y: 210 });
+      gsap.set('#reflection', { xPercent: -50, yPercent: -50, y: 186, scaleY: -0.52 });
+      gsap.set('#word', { opacity: 0, scale: 0.94 });
+
+      // ── 时间表（30fps）—— 全片收尾 ──────────────────────────────
+      //  0.00–0.80  承 s22：额度条收束成一条线 → 回到一个 Token
+      //  0.80–1.60  Token 淡入，落在与开头完全相同的位置
+      //  1.60–2.20  暗影 + 倒影就位（此时画面与 s01 的末态一致）
+      //  2.20–4.20  **hold 满 2 秒**（判例 R1：品牌字标要呼吸）
+      //  4.20–5.10  尾部说明浮出
+      //  5.10–6.80  收黑（缓收，不是硬切）
+      const T_IN    = 0.80;
+      const T_GROUND= 1.60;
+      const T_HOLD  = 2.20;
+      const T_TAIL  = 4.20;
+      const T_OUT   = 5.10;
+
+      // ① 母题字回到与 s01 一致的位置（首尾闭环）
+      tl.to('#word', { opacity: 1, scale: 1.0, duration: 0.80, ease: 'power2.out' }, T_IN);
+      tl.to('#wordshadow', { opacity: 1, duration: 0.60, ease: 'power2.out' }, T_GROUND - 0.20);
+      tl.to('#reflection', { opacity: 1, duration: 0.70, ease: 'power2.out' }, T_GROUND);
+
+      // ② 长 hold（这一段什么都不做，就是停 —— 有意的静止）
+      //    只保留极慢的呼吸，避免死画面
+      tl.to('#word', { y: -7, duration: 1.30, ease: 'sine.inOut' }, T_HOLD);
+      tl.to('#word', { y: 0,  duration: 1.30, ease: 'sine.inOut' }, T_HOLD + 1.40);
+
+      // ③ 尾部说明
+      tl.to('#tail', { opacity: 1, duration: 0.60, ease: 'power2.out' }, T_TAIL);
+      tl.to('#tail', { opacity: 0, duration: 0.50, ease: 'power2.in' }, T_OUT + 0.40);
+
+      // ④ 收黑（缓收，与开头的 CRT 关机呼应）
+      tl.to('#word', { opacity: 0, duration: 0.90, ease: 'power2.in' }, T_OUT + 0.20);
+      tl.to('#reflection', { opacity: 0, duration: 0.60, ease: 'power2.in' }, T_OUT + 0.20);
+      tl.to('#wordshadow', { opacity: 0, duration: 0.60, ease: 'power2.in' }, T_OUT + 0.30);
+      tl.to('#space', { opacity: 0.30, duration: 0.90, ease: 'power2.in' }, T_OUT + 0.30);
+      tl.to('#lightpool', { opacity: 0, duration: 0.80, ease: 'power2.in' }, T_OUT + 0.30);
+      tl.to('#floor', { opacity: 0, duration: 0.70, ease: 'power2.in' }, T_OUT + 0.40);
+      tl.to('#blackout', { opacity: 1, duration: 0.70, ease: 'power2.inOut' }, T_OUT + 0.70);
+
+      window.__timelines['s23'] = tl;
+      tl.seek(0);
+    </script>
+  </body>
+</html>

@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="zh" data-resolution="landscape">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>s25 · V3 段22 · 平台在垫</title>
+    <!-- 服务 SCRIPT-EP1-V3.md 第 22 段：「AI 每生成一段回答，背后都是真金白银的算力在跑。这笔钱，平台先替你垫着。」 -->
+    <script src="../gsap.min.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1920px; height: 1080px; overflow: hidden; background: #000; }
+      @font-face { font-family: "Noto Sans SC"; font-weight: 900;
+        src: url("../assets/fonts/noto-sans-sc-900.woff2") format("woff2"); font-display: block; }
+      @font-face { font-family: "IBM Plex Mono"; font-weight: 500;
+        src: url("../assets/fonts/plex-mono-500.woff2") format("woff2"); font-display: block; }
+
+      #root { position: relative; width: 1920px; height: 1080px; overflow: hidden; }
+      #space { position: absolute; inset: 0;
+        background: radial-gradient(ellipse 118% 78% at 50% 40%,
+          #1e222a 0%, #161a20 44%, #0e1115 76%, #090a0d 100%); }
+      #stage { position: absolute; inset: 0; perspective: 1700px; perspective-origin: 50% 48%; }
+      #camera { position: absolute; inset: 0; transform-style: preserve-3d; }
+
+      /* 承 s24：焦边的洞（同一个洞，现在镜头推近看里面） */
+      #rim {
+        position: absolute; left: 50%; top: 50%;
+        width: 1500px; height: 1000px;
+        margin-left: -750px; margin-top: -500px;
+        border-radius: 50%;
+        border: 26px solid rgba(78,38,16,0.42);
+        filter: blur(16px); opacity: 1;
+      }
+
+      /* ── 洞里的算力机架（主视觉，占画面中央）── */
+      #rack {
+        position: absolute; left: 50%; top: 50%;
+        width: 880px; height: 560px;
+        margin-left: -440px; margin-top: -300px;
+        border-radius: 16px;
+        background: linear-gradient(158deg, #171c23 0%, #10141a 58%, #0a0d11 100%);
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.10),
+                    0 0 0 1px rgba(255,255,255,0.055),
+                    0 40px 90px rgba(0,0,0,0.7);
+        overflow: hidden;
+      }
+      #rack .row {
+        position: absolute; left: 24px; right: 24px; height: 52px;
+        border-radius: 8px;
+        background: linear-gradient(180deg, rgba(255,255,255,0.045), rgba(0,0,0,0.24));
+      }
+      #rack .led {
+        position: absolute; width: 12px; height: 12px; border-radius: 50%;
+        background: #6fe3a8; box-shadow: 0 0 14px rgba(111,227,168,0.9);
+        opacity: 0.12;
+      }
+
+      /* ── 平台垫的钞票：从左侧一叠叠推出 ── */
+      #cashStack {
+        position: absolute; left: 50%; top: 50%;
+        margin-left: -1080px; margin-top: -140px;
+        width: 420px; height: 280px;
+      }
+      .bundle {
+        position: absolute; left: 0; width: 300px; height: 92px;
+        border-radius: 9px;
+        background: linear-gradient(158deg, #d9e5d3 0%, #b8cbaf 58%, #93ab8b 100%);
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.55), 0 14px 30px rgba(0,0,0,0.55);
+      }
+
+      /* 「垫」字标记 */
+      #padWord {
+        position: absolute; left: 50%; top: 50%;
+        margin-left: -1080px; margin-top: -230px;
+        font-family: "Noto Sans SC", sans-serif; font-weight: 900;
+        font-size: 62px; color: rgba(246,243,236,0.9);
+        letter-spacing: 0.12em; opacity: 0;
+      }
+
+      #note {
+        position: absolute; left: 50%; bottom: 88px; transform: translateX(-50%);
+        font-family: "IBM Plex Mono", monospace; font-weight: 500;
+        font-size: 19px; letter-spacing: 0.34em; color: #5c636e;
+        white-space: nowrap; opacity: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="s25" data-start="0" data-duration="6.1"
+         data-width="1920" data-height="1080">
+      <div id="space" class="clip" data-start="0" data-duration="6.1" data-track-index="0"></div>
+      <div id="stage" class="clip" data-start="0" data-duration="6.1" data-track-index="1">
+        <div id="camera">
+          <div id="rim"></div>
+          <div id="rack"></div>
+          <div id="padWord">垫</div>
+          <div id="cashStack"></div>
+          <div id="note">真金白银的算力</div>
+        </div>
+      </div>
+    </div>
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+
+      // ── 机架：8 排 × 7 颗 LED（确定性布局）──
+      const rack = document.getElementById('rack');
+      const leds = [];
+      for (let r = 0; r < 8; r++) {
+        const row = document.createElement('div');
+        row.className = 'row';
+        row.style.top = (26 + r * 66) + 'px';
+        row.setAttribute('data-layout-ignore', '');
+        rack.appendChild(row);
+        for (let k = 0; k < 7; k++) {
+          const led = document.createElement('div');
+          led.className = 'led';
+          led.style.left = (44 + k * 112) + 'px';
+          led.style.top = (46 + r * 66) + 'px';
+          led.setAttribute('data-layout-ignore', '');
+          rack.appendChild(led);
+          leds.push(led);
+        }
+      }
+
+      // ── 钞票：4 捆 ──
+      const cash = document.getElementById('cashStack');
+      const bundles = [];
+      for (let i = 0; i < 4; i++) {
+        const b = document.createElement('div');
+        b.className = 'bundle';
+        b.style.top = (i * 62) + 'px';
+        b.setAttribute('data-layout-ignore', '');
+        cash.appendChild(b);
+        bundles.push(b);
+      }
+
+      gsap.set('#rack', { opacity: 0, scale: 0.92 });
+      gsap.set(bundles, { opacity: 0, x: 0 });
+      gsap.set('#padWord', { opacity: 0, y: 24 });
+
+      // ── 6.1s ────────────────────────────────────────
+      //  0.00–0.80  镜头推近洞里（机架显形）
+      //  0.80–2.60  LED 一排排亮起（有加速度，不是均匀 stagger）
+      //  2.60–4.20  左侧钞票一捆捆被推出（平台在垫）
+      //  4.20–5.10  「垫」字落定
+      //  5.10–6.10  停留呼吸（R1：关键信息落定后必须呼吸）
+      const T_RACK = 0.00;
+      const T_LED  = 0.80;
+      const T_CASH = 2.60;
+      const T_WORD = 4.20;
+      const T_HOLD = 5.10;
+
+      // ① 机架显形
+      tl.to('#rack', { opacity: 1, scale: 1, duration: 0.80, ease: 'power2.out' }, T_RACK);
+
+      // ② LED：按「行优先 + 指数加速」亮（R2：不是均匀 stagger）
+      leds.forEach((l, i) => {
+        const p = i / leds.length;
+        const t = T_LED + Math.pow(p, 0.68) * 1.72;
+        tl.to(l, { opacity: 1, duration: 0.20, ease: 'power2.out' }, t);
+        // 亮完之后进入持续微闪（算力在跑）
+        tl.to(l, { opacity: 0.62, duration: 0.34, repeat: -1, yoyo: true,
+                   ease: 'sine.inOut' }, t + 0.30 + (i % 7) * 0.05);
+      });
+
+      // ③ 钞票推出（一捆捆，间隔递减）
+      bundles.forEach((b, i) => {
+        const t = T_CASH + i * 0.32;
+        tl.to(b, { opacity: 1, duration: 0.24, ease: 'power2.out' }, t);
+        tl.to(b, { x: -420, duration: 0.86, ease: 'power2.inOut' }, t + 0.06);
+      });
+
+      // ④ 「垫」字落定（有重量，回弹）
+      tl.to('#padWord', { opacity: 1, y: 0, duration: 0.56, ease: 'back.out(1.5)' }, T_WORD);
+
+      // ⑤ 注记
+      tl.to('#note', { opacity: 1, duration: 0.44, ease: 'power2.out' }, T_HOLD);
+
+      window.__timelines['s25'] = tl;
+    </script>
+  </body>
+</html>

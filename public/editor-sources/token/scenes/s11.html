@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="zh" data-resolution="landscape">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>镜 11 · AI 时代的石油</title>
+    <script src="../gsap.min.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1920px; height: 1080px; overflow: hidden; background: #000; }
+      @font-face { font-family: "Big Shoulders Display"; font-weight: 800;
+        src: url("../assets/fonts/big-shoulders-800.woff2") format("woff2"); font-display: block; }
+      @font-face { font-family: "IBM Plex Mono"; font-weight: 500;
+        src: url("../assets/fonts/plex-mono-500.woff2") format("woff2"); font-display: block; }
+
+      #root { position: relative; width: 1920px; height: 1080px; overflow: hidden; }
+      /* 空间更深、更大（尺度从一个 Token 扩到整个基础设施） */
+      #space {
+        position: absolute; inset: 0;
+        background: radial-gradient(ellipse 140% 92% at 50% 40%,
+          #1a2029 0%, #141920 42%, #0c0f13 76%, #07080b 100%);
+      }
+
+      #stage { position: absolute; inset: 0; perspective: 1600px; perspective-origin: 50% 46%; }
+      #camera { position: absolute; inset: 0; transform-style: preserve-3d; }
+
+      #net { position: absolute; inset: 0; }
+
+      /* ── 节点：整条网络上的"资源点" ── */
+      .node {
+        position: absolute; left: 0; top: 0;
+        border-radius: 50%;
+        background: radial-gradient(circle at 42% 38%, #eef1f5 0%, #b8c2d2 40%, #5c6675 100%);
+        box-shadow: 0 0 0 8px rgba(214,228,255,0.045), 0 16px 40px rgba(0,0,0,0.62);
+      }
+      /* 管道：连接节点的实线（不是箭头图，是流动的管线） */
+      .pipe {
+        position: absolute; left: 0; top: 0; height: 3px;
+        background: linear-gradient(90deg, rgba(214,228,255,0.55) 0%, rgba(214,228,255,0.22) 100%);
+        transform-origin: 0% 50%;
+      }
+      /* 沿管流动的"资源包" */
+      .flow {
+        position: absolute; left: 0; top: 0; width: 26px; height: 26px;
+        border-radius: 50%;
+        background: radial-gradient(circle at 44% 40%, #ffffff 0%, #cbd6e6 46%, #7d8b9e 100%);
+        box-shadow: 0 0 18px rgba(214,228,255,0.55);
+      }
+
+      /* 阶段标签 */
+      .cap {
+        position: absolute; font-family: "IBM Plex Mono", monospace; font-weight: 500;
+        font-size: 17px; letter-spacing: 0.26em; color: #98a1b0;
+        text-transform: uppercase; white-space: nowrap;
+      }
+      /* 储存容器：一个"罐"，不是球 */
+      #tank {
+        position: absolute; left: 1180px; top: 176px;
+        width: 260px; height: 190px; border-radius: 14px;
+        background: linear-gradient(158deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.03) 40%, rgba(0,0,0,0.22) 100%);
+        box-shadow: inset 0 0 0 1px rgba(255,255,255,0.13), 0 30px 70px rgba(0,0,0,0.62);
+        opacity: 0; overflow: hidden;
+      }
+      #tankFill {
+        position: absolute; left: 0; right: 0; bottom: 0; height: 0%;
+        background: linear-gradient(180deg, rgba(214,228,255,0.42) 0%, rgba(214,228,255,0.18) 100%);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="s11" data-start="0" data-duration="9.0"
+         data-width="1920" data-height="1080">
+      <div id="space" class="clip" data-start="0" data-duration="9.0" data-track-index="0"></div>
+      <div id="stage" class="clip" data-start="0" data-duration="9.0" data-track-index="1">
+        <div id="camera">
+          <div id="net"></div>
+          <div id="tank"><div id="tankFill"></div></div>
+          <div class="cap" id="cap1" style="left:186px;  top:262px;">汇聚 INTAKE</div>
+          <div class="cap" id="cap2" style="left:644px;  top:704px;">流动 FLOW</div>
+          <div class="cap" id="cap3" style="left:1188px; top:136px;">储存 STORAGE</div>
+          <div class="cap" id="cap4" style="left:1620px; top:566px;">供给 SUPPLY</div>
+        </div>
+      </div>
+    </div>
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+
+      const net = document.getElementById('net');
+
+      // ── 网络拓扑：汇聚 → 流动 → 储存 → 供给 ──────────────────────
+      // 刻意**不是环形箭头图**，也**不是一滴石油**（判例明确禁止"石油球"）。
+      // 它是一条有方向的资源管线：起点多个、沿途汇聚、终点储存与供给。
+      const NODES = [
+        // 汇聚端：3 个小节点（来源多）
+        { id: 'a1', x: 190, y: 250, r: 16, stage: 0 },
+        { id: 'a2', x: 210, y: 400, r: 13, stage: 0 },
+        { id: 'a3', x: 186, y: 536, r: 15, stage: 0 },
+        // 流动中段
+        { id: 'b1', x: 640, y: 452, r: 30, stage: 1 },
+        { id: 'b2', x: 940, y: 452, r: 34, stage: 1 },
+        // 储存 / 供给端
+        { id: 'c1', x: 1214, y: 452, r: 40, stage: 2 },
+        { id: 'd1', x: 1690, y: 452, r: 58, stage: 3 },
+      ];
+      const PIPE_SEGS = [
+        [ 'a1', 'b1' ], [ 'a2', 'b1' ], [ 'a3', 'b1' ],
+        [ 'b1', 'b2' ], [ 'b2', 'c1' ], [ 'c1', 'd1' ],
+      ];
+
+      const nodeEls = {}, pipeEls = [];
+      NODES.forEach((n) => {
+        const el = document.createElement('div');
+        el.className = 'node';
+        el.style.width = n.r * 2 + 'px';
+        el.style.height = n.r * 2 + 'px';
+        el.style.marginLeft = -n.r + 'px';
+        el.style.marginTop = -n.r + 'px';
+        el.setAttribute('data-layout-ignore', '');
+        net.appendChild(el);
+        gsap.set(el, { x: n.x, y: n.y, scale: 0, opacity: 0 });
+        nodeEls[n.id] = { el, ...n };
+      });
+      const byId = (id) => nodeEls[id];
+      PIPE_SEGS.forEach(([p, q]) => {
+        const A = byId(p), B = byId(q);
+        const dx = B.x - A.x, dy = B.y - A.y;
+        const len = Math.hypot(dx, dy), ang = Math.atan2(dy, dx) * 180 / Math.PI;
+        const el = document.createElement('div');
+        el.className = 'pipe';
+        el.style.width = len + 'px';
+        el.setAttribute('data-layout-ignore', '');
+        net.appendChild(el);
+        gsap.set(el, { x: A.x, y: A.y, rotate: ang, scaleX: 0, opacity: 0 });
+        pipeEls.push({ el, len });
+      });
+
+      // ── 时间表（30fps）──────────────────────────────────────────
+      //  0.00–0.60  承 s10：舞台画面淡出，资源网络的空间显形
+      //  0.60–1.60  汇聚端 3 个节点先亮（来源多）
+      //  1.60–2.40  管线依次接通（汇聚 → 流动）
+      //  2.40–3.40  中段节点亮起，资源包沿管线流动
+      //  3.40–4.40  储存罐出现并开始被填
+      //  4.40–5.40  供给端节点张开（最大的那个）
+      //  5.40–9.00  稳定 + 缓推停住（全片最大尺度定格）
+      const T_SRC   = 0.60;
+      const T_PIPE  = 1.60;
+      const T_FLOW  = 2.40;
+      const T_TANK  = 3.40;
+      const T_SUPPLY= 4.40;
+      const T_HOLD  = 5.40;
+
+      // ① 汇聚端节点
+      NODES.filter((n) => n.stage === 0).forEach((n, i) => {
+        tl.to(nodeEls[n.id].el, { scale: 1, opacity: 1, duration: 0.45, ease: 'back.out(1.6)' }, T_SRC + i * 0.12);
+      });
+
+      // ② 管线接通（依次，读出"汇聚"的方向感）
+      pipeEls.forEach((p, i) => {
+        tl.to(p.el, { opacity: 1, duration: 0.10, ease: 'none' }, T_PIPE + i * 0.09);
+        tl.to(p.el, { scaleX: 1, duration: 0.42, ease: 'power3.out' }, T_PIPE + i * 0.09);
+      });
+
+      // ③ 中段节点
+      NODES.filter((n) => n.stage === 1).forEach((n, i) => {
+        tl.to(nodeEls[n.id].el, { scale: 1, opacity: 1, duration: 0.50, ease: 'back.out(1.4)' }, T_FLOW + i * 0.22);
+      });
+
+      // ④ 储存罐 + 填充
+      tl.to('#tank', { opacity: 1, duration: 0.60, ease: 'power2.out' }, T_TANK);
+      tl.to('#tankFill', { height: '78%', duration: 1.40, ease: 'power2.inOut' }, T_TANK + 0.35);
+      tl.to(nodeEls['c1'].el, { scale: 1, opacity: 1, duration: 0.50, ease: 'back.out(1.4)' }, T_TANK + 0.10);
+
+      // ⑤ 供给端（最大的节点，代表"供给出去"）
+      tl.to(nodeEls['d1'].el, { scale: 1, opacity: 1, duration: 0.60, ease: 'back.out(1.5)' }, T_SUPPLY);
+
+      // ⑥ 资源包沿管线流动（确定性：由进度算位置，不用随机）
+      //    每条管线上跑 2 个包，相位错开
+      const flows = [];
+      pipeEls.forEach((p, i) => {
+        const [a, b] = PIPE_SEGS[i];
+        const A = byId(a), B = byId(b);
+        for (let k = 0; k < 2; k++) {
+          const el = document.createElement('div');
+          el.className = 'flow';
+          el.setAttribute('data-layout-ignore', '');
+          net.appendChild(el);
+          gsap.set(el, { opacity: 0 });
+          flows.push({ el, A, B, phase: (i * 0.13 + k * 0.5) % 1 });
+        }
+      });
+      flows.forEach((f) => {
+        const state = { p: f.phase };
+        tl.to(state, {
+          p: f.phase + 2.2, duration: 2.2, ease: 'none', repeat: 2,
+          onUpdate: () => {
+            const t = state.p % 1;
+            const x = f.A.x + (f.B.x - f.A.x) * t;
+            const y = f.A.y + (f.B.y - f.A.y) * t;
+            gsap.set(f.el, { x, y });
+          },
+        }, T_FLOW + 0.25);
+        tl.to(f.el, { opacity: 1, duration: 0.20, ease: 'none' }, T_FLOW + 0.25);
+        tl.to(f.el, { opacity: 0, duration: 0.30, ease: 'none' }, T_HOLD + 0.10);
+      });
+
+      // ⑦ 缓推停住 —— 全片最大尺度定格
+      tl.to('#camera', { z: -200, duration: 1.80, ease: 'sine.inOut' }, T_HOLD);
+
+      window.__timelines['s11'] = tl;
+      tl.seek(0);
+    </script>
+  </body>
+</html>

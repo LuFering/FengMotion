@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="zh" data-resolution="landscape">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>s30 · 彩蛋 · 豆包收费</title>
+    <!-- ⭐ 彩蛋镜（新增）—— 接在段19 之后。
+         口播（新增）：「当然，有一家除外。」
+         时长：9 字 ÷ 5.15 字/秒 = 1.75s + 段尾停顿 0.30s = 2.05s
+
+         ══ 为什么加这一镜 ══
+         段19 铺出「绝大部分办公型 AI 都是免费的」，
+         这一镜**当场打脸一个**，把"免费"这件事戳出个洞。
+         这是**埋伏笔**：稿子第 40 段（幕五）会兑现 ——
+         「豆包前阵子开始收费了」。这里先埋，后面接得上。
+
+         ══ 手法出处 ══
+         · shotcraft `chip-grid-single-select-blackout`
+             卡原文：「其余 chip 降到 18% 而位置绝不移动：
+             一旦重排，观众会以为页面刷新了。」
+             → 推近豆包时，**其余 7 个图标降到 18%、位置锁死**。
+               不重排、不飞走 —— 镜头靠近而已，世界没变。
+
+         · shotcraft `card-flip-reveal`（翻面语法）
+             ⚠️ 我的笔记里记过：软件渲染下 `backface-visibility` 不可靠，
+                正反面会同时透出。
+             → 所以用**两个独立标签 + 时间轴上硬切换**，不做真 3D 翻转。
+
+         · 参考视频拆解「规律 3：转折词 = 切点」
+             → 「除外」就是转折词。这一镜的起手就是"镜头转向豆包"。
+
+         ══ 与 s29 的接缝 ══
+         s29 末态：8 个真实 AI 应用铺满，每个贴着绿色「免费」标，
+                   豆包在第一排第一个（位置已经立住）。
+         本镜起手就是那一帧 —— **不重画、不复位**。
+
+         ══ 出口 ══
+         豆包的标签翻成红色「收费」，其余 7 个还是绿色「免费」。
+         不解释、不停留太久 —— 埋下就走。
+         下一镜（段20「那它凭什么免费？」）从这片矛盾里起手。 -->
+    <script src="../gsap.min.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1920px; height: 1080px; overflow: hidden; background: #0b0d10; }
+      @font-face { font-family: "Noto Sans SC"; font-weight: 900;
+        src: url("../assets/fonts/noto-sans-sc-900.woff2") format("woff2"); font-display: block; }
+      @font-face { font-family: "IBM Plex Mono"; font-weight: 500;
+        src: url("../assets/fonts/plex-mono-500.woff2") format("woff2"); font-display: block; }
+
+      #root { position: relative; width: 1920px; height: 1080px; overflow: hidden; }
+      #space { position: absolute; inset: 0; background: #0b0d10; }
+
+      /* ══ 光：承 s29 —— 已散开，本镜不再动（全片光效预算已用完）══ */
+      .shroud { position: absolute; top: 0; height: 1080px; width: 4000px; }
+      #shroudL { left: -4000px;
+        background: linear-gradient(90deg,
+          #0b0d10 0px, #0b0d10 3580px, rgba(11,13,16,0) 3720px); }
+      #shroudR { left: 280px;
+        background: linear-gradient(90deg,
+          rgba(11,13,16,0) 0px, #0b0d10 140px, #0b0d10 4000px); }
+
+      /* ══ 计量器：承 s29，同一位置同一缩放（已暗到 0.16，本镜基本看不见）══ */
+      #stage { position: absolute; inset: 0; }
+      #meter {
+        position: absolute; left: 50%; top: 50%;
+        width: 660px; height: 460px;
+        margin-left: -330px; margin-top: -230px;
+        border-radius: 22px;
+        background: linear-gradient(168deg, #6d7683 0%, #4e5661 40%, #333a44 100%);
+        box-shadow:
+          inset 0 2px 0 rgba(255,255,255,0.40),
+          inset 0 -3px 0 rgba(0,0,0,0.50),
+          0 0 0 1px rgba(255,255,255,0.20),
+          0 40px 90px rgba(0,0,0,0.70);
+      }
+      #meterPlate {
+        position: absolute; left: 34px; right: 34px; top: 26px; height: 46px;
+        border-radius: 8px;
+        background: linear-gradient(180deg, rgba(255,255,255,0.16), rgba(255,255,255,0.06));
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.28);
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 0 18px;
+        font-family: "IBM Plex Mono", monospace; font-weight: 500;
+        font-size: 19px; letter-spacing: 0.24em; color: rgba(232,240,252,0.78);
+      }
+      #meterPlate .dot {
+        width: 11px; height: 11px; border-radius: 50%;
+        background: #7df0b4; box-shadow: 0 0 14px rgba(125,240,180,0.9);
+      }
+      #window {
+        position: absolute; left: 34px; right: 34px; top: 96px; height: 190px;
+        border-radius: 14px; overflow: hidden;
+        background: linear-gradient(180deg, #07090c 0%, #0c1014 50%, #05070a 100%);
+        box-shadow: inset 0 4px 14px rgba(0,0,0,0.92),
+                    inset 0 -2px 0 rgba(255,255,255,0.06),
+                    0 1px 0 rgba(255,255,255,0.10);
+      }
+      #tape { position: absolute; left: 0; top: 0; width: 592px; }
+      #winMask {
+        position: absolute; inset: 0;
+        -webkit-mask-image: linear-gradient(180deg,
+          rgba(0,0,0,0) 0%, #000 30%, #000 70%, rgba(0,0,0,0) 100%);
+        mask-image: linear-gradient(180deg,
+          rgba(0,0,0,0) 0%, #000 30%, #000 70%, rgba(0,0,0,0) 100%);
+      }
+      .tick {
+        position: absolute; left: 0; width: 592px; height: 190px;
+        display: flex; align-items: center; justify-content: center;
+        font-family: "IBM Plex Mono", monospace; font-weight: 500;
+        font-size: 92px; letter-spacing: 0.02em; color: #d8f0e4;
+        text-shadow: 0 0 34px rgba(110,230,170,0.42);
+      }
+      #meterFoot {
+        position: absolute; left: 34px; right: 34px; bottom: 30px; height: 62px;
+        border-radius: 10px;
+        background: linear-gradient(180deg, rgba(255,255,255,0.14), rgba(0,0,0,0.14));
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.24);
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 0 22px;
+      }
+      #meterFoot .unit {
+        font-family: "IBM Plex Mono", monospace; font-weight: 500;
+        font-size: 27px; letter-spacing: 0.26em; color: rgba(232,240,252,0.88);
+      }
+      #meterFoot .lamp { display: flex; gap: 9px; }
+      #meterFoot .lamp i {
+        width: 9px; height: 26px; border-radius: 3px;
+        background: rgba(255,255,255,0.20);
+      }
+      #meterFoot .lamp i.on { background: #7df0b4; box-shadow: 0 0 14px rgba(125,240,180,0.9); }
+
+      /* ══ 那一排真实应用图标：承 s29，**同一套坐标、同一套造型** ══ */
+      #appsHost { position: absolute; inset: 0; }
+      .app {
+        position: absolute;
+        width: 168px; height: 168px; border-radius: 38px;
+        overflow: hidden;
+        box-shadow: 0 22px 50px rgba(0,0,0,0.66);
+      }
+      .app img {
+        width: 100%; height: 100%; object-fit: cover; display: block;
+      }
+      .appName {
+        position: absolute;
+        font-family: "Noto Sans SC", sans-serif; font-weight: 900;
+        font-size: 24px; letter-spacing: 0.04em;
+        color: rgba(226,234,246,0.80); white-space: nowrap;
+        text-align: center;
+      }
+      /* 「免费」标 —— 绿色（承 s29） */
+      .freeTag {
+        position: absolute;
+        padding: 8px 18px; border-radius: 10px;
+        background: linear-gradient(158deg, #2f9e6b 0%, #1f7450 100%);
+        box-shadow: 0 10px 24px rgba(0,0,0,0.55),
+                    inset 0 1px 0 rgba(255,255,255,0.30);
+        font-family: "Noto Sans SC", sans-serif; font-weight: 900;
+        font-size: 27px; line-height: 1; color: #ffffff;
+        letter-spacing: 0.08em; white-space: nowrap;
+      }
+      /* ⭐ 「收费」标 —— 红色。同一个造型，只换色和字。
+         （卡里说翻面要"硬切换"—— 所以这是**另一个元素**，
+          不是同一个元素的 3D 翻面。） */
+      .paidTag {
+        position: absolute;
+        padding: 8px 18px; border-radius: 10px;
+        background: linear-gradient(158deg, #e2564a 0%, #b32d24 100%);
+        box-shadow: 0 10px 24px rgba(0,0,0,0.55),
+                    0 0 34px rgba(226,86,74,0.55),
+                    inset 0 1px 0 rgba(255,255,255,0.32);
+        font-family: "Noto Sans SC", sans-serif; font-weight: 900;
+        font-size: 27px; line-height: 1; color: #ffffff;
+        letter-spacing: 0.08em; white-space: nowrap;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="s30" data-start="0" data-duration="2.05"
+         data-width="1920" data-height="1080">
+      <div id="space" class="clip" data-start="0" data-duration="2.05" data-track-index="0"></div>
+      <div id="stage" class="clip" data-start="0" data-duration="2.05" data-track-index="1">
+        <div id="meter">
+          <div id="meterPlate"><span>TOKEN METER</span><span class="dot"></span></div>
+          <div id="window"><div id="winMask"><div id="tape"></div></div></div>
+          <div id="meterFoot">
+            <span class="unit">token</span>
+            <span class="lamp"><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span>
+          </div>
+        </div>
+      </div>
+      <div class="clip" id="appsHost" data-start="0" data-duration="2.05" data-track-index="2"></div>
+    </div>
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+
+      // ══ 滚轮数字带（与 s26–s29 同一套）══
+      const tape = document.getElementById('tape');
+      const N = 26, H = 190, BASE = 1204000, STEP = 40000;
+      for (let i = 0; i < N; i++) {
+        const t = document.createElement('div');
+        t.className = 'tick';
+        t.style.top = (i * H) + 'px';
+        t.textContent = (BASE + i * STEP).toLocaleString('en-US');
+        t.setAttribute('data-layout-ignore', '');
+        tape.appendChild(t);
+      }
+      tape.style.height = (N * H) + 'px';
+
+      // ══ 真实应用图标（**与 s29 完全同一套坐标 + 同一套图标文件**）══
+      const APPS = [
+        { x:  210, y: 250, icon: 'doubao.png',   name: '豆包' },
+        { x:  540, y: 250, icon: 'qwen.png',     name: '通义千问' },
+        { x:  870, y: 250, icon: 'deepseek.png', name: 'DeepSeek' },
+        { x: 1200, y: 250, icon: 'zhipu.png',    name: '智谱清言' },
+        { x:  210, y: 620, icon: 'kimi.png',     name: 'Kimi' },
+        { x:  540, y: 620, icon: 'yuanbao.png',  name: '腾讯元宝' },
+        { x:  870, y: 620, icon: 'spark.png',    name: '讯飞星火' },
+        { x: 1200, y: 620, icon: 'wenxin.png',   name: '文心一言' },
+      ];
+      const appsBox = document.getElementById('appsHost');
+      const appEls = [], nameEls = [], freeTags = [], paidTags = [];
+
+      APPS.forEach((a, i) => {
+        const el = document.createElement('div');
+        el.className = 'app';
+        el.style.left = a.x + 'px';
+        el.style.top = a.y + 'px';
+        const img = document.createElement('img');
+        img.src = '../assets/apps/' + a.icon;
+        img.alt = '';
+        img.setAttribute('data-layout-ignore', '');
+        el.appendChild(img);
+        el.setAttribute('data-layout-ignore', '');
+        appsBox.appendChild(el);
+        appEls.push(el);
+
+        const nm = document.createElement('div');
+        nm.className = 'appName';
+        nm.textContent = a.name;
+        nm.style.left = (a.x - 40) + 'px';
+        nm.style.width = '248px';
+        nm.style.top = (a.y + 184) + 'px';
+        nm.setAttribute('data-layout-ignore', '');
+        appsBox.appendChild(nm);
+        nameEls.push(nm);
+
+        const ft = document.createElement('div');
+        ft.className = 'freeTag';
+        ft.textContent = '免费';
+        ft.style.left = (a.x + 92) + 'px';
+        ft.style.top = (a.y - 18) + 'px';
+        ft.setAttribute('data-layout-ignore', '');
+        appsBox.appendChild(ft);
+        freeTags.push(ft);
+
+        // 豆包（i===0）额外带一枚红色「收费」标，起手隐藏
+        if (i === 0) {
+          const pt = document.createElement('div');
+          pt.className = 'paidTag';
+          pt.textContent = '收费';
+          pt.style.left = (a.x + 92) + 'px';
+          pt.style.top = (a.y - 18) + 'px';
+          pt.setAttribute('data-layout-ignore', '');
+          appsBox.appendChild(pt);
+          paidTags.push(pt);
+        }
+      });
+
+      // ══ 初始态：**承 s29 末态**（不重画、不复位）══
+      gsap.set('#stage', { scale: 0.62, x: -150, y: -50, transformOrigin: '50% 50%', opacity: 0.16 });
+      gsap.set('#tape', { y: -19 * H });
+      gsap.set('#shroudL', { x: 920 });
+      gsap.set('#shroudR', { x: 1580 });
+      // 图标全部在位、全亮、全绿标
+      gsap.set('#appsHost', { scale: 1, x: 0, y: 0, transformOrigin: '294px 334px' });
+      gsap.set(appEls, { opacity: 1, scale: 1 });
+      gsap.set(nameEls, { opacity: 1 });
+      gsap.set(freeTags, { opacity: 1, scale: 1 });
+      gsap.set(paidTags, { opacity: 0, scale: 0.70 });
+
+      // ══ 时间表（2.05s）—— 逐拍对齐旁白 ════════════════════════
+      //  0.00–0.62  「当然，」——镜头**推近豆包**（其余 7 个降到 18%，位置锁死）
+      //  0.62–0.86  「有一家」——豆包的绿「免费」标退场
+      //  0.80–1.14  「除外。」——红「收费」标登场（有重量）
+      //  1.14–2.05  停住，让这个矛盾被看清（判例 R1：落定后必须呼吸）
+      const T_PUSH = 0.00;
+      const T_OUT  = 0.62;
+      const T_IN   = 0.80;
+      const T_HOLD = 1.14;
+
+      // ① 镜头推近豆包
+      //    取景原点 = transform-origin = 豆包中心 (294,334)。
+      //    该点在 transform 下映射到 (294+x, 334+y) —— **与 scale 无关**。
+      //    目标画面正中 (960,540) → x=666, y=206。
+      //    （实渲量到 y 偏下约 35px，减掉。）
+      tl.to('#appsHost', {
+        scale: 1.62, x: 666, y: 171,
+        duration: 0.62, ease: 'power3.out',
+      }, T_PUSH);
+
+      // ② 其余 7 个降到 18%，**位置绝不移动**（chip-grid 命门）
+      //    ⚠️ 卡里说"位置绝不移动"是为了不让人以为页面刷新了；
+      //       但推近 1.62 倍后，相邻图标会挤进画框边缘。
+      //       所以**降暗 + 轻微后退**（只改 opacity 与 scale，
+      //       不改坐标 —— 坐标一动就是重排）。
+      appEls.forEach((el, i) => {
+        if (i === 0) return;
+        tl.to(el, { opacity: 0.18, duration: 0.56, ease: 'power2.out' }, T_PUSH + 0.18);
+      });
+      nameEls.forEach((el, i) => {
+        if (i === 0) return;
+        tl.to(el, { opacity: 0.14, duration: 0.56, ease: 'power2.out' }, T_PUSH + 0.18);
+      });
+      freeTags.forEach((el, i) => {
+        if (i === 0) return;
+        tl.to(el, { opacity: 0.18, duration: 0.56, ease: 'power2.out' }, T_PUSH + 0.18);
+      });
+
+      // ③ 豆包的绿标退场（缩小 + 淡出 —— 读作"翻过去了"）
+      tl.to(freeTags[0], { opacity: 0, scale: 0.62, duration: 0.24, ease: 'power2.in' }, T_OUT);
+
+      // ④ 红标登场（有重量 —— back.out）
+      tl.to(paidTags[0], { opacity: 1, scale: 1, duration: 0.34, ease: 'back.out(1.8)' }, T_IN);
+
+      // ⑤ 停住 + 极轻呼吸（判例 R1）
+      tl.to(paidTags[0], { y: -6, duration: 0.46, ease: 'sine.inOut' }, T_HOLD);
+      tl.to(paidTags[0], { y: 0, duration: 0.45, ease: 'sine.inOut' }, T_HOLD + 0.46);
+
+      window.__timelines['s30'] = tl;
+    </script>
+  </body>
+</html>

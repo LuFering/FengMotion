@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="zh" data-resolution="landscape">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>镜 06 · 人民币类比</title>
+    <script src="../gsap.min.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1920px; height: 1080px; overflow: hidden; background: #000; }
+      @font-face { font-family: "Big Shoulders Display"; font-weight: 800;
+        src: url("../assets/fonts/big-shoulders-800.woff2") format("woff2"); font-display: block; }
+      @font-face { font-family: "Noto Sans SC"; font-weight: 900;
+        src: url("../assets/fonts/noto-sans-sc-900.woff2") format("woff2"); font-display: block; }
+      @font-face { font-family: "IBM Plex Mono"; font-weight: 500;
+        src: url("../assets/fonts/plex-mono-500.woff2") format("woff2"); font-display: block; }
+
+      #root { position: relative; width: 1920px; height: 1080px; overflow: hidden; }
+      #space {
+        position: absolute; inset: 0;
+        background: radial-gradient(ellipse 118% 76% at 50% 14%,
+          #23262e 0%, #1a1d23 40%, #111318 72%, #0b0d11 100%);
+      }
+      #lightpool {
+        position: absolute; left: 50%; top: -34%;
+        width: 1500px; height: 900px; margin-left: -750px;
+        background: radial-gradient(ellipse 50% 50% at 50% 50%,
+          rgba(214,228,255,0.14) 0%, rgba(180,200,240,0.055) 38%, rgba(0,0,0,0) 72%);
+      }
+      #ground {
+        position: absolute; left: -30%; right: -30%; bottom: -28%; height: 82%;
+        background:
+          linear-gradient(180deg, rgba(214,228,255,0.05) 0%, rgba(214,228,255,0) 46%),
+          repeating-linear-gradient(90deg,
+            rgba(214,228,255,0.14) 0 1px, transparent 1px 120px);
+        transform: perspective(760px) rotateX(71deg);
+        transform-origin: 50% 0%;
+        opacity: 0.9;
+        -webkit-mask-image: linear-gradient(180deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0) 74%);
+        mask-image: linear-gradient(180deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0) 74%);
+      }
+
+      #stage { position: absolute; inset: 0; perspective: 1500px; perspective-origin: 50% 48%; }
+      #camera { position: absolute; inset: 0; transform-style: preserve-3d; }
+
+      /* ── 左：来自 s05 的那批 token 块（同一个物体换状态）── */
+      .tok {
+        position: absolute; left: 0; top: 0;
+        width: 104px; height: 54px; border-radius: 9px;
+        background: linear-gradient(158deg, #f6f4f0 0%, #e2ded6 100%);
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.95), 0 10px 24px rgba(0,0,0,0.5);
+        display: flex; align-items: center; justify-content: center;
+        font-family: "Noto Sans SC", sans-serif; font-weight: 900;
+        font-size: 26px; color: #0f1115;
+        will-change: transform, opacity;
+      }
+
+      /* ── 右：¥ 与它那一列计量单位（对照物）── */
+      #yuan {
+        position: absolute; left: 1320px; top: 250px;
+        font-family: "Noto Sans SC", "Big Shoulders Display", sans-serif;
+        font-weight: 900; font-size: 300px; line-height: 0.86;   /* 收紧行盒：CJK 字体行高比大，否则会压住下方标签 */
+        color: #e8e4dc;
+        text-shadow: 0 24px 60px rgba(0,0,0,0.6);
+        opacity: 0;
+      }
+      #yuanCap {
+        position: absolute; left: 1332px; top: 620px;
+        font-family: "IBM Plex Mono", monospace; font-weight: 500;
+        font-size: 19px; letter-spacing: 0.28em; color: #a8aeb9;
+        opacity: 0;
+      }
+      /* ¥ 下面那一摞：真实货币的计量感，但不做钞票 */
+      /* 货币计量：比 token 块更扁、带内圈，形态上明确区分
+         （两边长得一样就失去对照意义 —— 这是判例说的"元素要精准表达"） */
+      .coin {
+        position: absolute; left: 0; top: 0;
+        width: 178px; height: 26px; border-radius: 13px;
+        background: linear-gradient(158deg, #f0eee9 0%, #c2beb4 100%);
+        box-shadow: inset 0 2px 0 rgba(255,255,255,0.95),
+                    inset 0 -2px 0 rgba(0,0,0,0.16),
+                    0 8px 18px rgba(0,0,0,0.55);
+        opacity: 0;
+      }
+      .coin::after {
+        content: ''; position: absolute; left: 14px; right: 14px; top: 9px; height: 3px;
+        border-radius: 2px; background: rgba(90,86,78,0.42);
+      }
+
+      .tok .w { transition: none; }
+      #tokenCap {
+        position: absolute; left: 300px; top: 250px;
+        font-family: "IBM Plex Mono", monospace; font-weight: 500;
+        font-size: 19px; letter-spacing: 0.28em; color: #a8aeb9;
+        opacity: 0;
+      }
+      /* 中间的类比连线：一条细线把两边连起来（"像…一样"） */
+      #link {
+        position: absolute; left: 0; top: 0; height: 2px;
+        background: linear-gradient(90deg, rgba(214,228,255,0) 0%, rgba(214,228,255,0.75) 50%, rgba(214,228,255,0) 100%);
+        opacity: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="s06" data-start="0" data-duration="7.0"
+         data-width="1920" data-height="1080">
+      <div id="space"     class="clip" data-start="0" data-duration="7.0" data-track-index="0"></div>
+      <div id="lightpool" class="clip" data-start="0" data-duration="7.0" data-track-index="1" data-layout-allow-overflow></div>
+      <div id="ground"    class="clip" data-start="0" data-duration="7.0" data-track-index="2" data-layout-allow-overflow></div>
+
+      <div id="stage" class="clip" data-start="0" data-duration="7.0" data-track-index="3">
+        <div id="camera">
+          <div id="tokens"></div>
+          <div id="link"></div>
+          <div id="tokenCap">TOKEN · 计量单位</div>
+          <div id="yuan">¥</div>
+          <div id="yuanCap">人民币 · 计量单位</div>
+          <div id="coins"></div>
+        </div>
+      </div>
+    </div>
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+
+      // ── 左：10 个 token 块（承接 s05 末态，同一个物体）──────────
+      // 布局与 s05 完全一致（x300 起、两行），保证接缝无跳变
+      const TOKENS = ['今天','推荐','一款','适合','学生','党的','电脑','真的','很','划算'];
+      const BASE_X = 300, BASE_Y = 700, GAP = 22, ROW_H = 80;
+      const tokEls = TOKENS.map((word, i) => {
+        const el = document.createElement('div');
+        el.className = 'tok';
+        el.innerHTML = `<span class="w">${word}</span>`;
+        document.getElementById('tokens').appendChild(el);
+        const col = i % 5, row = Math.floor(i / 5);
+        return { el, x: BASE_X + col * (104 + GAP), y: BASE_Y + row * ROW_H };
+      });
+
+      // 右：一摞货币单位（8 枚），错落堆叠
+      const coinEls = [];
+      for (let i = 0; i < 8; i++) {
+        const el = document.createElement('div');
+        el.className = 'coin';
+        document.getElementById('coins').appendChild(el);
+        coinEls.push({ el, x: 1246 + (i % 2) * 22, y: 636 + i * 26 });
+      }
+
+      // ── 英雄帧：左 token 阵列 / 中连线 / 右 ¥ + 计量摞 ──────────
+      // 开工先把终局摆出来确认构图，再倒推动画（避免"先搭再挪"）
+      gsap.set(tokEls.map((tk) => tk.el), { opacity: 1 });
+      tokEls.forEach((tk) => gsap.set(tk.el, { x: tk.x, y: tk.y }));
+      coinEls.forEach((c) => gsap.set(c.el, { x: c.x, y: c.y, opacity: 0 }));
+      gsap.set('#link', { x: 300, y: 470, width: 1040, opacity: 0 });
+
+      // ── 时间表（30fps）──────────────────────────────────────────
+      //  0.00–0.60  承 s05：token 阵列在场（可读停留）
+      //  0.60–1.60  阵列开始"变形"：从数据块漂移成货币计量结构
+      //             （块变圆、变窄、堆叠 —— 同一个物体换状态）
+      //  1.60–2.40  右侧 ¥ 落定，与左侧形成对照
+      //  2.40–3.00  中间连线画出来（"像…一样"的类比关系成立）
+      //  3.00–5.00  两者同时停留（类比被看见）
+      //  5.00–7.00  轻微横移 + 呼吸，交棒 s07
+      const T_SHIFT  = 0.60;
+      const T_YUAN   = 1.60;
+      const T_LINK   = 2.40;
+      const T_HOLD   = 3.00;
+
+      // ① 变形：token 块 → 货币计量的排列
+      //    每个块缩小、变圆、向右侧聚成一摞（不是新建一套，是同一批换状态）
+      tokEls.forEach((tk, i) => {
+        const d = i * 0.045;
+        // 变圆（读作"从数据块变成计量单位"），位置**留在原处** ——
+        // 全部飞向同一点会叠成一坨（实测被判 content_overlap）。
+        tl.to(tk.el, { borderRadius: 27, height: 40, duration: 0.55, ease: 'power2.inOut' }, T_SHIFT + d);
+        // 极轻微的"整队"位移，保持阵列结构可读
+        tl.to(tk.el, { y: tk.y + 6, duration: 0.70, ease: 'power2.inOut' }, T_SHIFT + 0.18 + d);
+        // 字**保留** —— token 是"文字单位"，抹掉字就只剩两堆一样的胶囊，
+        // 左右对照关系反而读不出来。只做轻微压暗表示"被计价"。
+        tl.to(tk.el, { opacity: 0.92, duration: 0.40, ease: 'power2.out' }, T_SHIFT + 0.30 + d);
+      });
+
+      // ② ¥ 落定（有重量：先过冲再回稳）
+      tl.fromTo('#yuan', { opacity: 0, scale: 1.22, y: 40 },
+        { opacity: 1, scale: 1.0, y: 0, duration: 0.62, ease: 'power3.out' }, T_YUAN);
+      tl.fromTo('#yuanCap', { opacity: 0, y: 14 },
+        { opacity: 1, y: 0, duration: 0.45, ease: 'power2.out' }, T_YUAN + 0.30);
+      tl.fromTo('#tokenCap', { opacity: 0, y: 14 },
+        { opacity: 1, y: 0, duration: 0.45, ease: 'power2.out' }, T_YUAN + 0.16);
+
+      // 中间那一摞货币单位跟着亮
+      coinEls.forEach((c, i) => {
+        tl.to(c.el, { opacity: 0.85, duration: 0.30, ease: 'power2.out' }, T_YUAN + 0.16 + i * 0.035);
+      });
+
+      // ③ 连线画出 —— 类比关系成立
+      tl.fromTo('#link', { opacity: 0, scaleX: 0 },
+        { opacity: 1, scaleX: 1, transformOrigin: '0% 50%', duration: 0.60, ease: 'power2.out' },
+        T_LINK);
+
+      // ④ 同时停留 + 轻微横移（镜头做一次很轻的横向运动）
+      tl.to('#camera', { x: -60, duration: 1.40, ease: 'sine.inOut' }, T_HOLD);
+      tl.to('#yuan', { y: -12, duration: 1.20, ease: 'sine.inOut' }, T_HOLD + 0.30);
+      tl.to('#yuan', { y: 0, duration: 1.10, ease: 'sine.inOut' }, T_HOLD + 1.55);
+
+      window.__timelines['s06'] = tl;
+      tl.seek(0);
+    </script>
+  </body>
+</html>

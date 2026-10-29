@@ -38,3 +38,14 @@ FengMotion Desktop 是 AI 视频创作工作台（桌面优先）。当前形态
 - 开发流程与规范：[docs/dev/](docs/dev/README.md)
 - Agent 管线：`workflow-v5/README.md` 起读
 - 给 AI 的工作约定：`CLAUDE.md`
+
+### 工作台本地审阅（2026-10-29）
+
+`services/workbenchReviewService.ts` 按项目保存本地原始需求、纠正、特别保留要求和意见快照；`hooks/useWorkbenchReview.ts` 管理用户标记与保存失败状态。`views/WorkbenchReviewDesk.tsx` 提供要求/意见/版本的按需面板，`WorkbenchPreviewCompare.tsx` 只比较现有真实文件，`PreviewReviewTools.tsx` 将真实媒体时间范围带回修改意见。该链路不生成媒体，也不把用户标记当作检查运行。Remotion 原有参数编辑仍在工作台内按需打开。
+
+
+### 工作台场景编辑器（2026-10-29）
+
+`src/editor/` 负责本机场景文档、属性面板、双引擎预览与导出，替换旧 `EditableShot` 标题覆盖层。`SceneDocument` 的图层描述通过同一个 `SceneComposition` 驱动 Remotion Player 与浏览器渲染器；素材复用 assetService 的 IndexedDB。HTML 引擎仅执行 `public/editor-sources/` 中已绑定、带原始 SHA-256 的源快照，元素修改作为独立覆盖记录，保留原 GSAP 时间轴。
+
+`render.ts` 把真正生成的文件存入素材库，独立记录本机导出版本，再以 `origin: editor` 提供工作台预览；不制造工作流执行记录。HTML 支持工程包导出，尚不支持本机视频编码；这不是完整 Remotion Studio，也不导入任意 TSX 项目。详细验证及能力边界见 [场景编辑器验收记录](docs/ui-review/source-editor/README.md)。

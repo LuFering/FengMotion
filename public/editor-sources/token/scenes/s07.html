@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="zh" data-resolution="landscape">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>镜 07 · 没什么稀奇</title>
+    <script src="../gsap.min.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1920px; height: 1080px; overflow: hidden; background: #000; }
+      @font-face { font-family: "Big Shoulders Display"; font-weight: 800;
+        src: url("../assets/fonts/big-shoulders-800.woff2") format("woff2"); font-display: block; }
+      @font-face { font-family: "IBM Plex Mono"; font-weight: 500;
+        src: url("../assets/fonts/plex-mono-500.woff2") format("woff2"); font-display: block; }
+      @font-face { font-family: "Noto Sans SC"; font-weight: 900;
+        src: url("../assets/fonts/noto-sans-sc-900.woff2") format("woff2"); font-display: block; }
+
+      #root { position: relative; width: 1920px; height: 1080px; overflow: hidden; }
+      /* 空间变空：比前几镜更暗、更干净 —— "没什么稀奇"就是空间的减法 */
+      #space {
+        position: absolute; inset: 0;
+        background: radial-gradient(ellipse 106% 70% at 50% 46%,
+          #1c1f25 0%, #15181d 46%, #0d0f13 78%, #0a0b0e 100%);
+      }
+      /* 地面只剩很淡的一点，暗示"空间还在，只是空了" */
+      #floorLine {
+        position: absolute; left: 12%; right: 12%; top: 62%; height: 1px;
+        background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.10) 50%, rgba(255,255,255,0) 100%);
+        opacity: 0;
+      }
+
+      #stage { position: absolute; inset: 0; perspective: 1500px; perspective-origin: 50% 50%; }
+      #camera { position: absolute; inset: 0; transform-style: preserve-3d; }
+
+      /* 那个"非常普通"的 Token —— 不加材质、不加光晕，就是一行字 */
+      #word {
+        position: absolute; left: 50%; top: 50%;
+        font-family: "Big Shoulders Display", sans-serif; font-weight: 800;
+        font-size: 168px; line-height: 1; letter-spacing: 0.01em;
+        color: #b9bcc2;               /* 刻意用灰，不是亮白 —— "普通" */
+        white-space: nowrap;
+        will-change: transform, opacity;
+      }
+
+      /* 退场中的元素（来自 s06）：token 块与 ¥，收缩后消失 */
+      .fade {
+        position: absolute; left: 0; top: 0;
+        will-change: transform, opacity;
+      }
+      .tokmini {
+        width: 104px; height: 40px; border-radius: 20px;
+        background: linear-gradient(158deg, #f6f4f0 0%, #e2ded6 100%);
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.9), 0 8px 18px rgba(0,0,0,0.5);
+        display: flex; align-items: center; justify-content: center;
+        font-family: "Noto Sans SC", sans-serif; font-weight: 900;
+        font-size: 26px; color: #0f1115;
+      }
+      #yuanFade {
+        font-family: "Noto Sans SC", "Big Shoulders Display", sans-serif;
+        font-weight: 900; font-size: 300px; line-height: 0.86;
+        color: #e8e4dc;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="s07" data-start="0" data-duration="5.4"
+         data-width="1920" data-height="1080">
+      <div id="space"     class="clip" data-start="0" data-duration="5.4" data-track-index="0"></div>
+      <div id="floorLine" class="clip" data-start="0" data-duration="5.4" data-track-index="1"></div>
+
+      <div id="stage" class="clip" data-start="0" data-duration="5.4" data-track-index="2">
+        <div id="camera">
+          <div id="fades"></div>
+          <div id="word">Token</div>
+        </div>
+      </div>
+    </div>
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+
+      // ── 承 s06：左边的 token 单位 + 右边的 ¥ 都在场 ─────────────
+      const TOKENS = ['今天','推荐','一款','适合','学生','党的','电脑','真的','很','划算'];
+      const BASE_X = 300, BASE_Y = 700, GAP = 22, ROW_H = 80;
+      const fades = [];
+      TOKENS.forEach((w, i) => {
+        const el = document.createElement('div');
+        el.className = 'fade tokmini';
+        // 退场中的过渡元素：整镜里它们一直在缩小/淡出，
+        // 不是需要阅读的停稳内容 —— 标记跳过可读性检查
+        el.setAttribute('data-layout-ignore', '');
+        el.textContent = w;
+        document.getElementById('fades').appendChild(el);
+        const col = i % 5, row = Math.floor(i / 5);
+        fades.push({ el, x: BASE_X + col * (104 + GAP), y: BASE_Y + row * ROW_H });
+      });
+      const yuanEl = document.createElement('div');
+      yuanEl.id = 'yuanFade'; yuanEl.className = 'fade';
+      yuanEl.setAttribute('data-layout-ignore', '');
+      yuanEl.textContent = '¥';
+      document.getElementById('fades').appendChild(yuanEl);
+      fades.push({ el: yuanEl, x: 1320, y: 250 });
+
+      gsap.set(fades.map((f) => f.el), { opacity: 1 });
+      fades.forEach((f) => gsap.set(f.el, { x: f.x, y: f.y }));
+      gsap.set('#word', { xPercent: -50, yPercent: -50, opacity: 0, scale: 0.94 });
+
+      // ── 时间表（30fps）──────────────────────────────────────────
+      //  全片唯一一次"主动降速" —— 每一拍都比别处慢
+      //  0.00–1.20  承 s06：token 单位与 ¥ 都在，随后开始退场
+      //  1.20–2.30  所有元素收缩回中心（它们"归结为一个词"）
+      //  2.30–3.10  那个普通的 Token 淡入
+      //  3.10–4.30  镜头轻微后拉（空间变大、变空）
+      //  4.30–5.40  静止呼吸，把"没什么稀奇"坐实
+      const T_OUT   = 1.20;
+      const T_IN    = 2.30;
+      const T_PULL  = 3.10;
+
+      // ① 元素退场：不是淡出，是**收缩回中心**（归结为一个词）
+      fades.forEach((f, i) => {
+        const d = i * 0.05;
+        const toCx = 960 - f.x, toCy = 540 - f.y;   // 朝中心收缩
+        tl.to(f.el, {
+          x: f.x + toCx * 0.86, y: f.y + toCy * 0.86,
+          scale: 0.10, opacity: 0,
+          duration: 1.05, ease: 'power2.inOut',
+        }, T_OUT + d);
+      });
+
+      // ② 那个普通的 Token 淡入（很慢，读作"就这？"）
+      tl.to('#word', { opacity: 1, scale: 1.0, duration: 0.80, ease: 'power2.out' }, T_IN);
+      tl.to('#floorLine', { opacity: 1, duration: 0.90, ease: 'power2.out' }, T_IN + 0.30);
+
+      // ③ 镜头后拉 —— 空间变大，但里面是空的（判例：有意的静止要声明为节拍）
+      tl.to('#camera', { z: -220, duration: 1.60, ease: 'sine.inOut' }, T_PULL);
+
+      // ④ 极慢的呼吸（全片最慢的一处）
+      tl.to('#word', { y: -8, duration: 1.30, ease: 'sine.inOut' }, 4.30);
+      tl.to('#word', { y: 0,  duration: 1.20, ease: 'sine.inOut' }, 5.10);
+
+      window.__timelines['s07'] = tl;
+      tl.seek(0);
+    </script>
+  </body>
+</html>

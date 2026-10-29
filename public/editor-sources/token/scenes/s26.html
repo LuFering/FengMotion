@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="zh" data-resolution="landscape">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>s26 · V3 段16 · 计量在哪？</title>
+    <!-- 服务 SCRIPT-EP1-V3.md 第 16 段：
+         「你不是说它是计量单位吗？计量在哪？」  旁白 55.96–58.87
+         镜头 55.96–59.17（= 旁白 2.91s + 段尾停顿 0.30s）= 3.21s
+
+         ══ 这一镜的语义 ══
+         旁白问「计量在哪」。画面就给**一个计量器** ——
+         观众一眼认得出这是什么东西（这是命门）。
+         而它在那儿**一直在跳**，你平时却从来没见过它。
+
+         ══ 手法出处 ══
+         · 参考视频拆解「规律 1：凡是可以具象的词，都给实体画面」
+             卡原文：「不要找比喻，要找字面」——
+             「没上车」→ 真的给一辆出租车；「局外人」→ 真的给一扇门。
+             ⚠️ 我前几版画的是"滚动的数字小片 + 光 + 雾"，
+                那是**抽象视觉**，观众认不出是什么。这一版全部换成实物。
+
+         · 参考视频拆解「规律 2：数字必须配数字框」
+             白字 + 细白边框 + 深色半透明底；数字**滚动到位、硬停**。
+
+         · 参考视频拆解「手法 #9：数字滚动（逐位滚动，硬停，单位驻场）」
+             → 数字在滚，「token」这个单位固定不动。
+
+         · shotcraft `spotlight-sweep-moves` A 式（全片光效预算 2 次，这是第 1 次）
+             卡原文：「光到即亮，光走即暗」——黑场里观众只能看见光给看的东西。
+             命门是**匀速**：聚光移动严格 linear。
+
+         ══ 接缝 ══
+         承：上一镜（段15）镜头已移到下方，那里"本该有数字却是空的"。
+             本镜起手是暗场 —— 计量器就在那儿，只是没打灯。
+         出：光停在右缘，计量器数字还在跳（不归零），
+             为 s27「旁边多出一张账单」留接口。 -->
+    <script src="../gsap.min.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1920px; height: 1080px; overflow: hidden; background: #0b0d10; }
+      @font-face { font-family: "Noto Sans SC"; font-weight: 900;
+        src: url("../assets/fonts/noto-sans-sc-900.woff2") format("woff2"); font-display: block; }
+      @font-face { font-family: "IBM Plex Mono"; font-weight: 500;
+        src: url("../assets/fonts/plex-mono-500.woff2") format("woff2"); font-display: block; }
+
+      #root { position: relative; width: 1920px; height: 1080px; overflow: hidden; }
+
+      /* ⚠️ 底色必须是**纯色** —— 幕布是纯色块，压在渐变底上会露出色块边。 */
+      #space { position: absolute; inset: 0; background: #0b0d10; }
+
+      /* ══ 计量器 —— 一个**实物**，观众一眼认得出 ══
+         造型取自计价器/电表：金属外壳 + 内凹数字窗 + 滚轮数字。
+         不是抽象卡片，是有厚度、有高光、有凹槽的机器。
+         ⚠️ 亮度：外壳必须比背景亮出足够档次 ——
+            太暗的话光扫过去只看见一个数字，认不出"这是台机器"。 */
+      #meter {
+        position: absolute; left: 50%; top: 50%;
+        width: 660px; height: 460px;
+        margin-left: -330px; margin-top: -230px;
+        border-radius: 22px;
+        background: linear-gradient(168deg, #6d7683 0%, #4e5661 40%, #333a44 100%);
+        box-shadow:
+          inset 0 2px 0 rgba(255,255,255,0.40),
+          inset 0 -3px 0 rgba(0,0,0,0.50),
+          0 0 0 1px rgba(255,255,255,0.20),
+          0 40px 90px rgba(0,0,0,0.70);
+      }
+      /* 机器顶部的品牌条（实物感：设备都有一条铭牌） */
+      #meterPlate {
+        position: absolute; left: 34px; right: 34px; top: 26px; height: 46px;
+        border-radius: 8px;
+        background: linear-gradient(180deg, rgba(255,255,255,0.16), rgba(255,255,255,0.06));
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.28);
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 0 18px;
+        font-family: "IBM Plex Mono", monospace; font-weight: 500;
+        font-size: 19px; letter-spacing: 0.24em; color: rgba(232,240,252,0.78);
+      }
+      #meterPlate .dot {
+        width: 11px; height: 11px; border-radius: 50%;
+        background: #4ad07a; box-shadow: 0 0 12px rgba(74,208,122,0.85);
+      }
+      /* ⭐ 数字窗：内凹的深色屏，滚轮数字在里面滚 */
+      #window {
+        position: absolute; left: 34px; right: 34px; top: 96px; height: 190px;
+        border-radius: 14px; overflow: hidden;
+        background: linear-gradient(180deg, #07090c 0%, #0c1014 50%, #05070a 100%);
+        box-shadow: inset 0 4px 14px rgba(0,0,0,0.92),
+                    inset 0 -2px 0 rgba(255,255,255,0.06),
+                    0 1px 0 rgba(255,255,255,0.10);
+      }
+      #tape { position: absolute; left: 0; top: 0; width: 592px; }
+      /* 上下边缘渐隐 —— 藏掉相邻行的半截（滚带的标准做法） */
+      #winMask {
+        position: absolute; inset: 0;
+        -webkit-mask-image: linear-gradient(180deg,
+          rgba(0,0,0,0) 0%, #000 30%, #000 70%, rgba(0,0,0,0) 100%);
+        mask-image: linear-gradient(180deg,
+          rgba(0,0,0,0) 0%, #000 30%, #000 70%, rgba(0,0,0,0) 100%);
+      }
+      .tick {
+        position: absolute; left: 0; width: 592px; height: 190px;
+        display: flex; align-items: center; justify-content: center;
+        font-family: "IBM Plex Mono", monospace; font-weight: 500;
+        font-size: 92px; letter-spacing: 0.02em; color: #d8f0e4;
+        text-shadow: 0 0 34px rgba(110,230,170,0.42);
+      }
+      /* 机器底部的单位铭牌（单位驻场 —— 数字滚，单位不动） */
+      #meterFoot {
+        position: absolute; left: 34px; right: 34px; bottom: 30px; height: 62px;
+        border-radius: 10px;
+        background: linear-gradient(180deg, rgba(255,255,255,0.14), rgba(0,0,0,0.14));
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.24);
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 0 22px;
+      }
+      #meterFoot .unit {
+        font-family: "IBM Plex Mono", monospace; font-weight: 500;
+        font-size: 27px; letter-spacing: 0.26em; color: rgba(232,240,252,0.88);
+      }
+      #meterFoot .lamp {
+        display: flex; gap: 9px;
+      }
+      #meterFoot .lamp i {
+        width: 9px; height: 26px; border-radius: 3px;
+        background: rgba(255,255,255,0.20);
+      }
+      #meterFoot .lamp i.on { background: #7df0b4; box-shadow: 0 0 14px rgba(125,240,180,0.9); }
+
+      /* ══ 两片幕布 —— 中间那条缝就是"光斑" ══
+         两片同时右移 = 光斑从左扫到右。
+         ⚠️ 两片都必须 4000px 宽、远超画幅。
+         缝两侧各 140px 柔边：左幕柔边 → 屏幕 x−350；右幕 → x+350 */
+      .shroud { position: absolute; top: 0; height: 1080px; width: 4000px; }
+      #shroudL { left: -4000px;
+        background: linear-gradient(90deg,
+          #0b0d10 0px, #0b0d10 3580px, rgba(11,13,16,0) 3720px); }
+      #shroudR { left: 280px;
+        background: linear-gradient(90deg,
+          rgba(11,13,16,0) 0px, #0b0d10 140px, #0b0d10 4000px); }
+
+      /* ══ 贴边光线（卡里的配套约束：聚光扫过必须带光线同行）══ */
+      #beam {
+        position: absolute; left: 0; top: 0;
+        width: 3px; height: 1080px; margin-left: -1.5px;
+        background: linear-gradient(180deg,
+          rgba(214,228,255,0) 0%, rgba(214,228,255,0.34) 22%,
+          rgba(236,244,255,0.78) 50%, rgba(214,228,255,0.34) 78%,
+          rgba(214,228,255,0) 100%);
+        box-shadow: 0 0 34px 10px rgba(190,214,246,0.26);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="s26" data-start="0" data-duration="3.21"
+         data-width="1920" data-height="1080">
+      <div id="space" class="clip" data-start="0" data-duration="3.21" data-track-index="0"></div>
+      <div id="machine" class="clip" data-start="0" data-duration="3.21" data-track-index="1">
+        <div id="meter">
+          <div id="meterPlate"><span>TOKEN METER</span><span class="dot"></span></div>
+          <div id="window"><div id="winMask"><div id="tape"></div></div></div>
+          <div id="meterFoot">
+            <span class="unit">token</span>
+            <span class="lamp"><i class="on"></i><i class="on"></i><i></i><i></i></span>
+          </div>
+        </div>
+      </div>
+      <div class="shroud clip" id="shroudL" data-start="0" data-duration="3.21" data-track-index="2"></div>
+      <div class="shroud clip" id="shroudR" data-start="0" data-duration="3.21" data-track-index="3"></div>
+      <div class="clip" id="beam" data-start="0" data-duration="3.21" data-track-index="4"></div>
+    </div>
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+
+      // ══ 滚轮数字带（纵向 —— 卡里「刻度带从底下滚过」）══
+      const tape = document.getElementById('tape');
+      const N = 24, H = 190, BASE = 1204000, STEP = 40000;
+      for (let i = 0; i < N; i++) {
+        const t = document.createElement('div');
+        t.className = 'tick';
+        t.style.top = (i * H) + 'px';
+        t.textContent = (BASE + i * STEP).toLocaleString('en-US');
+        t.setAttribute('data-layout-ignore', '');
+        tape.appendChild(t);
+      }
+      tape.style.height = (N * H) + 'px';
+
+      // ══ 初始态（时间轴外，避免 gsap_timeline_set_initial_hide）══
+      // 光斑中心 x 初始 -900（画外）→ 起手纯暗场。
+      // ⚠️ 终点 1900 **不是画外** —— 光停在右缘，
+      //    末帧右侧还留一条亮带（否则幕布盖死整屏 = 黑尾巴）。
+      const X0 = -900, X1 = 1900;
+      gsap.set(['#shroudL', '#shroudR', '#beam'], { x: X0 });
+      gsap.set('#tape', { y: 0 });
+
+      // ══ 时间表（3.21s）════════════════════════════════════
+      //  0.00–0.30  暗场（计量器就在那儿，只是没打灯）
+      //  0.30–2.10  光匀速右移（linear —— 卡里的命门）
+      //             ≈1.05–1.85s 光扫过计量器，数字窗被照亮
+      //  2.10–3.21  光移到右缘停住，数字还在跳
+      const T_SWEEP   = 0.30;
+      const T_SWEEP_D = 1.80;
+      const T_AFTER   = T_SWEEP + T_SWEEP_D;   // 2.10
+
+      // ① 光扫过
+      tl.fromTo(['#shroudL', '#shroudR', '#beam'],
+        { x: X0 }, { x: X1, duration: T_SWEEP_D, ease: 'none' }, T_SWEEP);
+
+      // ② 数字滚轮**一直在跳** —— 它在计量，只是你看不见
+      //    停位取行高整数倍 → 窗里只落一个完整的数
+      tl.fromTo('#tape', { y: 0 },
+        { y: -1330, duration: T_SWEEP_D, ease: 'none' }, T_SWEEP);
+
+      // ③ 收尾：光停在右缘，机器留在暗里但数字还在走
+      //    不压到全黑 —— 末段读作"还在计量"（否则是黑尾巴）
+      tl.fromTo('#machine', { opacity: 1 },
+        { opacity: 0.34, duration: 0.82, ease: 'power2.inOut' }, T_AFTER);
+
+      window.__timelines['s26'] = tl;
+    </script>
+  </body>
+</html>

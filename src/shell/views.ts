@@ -20,20 +20,27 @@ export type ViewId =
   | 'reference'
   | 'methods'
   | 'conversation'
+  | 'community'
 
 export interface NavLeaf {
   id: ViewId
   label: string
   /** paba 雪碧图符号名 */
   icon: string
+  /** 抽屉里的补充说明 */
+  hint?: string
 }
 
 export interface NavNode {
   /** 有 children = 可展开的分组；没有 = 直接跳转的叶子 */
-  id?: ViewId
+  id?: ViewId | '__library'
   label: string
   icon: string
   children?: NavLeaf[]
+  /** 尚未开发的占位项：渲染成按钮，点击只提示 */
+  placeholder?: boolean
+  /** 库入口：点击打开抽屉而不是跳转 */
+  library?: boolean
 }
 
 /**
@@ -41,13 +48,28 @@ export interface NavNode {
  *   工作流（怎么做）· 创作知识（特效库/参考片库：依据与方法）· 普通素材（我的素材）
  * 项目内子视图（编排/时序/交付）不占全局导航，从「我的创作」进入任务后切换。
  */
+/**
+ * 三个「库」收进一个「更多」入口 —— 导航栏只放「去哪做」，
+ * 三个库是「拿什么做」，属于同一类资源。
+ *
+ * 为什么不是可展开分组：分组展开会在栏里多占三四行，而收起态只有 68px，
+ * 字号已经压到 9px；改成点开抽屉，宽度不受导航栏限制，还能放描述。
+ */
+export const LIBRARY_VIEWS: NavLeaf[] = [
+  { id: 'assets',     label: '我的素材', icon: 'image',            hint: '自己的图片 / 视频 / 音频' },
+  { id: 'reference',  label: '参考片库', icon: 'film',             hint: '参考片段、运镜与节奏' },
+  { id: 'knowledge',  label: '特效库',   icon: 'panels-top-left',  hint: '特效 / 转场 / 动画做法' },
+]
+
 export const NAV: NavNode[] = [
   { id: 'home',       label: '首页',   icon: 'house' },
   { id: 'conversation', label: '我的创作', icon: 'clapperboard' },
   { id: 'methods',    label: '工作流',   icon: 'workflow' },
-  { id: 'knowledge',  label: '特效库',   icon: 'panels-top-left' },
-  { id: 'reference',  label: '参考片库', icon: 'film' },
-  { id: 'assets',     label: '我的素材', icon: 'image' },
+  /* 社区：尚未开发，占位。点它只提示，不跳转 ——
+     放一个能点却没内容的页面比放个图标更让人困惑。 */
+  { id: 'community',  label: '社区',   icon: 'group', placeholder: true },
+  /* 库入口：点击打开抽屉，不直接跳转 */
+  { id: '__library',  label: '更多',   icon: 'ellipsis', library: true },
 ]
 
 /** 扁平导航，无可展开分组 */
@@ -65,4 +87,5 @@ export const VIEW_META: Record<ViewId, { title: string; hint: string }> = {
   reference:  { title: '参考片库', hint: '参考视频的画面段、机位运动、节奏与风格知识' },
   methods:    { title: '工作流', hint: '制作方案：步骤、节点、提示词与检查要求' },
   conversation: { title: '我的创作', hint: '项目与对话：先聊清楚，再开始制作' },
+  community:  { title: '社区', hint: '分享与交流（规划中）' },
 }

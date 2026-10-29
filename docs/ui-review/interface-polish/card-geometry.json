@@ -1,0 +1,42 @@
+{
+  "before": {
+    "fx": {
+      "columns": "452px 452px",
+      "gap": "16px",
+      "width": 452,
+      "height": 283.25
+    },
+    "assets": {
+      "columns": "222.664px 222.664px 222.672px",
+      "gap": "20px",
+      "height": 125.2421875,
+      "width": 222.6640625
+    },
+    "workflow": {
+      "columns": "245px 245px 245px 245px 245px",
+      "gap": "18px",
+      "height": 330,
+      "width": 245
+    }
+  },
+  "after": {
+    "workflow": {
+      "columns": "245px 245px 245px 245px 245px",
+      "gap": "18px",
+      "height": 330,
+      "width": 245
+    },
+    "assets": {
+      "columns": "222.664px 222.664px 222.672px",
+      "gap": "20px",
+      "height": 125.2421875,
+      "width": 222.6640625
+    },
+    "fx": {
+      "columns": "452px 452px",
+      "gap": "16px",
+      "height": 283.25,
+      "width": 452
+    }
+  }
+}
