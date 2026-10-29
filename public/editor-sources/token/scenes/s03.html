@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="zh" data-resolution="landscape">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>镜 03 · 词元</title>
+    <script src="../gsap.min.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1920px; height: 1080px; overflow: hidden; background: #000; }
+
+      @font-face { font-family: "Big Shoulders Display"; font-weight: 800;
+        src: url("../assets/fonts/big-shoulders-800.woff2") format("woff2"); font-display: block; }
+      @font-face { font-family: "Noto Sans SC"; font-weight: 900;
+        src: url("../assets/fonts/noto-sans-sc-900.woff2") format("woff2"); font-display: block; }
+      @font-face { font-family: "IBM Plex Mono"; font-weight: 500;
+        src: url("../assets/fonts/plex-mono-500.woff2") format("woff2"); font-display: block; }
+
+      #root { position: relative; width: 1920px; height: 1080px; overflow: hidden; }
+      #space {
+        position: absolute; inset: 0;
+        background: radial-gradient(ellipse 118% 76% at 50% 14%,
+          #23262e 0%, #1a1d23 40%, #111318 72%, #0b0d11 100%);
+      }
+      #lightpool {
+        position: absolute; left: 50%; top: -34%;
+        width: 1500px; height: 900px; margin-left: -750px;
+        background: radial-gradient(ellipse 50% 50% at 50% 50%,
+          rgba(214,228,255,0.15) 0%, rgba(180,200,240,0.06) 38%, rgba(0,0,0,0) 72%);
+      }
+      #floor {
+        position: absolute; left: -20%; right: -20%; bottom: -16%; height: 48%;
+        background: linear-gradient(180deg, rgba(255,255,255,0.045) 0%, rgba(255,255,255,0) 68%);
+        transform: perspective(900px) rotateX(68deg); transform-origin: 50% 0%;
+      }
+
+      #stage { position: absolute; inset: 0; perspective: 1400px; perspective-origin: 50% 48%; }
+      #camera { position: absolute; inset: 0; transform-style: preserve-3d; }
+
+      /* 卡片：与 s02 同一套材质语言（元素继承，不是新建一套） */
+      .card {
+        position: absolute; left: 50%; top: 50%;
+        width: 420px; height: 560px;
+        margin-left: -210px; margin-top: -280px;
+        transform-style: preserve-3d;
+        will-change: transform, opacity;
+      }
+      .face {
+        position: absolute; inset: 0; border-radius: 18px; overflow: hidden;
+        transform: translateZ(11px);
+        background: linear-gradient(158deg, #f6f4f0 0%, #e9e6df 58%, #dcd8cf 100%);
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.95), inset 0 -2px 0 rgba(0,0,0,0.12);
+      }
+      .edge {
+        position: absolute; inset: 0; border-radius: 18px;
+        background: linear-gradient(158deg, #cfcbc2 0%, #a8a49b 100%);
+        transform: translateZ(-11px);
+      }
+      .face img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+      .scrim { position: absolute; inset: 0;
+        background: linear-gradient(180deg, rgba(0,0,0,0) 46%, rgba(0,0,0,0.82) 100%); }
+      .plate { position: absolute; left: 0; right: 0; bottom: 0; height: 86px;
+        background: linear-gradient(180deg, rgba(8,10,14,0) 0%, rgba(8,10,14,0.92) 46%, rgba(8,10,14,0.98) 100%); }
+      .idtag { position: absolute; left: 22px; bottom: 22px; right: 22px;
+        font-family: "IBM Plex Mono", monospace; font-weight: 500;
+        font-size: 17px; letter-spacing: 0.16em; color: #fff; text-transform: uppercase;
+        text-shadow: 0 1px 3px rgba(0,0,0,0.95); }
+      .stamp { position: absolute; left: 22px; top: 20px; width: 40px; height: 3px;
+        background: rgba(255,255,255,0.92); box-shadow: 0 1px 3px rgba(0,0,0,0.7); }
+
+      /* 「词元」——现代黑体，不做书法（判例明确禁止） */
+      /* ⚠ 不要用 left:50% —— 父级已经是 flex 居中，再加 left:50% 会把文字
+         整体推到右半边、右侧被卡片裁掉（实测「元」被切掉）。
+         交给 flex 居中即可。 */
+      #ciyuan {
+        font-family: "Noto Sans SC", sans-serif; font-weight: 900;
+        font-size: 158px; line-height: 1; letter-spacing: 0.02em;
+        color: #191b1f;
+        white-space: nowrap;
+        opacity: 0;
+      }
+
+      /* 其余四张卡（s02 的卫星卡，本镜要在推近时脱焦退场） */
+      .sat { position: absolute; left: 50%; top: 50%;
+        width: 420px; height: 560px; margin-left: -210px; margin-top: -280px;
+        transform-style: preserve-3d; will-change: transform, opacity; }
+      .sat img { position: absolute; inset: 0; width: 100%; height: 100%;
+        object-fit: cover; display: block; border-radius: 18px; }
+
+      #cursor { position: absolute; left: 0; top: 0; width: 34px; height: 46px; z-index: 90; }
+      #clickring {
+        position: absolute; left: 0; top: 0; width: 90px; height: 90px; margin: -45px 0 0 -45px;
+        border-radius: 50%; border: 2px solid rgba(255,255,255,0.95); opacity: 0; z-index: 89; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="s03" data-start="0" data-duration="7.0"
+         data-width="1920" data-height="1080">
+      <div id="space"     class="clip" data-start="0" data-duration="7.0" data-track-index="0"></div>
+      <div id="lightpool" class="clip" data-start="0" data-duration="7.0" data-track-index="1" data-layout-allow-overflow></div>
+      <div id="floor"     class="clip" data-start="0" data-duration="7.0" data-track-index="2" data-layout-allow-overflow></div>
+
+      <div id="stage" class="clip" data-start="0" data-duration="7.0" data-track-index="3">
+        <div id="camera">
+          <div id="sats"></div>
+          <div id="hero"></div>
+          <div id="cursor" data-layout-ignore>
+            <svg viewBox="0 0 34 46" width="34" height="46">
+              <path d="M4 2 L4 36 L13 27 L19 42 L25 39 L19 25 L31 25 Z"
+                    fill="#ffffff" stroke="#14161a" stroke-width="2.2" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div id="clickring" data-layout-ignore></div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+
+      // s02 末态的四张卫星卡（同一批人物、同一批坐标）—— 元素继承，不清屏
+      const SATS = [
+        { img: '../assets/people/altman.jpg',  x: -872, y: -374, z: -320, rot: -8, sc: 0.779 },
+        { img: '../assets/people/pichai.jpg',  x:  872, y: -374, z: -320, rot:  8, sc: 0.779 },
+        { img: '../assets/people/musk.jpg',    x: -903, y:  405, z: -320, rot: -7, sc: 0.779 },
+        { img: '../assets/people/nadella.jpg', x:  841, y:  405, z: -320, rot:  9, sc: 0.779 },
+      ];
+      const satsEl = document.getElementById('sats');
+      const satEls = SATS.map((s) => {
+        const el = document.createElement('div');
+        el.className = 'sat';
+        el.innerHTML = `<img src="${s.img}" alt="" />`;
+        satsEl.appendChild(el);
+        gsap.set(el, { x: s.x, y: s.y, z: s.z, scale: s.sc, rotate: s.rot, opacity: 1 });
+        return el;
+      });
+
+      // 中心卡（黄仁勋，s02 末态 pose：z 80 / scale 1.026）——
+      // 本镜推近它、翻面成「词元」。正面=人像，背面=词元。
+      const heroFront = document.createElement('div');
+      heroFront.className = 'card';
+      heroFront.innerHTML = `
+        <div class="edge"></div>
+        <div class="face">
+          <img src="../assets/people/jensen.jpg" alt="" />
+          <div class="scrim"></div><div class="plate"></div>
+          <div class="stamp"></div><div class="idtag">JENSEN HUANG</div>
+        </div>`;
+      const heroBack = document.createElement('div');
+      heroBack.className = 'card';
+      heroBack.innerHTML = `
+        <div class="edge"></div>
+        <div class="face">
+          <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;">
+            <div id="ciyuan">词元</div>
+          </div>
+        </div>`;
+      const hero = document.getElementById('hero');
+      hero.appendChild(heroBack);
+      hero.appendChild(heroFront);
+
+      // 中心卡**从左上那张卫星卡的位置出发**（元素继承：就是同一张卡），
+      // 而不是凭空出现在画面中心 —— 否则推近和翻面会是两条脱节的线。
+      gsap.set([heroFront, heroBack],
+        { x: SATS[0].x, y: SATS[0].y, z: SATS[0].z, scale: SATS[0].sc, rotateY: 0, rotate: SATS[0].rot });
+      gsap.set(heroFront, { opacity: 1 });
+      gsap.set(heroBack, { opacity: 0 });
+      gsap.set('#cursor', { x: 300, y: 250, opacity: 0, scale: 1 });
+      gsap.set('#clickring', { scale: 0.35, opacity: 0 });
+
+      // ── 时间表（30fps）──────────────────────────────────────────
+      //  0.00–0.60  承 s02 末态：五张卡稳定（可读停留，不立刻动）
+      //  0.60–1.90  鼠标移到左上那张卫星卡（相机不动）
+      //  1.10–1.60  悬停：目标卡前移提亮、其余降存在感（景深 + 亮度，不用发光描边）
+      //  1.90–2.02  点击：白环 + 相机立即朝这张卡跟进
+      //  2.02–3.10  镜头快速推进；其余卡片脱焦退出
+      //  3.10–3.60  目标卡占满画面
+      //  3.60–4.50  翻面：人像 → 词元
+      //  4.50–5.40  词元成为唯一焦点（hold ≥1.0s）
+      //  5.40–7.00  极轻呼吸 + 为翻页转场留起手
+      const F = 1 / 30;
+      const T_HOVER  = 0.60;
+      const T_CLICK  = 1.90;
+      const T_PUSH   = 2.02;
+      const T_FULL   = 3.10;
+      const T_FLIP   = 3.60;
+      const T_HOLD   = 4.50;
+
+      // 选中的是「左上」那张（altman）——分镜表写的是左上角
+      const TARGET = SATS[0];
+
+      // ① 鼠标移到目标卡（相机不动 —— 此时镜头还静止）
+      tl.to('#cursor', { opacity: 1, duration: 0.18, ease: 'power1.out' }, T_HOVER);
+      tl.to('#cursor',
+         { x: TARGET.x + 250, y: TARGET.y + 190, duration: 1.05, ease: 'power2.inOut' },
+         T_HOVER + 0.06);
+
+      // ② 悬停：目标卡前移 + 其余降存在感
+      //    不用发光描边（判例禁止），靠 z / 亮度 / 景深
+      tl.to([satEls[0], heroFront, heroBack], { z: TARGET.z + 200, scale: TARGET.sc * 1.06, duration: 0.50, ease: 'power2.out' }, 1.10);
+      tl.to([satEls[1], satEls[2], satEls[3]], { opacity: 0.42, duration: 0.50, ease: 'power2.out' }, 1.10);
+
+      // ③ 点击
+      tl.set('#clickring', { x: TARGET.x + 380, y: TARGET.y + 300 }, T_CLICK - 1/30);
+      tl.set('#clickring', { scale: 0.35, opacity: 0.95 }, T_CLICK - 1/30);
+      tl.to('#clickring', { scale: 1.5, opacity: 0, duration: 0.40, ease: 'power2.out' }, T_CLICK);
+
+      // ④ 镜头朝这张卡跟进（follow —— 关注被选中的对象）
+      //    ⚠ 不能让 #camera 走 x/y：GSAP 的 x/y 是**位移量**不是绝对坐标，
+      //    设成 -872 会把整个相机连同所有卡片推出画布（实测卡片全挤到左边）。
+      //    正确做法：镜头只做推近（z），让**被选中的那张卡自己**移到画面中心。
+      tl.to('#camera', { z: 560, duration: 1.08, ease: 'power3.inOut' }, T_PUSH);
+      tl.to([satEls[0], heroFront, heroBack],
+         { x: 0, y: 0, z: 120, scale: 1.12, rotate: 0,
+           duration: 1.08, ease: 'power3.inOut' }, T_PUSH);
+
+      // ⑤ 其余卡片脱焦退场（不是一个个消失，是整体退出景深）
+      // 旁卡：既要淡出，也要**被推开滑出画外** ——
+      // 只淡出会在画面边缘残留半张卡，构图读起来是零碎的。
+      tl.to([satEls[1], satEls[2]],
+         { x: -1700, duration: 0.95, ease: 'power2.inOut' }, T_PUSH + 0.25);
+      tl.to([satEls[3]],
+         { x: 1700, duration: 0.95, ease: 'power2.inOut' }, T_PUSH + 0.25);
+      tl.to([satEls[0], satEls[1], satEls[2], satEls[3]],
+         { opacity: 0, duration: 0.70, ease: 'power2.in' }, T_PUSH + 0.45);
+      // heroBack 移到最前（翻面后要盖住 heroFront）
+      tl.set(heroBack, { zIndex: 5 }, T_FLIP);
+
+      // ⑥ 鼠标淡出
+      tl.to('#cursor', { opacity: 0, duration: 0.30, ease: 'power1.in' }, T_PUSH + 0.45);
+
+      // ⑦ 翻面：人像 → 词元（两个独立元素硬切换，不用 backface-visibility）
+      tl.to(heroFront, { rotateY: 90, duration: 0.42, ease: 'power2.in' }, T_FLIP);
+      tl.to(heroFront, { opacity: 0, duration: 0.10, ease: 'none' }, T_FLIP + 0.30);
+      tl.set(heroBack, { rotateY: -90 }, T_FLIP + 0.32);
+      tl.to(heroBack, { opacity: 1, duration: 0.10, ease: 'none' }, T_FLIP + 0.30);
+      tl.to(heroBack, { rotateY: -6, duration: 0.58, ease: 'power3.out' }, T_FLIP + 0.34);
+      tl.to(heroBack, { rotateY: 0, duration: 0.26, ease: 'power2.inOut' }, T_FLIP + 0.92);
+      // 词元在背面就位后淡入（比卡面慢半拍 —— 先卡后字）
+      tl.to('#ciyuan', { opacity: 1, duration: 0.30, ease: 'power2.out' }, T_FLIP + 0.62);
+
+      // ⑧ 落定后 hold（判例 R1：品牌字标 hold 满 1 秒）
+      tl.to(heroBack, { scale: 1.045, duration: 0.55, ease: 'sine.inOut' }, T_HOLD);
+      tl.to(heroBack, { scale: 1.026, duration: 0.85, ease: 'sine.inOut' }, T_HOLD + 0.62);
+      tl.to('#ciyuan', { y: -7, duration: 1.05, ease: 'sine.inOut' }, T_HOLD + 0.10);
+
+      window.__timelines['s03'] = tl;
+      tl.seek(0);
+    </script>
+  </body>
+</html>

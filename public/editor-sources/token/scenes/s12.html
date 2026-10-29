@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="zh" data-resolution="landscape">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>镜 12 · 小凤 AI 应用入门</title>
+    <script src="../gsap.min.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1920px; height: 1080px; overflow: hidden; background: #000; }
+      @font-face { font-family: "Big Shoulders Display"; font-weight: 800;
+        src: url("../assets/fonts/big-shoulders-800.woff2") format("woff2"); font-display: block; }
+      @font-face { font-family: "Noto Sans SC"; font-weight: 900;
+        src: url("../assets/fonts/noto-sans-sc-900.woff2") format("woff2"); font-display: block; }
+      @font-face { font-family: "IBM Plex Mono"; font-weight: 500;
+        src: url("../assets/fonts/plex-mono-500.woff2") format("woff2"); font-display: block; }
+
+      #root { position: relative; width: 1920px; height: 1080px; overflow: hidden; }
+      #space {
+        position: absolute; inset: 0;
+        background: radial-gradient(ellipse 120% 80% at 50% 42%,
+          #1c212a 0%, #151920 44%, #0d1014 76%, #08090c 100%);
+      }
+      /* 顶部光池，给面板一个"被照亮"的台面感 */
+      #lightpool {
+        position: absolute; left: 50%; top: -30%;
+        width: 1400px; height: 820px; margin-left: -700px;
+        background: radial-gradient(ellipse 50% 50% at 50% 50%,
+          rgba(214,228,255,0.13) 0%, rgba(180,200,240,0.05) 38%, rgba(0,0,0,0) 72%);
+      }
+
+      #stage { position: absolute; inset: 0; perspective: 1400px; perspective-origin: 50% 50%; }
+      #camera { position: absolute; inset: 0; transform-style: preserve-3d; }
+
+      /* ── fui-hud-moves A 式：一线展面 ─────────────────────────────
+         1px 细线极快抽出（scaleX 0→1）→ 纵向撑开成面板（scaleY 3px→满高）
+         退场时反向：压线 → 缩点 → 熄灭（老 CRT 关机，与开头呼应） */
+      #panel {
+        position: absolute; left: 50%; top: 50%;
+        width: 1180px; height: 460px;
+        margin-left: -590px; margin-top: -230px;
+        transform-origin: 50% 50%;
+        opacity: 0;
+      }
+      #panelBody {
+        position: absolute; inset: 0; border-radius: 10px;
+        background: linear-gradient(158deg, rgba(255,255,255,0.075) 0%, rgba(255,255,255,0.022) 52%, rgba(0,0,0,0.16) 100%);
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.14), 0 40px 100px rgba(0,0,0,0.66);
+      }
+      /* 线体：**只有一条线的高度**，位于盒的中线。
+         之前写 inset:0 让它填满整个盒 —— 撑开时整块变白，读作"闪白"。
+         正确的是：它始终是"一条线"，抽线时被横向拉长，撑面时随盒变高而离开视野。 */
+      #panelLine {
+        position: absolute; left: 0; right: 0; top: 50%;
+        height: 3px; margin-top: -1.5px;
+        border-radius: 2px; background: #ffffff;
+        box-shadow: 0 0 26px 6px rgba(255,255,255,0.75);
+        opacity: 0;
+      }
+      /* 面板内容 */
+      #panelContent {
+        position: absolute; inset: 0;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        opacity: 0;
+      }
+      #episode {
+        font-family: "IBM Plex Mono", monospace; font-weight: 500;
+        font-size: 21px; letter-spacing: 0.34em; color: #9aa3b2;
+        margin-bottom: 26px;
+      }
+      #brand {
+        font-family: "Noto Sans SC", sans-serif; font-weight: 900;
+        font-size: 104px; line-height: 1.1; letter-spacing: 0.02em;
+        color: #f2f3f5; white-space: nowrap;
+        text-shadow: 0 10px 40px rgba(0,0,0,0.5);
+      }
+      #sub {
+        font-family: "IBM Plex Mono", monospace; font-weight: 500;
+        font-size: 24px; letter-spacing: 0.22em; color: #b6bdc9;
+        margin-top: 30px;
+      }
+      #rule2 { width: 0; height: 2px; margin-top: 34px;
+        background: linear-gradient(90deg, rgba(214,228,255,0) 0%, rgba(214,228,255,0.8) 50%, rgba(214,228,255,0) 100%); }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="s12" data-start="0" data-duration="5.4"
+         data-width="1920" data-height="1080">
+      <div id="space"     class="clip" data-start="0" data-duration="5.4" data-track-index="0"></div>
+      <div id="lightpool" class="clip" data-start="0" data-duration="5.4" data-track-index="1" data-layout-allow-overflow></div>
+
+      <div id="stage" class="clip" data-start="0" data-duration="5.4" data-track-index="2">
+        <div id="camera">
+          <div id="panel">
+            <div id="panelLine"></div>
+            <div id="panelBody"></div>
+            <div id="panelContent">
+              <div id="episode">EP. 01</div>
+              <div id="brand">小凤 AI 应用入门</div>
+              <div id="sub">这一期，我们讲讲 TOKEN</div>
+              <div id="rule2"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+
+      // ── fui-hud-moves A 式参数（卡上给的调校起点，按 30fps 换算）────
+      //  抽线 scaleX 0→1：out poly4 急抽 5f
+      //  撑面 scaleY 3px→满高：out cubic 9f
+      //  两段节奏差是手法本体 —— 等长就平了
+      const F = 1 / 30;
+      const LINE_W = 5 * F;    // 0.1667
+      const UNFOLD = 9 * F;    // 0.30
+      const LINE_H = 3 / 460;  // 撑开前的线高
+
+      gsap.set('#panel', { scaleX: 0.004, scaleY: LINE_H, opacity: 1 });
+      gsap.set('#panelLine', { opacity: 1 });
+      gsap.set('#panelBody', { opacity: 0 });
+
+      // ── 时间表（30fps）──────────────────────────────────────────
+      //  0.00–0.17  细线从中心向两侧极快抽出（scaleX 0.004 → 1）
+      //  0.17–0.47  纵向撑开成面板（scaleY 3px → 满高）
+      //  0.47–0.75  面板成形，线体交棒给面板主体
+      //  0.60–1.30  内容逐层淡入（EP → 字标 → 副标 → 分隔线）
+      //  1.30–2.60  字标 hold 满 1 秒以上（判例 R1）
+      //  2.60–3.30  承 s11 的收束：面板轻微推进（进入下一拍）
+      //  3.30–4.50  稳定，交棒 s13
+      //  4.50–5.40  缓推收（s13 的"面板退场露一角"起手）
+      const T_LINE   = 0.00;
+      const T_UNFOLD = LINE_W;
+      const T_FORM   = LINE_W + UNFOLD;
+      const T_CONTENT= 0.60;
+      const T_HOLD   = 1.30;
+      const T_PUSH   = 2.60;
+
+      // ① 抽线：极快，快进快停
+      tl.to('#panel', { scaleX: 1, duration: LINE_W, ease: 'power4.out' }, T_LINE);
+
+      // ② 撑面：比抽线慢一倍多 —— 节奏差是本手法
+      tl.to('#panel', { scaleY: 1, duration: UNFOLD, ease: 'power3.out' }, T_UNFOLD);
+
+      // ③ 线体交棒给面板主体（只在撑开过半时交叉）
+      tl.to('#panelLine',  { opacity: 0, duration: 0.10, ease: 'none' }, T_FORM - 0.066);
+      tl.to('#panelBody',  { opacity: 1, duration: 0.10, ease: 'none' }, T_FORM - 0.066);
+
+      // ④ 内容逐层落定
+      tl.fromTo('#panelContent', { opacity: 0 }, { opacity: 1, duration: 0.34, ease: 'power2.out' }, T_CONTENT);
+      tl.fromTo('#episode', { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.42, ease: 'power2.out' }, T_CONTENT + 0.10);
+      // 不用 letterSpacing（文字重排属性，逐帧捕获会抖，被 lint 禁）
+      // 用 scaleX 从略窄展开 —— 观感接近"字标展开"，且是合成层动画
+      tl.fromTo('#brand', { opacity: 0, y: 30, scaleX: 0.94 },
+        { opacity: 1, y: 0, scaleX: 1, duration: 0.72, ease: 'power3.out' }, T_CONTENT + 0.22);
+      tl.fromTo('#sub',     { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.50, ease: 'power2.out' }, T_CONTENT + 0.62);
+      tl.to('#rule2', { width: 420, duration: 0.55, ease: 'power2.out' }, T_CONTENT + 0.78);
+
+      // ⑤ 字标 hold（判例 R1：品牌字标 hold 满 1 秒）—— 这一段什么也不做，就是停
+      //    但背景仍有极缓的呼吸，避免"死画面"
+      tl.to('#lightpool', { opacity: 0.86, duration: 1.30, ease: 'sine.inOut' }, T_HOLD);
+
+      // ⑥ 轻微推进（不是后拉 —— 这里要"靠近"片头）
+      tl.to('#camera', { z: 180, duration: 1.60, ease: 'sine.inOut' }, T_PUSH);
+      tl.to('#brand', { y: -6, duration: 1.20, ease: 'sine.inOut' }, T_PUSH + 0.30);
+      tl.to('#brand', { y: 0,  duration: 1.20, ease: 'sine.inOut' }, T_PUSH + 1.60);
+
+      window.__timelines['s12'] = tl;
+      tl.seek(0);
+    </script>
+  </body>
+</html>

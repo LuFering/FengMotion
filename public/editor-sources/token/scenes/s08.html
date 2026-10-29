@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="zh" data-resolution="landscape">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>镜 08 · 问题来了</title>
+    <script src="../gsap.min.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1920px; height: 1080px; overflow: hidden; background: #000; }
+      @font-face { font-family: "Big Shoulders Display"; font-weight: 800;
+        src: url("../assets/fonts/big-shoulders-800.woff2") format("woff2"); font-display: block; }
+
+      #root { position: relative; width: 1920px; height: 1080px; overflow: hidden; }
+      /* 起点与 s07 末态一致（同一个空间），随后被"压缩" */
+      #space {
+        position: absolute; inset: 0;
+        background: radial-gradient(ellipse 106% 70% at 50% 46%,
+          #1c1f25 0%, #15181d 46%, #0d0f13 78%, #0a0b0e 100%);
+      }
+      #floorLine {
+        position: absolute; left: 12%; right: 12%; top: 62%; height: 1px;
+        background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.10) 50%, rgba(255,255,255,0) 100%);
+      }
+      #stage { position: absolute; inset: 0; perspective: 1500px; perspective-origin: 50% 50%; }
+      #camera { position: absolute; inset: 0; transform-style: preserve-3d; }
+
+      #word {
+        position: absolute; left: 50%; top: 50%;
+        font-family: "Big Shoulders Display", sans-serif; font-weight: 800;
+        font-size: 168px; line-height: 1; letter-spacing: 0.01em;
+        color: #b9bcc2;
+        white-space: nowrap;
+        will-change: transform, opacity;
+      }
+      /* 黑场：从中心"打开"的暗，不是硬切（判例禁止闪白，也禁止生硬黑切） */
+      #blackout {
+        position: absolute; inset: 0; background: #000; opacity: 0;
+      }
+      /* 压缩感：四周收拢的暗角，把空间读作"被挤扁" */
+      #squeeze {
+        position: absolute; inset: 0; opacity: 0;
+        background: radial-gradient(ellipse 40% 34% at 50% 50%,
+          rgba(0,0,0,0) 0%, rgba(0,0,0,0.72) 62%, rgba(0,0,0,0.98) 100%);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="s08" data-start="0" data-duration="4.0"
+         data-width="1920" data-height="1080">
+      <div id="space"     class="clip" data-start="0" data-duration="4.0" data-track-index="0"></div>
+      <div id="floorLine" class="clip" data-start="0" data-duration="4.0" data-track-index="1"></div>
+
+      <div id="stage" class="clip" data-start="0" data-duration="4.0" data-track-index="2">
+        <div id="camera">
+          <div id="word">Token</div>
+        </div>
+      </div>
+
+      <div id="squeeze"   class="clip" data-start="0" data-duration="4.0" data-track-index="3"></div>
+      <div id="blackout"  class="clip" data-start="0" data-duration="4.0" data-track-index="4"></div>
+    </div>
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+
+      // 承 s07 末态：普通的 Token 在中心，相机 z=-220，空间是空的
+      gsap.set('#word', { xPercent: -50, yPercent: -50, opacity: 1, y: 0 });
+      gsap.set('#camera', { z: -220 });
+      gsap.set('#floorLine', { opacity: 1 });
+
+      // ── 时间表（30fps）──────────────────────────────────────────
+      //  0.00–0.30  静（承接 s07 的静止节拍，让"突然"成立）
+      //  0.30–0.62  急速推近 ← 说「可问题来了」的那一刻
+      //  0.62–0.95  背景空间被压缩（暗角收拢），Token 膨胀成巨大主体
+      //  0.95–1.55  **突然停住 + 短暂停顿** ← 这一下最重要，是"要揭问题"的蓄力
+      //  1.55–2.05  黑场"打开"（从中心向外吞掉画面，不是硬切）
+      //  2.05–4.00  全黑静止（给 s09 留出从黑场拉开的起手）
+      const T_PUSH  = 0.30;
+      const T_STOP  = 0.95;
+      const T_BLACK = 1.55;
+      const T_DARK  = 2.05;
+
+      // ① 急推 —— 幅度要够狠，否则读作"轻微缩放"
+      tl.to('#camera', { z: 900, duration: 0.32, ease: 'power4.in' }, T_PUSH);
+      tl.to('#word', { scale: 3.4, duration: 0.32, ease: 'power4.in' }, T_PUSH);
+      // 亮度往白里逼一点（像被光压住），但不是闪白
+      tl.to('#word', { color: '#f0f1f3', duration: 0.32, ease: 'power2.in' }, T_PUSH);
+
+      // ② 空间被压缩：暗角收拢
+      tl.to('#squeeze', { opacity: 1, duration: 0.33, ease: 'power2.in' }, T_PUSH + 0.20);
+
+      // ③ 突然停住 —— 不加缓动尾巴，硬停
+      //    停住后停 0.6s（这一下是"马上要揭开"的蓄力）
+      tl.to('#camera', { z: 940, duration: 0.10, ease: 'none' }, T_STOP);
+      tl.to('#word',   { scale: 3.7, duration: 0.10, ease: 'none' }, T_STOP);
+
+      // ④ 黑场打开：从中心向外吞掉画面（不是硬切，也不是闪白）
+      tl.to('#blackout', { opacity: 1, duration: 0.50, ease: 'power2.inOut' }, T_BLACK);
+      tl.to('#floorLine', { opacity: 0, duration: 0.30, ease: 'power1.in' }, T_BLACK);
+      tl.to('#word', { opacity: 0, duration: 0.36, ease: 'power2.in' }, T_BLACK + 0.10);
+
+      window.__timelines['s08'] = tl;
+      tl.seek(0);
+    </script>
+  </body>
+</html>

@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="zh" data-resolution="landscape">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>镜 01 · Token 出现</title>
+    <script src="../gsap.min.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1920px; height: 1080px; overflow: hidden; background: #000; }
+
+      @font-face {
+        font-family: "Big Shoulders Display";
+        font-weight: 800;
+        src: url("../assets/fonts/big-shoulders-800.woff2") format("woff2");
+        font-display: block;
+      }
+      @font-face {
+        font-family: "IBM Plex Mono";
+        font-weight: 500;
+        src: url("../assets/fonts/plex-mono-500.woff2") format("woff2");
+        font-display: block;
+      }
+
+      /* 摄影棚空间：顶亮底暗，不是纯黑 —— 粒子要有"打在空气里"的可读性 */
+      #root { position: relative; width: 1920px; height: 1080px; overflow: hidden; }
+      #space {
+        position: absolute; inset: 0;
+        background: radial-gradient(ellipse 118% 76% at 50% 14%,
+          #23262e 0%, #1a1d23 40%, #111318 72%, #0b0d11 100%);
+      }
+      /* 顶部光池：让空间"被照亮"，而不是均匀发灰 —— 这是摄影棚感的关键 */
+      #lightpool {
+        position: absolute; left: 50%; top: -34%;
+        width: 1500px; height: 900px; margin-left: -750px;
+        background: radial-gradient(ellipse 50% 50% at 50% 50%,
+          rgba(214,228,255,0.16) 0%, rgba(180,200,240,0.07) 38%, rgba(0,0,0,0) 72%);
+        filter: blur(2px);
+      }
+      /* 远处雾：给纵深一个可见的底 */
+      #haze {
+        position: absolute; inset: 0;
+        background: radial-gradient(ellipse 46% 34% at 50% 50%,
+          rgba(150,175,215,0.10) 0%, rgba(0,0,0,0) 72%);
+        opacity: 0;
+      }
+      /* 地面：让"重量"有落点 */
+      #floor {
+        position: absolute; left: -20%; right: -20%; bottom: -16%; height: 48%;
+        background: linear-gradient(180deg, rgba(255,255,255,0.045) 0%, rgba(255,255,255,0) 68%);
+        transform: perspective(900px) rotateX(68deg); transform-origin: 50% 0%;
+      }
+
+      /* 粒子场：2D 定位，纵深靠各自 scale/模糊/亮度模拟 */
+      #field { position: absolute; inset: 0; }
+      .p {
+        position: absolute; left: 0; top: 0;
+        background: #fff; border-radius: 50%;
+        will-change: transform, opacity;
+      }
+
+      /* 母题字：Token
+         ⚠ 不在 CSS 里写 transform 居中 —— GSAP 会整体覆写 transform，
+         把 translate(-50%,-50%) 冲掉导致字跑位。居中改用 xPercent/yPercent。 */
+      #word {
+        position: absolute; left: 50%; top: 50%;
+        font-family: "Big Shoulders Display", sans-serif; font-weight: 800;
+        font-size: 340px; line-height: 1; letter-spacing: 0.004em;
+        white-space: nowrap;
+        /* 材质：顶亮底暗的金属白，不是一片死灰 */
+        background: linear-gradient(180deg,
+          #ffffff 0%, #f4f1ec 34%, #ddd8d0 62%, #a8a49b 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        color: transparent;
+        will-change: transform, opacity;
+      }
+      /* 字下的暗影，给"实体感" */
+      #wordshadow {
+        position: absolute; left: 50%; top: 50%;
+        width: 1200px; height: 120px;
+        background: radial-gradient(ellipse 50% 50% at 50% 50%,
+          rgba(0,0,0,0.62) 0%, rgba(0,0,0,0) 70%);
+        opacity: 0;
+      }
+      /* 地面倒影：把字"坐"进空间里。
+         定位 = 与字同基点，再用 translateY 推到字下方并压扁 —— 不能用 yPercent 居中，
+         否则倒影会盖在正字上（实测被 lint 判 text_occluded）。 */
+      #reflection {
+        position: absolute; left: 50%; top: 50%;
+        font-family: "Big Shoulders Display", sans-serif; font-weight: 800;
+        font-size: 340px; line-height: 1; letter-spacing: 0.004em;
+        color: #b9c4d6;
+        white-space: nowrap;
+        opacity: 0;
+        pointer-events: none;
+        -webkit-mask-image: linear-gradient(180deg, rgba(0,0,0,0.42) 0%, rgba(0,0,0,0) 58%);
+        mask-image: linear-gradient(180deg, rgba(0,0,0,0.42) 0%, rgba(0,0,0,0) 58%);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="s01" data-start="0" data-duration="3.9"
+         data-width="1920" data-height="1080">
+      <div id="space"  class="clip" data-start="0" data-duration="3.9" data-track-index="0"></div>
+      <div id="lightpool" class="clip" data-start="0" data-duration="3.9" data-track-index="1" data-layout-allow-overflow></div>
+      <div id="floor"  class="clip" data-start="0" data-duration="3.9" data-track-index="2" data-layout-allow-overflow></div>
+      <div id="haze"   class="clip" data-start="0" data-duration="3.9" data-track-index="3"></div>
+      <div id="field"  class="clip" data-start="0" data-duration="3.9" data-track-index="4"></div>
+      <div id="reflection" class="clip" data-start="0" data-duration="3.9" data-track-index="5"
+           data-layout-ignore>Token</div>
+      <div id="wordshadow" class="clip" data-start="0" data-duration="3.9" data-track-index="6"></div>
+      <div id="word"   class="clip" data-start="0" data-duration="3.9" data-track-index="7">Token</div>
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+
+      // ── 粒子场：在 3D 上布局（不同纵深），渲染成 2D transform ──────────
+      // 用确定性 PRNG，保证每次渲染完全一致（HyperFrames 硬性要求）
+      let seed = 20261001;
+      const rnd = () => {
+        seed = (seed * 1664525 + 1013904223) % 4294967296;
+        return seed / 4294967296;
+      };
+
+      const W = 1920, H = 1080, CX = W / 2, CY = H / 2;
+      const field = document.getElementById('field');
+
+      const N = 230;
+      const parts = [];
+      for (let i = 0; i < N; i++) {
+        // 起点：极坐标 + 真实纵深 z（-3 远 ~ +1 近）
+        const ang = rnd() * Math.PI * 2;
+        const dist = 620 + rnd() * 1420;
+        const z = -3 + rnd() * 4;
+        const sx = CX + Math.cos(ang) * dist;
+        const sy = CY + Math.sin(ang) * dist * 0.62;
+
+        // 落点：聚到中心一个小范围内（最终被字形"吸收"）
+        const tx = CX + (rnd() - 0.5) * 170;
+        const ty = CY + (rnd() - 0.5) * 100;
+
+        // 纵深决定大小与清晰度：远的细而暗，近的粗而亮
+        const zt = (z + 3) / 4;                 // 0(远) → 1(近)
+        const size = 2.2 + zt * zt * 9.5;       // 近的更明显地大
+
+        const el = document.createElement('div');
+        el.className = 'p';
+        el.style.width = size.toFixed(2) + 'px';
+        el.style.height = size.toFixed(2) + 'px';
+        // 近的带一点光晕，读出"离镜头近"
+        if (zt > 0.62) el.style.boxShadow = `0 0 ${(size * 3).toFixed(1)}px rgba(210,228,255,0.85)`;
+        el.style.opacity = 0;
+        field.appendChild(el);
+
+        parts.push({ el, sx, sy, tx, ty, z, zt, size, dur: 0.42 + rnd() * 0.34, lag: rnd() * 0.36 });
+      }
+
+      const tl = gsap.timeline({ paused: true });
+
+      // 初始状态用 gsap.set（时间轴外，立即生效）——
+      // 零时长的 tl.set(…, 0) 在播放头正好停在第 0 帧时不渲染，
+      // 会让第 0 帧露出未隐藏的状态。
+      gsap.set(['#word', '#wordshadow'], { xPercent: -50, yPercent: -50 });
+      gsap.set('#wordshadow', { y: 210 });   // 暗影落在字下方
+      // 倒影：与字同基点(xPercent -50)，translateY 推到字底之下，再翻转压扁
+      gsap.set('#reflection', { xPercent: -50, yPercent: -50, y: 186, scaleY: -0.52 });
+      gsap.set('#word', { opacity: 0 });
+
+      // 顶部光池缓慢呼吸（背景永远不是死的）
+      gsap.fromTo('#lightpool', { opacity: 0.55 }, { opacity: 1, duration: 3.2, ease: 'sine.inOut', yoyo: true, repeat: 2 });
+
+      // ── 时间表（30fps）────────────────────────────────────────────
+      //  0.00–0.30  空间显形（雾起），字位是空的
+      //  0.30–1.30  粒子从四周/远近不同纵深同时汇聚 → 融入字形
+      //  1.14–1.30  字随粒子落定而显形
+      //  1.30–1.96  果冻弹性 100% → 82% → 106% → 100%
+      //  1.62–2.10  余辉散尽（"干净背景，不留漂浮粒子"）
+      //  2.15–4.38  稳定持字 + 极轻呼吸
+      //
+      // ⚠ 同一属性的相邻 tween 必须留 ≥1 帧间隙：首尾精确相接会被
+      //   lint 判为 overlapping_gsap_tweens。
+      const F = 1 / 30;
+      const T_CONVERGE = 0.30;
+      const T_SETTLE = 1.30;
+      const T_JELLY = 1.62;
+      const T_HOLD = 2.15;
+
+      // 空间显形
+      tl.fromTo('#haze', { opacity: 0 }, { opacity: 1, duration: 0.30, ease: 'power2.out' }, 0);
+
+      // 粒子汇聚：每条各自时长/起延不同 → 非均匀错峰（判例 R2：匀速读作廉价 PPT）
+      parts.forEach((p) => {
+        const t0 = T_CONVERGE + p.lag;
+        // 起点：按纵深给初始亮度（远的更暗更虚）
+        tl.set(p.el, {
+          x: p.sx, y: p.sy,
+          opacity: 0.18 + p.zt * 0.62,
+          filter: p.zt < 0.45 ? 'blur(1.6px)' : 'none',
+        }, 0.08 + p.lag * 0.6);
+        // 汇聚：越靠后的粒子越快 —— 形成"收拢"的加速度
+        tl.to(p.el, {
+          x: p.tx, y: p.ty,
+          duration: p.dur,
+          ease: p.zt > 0.6 ? 'power3.out' : 'power2.out',
+        }, t0);
+        // 融入字形：不是穿过，是被吸收（缩到 0 + 淡出）
+        tl.to(p.el, {
+          opacity: 0, scale: 0.2,
+          duration: 0.16 + p.zt * 0.08,
+          ease: 'power2.in',
+        }, t0 + p.dur - 0.06);
+      });
+
+      // 字随粒子落定而显形（粒子被吸收的过程中字逐渐亮起）
+      tl.fromTo('#word',
+        { opacity: 0, scale: 1.06 },
+        { opacity: 1, scale: 1.0, duration: 0.42, ease: 'power2.out' },
+        T_CONVERGE + 0.42);
+      tl.fromTo('#wordshadow',
+        { opacity: 0 }, { opacity: 1, duration: 0.40, ease: 'power2.out' },
+        T_CONVERGE + 0.50);
+      // 倒影随字一起亮，但更弱更慢（从属层滞后）
+      tl.fromTo('#reflection',
+        { opacity: 0 }, { opacity: 1, duration: 0.55, ease: 'power2.out' },
+        T_CONVERGE + 0.62);
+
+      // ── 果冻弹性：100 → 82 → 106 → 100（有重量，不是线性缩放）──
+      // 主体
+      tl.to('#word', { scale: 0.82, duration: 0.16,   ease: 'power3.in'    }, 1.3000);
+      tl.to('#word', { scale: 1.06, duration: 0.22,   ease: 'power2.out'   }, 1.4667);
+      tl.to('#word', { scale: 1.00, duration: 0.26,   ease: 'power2.inOut' }, 1.7000);
+      // 从属层滞后 2 帧（判例：全要素同帧冻结读作机械）
+      tl.to('#wordshadow', { scale: 0.90, duration: 0.20, ease: 'power3.in'    }, 1.3667);
+      tl.to('#wordshadow', { scale: 1.02, duration: 0.26, ease: 'power2.out'   }, 1.6000);
+      tl.to('#wordshadow', { scale: 1.00, duration: 0.30, ease: 'power2.inOut' }, 1.8867);
+
+      // 余辉散尽：雾收，只留字
+      tl.to('#haze', { opacity: 0, duration: 0.48, ease: 'power2.inOut' }, T_JELLY);
+
+      // 持字期间极轻呼吸（频率低，不抢注意力）
+      // 只做上浮，**不回零** —— 末态交给 s02 承接，两镜之间不留静止空档。
+      // 回零会让 s01 尾部出现一段完全静止（判例：僵硬停顿）。
+      tl.to('#word', { y: -6, duration: 1.20, ease: 'sine.inOut' }, T_HOLD);
+
+      window.__timelines['s01'] = tl;
+      tl.seek(0);
+    </script>
+  </body>
+</html>

@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="zh" data-resolution="landscape">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>镜 16 · 两种计费</title>
+    <script src="../gsap.min.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1920px; height: 1080px; overflow: hidden; background: #000; }
+      @font-face { font-family: "Noto Sans SC"; font-weight: 900;
+        src: url("../assets/fonts/noto-sans-sc-900.woff2") format("woff2"); font-display: block; }
+      @font-face { font-family: "IBM Plex Mono"; font-weight: 500;
+        src: url("../assets/fonts/plex-mono-500.woff2") format("woff2"); font-display: block; }
+      @font-face { font-family: "Big Shoulders Display"; font-weight: 800;
+        src: url("../assets/fonts/big-shoulders-800.woff2") format("woff2"); font-display: block; }
+
+      #root { position: relative; width: 1920px; height: 1080px; overflow: hidden; }
+      #space {
+        position: absolute; inset: 0;
+        background: radial-gradient(ellipse 124% 82% at 50% 42%,
+          #1d222a 0%, #161a20 44%, #0e1115 76%, #090a0d 100%);
+      }
+      #stage { position: absolute; inset: 0; perspective: 1600px; perspective-origin: 50% 46%; }
+      #camera { position: absolute; inset: 0; transform-style: preserve-3d; }
+
+      /* ── 两条路：左=时间维度，右=用量维度 ──────────────────────
+         关键：必须一眼看出**两种完全不同的计量逻辑**，
+         所以两边的几何形态刻意不同 —— 左边是"时间刻度条"，
+         右边是"用量堆叠块"。并排两个 logo 卡片是最偷懒的做法。 */
+      #split { position: absolute; left: 50%; top: 0; bottom: 0; width: 1px;
+        margin-left: -0.5px;
+        background: linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.16) 30%, rgba(255,255,255,0.16) 70%, rgba(255,255,255,0) 100%);
+        opacity: 0; }
+
+      /* 左：时间轴 */
+      #timeAxis {
+        position: absolute; left: 150px; top: 480px; width: 700px; height: 6px;
+        border-radius: 3px;
+        background: linear-gradient(90deg, rgba(214,228,255,0.55) 0%, rgba(214,228,255,0.14) 100%);
+        opacity: 0;
+      }
+      #timeTicks { position: absolute; left: 150px; top: 440px; width: 700px; height: 90px; opacity: 0; }
+      .ttick { position: absolute; top: 0; width: 2px; height: 22px;
+        background: rgba(214,228,255,0.4); }
+      .tlabel { position: absolute; top: 34px; width: 90px; margin-left: -45px; text-align: center;
+        font-family: "IBM Plex Mono", monospace; font-weight: 500;
+        font-size: 15px; letter-spacing: 0.16em; color: #8b93a1; }
+      /* 时间轴上"持续覆盖"的色块 —— 包月就是整段时间都有 */
+      #timeSpan {
+        position: absolute; left: 150px; top: 462px; height: 42px; width: 0;
+        border-radius: 8px;
+        background: linear-gradient(90deg, rgba(120,190,255,0.30) 0%, rgba(120,190,255,0.16) 100%);
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.16);
+        opacity: 0;
+      }
+      #timeTitle {
+        position: absolute; left: 150px; top: 356px;
+        font-family: "Noto Sans SC", sans-serif; font-weight: 900;
+        font-size: 46px; color: #eef0f3; opacity: 0;
+      }
+      #timeSub {
+        position: absolute; left: 150px; top: 604px;
+        font-family: "IBM Plex Mono", monospace; font-weight: 500;
+        font-size: 20px; letter-spacing: 0.24em; color: #9aa3b2; opacity: 0;
+      }
+
+      /* 右：用量堆叠块 */
+      #usageTitle {
+        position: absolute; left: 1072px; top: 356px;
+        font-family: "Noto Sans SC", sans-serif; font-weight: 900;
+        font-size: 46px; color: #eef0f3; opacity: 0;
+      }
+      #usageSub {
+        position: absolute; left: 1072px; top: 604px;
+        font-family: "IBM Plex Mono", monospace; font-weight: 500;
+        font-size: 20px; letter-spacing: 0.24em; color: #9aa3b2; opacity: 0;
+      }
+      #usageBars { position: absolute; left: 1072px; top: 440px; width: 700px; height: 130px; opacity: 0; }
+      .ubar { position: absolute; bottom: 0; width: 58px; border-radius: 6px;
+        background: linear-gradient(180deg, rgba(255,196,120,0.75) 0%, rgba(255,160,60,0.42) 100%);
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.28); }
+      #usageAxis { position: absolute; left: 1072px; top: 576px; width: 700px; height: 2px;
+        background: linear-gradient(90deg, rgba(255,196,120,0.42) 0%, rgba(255,196,120,0.10) 100%);
+        opacity: 0; }
+
+      /* 左侧"包月包年"的样例 */
+      #subName {
+        position: absolute; left: 150px; top: 448px;
+        font-family: "IBM Plex Mono", monospace; font-weight: 500;
+        font-size: 22px; letter-spacing: 0.20em; color: #cfe0f5;
+        opacity: 0;
+      }
+      #apiName {
+        position: absolute; left: 1072px; top: 448px;
+        font-family: "IBM Plex Mono", monospace; font-weight: 500;
+        font-size: 22px; letter-spacing: 0.20em; color: #f5d9b8;
+        opacity: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="s16" data-start="0" data-duration="8.0"
+         data-width="1920" data-height="1080">
+      <div id="space" class="clip" data-start="0" data-duration="8.0" data-track-index="0"></div>
+      <div id="stage" class="clip" data-start="0" data-duration="8.0" data-track-index="1">
+        <div id="camera">
+          <div id="split"></div>
+
+          <div id="timeTitle">包月 / 包年</div>
+          <div id="timeSub">按时间 · 整段时间都能用</div>
+          <div id="timeSpan"></div>
+          <div id="timeAxis"></div>
+          <div id="timeTicks"></div>
+          <div id="subName">SUBSCRIPTION</div>
+
+          <div id="usageTitle">按 token 量</div>
+          <div id="usageSub">按用量 · 用多少算多少</div>
+          <div id="usageBars"></div>
+          <div id="usageAxis"></div>
+          <div id="apiName">PAY AS YOU GO</div>
+        </div>
+      </div>
+    </div>
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+
+      // 左：时间刻度（12 个月）
+      const ticks = document.getElementById('timeTicks');
+      const MONTHS = ['1','2','3','4','5','6','7','8','9','10','11','12'];
+      MONTHS.forEach((m, i) => {
+        const x = i * (700 / 11);
+        const t = document.createElement('div');
+        t.className = 'ttick'; t.style.left = x + 'px';
+        t.setAttribute('data-layout-ignore', '');
+        ticks.appendChild(t);
+        const l = document.createElement('div');
+        l.className = 'tlabel'; l.style.left = x + 'px'; l.textContent = m;
+        l.setAttribute('data-layout-ignore', '');
+        ticks.appendChild(l);
+      });
+
+      // 右：用量块（不等高 —— 用多少算多少）
+      const bars = document.getElementById('usageBars');
+      const HEIGHTS = [42, 68, 54, 96, 74, 118, 88, 62, 104, 80];
+      HEIGHTS.forEach((h, i) => {
+        const b = document.createElement('div');
+        b.className = 'ubar';
+        b.style.left = (i * 70) + 'px';
+        b.style.height = '0px';
+        b.setAttribute('data-layout-ignore', '');
+        bars.appendChild(b);
+      });
+      const barEls = Array.from(bars.children);
+
+      // ── 时间表（30fps）──────────────────────────────────────────
+      //  0.00–0.60  承 s15：画面从"免费"分叉成两条路
+      //  0.60–1.30  中缝出现，左右两个标题落定
+      //  1.30–2.30  左（时间轴）成形：刻度 + 整段覆盖条
+      //  2.30–3.40  右（用量块）成形：一根根长出来，高低不齐
+      //  3.40–4.10  两侧说明字落定
+      //  4.10–6.00  并置停留（对比被看清）
+      //  6.00–8.00  极轻呼吸/微推，交棒 s17
+      const T_SPLIT = 0.60;
+      const T_TITLE = 0.90;
+      const T_LEFT  = 1.30;
+      const T_RIGHT = 2.30;
+      const T_CAP   = 3.40;
+      const T_HOLD  = 4.10;
+      const T_PUSH  = 6.00;
+
+      tl.to('#split', { opacity: 1, duration: 0.60, ease: 'power2.out' }, T_SPLIT);
+      tl.fromTo('#timeTitle',  { opacity: 0, y: 22 }, { opacity: 1, y: 0, duration: 0.50, ease: 'power3.out' }, T_TITLE);
+      tl.fromTo('#usageTitle', { opacity: 0, y: 22 }, { opacity: 1, y: 0, duration: 0.50, ease: 'power3.out' }, T_TITLE + 0.14);
+
+      // 左：时间
+      tl.to('#timeAxis', { opacity: 1, duration: 0.40, ease: 'power2.out' }, T_LEFT);
+      tl.to('#timeTicks', { opacity: 1, duration: 0.50, ease: 'power2.out' }, T_LEFT + 0.15);
+      tl.to('#timeSpan', { opacity: 1, width: 700, duration: 0.85, ease: 'power2.inOut' }, T_LEFT + 0.35);
+      tl.to('#subName', { opacity: 1, duration: 0.40, ease: 'power2.out' }, T_LEFT + 0.60);
+
+      // 右：用量（一根根长出来，错峰）
+      tl.to('#usageAxis', { opacity: 1, duration: 0.35, ease: 'power2.out' }, T_RIGHT - 0.20);
+      tl.to('#usageBars', { opacity: 1, duration: 0.20, ease: 'none' }, T_RIGHT - 0.20);
+      barEls.forEach((b, i) => {
+        tl.to(b, { height: HEIGHTS[i] + 'px', duration: 0.46, ease: 'power3.out' }, T_RIGHT + i * 0.055);
+      });
+      tl.to('#apiName', { opacity: 1, duration: 0.40, ease: 'power2.out' }, T_RIGHT + 0.40);
+
+      // 说明字
+      tl.fromTo('#timeSub',  { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.45, ease: 'power2.out' }, T_CAP);
+      tl.fromTo('#usageSub', { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.45, ease: 'power2.out' }, T_CAP + 0.14);
+
+      // 停留 + 微推
+      tl.to('#camera', { z: 120, duration: 1.90, ease: 'sine.inOut' }, T_PUSH);
+      tl.to('#timeSpan', { opacity: 0.78, duration: 1.10, ease: 'sine.inOut' }, T_HOLD + 0.40);
+      tl.to('#timeSpan', { opacity: 1.0,  duration: 1.10, ease: 'sine.inOut' }, T_HOLD + 1.60);
+
+      window.__timelines['s16'] = tl;
+      tl.seek(0);
+    </script>
+  </body>
+</html>

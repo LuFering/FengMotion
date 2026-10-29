@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="zh" data-resolution="landscape">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>镜 19 · 薅</title>
+    <script src="../gsap.min.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1920px; height: 1080px; overflow: hidden; background: #000; }
+      @font-face { font-family: "Noto Sans SC"; font-weight: 900;
+        src: url("../assets/fonts/noto-sans-sc-900.woff2") format("woff2"); font-display: block; }
+      @font-face { font-family: "IBM Plex Mono"; font-weight: 500;
+        src: url("../assets/fonts/plex-mono-500.woff2") format("woff2"); font-display: block; }
+      @font-face { font-family: "Big Shoulders Display"; font-weight: 800;
+        src: url("../assets/fonts/big-shoulders-800.woff2") format("woff2"); font-display: block; }
+
+      #root { position: relative; width: 1920px; height: 1080px; overflow: hidden; }
+      #space {
+        position: absolute; inset: 0;
+        background: radial-gradient(ellipse 126% 84% at 50% 48%,
+          #1c212a 0%, #151920 44%, #0d1014 76%, #08090c 100%);
+      }
+      #glow {
+        position: absolute; inset: 0; opacity: 0.42;
+        background: radial-gradient(ellipse 52% 40% at 50% 52%,
+          rgba(255,226,180,0.14) 0%, rgba(255,210,150,0.04) 42%, rgba(0,0,0,0) 74%);
+      }
+      #stage { position: absolute; inset: 0; perspective: 1700px; perspective-origin: 50% 48%; }
+      #camera { position: absolute; inset: 0; transform-style: preserve-3d; }
+      #loop { position: absolute; inset: 0; }
+      #loopSvg { position: absolute; inset: 0; overflow: visible; }
+      #loopSvg path { fill: none; stroke-width: 3; stroke-linecap: round;
+        stroke: rgba(214,228,255,0.34); }
+
+      .node {
+        position: absolute; left: 0; top: 0;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        border-radius: 22px;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.18), 0 26px 60px rgba(0,0,0,0.66);
+      }
+      .node .t { font-family: "Noto Sans SC", sans-serif; font-weight: 900;
+        font-size: 40px; color: #f2f3f5; white-space: nowrap; }
+      .node .c { font-family: "IBM Plex Mono", monospace; font-weight: 500;
+        font-size: 15px; letter-spacing: 0.26em; color: #9aa3b2; margin-top: 10px; white-space: nowrap; }
+      #nToken {
+        width: 300px; height: 300px; margin-left: -150px; margin-top: -150px;
+        border-radius: 50%;
+        background: radial-gradient(circle at 42% 36%, #3a4250 0%, #222833 52%, #12161c 100%);
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.22), 0 32px 80px rgba(0,0,0,0.72);
+      }
+      #nToken .t {
+        font-family: "Big Shoulders Display", sans-serif; font-weight: 800;
+        font-size: 86px; letter-spacing: 0.01em;
+        background: linear-gradient(180deg, #fff 0%, #f2efe9 40%, #cfcac1 100%);
+        -webkit-background-clip: text; background-clip: text;
+        -webkit-text-fill-color: transparent; color: transparent;
+      }
+      #nCompute { width: 400px; height: 220px; margin-left: -200px; margin-top: -110px;
+        background: linear-gradient(158deg, #4a5568 0%, #2b3340 56%, #1a1f27 100%); }
+      #nProduce { width: 400px; height: 220px; margin-left: -200px; margin-top: -110px;
+        background: linear-gradient(158deg, #6b5f4a 0%, #3f392c 56%, #25221a 100%); }
+
+      /* ── 掉出来的那一枚 token：本镜的主角 ──────────────────────
+         它是全片"从宏观循环 → 手边的小动作"的落点。 */
+      #coin {
+        position: absolute; left: 50%; top: 50%;
+        width: 150px; height: 150px; margin-left: -75px; margin-top: -75px;
+        border-radius: 50%;
+        background: radial-gradient(circle at 40% 34%, #fffaf0 0%, #e8dcc4 40%, #a89370 100%);
+        box-shadow: 0 26px 60px rgba(0,0,0,0.66), inset 0 2px 0 rgba(255,255,255,0.85);
+        display: flex; align-items: center; justify-content: center;
+        opacity: 0;
+      }
+      #coin .t {
+        font-family: "Big Shoulders Display", sans-serif; font-weight: 800;
+        font-size: 40px; color: #4a3f2c; letter-spacing: 0.01em;
+      }
+      /* 落地的影子 */
+      #coinShadow {
+        position: absolute; left: 50%; top: 50%;
+        width: 170px; height: 34px; margin-left: -85px; margin-top: 24px;
+        border-radius: 50%;
+        background: radial-gradient(ellipse 50% 50% at 50% 50%,
+          rgba(0,0,0,0.62) 0%, rgba(0,0,0,0) 72%);
+        opacity: 0;
+      }
+      /* 一只手（简化的"领取"动作：掌心朝上） */
+      #hand {
+        position: absolute; left: 50%; top: 50%;
+        width: 380px; height: 226px; margin-left: -190px; margin-top: -96px;
+        opacity: 0;
+      }
+      #hand svg { width: 100%; height: 100%; display: block; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="s19" data-start="0" data-duration="6.4"
+         data-width="1920" data-height="1080">
+      <div id="space" class="clip" data-start="0" data-duration="6.4" data-track-index="0"></div>
+      <div id="glow"  class="clip" data-start="0" data-duration="6.4" data-track-index="1"></div>
+      <div id="stage" class="clip" data-start="0" data-duration="6.4" data-track-index="2">
+        <div id="camera">
+          <div id="loop">
+            <svg id="loopSvg" viewBox="0 0 1920 1080" width="1920" height="1080">
+              <path id="p1" d="" /><path id="p2" d="" /><path id="p3" d="" />
+            </svg>
+          </div>
+          <div class="node" id="nCompute"><div class="t">算力</div><div class="c">COMPUTE</div></div>
+          <div class="node" id="nProduce"><div class="t">生产力</div><div class="c">PRODUCTIVITY</div></div>
+          <div class="node" id="nToken"><div class="t">Token</div></div>
+          <div id="hand">
+            <svg viewBox="0 0 420 250">
+              <!-- 双手捧的剪影：两只手掌从两侧合拢，中间形成一个"托盘" -->
+              <defs>
+                <linearGradient id="hg" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#efe4d2"/>
+                  <stop offset="52%" stop-color="#c9b89e"/>
+                  <stop offset="100%" stop-color="#8b7b62"/>
+                </linearGradient>
+              </defs>
+              <!-- 左手 -->
+              <path d="M18 168 C10 140 20 112 44 100 C64 90 88 96 100 112
+                       L156 186 C164 198 158 214 144 216 L58 216
+                       C36 214 22 196 18 168 Z" fill="url(#hg)"/>
+              <!-- 右手（镜像） -->
+              <path d="M402 168 C410 140 400 112 376 100 C356 90 332 96 320 112
+                       L264 186 C256 198 262 214 276 216 L362 216
+                       C384 214 398 196 402 168 Z" fill="url(#hg)"/>
+              <!-- 掌心：一个浅托盘，币就落在上面 -->
+              <path d="M150 196 C176 208 244 208 270 196 C282 190 286 200 276 210
+                       C250 224 170 224 144 210 C134 200 138 190 150 196 Z" fill="#b6a488"/>
+            </svg>
+          </div>
+          <div id="coinShadow"></div>
+          <div id="coin"><div class="t">Token</div></div>
+        </div>
+      </div>
+    </div>
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+
+      const CX = 960, CY = 540, R = 330;
+      const P = {
+        token:   { x: CX,     y: CY + 210 },
+        compute: { x: CX - R, y: CY - 130 },
+        produce: { x: CX + R, y: CY - 130 },
+      };
+      gsap.set('#nToken',   { x: P.token.x,   y: P.token.y, scale: 1.0 });
+      gsap.set('#nCompute', { x: P.compute.x + 22, y: P.compute.y, rotate: 2.4 });
+      gsap.set('#nProduce', { x: P.produce.x - 22, y: P.produce.y, rotate: -2.4 });
+      gsap.set('#hand', { x: 0, y: 0 });
+      gsap.set(['#coin', '#coinShadow'], { x: 0, y: 0 });
+
+      function edge(a, b, bulge, id) {
+        const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+        const dx = b.x - a.x, dy = b.y - a.y, L = Math.hypot(dx, dy) || 1;
+        const cx = mx + (-dy / L) * bulge, cy = my + (dx / L) * bulge;
+        document.getElementById(id).setAttribute('d', `M ${a.x} ${a.y} Q ${cx} ${cy} ${b.x} ${b.y}`);
+      }
+      edge(P.compute, P.produce, -110, 'p1');
+      edge(P.produce, P.token,   -120, 'p2');
+      edge(P.token,   P.compute, -120, 'p3');
+
+      // ── 时间表（30fps）—— 全片唯一一次喜剧转折 ──────────────────
+      //  0.00–0.40  承 s18 尾声：循环还在转（但已经在减速）
+      //  0.40–0.70  **急停**：循环戛然而止（硬停，不给缓动尾巴）
+      //  0.70–1.20  停住一拍（喜剧的"什么都没发生"）
+      //  1.20–1.90  循环里掉出来一枚 token，砸下来
+      //  1.90–2.30  落地弹一下（有重量的落地）
+      //  2.30–3.10  一只手伸出来接住
+      //  3.10–6.40  稳定 hold（"手边的小动作"——尺度从宇宙掉到桌面）
+      const T_STOP  = 0.40;
+      const T_BEAT  = 0.70;
+      const T_DROP  = 1.20;
+      const T_LAND  = 1.90;
+      const T_HAND  = 2.30;
+      const T_HOLD  = 3.10;
+
+      // ① 急停：两个节点"被拽住"后回弹一点
+      tl.to('#nCompute', { x: P.compute.x - 30, rotate: -3.4, duration: 0.22, ease: 'power2.in' }, T_STOP);
+      tl.to('#nProduce', { x: P.produce.x + 30, rotate: 3.4, duration: 0.22, ease: 'power2.in' }, T_STOP);
+      tl.to('#loopSvg path', { opacity: 0.30, duration: 0.24, ease: 'power2.in' }, T_STOP);
+      tl.to('#glow', { opacity: 0.16, duration: 0.50, ease: 'power2.out' }, T_STOP);
+      // 回弹（停稳）
+      tl.to('#nCompute', { x: P.compute.x - 8, rotate: 0.6, duration: 0.30, ease: 'power2.out' }, T_STOP + 0.26);
+      tl.to('#nProduce', { x: P.produce.x + 8, rotate: -0.6, duration: 0.30, ease: 'power2.out' }, T_STOP + 0.30);
+
+      // ② 停一拍（喜剧的"静"）
+      //    这一拍什么都不动 —— 是刻意的
+
+      // ③ 掉出来一枚 token（从中央往下砸）
+      tl.set('#coin', { x: 0, y: -340, scale: 0.72, opacity: 1 }, T_DROP);
+      tl.to('#coin', { y: 60, duration: 0.46, ease: 'power3.in', rotate: 180 }, T_DROP + 0.06);
+      // 落地弹（真过冲：落地后弹起再落）
+      tl.to('#coin', { y: -96, duration: 0.18, ease: 'power2.out', rotate: 200 }, T_LAND);
+      tl.to('#coin', { y: -148, duration: 0.20, ease: 'power2.out', rotate: 210 }, T_LAND + 0.20);
+      tl.to('#coin', { y: -96, duration: 0.24, ease: 'power2.in', rotate: 216 }, T_LAND + 0.42);
+      // 影子跟着（滞后 2 帧 —— 判例：全要素同帧冻结读作机械）
+      tl.set('#coinShadow', { x: 0, y: 16, scale: 0.4, opacity: 0 }, T_DROP + 0.06);
+      tl.to('#coinShadow', { opacity: 0.9, scale: 1.0, duration: 0.40, ease: 'power2.out' }, T_LAND + 0.06);
+      tl.to('#coinShadow', { scale: 0.86, duration: 0.24, ease: 'power2.out' }, T_LAND + 0.50);
+
+      // ④ 手伸出来接住（从下方进入）
+      tl.fromTo('#hand', { y: 150, opacity: 0 }, { y: 0, opacity: 1, duration: 0.62, ease: 'power3.out' }, T_HAND);
+      tl.to('#coin', { y: -132, scale: 0.94, duration: 0.42, ease: 'power2.out' }, T_HAND + 0.30);
+
+      // ⑤ hold（尺度落定：从宏观循环掉到"手边"）
+      tl.to('#coin', { y: -140, duration: 1.10, ease: 'sine.inOut' }, T_HOLD);
+      tl.to('#coin', { y: -132, duration: 1.10, ease: 'sine.inOut' }, T_HOLD + 1.20);
+      tl.to('#nToken', { scale: 0.96, duration: 1.60, ease: 'sine.inOut' }, T_HOLD);
+
+      window.__timelines['s19'] = tl;
+      tl.seek(0);
+    </script>
+  </body>
+</html>

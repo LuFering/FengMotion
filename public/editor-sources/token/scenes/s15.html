@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="zh" data-resolution="landscape">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>镜 15 · 因为免费</title>
+    <script src="../gsap.min.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1920px; height: 1080px; overflow: hidden; background: #000; }
+      @font-face { font-family: "Noto Sans SC"; font-weight: 900;
+        src: url("../assets/fonts/noto-sans-sc-900.woff2") format("woff2"); font-display: block; }
+      @font-face { font-family: "IBM Plex Mono"; font-weight: 500;
+        src: url("../assets/fonts/plex-mono-500.woff2") format("woff2"); font-display: block; }
+      @font-face { font-family: "Big Shoulders Display"; font-weight: 800;
+        src: url("../assets/fonts/big-shoulders-800.woff2") format("woff2"); font-display: block; }
+
+      #root { position: relative; width: 1920px; height: 1080px; overflow: hidden; }
+      #space {
+        position: absolute; inset: 0;
+        background: radial-gradient(ellipse 118% 78% at 50% 40%,
+          #1e222a 0%, #161a20 44%, #0e1115 76%, #090a0d 100%);
+      }
+      #stage { position: absolute; inset: 0; perspective: 1700px; perspective-origin: 50% 48%; }
+      #camera { position: absolute; inset: 0; transform-style: preserve-3d; }
+
+      /* 承 s13/s14 的手机（同一个界面，切到"后台视角"） */
+      #phone {
+        position: absolute; left: 50%; top: 50%;
+        width: 640px; height: 1010px;
+        margin-left: -320px; margin-top: -505px;
+        border-radius: 64px;
+        background: linear-gradient(158deg, #3a3f47 0%, #23272e 44%, #14171b 100%);
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.22), 0 60px 130px rgba(0,0,0,0.78);
+      }
+      #screen { position: absolute; inset: 14px; border-radius: 48px; overflow: hidden;
+        background: linear-gradient(180deg, #fbfbfc 0%, #f2f3f5 60%, #e9eaee 100%); }
+      #appBar { position: absolute; left: 0; right: 0; top: 0; height: 116px;
+        background: linear-gradient(180deg, #fff 0%, #fbfbfc 100%); box-shadow: 0 1px 0 rgba(0,0,0,0.06); }
+      #appTitle { position: absolute; left: 30px; bottom: 20px;
+        font-family: "Noto Sans SC", sans-serif; font-weight: 900; font-size: 29px; color: #14171b; }
+      #notch { position: absolute; left: 50%; top: 12px; width: 120px; height: 32px;
+        margin-left: -60px; border-radius: 17px; background: #0c0d0f; }
+      #chat { position: absolute; left: 0; right: 0; top: 116px; bottom: 146px;
+        padding: 24px 28px; display: flex; flex-direction: column; gap: 18px; align-items: flex-start; }
+      .bubble { max-width: 470px; padding: 20px 24px; border-radius: 22px;
+        font-family: "Noto Sans SC", sans-serif; font-weight: 900;
+        font-size: 25px; line-height: 1.6; color: #14171b; background: #fff;
+        box-shadow: 0 3px 12px rgba(0,0,0,0.07); }
+      .bubble.me { align-self: flex-end;
+        background: linear-gradient(158deg, #3a4048, #23272e); color: #f2f3f5; }
+
+      /* ── "免费"标记：手机上方落下一枚标签 ── */
+      #freeTag {
+        position: absolute; left: 50%; top: 50%;
+        margin-left: -330px; margin-top: -640px;
+        padding: 18px 34px; border-radius: 14px;
+        background: linear-gradient(158deg, #2f8f6b 0%, #1f6a4e 100%);
+        box-shadow: 0 18px 44px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.24);
+        font-family: "Noto Sans SC", sans-serif; font-weight: 900;
+        font-size: 40px; color: #ffffff; letter-spacing: 0.06em;
+        white-space: nowrap; opacity: 0;
+      }
+
+      /* ── 后台视角：token 在流，但**没有任何计量标记** ── */
+      #backstage {
+        position: absolute; left: 50%; top: 50%;
+        margin-left: 200px; margin-top: -400px;
+        width: 620px; height: 800px;
+        opacity: 0;
+      }
+      #backstage .channel {
+        position: absolute; left: 0; right: 0; height: 132px;
+        border-radius: 12px;
+        background: linear-gradient(158deg, rgba(255,255,255,0.055) 0%, rgba(255,255,255,0.015) 60%, rgba(0,0,0,0.12) 100%);
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.10);
+        overflow: hidden;
+      }
+      .unit {
+        position: absolute; top: 50%; width: 88px; height: 34px; margin-top: -17px;
+        border-radius: 17px;
+        background: linear-gradient(158deg, #f6f4f0 0%, #dedad2 100%);
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.9), 0 6px 16px rgba(0,0,0,0.45);
+      }
+      /* 关键的"没有计量"：这些单位上没有数字、没有刻度、没有账单 */
+      #noBill {
+        position: absolute; left: 50%; top: 50%;
+        margin-left: 200px; margin-top: 400px;
+        font-family: "IBM Plex Mono", monospace; font-weight: 500;
+        font-size: 20px; letter-spacing: 0.30em; color: #5c636e;
+        white-space: nowrap; opacity: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="s15" data-start="0" data-duration="7.0"
+         data-width="1920" data-height="1080">
+      <div id="space" class="clip" data-start="0" data-duration="7.0" data-track-index="0"></div>
+      <div id="stage" class="clip" data-start="0" data-duration="7.0" data-track-index="1">
+        <div id="camera">
+          <div id="phone">
+            <div id="screen">
+              <div id="appBar"><div id="appTitle">AI 助手</div></div>
+              <div id="notch"></div>
+              <div id="chat">
+                <div class="bubble me" id="b1">帮我写一份活动方案</div>
+                <div class="bubble" id="b2">好的，方案我已经写好了，包含目标、流程和预算三部分…</div>
+              </div>
+            </div>
+          </div>
+          <div id="freeTag">免费</div>
+          <div id="backstage"></div>
+          <div id="noBill">不算账</div>
+        </div>
+      </div>
+    </div>
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+
+      // 后台通道里的 token 单位（确定性布局）
+      const bs = document.getElementById('backstage');
+      const CHANNELS = 5, UNITS_PER = 4;
+      const units = [];
+      for (let c = 0; c < CHANNELS; c++) {
+        const ch = document.createElement('div');
+        ch.className = 'channel';
+        ch.style.top = (c * 150) + 'px';
+        ch.setAttribute('data-layout-ignore', '');
+        bs.appendChild(ch);
+        for (let u = 0; u < UNITS_PER; u++) {
+          const el = document.createElement('div');
+          el.className = 'unit';
+          el.setAttribute('data-layout-ignore', '');
+          ch.appendChild(el);
+          units.push({ el, ch: c, idx: u });
+        }
+      }
+      // 初始：单位排在通道外（右侧），准备往左流
+      units.forEach((u) => gsap.set(u.el, { x: 700 + u.idx * 150, opacity: 0.9 }));
+
+      // 承 s13/s14 末态
+      gsap.set('#phone', { z: -150 });
+      gsap.set('#freeTag', { y: -40 });
+      gsap.set('#backstage', { x: 0 });
+      gsap.set('#noBill', { xPercent: -50, yPercent: -50, opacity: 0 });
+
+      // ── 时间表（30fps）──────────────────────────────────────────
+      //  0.00–0.50  承 s14：手机与对话在场
+      //  0.50–1.10  手机轻微左移，右侧腾出"后台"位置
+      //  1.10–1.75  「免费」标签落到手机上方（点明这事的性质）
+      //  1.75–3.20  后台通道显形，token 单位开始**照常流动**
+      //  3.20–3.70  但这些单位上**没有任何计量标记**（账单缺席）
+      //  3.70–4.40  "不算账"三个字浮出（口语说"没有算账的必要性"）
+      //  4.40–7.00  两个视角并置停留（前台免费 / 后台在流但不记账）
+      const T_SHIFT = 0.50;
+      const T_TAG   = 1.10;
+      const T_FLOW  = 1.75;
+      const T_NOBILL= 3.20;
+      const T_WORD  = 3.70;
+      const T_HOLD  = 4.40;
+
+      // ① 手机左移腾位
+      tl.to('#phone', { x: -390, duration: 0.80, ease: 'power2.inOut' }, T_SHIFT);
+
+      // ② 「免费」标签落下（有重量）
+      tl.to('#freeTag', { opacity: 1, y: 0, duration: 0.52, ease: 'back.out(1.5)' }, T_TAG);
+      tl.to('#phone', { z: -100, duration: 0.60, ease: 'power2.out' }, T_TAG + 0.10);
+
+      // ③ 后台显形 + token 单位开始流动
+      tl.to('#backstage', { opacity: 1, duration: 0.55, ease: 'power2.out' }, T_FLOW);
+      units.forEach((u, i) => {
+        const d = (u.ch * 0.10 + u.idx * 0.06);
+        tl.to(u.el, {
+          x: -160 - u.idx * 60,
+          duration: 2.6, ease: 'none',
+          repeat: 1,
+        }, T_FLOW + 0.20 + d);
+      });
+
+      // ④ 没有计量标记 —— 通道上什么都不标（有意的空）
+      //    这里**不加任何数字/刻度**，让"缺席"被看见
+      tl.to('#noBill', { opacity: 1, duration: 0.55, ease: 'power2.out' }, T_WORD);
+
+      // ⑤ 并置停留 + 极轻呼吸
+      tl.to('#phone', { z: -80, duration: 1.30, ease: 'sine.inOut' }, T_HOLD);
+      tl.to('#freeTag', { y: -7, duration: 1.20, ease: 'sine.inOut' }, T_HOLD + 0.30);
+      tl.to('#freeTag', { y: 0,  duration: 1.20, ease: 'sine.inOut' }, T_HOLD + 1.55);
+
+      window.__timelines['s15'] = tl;
+      tl.seek(0);
+    </script>
+  </body>
+</html>

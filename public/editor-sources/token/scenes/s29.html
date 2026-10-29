@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="zh" data-resolution="landscape">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>s29 · V3 段19 · 免费就不跟你算账</title>
+    <!-- 服务 SCRIPT-EP1-V3.md 第 19 段：
+         「绝大部分办公型 AI 都是免费的。免费就不跟你算账，不算账你就看不见。」
+         旁白 62.68–68.12（5.44s）
+         镜头 62.68–68.42（= 旁白 + 段尾停顿 0.30s）= 5.74s
+
+         ══ 逐拍（按 5.15 字/秒 从旁白算出，不凭感觉）══
+         62.68–63.90  绝大部分办公型 AI      → 一排 AI 应用图标逐个亮起
+         63.90–65.15  都是免费的。          → 每个图标贴上一枚「免费」标
+         65.15–66.20  免费就不跟你算账，    → 图标排满；底下那张账单**还在**
+         66.20–68.12  不算账你就看不见。    → 账单**沉下去、退出画面**（看不见了）
+
+         ══ 手法出处 ══
+         · 参考视频拆解「规律 4：人名/公司名 → 图卡」
+             卡原文：「提到哪个主体，就出哪个主体的图卡。」
+             → 提到"办公型 AI"，就给**一排 AI 应用图标**。
+
+         · 参考视频拆解「规律 1：凡是可以具象的词，都给实体画面」
+             「免费」→ 真的给**营销标签**（真实世界里 App Store 就这么标的）。
+             ⚠️ 用户确认过：这是**产品自己的营销标签**，不是旁白字幕。
+
+         · shotcraft `icon-field-colorize`（图标点阵铺满）
+             卡原文：「灰阶小图标点阵错峰浮现铺满全屏，停一拍后……
+             品牌色横带波纹极快向下扫翻全场。」
+             → 借它的"点阵错峰铺满"，但**不做彩色扫翻**
+               （那是"功能全景点亮"的语义，跟本镜无关）。
+
+         · 判例 R1「关键信息落定后必须呼吸」
+             → 图标铺满后 hold，让"账单不见了"这件事被看清。
+
+         ⚠️ 用户硬约束：**永远不要编造价格/费率/API 费用**
+            → 「免费」标签是**状态**不是价格，不涉及费率，合规。
+               （真实世界里各家 AI 应用确实都标着免费。）
+
+         ══ 这一镜的语义（全段的落点）══
+         前三镜：计量器（s26）→ 账单空着金额（s27）→ 纸盖住（s28）
+         本镜：**一排免费标签铺满，账单沉下去。**
+         「免费就不跟你算账」= 标签一个个贴上去；
+         「不算账你就看不见」= 底下那张账单退出画面。
+         两件事同时发生，因果就成立了 —— 不写因果链的箭头。
+
+         ══ 接缝 ══
+         入：承 s28 末态 —— 纸盖着账单，账单在画面右侧，计量器在左侧暗着。
+         出：图标铺满全屏，账单已沉出画外。
+             下一镜（段20「那它凭什么免费？」）从这片"免费"里起手。 -->
+    <script src="../gsap.min.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1920px; height: 1080px; overflow: hidden; background: #0b0d10; }
+      @font-face { font-family: "Noto Sans SC"; font-weight: 900;
+        src: url("../assets/fonts/noto-sans-sc-900.woff2") format("woff2"); font-display: block; }
+      @font-face { font-family: "IBM Plex Mono"; font-weight: 500;
+        src: url("../assets/fonts/plex-mono-500.woff2") format("woff2"); font-display: block; }
+
+      #root { position: relative; width: 1920px; height: 1080px; overflow: hidden; }
+      #space { position: absolute; inset: 0; background: #0b0d10; }
+
+      /* ══ 光：承 s28 —— 已散开，本镜不再动 ══ */
+      .shroud { position: absolute; top: 0; height: 1080px; width: 4000px; }
+      #shroudL { left: -4000px;
+        background: linear-gradient(90deg,
+          #0b0d10 0px, #0b0d10 3580px, rgba(11,13,16,0) 3720px); }
+      #shroudR { left: 280px;
+        background: linear-gradient(90deg,
+          rgba(11,13,16,0) 0px, #0b0d10 140px, #0b0d10 4000px); }
+
+      /* ══ 计量器：承 s28，**同一位置同一缩放** ══ */
+      #stage { position: absolute; inset: 0; }
+      #meter {
+        position: absolute; left: 50%; top: 50%;
+        width: 660px; height: 460px;
+        margin-left: -330px; margin-top: -230px;
+        border-radius: 22px;
+        background: linear-gradient(168deg, #6d7683 0%, #4e5661 40%, #333a44 100%);
+        box-shadow:
+          inset 0 2px 0 rgba(255,255,255,0.40),
+          inset 0 -3px 0 rgba(0,0,0,0.50),
+          0 0 0 1px rgba(255,255,255,0.20),
+          0 40px 90px rgba(0,0,0,0.70);
+      }
+      #meterPlate {
+        position: absolute; left: 34px; right: 34px; top: 26px; height: 46px;
+        border-radius: 8px;
+        background: linear-gradient(180deg, rgba(255,255,255,0.16), rgba(255,255,255,0.06));
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.28);
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 0 18px;
+        font-family: "IBM Plex Mono", monospace; font-weight: 500;
+        font-size: 19px; letter-spacing: 0.24em; color: rgba(232,240,252,0.78);
+      }
+      #meterPlate .dot {
+        width: 11px; height: 11px; border-radius: 50%;
+        background: #7df0b4; box-shadow: 0 0 14px rgba(125,240,180,0.9);
+      }
+      #window {
+        position: absolute; left: 34px; right: 34px; top: 96px; height: 190px;
+        border-radius: 14px; overflow: hidden;
+        background: linear-gradient(180deg, #07090c 0%, #0c1014 50%, #05070a 100%);
+        box-shadow: inset 0 4px 14px rgba(0,0,0,0.92),
+                    inset 0 -2px 0 rgba(255,255,255,0.06),
+                    0 1px 0 rgba(255,255,255,0.10);
+      }
+      #tape { position: absolute; left: 0; top: 0; width: 592px; }
+      #winMask {
+        position: absolute; inset: 0;
+        -webkit-mask-image: linear-gradient(180deg,
+          rgba(0,0,0,0) 0%, #000 30%, #000 70%, rgba(0,0,0,0) 100%);
+        mask-image: linear-gradient(180deg,
+          rgba(0,0,0,0) 0%, #000 30%, #000 70%, rgba(0,0,0,0) 100%);
+      }
+      .tick {
+        position: absolute; left: 0; width: 592px; height: 190px;
+        display: flex; align-items: center; justify-content: center;
+        font-family: "IBM Plex Mono", monospace; font-weight: 500;
+        font-size: 92px; letter-spacing: 0.02em; color: #d8f0e4;
+        text-shadow: 0 0 34px rgba(110,230,170,0.42);
+      }
+      #meterFoot {
+        position: absolute; left: 34px; right: 34px; bottom: 30px; height: 62px;
+        border-radius: 10px;
+        background: linear-gradient(180deg, rgba(255,255,255,0.14), rgba(0,0,0,0.14));
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.24);
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 0 22px;
+      }
+      #meterFoot .unit {
+        font-family: "IBM Plex Mono", monospace; font-weight: 500;
+        font-size: 27px; letter-spacing: 0.26em; color: rgba(232,240,252,0.88);
+      }
+      #meterFoot .lamp { display: flex; gap: 9px; }
+      #meterFoot .lamp i {
+        width: 9px; height: 26px; border-radius: 3px;
+        background: rgba(255,255,255,0.20);
+      }
+      #meterFoot .lamp i.on { background: #7df0b4; box-shadow: 0 0 14px rgba(125,240,180,0.9); }
+
+      /* ══ 账单 + 盖纸：承 s28 ══ */
+      #billHost { position: absolute; inset: 0; }
+      #bill {
+        position: absolute; left: 950px; top: 120px;
+        width: 690px; height: 840px;
+        box-sizing: border-box;
+        border-radius: 6px;
+        background: linear-gradient(178deg, #fbfaf7 0%, #f3f1ea 60%, #e9e6dd 100%);
+        box-shadow: 0 0 0 1px rgba(0,0,0,0.22), 0 50px 110px rgba(0,0,0,0.72);
+        padding: 48px 52px;
+        font-family: "Noto Sans SC", sans-serif; font-weight: 900;
+        color: #23262b;
+      }
+      #bill .head { font-size: 52px; letter-spacing: 0.24em; line-height: 1; }
+      #bill .meta {
+        margin-top: 14px;
+        font-family: "IBM Plex Mono", monospace; font-weight: 500;
+        font-size: 21px; letter-spacing: 0.16em; color: #6b7280;
+      }
+      #bill .rule { height: 2px; margin: 30px 0; background: #23262b; opacity: 0.82; }
+      #bill .rule.thin { height: 1px; opacity: 0.30; margin: 22px 0; }
+      #bill .cols, #bill .row {
+        display: grid; grid-template-columns: 1fr 220px 190px; align-items: center;
+      }
+      #bill .cols {
+        font-size: 24px; letter-spacing: 0.14em; color: #4b5563; padding-bottom: 14px;
+      }
+      #bill .cols .r, #bill .row .r { text-align: right; }
+      #bill .row { height: 86px; font-size: 29px; white-space: nowrap; }
+      #bill .row .n {
+        font-family: "IBM Plex Mono", monospace; font-weight: 500;
+        font-size: 27px; text-align: right; color: #1f2937; white-space: nowrap;
+      }
+      #bill .blank {
+        display: block; height: 3px; border-radius: 2px;
+        background: linear-gradient(90deg,
+          rgba(35,38,43,0.10) 0%, rgba(35,38,43,0.26) 18%,
+          rgba(35,38,43,0.26) 82%, rgba(35,38,43,0.10) 100%);
+      }
+      #bill .total {
+        display: grid; grid-template-columns: 1fr 190px; align-items: center; margin-top: 10px;
+      }
+      #bill .total .lbl { font-size: 32px; letter-spacing: 0.18em; }
+      #bill .total .blank { height: 4px; }
+
+      #sheet {
+        position: absolute; left: 950px; top: 120px;
+        width: 690px; height: 840px; box-sizing: border-box;
+        border-radius: 6px;
+        background: linear-gradient(176deg,
+          rgba(252,251,248,0.93) 0%, rgba(247,245,239,0.90) 58%,
+          rgba(240,237,229,0.88) 100%);
+        -webkit-backdrop-filter: blur(1.2px);
+        backdrop-filter: blur(1.2px);
+        box-shadow: 0 0 0 1px rgba(0,0,0,0.16), 0 26px 60px rgba(0,0,0,0.55);
+      }
+
+      /* ══ ⭐ 那一排 AI 应用图标（**App Store 官方 512px 图标**）══
+         参考视频「规律 4」：提到哪个主体就出哪个主体的图卡。
+         ⚠️ App Store 的图标**自带圆角和底色**，所以这里不再套品牌色底
+            （套了会双重圆角）。直接贴图，照 App Store 的做法。 */
+      .app {
+        position: absolute;
+        width: 168px; height: 168px; border-radius: 38px;
+        overflow: hidden;
+        box-shadow: 0 22px 50px rgba(0,0,0,0.66);
+      }
+      .app img {
+        width: 100%; height: 100%; object-fit: cover; display: block;
+      }
+      /* 图标底下的小字：应用名（真实的图标下面都有名字） */
+      .appName {
+        position: absolute;
+        font-family: "Noto Sans SC", sans-serif; font-weight: 900;
+        font-size: 24px; letter-spacing: 0.04em;
+        color: rgba(226,234,246,0.80); white-space: nowrap;
+        text-align: center;
+      }
+      /* ⭐ 「免费」标 —— 产品自己的营销标签（不是旁白字幕）
+         造型照 App Store 的标签：圆角胶囊 + 实色底 + 白字。 */
+      .freeTag {
+        position: absolute;
+        padding: 8px 18px; border-radius: 10px;
+        background: linear-gradient(158deg, #2f9e6b 0%, #1f7450 100%);
+        box-shadow: 0 10px 24px rgba(0,0,0,0.55),
+                    inset 0 1px 0 rgba(255,255,255,0.30);
+        font-family: "Noto Sans SC", sans-serif; font-weight: 900;
+        font-size: 27px; line-height: 1; color: #ffffff;
+        letter-spacing: 0.08em; white-space: nowrap;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="s29" data-start="0" data-duration="5.74"
+         data-width="1920" data-height="1080">
+      <div id="space" class="clip" data-start="0" data-duration="5.74" data-track-index="0"></div>
+      <div id="stage" class="clip" data-start="0" data-duration="5.74" data-track-index="1">
+        <div id="meter">
+          <div id="meterPlate"><span>TOKEN METER</span><span class="dot"></span></div>
+          <div id="window"><div id="winMask"><div id="tape"></div></div></div>
+          <div id="meterFoot">
+            <span class="unit">token</span>
+            <span class="lamp"><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span>
+          </div>
+        </div>
+      </div>
+      <div id="billHost" class="clip" data-start="0" data-duration="5.74" data-track-index="2">
+        <div id="bill">
+          <div class="head">账单</div>
+          <div class="meta">INVOICE &nbsp;·&nbsp; 2026-10-08 &nbsp;·&nbsp; NO. 0001</div>
+          <div class="rule"></div>
+          <div class="cols"><span>项目</span><span class="r">数量</span><span class="r">金额</span></div>
+          <div class="rule thin"></div>
+          <div class="row"><span>模型推理</span><span class="n">1,240,000</span><span><i class="blank"></i></span></div>
+          <div class="row"><span>上下文缓存</span><span class="n">8,600,000</span><span><i class="blank"></i></span></div>
+          <div class="row"><span>语音识别</span><span class="n">42,000</span><span><i class="blank"></i></span></div>
+          <div class="row"><span>图像生成</span><span class="n">8,400</span><span><i class="blank"></i></span></div>
+          <div class="rule"></div>
+          <div class="total"><span class="lbl">合计</span><i class="blank"></i></div>
+        </div>
+        <div id="sheet"></div>
+      </div>
+      <div class="clip" id="appsHost" data-start="0" data-duration="5.74" data-track-index="3"></div>
+    </div>
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+
+      // ══ 滚轮数字带（与 s26–s28 同一套 BASE/STEP）══
+      const tape = document.getElementById('tape');
+      const N = 26, H = 190, BASE = 1204000, STEP = 40000;
+      for (let i = 0; i < N; i++) {
+        const t = document.createElement('div');
+        t.className = 'tick';
+        t.style.top = (i * H) + 'px';
+        t.textContent = (BASE + i * STEP).toLocaleString('en-US');
+        t.setAttribute('data-layout-ignore', '');
+        tape.appendChild(t);
+      }
+      tape.style.height = (N * H) + 'px';
+
+      // ══ ⭐ 那一排应用图标（**App Store 官方 512px 图标**）══
+      // 图标取自 App Store（../assets/apps/SOURCES.md 有来源）。
+      // ⚠️ 豆包放在**第一排第一个**：它是下一镜（彩蛋）的主角，
+      //    位置要先立住，观众的眼睛已经在那儿了。
+      const APPS = [
+        { x:  210, y: 250, icon: 'doubao.png',   name: '豆包' },
+        { x:  540, y: 250, icon: 'qwen.png',     name: '通义千问' },
+        { x:  870, y: 250, icon: 'deepseek.png', name: 'DeepSeek' },
+        { x: 1200, y: 250, icon: 'zhipu.png',    name: '智谱清言' },
+        { x:  210, y: 620, icon: 'kimi.png',     name: 'Kimi' },
+        { x:  540, y: 620, icon: 'yuanbao.png',  name: '腾讯元宝' },
+        { x:  870, y: 620, icon: 'spark.png',    name: '讯飞星火' },
+        { x: 1200, y: 620, icon: 'wenxin.png',   name: '文心一言' },
+      ];
+      const appsBox = document.getElementById('appsHost');
+      const appEls = [], tagEls = [];
+      APPS.forEach((a) => {
+        const el = document.createElement('div');
+        el.className = 'app';
+        el.style.left = a.x + 'px';
+        el.style.top = a.y + 'px';
+        // ⭐ 真实图标（App Store 512px，自带圆角底色 —— 不再套品牌色底）
+        const img = document.createElement('img');
+        img.src = '../assets/apps/' + a.icon;
+        img.alt = '';
+        img.setAttribute('data-layout-ignore', '');
+        el.appendChild(img);
+        el.setAttribute('data-layout-ignore', '');
+        appsBox.appendChild(el);
+        appEls.push(el);
+
+        const nm = document.createElement('div');
+        nm.className = 'appName';
+        nm.textContent = a.name;
+        nm.style.left = (a.x - 40) + 'px';
+        nm.style.width = '248px';
+        nm.style.top = (a.y + 184) + 'px';
+        nm.setAttribute('data-layout-ignore', '');
+        appsBox.appendChild(nm);
+
+        // 「免费」标签贴在图标右上角
+        const tag = document.createElement('div');
+        tag.className = 'freeTag';
+        tag.textContent = '免费';
+        tag.style.left = (a.x + 92) + 'px';
+        tag.style.top = (a.y - 18) + 'px';
+        tag.setAttribute('data-layout-ignore', '');
+        appsBox.appendChild(tag);
+        tagEls.push(tag);
+      });
+
+      // ══ 初始态：**承 s28 末态**（不重画、不复位）══
+      gsap.set('#stage', { scale: 0.62, x: -150, y: -50, transformOrigin: '50% 50%', opacity: 0.40 });
+      gsap.set('#tape', { y: -19 * H });          // 1,964,000（s28 的落点）
+      gsap.set('#shroudL', { x: 920 });
+      gsap.set('#shroudR', { x: 1580 });
+      gsap.set('#sheet', { scaleY: 1, transformOrigin: '50% 0%' });
+      gsap.set(appEls, { opacity: 0, scale: 0.86 });
+      gsap.set(tagEls, { opacity: 0, scale: 0.80 });
+
+      // ══ 时间表（5.74s）—— 逐拍对齐旁白 ════════════════════════
+      //  0.00–1.22  绝大部分办公型 AI    → 图标**逐个亮起**（错峰铺满）
+      //  1.22–2.47  都是免费的。         → 每个图标贴上一枚「免费」标
+      //  2.47–3.52  免费就不跟你算账，   → 图标排满、停一拍
+      //  3.52–5.44  不算账你就看不见。   → 底下那张账单**沉下去、退出画面**
+      //  5.44–5.74  段尾停顿（呼吸）
+      const T_APPS = 0.00;
+      const T_FREE = 1.22;
+      const T_SINK = 3.52;
+      const T_HOLD = 5.44;
+
+      // ① 图标逐个亮起（错峰 0.11s —— `icon-field-colorize` 的点阵铺满）
+      appEls.forEach((el, i) => {
+        tl.to(el, { opacity: 1, scale: 1, duration: 0.46, ease: 'power3.out' },
+          T_APPS + i * 0.11);
+      });
+
+      // ② 每个图标贴上一枚「免费」标（跟着图标走，错峰 0.09s）
+      tagEls.forEach((el, i) => {
+        tl.to(el, { opacity: 1, scale: 1, duration: 0.40, ease: 'back.out(1.6)' },
+          T_FREE + i * 0.09);
+      });
+
+      // ③ 计量器继续暗下去（它已经退场了）
+      tl.to('#stage', { opacity: 0.16, duration: 1.20, ease: 'power2.inOut' }, T_FREE);
+
+      // ④ ⭐ 落点：**账单沉下去、退出画面** —— 「不算账你就看不见」
+      //    纸和账单一起往下走（它们是一体的），不是淡出
+      //    （淡出读作"消失了"，沉下去读作"被推到看不见的地方"）
+      tl.to('#billHost', { y: 1180, duration: 1.10, ease: 'power2.in' }, T_SINK);
+      tl.to('#billHost', { opacity: 0, duration: 0.50, ease: 'power2.in' }, T_SINK + 0.70);
+
+      // ⑤ 呼吸（判例 R1：关键信息落定后必须停）
+      tl.to('#appsHost', { scale: 1.014, duration: 1.10, ease: 'sine.inOut' }, T_HOLD);
+      tl.to('#appsHost', { scale: 1.000, duration: 1.10, ease: 'sine.inOut' }, T_HOLD + 1.20);
+
+      window.__timelines['s29'] = tl;
+    </script>
+  </body>
+</html>

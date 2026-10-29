@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="zh" data-resolution="landscape">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>镜 02 · 无数科技大佬</title>
+    <script src="../gsap.min.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1920px; height: 1080px; overflow: hidden; background: #000; }
+
+      @font-face {
+        font-family: "Big Shoulders Display"; font-weight: 800;
+        src: url("../assets/fonts/big-shoulders-800.woff2") format("woff2"); font-display: block;
+      }
+      @font-face {
+        font-family: "IBM Plex Mono"; font-weight: 500;
+        src: url("../assets/fonts/plex-mono-500.woff2") format("woff2"); font-display: block;
+      }
+
+      #root { position: relative; width: 1920px; height: 1080px; overflow: hidden; }
+      #space {
+        position: absolute; inset: 0;
+        background: radial-gradient(ellipse 118% 76% at 50% 14%,
+          #23262e 0%, #1a1d23 40%, #111318 72%, #0b0d11 100%);
+      }
+      #lightpool {
+        position: absolute; left: 50%; top: -34%;
+        width: 1500px; height: 900px; margin-left: -750px;
+        background: radial-gradient(ellipse 50% 50% at 50% 50%,
+          rgba(214,228,255,0.15) 0%, rgba(180,200,240,0.06) 38%, rgba(0,0,0,0) 72%);
+      }
+      #floor {
+        position: absolute; left: -20%; right: -20%; bottom: -16%; height: 48%;
+        background: linear-gradient(180deg, rgba(255,255,255,0.045) 0%, rgba(255,255,255,0) 68%);
+        transform: perspective(900px) rotateX(68deg); transform-origin: 50% 0%;
+      }
+
+      /* ═══ 3D 舞台：真透视，卡片有真实 z ═══ */
+      #stage { position: absolute; inset: 0; perspective: 1400px; perspective-origin: 50% 48%; }
+      #camera { position: absolute; inset: 0; transform-style: preserve-3d; }
+
+      /* ═══ 实体卡片：正面 + 背面 + 厚度侧面 ═══ */
+      .card {
+        position: absolute; left: 50%; top: 50%;
+        width: 420px; height: 560px;
+        margin-left: -210px; margin-top: -280px;
+        transform-style: preserve-3d;
+        will-change: transform, opacity;
+      }
+      .face {
+        position: absolute; inset: 0; border-radius: 18px; overflow: hidden;
+        backface-visibility: hidden;
+        -webkit-backface-visibility: hidden;
+        background: linear-gradient(158deg, #f6f4f0 0%, #e9e6df 58%, #dcd8cf 100%);
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.95), inset 0 -2px 0 rgba(0,0,0,0.12);
+      }
+      /* 厚度侧面：一叠薄层，翻转时就是厚度。
+         两层拉开 22px —— 只差 11px 时透视会让正反面互相透出。 */
+      .edge {
+        position: absolute; inset: 0; border-radius: 18px;
+        background: linear-gradient(158deg, #cfcbc2 0%, #a8a49b 100%);
+        transform: translateZ(-11px);
+      }
+      /* ⚠ 不用 backface-visibility 做正反两面：软件渲染（CI 无 GPU）下
+         它在 preserve-3d 的嵌套面上不可靠，实测正反面会同时透出
+         （人脸浮在 Token 字后面）。改成两个独立元素，在时间轴上硬切换。 */
+      .face.front { transform: translateZ(11px); }
+      .face.back  { transform: translateZ(-11px); }
+
+      .face img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+      /* 人像上的压暗，让底部标签区沉下来 */
+      .face .scrim {
+        position: absolute; inset: 0;
+        background: linear-gradient(180deg, rgba(0,0,0,0) 46%, rgba(0,0,0,0.82) 100%);
+      }
+      /* 人名标签：坐在实体底板上 —— 靠压暗影像不够，
+         影像亮部会让字掉到 1.3:1（实测被 lint 判对比度不足）。 */
+      .face .plate {
+        position: absolute; left: 0; right: 0; bottom: 0;
+        height: 86px;
+        background: linear-gradient(180deg, rgba(8,10,14,0) 0%, rgba(8,10,14,0.92) 46%, rgba(8,10,14,0.98) 100%);
+      }
+      .face .idtag {
+        position: absolute; left: 22px; bottom: 22px; right: 22px;
+        font-family: "IBM Plex Mono", monospace; font-weight: 500;
+        font-size: 17px; letter-spacing: 0.16em; color: #ffffff;
+        text-transform: uppercase;
+        text-shadow: 0 1px 3px rgba(0,0,0,0.95);
+      }
+      .face .stamp {
+        position: absolute; left: 22px; top: 20px; width: 40px; height: 3px;
+        background: rgba(255,255,255,0.92);
+        box-shadow: 0 1px 3px rgba(0,0,0,0.7);
+      }
+
+      /* 母题字（就是 s01 那一个，本镜的起点） */
+      #word {
+        position: absolute; left: 50%; top: 50%;
+        font-family: "Big Shoulders Display", sans-serif; font-weight: 800;
+        font-size: 340px; line-height: 1; letter-spacing: 0.004em;
+        white-space: nowrap;
+        background: linear-gradient(180deg, #ffffff 0%, #f4f1ec 34%, #ddd8d0 62%, #a8a49b 100%);
+        -webkit-background-clip: text; background-clip: text;
+        -webkit-text-fill-color: transparent; color: transparent;
+        will-change: transform, opacity;
+      }
+
+      /* 鼠标：镜头行为的触发器 */
+      #cursor { position: absolute; left: 0; top: 0; width: 34px; height: 46px; z-index: 90; }
+      #clickring {
+        position: absolute; left: 0; top: 0; width: 90px; height: 90px; margin: -45px 0 0 -45px;
+        border-radius: 50%; border: 2px solid rgba(255,255,255,0.95); opacity: 0; z-index: 89;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="s02" data-start="0" data-duration="7.9"
+         data-width="1920" data-height="1080">
+      <div id="space"     class="clip" data-start="0" data-duration="7.9" data-track-index="0"></div>
+      <div id="lightpool" class="clip" data-start="0" data-duration="7.9" data-track-index="1" data-layout-allow-overflow></div>
+      <div id="floor"     class="clip" data-start="0" data-duration="7.9" data-track-index="2" data-layout-allow-overflow></div>
+
+      <div id="stage" class="clip" data-start="0" data-duration="7.9" data-track-index="3">
+        <div id="camera">
+          <div id="pile"></div>
+          <div id="word">Token</div>
+          <div id="cursor" data-layout-ignore>
+            <svg viewBox="0 0 34 46" width="34" height="46">
+              <path d="M4 2 L4 36 L13 27 L19 42 L25 39 L19 25 L31 25 Z"
+                    fill="#ffffff" stroke="#14161a" stroke-width="2.2" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div id="clickring" data-layout-ignore></div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+
+      // 确定性 PRNG（HyperFrames 禁用未播种的 Math.random）
+      let seed = 77002;
+      const rnd = () => { seed = (seed * 1664525 + 1013904223) % 4294967296; return seed / 4294967296; };
+
+      const CX = 960, CY = 540;
+
+      // ── 人物：5 位（真人影像）──────────────────────────────────
+      const PEOPLE = [
+        { img: '../assets/people/jensen.jpg',  id: 'JENSEN HUANG' },
+        { img: '../assets/people/altman.jpg',  id: 'SAM ALTMAN' },
+        { img: '../assets/people/pichai.jpg',  id: 'SUNDAR PICHAI' },
+        { img: '../assets/people/musk.jpg',    id: 'ELON MUSK' },
+        { img: '../assets/people/nadella.jpg', id: 'SATYA NADELLA' },
+      ];
+      // 中心那张（翻转后的本体）就是黄仁勋
+      const HERO = PEOPLE[0];
+
+      // ── 中心卡：字翻转成的实体 ─────────────────────────────────
+      const centerFront = document.createElement('div');
+      centerFront.className = 'card';
+      centerFront.id = 'card-front';
+      centerFront.innerHTML = `
+        <div class="face front" data-layout-ignore>
+          <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+                      font-family:'Big Shoulders Display',sans-serif;font-weight:800;font-size:150px;
+                      letter-spacing:0.004em;color:#191b1f;">Token</div>
+        </div>`;
+      const centerBack = document.createElement('div');
+      centerBack.className = 'card';
+      centerBack.id = 'card-back';
+      centerBack.innerHTML = `
+        <div class="edge"></div>
+        <div class="face front">
+          <img src="${HERO.img}" alt="" />
+          <div class="scrim"></div>
+          <div class="plate"></div>
+          <div class="stamp"></div>
+          <div class="idtag">${HERO.id}</div>
+        </div>`;
+      const pile = document.getElementById('pile');
+      pile.appendChild(centerFront);
+      pile.appendChild(centerBack);
+      // centerFront / centerBack 是两个独立元素；不再用单一 center 指针
+
+      // ── 分裂出来的卡片：4 张卫星卡 ──────────────────────────────
+      // 坐标**反解自屏幕目标**，不是凭感觉摆的：
+      //   先定屏幕占位（中心 340×452 @ 屏心；卫星 210×280 @ 四角）
+      //   再用 元素XY = (屏幕XY − 屏心) / 透视缩放  反解回 GSAP 坐标
+      //   （透视缩放 = 1400 / (1400 − (元素z + 相机z))，相机后拉 −460）
+      //   最后用**分离轴定理**（含旋转、含间隙）验两两不重叠、全在画面内。
+      // 之前用"包围盒 + 凭感觉半径"搜不出解 —— 旋转后的形状包围盒盖不住。
+      // 卫星卡刻意比中心卡小：读作"从一个词推开的许多人在谈"，
+      // 而不是同等大小的复制品堆一屏（那正是"多排方框卡片"的病因）。
+      const SPLIT = [
+        { p: 1, x: -872, y: -374, z: -320, rot: -8, sc: 0.779, lag: 0.00 }, // 左上
+        { p: 2, x:  872, y: -374, z: -320, rot:  8, sc: 0.779, lag: 0.05 }, // 右上
+        { p: 3, x: -903, y:  405, z: -320, rot: -7, sc: 0.779, lag: 0.09 }, // 左下
+        { p: 4, x:  841, y:  405, z: -320, rot:  9, sc: 0.779, lag: 0.13 }, // 右下
+      ];
+
+      const splitEls = SPLIT.map((s) => {
+        const who = PEOPLE[s.p];
+        const el = document.createElement('div');
+        el.className = 'card';
+        el.innerHTML = `
+          <div class="edge"></div>
+          <div class="face front">
+            <img src="${who.img}" alt="" />
+            <div class="scrim"></div>
+            <div class="stamp"></div>
+            <div class="idtag">${who.id}</div>
+          </div>
+          <div class="dim" style="position:absolute;inset:0;border-radius:18px;
+               background:#05070c;opacity:0;transform:translateZ(12px);pointer-events:none;"></div>`;
+        document.getElementById('pile').appendChild(el);
+        return { el, img: who.img, id: who.id, ...s };
+      });
+
+      // ── 初始状态（时间轴外，立即生效）────────────────────────────
+      gsap.set(['#word'], { xPercent: -50, yPercent: -50 });
+      gsap.set('#word', { opacity: 1, y: -6 });   // 承接 s01 末尾的呼吸偏移，接缝无跳变
+      // 正面（Token 卡）与背面（人像卡）是同一位置的独立元素，
+      // 用 opacity 硬切换 —— 不依赖 backface-visibility。
+      gsap.set(centerFront, { x: 0, y: 0, z: 0, rotateY: 0, opacity: 0 });
+      gsap.set(centerBack,  { x: 0, y: 0, z: 0, rotateY: 0, opacity: 0 });
+      gsap.set(splitEls.map((s) => s.el), { x: 0, y: 0, z: -40, scale: 0.86, rotateY: 0, opacity: 0 });
+      gsap.set('#cursor', { x: 1560, y: 860, opacity: 0 });
+      gsap.set('#clickring', { scale: 0.35 });
+
+      // ── 时间表（30fps）────────────────────────────────────────
+      //  0.00–0.70  承 s01：Token 持字（元素继承，不清屏）
+      //  0.70–1.70  鼠标从画外自然移入，停在 Token 上
+      //  1.70–1.82  点击：白环反馈 + 镜头被"点"吸引而推进
+      //  1.82–2.72  Token 沿垂直轴翻转 → 变成有厚度的实体卡片
+      //  2.72–3.30  卡片稳住（可读停留）
+      //  3.30–3.75  鼠标移到卡上
+      //  3.75–3.87  第二次点击
+      //  3.87–5.05  卡片从中心实体分裂 → 向纵深散开
+      //  4.35–5.60  镜头同步后拉（卡片越开，镜头越远）
+      //  5.60–7.20  稳定 + 呼吸
+      const F = 1 / 30;
+      const T_ENTER    = 0.10;   // 立刻进场 —— s01 末尾还在呼吸，接缝处不留静止空档
+      const T_CLICK1   = 1.36;
+      const T_FLIP     = 1.48;
+      const T_FLIP_END = 2.38;
+      const T_MOVE2    = 2.96;
+      const T_CLICK2   = 3.41;
+      const T_SPLIT    = 3.53;
+      const T_PULL     = 4.01;
+      const T_SETTLE   = 5.26;
+
+      // ① 鼠标入场（自然速度，不是瞬移）
+      tl.to('#cursor', { opacity: 1, duration: 0.22, ease: 'power1.out' }, T_ENTER);
+      tl.to('#cursor', { x: 1002, y: 566, duration: 1.20, ease: 'power2.inOut' }, T_ENTER + 0.08);
+      // 轻微前压 —— 鼠标是"压"在空间里的
+      tl.to('#cursor', { scale: 0.94, duration: 0.09, ease: 'power2.out' }, T_CLICK1);
+      tl.to('#cursor', { scale: 1.0,  duration: 0.16, ease: 'power2.out' }, T_CLICK1 + 0.09);
+
+      // ② 第一次点击：白环炸开（只此一次，克制）
+      // 用 set + to 而非 fromTo —— 同一元素多次 fromTo 无稳定基线，
+      // GSAP 会在授权时按 from 值立即渲染，seek 到早于首个 tween 的位置就穿帮。
+      tl.set('#clickring', { x: 1002, y: 566 }, 0);
+      tl.set('#clickring', { scale: 0.35, opacity: 0.95 }, T_CLICK1 - 1/30);
+      tl.to('#clickring', { scale: 1.5, opacity: 0, duration: 0.42, ease: 'power2.out' }, T_CLICK1);
+
+      // ③ 镜头被点击行为吸引而推进（不是单纯放大 Token）
+      tl.to('#camera', { z: 300, duration: 0.90, ease: 'power3.inOut' }, T_CLICK1 + 0.06);
+
+      // ④ 字 → 实体卡片：翻转
+      //    字沿 Y 轴转到侧棱（90°）即淡出；卡片正面在同一拍接管并继续转完，
+      //    越过 90° 时正面换成背面（两个独立元素 opacity 硬切，无 backface 依赖）。
+      tl.to('#word', {
+        rotateY: 90, scale: 0.94,
+        duration: 0.42, ease: 'power2.in',
+      }, T_FLIP);
+      tl.to('#word', { opacity: 0, duration: 0.16, ease: 'power1.in' }, T_FLIP + 0.34);
+
+      // 卡片正面：从 -90° 转回 0（接力完成整圈），带过冲落定
+      tl.set(centerFront, { rotateY: -90, scale: 0.90, z: -40 }, T_FLIP + 0.30);
+      tl.to(centerFront, { opacity: 1, duration: 0.10, ease: 'none' }, T_FLIP + 0.36);
+      tl.fromTo(centerFront,
+        { rotateY: -90 },
+        { rotateY: -5, duration: 0.62, ease: 'power3.out' },
+        T_FLIP + 0.36);
+      tl.to(centerFront, { rotateY: 0, duration: 0.30, ease: 'power2.inOut' }, T_FLIP + 0.98);
+      // 正面转过 90° 后交给背面
+      tl.to(centerFront, { opacity: 0, duration: 0.10, ease: 'none' }, T_FLIP + 0.98);
+      tl.set(centerBack, { rotateY: 85, scale: 1.0, z: 0 }, T_FLIP + 0.94);
+      tl.to(centerBack, { opacity: 1, duration: 0.10, ease: 'none' }, T_FLIP + 0.98);
+      tl.to(centerBack, { rotateY: 0, scale: 1.05, duration: 0.48, ease: 'power2.out' }, T_FLIP + 0.98);
+      tl.to(centerBack, { scale: 1.026, duration: 0.30, ease: 'power2.inOut' }, T_FLIP + 1.46);
+
+      // ⑤ 鼠标移到卡上
+      tl.to('#cursor', { x: 1074, y: 600, duration: 0.42, ease: 'power2.inOut' }, T_MOVE2);
+      tl.to('#cursor', { scale: 0.94, duration: 0.09, ease: 'power2.out' }, T_CLICK2);
+      tl.to('#cursor', { scale: 1.0,  duration: 0.16, ease: 'power2.out' }, T_CLICK2 + 0.09);
+      tl.set('#clickring', { x: 1074, y: 600 }, T_CLICK2 - 0.02);
+      tl.set('#clickring', { scale: 0.35, opacity: 0.95 }, T_CLICK2 - 1/30);
+      tl.to('#clickring', { scale: 1.7, opacity: 0, duration: 0.46, ease: 'power2.out' }, T_CLICK2);
+
+      // ⑥ 从中心实体分裂 → 向纵深散开（错峰，越晚飞出的越远）
+      splitEls.forEach((s) => {
+        const t0 = T_SPLIT + s.lag;
+        tl.set(s.el, { x: 0, y: 0, z: 20, scale: 0.92, rotateY: 0, opacity: 0 }, t0 - 1/30);
+        tl.set(s.el, { opacity: 1 }, t0);
+        tl.to(s.el,
+          { x: s.x, y: s.y, z: s.z, scale: s.sc, rotateY: s.rot,
+            duration: 0.78, ease: 'power3.out' },
+          t0);
+        // 深度压暗：远的沉下去（不用 filter，避免软件渲染合成问题）
+        tl.to(s.el.querySelector('.dim'), { opacity: s.z < -400 ? 0.46 : (s.z < -200 ? 0.26 : 0.10),
+            duration: 0.70, ease: 'power2.out' }, t0 + 0.10);
+      });
+      // 中心那张：轻推前一点，成为视觉原点
+      tl.to(centerBack, { z: 80, scale: 1.026, duration: 0.70, ease: 'power3.out' }, T_SPLIT + 0.06);
+
+      // ⑦ 镜头同步后拉 —— 卡片越展开，镜头越远（方向必须一致）
+      tl.to('#camera', { z: -460, duration: 1.25, ease: 'power2.inOut' }, T_PULL);
+
+      // ⑧ 鼠标淡出（注意力交还给卡片）
+      tl.to('#cursor', { opacity: 0, duration: 0.34, ease: 'power1.in' }, T_SPLIT + 0.42);
+
+      // ⑨ 稳定后极轻的呼吸（各层不同相位，不是同帧冻结）
+      splitEls.forEach((s, i) => {
+        tl.to(s.el, { y: s.y - 9, duration: 1.5 + i * 0.07, ease: 'sine.inOut' }, T_SETTLE + i * 0.06);
+        tl.to(s.el, { y: s.y,     duration: 1.5 + i * 0.07, ease: 'sine.inOut' }, T_SETTLE + 1.5 + i * 0.06);
+      });
+
+      window.__timelines['s02'] = tl;
+      tl.seek(0);
+    </script>
+  </body>
+</html>

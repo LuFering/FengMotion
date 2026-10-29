@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="zh" data-resolution="landscape">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>镜 13 · 打开手机</title>
+    <script src="../gsap.min.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1920px; height: 1080px; overflow: hidden; background: #000; }
+      @font-face { font-family: "Noto Sans SC"; font-weight: 900;
+        src: url("../assets/fonts/noto-sans-sc-900.woff2") format("woff2"); font-display: block; }
+      @font-face { font-family: "IBM Plex Mono"; font-weight: 500;
+        src: url("../assets/fonts/plex-mono-500.woff2") format("woff2"); font-display: block; }
+
+      #root { position: relative; width: 1920px; height: 1080px; overflow: hidden; }
+      #space {
+        position: absolute; inset: 0;
+        background: radial-gradient(ellipse 118% 78% at 50% 40%,
+          #1e222a 0%, #161a20 44%, #0e1115 76%, #090a0d 100%);
+      }
+      #lightpool {
+        position: absolute; left: 50%; top: -26%;
+        width: 1500px; height: 900px; margin-left: -750px;
+        background: radial-gradient(ellipse 50% 50% at 50% 50%,
+          rgba(214,228,255,0.15) 0%, rgba(180,200,240,0.05) 40%, rgba(0,0,0,0) 74%);
+      }
+
+      #stage { position: absolute; inset: 0; perspective: 1700px; perspective-origin: 50% 48%; }
+      #camera { position: absolute; inset: 0; transform-style: preserve-3d; }
+
+      /* ── 手机：真实机身的厚度 + 圆角 + 屏幕 ─────────────────── */
+      /* 放大到占画面主体 —— 这一幕的信息全在界面细节里，太小就读不到 */
+      #phone {
+        position: absolute; left: 50%; top: 50%;
+        width: 640px; height: 1010px;
+        margin-left: -320px; margin-top: -505px;
+        border-radius: 64px;
+        background: linear-gradient(158deg, #3a3f47 0%, #23272e 44%, #14171b 100%);
+        box-shadow:
+          inset 0 1px 0 rgba(255,255,255,0.22),
+          inset 0 -2px 0 rgba(0,0,0,0.5),
+          0 60px 130px rgba(0,0,0,0.78);
+        opacity: 0;
+      }
+      #screen {
+        position: absolute; inset: 14px; border-radius: 42px; overflow: hidden;
+        background: linear-gradient(180deg, #fbfbfc 0%, #f2f3f5 60%, #e9eaee 100%);
+      }
+      /* 灵动岛 / 前摄 */
+      #notch {
+        position: absolute; left: 50%; top: 12px; width: 108px; height: 30px;
+        margin-left: -54px; border-radius: 16px; background: #0c0d0f;
+      }
+      /* App 头部 */
+      #appBar {
+        position: absolute; left: 0; right: 0; top: 0; height: 108px;
+        background: linear-gradient(180deg, #ffffff 0%, #fbfbfc 100%);
+        box-shadow: 0 1px 0 rgba(0,0,0,0.06);
+      }
+      #appTitle {
+        position: absolute; left: 28px; bottom: 18px;
+        font-family: "Noto Sans SC", sans-serif; font-weight: 900;
+        font-size: 27px; color: #14171b;
+      }
+      #appDot {
+        position: absolute; right: 26px; bottom: 22px; width: 34px; height: 34px;
+        border-radius: 50%; background: linear-gradient(158deg, #4a5058, #23272e);
+      }
+      /* 对话区 */
+      /* 气泡用流式布局按顺序堆叠 —— 绝对定位会让它们叠在一起（实测被判重叠） */
+      #chat {
+        position: absolute; left: 0; right: 0; top: 108px; bottom: 132px;
+        padding: 22px 26px; overflow: hidden;
+        display: flex; flex-direction: column; gap: 16px; align-items: flex-start;
+      }
+      .bubble {
+        max-width: 344px;
+        padding: 18px 22px; border-radius: 20px;
+        font-family: "Noto Sans SC", sans-serif; font-weight: 900;
+        font-size: 23px; line-height: 1.6; color: #14171b;
+        background: #ffffff; box-shadow: 0 3px 12px rgba(0,0,0,0.07);
+      }
+      .bubble.me {
+        align-self: flex-end;
+        background: linear-gradient(158deg, #3a4048, #23272e); color: #f2f3f5;
+        box-shadow: 0 3px 12px rgba(0,0,0,0.16);
+      }
+      /* 输入栏 */
+      #inputBar {
+        position: absolute; left: 0; right: 0; bottom: 0; height: 132px;
+        background: linear-gradient(180deg, #fbfbfc 0%, #ffffff 100%);
+        box-shadow: 0 -1px 0 rgba(0,0,0,0.06);
+      }
+      #inputField {
+        position: absolute; left: 24px; right: 92px; top: 30px; height: 72px;
+        border-radius: 36px; background: #eff0f3;
+        box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);
+      }
+      #inputText {
+        position: absolute; left: 26px; top: 21px;
+        font-family: "Noto Sans SC", sans-serif; font-weight: 900;
+        font-size: 23px; color: #14171b; white-space: nowrap;
+      }
+      /* 光标：闪 */
+      #caret {
+        position: absolute; left: 26px; top: 20px; width: 2px; height: 32px;
+        background: #14171b;
+      }
+      #sendBtn {
+        position: absolute; right: 24px; top: 30px; width: 72px; height: 72px;
+        border-radius: 50%; background: linear-gradient(158deg, #4a5058, #23272e);
+      }
+
+      /* 鼠标 */
+      #cursor { position: absolute; left: 0; top: 0; width: 34px; height: 46px; z-index: 90; }
+      #clickring {
+        position: absolute; left: 0; top: 0; width: 90px; height: 90px; margin: -45px 0 0 -45px;
+        border-radius: 50%; border: 2px solid rgba(255,255,255,0.95); opacity: 0; z-index: 89;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="s13" data-start="0" data-duration="6.4"
+         data-width="1920" data-height="1080">
+      <div id="space"     class="clip" data-start="0" data-duration="6.4" data-track-index="0"></div>
+      <div id="lightpool" class="clip" data-start="0" data-duration="6.4" data-track-index="1" data-layout-allow-overflow></div>
+
+      <div id="stage" class="clip" data-start="0" data-duration="6.4" data-track-index="2">
+        <div id="camera">
+          <div id="phone">
+            <div id="screen">
+              <div id="appBar"><div id="appTitle">AI 助手</div><div id="appDot"></div></div>
+              <div id="notch"></div>
+              <div id="chat">
+                <div class="bubble me" id="b1">帮我写一段产品介绍</div>
+                <div class="bubble" id="b2">没问题，我来帮你写。先说说产品面向什么人群？</div>
+              </div>
+              <div id="inputBar">
+                <div id="inputField">
+                  <div id="inputText"></div>
+                  <div id="caret"></div>
+                </div>
+                <div id="sendBtn"></div>
+              </div>
+            </div>
+          </div>
+          <div id="cursor" data-layout-ignore>
+            <svg viewBox="0 0 34 46" width="34" height="46">
+              <path d="M4 2 L4 36 L13 27 L19 42 L25 39 L19 25 L31 25 Z"
+                    fill="#ffffff" stroke="#14161a" stroke-width="2.2" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div id="clickring" data-layout-ignore></div>
+        </div>
+      </div>
+    </div>
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+
+      // 打字内容（逐字显示 —— 用文本逐字追加，不用字号动画）
+      const TYPED = '帮我写一份活动方案';
+      const inputText = document.getElementById('inputText');
+
+      gsap.set('#phone', { opacity: 1, z: -1180, rotateY: 22, scale: 0.96 });
+      gsap.set('#b1', { opacity: 0, y: 16 });
+      gsap.set('#b2', { opacity: 0, y: 16 });
+      gsap.set('#caret', { opacity: 0 });
+      gsap.set('#cursor', { x: 1500, y: 820, opacity: 0 });
+      gsap.set('#clickring', { scale: 0.35, opacity: 0 });
+
+      // ── 时间表（30fps）──────────────────────────────────────────
+      //  0.00–0.75  承 s12 面板退场：手机从纵深进入（屏幕先是一个角）
+      //  0.75–1.35  手机落正则（转正 + 推近）
+      //  1.35–2.10  已有的一问一答浮现（交代"这是日常在用的东西"）
+      //  2.10–2.55  鼠标移入 → 点进输入框
+      //  2.55–3.80  逐字打字
+      //  3.80–4.40  光标闪
+      //  4.40–5.20  发送键被点（轻微反馈）→ 消息发出
+      //  5.20–6.40  稳定，交棒 s14
+      const T_ENTER = 0.00;
+      const T_ALIGN = 0.75;
+      const T_HIST  = 1.35;
+      const T_CLICK = 2.10;
+      const T_TYPE  = 2.55;
+      const T_SEND  = 4.40;
+      const T_HOLD  = 5.20;
+
+      // ① 从纵深进入并转正
+      tl.to('#phone', { z: -190, duration: 0.85, ease: 'power3.out' }, T_ENTER);
+      tl.to('#phone', { rotateY: 0, scale: 1.0, duration: 0.60, ease: 'power3.out' }, T_ALIGN);
+
+      // ② 已有对话浮现
+      tl.to('#b1', { opacity: 1, y: 0, duration: 0.45, ease: 'power2.out' }, T_HIST);
+      tl.to('#b2', { opacity: 1, y: 0, duration: 0.45, ease: 'power2.out' }, T_HIST + 0.22);
+
+      // ③ 鼠标点进输入框
+      tl.to('#cursor', { opacity: 1, duration: 0.18, ease: 'power1.out' }, T_CLICK);
+      tl.to('#cursor', { x: 1000, y: 890, duration: 0.60, ease: 'power2.inOut' }, T_CLICK + 0.05);
+      tl.set('#clickring', { x: 1000, y: 890 }, T_CLICK + 0.60);
+      tl.set('#clickring', { scale: 0.35, opacity: 0.9 }, T_CLICK + 0.60);
+      tl.to('#clickring', { scale: 1.4, opacity: 0, duration: 0.36, ease: 'power2.out' }, T_CLICK + 0.63);
+      tl.to('#cursor', { opacity: 0, duration: 0.25, ease: 'power1.in' }, T_CLICK + 0.90);
+      tl.to('#caret', { opacity: 1, duration: 0.10, ease: 'none' }, T_CLICK + 0.90);
+
+      // ④ 逐字打字（每字一拍的确定性推进）
+      const nChar = TYPED.length;
+      const per = (T_SEND - 0.55 - T_TYPE) / nChar;
+      for (let i = 0; i < nChar; i++) {
+        tl.call(() => { inputText.textContent = TYPED.slice(0, i + 1); },
+                null, T_TYPE + i * per);
+      }
+      // 光标跟着字走
+      tl.to('#caret', { x: 250, duration: T_SEND - 0.55 - T_TYPE, ease: 'none' }, T_TYPE);
+      // 光标闪（有限次数）
+      tl.to('#caret', { opacity: 0.15, duration: 0.28, ease: 'sine.inOut', yoyo: true, repeat: 3 },
+        T_SEND - 0.60);
+
+      // ⑤ 发送
+      tl.to('#caret', { opacity: 0, duration: 0.10, ease: 'none' }, T_SEND);
+      tl.to('#sendBtn', { scale: 0.88, duration: 0.10, ease: 'power2.out' }, T_SEND);
+      tl.to('#sendBtn', { scale: 1.0, duration: 0.22, ease: 'power2.out' }, T_SEND + 0.10);
+      tl.to('.bubble.me', { opacity: 0, duration: 0.30, ease: 'power1.in' }, T_SEND + 0.16);
+      tl.to('#b2',  { opacity: 0, duration: 0.30, ease: 'power1.in' }, T_SEND + 0.16);
+      tl.set('#b1', { opacity: 0 }, T_SEND + 0.46);
+      tl.fromTo('.bubble.me', { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.40, ease: 'power2.out' }, T_SEND + 0.46);
+      tl.set('#b1', { textContent: TYPED }, T_SEND + 0.46);
+      tl.set('#b1', { opacity: 1 }, T_SEND + 0.46);
+      tl.to('#inputText', { opacity: 0, duration: 0.10, ease: 'none' }, T_SEND + 0.30);
+
+      // ⑥ 稳定呼吸
+      tl.to('#phone', { z: -150, duration: 1.20, ease: 'sine.inOut' }, T_HOLD);
+
+      window.__timelines['s13'] = tl;
+      tl.seek(0);
+    </script>
+  </body>
+</html>
