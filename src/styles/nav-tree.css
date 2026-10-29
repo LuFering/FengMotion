@@ -20,7 +20,7 @@
   margin: 0;
   padding: 0 10px;
   border: 1px solid transparent;
-  border-radius: 20px;
+  border-radius: 10px;
   background: 0 0;
   color: var(--dim);
   font-size: 13px;
@@ -35,10 +35,28 @@
 .nav-leaf:hover,
 .nav-parent:hover { background: var(--hm-hover); color: var(--fg) }
 .nav-leaf[aria-current="page"] {
-  background: color-mix(in srgb, var(--acc) 15%, transparent);
-  color: color-mix(in srgb, var(--acc) 72%, #fff);   /* 原 --acc 在 15% 底上仅 4.18:1 */
+  /* 作者反馈：原来那块 15% 蓝底 + 大圆角像"药丸"，太重。
+     改成与素材库组织栏同一套选中语言 —— 图标着色 + 左侧细竖条，不铺底色。 */
+  background: none;
+  color: var(--acc);
   font-weight: 600;
 }
+.nav-leaf[aria-current="page"]::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 50%;
+  width: 2.5px;
+  height: 16px;
+  transform: translateY(-50%);
+  border-radius: 0 2px 2px 0;
+  background: var(--acc);
+}
+/* 收起态是图标在上、文字在下的双行块，只有 40px 宽 ——
+   再塞一根竖条会直接压在文字上（实测叠在「我的素材」四个字上）。
+   所以收起态只用图标着色区分；竖条只留给展开态。 */
+body:not(.hm-nav-expanded) .nav-leaf[aria-current="page"]::before,
+body:not(.hm-nav-expanded) .nav-parent[aria-current="page"]::before { display: none }
 .nav-leaf .ui-icon,
 .nav-parent .ui-icon { width: 20px; height: 20px; flex: 0 0 20px }
 
@@ -47,15 +65,17 @@ body:not(.hm-nav-expanded) .nav-leaf,
 body:not(.hm-nav-expanded) .nav-parent { height: 40px }
 
 /* Round 2：收起态图标轨加微型文字标签（审计 35）——68px 轨内放得下 2–4 字，
-   新手不用逐个试图标；展开态不受影响。 */
+   新手不用逐个试图标；展开态不受影响。
+   2026-10-29 作者反馈"图标和文字挤在一起"：行高 52 → 56、间距 2 → 5px，
+   文字 9.5 → 9px（4 字刚好占满 40px 轨宽，不截断）。 */
 body:not(.hm-nav-expanded) .nav-leaf,
 body:not(.hm-nav-expanded) .nav-parent {
   flex-direction: column;
   justify-content: center;
-  gap: 2px;
-  height: 52px;
-  padding: 4px 0;
-  border-radius: 12px;
+  gap: 5px;
+  height: 56px;
+  padding: 6px 0 5px;
+  border-radius: 10px;
 }
 /* 注意：studio-shell 底样式有同名规则 opacity:0（后加载、同特异性），
    此处用 body.studio-shell 提升特异性，否则标签只占位不显形。 */
@@ -63,8 +83,8 @@ body.studio-shell:not(.hm-nav-expanded) .nav-leaf .hm-nav-text,
 body.studio-shell:not(.hm-nav-expanded) .nav-parent .hm-nav-text {
   display: block;
   max-width: 100%;
-  font-size: 9.5px; /* 4 字标签（我的创作/参考片库）恰好占满 40px 轨宽，留 2px 余量防截断 */
-  line-height: 1.2;
+  font-size: 9px; /* 4 字标签（我的创作/参考片库）恰好占满 40px 轨宽，留余量防截断 */
+  line-height: 1.3;
   font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
@@ -139,94 +159,32 @@ body:not(.hm-nav-expanded) .nav-parent[data-active] {
   color: var(--acc);
 }
 
-/* ── 单按钮主题切换（设置按钮上方）────────────────────────── */
-.hm-theme-btn {
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  width: 100%;
-  height: 40px;
-  margin: 0 0 4px;
-  padding: 0 10px;
-  border: 1px solid transparent;
-  border-radius: 20px;
-  background: transparent;
-  color: var(--dim);
-  font: inherit;
-  font-size: 12px;
-  font-weight: 500;
-  white-space: nowrap;
-  text-align: left;
-  cursor: pointer;
-  overflow: hidden;
-  transition: background-color .15s, color .15s, border-color .15s;
-}
-.hm-theme-btn:hover { background: var(--hm-hover); color: var(--fg) }
-.hm-theme-btn:active { transform: scale(.98) }
-.hm-theme-btn:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px }
-.hm-theme-icon-wrap {
-  display: grid;
-  place-items: center;
-  width: 20px;
-  height: 20px;
-  flex: 0 0 20px;
-  color: var(--acc);
-  animation: theme-icon-in 240ms var(--hm-ease, cubic-bezier(.23,1,.32,1)) both;
-}
-.hm-theme-icon-wrap svg { width: 20px; height: 20px; display: block }
-.hm-theme-btn .hm-nav-text { font-size: 12px; font-weight: 500 }
-@keyframes theme-icon-in {
-  from { opacity: 0; transform: rotate(-28deg) scale(.72) }
-  to   { opacity: 1; transform: rotate(0) scale(1) }
-}
-body:not(.hm-nav-expanded) .hm-theme-btn {
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  margin: 0 0 4px;
-  padding: 0;
-  border-radius: 20px;
-}
-body:not(.hm-nav-expanded) .hm-theme-btn .hm-nav-text { display: none }
-@media (prefers-reduced-motion: reduce) {
-  .hm-theme-icon-wrap { animation: none }
-  .hm-theme-btn:active { transform: none }
-}
-
-/* 触感主题：选中态黄底墨色，避免浅黄叠浅黄 */
-html[data-theme="tactile"] .nav-leaf[aria-current="page"],
-html[data-theme="tactile"] .nav-parent[data-active],
-html[data-theme="tactile"] .nav-children > a[aria-current="page"] {
-  background: #f7c948;
-  color: #22231f !important;
-  font-weight: 650;
-}
-html[data-theme="tactile"] .nav-leaf[aria-current="page"] .ui-icon,
-html[data-theme="tactile"] .nav-parent[data-active] .ui-icon,
-html[data-theme="tactile"] .nav-children > a[aria-current="page"] .ui-icon {
-  color: #22231f !important;
-}
-
-/* 主题选中态：覆盖 studio-shell 的高优先级导航色 */
+/* 主题选中态 ---------------------------------------------------------------
+   ⚠️ 这里有 4 组按主题写死的高优先级规则（浅色蓝底 / 触感黄底 / 品牌蓝底），
+   之前各自铺一整块底色，导致"只改了深色、其他主题还是药丸块"。
+   现在全部统一成同一套语言：不铺底色，只把图标与文字染成该主题的强调色。
+   保留 !important 只是为了压过 studio-shell 底样式（那边也是 !important），
+   规则本身不再引入色块。 */
 html[data-theme="light"] body.studio-shell .hm-nav a.nav-leaf[aria-current="page"],
 html[data-theme="light"] body.studio-shell .hm-nav .nav-children > a[aria-current="page"] {
-  background: rgba(47, 111, 228, .14) !important;
-  color: #191a20 !important;
+  background: none !important;
+  color: #2F6FE4 !important;
   font-weight: 650;
 }
 html[data-theme="light"] body.studio-shell .hm-nav a.nav-leaf[aria-current="page"] .ui-icon,
 html[data-theme="light"] body.studio-shell .hm-nav .nav-children > a[aria-current="page"] .ui-icon {
   color: #2F6FE4 !important;
 }
+
 html[data-theme="tactile"] body.studio-shell .hm-nav a.nav-leaf[aria-current="page"],
 html[data-theme="tactile"] body.studio-shell .hm-nav .nav-children > a[aria-current="page"] {
-  background: #f7c948 !important;
-  color: #22231f !important;
+  background: none !important;
+  color: #8a5e1e !important;
   font-weight: 650;
 }
 html[data-theme="tactile"] body.studio-shell .hm-nav a.nav-leaf[aria-current="page"] .ui-icon,
 html[data-theme="tactile"] body.studio-shell .hm-nav .nav-children > a[aria-current="page"] .ui-icon {
-  color: #22231f !important;
+  color: #8a5e1e !important;
 }
 
 /* 左上角品牌：缩小图标与字标，保持 40px 行高 */
@@ -287,3 +245,146 @@ html[data-theme="light"] .hm-brand-word img, html[data-theme="tactile"] .hm-bran
 html[data-theme="dark"] .hm-brand-word img{
   filter: none;
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   隐藏导航栏（作者要求：点 logo 就把侧栏收走）
+   ─────────────────────────────────────────────────────────────
+   逻辑值与收起态共用 --hm-sidebar：主区 margin-left / padding 都跟着它走，
+   所以只要把它归零，内容区自然占满，不用逐个视图改。
+   侧栏本身用 translateX(-100%) 移出视口并禁掉指针事件 ——
+   直接 display:none 会让过渡动画失效，看起来像闪一下。
+   ═══════════════════════════════════════════════════════════════ */
+body.studio-shell.hm-nav-hidden { --hm-sidebar: 0px }
+
+@media (min-width: 601px) {
+  body.studio-shell.hm-nav-hidden .hm-sidebar {
+    transform: translateX(-100%);
+    pointer-events: none;
+    opacity: 0;
+  }
+}
+
+/* logo 开关：整体可点，右侧给一个"收走"的提示图标，悬停才现形 */
+body.studio-shell .hm-sidebar-head .hm-brand-toggle {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  height: 40px;
+  padding: 0 4px 0 7px;
+  border: 0;
+  border-radius: 10px;
+  background: 0 0;
+  color: var(--fg);
+  cursor: pointer;
+  text-align: left;
+  transition: background-color .15s;
+}
+body.studio-shell .hm-sidebar-head .hm-brand-toggle:hover { background: var(--hm-hover) }
+.hm-brand-hide {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  margin-left: auto;
+  color: var(--dim);
+  opacity: 0;
+  transition: opacity .15s;
+}
+body.studio-shell .hm-brand-toggle:hover .hm-brand-hide,
+body.studio-shell .hm-brand-toggle:focus-visible .hm-brand-hide { opacity: 1 }
+
+/* 恢复入口：侧栏隐藏时才出现，贴在左上角与内容同层 */
+/* 恢复入口：挂在窗口左边缘的"半隐把手"。
+   作者要求三件事，逐条对应：
+     ① 只显示一半 —— 整块 44px，默认用 translateX(-22px) 把它**一半推出视口**，
+        露在外面的正好是边界线 + 图标的一半；
+     ② 变淡 —— 默认 opacity .45；
+     ③ 靠近才出来变亮 —— hover 时回到 translateX(0) 完整可见、opacity 1。
+   位置贴着侧栏原本所在的左上角，不做大范围位移。 */
+.hm-sidebar-restore {
+  position: fixed;
+  z-index: 60;
+  left: 0;
+  top: 10px;
+  display: none;
+  align-items: center;
+  justify-content: flex-end;
+  width: 44px;
+  height: 40px;
+  padding: 0 7px 0 0;
+  border: 1px solid var(--line);
+  border-left: 0;
+  border-radius: 0 10px 10px 0;
+  background: var(--surf);
+  color: var(--dim);
+  cursor: pointer;
+  opacity: .45;
+  /* -22px = 刚好一半藏进左边缘外 */
+  transform: translateX(-22px);
+  box-shadow: 0 2px 10px rgb(0 0 0 / .12);
+  transition: transform .2s var(--eo, ease), opacity .2s var(--eo, ease),
+              color .16s ease, border-color .16s ease, box-shadow .2s ease;
+}
+.hm-sidebar-restore .ui-icon { width: 16px; height: 16px; flex: none }
+/* 靠近：完整滑出 + 提亮 */
+.hm-sidebar-restore:hover,
+.hm-sidebar-restore:focus-visible {
+  transform: translateX(0);
+  opacity: 1;
+  color: var(--fg);
+  border-color: var(--acc);
+  box-shadow: 0 4px 16px rgb(0 0 0 / .22);
+}
+body.studio-shell.hm-nav-hidden .hm-sidebar-restore { display: flex }
+
+/* 隐藏导航后，内容区要补回原本由侧栏提供的左侧留白：
+   否则页面标题会贴着窗口边（素材库、工作流这类自带 padding 的视图不受影响，
+   但首页/对话页的标题行是贴边的）。 */
+
+/* 把手占住了左上角，内容区补一点左侧留白避免贴着它 ——
+   只补偿"贴边"的视图，本身已有 padding 的（素材库等）稍微多留一点即可。 */
+@media (min-width: 601px) {
+  body.studio-shell.hm-nav-hidden .mya,
+  body.studio-shell.hm-nav-hidden #app > .hm-main,
+  body.studio-shell.hm-nav-hidden .ct-page,
+  body.studio-shell.hm-nav-hidden #pane-home .hm-main { padding-left: 44px }
+  /* 满高布局的编辑器类视图不能加内边距（会撑出滚动条），靠把手自身留白 */
+  body.studio-shell.hm-nav-hidden .wfl,
+  body.studio-shell.hm-nav-hidden .wfe { padding-left: unset }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   logo 开关的悬停提示
+   ─────────────────────────────────────────────────────────────
+   收起态侧栏只有 68px，logo 与"隐藏"这个动作之间没有任何暗示，
+   用户不会知道点它能收起导航。
+   所以靠近时做一次交换：logo 淡出 → 收起图标淡入，明确"这里可以收走"。
+   之前 paba 里就有一条悬停淡出 logo 的规则，但它只是让位给已删除的展开按钮，
+   现在是把它接成真正的提示。
+   ═══════════════════════════════════════════════════════════════ */
+body.studio-shell .hm-brand-toggle { position: relative; }
+/* 收起图标默认不可见，叠在 logo 位置上 */
+body.studio-shell .hm-brand-toggle .hm-brand-hide {
+  position: absolute;
+  left: 7px;
+  top: 50%;
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  transform: translateY(-50%);
+  color: var(--fg);
+  opacity: 0;
+  transition: opacity .16s ease;
+  pointer-events: none;
+}
+/* 靠近：logo 淡出、收起图标显现 */
+body.studio-shell .hm-brand-toggle .hm-brand-mark,
+body.studio-shell .hm-brand-toggle .hm-brand-word {
+  transition: opacity .16s ease;
+}
+body.studio-shell .hm-brand-toggle:hover .hm-brand-mark,
+body.studio-shell .hm-brand-toggle:focus-visible .hm-brand-mark,
+body.studio-shell .hm-brand-toggle:hover .hm-brand-word,
+body.studio-shell .hm-brand-toggle:focus-visible .hm-brand-word { opacity: 0 }
+body.studio-shell .hm-brand-toggle:hover .hm-brand-hide,
+body.studio-shell .hm-brand-toggle:focus-visible .hm-brand-hide { opacity: 1 }

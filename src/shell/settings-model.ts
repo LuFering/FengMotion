@@ -10,6 +10,18 @@ import { HARNESSES } from '@/data/harnesses'
 
 export type ThemeId = 'dark' | 'light' | 'tactile'
 
+/** 壁纸：默认（无壁纸）/ 内置纯色氛围 / 自定义图片 */
+export type WallpaperId = 'none' | 'aurora' | 'dusk' | 'paper' | 'grid' | 'custom'
+
+/**
+ * 壁纸显示范围。
+ * · 'global' —— 所有页面
+ * · 'home'   —— 只有首页
+ * · 其余是单个视图 id（见 shell/views.ts 的 ViewId）
+ * 工作台/监看器画面不受壁纸影响：壁纸只画在壳层背景上，永远压在播放画面之下。
+ */
+export type WallpaperScope = 'global' | 'home' | 'production' | 'conversation' | 'assets'
+
 export interface Settings {
   theme: ThemeId
   /** 打开应用默认进入的视图 */
@@ -22,6 +34,36 @@ export interface Settings {
   harnessEndpoint: string
   /** 默认模型（属于所选引擎的 models 列表） */
   model: string
+
+  /* ── 外观 · 壁纸 ─────────────────────────────────────────
+     壁纸与主题分开设置：主题决定色板，壁纸只是壳层背景上的一层图。 */
+  wallpaper: WallpaperId
+  /** 自定义壁纸：存 data URL（本机 localStorage，刷新/重启都在） */
+  wallpaperCustom: string | null
+  /** 壁纸显示范围 */
+  wallpaperScope: WallpaperScope
+  /** 背景遮罩强度 0–100：壁纸越花越要压一压，保证文字可读 */
+  wallpaperDim: number
+
+  /* ── 创作与预览 ─────────────────────────────────────────
+     只作为**新项目**的默认值，不静默改变已有项目。 */
+  /** 默认画幅 */
+  aspectRatio: '16:9' | '9:16' | '1:1'
+  /** 默认帧率 */
+  fps: 24 | 25 | 30 | 60
+  /** 默认分辨率 */
+  resolution: '720p' | '1080p' | '4k'
+  /** 预览是否循环播放 */
+  previewLoop: boolean
+  /** 时间显示方式 */
+  timeDisplay: 'timecode' | 'seconds' | 'frames'
+  /** 渲染完成后提醒（应用内） */
+  notifyOnRender: boolean
+
+  /* ── 实验室 ─────────────────────────────────────────────
+     只放**真实存在**的功能开关，没有的功能不放开关。 */
+  /** 参考视频分析：导入的视频交给后端分析出片段与可复用要点（真实功能，见参考片库） */
+  labVideoAnalysis: boolean
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -31,7 +73,28 @@ export const DEFAULT_SETTINGS: Settings = {
   harness: 'deepseek',
   harnessEndpoint: 'http://127.0.0.1:8788/v1',
   model: 'deepseek-chat',
+  wallpaper: 'none',
+  wallpaperCustom: null,
+  wallpaperScope: 'global',
+  wallpaperDim: 40,
+  aspectRatio: '16:9',
+  fps: 24,
+  resolution: '1080p',
+  previewLoop: true,
+  timeDisplay: 'timecode',
+  notifyOnRender: true,
+  labVideoAnalysis: true,
 }
+
+/** 反馈渠道 —— 配置值，不要编造（规划文档 §10） */
+export const FEEDBACK = {
+  /** 反馈邮箱：维护者配置 */
+  email: 'lufering@icloud.com',
+  /** 问题 / 建议 / 其他 */
+  issuesUrl: 'https://github.com/LuFering/FengMotion/issues/new/choose',
+  repoUrl: 'https://github.com/LuFering/FengMotion',
+  issuesListUrl: 'https://github.com/LuFering/FengMotion/issues',
+} as const
 
 const STORE = 'fengmotion:settings'
 
@@ -48,14 +111,38 @@ export function loadSettings(): Settings {
       if (t === 'light' || t === 'tactile' || t === 'dark') s = { ...s, theme: t }
     }
   } catch { /* localStorage 不可用 → 默认值 */ }
+  return normalizeSettings(s)
+}
+
+const WALLPAPERS: WallpaperId[] = ['none', 'aurora', 'dusk', 'paper', 'grid', 'custom']
+const SCOPES: WallpaperScope[] = ['global', 'home', 'production', 'conversation', 'assets']
+const RATIOS = ['16:9', '9:16', '1:1'] as const
+const FPS = [24, 25, 30, 60] as const
+const RES = ['720p', '1080p', '4k'] as const
+const TIMEDISP = ['timecode', 'seconds', 'frames'] as const
+
+/**
+ * 逐项收口：每个字段都必须落在已知取值里。
+ * 备份来自外部文件、localStorage 可能被手改，统一走这层，
+ * 免得一个脏值把界面渲染成空白。
+ */
+export function normalizeSettings(input: Partial<Settings>): Settings {
+  const s: Settings = { ...DEFAULT_SETTINGS, ...input }
   if (s.startView !== 'home' && s.startView !== 'conversation') s.startView = DEFAULT_SETTINGS.startView
+  if (!WALLPAPERS.includes(s.wallpaper)) s.wallpaper = DEFAULT_SETTINGS.wallpaper
+  if (!SCOPES.includes(s.wallpaperScope)) s.wallpaperScope = DEFAULT_SETTINGS.wallpaperScope
+  if (typeof s.wallpaperCustom !== 'string' || !s.wallpaperCustom.startsWith('data:image/')) s.wallpaperCustom = null
+  s.wallpaperDim = Number.isFinite(s.wallpaperDim) ? Math.max(0, Math.min(100, Math.round(s.wallpaperDim))) : DEFAULT_SETTINGS.wallpaperDim
+  if (!RATIOS.includes(s.aspectRatio)) s.aspectRatio = DEFAULT_SETTINGS.aspectRatio
+  if (!FPS.includes(s.fps)) s.fps = DEFAULT_SETTINGS.fps
+  if (!RES.includes(s.resolution)) s.resolution = DEFAULT_SETTINGS.resolution
+  if (!TIMEDISP.includes(s.timeDisplay)) s.timeDisplay = DEFAULT_SETTINGS.timeDisplay
+  s.previewLoop = s.previewLoop === true
+  s.notifyOnRender = s.notifyOnRender !== false
+  s.labVideoAnalysis = s.labVideoAnalysis !== false
+  s.reduceMotion = s.reduceMotion === true
   const h = HARNESSES.find((x) => x.id === s.harness) ?? HARNESSES[0]
-  return {
-    ...s,
-    reduceMotion: typeof s.reduceMotion === 'boolean' ? s.reduceMotion : false,
-    harness: h.id,
-    model: h.models.includes(s.model) ? s.model : h.models[0],
-  }
+  return { ...s, harness: h.id, model: h.models.includes(s.model) ? s.model : h.models[0] }
 }
 
 export function saveSettings(s: Settings) {
@@ -121,18 +208,13 @@ export function readBackup(raw: string): { settings: Settings; modelPrefs: unkno
   }
   if (!d.settings || typeof d.settings !== 'object') throw new Error('备份里没有设置内容')
   const s = d.settings as Partial<Settings>
-  const merged: Settings = {
-    ...DEFAULT_SETTINGS,
+  const merged = normalizeSettings({
     ...s,
-    // 逐项收口：主题/视图/引擎必须落在已知取值里
     theme: s.theme === 'light' || s.theme === 'tactile' || s.theme === 'dark' ? s.theme : DEFAULT_SETTINGS.theme,
-    startView: s.startView === 'conversation' ? 'conversation' : 'home',
-    reduceMotion: s.reduceMotion === true,
     harnessEndpoint: typeof s.harnessEndpoint === 'string' ? s.harnessEndpoint : DEFAULT_SETTINGS.harnessEndpoint,
-  }
-  const h = HARNESSES.find((x) => x.id === merged.harness) ?? HARNESSES[0]
+  })
   return {
-    settings: { ...merged, harness: h.id, model: h.models.includes(merged.model) ? merged.model : h.models[0] },
+    settings: merged,
     modelPrefs: d.modelPrefs && typeof d.modelPrefs === 'object' ? d.modelPrefs : null,
   }
 }

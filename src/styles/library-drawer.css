@@ -1,0 +1,152 @@
+/* ═══════════════════════════════════════════════════════════════
+   「更多」弹出层 —— 特效库 / 参考片库 / 我的素材 的统一入口
+   ─────────────────────────────────────────────────────────────
+   不做遮罩式大弹窗：入口在导航栏上，结果就贴着导航栏长出来。
+   一张小浮层（宽度 240）、右侧弹出、圆角 12，视觉上是导航栏的一部分。
+   点空白处 / Esc / 选中某项 都关闭，其余区域保持可交互。
+   ═══════════════════════════════════════════════════════════════ */
+
+/* 透明点击区：只为"点空白处关闭"，不压暗画面、不挡侧栏 */
+.libd-away {
+  position: fixed;
+  inset: 0;
+  z-index: 118;
+  background: transparent;
+}
+
+.libd {
+  position: fixed;
+  /* 贴着导航栏右缘弹出，垂直对齐「更多」那一项（由组件内联 top 决定） */
+  left: calc(var(--hm-sidebar, 68px) + 6px);
+  z-index: 119;
+  width: 220px;
+  display: flex;
+  flex-direction: column;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surf);
+  box-shadow: 0 18px 48px rgb(0 0 0 / .36), 0 2px 8px rgb(0 0 0 / .18);
+  animation: libd-pop .16s cubic-bezier(.22, 1, .36, 1) both;
+}
+@keyframes libd-pop {
+  from { opacity: 0; transform: translateX(-4px) scale(.98); }
+  to { opacity: 1; transform: none; }
+}
+
+.libd-head { padding: 4px 8px 8px; }
+.libd-head h2 {
+  margin: 0;
+  font-size: 10.5px;
+  font-weight: 650;
+  letter-spacing: .08em;
+  color: var(--dim);
+}
+/* 浮层里放不下长句说明，删掉 */
+.libd-head p { display: none; }
+
+.libd-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.libd-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 8px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: 0 0;
+  color: var(--fg);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color .14s, border-color .14s;
+}
+.libd-item:hover { background: color-mix(in srgb, var(--fg) 6%, transparent); }
+.libd-item:focus-visible { outline: 2px solid var(--acc); outline-offset: 1px; }
+/* 当前所在：淡强调底 + 描边，和导航栏选中态同一套语言 */
+.libd-item[data-on] {
+  background: color-mix(in srgb, var(--acc) 12%, transparent);
+  border-color: color-mix(in srgb, var(--acc) 38%, transparent);
+}
+
+.libd-item-ico {
+  display: grid;
+  place-items: center;
+  flex: 0 0 28px;
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--fg) 7%, transparent);
+  color: var(--dim);
+}
+.libd-item-ico .ui-icon { width: 17px; height: 17px; }
+.libd-item[data-on] .libd-item-ico {
+  background: color-mix(in srgb, var(--acc) 20%, transparent);
+  color: var(--acc);
+}
+
+.libd-item-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.libd-item-main b { font-size: 12.5px; font-weight: 600; }
+.libd-item-main small {
+  font-size: 10.5px;
+  line-height: 1.4;
+  color: var(--dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.libd-item-cur {
+  flex: none;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--acc);
+  background: color-mix(in srgb, var(--acc) 16%, transparent);
+}
+
+/* ═══ 侧栏里的「更多」与「社区」 ═══════════════════════════════ */
+/* 库入口：当前在任一库内时高亮；收起态只显示图标 */
+.nav-library { position: relative; }
+
+/* 收起态下，把当前库名字收起来（68px 放不下） */
+.nav-library-cur { display: none; }
+body.hm-nav-expanded .nav-library-cur {
+  display: block;
+  margin-left: auto;
+  padding: 0 6px;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--acc);
+  opacity: .85;
+  white-space: nowrap;
+}
+
+/* 占位项：降一档透明度，鼠标上给 not-allowed，明确"还不能用" */
+.nav-placeholder { position: relative; cursor: default; }
+.nav-placeholder .ui-icon,
+.nav-placeholder .hm-nav-text { opacity: .55; }
+.nav-placeholder:hover .ui-icon,
+.nav-placeholder:hover .hm-nav-text { opacity: .8; }
+.nav-placeholder::after {
+  content: '开发中';
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 9px;
+  color: var(--dim);
+  opacity: .8;
+  pointer-events: none;
+}
+/* 收起态不显示角标文字，只留图标 */
+body:not(.hm-nav-expanded) .nav-placeholder::after { display: none; }
