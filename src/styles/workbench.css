@@ -606,7 +606,7 @@ body.flowon #pane-flow > * { flex: 1; min-height: 0 }
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-  scrollbar-width: thin;
+  scrollbar-width: none;
 }
 
 /* ── 对话消息 ────────────────────────────────────────────────
@@ -626,6 +626,12 @@ body.flowon #pane-flow > * { flex: 1; min-height: 0 }
   letter-spacing: .02em;
 }
 .fw-msg .fm-msg-ai { flex: 1; min-width: 0; color: var(--fg) }
+/* 消息正文的容器：正文 + 状态行叠一列；没有它，正文的 flex:1 会和头像抢宽度 */
+.fw-msg-body { display: flex; flex-direction: column; flex: 1; min-width: 0 }
+/* 状态行比正文弱一档（正文 13px），不抢内容 */
+.fw-msg-note { margin: 4px 0 0; color: var(--ph); font-size: 11px; line-height: 16px }
+/* 未完成要说出来：红字，不混在灰字里 */
+.fw-msg-failed { margin: 4px 0 0; color: var(--bad); font-size: 12px; line-height: 18px }
 
 /* ── 底部任务面板（.fw-tray）──────────────────────────────── */
 .fw-tray {
@@ -656,6 +662,48 @@ body.flowon #pane-flow > * { flex: 1; min-height: 0 }
   line-height: 1.6;
   color: var(--dim);
 }
+/* 「变更审阅」= 每一轮提交了什么、和上一轮比改了什么。
+   托盘只有 172px 高，滚动交给外面的 .fw-scroll，这里只管排版。 */
+.wb-changes { display: flex; flex-direction: column; gap: 6px }
+/* 说明行：为什么这一栏没有文件清单。比内容弱一档，不抢每轮记录 */
+.wb-changes-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 0;
+  padding: 2px 2px 4px;
+  color: var(--dim);
+  font-size: 10.5px;
+  line-height: 15px;
+}
+.wb-round {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  background: var(--hole);
+}
+.wb-round-hd { display: flex; align-items: baseline; gap: 8px; min-width: 0; font-size: 11px; color: var(--dim) }
+.wb-round-hd b { color: var(--fg); font-weight: 600 }
+.wb-round-hd .num { font-size: 10px; color: var(--ph) }
+/* 版本标：这一轮改的是哪一版，别和轮次数字混在一起 */
+.wb-round-ver { padding: 0 5px; border-radius: 4px; background: var(--surf); color: var(--ph); font-size: 10px }
+.wb-round-on { margin-left: auto; color: var(--ph); font-size: 10px }
+/* 意见原文：一行截断，完整内容放 title，托盘里不铺开会把列表挤没 */
+.wb-round-prompt {
+  margin: 0;
+  color: var(--fg);
+  font-size: 11px;
+  line-height: 16px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wb-round-scale,
+.wb-round-diff { margin: 0; font-size: 10.5px; line-height: 15px; color: var(--dim) }
+.wb-round-diff { color: var(--ph) }
+
 .fw-tray-row {
   display: grid;
   grid-template-columns: 70px minmax(0, 1fr) auto auto;
@@ -1356,7 +1404,7 @@ textarea.fw-edit-input { resize: vertical; }
 #pane-flow .wb-insp { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
 #pane-flow .wb-insp-scroll {
   flex: 1; min-height: 0;
-  overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin;
+  overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none;
   padding: 14px 14px 14px;
   display: flex; flex-direction: column; gap: 16px;
 }

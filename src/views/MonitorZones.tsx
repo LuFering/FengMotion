@@ -1,3 +1,4 @@
+import { FileWarning } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { getFileURL, getThumbURL } from '@/services/assetService'
 import { MEDIA_LABEL, type MediaType } from '@/data/myAssets'
@@ -31,23 +32,28 @@ export interface MonitorVisualItem {
 
 function Thumb({ item }: { item: MonitorVisualItem }) {
   const [url, setUrl] = useState<string | null>(item.thumb ?? null)
+  const [videoFailed, setVideoFailed] = useState(false)
   useEffect(() => {
     if (url || !item.assetId) return
     let on = true
     void getThumbURL(item.assetId).then((u) => { if (on && u) setUrl(u) })
     return () => { on = false }
   }, [item.assetId, url])
-  if (!url) {
-    return (
-      <div className="fw-mon-thumb-file">
-        <span>{MEDIA_LABEL[item.mediaType] ?? item.mediaType}</span>
-      </div>
-    )
-  }
-  return <img src={url} alt={item.name} loading="lazy" />
+  /* 图片直接用文件本身当缩略图 —— 这次制作产出的测试帧/样稿没有另存缩略图，
+     但文件就是一张图，没必要退化成「图片」两个字。 */
+  const direct = item.mediaType === 'image' ? (item.filePath ?? null) : null
+  const src = url ?? direct
+  if (src) return <img src={src} alt={item.name} loading="lazy" />
+  if (item.mediaType === 'video' && item.filePath && !videoFailed) return <video aria-hidden="true" src={item.filePath} muted playsInline preload="metadata" onLoadedMetadata={(event) => { if (event.currentTarget.duration > 0.1) event.currentTarget.currentTime = 0.1 }} onError={() => setVideoFailed(true)}/>
+  return (
+    <div className="fw-mon-thumb-file">
+      <span>{item.mediaType === 'video' ? '视频' : (MEDIA_LABEL[item.mediaType] ?? item.mediaType)}</span>
+    </div>
+  )
 }
 
-/** 缩略入口：一行横向缩略图，切画面只换大画面，不在下方再铺一摞区块。 */
+/** 缩略入口：一行横向缩略图，切画面只换大画面，不在下方再铺一摞区块。
+    缩略图下面挂名字：一排没有文字的图片块，用户认不出那是谁、是哪份参考。 */
 export function MonitorThumbRail({ items, selectedId, onSelect }:
   { items: MonitorVisualItem[]; selectedId: string | null; onSelect: (item: MonitorVisualItem) => void }) {
   if (items.length === 0) return null
@@ -58,7 +64,8 @@ export function MonitorThumbRail({ items, selectedId, onSelect }:
                 aria-label={item.name} title={item.name}
                 aria-selected={selectedId === item.id}
                 onClick={() => onSelect(item)}>
-          <Thumb item={item} />
+          <span className="fw-mon-thumb-img"><Thumb item={item} /></span>
+          <span className="fw-mon-thumb-name"><small>{item.kind === 'ref' ? '参考' : item.sourceLabel ?? '预览'}</small>{item.name}</span>
         </button>
       ))}
     </div>
@@ -124,6 +131,7 @@ export function MonitorMediaPreview({ item }:
   { item: MonitorVisualItem }) {
   const [url, setUrl] = useState<string | null>(null)
   const [failed, setFailed] = useState(false)
+  const [retry, setRetry] = useState(0)
   useEffect(() => {
     let on = true
     const p = item.assetId
@@ -131,17 +139,17 @@ export function MonitorMediaPreview({ item }:
       : Promise.resolve(item.filePath ?? item.thumb ?? null)
     void p.then((u) => { if (on) setUrl(u ?? item.thumb ?? null) }).catch(() => { if (on) setFailed(true) })
     return () => { on = false }
-  }, [item])
+  }, [item, retry])
   return (
     <div className="fw-mon-preview">
       {failed || (url === null && item.mediaType !== 'image' && !item.filePath && !item.assetId) ? (
-        <div className="fw-mon-empty-sub">该文件暂无法预览。</div>
+        <div className="wb-reference-error"><FileWarning size={24}/><span>素材暂时无法预览</span><button type="button" onClick={() => { setFailed(false); setRetry((value) => value + 1) }}>重新加载</button></div>
       ) : url === null ? (
         <div className="fw-mon-empty-sub">正在取文件…</div>
       ) : item.mediaType === 'video' ? (
-        <video className="fw-mon-preview-media" src={url} controls playsInline />
+        <video key={retry} className="fw-mon-preview-media" src={url} controls playsInline onError={() => setFailed(true)} />
       ) : item.mediaType === 'image' ? (
-        <img className="fw-mon-preview-media" src={url} alt={item.name} />
+        <img key={retry} className="fw-mon-preview-media" src={url} alt={item.name} onError={() => setFailed(true)} />
       ) : (
         <div className="fw-mon-empty-sub">
           {MEDIA_LABEL[item.mediaType] ?? item.mediaType}文件不支持在这里预览：{item.name}
