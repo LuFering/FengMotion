@@ -1,14 +1,27 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
 import {
-  Archive, ArchiveRestore, Check, ChevronDown, ChevronLeft, ChevronRight, Ellipsis, FileText, FolderPlus, ImageIcon,
+  AlertCircle, Archive, ArchiveRestore, Check, ChevronDown, ChevronLeft, ChevronRight, Ellipsis, FileText, FolderPlus, ImageIcon,
   ListFilter, LoaderCircle, MessageSquarePlus, PanelLeft, Pencil, Pin, PinOff, Plus, Search, Send, Shield,
   ShieldAlert, ShieldCheck, Trash2, X,
 } from 'lucide-react'
+import { registerComposer, type DeliverableAsset } from '@/shell/usePendingAssets'
+import { PURPOSE_LABEL } from '@/shell/usePendingAssets'
+
+/** 用途 → 输入框里显示的短标签（与待发送面板同一套文案） */
+const PURPOSE_TXT: Record<string, string> = PURPOSE_LABEL
+
+/** 从空白进入（还没建会话）时，服务层用的会话键。
+ *  必须是每段对话各一个键：两条未落盘的对话共用一个键会在适配器里串消息。 */
+const DRAFT_SESSION = '__draft__'
 import { HARNESSES, REASONING_LABEL, DEFAULT_PREFS, prefsKey, loadPrefs, savePrefs, type ModelPrefs, type Reasoning } from '../data/harnesses'
 import type { ChatState } from '../shell/useChat'
 import { UNGROUPED, sessionTitle, type SessionsState } from '../shell/useSessions'
 import { workflowService } from '../services/workflowService'
+import {
+  chatApi, hydrateDemoChat, requirementCard, isRequirementConfirmed,
+  CONFIRM_REQUIREMENT_TEXT, NEEDS_MODEL_NOTE,
+} from '../services/chatService'
 import { GENOMES } from '../data/genomes'
 import type { NewProjectInput } from '../shell/useProjects'
 import type { WfPath } from '../data/workflowTemplates'
@@ -38,47 +51,11 @@ import '../styles/conversation.css'
  * 与工作台的关系：同一个会话的两种呈现，顶部用同一个 ViewSwitch 互相切换；
  * 工作台右栏的对话 tab 也读同一份 chat 状态。
  *
- * 演示口径：回复由本地演示生成（未接 Agent）；会话与项目在内存里。
+ * 回复来源：走 services/chatService（契约 docs/contracts/agent.md + 演示适配器）。
+ * 视图不再自己编回复 —— 那是「视图内造数据」，前后端协议第 1 条明令禁止。
+ * 演示适配器只做字面整理：读不到就问，读到了就不重复问；原话原样保留。
+ * 会话与项目仍在内存里（持久化尚未接入，不假装做了）。
  */
-
-interface DemoReply {
-  text: string
-  toolCalls: { label: string; detail: string }[]
-  plan?: string[]
-}
-
-const GENERIC_PLAN = [
-  '开场先说一件让人想看下去的事',
-  '中间分两三点讲清楚，每点配一个画面',
-  '结尾落回观众自己的处境',
-]
-
-const TOKEN_PLAN = [
-  '开场先让人意识到自己见过 Token 但说不清',
-  '中间用生活里的东西打比方，讲清它是什么、怎么算钱',
-  '结尾说回观众自己的使用场景',
-]
-
-function demoReply(userText: string, turn: number): DemoReply {
-  if (turn === 0) {
-    const aboutToken = /token/i.test(userText)
-    return {
-      text: aboutToken
-        ? '这条像 Token 科普。先定三件事：\n1. 讲给谁\n2. 多长\n3. 什么感觉\n回一个就行，剩下的我按常规补。'
-        : '先定三件事：\n1. 讲给谁\n2. 多长\n3. 什么感觉\n回一个就行，剩下的我按常规补。',
-      toolCalls: [
-        { label: '参考片库', detail: '沙漠公路那条片的推镜：人不动，背景往后拉' },
-        { label: '特效库', detail: '多莉变焦：人保持大小，背景快速缩放' },
-      ],
-      plan: aboutToken ? TOKEN_PLAN : GENERIC_PLAN,
-    }
-  }
-  const snippet = userText.trim().slice(0, 24)
-  return {
-    text: `“${snippet}”已经加进方案，其余照上一版。还要补就接着说，不用了直接开始制作。`,
-    toolCalls: [{ label: '改方案', detail: '把这条并进方案要点' }],
-  }
-}
 
 /* 与 StartCreation 同口径：首行过短 / 只有数字标点时不直接当名字 */
 function usableName(text: string): string {
@@ -200,30 +177,51 @@ export function Conversation(props: {
      attachments=待发送附件；permission=权限模式（dsh preset.readOnly/workspaceWrite/fullAccess）；
      harnessId/model/prefs=引擎与模型配置（与首页共用同一份 data/harnesses）；
      composerMenu=当前展开的弹层（'add' 附件菜单 / 'perm' 权限 / 'model' 模型） */
-  const [attachments, setAttachments] = useState<{ name: string; size: number; kind: 'file' | 'image' | 'video' }[]>([])
+  const [attachments, setAttachments] = useState<{
+    name: string; size: number; kind: 'file' | 'image' | 'video'
+    /* 来自「待发送」的附件带着用途与备注：界面要显示「logo.png · 用于画面」，
+       而不只是塞一串文件名 —— 用途是用户特意选的，丢在这里等于白选。 */
+    purpose?: string; note?: string; assetId?: string
+  }[]>([])
   const [permission, setPermission] = useState<'readOnly' | 'workspaceWrite' | 'fullAccess'>('workspaceWrite')
   const [harnessId, setHarnessId] = useState(HARNESSES[0].id)
   const [model, setModel] = useState(HARNESSES[0].models[0])
   const [prefs, setPrefs] = useState<Record<string, ModelPrefs>>(loadPrefs)
   const fileRef = useRef<HTMLInputElement>(null)
   const imageRef = useRef<HTMLInputElement>(null)
-  const repliedRef = useRef(new Set<string>())
-  const replyTimer = useRef<number | null>(null)
-  const aliveRef = useRef(true)
+  /* 已经排过回复的用户消息 id：防止同一条被排两次（重挂载 / 增量刷新） */
+  const servedRef = useRef(new Set<string>())
+  /* 当前回复流的退订函数：切会话或卸载时用它断线 */
+  const streamStopRef = useRef<(() => void) | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
+  /* 待发送 → 本输入框。注册期间才接受投递；离开这个视图就注销，
+     免得在素材库里点「添加到对话」时被投到一个看不见的输入框里。 */
+  useEffect(() => {
+    registerComposer((list: DeliverableAsset[]) => {
+      setAttachments((prev) => {
+        const have = new Set(prev.map((a) => a.assetId).filter(Boolean))
+        const add = list
+          .filter((x) => !have.has(x.assetId))
+          .map((x) => ({
+            name: x.name,
+            size: 0,
+            kind: x.kind,
+            purpose: x.purpose,
+            note: x.note,
+            assetId: x.assetId,
+          }))
+        return [...prev, ...add].slice(0, 6)
+      })
+      return true
+    })
+    return () => registerComposer(null)
+  }, [])
 
   useEffect(() => {
     const onResize = () => setNarrow(window.innerWidth < 1024)
     window.addEventListener('resize', onResize)
     return () => window.removeEventListener('resize', onResize)
-  }, [])
-
-  /* 真实卸载后不再 setState。StrictMode 首次挂载会模拟一轮卸载，
-     所以这里只置位、不做业务决定（见下方演示回复的 effect）。 */
-  useEffect(() => {
-    aliveRef.current = true
-    return () => { aliveRef.current = false }
   }, [])
 
   /* 会话 ⇄ 当前对话的双向同步：
@@ -240,7 +238,15 @@ export function Conversation(props: {
     if (loadedRef.current === activeThread.id) return
     loadedRef.current = activeThread.id
     skipWriteRef.current = true
-    if (activeThread.messages.length > 0) chat.replaceMessages(activeThread.messages)
+    if (activeThread.messages.length > 0) {
+      chat.replaceMessages(activeThread.messages)
+      /* 把既有历史交给演示适配器：不给它的话，这条会话会被当成第一轮，
+         用户早就答过的信息会被再问一遍 —— 正好违反「只在必要时提问」 */
+      hydrateDemoChat(activeThread.id, activeThread.messages.map((m) => ({
+        role: m.role === 'user' ? 'user' as const : 'assistant' as const,
+        text: m.text,
+      })))
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeThread?.id, pending])
   useEffect(() => {
@@ -262,6 +268,62 @@ export function Conversation(props: {
   /* 工作台对话 tab 的 intro 免责句不属于创作会话，对话视图里滤掉 */
   const messages = useMemo(() => chat.messages.filter((m) => m.id !== 'intro'), [chat.messages])
   const userMessages = useMemo(() => messages.filter((m) => m.role === 'user'), [messages])
+
+  /* 最新的用户消息 id：回复 effect 只依赖它（见下方说明，不能依赖整个数组） */
+  const lastUserId = userMessages.length > 0 ? userMessages[userMessages.length - 1].id : null
+
+  /* 需求确认卡的数据经服务层投影而来（视图不自己拼数据）。
+     投影覆盖「原文 + 后续纠正」，原文始终原样呈现。 */
+  const reqTexts = useMemo(() => userMessages.map((m) => m.text), [userMessages])
+  const reqCard = useMemo(() => requirementCard(reqTexts), [reqTexts])
+  const reqConfirmed = useMemo(() => isRequirementConfirmed(reqTexts), [reqTexts])
+
+  /** 起一条回复流。返回退订函数：退订 = 断线，不当作完成。 */
+  const startReply = (userMessageId: string) => {
+    const serviceSessionId = props.activeSessionId ?? DRAFT_SESSION
+    const aiId = chat.startAiMessage()
+    let settled = false
+    /* 这条流有没有真的产出内容。没有产出就必须把占位撤掉 ——
+       留着就是一个空的「正在回复…」，看起来像卡死。 */
+    let produced = false
+    const stop = chatApi.stream(serviceSessionId, (msg) => {
+      switch (msg.type) {
+        case 'delta':
+          produced = true
+          chat.appendAiText(aiId, msg.delta)
+          break
+        case 'completed':
+          /* completed 带最终完整文本，以它为准（覆盖已拼接的），见契约 §4 */
+          produced = true
+          chat.finishAiMessage(aiId, msg.message.text)
+          break
+        case 'error':
+          settled = true
+          /* 已经吐出来的半截文本留着并标明失败：不删（那是真实收到的），也不当完成 */
+          chat.failAiMessage(aiId, msg.error.message)
+          setPending(false)
+          break
+        case 'task':
+          /* 演示适配器不建任务；真后端出现 taskId 时由任务流另行订阅，不塞进对话流 */
+          break
+        case 'end':
+          settled = true
+          setPending(false)
+          if (!produced) chat.removeMessage(aiId)
+          break
+      }
+    })
+    streamStopRef.current = stop
+    return () => {
+      stop()
+      if (settled) return
+      /* 中断：撤销登记并撤掉没说完的那条 —— 半截文本既不当成回复留着，
+         也不当成「已回复」；下次进入会重新起流 */
+      servedRef.current.delete(userMessageId)
+      chat.removeMessage(aiId)
+      setPending(false)
+    }
+  }
   const firstBrief = userMessages[0]?.text ?? ''
   const currentProject = props.projects.find((p) => p.id === props.openProject) ?? null
   /* 标题优先用当前项目名：左栏选项目之后，这里应该跟着变，
@@ -311,26 +373,24 @@ export function Conversation(props: {
   const drawer = narrow && sideExpanded
   const rail = !sideExpanded
 
-  /* 有新用户消息且还没回：演示 agent 900ms 后回一条（原型延迟，非真实推理耗时）
-     ⚠️ 不能在这里 clearTimeout：StrictMode 挂载后会立刻跑一次 cleanup，
-        定时器被清掉，而 repliedRef 已标记该条 → 第二次进入直接 return，
-        回复永远不会来、pending 永远为 true（表现：一直「正在思考…」，
-        从首页进入会话必现，输入框与发送键全被锁死）。
-        定时器的生命周期改由 newSession / 卸载守卫处理。 */
+  /* 回复流：订阅 services/chatService 的 stream，视图只负责显示。
+     ⚠️ 依赖必须是「最后一条用户消息的 id」，不能是整个 messages 数组 ——
+        流每吐一个增量都会改 messages，写成 [messages] 会让 effect 每帧重跑，
+        cleanup 顺手把刚建的流掐断，表现就是回复永远停在头几个字。
+     ⚠️ 退订等同于断线：**不当作完成**，并把没说完的那条从界面上撤掉，
+        否则 StrictMode 重挂载会留下一条半截回复，再叠一条新的。 */
   useEffect(() => {
-    const last = messages[messages.length - 1]
-    if (!last || last.role !== 'user' || repliedRef.current.has(last.id)) return
-    repliedRef.current.add(last.id)
+    if (lastUserId === null || servedRef.current.has(lastUserId)) return
+    /* 这条用户消息后面已经有回复了就不再排：切到工作台再切回来会让本视图重挂载，
+       新挂载的 servedRef 是空的，只按 id 判断会把同一条再排一次流，
+       在末尾留下一个空的「正在回复…」。 */
+    const at = messages.findIndex((m) => m.id === lastUserId)
+    if (at >= 0 && messages.slice(at + 1).some((m) => m.role === 'ai')) return
+    servedRef.current.add(lastUserId)
     setPending(true)
-    replyTimer.current = window.setTimeout(() => {
-      replyTimer.current = null
-      /* 卸载时放弃本条回复，并撤销“已回复”标记：再次进入本视图时会重新排期 */
-      if (!aliveRef.current) { repliedRef.current.delete(last.id); return }
-      chat.addAiMessage(demoReply(last.text, userMessages.length - 1))
-      setPending(false)
-    }, 900)
+    return startReply(lastUserId)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messages])
+  }, [lastUserId])
 
   /* 新消息进来滚到底（只在接近底部时跟随，不抢用户翻历史） */
   useEffect(() => {
@@ -346,11 +406,34 @@ export function Conversation(props: {
     el.style.height = `${Math.min(el.scrollHeight, 336)}px`
   }
 
-  const submit = () => {
-    const v = chat.draft.trim()
+  /** 发一条消息（输入框提交、卡片上的「确认」都走这一处，避免两份逻辑走偏） */
+  const send = (text: string) => {
+    const v = text.trim()
     if (!v || pending) return
     chat.addUserMessage(v)
+    /* 同时交给服务层：回复流按「服务端收到的最后一条用户消息」起流，
+       只加在界面上的话，适配器找不到这条提问，会去回上一条。
+       原话原样传，不截断、不摘要。
+       附件暂不随消息提交：契约要求附件先上传为 Asset、再以 fileId 引用，
+       而上传能力还没接（见 docs/contracts/agent.md §6）。宁可不带，
+       也不要拿 size=0 / 假 MIME 冒充「已上传」。 */
+    const serviceSessionId = props.activeSessionId ?? DRAFT_SESSION
+    chatApi.sendMessage(serviceSessionId, { text: v }).catch((err: unknown) => {
+      /* 落不下去就说清楚，不假装已发送（契约 agent.md §6） */
+      const note = err instanceof Error ? err.message : '消息没能提交。'
+      const id = chat.startAiMessage()
+      chat.failAiMessage(id, note)
+      setPending(false)
+    })
     chat.setDraft('')
+    /* 发送成功后附件才离开输入框 —— 失败/中断时保留，用户不必重新挑一遍。
+       （这里 addUserMessage 之后没有失败分支：真正的投递能力尚未接入，
+       所以"成功"= 消息已进入对话。） */
+    setAttachments([])
+  }
+
+  const submit = () => {
+    send(chat.draft)
     requestAnimationFrame(() => {
       const el = inputRef.current
       if (el) el.style.height = 'auto'
@@ -396,11 +479,10 @@ export function Conversation(props: {
   /* `intoProject` 让项目行上的「在此项目新建对话」按钮能指定归属；
      不传时沿用当前打开的项目（旧行为）。 */
   const newSession = (intoProject?: string | null) => {
-    /* 开新会话时把未落地的演示回复一起取消，否则旧对话的回复会插进新会话 */
-    if (replyTimer.current !== null) {
-      window.clearTimeout(replyTimer.current)
-      replyTimer.current = null
-    }
+    /* 开新会话时必须把上一段的回复流断掉：退订 = 断线（不当作完成），
+       否则旧对话的回复会插进新会话里 */
+    streamStopRef.current?.()
+    streamStopRef.current = null
     setPending(false)
     chat.clearChat()
     /* 左栏也要真的多一条会话，否则新建只清空了内容、树上什么都没变。
@@ -465,9 +547,9 @@ export function Conversation(props: {
       {/* 收起时整块不渲染：不留 56px 竖条（那是 dsh 的「图标轨」，本产品收起后
           左栏里没有任何还需要常驻的图标，留一条空轨道只是视觉噪音）。 */}
       {!rail && <aside className="cv3-side" data-drawer={drawer || undefined} aria-label="项目与对话">
-        {/* 动作条只放小图标（对齐 dsh sectionHeader[headerActions]：左栏没有整行的大按钮，
-            新建动作退回图标级）。视图选项在最右，与下面要管的那个列表挨着。 */}
+        {/* 左栏标题与项目/对话操作同层，视图选项靠近下面的列表。 */}
         <div className="cv3-side-top">
+          <h1 className="cv3-library-title">我的创作</h1>
           <button type="button" className="cv3-icon-btn" aria-label="新建对话" title="新建对话"
                   onClick={() => newSession()}>
             <MessageSquarePlus size={15} />
@@ -733,7 +815,19 @@ export function Conversation(props: {
                 <p key={m.id} className="cv3-user">{m.text}</p>
               ) : (
                 <div key={m.id} className="cv3-ai-block">
+                  {/* 文字不完整时由下面的「正在回复…」点明，正文本身不做修饰 */}
                   <div className="cv3-rich">{renderRich(m.text)}</div>
+                  {m.streaming && <p className="cv3-streaming">正在回复…</p>}
+                  {/* 失败就说失败：半截文本不得冒充完成（契约 §4） */}
+                  {m.failed && (
+                    <p className="cv3-failed" role="alert">
+                      <AlertCircle size={13} /> 这条回复没有完成：{m.failed}
+                    </p>
+                  )}
+                  {/* 演示来源必须在消息上可见，不能只写在别处 */}
+                  {m.demo && !m.streaming && !m.failed && (
+                    <p className="cv3-demo-note">演示回复 · 未连接 Agent</p>
+                  )}
                   {m.toolCalls && m.toolCalls.length > 0 && (
                     <div className="cv3-tools">
                       {m.toolCalls.map((t, i) => (
@@ -757,34 +851,85 @@ export function Conversation(props: {
                       </table>
                     </div>
                   )}
-                  {m.plan && (
-                    <div className="cv3-plan">
-                      <b className="cv3-plan-title">制作方案</b>
-                      <ol>
-                        {m.plan.map((p, i) => <li key={i}>{p}</li>)}
-                      </ol>
-                      {!launched && (
-                        <>
-                          <div className="cv3-plan-path">
-                            <span>专业制作路径</span>
-                            <SegmentedControl value={proPath}
-                                              onChange={(v) => setProPath(v as WfPath)}
-                                              ariaLabel="专业制作路径"
-                                              options={[{ value: 'prompt-first', label: 'Prompt-first' }, { value: 'structured', label: 'Structured' }]} />
-                          </div>
-                          <div className="cv3-plan-actions">
-                            <button type="button" className="cv3-primary" onClick={() => launch(true)}>开始制作</button>
-                            <button type="button" className="cv3-secondary" onClick={() => launch(false)}>先去工作台看看</button>
-                          </div>
-                        </>
+                {/* 需求确认卡（说明文档 §3）：方向明确时不摆多个方向让用户逐项审批 ——
+                    这里只有一份「我读到的」，用户确认或纠正即可。
+                    「画面构想」如实标出要等模型，不编一段像分镜的文字顶上。 */}
+                {messages[messages.length - 1]?.id === m.id && !m.streaming && !m.failed && userMessages.length > 0 && !reqConfirmed && (
+                  <div className="cv3-req">
+                    <div className="cv3-req-head">
+                      <b>需求确认</b>
+                      <span>对就确认，不对就直接说</span>
+                    </div>
+
+                    <div className="cv3-req-block">
+                      <span className="cv3-req-k">你的原始需求（原样保留）</span>
+                      <p className="cv3-req-orig">{reqCard.firstPrompt}</p>
+                    </div>
+
+                    {reqCard.corrections.length > 0 && (
+                      <div className="cv3-req-block">
+                        <span className="cv3-req-k">你后来补的（原样追加，不回改上面的原文）</span>
+                        <ul className="cv3-req-corrections">
+                          {reqCard.corrections.map((c, i) => <li key={i}>{c}</li>)}
+                        </ul>
+                      </div>
+                    )}
+
+                    <div className="cv3-req-block">
+                      <span className="cv3-req-k">我读到的（逐条附原文，可核对）</span>
+                      {reqCard.decided.length > 0 ? (
+                        <ul className="cv3-req-facts">
+                          {reqCard.decided.map((f, i) => (
+                            <li key={i}><b>{f.label}</b><span>出自「{f.quote}」</span></li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="cv3-req-none">原话里还没有可核对的字。</p>
                       )}
+                      {reqCard.missing.length > 0 && (
+                        <p className="cv3-req-missing">还没说：{reqCard.missing.join('；')}</p>
+                      )}
+                    </div>
+
+                    <div className="cv3-req-block">
+                      <span className="cv3-req-k">画面构想</span>
+                      <p className="cv3-req-model">{NEEDS_MODEL_NOTE}</p>
+                      <p className="cv3-req-model">你也可以直接在下面写想拍什么，我原样记下。</p>
+                    </div>
+
+                    <div className="cv3-req-actions">
+                      <button type="button" className="cv3-primary"
+                              onClick={() => send(CONFIRM_REQUIREMENT_TEXT)}>确认，就按这些</button>
+                      <button type="button" className="cv3-secondary"
+                              onClick={() => inputRef.current?.focus()}>我要纠正</button>
+                    </div>
+                  </div>
+                )}
+
+                  {/* 下一步：原来这块由本地伪造的「制作方案」三条带出来 ——
+                      那三条是编的内容（不是模型给的，也不是工作流产的），已删。
+                      入口本身保留：它是进入工作台的路，不该跟着伪造内容一起消失。 */}
+                  {messages[messages.length - 1]?.id === m.id && !m.streaming && !m.failed && !launched && (
+                    <div className="cv3-plan">
+                      <b className="cv3-plan-title">下一步</b>
+                      <div className="cv3-plan-path">
+                        <span>专业制作路径</span>
+                        <SegmentedControl value={proPath}
+                                          onChange={(v) => setProPath(v as WfPath)}
+                                          ariaLabel="专业制作路径"
+                                          options={[{ value: 'prompt-first', label: 'Prompt-first' }, { value: 'structured', label: 'Structured' }]} />
+                      </div>
+                      <div className="cv3-plan-actions">
+                        <button type="button" className="cv3-primary" onClick={() => launch(true)}>开始制作</button>
+                        <button type="button" className="cv3-secondary" onClick={() => launch(false)}>先去工作台看看</button>
+                      </div>
                     </div>
                   )}
                 </div>
               ))}
 
-              {pending && (
-                <p className="cv3-pending"><LoaderCircle className="cv3-spin" size={14} /> 正在整理…</p>
+              {pending && messages[messages.length - 1]?.role === 'user' && (
+                <p className="cv3-pending"><LoaderCircle className="cv3-spin" size={14} /> 正在回复…</p>
               )}
             </div>
           </div>
@@ -796,9 +941,16 @@ export function Conversation(props: {
                 {attachments.length > 0 && (
                   <div className="cv3-attach-row">
                     {attachments.map((a, i) => (
-                      <span key={`${a.name}-${i}`} className="cv3-attach-chip" data-kind={a.kind}>
+                      <span key={`${a.name}-${i}`} className="cv3-attach-chip" data-kind={a.kind}
+                            data-from-pending={a.assetId ? '' : undefined}
+                            title={a.note ? `${PURPOSE_TXT[a.purpose ?? ''] ?? ''} · ${a.note}` : undefined}>
                         {a.kind === 'image' ? <ImageIcon size={12} /> : <FileText size={12} />}
                         <span className="cv3-attach-name">{a.name}</span>
+                        {/* 用途是用户在待发送面板特意选的，必须跟着附件一起显示，
+                            否则「作为参考」和「用于画面」在输入框里长得一模一样 */}
+                        {a.purpose && a.purpose !== 'unspecified' && (
+                          <span className="cv3-attach-purpose">{PURPOSE_TXT[a.purpose] ?? a.purpose}</span>
+                        )}
                         <button type="button" aria-label={`移除文件 ${a.name}`}
                                 onClick={() => setAttachments((l) => l.filter((_, j) => j !== i))}>
                           <X size={11} />
