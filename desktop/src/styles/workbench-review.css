@@ -33,3 +33,13 @@
 #pane-flow .wb-a2 .wb-remotion-entry { display:inline-flex; align-items:center; justify-content:center; gap:7px; padding:7px 10px; border:1px solid var(--line2); border-radius:7px; color:var(--tx2); background:var(--panel2); font-size:11px; white-space:nowrap; margin-right:8px; }
 #pane-flow .wb-a2 .wb-remotion-entry:hover,#pane-flow .wb-a2 .wb-remotion-entry[aria-pressed='true'] { background:var(--sel); color:var(--acc-tx); border-color:var(--acc); }
 .wb-editor-scene { display:flex; align-items:center; gap:9px; min-width:0; color:var(--tx3); font-size:10px; }.wb-editor-scene select { min-width:0; max-width:230px; background:var(--panel2); color:var(--tx); border:1px solid var(--line); border-radius:6px; padding:5px 8px; font-size:11px; }
+
+/* 真实修改：错误提示与能力边界。
+   错误用 danger 而非 notice 的灰：它是「没做成」，不是「顺便说一下」，
+   且必须一直留到用户处理，所以不做自动消失。 */
+.wb-a2 .wb-compose-error { display:flex; align-items:flex-start; gap:8px; margin-top:8px; padding:7px 9px; border-radius:6px; background:color-mix(in srgb, var(--bad) 14%, transparent); color:var(--bad); font-size:10.5px; line-height:1.6; }
+.wb-a2 .wb-compose-error span { flex:1; }
+.wb-a2 .wb-compose-error button { color:inherit; opacity:.7; flex:none; line-height:1; }
+.wb-a2 .wb-compose-error button:hover { opacity:1; }
+/* 能力边界写在提交按钮旁：用户会默认「能对话就能随便改」 */
+.wb-a2 .wb-compose-capability { font-size:9px; color:var(--tx3); white-space:nowrap; }

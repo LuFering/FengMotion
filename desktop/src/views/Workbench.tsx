@@ -405,6 +405,11 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
   const [trayOpen, setTrayOpen] = useState(false)
   const [railOpen, setRailOpen] = useState(false)
   const [notice, setNotice] = useState('')
+  /* 真实修改的忙碌与错误状态。错误单独存而不是塞进 notice：
+     notice 是会自动消失的提示，而「刚才为什么没改成功」要一直留着，
+     直到用户重发或主动关掉。 */
+  const [realModifyBusy, setRealModifyBusy] = useState(false)
+  const [realModifyError, setRealModifyError] = useState('')
   useEffect(() => {
     if (!notice) return
     const timer = window.setTimeout(() => setNotice(''), 4500)
@@ -898,7 +903,87 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
     chat.setDraft(chat.draft.trim() ? `${chat.draft}\n${next}` : next)
     focusFeedback()
   }
-  const submit = (prompt: string, kind: TaskRequest['kind'] = 'modify', useConstraints: ModificationConstraints = constraints) => {
+  /**
+   * 提交一次真实修改。
+   *
+   * <p>与演示路径的分工（两条入口刻意分开，不互相顶替）：
+   * 这里是**真实后端**，请求体只带后端第一版真正解释的字段
+   * （kind/prompt/scope/sceneIds/baseVersion）。参考定位与保留约束没有实现，
+   * 带上会被「收下但不执行」，所以根本不发。</p>
+   *
+   * <p>失败一律如实显示并保留用户输入，**不回退到演示**：
+   * 后端不可用时让用户以为改成功了，比明说「连不上」糟得多。
+   * 只有用户自己点演示入口才会走 Mock。</p>
+   *
+   * @param prompt 用户原话
+   * @returns 是否已成功提交
+   */
+  const submitRealModify = async (prompt: string): Promise<boolean> => {
+    if (realModifyBusy) return false
+    setRealModifyBusy(true)
+    try {
+      /* 先读当前场景：既拿到 baseVersion 做版本预检，也确认项目确实有场景。
+         没有场景时不能提交 —— 后端会拒绝，前端也不该把一个注定失败的请求发出去。 */
+      const probe = await tasks.currentScene(projectId)
+      if (!probe.scene) {
+        setRealModifyError(probe.failure.message || '读取当前场景失败')
+        return false
+      }
+      if (!probe.scene.initialized) {
+        setRealModifyError('项目还没有场景，请先用「真实渲染预览」生成一次，再修改')
+        return false
+      }
+
+      /* 范围沿用 buildRequest 的推导结果：它在到处都在用，另写一份
+         「哪一段」的判定迟早会和它给出不同答案。selection 第一版后端不支持，
+         按 project 提交前必须先告诉用户，不能悄悄放大范围。 */
+      const derived = buildRequest(prompt, 'modify', constraints)
+      if (derived.scope === 'selection') {
+        setRealModifyError('选区修改暂不支持，请改为选定某个场景或整片后再试')
+        return false
+      }
+      const useScene = derived.scope === 'scene' && derived.sceneIds.length > 0
+      const result = await tasks.startModify(projectId, {
+        kind: 'modify',
+        prompt,
+        scope: useScene ? 'scene' : 'project',
+        sceneIds: useScene ? derived.sceneIds : [],
+        baseVersion: probe.scene.version,
+      })
+      if (!result.taskId) {
+        const failure = result.failure
+        /* 冲突单独给一句：用户需要知道「刷新后重试」，而不是以为要求写错了 */
+        const hint = failure?.reason === 'conflict'
+          ? '场景已被其他操作更新，请刷新后再试'
+          : failure?.message
+        setRealModifyError(hint || '提交失败')
+        return false
+      }
+      setRealModifyError('')
+      chat.addUserMessage(prompt, result.taskId, projectId)
+      setBottomTab('activity')
+      return true
+    } finally {
+      setRealModifyBusy(false)
+    }
+  }
+
+  /**
+   * 提交修改：优先真实后端，只有用户显式选择演示才走 Mock。
+   *
+   * <p>此前所有提交都进演示路径，界面看起来「能用」，实际什么都没改。
+   * 现在默认打真实接口；演示入口保留为独立按钮，标注清楚。</p>
+   */
+  const submit = async (prompt: string): Promise<boolean> => {
+    /* 真实路径是默认。失败已由 submitRealModify 写好错误并保留输入；
+       这里**不回退演示** —— 静默换成假执行会让用户以为改动生效了。 */
+    return submitRealModify(prompt)
+  }
+
+  /** 演示入口：只有用户明确点它才走本地假执行。 */
+  const submitDemo = (prompt: string) => {
+    const kind: TaskRequest['kind'] = 'modify'
+    const useConstraints = constraints
     const request = review.record(buildRequest(prompt, kind, useConstraints))
     const waiting = pendingSubmits.filter((p) => p.status === 'waiting')
     /* 没在跑、队里也没等待：即使之前按住过排队（刚叫停），这条新指令也直接跑 ——
@@ -1235,7 +1320,10 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
               setComparisonAt(at.kind === 'preview' ? { timeSeconds: at.timeSeconds, bbox: at.bbox } : null)
             }}
             onLocate={(opinion) => { const target = opinion.request.references?.find((r) => r.role === 'target'); if (target) locateReference(target) }}
-            onContinue={continueOpinion}/> : <RightPanel chat={chat} sideTab={sideTab} setSideTab={selectSideTab}
+            onContinue={continueOpinion}/> : <RightPanel realModifyBusy={realModifyBusy} realModifyError={realModifyError}
+                       onClearRealModifyError={() => setRealModifyError('')}
+                       onDemoSubmit={submitDemo}
+                       chat={chat} sideTab={sideTab} setSideTab={selectSideTab}
                       focusChatKey={focusChatKey}
                       scope={scope}
                       scopeLabel={scopeLabel} scopeShort={scopeShort} projectId={projectId} target={effectiveTarget} preview={viewedPreview ?? stageLead}
@@ -1897,7 +1985,8 @@ function RightPanel({ projectId, target, preview, chat, sideTab, setSideTab, foc
   pending, onStartQueued, onCancelQueued,
   onNavigate, references, onRemoveReference,
   onLocateReference, onToggleReferenceRole, onClearReferences, onScopeChange,
-  onOpenReview, keepNotes, reviewSaved, onResumeRequest }:
+  onOpenReview, keepNotes, reviewSaved, onResumeRequest,
+  realModifyBusy, realModifyError, onClearRealModifyError, onDemoSubmit }:
   { projectId: string; target: AgentReference; preview: StageVisual | null; chat: ChatState; sideTab: SideTab; setSideTab: (v: SideTab) => void; focusChatKey: number
     scope: 'project'|'scene'|'selection'
     /** 输入框上显示的作用范围（真名，不是枚举）与它的短名（占位文案用） */
@@ -1907,15 +1996,29 @@ function RightPanel({ projectId, target, preview, chat, sideTab, setSideTab, foc
     constraints: ModificationConstraints
     setConstraints: React.Dispatch<React.SetStateAction<ModificationConstraints>>
     activeTask: AgentTask | null; cancelTask: (id: string) => void; records: TaskRecord[]
-    onSubmit: (p: string) => void; onQuickAction: (a: (typeof quickActions)[number]) => void
+    onSubmit: (p: string) => Promise<boolean>; onQuickAction: (a: (typeof quickActions)[number]) => void
     pending: Array<{ key: string; messageId: string; prompt: string; status: 'waiting' | 'cancelled' }>
     onStartQueued: (key: string) => void; onCancelQueued: (key: string) => void
     onNavigate: (v: ViewId) => void
     references: AgentReference[]; onRemoveReference: (id: string) => void
     onLocateReference: (ref: AgentReference) => void; onToggleReferenceRole: (id: string) => void
     onClearReferences: () => void; onScopeChange: (next: 'project'|'scene'|'selection') => void
-    onOpenReview: (tab: ReviewDeskTab) => void; keepNotes: string; reviewSaved: boolean; onResumeRequest: (request: TaskRequest) => void }) {
-  const submit = () => { const v = chat.draft.trim(); if (v) { onSubmit(v); chat.setDraft('') } }
+    onOpenReview: (tab: ReviewDeskTab) => void; keepNotes: string; reviewSaved: boolean; onResumeRequest: (request: TaskRequest) => void
+    /** 真实修改正在提交：按钮要禁用并改文案，否则用户会连点发多次 */
+    realModifyBusy: boolean
+    /** 上次真实修改失败的原因；非空表示要一直显示到用户处理 */
+    realModifyError: string
+    onClearRealModifyError: () => void
+    /** 演示入口：用户明确点「演示」才走本地假执行 */
+    onDemoSubmit: (p: string) => void }) {
+  /* 草稿只在提交成功后清空：失败时保留输入，用户改一个字就能重发，
+     而不用把整段要求重写一遍。onSubmit 返回是否成功。 */
+  const submit = async () => {
+    const v = chat.draft.trim()
+    if (!v || realModifyBusy) return
+    const ok = await onSubmit(v)
+    if (ok) chat.setDraft('')
+  }
   const inputRef = useRef<HTMLTextAreaElement | null>(null)
   /* 问题/场景带入对话时聚焦输入框：只在切到对话后触发，不抢其他视图的焦点。 */
   useEffect(() => {
@@ -2064,7 +2167,7 @@ function RightPanel({ projectId, target, preview, chat, sideTab, setSideTab, foc
           </div>
 
           {/* 对话输入：与首页同一张纸片（.fw-sheet），主按钮是胶囊 */}
-          <form className="fw-compose" onSubmit={(e) => { e.preventDefault(); submit() }}>
+          <form className="fw-compose" onSubmit={(e) => { e.preventDefault(); void submit() }}>
             <div className="fw-sheet">
               {/* 作用范围独占输入框上方一行：写在按钮旁边会被挤成两行、还会把名字截掉，
                   而它是「AI 到底会动哪一块」的唯一提示 —— 不能被截。 */}
@@ -2073,7 +2176,7 @@ function RightPanel({ projectId, target, preview, chat, sideTab, setSideTab, foc
               </div>
               <textarea className="wb-input" rows={3} ref={inputRef}
                         value={chat.draft} onChange={(e) => chat.setDraft(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit() } }}
+                        onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void submit() } }}
                         placeholder={target.kind === 'project' ? '补充创作要求，或描述希望调整的内容…' : `描述「${scopeShort}」要改哪里、保留什么…`} />
               {keepNotes && <button type="button" className="wb-keep-summary" onClick={() => onOpenReview('brief')} title={keepNotes}>始终保留：{keepNotes}</button>}
               <button type="button" className="wb-compose-brief-link" onClick={() => onOpenReview('brief')}>查看制作要求与后续纠正 <ArrowUpRight size={11}/></button>
@@ -2083,10 +2186,31 @@ function RightPanel({ projectId, target, preview, chat, sideTab, setSideTab, foc
                   <button type="button" onClick={() => setSideTab('settings')}>修改约束 ›</button>
                 </div>
               )}
+              {/* 真实修改的错误提示：留在输入区上方而不是自动消失的 notice，
+                  因为「刚才为什么没改成功」是用户要继续处理的信息。 */}
+              {realModifyError && (
+                <div className="wb-compose-error">
+                  <span>{realModifyError}</span>
+                  <button type="button" onClick={onClearRealModifyError} title="关闭"><X className="size-3" /></button>
+                </div>
+              )}
+
               <div className="mt-1.5 flex items-center gap-2">
                 <button className="iconbtn" type="button" title="上传还没接通" disabled><Plus /></button>
-                <button className="mini mini-strong ml-auto" type="submit" disabled={!chat.draft.trim()}>
-                  <Send className="size-3" />{activeLive ? '排队记录' : '记录修改意见'}
+                {/* 能力边界必须写在入口旁：用户会默认「能对话就能随便改」，
+                    实际只认「把文字改成 X」「文字/背景颜色改成 X」两种说法。 */}
+                <span className="wb-compose-capability" title="当前仅支持规则式文字、颜色修改；其它要求会被明确拒绝，不会瞎改">
+                  仅支持文字 / 颜色
+                </span>
+                <button className="mini mini-ghost" type="button"
+                        onClick={() => { const v = chat.draft.trim(); if (v) onDemoSubmit(v) }}
+                        disabled={!chat.draft.trim()}
+                        title="不调用后端，本地演示执行过程与界面反馈">
+                  演示
+                </button>
+                <button className="mini mini-strong" type="submit"
+                        disabled={!chat.draft.trim() || realModifyBusy}>
+                  <Send className="size-3" />{realModifyBusy ? '提交中…' : activeLive ? '排队记录' : '提交修改'}
                 </button>
               </div>
             </div>

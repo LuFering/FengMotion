@@ -2,7 +2,24 @@ import { useCallback, useRef, useState } from 'react'
 import type { AgentTask, ChangeSet, TaskEvent, TaskRequest, TaskRun } from '@/services/studioApi'
 import { studioApi } from '@/services/studioApi'
 import { studioHttpApi } from '@/services/api'
-import { toAgentTask, type RenderTaskRequest } from '@/services/api/taskClient'
+import { toAgentTask, type ModifyTaskRequest, type ProjectSceneState, type RenderTaskRequest } from '@/services/api/taskClient'
+
+/**
+ * 真实提交失败的原因。
+ *
+ * <p>为什么要细分，而不是一个 null 了事：用户看到「点了没反应」与
+ * 看到「项目还没有场景，请先创建」是完全不同的两件事 ——
+ * 前者会让人反复点按钮，后者知道下一步该做什么。</p>
+ */
+export type SubmitFailure =
+  /** 后端连不上 / 超时 */
+  | { reason: 'unreachable'; message: string }
+  /** 场景版本已变，需要重新读取后重试 */
+  | { reason: 'conflict'; message: string }
+  /** 项目还没有当前场景，不能修改 */
+  | { reason: 'no_scene'; message: string }
+  /** 后端拒绝（含执行期的版本冲突、规则式修改无法理解的要求等） */
+  | { reason: 'rejected'; message: string; code: string | null }
 
 export interface TaskRecord {
   task: AgentTask
@@ -11,6 +28,30 @@ export interface TaskRecord {
   request: TaskRequest | null
   events: TaskEvent[]
   changes: ChangeSet | null
+}
+
+/**
+ * 把一次提交失败归类成界面能区分的几种。
+ *
+ * <p>分类依据只看 HTTP 状态与错误码 —— 不猜文案内容。
+ * 靠 message 里的关键词判断迟早会在改文案时失效。</p>
+ *
+ * @param error 抛出的异常
+ * @returns 失败原因
+ */
+function describeFailure(error: unknown): SubmitFailure {
+  const status = (error as { httpStatus?: number | null })?.httpStatus ?? null
+  const code = (error as { code?: string })?.code ?? null
+  const message = error instanceof Error ? error.message : String(error)
+
+  if (code === 'scene_version_conflict' || status === 409) {
+    return { reason: 'conflict', message }
+  }
+  if (status === null) {
+    // 没有 HTTP 状态通常意味着请求根本没发出去：后端没起、网络断了
+    return { reason: 'unreachable', message }
+  }
+  return { reason: 'rejected', message, code }
 }
 
 export function useAgentTasks() {
@@ -158,6 +199,95 @@ export function useAgentTasks() {
   }, [])
 
   /**
+   * 读取项目当前场景。
+   *
+   * <p>读不到就如实返回失败，**不回退到演示路径**：后端不可用时让用户
+   * 以为「界面还能用」比明确报错更糟 —— 他会拿一个假结果当真的用。
+   * 只有用户自己选择演示入口时才走 Mock。</p>
+   *
+   * @param projectId 项目 ID
+   * @returns 成功时返回场景状态；失败时返回 `{ failure }`
+   */
+  const currentScene = useCallback(async (projectId: string): Promise<
+    { scene: ProjectSceneState; failure?: undefined } | { scene?: undefined; failure: SubmitFailure }
+  > => {
+    try {
+      const scene = await studioHttpApi().task.currentScene(projectId)
+      return { scene }
+    } catch (error) {
+      return { failure: describeFailure(error) }
+    }
+  }, [])
+
+  /**
+   * 用**真实后端**提交一个修改任务。
+   *
+   * <p>与 {@link startReal} 的分工：渲染是把给定场景渲成 mp4，
+   * 修改是让后端基于当前场景按用户要求改完再渲。两者都走真实后端，
+   * 都不含 Mock。</p>
+   *
+   * <p>请求体刻意只带 {@code kind/prompt/scope/sceneIds/baseVersion} ——
+   * 后端第一版只解释这些。参考定位与保留约束没有实现，带上就是
+   * 「收下但不执行」，所以类型和界面都不提供。</p>
+   *
+   * @param projectId 项目 ID
+   * @param request   修改请求（含 baseVersion）
+   * @returns 成功时返回任务 ID；失败时返回原因，供界面如实展示
+   */
+  const startModify = useCallback(async (
+    projectId: string,
+    request: ModifyTaskRequest,
+  ): Promise<{ taskId: string; failure?: undefined } | { taskId?: undefined; failure: SubmitFailure }> => {
+    try {
+      const run = await studioHttpApi().task.startModify(projectId, request, (event) => {
+        setRecords((prev) => prev.map((record) => {
+          if (record.task.id !== event.taskId) return record
+          return {
+            ...record,
+            task: { ...record.task, status: event.status },
+            events: [...record.events, event],
+          }
+        }))
+      })
+
+      const now = new Date().toISOString()
+      const record: TaskRecord = {
+        task: {
+          id: run.taskId,
+          kind: 'modify',
+          status: 'queued',
+          title: request.prompt || '修改任务',
+          createdAt: now,
+          mock: false,
+        },
+        request: null,
+        events: [],
+        changes: null,
+      }
+      setRecords((prev) => prev.some((r) => r.task.id === record.task.id) ? prev : [record, ...prev])
+      setActiveTaskId(run.taskId)
+      runs.current.set(run.taskId, {
+        task: record.task,
+        events: [],
+        changes: null,
+        cancel: () => run.cancel(),
+        done: run.done.then(() => undefined),
+      })
+
+      void run.done.then((finalTask) => {
+        setRecords((prev) => prev.map((r) => (
+          r.task.id === run.taskId ? { ...r, task: toAgentTask(finalTask) } : r
+        )))
+        runs.current.delete(run.taskId)
+      })
+
+      return { taskId: run.taskId }
+    } catch (error) {
+      return { failure: describeFailure(error) }
+    }
+  }, [])
+
+  /**
    * 从后端回读项目的任务历史。
    *
    * <p>没有这一步，刷新页面后任务记录就没了 —— 而任务明明落库了。
@@ -198,5 +328,5 @@ export function useAgentTasks() {
 
   const active = records.find((record) => record.task.id === activeTaskId) ?? null
 
-  return { records, active, start, startReal, loadHistory, render, cancel, retry, setActiveTaskId }
+  return { records, active, start, startReal, startModify, currentScene, loadHistory, render, cancel, retry, setActiveTaskId }
 }
