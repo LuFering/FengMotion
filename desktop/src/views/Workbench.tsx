@@ -2265,7 +2265,7 @@ function RightPanel({ projectId, target, preview, chat, sideTab, setSideTab, foc
                 <button className="iconbtn" type="button" title="上传还没接通" disabled><Plus /></button>
                 {/* 能力边界必须写在入口旁：用户会默认「能对话就能随便改」，
                     实际只认「把文字改成 X」「文字/背景颜色改成 X」两种说法。 */}
-                <span className="wb-compose-capability" title="当前仅支持规则式文字、颜色修改；其它要求会被明确拒绝，不会瞎改">
+                <span className="wb-compose-capability" title="当前仅支持修改文字与颜色；其它要求会被明确拒绝，不会瞎改">
                   仅支持文字 / 颜色
                 </span>
                 <button className="mini mini-ghost" type="button"
@@ -2312,7 +2312,7 @@ function RightPanel({ projectId, target, preview, chat, sideTab, setSideTab, foc
               const supported = REAL_MODIFY_SUPPORTED_CONSTRAINTS.has(key)
               return (
                 <div key={key} className="fw-constraint-row" data-unsupported={!supported || undefined}
-                     title={supported ? undefined : '当前仅支持规则式文字、颜色修改，该保留条件暂不生效'}>
+                     title={supported ? undefined : '当前仅支持修改文字与颜色，该保留条件暂不生效'}>
                   <span>{label}</span>
                   <Switch checked={constraints[key]} disabled={!supported}
                           aria-label={label}
@@ -2321,7 +2321,7 @@ function RightPanel({ projectId, target, preview, chat, sideTab, setSideTab, foc
               )
             })}
             <div className="wb-constraint-note">
-              当前只支持「不修改其他场景」；其余保留条件在规则式修改下不生效，已禁用。
+              当前只支持「不修改其他场景」；其余保留条件暂不生效，已禁用。
             </div>
 
             <div className="wb-sep" />
@@ -2440,7 +2440,7 @@ function TaskPanel({ activeTask, records, cancelTask, scope, constraints, onBack
               <span className="wb-insp-kv"><span>目标场景</span><b>{record.modify.sceneIds.length > 0 ? record.modify.sceneIds.join('、') : '整片'}</b></span>
             </div>
             <div className="wb-constraint-note">
-              规则式修改：只修改文字或颜色，不支持参考定位与保留约束。
+              当前只支持修改文字或颜色，暂不支持参考定位与保留约束。
             </div>
           </>
         )}

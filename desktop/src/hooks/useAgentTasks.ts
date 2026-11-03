@@ -18,7 +18,7 @@ export type SubmitFailure =
   | { reason: 'conflict'; message: string }
   /** 项目还没有当前场景，不能修改 */
   | { reason: 'no_scene'; message: string }
-  /** 后端拒绝（含执行期的版本冲突、规则式修改无法理解的要求等） */
+  /** 后端拒绝（含执行期的版本冲突、超出当前可改字段的要求等） */
   | { reason: 'rejected'; message: string; code: string | null }
 
 /** 真实修改请求的快照（实际发给后端的那些字段）。 */
