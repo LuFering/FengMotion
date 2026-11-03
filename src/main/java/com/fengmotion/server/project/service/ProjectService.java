@@ -139,6 +139,10 @@ public class ProjectService {
             throw ex;
         }
 
+        // ID 到这一步才存在，回填到 AGENTS.md 的渲染命令里。
+        // 失败不影响项目可用（Agent 只是不知道渲染接口），所以不让它抛出去。
+        projectDirectoryService.rewriteAgentGuide(projectPath, project.id());
+
         return project;
     }
 }
