@@ -26,6 +26,8 @@ import com.fasterxml.jackson.databind.JsonNode;
  * @param createdAt  创建时间
  * @param updatedAt  最后更新时间
  * @param finishedAt 结束时间；未结束时为 null
+ * @param baseVersion   任务开始时的场景版本；与场景版本无关时为 null
+ * @param resultVersion 本次产出并被提交为当前场景的版本；未提交时为 null
  */
 public record Task(
         String id,
@@ -40,7 +42,9 @@ public record Task(
         String errorCode,
         Instant createdAt,
         Instant updatedAt,
-        Instant finishedAt) {
+        Instant finishedAt,
+        Long baseVersion,
+        Long resultVersion) {
 
     /** 排队中：已接受，尚未开始执行。 */
     public static final String STATUS_QUEUED = "queued";

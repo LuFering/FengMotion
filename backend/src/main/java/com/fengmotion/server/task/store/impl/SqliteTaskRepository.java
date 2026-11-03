@@ -48,6 +48,8 @@ public class SqliteTaskRepository implements TaskRepository {
         row.setCreatedAt(task.createdAt().toString());
         row.setUpdatedAt(task.updatedAt().toString());
         row.setFinishedAt(task.finishedAt() == null ? null : task.finishedAt().toString());
+        row.setBaseVersion(task.baseVersion());
+        row.setResultVersion(task.resultVersion());
         mapper.insert(row);
     }
 
@@ -73,6 +75,11 @@ public class SqliteTaskRepository implements TaskRepository {
     @Override
     public boolean cancel(String id, String message) {
         return mapper.markCancelled(id, Instant.now().toString(), message) > 0;
+    }
+
+    @Override
+    public void updateVersions(String taskId, Long baseVersion, Long resultVersion) {
+        mapper.updateVersions(taskId, baseVersion, resultVersion);
     }
 
     @Override
@@ -150,7 +157,9 @@ public class SqliteTaskRepository implements TaskRepository {
                 row.getErrorCode(),
                 Instant.parse(row.getCreatedAt()),
                 Instant.parse(row.getUpdatedAt()),
-                row.getFinishedAt() == null ? null : Instant.parse(row.getFinishedAt()));
+                row.getFinishedAt() == null ? null : Instant.parse(row.getFinishedAt()),
+                row.getBaseVersion(),
+                row.getResultVersion());
     }
 
     private TaskEvent toEventDomain(TaskEventRow row) {

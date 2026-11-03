@@ -82,10 +82,27 @@ CREATE TABLE IF NOT EXISTS tasks (
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     finished_at TEXT,
+    -- 场景版本关联：base_version=任务开始时的场景版本，result_version=本次产出并提交的版本。
+    -- 两个都留空表示该任务与场景版本无关（如纯渲染）。
+    base_version INTEGER,
+    result_version INTEGER,
     FOREIGN KEY (project_id) REFERENCES projects(id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_tasks_project_created ON tasks(project_id, created_at DESC);
+
+-- 项目当前场景：修改任务的权威基线。
+-- 单行一项目（project_id 主键），版本号只在条件更新成功时 +1。
+-- 场景整份存 JSON：读写粒度永远是整份，结构演进快于查询需求。
+CREATE TABLE IF NOT EXISTS project_scenes (
+    project_id TEXT PRIMARY KEY,
+    version INTEGER NOT NULL,
+    film_json TEXT NOT NULL,
+    task_id TEXT,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY (project_id) REFERENCES projects(id)
+);
+
 
 -- 任务事件：状态迁移的唯一可观察出口。
 -- seq 在任务内严格递增，客户端据此断线重连时补发（Last-Event-ID）。

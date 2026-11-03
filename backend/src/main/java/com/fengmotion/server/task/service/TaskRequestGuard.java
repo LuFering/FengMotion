@@ -110,15 +110,17 @@ public final class TaskRequestGuard {
             throw new ApiException(HttpStatus.BAD_REQUEST, "validation_error",
                     "modify 请求需要非空的 prompt");
         }
-        // 基线缺失是当前架构缺口（文档 §5），但必须明确报错而不是静默走空
+        /* film 现在只是「初次导入」的起点，不是每次都要带：
+           项目一旦有当前场景，基线一律由服务端提供。
+           因此这里不再强制要求，只做存在性校验（带了就必须合法）。 */
         JsonNode film = body.get("film");
-        if (film == null || !film.hasNonNull("scenes") || !film.path("scenes").isArray()) {
+        if (film != null && film.hasNonNull("scenes") && !film.path("scenes").isArray()) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "validation_error",
-                    "modify 请求需要携带当前场景作为基线（film.scenes）");
+                    "film.scenes 必须是数组");
         }
         // sceneIds 指向的场景必须真实存在。这一项在创建阶段就能判定，
         // 不该让用户看到「已接受」再在后台失败。
-        if (scope == TaskScope.SCENE) {
+        if (scope == TaskScope.SCENE && film != null && film.hasNonNull("scenes")) {
             List<String> missing = new java.util.ArrayList<>();
             for (JsonNode idNode : body.get("sceneIds")) {
                 String id = idNode.asText(null);

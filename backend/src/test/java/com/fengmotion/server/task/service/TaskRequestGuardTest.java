@@ -100,9 +100,17 @@ class TaskRequestGuardTest {
     }
 
     @Test
-    @DisplayName("modify 缺基线 film 报错，不静默拿空场景跑")
-    void modifyWithoutFilm() {
+    @DisplayName("modify 不强制带 film：项目一旦有当前场景，基线由服务端提供")
+    void modifyWithoutFilmIsAllowed() {
         JsonNode b = body("{\"kind\":\"modify\",\"prompt\":\"改\",\"scope\":\"project\"}");
+        assertEquals(Route.MODIFY, TaskRequestGuard.route(b));
+    }
+
+    @Test
+    @DisplayName("带了 film 但 scenes 不是数组时报错")
+    void modifyWithMalformedFilm() {
+        JsonNode b = body("{\"kind\":\"modify\",\"prompt\":\"改\",\"scope\":\"project\","
+                + "\"film\":{\"scenes\":\"nope\"}}");
         ApiException e = assertThrows(ApiException.class, () -> TaskRequestGuard.route(b));
         assertEquals("validation_error", e.getCode());
     }

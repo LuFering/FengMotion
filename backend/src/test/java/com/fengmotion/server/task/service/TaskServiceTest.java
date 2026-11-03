@@ -63,7 +63,8 @@ class TaskServiceTest {
             if (Task.STATUS_CANCELLED.equals(old.status())) return false;
             Task updated = new Task(old.id(), old.projectId(), old.kind(), status, old.prompt(),
                     old.request(), progress, message, artifactPath == null ? old.artifactPath() : artifactPath,
-                    errorCode, old.createdAt(), Instant.now(), finished ? Instant.now() : null);
+                    errorCode, old.createdAt(), Instant.now(), finished ? Instant.now() : null,
+                    old.baseVersion(), old.resultVersion());
             tasks.put(id, updated);
             return true;
         }
@@ -74,8 +75,18 @@ class TaskServiceTest {
             cancelled = true;
             tasks.put(id, new Task(old.id(), old.projectId(), old.kind(), Task.STATUS_CANCELLED,
                     old.prompt(), old.request(), old.progress(), message, old.artifactPath(),
-                    old.errorCode(), old.createdAt(), Instant.now(), Instant.now()));
+                    old.errorCode(), old.createdAt(), Instant.now(), Instant.now(),
+                    old.baseVersion(), old.resultVersion()));
             return true;
+        }
+
+        @Override public void updateVersions(String taskId, Long baseVersion, Long resultVersion) {
+            Task old = tasks.get(taskId);
+            if (old == null) return;
+            tasks.put(taskId, new Task(old.id(), old.projectId(), old.kind(), old.status(),
+                    old.prompt(), old.request(), old.progress(), old.message(), old.artifactPath(),
+                    old.errorCode(), old.createdAt(), old.updatedAt(), old.finishedAt(),
+                    baseVersion, resultVersion));
         }
 
         @Override public TaskEvent appendEvent(TaskEvent event) {

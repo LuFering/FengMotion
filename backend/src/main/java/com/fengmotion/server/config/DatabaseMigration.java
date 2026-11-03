@@ -155,6 +155,26 @@ public class DatabaseMigration {
                 )
                 """);
         jdbc.execute("CREATE INDEX IF NOT EXISTS idx_task_events_task_seq ON task_events(task_id, seq)");
+        // 项目当前场景表：旧库补建，新库由 schema.sql 建出。
+        jdbc.execute("""
+                CREATE TABLE IF NOT EXISTS project_scenes (
+                    project_id TEXT PRIMARY KEY,
+                    version INTEGER NOT NULL,
+                    film_json TEXT NOT NULL,
+                    task_id TEXT,
+                    updated_at TEXT NOT NULL,
+                    FOREIGN KEY (project_id) REFERENCES projects(id)
+                )
+                """);
+        // 任务上的场景版本关联：可追溯「这次任务基于哪一版、产出了哪一版」。
+        Set<String> taskColumns = new HashSet<>(jdbc.query("PRAGMA table_info(tasks)",
+                (rs, row) -> rs.getString("name")));
+        if (!taskColumns.contains("base_version")) {
+            jdbc.execute("ALTER TABLE tasks ADD COLUMN base_version INTEGER");
+        }
+        if (!taskColumns.contains("result_version")) {
+            jdbc.execute("ALTER TABLE tasks ADD COLUMN result_version INTEGER");
+        }
         jdbc.execute("""
                 CREATE TABLE IF NOT EXISTS chat_message_idempotency (
                     key TEXT PRIMARY KEY,

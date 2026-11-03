@@ -28,10 +28,12 @@ public interface TaskMapper {
     @Insert("""
             INSERT INTO tasks
                 (id, project_id, kind, status, prompt, request_json, progress, message,
-                 artifact_path, error_code, created_at, updated_at, finished_at)
+                 artifact_path, error_code, created_at, updated_at, finished_at,
+                 base_version, result_version)
             VALUES
                 (#{id}, #{projectId}, #{kind}, #{status}, #{prompt}, #{requestJson}, #{progress},
-                 #{message}, #{artifactPath}, #{errorCode}, #{createdAt}, #{updatedAt}, #{finishedAt})
+                 #{message}, #{artifactPath}, #{errorCode}, #{createdAt}, #{updatedAt}, #{finishedAt},
+                 #{baseVersion}, #{resultVersion})
             """)
     int insert(TaskRow row);
 
@@ -45,7 +47,8 @@ public interface TaskMapper {
             SELECT id, project_id AS projectId, kind, status, prompt,
                    request_json AS requestJson, progress, message,
                    artifact_path AS artifactPath, error_code AS errorCode,
-                   created_at AS createdAt, updated_at AS updatedAt, finished_at AS finishedAt
+                   created_at AS createdAt, updated_at AS updatedAt, finished_at AS finishedAt,
+                   base_version AS baseVersion, result_version AS resultVersion
             FROM tasks
             WHERE id = #{id}
             """)
@@ -62,7 +65,8 @@ public interface TaskMapper {
             SELECT id, project_id AS projectId, kind, status, prompt,
                    request_json AS requestJson, progress, message,
                    artifact_path AS artifactPath, error_code AS errorCode,
-                   created_at AS createdAt, updated_at AS updatedAt, finished_at AS finishedAt
+                   created_at AS createdAt, updated_at AS updatedAt, finished_at AS finishedAt,
+                   base_version AS baseVersion, result_version AS resultVersion
             FROM tasks
             WHERE project_id = #{projectId}
             ORDER BY created_at DESC
@@ -106,6 +110,22 @@ public interface TaskMapper {
                        @Param("errorCode") String errorCode,
                        @Param("updatedAt") String updatedAt,
                        @Param("finishedAt") String finishedAt);
+
+    /**
+     * 记录任务与场景版本的关联。
+     *
+     * @param id            任务 ID
+     * @param baseVersion   任务开始时的版本
+     * @param resultVersion 本次提交的版本；未提交时为 null
+     * @return 影响行数
+     */
+    @Update("""
+            UPDATE tasks SET base_version = #{baseVersion}, result_version = #{resultVersion}
+            WHERE id = #{id}
+            """)
+    int updateVersions(@Param("id") String id,
+                       @Param("baseVersion") Long baseVersion,
+                       @Param("resultVersion") Long resultVersion);
 
     /**
      * 取消任务（只对未结束的任务生效）。

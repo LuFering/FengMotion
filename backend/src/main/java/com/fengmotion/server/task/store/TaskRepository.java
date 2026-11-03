@@ -64,6 +64,15 @@ public interface TaskRepository {
     boolean cancel(String id, String message);
 
     /**
+     * 记录任务与场景版本的关联。
+     *
+     * @param taskId        任务 ID
+     * @param baseVersion   任务开始时的版本
+     * @param resultVersion 本次提交的版本；未提交时为 null
+     */
+    void updateVersions(String taskId, Long baseVersion, Long resultVersion);
+
+    /**
      * 追加一条事件，序号自动分配。
      *
      * @param event 事件（seq 字段被忽略，由实现分配）

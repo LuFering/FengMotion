@@ -26,4 +26,8 @@ public class TaskRow {
     private String createdAt;
     private String updatedAt;
     private String finishedAt;
+    /** 任务开始时的场景版本；与场景版本无关时为 null。 */
+    private Long baseVersion;
+    /** 本次产出并被提交的场景版本；未提交时为 null。 */
+    private Long resultVersion;
 }

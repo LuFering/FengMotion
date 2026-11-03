@@ -149,7 +149,8 @@ public class TaskService {
 
         Instant now = Instant.now();
         Task task = new Task(UUID.randomUUID().toString(), projectId, kind, Task.STATUS_QUEUED,
-                prompt == null ? "" : prompt, request, 0, "已接受，等待开始", null, null, now, now, null);
+                prompt == null ? "" : prompt, request, 0, "已接受，等待开始", null, null, now, now, null,
+                null, null);
 
         // 任务与「已接受」事件在同一事务里写：只写下一个就是数据不一致
         transactions.executeWithoutResult(status -> {
