@@ -38,12 +38,26 @@ export const DEFAULT_RESYNC_LIMIT = 200
 /* ============================ 取值工具 ============================ */
 
 /**
- * 读环境变量时同时容忍「在 Vite 里」和「在纯 Node 里」两种运行形态。
- * 直接写 `import.meta.env.X` 在非 Vite 环境会抛（`import.meta.env` 是 undefined）。
+ * 读环境变量，同时容忍「在 Vite 里」与「在纯 Node 里」两种运行形态。
+ *
+ * <p><strong>为什么逐字段写死字面量</strong>：Vite 的 `define` 只替换
+ * `import.meta.env.VITE_X` 这类完整字面量，替换不到 `env[key]` 这种动态取值。
+ * 之前把整个 `import.meta.env` 取出来再按 key 查，在 dev 模式下恒为空 ——
+ * 而 Vite 8 的 dev 环境本就不注入 `import.meta.env`（只有构建产物才静态替换）。
+ * 所以这里必须让每个变量都以字面量形式出现在源码里，构建期才能被替换进去。</p>
+ *
+ * <p>新增环境变量时：在这里加一行字面量读取，并在 vite.config.ts 的 define 里
+ * 同步加一条，两边都不能漏。</p>
  */
 export function readEnv(): Record<string, unknown> {
   const meta = import.meta as ImportMeta & { env?: Record<string, unknown> }
-  return meta.env ?? {}
+  const env = meta.env ?? {}
+  /* 字面量读取：define 替换的就是这些位置 */
+  const apiBase = import.meta.env?.VITE_FENGMOTION_API_BASE
+  return {
+    ...env,
+    ...(apiBase ? { VITE_FENGMOTION_API_BASE: apiBase } : {}),
+  }
 }
 
 function readString(env: Record<string, unknown>, key: string): string | undefined {
