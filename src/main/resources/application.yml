@@ -30,7 +30,14 @@ spring:
 
 fengmotion:
   # 数据根目录：数据库、附件都从这里派生。壳启动后端时会显式传入。
-  data-dir: ${user.home}/.fengmotion
+  # 默认数据根目录。
+  #
+  # 这里刻意与桌面应用的 userData 保持一致（Linux: ~/.config/FengMotion），
+  # 而不是另建一个 ~/.fengmotion —— 两套路径会让「开发态」和「打包态」看到
+  # 两份不同的数据：应用里打开项目报「项目不存在」，而开发态一切正常（真机踩过）。
+  # 桌面壳启动时会显式传 --fengmotion.data-dir，值与此相同；
+  # 单独跑 mvn spring-boot:run 时也落到同一处，两边数据自动一致。
+  data-dir: ${user.home}/.config/FengMotion/data
   workspace-root: ${user.home}/FengMotion/projects
   # 附件落盘目录：与工作区（项目文件）分开，上传的是「为某条消息带上的临时文件」，
   # 不属于任何项目的资产树。
