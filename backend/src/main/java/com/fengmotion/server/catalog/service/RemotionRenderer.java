@@ -120,6 +120,11 @@ public class RemotionRenderer {
             String[] captured = readBothStreams(process);
             String stdout = captured[0];
             String stderr = captured[1];
+            /* 把实际命令与两端输出都记下来：打包后渲染失败时，没有这条日志
+               就只能看到一句「输出不是合法 JSON」，无法判断是脚本没跑、
+               node 路径不对，还是 stdout 被吞了。 */
+            log.info("render：node={} project={} stdout长度={} stderr长度={}",
+                    nodeBinary, project, stdout.length(), stderr.length());
             try {
                 if (!process.waitFor(timeoutSeconds, TimeUnit.SECONDS)) {
                     process.destroyForcibly();

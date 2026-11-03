@@ -83,14 +83,19 @@ function locateRuntime(resourcesRoot: string): { java: string; jar: string | nul
   const candidates = [
     path.join(resourcesRoot, 'backend', 'fengmotion-server.jar'),
     path.join(resourcesRoot, 'fengmotion-server.jar'),
+    /* 开发态 resourcesRoot 指向后端仓库根，jar 在 target/ 下（文件名带版本号）。
+       下面那段 readdirSync 会把它找出来。 */
+    path.join(resourcesRoot, 'target', 'fengmotion-server.jar'),
   ]
-  // 开发态的 target 目录：找出唯一一个不是 .original 的 jar
-  try {
-    const entries = readdirSync(resourcesRoot).filter(
-      (f) => f.endsWith('.jar') && !f.endsWith('.original'),
-    )
-    for (const f of entries) candidates.push(path.join(resourcesRoot, f))
-  } catch { /* 目录不存在就算了 */ }
+  // 开发态：target/ 下的 jar 文件名带版本号，需要按目录扫描
+  for (const dir of [resourcesRoot, path.join(resourcesRoot, 'target')]) {
+    try {
+      const entries = readdirSync(dir).filter(
+        (f) => f.endsWith('.jar') && !f.endsWith('.original'),
+      )
+      for (const f of entries) candidates.push(path.join(dir, f))
+    } catch { /* 目录不存在就算了 */ }
+  }
 
   const jar = candidates.find((p) => existsSync(p)) ?? null
 
@@ -152,10 +157,28 @@ export async function startBackend(options: StartOptions): Promise<BackendHandle
     }
   }
 
+  /* Remotion 渲染工程与依赖：打包态在 resources/remotion，
+     开发态直接指后端仓库里的那份（避免拷来拷去）。
+     不传的话后端只能按 user.dir 猜，打包后必然猜不到 —— 实测会报
+     renderer_unavailable「找不到 Remotion 渲染工程」。 */
+  const remotionDir = path.join(options.resourcesRoot, 'remotion')
+  const remotionModules = path.join(remotionDir, 'node_modules')
+  const remotionArgs: string[] = []
+  if (existsSync(path.join(remotionDir, 'render.mjs'))) {
+    remotionArgs.push(`--fengmotion.remotion.project-dir=${remotionDir}`)
+    if (existsSync(remotionModules)) {
+      remotionArgs.push(`--fengmotion.remotion.node-modules=${remotionModules}`)
+    }
+  } else {
+    // 找不到就明确记一笔：这会让渲染完全不可用，不该静默
+    console.warn(`[backend] 未找到 Remotion 工程：${remotionDir}（渲染将不可用）`)
+  }
+
   const child: ChildProcess = spawn(java, [
     '-jar', jar,
     `--server.port=${port}`,
     `--fengmotion.data-dir=${options.dataDir}`,
+    ...remotionArgs,
   ], {
     // 后端只需要本机回环，不需要继承 shell
     stdio: ['ignore', logFd ?? 'ignore', logFd ?? 'ignore'],

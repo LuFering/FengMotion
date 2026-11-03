@@ -27,7 +27,27 @@ export default {
     // 后端运行时：主进程按 resources/jre 与 resources/backend 查找（见 electron/backend.ts）
     { from: 'electron/resources/jre', to: 'jre' },
     { from: 'electron/resources/backend', to: 'backend' },
+    /* Remotion 渲染工程与运行依赖。不加这条时，打包应用能理解用户要求，
+       但一渲染就报 renderer_unavailable —— 实测确认过。
+       @remotion/bundler 与 renderer 只是传递依赖，不会被自动收进 asar，
+       所以由 prepare-backend-resources.mjs 显式拷到 electron/resources/remotion。 */
+    { from: 'electron/resources/remotion', to: 'remotion' },
   ],
+  /* electron-builder 无论如何都会排除 node_modules（它假定依赖由自己管理），
+     但 remotion/node_modules 是给渲染脚本用的、不参与打包期依赖解析。
+     所以用 afterPack 在打包完成后直接拷进去 —— 不跟它的排除规则较劲。 */
+  afterPack: async (context) => {
+    const { cpSync, existsSync } = await import('node:fs')
+    const path = await import('node:path')
+    const from = path.resolve('electron', 'resources', 'remotion', 'node_modules')
+    const to = path.join(context.appOutDir, 'resources', 'remotion', 'node_modules')
+    if (!existsSync(from)) {
+      console.warn('[afterPack] 未找到 remotion 运行依赖，渲染可能不可用：' + from)
+      return
+    }
+    cpSync(from, to, { recursive: true })
+    console.log('[afterPack] 已复制 remotion 运行依赖 -> ' + to)
+  },
   linux: {
     target: [{ target: 'AppImage', arch: ['x64'] }],
     category: 'AudioVideo',

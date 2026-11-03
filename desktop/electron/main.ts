@@ -245,9 +245,11 @@ if (!gotLock) {
        后端没起来的话用户会看到「Agent 不可用」闪一下，还得手动刷新。
        后端启动失败不阻止开窗 —— 前端仍可浏览，只是没有 Agent。 */
     if (!process.env.FENGMOTION_API_BASE) {
+      /* 打包态用 resources；开发态指向后端仓库根 —— backend.ts 会在其下找
+         remotion/，而 backend/target 里没有那个工程（那里只有 jar）。 */
       const resourcesRoot = app.isPackaged
         ? process.resourcesPath
-        : path.resolve(__dirname, '..', '..', 'FengMotion-backend', 'target')
+        : path.resolve(__dirname, '..', '..', 'backend')
       backendHandle = await startBackend({
         resourcesRoot,
         /* 数据目录必须与后端 application.yml 的 fengmotion.data-dir 默认值一致

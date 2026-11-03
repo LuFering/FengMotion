@@ -18,10 +18,22 @@ import { cpSync, existsSync, mkdirSync, readdirSync, rmSync, statSync } from 'no
 import path from 'node:path'
 
 const repoRoot = path.resolve(import.meta.dirname, '..')
-const backendDir = path.resolve(repoRoot, '..', 'FengMotion-backend')
+/* 单仓两目录：后端在同级的 backend/。合仓前这里是 ../FengMotion-backend，
+   目录改名后这条路径失效，打包会以 ENOENT 失败（cwd 不存在时 mvn 也报 ENOENT，
+   很容易误判成「mvn 没装」）。 */
+const backendDir = path.resolve(repoRoot, '..', 'backend')
 const outRoot = path.join(repoRoot, 'electron', 'resources')
 const jreDir = path.join(outRoot, 'jre')
 const backendOut = path.join(outRoot, 'backend')
+/* Remotion 渲染工程与它的运行依赖。
+   为什么不依赖 electron-builder 自动收 node_modules：@remotion/bundler 与
+   @remotion/renderer 只是 desktop 的传递依赖，没写进 dependencies，
+   electron-builder 不会打包 —— 实测发现打包应用里渲染直接失败，
+   报「找不到 Remotion 渲染工程」。所以显式拷进 resources。 */
+const remotionSrc = path.resolve(repoRoot, '..', 'backend', 'remotion')
+const remotionOut = path.join(outRoot, 'remotion')
+const remotionModulesOut = path.join(remotionOut, 'node_modules')
+const REMOTION_RUNTIME_PACKAGES = ['@remotion/bundler', '@remotion/renderer']
 
 /** 执行一个命令，失败时抛出可读错误。 */
 function run(cmd, args, cwd) {
@@ -35,7 +47,7 @@ function buildJar() {
     ?? path.join(process.env.HOME ?? '', '.local', 'opt', 'apache-maven-3.9.9', 'bin', 'mvn')
   const mvnCmd = existsSync(mvn) ? mvn : 'mvn'
 
-  console.log('\n[1/3] 构建后端 jar')
+  console.log('\n[1/4] 构建后端 jar')
   run(mvnCmd, ['-q', 'package', '-DskipTests'], backendDir)
 
   const target = path.join(backendDir, 'target')
@@ -57,7 +69,7 @@ function buildJar() {
 
 /* ── 2. 裁剪 JRE ─────────────────────────────────────────── */
 function buildJre() {
-  console.log('\n[2/3] 裁剪 JRE (jlink)')
+  console.log('\n[2/4] 裁剪 JRE (jlink)')
 
   const javaHome = process.env.JAVA_HOME
     ?? execFileSync('bash', ['-c', 'dirname $(dirname $(readlink -f $(which java)))'], { encoding: 'utf8' }).trim()
@@ -104,9 +116,36 @@ function buildJre() {
   ], repoRoot)
 }
 
-/* ── 3. 校验 ─────────────────────────────────────────────── */
+/* ── 3. Remotion 渲染工程 ─────────────────────────────────── */
+function buildRemotion() {
+  console.log('\n[3/4] 打包 Remotion 渲染工程')
+
+  /* 只拷 render.mjs 与 src/：.cache 与 .remotion 是本机构建缓存和下载的
+     Chromium，几百 MB，且换机器后无效。 */
+  rmSync(remotionOut, { recursive: true, force: true })
+  mkdirSync(remotionOut, { recursive: true })
+  cpSync(path.join(remotionSrc, 'render.mjs'), path.join(remotionOut, 'render.mjs'))
+  cpSync(path.join(remotionSrc, 'src'), path.join(remotionOut, 'src'), { recursive: true })
+
+  /* 依赖从 desktop/node_modules 拷：这些包已在本地装好，
+     再 npm install 一遍既慢又可能拉到不同版本。 */
+  let copied = 0
+  for (const pkg of REMOTION_RUNTIME_PACKAGES) {
+    const from = path.join(repoRoot, 'node_modules', pkg)
+    if (!existsSync(from)) {
+      throw new Error(`缺少运行时依赖 ${pkg}，请先在 desktop/ 下 npm install`)
+    }
+    const to = path.join(remotionModulesOut, pkg)
+    mkdirSync(path.dirname(to), { recursive: true })
+    cpSync(from, to, { recursive: true })
+    copied += 1
+  }
+  console.log(`  render.mjs + src/ 已复制，运行依赖 ${copied} 个`)
+}
+
+/* ── 4. 校验 ─────────────────────────────────────────────── */
 function verify() {
-  console.log('\n[3/3] 校验产物')
+  console.log('\n[4/4] 校验产物')
   const java = path.join(jreDir, 'bin', process.platform === 'win32' ? 'java.exe' : 'java')
   const jar = path.join(backendOut, 'fengmotion-server.jar')
   if (!existsSync(java)) throw new Error(`JRE 缺少 java 可执行文件：${java}`)
@@ -118,9 +157,21 @@ function verify() {
 
   const jreSize = execFileSync('du', ['-sh', jreDir], { encoding: 'utf8' }).split('\t')[0]
   console.log('  JRE 体积:', jreSize)
+
+  const renderScript = path.join(remotionOut, 'render.mjs')
+  const entry = path.join(remotionOut, 'src', 'index.tsx')
+  if (!existsSync(renderScript)) throw new Error(`缺少 Remotion 渲染脚本：${renderScript}`)
+  if (!existsSync(entry)) throw new Error(`缺少 Remotion 工程入口：${entry}`)
+  for (const pkg of REMOTION_RUNTIME_PACKAGES) {
+    if (!existsSync(path.join(remotionModulesOut, pkg))) {
+      throw new Error(`缺少 Remotion 运行依赖：${pkg}`)
+    }
+  }
+  console.log('  Remotion 工程与依赖: 就绪')
 }
 
 buildJar()
 buildJre()
+buildRemotion()
 verify()
 console.log('\n打包资源已就绪：electron/resources/')
