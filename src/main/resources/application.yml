@@ -1,13 +1,19 @@
 server:
   address: 127.0.0.1
-  port: 8080
+  # 端口可由桌面壳通过 --server.port 覆盖：8080 被占用时壳会换一个空闲端口，
+  # 再把它传给前端。硬编码会让「端口冲突」变成「应用打不开」。
+  port: ${FENGMOTION_PORT:8080}
 
 spring:
   application:
     name: fengmotion-server
 
   datasource:
-    url: jdbc:sqlite:./fengmotion.db
+    # 数据目录必须绝对且可写。
+    # 打成桌面应用后「当前工作目录」由壳决定（可能是安装目录，通常只读），
+    # 用相对路径会把数据库写到奇怪的地方甚至启动失败。
+    # 默认放用户数据目录；壳会通过 --fengmotion.data-dir 指定具体位置。
+    url: jdbc:sqlite:${fengmotion.data-dir:.}/fengmotion.db
     driver-class-name: org.sqlite.JDBC
 
   sql:
@@ -23,10 +29,13 @@ spring:
       max-request-size: 68MB
 
 fengmotion:
+  # 数据根目录：数据库、附件都从这里派生。壳启动后端时会显式传入。
+  data-dir: ${user.home}/.fengmotion
   workspace-root: ${user.home}/FengMotion/projects
   # 附件落盘目录：与工作区（项目文件）分开，上传的是「为某条消息带上的临时文件」，
   # 不属于任何项目的资产树。
-  upload-root: ${user.home}/.fengmotion/uploads
+  # 从 data-dir 派生，保证「数据都在一个地方」，备份/迁移只需搬一个目录
+  upload-root: ${fengmotion.data-dir}/uploads
   cors:
     # Electron 壳以 fengmotion://app 为 origin，必须显式列入白名单；
     # 否则壳内所有 fetch 都会被 CORS 拦成 403。
