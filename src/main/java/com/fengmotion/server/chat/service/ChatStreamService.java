@@ -63,6 +63,7 @@ public class ChatStreamService {
 
     private final HarnessService harness;
     private final com.fengmotion.server.upload.service.UploadService uploads;
+    private final com.fengmotion.server.project.store.ProjectRepository projects;
     private final HarnessProperties properties;
     private final DshLauncher launcher;
     private final ChatSessionRepository sessions;
@@ -131,6 +132,32 @@ public class ChatStreamService {
      * @param writer    SSE 输出
      * @param userText  本轮用户消息
      */
+    /**
+     * 解析本次对话的工作目录：优先项目根目录，退化到配置的全局目录。
+     *
+     * <p>为什么以项目为准：AI 通过 {@code write}/{@code bash} 产出的文件写在当前工作目录。
+     * 若固定用全局目录，多个项目的产物会混在一起，且无法归属到任何一个项目，
+     * 界面上看不到「这个项目产出了什么」。</p>
+     *
+     * @param session 当前会话
+     * @return DSH 子进程的工作目录（绝对路径）
+     */
+    private String workingDirectoryFor(ChatSession session) {
+        String projectId = session.projectId();
+        if (projectId != null && !projectId.isBlank()) {
+            var project = projects.findById(projectId);
+            if (project.isPresent()) {
+                String root = project.get().rootPath();
+                if (root != null && !root.isBlank()) {
+                    return root;
+                }
+            }
+        }
+        // 项目没有根目录（或会话没有归属）时退回全局目录：宁可产物落在公共位置，
+        // 也不要因为缺路径让整轮对话失败。
+        return properties.workingDirectory().toString();
+    }
+
     /**
      * 把消息里的附件元信息转成可发送的内联图片。
      *
@@ -201,7 +228,10 @@ public class ChatStreamService {
                 driver.acceptStreamFrame(frame);
             });
 
-            driver.initialize(properties.workingDirectory().toString(), Duration.ofSeconds(10));
+            /* 工作目录用**会话所属项目**的根目录，而不是配置里的全局目录。
+               这一条决定「AI 产出的文件算谁的」：全局目录下写出的视频不属于任何项目，
+               界面上也就永远看不到产物。项目的 rootPath 是创建时分配的稳定路径。 */
+            driver.initialize(workingDirectoryFor(session), Duration.ofSeconds(10));
             timing.markReady();
 
             if (continuation) {
