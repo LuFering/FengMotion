@@ -37,7 +37,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class ModelModifyPlanner implements ModifyPlanner {
+public class ModelModifyPlanner {
 
     private final DshLauncher launcher;
     private final HarnessProperties properties;
@@ -47,12 +47,6 @@ public class ModelModifyPlanner implements ModifyPlanner {
     @Value("${fengmotion.modify.plan-timeout-seconds:90}")
     private long planTimeoutSeconds;
 
-    @Override
-    public String name() {
-        return "model";
-    }
-
-    @Override
     public ModifyPlan plan(String prompt, JsonNode film, List<String> editable) {
         if (prompt == null || prompt.isBlank()) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "validation_error", "修改要求是空的");

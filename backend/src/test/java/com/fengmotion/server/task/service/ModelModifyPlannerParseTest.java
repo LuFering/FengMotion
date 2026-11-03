@@ -122,10 +122,4 @@ class ModelModifyPlannerParseTest {
         assertEquals("modify_plan_invalid", e.getCode());
     }
 
-    @Test
-    @DisplayName("规则式实现的名称是 rule，模型实现是 model")
-    void plannerNames() {
-        assertEquals("rule", new MockModifyExecutor().name());
-        assertEquals("model", planner.name());
-    }
 }

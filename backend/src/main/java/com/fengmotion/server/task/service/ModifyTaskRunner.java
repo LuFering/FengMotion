@@ -45,7 +45,7 @@ import lombok.extern.slf4j.Slf4j;
 public class ModifyTaskRunner {
 
     private final RemotionRenderer renderer;
-    private final ModifyPlanner generator;
+    private final ModelModifyPlanner generator;
     private final ModifyPlanApplier applier;
     private final ProjectRepository projects;
     private final ProjectSceneRepository scenes;
