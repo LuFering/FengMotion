@@ -17,3 +17,7 @@ target/
 # 调试残留（手工 curl 时留下的临时输出，不属于源码）
 ids.txt
 pm.json
+
+# Remotion 渲染缓存（Chrome Headless 下载，约 220MB，不入库）
+remotion/.remotion/
+remotion/.cache/
