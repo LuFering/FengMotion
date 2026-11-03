@@ -1,0 +1,22 @@
+spring:
+  datasource:
+    url: jdbc:sqlite:./target/fengmotion-test.db
+    driver-class-name: org.sqlite.JDBC
+  sql:
+    init:
+      mode: always
+
+fengmotion:
+  harness:
+    # 测试不接入真实引擎：单元/接口测试不应该 spawn 外部进程。
+    # 本机装了 dsh 时，真实探测会让断言随环境变化；CI 上没有 dsh 又会走另一条分支，
+    # 两种都不该影响测试结果。需要验证真实链路的场景请用端到端手测。
+    enabled: false
+    stream-plugin: ''
+    bin: dsh
+    profile: sdk
+    provider: agent2api-ecs
+    model: deepseek-v4.1-flash
+    probe-timeout-ms: 1000
+    probe-cache-ms: 0
+    turn-timeout-ms: 5000

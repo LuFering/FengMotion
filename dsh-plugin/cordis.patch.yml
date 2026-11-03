@@ -1,0 +1,4 @@
+# 把本插件插入 DSH 组合。由后端在启动子进程时通过 --patch 叠加。
+- insert:
+    - id: fengmotion-stream
+      name: "./index.js"

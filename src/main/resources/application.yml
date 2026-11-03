@@ -1,0 +1,54 @@
+server:
+  address: 127.0.0.1
+  port: 8080
+
+spring:
+  application:
+    name: fengmotion-server
+
+  datasource:
+    url: jdbc:sqlite:./fengmotion.db
+    driver-class-name: org.sqlite.JDBC
+
+  sql:
+    init:
+      mode: always
+
+  # 附件上传体积上限。Spring 默认只有 1MB，素材截图稍大就会被容器层直接拒绝，
+  # 而且报的是框架异常而不是我们自己的错误文案。这里与服务层 64MiB 保持一致，
+  # 稍微放宽一点给 multipart 封装开销留余量。
+  servlet:
+    multipart:
+      max-file-size: 64MB
+      max-request-size: 68MB
+
+fengmotion:
+  workspace-root: ${user.home}/FengMotion/projects
+  # 附件落盘目录：与工作区（项目文件）分开，上传的是「为某条消息带上的临时文件」，
+  # 不属于任何项目的资产树。
+  upload-root: ${user.home}/.fengmotion/uploads
+  cors:
+    # Electron 壳以 fengmotion://app 为 origin，必须显式列入白名单；
+    # 否则壳内所有 fetch 都会被 CORS 拦成 403。
+    allowed-origins: http://localhost:5173,http://localhost:4173,fengmotion://app
+
+  harness:
+    # 是否接入执行引擎；关闭时 /api/harnesses 与能力声明如实返回不可用。
+    enabled: true
+    # dsh 可执行文件；可写绝对路径或裸命令名（裸名依赖服务进程的 PATH）。
+    bin: dsh
+    # 使用的 dsh profile：sdk 是官方面向进程外集成的正式入口。
+    profile: sdk
+    # 让 SDK 子进程带上第三方提供商的 provider 配置（路径按本机实际情况填写）。
+    patch: ${FENGMOTION_DSH_PATCH:/home/lufering/.dsh/profiles/desktop/cordis.patch.yml}
+    # 流式桥接插件目录：订阅 DSH 内部的 token 级帧并转写到 stderr，
+    # 后端据此产出 SSE delta 帧。留空则退回「整段到达」。
+    stream-plugin: ${user.dir}/dsh-plugin
+    # 模型路由与模型 ID；必须与 patch 里的 provider 名称一致。
+    provider: agent2api-ecs
+    model: deepseek-v4.1-flash
+    # 探测缓存：避免每次请求都 spawn 一个 dsh 进程。
+    probe-timeout-ms: 5000
+    probe-cache-ms: 60000
+    # 单轮对话硬超时；超时后销毁子进程并发出错误帧，不静默结束。
+    turn-timeout-ms: 180000

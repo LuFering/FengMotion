@@ -1,0 +1,19 @@
+# Maven
+target/
+*.class
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# 本地 SQLite 数据
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+
+# 调试残留（手工 curl 时留下的临时输出，不属于源码）
+ids.txt
+pm.json
