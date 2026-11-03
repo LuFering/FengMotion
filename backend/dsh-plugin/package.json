@@ -1,0 +1,9 @@
+{
+  "name": "fengmotion-stream",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "index.js",
+  "description": "把 DSH 内部的 token 级流式帧以 JSON-RPC 通知写到 stdout，供后端转成 SSE",
+  "dsh": { "bundle": { "patch": "./cordis.patch.yml" } }
+}
