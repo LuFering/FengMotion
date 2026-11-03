@@ -10,9 +10,16 @@ import java.util.List;
 import java.util.Locale;
 import java.util.stream.Stream;
 
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.Resource;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -157,6 +164,77 @@ public class ArtifactController {
             case "ts", "tsx", "js", "jsx", "json", "html", "css", "py", "sh" -> "code";
             case "md", "txt", "pdf", "csv" -> "document";
             default -> "file";
+        };
+    }
+
+    /**
+     * 读取产物文件本体（用于视频/图片预览）。
+     *
+     * <p>为什么需要它：产物列表只给元信息，用户看不到内容。视频要能播放、
+     * 图片要能显示，前端必须能拿到字节流。</p>
+     *
+     * <p><strong>路径安全</strong>：{@code path} 来自外部，必须挡住 {@code ../}。
+     * 这里用「解析后必须仍在项目根目录之下」判断，而不是过滤字符串 ——
+     * 过滤 {@code ../} 的写法能被 {@code ....//} 或符号链接绕过。</p>
+     *
+     * @param projectId 项目 ID
+     * @param path      相对项目根目录的路径
+     * @return 文件内容；支持 Range 请求以便视频拖动进度条
+     */
+    @GetMapping("/content")
+    public ResponseEntity<Resource> content(@PathVariable String projectId,
+                                            @RequestParam("path") String path) {
+        Project project = projects.findById(projectId)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "not_found", "项目不存在"));
+
+        String rootPath = project.rootPath();
+        if (rootPath == null || rootPath.isBlank()) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "not_found", "项目还没有目录");
+        }
+
+        Path root = Path.of(rootPath).toAbsolutePath().normalize();
+        Path target = root.resolve(path).normalize();
+
+        // 关键：解析之后必须仍在 root 之下。符号链接也会被 toRealPath 暴露出来
+        if (!target.startsWith(root)) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "validation_error", "非法的产物路径");
+        }
+        if (!Files.isRegularFile(target)) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "not_found", "产物不存在");
+        }
+
+        Resource resource = new FileSystemResource(target);
+        return ResponseEntity.ok()
+                .contentType(mediaTypeOf(path))
+                // inline：图片/视频直接在浏览器里显示，不触发下载
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline")
+                .body(resource);
+    }
+
+    /**
+     * 按扩展名推断 Content-Type。
+     *
+     * @param path 文件路径
+     * @return 媒体类型；未知时用二进制流
+     */
+    private static MediaType mediaTypeOf(String path) {
+        int dot = path.lastIndexOf('.');
+        String ext = dot >= 0 ? path.substring(dot + 1).toLowerCase(Locale.ROOT) : "";
+        return switch (ext) {
+            case "mp4" -> MediaType.parseMediaType("video/mp4");
+            case "webm" -> MediaType.parseMediaType("video/webm");
+            case "mov" -> MediaType.parseMediaType("video/quicktime");
+            case "mp3" -> MediaType.parseMediaType("audio/mpeg");
+            case "wav" -> MediaType.parseMediaType("audio/wav");
+            case "png" -> MediaType.IMAGE_PNG;
+            case "jpg", "jpeg" -> MediaType.IMAGE_JPEG;
+            case "gif" -> MediaType.IMAGE_GIF;
+            case "webp" -> MediaType.parseMediaType("image/webp");
+            case "svg" -> MediaType.parseMediaType("image/svg+xml");
+            case "json" -> MediaType.APPLICATION_JSON;
+            case "txt", "md" -> MediaType.TEXT_PLAIN;
+            case "html" -> MediaType.TEXT_HTML;
+            default -> MediaType.APPLICATION_OCTET_STREAM;
         };
     }
 

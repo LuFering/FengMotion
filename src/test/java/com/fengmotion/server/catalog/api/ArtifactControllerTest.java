@@ -94,6 +94,42 @@ class ArtifactControllerTest {
     }
 
     @Test
+    @DisplayName("能读取产物文件本体")
+    void servesFileContent() throws Exception {
+        Files.writeString(projectDir.resolve("片子.mp4"), "fake-video-bytes");
+
+        var response = new ArtifactController(repoOf("p1", projectDir.toString()))
+                .content("p1", "片子.mp4");
+
+        assertEquals(200, response.getStatusCode().value());
+        assertEquals("video/mp4", response.getHeaders().getContentType().toString());
+        assertTrue(response.getBody().exists());
+    }
+
+    @Test
+    @DisplayName("路径穿越被拒绝：不能读到项目目录之外")
+    void rejectsPathTraversal() throws Exception {
+        // 在项目目录的**外面**放一个文件，若校验失效就会被读到
+        Path outside = projectDir.getParent().resolve("secret.txt");
+        Files.writeString(outside, "top-secret");
+
+        var controller = new ArtifactController(repoOf("p1", projectDir.toString()));
+
+        // 经典穿越、多重斜杠、绝对路径三种写法都要挡住
+        assertThrows(ApiException.class, () -> controller.content("p1", "../secret.txt"));
+        assertThrows(ApiException.class, () -> controller.content("p1", "....//secret.txt"));
+        assertThrows(ApiException.class, () -> controller.content("p1", outside.toString()));
+    }
+
+    @Test
+    @DisplayName("产物不存在时 404 而不是 500")
+    void missingArtifactIs404() {
+        var controller = new ArtifactController(repoOf("p1", projectDir.toString()));
+
+        assertThrows(ApiException.class, () -> controller.content("p1", "不存在.mp4"));
+    }
+
+    @Test
     @DisplayName("项目不存在时 404")
     void unknownProjectIs404() {
         var controller = new ArtifactController(repoOf("p1", projectDir.toString()));
