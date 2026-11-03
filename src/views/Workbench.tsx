@@ -410,6 +410,49 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
     const timer = window.setTimeout(() => setNotice(''), 4500)
     return () => window.clearTimeout(timer)
   }, [notice])
+  /* 真实渲染：状态与提交。
+     与「运行演示」不同，这条走真实后端 —— 会在项目目录里产出一个能播放的 mp4。
+     界面必须让用户分清两者，所以按钮文案与结果提示都写明「真实」。 */
+  const [realRenderBusy, setRealRenderBusy] = useState(false)
+
+  /* 进工作台就把该项目的任务历史读回来。
+     任务已经落库，但前端记录只在内存 —— 不回读的话刷新一次历史就"没了"，
+     用户会以为渲染结果丢了。切换项目时也重新读。 */
+  useEffect(() => {
+    void tasks.loadHistory(projectId)
+    // tasks 每次渲染都是新对象，放进依赖会无限循环；只跟项目走
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId])
+
+  /**
+   * 提交一次真实渲染。
+   *
+   * <p>当前用项目名与简报生成一个最小影片（标题 + 副标题），
+   * 先让链路可点可验；等场景编辑器能导出结构化分镜后，
+   * 这里的 film 换成编辑器产出的那份。</p>
+   */
+  const submitRealRender = async () => {
+    if (realRenderBusy) return
+    setRealRenderBusy(true)
+    try {
+      const title = projectName.trim() || 'FengMotion'
+      // 简报首行作为副标题；没有简报时给一句占位，不留空
+      const firstLine = review.brief.original.trim().split(String.fromCharCode(10))[0] ?? ''
+      const subtitle = firstLine.slice(0, 40) || '真实渲染预览'
+      const film = {
+        width: 1280, height: 720, fps: 30,
+        backgroundColor: '#0b1220', color: '#ffffff',
+        scenes: [
+          { id: 's1', text: title, subtitle, durationSeconds: 2, textAnimation: 'fade' as const },
+        ],
+      }
+      const taskId = await tasks.startReal(projectId, film, `渲染「${title}」预览`)
+      setNotice(taskId ? '已提交真实渲染，出片后可在产物页播放' : '提交失败：请确认后端已连接')
+    } finally {
+      setRealRenderBusy(false)
+    }
+  }
+
   const [switchOpen, setSwitchOpen] = useState(false)
   const switchRef = useRef<HTMLDivElement | null>(null)
   const selectedArtifact = useMemo(() => WORKBENCH_ARTIFACTS.find((a) => a.id === selectedArtifactId) ?? null, [selectedArtifactId])
@@ -1143,7 +1186,9 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
                     )}
                   </div>
                 ) : (
-                  <MonitorStageEmpty stage={stage} brief={review.brief.original} correctionCount={review.corrections.length} onDiscuss={() => openReview('brief')} onEdit={openEdit}
+                  <MonitorStageEmpty stage={stage} brief={review.brief.original} correctionCount={review.corrections.length}
+                                     onDiscuss={() => openReview('brief')} onEdit={openEdit}
+                                     onRealRender={() => void submitRealRender()} realRenderBusy={realRenderBusy}
                                      onOpenExecution={() => { setBottomTab('activity'); setTrayOpen(true) }} />
                 )}
               </div>
@@ -1987,20 +2032,26 @@ function RightPanel({ projectId, target, preview, chat, sideTab, setSideTab, foc
                 </div>
               )}
 
-              {/* 任务结束不是结果卡：演示适配器不产预览、不改文件、不建版本，
-                  所以只报结束与验证缺位，不给查看预览、前后对比、恢复。 */}
+              {/* 任务结果卡。
+                  演示任务不产预览、不改文件，所以只报结束；
+                  真实任务会产出 mp4，文案必须说清这一点 —— 否则用户看到
+                  「没有生成新预览」而左侧明明有一个能播的视频（真机截图确认过）。 */}
               {activeTask && activeDone && (
                 <div className="wb-chat-block">
                   <div className="wb-chat-task">
                     <span className="fm-dot" data-s={activeTask.status === 'completed' ? 'done' : activeTask.status === 'failed' ? 'failed' : 'idle'} />
                     <b className="truncate">
-                      {activeTask.status === 'completed' ? '演示任务已完成' : activeTask.status === 'failed' ? '任务失败' : '任务已停止'}
+                      {activeTask.status === 'completed'
+                        ? (activeTask.mock ? '演示任务已完成' : '渲染已完成')
+                        : activeTask.status === 'failed' ? '任务失败' : '任务已停止'}
                     </b>
-                    <span className="wb-insp-tag">演示</span>
+                    {activeTask.mock && <span className="wb-insp-tag">演示</span>}
                   </div>
                   <div className="wb-chat-event">
                     {activeTask.status === 'completed'
-                      ? '没有生成新预览，也没有文件变更。'
+                      ? (activeTask.mock
+                          ? '没有生成新预览，也没有文件变更。'
+                          : '已产出视频，可在「产物」页播放。')
                       : latestEvent?.message ?? '没有执行详情。'}
                   </div>
                   <button className="wb-btn-ghost" type="button" onClick={onOpenTask}>查看执行</button>

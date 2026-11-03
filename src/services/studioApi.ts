@@ -75,7 +75,13 @@ export interface AgentTask {
   status: TaskStatus
   title: string
   createdAt: string
-  mock: true
+  /**
+   * 是否为本地演示任务。
+   *
+   * 原来固定是 `true`（只有 Mock 实现）。接入真实后端后必须区分：
+   * 界面上演示任务要明确标出来，不能让人以为真的在制作。
+   */
+  mock: boolean
 }
 
 export interface TaskEvent {
@@ -85,7 +91,8 @@ export interface TaskEvent {
   status: TaskStatus
   message: string
   at: string
-  mock: true
+  /** 是否为演示事件。真实后端事件为 false —— 界面据此区分，不能混为一谈。 */
+  mock: boolean
 }
 
 export interface ChangeSet {

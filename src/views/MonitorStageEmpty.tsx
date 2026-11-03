@@ -2,8 +2,11 @@ import { ArrowUpRight, FileText, ListChecks, LoaderCircle, Film, ArrowRight } fr
 import type { StageState } from '@/data/stageVisual'
 import { useHarnesses, availabilityOf } from '@/shell/useHarnesses'
 
-export function MonitorStageEmpty({ stage, brief, correctionCount = 0, onDiscuss, onOpenExecution, onEdit }: {
+export function MonitorStageEmpty({ stage, brief, correctionCount = 0, onDiscuss, onOpenExecution, onEdit, onRealRender, realRenderBusy }: {
   stage: StageState; brief: string; correctionCount?: number; onDiscuss: () => void; onOpenExecution: () => void; onEdit: () => void
+  /** 提交一次真实渲染（会在项目目录里产出可播放的 mp4）；不传则不显示该入口 */
+  onRealRender?: () => void
+  realRenderBusy?: boolean
 }) {
   /* 引擎可用性读真实探测，不写死。
      原来这里固定显示「Agent 尚未连接」——在 Agent 已经接入之后，
@@ -23,6 +26,15 @@ export function MonitorStageEmpty({ stage, brief, correctionCount = 0, onDiscuss
         <div className="wb-waiting-actions">
           <button type="button" className="wb-start-editor" onClick={onEdit}>打开场景编辑器<ArrowRight size={15}/></button>
           <button type="button" className="wb-view-execution" onClick={onOpenExecution}><ListChecks size={14}/>制作记录</button>
+          {/* 真实渲染：与「制作记录」里的演示任务区分开，文案直说「真实」。
+              这是目前唯一能真的产出一个 mp4 的入口。 */}
+          {onRealRender && (
+            <button type="button" className="wb-view-execution" onClick={onRealRender}
+                    disabled={realRenderBusy}>
+              {realRenderBusy ? <LoaderCircle size={14} className="animate-spin"/> : <Film size={14}/>}
+              {realRenderBusy ? '正在提交…' : '真实渲染预览'}
+            </button>
+          )}
         </div>
       </div>
       <span className="wb-waiting-caption">画面预览</span>
