@@ -107,6 +107,47 @@ class ArtifactControllerTest {
     }
 
     @Test
+    @DisplayName("上传产物写入 renders/，同名不覆盖")
+    void uploadWritesIntoRenders() throws Exception {
+        var controller = new ArtifactController(repoOf("p1", projectDir.toString()));
+
+        var first = controller.upload("p1",
+                new org.springframework.mock.web.MockMultipartFile("file", "out.mp4", "video/mp4", new byte[] {1}),
+                "renders");
+        assertEquals("renders/out.mp4", first.path());
+
+        // 同名再传：加时间戳前缀，保留两份（编辑器可能重复导出同一场景）
+        var second = controller.upload("p1",
+                new org.springframework.mock.web.MockMultipartFile("file", "out.mp4", "video/mp4", new byte[] {2}),
+                "renders");
+        assertTrue(second.path().startsWith("renders/"), "仍应在 renders 下");
+        assertTrue(second.name().endsWith("out.mp4"));
+        assertTrue(!second.name().equals("out.mp4"), "同名应加前缀而不是覆盖");
+    }
+
+    @Test
+    @DisplayName("上传只允许 renders 与 exports 两个目录")
+    void uploadRejectsOtherSubdirs() {
+        var controller = new ArtifactController(repoOf("p1", projectDir.toString()));
+        var file = new org.springframework.mock.web.MockMultipartFile("file", "a.mp4", "video/mp4", new byte[] {1});
+
+        assertThrows(ApiException.class, () -> controller.upload("p1", file, "../evil"));
+        assertThrows(ApiException.class, () -> controller.upload("p1", file, "src"));
+    }
+
+    @Test
+    @DisplayName("上传的带路径文件名被剥离")
+    void uploadStripsPathFromFilename() throws Exception {
+        var controller = new ArtifactController(repoOf("p1", projectDir.toString()));
+        var file = new org.springframework.mock.web.MockMultipartFile(
+                "file", "../../etc/passwd.mp4", "video/mp4", new byte[] {1});
+
+        var saved = controller.upload("p1", file, "renders");
+
+        assertEquals("renders/passwd.mp4", saved.path(), "只保留文件名，不能穿出 renders/");
+    }
+
+    @Test
     @DisplayName("路径穿越被拒绝：不能读到项目目录之外")
     void rejectsPathTraversal() throws Exception {
         // 在项目目录的**外面**放一个文件，若校验失效就会被读到

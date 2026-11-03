@@ -17,11 +17,12 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.fengmotion.server.common.ApiException;
 import com.fengmotion.server.project.domain.Project;
@@ -165,6 +166,81 @@ public class ArtifactController {
             case "md", "txt", "pdf", "csv" -> "document";
             default -> "file";
         };
+    }
+
+    /**
+     * 把一个产物文件保存进项目目录。
+     *
+     * <p><strong>为什么需要它</strong>：场景编辑器在浏览器里渲染（{@code @remotion/web-renderer}），
+     * 产物原本只存在 IndexedDB 里 —— 换浏览器或清缓存就没了。存回项目目录后，
+     * 编辑器渲染与后端任务的产物落在同一处，用户在「产物」页看到的是完整的一份。</p>
+     *
+     * <p>只允许写到 {@code renders/} 与 {@code exports/} 两个子目录：
+     * 其它位置属于用户自己的素材，不该被渲染结果覆盖。</p>
+     *
+     * @param projectId 项目 ID
+     * @param file      上传的文件
+     * @param subdir    子目录名（renders / exports），默认 renders
+     * @return 已保存的产物描述
+     */
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public Artifact upload(@PathVariable String projectId,
+                           @RequestParam("file") MultipartFile file,
+                           @RequestParam(value = "subdir", defaultValue = "renders") String subdir) {
+        Project project = projects.findById(projectId)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "not_found", "项目不存在"));
+
+        String rootPath = project.rootPath();
+        if (rootPath == null || rootPath.isBlank()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "validation_error", "项目还没有目录");
+        }
+        if (file == null || file.isEmpty()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "validation_error", "上传的文件为空");
+        }
+        // 白名单而非黑名单：只有这两个目录承载渲染产物，其余一概拒绝
+        if (!"renders".equals(subdir) && !"exports".equals(subdir)) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "validation_error",
+                    "只能写入 renders 或 exports 目录");
+        }
+
+        Path root = Path.of(rootPath).toAbsolutePath().normalize();
+        Path dir = root.resolve(subdir).normalize();
+        if (!dir.startsWith(root)) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "validation_error", "非法的目标目录");
+        }
+
+        /* 文件名同样要防穿越：只取最后一段，并剔除路径分隔符与控制字符。
+           用户/浏览器可能回传带路径的名字，直接拿来拼路径就是目录穿越。 */
+        String base = file.getOriginalFilename() == null ? "artifact" : file.getOriginalFilename();
+        String safeName = base.replace('\\', '/');
+        int slash = safeName.lastIndexOf('/');
+        if (slash >= 0) {
+            safeName = safeName.substring(slash + 1);
+        }
+        safeName = safeName.replaceAll("[\\p{Cntrl}]", "").trim();
+        if (safeName.isEmpty()) {
+            safeName = "artifact";
+        }
+        if (safeName.length() > 160) {
+            safeName = safeName.substring(safeName.length() - 160);
+        }
+        // 同名不覆盖：加时间戳前缀，保留历史版本（编辑器可能重复导出同一个场景）
+        Path target = dir.resolve(safeName);
+        if (Files.exists(target)) {
+            target = dir.resolve(Instant.now().toEpochMilli() + "-" + safeName);
+        }
+
+        try {
+            Files.createDirectories(dir);
+            file.transferTo(target);
+        } catch (IOException failure) {
+            throw new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "internal_error",
+                    "保存产物失败：" + failure.getMessage());
+        }
+
+        String relative = root.relativize(target).toString().replace('\\', '/');
+        return new Artifact(relative, target.getFileName().toString(), target.toFile().length(),
+                kindOf(relative), Instant.now());
     }
 
     /**
