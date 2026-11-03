@@ -60,6 +60,9 @@ public class TaskService {
     /** 正在执行的任务：taskId → 控制句柄。 */
     private final Map<String, Running> running = new ConcurrentHashMap<>();
 
+    /** 已产出但尚未成为当前版本的产物：taskId → 相对路径。失败时随任务落库。 */
+    private final Map<String, String> pendingArtifact = new ConcurrentHashMap<>();
+
     public TaskService(TaskRepository tasks, ProjectRepository projects,
                        TransactionTemplate transactions, ObjectMapper json) {
         this.tasks = tasks;
@@ -287,15 +290,40 @@ public class TaskService {
     private void fail(String taskId, Exception failure) {
         String message = failure.getMessage() == null ? failure.getClass().getSimpleName() : failure.getMessage();
         String code = failure instanceof ApiException api ? api.getCode() : "task_failed";
+        // 执行器可能在失败前已产出文件（例如提交时发现版本冲突）。
+        // 该路径记在任务上，失败也要保留 —— 否则用户拿不到那个视频。
+        String artifact = pendingArtifact.get(taskId);
         try {
             transactions.executeWithoutResult(status -> {
-                tasks.updateProgress(taskId, Task.STATUS_FAILED, 0, message, null, code, true);
+                tasks.updateProgress(taskId, Task.STATUS_FAILED, 0, message, artifact, code, true);
                 ObjectNode data = json.createObjectNode().put("errorCode", code);
+                if (artifact != null) {
+                    data.put("artifactPath", artifact);
+                    data.put("artifactApplied", false);
+                }
                 tasks.appendEvent(new TaskEvent(UUID.randomUUID().toString(), taskId, 0,
                         TaskEvent.KIND_ERROR, Task.STATUS_FAILED, message, data, Instant.now()));
             });
         } catch (RuntimeException nested) {
             log.error("任务 {} 失败状态落库失败", taskId, nested);
+        } finally {
+            pendingArtifact.remove(taskId);
+        }
+    }
+
+    /**
+     * 登记「已产出但尚未提交」的产物路径。
+     *
+     * <p>用于「文件已生成、但提交场景时发现版本冲突」这种情形：
+     * 任务最终会是 failed，可那个视频是真实存在的。
+     * 不登记就等于告诉用户「什么都没产出」，与实际不符。</p>
+     *
+     * @param taskId 任务 ID
+     * @param path   产物相对项目目录的路径
+     */
+    public void registerArtifact(String taskId, String path) {
+        if (path != null && !path.isBlank()) {
+            pendingArtifact.put(taskId, path);
         }
     }
 

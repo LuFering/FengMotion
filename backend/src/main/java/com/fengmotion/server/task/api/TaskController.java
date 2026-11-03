@@ -15,6 +15,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fengmotion.server.common.ApiException;
+import com.fengmotion.server.project.store.ProjectSceneRepository;
 import com.fengmotion.server.task.domain.Task;
 import com.fengmotion.server.task.domain.TaskEvent;
 import com.fengmotion.server.task.service.ModifyTaskRunner;
@@ -40,6 +41,7 @@ public class TaskController {
     private final TaskService tasks;
     private final RenderTaskRunner renderRunner;
     private final ModifyTaskRunner modifyRunner;
+    private final ProjectSceneRepository scenes;
     private final ObjectMapper json;
 
     /**
@@ -61,6 +63,16 @@ public class TaskController {
     public TaskResponse create(@PathVariable String projectId, @RequestBody JsonNode body) {
         Route route = TaskRequestGuard.route(body);
         String prompt = body.path("prompt").asText("");
+
+        /* 预检 baseVersion：过期请求在创建阶段就 409，不用白跑一次渲染。
+           这只是提前拦截，真正的防覆盖仍由执行器的条件更新负责。 */
+        if (route == Route.MODIFY) {
+            long current = scenes.find(projectId)
+                    .filter(com.fengmotion.server.project.domain.ProjectScene::present)
+                    .map(com.fengmotion.server.project.domain.ProjectScene::version)
+                    .orElse(0L);
+            TaskRequestGuard.checkBaseVersion(body, current);
+        }
 
         // 用户勾了但本版做不到的约束，必须在受理时就以事件告知，不能静默失效
         List<String> warnings = TaskService.unenforcedWarnings(

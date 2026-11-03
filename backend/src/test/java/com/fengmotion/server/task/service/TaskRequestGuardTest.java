@@ -133,6 +133,46 @@ class TaskRequestGuardTest {
     }
 
     @Test
+    @DisplayName("baseVersion 与当前一致时通过")
+    void baseVersionMatches() {
+        JsonNode b = body("{\"kind\":\"modify\",\"prompt\":\"改\",\"scope\":\"project\",\"baseVersion\":3}");
+        TaskRequestGuard.checkBaseVersion(b, 3);
+    }
+
+    @Test
+    @DisplayName("baseVersion 过期时 409 scene_version_conflict")
+    void baseVersionStale() {
+        JsonNode b = body("{\"kind\":\"modify\",\"prompt\":\"改\",\"scope\":\"project\",\"baseVersion\":2}");
+        ApiException e = assertThrows(ApiException.class,
+                () -> TaskRequestGuard.checkBaseVersion(b, 3));
+        assertEquals("scene_version_conflict", e.getCode());
+        assertEquals(409, e.getStatus().value());
+    }
+
+    @Test
+    @DisplayName("不带 baseVersion 时不做预检，交给执行器条件更新拦截")
+    void baseVersionOptional() {
+        JsonNode b = body("{\"kind\":\"modify\",\"prompt\":\"改\",\"scope\":\"project\"}");
+        TaskRequestGuard.checkBaseVersion(b, 7);
+    }
+
+    @Test
+    @DisplayName("未初始化项目的 baseVersion=0 可以通过")
+    void baseVersionZeroForFreshProject() {
+        JsonNode b = body("{\"kind\":\"modify\",\"prompt\":\"改\",\"scope\":\"project\",\"baseVersion\":0}");
+        TaskRequestGuard.checkBaseVersion(b, 0);
+    }
+
+    @Test
+    @DisplayName("baseVersion 不是整数时报 validation_error")
+    void baseVersionNotInteger() {
+        JsonNode b = body("{\"kind\":\"modify\",\"prompt\":\"改\",\"scope\":\"project\",\"baseVersion\":\"abc\"}");
+        ApiException e = assertThrows(ApiException.class,
+                () -> TaskRequestGuard.checkBaseVersion(b, 1));
+        assertEquals("validation_error", e.getCode());
+    }
+
+    @Test
     @DisplayName("未生效约束被识别出来，不会静默")
     void unenforcedConstraints() {
         JsonNode b = body("{\"kind\":\"modify\",\"prompt\":\"改\",\"scope\":\"project\","

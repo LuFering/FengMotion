@@ -50,6 +50,7 @@ public class ModifyTaskRunner {
     private final ProjectRepository projects;
     private final ProjectSceneRepository scenes;
     private final TaskRepository tasks;
+    private final TaskService taskService;
     private final com.fasterxml.jackson.databind.ObjectMapper json;
 
     /**
@@ -151,6 +152,9 @@ public class ModifyTaskRunner {
                本次产物保留（用户可能要），但明确标记未成为当前版本，
                绝不覆盖别人已经提交的内容。 */
             tasks.updateVersions(task.id(), baseVersion, null);
+            // 先登记产物路径：任务会是 failed，但这个视频真实存在，
+            // 不登记前端就拿不到它，用户会以为白跑了
+            taskService.registerArtifact(task.id(), "renders/" + fileName);
             throw new ApiException(HttpStatus.CONFLICT, "scene_version_conflict",
                     "场景已被其他修改更新到版本 " + currentVersion(task.projectId())
                             + "，本次修改基于版本 " + baseVersion

@@ -143,6 +143,41 @@ public final class TaskRequestGuard {
     }
 
     /**
+     * 预检请求里携带的 {@code baseVersion}。
+     *
+     * <p>前端打开工作台时读到版本 N，提交修改时带上它。若此刻库里已是 N+1，
+     * 说明期间的修改已经落地，这次请求基于过时快照 —— 在创建阶段就返回
+     * {@code 409 scene_version_conflict}，而不是让它进队列跑完渲染才失败。</p>
+     *
+     * <p>这只是<strong>提前拦截</strong>，不是唯一防线：请求通过预检之后、
+     * 提交之前仍可能有别人提交，那种情况由执行器的条件更新拦截。
+     * 两层都必要 —— 预检省掉无谓的渲染，条件更新才是真正保证不覆盖的那道。</p>
+     *
+     * @param body           请求体
+     * @param currentVersion 当前场景版本；尚未初始化时为 0
+     * @throws ApiException 版本过期
+     */
+    public static void checkBaseVersion(JsonNode body, long currentVersion) {
+        if (body == null) {
+            return;
+        }
+        JsonNode node = body.get("baseVersion");
+        if (node == null || node.isNull()) {
+            return;
+        }
+        if (!node.canConvertToLong()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "validation_error",
+                    "baseVersion 必须是整数");
+        }
+        long expected = node.asLong();
+        if (expected != currentVersion) {
+            throw new ApiException(HttpStatus.CONFLICT, "scene_version_conflict",
+                    "场景已更新到版本 " + currentVersion + "，本次请求基于版本 "
+                            + expected + "，请重新读取当前场景后再提交");
+        }
+    }
+
+    /**
      * 校验请求体里的约束，返回需要告知用户的「未生效」项。
      *
      * <p>不抛异常 —— 这些约束不影响执行正确性，只是本版做不到。

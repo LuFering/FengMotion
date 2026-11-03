@@ -159,6 +159,44 @@ class TaskServiceTest {
     }
 
     @Test
+    @DisplayName("执行器登记过产物后再失败，产物路径仍保留在任务上")
+    void failureKeepsRegisteredArtifact() throws Exception {
+        MemoryRepo repo = new MemoryRepo();
+        var service = new TaskService(repo, projectRepo("p1"), directTx(), json);
+
+        // 模拟「视频已生成、提交场景时发现版本冲突」
+        Task task = service.submit("p1", "modify", "改", json.createObjectNode(),
+                (t, progress) -> {
+                    service.registerArtifact(t.id(), "renders/conflict.mp4");
+                    throw new ApiException(org.springframework.http.HttpStatus.CONFLICT,
+                            "scene_version_conflict", "版本冲突");
+                }, List.of());
+
+        waitForTerminal(repo, task.id());
+        Task failed = repo.tasks.get(task.id());
+        assertEquals(Task.STATUS_FAILED, failed.status());
+        assertEquals("renders/conflict.mp4", failed.artifactPath(),
+                "失败但确实产出过文件，路径不能丢");
+        assertEquals("scene_version_conflict", failed.errorCode());
+    }
+
+    @Test
+    @DisplayName("没有登记产物的失败任务，产物路径为空")
+    void failureWithoutArtifactHasNoPath() throws Exception {
+        MemoryRepo repo = new MemoryRepo();
+        var service = new TaskService(repo, projectRepo("p1"), directTx(), json);
+
+        Task task = service.submit("p1", "modify", "改", json.createObjectNode(),
+                (t, progress) -> {
+                    throw new ApiException(org.springframework.http.HttpStatus.BAD_REQUEST,
+                            "validation_error", "坏请求");
+                }, List.of());
+
+        waitForTerminal(repo, task.id());
+        assertNull(repo.tasks.get(task.id()).artifactPath());
+    }
+
+    @Test
     @DisplayName("没有未生效约束时不写警告事件")
     void noWarningsWhenNothingUnenforced() {
         MemoryRepo repo = new MemoryRepo();
