@@ -20,6 +20,8 @@ import electron from 'electron'
 import path from 'node:path'
 import { existsSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
+import { startBackend, type BackendHandle } from './backend'
+import { initUpdater } from './updater'
 
 /**
  * 关于模块格式（已实测，勿改回 ESM）：
@@ -46,10 +48,16 @@ type BrowserWindowType = InstanceType<typeof BrowserWindow>
 const SCHEME = 'fengmotion'
 
 /**
- * 后端基址：默认与 src/services/api/config.ts 的 DEFAULT_API_BASE_URL 一致。
- * 可用 FENGMOTION_API_BASE 覆盖（例如后端换了端口）。
+ * 后端基址。
+ *
+ * 优先用 FENGMOTION_API_BASE（例如想连自己起的后端）。否则由随包后端决定：
+ * `startBackend()` 会挑一个空闲端口并返回实际地址 —— 8080 被占用时会换端口，
+ * 所以这里不能写死。后端没起来时退回默认值，前端会显示「Agent 不可用」而不是崩掉。
  */
-const API_BASE = process.env.FENGMOTION_API_BASE ?? 'http://127.0.0.1:8080/api'
+let API_BASE = process.env.FENGMOTION_API_BASE ?? 'http://127.0.0.1:8080/api'
+
+/** 随包启动的后端句柄；未启动时为 null。 */
+let backendHandle: BackendHandle | null = null
 
 /**
  * 定位 dist 根目录。
@@ -230,8 +238,26 @@ if (!gotLock) {
     }
   })
 
-  void app.whenReady().then(() => {
+  void app.whenReady().then(async () => {
     DIST_ROOT = resolveDistRoot()
+
+    /* 先起后端再建窗口：前端首屏就会探测 /api/capabilities 与 /api/harnesses，
+       后端没起来的话用户会看到「Agent 不可用」闪一下，还得手动刷新。
+       后端启动失败不阻止开窗 —— 前端仍可浏览，只是没有 Agent。 */
+    if (!process.env.FENGMOTION_API_BASE) {
+      const resourcesRoot = app.isPackaged
+        ? process.resourcesPath
+        : path.resolve(__dirname, '..', '..', 'FengMotion-backend', 'target')
+      backendHandle = await startBackend({
+        resourcesRoot,
+        dataDir: path.join(app.getPath('userData'), 'data'),
+        logFile: path.join(app.getPath('userData'), 'backend.log'),
+      }).catch((error: unknown) => {
+        console.error('[backend] 启动失败', error)
+        return null
+      })
+      if (backendHandle) API_BASE = backendHandle.apiBase
+    }
     // Linux 下 WM_CLASS 由这个字段决定，要和 .desktop 的 StartupWMClass 对上，
     // 否则任务栏会把图标和窗口当成两个不同应用。
     /**
@@ -267,12 +293,37 @@ if (!gotLock) {
 
     createWindow()
 
+    /* 打包态检查更新。状态只写日志与通知，不阻塞窗口 ——
+       更新是后台行为，用户正在创作时不该被打断。 */
+    initUpdater((message) => {
+      console.log('[update]', message)
+      const win = BrowserWindow.getAllWindows()[0]
+      win?.webContents.send('fengmotion:update-status', message)
+    })
+
     app.on('activate', () => {
       // macOS：点 dock 图标时若无窗口则重建
       if (BrowserWindow.getAllWindows().length === 0) createWindow()
     })
   })
 }
+
+/** 退出前收掉后端：应用关了不该留一个占着端口的 Java 进程。 */
+let backendStopping = false
+async function stopBackendOnce(): Promise<void> {
+  if (backendStopping) return
+  backendStopping = true
+  await backendHandle?.stop()
+  backendHandle = null
+}
+
+app.on('before-quit', (event) => {
+  if (backendHandle === null || backendStopping) return
+  /* 阻止这次退出，先优雅停后端再重新 quit。
+     不这样做的话，SIGTERM 还没发出去进程就没了，后端会成为孤儿。 */
+  event.preventDefault()
+  void stopBackendOnce().finally(() => app.quit())
+})
 
 app.on('window-all-closed', () => {
   // macOS 习惯是关窗不退出；Windows/Linux 关窗即退出

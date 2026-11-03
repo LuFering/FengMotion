@@ -15,7 +15,7 @@
  *   node scripts/build-electron.mjs --watch  # 暂不实现，先保持简单
  */
 import { execFileSync } from 'node:child_process'
-import { mkdirSync, rmSync, renameSync, existsSync } from 'node:fs'
+import { mkdirSync, rmSync, renameSync, existsSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 
 const repoRoot = path.resolve(import.meta.dirname, '..')
@@ -51,8 +51,34 @@ function compile(entry, moduleArgs, finalName) {
   if (existsSync(map)) renameSync(map, path.join(outDir, `${finalName}.map`))
 }
 
+/* backend.ts 是 main 的依赖模块。tsc 会把它一并编译出来，
+   但产出名是 backend.js —— 而 package.json 有 "type": "module"，
+   这个 .js 会被当成 ESM，CJS 的 main.cjs require 它会拿到空对象（已实测）。
+   所以显式再编译一次并改名 .cjs，让 require 走 CommonJS 解析。 */
+compile(path.join(repoRoot, 'electron', 'backend.ts'), ['--module', 'commonjs', '--moduleResolution', 'node10'], 'backend.cjs')
+compile(path.join(repoRoot, 'electron', 'updater.ts'), ['--module', 'commonjs', '--moduleResolution', 'node10'], 'updater.cjs')
+
 // 主进程：CJS。Electron 的 electron 模块是纯 CJS 导出，ESM 主进程拿不到 API（已实测三种写法全失败）。
 compile(path.join(repoRoot, 'electron', 'main.ts'), ['--module', 'commonjs', '--moduleResolution', 'node10'], 'main.cjs')
+// 编译 main 时 tsc 会把依赖的 backend.ts 再产出一份 backend.js。
+// 它和 backend.cjs 内容相同但模块格式被 package.json 的 type=module 判成 ESM，
+// 留着会让人误以为有两个后端模块，删掉避免混淆。
+for (const stale of ['backend.js', 'backend.js.map', 'updater.js', 'updater.js.map']) {
+  rmSync(path.join(outDir, stale), { force: true })
+}
+
+/* 修正 require 路径。
+   原因：main.ts 里写 `from './backend'`，tsc 编成 require("./backend")。
+   开发态 Node 会依次尝试 .js/.json/.node 并找到，但打包进 asar 后
+   `.cjs` 不在默认扩展名列表里 —— 应用启动直接报
+   "Cannot find module './backend'"（真机验证过）。
+   这里显式补全扩展名，让打包态与开发态都能解析。 */
+const mainPath = path.join(outDir, 'main.cjs')
+let mainSrc = readFileSync(mainPath, 'utf8')
+for (const mod of ['backend', 'updater']) {
+  mainSrc = mainSrc.replaceAll(`require("./${mod}")`, `require("./${mod}.cjs")`)
+}
+writeFileSync(mainPath, mainSrc)
 // preload：CJS。Electron 的 ESM preload 要求 .mjs 且与 sandbox 设置相互牵制；这里只需两个 IPC 转发，用 CJS 最省事。
 compile(path.join(repoRoot, 'electron', 'preload.ts'), ['--module', 'commonjs', '--moduleResolution', 'node10'], 'preload.cjs')
 

@@ -27,3 +27,7 @@ dist-ssr
 electron/build
 build/icons
 build/icons-variants
+
+# 打包产物（含 54MB JRE 与 38MB 后端 jar，由 prepare-backend-resources.mjs 生成）
+electron/resources/
+release/

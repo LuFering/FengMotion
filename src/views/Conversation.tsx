@@ -1384,15 +1384,16 @@ export function Conversation(props: {
         <div className="cv3-scroll" ref={scrollRef}>
           <div className="cv3-view">
             <div className="cv3-col">
-              {/* 服务端会话：历史与发送都已接上；Agent 回复尚未接入（后端会如实回
-                  agent_unavailable）。说明写在「回复」该出现的位置（见下方 replyNote），
-                  这里只保留一句会话来源，不再重复解释能力缺口。 */}
+              {/* 服务端会话：历史、发送与 Agent 回复都已接上。
+                 这里只说明「消息会持久化」这一件用户关心的事实 ——
+                 之前那句「Agent 回复尚未接入」在接入之后成了错误信息，
+                 会让人以为发了也没回答（真机截图确认过）。 */}
               {activeIsServer && (
                 <div className="cv3-server-note" role="status">
                   <ShieldCheck size={14} />
                   <div>
                     <b>这条对话已保存在服务端。</b>
-                    <p>发出去的消息会存进服务端；Agent 回复尚未接入，暂时不会有回答。</p>
+                    <p>发出去的消息与回复都会存进服务端，重开后仍可回看。</p>
                   </div>
                 </div>
               )}
