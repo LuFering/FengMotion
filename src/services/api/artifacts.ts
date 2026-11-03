@@ -42,6 +42,24 @@ export interface ArtifactsResource {
   list(projectId: string, options?: { signal?: AbortSignal }): Promise<ProjectArtifactList>
 
   /**
+   * 把产物文件保存进项目目录。
+   *
+   * 场景编辑器在浏览器里渲染（@remotion/web-renderer），原本只存 IndexedDB，
+   * 换浏览器或清缓存就丢。存回项目目录后，编辑器与后端任务的产物落在同一处。
+   *
+   * @param projectId 项目 ID
+   * @param file 文件内容
+   * @param subdir 子目录：renders / exports
+   * @returns 已保存的产物
+   */
+  upload(
+    projectId: string,
+    file: File,
+    subdir?: 'renders' | 'exports',
+    options?: { signal?: AbortSignal },
+  ): Promise<ProjectArtifact>
+
+  /**
    * 产物的可访问 URL。
    *
    * 返回完整地址而不是相对路径：产物内容由 `<video src>` / `<img src>` 直接加载，
@@ -66,6 +84,16 @@ export function createArtifactsResource(http: HttpClient): ArtifactsResource {
         items: Array.isArray(result?.items) ? result.items : [],
         rootPath: result?.rootPath ?? null,
       }
+    },
+
+    async upload(projectId, file, subdir = 'renders', options = {}) {
+      const form = new FormData()
+      form.append('file', file, file.name)
+      return http.post<ProjectArtifact>(
+        `/projects/${encodeURIComponent(projectId)}/artifacts?subdir=${encodeURIComponent(subdir)}`,
+        form,
+        { signal: options.signal },
+      )
     },
 
     contentUrl(projectId, path) {

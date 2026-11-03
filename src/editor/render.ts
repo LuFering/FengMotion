@@ -2,6 +2,7 @@ import { SceneComposition } from './SceneComposition'
 import { resolveDocument } from './service'
 import { importFiles, updateAsset, getFileURL } from '@/services/assetService'
 import type { SceneDocument } from './types'
+import { studioHttpApi } from '@/services/api'
 export interface EditorRenderRecord {
   id: string
   projectId: string
@@ -85,6 +86,16 @@ export async function renderScene(
     refs: [{ kind: 'project', id: doc.projectId, label: doc.name }],
     tags: ['编辑器导出'],
   })
+  /* 同时存一份到项目目录。
+     编辑器的产物原本只进 IndexedDB —— 换浏览器或清缓存就没了，而且用户在
+     「产物」页看不到它（那一页读的是项目目录）。存回项目目录后两处一致。
+     上传失败不阻断渲染：本地那份已经存好，用户至少还能在编辑器里看到。 */
+  try {
+    await studioHttpApi().artifacts.upload(doc.projectId, new File([blob], name, { type: 'video/mp4' }), 'renders')
+  } catch {
+    // 后端不可用是正常情况（纯本地编辑也能工作），只记不抛
+  }
+
   const old = readEditorRenders(doc.projectId)
   const record: EditorRenderRecord = {
     id: crypto.randomUUID(),
