@@ -45,7 +45,7 @@ import lombok.extern.slf4j.Slf4j;
 public class ModifyTaskRunner {
 
     private final RemotionRenderer renderer;
-    private final MockModifyExecutor generator;
+    private final ModifyPlanner generator;
     private final ModifyPlanApplier applier;
     private final ProjectRepository projects;
     private final ProjectSceneRepository scenes;
@@ -116,7 +116,7 @@ public class ModifyTaskRunner {
 
         // ③ 生成方案
         progress.report(25, "正在生成修改方案（基于版本 " + baseVersion + "）");
-        ModifyPlan plan = generator.generate(task.prompt(), film, editable);
+        ModifyPlan plan = generator.plan(task.prompt(), film, editable);
         progress.report(50, "已生成 " + plan.edits().size() + " 条修改");
 
         // ④ 校验并应用

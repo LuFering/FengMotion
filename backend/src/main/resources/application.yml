@@ -45,6 +45,13 @@ fengmotion:
   upload-root: ${fengmotion.data-dir}/uploads
 
   # Remotion 渲染（统一工程：所有项目共用一份依赖与管线，差异走 props）
+  modify:
+    # 修改方案生成器：rule（确定性规则，默认）/ model（调用模型）
+    # 默认 rule：模型不可用时若默认走模型，用户提交会直接失败；
+    # 规则式至少覆盖最常见的文字/颜色修改。
+    planner: ${FENGMOTION_MODIFY_PLANNER:rule}
+    # model 模式下单次生成超时
+    plan-timeout-seconds: ${FENGMOTION_MODIFY_PLAN_TIMEOUT:90}
   remotion:
     # 工程目录：含 render.mjs 与 src/。留空时按 user.dir/remotion 推断（开发态）
     project-dir: ${FENGMOTION_REMOTION_DIR:}

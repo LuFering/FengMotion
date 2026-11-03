@@ -38,7 +38,7 @@ class MockModifyExecutorTest {
     @Test
     @DisplayName("「把文字改成 X」解析为改 text")
     void parsesTextChange() {
-        ModifyPlan plan = generator.generate("把文字改成 你好世界", film("旧字幕", "#fff"), List.of("s1"));
+        ModifyPlan plan = generator.plan("把文字改成 你好世界", film("旧字幕", "#fff"), List.of("s1"));
 
         assertEquals(1, plan.edits().size());
         assertEquals("text", plan.edits().get(0).field());
@@ -49,7 +49,7 @@ class MockModifyExecutorTest {
     @Test
     @DisplayName("「文字颜色改成 X」解析为改 color")
     void parsesColorChange() {
-        ModifyPlan plan = generator.generate("文字颜色改成 #ff0000", film("旧", "#fff"), List.of("s1"));
+        ModifyPlan plan = generator.plan("文字颜色改成 #ff0000", film("旧", "#fff"), List.of("s1"));
 
         assertEquals("color", plan.edits().get(0).field());
         assertEquals("#ff0000", plan.edits().get(0).to());
@@ -58,7 +58,7 @@ class MockModifyExecutorTest {
     @Test
     @DisplayName("「背景颜色改成 X」解析为改 backgroundColor")
     void parsesBackgroundColor() {
-        ModifyPlan plan = generator.generate("背景颜色改成 #000000", film("旧", "#fff"), List.of("s1"));
+        ModifyPlan plan = generator.plan("背景颜色改成 #000000", film("旧", "#fff"), List.of("s1"));
 
         assertEquals("backgroundColor", plan.edits().get(0).field());
     }
@@ -66,7 +66,7 @@ class MockModifyExecutorTest {
     @Test
     @DisplayName("收尾标点不写进字幕")
     void stripsTrailingPunctuation() {
-        ModifyPlan plan = generator.generate("把文字改成 新字幕。", film("旧", "#fff"), List.of("s1"));
+        ModifyPlan plan = generator.plan("把文字改成 新字幕。", film("旧", "#fff"), List.of("s1"));
 
         assertEquals("新字幕", plan.edits().get(0).to());
     }
@@ -75,7 +75,7 @@ class MockModifyExecutorTest {
     @DisplayName("解析不出目标值时明确报错，不瞎猜")
     void rejectsUnparseablePrompt() {
         ApiException e = assertThrows(ApiException.class,
-                () -> generator.generate("让这条片子更有感染力", film("旧", "#fff"), List.of("s1")));
+                () -> generator.plan("让这条片子更有感染力", film("旧", "#fff"), List.of("s1")));
         assertEquals("modify_plan_invalid", e.getCode());
     }
 
@@ -83,7 +83,7 @@ class MockModifyExecutorTest {
     @DisplayName("空要求报错")
     void rejectsBlankPrompt() {
         ApiException e = assertThrows(ApiException.class,
-                () -> generator.generate("  ", film("旧", "#fff"), List.of("s1")));
+                () -> generator.plan("  ", film("旧", "#fff"), List.of("s1")));
         assertEquals("validation_error", e.getCode());
     }
 
@@ -91,7 +91,7 @@ class MockModifyExecutorTest {
     @DisplayName("没有可改场景时报错")
     void rejectsNoEditableScenes() {
         ApiException e = assertThrows(ApiException.class,
-                () -> generator.generate("把文字改成 X", film("旧", "#fff"), List.of()));
+                () -> generator.plan("把文字改成 X", film("旧", "#fff"), List.of()));
         assertEquals("validation_error", e.getCode());
     }
 
@@ -101,7 +101,7 @@ class MockModifyExecutorTest {
         try {
             JsonNode two = json.readTree("{\"scenes\":["
                     + "{\"id\":\"s1\",\"text\":\"一\"},{\"id\":\"s2\",\"text\":\"二\"}]}");
-            ModifyPlan plan = generator.generate("把文字改成 新", two, List.of("s1", "s2"));
+            ModifyPlan plan = generator.plan("把文字改成 新", two, List.of("s1", "s2"));
             assertEquals(2, plan.edits().size());
             assertTrue(plan.edits().stream().anyMatch(e -> "s1".equals(e.sceneId())));
             assertTrue(plan.edits().stream().anyMatch(e -> "s2".equals(e.sceneId())));

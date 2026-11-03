@@ -27,7 +27,12 @@ import com.fengmotion.server.task.domain.TaskScope;
  * 调用方不用改。</p>
  */
 @Component
-public class MockModifyExecutor {
+public class MockModifyExecutor implements ModifyPlanner {
+
+    @Override
+    public String name() {
+        return "rule";
+    }
 
     /**
      * 根据要求生成方案。
@@ -38,7 +43,8 @@ public class MockModifyExecutor {
      * @return 修改方案
      * @throws com.fengmotion.server.common.ApiException 要求无法解析
      */
-    public ModifyPlan generate(String prompt, JsonNode film, List<String> editable) {
+    @Override
+    public ModifyPlan plan(String prompt, JsonNode film, List<String> editable) {
         if (prompt == null || prompt.isBlank()) {
             throw new com.fengmotion.server.common.ApiException(
                     org.springframework.http.HttpStatus.BAD_REQUEST, "validation_error",
