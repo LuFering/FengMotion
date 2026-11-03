@@ -43,3 +43,11 @@
 .wb-a2 .wb-compose-error button:hover { opacity:1; }
 /* 能力边界写在提交按钮旁：用户会默认「能对话就能随便改」 */
 .wb-a2 .wb-compose-capability { font-size:9px; color:var(--tx3); white-space:nowrap; }
+
+/* 不生效的保留条件：整行压暗并禁用，旁边给一句说明。
+   让用户看清楚「这个开关现在不起作用」，而不是勾上后以为受保护。 */
+.wb-a2 .fw-constraint-row[data-unsupported] { opacity:.45; }
+.wb-a2 .fw-constraint-row[data-unsupported] span { color:var(--hint); }
+.wb-a2 .wb-constraint-note { margin-top:6px; font-size:9px; line-height:1.7; color:var(--tx3); }
+/* 作用范围旁的场景版本：次级信息，但不能比作用范围本身更显眼 */
+.wb-a2 .wb-compose-version { margin-left:8px; font-size:9px; color:var(--hint); }

@@ -21,11 +21,28 @@ export type SubmitFailure =
   /** 后端拒绝（含执行期的版本冲突、规则式修改无法理解的要求等） */
   | { reason: 'rejected'; message: string; code: string | null }
 
+/** 真实修改请求的快照（实际发给后端的那些字段）。 */
+export interface ModifySnapshot {
+  prompt: string
+  scope: 'project' | 'scene'
+  sceneIds: string[]
+  /** 提交时基于的场景版本 */
+  baseVersion: number
+}
+
 export interface TaskRecord {
   task: AgentTask
   /** 这次请求原样留着 —— 左栏「正在制作」要靠它说清此刻在改哪个内容
       （任务对象本身只有一句标题，回答不了「哪一个画面」）。 */
   request: TaskRequest | null
+  /**
+   * 真实修改请求的快照。
+   *
+   * <p>为什么单独存：{@link request} 是演示路径的 TaskRequest，带 references/
+   * constraints；真实修改根本不发那些字段。任务详情若拿界面当前的约束冒充
+   * 「发送时的条件」，就是在向用户展示一份没发生过的请求。</p>
+   */
+  modify?: ModifySnapshot | null
   events: TaskEvent[]
   changes: ChangeSet | null
 }
@@ -237,6 +254,7 @@ export function useAgentTasks() {
   const startModify = useCallback(async (
     projectId: string,
     request: ModifyTaskRequest,
+    onSettled?: (status: string) => void,
   ): Promise<{ taskId: string; failure?: undefined } | { taskId?: undefined; failure: SubmitFailure }> => {
     try {
       const run = await studioHttpApi().task.startModify(projectId, request, (event) => {
@@ -261,6 +279,14 @@ export function useAgentTasks() {
           mock: false,
         },
         request: null,
+        /* 存真实发出去的字段快照：任务详情要照着它说「本次实际提交了什么」，
+           而不是拿界面当前状态顶替。 */
+        modify: {
+          prompt: request.prompt,
+          scope: request.scope,
+          sceneIds: [...request.sceneIds],
+          baseVersion: request.baseVersion,
+        },
         events: [],
         changes: null,
       }
@@ -279,6 +305,7 @@ export function useAgentTasks() {
           r.task.id === run.taskId ? { ...r, task: toAgentTask(finalTask) } : r
         )))
         runs.current.delete(run.taskId)
+        onSettled?.(finalTask.status)
       })
 
       return { taskId: run.taskId }

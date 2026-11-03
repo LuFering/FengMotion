@@ -14,6 +14,7 @@ import { PROJECTS, type ProjectSummary } from '@/data/projects'
 import { ARTIFACT_STATUS_LABEL, ARTIFACT_TYPE_LABEL, WORKBENCH_ARTIFACTS, type WorkbenchArtifact } from '@/data/workbenchArtifacts'
 import { ACTIVE_DURATION, FILM_FPS } from '@/data/timeline'
 import { useAgentTasks, type TaskRecord } from '@/hooks/useAgentTasks'
+import type { ProjectSceneState } from '@/services/api/taskClient'
 import type { AgentReference, AgentTask, ModificationConstraints, TaskRequest, PreviewSource, TaskEvent } from '@/services/studioApi'
 import { evaluateGate, gateSummaryOf, GATE_PRIMARY_KIND, workflowService } from '@/services/workflowService'
 import { GATE_DEFS } from '@/data/workflowTemplates'
@@ -97,6 +98,18 @@ const DELTA_LABEL: Record<RoundDelta['key'], string> = {
   target: '针对画面', time: '时间位置', region: '框选区域', prompt: '文字意见', brief: '需求快照',
 }
 const CONSTRAINT_LABEL_MAP = Object.fromEntries(CONSTRAINT_LABELS) as Record<string, string>
+
+/**
+ * 真实修改路径**实际会执行**的约束。
+ *
+ * <p>其余约束后端第一版没有实现，真实请求根本不发它们。
+ * 界面因此必须禁用这些开关 —— 让用户勾选一个不会生效的条件，
+ * 比根本没有这个开关更糟：他会拿一个没被保证的结果去用。</p>
+ *
+ * <p>这里与后端 `TaskRequestGuard`/`Constraints.unenforced()` 的判断保持一致，
+ * 改后端支持范围时这里也要改。</p>
+ */
+const REAL_MODIFY_SUPPORTED_CONSTRAINTS = new Set<ConstraintKey>(['limitToSelection'])
 
 const quickActions = [
   { id: 'undo', label: '撤销', icon: RotateCcw, prompt: '撤销上一次修改。' },
@@ -333,6 +346,16 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
   const [editorPreviews, setEditorPreviews] = useState<StageVisual[]>([])
   const [editorExportTick, setEditorExportTick] = useState(0)
   useEffect(() => { let active = true; void editorRenderVisuals(projectId).then(items => { if (active) setEditorPreviews(items) }).catch(() => undefined); return () => { active = false } }, [projectId, editorExportTick])
+  /* 打开工作台就读一次当前场景：让「场景版本 vN」从一开始就可信，
+     而不是等到用户第一次提交后才知道改动会基于哪一版。
+     读失败就保持 null（界面显示不出结论），不编一个版本号出来。 */
+  useEffect(() => {
+    let active = true
+    void tasks.currentScene(projectId).then((probe) => {
+      if (active && probe.scene) setCurrentSceneState(probe.scene)
+    })
+    return () => { active = false }
+  }, [projectId])
   const stage = useMemo(() => {
     const base = stageState(projectWorkflows, workflowService.listRuns())
     const visuals = [...editorPreviews, ...base.visuals].sort((a, b) => b.createdAt.localeCompare(a.createdAt))
@@ -410,6 +433,8 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
      直到用户重发或主动关掉。 */
   const [realModifyBusy, setRealModifyBusy] = useState(false)
   const [realModifyError, setRealModifyError] = useState('')
+  /* 后端当前场景。界面据此回答「现在这条片子是什么」，也是提交时的版本依据。 */
+  const [currentSceneState, setCurrentSceneState] = useState<ProjectSceneState | null>(null)
   useEffect(() => {
     if (!notice) return
     const timer = window.setTimeout(() => setNotice(''), 4500)
@@ -904,6 +929,25 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
     focusFeedback()
   }
   /**
+   * 重新读取项目当前场景。
+   *
+   * <p>为什么提交成功后必须重读：后端在渲染成功时把新场景提交为新版本。
+   * 界面若不重读，手里的 version 还是旧的，下一次提交会被 409 打回，
+   * 用户会以为「刚改完就不能再改了」。</p>
+   *
+   * @param reason 触发原因，用于区分展示（成功 / 其它）
+   */
+  const refreshCurrentScene = async (reason: string) => {
+    const probe = await tasks.currentScene(projectId)
+    if (!probe.scene) return
+    setCurrentSceneState(probe.scene)
+    if (reason === 'completed') {
+      /* 成功时给一句确认，让用户知道界面上的场景确实已经换成新的了 */
+      setNotice(`场景已更新到版本 ${probe.scene.version}`)
+    }
+  }
+
+  /**
    * 提交一次真实修改。
    *
    * <p>与演示路径的分工（两条入口刻意分开，不互相顶替）：
@@ -949,6 +993,12 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
         scope: useScene ? 'scene' : 'project',
         sceneIds: useScene ? derived.sceneIds : [],
         baseVersion: probe.scene.version,
+      }, (status) => {
+        /* 任务结束后重新读取当前场景：
+           - completed：场景已被后端提交为新版本，界面必须立刻反映新内容与新版本
+           - 其它：也重读一次，以免界面停留在提交前的旧版本上继续修改
+           这一步失败不提示：任务结果本身还没展示完，再弹一个错误会盖住它。 */
+        void refreshCurrentScene(status)
       })
       if (!result.taskId) {
         const failure = result.failure
@@ -1323,6 +1373,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
             onContinue={continueOpinion}/> : <RightPanel realModifyBusy={realModifyBusy} realModifyError={realModifyError}
                        onClearRealModifyError={() => setRealModifyError('')}
                        onDemoSubmit={submitDemo}
+                       sceneVersion={currentSceneState}
                        chat={chat} sideTab={sideTab} setSideTab={selectSideTab}
                       focusChatKey={focusChatKey}
                       scope={scope}
@@ -1986,7 +2037,7 @@ function RightPanel({ projectId, target, preview, chat, sideTab, setSideTab, foc
   onNavigate, references, onRemoveReference,
   onLocateReference, onToggleReferenceRole, onClearReferences, onScopeChange,
   onOpenReview, keepNotes, reviewSaved, onResumeRequest,
-  realModifyBusy, realModifyError, onClearRealModifyError, onDemoSubmit }:
+  realModifyBusy, realModifyError, onClearRealModifyError, onDemoSubmit, sceneVersion }:
   { projectId: string; target: AgentReference; preview: StageVisual | null; chat: ChatState; sideTab: SideTab; setSideTab: (v: SideTab) => void; focusChatKey: number
     scope: 'project'|'scene'|'selection'
     /** 输入框上显示的作用范围（真名，不是枚举）与它的短名（占位文案用） */
@@ -2010,9 +2061,23 @@ function RightPanel({ projectId, target, preview, chat, sideTab, setSideTab, foc
     realModifyError: string
     onClearRealModifyError: () => void
     /** 演示入口：用户明确点「演示」才走本地假执行 */
-    onDemoSubmit: (p: string) => void }) {
+    onDemoSubmit: (p: string) => void
+    /** 后端当前场景；null 表示还没读到 */
+    sceneVersion: ProjectSceneState | null }) {
   /* 草稿只在提交成功后清空：失败时保留输入，用户改一个字就能重发，
      而不用把整段要求重写一遍。onSubmit 返回是否成功。 */
+  /**
+   * 「作用于 x · 场景版本 N」里的版本部分。
+   *
+   * <p>显示版本不是装饰：连续修改时用户要能看出这次改的是哪一版，
+   * 冲突时也能马上发现「界面上的版本已经旧了」。</p>
+   */
+  const sceneVersionLabel = sceneVersion === null
+    ? null
+    : sceneVersion.initialized
+      ? `场景版本 v${sceneVersion.version}`
+      : '尚未生成场景'
+
   const submit = async () => {
     const v = chat.draft.trim()
     if (!v || realModifyBusy) return
@@ -2173,6 +2238,7 @@ function RightPanel({ projectId, target, preview, chat, sideTab, setSideTab, foc
                   而它是「AI 到底会动哪一块」的唯一提示 —— 不能被截。 */}
               <div className="wb-compose-scope" title={scopeLabel}>
                 作用于 <b>{scopeLabel}</b>
+                {sceneVersionLabel && <span className="wb-compose-version">{sceneVersionLabel}</span>}
               </div>
               <textarea className="wb-input" rows={3} ref={inputRef}
                         value={chat.draft} onChange={(e) => chat.setDraft(e.target.value)}
@@ -2240,14 +2306,23 @@ function RightPanel({ projectId, target, preview, chat, sideTab, setSideTab, foc
 
             <div className="wb-sep" />
             <button type="button" className="wb-desk-secondary" onClick={() => onOpenReview('brief')}>编辑特别保留要求 <ArrowUpRight size={12}/></button><div className="fw-scene-hd">保留条件</div>
-            {CONSTRAINT_LABELS.map(([key, label]) => (
-              <div key={key} className="fw-constraint-row">
-                <span>{label}</span>
-                <Switch checked={constraints[key]}
-                        aria-label={label}
-                        onCheckedChange={(checked) => setConstraints((c) => ({ ...c, [key]: checked }))} />
-              </div>
-            ))}
+            {CONSTRAINT_LABELS.map(([key, label]) => {
+              /* 真实修改暂不执行这些约束：禁用而不是让人勾上然后静默忽略。
+                 勾了却不生效，用户会以为改动受到了保护。 */
+              const supported = REAL_MODIFY_SUPPORTED_CONSTRAINTS.has(key)
+              return (
+                <div key={key} className="fw-constraint-row" data-unsupported={!supported || undefined}
+                     title={supported ? undefined : '当前仅支持规则式文字、颜色修改，该保留条件暂不生效'}>
+                  <span>{label}</span>
+                  <Switch checked={constraints[key]} disabled={!supported}
+                          aria-label={label}
+                          onCheckedChange={(checked) => setConstraints((c) => ({ ...c, [key]: checked }))} />
+                </div>
+              )
+            })}
+            <div className="wb-constraint-note">
+              当前只支持「不修改其他场景」；其余保留条件在规则式修改下不生效，已禁用。
+            </div>
 
             <div className="wb-sep" />
             <div className="fw-scene-hd">快捷操作</div>
@@ -2345,11 +2420,30 @@ function TaskPanel({ activeTask, records, cancelTask, scope, constraints, onBack
         <div className="fw-scene-hd">发送时的作用范围</div>
         <div className="fw-chips"><span className="fw-chip">{scopeLabel}</span></div>
         <div className="fw-scene-hd">保留条件</div>
-        <div className="flex flex-col gap-1.5">
-          {CONSTRAINT_LABELS.map(([key, label]) => (
-            <span key={key} className="wb-insp-kv"><span>{label}</span><b>{recordedConstraints[key] ? '保留' : '不保留'}</b></span>
-          ))}
-        </div>
+        {record?.modify ? (
+          /* 真实修改：如实说「本次没有提交保留条件」。
+             不能拿界面当前的约束顶替 —— 那是用户此刻的勾选状态，
+             不是这次任务实际发送的内容，展示出来等于编一份没发生的请求。 */
+          <div className="wb-insp-kv"><span>本次未提交保留约束</span><b>不保留</b></div>
+        ) : (
+          <div className="flex flex-col gap-1.5">
+            {CONSTRAINT_LABELS.map(([key, label]) => (
+              <span key={key} className="wb-insp-kv"><span>{label}</span><b>{recordedConstraints[key] ? '保留' : '不保留'}</b></span>
+            ))}
+          </div>
+        )}
+        {record?.modify && (
+          <>
+            <div className="fw-scene-hd">本次实际提交</div>
+            <div className="flex flex-col gap-1.5">
+              <span className="wb-insp-kv"><span>基于场景版本</span><b>v{record.modify.baseVersion}</b></span>
+              <span className="wb-insp-kv"><span>目标场景</span><b>{record.modify.sceneIds.length > 0 ? record.modify.sceneIds.join('、') : '整片'}</b></span>
+            </div>
+            <div className="wb-constraint-note">
+              规则式修改：只修改文字或颜色，不支持参考定位与保留约束。
+            </div>
+          </>
+        )}
         <div className="wb-sep" />
         <div className="text-[10.5px] leading-relaxed text-dim">
           任务 ≠ 质量验收。完成只代表这次执行结束，是否接受还要看变更与验证。
