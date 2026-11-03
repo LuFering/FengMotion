@@ -120,6 +120,41 @@ public class DatabaseMigration {
             jdbc.execute("ALTER TABLE chat_messages ADD COLUMN tool_calls_json TEXT");
         }
         jdbc.execute("CREATE INDEX IF NOT EXISTS idx_chat_messages_session_seq ON chat_messages(session_id, seq)");
+        // 任务域：任务主表与事件表。旧库没有，新库由这里补出。
+        jdbc.execute("""
+                CREATE TABLE IF NOT EXISTS tasks (
+                    id TEXT PRIMARY KEY,
+                    project_id TEXT NOT NULL,
+                    kind TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    prompt TEXT NOT NULL,
+                    request_json TEXT,
+                    progress INTEGER NOT NULL DEFAULT 0,
+                    message TEXT NOT NULL DEFAULT '',
+                    artifact_path TEXT,
+                    error_code TEXT,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    finished_at TEXT,
+                    FOREIGN KEY (project_id) REFERENCES projects(id)
+                )
+                """);
+        jdbc.execute("CREATE INDEX IF NOT EXISTS idx_tasks_project_created ON tasks(project_id, created_at DESC)");
+        jdbc.execute("""
+                CREATE TABLE IF NOT EXISTS task_events (
+                    id TEXT PRIMARY KEY,
+                    task_id TEXT NOT NULL,
+                    seq INTEGER NOT NULL,
+                    kind TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    message TEXT NOT NULL DEFAULT '',
+                    data_json TEXT,
+                    at TEXT NOT NULL,
+                    FOREIGN KEY (task_id) REFERENCES tasks(id),
+                    UNIQUE (task_id, seq)
+                )
+                """);
+        jdbc.execute("CREATE INDEX IF NOT EXISTS idx_task_events_task_seq ON task_events(task_id, seq)");
         jdbc.execute("""
                 CREATE TABLE IF NOT EXISTS chat_message_idempotency (
                     key TEXT PRIMARY KEY,

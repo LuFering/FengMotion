@@ -63,3 +63,43 @@ CREATE TABLE IF NOT EXISTS chat_message_idempotency (
     message_id TEXT NOT NULL,
     created_at TEXT NOT NULL
 );
+
+-- 制作任务：一次「用户提交要求 → 执行 → 产出」的完整记录。
+-- 任务必须落库而不是只放内存：服务重启后用户还要能看到历史与失败原因。
+-- request_json 存原始要求（字段随后续演进可能要加，不为此频繁改表）；
+-- artifact_path 指向项目目录里的产物文件（相对路径），空表示还没产出。
+CREATE TABLE IF NOT EXISTS tasks (
+    id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    status TEXT NOT NULL,
+    prompt TEXT NOT NULL,
+    request_json TEXT,
+    progress INTEGER NOT NULL DEFAULT 0,
+    message TEXT NOT NULL DEFAULT '',
+    artifact_path TEXT,
+    error_code TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    finished_at TEXT,
+    FOREIGN KEY (project_id) REFERENCES projects(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_tasks_project_created ON tasks(project_id, created_at DESC);
+
+-- 任务事件：状态迁移的唯一可观察出口。
+-- seq 在任务内严格递增，客户端据此断线重连时补发（Last-Event-ID）。
+CREATE TABLE IF NOT EXISTS task_events (
+    id TEXT PRIMARY KEY,
+    task_id TEXT NOT NULL,
+    seq INTEGER NOT NULL,
+    kind TEXT NOT NULL,
+    status TEXT NOT NULL,
+    message TEXT NOT NULL DEFAULT '',
+    data_json TEXT,
+    at TEXT NOT NULL,
+    FOREIGN KEY (task_id) REFERENCES tasks(id),
+    UNIQUE (task_id, seq)
+);
+
+CREATE INDEX IF NOT EXISTS idx_task_events_task_seq ON task_events(task_id, seq);
