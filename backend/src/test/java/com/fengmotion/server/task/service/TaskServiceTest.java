@@ -130,6 +130,37 @@ class TaskServiceTest {
     }
 
     @Test
+    @DisplayName("警告事件与 accepted 同事务写入，且排在执行事件之前")
+    void warningsAreWrittenBeforeExecution() {
+        MemoryRepo repo = new MemoryRepo();
+        var service = new TaskService(repo, projectRepo("p1"), directTx(), json);
+
+        List<String> warnings = TaskService.unenforcedWarnings(List.of("preserveCamera"));
+        Task task = service.submit("p1", "render", "做一条片子", json.createObjectNode(),
+                (t, progress) -> null, warnings);
+
+        List<TaskEvent> events = repo.events.get(task.id());
+        // 受理时就已写好，不依赖执行线程的调度顺序
+        assertEquals(TaskEvent.KIND_ACCEPTED, events.get(0).kind());
+        assertEquals(TaskEvent.KIND_WARNING, events.get(1).kind());
+        assertTrue(events.get(1).message().contains("preserveCamera"));
+        assertEquals(Task.STATUS_QUEUED, events.get(1).status());
+    }
+
+    @Test
+    @DisplayName("没有未生效约束时不写警告事件")
+    void noWarningsWhenNothingUnenforced() {
+        MemoryRepo repo = new MemoryRepo();
+        var service = new TaskService(repo, projectRepo("p1"), directTx(), json);
+
+        Task task = service.submit("p1", "render", "做一条片子", json.createObjectNode(),
+                (t, progress) -> null, List.of());
+
+        List<TaskEvent> events = repo.events.get(task.id());
+        assertTrue(events.stream().noneMatch(e -> TaskEvent.KIND_WARNING.equals(e.kind())));
+    }
+
+    @Test
     @DisplayName("执行成功后状态变 completed 并记录产物路径")
     void successMarksCompletedWithArtifact() throws Exception {
         MemoryRepo repo = new MemoryRepo();

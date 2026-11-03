@@ -111,12 +111,16 @@ public class RemotionRenderer {
             }
 
             Process process = builder.start();
-            String stdout;
-            String stderr = "";
+            /* stdout 与 stderr 必须并发读。
+               串行读（先 readAllBytes(stdout) 再读 stderr）会死锁：
+               Remotion 把 Chromium 的大量日志写进 stderr，管道缓冲区（约 64KB）
+               写满后子进程就阻塞在写 stderr 上，永远不关 stdout，
+               父进程则一直等 stdout 读完 —— 两边互等直到超时。
+               实测表现是「渲染实际跑完了但拿到空 stdout」。 */
+            String[] captured = readBothStreams(process);
+            String stdout = captured[0];
+            String stderr = captured[1];
             try {
-                // 先读 stdout（结果 JSON），stderr 只保留尾部用于报错
-                stdout = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8).trim();
-                stderr = new String(process.getErrorStream().readAllBytes(), StandardCharsets.UTF_8).trim();
                 if (!process.waitFor(timeoutSeconds, TimeUnit.SECONDS)) {
                     process.destroyForcibly();
                     throw new ApiException(HttpStatus.GATEWAY_TIMEOUT, "render_timeout",
@@ -147,6 +151,39 @@ public class RemotionRenderer {
     }
 
     /**
+     * 并发读取子进程的两个输出流，避免管道缓冲区写满导致的死锁。
+     *
+     * @param process 子进程
+     * @return {@code [stdout, stderr]}，均已去除首尾空白
+     * @throws IOException 读取失败
+     */
+    private static String[] readBothStreams(Process process) throws IOException {
+        var stdoutTask = java.util.concurrent.CompletableFuture.supplyAsync(
+                () -> readQuietly(process.getInputStream()));
+        var stderrTask = java.util.concurrent.CompletableFuture.supplyAsync(
+                () -> readQuietly(process.getErrorStream()));
+        try {
+            return new String[] {stdoutTask.join(), stderrTask.join()};
+        } catch (java.util.concurrent.CompletionException failure) {
+            throw new IOException("读取渲染进程输出失败", failure.getCause());
+        }
+    }
+
+    /**
+     * 读尽一个流并转成文本；失败时返回空串而不是抛出。
+     *
+     * @param stream 输入流
+     * @return 去除首尾空白的文本
+     */
+    private static String readQuietly(java.io.InputStream stream) {
+        try (stream) {
+            return new String(stream.readAllBytes(), StandardCharsets.UTF_8).trim();
+        } catch (IOException failure) {
+            return "";
+        }
+    }
+
+    /**
      * 解析渲染脚本的输出。
      *
      * @param stdout     标准输出，应为一行 JSON
@@ -156,11 +193,18 @@ public class RemotionRenderer {
      */
     private RenderResult parseResult(String stdout, String stderr, Path outputFile) {
         JsonNode result;
+        if (stdout.isEmpty()) {
+            /* 空 stdout 不是「JSON 写坏了」，而是脚本没给出结果就退出了。
+               报「无法解析」会把方向指错（代码本身没问题），
+               所以这里如实说「没有输出」并把退出原因带出来。 */
+            throw new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "render_failed",
+                    "渲染脚本没有输出结果：" + tail(stderr, 400));
+        }
         try {
-            result = json.readTree(stdout.isEmpty() ? "{}" : stdout);
+            result = json.readTree(stdout);
         } catch (IOException malformed) {
             throw new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "render_failed",
-                    "渲染脚本输出无法解析：" + tail(stderr, 400));
+                    "渲染脚本输出不是合法 JSON：" + tail(stderr, 400));
         }
 
         if (!result.path("ok").asBoolean(false)) {

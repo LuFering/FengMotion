@@ -122,6 +122,27 @@ public class TaskService {
      * @return 已落库的任务（状态为 queued）
      */
     public Task submit(String projectId, String kind, String prompt, JsonNode request, TaskRunner runner) {
+        return submit(projectId, kind, prompt, request, runner, List.of());
+    }
+
+    /**
+     * 创建并开始执行一个任务，同时在受理时就写入警告事件。
+     *
+     * <p>警告必须与「已接受」在同一事务里写。放到 {@code submit} 返回之后再由
+     * 调用方补写会有竞态：执行线程可能已经跑完并落了 error 事件，
+     * 警告就插在错误之后、甚至写进已终态的任务，用户看到的顺序是错的。
+     * 用户设置的约束是否生效，属于「受理时就必须说清」的信息。</p>
+     *
+     * @param projectId    项目 ID
+     * @param kind         任务类型
+     * @param prompt       用户要求
+     * @param request      完整请求体
+     * @param runner       执行逻辑
+     * @param warnings     受理时就要告知用户的警告正文；为空则不写
+     * @return 已落库的任务（状态为 queued）
+     */
+    public Task submit(String projectId, String kind, String prompt, JsonNode request,
+                       TaskRunner runner, List<String> warnings) {
         if (projects.findById(projectId).isEmpty()) {
             throw new ApiException(HttpStatus.NOT_FOUND, "not_found", "项目不存在");
         }
@@ -135,12 +156,31 @@ public class TaskService {
             tasks.save(task);
             tasks.appendEvent(new TaskEvent(UUID.randomUUID().toString(), task.id(), 0,
                     TaskEvent.KIND_ACCEPTED, Task.STATUS_QUEUED, "已接受，等待开始", null, now));
+            if (warnings != null) {
+                for (String warning : warnings) {
+                    tasks.appendEvent(new TaskEvent(UUID.randomUUID().toString(), task.id(), 0,
+                            TaskEvent.KIND_WARNING, Task.STATUS_QUEUED, warning, null, now));
+                }
+            }
         });
 
         Running control = new Running();
         running.put(task.id(), control);
         control.future = executor.submit(() -> execute(task, runner, control));
         return task;
+    }
+
+    /**
+     * 把「未生效约束」翻译成警告正文。
+     *
+     * @param names 约束名
+     * @return 可直接展示并落库的警告句；没有时为空列表
+     */
+    public static List<String> unenforcedWarnings(List<String> names) {
+        if (names == null || names.isEmpty()) {
+            return List.of();
+        }
+        return List.of("以下约束本版尚未实现，任务不会按它们执行：" + String.join("、", names));
     }
 
     /**

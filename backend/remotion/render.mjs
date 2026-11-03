@@ -14,19 +14,43 @@
  */
 
 import { readFile, writeFile } from 'node:fs/promises'
+import { existsSync } from 'node:fs'
 import path from 'node:path'
 import { createRequire } from 'node:module'
 
 /**
  * 解析依赖所在目录。
  *
+ * <p>单仓两目录布局：本工程在 {@code backend/remotion/}，依赖装在
+ * {@code desktop/node_modules}。这里按「先猜后验」的顺序找：</p>
+ * <ol>
+ *   <li>环境变量 {@code FENGMOTION_NODE_MODULES}（打包态由后端注入）</li>
+ *   <li>{@code <repo>/desktop/node_modules} —— 单仓布局</li>
+ *   <li>{@code <repo>/node_modules} —— 依赖装在仓库根的旧布局</li>
+ * </ol>
+ *
+ * <p>必须逐个验证存在性：写死一条路径时，目录改名就会得到一个
+ * 「Cannot find module」而不是一句说清方向的错误。</p>
+ *
  * @returns node_modules 的绝对路径
+ * @throws Error 三处都找不到
  */
 function resolveNodeModules() {
   const fromEnv = process.env.FENGMOTION_NODE_MODULES?.trim()
   if (fromEnv) return fromEnv
-  // 默认：桌面端仓库的 node_modules（与本工程同处一个代码库）
-  return path.resolve(import.meta.dirname, '..', '..', 'FengMotion-desktop', 'node_modules')
+
+  const repoRoot = path.resolve(import.meta.dirname, '..', '..')
+  const candidates = [
+    path.join(repoRoot, 'desktop', 'node_modules'),
+    path.join(repoRoot, 'node_modules'),
+  ]
+  for (const candidate of candidates) {
+    if (existsSync(candidate)) return candidate
+  }
+  throw new Error(
+    `找不到 node_modules，已尝试：${candidates.join('、')}。` +
+    '请先在 desktop/ 下安装依赖，或设置 FENGMOTION_NODE_MODULES。',
+  )
 }
 
 /**

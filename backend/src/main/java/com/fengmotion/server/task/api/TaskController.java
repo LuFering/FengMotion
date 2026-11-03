@@ -18,6 +18,8 @@ import com.fengmotion.server.common.ApiException;
 import com.fengmotion.server.task.domain.Task;
 import com.fengmotion.server.task.domain.TaskEvent;
 import com.fengmotion.server.task.service.RenderTaskRunner;
+import com.fengmotion.server.task.service.TaskRequestGuard;
+import com.fengmotion.server.task.service.TaskRequestGuard.Route;
 import com.fengmotion.server.task.service.TaskService;
 
 import lombok.RequiredArgsConstructor;
@@ -39,10 +41,15 @@ public class TaskController {
     private final ObjectMapper json;
 
     /**
-     * 创建渲染任务。
+     * 创建制作任务。
      *
-     * <p>请求体：{@code {prompt?, film: {width, height, fps, scenes: [...]}}}。
-     * {@code film} 就是 Remotion 工程接受的 props，不在这里重复定义一遍 schema。</p>
+     * <p>按请求形状与 {@code kind} 分流（规则见 {@link TaskRequestGuard#route}）：</p>
+     * <ul>
+     *   <li>带 {@code film.scenes}、无 kind 或 kind=render → 直接渲染（已验收路径，形状不变）</li>
+     *   <li>kind=modify → 修改执行流程</li>
+     *   <li>其余 kind → {@code 400 unsupported_task_kind}，在创建阶段就拒绝，
+     *       不让用户看到「已接受」再白等</li>
+     * </ul>
      *
      * @param projectId 项目 ID
      * @param body      请求体
@@ -50,18 +57,27 @@ public class TaskController {
      */
     @PostMapping("/projects/{projectId}/tasks")
     public TaskResponse create(@PathVariable String projectId, @RequestBody JsonNode body) {
-        JsonNode film = body == null ? null : body.get("film");
-        if (film == null || !film.hasNonNull("scenes") || !film.path("scenes").isArray()
-                || film.path("scenes").isEmpty()) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "validation_error",
-                    "请求体需要非空的 film.scenes 数组");
-        }
+        Route route = TaskRequestGuard.route(body);
         String prompt = body.path("prompt").asText("");
 
-        /* 执行器在 submit 时绑定到具体任务类型。目前只有 render：
-           其它 kind 未来在这里分派，调用方不用改。 */
-        Task task = tasks.submit(projectId, "render", prompt, body,
-                (t, progress) -> renderRunner.run(t, progress));
+        // 用户勾了但本版做不到的约束，必须在受理时就以事件告知，不能静默失效
+        List<String> warnings = TaskService.unenforcedWarnings(
+                TaskRequestGuard.unenforcedConstraints(body));
+
+        Task task;
+        if (route == Route.RENDER) {
+            task = tasks.submit(projectId, "render", prompt, body,
+                    (t, progress) -> renderRunner.run(t, progress), warnings);
+        } else {
+            /* 修改流程的接收入口。执行器尚未实现（实施第 3 步），
+               这里如实失败 —— 不假装跑起来，也不静默降级成渲染：
+               降级会产出一条「没按用户要求改」的视频，比明确失败糟得多。 */
+            task = tasks.submit(projectId, "modify", prompt, body,
+                    (t, progress) -> {
+                        throw new ApiException(HttpStatus.NOT_IMPLEMENTED, "modify_not_implemented",
+                                "修改执行流程尚未接入：请求已记录，但本版不会改动视频");
+                    }, warnings);
+        }
         return TaskResponse.from(task);
     }
 
