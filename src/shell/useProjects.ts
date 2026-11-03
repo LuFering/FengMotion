@@ -1,83 +1,83 @@
-import { useCallback, useState } from 'react'
-import { GENOMES } from '@/data/genomes'
-import { PROJECTS, PROJECTS_ROOT, type ProjectSummary } from '@/data/projects'
-
-const nowIso = () => new Date().toISOString().slice(0, 16).replace('T', ' ')
+import { useCallback, useEffect, useState } from 'react'
+import type { ProjectSummary } from '@/data/projects'
+import type { ProjectSummary as ApiProject } from '@/types/contracts'
+import { studioHttpApi } from '@/services/api'
 
 export interface NewProjectInput {
   name: string
-  /** 片型 id（GENOMES 的六选一）—— 决定这套做法的默认值 */
   genome: string
-  /** 目标时长（秒） */
   targetDuration: number
 }
 
-/**
- * 项目目录的内存态（种子是 data/projects.ts 里那一个真实项目）。
- *
- * ⚠️ **演示适配器语义**：create / rename / remove 只改内存，**不碰磁盘** ——
- *    没有后端时不许假装建了目录、改了文件名。新建出来的项目带 `planned` 标记，
- *    卡片与总览页都显示「未落盘」；接上 Agent/后端后，这里换成 API 调用，结构不变。
- */
+/** 将 API 项目数据转换为现有页面使用的字段和单位。 */
+function toProject(p: ApiProject): ProjectSummary {
+  return {
+    id: p.id, name: p.name, tagline: p.tagline, stage: p.stage,
+    duration: p.durationMs / 1000, doneClips: 0, totalClips: 0,
+    segments: p.counts.storyboardSegments, compositions: p.counts.compositions,
+    cover: p.coverUrl ?? '', path: p.rootPath, updatedAt: p.updatedAt,
+    genome: p.genomeId ?? undefined,
+    targetDuration: p.targetDurationMs == null ? undefined : p.targetDurationMs / 1000,
+  }
+}
+
+/** 项目元数据来自后端；工作台内容仍需单独接入。 */
 export function useProjects() {
-  const [list, setList] = useState<ProjectSummary[]>(PROJECTS)
+  const [list, setList] = useState<ProjectSummary[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  const create = useCallback((input: NewProjectInput) => {
-    const g = GENOMES.find((x) => x.id === input.genome)
-    const name = input.name.trim() || '未命名项目'
-    const p: ProjectSummary = {
-      id: `p-${Date.now().toString(36)}`,
-      name,
-      tagline: g ? `${g.name} · ${g.method.name}` : '还没定片型',
-      stage: 'idea',
-      duration: 0,
-      doneClips: 0,
-      totalClips: 0,
-      segments: 0,
-      compositions: 0,
-      cover: g?.img ?? './frames/film/s01.jpg',
-      path: `${PROJECTS_ROOT}/${slug(name)}`,
-      updatedAt: nowIso(),
-      planned: true,
-      genome: input.genome,
-      targetDuration: input.targetDuration,
+  const refresh = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const items: ApiProject[] = []
+      const seen = new Set<string>()
+      let cursor: string | undefined
+      do {
+        const page = await studioHttpApi().projects.list({ limit: 200, cursor })
+        items.push(...page.items)
+        if (page.nextCursor && seen.has(page.nextCursor)) throw new Error('项目分页游标重复')
+        if (page.nextCursor) seen.add(page.nextCursor)
+        cursor = page.nextCursor ?? undefined
+      } while (cursor)
+      setList(items.map(toProject))
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : '无法加载项目')
+    } finally {
+      setLoading(false)
     }
-    setList((l) => [p, ...l])
-    return p
   }, [])
 
-  /* 左栏「新建项目」走的直建入口（对齐 dsh workspace.create：只接管，不预设表单）。
-     片型与时长留空，等第一条对话或工作台再定 —— dsh 的新工作区也只是
-     「选一个已存在的目录」，没有任何片型/时长之类的预设问题。 */
-  const createBlank = useCallback((name?: string) => {
-    const p: ProjectSummary = {
-      id: `p-${Date.now().toString(36)}`,
-      name: name?.trim() || '未命名项目',
-      tagline: '还没定片型',
-      stage: 'idea',
-      duration: 0,
-      doneClips: 0,
-      totalClips: 0,
-      segments: 0,
-      compositions: 0,
-      cover: './frames/film/s01.jpg',
-      path: `${PROJECTS_ROOT}/${slug(name?.trim() || `未命名项目-${Date.now().toString(36)}`)}`,
-      updatedAt: nowIso(),
-      planned: true,
-    }
-    setList((l) => [p, ...l])
-    return p
+  useEffect(() => { void refresh() }, [refresh])
+
+  const create = useCallback(async (input: NewProjectInput) => {
+    const project = await studioHttpApi().projects.create({
+      name: input.name.trim() || '未命名项目', genomeId: input.genome,
+      targetDurationMs: input.targetDuration * 1000,
+    })
+    const result = toProject(project)
+    setList((current) => [result, ...current.filter((p) => p.id !== result.id)])
+    return result
   }, [])
 
-  const rename = useCallback((id: string, name: string) => {
-    setList((l) => l.map((p) => (p.id === id ? { ...p, name: name.trim() || p.name, updatedAt: nowIso() } : p)))
+  const createBlank = useCallback(async (name?: string) => {
+    const project = await studioHttpApi().projects.create({ name: name?.trim() || '未命名项目' })
+    const result = toProject(project)
+    setList((current) => [result, ...current.filter((p) => p.id !== result.id)])
+    return result
   }, [])
 
-  const remove = useCallback((id: string) => {
-    setList((l) => l.filter((p) => p.id !== id))
+  const rename = useCallback(async (id: string, name: string) => {
+    const trimmed = name.trim()
+    if (!trimmed) return
+    const current = await studioHttpApi().projects.get(id)
+    if (current.name === trimmed) return
+    const updated = await studioHttpApi().projects.update(id, { name: trimmed }, current.etag)
+    setList((items) => items.map((p) => p.id === id ? toProject(updated) : p))
   }, [])
 
-  return { list, create, createBlank, rename, remove }
+  return { list, loading, error, refresh, create, createBlank, rename }
 }
 
 /** 目录名：中文也能用（去掉文件系统不认的字符，空格变 -） */

@@ -210,8 +210,8 @@ export interface ProjectDetail extends ProjectSummary {
 
 export interface ProjectCreateRequest {
   name: string
-  genomeId: string
-  targetDurationMs: number
+  genomeId?: string
+  targetDurationMs?: number
   /** 不传则用 workspaceRoot 下的默认目录。 */
   rootPath?: string
 }
@@ -1125,6 +1125,23 @@ export interface ChatSession {
   demo?: DemoFlag
 }
 
+/**
+ * 一次工具调用的记录（随助手消息一起返回）。
+ *
+ * 与流式 `status` 帧的 `callId`/`name`/`arguments`/`isError` 对应，
+ * 区别是它已经结束并落了库：用户切走会话再回来，仍能查到这条回复当时跑了什么。
+ */
+export interface ChatMessageToolCall {
+  callId?: string
+  name: string
+  /** 参数原文；后端已按 4000 字符截断。 */
+  arguments?: string
+  /** 是否已经结束（有结果帧）。 */
+  done?: boolean
+  /** 仅失败时出现。 */
+  isError?: boolean
+}
+
 export interface ChatMessage {
   id: Id
   sessionId: Id
@@ -1134,6 +1151,8 @@ export interface ChatMessage {
   taskId?: Id
   references?: AgentReference[]
   attachments?: TaskAttachment[]
+  /** 这条助手回复执行过的工具调用；没有调用时不出现。 */
+  toolCalls?: ChatMessageToolCall[]
   createdAt: IsoDateTime
   demo?: DemoFlag
 }
@@ -1198,9 +1217,97 @@ export interface ChatStreamEnd {
   type: 'end'
 }
 
+/**
+ * 对话回复的阶段进度帧。
+ *
+ * 为什么需要它：DSH 走 SDK 通道拿不到 token 级增量（`harness集成与接口清单.md` §1.1
+ * 已实测），文本只在提交点整段到达。所以界面能显示的「进度」只有阶段，
+ * 不是逐字。没有这一帧的话，用户从发消息到看到回复之间是一段没有任何反馈的空白
+ * （实测可达 7.5 秒以上），看起来像卡死。
+ *
+ * `phase` 取值按后端清单 §1.7：
+ *   · `thinking` —— Agent 正在推理/生成
+ *   · `tool`     —— 正在调用工具（带 `name` 与人类可读的 `label`）
+ *   · `done`     —— 本回合完成
+ *
+ * 注意：**它不携带正文**。正文只由 `completed` 帧给，不能把 status 当回复。
+ */
+export interface ChatStreamStatus {
+  type: 'status'
+  phase: 'thinking' | 'tool' | 'done'
+  /** 仅 `phase === 'tool'` 时出现：工具名（如 `bash`）。 */
+  name?: string
+  /** 仅 `phase === 'tool'` 时出现：给人看的一句话说明。 */
+  label?: string
+  /**
+   * 仅 `phase === 'tool'` 时出现：本次工具调用的 ID。
+   *
+   * 一次调用发两帧——开始帧（无 `isError`）与结果帧（带 `isError`），
+   * 两帧共用同一个 `callId`，界面据此把调用行标成完成或失败。
+   * 连续调用多个工具时，靠它区分「是哪一个结束了」。
+   */
+  callId?: string
+  /**
+   * 仅在开始帧出现：参数 JSON 原文。
+   *
+   * 后端最多给 4000 字符（超出以 `…` 截断）——参数可能是整段文件内容或 base64，
+   * 原样下发会把单帧撑得很大。截断后仍可用 `callId` 追溯完整调用。
+   */
+  arguments?: string
+  /** 仅在结果帧出现且为失败时存在：这次工具调用是否失败。 */
+  isError?: boolean
+}
+
+/**
+ * token 用量帧：一条助手消息实际消耗的 token。
+ *
+ * DSH 没有独立的 usage 事件，用量挂在 `assistant/message` 上（后端实测）；
+ * 后端把它单独投影成一帧，前端据此显示用量。
+ *
+ * **所有字段都是可选的**：上游没报的桶就不出现，不补 0 —— 「用了 0 个 token」
+ * 与「不知道用了多少」是两件事。注意 `totalTokens` 含缓存命中，不等于
+ * input + output，不要自行相加代替它。
+ */
+export interface ChatStreamUsage {
+  type: 'usage'
+  /** 未缓存的输入 token。 */
+  inputTokens?: number
+  outputTokens?: number
+  /** 缓存命中读取的 token；上游未报时不出现。 */
+  cacheReadTokens?: number
+  /** 缓存写入的 token；上游未报时不出现。 */
+  cacheWriteTokens?: number
+  /** 上游给出的总计（含缓存命中）。 */
+  totalTokens?: number
+}
+
+/**
+ * 会话标题帧：引擎为这条会话起的名字。
+ *
+ * DSH 自己会生成标题（`session/title` 事件），此前被当成未知事件丢弃，
+ * 导致左栏所有会话永远显示「未命名对话」。后端把它落库并单独投影成一帧。
+ */
+export interface ChatStreamTitle {
+  type: 'title'
+  title: string
+}
+
+/**
+ * 心跳帧：SDK 通道没有内建心跳，后端每 15~30 秒补一个注释/事件帧，
+ * 用来让前端区分「Agent 还在跑」与「连接其实已经死了」。
+ * 它不改变任何状态，只重置空闲计时。
+ */
+export interface ChatStreamHeartbeat {
+  type: 'heartbeat'
+}
+
 export type ChatStreamMessage =
   | ChatStreamDelta
   | ChatStreamCompleted
   | ChatStreamTask
+  | ChatStreamStatus
+  | ChatStreamUsage
+  | ChatStreamTitle
+  | ChatStreamHeartbeat
   | ChatStreamEnd
   | StreamError

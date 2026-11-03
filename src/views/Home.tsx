@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ChangeEvent } from 'react'
 import { HARNESSES, DEFAULT_PREFS, prefsKey, loadPrefs, savePrefs, type ModelPrefs } from '@/data/harnesses'
+import { useHarnesses, availabilityOf, AVAILABILITY_LABEL, modelsOf } from '@/shell/useHarnesses'
 
 /**
  * 首页 · 第一屏
@@ -219,6 +220,37 @@ export function Home(props: {
   const [harnessPane, setHarnessPane] = useState<string | null>(null)
   /* 模型偏好：key = `${harnessId}:${model}`；持久化在 localStorage */
   const [prefs, setPrefs] = useState<Record<string, ModelPrefs>>(loadPrefs)
+  /**
+   * 引擎可用性以**后端探测**为准，本地 HARNESSES 只提供名字/图标/颜色这些展示信息。
+   *
+   * 判据分两层（见 useHarnesses 的说明）：
+   *   1. DSH 是否接入 —— 读 `/api/capabilities` 的 `agent.status`
+   *   2. 该引擎自身状态 —— 读 `/api/harnesses`（该端点后端尚未实现）
+   *
+   * 关键：DSH 未接入时所有引擎一律显示「未接入」，而不是「状态未知」——
+   * 前者是确定的结论，后者是「读不到」，把两者混为一谈就是在含糊其辞。
+   */
+  const probe = useHarnesses()
+  const harnessStateOf = (id: string) => availabilityOf(probe, id)
+  /**
+   * 模型列表以**后端目录**为准（`/api/harnesses/{id}/models`）。
+   * 本地 `harness.models` 是产品侧写的名字，与 DSH 实际路由的模型不一致，
+   * 拿它当可选列表会让人选到不存在的模型。
+   */
+  const modelsOfHarness = (id: string) => modelsOf(probe, id)
+
+  /**
+   * 当前选中的模型可能不在后端目录里（本地默认值 `deepseek-chat` 在 DSH 路由中并不存在）。
+   *
+   * 用**派生值**而不是 effect 里 setState：effect 里改状态会触发级联渲染
+   * （react 规则 set-state-in-effect），而且派生更符合 React 的数据流方向。
+   */
+  const backendModels = modelsOfHarness(harnessId).models
+  const effectiveModel =
+    backendModels.length === 0 || backendModels.some((m) => m.id === model)
+      ? model
+      : (backendModels.find((m) => m.default) ?? backendModels[0]).id
+  const readyCount = HARNESSES.filter((h) => harnessStateOf(h.id).state === 'available').length
   const prefKey = prefsKey(harnessId, model)
   const setPref = (patch: Partial<ModelPrefs>) => {
     setPrefs((all) => {
@@ -339,7 +371,7 @@ export function Home(props: {
       props.onStart({
         draft,
         workdir: currentWorkdir,
-        harness: { id: harness.id, name: harness.name, model },
+        harness: { id: harness.id, name: harness.name, model: effectiveModel },
       })
       return
     }
@@ -347,7 +379,10 @@ export function Home(props: {
   }
 
   const harness = HARNESSES.find((h) => h.id === harnessId) ?? HARNESSES[0]
-  const notReady = !harness.ready
+  /* 「能不能发送」必须按**真实探测结果**判定，不能用本地 harness.ready（那是演示数据）。
+     DSH 未接入时这里是 true —— 与引擎弹窗里显示的「未接入」保持一致。 */
+  const harnessState = harnessStateOf(harness.id)
+  const notReady = harnessState.state !== 'available'
   const phrase = MIST_PHRASES[phraseIndex]
   const phraseChunks = phrase.match(/.{1,3}/gu) ?? [phrase]
 
@@ -530,7 +565,7 @@ export function Home(props: {
                 <span className="hf-spacer" />
                 <span className="hf-count">{draft.length || ''}</span>
                 <div className="hf-btnwrap hf-harnesswrap"
-                     data-connected={harness.ready || undefined}
+                     data-connected={harnessState.state === 'available' || undefined}
                      style={{ '--brand': harness.color } as React.CSSProperties}>
                   {/* 引擎按钮：接入 = 绿点 + 引擎图标 | 模型名；未接入 = 黄点 + 引擎图标 + 未接入AI */}
                   <button className="hf-harness" type="button" aria-haspopup="dialog"
@@ -551,25 +586,44 @@ export function Home(props: {
                       <div className="hf-hp-scroll">
                         {/* 一级：引擎列表；二级：该引擎的模型（从右侧滑入） */}
                         <div className="hf-hp-pane" data-active={harnessPane === null || undefined}>
-                          <div className="hf-hp-head"><b>执行引擎</b><span>{HARNESSES.filter((h) => h.ready).length} 个已接入</span></div>
+                          <div className="hf-hp-head">
+                            <b>执行引擎</b>
+                            <span>
+                              {probe.listState === 'loading' && probe.access === 'unknown'
+                                ? '正在探测…'
+                                : probe.access === 'unavailable'
+                                  ? 'DSH 未接入'
+                                  : probe.access === 'demo'
+                                    ? 'DSH 仅演示'
+                                    : probe.access === 'unknown'
+                                      ? '状态未知'
+                                      : `${readyCount} 个已接入`}
+                            </span>
+                          </div>
                           <div className="hf-hp-list" role="listbox" aria-label="引擎">
-                            {HARNESSES.map((h) => (
+                            {HARNESSES.map((h) => {
+                              const state = harnessStateOf(h.id)
+                              return (
                               <button key={h.id} type="button" className="hf-hp-item" role="option"
                                       aria-selected={h.id === harnessId}
-                                      data-off={!h.ready || undefined}
+                                      data-off={state.state !== 'available' || undefined}
+                                      title={state.note ?? undefined}
                                       onClick={() => {
-                                        setHarnessId(h.id); setModel(h.models[0]); setHarnessPane(h.id)
+                                        setHarnessId(h.id)
+                                        setModel(modelsOfHarness(h.id).models[0]?.id ?? '')
+                                        setHarnessPane(h.id)
                                       }}>
                                 <span className="hf-hp-logo" aria-hidden="true"
                                       style={{ '--brand': h.color, maskImage: `url(${h.icon})`, WebkitMaskImage: `url(${h.icon})` } as React.CSSProperties} />
                                 <span className="hf-hp-txt">
                                   <b style={{ color: h.color }}>{h.name}</b>
-                                  <small>{h.ready ? '本机已配置' : '未接入，仅展示'}</small>
+                                  <small>{AVAILABILITY_LABEL[state.state]}{state.state === 'not_connected' ? '，仅展示' : ''}</small>
                                 </span>
                                 {h.id === harnessId && <span className="hf-hp-ck" aria-hidden="true">✓</span>}
                                 <svg className="hf-hp-go" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
                               </button>
-                            ))}
+                              )
+                            })}
                           </div>
                         </div>
                         <div className="hf-hp-pane hf-hp-models" data-active={harnessPane !== null || undefined}>
@@ -580,18 +634,18 @@ export function Home(props: {
                             <b>{harness.name}</b>
                           </div>
                           <div className="hf-hp-list" role="listbox" aria-label="模型">
-                            {harness.models.map((m) => (
-                              <div key={m} className="hf-hp-modelwrap" data-open={(model === m && harnessPane !== null) || undefined}>
+                            {modelsOfHarness(harness.id).models.map((m) => (
+                              <div key={m.id} className="hf-hp-modelwrap" data-open={(effectiveModel === m.id && harnessPane !== null) || undefined}>
                                 <button type="button" className="hf-hp-item hf-hp-model" role="option"
-                                        aria-selected={m === model} aria-expanded={model === m && harnessPane !== null}
-                                        onClick={() => setModel(m)}>
+                                        aria-selected={m.id === effectiveModel} aria-expanded={effectiveModel === m.id && harnessPane !== null}
+                                        onClick={() => setModel(m.id)}>
                                   <span className="hf-hp-radio" aria-hidden="true" />
-                                  <span className="hf-hp-txt"><b>{m}</b></span>
+                                  <span className="hf-hp-txt"><b>{m.label}</b></span>
                                   <span className="hf-hp-ck" aria-hidden="true">✓</span>
                                   <svg className="hf-hp-go hf-hp-go-down" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
                                 </button>
                                 {/* 选中模型下方展开的设置抽屉：思考强度 + 最大上下文 */}
-                                {model === m && harnessPane !== null && (
+                                {effectiveModel === m.id && harnessPane !== null && (
                                   <div className="hf-hp-drawer">
                                     <div className="hf-hp-row">
                                       <span className="hf-hp-label">思考强度</span>
@@ -623,8 +677,8 @@ export function Home(props: {
                     </div>
                   )}
                 </div>
-                <button className="hf-send" type="button" disabled={!draft.trim() && !attachments.length}
-                        title={draft.trim() || attachments.length ? '开始制作' : '发送'}
+                <button className="hf-send" type="button" disabled={notReady || (!draft.trim() && !attachments.length)}
+                        title={notReady ? `${harness.name} 未接入` : draft.trim() || attachments.length ? '开始制作' : '发送'}
                         onClick={send} aria-label="发送">
                   <svg viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7" /></svg>
                 </button>
@@ -632,7 +686,11 @@ export function Home(props: {
             </div>
             <div className="hf-sample-hint" data-off={notReady || undefined}>
               {notReady
-                ? `${harness.name} 未接入，切换回已配置引擎才能发送`
+                ? harnessState.state === 'misconfigured'
+                  ? `${harness.name} 配置有误，暂时不能发送`
+                  : harnessState.state === 'unknown'
+                    ? `${harness.name} 接入状态未知，暂时不能发送`
+                    : `${harness.name} 未接入，暂时不能发送`
                 : 'Enter 发送 · Shift + Enter 换行 · 支持拖放 / 粘贴文件'}
             </div>
             </div>

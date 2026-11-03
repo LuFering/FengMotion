@@ -25,7 +25,7 @@ export function StartCreation(props: {
   initialDraft: string
   projects: ProjectSummary[]
   onClose: () => void
-  onCreateProject: (input: NewProjectInput) => ProjectSummary
+  onCreateProject: (input: NewProjectInput) => Promise<ProjectSummary>
   onLaunch: (r: LaunchResult) => void
   onBrowseLibrary: (view: 'assets' | 'reference' | 'knowledge') => void
 }) {
@@ -34,6 +34,8 @@ export function StartCreation(props: {
   const [proOpen, setProOpen] = useState(false)
   const [proPath, setProPath] = useState<WfPath>('prompt-first')
   const [belong, setBelong] = useState<string>('auto')
+  const [pending, setPending] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -49,9 +51,9 @@ export function StartCreation(props: {
   const wfName = usableName.slice(0, 24) || '未命名创作'
   const canStart = text.trim().length > 0
 
-  const resolveProjectId = (): string | null => {
+  const resolveProjectId = async (): Promise<string | null> => {
     if (belong !== 'auto') return belong
-    const p = props.onCreateProject({
+    const p = await props.onCreateProject({
       name: usableName.slice(0, 14) || '未命名创作',
       genome: presetId === 'talking' ? 'explainer' : (GENOMES[0]?.id ?? 'explainer'),
       targetDuration: 180,
@@ -59,14 +61,19 @@ export function StartCreation(props: {
     return p.id
   }
 
-  const launch = (quick: boolean) => {
-    if (!canStart) return
-    const projectId = resolveProjectId()
+  const launch = async (quick: boolean) => {
+    if (!canStart || pending) return
+    setPending(true)
+    setError(null)
+    try {
+    const projectId = await resolveProjectId()
     const wf = workflowService.createFromPath(quick ? 'prompt-first' : proPath, presetId, wfName, {
       projectId,
       seedPrompt: text,
     })
     props.onLaunch({ workflowId: wf.id, projectId, autoRun: quick })
+    } catch (cause) { setError(cause instanceof Error ? cause.message : '项目创建失败') }
+    finally { setPending(false) }
   }
 
   return (
@@ -78,6 +85,7 @@ export function StartCreation(props: {
           <button type="button" className="stc-x" onClick={props.onClose} aria-label="关闭">✕</button>
         </header>
 
+        {error && <p role="alert">{error}</p>}
         <label className="stc-label">你想做的视频</label>
         <textarea
           className="stc-text"
@@ -113,7 +121,7 @@ export function StartCreation(props: {
           ))}
         </select>
 
-        <button type="button" className="stc-primary" disabled={!canStart} onClick={() => launch(true)}>
+        <button type="button" className="stc-primary" disabled={!canStart || pending} onClick={() => launch(true)}>
           开始制作
         </button>
         <p className="stc-fine">开始后进入工作台自动运行，在工作台里看进度、预览与修改。当前为 DEMO 执行器：产出结构化快照，不生成真实视频。</p>
@@ -139,7 +147,7 @@ export function StartCreation(props: {
               <button type="button" onClick={() => props.onBrowseLibrary('reference')}>参考片库</button>
               <button type="button" onClick={() => props.onBrowseLibrary('knowledge')}>特效库</button>
             </div>
-            <button type="button" className="stc-secondary" disabled={!canStart} onClick={() => launch(false)}>
+            <button type="button" className="stc-secondary" disabled={!canStart || pending} onClick={() => launch(false)}>
               创建并进入工作台（不自动运行）
             </button>
           </div>

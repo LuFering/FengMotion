@@ -532,6 +532,14 @@ html[data-theme="tactile"] #pane-conversation {
   color: var(--tx1);
 }
 
+/* 当前项目：与拖放目标同样用左侧色条，但底色更弱 ——
+   两者可能同时成立（正把会话拖向当前项目），需要能分辨。
+   颜色之外还有 caret 展开态和项目名加粗，不只靠色条传达。 */
+.cv3-group-head[data-current] {
+  color: var(--tx1);
+  box-shadow: inset 2px 0 0 var(--acc);
+}
+
 .cv3-group[data-ungrouped] .cv3-group-head {
   color: var(--tx3);
   font-weight: 500;
@@ -1318,6 +1326,88 @@ html[data-theme="tactile"] #pane-conversation {
 
 @keyframes cv3-spin {
   to { transform: rotate(360deg); }
+}
+
+/* 工具调用列表：一轮里可能十几条，按行堆叠，每条可展开看参数。
+   表面靠灰阶递进，不加边框 —— 与其余面板保持一致。
+   margin-top 给足：它紧跟在消息正文后面，真机上 4px 会让工具名与正文黏成一句。 */
+.cv3-tool-list {
+  list-style: none;
+  margin: 10px 0 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cv3-tool details {
+  border-radius: 4px;
+  background: var(--hole);
+}
+
+.cv3-tool-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 8px;
+  cursor: pointer;
+  font-size: 11.5px;
+  line-height: 18px;
+  color: var(--tx2);
+  /* 去掉浏览器默认的三角，用状态文字本身表达展开与否 */
+  list-style: none;
+}
+
+.cv3-tool-head::-webkit-details-marker {
+  display: none;
+}
+
+.cv3-tool-name {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  color: var(--tx2);
+}
+
+/* 状态文字：必须带字，不能只靠颜色区分（色弱也要看得出来） */
+.cv3-tool-state {
+  margin-left: auto;
+  font-size: 10.5px;
+  color: var(--tx3);
+}
+
+.cv3-tool[data-state='running'] .cv3-tool-state {
+  color: var(--acc);
+}
+
+.cv3-tool[data-state='done'] .cv3-tool-state {
+  color: var(--good);
+}
+
+.cv3-tool[data-state='failed'] .cv3-tool-state {
+  color: var(--bad);
+}
+
+.cv3-tool[data-state='failed'] .cv3-tool-name {
+  color: var(--bad);
+}
+
+/* 参数全文：等宽、可滚动。默认收起（details 未展开时不可见），
+   展开后限高，避免一次长脚本把对话区顶走。 */
+.cv3-tool-body {
+  margin: 0;
+  padding: 4px 8px 8px 8px;
+  color: var(--tx3);
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 11px;
+  line-height: 16px;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.cv3-tool-body-empty {
+  font-style: normal;
+  opacity: 0.7;
 }
 
 /* 轨迹时间线：时间 | 圆点 | 内容，只列本会话真实事件 */
@@ -2441,9 +2531,7 @@ html[data-theme="tactile"] .cv3-ddm {
   .cv3-head-actions {
     display: none;
   }
-}
-
-@media (max-width: 640px) {
+}@media (max-width: 640px) {
   .cv3-head {
     padding: 10px 16px 0 14px;
   }
@@ -2473,4 +2561,171 @@ html[data-theme="tactile"] .cv3-ddm {
   .cv3-trailing {
     gap: 8px;
   }
+}
+
+/* ---- 会话落库状态（2026-11-01 接入服务端会话）----
+   服务端会话与仅本页草稿必须一眼可分；读失败/建失败不能长得像空态。 */
+.cv3-side-error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bad) 10%, transparent);
+  color: var(--bad);
+  font-size: 11px;
+  line-height: 17px;
+}
+
+.cv3-side-error button {
+  padding: 0 6px;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.cv3-side-error button:hover {
+  background: color-mix(in srgb, var(--bad) 12%, transparent);
+}
+
+/* 服务端已保存、但消息接口未接入：如实说明，不摆成「欢迎开始聊天」 */
+.cv3-server-note,
+.cv3-local-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--hole, var(--soft));
+  color: var(--tx2);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.cv3-server-note {
+  border-left: 2px solid var(--tx3);
+}
+
+.cv3-local-note {
+  border-left: 2px solid var(--warn);
+  color: var(--tx2);
+}
+
+.cv3-server-note b {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--tx1);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.cv3-server-note p {
+  margin: 0;
+}
+
+.cv3-server-note svg {
+  flex: none;
+  margin-top: 2px;
+  color: var(--tx3);
+}
+
+/* 输入卡内的不可发送说明：紧贴输入框，不另起一块卡片 */
+.cv3-compose-note {
+  margin: 0;
+  padding: 0 14px 2px;
+  color: var(--warn);
+  font-size: 11px;
+  line-height: 16px;
+}
+
+/* 发送失败：与「暂不可发送」的提示同一位置，但用失败色 —— 两者性质不同，
+   一个是能力没接（重试无用），一个是这次没发出去（改一下或重试即可）。 */
+.cv3-compose-note[data-error] {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  color: var(--bad);
+}
+
+.cv3-compose-note[data-error] svg {
+  flex: none;
+  margin-top: 2px;
+}
+
+/* 服务端详情读取失败：附在服务端说明块下方，形态与左栏的读取失败一致 */
+.cv3-sync-error {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin: -4px 0 0;
+  padding: 8px 12px;
+  border-left: 2px solid var(--warn);
+  border-radius: 8px;
+  background: var(--hole, var(--soft));
+  color: var(--tx2);
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.cv3-sync-error svg {
+  flex: none;
+  align-self: center;
+  color: var(--warn);
+}
+
+.cv3-sync-error span {
+  flex: 1;
+}
+
+.cv3-sync-error button {
+  flex: none;
+  padding: 1px 6px;
+  border: 1px solid var(--line, var(--hover));
+  border-radius: 6px;
+  background: transparent;
+  color: var(--tx1);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.cv3-sync-error button:hover {
+  background: var(--hover);
+}
+
+.cv3-input:disabled {
+  color: var(--tx3);
+  cursor: not-allowed;
+}
+
+/* token 用量：辅助信息，比正文再弱一档。等宽数字方便对比不同轮的消耗。 */
+.cv3-usage {
+  /* 与工具列表同一量级的上边距：它也是贴在正文末尾的独立区块，不能和正文黏在一起 */
+  margin: 10px 0 0 0;
+  color: var(--tx3);
+  font-size: 10.5px;
+  line-height: 16px;
+  opacity: 0.75;
+}
+
+/* 真实回复后的出口：只给一个可行动作，不做成卡片 ——
+   它不是「需求确认」那种流程节点，只是「想继续的话从这里走」。 */
+.cv3-after {
+  margin: 10px 0 0 0;
+}
+
+.cv3-after-btn {
+  font-size: 12px;
+}
+
+.cv3-after-hint {
+  margin: 0;
+  color: var(--tx3);
+  font-size: 11px;
+  line-height: 18px;
 }

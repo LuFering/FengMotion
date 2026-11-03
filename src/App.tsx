@@ -2,6 +2,7 @@ import '@/styles/interface-polish.css'
 import '@/styles/card-details.css'
 import { useEffect, useState } from 'react'
 import { useChat } from '@/shell/useChat'
+import { initDesktopApiBase } from '@/services/api'
 import { useSessions } from '@/shell/useSessions'
 import { useProjects } from '@/shell/useProjects'
 import { useAgentTasks } from '@/hooks/useAgentTasks'
@@ -56,8 +57,26 @@ export default function App() {
   /** 新建项目对话卡（演示：只在内存里建，不落盘） */
   const tasks = useAgentTasks()
   const projects = useProjects()
+  const threads = useSessions()
   /** 当前项目 —— 项目管理组的每个视图都要它 */
   const current = projects.list.find((p) => p.id === openProject) ?? null
+  /** 项目加载完成后读取各项目的已存会话（后端契约 agent.md §2）。
+      只读一次/项目：refresh 内部按项目去重，切换视图不会反复打请求。 */
+  const refreshSessionsForProjects = threads.refresh
+  const loadedProjectIds = projects.list.map((p) => p.id).join(',')
+  /** 按项目分别触发（逐项 await 会串行；这里并行发起，loading 计数由 hook 汇总） */
+  useEffect(() => {
+    if (projects.loading) return
+    for (const id of loadedProjectIds ? loadedProjectIds.split(',') : []) {
+      void refreshSessionsForProjects([id])
+    }
+    // loadedProjectIds 以字符串作依赖：projects.list 每次渲染是新数组，会让 effect 每帧重跑
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projects.loading, loadedProjectIds, refreshSessionsForProjects])
+  /** 重试会话读取：对全部项目强制重读（失败的项目、以及新项目都在其中） */
+  const retrySessions = () => {
+    for (const p of projects.list) void threads.reload(p.id)
+  }
   /* 「返回项目目录」：项目列表页已移除，回「我的创作」（对话视图）。
      保留当前选中项目，便于从对话视图一键回工作台。 */
   const openList = () => { setView('conversation') }
@@ -93,7 +112,11 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [settings, setSettings] = useState<Settings>(loadSettings)
   const chat = useChat()
-  const threads = useSessions()
+  /**
+   * 壳注入后端地址的完成信号。
+   * 引擎探测等依赖 API 客户端的视图要等它就绪，否则会用默认地址发第一个请求。
+   */
+  const [, setApiBaseReady] = useState(0)
 
   /** 切视图**不清**项目上下文：项目管理组的子视图（素材/交付）都挂在
       当前项目上；要回列表就走 openList()（项目条上的「全部项目」或总览的返回）。 */
@@ -132,6 +155,20 @@ export default function App() {
   }, [view, settings.theme])
   /** 设置即改即存（loadSettings 读回；旧版 fengmotion:theme 由它迁移） */
   useEffect(() => { saveSettings(settings) }, [settings])
+
+  /**
+   * 桌面壳初始化：把壳运行时才知道的后端地址注入 API 客户端。
+   *
+   * 必须在任何数据请求之前完成，否则第一个请求会用默认的 8080 地址发出去。
+   * 浏览器里跑时是空操作。
+   */
+  useEffect(() => {
+    let cancelled = false
+    void initDesktopApiBase().then(() => {
+      if (!cancelled) setApiBaseReady((n) => n + 1)
+    })
+    return () => { cancelled = true }
+  }, [])
   /**
    * 当前视图该不该显示壁纸 —— 显示范围只在命中时挂载壁纸层。
    * 「仅首页」按 home 判断；单视图范围按视图 id 判断；
@@ -176,22 +213,25 @@ export default function App() {
             <Home projects={projects.list}
                   onStart={(payload) => {
               /* 发送 → 建一条会话：选了工作目录的会话挂在该目录对应的项目下，
-                 没选的落进未分组（之后可拖到项目里） */
+                 没选的落进未分组（之后可拖到项目里）。
+                 项目会话走真实创建；未分组只留本页草稿。创建失败时仍进入对话视图，
+                 在那里显示错误与重试，不假装已建好。 */
               const project = payload.workdir
                 ? projects.list.find((p) => p.path === payload.workdir!.path) ?? null
                 : null
               /* 只建会话，不往 chat 里再塞一份：会话是唯一来源，
                  对话视图装载时会把它的消息装进 chat。
-                 两边都塞会出现两个不同 id 的同一条需求 → 演示回复各排一次 → 回两条。 */
-              const s = threads.create({
+                 两边都塞会出现两个不同 id 的同一条需求 → 演示回复各排一次 → 回两条。
+                 有项目时 create 会等服务端返回 id（可能失败）；失败时对话视图
+                 显示错误与重试，输入内容不丢。 */
+              void threads.create({
                 firstText: payload.draft,
                 projectId: project?.id ?? null,
                 workdir: payload.workdir,
                 messages: [{ id: `m-${Date.now().toString(36)}`, role: 'user', text: payload.draft, at: Date.now() }],
-              })
+              }).then(() => { if (!project) setOpenProject(null) })
               if (project) setOpenProject(project.id)
               else setOpenProject(null)
-              void s
               setView('conversation')
             }} />
           </div>
@@ -205,12 +245,17 @@ export default function App() {
                           threads={threads}
                           activeSessionId={threads.activeId}
                           projects={projects.list}
+                          projectsLoading={projects.loading}
+                          projectsError={projects.error}
+                          onRefreshProjects={() => void projects.refresh()}
+                          sessionsError={threads.error}
+                          onRetrySessions={retrySessions}
                           onCreateProject={(input) => projects.create(input)}
                           openProject={openProject}
                           onSelectProject={(id) => setOpenProject(id)}
                           /* 左栏直建（dsh workspace.create）：不弹表单，建完在行内改名 */
-                          onNewProject={() => {
-                            const p = projects.createBlank()
+                          onNewProject={async () => {
+                            const p = await projects.createBlank()
                             setOpenProject(p.id)
                             return p
                           }}
@@ -220,8 +265,12 @@ export default function App() {
           </div>
         )}
 
-        {/* 制作工作台 · 二级：三栏工作台 */}
-        {isFlow && (
+        {/* 制作工作台 · 二级：三栏工作台。
+            原先这里有个 `current.id !== 'token'` 的分支，只有硬编码的演示项目
+            `token` 能进工作台，其余项目一律显示「尚未接入」。结果是：用户在真实
+            项目里点「带着这段对话去工作台」，被带到一堵墙前（真机验收可见）。
+            工作台本身是完整的（Workbench.tsx），不该由项目 id 决定能不能进。 */}
+        {isFlow && current && (
           <div id="pane-flow">
             <Workbench key={openProject!} chat={chat} tasks={tasks} onNavigate={(next) => setView(next)}
                        projectId={openProject!}

@@ -7,6 +7,9 @@ import {
 } from 'lucide-react'
 import { registerComposer, type DeliverableAsset } from '@/shell/usePendingAssets'
 import { PURPOSE_LABEL } from '@/shell/usePendingAssets'
+import { studioHttpApi } from '@/services/api'
+import { newIdempotencyKey } from '@/services/api/config'
+import { ApiError, userMessageForError } from '@/services/api/errors'
 
 /** 用途 → 输入框里显示的短标签（与待发送面板同一套文案） */
 const PURPOSE_TXT: Record<string, string> = PURPOSE_LABEL
@@ -15,7 +18,8 @@ const PURPOSE_TXT: Record<string, string> = PURPOSE_LABEL
  *  必须是每段对话各一个键：两条未落盘的对话共用一个键会在适配器里串消息。 */
 const DRAFT_SESSION = '__draft__'
 import { HARNESSES, REASONING_LABEL, DEFAULT_PREFS, prefsKey, loadPrefs, savePrefs, type ModelPrefs, type Reasoning } from '../data/harnesses'
-import type { ChatState } from '../shell/useChat'
+import { useHarnesses, availabilityOf, AVAILABILITY_LABEL, modelsOf } from '../shell/useHarnesses'
+import type { ChatState, ChatMessage } from '../shell/useChat'
 import { UNGROUPED, sessionTitle, type SessionsState } from '../shell/useSessions'
 import { workflowService } from '../services/workflowService'
 import {
@@ -51,10 +55,12 @@ import '../styles/conversation.css'
  * 与工作台的关系：同一个会话的两种呈现，顶部用同一个 ViewSwitch 互相切换；
  * 工作台右栏的对话 tab 也读同一份 chat 状态。
  *
- * 回复来源：走 services/chatService（契约 docs/contracts/agent.md + 演示适配器）。
- * 视图不再自己编回复 —— 那是「视图内造数据」，前后端协议第 1 条明令禁止。
- * 演示适配器只做字面整理：读不到就问，读到了就不重复问；原话原样保留。
- * 会话与项目仍在内存里（持久化尚未接入，不假装做了）。
+ * 回复来源（2026-11-01 实况）：
+ *   · 服务端会话：消息历史与发送都走真实接口（GET/POST /chat-sessions/{id}/messages），
+ *     回复走真实 SSE —— 后端端点已就绪但 Agent 未接入，会如实返回 agent_unavailable，
+ *     界面在回复位置写明「Agent 还没接入」，**不编回复**。
+ *   · 本页草稿（未分组）：回复走 services/chatService 的演示适配器，消息上标「演示回复」。
+ * 两条路径都不在视图里造数据 —— 那是「视图内造数据」，前后端协议第 1 条明令禁止。
  */
 
 /* 与 StartCreation 同口径：首行过短 / 只有数字标点时不直接当名字 */
@@ -76,6 +82,49 @@ const PERM_MODES = [
   { id: 'workspaceWrite' as const, label: '工作区内修改', desc: '只允许改当前工作目录内的文件', Icon: ShieldCheck },
   { id: 'fullAccess' as const, label: '完全权限', desc: '减少确认步骤，可执行敏感操作', Icon: ShieldAlert },
 ]
+
+
+/**
+ * 工具调用列表的渲染。
+ *
+ * 实时（流式进行中）与历史（从服务端读回）两处都用它 —— 同一个语义必须长得一样，
+ * 否则用户会以为是两种不同的东西。
+ *
+ * @param calls 调用记录
+ * @param live  是否来自正在进行的流；历史记录没有「执行中」这种中间态
+ */
+function renderToolCalls(
+  calls: { callId?: string; name: string; arguments?: string; done?: boolean; isError?: boolean }[],
+  live: boolean,
+) {
+  if (calls.length === 0) return null
+  return (
+    <ul className="cv3-tool-list">
+      {calls.map((call, index) => {
+        // 历史记录没有 callId 时用下标兜底：key 只作用于渲染复用，不承担语义
+        const key = call.callId ?? `${call.name}-${index}`
+        const done = live ? call.done === true : call.done !== false
+        return (
+          <li key={key} className="cv3-tool"
+              data-state={call.isError ? 'failed' : done ? 'done' : 'running'}>
+            <details>
+              <summary className="cv3-tool-head">
+                <span className="cv3-tool-name">{call.name}</span>
+                {/* 状态必须带文字，不能只靠颜色（色弱也要看得出来） */}
+                <span className="cv3-tool-state">
+                  {call.isError ? '失败' : done ? '完成' : '执行中'}
+                </span>
+              </summary>
+              {call.arguments
+                ? <pre className="cv3-tool-body">{call.arguments}</pre>
+                : <p className="cv3-tool-body cv3-tool-body-empty">这次调用没有参数</p>}
+            </details>
+          </li>
+        )
+      })}
+    </ul>
+  )
+}
 
 /* 相对时间（对齐 dsh time.ago：刚刚 / N分钟 / N小时 / N天 / N个月 / N年） */
 function fmtAgo(t: number): string {
@@ -132,22 +181,105 @@ export function Conversation(props: {
   openProject: string | null
   onSelectProject: (id: string) => void
   /** 左栏直建项目（dsh workspace.create 语义：不弹表单，建完就地改名） */
-  onNewProject: () => { id: string }
+  onNewProject: () => Promise<{ id: string }>
   /** 左栏行内改名（Enter/失焦提交，Esc 放弃） */
-  onRenameProject?: (id: string, name: string) => void
-  onCreateProject: (input: NewProjectInput) => { id: string }
+  onRenameProject?: (id: string, name: string) => Promise<void>
+  onCreateProject: (input: NewProjectInput) => Promise<{ id: string }>
+  projectsLoading: boolean
+  projectsError: string | null
+  onRefreshProjects: () => void
+  /** 会话列表读取失败的原因（左栏区分「没有会话」与「没读到」） */
+  sessionsError: string | null
+  onRetrySessions: () => void
   onLaunch: (r: { workflowId: string; projectId: string | null; autoRun: boolean }) => void
   onOpenWorkbench: () => void
   /** 会话树（项目 + 对话两级）：左栏用它，拖拽改归属也走它 */
   threads: SessionsState
   /** 当前会话 id；null = 还没有会话（从空白进入） */
   activeSessionId: string | null
-  /** 删除项目（会话会先落回未分组，由本视图负责搬迁） */
+  /** 删除项目：服务端暂无端点，界面禁用（见左栏菜单），本视图不再接手 */
   onDeleteProject?: (projectId: string) => void
 }) {
   const { chat } = props
+  const [projectPending, setProjectPending] = useState(false)
+  /** 新建项目/开始制作失败（服务端拒绝/连不上）：明确的错误，不做乐观成功 */
+  const [projectError, setProjectError] = useState<string | null>(null)
+  const showProjectError = (error: unknown) => setProjectError(error instanceof Error ? error.message : '项目操作失败')
+  /** 服务端会话发送失败的原因（没有发出去）：显示在输入框上方，草稿保留可重试 */
+  const [sendError, setSendError] = useState<string | null>(null)
+  /** 服务端回复的如实说明（Agent 未接入等）：显示在最后一条用户消息下方。
+      与 `failed` 分开：能力缺口不是「回复失败」，重试也不会好。 */
+  const [replyNote, setReplyNote] = useState<string | null>(null)
+  /* 同一次发送重试复用同一个幂等键（README §2.7）；发送成功后清空 */
+  const idemKeyRef = useRef<string | null>(null)
+  /* 卸载后不再回写状态：发送/回复的异步回调可能晚于卸载到达 */
+  const mountedRef = useRef(true)
+  useEffect(() => {
+    mountedRef.current = true
+    return () => { mountedRef.current = false }
+  }, [])
   const [proPath, setProPath] = useState<WfPath>('prompt-first')
   const [pending, setPending] = useState(false)
+  /**
+   * Agent 当前阶段。
+   *
+   * 正文由 `delta` 逐 token 到达（见后端 §11），所以这里的阶段只负责回答
+   * 「模型在想、还是在跑工具」。工具阶段额外带 `callId` / `arguments`：
+   * 后端把 DSH 的 `tool/call` 结构化透传过来了，界面才有机会显示
+   * 「在跑哪个工具、参数是什么」，而不是只有一句「正在调用工具」。
+   */
+  const [agentPhase, setAgentPhase] = useState<{
+    phase: string
+    label?: string
+    callId?: string
+    arguments?: string
+    isError?: boolean
+  } | null>(null)
+
+  /**
+   * 本轮的完整工具调用记录。
+   *
+   * 与 `agentPhase` 的区别：`agentPhase` 只描述**当前**在做什么，流结束时清空；
+   * `toolCalls` 保留整轮的每一次调用，让用户能回头看「刚才跑了什么、哪个失败了」。
+   * 视频任务里一轮可能有十几次工具调用，只看当前一个等于没有记录。
+   *
+   * 按 `callId` 归并：开始帧建条目，结果帧翻转状态。没有 callId 的帧
+   * （理论上不该出现，后端在缺 ID 时不下发）单独成条，不硬塞进上一条。
+   */
+  const [toolCalls, setToolCalls] = useState<{
+    callId: string
+    name: string
+    arguments?: string
+    isError?: boolean
+    done: boolean
+  }[]>([])
+
+  /**
+   * `toolCalls` 的镜像。
+   *
+   * 为什么需要：`onCompleted` 的闭包是建流那一刻捕获的，读 `toolCalls` 只会拿到
+   * 当时的空数组（state 更新不会改已捕获的闭包）。用 ref 才能取到本轮最新的记录。
+   */
+  const toolCallsRef = useRef<{
+    callId: string
+    name: string
+    arguments?: string
+    isError?: boolean
+    done: boolean
+  }[]>([])
+
+  /**
+   * 本轮累计的 token 用量。
+   *
+   * 一轮可能有多次模型调用（每步一次），所以按桶累加而不是覆盖最后一次。
+   * `cacheReadTokens` 单独累计：它含在 `totalTokens` 里，不重复加进 input。
+   */
+  const [usage, setUsage] = useState<{
+    inputTokens?: number
+    outputTokens?: number
+    cacheReadTokens?: number
+    totalTokens?: number
+  } | null>(null)
   /* dsh 响应式：1024 以下左栏自动收为 56px 轨，手动展开为覆盖式抽屉 */
   const [narrow, setNarrow] = useState(() => (typeof window === 'undefined' ? false : window.innerWidth < 1024))
   const [sideExpanded, setSideExpanded] = useState(() => (typeof window === 'undefined' ? true : window.innerWidth >= 1024))
@@ -182,6 +314,14 @@ export function Conversation(props: {
     /* 来自「待发送」的附件带着用途与备注：界面要显示「logo.png · 用于画面」，
        而不只是塞一串文件名 —— 用途是用户特意选的，丢在这里等于白选。 */
     purpose?: string; note?: string; assetId?: string
+    /* 上传结果。选文件后立刻上传，发送时只带 fileId ——
+       契约要求「附件先上传、消息只引用 fileId」，不在这里带路径或原始字节。 */
+    fileId?: string
+    mimeType?: string
+    /* 上传中 / 失败。失败时仍然显示这个附件（带着原因），
+       而不是静默消失让用户以为选上了。 */
+    uploading?: boolean
+    uploadError?: string
   }[]>([])
   const [permission, setPermission] = useState<'readOnly' | 'workspaceWrite' | 'fullAccess'>('workspaceWrite')
   const [harnessId, setHarnessId] = useState(HARNESSES[0].id)
@@ -232,30 +372,107 @@ export function Conversation(props: {
      切换会话时 replaceMessages 是本轮 effect 里排的队，写回 effect 在同一个 commit
      里读到的 chat.messages 还是**上一条会话**的 —— 直接写就会把旧内容盖进新会话。 */
   const skipWriteRef = useRef(false)
+  /** 当前会话是否来自服务端。服务端会话：消息历史与发送都走真实接口；
+      回复（SSE）后端已就绪但 Agent 未接入，会如实返回 agent_unavailable，
+      所以这类会话不发演示回复 —— 演示回复只能属于「仅本页」的草稿会话。 */
   const activeThread = props.threads.sessions.find((t) => t.id === props.activeSessionId) ?? null
+  const activeIsServer = activeThread?.origin === 'server'
+  /* 进服务端会话时读一次详情（GET /chat-sessions/{id}），用服务端的最新标题/更新时间/
+     消息计数校准列表里的那份。只补读一次：这是补充刷新，不是数据来源 —— 失败时列表
+     里的元数据照常显示，只是标出「不是最新」，由用户决定要不要重试。 */
+  const syncedRef = useRef(new Set<string>())
+  const syncSession = props.threads.syncSession
+  const activeThreadId = activeThread?.id ?? null
   useEffect(() => {
-    if (!activeThread || pending) return
+    if (!activeThreadId || activeThread?.origin !== 'server') return
+    if (syncedRef.current.has(activeThreadId)) return
+    syncedRef.current.add(activeThreadId)
+    void syncSession(activeThreadId)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeThreadId, activeThread?.origin, syncSession])
+  const retrySync = () => {
+    if (!activeThreadId) return
+    syncedRef.current.delete(activeThreadId)
+    void syncSession(activeThreadId)
+  }
+  /* 进服务端会话时读历史消息（GET /chat-sessions/{id}/messages）。
+     与详情分开读：详情只补元数据，历史失败不能拖累标题/时间的刷新，反之亦然。
+     已读过的不重复读（hook 内部也判断 messagesLoaded，这里先判断是为了少发一次 effect）。 */
+  const loadMessages = props.threads.loadMessages
+  const activeMessagesLoaded = activeThread?.messagesLoaded === true
+  useEffect(() => {
+    if (!activeThreadId || activeThread?.origin !== 'server') return
+    if (activeMessagesLoaded) return
+    void loadMessages(activeThreadId)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeThreadId, activeThread?.origin, activeMessagesLoaded, loadMessages])
+  const retryMessages = () => {
+    if (!activeThreadId) return
+    void loadMessages(activeThreadId, { force: true })
+  }
+  /* 服务端会话的 chat 内容以「会话里的服务端消息」为准：历史读取完成、发送被确认，
+     都会换掉那个数组。记住上一次装进 chat 的数组身份，变了就重新装一次 ——
+     用身份而不是长度判断，因为消息可能被替换而条数不变。
+     正在流式产出的回复占位不在服务端消息里，必须原样保留，否则每次发消息都会把
+     刚起的「正在回复…」冲掉。
+     （Agent 接入后，`completed` 的回复也是服务端消息：届时在这里补一次
+      `loadMessages(force)` 把它读回来即可，不需要另存一份。） */
+  const serverMirrorRef = useRef<ChatMessage[] | null>(null)
+  useEffect(() => {
+    if (!activeThread) return
+    if (activeThread.origin === 'server') {
+      if (serverMirrorRef.current === activeThread.messages) return
+      serverMirrorRef.current = activeThread.messages
+      loadedRef.current = activeThread.id
+      const inFlight = chat.messages.filter((m) => m.streaming)
+      const next = [...activeThread.messages]
+      for (const m of inFlight) if (!next.some((x) => x.id === m.id)) next.push(m)
+      chat.replaceMessages(next)
+      return
+    }
+    if (pending) return
+    serverMirrorRef.current = null
     if (loadedRef.current === activeThread.id) return
     loadedRef.current = activeThread.id
     skipWriteRef.current = true
+    /* 一律换成该会话的消息（空会话就清空）：否则从有消息的会话切到服务端空会话时，
+       上一条会话的内容会留在下面，看起来像服务端读回来的。 */
+    chat.replaceMessages(activeThread.messages)
     if (activeThread.messages.length > 0) {
-      chat.replaceMessages(activeThread.messages)
       /* 把既有历史交给演示适配器：不给它的话，这条会话会被当成第一轮，
-         用户早就答过的信息会被再问一遍 —— 正好违反「只在必要时提问」 */
+         用户早就答过的信息会被再问一遍 —— 正好违反「只在必要时提问」。 */
       hydrateDemoChat(activeThread.id, activeThread.messages.map((m) => ({
         role: m.role === 'user' ? 'user' as const : 'assistant' as const,
         text: m.text,
       })))
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeThread?.id, pending])
+  }, [activeThread?.id, activeThread?.origin, activeThread?.messages, pending])
+
+  /* 切会话 / 卸载：断掉服务端回复流。
+     不断的话，上一条会话的 delta 会追加进新会话的 chat（回复插错地方），
+     而且重挂载会留下一条半截回复。断线不当作完成 —— 与服务端流的口径一致。 */
+  useEffect(() => () => {
+    streamStopRef.current?.()
+    streamStopRef.current = null
+    setPending(false)
+    setReplyNote(null)
+    setSendError(null)
+    idemKeyRef.current = null
+  }, [props.activeSessionId])
   useEffect(() => {
     if (!props.activeSessionId) return
     if (loadedRef.current !== props.activeSessionId) return
-    if (skipWriteRef.current) { skipWriteRef.current = false; return }
     const mine = chat.messages.filter((m) => m.id !== 'intro')
-    if (mine.length === 0) return
+    /* 先判断「是否需要写回」，再消费 skip 标记：空会话没有可写的内容，
+       不能把标记吃掉，否则下一次真实装载会被误写。 */
+    if (mine.length === 0) { skipWriteRef.current = false; return }
+    if (skipWriteRef.current) { skipWriteRef.current = false; return }
     const t = props.threads.sessions.find((x) => x.id === props.activeSessionId)
+    /* 服务端会话的消息不能写回会话对象：消息已经由 sendMessage 在服务端确认后写入，
+       这里再写一遍会用「界面上的数组」覆盖它（还会顺手改 updatedAt，让左栏时间乱跳）。
+       写回只服务于本地草稿 —— 它们的 messages 是本页唯一副本。 */
+    if (t?.origin === 'server') return
     if (t && t.messages.length === mine.length) return
     /* 标题：会话还是「未命名对话」时，用首条需求补上（之后不覆盖用户/既有标题） */
     const firstUser = mine.find((m) => m.role === 'user')
@@ -278,7 +495,7 @@ export function Conversation(props: {
   const reqCard = useMemo(() => requirementCard(reqTexts), [reqTexts])
   const reqConfirmed = useMemo(() => isRequirementConfirmed(reqTexts), [reqTexts])
 
-  /** 起一条回复流。返回退订函数：退订 = 断线，不当作完成。 */
+  /** 起一条演示回复流（只属于本页草稿）。返回退订函数：退订 = 断线，不当作完成。 */
   const startReply = (userMessageId: string) => {
     const serviceSessionId = props.activeSessionId ?? DRAFT_SESSION
     const aiId = chat.startAiMessage()
@@ -380,6 +597,9 @@ export function Conversation(props: {
      ⚠️ 退订等同于断线：**不当作完成**，并把没说完的那条从界面上撤掉，
         否则 StrictMode 重挂载会留下一条半截回复，再叠一条新的。 */
   useEffect(() => {
+    /* 服务端会话：回复走 startServerReply（真实 SSE），不排演示回复。
+       演示回复只能属于「仅本页」的草稿会话 —— 否则等于把保存在的消息演成假回答。 */
+    if (activeIsServer) return
     if (lastUserId === null || servedRef.current.has(lastUserId)) return
     /* 这条用户消息后面已经有回复了就不再排：切到工作台再切回来会让本视图重挂载，
        新挂载的 servedRef 是空的，只按 id 判断会把同一条再排一次流，
@@ -390,7 +610,7 @@ export function Conversation(props: {
     setPending(true)
     return startReply(lastUserId)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lastUserId])
+  }, [lastUserId, activeIsServer])
 
   /* 新消息进来滚到底（只在接近底部时跟随，不抢用户翻历史） */
   useEffect(() => {
@@ -406,10 +626,166 @@ export function Conversation(props: {
     el.style.height = `${Math.min(el.scrollHeight, 336)}px`
   }
 
-  /** 发一条消息（输入框提交、卡片上的「确认」都走这一处，避免两份逻辑走偏） */
+  /**
+   * 服务端会话的回复流（SSE）。
+   *
+   * 后端端点已就绪，但 Agent 进程还没接：服务端会如实返回 `agent_unavailable`。
+   * 这种情况**不是**「回复失败」，而是「还没有能力回复」—— 界面要说清楚差在哪，
+   * 不能显示成红色的「这条回复没有完成」（那会让人以为重试就能好），
+   * 更不能编一段回复顶上。所以这里单独用 `replyNote` 状态渲染，不走 `failed`。
+   *
+   * 真接上 Agent 之后这里不用改：delta/completed 走与演示适配器同一套收尾逻辑。
+   */
+  const startServerReply = () => {
+    const sessionId = props.activeSessionId
+    if (!sessionId) return
+    streamStopRef.current?.()
+    const aiId = chat.startAiMessage({ demo: false })
+    let produced = false
+    setPending(true)
+    // 新的一轮从零开始记工具调用：上一轮的记录属于上一条回复，留着会串味。
+    setToolCalls([])
+    toolCallsRef.current = []
+    setUsage(null)
+    const handle = studioHttpApi().chat.stream(sessionId, {
+      onDelta: (_messageId, delta) => {
+        produced = true
+        chat.appendAiText(aiId, delta)
+      },
+      onCompleted: (message) => {
+        produced = true
+        // 带上本轮工具记录：completed 到服务端消息读回之间有个异步空档，
+        // 不先挂上去，列表会在这一瞬间闪空。
+        chat.finishAiMessage(aiId, message.text, toolCallsRef.current)
+        /* 服务端会话的内容以 server 消息数组为准（见上方 serverMirror 的说明）。
+           这里必须把刚落库的回复重新读回来：否则下一次发消息、或任何让
+           `activeThread.messages` 身份变化的操作，都会用「只有用户消息」的数组
+           覆盖 chat，把这条回复冲掉 —— 实测就是这样丢掉上一轮回答的。
+           只对 server 会话做：本地草稿没有服务端历史可读。 */
+        if (props.threads.sessions.some((t) => t.id === sessionId && t.origin === 'server')) {
+          void loadMessages(sessionId, { force: true })
+        }
+      },
+      onError: (error) => {
+        // 能力缺口：删掉占位，改用「Agent 未接入」说明，不当作回复失败
+        chat.removeMessage(aiId)
+        setPending(false)
+        setAgentPhase(null)
+        setReplyNote(error.isCapabilityGap
+          ? 'Agent 还没接入：这条消息已保存在服务端，但暂时不会有回复。'
+          : `没有拿到回复：${userMessageForError(error, '回复流中断了。')}`)
+      },
+      onStatus: (status) => {
+        if (status.phase === 'thinking') {
+          setAgentPhase({ phase: 'thinking' })
+        } else if (status.phase === 'tool') {
+          /* 工具阶段保留结构化字段。同一 callId 的结果帧只翻转 isError，
+             不把 name/label/arguments 清空 —— 后端结果帧不带 name（避免重复下发），
+             若整个覆盖，界面上「正在调用 bash」的名字会在结束瞬间消失。 */
+          setAgentPhase((prev) => {
+            const sameCall = prev?.phase === 'tool' && status.callId !== undefined
+              && prev.callId === status.callId
+            const name = status.name ?? (sameCall ? prev?.label : undefined)
+            return {
+              phase: 'tool',
+              ...(name ? { label: name } : {}),
+              ...(status.callId ? { callId: status.callId } : (sameCall && prev?.callId ? { callId: prev.callId } : {})),
+              /* 参数只在开始帧有；结果帧沿用上一次的值，避免中途被抹掉 */
+              ...(status.arguments !== undefined
+                ? { arguments: status.arguments }
+                : (sameCall && prev?.arguments !== undefined ? { arguments: prev.arguments } : {})),
+              ...(status.isError ? { isError: true } : {}),
+            }
+          })
+          /* 同时维护整轮调用记录。规则：
+             · 有 arguments → 这是一次新调用的开始帧，追加条目
+             · 没有 arguments 且带 callId → 结果帧，回填对应条目的 done/isError
+             不按「有没有 isError」判断开始还是结束：失败的结果帧才有 isError，
+             成功的结果帧两者都没有，只能靠 arguments 的有无来区分。 */
+          /* 每处更新都同时写 ref：`onCompleted` 的闭包读不到最新 state，
+             只能靠 ref 取本轮完整记录。两处（state / ref）必须在同一个更新函数里，
+             拆开写会漏掉其中一条路径。 */
+          if (status.arguments !== undefined) {
+            setToolCalls((prev) => {
+              const next = [
+                ...prev,
+                {
+                  callId: status.callId ?? `anon-${prev.length}`,
+                  name: status.label ?? status.name ?? '工具',
+                  ...(status.arguments ? { arguments: status.arguments } : {}),
+                  done: false,
+                },
+              ]
+              toolCallsRef.current = next
+              return next
+            })
+          } else if (status.callId) {
+            const target = status.callId
+            setToolCalls((prev) => {
+              const next = prev.map((c) => (
+                c.callId === target
+                  ? { ...c, done: true, ...(status.isError ? { isError: true } : {}) }
+                  : c
+              ))
+              toolCallsRef.current = next
+              return next
+            })
+          }
+        } else {
+          setAgentPhase(null)
+        }
+      },
+      onState: (state) => {
+        if (state.phase === 'ended' || state.phase === 'failed' || state.phase === 'aborted') {
+          setPending(false)
+          setAgentPhase(null)
+          // 结束但没有产出任何内容：撤掉空占位，别留一个「正在回复…」看起来像卡死
+          if (!produced) chat.removeMessage(aiId)
+        }
+      },
+      onTitle: (title) => {
+        /* 引擎给会话命了名：同步到左栏，用户不用刷新就能看到。
+           后端已经落库，这里只是把同一事实反映到界面，不是本地伪造。 */
+        props.threads.adoptServerTitle(sessionId, title)
+      },
+      onUsage: (u) => {
+        /* 按桶累加：一轮里每个模型调用都会报一次，用户关心的是「这一轮总共花了多少」。
+           缺失的桶保持 undefined 而不是 0 —— 界面上显示「未报告」比显示「0」诚实。 */
+        setUsage((prev) => {
+          const add = (a: number | undefined, b: number | undefined) =>
+            a === undefined && b === undefined ? undefined : (a ?? 0) + (b ?? 0)
+          return {
+            ...(add(prev?.inputTokens, u.inputTokens) !== undefined
+              ? { inputTokens: add(prev?.inputTokens, u.inputTokens) } : {}),
+            ...(add(prev?.outputTokens, u.outputTokens) !== undefined
+              ? { outputTokens: add(prev?.outputTokens, u.outputTokens) } : {}),
+            ...(add(prev?.cacheReadTokens, u.cacheReadTokens) !== undefined
+              ? { cacheReadTokens: add(prev?.cacheReadTokens, u.cacheReadTokens) } : {}),
+            ...(add(prev?.totalTokens, u.totalTokens) !== undefined
+              ? { totalTokens: add(prev?.totalTokens, u.totalTokens) } : {}),
+          }
+        })
+      },
+    })
+    streamStopRef.current = () => handle.close()
+  }
+
+  /** 发送失败的原因（人话优先；网络/未找到/内容不合规各有说法）。 */
+  const sendErrorText = (cause: unknown): string => {
+    if (cause instanceof ApiError) {
+      if (cause.code === 'network_error') return '无法连接本地服务，消息没有发出去。请确认后端已启动。'
+      if (cause.code === 'not_found') return '服务端没有找到这条会话，消息没有发出去。'
+      if (cause.code === 'validation_error' && cause.message.trim()) return cause.message
+      return userMessageForError(cause, '消息没有发出去。')
+    }
+    return cause instanceof Error ? cause.message : '消息没有发出去。'
+  }
+
+
   const send = (text: string) => {
     const v = text.trim()
     if (!v || pending) return
+    if (activeIsServer) { void sendToServer(v); return }
     chat.addUserMessage(v)
     /* 同时交给服务层：回复流按「服务端收到的最后一条用户消息」起流，
        只加在界面上的话，适配器找不到这条提问，会去回上一条。
@@ -432,6 +808,59 @@ export function Conversation(props: {
     setAttachments([])
   }
 
+  /**
+   * 服务端会话发送：先落库，再显示。
+   *
+   * 为什么不做乐观插入：契约（agent.md §3）要求「服务端先保存真实用户消息」，
+   * 没落库就显示成已发送是假的。这里等服务端 202 返回 `message` 之后才写进会话 ——
+   * 失败时消息根本不会出现在对话里，草稿留在输入框，用户能直接重试。
+   *
+   * 幂等键（README §2.7）：同一个草稿重复提交必须复用同一个键，否则会写出两条
+   * 一样的消息。键随草稿内容绑定，发送成功后清掉，下次新输入换新键。
+   */
+  const sendToServer = async (text: string) => {
+    const sessionId = props.activeSessionId
+    if (!sessionId || !activeIsServer) return
+    const key = idemKeyRef.current ?? newIdempotencyKey()
+    idemKeyRef.current = key
+    setSendError(null)
+    try {
+      /* 只把「上传成功」的附件带上。上传中或失败的跳过 ——
+         带一个没有 fileId 的附件过去，后端只能忽略或报错，都不如不带。
+         用户看到失败标记时可以选择重试或去掉它。 */
+      const ready = attachments
+        .filter((a) => a.fileId && !a.uploading && !a.uploadError)
+        // 字段名对齐契约 TaskAttachment：sizeBytes 而不是 size，不额外塞 kind
+        // （后端能由 mimeType 推出归类，重复字段只会带来不一致风险）
+        .map((a) => ({
+          fileId: a.fileId!,
+          name: a.name,
+          mimeType: a.mimeType ?? '',
+          sizeBytes: a.size,
+        }))
+      const saved = await props.threads.sendMessage(sessionId, text, {
+        idempotencyKey: key,
+        ...(ready.length > 0 ? { attachments: ready } : {}),
+      })
+      if (!mountedRef.current) return
+      idemKeyRef.current = null
+      chat.setDraft('')
+      setAttachments([])
+      /* 刚发出去的这条不在「服务端历史镜像」里（mirror 只跟着会话对象走），
+         先写进 chat，下面起回复流时它才在对话里。会话对象里已经有一条同样内容的
+         记录，切走再回来会以那一份为准，不会重复。 */
+      chat.appendMessage(saved)
+      /* 消息已保存，但回复要等 Agent：后端 SSE 端点已就绪，当前如实返回
+         agent_unavailable。起一次回复流 —— 接上 Agent 就是正常流式，
+         接不上就在回复位置写明「Agent 未接入」，而不是让用户以为回复还在路上。 */
+      startServerReply()
+    } catch (cause) {
+      if (!mountedRef.current) return
+      // 没有发出去：消息不显示、草稿保留、给出原因；幂等键保留以便原样重试
+      setSendError(sendErrorText(cause))
+    }
+  }
+
   const submit = () => {
     send(chat.draft)
     requestAnimationFrame(() => {
@@ -451,18 +880,78 @@ export function Conversation(props: {
       return next
     })
   }
-  /* 未接入的引擎不许发送（与首页同口径），附件/草稿至少有一个才算有内容 */
-  const canSend = !pending && harness.ready && (chat.draft.trim().length > 0 || attachments.length > 0)
+  /* 未接入的引擎不许发送（与首页同口径），附件/草稿至少有一个才算有内容。
+     服务端会话同样可发：消息会真的保存（POST /chat-sessions/{id}/messages），
+     只是回复要等 Agent 接入 —— 这一点由发送后的说明点明，不用禁用输入来表达。 */
+  /**
+   * 引擎可用性按**真实探测**判定（`/api/capabilities` 的 agent 项 + `/api/harnesses`），
+   * 不用本地 harness.ready（那是演示数据）。
+   *
+   * 注意这里与服务端会话的差异：服务端会话发消息只要求「消息能保存」，
+   * 后端 `POST /messages` 已实现（后端清单 §1.6 标 ✅），所以**不因引擎未接入而禁发**；
+   * 本地草稿会话的回复要靠 Agent，未接入时发送没有意义，因此禁用。
+   */
+  const probe = useHarnesses()
+  const harnessState = availabilityOf(probe, harness.id)
+  const stateOf = (id: string) => availabilityOf(probe, id)
+  /**
+   * 模型列表以**后端目录**为准（`/api/harnesses/{id}/models`）。
+   * 本地 `harness.models` 是产品侧写的名字，与 DSH 实际路由的模型不一致。
+   */
+  const modelsOfHarness = (id: string) => modelsOf(probe, id)
+
+  /**
+   * 当前选中的模型可能不在后端目录里（本地默认值 `deepseek-chat` 在 DSH 路由中并不存在）。
+   *
+   * 用**派生值**而不是 effect 里 setState：effect 里改状态会触发级联渲染
+   * （react 规则 set-state-in-effect），而且派生更符合 React 的数据流方向。
+   */
+  const backendModels = modelsOfHarness(harnessId).models
+  const effectiveModel =
+    backendModels.length === 0 || backendModels.some((m) => m.id === model)
+      ? model
+      : (backendModels.find((m) => m.default) ?? backendModels[0]).id
+  const canSend = !pending
+    && (activeIsServer || harnessState.state === 'available')
+    && (chat.draft.trim().length > 0 || attachments.length > 0)
 
   /* 附件：kind 按 MIME 判定；最多 6 个（同首页上限） */
   const addFiles = (files: File[], forced?: 'file' | 'image' | 'video', done?: () => void) => {
     if (files.length > 0) {
-      const picked = files.map((f) => ({
+      const picked = files.slice(0, 6).map((f) => ({
+        file: f,
         name: f.name,
         size: f.size,
-        kind: forced ?? (f.type.startsWith('image/') ? 'image' : f.type.startsWith('video/') ? 'video' : 'file'),
+        kind: (forced ?? (f.type.startsWith('image/') ? 'image' : f.type.startsWith('video/') ? 'video' : 'file')) as 'file' | 'image' | 'video',
+        mimeType: f.type,
+        uploading: true,
       }))
+      /* 先在界面里占位（显示「上传中」），再逐个上传。
+         选完就传、而不是等发送时再传：用户能看到进度，发送时也不用等。 */
       setAttachments((prev) => [...prev, ...picked].slice(0, 6))
+
+      for (const item of picked) {
+        // 走真实后端的 /api/uploads（studioHttpApi），不是演示适配器 chatApi ——
+        // 后者是本地 mock，没有上传能力。
+        void studioHttpApi().chat.uploadAttachment(item.file)
+          .then((uploaded: { fileId: string; mimeType: string }) => {
+            if (!mountedRef.current) return
+            setAttachments((prev) => prev.map((a) => (
+              a.name === item.name && a.size === item.size && a.uploading
+                ? { ...a, fileId: uploaded.fileId, mimeType: uploaded.mimeType, uploading: false, uploadError: undefined }
+                : a
+            )))
+          })
+          .catch((cause: unknown) => {
+            if (!mountedRef.current) return
+            const reason = cause instanceof Error ? cause.message : '上传失败'
+            setAttachments((prev) => prev.map((a) => (
+              a.name === item.name && a.size === item.size && a.uploading
+                ? { ...a, uploading: false, uploadError: reason }
+                : a
+            )))
+          })
+      }
     }
     done?.()
   }
@@ -470,36 +959,40 @@ export function Conversation(props: {
     addFiles(Array.from(e.target.files ?? []), undefined, () => { e.target.value = '' })
   }
 
-  /* 删除项目：会话不跟着删，按 dsh delete.desc 的语义落进「未分组」 */
-  const onDeleteProject = (projectId: string) => {
-    props.threads.sessions.filter((t) => t.projectId === projectId).forEach((t) => props.threads.moveTo(t.id, null))
-    props.onDeleteProject?.(projectId)
-  }
-
   /* `intoProject` 让项目行上的「在此项目新建对话」按钮能指定归属；
-     不传时沿用当前打开的项目（旧行为）。 */
+     不传时沿用当前打开的项目（旧行为）。
+     有项目 = 真实创建（失败时左栏显示错误，不伪造会话）；没有项目 = 本页草稿。 */
   const newSession = (intoProject?: string | null) => {
     /* 开新会话时必须把上一段的回复流断掉：退订 = 断线（不当作完成），
        否则旧对话的回复会插进新会话里 */
     streamStopRef.current?.()
     streamStopRef.current = null
     setPending(false)
+    setReplyNote(null)
+    setSendError(null)
+    idemKeyRef.current = null
     chat.clearChat()
     /* 左栏也要真的多一条会话，否则新建只清空了内容、树上什么都没变。
        归属：行内按钮给了就用它，否则沿用当前项目（在项目里开新对话，
        默认还是这个项目的活）；都没有就落未分组，之后可拖过去。 */
-    const t = props.threads.create({
-      projectId: intoProject === undefined ? props.openProject : intoProject,
-      workdir: null,
+    const projectId = intoProject === undefined ? props.openProject : intoProject
+    /* 创建完成前先不锁 loadedRef：会话要等拿到 id 后才能装消息。
+       只有服务端创建成功才锁；失败时选中的是可继续输入的本地草稿，
+       若锁上会跳过「装载即清空」，上一会话的消息会留在下面。 */
+    void props.threads.create({ projectId, workdir: null }).then((result) => {
+      if (result.session && result.session.origin === 'server') loadedRef.current = result.session.id
     })
-    loadedRef.current = t.id
   }
 
   /* 左栏直建项目（对齐 dsh：不弹表单、不问片型时长，建出来就是一个空项目，
      紧接着进「行内改名」态 —— dsh 的 create 也只是接管一个目录，
      名字之后再 rename，不需要先填一张表）。 */
-  const createProjectInline = () => {
-    const p = props.onNewProject()
+  const createProjectInline = async () => {
+    if (projectPending) return
+    setProjectPending(true)
+    setProjectError(null)
+    try {
+    const p = await props.onNewProject()
     setEditing(p.id)
     setEditText('未命名项目')
     setCollapsedGroups((prev) => {
@@ -507,7 +1000,8 @@ export function Conversation(props: {
       next.delete(p.id)
       return next
     })
-    return p
+    } catch (error) { showProjectError(error) }
+    finally { setProjectPending(false) }
   }
 
   const onInputKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -516,12 +1010,15 @@ export function Conversation(props: {
 
   /* 开始制作：与 StartCreation 同一套创建逻辑（建项目 + createFromPath + 落工作台）；
      先把真实创建的项目与工作流记进“已创建”表，再切工作台 */
-  const launch = (quick: boolean) => {
+  const launch = async (quick: boolean) => {
     const brief = firstBrief
-    if (!brief.trim()) return
+    if (!brief.trim() || projectPending) return
+    setProjectPending(true)
+    setProjectError(null)
+    try {
     const name = usableName(brief)
     const projectName = name.slice(0, 14) || '未命名创作'
-    const project = props.onCreateProject({
+    const project = await props.onCreateProject({
       name: projectName,
       genome: GENOMES[0]?.id ?? 'explainer',
       targetDuration: 180,
@@ -538,6 +1035,8 @@ export function Conversation(props: {
       ],
     })
     props.onLaunch({ workflowId: wf.id, projectId: project.id, autoRun: quick })
+    } catch (error) { showProjectError(error) }
+    finally { setProjectPending(false) }
   }
 
   return (
@@ -555,7 +1054,7 @@ export function Conversation(props: {
             <MessageSquarePlus size={15} />
           </button>
           <button type="button" className="cv3-icon-btn" aria-label="新建项目" title="新建项目"
-                  onClick={createProjectInline}>
+                  disabled={projectPending} onClick={() => void createProjectInline()}>
             <FolderPlus size={15} />
           </button>
           {/* 视图选项（对齐 dsh viewOptions：分组方式 / 排序方式 / 归档筛选） */}
@@ -596,6 +1095,39 @@ export function Conversation(props: {
             )}
           </div>
         </div>
+
+        {/* 读取/创建的项目与对话状态：放在标题下方，标题始终锚在左栏顶部，
+            不因一条错误被推下去。 */}
+        {props.projectsLoading && <p role="status" className="cv3-side-hint">正在加载项目…</p>}
+        {props.projectsError && (
+          <p role="alert" className="cv3-side-error">
+            项目加载失败：{props.projectsError}
+            <button type="button" onClick={props.onRefreshProjects}>重试</button>
+          </p>
+        )}
+        {projectError && <p role="alert" className="cv3-side-error">{projectError}</p>}
+        {props.threads.createError && (
+          <p role="alert" className="cv3-side-error">
+            新建对话失败：{props.threads.createError}
+            <button type="button" onClick={props.threads.clearCreateError}>知道了</button>
+          </p>
+        )}
+        {/* 删除失败：服务端没有确认删除，那条对话仍在列表里 —— 明说，别让「点了没反应」被当成删掉了 */}
+        {props.threads.removeError && (
+          <p role="alert" className="cv3-side-error">
+            删除对话失败：{props.threads.removeError}
+            <button type="button" onClick={props.threads.clearRemoveError}>知道了</button>
+          </p>
+        )}
+        {/* 会话列表读取：加载中 / 失败(可重试) / 未读到都如实显示，
+            不让「没读到」看起来像「没有对话」。 */}
+        {props.threads.loading && <p role="status" className="cv3-side-hint">正在加载对话…</p>}
+        {props.sessionsError && (
+          <p role="alert" className="cv3-side-error">
+            对话加载失败：{props.sessionsError}
+            <button type="button" onClick={props.onRetrySessions}>重试</button>
+          </p>
+        )}
 
         {/* 搜索会话（对齐 dsh search.placeholder / search.noMatches） */}
         <label className="cv3-search">
@@ -649,13 +1181,12 @@ export function Conversation(props: {
                                aria-label="项目名称"
                                onChange={(e) => setEditText(e.target.value)}
                                onBlur={() => {
-                                 props.onRenameProject?.(proj.id, editText)
+                                 void props.onRenameProject?.(proj.id, editText).catch(showProjectError)
                                  setEditing(null)
                                }}
                                onKeyDown={(e) => {
                                  if (e.key === 'Enter') {
-                                   props.onRenameProject?.(proj.id, editText)
-                                   setEditing(null)
+                                   e.currentTarget.blur()
                                  }
                                  if (e.key === 'Escape') setEditing(null)
                                }} />
@@ -663,13 +1194,27 @@ export function Conversation(props: {
                     ) : (
                     <button type="button" className="cv3-group-head"
                             data-drop={dropTarget === g.projectId || undefined}
-                            onClick={() => setCollapsedGroups((prev) => {
-                              const next = new Set(prev)
-                              if (next.has(g.key)) next.delete(g.key)
-                              else next.add(g.key)
-                              return next
-                            })}
-                            title={isUng ? '没有归属项目的对话，可拖到项目下' : proj?.name}>
+                            /* 点项目头 = 展开 + 选中该项目。原先只做折叠，导致
+                               「新建对话」拿不到 projectId、只能落到未分组 —— 用户
+                               明明是在项目里点的新建，对话却不在项目下（真机三次踩到）。
+                               收起时不改选中态：收起只是视觉折叠，不该顺手切走当前项目。 */
+                            data-current={!isUng && proj && props.openProject === proj.id || undefined}
+                            onClick={() => {
+                              /* 选中先行、折叠随后：`collapsed` 是渲染时捕获的值，
+                                 但在同一批事件里被更新前读取并不可靠 —— 之前用
+                                 `willExpand &&` 守卫导致点了没反应（真机验证为 disabled
+                                 的工作台按钮始终不亮）。现在不管展开还是收起，点项目头
+                                 都把它设为当前项目：这是「我要在这个项目里工作」的明确意图，
+                                 收起只是视觉动作，不该因此丢掉选中。 */
+                              if (!isUng && proj) props.onSelectProject(proj.id)
+                              setCollapsedGroups((prev) => {
+                                const next = new Set(prev)
+                                if (next.has(g.key)) next.delete(g.key)
+                                else next.add(g.key)
+                                return next
+                              })
+                            }}
+                            title={isUng ? '没有归属项目的对话，可拖到项目下' : `${proj?.name ?? ''}（点击展开并切换到此项目）`}>
                       <ChevronRight size={13} className="cv3-group-caret" data-open={!collapsed || undefined} />
                       <span className="cv3-group-name">{isUng ? '未分组' : proj?.name ?? '未命名项目'}</span>
                       {/* 0 不显示：空项目挂一个「0」只是噪音，还会和下面的
@@ -697,9 +1242,8 @@ export function Conversation(props: {
                                       onClick={() => { setEditing(proj.id); setEditText(proj.name); setRowMenu(null) }}>
                                 <Pencil size={13} /><span>重命名项目</span>
                               </button>
-                              <button type="button" role="menuitem" data-danger
-                                      onClick={() => { setRowMenu(null); onDeleteProject(proj.id) }}>
-                                <Trash2 size={13} /><span>删除项目</span>
+                              <button type="button" role="menuitem" data-danger disabled title="删除功能尚未接入">
+                                <Trash2 size={13} /><span>删除项目（暂不可用）</span>
                               </button>
                             </div>
                           )}
@@ -748,7 +1292,9 @@ export function Conversation(props: {
                             <span className="cv3-session-name">{t.title}</span>
                             {t.archived
                               ? <span className="cv3-session-flag">已归档</span>
-                              : <span className="cv3-session-time num">{fmtAgo(t.updatedAt)}</span>}
+                              : t.origin === 'local'
+                                ? <span className="cv3-session-flag" title={t.localNote ?? '未保存到服务端'}>仅本页</span>
+                                : <span className="cv3-session-time num">{fmtAgo(t.updatedAt)}</span>}
                           </>
                         )}
                         <div className="cv3-rowmenu-wrap">
@@ -758,11 +1304,34 @@ export function Conversation(props: {
                             <Ellipsis size={13} />
                           </button>
                           {rowMenu === t.id && (
-                            <div className="cv3-menu cv3-rowmenu" role="menu">
-                              <button type="button" role="menuitem"
-                                      onClick={() => { setEditing(t.id); setEditText(t.title); setRowMenu(null) }}>
-                                <Pencil size={13} /><span>重命名</span>
-                              </button>
+                            /* 菜单整体拦掉点击冒泡：菜单项在会话行内部，而整行点击=切换会话。
+                               不拦的话，点「删除对话」会先把会话切成这一条，删完再清空当前对话 ——
+                               用户只是想删掉一条不相关的会话。 */
+                            <div className="cv3-menu cv3-rowmenu" role="menu"
+                                 onClick={(e) => e.stopPropagation()}
+                                 onKeyDown={(e) => e.stopPropagation()}>
+                              {/* 服务端会话暂无重命名端点：不提供会「只改本页却像已保存」的操作 */}
+                              {t.origin === 'local' ? (
+                                <button type="button" role="menuitem"
+                                        onClick={() => { setEditing(t.id); setEditText(t.title); setRowMenu(null) }}>
+                                  <Pencil size={13} /><span>重命名</span>
+                                </button>
+                              ) : (
+                                <button type="button" role="menuitem" disabled
+                                        title="服务端尚未提供会话重命名">
+                                  <Pencil size={13} /><span>重命名（暂不可用）</span>
+                                </button>
+                              )}
+                              {t.origin === 'local' && t.projectId && (
+                                <button type="button" role="menuitem"
+                                        onClick={() => {
+                                          setRowMenu(null)
+                                          // 失败原因由 threads.createError 统一显示，这里不重复
+                                          void props.threads.retryCreate(t.id)
+                                        }}>
+                                  <Check size={13} /><span>重试保存到服务端</span>
+                                </button>
+                              )}
                               <button type="button" role="menuitem"
                                       onClick={() => { props.threads.setPinned(t.id, !t.pinned); setRowMenu(null) }}>
                                 {t.pinned ? <PinOff size={13} /> : <Pin size={13} />}
@@ -774,8 +1343,16 @@ export function Conversation(props: {
                                 <span>{t.archived ? '取消归档' : '归档会话'}</span>
                               </button>
                               <button type="button" role="menuitem" data-danger
-                                      onClick={() => { props.threads.remove(t.id); setRowMenu(null) }}>
-                                <Trash2 size={13} /><span>删除会话</span>
+                                      onClick={() => {
+                                        setRowMenu(null)
+                                        // 服务端会话是真的删（软删除，服务端保留审计），先确认再删：
+                                        // 删错了没法在本页撤销，恢复要另走接口。
+                                        if (t.origin === 'server'
+                                            && !window.confirm(`删除对话「${t.title}」？服务端将不再返回这条对话。`)) return
+                                        void props.threads.remove(t.id)
+                                      }}>
+                                <Trash2 size={13} />
+                                <span>{t.origin === 'local' ? '丢弃这条草稿' : '删除对话'}</span>
                               </button>
                             </div>
                           )}
@@ -807,8 +1384,61 @@ export function Conversation(props: {
         <div className="cv3-scroll" ref={scrollRef}>
           <div className="cv3-view">
             <div className="cv3-col">
-              {userMessages.length === 0 && (
+              {/* 服务端会话：历史与发送都已接上；Agent 回复尚未接入（后端会如实回
+                  agent_unavailable）。说明写在「回复」该出现的位置（见下方 replyNote），
+                  这里只保留一句会话来源，不再重复解释能力缺口。 */}
+              {activeIsServer && (
+                <div className="cv3-server-note" role="status">
+                  <ShieldCheck size={14} />
+                  <div>
+                    <b>这条对话已保存在服务端。</b>
+                    <p>发出去的消息会存进服务端；Agent 回复尚未接入，暂时不会有回答。</p>
+                  </div>
+                </div>
+              )}
+              {/* 历史读取：加载中 / 失败（可重试）。失败时不清空已读到的部分，
+                  但必须说明「不是完整历史」—— 空会话与没读到是两件事。 */}
+              {activeIsServer && !activeMessagesLoaded && !activeThread?.messagesError && (
+                <p className="cv3-streaming" role="status">
+                  <LoaderCircle className="cv3-spin" size={13} /> 正在读取历史消息…
+                </p>
+              )}
+              {activeIsServer && activeThread?.messagesError && (
+                <p className="cv3-sync-error" role="alert">
+                  <AlertCircle size={13} />
+                  <span>历史消息没读全（{activeThread.messagesError}）当前显示的只是已读到的部分。</span>
+                  <button type="button" onClick={retryMessages}>重试</button>
+                </p>
+              )}
+              {/* 首条需求没存进服务端：内容是用户刚写的，必须原样留在界面上并说明没存。
+                  不说的话，读回历史后这条会消失，看起来就像「刚写的话丢了」。 */}
+              {activeIsServer && activeThread?.unsavedFirst && (
+                <p className="cv3-sync-error" role="alert">
+                  <AlertCircle size={13} />
+                  <span>
+                    下面第一条需求没有存进服务端（{activeThread.unsavedFirst.error}）
+                    内容只保留在本页，可复制后重新发送。
+                  </span>
+                </p>
+              )}
+              {/* 详情读取失败：标题/时间/计数仍来自列表，只是可能不是最新 —— 明说，并给重试 */}
+              {activeIsServer && activeThread?.syncError && (
+                <p className="cv3-sync-error" role="alert">
+                  <AlertCircle size={13} />
+                  <span>最新详情没读到（{activeThread.syncError}）当前显示的是最近一次拿到的信息，可能不是最新。</span>
+                  <button type="button" onClick={retrySync}>重试</button>
+                </p>
+              )}
+              {userMessages.length === 0 && !activeIsServer && (
                 <p className="cv3-ai-intro">说说你想做的片子：讲给谁、多长、什么感觉。</p>
+              )}
+              {/* 本页草稿：明确「不在服务端」。服务端会话已在上面说明，不重复。 */}
+              {activeThread?.origin === 'local' && (
+                <p className="cv3-local-note" role="note">
+                  {activeThread.projectId
+                    ? `${activeThread.localNote ?? '这条对话尚未保存到服务端。'} 未接入 Agent 的回复仅用于梳理需求，不代表已经执行。`
+                    : '这条对话没有归属项目，仅保存在本页，刷新后不会保留。未接入 Agent 的回复仅用于梳理需求，不代表已经执行。'}
+                </p>
               )}
 
               {messages.map((m) => m.role === 'user' ? (
@@ -817,6 +1447,9 @@ export function Conversation(props: {
                 <div key={m.id} className="cv3-ai-block">
                   {/* 文字不完整时由下面的「正在回复…」点明，正文本身不做修饰 */}
                   <div className="cv3-rich">{renderRich(m.text)}</div>
+                  {/* 这条回复执行过的工具调用。来自服务端读回的消息（切走会话再回来仍在），
+                      与进行中的实时列表是同一份数据的两个阶段 —— 后者落库后由这里接管。 */}
+                  {m.executedTools && renderToolCalls(m.executedTools, false)}
                   {m.streaming && <p className="cv3-streaming">正在回复…</p>}
                   {/* 失败就说失败：半截文本不得冒充完成（契约 §4） */}
                   {m.failed && (
@@ -853,8 +1486,12 @@ export function Conversation(props: {
                   )}
                 {/* 需求确认卡（说明文档 §3）：方向明确时不摆多个方向让用户逐项审批 ——
                     这里只有一份「我读到的」，用户确认或纠正即可。
-                    「画面构想」如实标出要等模型，不编一段像分镜的文字顶上。 */}
-                {messages[messages.length - 1]?.id === m.id && !m.streaming && !m.failed && userMessages.length > 0 && !reqConfirmed && (
+                    「画面构想」如实标出要等模型，不编一段像分镜的文字顶上。
+                    只在**演示适配器**的回复后出现：那张卡假设「AI 回复 = 需求澄清」，
+                    而接上真 Agent 后，模型可能只是在回答普通问题（例如「介绍AI发展史」）。
+                    给那种回复挂一张「这条片子多长 / 什么画幅」的表单，是把创作流程
+                    硬套到所有对话上 —— 实测在真机验收时就是这样错的。 */}
+                {m.demo && messages[messages.length - 1]?.id === m.id && !m.streaming && !m.failed && userMessages.length > 0 && !reqConfirmed && (
                   <div className="cv3-req">
                     <div className="cv3-req-head">
                       <b>需求确认</b>
@@ -906,10 +1543,29 @@ export function Conversation(props: {
                   </div>
                 )}
 
-                  {/* 下一步：原来这块由本地伪造的「制作方案」三条带出来 ——
+                  {/* 真实 Agent 回复后的出口。
+                      与下面的演示卡是两条独立路径：这里**不假设**这条回复是需求梳理，
+                      也不建议「开始制作」—— 用户可能只是问了个普通问题。只给一个
+                      明确可行动作：带着这段对话去工作台继续。
+                      没有归属项目时不给按钮（工作台需要项目），改为提示先建项目 ——
+                      给一个点了会失败的按钮比不给更糟。 */}
+                  {!m.demo && m.id === messages[messages.length - 1]?.id && !m.streaming && !m.failed && (
+                    <div className="cv3-after">
+                      {currentProject ? (
+                        <button type="button" className="cv3-secondary cv3-after-btn"
+                                onClick={() => props.onOpenWorkbench()}>
+                          带着这段对话去工作台
+                        </button>
+                      ) : (
+                        <p className="cv3-after-hint">这条对话还没有归属项目，建一个项目即可进入工作台继续。</p>
+                      )}
+                    </div>
+                  )}
+                  {/* 演示回复后的「下一步」卡：原来那块由本地伪造的「制作方案」三条带出来，
                       那三条是编的内容（不是模型给的，也不是工作流产的），已删。
-                      入口本身保留：它是进入工作台的路，不该跟着伪造内容一起消失。 */}
-                  {messages[messages.length - 1]?.id === m.id && !m.streaming && !m.failed && !launched && (
+                      入口本身保留：它是进入工作台的路。只跟演示回复走 ——
+                      真 Agent 回答普通问题时不该弹「专业制作路径 / 开始制作」。 */}
+                  {m.demo && messages[messages.length - 1]?.id === m.id && !m.streaming && !m.failed && !launched && (
                     <div className="cv3-plan">
                       <b className="cv3-plan-title">下一步</b>
                       <div className="cv3-plan-path">
@@ -929,7 +1585,53 @@ export function Conversation(props: {
               ))}
 
               {pending && messages[messages.length - 1]?.role === 'user' && (
-                <p className="cv3-pending"><LoaderCircle className="cv3-spin" size={14} /> 正在回复…</p>
+                <p className="cv3-pending">
+                  <LoaderCircle className="cv3-spin" size={14} />
+                  {/* 如实显示当前阶段：正文由 delta 逐 token 到达，这里说明「在做什么」。 */}
+                  {agentPhase === null
+                    ? '正在回复…'
+                    : agentPhase.phase === 'thinking'
+                      ? '正在思考…'
+                      : agentPhase.phase === 'tool'
+                        ? (agentPhase.isError
+                            ? `工具失败${agentPhase.label ? `：${agentPhase.label}` : ''}`
+                            : `正在调用工具${agentPhase.label ? `：${agentPhase.label}` : ''}…`)
+                        : '正在回复…'}
+                </p>
+              )}
+              {/* 工具调用历史：一轮里可能调十几次工具，只显示「当前一个」等于没有记录。
+                  收起态只列工具名与状态，点开看参数 —— 参数常是整段 JSON/脚本，
+                  默认铺开会把对话区顶走。失败项标红，与「进行中」明确区分。
+
+                  注意这里**不能加 `pending &&`**：真机验收时发现，回复一结束整个列表
+                  就连同 usage 一起消失，用户再也回看不到「刚才跑了什么」。
+                  工具调用是这一轮回复的组成部分，属于历史而不是瞬时状态。
+
+                  另一个真机发现：一旦消息挂上了 `executedTools`（落库后读回的历史记录），
+                  这里必须让位 —— 否则同一次调用会在消息块内外各画一遍，界面上出现
+                  两条「bash 完成」。两者是同一份数据的前后两个阶段，只能显示一个。 */}
+              {toolCalls.length > 0
+                && !messages[messages.length - 1]?.executedTools
+                && (
+                renderToolCalls(toolCalls, true)
+              )}
+              {/* token 用量：回答「这一轮花了多少」。只显示上游真的报了的桶，
+                  没报的不占位 —— 显示「输入 0」会让人以为完全没消耗。
+                  缓存命中单独标出：它含在总计里，单看总计容易高估成本。
+                  同样不能加 `pending &&`：用量是这一轮的结算，结束后才最该看见。 */}
+              {usage && (usage.inputTokens !== undefined || usage.outputTokens !== undefined) && (
+                <p className="cv3-usage num">
+                  {usage.inputTokens !== undefined && <>输入 {usage.inputTokens}</>}
+                  {usage.outputTokens !== undefined && <>{usage.inputTokens !== undefined ? ' · ' : ''}输出 {usage.outputTokens}</>}
+                  {usage.cacheReadTokens !== undefined && usage.cacheReadTokens > 0 && (
+                    <> · 缓存命中 {usage.cacheReadTokens}</>
+                  )}
+                </p>
+              )}
+              {/* 服务端回复的如实说明：能力缺口（Agent 未接入）不是「回复失败」，
+                  所以用中性说明而不是红色失败块 —— 重试也不会好，别让人白等。 */}
+              {replyNote && (
+                <p className="cv3-demo-note" role="note">{replyNote}</p>
               )}
             </div>
           </div>
@@ -961,9 +1663,18 @@ export function Conversation(props: {
                 )}
                 <textarea className="cv3-input" rows={1} ref={inputRef}
                           value={chat.draft}
-                          onChange={(e) => { chat.setDraft(e.target.value); growInput() }}
+                          onChange={(e) => { chat.setDraft(e.target.value); growInput(); setSendError(null) }}
                           onKeyDown={onInputKeyDown}
-                          placeholder="说说你想做的片子，或补充制作要求" />
+                          placeholder={activeIsServer
+                            ? '继续这条对话：消息会保存到服务端'
+                            : '说说你想做的片子，或补充制作要求'} />
+                {/* 发送失败：说清楚没有发出去、草稿还在，不让用户以为已经保存。
+                    失败文案本身已经带了「消息没有发出去」，这里不再加前缀重复。 */}
+                {sendError && (
+                  <p className="cv3-compose-note" role="alert" data-error="">
+                    <AlertCircle size={12} /> {sendError}
+                  </p>
+                )}
                 <div className="cv3-row">
                   {/* 左侧：添加文件 / 权限模式 */}
                   <div className="cv3-leading">
@@ -1024,17 +1735,18 @@ export function Conversation(props: {
                     }}>
                       <PopoverTrigger asChild>
                         <button type="button" className="cv3-hbtn"
-                                data-off={!harness.ready || undefined}
-                                data-connected={harness.ready || undefined}
-                                aria-label="选择执行引擎与模型" title={harness.ready ? '切换执行引擎' : '该引擎未接入'}
+                                data-off={harnessState.state !== 'available' || undefined}
+                                data-connected={harnessState.state === 'available' || undefined}
+                                aria-label="选择执行引擎与模型"
+                                title={harnessState.state === 'available' ? '切换执行引擎' : (harnessState.note ?? '该引擎未接入')}
                                 style={{ '--h-color': harness.color } as CSSProperties}>
-                          <span className="cv3-hseg" data-off={!harness.ready || undefined}>
+                          <span className="cv3-hseg" data-off={harnessState.state !== 'available' || undefined}>
                             <i aria-hidden="true" />
                             <span className="cv3-hmark-img" aria-hidden="true"
                                   style={{ maskImage: `url(${harness.icon})`, WebkitMaskImage: `url(${harness.icon})` }} />
-                            {harness.ready
-                              ? <><span className="cv3-hdiv" aria-hidden="true" /><span className="cv3-hmodel">{model}</span></>
-                              : <span className="cv3-hoff">未接入AI</span>}
+                            {harnessState.state === 'available'
+                              ? <><span className="cv3-hdiv" aria-hidden="true" /><span className="cv3-hmodel">{effectiveModel}</span></>
+                              : <span className="cv3-hoff">{AVAILABILITY_LABEL[harnessState.state]}</span>}
                           </span>
                           <ChevronDown size={12} className="cv3-hchev" aria-hidden="true" />
                         </button>
@@ -1045,25 +1757,41 @@ export function Conversation(props: {
                           <div className="cv3-hp-pane" data-active={modelPane === null || undefined}>
                             <div className="cv3-hp-head">
                               <b>执行引擎</b>
-                              <span>{HARNESSES.filter((h) => h.ready).length} 个已接入</span>
+                              <span>
+                                {probe.access === 'unavailable'
+                                  ? 'DSH 未接入'
+                                  : probe.access === 'demo'
+                                    ? 'DSH 仅演示'
+                                    : probe.access === 'unknown'
+                                      ? '状态未知'
+                                      : `${HARNESSES.filter((h) => stateOf(h.id).state === 'available').length} 个已接入`}
+                              </span>
                             </div>
                             <div className="cv3-hp-list" role="listbox" aria-label="执行引擎">
-                              {HARNESSES.map((h) => (
+                              {HARNESSES.map((h) => {
+                                const state = stateOf(h.id)
+                                return (
                                 <button key={h.id} type="button" className="cv3-hp-item" role="option"
                                         aria-selected={h.id === harnessId}
-                                        data-off={!h.ready || undefined}
+                                        data-off={state.state !== 'available' || undefined}
+                                        title={state.note ?? undefined}
                                         style={{ '--h-color': h.color } as CSSProperties}
-                                        onClick={() => { setHarnessId(h.id); setModel(h.models[0]); setModelPane(h.id) }}>
+                                        onClick={() => {
+                                          setHarnessId(h.id)
+                                          setModel(modelsOfHarness(h.id).models[0]?.id ?? '')
+                                          setModelPane(h.id)
+                                        }}>
                                   <span className="cv3-hp-logo" aria-hidden="true"
                                         style={{ maskImage: `url(${h.icon})`, WebkitMaskImage: `url(${h.icon})` }} />
                                   <span className="cv3-hp-txt">
                                     <b>{h.name}</b>
-                                    <small>{h.ready ? '本机已配置' : '未接入，仅展示'}</small>
+                                    <small>{AVAILABILITY_LABEL[state.state]}{state.state === 'not_connected' ? '，仅展示' : ''}</small>
                                   </span>
                                   {h.id === harnessId && <Check size={13} className="cv3-hp-ck" aria-hidden="true" />}
                                   <ChevronRight size={13} className="cv3-hp-go" aria-hidden="true" />
                                 </button>
-                              ))}
+                              )
+                              })}
                             </div>
                           </div>
                           <div className="cv3-hp-pane cv3-hp-models" data-active={modelPane !== null || undefined}>
@@ -1074,18 +1802,18 @@ export function Conversation(props: {
                               <b>{harness.name}</b>
                             </div>
                             <div className="cv3-hp-list" role="listbox" aria-label="模型">
-                              {harness.models.map((m) => (
-                                <div key={m} className="cv3-hp-modelwrap">
+                              {modelsOfHarness(harness.id).models.map((m) => (
+                                <div key={m.id} className="cv3-hp-modelwrap">
                                   <button type="button" className="cv3-hp-item cv3-hp-model" role="option"
-                                          aria-selected={m === model}
-                                          onClick={() => setModel(m)}>
+                                          aria-selected={m.id === effectiveModel}
+                                          onClick={() => setModel(m.id)}>
                                     <span className="cv3-hp-radio" aria-hidden="true" />
-                                    <span className="cv3-hp-txt"><b className="num">{m}</b></span>
-                                    {m === model && <Check size={13} className="cv3-hp-ck" aria-hidden="true" />}
+                                    <span className="cv3-hp-txt"><b className="num">{m.label}</b></span>
+                                    {m.id === effectiveModel && <Check size={13} className="cv3-hp-ck" aria-hidden="true" />}
                                   </button>
                                   {/* 选中模型下方展开设置抽屉：思考强度 + 最大上下文。
                                       首页两个都给了，这里原来只有推理等级、缺最大上下文。 */}
-                                  {m === model && (
+                                  {m.id === effectiveModel && (
                                     <div className="cv3-hp-drawer">
                                       <div className="cv3-hp-row">
                                         <span className="cv3-hp-label">思考强度</span>
@@ -1114,8 +1842,11 @@ export function Conversation(props: {
                                 </div>
                               ))}
                             </div>
-                            {!harness.ready && (
-                              <p className="cv3-hp-note">{harness.name} 未接入：不会真的执行，切回已配置引擎才能发送。</p>
+                            {harnessState.state !== 'available' && (
+                              <p className="cv3-hp-note">
+                                {harness.name} {AVAILABILITY_LABEL[harnessState.state]}
+                                {harnessState.note ? `：${harnessState.note}` : '：不会真的执行。'}
+                              </p>
                             )}
                           </div>
                         </div>

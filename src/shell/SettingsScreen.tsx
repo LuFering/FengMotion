@@ -7,6 +7,7 @@ import { formatBytes, initLibrary, listAssets, resetLibrary } from '@/services/a
 import { type Settings, type ThemeId, type WallpaperId, type WallpaperScope,
          DEFAULT_SETTINGS, FEEDBACK, applyBackup, clearModelPrefs, downloadBackup, readBackup,
          normalizeSettings } from '@/shell/settings-model'
+import { useHarnesses, availabilityOf, modelsOf } from '@/shell/useHarnesses'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Input } from '@/components/ui/input'
@@ -174,12 +175,21 @@ export function SettingsScreen({
       .catch(() => setStats(null))
   }
 
+  /* 弹窗打开时重置本地状态。setState 放进微任务：
+     直接在 effect 里同步 setState 会触发级联渲染（react 规则 set-state-in-effect）。 */
   useEffect(() => {
     if (!open) return
-    setPrefs(loadPrefs())
-    setNotice('')
-    setConfirmWipe(false)
-    refreshStats()
+    let cancelled = false
+    void Promise.resolve().then(() => {
+      if (cancelled) return
+      setPrefs(loadPrefs())
+      setNotice('')
+      setConfirmWipe(false)
+      refreshStats()
+    })
+    return () => {
+      cancelled = true
+    }
   }, [open])
 
   /** 导入备份：读文件 → 校验 → 应用 → 回执 */
@@ -236,6 +246,21 @@ export function SettingsScreen({
     onChange({ ...settings, [key]: value })
 
   const harness = HARNESSES.find((h) => h.id === settings.harness) ?? HARNESSES[0]
+  /**
+   * 引擎可用性按**真实探测**判定（`/api/capabilities` 的 agent 项 + `/api/harnesses`），
+   * 不用本地 `h.ready`（那是演示数据，会把「未接入」说成「已接入」）。
+   */
+  const probe = useHarnesses()
+  const stateOf = (id: string) => availabilityOf(probe, id)
+  const connectedHarnesses = HARNESSES.filter((h) => stateOf(h.id).state === 'available')
+  const pendingHarnesses = HARNESSES.filter((h) => stateOf(h.id).state !== 'available')
+  /**
+   * 模型列表以**后端目录**为准（`/api/harnesses/{id}/models`）。
+   *
+   * 不用本地 `h.models`：本地那份是产品侧写的模型名（deepseek-chat 等），
+   * 而 DSH 路由里实际只有 deepseek-v4.1-flash（后端实测）。选一个不存在的模型必然失败。
+   */
+  const modelsFor = (harnessId: string) => modelsOf(probe, harnessId)
 
   const pickHarness = (id: string) => {
     const h = HARNESSES.find((x) => x.id === id)
@@ -454,7 +479,7 @@ export function SettingsScreen({
 
                 {/* 已接入引擎三列等宽排列，只渲染实际接入项。 */}
                 <div className="set-hcards">
-                  {HARNESSES.filter((h) => h.ready).map((h) => {
+                  {connectedHarnesses.map((h) => {
                     const on = h.id === settings.harness
                     return (
                       <div key={h.id} className="set-hcard" data-on={on || undefined}>
@@ -485,19 +510,19 @@ export function SettingsScreen({
                               <PopoverContent className="set-pick" align="start" sideOffset={6}>
                                 <div className="set-pick-head">模型</div>
                                 <div className="set-pick-list" role="listbox" aria-label={`${h.name} 的模型`}>
-                                  {h.models.map((m) => {
-                                    const cur = on && settings.model === m
+                                  {modelsFor(h.id).models.map((m) => {
+                                    const cur = on && settings.model === m.id
                                     return (
-                                      <button key={m} type="button" role="option" aria-selected={cur}
+                                      <button key={m.id} type="button" role="option" aria-selected={cur}
                                               className="set-pick-item" data-on={cur || undefined}
                                               onClick={() => {
-                                                onChange({ ...settings, harness: h.id, model: m })
+                                                onChange({ ...settings, harness: h.id, model: m.id })
                                                 setPickOpen(null)
                                               }}>
                                         <span className="set-pick-item-ic" style={{ '--h-color': h.color } as React.CSSProperties}>
                                           <i style={{ maskImage: `url(${h.icon})`, WebkitMaskImage: `url(${h.icon})` }} />
                                         </span>
-                                        <span className="set-pick-item-v">{m}</span>
+                                        <span className="set-pick-item-v">{m.label}</span>
                                         {cur && <Icon name="check" className="ui-icon set-pick-item-ck" />}
                                       </button>
                                     )
@@ -521,7 +546,7 @@ export function SettingsScreen({
                           onClick={() => setShowInstall((v) => !v)}>
                     <Icon name="download" />
                     <span>待接入的引擎</span>
-                    <small>{HARNESSES.filter((h) => !h.ready).length}</small>
+                    <small>{pendingHarnesses.length}</small>
                     <Icon name="chevron-down" className="ui-icon set-agent-more-chev" />
                   </button>
                   {showInstall && (
@@ -530,14 +555,18 @@ export function SettingsScreen({
                         以下引擎尚未接入，暂不能发送任务。
                       </p>
                       <div className="set-hcards set-pending-hcards">
-                        {HARNESSES.filter((h) => !h.ready).map((h) => (
+                        {pendingHarnesses.map((h) => (
                           <div key={h.id} className="set-hcard" data-pending>
                             <span className="set-hcard-side" style={{ '--h-color': h.color } as React.CSSProperties}>
                               <i style={{ maskImage: `url(${h.icon})`, WebkitMaskImage: `url(${h.icon})` }} />
                             </span>
                             <div className="set-agent-who">
                               <b>{h.name}</b>
-                              <small>接入后可使用 {h.models.length} 个模型</small>
+                              <small>
+                                {modelsFor(h.id).source === 'server'
+                                  ? `接入后可使用 ${modelsFor(h.id).models.length} 个模型`
+                                  : '模型目录未知'}
+                              </small>
                             </div>
                             <span className="set-agent-tag">待接入</span>
                           </div>

@@ -11,6 +11,14 @@ export interface ChatMessage {
   /** 对话视图的演示附加块（工作台对话 tab 只渲染 text，本字段对它无影响） */
   thinking?: string
   toolCalls?: { label: string; detail: string }[]
+  /**
+   * 从服务端消息里读回的工具调用记录。
+   *
+   * 与上面的 `toolCalls`（演示适配器用的 `{label, detail}`）是两回事，不能合并：
+   * 那个是演示数据里手写的摘要，这个是真实执行记录，带参数与成败。
+   * 分开存是为了不破坏演示路径，同时让真实回复切走会话再回来仍能回看。
+   */
+  executedTools?: { callId?: string; name: string; arguments?: string; done?: boolean; isError?: boolean }[]
   plan?: string[]
   /** “改了什么”表：只列真实创建的产物（项目 / 工作流），不编造文件改动 */
   changes?: { file: string; change: string }[]
@@ -50,15 +58,25 @@ export function useChat() {
     setMessages((items) => [...items, { id: makeId(), role: 'ai', at: Date.now(), ...m }])
   }
 
+  /* 追加一条**服务端已确认**的消息（带服务端 id）。
+     用服务端 id 而不是本地生成：重新装载历史时同一个 id 不会出现两份。
+     已在列表里的直接跳过 —— 重复提交 / 历史与发送竞态下不该出现两条一样的消息。 */
+  const appendMessage = (m: ChatMessage) => {
+    setMessages((items) => (items.some((x) => x.id === m.id) ? items : [...items, m]))
+  }
+
   /* ── 流式回复（对话区走 services/chatService 的 stream）──────────
      分成「占位 / 追加 / 收尾 / 失败」四步，是为了让界面能如实显示
      「正在说」而不必等整段落地，并且失败时能明确标出这条没完成 ——
-     契约要求不得用半截文本冒充完成。 */
-  const startAiMessage = () => {
+     契约要求不得用半截文本冒充完成。
+     `demo` 只给演示适配器产的回复：服务端真回复传 `{ demo: false }`，
+     否则界面会给真实回复挂上「未连接 Agent」的假标签。 */
+  const startAiMessage = (options: { demo?: boolean } = {}) => {
     const id = makeId()
+    const demo = options.demo ?? true
     setMessages((items) => [
       ...items,
-      { id, role: 'ai', text: '', at: Date.now(), streaming: true, demo: true },
+      { id, role: 'ai', text: '', at: Date.now(), streaming: true, demo },
     ])
     return id
   }
@@ -67,9 +85,20 @@ export function useChat() {
     setMessages((items) => items.map((m) => (m.id === messageId ? { ...m, text: m.text + delta } : m)))
   }
   /* `completed` 给的是最终完整文本，**以它为准**（覆盖已拼接的），见契约 §4 */
-  const finishAiMessage = (messageId: string, text: string) => {
+  const finishAiMessage = (
+    messageId: string,
+    text: string,
+    executedTools?: { callId?: string; name: string; arguments?: string; done?: boolean; isError?: boolean }[],
+  ) => {
     setMessages((items) => items.map((m) => (
-      m.id === messageId ? { ...m, text, streaming: false, failed: undefined } : m
+      m.id === messageId
+        ? {
+            ...m, text, streaming: false, failed: undefined,
+            /* 把本轮收集到的工具记录挂到消息上：completed 之后会异步重读服务端消息，
+               在那之前实时列表已经随 pending 消失 —— 不挂上的话，这一瞬间列表会闪空。 */
+            ...(executedTools && executedTools.length > 0 ? { executedTools } : {}),
+          }
+        : m
     )))
   }
   const failAiMessage = (messageId: string, note: string) => {
@@ -90,8 +119,8 @@ export function useChat() {
     setDraft('')
   }
   return {
-    messages, draft, setDraft, addUserMessage, setMessageTaskId, addAiMessage, clearChat, replaceMessages,
-    startAiMessage, appendAiText, finishAiMessage, failAiMessage, removeMessage,
+    messages, draft, setDraft, addUserMessage, setMessageTaskId, addAiMessage, appendMessage, clearChat,
+    replaceMessages, startAiMessage, appendAiText, finishAiMessage, failAiMessage, removeMessage,
   }
 }
 
