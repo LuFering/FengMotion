@@ -250,6 +250,9 @@ if (!gotLock) {
         : path.resolve(__dirname, '..', '..', 'FengMotion-backend', 'target')
       backendHandle = await startBackend({
         resourcesRoot,
+        /* 数据目录必须与后端 application.yml 的 fengmotion.data-dir 默认值一致
+           （Linux 上都是 ~/.config/FengMotion/data）。两处不一致会出现
+           「开发态能看到项目、应用里报项目不存在」—— 因为实际读的是两个库。 */
         dataDir: path.join(app.getPath('userData'), 'data'),
         logFile: path.join(app.getPath('userData'), 'backend.log'),
       }).catch((error: unknown) => {
