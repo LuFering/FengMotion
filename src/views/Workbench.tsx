@@ -8,6 +8,7 @@ import {
   Square, X, Maximize2, Minimize2,
 } from 'lucide-react'
 import { RailProgressPanel } from './RailProgress'
+import { ProjectArtifacts } from './ProjectArtifacts'
 import { ACTIVE_SCENES } from '@/data/projectModel'
 import { PROJECTS, type ProjectSummary } from '@/data/projects'
 import { ARTIFACT_STATUS_LABEL, ARTIFACT_TYPE_LABEL, WORKBENCH_ARTIFACTS, type WorkbenchArtifact } from '@/data/workbenchArtifacts'
@@ -1016,6 +1017,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
         {railOpen && <button className="fw-scrim" aria-label="收起场景列表" onClick={() => setRailOpen(false)} />}
 
         <ProjectRail onOpenBrief={() => openReview('brief')} onEditScene={openEdit} projectName={project.name}
+                     projectId={projectId}
                      open={railOpen} onClose={() => setRailOpen(false)}
                      tab={railTab} onTab={setRailTab}
                      selectedArtifactId={selectedArtifactId} onSelectArtifact={selectArtifact}
@@ -1496,13 +1498,13 @@ function RailDeck<T extends DeckEntry>({ items, dotStatus, variant, leavingId, r
   )
 }
 
-function ProjectRail({ projectName, open, onClose, tab, onTab, onOpenBrief, onEditScene,
+function ProjectRail({ projectName, projectId, open, onClose, tab, onTab, onOpenBrief, onEditScene,
   selectedArtifactId, onSelectArtifact,
   confirmed,
   decisions, onDecide, workflowId, outline, materials, openShelf, onToggleShelf,
   activeSceneId, liveState, onSelectContent, onOpenWorkflowEditor,
   wholeFilmActive, onSelectWholeFilm, onOpenMaterials, progressPanel }:
-  { projectName: string; open: boolean; onClose: () => void
+  { projectName: string; projectId: string; open: boolean; onClose: () => void
     tab: RailTab; onTab: (tab: RailTab) => void
     selectedArtifactId: string | null; onSelectArtifact: (id: string) => void
     confirmed: { id: string; title: string; hint: string }[]
@@ -1571,6 +1573,7 @@ function ProjectRail({ projectName, open, onClose, tab, onTab, onOpenBrief, onEd
 
       {tab === 'artifacts' ? (
         <div className="fw-artifacts" role="tabpanel">
+          {/* 工作流产出的文档型产物（有版本与状态） */}
           {WORKBENCH_ARTIFACTS.map((a) => (
             <button key={a.id} type="button" className="fw-artifact"
                     aria-current={a.id === selectedArtifactId ? 'true' : undefined}
@@ -1583,6 +1586,9 @@ function ProjectRail({ projectName, open, onClose, tab, onTab, onOpenBrief, onEd
               <span className="fw-artifact-status" data-status={a.status}>{ARTIFACT_STATUS_LABEL[a.status]}</span>
             </button>
           ))}
+          {/* 项目目录里真实存在的文件（AI 产出的视频、脚本等）——
+              与上面的工作流产物分开呈现：来源不同，一个来自流程节点，一个来自磁盘。 */}
+          <ProjectArtifacts projectId={projectId} />
         </div>
       ) : tab === 'content' ? (
         /* 内容 —— 这部片有哪些画面，是这一栏的主要导航：找到某个画面，并把修改范围

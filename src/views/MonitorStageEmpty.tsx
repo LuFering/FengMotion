@@ -1,9 +1,15 @@
 import { ArrowUpRight, FileText, ListChecks, LoaderCircle, Film, ArrowRight } from 'lucide-react'
 import type { StageState } from '@/data/stageVisual'
+import { useHarnesses, availabilityOf } from '@/shell/useHarnesses'
 
 export function MonitorStageEmpty({ stage, brief, correctionCount = 0, onDiscuss, onOpenExecution, onEdit }: {
   stage: StageState; brief: string; correctionCount?: number; onDiscuss: () => void; onOpenExecution: () => void; onEdit: () => void
 }) {
+  /* 引擎可用性读真实探测，不写死。
+     原来这里固定显示「Agent 尚未连接」——在 Agent 已经接入之后，
+     那句话会让人以为做不了任何事（真机截图确认过）。 */
+  const probe = useHarnesses()
+  const agentReady = availabilityOf(probe, 'deepseek').state === 'available'
   const running = stage.lastRunStatus === 'running'
   const title = running ? '制作记录正在更新' : stage.lastRunStatus === 'failed' ? '制作遇到了问题' : stage.lastRunStatus === 'cancelled' ? '已暂停这次制作' : '等待第一份画面'
   const status = running ? '演示执行中' : stage.lastRunStatus === 'failed' ? '运行未完成' : stage.lastRunStatus === 'cancelled' ? '运行已停止' : stage.hasRun ? '已有演示记录 · 暂无预览' : '尚未开始制作'
@@ -26,6 +32,10 @@ export function MonitorStageEmpty({ stage, brief, correctionCount = 0, onDiscuss
       <p>{brief.trim() || '还没有制作要求。写下你想做什么，以及希望观众看到什么。'}</p>
       {correctionCount > 0 && <button type="button" className="wb-studio-corrections" onClick={onDiscuss}>{correctionCount} 条后续纠正<ArrowUpRight size={12}/></button>}
     </section>
-    <div className="wb-studio-availability"><span/>Agent 尚未连接，当前可使用本机场景编辑与导出。</div>
+    <div className="wb-studio-availability" data-ready={agentReady || undefined}>
+      <span/>{agentReady
+        ? 'Agent 已连接，可以让它开始制作。'
+        : 'Agent 尚未连接，当前可使用本机场景编辑与导出。'}
+    </div>
   </div>
 }

@@ -22,6 +22,7 @@ import { HttpClient, type HttpClientDeps } from './http'
 import { CAPABILITY_LABELS, buildCapabilityViews, capabilityGate, type CapabilityKey } from './capabilities'
 import { createSystemResource, type SystemResource } from './health'
 import { createProjectsResource, type ProjectsResource } from './projects'
+import { createArtifactsResource, type ArtifactsResource } from './artifacts'
 import { createTasksResource, type TasksResource } from './tasks'
 import { createChatResource, type ChatResource } from './chat'
 import { createHarnessResource, type HarnessResource } from './harnesses'
@@ -39,6 +40,8 @@ export interface StudioApiClient {
   readonly mode: ApiMode
   readonly system: SystemResource
   readonly projects: ProjectsResource
+  /** 项目目录里的真实文件（AI 产出的视频、脚本等） */
+  readonly artifacts: ArtifactsResource
   readonly tasks: TasksResource
   readonly chat: ChatResource
   /** 引擎探测（`/harnesses`、`/harnesses/{id}/models`）。后端尚未实现，调用方需处理 404/503。 */
@@ -85,6 +88,7 @@ export function createStudioApiClient(options: CreateApiClientOptions = {}): Stu
     mode: config.mode,
     system: createSystemResource(http),
     projects: createProjectsResource(http),
+    artifacts: createArtifactsResource(http),
     tasks: createTasksResource(http),
     chat: createChatResource(http),
     harnesses: createHarnessResource(http),

@@ -1491,3 +1491,111 @@ textarea.fw-edit-input { resize: vertical; }
   from { opacity: 0; transform: translateY(-3px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* ── 项目文件产物（磁盘真实文件，与上方工作流产物分开呈现）─────────
+   靠一条分隔线把两类产物在视觉上分开：来源不同，混在一起会让人
+   以为「这些文件也是流程节点产出的」。 */
+.fw-artifacts-files {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.fw-files-head {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin: 0 0 2px;
+  color: var(--tx3);
+  font-size: 11px;
+}
+
+.fw-files-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.fw-file-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  padding: 5px 8px;
+  border: 0;
+  border-radius: var(--fm-radius-mark);
+  background: transparent;
+  color: var(--tx2);
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.fw-file-row:hover {
+  background: var(--hover);
+  color: var(--tx1);
+}
+
+.fw-file-name {
+  /* 文件名可能很长，让它先占满再省略，不要挤压右侧元信息 */
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 视频用品牌色、图片用次级色：一眼能分出「这条片子」和「一张图」 */
+.fw-file[data-kind='video'] .fw-file-name {
+  color: var(--acc);
+}
+
+.fw-file-meta {
+  flex: 0 0 auto;
+  color: var(--tx3);
+  font-size: 10.5px;
+}
+
+.fw-file-dir {
+  opacity: 0.7;
+}
+
+/* 预览区：限高，避免一段长视频把整个侧栏顶满 */
+.fw-file-preview {
+  margin-top: 6px;
+  border-radius: var(--fm-radius-mark);
+  overflow: hidden;
+  background: var(--hole);
+}
+
+.fw-file-preview video,
+.fw-file-preview img {
+  display: block;
+  width: 100%;
+  max-height: 220px;
+  object-fit: contain;
+}
+
+.fw-rail-retry {
+  align-self: flex-start;
+  padding: 3px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--fm-radius-mark);
+  background: transparent;
+  color: var(--tx2);
+  font: inherit;
+  font-size: 11.5px;
+  cursor: pointer;
+}
+
+.fw-rail-retry:hover {
+  background: var(--hover);
+  color: var(--tx1);
+}
