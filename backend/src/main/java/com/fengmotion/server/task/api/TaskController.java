@@ -17,6 +17,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fengmotion.server.common.ApiException;
 import com.fengmotion.server.task.domain.Task;
 import com.fengmotion.server.task.domain.TaskEvent;
+import com.fengmotion.server.task.service.ModifyTaskRunner;
 import com.fengmotion.server.task.service.RenderTaskRunner;
 import com.fengmotion.server.task.service.TaskRequestGuard;
 import com.fengmotion.server.task.service.TaskRequestGuard.Route;
@@ -38,6 +39,7 @@ public class TaskController {
 
     private final TaskService tasks;
     private final RenderTaskRunner renderRunner;
+    private final ModifyTaskRunner modifyRunner;
     private final ObjectMapper json;
 
     /**
@@ -69,14 +71,10 @@ public class TaskController {
             task = tasks.submit(projectId, "render", prompt, body,
                     (t, progress) -> renderRunner.run(t, progress), warnings);
         } else {
-            /* 修改流程的接收入口。执行器尚未实现（实施第 3 步），
-               这里如实失败 —— 不假装跑起来，也不静默降级成渲染：
-               降级会产出一条「没按用户要求改」的视频，比明确失败糟得多。 */
+            /* 修改流程：解析范围 → 读基线 → 生成方案 → 校验 → 渲染。
+               生成器第一版是确定性规则而非模型，接口已按真实实现设计。 */
             task = tasks.submit(projectId, "modify", prompt, body,
-                    (t, progress) -> {
-                        throw new ApiException(HttpStatus.NOT_IMPLEMENTED, "modify_not_implemented",
-                                "修改执行流程尚未接入：请求已记录，但本版不会改动视频");
-                    }, warnings);
+                    (t, progress) -> modifyRunner.run(t, progress), warnings);
         }
         return TaskResponse.from(task);
     }

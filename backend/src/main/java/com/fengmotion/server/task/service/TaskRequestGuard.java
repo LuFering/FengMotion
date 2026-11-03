@@ -116,6 +116,28 @@ public final class TaskRequestGuard {
             throw new ApiException(HttpStatus.BAD_REQUEST, "validation_error",
                     "modify 请求需要携带当前场景作为基线（film.scenes）");
         }
+        // sceneIds 指向的场景必须真实存在。这一项在创建阶段就能判定，
+        // 不该让用户看到「已接受」再在后台失败。
+        if (scope == TaskScope.SCENE) {
+            List<String> missing = new java.util.ArrayList<>();
+            for (JsonNode idNode : body.get("sceneIds")) {
+                String id = idNode.asText(null);
+                boolean found = false;
+                for (JsonNode scene : film.path("scenes")) {
+                    if (id != null && id.equals(scene.path("id").asText(null))) {
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    missing.add(String.valueOf(id));
+                }
+            }
+            if (!missing.isEmpty()) {
+                throw new ApiException(HttpStatus.BAD_REQUEST, "scene_not_found",
+                        "基线里没有这些场景：" + String.join("、", missing));
+            }
+        }
     }
 
     /**

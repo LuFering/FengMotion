@@ -67,6 +67,15 @@ class TaskRequestGuardTest {
     }
 
     @Test
+    @DisplayName("sceneIds 指向基线里不存在的场景：创建阶段就报 scene_not_found")
+    void sceneIdMustExistInBaseline() {
+        JsonNode b = body("{\"kind\":\"modify\",\"prompt\":\"改\",\"scope\":\"scene\","
+                + "\"sceneIds\":[\"nope\"]," + FILM + "}");
+        ApiException e = assertThrows(ApiException.class, () -> TaskRequestGuard.route(b));
+        assertEquals("scene_not_found", e.getCode());
+    }
+
+    @Test
     @DisplayName("scope=selection 第一版报错，不静默按 project 处理")
     void selectionRejected() {
         JsonNode b = body("{\"kind\":\"modify\",\"prompt\":\"改\",\"scope\":\"selection\"," + FILM + "}");
