@@ -84,6 +84,51 @@ public class WorkflowProjectController {
     }
 
     /**
+     * 让 agent 改工程并渲染出新版本。
+     *
+     * <p>一步完成「用户提要求 → AI 改画面 → 看到新片子」。
+     * 这是创作链的主入口：agent 读原文与纠正改源码，后端负责渲染与登记版本。</p>
+     *
+     * @param projectId 项目 ID
+     * @param request   可选的本轮意图
+     * @return 结果
+     */
+    @PostMapping("/create")
+    public CreateResponse create(@PathVariable String projectId,
+                                 @RequestBody(required = false) CreateRequest request) {
+        String intent = request == null ? null : request.intent();
+        var outcome = projectRender.createThenRender(projectId, intent);
+        return new CreateResponse(outcome.reply(), outcome.agentMs(), outcome.artifactPath(),
+                outcome.version(), outcome.render().durationInFrames(),
+                outcome.render().width(), outcome.render().height(), outcome.render().fps());
+    }
+
+    /**
+     * 创作请求。
+     *
+     * @param intent 这一轮要做什么；省略则按现有需求与纠正推进
+     */
+    public record CreateRequest(String intent) {
+    }
+
+    /**
+     * 创作结果。
+     *
+     * @param reply            agent 说明
+     * @param agentMs          agent 耗时
+     * @param artifactPath     产物路径
+     * @param version          版本号
+     * @param durationInFrames 时长帧数
+     * @param width            宽
+     * @param height           高
+     * @param fps              帧率
+     */
+    public record CreateResponse(String reply, long agentMs, String artifactPath,
+                                 long version, int durationInFrames,
+                                 int width, int height, int fps) {
+    }
+
+    /**
      * 记录一条用户修改意见。
      *
      * <p>追加到 {@code corrections.md}，供 agent 下一轮修改时读取。

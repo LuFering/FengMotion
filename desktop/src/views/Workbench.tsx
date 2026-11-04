@@ -1083,15 +1083,29 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
          而这个项目的画面在源码里，改数据不会让画面变。 */
       if (filmProject?.ready) {
         try {
+          /* 先落盘再让 agent 改：意见写进 corrections.md 是持久依据，
+             agent 下一轮（甚至换个会话）都能读到。只发对话不落盘，
+             刷新一次就没了，而用户以为已经提了。 */
           await studioHttpApi().workflowContext.recordCorrection(projectId, prompt)
           review.addCorrection(prompt)
           chat.addUserMessage(prompt, undefined, projectId)
-          setNotice('修改意见已记入 corrections.md。让 Agent 按它改工程，然后点「渲染项目工程」出新版本。')
+          setNotice('修改意见已记入。Agent 正在按它改工程…')
+
+          const result = await studioHttpApi().workflowContext.create(projectId, prompt)
+          setNotice(`Agent 已改完并渲染出版本 v${result.version}。`)
+          /* 刷新版本与画面：让用户立刻看到新一版，并能与上一版对比。 */
+          void sceneVersions.refresh(true)
+          const probe = await tasks.currentScene(projectId)
+          if (probe.scene) setCurrentSceneState(probe.scene)
+          rereadRuns()
           setRealModifyError('')
           return true
         } catch (error) {
+          /* 失败必须说清是「意见没记下」还是「agent 没改出来」——
+             两者下一步完全不同。 */
           const message = error instanceof Error ? error.message : String(error)
-          setRealModifyError(`记录修改意见失败：${message}`)
+          setRealModifyError(`Agent 修改未完成：${message}`)
+          setNotice(`修改未完成：${message.slice(0, 120)}`)
           return false
         }
       }

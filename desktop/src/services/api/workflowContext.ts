@@ -52,6 +52,20 @@ export interface FilmProjectState {
   sourceFiles: string[] | null
 }
 
+/** agent 创作 + 渲染结果。 */
+export interface FilmCreateResult {
+  /** agent 对这次改动的说明 */
+  reply: string
+  /** agent 耗时 */
+  agentMs: number
+  artifactPath: string
+  version: number
+  durationInFrames: number
+  width: number
+  height: number
+  fps: number
+}
+
 /** 项目工程渲染结果。 */
 export interface FilmRenderResult {
   artifactPath: string
@@ -118,6 +132,18 @@ export interface WorkflowContextResource {
    * @returns 记录后的上下文状态
    */
   recordCorrection(projectId: string, text: string): Promise<WorkflowContextState>
+
+  /**
+   * 让 agent 改工程并渲染出新版本（一步完成）。
+   *
+   * <p>agent 读原文与纠正改源码，后端负责渲染与登记版本。
+   * 这是「提要求 → 看到新片子」的主入口。</p>
+   *
+   * @param projectId 项目 ID
+   * @param intent 这一轮要做什么；省略则按现有需求与纠正推进
+   * @returns agent 说明与渲染结果
+   */
+  create(projectId: string, intent?: string): Promise<FilmCreateResult>
 }
 
 /**
@@ -149,6 +175,10 @@ export function createWorkflowContextResource(http: HttpClient): WorkflowContext
 
     recordCorrection(projectId, text) {
       return http.post<WorkflowContextState>(`${base(projectId)}/corrections`, { text })
+    },
+
+    create(projectId, intent) {
+      return http.post<FilmCreateResult>(`${base(projectId)}/create`, { intent: intent ?? '' })
     },
   }
 }

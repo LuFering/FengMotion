@@ -47,6 +47,7 @@ public class ProjectRenderService {
     private final ProjectSceneRepository scenes;
     private final ProjectFilmConfig configs;
     private final ProjectFilmRenderer renderer;
+    private final CreateAgentRunner agent;
     private final ObjectMapper json;
 
     /** 源码目录：只扫这些，避免把 renders/ 与依赖缓存算进指纹。 */
@@ -111,6 +112,56 @@ public class ProjectRenderService {
 
         return new RenderOutcome("renders/" + fileName, committed.get(),
                 config.entry(), config.compositionId(), result, elapsedMs);
+    }
+
+    /**
+     * 让 agent 改工程，然后渲染出新版本。
+     *
+     * <p>这是「用户提要求 → AI 改画面 → 看到新片子」的完整一步。
+     * 顺序不能反：先让 agent 改源码，再渲染 —— 反过来渲的是旧代码。</p>
+     *
+     * <p><strong>agent 改完但没出片要如实报</strong>：它可能只解释了思路没动文件，
+     * 也可能改了却没写对 film.config.json。这时不能当成成功，
+     * 否则用户会以为「已经改好了」，其实画面上什么都没变。</p>
+     *
+     * @param projectId 项目 ID
+     * @param intent    这一轮要做什么；null 表示按现有需求与纠正推进
+     * @return 结果
+     */
+    public CreateOutcome createThenRender(String projectId, String intent) {
+        Project project = projects.findById(projectId)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "not_found", "项目不存在"));
+        String rootPath = project.rootPath();
+        if (rootPath == null || rootPath.isBlank()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "validation_error", "项目还没有目录");
+        }
+        Path root = Path.of(rootPath).toAbsolutePath().normalize();
+
+        var agentResult = agent.run(root, intent);
+        if (!agentResult.hasEntry() || !agentResult.hasConfig()) {
+            String missing = !agentResult.hasEntry()
+                    ? "src/index.tsx 没有产出"
+                    : ProjectFilmConfig.FILE_NAME + " 没有产出";
+            throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, "create_incomplete",
+                    "创作 agent 没有给出可渲染的工程（" + missing + "）。它的说明：" + agentResult.reply());
+        }
+
+        RenderOutcome rendered = render(projectId, intent);
+        return new CreateOutcome(agentResult.reply(), agentResult.elapsedMs(),
+                rendered.artifactPath(), rendered.version(), rendered.result());
+    }
+
+    /**
+     * agent 改工程 + 渲染的结果。
+     *
+     * @param reply       agent 的说明
+     * @param agentMs     agent 耗时
+     * @param artifactPath 产物路径
+     * @param version     版本号
+     * @param render      渲染规格
+     */
+    public record CreateOutcome(String reply, long agentMs, String artifactPath,
+                                long version, ProjectFilmRenderer.Result render) {
     }
 
     /**
