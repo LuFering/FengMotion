@@ -40,6 +40,10 @@ class SameContentDifferentMetadataTest {
     @Autowired
     private AssetRepository repository;
 
+    /** 用来把 fileUrl 解析成磁盘路径，验证文件本体真的还在。 */
+    @Autowired
+    private AssetStorage storage;
+
     private static ByteArrayInputStream sameContent() {
         return new ByteArrayInputStream("identical file body".getBytes(StandardCharsets.UTF_8));
     }
@@ -121,5 +125,53 @@ class SameContentDifferentMetadataTest {
                 null, false, null, null, "name", 100, 0));
         List<String> names = all.stream().map(Asset::name).filter(n -> n.startsWith("记录")).toList();
         assertEquals(2, names.size(), "同内容的两条用户记录都必须出现在列表里");
+    }
+
+    @Test
+    @DisplayName("删除其中一条记录时，另一条的文件本体必须仍然存在")
+    void deletingOneRecordKeepsSharedFile() throws Exception {
+        Asset a = service.importFile("s.txt", "text/plain", null, "先删的", sameContent(), true).asset();
+        Asset b = service.importFile("s.txt", "text/plain", null, "留下的", sameContent(), true).asset();
+        assertEquals(a.fileUrl(), b.fileUrl(), "前提：两条记录共用同一份文件");
+
+        service.delete(a.id());
+
+        assertTrue(repository.findById(a.id()).isEmpty(), "被删的记录应消失");
+        assertTrue(repository.findById(b.id()).isPresent(), "另一条记录必须还在");
+        /* 只查数据库记录不够：记录在但文件被删，用户点开是 404。
+           这里直接验证磁盘上的文件仍然可读。 */
+        java.nio.file.Path shared = storage.resolve(b.fileUrl());
+        assertTrue(java.nio.file.Files.exists(shared), "共用文件被误删，留下的记录会打不开");
+    }
+
+    @Test
+    @DisplayName("库里记录还在但文件被外部删掉时，再次导入应重新落盘而不是返回死记录")
+    void reimportRepairsMissingFile() throws Exception {
+        Asset first = service.importFile("lost.txt", "text/plain", null, "丢失的", sameContent(), true).asset();
+        java.nio.file.Path stored = storage.resolve(first.fileUrl());
+
+        // 模拟外部清理：目录还在，文件没了（实测中出现过的状态）
+        java.nio.file.Files.delete(stored);
+        assertFalse(java.nio.file.Files.exists(stored), "前提：文件已不在");
+
+        var again = service.importFile("lost.txt", "text/plain", null, "再导入", sameContent(), false);
+
+        assertTrue(java.nio.file.Files.exists(stored), "再次导入后文件必须重新落盘");
+        assertTrue(java.nio.file.Files.size(stored) > 0, "重新落盘的文件不能是空壳");
+        assertEquals(first.fileUrl(), again.asset().fileUrl(), "仍是同一条记录、同一份路径");
+    }
+
+    @Test
+    @DisplayName("删除最后一条共用记录时，文件本体应被清理")
+    void deletingLastRecordRemovesFile() throws Exception {
+        Asset a = service.importFile("t.txt", "text/plain", null, "甲", sameContent(), true).asset();
+        Asset b = service.importFile("t.txt", "text/plain", null, "乙", sameContent(), true).asset();
+        java.nio.file.Path shared = storage.resolve(b.fileUrl());
+
+        service.delete(a.id());
+        assertTrue(java.nio.file.Files.exists(shared), "还有共用者时不该删文件");
+
+        service.delete(b.id());
+        assertFalse(java.nio.file.Files.exists(shared), "最后一个使用者删除后应清理文件，不留孤儿目录");
     }
 }

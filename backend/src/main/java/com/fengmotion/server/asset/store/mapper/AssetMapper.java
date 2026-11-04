@@ -44,6 +44,20 @@ public interface AssetMapper {
     AssetRow findByHash(@Param("contentHash") String contentHash);
 
     /**
+     * 除某条记录外，还有多少条记录共用这个内容哈希。
+     *
+     * <p>内容相同但元数据不同的记录各自独立存在，却共用同一份文件本体
+     * （同一个存储目录）。所以删除某条记录时，只有它是最后一个使用者才能删文件 ——
+     * 否则会把另一条记录的文件一起删掉，那条记录从此打不开。</p>
+     *
+     * @param contentHash 内容哈希
+     * @param excludeId   正在删除的记录 ID
+     * @return 其他共用者数量
+     */
+    @Select("SELECT COUNT(*) FROM assets WHERE content_hash = #{contentHash} AND id <> #{excludeId}")
+    int countSharingHash(@Param("contentHash") String contentHash, @Param("excludeId") String excludeId);
+
+    /**
      * 条件更新。{@code etag} 是乐观锁：不匹配则不更新，由服务层转成 409。
      *
      * @return 受影响行数；0 表示 etag 不匹配或记录已不存在

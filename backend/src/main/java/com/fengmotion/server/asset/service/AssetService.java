@@ -125,6 +125,22 @@ public class AssetService {
                 throw ex;
             }
             Optional<Asset> existing = assets.findByHash(hash);
+            /* 命中去重还不够，要确认那份文件真的在磁盘上、并且不是空壳。
+               实测踩到过：库里记录还在、目录也在，但 original 文件已经没了
+               （删除流程中断、外部清理、或旧版本留下的空目录）。此时照常「复用」
+               会得到一条打不开的素材，而界面显示导入成功。
+
+               所以复用前先验文件；文件不可用时把本次导入的内容重新落盘，
+               让这条记录重新可用 —— 用户要的是能用的素材，不是一条空洞的索引。
+
+               注意「保留独立记录」分支也要验：它把已有记录的路径抄给新记录，
+               文件若已丢，抄过来的就是一条死记录。 */
+            boolean canReuse = existing.isPresent() && fileUsable(existing.get());
+            if (existing.isPresent() && !canReuse) {
+                log.warn("命中已有记录但文件不可用，将重新落盘：{}（哈希 {}）", fileName, hash);
+                // 不可复用时不能走「复用路径」的独立记录分支，否则新记录同样打不开。
+                existing = Optional.empty();
+            }
             if (existing.isPresent() && !keepSeparateRecord) {
                 Files.deleteIfExists(tmp);
                 log.info("导入命中去重：{}（哈希 {}）", fileName, hash);
@@ -151,6 +167,35 @@ public class AssetService {
             throw new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "internal_error", "文件保存失败");
         } catch (NoSuchAlgorithmException ex) {
             throw new IllegalStateException("运行环境缺少 SHA-256", ex);
+        }
+    }
+
+    /**
+     * 已有记录对应的文件是否真的可用。
+     *
+     * <p>不能只看数据库：记录存在不代表文件存在，更不代表文件不是空壳。
+     * 这里同时检查「路径可解析」「文件存在」「文件非空」，
+     * 因为一个 0 字节的 original 与「文件丢了」对用户是同一个结果：打不开。</p>
+     *
+     * @param asset 已有记录
+     * @return 文件可复用时 true
+     */
+    private boolean fileUsable(Asset asset) {
+        String url = asset.fileUrl();
+        if (url == null || url.isBlank()) {
+            return false;
+        }
+        try {
+            Path file = storage.resolve(url);
+            return java.nio.file.Files.isRegularFile(file)
+                    && java.nio.file.Files.size(file) > 0;
+        } catch (IllegalArgumentException ex) {
+            // 路径越界或写坏：同样视为不可用，不要把它当成有效文件去复用。
+            log.warn("素材文件路径无效：{}", url, ex);
+            return false;
+        } catch (IOException ex) {
+            log.warn("检查素材文件失败：{}", url, ex);
+            return false;
         }
     }
 
@@ -402,8 +447,16 @@ public class AssetService {
         }
         assets.deleteById(id);
         refs.clear(ResourceRefService.KIND_ASSET, id);
-        // 文件本体最后删：库里删成功但文件删失败，最坏是留个孤儿文件；
-        // 反过来则是「记录还在但文件没了」，那会让素材打不开。
+        /* 文件本体最后删：库里删成功但文件删失败，最坏是留个孤儿文件；
+           反过来则是「记录还在但文件没了」，那会让素材打不开。
+
+           但「同内容多记录」（keepSeparateRecord）只让记录各自独立，磁盘上是同一份文件。
+           这时先删的那条若把目录整个删掉，另一条记录就变成打不开的空壳 ——
+           所以要先确认自己是不是最后一个使用者。 */
+        if (current.contentHash() != null && assets.countSharingHash(current.contentHash(), id) > 0) {
+            log.info("删除素材记录但保留文件：仍有其他记录共用内容哈希 {}", current.contentHash());
+            return;
+        }
         try {
             Path dir = storage.resolve(storage.relativeDirFor(current.contentHash() == null
                     ? id : current.contentHash()));
