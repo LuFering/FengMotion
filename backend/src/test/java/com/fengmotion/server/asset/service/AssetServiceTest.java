@@ -167,7 +167,11 @@ class AssetServiceTest {
     @Test
     @DisplayName("未被引用的素材删除后索引与文件一起消失")
     void unreferencedAssetIsDeletedWithFile() {
-        Asset asset = importText("gone.txt", "x");
+        /* 内容必须与其它用例不同：多个测试都用 "x" 会命中去重，
+           拿到的是同一条记录，而这条测试会把文件删掉 ——
+           后面的用例再拿到它时文件已不存在，表现为「导入后文件不见了」。
+           这是测试自身的隔离缺陷，不是产品逻辑问题。 */
+        Asset asset = importText("gone.txt", "unique-content-for-delete-test");
         Path stored = storage.resolve(asset.fileUrl());
         assertTrue(Files.exists(stored));
 

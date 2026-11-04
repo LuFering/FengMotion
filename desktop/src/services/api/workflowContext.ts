@@ -71,6 +71,16 @@ export interface FilmCreateResult {
   width: number
   height: number
   fps: number
+  /** 这次创作实际解析到的三库资源；用于核对用户所选资源是否真的传下去了 */
+  resources?: {
+    kind: string
+    id: string
+    label: string
+    usage: string
+    path: string | null
+    startMs: number | null
+    endMs: number | null
+  }[]
 }
 
 /** 项目工程渲染结果。 */
@@ -150,7 +160,7 @@ export interface WorkflowContextResource {
    * @param intent 这一轮要做什么；省略则按现有需求与纠正推进
    * @returns agent 说明与渲染结果
    */
-  create(projectId: string, intent?: string): Promise<FilmCreateResult>
+  create(projectId: string, intent?: string, references?: unknown[]): Promise<FilmCreateResult>
 }
 
 /**
@@ -187,11 +197,15 @@ export function createWorkflowContextResource(http: HttpClient): WorkflowContext
       return http.post<WorkflowContextState>(`${base(projectId)}/corrections`, { text })
     },
 
-    create(projectId, intent) {
+    create(projectId, intent, references) {
       /* agent 改工程要读需求、写代码、可能自查，实测 100~200 秒。
-         给足时间，别让默认 15 秒把一次正常创作当成失败。 */
+         给足时间，别让默认 15 秒把一次正常创作当成失败。
+
+         references 必须一起发：用户选了三库资源却只发需求的话，
+         agent 根本不知道有这些资源，用户会以为已经用上了。 */
       return http.post<FilmCreateResult>(`${base(projectId)}/create`,
-        { intent: intent ?? '' }, { timeoutMs: CREATE_TIMEOUT_MS })
+        { intent: intent ?? '', ...(references && references.length > 0 ? { references } : {}) },
+        { timeoutMs: CREATE_TIMEOUT_MS })
     },
   }
 }

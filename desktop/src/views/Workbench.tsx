@@ -514,6 +514,10 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
   /* agent 最近一次改工程后的说明。用户需要知道「它到底改了什么」，
      而不是只看到画面变了却不知道为什么。 */
   const [agentReply, setAgentReply] = useState('')
+  /* 这次创作实际解析到的三库资源。
+     消息里存了引用不等于 agent 用上了 —— 把解析结果显示出来，
+     用户才能核对「我选的素材/参考片/特效有没有真的传下去」。 */
+  const [usedResources, setUsedResources] = useState<NonNullable<import('@/services/api/workflowContext').FilmCreateResult['resources']>>([])
   useEffect(() => {
     let active = true
     void studioHttpApi().workflowContext.film(projectId)
@@ -819,6 +823,11 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
       case 'range': return `范围 · ${ref.timecode}`
       case 'region': return `区域 · ${ref.label}`
       case 'artifact': return `产物 · ${ref.label}`
+      /* 三库资源各自说清用途：都写成「素材」会让用户分不清
+         这次到底是要用它的画面，还是只借鉴手法。 */
+      case 'asset': return `素材 · ${ref.label}${ref.purpose === 'reference' ? '（仅参考）' : ''}`
+      case 'reference': return `参考片段 · ${ref.label}`
+      case 'technique': return `技法 · ${ref.label}${ref.intent === 'apply' ? '（照做）' : '（参考）'}`
     }
   }
   const scopeLabel = scopeText(effectiveTarget)
@@ -879,6 +888,11 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
     /* 内容单元：监看器播的是渲染切片，定位不过去；把它在左栏那一页高亮出来。
        真实画面接上之后，这里再换成按时间轴 seek。 */
     if (ref.kind === 'scene') { setSelectedArtifactId(null); setRailTab('content'); return }
+    /* 三库资源没有「画面位置」可定位：素材在素材库、参考片在参考片库、
+       技法在特效库。跳过去比什么都不做强，但要说清去了哪。 */
+    if (ref.kind === 'asset') { setNotice('素材在「我的素材」里管理。'); return }
+    if (ref.kind === 'reference') { setNotice('参考片段在「参考片库」里查看。'); return }
+    if (ref.kind === 'technique') { setNotice('技法在「特效库」里查看。'); return }
     const clip = ACTIVE_SCENES.find((item) => item.id === ref.shotId)
     /* 没有可靠定位数据时不假装跳转成功：给一句提示，而不是点下去毫无反应。 */
     if (!clip) { setNotice('该引用没有可定位的画面。'); return }
@@ -1094,8 +1108,14 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
           chat.addUserMessage(prompt, undefined, projectId)
           setNotice('修改意见已记入。Agent 正在按它改工程…')
 
-          const result = await studioHttpApi().workflowContext.create(projectId, prompt)
+          /* 只传三库资源：project/scene/frame 这些由原有链路处理，
+             agent 侧只认「用户明确交给它的素材/参考片/特效」。 */
+          const libraryRefs = references.filter(
+            (r) => r.kind === 'asset' || r.kind === 'reference' || r.kind === 'technique',
+          )
+          const result = await studioHttpApi().workflowContext.create(projectId, prompt, libraryRefs)
           setAgentReply(result.reply)
+          setUsedResources(result.resources ?? [])
           setNotice(`Agent 已改完并渲染出版本 v${result.version}。`)
           /* 刷新版本与画面：让用户立刻看到新一版，并能与上一版对比。 */
           void sceneVersions.refresh(true)
@@ -1520,6 +1540,18 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
                                      renderTargetLabel={filmProject?.ready ? '渲染项目工程' : '真实渲染预览'}
                                      onOpenExecution={() => { setBottomTab('activity'); setTrayOpen(true) }} />
                 )}
+              {usedResources.length > 0 && (
+                <div className="fw-mon-notice" role="status">
+                  <strong>本次交给 agent 的资源：</strong>
+                  {usedResources.map((r) => {
+                    const where = r.kind === 'reference' && r.startMs != null && r.endMs != null
+                      ? ` · ${(r.startMs / 1000).toFixed(1)}s–${(r.endMs / 1000).toFixed(1)}s`
+                      : ''
+                    return <span key={`${r.kind}:${r.id}`}>{r.label}（{r.usage}{where}） </span>
+                  })}
+                  <button type="button" onClick={() => setUsedResources([])} aria-label="关闭"><X className="ml-1 inline size-3" /></button>
+                </div>
+              )}
               {agentReply && (
                 <div className="fw-mon-notice" role="status">
                   <strong>Agent：</strong>{agentReply.slice(0, 220)}

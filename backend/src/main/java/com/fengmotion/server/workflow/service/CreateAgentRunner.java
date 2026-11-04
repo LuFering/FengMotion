@@ -56,7 +56,7 @@ public class CreateAgentRunner {
      * @param intent      这一轮要做什么；null 表示按现有需求与纠正自主推进
      * @return 结果摘要
      */
-    public AgentOutcome run(Path projectRoot, String intent) {
+    public AgentOutcome run(Path projectRoot, String intent, ResourceContextBuilder.ResourceContext resources) {
         if (!Files.isDirectory(projectRoot)) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "validation_error", "项目目录不存在");
         }
@@ -65,7 +65,12 @@ public class CreateAgentRunner {
                     "项目还没有 prompt.original.md：请先写下原始创作需求。");
         }
 
-        String instruction = buildInstruction(intent);
+        /* 资源清单同时写进项目目录：agent 在会话里能读到，
+           下一个人接手（或换个会话再来）也还能看到用户当初指定了什么。
+           只塞进这一轮的 prompt，等于这些信息随会话消失。 */
+        writeResourceBrief(projectRoot, resources);
+
+        String instruction = buildInstruction(intent, resources);
         Instant startedAt = Instant.now();
         String reply = ask(projectRoot, instruction);
         long elapsedMs = Duration.between(startedAt, Instant.now()).toMillis();
@@ -89,13 +94,26 @@ public class CreateAgentRunner {
      * @param intent 这一轮的意图
      * @return 指令
      */
-    private String buildInstruction(String intent) {
+    private String buildInstruction(String intent, ResourceContextBuilder.ResourceContext resources) {
         String task = (intent == null || intent.isBlank())
                 ? "按 prompt.original.md 与 corrections.md 推进这部片子"
                 : intent;
 
+        String resourceBlock = resources.available()
+                ? """
+                用户这次明确指定了下列资源，用途已经写明，**不要自行更改用途**：
+                %s
+
+                注意：
+                - 「仅参考」的资源不要出现在成片画面里。
+                - 参考片只借鉴手法与节奏，不要复用它的画面。
+                - 用法不清楚时先问，不要猜。
+                """.formatted(resources.description())
+                : "";
+
         return """
                 这一轮要做的事：%s
+                %s
 
                 请在这个项目目录里工作：
                 1. 先读 prompt.original.md（用户原文，逐字，不要改写）和 corrections.md（后续纠正，较新的优先）。
@@ -109,7 +127,33 @@ public class CreateAgentRunner {
                 - film.config.json 的 entry 指向真实文件，compositionId 与代码里的 id 一致
 
                 做完后用一两句话说明你改了什么、画面变成什么样。不要贴大段代码。
-                """.formatted(task);
+                """.formatted(task, resourceBlock);
+    }
+
+    /**
+     * 把资源清单写进项目目录。
+     *
+     * @param projectRoot 项目根
+     * @param resources   资源上下文
+     */
+    private void writeResourceBrief(Path projectRoot, ResourceContextBuilder.ResourceContext resources) {
+        Path file = projectRoot.resolve("resources-in-use.md");
+        try {
+            if (!resources.available()) {
+                /* 没有资源时删掉旧清单：留着上一轮的清单会误导 ——
+                   agent 会以为用户这轮还指定了那些资源。 */
+                Files.deleteIfExists(file);
+                return;
+            }
+            Files.writeString(file, """
+                    # 本次使用的资源
+
+                    用户在这一轮创作里明确指定的资源与用途。改动工程时必须遵守这些用途。
+
+                    """ + resources.description() + "\n");
+        } catch (IOException failed) {
+            log.warn("写入资源清单失败：{}", failed.getMessage());
+        }
     }
 
     /**

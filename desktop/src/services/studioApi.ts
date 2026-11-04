@@ -54,6 +54,12 @@ export type AgentReference =
      范围靠稳定 id + 名字表达，不让模型从「这一段」猜。 */
   | { id: string; role: 'target' | 'context'; kind: 'scene'; sceneId: string; label: string }
   | { id: string; role: 'target' | 'context'; kind: 'preview'; label: string; source: PreviewSource; timeSeconds?: number; endTimeSeconds?: number; bbox?: { x: number; y: number; w: number; h: number } }
+  /* 三库资源引用（素材 / 参考片 / 特效）。
+     与 types/contracts.ts 的同一联合保持同形 —— 那边是契约，这边是界面用的
+     宽松版；两边不一致会让「界面能选、后端收不到」这种问题很难发现。 */
+  | { id: string; role: 'target' | 'context'; kind: 'asset'; assetId: string; purpose?: 'unspecified' | 'visual' | 'reference' | 'audio' | 'information'; note?: string; label: string }
+  | { id: string; role: 'target' | 'context'; kind: 'reference'; segmentId: string; videoId?: string; startMs?: number; endMs?: number; wants?: string; avoid?: string; label: string }
+  | { id: string; role: 'target' | 'context'; kind: 'technique'; techniqueId: string; version?: string; intent?: 'apply' | 'reference'; label: string }
 
 export interface TaskRequest {
   /** Local review envelope; pending backend contract, not an Agent execution receipt. */

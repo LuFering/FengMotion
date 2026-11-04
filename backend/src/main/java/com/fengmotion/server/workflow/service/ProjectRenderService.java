@@ -48,6 +48,7 @@ public class ProjectRenderService {
     private final ProjectFilmConfig configs;
     private final ProjectFilmRenderer renderer;
     private final CreateAgentRunner agent;
+    private final ResourceContextBuilder resourceContexts;
     private final ObjectMapper json;
 
     /** 源码目录：只扫这些，避免把 renders/ 与依赖缓存算进指纹。 */
@@ -128,7 +129,7 @@ public class ProjectRenderService {
      * @param intent    这一轮要做什么；null 表示按现有需求与纠正推进
      * @return 结果
      */
-    public CreateOutcome createThenRender(String projectId, String intent) {
+    public CreateOutcome createThenRender(String projectId, String intent, JsonNode references) {
         Project project = projects.findById(projectId)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "not_found", "项目不存在"));
         String rootPath = project.rootPath();
@@ -137,7 +138,12 @@ public class ProjectRenderService {
         }
         Path root = Path.of(rootPath).toAbsolutePath().normalize();
 
-        var agentResult = agent.run(root, intent);
+        /* 资源必须先解析成 agent 能读懂的描述再交出去。
+           直接把 ID 列表丢给 agent，它无从知道用户到底想「用进画面」还是「只借鉴」；
+           查不到也要在这里报错，不能跳过 —— 用户会以为资源已经用上了。 */
+        var resources = resourceContexts.build(references);
+
+        var agentResult = agent.run(root, intent, resources);
         if (!agentResult.hasEntry() || !agentResult.hasConfig()) {
             String missing = !agentResult.hasEntry()
                     ? "src/index.tsx 没有产出"
@@ -148,7 +154,8 @@ public class ProjectRenderService {
 
         RenderOutcome rendered = render(projectId, intent);
         return new CreateOutcome(agentResult.reply(), agentResult.elapsedMs(),
-                rendered.artifactPath(), rendered.version(), rendered.result());
+                rendered.artifactPath(), rendered.version(), rendered.result(),
+                resources.resolved());
     }
 
     /**
@@ -161,7 +168,8 @@ public class ProjectRenderService {
      * @param render      渲染规格
      */
     public record CreateOutcome(String reply, long agentMs, String artifactPath,
-                                long version, ProjectFilmRenderer.Result render) {
+                                long version, ProjectFilmRenderer.Result render,
+                                java.util.List<ResourceContextBuilder.ResolvedResource> resources) {
     }
 
     /**

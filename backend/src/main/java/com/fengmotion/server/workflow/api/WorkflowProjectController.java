@@ -97,10 +97,15 @@ public class WorkflowProjectController {
     public CreateResponse create(@PathVariable String projectId,
                                  @RequestBody(required = false) CreateRequest request) {
         String intent = request == null ? null : request.intent();
-        var outcome = projectRender.createThenRender(projectId, intent);
+        var references = request == null ? null : request.references();
+        var outcome = projectRender.createThenRender(projectId, intent, references);
         return new CreateResponse(outcome.reply(), outcome.agentMs(), outcome.artifactPath(),
                 outcome.version(), outcome.render().durationInFrames(),
-                outcome.render().width(), outcome.render().height(), outcome.render().fps());
+                outcome.render().width(), outcome.render().height(), outcome.render().fps(),
+                outcome.resources().stream()
+                        .map(r -> new UsedResource(r.kind(), r.id(), r.label(), r.usage(),
+                                r.path(), r.startMs(), r.endMs()))
+                        .toList());
     }
 
     /**
@@ -108,7 +113,26 @@ public class WorkflowProjectController {
      *
      * @param intent 这一轮要做什么；省略则按现有需求与纠正推进
      */
-    public record CreateRequest(String intent) {
+    public record CreateRequest(String intent,
+                                com.fasterxml.jackson.databind.JsonNode references) {
+    }
+
+    /**
+     * 这次创作实际用到的资源。
+     *
+     * <p>返回它是为了让界面与日志能核对「用户选的资源有没有真的传下去」——
+     * 消息里保存了引用不等于 agent 用上了，必须能看到解析结果。</p>
+     *
+     * @param kind    类型
+     * @param id      资源 ID
+     * @param label   名称
+     * @param usage   用途
+     * @param path    文件路径（素材）
+     * @param startMs 起始毫秒（参考片）
+     * @param endMs   结束毫秒（参考片）
+     */
+    public record UsedResource(String kind, String id, String label, String usage,
+                               String path, Long startMs, Long endMs) {
     }
 
     /**
@@ -125,7 +149,8 @@ public class WorkflowProjectController {
      */
     public record CreateResponse(String reply, long agentMs, String artifactPath,
                                  long version, int durationInFrames,
-                                 int width, int height, int fps) {
+                                 int width, int height, int fps,
+                                 List<UsedResource> resources) {
     }
 
     /**
