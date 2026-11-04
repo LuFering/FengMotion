@@ -207,12 +207,32 @@ export async function startBackend(options: StartOptions): Promise<BackendHandle
     }
   }
 
+  /* dsh 可执行文件。
+     application.yml 里写的是裸命令 dsh，依赖服务进程的 PATH。
+     但从桌面图标启动时 PATH 通常不含 ~/.local/bin（实测确认），
+     于是 agent 找不到 dsh，用户看到「Agent 未接入」却不知道原因。
+     这里显式探测几个常见安装位置再传进去；都没有就不传，
+     让后端按原逻辑报「未接入」—— 不编一个不存在的路径。 */
+  const harnessArgs: string[] = []
+  const dshCandidates = [
+    path.join(process.env.HOME ?? '', '.local', 'bin', 'dsh'),
+    '/usr/local/bin/dsh',
+    '/usr/bin/dsh',
+  ]
+  const dshBin = dshCandidates.find((candidate) => candidate && existsSync(candidate))
+  if (dshBin) {
+    harnessArgs.push(`--fengmotion.harness.bin=${dshBin}`)
+  } else {
+    console.warn('[backend] 未找到 dsh，Agent 将不可用；可用 fengmotion.harness.bin 手动指定')
+  }
+
   const child: ChildProcess = spawn(java, [
     '-jar', jar,
     `--server.port=${port}`,
     `--fengmotion.data-dir=${options.dataDir}`,
     ...remotionArgs,
     ...workflowArgs,
+    ...harnessArgs,
   ], {
     // 后端只需要本机回环，不需要继承 shell
     stdio: ['ignore', logFd ?? 'ignore', logFd ?? 'ignore'],
