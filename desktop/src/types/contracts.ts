@@ -143,8 +143,17 @@ export type ResourceSourceType = 'builtin' | 'imported' | 'generated' | 'sample'
 /** 处理到哪一步（解析 / 转码 / 抽帧等）。 */
 export type ResourceProcessingStatus = 'pending' | 'processing' | 'ready' | 'failed'
 
-/** 人确认过吗。`none` = 尚未产生审核（不等于通过）。 */
-export type ResourceReviewStatus = 'none' | 'pending' | 'approved' | 'rejected'
+/**
+ * 人确认过吗。五值不可互相压平（对账决定 A）：
+ *   `none`         从未提审 —— 新导入素材的初始值
+ *   `pending`      已提审未出结论 —— 是「还没审」
+ *   `needs_review` 审过，结论是「需要修改后再提」—— 是「审了、要求改」，不能压成 pending
+ *   `approved`     审核通过
+ *   `rejected`     终局否定，不再采用
+ * 非法转换（如 none → approved）必须后端拒绝。授权状态 licenseStatus 完全独立，
+ * 任何审核转换都不改授权。
+ */
+export type ResourceReviewStatus = 'none' | 'pending' | 'needs_review' | 'approved' | 'rejected'
 
 /** 现在还能用吗。`deprecated` 是终态，不可回到 enabled。 */
 export type ResourceAvailability = 'enabled' | 'disabled' | 'deprecated'
@@ -948,6 +957,21 @@ export interface FxParam {
   hint: string
 }
 
+/**
+ * 本机真实可执行状态（对账决定 D）。与 `execType` **完全不同**：
+ * `execType` 是源库声明的能力标签，`executionStatus` 才回答「这台机器现在能不能跑」。
+ * 默认全部 `not-implemented`；只有适配器与依赖真实存在才可标 `available`。
+ * 界面不得因 `execType=runnable` 就显示「可执行」。
+ */
+export type FxExecutionStatus = 'declared' | 'not-implemented' | 'available'
+
+/** 特效的用户状态（对账决定 D）：独立管理，不放进参考片偏好。 */
+export interface FxUserState {
+  favorited: boolean
+  /** 最近浏览时间；从未浏览时不存在。 */
+  lastViewedAt?: IsoDateTime
+}
+
 export interface FxTechnique {
   id: Id
   name: string
@@ -983,6 +1007,10 @@ export interface FxTechnique {
   featured: boolean
   version: string
   updatedAt: IsoDateTime
+  /** 本机真实可执行状态；与 `execType` 无关，默认 not-implemented。 */
+  executionStatus: FxExecutionStatus
+  /** 用户收藏与最近浏览；独立于参考片偏好。 */
+  userState?: FxUserState
   demo?: DemoFlag
 }
 
@@ -1047,20 +1075,43 @@ export interface ReferenceVideo {
   demo?: DemoFlag
 }
 
+/**
+ * 分析来源三分（对账决定 E）：`measured` 实测（切点/时长/亮度等可计算量）、
+ * `model` 模型判断、`user` 用户填写。界面必须可区分，不得把模型判断显示成实测事实。
+ */
+export type AnalysisSource = 'measured' | 'model' | 'user'
+
+/**
+ * 单维分析值。
+ *
+ * 「不编造置信度和证据」不等于「不要证据」：有真实可追溯的帧/时间段/人工标注就存下来，
+ * 没有就留空并置 pending，不填默认值冒充结果。
+ */
 export interface AnalysisValue {
   value: string
+  /** 该值的来源；三分，界面必须可区分。 */
+  source: AnalysisSource
   /** 0–1；无置信度时为 null，不用 0 冒充「确定」。 */
   confidence: number | null
-  /** 观察事实或推断依据。 */
+  /** 可追溯依据：时间范围 `00:02-00:04`、帧号或人工标注原文。无依据时为空串，不许编造。 */
   evidence: string
-  /** true = 该维度尚未解析。 */
+  /** true = 该维度尚未解析；不得用默认值填充。 */
   pending: boolean
 }
 
+/**
+ * 界面默认展示的六项（对账决定 E）。
+ *
+ * 后端允许保存有依据的其他技术维度，但：不强制模型填满、不强制界面全部展示、
+ * 不作为工作流门槛。`reusable`（可借鉴什么及限制）与 `suggestion`（对当前创作的具体用法）
+ * 语义不同，暂不合并。
+ */
 export type AnalysisKey =
-  | 'scale' | 'composition' | 'cameraMove' | 'subjectMove'
-  | 'color' | 'lighting' | 'rhythm' | 'transition'
-  | 'narrative' | 'shotType'
+  | 'cameraMove' | 'rhythm' | 'lighting' | 'composition' | 'transition' | 'reusable'
+
+/** 后端可额外保存、界面默认不展示的技术维度；仅在确有依据时存在。 */
+export type AnalysisExtraKey =
+  | 'scale' | 'subjectMove' | 'color' | 'narrative' | 'shotType'
 
 export interface ReferenceShot {
   id: Id
@@ -1074,9 +1125,18 @@ export interface ReferenceShot {
   observation: string
   /** 模型推断（必须与观察分开呈现）。 */
   inference: string
-  /** 可复用建议。 */
+  /**
+   * 对当前这条创作的具体用法建议。与 `analysis.reusable` 语义不同：
+   * `reusable` 说「可以借鉴什么及限制」，本字段说「这里具体怎么用」。缺依据就留空。
+   */
   suggestion: string
+  /** 界面默认展示的六项。 */
   analysis: Record<AnalysisKey, AnalysisValue>
+  /**
+   * 后端可额外保存、界面默认不展示的技术维度（对账决定 E）。
+   * 仅在确有依据时存在，不强制模型填满，也不作为工作流门槛。
+   */
+  extraAnalysis?: Partial<Record<AnalysisExtraKey, AnalysisValue>>
 }
 
 export interface ReferenceCollection {
