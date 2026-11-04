@@ -256,10 +256,22 @@ if (!gotLock) {
        后端启动失败不阻止开窗 —— 前端仍可浏览，只是没有 Agent。 */
     if (!process.env.FENGMOTION_API_BASE) {
       /* 打包态用 resources；开发态指向后端仓库根 —— backend.ts 会在其下找
-         remotion/，而 backend/target 里没有那个工程（那里只有 jar）。 */
+         remotion/，而 backend/target 里没有那个工程（那里只有 jar）。
+
+         用户级安装（install-desktop.mjs）既不是 electron-builder 打包态，
+         也不在仓库里：它把壳放进 ~/.local/opt/fengmotion-desktop/app/，
+         运行时资源放在同级 resources/。此时若仍按「开发态」去找
+         ../../backend，就会指向 ~/.local/opt/backend —— 那里什么都没有，
+         后端永远起不来，应用表现为「打开后用不了 AI」。
+         所以第三分支显式探测同级 resources/。 */
+      /* 注意这里是 __dirname 本身而不是它的上级：main.cjs 与 resources/
+         是同一个 app/ 目录下的兄弟，安装脚本就是按这个布局铺的。 */
+      const installedRoot = path.resolve(__dirname, 'resources')
       const resourcesRoot = app.isPackaged
         ? process.resourcesPath
-        : path.resolve(__dirname, '..', '..', 'backend')
+        : existsSync(path.join(installedRoot, 'backend'))
+          ? installedRoot
+          : path.resolve(__dirname, '..', '..', 'backend')
       backendHandle = await startBackend({
         resourcesRoot,
         /* 数据目录必须与后端 application.yml 的 fengmotion.data-dir 默认值一致
