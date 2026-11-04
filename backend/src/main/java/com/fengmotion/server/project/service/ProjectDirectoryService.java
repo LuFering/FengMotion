@@ -46,16 +46,62 @@ public class ProjectDirectoryService {
      *
      * @param projectDir 项目目录
      */
+    /**
+     * 框架生成指引的头部标记。
+     *
+     * <p>用来区分「这份 AGENTS.md 是框架写的」还是「用户自己改过」。
+     * 只升级带标记的文件：用户改过的指引属于他的创作资产，
+     * 框架无权覆盖 —— 那会把他写下的项目约定悄悄冲掉。</p>
+     */
+    static final String GENERATED_MARKER = "<!-- fengmotion:agent-guide:v2 -->";
+
     private void writeAgentGuide(Path projectDir) {
-        String guide = """
-                # 这个项目怎么出片
+        writeText(projectDir.resolve("AGENTS.md"), agentGuide(projectIdOf(projectDir)));
+    }
 
-                你在一个 FengMotion 项目目录里工作。除了普通的对话与写文件，
-                你可以直接**渲染出一部真实的 mp4**。
+    /**
+     * 生成当前的 agent 指引正文。
+     *
+     * @param projectId 项目 ID（可能是占位符）
+     * @return 指引全文
+     */
+    private static String agentGuide(String projectId) {
+        return GENERATED_MARKER + """
+                # 这个项目怎么创作
 
-                ## 出片方式
+                你在一个 FengMotion 项目目录里工作。这个项目按 **workflow-v5 的 Prompt-first**
+                路径创作：先读用户原文，决定画面，再写 Remotion 代码，渲染出来看片、修改。
 
-                把画面内容写成场景 JSON，POST 给后端渲染接口：
+                **不要先把整部片写成一份「场景 JSON」。** 那种做法只能表达文字、颜色和时长，
+                画面里没有可看的东西；去掉字幕就什么都看不懂 —— 这不是这个项目要的片子。
+
+                ## 创作依据（先读这些）
+
+                - `prompt.original.md`：用户原始需求，**逐字保存，不要改写**。这是创作依据。
+                - `corrections.md`：用户后续纠正，较新的优先。
+                - `decisions.md`：已确认或已推翻的关键决定。
+                - `references/`：用户提供的参考与素材。
+                - `qa/passes/`：每轮渲染与观察记录。
+
+                原文与摘要冲突时以原文为准。看不懂需求就先问，不要自己编一个。
+
+                ## 创作方式
+
+                1. **先决定画面**：这条片的视觉命题是什么？关键画面是什么？光、材质、镜头是什么？
+                   把这些写进 `lookdev-brief.md`，不要直接开始堆代码。
+                2. **先编码，再渲染**：把视觉系统写成 tokens 与规则，把时间写成帧表，
+                   再写组件。`workflow-v5/prompt-first/templates/visual-encoding.ts` 是骨架，可复制到本项目按需扩展。
+                3. **渲染只用来验证算不出来的东西**：材质、光、合成、文字实际落位。
+                   先写 2~4 个视觉假设，再选帧看，不要大批量抽帧找感觉。
+                4. **看片后再改**：每轮把渲染结果和观察写进 `qa/passes/NN/`。
+
+                ## 可用的工具
+
+                - workflow-v5 的校验工具在 `workflow-v5/` 下（intent / director / gates / execution 各有 `validate-*.mjs`）。
+                  它们是判断工具，不是必须通过的门。Prompt-first 默认不要求逐层填完这些文件。
+                ## 出片（当前能力的真实边界，别当成全能）
+
+                现在后端只有一个渲染接口，它接受的是**场景 props**：
 
                 ```bash
                 curl -s -X POST "http://127.0.0.1:8080/api/projects/%s/renders" \\
@@ -63,42 +109,37 @@ public class ProjectDirectoryService {
                   -d @film.json
                 ```
 
-                `film.json` 的格式（字段都在这里列全，不需要猜）：
+                `film.json` 形如 `{width, height, fps, backgroundColor, color, scenes:[{id, text, subtitle, color, backgroundColor, backgroundImage, durationSeconds, textAnimation, transition}]}`。
 
-                ```json
-                {
-                  "width": 1280, "height": 720, "fps": 30,
-                  "backgroundColor": "#0b1220", "color": "#ffffff",
-                  "scenes": [
-                    { "id": "s1", "text": "标题", "subtitle": "副标题",
-                      "durationSeconds": 2, "textAnimation": "fade" },
-                    { "id": "s2", "text": "第二幕", "backgroundColor": "#1d4ed8",
-                      "durationSeconds": 2, "textAnimation": "slide", "transition": "fade" }
-                  ]
-                }
-                ```
+                **这条路径的局限要说清**：它只经共享的 `Film` 组件按字段装配画面，
+                能表达背景图、文字动画和转场，但表达不了复杂的运镜、光、材质与合成。
+                拿它做氛围短片会得到一张张「会动的字幕卡」。
+                所以：**它是验证与兜底手段，不是创作方式**。真正的画面要靠你在本目录里
+                写 Remotion 源码；项目级 Remotion 工程的渲染接线还在做，尚未对你的调用开放。
+                在它开放之前，不要声称自己已经渲染了工程代码。
 
-                | 字段 | 取值 |
-                |---|---|
-                | `textAnimation` | `fade` / `slide` / `none` |
-                | `transition` | `cut` / `fade`（首个场景忽略） |
-                | `backgroundImage` | 相对项目目录的路径或 http URL |
-
-                渲染成功后回应形如：
-                `{"artifact":{"path":"renders/render-xxx.mp4","width":1280,...}}`
-
-                产物落在本项目的 `renders/` 子目录，用户能在工作台的「产物」页看到并播放。
+                产物落在本项目 `renders/`，用户能在工作台「产物」页看到并播放。
 
                 ## 注意
 
-                - 一次渲染通常 10~60 秒，`curl` 会等到出片才返回，不要设太短的超时
-                - 时长 = 所有场景 `durationSeconds` 之和，由帧率换算成帧数
-                - 先想清楚分镜再写 JSON，一次提交整部片；不要逐场景分别渲染
-                """.formatted(projectIdOf(projectDir));
+                - 一次渲染通常 10~60 秒，不要设太短的超时。
+                - 不要伪造渲染结果：没出片就说没出片，不要编一个路径。
+                - 如果只能用上面那条场景 props 路径，就明确告诉用户「这一版是文字卡，画面还没做」，
+                  不要把它描述成完成的创作。
+                """.formatted(projectId);
+    }
+
+    /**
+     * 写文件；失败只记日志不阻断主流程。
+     *
+     * @param target 目标路径
+     * @param text   内容
+     */
+    private static void writeText(Path target, String text) {
         try {
-            Files.writeString(projectDir.resolve("AGENTS.md"), guide, java.nio.charset.StandardCharsets.UTF_8);
+            Files.writeString(target, text, java.nio.charset.StandardCharsets.UTF_8);
         } catch (IOException ignored) {
-            // 指引写不进去不影响项目可用，见方法注释
+            // 指引写不进去不影响项目可用，见 writeAgentGuide 注释
         }
     }
 
@@ -137,6 +178,72 @@ public class ProjectDirectoryService {
             // 同上：指引缺失不阻断主流程
         }
     }
+    /**
+     * 把已有项目的 agent 指引升级到当前版本。
+     *
+     * <p><strong>为什么需要它</strong>：早期框架写入的指引要求「先想清楚分镜再写 JSON」，
+     * 与 workflow-v5 的 Prompt-first 方向相反。只改新建模板的话，
+     * 所有已有项目的 agent 仍会被旧指引引向文字卡片，
+     * 等于改了一半。</p>
+     *
+     * <p><strong>只升级框架自己写的</strong>：判据是头部标记。
+     * 没有标记的文件可能是用户自己维护的，也可能是很早期的框架产物 ——
+     * 后者无法区分，所以宁可不覆盖：覆盖用户手写的项目约定，
+     * 比留一份旧指引更糟。返回状态让调用方能把「跳过了」如实告诉用户。</p>
+     *
+     * @param projectDir 项目目录
+     * @param projectId  项目 ID
+     * @return 升级结果
+     */
+    public GuideUpgrade upgradeAgentGuide(Path projectDir, String projectId) {
+        Path guide = projectDir.resolve("AGENTS.md");
+        if (!Files.isRegularFile(guide)) {
+            // 没有指引：补一份。旧项目也该拿到正确的创作依据。
+            writeAgentGuide(projectDir, projectId);
+            return GuideUpgrade.WRITTEN;
+        }
+        String text;
+        try {
+            text = Files.readString(guide, java.nio.charset.StandardCharsets.UTF_8);
+        } catch (IOException unreadable) {
+            return GuideUpgrade.UNREADABLE;
+        }
+        if (text.startsWith(GENERATED_MARKER)) {
+            // 已是当前版本：只在确实需要时重写，避免无谓改动文件时间
+            if (text.equals(agentGuide(projectId))) {
+                return GuideUpgrade.CURRENT;
+            }
+            writeAgentGuide(projectDir, projectId);
+            return GuideUpgrade.UPDATED;
+        }
+        /* 没有标记：可能是用户改过的。不覆盖，如实报告，让用户自己决定。 */
+        return GuideUpgrade.SKIPPED_USER_EDITED;
+    }
+
+    /**
+     * 用指定项目 ID 重写指引。
+     *
+     * @param projectDir 项目目录
+     * @param projectId  项目 ID
+     */
+    private void writeAgentGuide(Path projectDir, String projectId) {
+        writeText(projectDir.resolve("AGENTS.md"), agentGuide(projectId));
+    }
+
+    /** 指引升级结果。 */
+    public enum GuideUpgrade {
+        /** 原本没有指引，已补写 */
+        WRITTEN,
+        /** 是框架旧版，已更新 */
+        UPDATED,
+        /** 已是当前版本 */
+        CURRENT,
+        /** 无框架标记（可能是用户改过的），未改动 */
+        SKIPPED_USER_EDITED,
+        /** 文件读不出来，未改动 */
+        UNREADABLE
+    }
+
     /**
      * 删除指定路径，可用于清理创建失败后留下的空目录；不会递归删除内容。
      *

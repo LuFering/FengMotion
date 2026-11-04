@@ -557,11 +557,23 @@ export function startDemoRun(
       if (callbacks.projectId && (callbacks.prompt ?? '').trim()) {
         emit('progress', 'running', '正在建立 workflow-v5 创作上下文（写入 prompt.original.md）…')
         try {
-          const state = await studioHttpApi().workflowContext.init(callbacks.projectId, callbacks.prompt)
+          const outcome = await studioHttpApi().workflowContext.init(callbacks.projectId, callbacks.prompt)
+          const state = outcome.state
           contextInfo = state
-          emit('build', 'building', state.initialized
-            ? `创作上下文已就绪：${state.files.length} 个文件，原文 ${state.promptLength} 字。workflow-v5 工具${state.toolAvailable ? '可用' : '未找到（请检查配置）'}。`
-            : '创作上下文未建立成功：没有找到 prompt.original.md。')
+          /* 三种结果必须分开说：用户需要知道自己这句话是被当成「原始需求」记下了，
+             还是因为原文已存在而记成了「纠正」，或者根本重复了没变化。
+             统一显示「已就绪」会让人以为每句话都成了创作依据。 */
+          if (!state.initialized) {
+            emit('build', 'building', '创作上下文未建立成功：没有找到 prompt.original.md。')
+          } else if (outcome.result === 'RECORDED_AS_CORRECTION') {
+            emit('build', 'building', `原始需求已存在，本次要求已作为「纠正」记入 corrections.md（原文未被覆盖）。`
+              + `当前 ${state.files.length} 个文件，原文 ${state.promptLength} 字。`)
+          } else if (outcome.result === 'UNCHANGED') {
+            emit('build', 'building', `需求与已有原文一致，上下文无变化：${state.files.length} 个文件，原文 ${state.promptLength} 字。`)
+          } else {
+            emit('build', 'building', `创作上下文已就绪：${state.files.length} 个文件，原文 ${state.promptLength} 字。`
+              + `workflow-v5 工具${state.toolAvailable ? '可用' : '未找到（请检查配置）'}。`)
+          }
         } catch (error) {
           /* 上下文没建起来就不该继续假装在创作 —— 直接失败，并说明原因。 */
           status = 'failed'

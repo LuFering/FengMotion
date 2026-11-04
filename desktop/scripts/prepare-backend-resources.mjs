@@ -33,6 +33,11 @@ const backendOut = path.join(outRoot, 'backend')
 const remotionSrc = path.resolve(repoRoot, '..', 'backend', 'remotion')
 const remotionOut = path.join(outRoot, 'remotion')
 const remotionModulesOut = path.join(remotionOut, 'node_modules')
+/* workflow-v5 创作工具：agent 的创作依据与校验工具都在这里。
+   不随包带上的话，打包应用里后端找不到 workflow 目录，
+   「建立创作上下文」直接失败 —— 开发态能跑不代表安装态能跑。 */
+const workflowSrc = path.resolve(repoRoot, 'workflow-v5')
+const workflowOut = path.join(outRoot, 'workflow-v5')
 const REMOTION_RUNTIME_PACKAGES = ['@remotion/bundler', '@remotion/renderer']
 /** 与 desktop 使用的 Remotion 版本保持一致；换版本时这里和 desktop 一起改。 */
 const REMOTION_VERSION = '4.0.519'
@@ -49,7 +54,7 @@ function buildJar() {
     ?? path.join(process.env.HOME ?? '', '.local', 'opt', 'apache-maven-3.9.9', 'bin', 'mvn')
   const mvnCmd = existsSync(mvn) ? mvn : 'mvn'
 
-  console.log('\n[1/4] 构建后端 jar')
+  console.log('\n[1/5] 构建后端 jar')
   run(mvnCmd, ['-q', 'package', '-DskipTests'], backendDir)
 
   const target = path.join(backendDir, 'target')
@@ -71,7 +76,7 @@ function buildJar() {
 
 /* ── 2. 裁剪 JRE ─────────────────────────────────────────── */
 function buildJre() {
-  console.log('\n[2/4] 裁剪 JRE (jlink)')
+  console.log('\n[2/5] 裁剪 JRE (jlink)')
 
   const javaHome = process.env.JAVA_HOME
     ?? execFileSync('bash', ['-c', 'dirname $(dirname $(readlink -f $(which java)))'], { encoding: 'utf8' }).trim()
@@ -120,7 +125,7 @@ function buildJre() {
 
 /* ── 3. Remotion 渲染工程 ─────────────────────────────────── */
 function buildRemotion() {
-  console.log('\n[3/4] 打包 Remotion 渲染工程')
+  console.log('\n[3/5] 打包 Remotion 渲染工程')
 
   /* 只拷 render.mjs 与 src/：.cache 与 .remotion 是本机构建缓存和下载的
      Chromium，几百 MB，且换机器后无效。 */
@@ -153,9 +158,31 @@ function buildRemotion() {
   console.log(`  render.mjs + src/ 已复制，运行依赖已安装（顶层包 ${pkgCount} 个）`)
 }
 
-/* ── 4. 校验 ─────────────────────────────────────────────── */
+/* ── 4. workflow-v5 创作工具 ──────────────────────────────── */
+function buildWorkflowTools() {
+  console.log('\n[4/5] 打包 workflow-v5 创作工具')
+
+  if (!existsSync(workflowSrc)) {
+    throw new Error(`找不到 workflow-v5 目录：${workflowSrc}`)
+  }
+  rmSync(workflowOut, { recursive: true, force: true })
+  /* 只拷工具、模板与说明，不拷 examples（那是校验用的夹具，
+     既不参与创作也不该被当成默认题材）。 */
+  cpSync(workflowSrc, workflowOut, {
+    recursive: true,
+    filter: (src) => !src.includes(`${path.sep}examples${path.sep}`)
+      && !src.endsWith(`${path.sep}examples`),
+  })
+  const initTool = path.join(workflowOut, 'prompt-first', 'tools', 'init-project.mjs')
+  if (!existsSync(initTool)) {
+    throw new Error(`workflow-v5 缺少 init-project 工具：${initTool}`)
+  }
+  console.log('  工具与模板已复制（不含 examples 夹具）')
+}
+
+/* ── 5. 校验 ─────────────────────────────────────────────── */
 function verify() {
-  console.log('\n[4/4] 校验产物')
+  console.log('\n[5/5] 校验产物')
   const java = path.join(jreDir, 'bin', process.platform === 'win32' ? 'java.exe' : 'java')
   const jar = path.join(backendOut, 'fengmotion-server.jar')
   if (!existsSync(java)) throw new Error(`JRE 缺少 java 可执行文件：${java}`)
@@ -185,10 +212,15 @@ function verify() {
     }
   }
   console.log('  Remotion 工程与依赖: 就绪')
+
+  const initTool = path.join(workflowOut, 'prompt-first', 'tools', 'init-project.mjs')
+  if (!existsSync(initTool)) throw new Error(`缺少 workflow-v5 init-project：${initTool}`)
+  console.log('  workflow-v5 工具: 就绪')
 }
 
 buildJar()
 buildJre()
 buildRemotion()
+buildWorkflowTools()
 verify()
 console.log('\n打包资源已就绪：electron/resources/')

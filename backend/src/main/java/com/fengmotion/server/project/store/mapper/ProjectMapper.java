@@ -44,4 +44,19 @@ public interface ProjectMapper {
             WHERE id = #{id}
             """)
     ProjectRow findById(@Param("id") String id);
+
+    /**
+     * 列出所有未归档项目的 ID 与目录。
+     *
+     * <p>只取升级项目指引需要的两列：启动期逐个检查目录，
+     * 不需要把整个项目对象读出来。</p>
+     *
+     * @return 项目 ID 与根目录
+     */
+    @Select("""
+            SELECT id, root_path AS rootPath
+            FROM projects
+            WHERE archived = 0 AND root_path IS NOT NULL AND root_path <> ''
+            """)
+    java.util.List<ProjectRow> findActiveRoots();
 }

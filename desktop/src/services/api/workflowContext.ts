@@ -24,8 +24,21 @@ export interface WorkflowContextState {
   files: string[]
   /** 原文字符数；-1 表示读不到 */
   promptLength: number
-  /** 已完成的真实渲染轮次（qa/passes 下的目录数）；-1 表示读不到 */
-  passes: number
+  /** 真正有视频产物的轮次数；-1 表示读不到 */
+  renderedPasses: number
+  /** 留下失败记录、没有视频的轮次数 */
+  failedPasses: number
+  /** 目录存在但还没有产物的轮次数 */
+  inProgressPasses: number
+}
+
+/** 一次初始化的结果。 */
+export interface WorkflowContextInitResult {
+  state: WorkflowContextState
+  /** CREATED 首次建立 / UNCHANGED 需求没变化 / RECORDED_AS_CORRECTION 原文已存在、已记为纠正 */
+  result: 'CREATED' | 'UNCHANGED' | 'RECORDED_AS_CORRECTION'
+  /** 需要告诉用户的说明；没有则为 null */
+  note: string | null
 }
 
 export interface WorkflowContextResource {
@@ -48,7 +61,7 @@ export interface WorkflowContextResource {
    * @param prompt 用户原始需求；省略时只建模板骨架
    * @returns 建立后的状态
    */
-  init(projectId: string, prompt?: string): Promise<WorkflowContextState>
+  init(projectId: string, prompt?: string): Promise<WorkflowContextInitResult>
 }
 
 /**
@@ -67,7 +80,7 @@ export function createWorkflowContextResource(http: HttpClient): WorkflowContext
     },
 
     init(projectId, prompt) {
-      return http.post<WorkflowContextState>(`${base(projectId)}/init`, { prompt: prompt ?? '' })
+      return http.post<WorkflowContextInitResult>(`${base(projectId)}/init`, { prompt: prompt ?? '' })
     },
   }
 }

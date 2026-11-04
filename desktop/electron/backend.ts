@@ -174,11 +174,30 @@ export async function startBackend(options: StartOptions): Promise<BackendHandle
     console.warn(`[backend] 未找到 Remotion 工程：${remotionDir}（渲染将不可用）`)
   }
 
+  /* workflow-v5 创作工具：打包态在 resources/workflow-v5，开发态在仓库里。
+     不传的话后端只能按 user.dir 猜，安装后必然猜不到，
+     「建立创作上下文」会直接报 workflow_unavailable ——
+     与上面 Remotion 是同一类坑，一并显式传。 */
+  const workflowArgs: string[] = []
+  const workflowDir = path.join(options.resourcesRoot, 'workflow-v5')
+  if (existsSync(path.join(workflowDir, 'prompt-first', 'tools', 'init-project.mjs'))) {
+    workflowArgs.push(`--fengmotion.workflow.dir=${workflowDir}`)
+  } else {
+    // 开发态：后端仓库的兄弟目录
+    const devWorkflow = path.resolve(__dirname, '..', '..', 'workflow-v5')
+    if (existsSync(path.join(devWorkflow, 'prompt-first', 'tools', 'init-project.mjs'))) {
+      workflowArgs.push(`--fengmotion.workflow.dir=${devWorkflow}`)
+    } else {
+      console.warn(`[backend] 未找到 workflow-v5：${workflowDir}（创作上下文将不可用）`)
+    }
+  }
+
   const child: ChildProcess = spawn(java, [
     '-jar', jar,
     `--server.port=${port}`,
     `--fengmotion.data-dir=${options.dataDir}`,
     ...remotionArgs,
+    ...workflowArgs,
   ], {
     // 后端只需要本机回环，不需要继承 shell
     stdio: ['ignore', logFd ?? 'ignore', logFd ?? 'ignore'],

@@ -1,5 +1,6 @@
 package com.fengmotion.server.workflow.service;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -55,12 +56,96 @@ public class WorkflowProjectService {
      * @param prompt    用户原始需求；为空时只建模板骨架
      * @return 目录状态
      */
-    public WorkflowProjectState init(String projectId, String prompt) {
+    public WorkflowProjectService.InitOutcome init(String projectId, String prompt) {
         Project project = requireProject(projectId);
         Path root = requireRoot(project);
 
+        if (prompt == null || prompt.isBlank()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "workflow_prompt_required",
+                    "没有创作需求：prompt.original.md 要求写入用户原文，不能用模板占位。"
+                            + "请先写下这次想做什么。");
+        }
+
+        Path original = root.resolve("prompt.original.md");
+        if (Files.isRegularFile(original)) {
+            /* 原文已存在：这才是真正要小心的情况。
+               工具的语义是不覆盖原文（对的 —— 原文是创作依据），
+               但它也不会把新需求记下来，于是用户第二次说的话会静默消失，
+               界面还照样显示「上下文已就绪」。
+               按 workflow-v5 的约定，后续要求属于「纠正」，应追加到 corrections.md。 */
+            String existing = readIfPossible(original);
+            if (existing != null && existing.trim().equals(prompt.trim())) {
+                // 同一条需求重复提交（比如界面重复点击）：什么都不用做，也不能重复记一条纠正
+                return new InitOutcome(state(projectId), InitResult.UNCHANGED, null);
+            }
+            appendCorrection(root, prompt);
+            return new InitOutcome(state(projectId), InitResult.RECORDED_AS_CORRECTION,
+                    "已存在原始需求，这次的要求按「纠正」追加到 corrections.md（原需求未被覆盖）。");
+        }
+
         tools.initPromptFirstProject(root, projectId, prompt);
-        return state(projectId);
+        return new InitOutcome(state(projectId), InitResult.CREATED, null);
+    }
+
+    /**
+     * 把后续需求作为纠正追加到 corrections.md。
+     *
+     * <p>格式照 workflow-v5 的模板：时间 + 用户原话。这里只记原话，
+     * 「影响范围」「是否已落实到 decisions」由创作阶段判断后补，不代填。</p>
+     *
+     * @param root   项目目录
+     * @param prompt 用户新要求
+     */
+    private void appendCorrection(Path root, String prompt) {
+        Path file = root.resolve("corrections.md");
+        String entry = "\n## " + java.time.OffsetDateTime.now()
+                .withNano(0) + "\n\n- 用户原话：" + prompt.trim() + "\n";
+        try {
+            if (!Files.isRegularFile(file)) {
+                Files.writeString(file, "# 用户纠正（追加）\n" + entry);
+                return;
+            }
+            Files.writeString(file, entry,
+                    java.nio.file.StandardOpenOption.APPEND);
+        } catch (IOException failure) {
+            /* 记不下来就不能假装记下了 —— 用户会以为自己说的被采纳。 */
+            throw new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "workflow_correction_failed",
+                    "无法写入 corrections.md：" + failure.getMessage());
+        }
+    }
+
+    /**
+     * 读文件，失败返回 null。
+     *
+     * @param path 路径
+     * @return 内容或 null
+     */
+    private String readIfPossible(Path path) {
+        try {
+            return Files.readString(path);
+        } catch (IOException unreadable) {
+            return null;
+        }
+    }
+
+    /** 初始化结果的性质。 */
+    public enum InitResult {
+        /** 首次建立上下文 */
+        CREATED,
+        /** 需求与已有原文相同，无变化 */
+        UNCHANGED,
+        /** 原文已存在，本次要求被记为纠正 */
+        RECORDED_AS_CORRECTION
+    }
+
+    /**
+     * 初始化结果。
+     *
+     * @param state 建立后的状态
+     * @param result 这次到底发生了什么
+     * @param note  需要告诉用户的说明；无则为 null
+     */
+    public record InitOutcome(WorkflowProjectState state, InitResult result, String note) {
     }
 
     /**
@@ -93,14 +178,26 @@ public class WorkflowProjectService {
             }
         }
 
-        // qa/passes 下有几次真实渲染，是「创作真的推进了」的客观证据
-        int passes = 0;
+        /* 渲染轮次不能靠「目录存在」判断：空目录、建了一半的目录、
+           失败后留下的目录都会让计数虚高，而用户看到「已渲染 3 轮」
+           会以为有 3 个能看的片子。
+           这里按目录里是否真有视频文件来判，并区分三种状态。 */
+        int rendered = 0;
+        int failed = 0;
+        int inProgress = 0;
         Path passesDir = root.resolve("qa").resolve("passes");
         if (Files.isDirectory(passesDir)) {
             try (Stream<Path> children = Files.list(passesDir)) {
-                passes = (int) children.filter(Files::isDirectory).count();
+                for (Path pass : children.filter(Files::isDirectory).toList()) {
+                    switch (classifyPass(pass)) {
+                        case RENDERED -> rendered++;
+                        case FAILED -> failed++;
+                        case IN_PROGRESS -> inProgress++;
+                    }
+                }
             } catch (Exception unreadable) {
-                passes = -1;
+                // 读不到就报 -1，别把「读不到」显示成「0 轮」
+                rendered = -1;
             }
         }
 
@@ -112,7 +209,46 @@ public class WorkflowProjectService {
                 toolAvailable,
                 present,
                 promptLength,
-                passes);
+                rendered,
+                failed,
+                inProgress);
+    }
+
+    /**
+     * 判断一轮 pass 的真实状态。
+     *
+     * <p>判据是目录里有没有视频文件（这是「渲出来了」的硬证据），
+     * 其次看有没有失败标记。两者都没有就是还没产出 ——
+     * 不能因为目录存在就算一轮。</p>
+     *
+     * @param passDir pass 目录
+     * @return 状态
+     */
+    private PassStatus classifyPass(Path passDir) {
+        try (Stream<Path> files = Files.walk(passDir, 2)) {
+            boolean hasVideo = files.anyMatch(p -> {
+                String name = p.getFileName().toString().toLowerCase();
+                return Files.isRegularFile(p)
+                        && (name.endsWith(".mp4") || name.endsWith(".webm") || name.endsWith(".mov"));
+            });
+            if (hasVideo) return PassStatus.RENDERED;
+        } catch (Exception unreadable) {
+            return PassStatus.IN_PROGRESS;
+        }
+        // 没有视频：有失败记录就算失败，否则当作还没做完
+        boolean hasFailure = Files.isRegularFile(passDir.resolve("failure.md"))
+                || Files.isRegularFile(passDir.resolve("error.md"));
+        return hasFailure ? PassStatus.FAILED : PassStatus.IN_PROGRESS;
+    }
+
+    /** 一轮渲染的状态。 */
+    private enum PassStatus {
+        /** 有视频文件 */
+        RENDERED,
+        /** 有失败记录但没有视频 */
+        FAILED,
+        /** 目录在，但还没产物 */
+        IN_PROGRESS
     }
 
     /**
@@ -150,10 +286,13 @@ public class WorkflowProjectService {
      * @param toolAvailable workflow-v5 工具目录是否可找到
      * @param files        已存在的 Prompt-first 文件
      * @param promptLength 原文长度；读不到时为 -1
-     * @param passes       已完成的渲染轮次数；读不到时为 -1
+     * @param renderedPasses   真正有视频产物的轮次数；读不到时为 -1
+     * @param failedPasses     留下失败记录、没有视频的轮次数
+     * @param inProgressPasses 目录存在但还没有产物的轮次数
      */
     public record WorkflowProjectState(String projectId, String directory, boolean initialized,
                                        boolean toolAvailable, List<String> files,
-                                       long promptLength, int passes) {
+                                       long promptLength, int renderedPasses,
+                                       int failedPasses, int inProgressPasses) {
     }
 }

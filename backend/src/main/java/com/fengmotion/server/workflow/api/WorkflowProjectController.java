@@ -37,7 +37,8 @@ public class WorkflowProjectController {
     public StateResponse state(@PathVariable String projectId) {
         var state = service.state(projectId);
         return new StateResponse(state.projectId(), state.directory(), state.initialized(),
-                state.toolAvailable(), state.files(), state.promptLength(), state.passes());
+                state.toolAvailable(), state.files(), state.promptLength(),
+                state.renderedPasses(), state.failedPasses(), state.inProgressPasses());
     }
 
     /**
@@ -51,12 +52,31 @@ public class WorkflowProjectController {
      * @return 建立后的状态
      */
     @PostMapping("/init")
-    public StateResponse init(@PathVariable String projectId,
-                              @RequestBody(required = false) InitRequest request) {
+    public InitResponse init(@PathVariable String projectId,
+                             @RequestBody(required = false) InitRequest request) {
         String prompt = request == null ? null : request.prompt();
-        var state = service.init(projectId, prompt);
-        return new StateResponse(state.projectId(), state.directory(), state.initialized(),
-                state.toolAvailable(), state.files(), state.promptLength(), state.passes());
+        var outcome = service.init(projectId, prompt);
+        var state = outcome.state();
+        return new InitResponse(
+                new StateResponse(state.projectId(), state.directory(), state.initialized(),
+                        state.toolAvailable(), state.files(), state.promptLength(),
+                        state.renderedPasses(), state.failedPasses(), state.inProgressPasses()),
+                outcome.result().name(),
+                outcome.note());
+    }
+
+    /**
+     * 建立上下文的结果。
+     *
+     * <p>带上 {@code result} 与可选的 {@code note}：用户需要知道这次到底是
+     * 「建好了」「没变化」还是「原文已存在、你的要求被记成了纠正」。
+     * 只说「已就绪」会让人以为自己说的每句话都成了创作依据。</p>
+     *
+     * @param state  建立后的状态
+     * @param result CREATED / UNCHANGED / RECORDED_AS_CORRECTION
+     * @param note   补充说明；无则为 null
+     */
+    public record InitResponse(StateResponse state, String result, String note) {
     }
 
     /**
@@ -76,10 +96,13 @@ public class WorkflowProjectController {
      * @param toolAvailable workflow-v5 工具是否可用
      * @param files        已存在的 Prompt-first 文件
      * @param promptLength 原文长度；-1 表示读不到
-     * @param passes       已完成渲染轮次；-1 表示读不到
+     * @param renderedPasses   有视频产物的轮次；-1 表示读不到
+     * @param failedPasses     有失败记录、无视频的轮次
+     * @param inProgressPasses 目录在但没有产物的轮次
      */
     public record StateResponse(String projectId, String directory, boolean initialized,
                                 boolean toolAvailable, List<String> files,
-                                long promptLength, int passes) {
+                                long promptLength, int renderedPasses,
+                                int failedPasses, int inProgressPasses) {
     }
 }

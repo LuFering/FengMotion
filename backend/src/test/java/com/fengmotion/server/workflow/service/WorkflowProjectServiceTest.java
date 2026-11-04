@@ -63,7 +63,7 @@ class WorkflowProjectServiceTest {
         String projectId = newProject();
         String prompt = "做一条关于清晨咖啡店的短片";
 
-        var state = service.init(projectId, prompt);
+        var state = service.init(projectId, prompt).state();
 
         assertTrue(state.initialized(), "应当已有 prompt.original.md");
         assertTrue(state.files().contains("prompt.original.md"));
@@ -76,21 +76,39 @@ class WorkflowProjectServiceTest {
     }
 
     @Test
-    @DisplayName("再次初始化不覆盖用户原文")
-    void initDoesNotOverwriteOriginal() throws Exception {
+    @DisplayName("重复提交同一需求：不覆盖原文，也不重复记纠正")
+    void sameRequirementIsUnchanged() throws Exception {
+        String projectId = newProject();
+        service.init(projectId, "做一条关于清晨咖啡店的短片");
+        var state = service.state(projectId);
+        Path corrections = Path.of(state.directory()).resolve("corrections.md");
+        String before = Files.readString(corrections);
+
+        var outcome = service.init(projectId, "做一条关于清晨咖啡店的短片");
+
+        assertEquals("UNCHANGED", outcome.result().name());
+        assertEquals(before, Files.readString(corrections), "同一需求不该重复追加纠正");
+    }
+
+    @Test
+    @DisplayName("原文已存在时的不同需求：记为纠正，不覆盖原文")
+    void differentRequirementBecomesCorrection() throws Exception {
         String projectId = newProject();
         service.init(projectId, "最初的完整需求，写得很长很清楚。");
-
-        // 模拟用户之后手改过原文
         var state = service.state(projectId);
-        Path original = Path.of(state.directory()).resolve("prompt.original.md");
-        Files.writeString(original, "用户后来改过的原文");
+        Path root = Path.of(state.directory());
+        Path original = root.resolve("prompt.original.md");
+        String originalBefore = Files.readString(original);
 
-        // 再初始化一次（例如界面重复点击）
-        service.init(projectId, "另一个需求");
+        /* 曾经的缺陷：init-project 跳过已存在的原文，新需求既不写入也不记录，
+           界面照旧显示「上下文已就绪」—— 用户说的话静默消失了。 */
+        var outcome = service.init(projectId, "另外，结尾要出现店名");
 
-        assertEquals("用户后来改过的原文", Files.readString(original).trim(),
-                "原文一旦存在就不能被覆盖，否则创作依据丢失");
+        assertEquals("RECORDED_AS_CORRECTION", outcome.result().name());
+        assertEquals(originalBefore, Files.readString(original), "原文不能被覆盖");
+        String corrections = Files.readString(root.resolve("corrections.md"));
+        assertTrue(corrections.contains("另外，结尾要出现店名"),
+                "新需求必须落到 corrections.md：" + corrections);
     }
 
     @Test
@@ -101,7 +119,9 @@ class WorkflowProjectServiceTest {
         var state = service.state(projectId);
 
         assertFalse(state.initialized());
-        assertEquals(0, state.passes(), "没有渲染轮次就报 0");
+        assertEquals(0, state.renderedPasses());
+        assertEquals(0, state.failedPasses());
+        assertEquals(0, state.inProgressPasses());
     }
 
     @Test
@@ -129,15 +149,47 @@ class WorkflowProjectServiceTest {
     }
 
     @Test
-    @DisplayName("渲染轮次按 qa/passes 下的目录数如实计数")
-    void countsPasses() throws Exception {
+    @DisplayName("渲染轮次按真实产物判定，空目录不算一轮")
+    void emptyPassDirIsNotARenderedPass() throws Exception {
         String projectId = newProject();
-        var state = service.init(projectId, "需求");
+        var state = service.init(projectId, "需求").state();
         Path passes = Path.of(state.directory()).resolve("qa").resolve("passes");
         Files.createDirectories(passes.resolve("01"));
         Files.createDirectories(passes.resolve("02"));
 
-        assertEquals(2, service.state(projectId).passes());
+        var now = service.state(projectId);
+
+        /* 曾经的缺陷：只数目录。空目录也会被算成「已渲染 2 轮」，
+           用户以为有两个能看的片子。 */
+        assertEquals(0, now.renderedPasses(), "没有视频文件就不算渲染成功");
+        assertEquals(2, now.inProgressPasses(), "空目录应算进行中");
+    }
+
+    @Test
+    @DisplayName("有视频的算成功，有失败记录的算失败，两者分开计数")
+    void classifiesPassOutcomes() throws Exception {
+        String projectId = newProject();
+        var state = service.init(projectId, "需求").state();
+        Path passes = Path.of(state.directory()).resolve("qa").resolve("passes");
+
+        // 成功：目录里有 mp4
+        Path ok = passes.resolve("01");
+        Files.createDirectories(ok);
+        Files.writeString(ok.resolve("render.mp4"), "fake");
+
+        // 失败：有 failure.md 但没有视频
+        Path bad = passes.resolve("02");
+        Files.createDirectories(bad);
+        Files.writeString(bad.resolve("failure.md"), "timeout");
+
+        // 进行中：空目录
+        Files.createDirectories(passes.resolve("03"));
+
+        var now = service.state(projectId);
+
+        assertEquals(1, now.renderedPasses());
+        assertEquals(1, now.failedPasses());
+        assertEquals(1, now.inProgressPasses());
     }
 
     @Test
