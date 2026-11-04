@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import { RailProgressPanel } from './RailProgress'
 import { ProjectArtifacts } from './ProjectArtifacts'
+import { useHarnesses, availabilityOf } from '@/shell/useHarnesses'
 import { ACTIVE_SCENES } from '@/data/projectModel'
 import { PROJECTS, type ProjectSummary } from '@/data/projects'
 import { ARTIFACT_STATUS_LABEL, ARTIFACT_TYPE_LABEL, WORKBENCH_ARTIFACTS, type WorkbenchArtifact } from '@/data/workbenchArtifacts'
@@ -431,6 +432,20 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
   /* 真实修改的忙碌与错误状态。错误单独存而不是塞进 notice：
      notice 是会自动消失的提示，而「刚才为什么没改成功」要一直留着，
      直到用户重发或主动关掉。 */
+  /* Agent 可用性读真实探测，不写死。
+     原来顶部状态条固定显示「离线 / 还没接 Agent 和渲染」——在 DSH 已经接入、
+     真实修改也能出片之后，那句话会让人以为功能没做（真机确认过）。
+     判据与 Home / MonitorStageEmpty 一致：/api/capabilities 的 agent 项。 */
+  const harnessProbe = useHarnesses()
+  const agentAvailability = availabilityOf(harnessProbe, 'deepseek')
+  const agentReady = agentAvailability.state === 'available'
+  const agentAvailabilityLabel =
+    agentAvailability.state === 'checking' ? '检测中'
+      : agentAvailability.state === 'not_connected' ? '未连接'
+        : agentAvailability.state === 'misconfigured' ? '配置有误'
+          : agentAvailability.state === 'unknown' ? '状态未知'
+            : '已连接'
+
   const [realModifyBusy, setRealModifyBusy] = useState(false)
   const [realModifyError, setRealModifyError] = useState('')
   /* 后端当前场景。界面据此回答「现在这条片子是什么」，也是提交时的版本依据。 */
@@ -1155,13 +1170,22 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
                   onClick={editMode ? closeEdit : openEdit}>
             <EditParamsIcon size={15} />{editMode ? '返回监看' : '场景编辑器'}
           </button>
+          {/* Agent 状态：读真实探测，不写死。
+              原先固定「离线」，与实际能力相反 —— DSH 接了、渲染也通了，
+              界面却说「提交只会记录，不会真的改项目文件」。 */}
           <Tooltip>
             <TooltipTrigger asChild>
-              <button className="wb-agent-status" type="button" aria-label="离线：Agent 与渲染未连接">
-                <span className="wb-agent-dot" />离线
+              <button className="wb-agent-status" type="button"
+                      data-ready={agentReady || undefined}
+                      aria-label={agentReady ? 'Agent 已连接' : `Agent ${agentAvailabilityLabel}`}>
+                <span className="wb-agent-dot" />{agentReady ? '已连接' : agentAvailabilityLabel}
               </button>
             </TooltipTrigger>
-            <TooltipContent side="bottom" sideOffset={6}>还没接 Agent 和渲染。提交只会记录，不会真的改项目文件。</TooltipContent>
+            <TooltipContent side="bottom" sideOffset={6}>
+              {agentReady
+                ? 'Agent 已连接：提交修改会真的改动项目场景并产出视频。'
+                : `${agentAvailabilityLabel}：提交只会记录，不会改动项目文件。${harnessProbe.note ? `（${harnessProbe.note}）` : ''}`}
+            </TooltipContent>
           </Tooltip>
           <ToolButton label="预览版本与对比" onClick={() => openReview('versions')}><History /></ToolButton>
           {/* 导出只给这次制作真做出来的整片。没有整片就禁用，并说清楚缺什么 ——
@@ -2457,6 +2481,10 @@ function TaskPanel({ activeTask, records, cancelTask, scope, constraints, onBack
 function BottomTray({ previews, onPreview, workflowLog, records, rounds, activeId, onCancel, tab, setTab }:
   { previews: StageVisual[]; onPreview: (visual: StageVisual) => void; workflowLog: ReactNode; records: TaskRecord[]; rounds: RoundSummary[]; activeId: string | null; onCancel: (id: string) => void
     tab: 'activity'|'changes'|'versions'; setTab: (t: 'activity'|'changes'|'versions') => void }) {
+  /* 底部托盘的 Agent 状态同样读真实探测，不再写死「离线」。 */
+  const trayProbe = useHarnesses()
+  const trayAgent = availabilityOf(trayProbe, 'deepseek').state
+  const trayReady = trayAgent === 'available'
   return (
     <div className="fw-tray">
       <div className="fw-tray-hd">
@@ -2468,7 +2496,9 @@ function BottomTray({ previews, onPreview, workflowLog, records, rounds, activeI
                             { value: 'versions', label: '预览记录' },
                           ]} />
         <span className="spacer" />
-        <span className="num tray-note">离线</span>
+        <span className="num tray-note" title={trayReady ? 'Agent 已连接' : 'Agent 未连接'}>
+          {trayReady ? '已连接' : trayAgent === 'checking' ? '检测中' : '未连接'}
+        </span>
       </div>
       <div className="fw-scroll">
         <div className="fw-tray-body">

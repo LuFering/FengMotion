@@ -6,6 +6,7 @@
  * 现在项目条只保留：回我的创作 / 当前项目名与阶段 / 子视图切换 / Agent 状态 / 进工作台。
  */
 import { PROJECT_SUBVIEWS, STAGE_LABEL, type ProjectSummary } from '@/data/projects'
+import { useHarnesses, availabilityOf } from '@/shell/useHarnesses'
 
 function Icon({ name, className = 'ui-icon' }: { name: string; className?: string }) {
   return (
@@ -22,6 +23,12 @@ export function ProjectBar({ project: p, view, onNav, onBack, onOpenWorkbench }:
   onBack: () => void
   onOpenWorkbench: () => void
 }) {
+  /* 与工作台同一判据：/api/capabilities 的 agent 项。 */
+  const probe = useHarnesses()
+  const agentState = availabilityOf(probe, 'deepseek').state
+  const agentReady = agentState === 'available'
+  const agentLabel = agentState === 'checking' ? '检测中' : agentState === 'misconfigured' ? '配置有误' : agentState === 'unknown' ? '状态未知' : '未连接'
+
   return (
     <div className="pj-bar">
       <button className="pj-bar-back" type="button" onClick={onBack} title="回我的创作">
@@ -38,7 +45,10 @@ export function ProjectBar({ project: p, view, onNav, onBack, onOpenWorkbench }:
           </button>
         ))}
       </nav>
-      <span className="chip"><span className="dot off" />离线</span>
+      {/* Agent 状态读真实探测。原先固定「离线」，在 DSH 已接入后会误导用户。 */}
+      <span className="chip" title={agentReady ? 'Agent 已连接' : `Agent ${agentLabel}`}>
+        <span className={agentReady ? 'dot on' : 'dot off'} />{agentReady ? '已连接' : agentLabel}
+      </span>
       <button className="mini" type="button" onClick={onOpenWorkbench} disabled={!!p.planned}>
         <Icon name="clapperboard" />进工作台
       </button>
