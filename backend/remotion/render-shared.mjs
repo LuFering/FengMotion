@@ -163,7 +163,17 @@ export async function renderProject(options) {
   const { renderMedia, selectComposition } = await loadFrom(options.nodeModules, '@remotion/renderer')
 
   /* chdir 到可写目录：Remotion 把 .remotion（Chrome 下载）与 .cache（webpack）
-     写到「当前工作目录」，只读镜像下直接 EACCES。仅复制源码不够。 */
+     写到「当前工作目录」，只读镜像下直接 EACCES。仅复制源码不够。
+
+     但浏览器缓存不能留在这个临时目录里 —— 用完就删的话，
+     每次渲染都会重新下载 ~90MB（实测单次约 80 秒）。
+     所以把 .remotion 指到持久目录：后端通过 FENGMOTION_BROWSER_CACHE 传入
+     （安装态是应用数据目录，开发态是用户缓存目录）。 */
+  const browserCache = process.env.FENGMOTION_BROWSER_CACHE?.trim()
+  if (browserCache) {
+    await mkdir(browserCache, { recursive: true })
+    process.env.REMOTION_BROWSER_CACHE = browserCache
+  }
   process.chdir(options.workDir)
 
   const serveUrl = await bundle({ entryPoint: options.entryPoint })

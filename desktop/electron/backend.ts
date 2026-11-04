@@ -37,6 +37,8 @@ export interface StartOptions {
   dataDir: string
   /** 日志文件路径；空则丢弃输出 */
   logFile?: string
+  /** 是否是打包后的应用（决定是否用 Electron 自带 Chromium 作为渲染浏览器） */
+  packaged?: boolean
 }
 
 /**
@@ -173,6 +175,22 @@ export async function startBackend(options: StartOptions): Promise<BackendHandle
     // 找不到就明确记一笔：这会让渲染完全不可用，不该静默
     console.warn(`[backend] 未找到 Remotion 工程：${remotionDir}（渲染将不可用）`)
   }
+
+  /* 渲染浏览器：打包态**不指定**，交给 Remotion 自己下载 chrome-headless-shell。
+     试过用 process.execPath（Electron 自身）当浏览器 —— 不行：那启动的是
+     应用本身，会重跑主进程、抢调试端口，最后报「Timed out while trying to
+     connect to the browser」。实测确认。
+     而 application.yml 的默认值 /opt/google/chrome/chrome 是开发机路径，
+     换台机器不存在，指过去同样会失败。所以打包态明确传空，
+     让 Remotion 用它自带的下载与缓存机制 —— 首次渲染慢一次，之后复用。 */
+  if (options.packaged) {
+    remotionArgs.push('--fengmotion.remotion.browser=')
+  }
+  /* 浏览器缓存放在应用数据目录：渲染脚本会 chdir 到临时工作目录，
+     不指走的话 chrome-headless-shell 会下到那里、随目录一起被删，
+     等于每次渲染重下 90MB。装好之后首次慢一次，之后都复用。 */
+  const browserCache = path.join(options.dataDir, 'browser-cache')
+  remotionArgs.push(`--fengmotion.remotion.browser-cache=${browserCache}`)
 
   /* workflow-v5 创作工具：打包态在 resources/workflow-v5，开发态在仓库里。
      不传的话后端只能按 user.dir 猜，安装后必然猜不到，

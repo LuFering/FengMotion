@@ -1077,6 +1077,25 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
     if (realModifyBusy) return false
     setRealModifyBusy(true)
     try {
+      /* 项目有 Remotion 工程时，修改走另一条路：
+         意见写进 corrections.md，由 agent 改工程源码，再渲染出新的版本。
+         不能走 modify 任务 —— 那条改的是 scenes 数据，
+         而这个项目的画面在源码里，改数据不会让画面变。 */
+      if (filmProject?.ready) {
+        try {
+          await studioHttpApi().workflowContext.recordCorrection(projectId, prompt)
+          review.addCorrection(prompt)
+          chat.addUserMessage(prompt, undefined, projectId)
+          setNotice('修改意见已记入 corrections.md。让 Agent 按它改工程，然后点「渲染项目工程」出新版本。')
+          setRealModifyError('')
+          return true
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error)
+          setRealModifyError(`记录修改意见失败：${message}`)
+          return false
+        }
+      }
+
       /* 先读当前场景：既拿到 baseVersion 做版本预检，也确认项目确实有场景。
          没有场景时不能提交 —— 后端会拒绝，前端也不该把一个注定失败的请求发出去。 */
       const probe = await tasks.currentScene(projectId)

@@ -84,6 +84,33 @@ public class WorkflowProjectController {
     }
 
     /**
+     * 记录一条用户修改意见。
+     *
+     * <p>追加到 {@code corrections.md}，供 agent 下一轮修改时读取。
+     * 不覆盖原始需求。</p>
+     *
+     * @param projectId 项目 ID
+     * @param request   修改意见
+     * @return 记录后的状态
+     */
+    @PostMapping("/corrections")
+    public StateResponse correction(@PathVariable String projectId,
+                                    @RequestBody CorrectionRequest request) {
+        var state = service.recordCorrection(projectId, request.text());
+        return new StateResponse(state.projectId(), state.directory(), state.initialized(),
+                state.toolAvailable(), state.files(), state.promptLength(),
+                state.renderedPasses(), state.failedPasses(), state.inProgressPasses());
+    }
+
+    /**
+     * 修改意见请求。
+     *
+     * @param text 用户原话
+     */
+    public record CorrectionRequest(String text) {
+    }
+
+    /**
      * 读取项目工程配置。
      *
      * <p>没有配置时返回 {@code ready=false} 而不是 404：

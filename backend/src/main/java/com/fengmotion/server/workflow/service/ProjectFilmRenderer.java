@@ -50,9 +50,19 @@ public class ProjectFilmRenderer {
     @Value("${fengmotion.remotion.node-modules:}")
     private String nodeModules;
 
-    /** 浏览器可执行文件。 */
+    /** 浏览器可执行文件。留空则让 Remotion 自己下载 chrome-headless-shell。 */
     @Value("${fengmotion.remotion.browser:}")
     private String browser;
+
+    /**
+     * 浏览器缓存目录。
+     *
+     * <p>不传的话 Remotion 会把 chrome-headless-shell 下到临时工作目录，
+     * 而那个目录每次渲染后都会删除 —— 等于每次重下 90MB。
+     * 指向应用数据目录后，首次之后直接复用。</p>
+     */
+    @Value("${fengmotion.remotion.browser-cache:}")
+    private String browserCache;
 
     /**
      * 渲染超时（秒）。默认 15 分钟：项目工程要先 bundle 再渲染，
@@ -104,6 +114,9 @@ public class ProjectFilmRenderer {
                     .redirectError(stderrFile.toFile());
             if (nodeModules != null && !nodeModules.isBlank()) {
                 builder.environment().put("FENGMOTION_NODE_MODULES", nodeModules);
+            }
+            if (browserCache != null && !browserCache.isBlank()) {
+                builder.environment().put("FENGMOTION_BROWSER_CACHE", browserCache);
             }
 
             process = builder.start();

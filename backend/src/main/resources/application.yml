@@ -57,7 +57,9 @@ fengmotion:
     # 依赖目录：复用桌面端已装的 node_modules，不再单独装几百 MB
     node-modules: ${FENGMOTION_NODE_MODULES:}
     # Chromium 路径：留空则由 Remotion 自行下载 chrome-headless-shell
-    browser: ${FENGMOTION_CHROME:/opt/google/chrome/chrome}
+    # 浏览器路径。留空则交给 Remotion 自己下载 chrome-headless-shell（跨机器最稳）。
+    # 写死本机路径会在别人的电脑上失败，所以默认不再指向 /opt/google/chrome。
+    browser: ${FENGMOTION_CHROME:}
     node: ${FENGMOTION_NODE:/usr/bin/node}
     # 渲染超时：长片会更久
     timeout-seconds: 600

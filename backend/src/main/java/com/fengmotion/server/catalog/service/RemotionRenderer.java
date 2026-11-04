@@ -56,6 +56,10 @@ public class RemotionRenderer {
     @Value("${fengmotion.remotion.browser:}")
     private String browserExecutable;
 
+    /** 浏览器缓存目录：不传则每次渲染都会重下 chrome-headless-shell。 */
+    @Value("${fengmotion.remotion.browser-cache:}")
+    private String browserCacheDir;
+
     private final ObjectMapper json;
 
     /**
@@ -113,6 +117,9 @@ public class RemotionRenderer {
                     .redirectError(stderrFile.toFile());
             if (nodeModulesDir != null && !nodeModulesDir.isBlank()) {
                 builder.environment().put("FENGMOTION_NODE_MODULES", nodeModulesDir);
+            }
+            if (browserCacheDir != null && !browserCacheDir.isBlank()) {
+                builder.environment().put("FENGMOTION_BROWSER_CACHE", browserCacheDir);
             }
 
             Process process = builder.start();

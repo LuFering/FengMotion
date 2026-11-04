@@ -131,7 +131,17 @@ function buildRemotion() {
      Chromium，几百 MB，且换机器后无效。 */
   rmSync(remotionOut, { recursive: true, force: true })
   mkdirSync(remotionOut, { recursive: true })
-  cpSync(path.join(remotionSrc, 'render.mjs'), path.join(remotionOut, 'render.mjs'))
+  /* 渲染脚本有三个，必须一起带上：
+       render.mjs         内置 Film + scenes props
+       render-shared.mjs  两者共用流程（依赖解析、可写临时目录、浏览器、输出协议）
+       render-project.mjs 项目工程（agent 写的源码）
+     只拷 render.mjs 时，开发态因为就在仓库里所以能跑，安装后才报
+     renderer_unavailable —— 实测踩到过。改用目录扫描，以后再加脚本不必回来改清单。 */
+  for (const file of readdirSync(remotionSrc)) {
+    if (file.endsWith('.mjs')) {
+      cpSync(path.join(remotionSrc, file), path.join(remotionOut, file))
+    }
+  }
   cpSync(path.join(remotionSrc, 'src'), path.join(remotionOut, 'src'), { recursive: true })
 
   /* 依赖用 npm install 装一份完整的，而不是从 desktop/node_modules 逐个拷。
@@ -195,6 +205,11 @@ function verify() {
   const jreSize = execFileSync('du', ['-sh', jreDir], { encoding: 'utf8' }).split('\t')[0]
   console.log('  JRE 体积:', jreSize)
 
+  for (const file of ['render.mjs', 'render-shared.mjs', 'render-project.mjs']) {
+    if (!existsSync(path.join(remotionOut, file))) {
+      throw new Error(`缺少渲染脚本：${file}（项目工程渲染会失败）`)
+    }
+  }
   const renderScript = path.join(remotionOut, 'render.mjs')
   const entry = path.join(remotionOut, 'src', 'index.tsx')
   if (!existsSync(renderScript)) throw new Error(`缺少 Remotion 渲染脚本：${renderScript}`)

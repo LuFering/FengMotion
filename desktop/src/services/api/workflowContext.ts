@@ -106,6 +106,18 @@ export interface WorkflowContextResource {
    * @returns 渲染结果
    */
   renderFilm(projectId: string, prompt?: string): Promise<FilmRenderResult>
+
+  /**
+   * 记录一条修改意见到 corrections.md。
+   *
+   * <p>这是「用户看完片子提出修改」的落盘点：意见必须写进项目目录，
+   * agent 下一轮改工程时才读得到。只存在浏览器里等于没提。</p>
+   *
+   * @param projectId 项目 ID
+   * @param text 修改意见原话
+   * @returns 记录后的上下文状态
+   */
+  recordCorrection(projectId: string, text: string): Promise<WorkflowContextState>
 }
 
 /**
@@ -133,6 +145,10 @@ export function createWorkflowContextResource(http: HttpClient): WorkflowContext
 
     renderFilm(projectId, prompt) {
       return http.post<FilmRenderResult>(`${base(projectId)}/render`, { prompt: prompt ?? '' })
+    },
+
+    recordCorrection(projectId, text) {
+      return http.post<WorkflowContextState>(`${base(projectId)}/corrections`, { text })
     },
   }
 }

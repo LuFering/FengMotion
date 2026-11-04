@@ -88,6 +88,34 @@ public class WorkflowProjectService {
     }
 
     /**
+     * 记录一条用户修改意见。
+     *
+     * <p><strong>为什么单独一个入口</strong>：{@code init} 的语义是「建立上下文」，
+     * 它的 RECORDED_AS_CORRECTION 是副作用；而用户在看完片子后提修改意见时，
+     * 意图明确就是「记下这条纠正让 agent 照着改」。两者混用会让日志读起来别扭，
+     * 也容易在某天「init 不再追加纠正」时悄悄坏掉。</p>
+     *
+     * @param projectId 项目 ID
+     * @param text      修改意见原文
+     * @return 记录后的状态
+     */
+    public WorkflowProjectState recordCorrection(String projectId, String text) {
+        Project project = requireProject(projectId);
+        Path root = requireRoot(project);
+        if (text == null || text.isBlank()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "validation_error", "修改意见是空的");
+        }
+        /* 原文必须先存在：没有创作依据时，一条孤立意见无法被理解，
+           也无法判断它是在改什么。缺了就先初始化，而不是只记一条无主的纠正。 */
+        if (!Files.isRegularFile(root.resolve("prompt.original.md"))) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "workflow_not_initialized",
+                    "项目还没有 prompt.original.md：请先写下原始创作需求，再提修改意见。");
+        }
+        appendCorrection(root, text);
+        return state(projectId);
+    }
+
+    /**
      * 把后续需求作为纠正追加到 corrections.md。
      *
      * <p>格式照 workflow-v5 的模板：时间 + 用户原话。这里只记原话，

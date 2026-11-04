@@ -279,6 +279,7 @@ if (!gotLock) {
            「开发态能看到项目、应用里报项目不存在」—— 因为实际读的是两个库。 */
         dataDir: path.join(app.getPath('userData'), 'data'),
         logFile: path.join(app.getPath('userData'), 'backend.log'),
+        packaged: app.isPackaged,
       }).catch((error: unknown) => {
         console.error('[backend] 启动失败', error)
         return null

@@ -125,6 +125,40 @@ class WorkflowProjectServiceTest {
     }
 
     @Test
+    @DisplayName("修改意见追加到 corrections.md，原文不动")
+    void recordCorrectionAppends() throws Exception {
+        String projectId = newProject();
+        var state = service.init(projectId, "做一条咖啡店短片").state();
+        Path root = Path.of(state.directory());
+        String originalBefore = Files.readString(root.resolve("prompt.original.md"));
+
+        service.recordCorrection(projectId, "结尾要出现店名");
+
+        assertEquals(originalBefore, Files.readString(root.resolve("prompt.original.md")),
+                "提修改意见不该动原始需求");
+        assertTrue(Files.readString(root.resolve("corrections.md")).contains("结尾要出现店名"));
+    }
+
+    @Test
+    @DisplayName("没有原文时拒绝记录意见：无主的纠正无法被理解")
+    void recordCorrectionRequiresOriginal() throws Exception {
+        String projectId = newProject();
+        var e = assertThrows(com.fengmotion.server.common.ApiException.class,
+                () -> service.recordCorrection(projectId, "改一下"));
+        assertEquals("workflow_not_initialized", e.getCode());
+    }
+
+    @Test
+    @DisplayName("空白意见被拒绝")
+    void recordCorrectionRejectsBlank() throws Exception {
+        String projectId = newProject();
+        service.init(projectId, "需求原文");
+        var e = assertThrows(com.fengmotion.server.common.ApiException.class,
+                () -> service.recordCorrection(projectId, "  "));
+        assertEquals("validation_error", e.getCode());
+    }
+
+    @Test
     @DisplayName("没有需求时拒绝初始化，不用模板占位冒充原文")
     void initWithoutPromptIsRejected() throws Exception {
         String projectId = newProject();
