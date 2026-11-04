@@ -312,7 +312,12 @@ export function Conversation(props: {
      harnessId/model/prefs=引擎与模型配置（与首页共用同一份 data/harnesses）；
      composerMenu=当前展开的弹层（'add' 附件菜单 / 'perm' 权限 / 'model' 模型） */
   const [attachments, setAttachments] = useState<{
-    name: string; size: number; kind: 'file' | 'image' | 'video'
+    name: string; size: number; kind: 'file' | 'image' | 'video' | 'technique'
+    /* 资源类型：素材 / 参考片段 / 技法。参考片段与技法没有可上传的文件，
+       但仍要随消息带给 agent —— 它们的价值在于「借鉴什么」，不是文件本身。 */
+    source?: 'asset' | 'ref' | 'fx'
+    refVideoId?: string; refStart?: number; refEnd?: number; refWants?: string
+    fxId?: string; fxVersion?: string
     uploadId?: string
     /* 来自「待发送」的附件带着用途与备注：界面要显示「logo.png · 用于画面」，
        而不只是塞一串文件名 —— 用途是用户特意选的，丢在这里等于白选。 */
@@ -353,6 +358,16 @@ export function Conversation(props: {
             purpose: x.purpose,
             note: x.note,
             assetId: x.assetId,
+            /* 把资源类型与参考/技法参数一并带上。
+               只带名字的话，agent 拿到的是一句看不懂的话，
+               用户选了「借鉴节奏但别用画面」也无从表达。 */
+            source: x.source ?? 'asset',
+            refVideoId: x.refVideoId,
+            refStart: x.refStart,
+            refEnd: x.refEnd,
+            refWants: x.refWants,
+            fxId: x.fxId,
+            fxVersion: x.fxVersion,
           }))
         return [...prev, ...add].slice(0, 6)
       })
@@ -796,11 +811,15 @@ export function Conversation(props: {
       setSendError('当前对话未保存到项目，附件无法随消息发送。请先创建或选择项目会话。')
       return
     }
-    if (attachments.some((a) => !a.fileId || a.uploading || a.uploadError)) {
+    /* 上传状态只对**真实文件素材**有意义。
+       参考片段与技法没有文件可上传，它们的价值是「借鉴什么」，
+       拿 fileId / MIME 去校验会把它们全判成「不合格附件」而发不出去。 */
+    const fileAttachments = attachments.filter((a) => (a.source ?? 'asset') === 'asset')
+    if (fileAttachments.some((a) => !a.fileId || a.uploading || a.uploadError)) {
       setSendError('请等待附件上传完成；上传失败的附件请移除后重新添加。')
       return
     }
-    if (attachments.some((a) => !['image/png', 'image/jpeg', 'image/webp', 'image/gif'].includes(a.mimeType ?? ''))) {
+    if (fileAttachments.some((a) => !['image/png', 'image/jpeg', 'image/webp', 'image/gif'].includes(a.mimeType ?? ''))) {
       setSendError('当前 AI 只能接收 PNG、JPEG、WebP 或 GIF 图片，请移除其他附件。')
       return
     }
@@ -857,9 +876,40 @@ export function Conversation(props: {
           mimeType: a.mimeType ?? '',
           sizeBytes: a.size,
         }))
+      /* 参考片与特效走 references 通道。
+         它们没有文件可传，但必须让 agent 知道「这是要借鉴的片段/技法」——
+         塞进 attachments 会被 fileId 校验挡掉，等于送不进去。 */
+      const refs = attachments
+        .filter((a) => (a.source ?? 'asset') !== 'asset')
+        .map((a) => {
+          const role = a.purpose === 'reference' ? ('context' as const) : ('target' as const)
+          if (a.source === 'ref') {
+            return {
+              id: a.assetId,
+              role,
+              kind: 'reference' as const,
+              segmentId: a.assetId,
+              videoId: a.refVideoId,
+              startMs: a.refStart === undefined ? undefined : Math.round(a.refStart * 1000),
+              endMs: a.refEnd === undefined ? undefined : Math.round(a.refEnd * 1000),
+              wants: a.refWants,
+              label: a.name,
+            }
+          }
+          return {
+            id: a.assetId,
+            role,
+            kind: 'technique' as const,
+            techniqueId: a.fxId ?? a.assetId,
+            version: a.fxVersion,
+            intent: 'reference' as const,
+            label: a.name,
+          }
+        })
       const saved = await props.threads.sendMessage(sessionId, text, {
         idempotencyKey: key,
         ...(ready.length > 0 ? { attachments: ready } : {}),
+        ...(refs.length > 0 ? { references: refs } : {}),
       })
       if (!mountedRef.current) return
       idemKeyRef.current = null

@@ -399,6 +399,56 @@ export type AgentReference =
   | { id: string; role: 'target' | 'context'; kind: 'range'; sceneId: Id; startFrame: number; endFrame: number; timecode: string; label: string }
   | { id: string; role: 'target' | 'context'; kind: 'region'; sceneId: Id; frame: number; bbox: { x: number; y: number; w: number; h: number }; label: string }
   | { id: string; role: 'target' | 'context'; kind: 'artifact'; artifactId: Id; version: string; label: string }
+  /*
+   * 三库资源引用（素材 / 参考片 / 特效）。
+   *
+   * 与上面的项目、场景、帧同属「用户明确指给 agent 的东西」，所以放在同一个
+   * 联合里而不是另开一套 —— agent 侧只需要认一种结构。
+   *
+   * 三者必须能区分：素材是「这份文件要用在画面里」，参考片是「借鉴这段的手法
+   * （可能明确不要用它的画面）」，特效是「按这种技法做」。把它们压成同一种
+   * `kind: 'file'` 会让 agent 只能猜用户到底要哪一种。
+   */
+  | {
+      id: string
+      role: 'target' | 'context'
+      kind: 'asset'
+      assetId: Id
+      /**
+       * 用户选定的用途。取值与界面层的 `AssetPurpose` 一致，但契约层不反向
+       * 依赖界面模块，所以在这里内联声明。
+       */
+      purpose?: 'unspecified' | 'visual' | 'reference' | 'audio' | 'information'
+      /** 用户对这份素材的补充说明。 */
+      note?: string
+      label: string
+    }
+  | {
+      id: string
+      role: 'target' | 'context'
+      kind: 'reference'
+      segmentId: Id
+      /** 所属参考片；只说「片段 2」agent 不知道是哪段视频的。 */
+      videoId?: Id
+      /** 时间范围（毫秒，与项目侧时间口径一致）。 */
+      startMs?: number
+      endMs?: number
+      /** 用户想借鉴或明确要避开的内容。 */
+      wants?: string
+      avoid?: string
+      label: string
+    }
+  | {
+      id: string
+      role: 'target' | 'context'
+      kind: 'technique'
+      techniqueId: Id
+      /** 技法版本；未记录时省略，不编一个。 */
+      version?: string
+      /** 用户是否希望按这种技法执行，还是只作参考。 */
+      intent?: 'apply' | 'reference'
+      label: string
+    }
 
 export interface TaskAttachment {
   name: string

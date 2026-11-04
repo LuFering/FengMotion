@@ -26,6 +26,28 @@ import { createFolder, importFiles, listFolders, updateAsset } from './assetApiS
 /** 迁移阶段。切换窗口刻意很短，避免新旧两边不一致写入。 */
 export type MigrationPhase = 'idle' | 'migrating' | 'verifying' | 'migrated' | 'failed'
 
+/**
+ * 单条迁移的逐项校验结果。
+ *
+ * 为什么细分到每一项：只报「成功 / 失败」会让「文件传上去了但标签没写进去」
+ * 被算成成功。用户回到素材库发现标签没了，却被告知「迁移完成」——
+ * 这比直接报失败更糟。
+ */
+export interface MigrationChecks {
+  /** 文件本体：字节数一致。 */
+  file: boolean
+  /** 名称。 */
+  name: boolean
+  /** 标签。 */
+  tags: boolean
+  /** 授权状态与说明。 */
+  license: boolean
+  /** 审核状态（含沿合法路径推进）。 */
+  review: boolean
+  /** 文件夹归属（在 migrateFolders 阶段回填）。 */
+  folder: boolean
+}
+
 export interface MigrationItemResult {
   id: string
   name: string
@@ -34,6 +56,10 @@ export interface MigrationItemResult {
   error?: string
   /** 迁移后的服务端素材 ID。 */
   serverId?: string
+  /** 逐项校验结果；{@code ok} 为 true 时应当全部为 true。 */
+  checks?: MigrationChecks
+  /** 未完成的项（人话），供界面告诉用户「哪些内容还留在旧库」。 */
+  incomplete?: string[]
 }
 
 export interface MigrationReport {
@@ -152,16 +178,33 @@ export async function migrateIndexedDbAssets(
       }
       // 保留用户原来的名称/标签/授权/审核状态：这些是用户自己的记录，
       // 迁移不是重建，不该丢。
-      const metaError = await applyLocalMetadata(server.id, asset)
+      const meta = await applyLocalMetadata(server.id, asset)
+      const fileOk = true // 上面已校验过字节数，走到这里就是一致
+      const itemChecks: MigrationChecks = {
+        file: fileOk,
+        name: meta.checks.name,
+        tags: meta.checks.tags,
+        license: meta.checks.license,
+        review: meta.checks.review,
+        // 文件夹在 migrateFolders 阶段回填，这里先占位为「待归位」。
+        folder: false,
+      }
+      /* 有未完成项就**不算成功**。
+         原先只要文件传上去就标 ok:true，元数据失败只写在 error 里 ——
+         用户看到「迁移完成」，回素材库却发现标签没了。
+         现在把未完成项列成人话，并在汇总里计入未完成，让用户能重试。 */
+      const itemOk = meta.incomplete.length === 0
       results.push({
         id: asset.id,
         name: asset.name,
-        ok: true,
+        ok: itemOk,
         serverId: server.id,
-        // 文件已迁移成功，但元数据没写全时明确标出来，而不是当作完全成功。
-        error: metaError ? `文件已迁移，但部分信息未写入：${metaError}` : undefined,
+        checks: itemChecks,
+        error: itemOk ? undefined : `文件已迁移，但以下内容未写入：${meta.incomplete.join('、')}`,
+        incomplete: itemOk ? undefined : meta.incomplete,
       })
-      migrated += 1
+      if (itemOk) migrated += 1
+      else failed += 1
     } catch (error) {
       results.push({
         id: asset.id,
@@ -237,36 +280,64 @@ export async function migrateIndexedDbAssets(
  * （跳过提审直接通过等于没有审核记录）。迁移来的素材初始是 `none`，
  * 所以要按 `none → (pending) → approved` 走，否则用户原来的「已通过」会被静默丢掉。
  */
-async function applyLocalMetadata(serverId: string, local: MyAsset): Promise<string | null> {
-  const patch: Record<string, unknown> = {}
-  if (local.tags && local.tags.length > 0) patch.tags = local.tags
-  if (local.licenseStatus && local.licenseStatus !== 'unknown') patch.licenseStatus = local.licenseStatus
-  if (local.licenseDetails) patch.licenseDetails = local.licenseDetails
-  // folderId 在 migrateFolders 里统一处理（那时服务端文件夹才存在）。
-  try {
-    if (Object.keys(patch).length > 0) await updateAsset(serverId, patch as Partial<MyAsset>)
-  } catch (error) {
-    // 元数据回写失败不影响文件本身：文件已经在了，用户最多重新打标签。
-    // 但要如实把原因带出去，别让「标签丢了」变成查不出的静默事件。
-    return error instanceof Error ? error.message : '元数据写入失败'
+async function applyLocalMetadata(
+  serverId: string,
+  local: MyAsset,
+): Promise<{ checks: Omit<MigrationChecks, 'file' | 'folder'>; incomplete: string[] }> {
+  const incomplete: string[] = []
+  const checks = { name: true, tags: true, license: true, review: true }
+
+  // 名称：改名失败要单独报，不能因为「文件在」就算过了。
+  if (local.name) {
+    try {
+      await updateAsset(serverId, { name: local.name })
+    } catch {
+      checks.name = false
+      incomplete.push(`名称（应为「${local.name}」）`)
+    }
   }
 
-  const target = migrateReviewStatus(local.reviewStatus)
-  if (target === 'none') return null
-  try {
-    // 契约要求「处理完成后才能通过审核」。旧库里的尺寸/时长是浏览器实际解析出来的，
-    // 也就是说这条素材在旧版里已经处理完了 —— 迁移时如实标 ready，
-    // 否则用户原有的「已通过」会因为新库还没做解析而永远写不进去。
-    await updateAsset(serverId, { processingStatus: 'ready' } as unknown as Partial<MyAsset>)
-    if (target === 'approved' || target === 'needs_review') {
-      // 先提审，再落最终状态：服务端不允许 none 直接跳 approved。
-      await updateAsset(serverId, { reviewStatus: 'pending' } as Partial<MyAsset>)
+  // 标签
+  if (local.tags && local.tags.length > 0) {
+    try {
+      await updateAsset(serverId, { tags: local.tags })
+    } catch {
+      checks.tags = false
+      incomplete.push(`标签（${local.tags.join('、')}）`)
     }
-    await updateAsset(serverId, { reviewStatus: target } as Partial<MyAsset>)
-    return null
-  } catch (error) {
-    return error instanceof Error ? error.message : '审核状态写入失败'
   }
+
+  // 授权
+  const patch: Record<string, unknown> = {}
+  if (local.licenseStatus && local.licenseStatus !== 'unknown') patch.licenseStatus = local.licenseStatus
+  if (local.licenseDetails) patch.licenseDetails = local.licenseDetails
+  if (Object.keys(patch).length > 0) {
+    try {
+      await updateAsset(serverId, patch as Partial<MyAsset>)
+    } catch {
+      checks.license = false
+      incomplete.push('授权状态与说明')
+    }
+  }
+
+  // 审核：沿合法路径推进（none → pending → 目标）
+  const target = migrateReviewStatus(local.reviewStatus)
+  if (target !== 'none') {
+    try {
+      // 契约要求「处理完成后才能通过审核」。旧库里的尺寸/时长是浏览器实际解析出来的，
+      // 说明这条素材在旧版里已经处理完了 —— 如实标 ready，否则 approved 永远写不进去。
+      await updateAsset(serverId, { processingStatus: 'ready' } as unknown as Partial<MyAsset>)
+      if (target === 'approved' || target === 'needs_review') {
+        await updateAsset(serverId, { reviewStatus: 'pending' } as Partial<MyAsset>)
+      }
+      await updateAsset(serverId, { reviewStatus: target } as Partial<MyAsset>)
+    } catch {
+      checks.review = false
+      incomplete.push(`审核状态（应为「${local.reviewStatus}」）`)
+    }
+  }
+
+  return { checks, incomplete }
 }
 
 /**
@@ -281,12 +352,24 @@ async function syncEditsDuringMigration(
 ): Promise<void> {
   const latest = await listAssetsRaw()
   const serverIdByLocal = new Map(results.filter((r) => r.ok && r.serverId).map((r) => [r.id, r.serverId!]))
+  const byLocalId = new Map(results.map((r) => [r.id, r]))
   for (const asset of latest) {
     const serverId = serverIdByLocal.get(asset.id)
     if (!serverId) continue
     // 指纹变了说明迁移期间用户改过这条，按最新值再补一次。
     if (metadataFingerprint(asset) === (snapshot.get(asset.id) ?? '')) continue
-    await applyLocalMetadata(serverId, asset)
+    const meta = await applyLocalMetadata(serverId, asset)
+    if (meta.incomplete.length > 0) {
+      // 补传失败同样要暴露出来，不能因为「主流程已过」就吞掉。
+      const item = byLocalId.get(asset.id)
+      if (item) {
+        item.ok = false
+        item.incomplete = [...(item.incomplete ?? []), ...meta.incomplete]
+        item.error = item.error
+          ? `${item.error}；迁移期间的改动未写入：${meta.incomplete.join('、')}`
+          : `迁移期间的改动未写入：${meta.incomplete.join('、')}`
+      }
+    }
   }
 }
 
@@ -327,21 +410,52 @@ async function migrateFolders(results: MigrationItemResult[]): Promise<void> {
       idMap.set(local.id, created.id)
     } catch {
       // 建不出来（比如同名刚被别处建了）就让这些素材留在根目录，
-      // 不因为文件夹失败而丢掉素材。
+      // 不因为文件夹失败而丢掉素材 —— 但要记下来，由下面回填到条目的 incomplete。
     }
   }
 
   const assets = await listAssetsRaw()
-  const serverIdByLocal = new Map(results.filter((r) => r.ok && r.serverId).map((r) => [r.id, r.serverId!]))
+  const serverIdByLocal = new Map(
+    results.filter((r) => r.serverId).map((r) => [r.id, r.serverId!]),
+  )
+  const byLocalId = new Map(results.map((r) => [r.id, r]))
+
   for (const asset of assets) {
-    if (!asset.folderId) continue
+    if (!asset.folderId) {
+      // 本来就没有文件夹归属：这一项视为已满足。
+      const item = byLocalId.get(asset.id)
+      if (item?.checks) item.checks.folder = true
+      continue
+    }
     const serverId = serverIdByLocal.get(asset.id)
+    if (!serverId) continue
+    const item = byLocalId.get(asset.id)
+    const localFolder = localFolders.find((f) => f.id === asset.folderId)
+    const folderName = localFolder?.name ?? asset.folderId
     const folderId = idMap.get(asset.folderId)
-    if (!serverId || !folderId) continue
+    if (!folderId) {
+      // 文件夹没建出来，素材留在根目录 —— 如实记成未完成。
+      if (item) {
+        item.ok = false
+        item.incomplete = [...(item.incomplete ?? []), `文件夹「${folderName}」`]
+        item.error = item.error
+          ? `${item.error}；文件夹「${folderName}」未建立`
+          : `文件夹「${folderName}」未建立，素材留在根目录`
+      }
+      continue
+    }
     try {
       await updateAsset(serverId, { folderId })
+      if (item?.checks) item.checks.folder = true
     } catch {
-      // 归位失败不影响素材本身。
+      // 归位失败要记下来：用户会看到素材在根目录而不是原来的文件夹里。
+      if (item) {
+        item.ok = false
+        item.incomplete = [...(item.incomplete ?? []), `文件夹「${folderName}」`]
+        item.error = item.error
+          ? `${item.error}；未能放入文件夹「${folderName}」`
+          : `未能放入文件夹「${folderName}」`
+      }
     }
   }
 }

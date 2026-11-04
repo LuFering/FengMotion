@@ -47,6 +47,8 @@ export const PURPOSE_HINT: Record<AssetPurpose, string> = {
 export interface PendingRefCard {
   /** 参考片段 ID，形如 REF-01@00:12.4 */
   segmentId: string
+  /** 所属参考片。投给 agent 时必须带上 —— 只说「片段 2」它不知道是哪段视频的。 */
+  videoId?: string
   title: string
   /** 起止秒数；后端切分决定，前端只存 */
   start: number
@@ -243,12 +245,39 @@ export function isAssetDrag(dt: DataTransfer | null): boolean {
    没有用全局状态库：需要投递的只有「当前打开的那个对话」，它挂载时注册一个
    处理器，卸载时注销。没注册 = 当前没有对话，此时投递返回 false，
    清单原样保留 —— 绝不猜一个目标塞进去。 */
+/**
+ * 投递给对话的一条资源。
+ *
+ * 三种来源必须能区分 —— agent 需要知道「这是一份素材文件」「这是一段要借鉴手法的参考」，
+ * 还是「这是一个技法参考」，否则投递过去也只是一句看不懂的名字：
+ *   - `asset`：真实文件，带 assetId；
+ *   - `ref`：参考片段，带视频 id、时间范围、想借鉴的内容；
+ *   - `fx`：特效技法，带技法 id、版本与参数。
+ *
+ * `name` 一律给出可读名字（不依赖 asset 是否存在）——
+ * 之前发送代码读 `asset!.name`，而参考片/特效的 asset 是 null，直接崩溃。
+ */
+export type DeliverableKind = 'asset' | 'ref' | 'fx'
+
 export interface DeliverableAsset {
+  /** 稳定标识：素材 ID / 片段 ID / 技法 ID。 */
   assetId: string
   name: string
-  kind: 'file' | 'image' | 'video'
+  /** 媒体类型，供输入框显示图标；参考片与特效按 video/technique 展示。 */
+  kind: 'file' | 'image' | 'video' | 'technique'
   purpose: AssetPurpose
   note?: string
+  /** 资源类型；缺省按 'asset' 处理（兼容旧调用方）。 */
+  source?: DeliverableKind
+  /** 参考片：所属视频与时间范围（秒）。 */
+  refVideoId?: string
+  refStart?: number
+  refEnd?: number
+  /** 参考片想要借鉴的内容（用户填或分析结果）。 */
+  refWants?: string
+  /** 特效：技法 ID 与版本。 */
+  fxId?: string
+  fxVersion?: string
 }
 
 type DeliverHandler = (list: DeliverableAsset[]) => boolean

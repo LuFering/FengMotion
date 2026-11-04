@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.fengmotion.server.asset.domain.Asset;
 import com.fengmotion.server.asset.domain.AssetStates;
 import com.fengmotion.server.asset.service.AssetService;
+import com.fengmotion.server.asset.service.ResourceRefService;
 import com.fengmotion.server.common.ApiException;
 import com.fengmotion.server.reference.domain.ReferenceSegment;
 import com.fengmotion.server.reference.domain.ReferenceStates;
@@ -37,10 +38,13 @@ public class ReferenceVideoService {
 
     private final ReferenceRepository repository;
     private final AssetService assets;
+    private final ResourceRefService refs;
 
-    public ReferenceVideoService(ReferenceRepository repository, AssetService assets) {
+    public ReferenceVideoService(ReferenceRepository repository, AssetService assets,
+            ResourceRefService refs) {
         this.repository = repository;
         this.assets = assets;
+        this.refs = refs;
     }
 
     /** 导入结果。 */
@@ -89,7 +93,14 @@ public class ReferenceVideoService {
                 now,
                 now,
                 false);
-        return new ImportResult(repository.saveVideo(video), false);
+        ReferenceVideo saved = repository.saveVideo(video);
+        /* 登记「这个素材被参考片用了」。
+           不登记的话，用户在素材库里删这个素材时删除检查查不到引用，
+           会直接删掉 —— 参考片随即指向一个不存在的文件，
+           表现为「视频打不开」而没有任何提示。 */
+        refs.add(ResourceRefService.KIND_ASSET, asset.id(), "reference", saved.id(),
+                saved.title(), Instant.now().toString());
+        return new ImportResult(saved, false);
     }
 
     public ReferenceVideo requireVideo(String id) {
@@ -142,8 +153,12 @@ public class ReferenceVideoService {
      */
     @Transactional
     public void deleteVideo(String id) {
-        requireVideo(id);
+        ReferenceVideo video = requireVideo(id);
         repository.deleteVideo(id);
+        // 解除对素材的引用：参考片没了，素材不该再被它「占用」。
+        if (video.assetId() != null) {
+            refs.clear(ResourceRefService.KIND_ASSET, video.assetId());
+        }
     }
 
     public List<ReferenceSegment> segmentsOf(String videoId) {

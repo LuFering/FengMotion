@@ -18,9 +18,7 @@ import { PickBar, PickButton, PickCheck } from '@/shell/PickModeUI'
 import {
   ANALYSIS_FIELDS,
   REFERENCE_COLLECTIONS,
-  REFERENCE_SEGMENTS,
   STATUS_META,
-  VIDEO_BY_ID,
   formatTimecode,
   pendingFieldCount,
   type ReferenceSegment,
@@ -149,11 +147,17 @@ function StatusPill({ status }: { status: ReferenceStatus }) {
   )
 }
 
-function fieldOptions(key: 'cameraMove' | 'transition'): string[] {
+/**
+ * 筛选下拉的候选项：从**已解析**的片段里收集实际出现过的取值。
+ *
+ * 待解析（pending）的维度不参与 —— 它们的 value 是空串，收进来会多出一个
+ * 无意义的空选项。数据由调用方传入，不再读模块级演示常量。
+ */
+function fieldOptions(all: LocalSegment[], key: 'cameraMove' | 'transition'): string[] {
   const seen = new Set<string>()
-  for (const s of REFERENCE_SEGMENTS) {
+  for (const s of all) {
     const a = s.analysis[key]
-    if (!a.pending && a.value) seen.add(a.value)
+    if (a && !a.pending && a.value) seen.add(a.value)
   }
   return [...seen]
 }
@@ -483,18 +487,22 @@ export function RefLibrary() {
      参数一定要跟着走：参考片段的价值是"能借鉴什么"，
      只把视频带过去等于让 AI 重新猜一遍。
      brief 用观察+推断拼成给 AI 的一句话，用户想看可以展开。 */
-  const toRefCard = (s: ReferenceSegment): PendingRefCard => {
-    const v = VIDEO_BY_ID.get(s.videoId)
+  const toRefCard = (s: LocalSegment): PendingRefCard => {
+    // 从服务端视频里取标题与缩略图；取不到就用中性说法，不拼演示静态图路径
+    // （真实片段 ID 在演示图里不存在，拼出来是裂图）。
+    const v = videos.find((x) => x.id === s.videoId)
     const pick = (k: 'cameraMove' | 'composition' | 'lighting' | 'rhythm' | 'transition' | 'reusable') => {
       const a = s.analysis[k]
-      return a.pending ? undefined : a.value
+      return a?.pending ? undefined : a?.value
     }
     return {
       segmentId: s.id,
-      title: `${v?.title ?? '参考'} · 片段 ${s.index + 1}`,
+      // 带上所属视频：投给 agent 时只说「片段 2」它不知道是哪段视频的。
+      videoId: s.videoId,
+      title: `${v?.title ?? '参考片'} · 片段 ${s.index + 1}`,
       start: s.start,
       end: s.end,
-      poster: `./reference/shots/${s.id}.webp`,
+      poster: v?.thumbnailUrl ?? undefined,
       params: {
         cameraMove: pick('cameraMove'),
         composition: pick('composition'),
@@ -510,7 +518,7 @@ export function RefLibrary() {
   /* 拖拽开始前把参数包暂存到 sessionStorage：
      DataTransfer 里只能放字符串，参数包太大不适合塞进去，
      所以只传 ID，落点再按 ID 取回完整参数。 */
-  const stashRefCard = (s: ReferenceSegment) => {
+  const stashRefCard = (s: LocalSegment) => {
     try {
       const raw = sessionStorage.getItem(REF_STASH_KEY)
       const map = raw ? JSON.parse(raw) as Record<string, PendingRefCard> : {}
@@ -519,7 +527,7 @@ export function RefLibrary() {
     } catch { /* 存储不可用时仅内存态可用 */ }
   }
 
-  const addRefToPending = (segs: ReferenceSegment[]) => {
+  const addRefToPending = (segs: LocalSegment[]) => {
     const n = addRef(segs.map(toRefCard))
     showToast(n > 0 ? `已加入待发送 ${n} 个片段` : '已在待发送中')
   }
@@ -535,7 +543,8 @@ export function RefLibrary() {
   }
 
   const browseList = useMemo(() => {
-    let list = REFERENCE_SEGMENTS.slice()
+    // 数据源是服务端片段，不是演示常量。
+    let list: LocalSegment[] = segments.slice()
     if (tab === 'favorites') list = list.filter((s) => stored.favorites.includes(s.id))
     if (tab === 'recent') list = stored.recent.map((id) => segmentByIdMap.get(id)).filter((s): s is LocalSegment => !!s)
     if (tab === 'collections') {
@@ -548,17 +557,17 @@ export function RefLibrary() {
     const q = query.trim().toLowerCase()
     if (q) {
       list = list.filter((s) => {
-        const v = VIDEO_BY_ID.get(s.videoId)
+        const v = videos.find((x) => x.id === s.videoId)
         const hay = [v?.title ?? '', v?.source ?? '', ...s.tags, ...Object.values(s.analysis).map((a) => a.value)].join(' ').toLowerCase()
         return hay.includes(q)
       })
     }
-    const byStatus = (s: ReferenceSegment) => ({ pending: 0, partial: 1, analyzed: 2 })[s.status]
+    const byStatus = (s: LocalSegment) => ({ pending: 0, partial: 1, analyzed: 2 })[s.status]
     if (sortKey === 'source') list.sort((a, b) => (videoOrder.get(a.videoId) ?? 0) - (videoOrder.get(b.videoId) ?? 0) || a.start - b.start)
     if (sortKey === 'timecode') list.sort((a, b) => a.start - b.start)
     if (sortKey === 'status') list.sort((a, b) => byStatus(a) - byStatus(b))
     return list
-  }, [tab, collId, filters, query, sortKey, stored])
+  }, [tab, collId, filters, query, sortKey, stored, segments, videos])
 
   /* 加载中与「没有片段」必须分开：数据还在路上时显示「空的」，
      会让用户以为库丢了。 */
@@ -589,11 +598,12 @@ export function RefLibrary() {
     )
   }
 
-  /* 没有片段或没有视频时不能白屏：用户导入视频后、片段被筛掉后、
-     以及数据还没到（空库）都会到这里。
-     `film` 与 `segment` 必须同时存在才进入主界面 —— 后面大量代码直接用 film.xxx，
-     缺一个就会白屏崩溃。 */
-  if (!segment || !film) {
+  /* 空库（一条视频都没有）才显示引导页。
+     **有视频但没有片段时必须进入主界面**：后端不会自动切片，新导入的第一条视频
+     若因为「还没有片段」被挡在引导页，用户就永远无法播放它、也就点不到「标记片段」
+     —— 首次使用直接卡死。
+     `segment` 可以为 undefined，主界面对它做了可选访问。 */
+  if (!film) {
     return (
       <div className="rfc rfc-empty-state">
         <div className="rfc-empty-card">
@@ -612,9 +622,26 @@ export function RefLibrary() {
       </div>
     )
   }
-  const isFav = stored.favorites.includes(segment.id)
-  const inOutbox = outbox.includes(segment.id)
-  const pendingCount = pendingFieldCount(segment)
+  /* 有视频但没有片段是**正常状态**（刚导入、还没标记）。
+     这里给出一组安全的默认值，让播放器与分析面板都能渲染，
+     而不是因为没有片段就崩溃或退回引导页。 */
+  const current: LocalSegment = (segment as LocalSegment | undefined) ?? {
+    id: '', videoId: film.id, index: 0, start: 0, end: 0,
+    status: 'pending', tags: [], observation: '', inference: '', suggestion: '',
+    analysis: {
+      cameraMove: { value: '', source: null, confidence: null, evidence: '', pending: true },
+      rhythm: { value: '', source: null, confidence: null, evidence: '', pending: true },
+      lighting: { value: '', source: null, confidence: null, evidence: '', pending: true },
+      composition: { value: '', source: null, confidence: null, evidence: '', pending: true },
+      transition: { value: '', source: null, confidence: null, evidence: '', pending: true },
+      reusable: { value: '', source: null, confidence: null, evidence: '', pending: true },
+    },
+    extraAnalysis: {},
+  }
+  const hasSegment = !!segment
+  const isFav = hasSegment && stored.favorites.includes(current.id)
+  const inOutbox = hasSegment && outbox.includes(current.id)
+  const pendingCount = hasSegment ? pendingFieldCount(segment) : 0
 
   return (
     <div className={idle && !browseOpen ? 'rfc is-idle' : 'rfc'} data-previewing={hasVideo && playing && !browseOpen || undefined}>
@@ -663,12 +690,16 @@ export function RefLibrary() {
           {/* 去 AI 味：来源 / 进度 / 状态不再做成 pill 标签云，压成一行普通元信息；
               只留真正区分片段的属性（景别、运镜）作标签 */}
           <div className="rfc-meta-line">
-            {film.source} · 片段 {segment.index + 1} / {filmSegments.length} · {STATUS_META[segment.status].label}
-            {pendingCount > 0 && ` · ${pendingCount} 项待分析`}
+            {/* 没有片段时不能显示「片段 1 / 0」—— 那个 1 是占位值，会让人以为已有片段。 */}
+            {film.source}
+            {hasSegment
+              ? ` · 片段 ${current.index + 1} / ${filmSegments.length} · ${STATUS_META[current.status].label}`
+              : ' · 还没有片段'}
+            {hasSegment && pendingCount > 0 && ` · ${pendingCount} 项待分析`}
           </div>
           <div className="rfc-chips">
             
-            {!segment.analysis.cameraMove.pending && <span className="rfc-glass">{shortValue(segment.analysis.cameraMove.value)}</span>}
+            {!current.analysis.cameraMove.pending && <span className="rfc-glass">{shortValue(current.analysis.cameraMove.value)}</span>}
           </div>
         </header>
 
@@ -691,7 +722,8 @@ export function RefLibrary() {
           <button
             type="button"
             className={`rfc-gbtn${isFav ? ' is-on' : ''}`}
-            onClick={() => toggleFavorite(segment.id)}
+            onClick={() => { if (hasSegment) toggleFavorite(current.id) }}
+            disabled={!hasSegment}
             aria-pressed={isFav}
             title={isFav ? '取消收藏' : '收藏片段'}
           >
@@ -720,17 +752,32 @@ export function RefLibrary() {
           <Icon name="arrow-right" />
         </button>
 
-        {panelOpen && (
+        {panelOpen && !hasSegment && (
+          /* 有视频但没有片段：这是刚导入后的正常状态，不是错误。
+             直接告诉用户下一步该做什么 —— 面板若显示一片「待分析」，
+             用户会以为分析失败，而不是「还没标记片段」。 */
           <aside className="rfc-panel" aria-label="片段分析">
             <div className="rfc-panel-head">
-              <h2>片段 {segment.index + 1}</h2>
-              <StatusPill status={segment.status} />
+              <h2>还没有片段</h2>
+            </div>
+            <p className="rfc-panel-empty">
+              播放到想借鉴的位置，点播放条上的 <b>+</b> 标记一个片段，
+              之后就能在这里记录你看到的画面、并存进参考集合。
+            </p>
+          </aside>
+        )}
+
+        {panelOpen && hasSegment && (
+          <aside className="rfc-panel" aria-label="片段分析">
+            <div className="rfc-panel-head">
+              <h2>片段 {current.index + 1}</h2>
+              <StatusPill status={current.status} />
               <span className="rfc-panel-tc num">
-                {formatTimecode(segment.start)} – {formatTimecode(segment.end)} · {segment.end - segment.start}s
+                {formatTimecode(current.start)} – {formatTimecode(current.end)} · {current.end - current.start}s
               </span>
             </div>
             <div className="rfc-panel-acts">
-              <button type="button" className={`rfc-btn primary${inOutbox ? ' is-done' : ''}`} onClick={() => toggleReference(segment)}>
+              <button type="button" className={`rfc-btn primary${inOutbox ? ' is-done' : ''}`} onClick={() => { if (segment) toggleReference(segment) }}>
                 <Icon name={inOutbox ? 'check' : 'link'} /> {inOutbox ? '已加入参考' : '用作参考'}
               </button>
             </div>
@@ -738,7 +785,7 @@ export function RefLibrary() {
                 全部平铺，用户从上往下一眼扫完。 */}
             <div className="rfc-fgroup">
               {ANALYSIS_FIELDS.map((f) => {
-                  const a = segment.analysis[f.key]
+                  const a = current.analysis[f.key]
                   /* 每项只回答两件事：值是什么、这个值哪来的。
                      右侧那枚小徽标区分「实测」（后端量出来的：切点/亮度/运动量）
                      和「模型」（视觉模型判断的）—— 用户该知道哪些数字可追溯。 */
@@ -765,20 +812,20 @@ export function RefLibrary() {
             <div className="rfc-verdict" data-tone={reusable ? 'ok' : 'no'}>
               <span className="rfc-verdict-k">可复用</span>
               <span className="rfc-verdict-v">
-                {segment.analysis.reusable.pending ? '待分析' : segment.analysis.reusable.value}
+                {current.analysis.reusable.pending ? '待分析' : current.analysis.reusable.value}
               </span>
             </div>
             {/* 给 AI 的话：默认折叠。想直接抄作业的用户可以展开，不想被术语干扰的可以不看。 */}
-            {(segment.observation || segment.inference) && (
+            {(current.observation || current.inference) && (
               <details className="rfc-brief">
                 <summary>这条片段交给 AI 时附带的话</summary>
-                <p>{segment.observation}</p>
-                {segment.inference && <p>{segment.inference}</p>}
+                <p>{current.observation}</p>
+                {current.inference && <p>{current.inference}</p>}
               </details>
             )}
-            {segment.tags.length > 0 && (
+            {current.tags.length > 0 && (
               <div className="rfc-tags">
-                {segment.tags.map((t) => (
+                {current.tags.map((t) => (
                   <span key={t} className="rfc-tag">{t}</span>
                 ))}
               </div>
@@ -900,8 +947,8 @@ export function RefLibrary() {
               {(
                 [
 
-                  ['cameraMove', '运镜', fieldOptions('cameraMove')],
-                  ['transition', '转场', fieldOptions('transition')],
+                  ['cameraMove', '运镜', fieldOptions(segments, 'cameraMove')],
+                  ['transition', '转场', fieldOptions(segments, 'transition')],
                 ] as const
               ).map(([key, label, options]) => (
                 <label key={key} className="rfc-selfield">
@@ -958,7 +1005,7 @@ export function RefLibrary() {
             )}
             <div className="rfc-grid">
               {browseList.map((s) => {
-                const v = VIDEO_BY_ID.get(s.videoId)
+                const v = videos.find((x) => x.id === s.videoId)
                 const added = refInPending(s.id)
                 return (
                   /* 外层用 div 而非 button：卡里还要放「加入待发送」按钮，
@@ -979,8 +1026,9 @@ export function RefLibrary() {
                       stashRefCard(s)
                       setAssetDragData(e.dataTransfer, [s.id])
                       const ghostEl = setDragGhost({
-                        thumb: `./reference/shots/${s.id}.webp`,
-                        label: v?.title ?? '参考',
+                        // 用视频缩略图；没有就用中性标签（不拼演示静态图路径）。
+                        thumb: v?.thumbnailUrl ?? undefined,
+                        label: v?.title ?? '参考片',
                         count: 1,
                       })
                       e.dataTransfer.setDragImage(ghostEl, 28, 28)
