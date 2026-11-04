@@ -2,12 +2,14 @@ import { ArrowUpRight, FileText, ListChecks, LoaderCircle, Film, ArrowRight } fr
 import type { StageState } from '@/data/stageVisual'
 import { useHarnesses, availabilityOf } from '@/shell/useHarnesses'
 
-export function MonitorStageEmpty({ stage, brief, correctionCount = 0, onDiscuss, onOpenExecution, onEdit, onRealRender, realRenderBusy, realRunning }: {
+export function MonitorStageEmpty({ stage, brief, correctionCount = 0, onDiscuss, onOpenExecution, onEdit, onRealRender, realRenderBusy, realRunning, renderTargetLabel }: {
   stage: StageState; brief: string; correctionCount?: number; onDiscuss: () => void; onOpenExecution: () => void; onEdit: () => void
   realRunning?: boolean
   /** 提交一次真实渲染（会在项目目录里产出可播放的 mp4）；不传则不显示该入口 */
   onRealRender?: () => void
   realRenderBusy?: boolean
+  /** 按钮文案：有项目工程时是「渲染项目工程」，否则是占位的「真实渲染预览」 */
+  renderTargetLabel?: string
 }) {
   /* 引擎可用性读真实探测，不写死。
      原来这里固定显示「Agent 尚未连接」——在 Agent 已经接入之后，
@@ -33,7 +35,7 @@ export function MonitorStageEmpty({ stage, brief, correctionCount = 0, onDiscuss
             <button type="button" className="wb-view-execution" onClick={onRealRender}
                     disabled={realRenderBusy}>
               {realRenderBusy ? <LoaderCircle size={14} className="animate-spin"/> : <Film size={14}/>}
-              {realRenderBusy ? '正在提交…' : '真实渲染预览'}
+              {realRenderBusy ? '正在渲染…' : (renderTargetLabel ?? '真实渲染预览')}
             </button>
           )}
         </div>

@@ -37,7 +37,7 @@ class AgentGuideTest {
 
         // 关键指令必须指向 Prompt-first
         assertTrue(guide.contains("prompt.original.md"), "要告诉 agent 创作依据在哪");
-        assertTrue(guide.contains("先决定画面"), "要强调先定画面再写代码");
+        assertTrue(guide.contains("先想清画面"), "要强调先定画面再写代码");
         assertFalse(guide.contains("先想清楚分镜再写 JSON"),
                 "旧的「先写分镜 JSON」指令必须消失：它是把创作推回文字卡片的根源");
         // 也不能反过来硬推 JSON 路线
@@ -58,6 +58,22 @@ class AgentGuideTest {
         assertTrue(guide.contains("尚未对你的调用开放") || guide.contains("还在做"),
                 "项目级工程渲染还没开放，不能假装可用");
         assertFalse(guide.contains("\"entry\""), "这条接口目前不接受 entry 参数，不能写进指引");
+    }
+
+    @Test
+    @DisplayName("创作方法写成「按需采用」，不是每个需求都必须走完的门槛")
+    void guidanceIsMethodNotGate() throws Exception {
+        Path dir = tempDir.resolve("p7");
+        service.create(dir);
+        String guide = Files.readString(dir.resolve("AGENTS.md"));
+
+        /* workflow-v5 的 Prompt-first 默认不要求逐层填完文件。
+           指引若写成一串「先…再…」，agent 会把简单需求也当成必须走完整流程，
+           凭空多出一堆用户没要的中间产物。 */
+        assertTrue(guide.contains("不是必过门槛") || guide.contains("不必为此写一份完整 brief"),
+                "要写明这些是方法而非门槛：" + guide.substring(0, 200));
+        assertTrue(guide.contains("用户明确要求的表达形式") || guide.contains("用户明确要求"),
+                "用户明确要求应优先于流程建议");
     }
 
     @Test
@@ -99,7 +115,7 @@ class AgentGuideTest {
         assertEquals(ProjectDirectoryService.GuideUpgrade.UPDATED,
                 service.upgradeAgentGuide(dir, "proj-5"));
         String updated = Files.readString(dir.resolve("AGENTS.md"));
-        assertTrue(updated.contains("先决定画面"), "应换成当前版本内容");
+        assertTrue(updated.contains("先想清画面"), "应换成当前版本内容");
         assertFalse(updated.contains("# 旧版本指引"));
     }
 

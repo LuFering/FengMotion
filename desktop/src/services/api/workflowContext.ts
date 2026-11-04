@@ -41,6 +41,30 @@ export interface WorkflowContextInitResult {
   note: string | null
 }
 
+/** 项目工程配置状态。 */
+export interface FilmProjectState {
+  projectId: string
+  /** 是否已有可渲染的工程（film.config.json 合法且入口存在） */
+  ready: boolean
+  entry: string | null
+  compositionId: string | null
+  /** 参与渲染的源码文件 */
+  sourceFiles: string[] | null
+}
+
+/** 项目工程渲染结果。 */
+export interface FilmRenderResult {
+  artifactPath: string
+  version: number
+  entry: string
+  compositionId: string
+  durationInFrames: number
+  width: number
+  height: number
+  fps: number
+  renderMs: number
+}
+
 export interface WorkflowContextResource {
   /**
    * 读取上下文状态。
@@ -62,6 +86,26 @@ export interface WorkflowContextResource {
    * @returns 建立后的状态
    */
   init(projectId: string, prompt?: string): Promise<WorkflowContextInitResult>
+
+  /**
+   * 读取项目工程配置。
+   *
+   * @param projectId 项目 ID
+   * @returns 配置状态；`ready=false` 表示还没有可渲染的工程
+   */
+  film(projectId: string): Promise<FilmProjectState>
+
+  /**
+   * 渲染项目工程。
+   *
+   * <p>渲染的是 agent 写在项目里的 Remotion 源码，不是场景 props。
+   * 成功后提交为新版本，并记录源码指纹。</p>
+   *
+   * @param projectId 项目 ID
+   * @param prompt 这次渲染对应的用户要求
+   * @returns 渲染结果
+   */
+  renderFilm(projectId: string, prompt?: string): Promise<FilmRenderResult>
 }
 
 /**
@@ -81,6 +125,14 @@ export function createWorkflowContextResource(http: HttpClient): WorkflowContext
 
     init(projectId, prompt) {
       return http.post<WorkflowContextInitResult>(`${base(projectId)}/init`, { prompt: prompt ?? '' })
+    },
+
+    film(projectId) {
+      return http.get<FilmProjectState>(`${base(projectId)}/film`)
+    },
+
+    renderFilm(projectId, prompt) {
+      return http.post<FilmRenderResult>(`${base(projectId)}/render`, { prompt: prompt ?? '' })
     },
   }
 }

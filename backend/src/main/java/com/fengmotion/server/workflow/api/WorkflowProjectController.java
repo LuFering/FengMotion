@@ -9,6 +9,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.fengmotion.server.workflow.service.ProjectFilmConfig;
+import com.fengmotion.server.workflow.service.ProjectRenderService;
 import com.fengmotion.server.workflow.service.WorkflowProjectService;
 
 import lombok.RequiredArgsConstructor;
@@ -26,6 +28,8 @@ import lombok.RequiredArgsConstructor;
 public class WorkflowProjectController {
 
     private final WorkflowProjectService service;
+    private final ProjectRenderService projectRender;
+    private final ProjectFilmConfig filmConfig;
 
     /**
      * 读取项目的 workflow 创作上下文状态。
@@ -77,6 +81,89 @@ public class WorkflowProjectController {
      * @param note   补充说明；无则为 null
      */
     public record InitResponse(StateResponse state, String result, String note) {
+    }
+
+    /**
+     * 读取项目工程配置。
+     *
+     * <p>没有配置时返回 {@code ready=false} 而不是 404：
+     * 「项目还没有工程」是创作过程的正常阶段，不是错误。</p>
+     *
+     * @param projectId 项目 ID
+     * @return 配置状态
+     */
+    @GetMapping("/film")
+    public FilmResponse film(@PathVariable String projectId) {
+        var state = service.state(projectId);
+        var config = filmConfig.tryRead(java.nio.file.Path.of(state.directory()));
+        if (config.isEmpty()) {
+            return new FilmResponse(projectId, false, null, null, null);
+        }
+        var c = config.get();
+        return new FilmResponse(projectId, true, c.entry(), c.compositionId(),
+                projectRender.sourceFiles(projectId));
+    }
+
+    /**
+     * 渲染项目工程并提交为新版本。
+     *
+     * <p>这是「真实创作」的出口：agent 写的 Remotion 源码在这里被构建、
+     * 渲染成 mp4，并留下源码指纹与版本记录。与内置 scenes 渲染不同，
+     * 它渲的是项目自己的工程入口。</p>
+     *
+     * @param projectId 项目 ID
+     * @param request   可选的需求说明
+     * @return 渲染结果
+     */
+    @PostMapping("/render")
+    public RenderResponse render(@PathVariable String projectId,
+                                 @RequestBody(required = false) RenderRequest request) {
+        String prompt = request == null ? null : request.prompt();
+        var outcome = projectRender.render(projectId, prompt);
+        return new RenderResponse(
+                outcome.artifactPath(), outcome.version(), outcome.entry(),
+                outcome.compositionId(), outcome.result().durationInFrames(),
+                outcome.result().width(), outcome.result().height(),
+                outcome.result().fps(), outcome.renderMs());
+    }
+
+    /**
+     * 渲染请求。
+     *
+     * @param prompt 这次渲染对应的用户要求；可省略
+     */
+    public record RenderRequest(String prompt) {
+    }
+
+    /**
+     * 渲染结果。
+     *
+     * @param artifactPath     产物相对路径
+     * @param version          提交的版本号
+     * @param entry            使用的入口
+     * @param compositionId    使用的 composition
+     * @param durationInFrames 时长帧数
+     * @param width            宽
+     * @param height           高
+     * @param fps              帧率
+     * @param renderMs         渲染耗时
+     */
+    public record RenderResponse(String artifactPath, long version, String entry,
+                                 String compositionId, int durationInFrames,
+                                 int width, int height, int fps, long renderMs) {
+    }
+
+    /**
+     * 项目工程配置状态。
+     *
+     * @param projectId     项目 ID
+     * @param ready         是否已有可渲染的工程
+     * @param entry         入口文件
+     * @param compositionId composition ID
+     * @param sourceFiles   参与渲染的源码文件
+     */
+    public record FilmResponse(String projectId, boolean ready, String entry,
+                               String compositionId, List<String> sourceFiles) {
     }
 
     /**

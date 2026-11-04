@@ -17,6 +17,7 @@ import { ARTIFACT_STATUS_LABEL, ARTIFACT_TYPE_LABEL, WORKBENCH_ARTIFACTS, type W
 import { ACTIVE_DURATION, FILM_FPS } from '@/data/timeline'
 import { useAgentTasks, type TaskRecord } from '@/hooks/useAgentTasks'
 import type { ProjectSceneState } from '@/services/api/taskClient'
+import type { FilmProjectState } from '@/services/api/workflowContext'
 import type { AgentReference, AgentTask, ModificationConstraints, TaskRequest, PreviewSource, TaskEvent } from '@/services/studioApi'
 import { evaluateGate, gateSummaryOf, GATE_PRIMARY_KIND, workflowService } from '@/services/workflowService'
 import { GATE_DEFS } from '@/data/workflowTemplates'
@@ -505,6 +506,18 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
      与「运行演示」不同，这条走真实后端 —— 会在项目目录里产出一个能播放的 mp4。
      界面必须让用户分清两者，所以按钮文案与结果提示都写明「真实」。 */
   const [realRenderBusy, setRealRenderBusy] = useState(false)
+  /* 项目工程：agent 写的 Remotion 源码。ready=true 表示有可渲染的工程。
+     就绪时「真实渲染」渲染的是这份工程，而不是内置标题卡 ——
+     后者只是占位，渲出来的不是用户要的片子。 */
+  const [filmProject, setFilmProject] = useState<FilmProjectState | null>(null)
+  const [filmRenderError, setFilmRenderError] = useState('')
+  useEffect(() => {
+    let active = true
+    void studioHttpApi().workflowContext.film(projectId)
+      .then((state) => { if (active) setFilmProject(state) })
+      .catch(() => { if (active) setFilmProject(null) })
+    return () => { active = false }
+  }, [projectId, runsTick, editorExportTick])
 
   /* 进工作台就把该项目的任务历史读回来。
      任务已经落库，但前端记录只在内存 —— 不回读的话刷新一次历史就"没了"，
@@ -522,6 +535,40 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
    * 先让链路可点可验；等场景编辑器能导出结构化分镜后，
    * 这里的 film 换成编辑器产出的那份。</p>
    */
+  /**
+   * 渲染项目工程。
+   *
+   * <p>这是「真实创作」的出口：渲的是 agent 写在项目里的 Remotion 源码。
+   * 与 {@link submitRealRender} 的区别不只是实现，而是产物性质 ——
+   * 那个渲的是内置标题卡，只能验证链路通不通；这个渲的是用户要的片子。</p>
+   *
+   * @returns 是否成功
+   */
+  const submitProjectRender = async (): Promise<boolean> => {
+    if (realRenderBusy) return false
+    setRealRenderBusy(true)
+    setFilmRenderError('')
+    try {
+      const result = await studioHttpApi().workflowContext.renderFilm(projectId, review.brief.original || undefined)
+      setNotice(`已渲染工程 ${result.entry} · 版本 v${result.version}`)
+      /* 渲染提交了新版本：刷新版本列表与当前场景，让画面区立刻能播这一版。
+         不刷新的话用户要手动重开才知道片子变了。 */
+      void sceneVersions.refresh(true)
+      void tasks.currentScene(projectId).then((probe) => { if (probe.scene) setCurrentSceneState(probe.scene) })
+      rereadRuns()
+      return true
+    } catch (error) {
+      /* 失败原因要透出来：渲染失败可能是语法错误、超时、缺入口，
+         每种都指向不同的下一步，一句「渲染失败」等于没说。 */
+      const message = error instanceof Error ? error.message : String(error)
+      setFilmRenderError(message)
+      setNotice(`渲染失败：${message.slice(0, 160)}`)
+      return false
+    } finally {
+      setRealRenderBusy(false)
+    }
+  }
+
   const submitRealRender = async () => {
     if (realRenderBusy) return
     setRealRenderBusy(true)
@@ -1423,9 +1470,16 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
                 ) : (
                   <MonitorStageEmpty stage={stage} realRunning={Boolean(liveTask && !projectTask?.task.mock)} brief={review.brief.original} correctionCount={review.corrections.length}
                                      onDiscuss={() => openReview('brief')} onEdit={openEdit}
-                                     onRealRender={() => void submitRealRender()} realRenderBusy={realRenderBusy}
+                                     onRealRender={() => void (filmProject?.ready ? submitProjectRender() : submitRealRender())} realRenderBusy={realRenderBusy}
+                                     renderTargetLabel={filmProject?.ready ? '渲染项目工程' : '真实渲染预览'}
                                      onOpenExecution={() => { setBottomTab('activity'); setTrayOpen(true) }} />
                 )}
+              {filmRenderError && !stageLead && (
+                <div className="fw-mon-notice" role="alert">
+                  项目工程渲染失败：{filmRenderError.slice(0, 300)}
+                  <button type="button" onClick={() => setFilmRenderError('')} aria-label="关闭"><X className="ml-1 inline size-3" /></button>
+                </div>
+              )}
               </div>
               {notice && !stageLead && (
                 <button type="button" className="fw-mon-notice" onClick={() => setNotice('')}>
