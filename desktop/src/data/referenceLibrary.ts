@@ -31,11 +31,21 @@ export interface ReferenceVideo {
  *            「关键帧 00:02」这类无出处的佐证、景别/主体运动/色彩/叙事等
  *            技术分类（用户无法据此决策）。
  */
+/**
+ * 单维分析值。
+ *
+ * `source` 三分（对账决定 E）：实测 / 模型判断 / 用户填写。界面必须能区分 ——
+ * 把模型判断显示成实测事实，用户会据此做错误的创作判断。
+ * `pending=true` 时 `value` 必须为空串，不能填「无」之类的默认值：
+ * 那会让界面分不清「解析过，结论是无」和「还没解析」。
+ */
 export interface AnalysisValue {
   value: string
-  /** 该值的来源：后端实测（切点/亮度/运动量）还是模型判断。
-   *  界面上要能区分 —— 用户需要知道哪些数字是真的量出来的。 */
-  source: 'measured' | 'model'
+  source: 'measured' | 'model' | 'user' | null
+  /** 0–1；无置信度时为 null，不用 0 冒充「不确定」。 */
+  confidence?: number | null
+  /** 可追溯依据（时间范围/帧号/人工标注）；没有则为空串，不许编造。 */
+  evidence?: string
   pending: boolean
 }
 

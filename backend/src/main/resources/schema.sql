@@ -288,3 +288,91 @@ CREATE TABLE IF NOT EXISTS fx_user_state (
 );
 
 CREATE INDEX IF NOT EXISTS idx_fx_user_state_favorited ON fx_user_state(favorited);
+
+
+-- ─────────────────── 参考片库（契约 docs/contracts/library.md §4–§5） ───────────────────
+--
+-- 与素材库的关系：参考片的**文件本体复用一个素材记录**（asset_id），不存两份视频。
+-- 素材负责「文件在哪、多大、能不能播」，参考片负责「这段视频里有哪些片段值得借鉴」。
+--
+-- 三条硬约束（来自契约 §4.2，都是为了让界面不撒谎）：
+--   1. observation（观察事实）与 inference（模型推断）是两列，必须分开存、分开展示。
+--   2. analysis 里 pending=true 的维度**不得填默认值** —— 存空串并置 pending，
+--      界面显示「未解析」而不是 0 或「无」。
+--   3. 每个分析值记 source（measured 实测 / model 模型 / user 用户填），
+--      界面要能区分，不能把模型判断显示成实测事实。
+CREATE TABLE IF NOT EXISTS reference_videos (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    duration_ms INTEGER NOT NULL DEFAULT 0,
+    source TEXT NOT NULL DEFAULT '',
+    description TEXT NOT NULL DEFAULT '',
+    tags_json TEXT NOT NULL DEFAULT '[]',
+    asset_id TEXT,
+    thumbnail_url TEXT,
+    -- 视频级解析状态：analyzed / partial / pending
+    status TEXT NOT NULL DEFAULT 'pending',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    demo INTEGER NOT NULL DEFAULT 0,
+    FOREIGN KEY (asset_id) REFERENCES assets(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_reference_videos_status ON reference_videos(status);
+CREATE INDEX IF NOT EXISTS idx_reference_videos_asset ON reference_videos(asset_id);
+
+-- 参考片段：一段连续时间范围 + 对它的观察与分析。
+-- start_ms/end_ms 用毫秒（契约 README §6：单位统一在适配层转换，界面里的秒不落库）。
+CREATE TABLE IF NOT EXISTS reference_segments (
+    id TEXT PRIMARY KEY,
+    video_id TEXT NOT NULL,
+    idx INTEGER NOT NULL,
+    start_ms INTEGER NOT NULL,
+    end_ms INTEGER NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending',
+    tags_json TEXT NOT NULL DEFAULT '[]',
+    observation TEXT NOT NULL DEFAULT '',
+    inference TEXT NOT NULL DEFAULT '',
+    suggestion TEXT NOT NULL DEFAULT '',
+    -- 六维分析 + 可选的额外维度，结构见 AnalysisValue：
+    --   { value, source, confidence, evidence, pending }
+    analysis_json TEXT NOT NULL DEFAULT '{}',
+    extra_analysis_json TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY (video_id) REFERENCES reference_videos(id) ON DELETE CASCADE,
+    UNIQUE (video_id, idx)
+);
+
+CREATE INDEX IF NOT EXISTS idx_reference_segments_video ON reference_segments(video_id, idx);
+
+CREATE TABLE IF NOT EXISTS reference_collections (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    note TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
+-- 集合成员关系单独成表：一个片段可以在多个集合里，删集合不该删片段。
+CREATE TABLE IF NOT EXISTS reference_collection_members (
+    collection_id TEXT NOT NULL,
+    segment_id TEXT NOT NULL,
+    added_at TEXT NOT NULL,
+    PRIMARY KEY (collection_id, segment_id),
+    FOREIGN KEY (collection_id) REFERENCES reference_collections(id) ON DELETE CASCADE,
+    FOREIGN KEY (segment_id) REFERENCES reference_segments(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_reference_members_segment ON reference_collection_members(segment_id);
+
+-- 工作区级个人偏好：收藏与最近浏览。
+-- 与素材/特效同理，不与其他库的偏好混用；收藏只是个人标记，不代表「已审核/已采用」。
+CREATE TABLE IF NOT EXISTS reference_preferences (
+    kind TEXT NOT NULL,          -- 'favorite' | 'recent'
+    segment_id TEXT NOT NULL,
+    marked_at TEXT NOT NULL,
+    PRIMARY KEY (kind, segment_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_reference_prefs_kind ON reference_preferences(kind, marked_at DESC);

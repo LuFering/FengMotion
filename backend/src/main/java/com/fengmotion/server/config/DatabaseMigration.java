@@ -328,5 +328,83 @@ public class DatabaseMigration {
                 """);
         jdbc.execute("CREATE INDEX IF NOT EXISTS idx_fx_user_state_favorited "
                 + "ON fx_user_state(favorited)");
+
+        // 参考片库（设计说明见 schema.sql）。
+        // 文件本体复用素材（asset_id），分析里 observation/inference 分列，
+        // pending 维度不填默认值。
+        jdbc.execute("""
+                CREATE TABLE IF NOT EXISTS reference_videos (
+                    id TEXT PRIMARY KEY,
+                    title TEXT NOT NULL,
+                    duration_ms INTEGER NOT NULL DEFAULT 0,
+                    source TEXT NOT NULL DEFAULT '',
+                    description TEXT NOT NULL DEFAULT '',
+                    tags_json TEXT NOT NULL DEFAULT '[]',
+                    asset_id TEXT,
+                    thumbnail_url TEXT,
+                    status TEXT NOT NULL DEFAULT 'pending',
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    demo INTEGER NOT NULL DEFAULT 0,
+                    FOREIGN KEY (asset_id) REFERENCES assets(id)
+                )
+                """);
+        jdbc.execute("CREATE INDEX IF NOT EXISTS idx_reference_videos_status "
+                + "ON reference_videos(status)");
+        jdbc.execute("CREATE INDEX IF NOT EXISTS idx_reference_videos_asset "
+                + "ON reference_videos(asset_id)");
+        jdbc.execute("""
+                CREATE TABLE IF NOT EXISTS reference_segments (
+                    id TEXT PRIMARY KEY,
+                    video_id TEXT NOT NULL,
+                    idx INTEGER NOT NULL,
+                    start_ms INTEGER NOT NULL,
+                    end_ms INTEGER NOT NULL,
+                    status TEXT NOT NULL DEFAULT 'pending',
+                    tags_json TEXT NOT NULL DEFAULT '[]',
+                    observation TEXT NOT NULL DEFAULT '',
+                    inference TEXT NOT NULL DEFAULT '',
+                    suggestion TEXT NOT NULL DEFAULT '',
+                    analysis_json TEXT NOT NULL DEFAULT '{}',
+                    extra_analysis_json TEXT,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    FOREIGN KEY (video_id) REFERENCES reference_videos(id) ON DELETE CASCADE,
+                    UNIQUE (video_id, idx)
+                )
+                """);
+        jdbc.execute("CREATE INDEX IF NOT EXISTS idx_reference_segments_video "
+                + "ON reference_segments(video_id, idx)");
+        jdbc.execute("""
+                CREATE TABLE IF NOT EXISTS reference_collections (
+                    id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    note TEXT NOT NULL DEFAULT '',
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                )
+                """);
+        jdbc.execute("""
+                CREATE TABLE IF NOT EXISTS reference_collection_members (
+                    collection_id TEXT NOT NULL,
+                    segment_id TEXT NOT NULL,
+                    added_at TEXT NOT NULL,
+                    PRIMARY KEY (collection_id, segment_id),
+                    FOREIGN KEY (collection_id) REFERENCES reference_collections(id) ON DELETE CASCADE,
+                    FOREIGN KEY (segment_id) REFERENCES reference_segments(id) ON DELETE CASCADE
+                )
+                """);
+        jdbc.execute("CREATE INDEX IF NOT EXISTS idx_reference_members_segment "
+                + "ON reference_collection_members(segment_id)");
+        jdbc.execute("""
+                CREATE TABLE IF NOT EXISTS reference_preferences (
+                    kind TEXT NOT NULL,
+                    segment_id TEXT NOT NULL,
+                    marked_at TEXT NOT NULL,
+                    PRIMARY KEY (kind, segment_id)
+                )
+                """);
+        jdbc.execute("CREATE INDEX IF NOT EXISTS idx_reference_prefs_kind "
+                + "ON reference_preferences(kind, marked_at DESC)");
     }
 }
