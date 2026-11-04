@@ -1,5 +1,7 @@
 package com.fengmotion.server;
 
+import com.fengmotion.server.config.StartupDirectories;
+
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
@@ -18,6 +20,9 @@ import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
 @ConfigurationPropertiesScan
 public class FengMotionServerApplication {
     public static void main(String[] args) {
+        // 必须先于 SpringApplication.run：SQLite 不会创建缺少的父目录，
+        // 而数据源初始化发生在容器启动最早期。全新安装时目录并不存在。
+        StartupDirectories.prepare(args);
         SpringApplication.run(FengMotionServerApplication.class, args);
     }
 }
