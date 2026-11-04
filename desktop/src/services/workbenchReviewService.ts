@@ -47,7 +47,7 @@ export interface RoundTarget {
   bbox?: { x: number; y: number; w: number; h: number }
   /** 这一版是编辑版本还是工作流产物，以及第几版 */
   revision?: number
-  origin?: 'editor' | 'workflow'
+  origin?: 'editor' | 'workflow' | 'scene'
 }
 
 /** 与上一轮相比的一项输入差异 */

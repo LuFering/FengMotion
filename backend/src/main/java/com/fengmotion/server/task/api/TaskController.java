@@ -18,6 +18,7 @@ import com.fengmotion.server.common.ApiException;
 import com.fengmotion.server.project.store.ProjectSceneRepository;
 import com.fengmotion.server.task.domain.Task;
 import com.fengmotion.server.task.domain.TaskEvent;
+import com.fengmotion.server.task.service.CreateTaskRunner;
 import com.fengmotion.server.task.service.ModifyTaskRunner;
 import com.fengmotion.server.task.service.RenderTaskRunner;
 import com.fengmotion.server.task.service.TaskRequestGuard;
@@ -40,6 +41,7 @@ public class TaskController {
 
     private final TaskService tasks;
     private final RenderTaskRunner renderRunner;
+    private final CreateTaskRunner createRunner;
     private final ModifyTaskRunner modifyRunner;
     private final ProjectSceneRepository scenes;
     private final ObjectMapper json;
@@ -74,6 +76,20 @@ public class TaskController {
             TaskRequestGuard.checkBaseVersion(body, current);
         }
 
+        /* create 用在空项目上。已有场景还建，就会覆盖用户已经做出来的内容 ——
+           这件事要在受理阶段就拒绝，不能先回「已接受」再在后台报 409：
+           用户会以为任务在跑，等半天才看到失败，而这本来是一句话就能说清的。 */
+        if (route == Route.CREATE) {
+            scenes.find(projectId)
+                    .filter(com.fengmotion.server.project.domain.ProjectScene::present)
+                    .ifPresent(existing -> {
+                        throw new ApiException(org.springframework.http.HttpStatus.CONFLICT,
+                                "scene_already_exists",
+                                "项目已经有场景（版本 " + existing.version()
+                                        + "），请在现有场景上修改，或用版本回退");
+                    });
+        }
+
         // 用户勾了但本版做不到的约束，必须在受理时就以事件告知，不能静默失效
         List<String> warnings = TaskService.unenforcedWarnings(
                 TaskRequestGuard.unenforcedConstraints(body));
@@ -82,6 +98,11 @@ public class TaskController {
         if (route == Route.RENDER) {
             task = tasks.submit(projectId, "render", prompt, body,
                     (t, progress) -> renderRunner.run(t, progress), warnings);
+        } else if (route == Route.CREATE) {
+            /* 创建流程：模型把需求变成分镜 → 校验 → 渲染 → 提交为第一个版本。
+               产出不落库就等于没做，所以它必须走和修改同一套提交路径。 */
+            task = tasks.submit(projectId, "create", prompt, body,
+                    (t, progress) -> createRunner.run(t, progress), warnings);
         } else {
             /* 修改流程：解析范围 → 读基线 → 生成方案 → 校验 → 渲染。
                生成器第一版是确定性规则而非模型，接口已按真实实现设计。 */

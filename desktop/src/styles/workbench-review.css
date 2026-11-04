@@ -55,3 +55,10 @@
 .wb-a2 .wb-compose-version { margin-left:8px; font-size:9px; color:var(--hint); border-bottom:1px dotted transparent; }
 .wb-a2 button.wb-compose-version:hover { color:var(--acc-tx); border-bottom-color:color-mix(in srgb, var(--acc) 55%, transparent); }
 .wb-a2 button.wb-compose-version:focus-visible { outline:2px solid var(--acc); outline-offset:2px; border-radius:3px; }
+
+/* 输入区底部按钮在 350px 宽的右栏里会被压到换行：
+   「生成视频」断成两行、「演示」也断，看起来像排版坏了。
+   这里让按钮不吃掉剩余空间、文字不换行；能力说明单独一行、可收缩。 */
+.wb-a2 .fw-sheet .wb-compose-capability { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.wb-a2 .fw-sheet .mini,
+.wb-a2 .fw-sheet .mini-strong { flex: 0 0 auto; white-space: nowrap; }

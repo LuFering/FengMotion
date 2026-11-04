@@ -2,7 +2,7 @@ import { useCallback, useRef, useState } from 'react'
 import type { AgentTask, ChangeSet, TaskEvent, TaskRequest, TaskRun } from '@/services/studioApi'
 import { studioApi } from '@/services/studioApi'
 import { studioHttpApi } from '@/services/api'
-import { toAgentTask, type ModifyTaskRequest, type ProjectSceneState, type RenderTaskRequest } from '@/services/api/taskClient'
+import { toAgentTask, type CreateTaskRequest, type ModifyTaskRequest, type ProjectSceneState, type RenderTaskRequest } from '@/services/api/taskClient'
 
 /**
  * 真实提交失败的原因。
@@ -315,6 +315,76 @@ export function useAgentTasks() {
   }, [])
 
   /**
+   * 提交一个创建任务：把一句需求变成初始视频。
+   *
+   * <p>只有项目还没有场景时会被受理。已有场景时后端 409
+   * {@code scene_already_exists}，归类为 {@code rejected} 并把后端原话透出 ——
+   * 用户需要看到「已经有场景了，请修改或回退」而不是一句「提交失败」。</p>
+   *
+   * @param projectId 项目 ID
+   * @param request 创建请求
+   * @param onSettled 终态回调（用于刷新场景与产物）
+   * @returns 任务 ID 或失败原因
+   */
+  const startCreate = useCallback(async (
+    projectId: string,
+    request: CreateTaskRequest,
+    onSettled?: (status: string) => void,
+  ): Promise<{ taskId: string; failure?: undefined } | { taskId?: undefined; failure: SubmitFailure }> => {
+    try {
+      const run = await studioHttpApi().task.startCreate(projectId, request, (event) => {
+        setRecords((prev) => prev.map((record) => {
+          if (record.task.id !== event.taskId) return record
+          return {
+            ...record,
+            task: { ...record.task, status: event.status },
+            events: [...record.events, event],
+          }
+        }))
+      })
+
+      const now = new Date().toISOString()
+      const record: TaskRecord = {
+        task: {
+          id: run.taskId,
+          kind: 'create',
+          status: 'queued',
+          title: request.prompt || '创建初始视频',
+          createdAt: now,
+          mock: false,
+        },
+        /* 创建走的是「需求 → 分镜 → 出片」，没有修改快照可展示。
+           留 null 而不是造一份空快照，任务详情据此知道这不是修改任务。 */
+        request: null,
+        modify: null,
+        events: [],
+        changes: null,
+      }
+      setRecords((prev) => prev.some((r) => r.task.id === record.task.id) ? prev : [record, ...prev])
+      setActiveTaskId(run.taskId)
+      runs.current.set(run.taskId, {
+        task: record.task,
+        events: [],
+        changes: null,
+        cancel: () => run.cancel(),
+        done: run.done.then(() => undefined),
+      })
+
+      void run.done.then((finalTask) => {
+        setRecords((prev) => prev.map((r) => (
+          r.task.id === run.taskId ? { ...r, task: toAgentTask(finalTask) } : r
+        )))
+        runs.current.delete(run.taskId)
+        onSettled?.(finalTask.status)
+      })
+
+      return { taskId: run.taskId }
+    } catch (error) {
+      return { failure: describeFailure(error) }
+    }
+  }, [])
+
+  /**
    * 从后端回读项目的任务历史。
    *
    * <p>没有这一步，刷新页面后任务记录就没了 —— 而任务明明落库了。
@@ -355,5 +425,5 @@ export function useAgentTasks() {
 
   const active = records.find((record) => record.task.id === activeTaskId) ?? null
 
-  return { records, active, start, startReal, startModify, currentScene, loadHistory, render, cancel, retry, setActiveTaskId }
+  return { records, active, start, startReal, startModify, startCreate, currentScene, loadHistory, render, cancel, retry, setActiveTaskId }
 }

@@ -43,7 +43,11 @@ const TIER_RANK: Record<StageTier, number> = { final: 4, animatic: 3, proof: 2, 
 /** 能从产物里读出来的一张画面 / 一段片 */
 export interface StageVisual {
   assetId?: string
-  origin?: 'editor' | 'workflow'
+  /* 'scene' 是第三个来源：修改/创建任务提交的场景版本自带的视频。
+     它与工作流产物不是一回事（不经工作流、没有 runId），
+     但用户要的是「我这条片子现在长什么样」—— 那条片子就该出现在画面区。
+     不并进来，创建成功后会看到「还没有画面」，而右侧明明写着「渲染已完成」。 */
+  origin?: 'editor' | 'workflow' | 'scene'
   id: string
   tier: StageTier
   /** 这是哪一档（测试帧 / 局部试片 / 粗略整片 / 整片预览） */

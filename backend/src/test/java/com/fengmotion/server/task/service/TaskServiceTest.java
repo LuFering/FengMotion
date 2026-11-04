@@ -198,14 +198,18 @@ class TaskServiceTest {
 
     @Test
     @DisplayName("没有未生效约束时不写警告事件")
-    void noWarningsWhenNothingUnenforced() {
+    void noWarningsWhenNothingUnenforced() throws Exception {
         MemoryRepo repo = new MemoryRepo();
         var service = new TaskService(repo, projectRepo("p1"), directTx(), json);
 
         Task task = service.submit("p1", "render", "做一条片子", json.createObjectNode(),
                 (t, progress) -> null, List.of());
 
-        List<TaskEvent> events = repo.events.get(task.id());
+        /* 必须先等任务进终态再读事件：submit 是异步执行的，
+           后台线程还在往 events 里追加时去 stream 会抛
+           ConcurrentModificationException —— 这条断言曾偶发失败。 */
+        waitForTerminal(repo, task.id());
+        List<TaskEvent> events = List.copyOf(repo.events.get(task.id()));
         assertTrue(events.stream().noneMatch(e -> TaskEvent.KIND_WARNING.equals(e.kind())));
     }
 

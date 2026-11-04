@@ -7,6 +7,7 @@ import {
   PanelBottom, Plus, RotateCcw, Send, Settings2,
   Square, X, Maximize2, Minimize2,
 } from 'lucide-react'
+import { studioHttpApi } from '@/services/api'
 import { RailProgressPanel } from './RailProgress'
 import { ProjectArtifacts } from './ProjectArtifacts'
 import { useHarnesses, availabilityOf } from '@/shell/useHarnesses'
@@ -359,13 +360,58 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
     })
     return () => { active = false }
   }, [projectId])
+  /* 后端当前场景。界面据此回答「现在这条片子是什么」，也是提交时的版本依据。 */
+  const [currentSceneState, setCurrentSceneState] = useState<ProjectSceneState | null>(null)
+  /* 版本历史面板与审阅面板共用右栏位置。它不进 sideTab：
+     那不是对话的子页签，而是一次「查看历史」的临时切换。 */
+  const [versionsOpen, setVersionsOpen] = useState(false)
+  /* 场景版本历史。回退成功后要把新的当前场景写回 currentSceneState，
+     否则下一次提交仍带旧的 baseVersion，会被后端 409 拒绝 ——
+     用户会以为回退把项目弄坏了。
+     这条 hook 必须在 stage 之前：画面区要合并场景版本自带的视频，
+     而那份列表就来自这里。 */
+  const sceneVersions = useSceneVersions(projectId, setCurrentSceneState)
+
+  /* 场景版本自带的视频：修改/创建任务真正提交过的那条片子。
+     它与工作流产物是两条来源，但用户只关心「现在这条片子长什么样」，
+     所以并进同一份画面列表；origin 标成 scene，让界面能说清它是哪来的。 */
+  const sceneVisuals = useMemo<StageVisual[]>(() => {
+    return sceneVersions.versions
+      .filter((v) => Boolean(v.artifactPath))
+      .map((v) => ({
+        id: `scene:${v.version}`,
+        origin: 'scene' as const,
+        tier: 'final' as const,
+        tierLabel: v.source === 'restore' ? `回退版本 v${v.version}` : `场景版本 v${v.version}`,
+        name: v.artifactPath!.split('/').pop() ?? v.artifactPath!,
+        media: 'video' as const,
+        /* 场景版本存的是相对项目目录的路径（renders/xxx.mp4），
+           而 <video src> 需要完整 URL。工作流产物的 file 本身就是可播放地址，
+           所以这里必须自己转一次 —— 否则画面区会报「暂时无法播放」。 */
+        file: studioHttpApi().artifacts.contentUrl(projectId, v.artifactPath!),
+        /* 场景版本没有 runId / workflowId，但 StageVisual 要求这两项。
+           用版本号占位而不是编一个工作流 ID —— 界面据此显示的是「场景版本」，不是工作流。 */
+        runId: `scene-${v.version}`,
+        artifactId: `scene-${v.version}`,
+        workflowId: '',
+        revision: v.version,
+        createdAt: v.createdAt,
+        artifactKind: 'scene-version',
+        // 场景版本就是当前提交结果，不是「过期预览」
+        stale: false,
+      }))
+  }, [sceneVersions.versions])
+
   const stage = useMemo(() => {
     const base = stageState(projectWorkflows, workflowService.listRuns())
-    const visuals = [...editorPreviews, ...base.visuals].sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    /* 场景版本优先排在最前：它是用户最近一次真实提交的结果，
+       比工作流演示产物更该被当作「当前这条片子」。 */
+    const visuals = [...sceneVisuals, ...editorPreviews, ...base.visuals]
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
     const combined = { ...base, visuals }
     return stageLive ? { ...combined, lastRunStatus: 'running' as const } : combined
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectWorkflows, workflowsSnapshot, runsTick, stageLive, editorPreviews])
+  }, [projectWorkflows, workflowsSnapshot, runsTick, stageLive, editorPreviews, sceneVisuals])
   /* 有画面就显示「最靠后的那一档」（整片 > 粗略整片 > 试片 > 测试帧）。 */
   const stageLead: StageVisual | null = stage.visuals[0] ?? null
   /* 交付节点标了 stale 的，画面就不是最新版 —— 如实标出来，不假装是当前版本。 */
@@ -450,15 +496,6 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
 
   const [realModifyBusy, setRealModifyBusy] = useState(false)
   const [realModifyError, setRealModifyError] = useState('')
-  /* 后端当前场景。界面据此回答「现在这条片子是什么」，也是提交时的版本依据。 */
-  const [currentSceneState, setCurrentSceneState] = useState<ProjectSceneState | null>(null)
-  /* 场景版本历史。回退成功后要把新的当前场景写回 currentSceneState，
-     否则下一次提交仍带旧的 baseVersion，会被后端 409 拒绝 ——
-     用户会以为回退把项目弄坏了。 */
-  const sceneVersions = useSceneVersions(projectId, setCurrentSceneState)
-  /* 版本历史面板与审阅面板共用右栏位置。它不进 sideTab：
-     那不是对话的子页签，而是一次「查看历史」的临时切换。 */
-  const [versionsOpen, setVersionsOpen] = useState(false)
   useEffect(() => {
     if (!notice) return
     const timer = window.setTimeout(() => setNotice(''), 4500)
@@ -1001,8 +1038,23 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
         return false
       }
       if (!probe.scene.initialized) {
-        setRealModifyError('项目还没有场景，请先用「真实渲染预览」生成一次，再修改')
-        return false
+        /* 项目还没有场景 —— 这正是「从一句需求做第一条片子」的场景。
+           以前这里直接报错，把唯一的创建入口堵死了：用户看到
+           「请先用真实渲染预览生成一次」，而那个按钮给的是项目名标题片，
+           不是一个能把他这句话变成分镜的东西。
+           现在改走 create：模型按 prompt 生成分镜 → 渲染 → 提交为版本 1。
+           产生的场景与修改能力同字段，所以下一步还能继续用自然语言调整。 */
+        const created = await tasks.startCreate(projectId, { kind: 'create', prompt }, (status) => {
+          void refreshCurrentScene(status)
+        })
+        if (!created.taskId) {
+          setRealModifyError(created.failure?.message || '创建失败')
+          return false
+        }
+        setRealModifyError('')
+        chat.addUserMessage(prompt, created.taskId, projectId)
+        setBottomTab('activity')
+        return true
       }
 
       /* 范围沿用 buildRequest 的推导结果：它在到处都在用，另写一份
@@ -2304,7 +2356,9 @@ function RightPanel({ projectId, target, preview, chat, sideTab, setSideTab, foc
               <textarea className="wb-input" rows={3} ref={inputRef}
                         value={chat.draft} onChange={(e) => chat.setDraft(e.target.value)}
                         onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void submit() } }}
-                        placeholder={target.kind === 'project' ? '补充创作要求，或描述希望调整的内容…' : `描述「${scopeShort}」要改哪里、保留什么…`} />
+                        placeholder={sceneVersion === null || !sceneVersion.initialized
+                          ? '描述你想要一条什么片子，例如：做一条 10 秒的咖啡店宣传片…'
+                          : target.kind === 'project' ? '补充创作要求，或描述希望调整的内容…' : `描述「${scopeShort}」要改哪里、保留什么…`} />
               {keepNotes && <button type="button" className="wb-keep-summary" onClick={() => onOpenReview('brief')} title={keepNotes}>始终保留：{keepNotes}</button>}
               <button type="button" className="wb-compose-brief-link" onClick={() => onOpenReview('brief')}>查看制作要求与后续纠正 <ArrowUpRight size={11}/></button>
               {enabledConstraints.length > 0 && (
@@ -2327,7 +2381,7 @@ function RightPanel({ projectId, target, preview, chat, sideTab, setSideTab, foc
                 {/* 能力边界必须写在入口旁：用户会默认「能对话就能随便改」，
                     实际只认「把文字改成 X」「文字/背景颜色改成 X」两种说法。 */}
                 <span className="wb-compose-capability" title="当前仅支持修改文字与颜色；其它要求会被明确拒绝，不会瞎改">
-                  仅支持文字 / 颜色
+                  {sceneVersion !== null && sceneVersion.initialized ? '仅支持文字 / 颜色' : '按需求生成分镜' }
                 </span>
                 <button className="mini mini-ghost" type="button"
                         onClick={() => { const v = chat.draft.trim(); if (v) onDemoSubmit(v) }}
@@ -2337,7 +2391,8 @@ function RightPanel({ projectId, target, preview, chat, sideTab, setSideTab, foc
                 </button>
                 <button className="mini mini-strong" type="submit"
                         disabled={!chat.draft.trim() || realModifyBusy}>
-                  <Send className="size-3" />{realModifyBusy ? '提交中…' : activeLive ? '排队记录' : '提交修改'}
+                  <Send className="size-3" />{realModifyBusy ? '提交中…' : activeLive ? '排队记录'
+                    : sceneVersion === null || !sceneVersion.initialized ? '生成视频' : '提交修改'}
                 </button>
               </div>
             </div>

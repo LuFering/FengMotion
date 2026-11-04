@@ -67,7 +67,7 @@ public final class TaskRequestGuard {
         if (kind == null || !kind.supported()) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "unsupported_task_kind",
                     "不支持的任务类型：" + (wire.isBlank() ? "(空)" : wire)
-                            + "；当前支持 render、modify");
+                            + "；当前支持 render、modify、create");
         }
         if (kind == TaskKind.RENDER) {
             if (!hasScenes) {
@@ -76,9 +76,39 @@ public final class TaskRequestGuard {
             }
             return Route.RENDER;
         }
+        if (kind == TaskKind.CREATE) {
+            /* 创建不需要 film（场景由模型生成），但必须有需求文本。
+               校验放在受理阶段：让用户立刻知道「需求是空的」，
+               而不是等进了执行才发现模型无从下手。 */
+            checkCreateBody(body);
+            return Route.CREATE;
+        }
         // MODIFY
         checkModifyBody(body);
         return Route.MODIFY;
+    }
+
+    /**
+     * 校验 create 请求。
+     *
+     * <p>创建不接收 {@code film}：场景由模型从需求生成。请求里带 film 会被忽略，
+     * 但那会让人以为「我给的场景会被采用」—— 所以明确拒绝，而不是默默丢掉。</p>
+     *
+     * @param body 请求体
+     * @throws ApiException 不满足
+     */
+    private static void checkCreateBody(JsonNode body) {
+        JsonNode prompt = body.get("prompt");
+        if (prompt == null || prompt.isNull() || prompt.asText("").isBlank()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "validation_error",
+                    "create 请求需要非空的 prompt（想要一条什么片子）");
+        }
+        JsonNode film = body.get("film");
+        if (film != null && film.hasNonNull("scenes")) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "unsupported_field",
+                    "create 不接受 film.scenes：场景由模型根据 prompt 生成。"
+                            + "要渲染指定场景请用 kind=render，要改已有场景请用 kind=modify");
+        }
     }
 
     /**
@@ -210,6 +240,8 @@ public final class TaskRequestGuard {
         /** 直接渲染给定的 film.scenes。 */
         RENDER,
         /** 走修改执行流程。 */
-        MODIFY
+        MODIFY,
+        /** 从 prompt 生成初始场景并出片。 */
+        CREATE
     }
 }

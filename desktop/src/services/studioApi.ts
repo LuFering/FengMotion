@@ -1,5 +1,5 @@
 
-export type TaskKind = 'modify' | 'render' | 'undo' | 'redo' | 'restore'
+export type TaskKind = 'modify' | 'render' | 'create' | 'undo' | 'redo' | 'restore'
 export type TaskStatus = 'queued' | 'running' | 'building' | 'completed' | 'failed' | 'cancelled'
 export type TaskEventKind = 'accepted' | 'progress' | 'build' | 'complete' | 'error' | 'cancelled'
 
@@ -27,7 +27,9 @@ export interface ModificationConstraints {
  * 不让模型从「这里/这段」猜位置。
  */
 export interface PreviewSource {
-  origin?: 'editor' | 'workflow'
+  /* scene = 场景版本自带的视频（修改/创建任务的提交结果）。
+     它既不是编辑器导出也不是工作流产物，但同样可以被引用与定位。 */
+  origin?: 'editor' | 'workflow' | 'scene'
   assetId?: string
   projectId: string
   visualId: string

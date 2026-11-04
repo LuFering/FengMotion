@@ -102,6 +102,28 @@ export interface ModifyTaskRequest {
 }
 
 /**
+ * 创建任务的请求体。
+ *
+ * <p><strong>刻意不含 film</strong>：场景由模型根据 prompt 生成。
+ * 传 film 会被后端以 {@code unsupported_field} 拒绝 —— 那不是限制，
+ * 而是避免「我给了场景却没被采用」这种误解。</p>
+ *
+ * <p><strong>能生成的范围与能修改的范围一致</strong>：文字、副标题、颜色、
+ * 背景色、时长。生成时不会产出图片、动画、转场，因为那些后续改不了，
+ * 用户下一步只能收到 unsupported_field。</p>
+ */
+export interface CreateTaskRequest {
+  /** 任务类型，固定为 create。 */
+  kind: 'create'
+  /** 想要一条什么片子。 */
+  prompt: string
+  /** 画布宽高与帧率；省略时后端用 1280x720 @30fps。 */
+  width?: number
+  height?: number
+  fps?: number
+}
+
+/**
  * 项目当前场景。
  *
  * <p>{@code initialized=false} 时 {@code film} 为 null —— 这是「还没有场景」的
@@ -340,6 +362,33 @@ export function createTaskClient(http: HttpClient) {
     async start(
       projectId: string,
       request: RenderTaskRequest,
+      onEvent: TaskEventHandler,
+    ): Promise<BackendTaskRun> {
+      const task = await http.post<BackendTask>(
+        `/projects/${encodeURIComponent(projectId)}/tasks`,
+        request,
+      )
+      return subscribeWith(http, projectId, task, onEvent)
+    },
+
+    /**
+     * 提交一个创建任务：把一句需求变成初始视频。
+     *
+     * <p>只在项目<strong>还没有场景</strong>时可用。已有场景时后端在受理阶段
+     * 直接 409 {@code scene_already_exists} —— 那是覆盖用户内容的操作，
+     * 应该走修改或回退，不该重新创建。调用方应先读 {@code currentScene}。</p>
+     *
+     * <p>不需要单独的订阅链路：创建与渲染在「提交 + 收事件」这一步完全一致，
+     * 只是后端执行的内容不同。</p>
+     *
+     * @param projectId 项目 ID
+     * @param request 创建请求
+     * @param onEvent 事件回调
+     * @returns 运行句柄
+     */
+    async startCreate(
+      projectId: string,
+      request: CreateTaskRequest,
       onEvent: TaskEventHandler,
     ): Promise<BackendTaskRun> {
       const task = await http.post<BackendTask>(
