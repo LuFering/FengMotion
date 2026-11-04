@@ -165,15 +165,11 @@ export async function renderProject(options) {
   /* chdir 到可写目录：Remotion 把 .remotion（Chrome 下载）与 .cache（webpack）
      写到「当前工作目录」，只读镜像下直接 EACCES。仅复制源码不够。
 
-     但浏览器缓存不能留在这个临时目录里 —— 用完就删的话，
-     每次渲染都会重新下载 ~90MB（实测单次约 80 秒）。
-     所以把 .remotion 指到持久目录：后端通过 FENGMOTION_BROWSER_CACHE 传入
-     （安装态是应用数据目录，开发态是用户缓存目录）。 */
-  const browserCache = process.env.FENGMOTION_BROWSER_CACHE?.trim()
-  if (browserCache) {
-    await mkdir(browserCache, { recursive: true })
-    process.env.REMOTION_BROWSER_CACHE = browserCache
-  }
+     浏览器本身不在这里下载：实测 Remotion 把它放在用户缓存目录
+     （~/.cache/google-chrome-headless），跨次渲染复用 ——
+     安装态实测首次 140 秒（含下载），第二次 33 秒。
+     所以这里不需要额外指定缓存路径；早期尝试用 REMOTION_BROWSER_CACHE
+     并不生效，已移除，避免留下一个看起来在起作用的假配置。 */
   process.chdir(options.workDir)
 
   const serveUrl = await bundle({ entryPoint: options.entryPoint })

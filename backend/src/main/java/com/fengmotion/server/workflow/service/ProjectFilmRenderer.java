@@ -54,15 +54,9 @@ public class ProjectFilmRenderer {
     @Value("${fengmotion.remotion.browser:}")
     private String browser;
 
-    /**
-     * 浏览器缓存目录。
-     *
-     * <p>不传的话 Remotion 会把 chrome-headless-shell 下到临时工作目录，
-     * 而那个目录每次渲染后都会删除 —— 等于每次重下 90MB。
-     * 指向应用数据目录后，首次之后直接复用。</p>
-     */
-    @Value("${fengmotion.remotion.browser-cache:}")
-    private String browserCache;
+    /* 不需要指定浏览器缓存目录：实测 Remotion 自己放在 ~/.cache 下并跨次复用
+       （安装态首次 140 秒含下载，第二次 33 秒）。曾经加过一个 browser-cache
+       参数，但它并不生效，留着只会让人以为配置在起作用。 */
 
     /**
      * 渲染超时（秒）。默认 15 分钟：项目工程要先 bundle 再渲染，
@@ -114,9 +108,6 @@ public class ProjectFilmRenderer {
                     .redirectError(stderrFile.toFile());
             if (nodeModules != null && !nodeModules.isBlank()) {
                 builder.environment().put("FENGMOTION_NODE_MODULES", nodeModules);
-            }
-            if (browserCache != null && !browserCache.isBlank()) {
-                builder.environment().put("FENGMOTION_BROWSER_CACHE", browserCache);
             }
 
             process = builder.start();

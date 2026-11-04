@@ -186,11 +186,8 @@ export async function startBackend(options: StartOptions): Promise<BackendHandle
   if (options.packaged) {
     remotionArgs.push('--fengmotion.remotion.browser=')
   }
-  /* 浏览器缓存放在应用数据目录：渲染脚本会 chdir 到临时工作目录，
-     不指走的话 chrome-headless-shell 会下到那里、随目录一起被删，
-     等于每次渲染重下 90MB。装好之后首次慢一次，之后都复用。 */
-  const browserCache = path.join(options.dataDir, 'browser-cache')
-  remotionArgs.push(`--fengmotion.remotion.browser-cache=${browserCache}`)
+  /* 浏览器缓存不用指定：Remotion 自己放在 ~/.cache 并跨次复用
+     （安装态实测首次 140 秒含下载、第二次 33 秒）。 */
 
   /* workflow-v5 创作工具：打包态在 resources/workflow-v5，开发态在仓库里。
      不传的话后端只能按 user.dir 猜，安装后必然猜不到，
