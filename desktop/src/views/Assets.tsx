@@ -3,11 +3,13 @@ import {
   LICENSE_LABEL, MEDIA_ICON, MEDIA_LABEL, REVIEW_LABEL, SOURCE_LABEL,
   type LicenseStatus, type MediaType, type MyAsset, type ReviewStatus,
 } from '@/data/myAssets'
+// 素材库数据源：服务端（原 IndexedDB 已由 assetApiService 替代）。
+// 接口形状与旧 assetService 一致，视图逻辑不必改写。
 import {
-  captureBuiltinPoster, formatBytes, formatDur, getFileURL, getThumbURL,
-  importFiles, initLibrary, listAssets, listFolders, removeAssets, saveFolders,
+  captureBuiltinPoster, createFolder, formatBytes, formatDur, getFileURL, getThumbURL,
+  importFiles, initLibrary, listAssets, listFolders, removeAssets,
   updateAsset, type FolderRow,
-} from '@/services/assetService'
+} from '@/services/assetApiService'
 import { isAssetDrag, setAssetDragData, usePendingAssets } from '@/shell/usePendingAssets'
 import { toast as emitToast } from '@/shell/toast'
 import { clearDragGhost, setDragGhost } from '@/shell/dragGhost'
@@ -215,7 +217,7 @@ export function Assets({ projectName }: { projectName?: string } = {}) {
       for (const a of vids) {
         if (!alive) return
         {
-          const u = await captureBuiltinPoster(a.id)
+          const u = await captureBuiltinPoster()
           if (u && alive) setThumbs((m) => ({ ...m, [a.id]: u }))
         }
       }
@@ -330,7 +332,7 @@ export function Assets({ projectName }: { projectName?: string } = {}) {
     if (!files.length) return
     const failed: string[] = []
     const ok = await importFiles(files, (e) => {
-      if (e.phase === 'error') failed.push(e.fileName)
+      if (e.phase === 'error') failed.push(e.name)
     })
     if (ok.length) setAssets((prev) => [...ok, ...prev])
     if (ok.length > 0 && failed.length === 0) {
@@ -429,13 +431,25 @@ export function Assets({ projectName }: { projectName?: string } = {}) {
   const doDelete = (ids: string[]) => {
     const refd = assets.filter((a) => ids.includes(a.id) && a.refs.length > 0)
     const msg = refd.length
-      ? `以下素材仍被引用：\n${refd.map((a) => `· ${a.name} ← ${a.refs.map((r) => r.label).join('、')}`).join('\n')}\n\n确定从素材库移除 ${ids.length} 项？`
-      : `从素材库移除 ${ids.length} 项？（本地索引删除，可重新导入）`
+      ? `以下素材仍被引用：\n${refd.map((a) => `· ${a.name} ← ${a.refs.map((r) => r.label).join('、')}`).join('\n')}\n\n服务端会拒绝删除被引用的素材；仍要尝试删除 ${ids.length} 项？`
+      : `从素材库移除 ${ids.length} 项？文件会一并删除，不可恢复。`
     if (!window.confirm(msg)) return
-    void removeAssets(ids)
-    setAssets((prev) => prev.filter((a) => !ids.includes(a.id)))
-    setSelected((s) => { const n = new Set(s); ids.forEach((i) => n.delete(i)); return n })
-    if (detailId && ids.includes(detailId)) setDetailId(null)
+    // 等服务端真实结果再更新界面：被引用的素材服务端会 409 拒绝，
+    // 若先乐观从列表里移除，用户会以为删掉了，刷新后又冒出来。
+    void removeAssets(ids).then(({ failed }) => {
+      const failedIds = new Set(failed.map((f) => f.id))
+      const removed = ids.filter((id) => !failedIds.has(id))
+      if (removed.length > 0) {
+        setAssets((prev) => prev.filter((a) => !removed.includes(a.id)))
+        setSelected((s) => { const n = new Set(s); removed.forEach((i) => n.delete(i)); return n })
+        if (detailId && removed.includes(detailId)) setDetailId(null)
+      }
+      if (failed.length > 0) {
+        emitToast(`有 ${failed.length} 项未删除：${failed[0].error}`)
+      }
+    }).catch((error: unknown) => {
+      emitToast(error instanceof Error ? error.message : '删除失败')
+    })
   }
 
   const copyPath = async (a: MyAsset) => {
@@ -459,10 +473,14 @@ export function Assets({ projectName }: { projectName?: string } = {}) {
   const addFolder = () => {
     const name = window.prompt('新建文件夹名称')
     if (!name?.trim()) return
-    const f: FolderRow = { id: `f-${crypto.randomUUID()}`, name: name.trim(), createdAt: Date.now() }
-    const next = [...folders, f]
-    setFolders(next)
-    void saveFolders(next)
+    // 文件夹由服务端建：同名会返回 409，所以这里等结果再更新界面，
+    // 不能先乐观插一条再用服务端的覆盖 —— 失败时界面会多出一个不存在的文件夹。
+    void createFolder(name.trim())
+      .then((f) => setFolders((prev) => [...prev, f]))
+      .catch((error: unknown) => {
+        const message = error instanceof Error ? error.message : '新建文件夹失败'
+        emitToast(message)
+      })
   }
 
   const moveToFolder = (ids: string[], folderId: string | null) => {
@@ -597,7 +615,7 @@ export function Assets({ projectName }: { projectName?: string } = {}) {
             <div className="mya-org-foot">
               <Icon name="cylinder" />
               <span className="mono">{formatBytes(counts.totalBytes)}</span>
-              <span>· 本地索引 {counts.all} 项</span>
+              <span>· 素材库 {counts.all} 项</span>
             </div>
           </aside>
         )}
@@ -728,7 +746,7 @@ export function Assets({ projectName }: { projectName?: string } = {}) {
                   <EmptyState
                     icon="image"
                     title="素材库还是空的"
-                    body={'把图片、视频、音频、字体拖进来，或点右上角「导入素材」。\n文件本体保存在本地索引，刷新后仍在。'}
+                    body={'把图片、视频、音频、字体拖进来，或点右上角「导入素材」。\n文件会复制进应用管理的素材库，删除原文件不影响使用。'}
                     action={{ label: '导入素材', onClick: () => inputRef.current?.click() }}
                   />
                 ) : (

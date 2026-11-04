@@ -161,7 +161,7 @@ public class AssetService {
                 id,
                 name == null || name.isBlank() ? fileName : name,
                 mediaType,
-                mimeType == null || mimeType.isBlank() ? "application/octet-stream" : mimeType,
+                effectiveMimeType(fileName, mimeType, mediaType),
                 size,
                 AssetStates.SourceType.IMPORTED,
                 // 新导入的素材还没解析过尺寸/时长/缩略图，如实停在 pending。
@@ -226,7 +226,8 @@ public class AssetService {
                 && nextAvailability != AssetStates.Availability.DEPRECATED) {
             throw new ApiException(HttpStatus.CONFLICT, "deprecated_is_final", "弃用是终态，不能改回");
         }
-        if (request.folderId() != null && assets.findFolder(request.folderId()).isEmpty()) {
+        if (request.movesFolder() && request.targetFolderId() != null
+                && assets.findFolder(request.targetFolderId()).isEmpty()) {
             throw new ApiException(HttpStatus.NOT_FOUND, "not_found", "文件夹不存在");
         }
 
@@ -249,7 +250,9 @@ public class AssetService {
                 current.height(),
                 current.durationMs(),
                 request.tags() == null ? current.tags() : request.tags(),
-                request.folderId() == null ? current.folderId() : request.folderId(),
+                // folderId 三态：null=不改，空串=移回根目录，非空=移到该文件夹。
+                // 只用「可空字符串」会把「移回根」误当成「不改」。
+                request.movesFolder() ? request.targetFolderId() : current.folderId(),
                 current.fileUrl(),
                 current.thumbnailUrl(),
                 current.contentHash(),
@@ -361,16 +364,69 @@ public class AssetService {
      * <p>契约 asset.md 的素材页要覆盖图片/视频/音频/字体/文档五类，
      * 所以这里比对话附件上传的类型范围更宽（附件只收图片/视频/音频）。</p>
      */
+    /**
+     * 存下来的 MIME。
+     *
+     * <p>客户端没带类型（curl、部分拖拽、被标成 octet-stream）时，不能把
+     * {@code application/octet-stream} 原样存进库：界面会显示一个对用户无意义的类型，
+     * 而实际类型明明能从扩展名看出来。这里按已判定的媒体类型与扩展名补一个具体值。</p>
+     */
+    static String effectiveMimeType(String fileName, String mimeType, AssetStates.MediaType mediaType) {
+        if (mimeType != null && !mimeType.isBlank()
+                && !mimeType.equalsIgnoreCase("application/octet-stream")) {
+            return mimeType;
+        }
+        String name = fileName == null ? "" : fileName.toLowerCase();
+        int dot = name.lastIndexOf('.');
+        String ext = dot >= 0 ? name.substring(dot + 1) : "";
+        return switch (ext) {
+            case "mp4", "m4v" -> "video/mp4";
+            case "mov" -> "video/quicktime";
+            case "mkv" -> "video/x-matroska";
+            case "webm" -> "video/webm";
+            case "avi" -> "video/x-msvideo";
+            case "png" -> "image/png";
+            case "jpg", "jpeg" -> "image/jpeg";
+            case "gif" -> "image/gif";
+            case "webp" -> "image/webp";
+            case "svg" -> "image/svg+xml";
+            case "avif" -> "image/avif";
+            case "mp3" -> "audio/mpeg";
+            case "wav" -> "audio/wav";
+            case "flac" -> "audio/flac";
+            case "aac", "m4a" -> "audio/aac";
+            case "ogg" -> "audio/ogg";
+            case "woff2" -> "font/woff2";
+            case "woff" -> "font/woff";
+            case "ttf" -> "font/ttf";
+            case "otf" -> "font/otf";
+            case "pdf" -> "application/pdf";
+            case "md" -> "text/markdown";
+            case "txt" -> "text/plain";
+            case "json" -> "application/json";
+            default -> switch (mediaType) {
+                case VIDEO -> "video/mp4";
+                case IMAGE -> "image/png";
+                case AUDIO -> "audio/mpeg";
+                case FONT -> "font/ttf";
+                case DOC -> "application/octet-stream";
+            };
+        };
+    }
+
     static AssetStates.MediaType mediaTypeOf(String fileName, String mimeType) {
         String mime = mimeType == null ? "" : mimeType.toLowerCase();
         String name = fileName.toLowerCase();
-        if (mime.startsWith("image/")) {
+        // 先看 MIME，看不出来再看扩展名。只认 MIME 会误拒：
+        // curl、部分桌面拖拽、以及被系统标成 application/octet-stream 的 mp4 都没有正确 MIME，
+        // 而文件的扩展名是可靠的。
+        if (mime.startsWith("image/") || name.matches(".*\\.(png|jpe?g|gif|webp|bmp|svg|avif|heic)$")) {
             return AssetStates.MediaType.IMAGE;
         }
-        if (mime.startsWith("video/")) {
+        if (mime.startsWith("video/") || name.matches(".*\\.(mp4|mov|mkv|webm|avi|m4v)$")) {
             return AssetStates.MediaType.VIDEO;
         }
-        if (mime.startsWith("audio/")) {
+        if (mime.startsWith("audio/") || name.matches(".*\\.(mp3|wav|flac|aac|m4a|ogg)$")) {
             return AssetStates.MediaType.AUDIO;
         }
         if (mime.startsWith("font/") || name.matches(".*\\.(woff2?|ttf|otf)$")) {

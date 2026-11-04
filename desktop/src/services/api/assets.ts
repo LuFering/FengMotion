@@ -447,6 +447,21 @@ export function createAssetsResource(http: HttpClient) {
 
   return {
     /**
+     * 素材本体的可访问 URL。
+     *
+     * 返回完整地址而不是相对路径：`<video src>` / `<img src>` 直接加载，
+     * 打包态后端端口是动态的，拼相对路径会打到前端 dev server 上。
+     */
+    contentUrl(assetId: string): string {
+      return http.url(`${assetPath(assetId)}/content`)
+    },
+
+    /** 缩略图 URL。素材没有缩略图时该地址会 404，调用方应先看 `thumbnailUrl` 是否存在。 */
+    thumbnailUrl(assetId: string): string {
+      return http.url(`${assetPath(assetId)}/thumbnail`)
+    },
+
+    /**
      * `GET /assets`：筛选/搜索/排序按 asset.md §3.1；`tags` 以重复参数表达（见 config.ts）。
      *
      * 列表形状交给 `asPage` 归一：契约里「列表」有两种口径（README §2.3 游标分页、project.md 有限集合裸数组），

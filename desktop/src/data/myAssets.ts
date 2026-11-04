@@ -16,7 +16,16 @@
 export type MediaType = 'image' | 'video' | 'audio' | 'font' | 'doc'
 export type SourceType = 'builtin' | 'imported' | 'generated'
 export type LicenseStatus = 'allowed' | 'attribution_required' | 'restricted' | 'unknown'
-export type ReviewStatus = 'pending' | 'approved' | 'needs_review'
+/**
+ * 审核状态（对账决定 A，契约 asset.md §1.1）。
+ *
+ * 五个值不可互相压平：`none` 是从未提审（新导入素材的初始值），`pending` 是已提审未出结论，
+ * `needs_review` 是审过了、要求改。三者含义各不相同，压平会让用户分不清「没人看过」
+ * 和「看过了要改」。`rejected` 是终局否定。
+ *
+ * 授权（licenseStatus）与此完全独立：审核通过不代表有使用许可。
+ */
+export type ReviewStatus = 'none' | 'pending' | 'needs_review' | 'approved' | 'rejected'
 
 export interface AssetRef {
   kind: 'project' | 'workflow' | 'task'
@@ -63,7 +72,8 @@ export const LICENSE_LABEL: Record<LicenseStatus, string> = {
 }
 
 export const REVIEW_LABEL: Record<ReviewStatus, string> = {
-  pending: '待审核', approved: '已通过', needs_review: '需复核',
+  none: '未提审', pending: '待审核', needs_review: '需复核',
+  approved: '已通过', rejected: '未通过',
 }
 
 export const MEDIA_ICON: Record<MediaType, string> = {

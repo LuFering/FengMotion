@@ -48,6 +48,9 @@ class AssetServiceTest {
     @Autowired
     private ResourceRefService refs;
 
+    @Autowired
+    private AssetFolderService folderService;
+
     private Asset importText(String name, String content) {
         return service.importFile(name, "text/plain", null, null,
                 new ByteArrayInputStream(content.getBytes(StandardCharsets.UTF_8))).asset();
@@ -188,6 +191,55 @@ class AssetServiceTest {
         assertTrue(results.stream().anyMatch(r -> r.id().equals(blocked.id()) && !r.ok()));
         assertTrue(repository.findById(ok.id()).isEmpty());
         assertTrue(repository.findById(blocked.id()).isPresent());
+    }
+
+    @Test
+    @DisplayName("folderId 三态：空串移回根目录，null 表示不改")
+    void folderIdTristateMovesToRoot() {
+        var folder = folderService.create("三态测试");
+        Asset asset = service.importFile("tristate.txt", "text/plain", folder.id(), null,
+                new ByteArrayInputStream("x".getBytes(StandardCharsets.UTF_8))).asset();
+        assertEquals(folder.id(), asset.folderId());
+
+        // null = 不改：文件夹归属保持。
+        Asset unchanged = service.update(asset.id(), new UpdateAssetRequest(
+                "改个名", null, null, null, null, null, null, null, null, false), asset.etag());
+        assertEquals(folder.id(), unchanged.folderId(), "未提供 folderId 不应移动");
+
+        // 空串 = 移回根目录。
+        Asset moved = service.update(unchanged.id(), new UpdateAssetRequest(
+                null, null, "", null, null, null, null, null, null, false), unchanged.etag());
+        assertEquals(null, moved.folderId(), "空串应把素材移回根目录");
+    }
+
+    @Test
+    @DisplayName("MIME 缺失或为 octet-stream 时按扩展名判定类型，不误拒真实文件")
+    void mediaTypeFallsBackToExtension() {
+        // curl / 部分桌面拖拽不带 MIME：不能因为「看不出 MIME」就拒绝一个 mp4。
+        assertEquals(AssetStates.MediaType.VIDEO, AssetService.mediaTypeOf("a.mp4", null));
+        assertEquals(AssetStates.MediaType.VIDEO, AssetService.mediaTypeOf("a.MOV",
+                "application/octet-stream"));
+        assertEquals(AssetStates.MediaType.IMAGE, AssetService.mediaTypeOf("p.png", ""));
+        assertEquals(AssetStates.MediaType.AUDIO, AssetService.mediaTypeOf("s.mp3", null));
+        // MIME 优先：即使扩展名不认识，正确的 MIME 也应被接受。
+        assertEquals(AssetStates.MediaType.IMAGE, AssetService.mediaTypeOf("weird", "image/avif"));
+        // 两者都认不出才拒绝。
+        assertTrue(AssetService.mediaTypeOf("evil.exe", "application/x-msdownload") == null);
+    }
+
+    @Test
+    @DisplayName("客户端没带 MIME 时按扩展名补具体类型，不把 octet-stream 存进库")
+    void mimeFilledFromExtensionWhenMissing() {
+        // curl / 部分拖拽不带类型：库里存 octet-stream 会让界面显示无意义的类型。
+        assertEquals("video/mp4",
+                AssetService.effectiveMimeType("a.mp4", null, AssetStates.MediaType.VIDEO));
+        assertEquals("video/mp4", AssetService.effectiveMimeType("a.mp4",
+                "application/octet-stream", AssetStates.MediaType.VIDEO));
+        assertEquals("image/png",
+                AssetService.effectiveMimeType("p.png", "", AssetStates.MediaType.IMAGE));
+        // 客户端给了具体类型就原样保留，不擅自改写。
+        assertEquals("video/x-custom",
+                AssetService.effectiveMimeType("a.mp4", "video/x-custom", AssetStates.MediaType.VIDEO));
     }
 
     @Test
