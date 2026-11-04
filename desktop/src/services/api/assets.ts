@@ -430,11 +430,21 @@ export function createAssetsResource(http: HttpClient) {
       await putChunk(uploadId, index, chunk, options)
     },
 
-    /** `POST .../complete` → `201` + `Asset`（`processingStatus=pending`，asset.md §3.2）。 */
-    completeUpload(uploadId: string, options: { signal?: AbortSignal } = {}): Promise<Asset> {
-      return http.post<Asset>(`${uploadPath(uploadId)}/complete`, undefined, {
+    /**
+     * `POST .../complete` → `201`（asset.md §3.2）。
+     *
+     * 后端返回的是 `{ asset, deduped }` 包装：上传完成后可能命中去重，
+     * 而「这次真的新建了素材」和「返回了一个已存在的素材」对用户是两件事，
+     * 所以服务端把 `deduped` 一并给出。这里解包成 `Asset`，同时兼容旧的裸 `Asset` 响应
+     * —— 只认一种形状时，换一种响应就会静默变成 `undefined`（曾经因此把
+     * 「上传成功」判成「服务端未返回素材」）。
+     */
+    async completeUpload(uploadId: string, options: { signal?: AbortSignal } = {}): Promise<Asset> {
+      const payload = await http.post<unknown>(`${uploadPath(uploadId)}/complete`, undefined, {
         signal: options.signal,
       })
+      if (isRecord(payload) && isRecord(payload.asset)) return payload.asset as unknown as Asset
+      return payload as Asset
     },
 
     /** `DELETE /assets/uploads/{uploadId}`：取消会话并清理已收分片（asset.md §3.2）。 */

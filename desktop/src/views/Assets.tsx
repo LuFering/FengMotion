@@ -10,6 +10,8 @@ import {
   importFiles, initLibrary, listAssets, listFolders, removeAssets,
   updateAsset, type FolderRow,
 } from '@/services/assetApiService'
+import { hasLegacyData } from '@/services/assetIndexedDb'
+import { migrateIndexedDbAssets, readAssetMigrationReport, type MigrationReport } from '@/services/assetMigration'
 import { isAssetDrag, setAssetDragData, usePendingAssets } from '@/shell/usePendingAssets'
 import { toast as emitToast } from '@/shell/toast'
 import { clearDragGhost, setDragGhost } from '@/shell/dragGhost'
@@ -136,6 +138,12 @@ export function Assets({ projectName }: { projectName?: string } = {}) {
   const [folders, setFolders] = useState<FolderRow[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(false)
+  /* 旧版素材在浏览器 IndexedDB 里。新版本读服务端，若不提示并迁移，
+     老用户打开就会看到空库 —— 那是「文件丢了」的观感，必须在界面上给出口。 */
+  const [legacyPending, setLegacyPending] = useState(false)
+  const [migration, setMigration] = useState<MigrationReport | null>(null)
+  const [migrating, setMigrating] = useState(false)
+  const [migrationDone, setMigrationDone] = useState(0)
   const [loadVersion, setLoadVersion] = useState(0)
   const [node, setNode] = useState<NodeId>('all')
   const [typeFilter, setTypeFilter] = useState<MediaType | 'all'>('all')
@@ -194,6 +202,11 @@ export function Assets({ projectName }: { projectName?: string } = {}) {
         setAssets(list.sort((a, b) => b.createdAt - a.createdAt))
         setFolders(fl)
         setLoading(false)
+        // 检测旧库：有数据且尚未迁移过才提示。已经迁移过的不再打扰。
+        const [legacy, report] = await Promise.all([hasLegacyData(), readAssetMigrationReport()])
+        if (!alive) return
+        setMigration(report)
+        setLegacyPending(legacy && report?.phase !== 'migrated')
       } catch {
         if (!alive) return
         setLoadError(true)
@@ -328,12 +341,42 @@ export function Assets({ projectName }: { projectName?: string } = {}) {
   /* 导入：不再弹「导入队列」面板（作者要求删掉）。但过程不能一声不响 ——
      逐个文件导入要读尺寸/时长/抽缩略图，十个文件可能等好几秒。
      所以用已有的全局 toast 汇报结果：成功入库 N 个，失败的指出名字。 */
+  /**
+   * 把旧版浏览器素材迁移到服务端。
+   *
+   * 界面只做两件事：显示真实进度、迁移完刷新。规则都在 assetMigration 里：
+   * 逐条校验、失败不切换、旧库只读保留。
+   */
+  const runMigration = useCallback(async () => {
+    if (migrating) return
+    setMigrating(true)
+    try {
+      const report = await migrateIndexedDbAssets((progress) => {
+        setMigrationDone(progress.index)
+      })
+      setMigration(report)
+      if (report.phase === 'migrated') {
+        setLegacyPending(false)
+        emitToast(`已迁移 ${report.migrated} 个素材到素材库`)
+        setLoadVersion((v) => v + 1)
+      } else {
+        // 失败时不切换数据源，旧数据仍在浏览器里，用户可以重试。
+        emitToast(`迁移未完成：${report.failed} 个失败，原有素材仍然保留`)
+      }
+    } catch (error) {
+      emitToast(error instanceof Error ? error.message : '迁移失败')
+    } finally {
+      setMigrating(false)
+    }
+  }, [migrating])
+
   const runImport = useCallback(async (files: File[]) => {
     if (!files.length) return
     const failed: string[] = []
-    const ok = await importFiles(files, (e) => {
+    const outcome = await importFiles(files, (e) => {
       if (e.phase === 'error') failed.push(e.name)
     })
+    const ok = outcome.created
     if (ok.length) setAssets((prev) => [...ok, ...prev])
     if (ok.length > 0 && failed.length === 0) {
       emitToast(ok.length === 1 ? `已导入「${ok[0].name}」` : `已导入 ${ok.length} 个素材`)
@@ -733,6 +776,37 @@ export function Assets({ projectName }: { projectName?: string } = {}) {
           {pop && <div className="mya-popshade" onClick={() => setPop(null)} />}
 
           <main className="mya-canvas">
+            {legacyPending && (
+              <div className="mya-migrate" role="status">
+                <div className="mya-migrate-text">
+                  {migration?.phase === 'failed' ? (
+                    <>
+                      <strong>上次迁移未完成</strong>
+                      <span>
+                        已有 {migration.migrated} 个迁移成功、{migration.failed} 个失败。
+                        失败项仍保留在浏览器里，可以重试。
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <strong>发现旧版素材</strong>
+                      <span>
+                        旧版把素材存在浏览器里，新版存在素材库。迁移会把文件复制到素材库并保留名称、标签与授权；
+                        原来的浏览器数据不会删除。
+                      </span>
+                    </>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  className="mya-migrate-btn"
+                  onClick={() => void runMigration()}
+                  disabled={migrating}
+                >
+                  {migrating ? `迁移中 ${migrationDone} / ${migration?.total ?? 0}` : '迁移到素材库'}
+                </button>
+              </div>
+            )}
             <div className="mya-scroll">
               {loading ? (
                 <LoadingState variant="grid" rows={8} />

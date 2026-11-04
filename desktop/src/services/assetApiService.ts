@@ -160,6 +160,11 @@ export async function updateAsset(id: string, patch: Partial<MyAsset>): Promise<
   if (patch.licenseStatus !== undefined) body.licenseStatus = patch.licenseStatus
   if (patch.licenseDetails !== undefined) body.licenseDetails = patch.licenseDetails
   if (patch.reviewStatus !== undefined) body.reviewStatus = patch.reviewStatus
+  // 处理状态正常由解析任务写；迁移场景需要把「旧版已解析完的素材」标为 ready，
+  // 否则它的审核状态永远无法写入（契约要求先 ready 才能通过审核）。
+  if ((patch as { processingStatus?: string }).processingStatus !== undefined) {
+    body.processingStatus = (patch as { processingStatus?: string }).processingStatus
+  }
   // 「最近使用」由服务端按 touchLastUsed 置为当前时间，不接受客户端指定时刻。
   if (patch.lastUsedAt !== undefined) body.touchLastUsed = true
   if (Object.keys(body).length === 0) return
@@ -188,12 +193,28 @@ export async function removeAssets(ids: string[]): Promise<{ failed: { id: strin
  * 命中去重时后端返回已有素材且 `deduped=true`，这里不额外提示 —— 由调用方按
  * 「本次导入 N 个，其中 M 个已存在」的方式展示。
  */
+export interface ImportFailure {
+  name: string
+  error: string
+}
+
+/**
+ * 导入文件。
+ *
+ * 走单请求 multipart（后端 `POST /assets`）。进度按「第几个文件」报告而不是百分比：
+ * 服务端不返回单请求上传的中间进度，编一个百分比不如如实说「正在读取第 2 / 5 个」。
+ *
+ * **失败不抛出，而是通过回调与返回值一并报告**：界面上一个文件失败不该让整批中断。
+ * 但调用方必须能看到失败原因 —— 迁移场景需要它，否则失败会被报成含糊的
+ * 「服务端未返回素材」，掩盖真正原因（例如类型不支持、连接失败）。
+ */
 export async function importFiles(
   files: File[],
   onEvent: (e: { phase: 'queued' | 'reading' | 'done' | 'error'; name: string; index: number; error?: string }) => void,
-): Promise<MyAsset[]> {
+): Promise<{ created: MyAsset[]; failed: ImportFailure[] }> {
   const api = studioHttpApi().assets
   const created: MyAsset[] = []
+  const failed: ImportFailure[] = []
   for (let index = 0; index < files.length; index += 1) {
     const file = files[index]
     onEvent({ phase: 'reading', name: file.name, index })
@@ -209,10 +230,11 @@ export async function importFiles(
       onEvent({ phase: 'done', name: file.name, index })
     } catch (error) {
       const message = error instanceof Error ? error.message : '导入失败'
+      failed.push({ name: file.name, error: message })
       onEvent({ phase: 'error', name: file.name, index, error: message })
     }
   }
-  return created
+  return { created, failed }
 }
 
 /** 新建文件夹。 */
