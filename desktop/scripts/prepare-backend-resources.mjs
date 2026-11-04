@@ -14,7 +14,7 @@
  */
 
 import { execFileSync } from 'node:child_process'
-import { cpSync, existsSync, mkdirSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { copyFileSync, cpSync, existsSync, mkdirSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 
 const repoRoot = path.resolve(import.meta.dirname, '..')
@@ -38,6 +38,15 @@ const remotionModulesOut = path.join(remotionOut, 'node_modules')
    「建立创作上下文」直接失败 —— 开发态能跑不代表安装态能跑。 */
 const workflowSrc = path.resolve(repoRoot, 'workflow-v5')
 const workflowOut = path.join(outRoot, 'workflow-v5')
+/* ffmpeg / ffprobe：缩略图抽帧与音视频元数据探测。
+   不随包带上的话，打包应用里素材页全是占位图标、时长显示「未知」——
+   导入不会失败（后端有降级），但体验会明显退化，所以要一起带。
+
+   注意：本机 ffmpeg 是**动态链接**的（依赖 160+ 个 .so）。只拷二进制在别的机器上
+   会因缺库而启动失败，因此把 libav / libsw 系列一并放进 ffmpeg/lib，并在启动脚本里
+   通过 LD_LIBRARY_PATH 指过去。这不是通用解法 —— 目标机 glibc 版本过旧仍可能起不来，
+   那种情况下的表现是「没有缩略图」，不是崩溃，已由后端降级路径兜住。 */
+const ffmpegOut = path.join(outRoot, 'ffmpeg')
 const REMOTION_RUNTIME_PACKAGES = ['@remotion/bundler', '@remotion/renderer']
 /** 与 desktop 使用的 Remotion 版本保持一致；换版本时这里和 desktop 一起改。 */
 const REMOTION_VERSION = '4.0.519'
@@ -160,7 +169,7 @@ function buildRemotion() {
 
 /* ── 4. workflow-v5 创作工具 ──────────────────────────────── */
 function buildWorkflowTools() {
-  console.log('\n[4/5] 打包 workflow-v5 创作工具')
+  console.log('\n[4/6] 打包 workflow-v5 创作工具')
 
   if (!existsSync(workflowSrc)) {
     throw new Error(`找不到 workflow-v5 目录：${workflowSrc}`)
@@ -180,9 +189,62 @@ function buildWorkflowTools() {
   console.log('  工具与模板已复制（不含 examples 夹具）')
 }
 
-/* ── 5. 校验 ─────────────────────────────────────────────── */
+/* ── 5. ffmpeg（缩略图与元数据）─────────────────────────── */
+function buildFfmpeg() {
+  console.log('\n[5/6] 打包 ffmpeg')
+
+  const candidates = ['/usr/bin/ffmpeg', '/usr/local/bin/ffmpeg']
+  const ffmpegBin = candidates.find((p) => existsSync(p))
+  if (!ffmpegBin) {
+    /* 缺 ffmpeg 不阻断打包：后端在找不到 ffmpeg 时仍能导入素材，
+       只是没有缩略图、时长显示「未知」。这比让整个安装包打不出来要好。 */
+    console.warn('  ⚠ 未找到 ffmpeg，打包应用将没有素材缩略图（导入仍可用）')
+    return
+  }
+  const ffprobeBin = ffmpegBin.replace(/ffmpeg$/, 'ffprobe')
+  rmSync(ffmpegOut, { recursive: true, force: true })
+  mkdirSync(ffmpegOut, { recursive: true })
+  cpSync(ffmpegBin, path.join(ffmpegOut, 'ffmpeg'))
+  if (existsSync(ffprobeBin)) cpSync(ffprobeBin, path.join(ffmpegOut, 'ffprobe'))
+
+  /* 动态库：把 ffmpeg 依赖的 libav / libsw 系列一起带上。
+     用 ldd 列出真实依赖，只取解码/容器相关的那几个（其余的 libc、libz 等在目标机都有）。 */
+  const libDir = path.join(ffmpegOut, 'lib')
+  mkdirSync(libDir, { recursive: true })
+  let copied = 0
+  try {
+    const ldd = execFileSync('ldd', [ffmpegBin], { encoding: 'utf8' })
+    for (const line of ldd.split('\n')) {
+      const m = line.match(/(lib(?:av|sw)[a-z0-9]*\.so[^\s]*)\s+=>\s+(\/\S+)/)
+      if (!m) continue
+      /* 必须 copyFileSync 而不是 cpSync：系统里的 libavcodec.so.63 是符号链接，
+         cpSync 会把**绝对路径的链接**拷进去，安装包里只剩一条指向 /usr/lib/... 的
+         死链 —— 目标机没有那个文件，等于没带库。
+         （cpSync 加 dereference 也不行：它会把符号链接目标当目录处理并报 EISDIR。
+         copyFileSync 默认跟随链接，复制的就是真实内容。） */
+      copyFileSync(m[2], path.join(libDir, m[1]))
+      copied += 1
+    }
+  } catch (err) {
+    console.warn('  ⚠ 读取 ffmpeg 动态依赖失败，缩略图在目标机可能不可用：' + err.message)
+  }
+  // 校验：任何一个还是符号链接就说明打包产物在目标机不可用。
+  const stillLinks = readdirSync(libDir).filter((f) => {
+    try {
+      return statSync(path.join(libDir, f)).size === 0
+    } catch {
+      return true
+    }
+  })
+  if (stillLinks.length > 0) {
+    throw new Error(`以下库复制成了空文件或死链，安装包里会失效：${stillLinks.join(', ')}`)
+  }
+  console.log(`  ffmpeg 与 ${copied} 个 libav/libsw 库已复制`)
+}
+
+/* ── 6. 校验 ─────────────────────────────────────────────── */
 function verify() {
-  console.log('\n[5/5] 校验产物')
+  console.log('\n[6/6] 校验产物')
   const java = path.join(jreDir, 'bin', process.platform === 'win32' ? 'java.exe' : 'java')
   const jar = path.join(backendOut, 'fengmotion-server.jar')
   if (!existsSync(java)) throw new Error(`JRE 缺少 java 可执行文件：${java}`)
@@ -216,11 +278,25 @@ function verify() {
   const initTool = path.join(workflowOut, 'prompt-first', 'tools', 'init-project.mjs')
   if (!existsSync(initTool)) throw new Error(`缺少 workflow-v5 init-project：${initTool}`)
   console.log('  workflow-v5 工具: 就绪')
+
+  const ffmpegBin = path.join(ffmpegOut, 'ffmpeg')
+  if (existsSync(ffmpegBin)) {
+    // 实测跑一次，确认这个二进制在打包环境里真的能执行（动态库齐不齐）。
+    try {
+      const v = execFileSync(ffmpegBin, ['-version'], { encoding: 'utf8' })
+      console.log('  ffmpeg:', v.split('\n')[0])
+    } catch {
+      console.warn('  ⚠ ffmpeg 已复制但无法执行，缩略图将不可用')
+    }
+  } else {
+    console.warn('  ⚠ 未打包 ffmpeg（缩略图不可用，导入仍可用）')
+  }
 }
 
 buildJar()
 buildJre()
 buildRemotion()
 buildWorkflowTools()
+buildFfmpeg()
 verify()
 console.log('\n打包资源已就绪：electron/resources/')

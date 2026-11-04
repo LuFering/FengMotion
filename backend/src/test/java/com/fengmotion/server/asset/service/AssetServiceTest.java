@@ -9,6 +9,7 @@ import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.Instant;
 import java.util.List;
 
@@ -240,6 +241,38 @@ class AssetServiceTest {
         // 客户端给了具体类型就原样保留，不擅自改写。
         assertEquals("video/x-custom",
                 AssetService.effectiveMimeType("a.mp4", "video/x-custom", AssetStates.MediaType.VIDEO));
+    }
+
+    @Test
+    @DisplayName("图片不保存时长：ffprobe 报的单帧时长不是语义上的时长")
+    void imageHasNoDuration() throws Exception {
+        Path png = Paths.get("../desktop/public/editor-sources/token/assets/apps/yuanbao.png");
+        org.junit.jupiter.api.Assumptions.assumeTrue(Files.isRegularFile(png), "本机缺少示例图片，跳过");
+        Asset asset;
+        try (var in = Files.newInputStream(png)) {
+            asset = service.importFile("yuanbao.png", "image/png", null, null, in).asset();
+        }
+        assertEquals(AssetStates.MediaType.IMAGE, asset.mediaType());
+        // 宽高要有（用户看得见），时长必须为空（图片没有时长）。
+        assertTrue(asset.width() != null && asset.width() > 0, "图片应有宽度");
+        assertEquals(null, asset.durationMs(), "图片不应带时长，否则界面会显示 0:00");
+    }
+
+    @Test
+    @DisplayName("视频导入后带真实宽度和时长，并生成缩略图")
+    void videoGetsMetadataAndThumbnail() throws Exception {
+        Path mp4 = Paths.get("../desktop/public/fx/motion/fx-dolly-zoom.mp4");
+        org.junit.jupiter.api.Assumptions.assumeTrue(Files.isRegularFile(mp4), "本机缺少示例视频，跳过");
+        Asset asset;
+        try (var in = Files.newInputStream(mp4)) {
+            asset = service.importFile("fx-dolly-zoom.mp4", "video/mp4", null, null, in).asset();
+        }
+        assertEquals(640, asset.width());
+        assertEquals(360, asset.height());
+        assertEquals(10_000L, asset.durationMs());
+        assertTrue(asset.thumbnailUrl() != null, "视频应生成缩略图");
+        assertEquals(AssetStates.ProcessingStatus.READY, asset.processingStatus(),
+                "解析成功后才标 ready");
     }
 
     @Test

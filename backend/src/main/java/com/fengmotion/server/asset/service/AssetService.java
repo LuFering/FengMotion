@@ -48,11 +48,14 @@ public class AssetService {
     private final AssetRepository assets;
     private final AssetStorage storage;
     private final ResourceRefService refs;
+    private final ThumbnailService thumbnails;
 
-    public AssetService(AssetRepository assets, AssetStorage storage, ResourceRefService refs) {
+    public AssetService(AssetRepository assets, AssetStorage storage, ResourceRefService refs,
+            ThumbnailService thumbnails) {
         this.assets = assets;
         this.storage = storage;
         this.refs = refs;
+        this.thumbnails = thumbnails;
     }
 
     /** 导入结果：素材本体 + 是否命中去重。 */
@@ -124,6 +127,27 @@ public class AssetService {
     }
 
     /**
+     * 生成缩略图，返回相对存储根的路径；失败返回 null。
+     *
+     * <p>与文件本体放在同一目录（{@code thumb.webp}），这样删素材时一次递归就能清干净，
+     * 不需要维护第二套目录结构。</p>
+     */
+    private String generateThumbnail(Path targetDir, Path original, AssetStates.MediaType mediaType) {
+        boolean generated = switch (mediaType) {
+            case VIDEO -> thumbnails.extractVideoThumbnail(original, targetDir.resolve("thumb.webp"));
+            case IMAGE -> thumbnails.extractImageThumbnail(original, targetDir.resolve("thumb.webp"));
+            // 音频、字体、文档没有可用的画面。前端按类型显示图标即可，
+            // 不为它们生成一张假图 —— 假缩略图比没有更糟。
+            default -> false;
+        };
+        if (!generated) {
+            return null;
+        }
+        Path relative = storage.root().relativize(targetDir.resolve("thumb.webp"));
+        return relative.toString();
+    }
+
+    /**
      * 把已存在的素材放到用户这次指定的文件夹。
      *
      * <p>只在用户显式指定了文件夹、且与当前归属不同时才移动；其余字段（名称/标签/授权）
@@ -157,6 +181,29 @@ public class AssetService {
         Instant now = Instant.now();
         String id = "asset_" + UUID.randomUUID();
         String relativeFile = Path.of(relativeDir, "original" + extension).toString();
+
+        // 探测元数据与生成缩略图。两者的失败都不影响导入：读不出就留空，
+        // 界面显示「未知」/类型图标，而不是让整次导入失败。
+        // 图片也要探测：宽高是用户会看的信息，缺了会显示成「未知」。
+        // 音频也走 probe（它单独取容器时长，没有视频流时宽高为 null 是正常的）。
+        ThumbnailService.MediaInfo info = switch (mediaType) {
+            case VIDEO, AUDIO, IMAGE -> thumbnails.probe(target);
+            default -> null;
+        };
+        // 图片没有时长。ffprobe 对 PNG 会报单帧时长（0.04s），那是技术值不是语义值，
+        // 直接存下来会让界面显示「0:00」这种误导性的时长。
+        if (info != null && mediaType == AssetStates.MediaType.IMAGE) {
+            info = new ThumbnailService.MediaInfo(info.width(), info.height(), null);
+        }
+        String relativeThumb = generateThumbnail(targetDir, target, mediaType);
+
+        // 处理状态如实反映实际结果：只有真的解析过才敢标 ready。
+        // 什么都没解析出来时停在 pending —— 那表示「还没做」，不是「做失败了」。
+        boolean parsed = info != null || relativeThumb != null;
+        AssetStates.ProcessingStatus processing = parsed
+                ? AssetStates.ProcessingStatus.READY
+                : AssetStates.ProcessingStatus.PENDING;
+
         Asset asset = new Asset(
                 id,
                 name == null || name.isBlank() ? fileName : name,
@@ -164,8 +211,7 @@ public class AssetService {
                 effectiveMimeType(fileName, mimeType, mediaType),
                 size,
                 AssetStates.SourceType.IMPORTED,
-                // 新导入的素材还没解析过尺寸/时长/缩略图，如实停在 pending。
-                AssetStates.ProcessingStatus.PENDING,
+                processing,
                 null,
                 // 从未提审 —— 注意不是 pending：pending 是「已提审」。
                 AssetStates.ReviewStatus.NONE,
@@ -173,13 +219,13 @@ public class AssetService {
                 // 没有可靠授权信息一律 unknown，不猜。
                 AssetStates.LicenseStatus.UNKNOWN,
                 null,
-                null,
-                null,
-                null,
+                info == null ? null : info.width(),
+                info == null ? null : info.height(),
+                info == null ? null : info.durationMs(),
                 List.of(),
                 folderId,
                 relativeFile,
-                null,
+                relativeThumb,
                 hash,
                 now,
                 now,

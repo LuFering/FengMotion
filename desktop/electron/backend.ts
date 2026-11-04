@@ -192,16 +192,42 @@ export async function startBackend(options: StartOptions): Promise<BackendHandle
     }
   }
 
+  /* ffmpeg/ffprobe：素材缩略图与音视频元数据。
+     打包后 must 用 resources 里那份 —— 目标机不一定装了 ffmpeg，
+     而部署环境（比如别人的 Mac）PATH 里通常没有它。
+     找不到就什么都不传，后端退回系统 PATH；再找不到就走失败降级（无缩略图，导入照常）。 */
+  const ffmpegArgs: string[] = []
+  // 显式构造子进程环境：只在确实要注入 LD_LIBRARY_PATH 时才改，
+  // 其余情况保持继承，避免把外部环境的意外变量带进后端。
+  const env: NodeJS.ProcessEnv = { ...process.env }
+  const ffmpegDir = path.join(options.resourcesRoot, 'ffmpeg')
+  const ffmpegBin = path.join(ffmpegDir, process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg')
+  const ffprobeBin = path.join(ffmpegDir, process.platform === 'win32' ? 'ffprobe.exe' : 'ffprobe')
+  if (existsSync(ffmpegBin)) {
+    ffmpegArgs.push(`--fengmotion.asset.ffmpeg=${ffmpegBin}`)
+    if (existsSync(ffprobeBin)) ffmpegArgs.push(`--fengmotion.asset.ffprobe=${ffprobeBin}`)
+    // 动态链接的 ffmpeg 需要指到随包带的 libav 目录，否则目标机缺库起不来。
+    const libDir = path.join(ffmpegDir, 'lib')
+    if (existsSync(libDir) && process.platform !== 'win32' && process.platform !== 'darwin') {
+      const existing = process.env.LD_LIBRARY_PATH
+      env.LD_LIBRARY_PATH = existing ? `${libDir}:${existing}` : libDir
+    }
+  } else {
+    console.warn(`[backend] 未找到打包的 ffmpeg：${ffmpegBin}（素材缩略图将不可用）`)
+  }
+
   const child: ChildProcess = spawn(java, [
     '-jar', jar,
     `--server.port=${port}`,
     `--fengmotion.data-dir=${options.dataDir}`,
     ...remotionArgs,
     ...workflowArgs,
+    ...ffmpegArgs,
   ], {
     // 后端只需要本机回环，不需要继承 shell
     stdio: ['ignore', logFd ?? 'ignore', logFd ?? 'ignore'],
     windowsHide: true,
+    env,
   })
 
   if (logFd !== undefined) closeSync(logFd)

@@ -8,7 +8,7 @@ import {
 import {
   captureBuiltinPoster, createFolder, formatBytes, formatDur, getFileURL, getThumbURL,
   importFiles, initLibrary, listAssets, listFolders, removeAssets,
-  updateAsset, type FolderRow,
+  updateAsset, assetThumbUrl, type FolderRow,
 } from '@/services/assetApiService'
 import { hasLegacyData } from '@/services/assetIndexedDb'
 import { migrateIndexedDbAssets, readAssetMigrationReport, type MigrationReport } from '@/services/assetMigration'
@@ -222,7 +222,9 @@ export function Assets({ projectName }: { projectName?: string } = {}) {
     ;(async () => {
       for (const a of assets) {
         if (!alive) return
-        const u = await getThumbURL(a.id)
+        // 列表响应里已经带了 thumbnailUrl，直接拼地址即可 ——
+        // 逐条再 get 一次会变成 N+1 请求（素材多时明显变慢），而这里拿到的信息是同一份。
+        const u = a.thumbnailPath ? assetThumbUrl(a.id) : await getThumbURL(a.id)
         if (u) setThumbs((m) => (m[a.id] === u ? m : { ...m, [a.id]: u }))
       }
       // 内置视频：懒截一帧当海报（真实帧；小文件先出图）
