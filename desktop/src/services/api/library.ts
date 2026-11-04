@@ -112,6 +112,24 @@ export function createLibraryResource(http: HttpClient) {
       getTechnique(techniqueId: string): Promise<FxTechnique> {
         return http.get<FxTechnique>(`/fx-techniques/${encodeURIComponent(techniqueId)}`)
       },
+
+      /**
+       * `PATCH /fx-techniques/{techniqueId}/state`：更新用户收藏与最近浏览。
+       *
+       * 技法目录本身只读；这个端点是**唯一**的写入口，只动用户标记。
+       * 收藏与浏览互相独立：`favorited` 不传表示不改，`viewed=true` 才记一次浏览。
+       */
+      updateState(
+        techniqueId: string,
+        patch: { favorited?: boolean; viewed?: boolean },
+        options: { signal?: AbortSignal } = {},
+      ): Promise<{ favorited: boolean; lastViewedAt: string | null }> {
+        return http.patch<{ favorited: boolean; lastViewedAt: string | null }>(
+          `/fx-techniques/${encodeURIComponent(techniqueId)}/state`,
+          patch,
+          { signal: options.signal },
+        )
+      },
     },
 
     /* ---------------- 片型画像（只读） ---------------- */

@@ -20,13 +20,15 @@ import {
   FX_EXEC_TYPES,
   FX_IMPLS,
   FX_INPUT_TYPES,
-  FX_TECHNIQUES,
   type FxCategory,
   type FxExecType,
   type FxImpl,
   type FxInputKind,
   type FxTechnique,
 } from '@/data/fxTechniques'
+import {
+  importLegacyFavorites, listTechniques, loadUserState, markViewed, setFavorite,
+} from '@/services/fxApiService'
 import { SilentVideoPreview } from '@/components/SilentVideoPreview'
 import { PROJECTS, STAGE_LABEL } from '@/data/projects'
 import { EmptyState } from '@/components/fm/EmptyState'
@@ -83,6 +85,9 @@ interface FxLibState {
   favorites: string[]
   recent: string[]
 }
+
+/** 服务端技法目录。加载前为空数组，界面据此显示「正在读取」而不是「技法库是空的」。 */
+const EMPTY_TECHNIQUES: FxTechnique[] = []
 
 function loadLibState(): FxLibState {
   try {
@@ -195,6 +200,12 @@ export function FxLibrary() {
   const [workflowFor, setWorkflowFor] = useState<FxTechnique | null>(null)
   const [toast, setToast] = useState<string | null>(null)
   const [lib, setLib] = useState<FxLibState>(loadLibState)
+  /* 技法目录与用户状态都来自服务端（原先是静态常量 + localStorage）。
+     分开两个 state：目录加载失败时，界面仍可以显示「读取失败」而不是把
+     收藏也一起清空。 */
+  const [techniques, setTechniques] = useState<FxTechnique[]>(EMPTY_TECHNIQUES)
+  const [catalogError, setCatalogError] = useState<string | null>(null)
+  const [catalogLoading, setCatalogLoading] = useState(true)
 
   const searchRef = useRef<HTMLInputElement>(null)
   const drawerRef = useRef<HTMLElement>(null)
@@ -202,13 +213,44 @@ export function FxLibrary() {
   const copyTimer = useRef<number | null>(null)
   const toastTimer = useRef<number | null>(null)
 
+  /* 首次加载：拉技法目录与用户状态。
+     旧版收藏存在 localStorage，先批量推到服务端再清空本地标记 ——
+     用户收藏过的技法不该因为换存储而消失。 */
   useEffect(() => {
-    try {
-      localStorage.setItem(LIB_KEY, JSON.stringify(lib))
-    } catch {
-      /* 持久化失败不阻塞页面 */
+    let alive = true
+    void (async () => {
+      try {
+        const list = await listTechniques()
+        if (!alive) return
+        setTechniques(list)
+        setCatalogError(null)
+
+        const legacy = loadLibState()
+        if (legacy.favorites.length > 0) {
+          const pushed = await importLegacyFavorites(legacy.favorites)
+          if (pushed > 0) {
+            // 推成功才清本地，失败时保留，下次再试。
+            try {
+              localStorage.removeItem(LIB_KEY)
+            } catch {
+              /* 清不掉也不影响使用 */
+            }
+          }
+        }
+        const state = await loadUserState()
+        if (!alive) return
+        setLib({ favorites: [...state.favorited], recent: state.recent })
+      } catch (error) {
+        if (!alive) return
+        setCatalogError(error instanceof Error ? error.message : '读取技法库失败')
+      } finally {
+        if (alive) setCatalogLoading(false)
+      }
+    })()
+    return () => {
+      alive = false
     }
-  }, [lib])
+  }, [])
 
   function showToast(msg: string) {
     setToast(msg)
@@ -216,13 +258,36 @@ export function FxLibrary() {
     toastTimer.current = window.setTimeout(() => setToast(null), 2600)
   }
 
+  /**
+   * 切换收藏。
+   *
+   * 以服务端返回为准而不是本地取反：多开窗口时，另一边可能已经改过。
+   * 失败时不假装成功 —— 界面保持原状并提示。
+   */
   function toggleFavorite(id: string) {
+    const next = !lib.favorites.includes(id)
+    // 先乐观更新让点击有即时反馈，失败再回滚。
     setLib((prev) => ({
       ...prev,
-      favorites: prev.favorites.includes(id)
-        ? prev.favorites.filter((f) => f !== id)
-        : [id, ...prev.favorites],
+      favorites: next ? [id, ...prev.favorites] : prev.favorites.filter((f) => f !== id),
     }))
+    void setFavorite(id, next)
+      .then((actual) => {
+        setLib((prev) => ({
+          ...prev,
+          favorites: actual
+            ? prev.favorites.includes(id) ? prev.favorites : [id, ...prev.favorites]
+            : prev.favorites.filter((f) => f !== id),
+        }))
+      })
+      .catch(() => {
+        // 回滚到点击前的状态
+        setLib((prev) => ({
+          ...prev,
+          favorites: next ? prev.favorites.filter((f) => f !== id) : [id, ...prev.favorites],
+        }))
+        showToast('收藏失败，请稍后重试')
+      })
   }
 
   function pushRecent(id: string) {
@@ -230,14 +295,16 @@ export function FxLibrary() {
       ...prev,
       recent: [id, ...prev.recent.filter((r) => r !== id)].slice(0, 12),
     }))
+    // 服务端记一次浏览；失败不打断用户看详情。
+    void markViewed(id)
   }
 
   /** 只应用搜索：分类/范围的计数不受其它分面影响，避免数字塌陷 */
   const searched = useMemo(() => {
     const key = query.trim().toLowerCase()
-    if (!key) return FX_TECHNIQUES
-    return FX_TECHNIQUES.filter((t) => searchBlob(t).includes(key))
-  }, [query])
+    if (!key) return techniques
+    return techniques.filter((t) => searchBlob(t).includes(key))
+  }, [query, techniques])
 
   const scoped = useMemo(() => {
     if (scope === 'featured') return searched.filter((t) => t.featured)
@@ -265,7 +332,7 @@ export function FxLibrary() {
     [scoped, cat, exec, inputKind, impl, maxComplexity, previewKind],
   )
 
-  const current = selectedId ? FX_TECHNIQUES.find((t) => t.id === selectedId) ?? null : null
+  const current = selectedId ? techniques.find((t) => t.id === selectedId) ?? null : null
 
   const sorted = useMemo(() => {
     const arr = [...visible]
@@ -610,7 +677,17 @@ export function FxLibrary() {
         </div>
 
         <div className="fx-content">
-          {visible.length === 0 ? (
+          {catalogLoading ? (
+            /* 加载中与「没有技法」必须分开：技法目录来自服务端，
+               还没读到时显示「空的」会让用户以为库是空的。 */
+            <EmptyState icon="loader" title="正在读取技法库" body="从本地服务读取技法目录…" />
+          ) : catalogError ? (
+            <EmptyState
+              icon="alert-triangle"
+              title="技法库读取失败"
+              body={catalogError}
+            />
+          ) : visible.length === 0 ? (
             scope === 'favorites' && !query && activeCount === 0 ? (
               <EmptyState
                 icon="star"
@@ -719,7 +796,7 @@ export function FxLibrary() {
             onSelectAll={() => pick.selectAll(sorted.map((x) => x.id))}
             onCancel={pick.exit}
             onConfirm={() => pick.confirm((ids) => {
-              const list = ids.map((id) => FX_TECHNIQUES.find((x) => x.id === id)).filter((x): x is FxTechnique => !!x)
+              const list = ids.map((id) => techniques.find((x) => x.id === id)).filter((x): x is FxTechnique => !!x)
               addFxToPending(list)
             })}
           />
@@ -907,7 +984,7 @@ export function FxLibrary() {
                     <h3 className="fx-label">相关技法</h3>
                     <div className="fx-related">
                       {[...current.related, ...current.alternatives].map((id) => {
-                        const rel = FX_TECHNIQUES.find((t) => t.id === id)
+                        const rel = techniques.find((t) => t.id === id)
                         if (!rel) return null
                         return (
                           <button

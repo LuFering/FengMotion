@@ -270,5 +270,63 @@ public class DatabaseMigration {
                 """);
         jdbc.execute("CREATE INDEX IF NOT EXISTS idx_resource_refs_target "
                 + "ON resource_refs(ref_kind, ref_id)");
+
+        // 特效库（设计说明见 schema.sql）：技法目录只读，用户状态分表。
+        jdbc.execute("""
+                CREATE TABLE IF NOT EXISTS fx_techniques (
+                    id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    name_en TEXT NOT NULL DEFAULT '',
+                    aliases_json TEXT NOT NULL DEFAULT '[]',
+                    keywords_json TEXT NOT NULL DEFAULT '[]',
+                    intent TEXT NOT NULL DEFAULT '',
+                    category TEXT NOT NULL,
+                    category_label TEXT NOT NULL DEFAULT '',
+                    scenes_json TEXT NOT NULL DEFAULT '[]',
+                    anti_scenes_json TEXT NOT NULL DEFAULT '[]',
+                    exec_type TEXT NOT NULL,
+                    exec_label TEXT NOT NULL DEFAULT '',
+                    execution_status TEXT NOT NULL DEFAULT 'not-implemented',
+                    impl TEXT NOT NULL,
+                    impl_label TEXT NOT NULL DEFAULT '',
+                    complexity INTEGER NOT NULL DEFAULT 1,
+                    input_kinds_json TEXT NOT NULL DEFAULT '[]',
+                    input_labels_json TEXT NOT NULL DEFAULT '[]',
+                    input_requirement TEXT NOT NULL DEFAULT '',
+                    output TEXT NOT NULL DEFAULT '',
+                    dependencies_json TEXT NOT NULL DEFAULT '[]',
+                    steps_json TEXT NOT NULL DEFAULT '[]',
+                    compatibility_json TEXT NOT NULL DEFAULT '[]',
+                    limitations_json TEXT NOT NULL DEFAULT '[]',
+                    failures_json TEXT NOT NULL DEFAULT '[]',
+                    params_json TEXT NOT NULL DEFAULT '[]',
+                    preview_image_url TEXT NOT NULL DEFAULT '',
+                    preview_video_url TEXT,
+                    preview_caption TEXT NOT NULL DEFAULT '',
+                    related_json TEXT NOT NULL DEFAULT '[]',
+                    alternatives_json TEXT NOT NULL DEFAULT '[]',
+                    featured INTEGER NOT NULL DEFAULT 0,
+                    version TEXT NOT NULL DEFAULT '1.0.0',
+                    updated_at TEXT NOT NULL,
+                    demo INTEGER NOT NULL DEFAULT 0
+                )
+                """);
+        jdbc.execute("CREATE INDEX IF NOT EXISTS idx_fx_techniques_category "
+                + "ON fx_techniques(category)");
+        jdbc.execute("CREATE INDEX IF NOT EXISTS idx_fx_techniques_exec_type "
+                + "ON fx_techniques(exec_type)");
+        jdbc.execute("CREATE INDEX IF NOT EXISTS idx_fx_techniques_featured "
+                + "ON fx_techniques(featured)");
+        jdbc.execute("""
+                CREATE TABLE IF NOT EXISTS fx_user_state (
+                    technique_id TEXT PRIMARY KEY,
+                    favorited INTEGER NOT NULL DEFAULT 0,
+                    last_viewed_at TEXT,
+                    updated_at TEXT NOT NULL,
+                    FOREIGN KEY (technique_id) REFERENCES fx_techniques(id) ON DELETE CASCADE
+                )
+                """);
+        jdbc.execute("CREATE INDEX IF NOT EXISTS idx_fx_user_state_favorited "
+                + "ON fx_user_state(favorited)");
     }
 }

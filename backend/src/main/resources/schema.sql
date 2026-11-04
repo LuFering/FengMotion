@@ -223,3 +223,68 @@ CREATE TABLE IF NOT EXISTS resource_refs (
 );
 
 CREATE INDEX IF NOT EXISTS idx_resource_refs_target ON resource_refs(ref_kind, ref_id);
+
+
+-- ───────────────────── 特效库（契约 docs/contracts/library.md §2） ─────────────────────
+--
+-- 两条不能混的边界：
+--   1. exec_type 是**源库声明的能力标签**（runnable/composable/reference），
+--      execution_status 才是**本机真实能不能跑**。分开存，界面不得因 execType=runnable
+--      就显示「可执行」。默认全部 not-implemented，只有适配器与依赖真实存在才标 available。
+--   2. 技法目录是**只读**的（内置/导入/示例），用户收藏与最近浏览另存 f x_user_state，
+--      不写进技法表 —— 否则重建目录会把用户状态冲掉。
+--
+-- 数组字段（aliases/keywords/steps/...）以 JSON 文本存放：技法详情是整体读取的整体展示，
+-- 拆成关系表要 join 十几张表才能拼回一条，收益为零。
+CREATE TABLE IF NOT EXISTS fx_techniques (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    name_en TEXT NOT NULL DEFAULT '',
+    aliases_json TEXT NOT NULL DEFAULT '[]',
+    keywords_json TEXT NOT NULL DEFAULT '[]',
+    intent TEXT NOT NULL DEFAULT '',
+    category TEXT NOT NULL,
+    category_label TEXT NOT NULL DEFAULT '',
+    scenes_json TEXT NOT NULL DEFAULT '[]',
+    anti_scenes_json TEXT NOT NULL DEFAULT '[]',
+    exec_type TEXT NOT NULL,
+    exec_label TEXT NOT NULL DEFAULT '',
+    execution_status TEXT NOT NULL DEFAULT 'not-implemented',
+    impl TEXT NOT NULL,
+    impl_label TEXT NOT NULL DEFAULT '',
+    complexity INTEGER NOT NULL DEFAULT 1,
+    input_kinds_json TEXT NOT NULL DEFAULT '[]',
+    input_labels_json TEXT NOT NULL DEFAULT '[]',
+    input_requirement TEXT NOT NULL DEFAULT '',
+    output TEXT NOT NULL DEFAULT '',
+    dependencies_json TEXT NOT NULL DEFAULT '[]',
+    steps_json TEXT NOT NULL DEFAULT '[]',
+    compatibility_json TEXT NOT NULL DEFAULT '[]',
+    limitations_json TEXT NOT NULL DEFAULT '[]',
+    failures_json TEXT NOT NULL DEFAULT '[]',
+    params_json TEXT NOT NULL DEFAULT '[]',
+    preview_image_url TEXT NOT NULL DEFAULT '',
+    preview_video_url TEXT,
+    preview_caption TEXT NOT NULL DEFAULT '',
+    related_json TEXT NOT NULL DEFAULT '[]',
+    alternatives_json TEXT NOT NULL DEFAULT '[]',
+    featured INTEGER NOT NULL DEFAULT 0,
+    version TEXT NOT NULL DEFAULT '1.0.0',
+    updated_at TEXT NOT NULL,
+    demo INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_fx_techniques_category ON fx_techniques(category);
+CREATE INDEX IF NOT EXISTS idx_fx_techniques_exec_type ON fx_techniques(exec_type);
+CREATE INDEX IF NOT EXISTS idx_fx_techniques_featured ON fx_techniques(featured);
+
+-- 收藏与最近浏览。独立于参考片偏好（reference-preferences 是参考片的，三库不混用）。
+CREATE TABLE IF NOT EXISTS fx_user_state (
+    technique_id TEXT PRIMARY KEY,
+    favorited INTEGER NOT NULL DEFAULT 0,
+    last_viewed_at TEXT,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY (technique_id) REFERENCES fx_techniques(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_fx_user_state_favorited ON fx_user_state(favorited);
