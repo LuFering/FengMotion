@@ -94,6 +94,7 @@ export function toViewMessage(m: ContractMessage): ChatMessage {
     id: m.id,
     role: m.role === 'user' ? 'user' : 'ai',
     text: m.text,
+    ...(m.attachments?.length ? { attachments: m.attachments } : {}),
     taskId: m.taskId,
     at: toMs(m.createdAt),
     // 工具调用记录随消息读回：这是「切走会话再回来还能看到跑了什么」的唯一来源。

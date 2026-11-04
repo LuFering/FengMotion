@@ -22,6 +22,11 @@ public interface TaskRepository {
      */
     void save(Task task);
 
+    /** 与新任务同时记录执行进程；内存替身可忽略此字段。 */
+    default void save(Task task, String executionOwner) {
+        save(task);
+    }
+
     /**
      * 按 ID 查询任务。
      *

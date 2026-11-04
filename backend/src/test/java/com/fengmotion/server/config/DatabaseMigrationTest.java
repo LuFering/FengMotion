@@ -71,9 +71,12 @@ class DatabaseMigrationTest {
                     finished_at TEXT
                 )
                 """);
+        jdbc.update("INSERT INTO tasks (id,project_id,kind,status,prompt,created_at,updated_at) VALUES (?,?,?,?,?,?,?)",
+                "old-task", "old-project", "render", "running", "旧任务", "2026-01-01T00:00:00Z", "2026-01-01T00:00:00Z");
 
         DatabaseMigration.migrate(jdbc);
         DatabaseMigration.migrate(jdbc);
+        assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM tasks WHERE id='old-task' AND status='running' AND execution_owner IS NULL", Integer.class));
 
         List<String> tables = jdbc.query("SELECT name FROM sqlite_master WHERE type='table'",
                 (rs, row) -> rs.getString("name"));

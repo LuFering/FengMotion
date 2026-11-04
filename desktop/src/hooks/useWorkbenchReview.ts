@@ -19,10 +19,10 @@ export function useWorkbenchReview(projectId: string, original: string) {
       if (!text.trim()) return
       commit((s) => ({ ...s, corrections: [...s.corrections, { id: newReviewId(), text: text.trim(), createdAt: new Date().toISOString() }] }))
     },
-    setKeepNotes(keepNotes: string) { commit((s) => ({ ...s, keepNotes })) },
-    record(request: TaskRequest) {
+    setKeepNotes(keepNotes: string) { commit((s) => ({ ...s, keepNotes: keepNotes.trim() })) },
+    record(request: TaskRequest, options?: { includeBrief?: boolean }) {
       const id = newReviewId()
-      const snapshot = structuredClone({ ...request, feedbackId: id, creativeBrief: brief })
+      const snapshot = structuredClone({ ...request, feedbackId: id, ...(options?.includeBrief === false ? {} : { creativeBrief: brief }) })
       commit((s) => ({ ...s, opinions: [{ id, createdAt: new Date().toISOString(), request: snapshot, status: 'open' }, ...s.opinions] }))
       return snapshot
     },

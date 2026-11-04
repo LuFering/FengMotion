@@ -29,11 +29,11 @@ public interface TaskMapper {
             INSERT INTO tasks
                 (id, project_id, kind, status, prompt, request_json, progress, message,
                  artifact_path, error_code, created_at, updated_at, finished_at,
-                 base_version, result_version)
+                 base_version, result_version, execution_owner)
             VALUES
                 (#{id}, #{projectId}, #{kind}, #{status}, #{prompt}, #{requestJson}, #{progress},
                  #{message}, #{artifactPath}, #{errorCode}, #{createdAt}, #{updatedAt}, #{finishedAt},
-                 #{baseVersion}, #{resultVersion})
+                 #{baseVersion}, #{resultVersion}, #{executionOwner})
             """)
     int insert(TaskRow row);
 
@@ -73,6 +73,29 @@ public interface TaskMapper {
             LIMIT #{limit}
             """)
     List<TaskRow> listByProject(@Param("projectId") String projectId, @Param("limit") int limit);
+
+    /** 只列出记录过执行者的未结束任务；旧任务的归属不能凭空推断。 */
+    @Select("""
+            SELECT id, execution_owner AS executionOwner FROM tasks
+            WHERE status IN ('queued', 'running', 'building') AND execution_owner IS NOT NULL
+            """)
+    List<TaskRow> findOwnedUnfinished();
+
+    /** 收尾时找回已提交的场景快照关联，避免把已生效的修改说成没有提交。 */
+    @Update("""
+            UPDATE tasks SET status = 'failed', message = #{message}, error_code = 'service_interrupted',
+                updated_at = #{now}, finished_at = #{now},
+                result_version = COALESCE(result_version, (SELECT v.version FROM project_scene_versions v
+                    WHERE v.project_id = tasks.project_id AND v.task_id = tasks.id AND v.source = 'task'
+                    ORDER BY v.version DESC LIMIT 1)),
+                artifact_path = COALESCE(artifact_path, (SELECT v.artifact_path FROM project_scene_versions v
+                    WHERE v.project_id = tasks.project_id AND v.task_id = tasks.id AND v.source = 'task'
+                    ORDER BY v.version DESC LIMIT 1))
+            WHERE id = #{id} AND execution_owner = #{owner}
+                AND status IN ('queued', 'running', 'building')
+            """)
+    int markInterrupted(@Param("id") String id, @Param("owner") String owner,
+                        @Param("message") String message, @Param("now") String now);
 
     /**
      * 更新任务的状态与进度。

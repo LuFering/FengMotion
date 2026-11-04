@@ -197,6 +197,8 @@ export function Conversation(props: {
   threads: SessionsState
   /** 当前会话 id；null = 还没有会话（从空白进入） */
   activeSessionId: string | null
+  homeTransfer?: { sessionId: string; draft: string; files: { file: File; kind: 'file' | 'image' | 'video' }[] } | null
+  onHomeTransferConsumed?: () => void
   /** 删除项目：服务端暂无端点，界面禁用（见左栏菜单），本视图不再接手 */
   onDeleteProject?: (projectId: string) => void
 }) {
@@ -311,6 +313,7 @@ export function Conversation(props: {
      composerMenu=当前展开的弹层（'add' 附件菜单 / 'perm' 权限 / 'model' 模型） */
   const [attachments, setAttachments] = useState<{
     name: string; size: number; kind: 'file' | 'image' | 'video'
+    uploadId?: string
     /* 来自「待发送」的附件带着用途与备注：界面要显示「logo.png · 用于画面」，
        而不只是塞一串文件名 —— 用途是用户特意选的，丢在这里等于白选。 */
     purpose?: string; note?: string; assetId?: string
@@ -672,7 +675,7 @@ export function Conversation(props: {
         setPending(false)
         setAgentPhase(null)
         setReplyNote(error.isCapabilityGap
-          ? 'Agent 还没接入：这条消息已保存在服务端，但暂时不会有回复。'
+          ? 'Agent 暂时不可用：这条消息已保存在服务端，但没有收到回复。'
           : `没有拿到回复：${userMessageForError(error, '回复流中断了。')}`)
       },
       onStatus: (status) => {
@@ -784,7 +787,23 @@ export function Conversation(props: {
 
   const send = (text: string) => {
     const v = text.trim()
-    if (!v || pending) return
+    if (pending) return
+    if (!v) {
+      if (attachments.length) setSendError('请填写一条消息后再发送附件。')
+      return
+    }
+    if (attachments.length && !activeIsServer) {
+      setSendError('当前对话未保存到项目，附件无法随消息发送。请先创建或选择项目会话。')
+      return
+    }
+    if (attachments.some((a) => !a.fileId || a.uploading || a.uploadError)) {
+      setSendError('请等待附件上传完成；上传失败的附件请移除后重新添加。')
+      return
+    }
+    if (attachments.some((a) => !['image/png', 'image/jpeg', 'image/webp', 'image/gif'].includes(a.mimeType ?? ''))) {
+      setSendError('当前 AI 只能接收 PNG、JPEG、WebP 或 GIF 图片，请移除其他附件。')
+      return
+    }
     if (activeIsServer) { void sendToServer(v); return }
     chat.addUserMessage(v)
     /* 同时交给服务层：回复流按「服务端收到的最后一条用户消息」起流，
@@ -920,6 +939,7 @@ export function Conversation(props: {
     if (files.length > 0) {
       const picked = files.slice(0, 6).map((f) => ({
         file: f,
+        uploadId: crypto.randomUUID(),
         name: f.name,
         size: f.size,
         kind: (forced ?? (f.type.startsWith('image/') ? 'image' : f.type.startsWith('video/') ? 'video' : 'file')) as 'file' | 'image' | 'video',
@@ -937,16 +957,16 @@ export function Conversation(props: {
           .then((uploaded: { fileId: string; mimeType: string }) => {
             if (!mountedRef.current) return
             setAttachments((prev) => prev.map((a) => (
-              a.name === item.name && a.size === item.size && a.uploading
+              a.uploadId === item.uploadId && a.uploading
                 ? { ...a, fileId: uploaded.fileId, mimeType: uploaded.mimeType, uploading: false, uploadError: undefined }
                 : a
             )))
           })
           .catch((cause: unknown) => {
             if (!mountedRef.current) return
-            const reason = cause instanceof Error ? cause.message : '上传失败'
+            const reason = cause instanceof Error ? (cause.message.trim() || '上传失败') : '上传失败'
             setAttachments((prev) => prev.map((a) => (
-              a.name === item.name && a.size === item.size && a.uploading
+              a.uploadId === item.uploadId && a.uploading
                 ? { ...a, uploading: false, uploadError: reason }
                 : a
             )))
@@ -955,6 +975,17 @@ export function Conversation(props: {
     }
     done?.()
   }
+  const transferredHomeSession = useRef<string | null>(null)
+  useEffect(() => {
+    const transfer = props.homeTransfer
+    if (!transfer || transfer.sessionId !== props.activeSessionId || transferredHomeSession.current === transfer.sessionId) return
+    transferredHomeSession.current = transfer.sessionId
+    chat.setDraft(transfer.draft)
+    for (const item of transfer.files) addFiles([item.file], item.kind)
+    props.onHomeTransferConsumed?.()
+    // 一次性交接，避免重渲染或 StrictMode 重复上传。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [props.homeTransfer, props.activeSessionId])
   const onPickFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
     addFiles(Array.from(e.target.files ?? []), undefined, () => { e.target.value = '' })
   }
@@ -1443,7 +1474,7 @@ export function Conversation(props: {
               )}
 
               {messages.map((m) => m.role === 'user' ? (
-                <p key={m.id} className="cv3-user">{m.text}</p>
+                <p key={m.id} className="cv3-user">{m.text}{m.attachments?.map((attachment, i) => <span className="cv3-user-attachment" key={`${attachment.fileId ?? attachment.name}-${i}`}>附件：{attachment.name}</span>)}</p>
               ) : (
                 <div key={m.id} className="cv3-ai-block">
                   {/* 文字不完整时由下面的「正在回复…」点明，正文本身不做修饰 */}
@@ -1648,7 +1679,7 @@ export function Conversation(props: {
                             data-from-pending={a.assetId ? '' : undefined}
                             title={a.note ? `${PURPOSE_TXT[a.purpose ?? ''] ?? ''} · ${a.note}` : undefined}>
                         {a.kind === 'image' ? <ImageIcon size={12} /> : <FileText size={12} />}
-                        <span className="cv3-attach-name">{a.name}</span>
+                        <span className="cv3-attach-name">{a.name}{a.uploading ? ' · 上传中' : a.uploadError ? ` · 上传失败：${a.uploadError}` : ''}</span>
                         {/* 用途是用户在待发送面板特意选的，必须跟着附件一起显示，
                             否则「作为参考」和「用于画面」在输入框里长得一模一样 */}
                         {a.purpose && a.purpose !== 'unspecified' && (

@@ -49,6 +49,7 @@ public class TaskService {
     private final ProjectRepository projects;
     private final TransactionTemplate transactions;
     private final ObjectMapper json;
+    private final String executionOwner = ExecutionOwner.current().map(ExecutionOwner::encode).orElse(null);
 
     /** 执行线程池：渲染是 CPU 密集的，限制并发避免同时起多个 Chromium 打爆内存。 */
     private final ExecutorService executor = Executors.newFixedThreadPool(2, runnable -> {
@@ -157,7 +158,7 @@ public class TaskService {
 
         // 任务与「已接受」事件在同一事务里写：只写下一个就是数据不一致
         transactions.executeWithoutResult(status -> {
-            tasks.save(task);
+            tasks.save(task, executionOwner);
             tasks.appendEvent(new TaskEvent(UUID.randomUUID().toString(), task.id(), 0,
                     TaskEvent.KIND_ACCEPTED, Task.STATUS_QUEUED, "已接受，等待开始", null, now));
             if (warnings != null) {

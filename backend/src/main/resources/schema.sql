@@ -86,6 +86,8 @@ CREATE TABLE IF NOT EXISTS tasks (
     -- 两个都留空表示该任务与场景版本无关（如纯渲染）。
     base_version INTEGER,
     result_version INTEGER,
+    -- 创建任务的进程身份；旧任务为空时不猜测其执行者。
+    execution_owner TEXT,
     FOREIGN KEY (project_id) REFERENCES projects(id)
 );
 

@@ -997,6 +997,14 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
          「哪一段」的判定迟早会和它给出不同答案。selection 第一版后端不支持，
          按 project 提交前必须先告诉用户，不能悄悄放大范围。 */
       const derived = buildRequest(prompt, 'modify', constraints)
+      if (review.keepNotes.trim()) {
+        setRealModifyError('已保存的保留要求暂不参与真实修改。请先清除该要求；当前无法保证这些保留条件。')
+        return false
+      }
+      if (derived.references?.some((ref) => ref.role === 'context')) {
+        setRealModifyError('参考上下文暂不参与真实修改，请先移除引用。')
+        return false
+      }
       if (derived.scope === 'selection') {
         setRealModifyError('选区修改暂不支持，请改为选定某个场景或整片后再试')
         return false
@@ -1025,6 +1033,14 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
         return false
       }
       setRealModifyError('')
+      // 审阅记录只包含真实提交的目标与文字，不把本地需求、引用或保留条件当成发送记录。
+      review.record({
+        ...derived,
+        scope: useScene ? 'scene' : 'project',
+        sceneIds: useScene ? derived.sceneIds : [],
+        references: (derived.references ?? []).filter((ref) => ref.role === 'target' && (ref.kind === 'project' || (useScene && ref.kind === 'scene'))),
+        constraints: { preserveCamera: false, preserveCaptions: false, limitToSelection: useScene, reuseExistingComponents: false },
+      }, { includeBrief: false })
       chat.addUserMessage(prompt, result.taskId, projectId)
       setBottomTab('activity')
       return true
@@ -1345,7 +1361,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
                     )}
                   </div>
                 ) : (
-                  <MonitorStageEmpty stage={stage} brief={review.brief.original} correctionCount={review.corrections.length}
+                  <MonitorStageEmpty stage={stage} realRunning={Boolean(liveTask && !projectTask?.task.mock)} brief={review.brief.original} correctionCount={review.corrections.length}
                                      onDiscuss={() => openReview('brief')} onEdit={openEdit}
                                      onRealRender={() => void submitRealRender()} realRenderBusy={realRenderBusy}
                                      onOpenExecution={() => { setBottomTab('activity'); setTrayOpen(true) }} />
@@ -2251,7 +2267,7 @@ function RightPanel({ projectId, target, preview, chat, sideTab, setSideTab, foc
                 </div>
               )}
 
-              <div className="wb-demo-line"><i className="wb-demo-dot" />{reviewSaved ? '意见保存在此浏览器 · Agent 执行未接通' : '本地保存失败 · 请到制作审阅导出备份'}</div>
+              <div className="wb-demo-line"><i className="wb-demo-dot" />{reviewSaved ? '审阅记录保存在此浏览器' : '本地保存失败 · 请到制作审阅导出备份'}</div>
             </div>
           </div>
 

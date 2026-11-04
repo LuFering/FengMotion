@@ -84,7 +84,8 @@ export class HttpClient {
   private async buildHeaders(method: HttpMethod, options: RequestOptions, hasBody: boolean): Promise<Headers> {
     const headers = new Headers()
     headers.set('Accept', options.accept ?? 'application/json')
-    if (hasBody) headers.set('Content-Type', 'application/json; charset=utf-8')
+    // FormData 的 boundary 必须由浏览器生成；手动标成 JSON 会使服务端无法解析上传。
+    if (hasBody && !(options.body instanceof FormData)) headers.set('Content-Type', 'application/json; charset=utf-8')
     if (options.ifMatch !== undefined) headers.set('If-Match', options.ifMatch)
     if (options.idempotencyKey !== undefined && options.idempotencyKey !== null) {
       headers.set('Idempotency-Key', options.idempotencyKey)

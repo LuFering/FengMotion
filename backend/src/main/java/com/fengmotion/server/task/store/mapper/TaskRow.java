@@ -30,4 +30,6 @@ public class TaskRow {
     private Long baseVersion;
     /** 本次产出并被提交的场景版本；未提交时为 null。 */
     private Long resultVersion;
+    /** 内部进程身份，供重启后识别可确认中断的任务。 */
+    private String executionOwner;
 }

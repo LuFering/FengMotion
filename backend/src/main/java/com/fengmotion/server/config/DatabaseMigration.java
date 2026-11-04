@@ -196,6 +196,9 @@ public class DatabaseMigration {
         if (!taskColumns.contains("result_version")) {
             jdbc.execute("ALTER TABLE tasks ADD COLUMN result_version INTEGER");
         }
+        if (!taskColumns.contains("execution_owner")) {
+            jdbc.execute("ALTER TABLE tasks ADD COLUMN execution_owner TEXT");
+        }
         jdbc.execute("""
                 CREATE TABLE IF NOT EXISTS chat_message_idempotency (
                     key TEXT PRIMARY KEY,

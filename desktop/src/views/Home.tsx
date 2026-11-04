@@ -130,7 +130,7 @@ function HeroTitle({ copy, cycle }: { copy: HeroCycle; cycle: number }) {
   )
 }
 
-type Attachment = { name: string; size: number; kind: 'file' | 'image' | 'video' }
+type Attachment = { file: File; name: string; size: number; kind: 'file' | 'image' | 'video' }
 
 
 
@@ -161,6 +161,7 @@ function shortenDir(name: string): string {
 /** 发送时交给上层的上下文：草稿 + 这次用的工作目录 + 引擎 */
 export interface StartPayload {
   draft: string
+  attachments: { file: File; kind: 'file' | 'image' | 'video' }[]
   workdir: { label: string; path: string } | null
   harness: { id: string; name: string; model: string }
 }
@@ -346,7 +347,7 @@ export function Home(props: {
   /** 统一的附件入列口：文件选择、拖放、粘贴都走这里，上限 6 个 */
   const addFiles = (files: File[], forced?: Attachment['kind']) => {
     if (!files.length) return
-    const picked = files.map((f) => ({ name: f.name, size: f.size, kind: forced ?? kindOf(f) }))
+    const picked = files.map((f) => ({ file: f, name: f.name, size: f.size, kind: forced ?? kindOf(f) }))
     setAttachments((prev) => [...prev, ...picked].slice(0, 6))
   }
 
@@ -365,11 +366,16 @@ export function Home(props: {
       setToast(`${harness.name} 未接入：不会创建任务，请切回已配置引擎。`)
       return
     }
+    if (attachments.length && !props.projects?.some((project) => project.path === currentWorkdir?.path)) {
+      setToast('附件需要项目会话，请先选择已有项目的工作目录。')
+      return
+    }
     /* 发送 → 进对话：把「这次用的工作目录与引擎」一并交出去，
        由上层建一条会话；没选目录就发，会话落进未分组 */
-    if (props.onStart && draft.trim()) {
+    if (props.onStart && (draft.trim() || attachments.length)) {
       props.onStart({
         draft,
+        attachments: attachments.map(({ file, kind }) => ({ file, kind })),
         workdir: currentWorkdir,
         harness: { id: harness.id, name: harness.name, model: effectiveModel },
       })

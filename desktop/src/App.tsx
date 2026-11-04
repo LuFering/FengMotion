@@ -1,6 +1,6 @@
 import '@/styles/interface-polish.css'
 import '@/styles/card-details.css'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useChat } from '@/shell/useChat'
 import { initDesktopApiBase } from '@/services/api'
 import { useSessions } from '@/shell/useSessions'
@@ -98,6 +98,8 @@ export default function App() {
       原型分支：首页发送改走项目对话视图（见 Home 的 onStart），启动层本体保留未删，
       目前没有入口触发它；M1 去留待定案后再统一收口。 */
   const [startDraft, setStartDraft] = useState<string | null>(null)
+  const [homeTransfer, setHomeTransfer] = useState<{ sessionId: string; draft: string; files: { file: File; kind: 'file' | 'image' | 'video' }[] } | null>(null)
+  const homeStarting = useRef(false)
   /** 启动层刚建好的「本次制作」：双路径都落工作台，由工作台的任务面执行与呈现 */
   const [pendingLaunch, setPendingLaunch] = useState<{ workflowId: string; projectId: string | null; autoRun: boolean } | null>(null)
   /** 落工作台的统一入口：启动层与对话视图共用。
@@ -244,6 +246,19 @@ export default function App() {
               const project = payload.workdir
                 ? projects.list.find((p) => p.path === payload.workdir!.path) ?? null
                 : null
+              if (payload.attachments.length) {
+                if (homeStarting.current) return
+                homeStarting.current = true
+                // 附件需要先上传，先创建空会话，再把完整草稿交给对话输入框。
+                void threads.create({ firstText: payload.draft, projectId: project?.id ?? null, workdir: payload.workdir })
+                  .then(({ session }) => {
+                    if (!session) return
+                    setHomeTransfer({ sessionId: session.id, draft: payload.draft, files: payload.attachments })
+                    setOpenProject(project?.id ?? null)
+                    setView('conversation')
+                  }).finally(() => { homeStarting.current = false })
+                return
+              }
               /* 只建会话，不往 chat 里再塞一份：会话是唯一来源，
                  对话视图装载时会把它的消息装进 chat。
                  两边都塞会出现两个不同 id 的同一条需求 → 演示回复各排一次 → 回两条。
@@ -267,6 +282,8 @@ export default function App() {
         {view === 'conversation' && (
           <div id="pane-conversation">
             <Conversation chat={chat}
+                          homeTransfer={homeTransfer}
+                          onHomeTransferConsumed={() => setHomeTransfer(null)}
                           threads={threads}
                           activeSessionId={threads.activeId}
                           projects={projects.list}

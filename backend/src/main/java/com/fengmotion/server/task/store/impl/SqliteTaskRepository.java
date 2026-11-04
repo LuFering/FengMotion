@@ -34,7 +34,13 @@ public class SqliteTaskRepository implements TaskRepository {
 
     @Override
     public void save(Task task) {
+        save(task, null);
+    }
+
+    @Override
+    public void save(Task task, String executionOwner) {
         TaskRow row = new TaskRow();
+        row.setExecutionOwner(executionOwner);
         row.setId(task.id());
         row.setProjectId(task.projectId());
         row.setKind(task.kind());

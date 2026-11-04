@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -84,6 +83,8 @@ public class RemotionRenderer {
         String script = project.resolve("render.mjs").toString();
 
         Path propsFile = null;
+        Path stdoutFile = null;
+        Path stderrFile = null;
         try {
             Files.createDirectories(outputFile.getParent());
             // props 走临时文件而不是命令行参数：场景数据可能很长，
@@ -103,40 +104,33 @@ public class RemotionRenderer {
                 command.add(browserExecutable);
             }
 
+            // 使用文件接收两路输出，避免管道写满，也无需在计时等待前阻塞读取。
+            stdoutFile = Files.createTempFile("fm-render-stdout-", ".log");
+            stderrFile = Files.createTempFile("fm-render-stderr-", ".log");
             ProcessBuilder builder = new ProcessBuilder(command)
                     .directory(project.toFile())
-                    .redirectErrorStream(false);
+                    .redirectOutput(stdoutFile.toFile())
+                    .redirectError(stderrFile.toFile());
             if (nodeModulesDir != null && !nodeModulesDir.isBlank()) {
                 builder.environment().put("FENGMOTION_NODE_MODULES", nodeModulesDir);
             }
 
             Process process = builder.start();
-            /* stdout 与 stderr 必须并发读。
-               串行读（先 readAllBytes(stdout) 再读 stderr）会死锁：
-               Remotion 把 Chromium 的大量日志写进 stderr，管道缓冲区（约 64KB）
-               写满后子进程就阻塞在写 stderr 上，永远不关 stdout，
-               父进程则一直等 stdout 读完 —— 两边互等直到超时。
-               实测表现是「渲染实际跑完了但拿到空 stdout」。 */
-            String[] captured = readBothStreams(process);
-            String stdout = captured[0];
-            String stderr = captured[1];
-            /* 把实际命令与两端输出都记下来：打包后渲染失败时，没有这条日志
-               就只能看到一句「输出不是合法 JSON」，无法判断是脚本没跑、
-               node 路径不对，还是 stdout 被吞了。 */
-            log.info("render：node={} project={} stdout长度={} stderr长度={}",
-                    nodeBinary, project, stdout.length(), stderr.length());
             try {
                 if (!process.waitFor(timeoutSeconds, TimeUnit.SECONDS)) {
-                    process.destroyForcibly();
                     throw new ApiException(HttpStatus.GATEWAY_TIMEOUT, "render_timeout",
                             "渲染超时（超过 " + timeoutSeconds + " 秒）");
                 }
             } finally {
                 if (process.isAlive()) {
+                    process.descendants().forEach(ProcessHandle::destroyForcibly);
                     process.destroyForcibly();
                 }
             }
-
+            String stdout = Files.readString(stdoutFile, StandardCharsets.UTF_8).trim();
+            String stderr = Files.readString(stderrFile, StandardCharsets.UTF_8).trim();
+            log.info("render：node={} project={} stdout长度={} stderr长度={}",
+                    nodeBinary, project, stdout.length(), stderr.length());
             return parseResult(stdout, stderr, outputFile);
         } catch (IOException failure) {
             throw new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "render_failed",
@@ -145,46 +139,14 @@ public class RemotionRenderer {
             Thread.currentThread().interrupt();
             throw new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "render_failed", "渲染被中断");
         } finally {
-            if (propsFile != null) {
+            for (Path temporary : new Path[] {propsFile, stdoutFile, stderrFile}) {
+                if (temporary == null) continue;
                 try {
-                    Files.deleteIfExists(propsFile);
+                    Files.deleteIfExists(temporary);
                 } catch (IOException ignored) {
                     // 临时文件删不掉不影响结果
                 }
             }
-        }
-    }
-
-    /**
-     * 并发读取子进程的两个输出流，避免管道缓冲区写满导致的死锁。
-     *
-     * @param process 子进程
-     * @return {@code [stdout, stderr]}，均已去除首尾空白
-     * @throws IOException 读取失败
-     */
-    private static String[] readBothStreams(Process process) throws IOException {
-        var stdoutTask = java.util.concurrent.CompletableFuture.supplyAsync(
-                () -> readQuietly(process.getInputStream()));
-        var stderrTask = java.util.concurrent.CompletableFuture.supplyAsync(
-                () -> readQuietly(process.getErrorStream()));
-        try {
-            return new String[] {stdoutTask.join(), stderrTask.join()};
-        } catch (java.util.concurrent.CompletionException failure) {
-            throw new IOException("读取渲染进程输出失败", failure.getCause());
-        }
-    }
-
-    /**
-     * 读尽一个流并转成文本；失败时返回空串而不是抛出。
-     *
-     * @param stream 输入流
-     * @return 去除首尾空白的文本
-     */
-    private static String readQuietly(java.io.InputStream stream) {
-        try (stream) {
-            return new String(stream.readAllBytes(), StandardCharsets.UTF_8).trim();
-        } catch (IOException failure) {
-            return "";
         }
     }
 
