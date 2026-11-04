@@ -45,8 +45,14 @@ public class CreateAgentRunner {
     private final HarnessProperties properties;
     private final ObjectMapper json;
 
-    /** agent 单次创作超时：改一个工程比生成一段文字久得多。 */
-    @Value("${fengmotion.workflow.agent-timeout-seconds:600}")
+    /**
+     * agent 单次创作超时。
+     *
+     * <p>实测 agent 会自己跑 tsc / remotion bundle 自查，单轮 2–15 分钟不等，
+     * 600 秒会把「正常但在自查」的回合误判成超时。默认给到 20 分钟，
+     * 与前端 create 请求的 25 分钟预算留出余量。</p>
+     */
+    @Value("${fengmotion.workflow.agent-timeout-seconds:}")
     private long timeoutSeconds;
 
     /**

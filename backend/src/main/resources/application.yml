@@ -68,6 +68,10 @@ fengmotion:
     # 否则壳内所有 fetch 都会被 CORS 拦成 403。
     allowed-origins: http://localhost:5173,http://localhost:4173,fengmotion://app
 
+  workflow:
+    # agent 改工程单轮超时（秒）。实测含自查 2–15 分钟，留足余量。
+    agent-timeout-seconds: ${FENGMOTION_AGENT_TIMEOUT:1200}
+
   harness:
     # 是否接入执行引擎；关闭时 /api/harnesses 与能力声明如实返回不可用。
     enabled: true
