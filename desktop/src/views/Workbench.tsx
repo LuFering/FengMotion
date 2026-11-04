@@ -511,6 +511,9 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
      后者只是占位，渲出来的不是用户要的片子。 */
   const [filmProject, setFilmProject] = useState<FilmProjectState | null>(null)
   const [filmRenderError, setFilmRenderError] = useState('')
+  /* agent 最近一次改工程后的说明。用户需要知道「它到底改了什么」，
+     而不是只看到画面变了却不知道为什么。 */
+  const [agentReply, setAgentReply] = useState('')
   useEffect(() => {
     let active = true
     void studioHttpApi().workflowContext.film(projectId)
@@ -1092,6 +1095,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
           setNotice('修改意见已记入。Agent 正在按它改工程…')
 
           const result = await studioHttpApi().workflowContext.create(projectId, prompt)
+          setAgentReply(result.reply)
           setNotice(`Agent 已改完并渲染出版本 v${result.version}。`)
           /* 刷新版本与画面：让用户立刻看到新一版，并能与上一版对比。 */
           void sceneVersions.refresh(true)
@@ -1453,6 +1457,15 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
                 <span className="wb-status" data-status="done">{stageLead.tierLabel}</span><span className="wb-current-preview-meta">{stageLead.origin === 'editor' ? '编辑版本 ' : ''}v{stageLead.revision} · {new Date(stageLead.createdAt).toLocaleDateString('zh-CN')}</span>
                 {stageStale && <span className="wb-status" data-status="waiting">对应旧版本</span>}
                 <span className="wb-spacer" />
+                {/* 有画面时也要能重渲：以前只有空态才有渲染入口，
+                    片子出来后想按新要求重渲就找不到按钮了。 */}
+                {filmProject?.ready && (
+                  <button type="button" className="fw-mon-btn" disabled={realRenderBusy}
+                          onClick={() => void submitProjectRender()}>
+                    {realRenderBusy ? <LoaderCircle size={12} className="animate-spin"/> : <Film size={12}/>}
+                    {realRenderBusy ? '渲染中…' : '重新渲染工程'}
+                  </button>
+                )}
 <button type="button" className="fw-mon-btn" onClick={() => openReview('versions')}>预览版本与对比 <ArrowLeftRight size={12}/></button>
               </>
             ) : (
@@ -1507,6 +1520,12 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
                                      renderTargetLabel={filmProject?.ready ? '渲染项目工程' : '真实渲染预览'}
                                      onOpenExecution={() => { setBottomTab('activity'); setTrayOpen(true) }} />
                 )}
+              {agentReply && (
+                <div className="fw-mon-notice" role="status">
+                  <strong>Agent：</strong>{agentReply.slice(0, 220)}
+                  <button type="button" onClick={() => setAgentReply('')} aria-label="关闭"><X className="ml-1 inline size-3" /></button>
+                </div>
+              )}
               {filmRenderError && !stageLead && (
                 <div className="fw-mon-notice" role="alert">
                   项目工程渲染失败：{filmRenderError.slice(0, 300)}
