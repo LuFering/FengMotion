@@ -45,6 +45,9 @@ fengmotion:
   upload-root: ${fengmotion.data-dir}/uploads
 
   # Remotion 渲染（统一工程：所有项目共用一份依赖与管线，差异走 props）
+  # 构建版本：由 pom 的 project.version 通过资源过滤注入，供 /health 返回。
+  # 不写死在代码里 —— 否则改 pom 版本后接口仍报旧值，前端与更新器会被误导。
+  build-version: '@project.version@'
   modify:
     # 修改方案由模型生成，单次生成超时
     plan-timeout-seconds: ${FENGMOTION_MODIFY_PLAN_TIMEOUT:90}

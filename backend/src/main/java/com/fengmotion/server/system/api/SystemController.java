@@ -27,9 +27,15 @@ public class SystemController {
 
     private final long startedAt = System.nanoTime();
 
+    /** 构建版本，来自 application.yml 的 fengmotion.build-version（由 pom 注入）。 */
+    @org.springframework.beans.factory.annotation.Value("${fengmotion.build-version:dev}")
+    private String buildVersion;
+
     @GetMapping("/health")
     public Map<String, Object> health() {
-        return Map.of("status", "ok", "version", "0.1.0-SNAPSHOT",
+        /* 版本从构建信息读，不写死：写死会在改 pom 版本后悄悄对不上，
+           而前端/更新器都拿这个字段做判断。 */
+        return Map.of("status", "ok", "version", buildVersion,
                 "uptimeMs", (System.nanoTime() - startedAt) / 1_000_000);
     }
 

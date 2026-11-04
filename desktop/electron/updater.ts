@@ -38,9 +38,12 @@ export function initUpdater(onStatus: (message: string) => void): void {
       autoUpdater.autoDownload = false
       autoUpdater.autoInstallOnAppQuit = true
 
+      /* 发现新版本只提示、不自动下载 —— autoDownload=false 的理由同样适用：
+         下载 240MB 会在用户创作中途抢带宽。真正的下载由用户点「立即更新」
+         触发（见 downloadUpdate 导出）。
+         之前这里直接调 downloadUpdate()，与上面的注释自相矛盾。 */
       autoUpdater.on('update-available', (info) => {
-        onStatus(`发现新版本 ${info.version}，正在后台下载`)
-        void autoUpdater.downloadUpdate()
+        onStatus(`发现新版本 ${info.version}，可在设置里选择更新`)
       })
       autoUpdater.on('update-downloaded', (info) => {
         onStatus(`新版本 ${info.version} 已就绪，重启后生效`)
@@ -55,6 +58,14 @@ export function initUpdater(onStatus: (message: string) => void): void {
       console.warn('[update] 初始化失败（不影响使用）：', error instanceof Error ? error.message : error)
     }
   })()
+}
+
+/** 用户确认后开始下载（由设置页调用，不再自动触发）。 */
+export function downloadUpdate(): void {
+  if (!updater) return
+  updater.downloadUpdate().catch((error: unknown) => {
+    console.warn('[update] 下载失败：', error instanceof Error ? error.message : error)
+  })
 }
 
 /** 立即应用已下载的更新并重启。 */

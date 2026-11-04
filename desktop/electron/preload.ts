@@ -20,6 +20,23 @@ const bridge = {
   pickDirectory: () => ipcRenderer.invoke('fengmotion:pick-directory'),
   /** 让前端能判断自己是不是跑在壳里。 */
   isDesktop: true,
+  /**
+   * 订阅更新状态。
+   *
+   * <p>主进程早就在发 `fengmotion:update-status`，但没有人接收 ——
+   * 结果是「发现新版本」这件事只写进了日志，用户永远看不到。
+   * 这里补上通道，返回取消订阅函数，避免组件卸载后回调泄漏。</p>
+   *
+   * @param handler 收到状态文案
+   * @returns 取消订阅
+   */
+  onUpdateStatus: (handler: (message: string) => void) => {
+    const listener = (_event: unknown, message: string) => handler(message)
+    ipcRenderer.on('fengmotion:update-status', listener)
+    return () => ipcRenderer.removeListener('fengmotion:update-status', listener)
+  },
+  /** 用户确认后开始下载更新（默认不自动下载，避免创作中途抢带宽）。 */
+  downloadUpdate: () => ipcRenderer.invoke('fengmotion:download-update'),
 }
 
 try {

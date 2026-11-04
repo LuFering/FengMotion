@@ -13,7 +13,7 @@
 
   <groupId>com.fengmotion</groupId>
   <artifactId>fengmotion-server</artifactId>
-  <version>0.1.0-SNAPSHOT</version>
+  <version>0.1.0</version>
   <name>fengmotion-server</name>
   <description>FengMotion Agent backend (contract-first skeleton)</description>
 
@@ -67,6 +67,14 @@
   </dependencies>
 
   <build>
+    <resources>
+      <resource>
+        <directory>src/main/resources</directory>
+        <!-- 开启过滤：application.yml 里的 @project.version@ 由 Maven 替换成真实版本。
+             没有这一项，构建出来的包里会留下字面量 @project.version@。 -->
+        <filtering>true</filtering>
+      </resource>
+    </resources>
     <plugins>
       <plugin>
         <groupId>org.springframework.boot</groupId>

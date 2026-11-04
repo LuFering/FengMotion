@@ -111,6 +111,10 @@ export default function App() {
   }
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [settings, setSettings] = useState<Settings>(loadSettings)
+  /* 更新状态文案。只在桌面壳里有；浏览器/开发态恒为 null。
+     有值时在页面顶部显示一条窄条 —— 用户必须能看到「有新版本」，
+     否则更新检查等于没做（主进程早就发状态，但此前没人接收）。 */
+  const [updateStatus, setUpdateStatus] = useState<string | null>(null)
   const chat = useChat()
   /**
    * 壳注入后端地址的完成信号。
@@ -170,6 +174,18 @@ export default function App() {
     return () => { cancelled = true }
   }, [])
   /**
+   * 订阅桌面壳的更新状态。
+   *
+   * 壳的 preload 可能没有这个通道（老版本），所以按可选处理：
+   * 拿不到就什么都不做，不报错。
+   */
+  useEffect(() => {
+    const bridge = typeof window === 'undefined' ? undefined : window.fengmotion
+    if (!bridge?.onUpdateStatus) return
+    return bridge.onUpdateStatus((message) => setUpdateStatus(message))
+  }, [])
+
+  /**
    * 当前视图该不该显示壁纸 —— 显示范围只在命中时挂载壁纸层。
    * 「仅首页」按 home 判断；单视图范围按视图 id 判断；
    * global 一律显示。壁纸永远垫在内容之下，工作台画面不受影响。
@@ -205,6 +221,15 @@ export default function App() {
                 wallpaper={activeWallpaper}
                 onOpenSettings={() => setSettingsOpen(true)}
                 onToggleNav={toggleNav}>
+
+        {/* 更新提示条。只在桌面壳报告状态时出现，用户点掉后不再显示。
+            没有它的话，「发现新版本」只存在于日志里 —— 用户永远看不到。 */}
+        {updateStatus && (
+          <div className="fm-update-bar" role="status">
+            <span>{updateStatus}</span>
+            <button type="button" onClick={() => setUpdateStatus(null)} aria-label="关闭更新提示">×</button>
+          </div>
+        )}
 
         {/* 首页 · 首屏 from home-film-v3
             原型分支：发送后不再开启动层，需求直接作为首条消息进项目对话视图 */}

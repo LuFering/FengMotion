@@ -21,7 +21,7 @@ import path from 'node:path'
 import { existsSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
 import { startBackend, type BackendHandle } from './backend'
-import { initUpdater } from './updater'
+import { downloadUpdate, initUpdater } from './updater'
 
 /**
  * 关于模块格式（已实测，勿改回 ESM）：
@@ -300,6 +300,12 @@ if (!gotLock) {
 
     // 桌面端专属能力：选目录（浏览器 webkitdirectory 拿不到绝对路径）。
     // 对应 docs/contracts/asset.md §3.3 的 POST /assets/import 按绝对路径导入。
+    /* 用户确认后下载更新。默认不自动下载（见 updater.ts），
+       所以必须有这个显式入口，否则更新永远停在「发现新版本」。 */
+    ipcMain.handle('fengmotion:download-update', () => {
+      downloadUpdate()
+    })
+
     ipcMain.handle('fengmotion:pick-directory', async () => {
       const result = await dialog.showOpenDialog({ properties: ['openDirectory'] })
       if (result.canceled || result.filePaths.length === 0) return null

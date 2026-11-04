@@ -14,6 +14,15 @@ export interface DesktopBridge {
   runtimeConfig(): Promise<{ apiBaseUrl: string; packaged: boolean; platform: string; arch: string; distRoot?: string }>
   pickDirectory(): Promise<string | null>
   isDesktop: boolean
+  /**
+   * 订阅更新状态。可缺省：老版本壳没有这个通道，调用方必须容错。
+   *
+   * @param handler 收到状态文案
+   * @returns 取消订阅
+   */
+  onUpdateStatus?(handler: (message: string) => void): () => void
+  /** 用户确认后开始下载更新。 */
+  downloadUpdate?(): Promise<void>
 }
 
 declare global {

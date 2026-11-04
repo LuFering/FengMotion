@@ -520,3 +520,22 @@
   border-radius: var(--fm-radius-pill);
   background: var(--fm-status-color);
 }
+
+/* 更新提示条：页面顶部一条窄带。
+   用 warn 而不是 brand —— 它不是主操作，是「有件事你需要知道」。
+   不吸附固定定位：应用主体是自绘三栏布局，固定条会盖住侧栏顶部。 */
+.fm-update-bar {
+  display: flex; align-items: center; gap: 10px;
+  padding: 7px 14px;
+  background: color-mix(in srgb, var(--warn) 16%, transparent);
+  color: var(--fg);
+  font-size: 11.5px;
+  line-height: 1.5;
+  border-bottom: 1px solid color-mix(in srgb, var(--warn) 32%, transparent);
+}
+.fm-update-bar span { flex: 1; }
+.fm-update-bar button {
+  flex: none; padding: 0 6px; line-height: 1;
+  font-size: 14px; color: var(--dim); background: none; border: 0; cursor: pointer;
+}
+.fm-update-bar button:hover { color: var(--fg); }
