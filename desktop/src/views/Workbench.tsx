@@ -44,7 +44,9 @@ import { Switch } from '@/components/ui/switch'
 import { RequestSnapshot, WorkflowExecutionLog } from './WorkbenchReview'
 import { WorkbenchReviewDesk, type ReviewDeskTab } from './WorkbenchReviewDesk'
 import { WorkbenchPreviewCompare } from './WorkbenchPreviewCompare'
+import { SceneVersionPanel } from './SceneVersionPanel'
 import { useWorkbenchReview } from '@/hooks/useWorkbenchReview'
+import { useSceneVersions } from '@/hooks/useSceneVersions'
 import { summarizeRounds, type ReviewOpinion, type RoundDelta, type RoundSummary } from '@/services/workbenchReviewService'
 import { PreviewReviewTools } from './PreviewReviewTools'
 import '../styles/workbench-review.css'
@@ -450,6 +452,13 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
   const [realModifyError, setRealModifyError] = useState('')
   /* 后端当前场景。界面据此回答「现在这条片子是什么」，也是提交时的版本依据。 */
   const [currentSceneState, setCurrentSceneState] = useState<ProjectSceneState | null>(null)
+  /* 场景版本历史。回退成功后要把新的当前场景写回 currentSceneState，
+     否则下一次提交仍带旧的 baseVersion，会被后端 409 拒绝 ——
+     用户会以为回退把项目弄坏了。 */
+  const sceneVersions = useSceneVersions(projectId, setCurrentSceneState)
+  /* 版本历史面板与审阅面板共用右栏位置。它不进 sideTab：
+     那不是对话的子页签，而是一次「查看历史」的临时切换。 */
+  const [versionsOpen, setVersionsOpen] = useState(false)
   useEffect(() => {
     if (!notice) return
     const timer = window.setTimeout(() => setNotice(''), 4500)
@@ -956,6 +965,9 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
     const probe = await tasks.currentScene(projectId)
     if (!probe.scene) return
     setCurrentSceneState(probe.scene)
+    /* 每次场景变化都顺手刷新版本列表：用户改完立刻点开历史，
+       就该看到刚产生的这一版。等打开面板才去读会慢一拍，还可能读到旧列表。 */
+    void sceneVersions.refresh(true)
     if (reason === 'completed') {
       /* 成功时给一句确认，让用户知道界面上的场景确实已经换成新的了 */
       setNotice(`场景已更新到版本 ${probe.scene.version}`)
@@ -1400,7 +1412,8 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
         </main>
 
         {/* 右栏：对话 / 设置 —— 收起后宽屏留一条对话入口窄列，窄屏留一个浮层入口。 */}
-        {panelOpen ? (reviewTab ? <WorkbenchReviewDesk projectId={projectId} review={review} tab={reviewTab} onTab={setReviewTab} visuals={stage.visuals} viewedId={viewedPreview?.id}
+        {panelOpen ? (versionsOpen ? <SceneVersionPanel projectId={projectId} scene={currentSceneState} versions={sceneVersions}
+            onClose={() => { setVersionsOpen(false); void sceneVersions.refresh(true) }}/> : reviewTab ? <WorkbenchReviewDesk projectId={projectId} review={review} tab={reviewTab} onTab={setReviewTab} visuals={stage.visuals} viewedId={viewedPreview?.id}
             onClose={() => { setReviewTab(null); focusFeedback() }} onDiscuss={focusFeedback}
             onView={showPreview} onCompare={(left, right) => {
               setEditMode(false); setSelectedArtifactId(null); setComparison([left, right]); setTrayOpen(false)
@@ -1414,6 +1427,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
                        onClearRealModifyError={() => setRealModifyError('')}
                        onDemoSubmit={submitDemo}
                        sceneVersion={currentSceneState}
+                       onOpenVersions={() => setVersionsOpen(true)}
                        chat={chat} sideTab={sideTab} setSideTab={selectSideTab}
                       focusChatKey={focusChatKey}
                       scope={scope}
@@ -2077,7 +2091,7 @@ function RightPanel({ projectId, target, preview, chat, sideTab, setSideTab, foc
   onNavigate, references, onRemoveReference,
   onLocateReference, onToggleReferenceRole, onClearReferences, onScopeChange,
   onOpenReview, keepNotes, reviewSaved, onResumeRequest,
-  realModifyBusy, realModifyError, onClearRealModifyError, onDemoSubmit, sceneVersion }:
+  realModifyBusy, realModifyError, onClearRealModifyError, onDemoSubmit, sceneVersion, onOpenVersions }:
   { projectId: string; target: AgentReference; preview: StageVisual | null; chat: ChatState; sideTab: SideTab; setSideTab: (v: SideTab) => void; focusChatKey: number
     scope: 'project'|'scene'|'selection'
     /** 输入框上显示的作用范围（真名，不是枚举）与它的短名（占位文案用） */
@@ -2103,7 +2117,9 @@ function RightPanel({ projectId, target, preview, chat, sideTab, setSideTab, foc
     /** 演示入口：用户明确点「演示」才走本地假执行 */
     onDemoSubmit: (p: string) => void
     /** 后端当前场景；null 表示还没读到 */
-    sceneVersion: ProjectSceneState | null }) {
+    sceneVersion: ProjectSceneState | null
+    /** 打开场景版本历史。没有场景版本可看时也应能点开 —— 里面会说明「还没有版本」 */
+    onOpenVersions: () => void }) {
   /* 草稿只在提交成功后清空：失败时保留输入，用户改一个字就能重发，
      而不用把整段要求重写一遍。onSubmit 返回是否成功。 */
   /**
@@ -2278,7 +2294,12 @@ function RightPanel({ projectId, target, preview, chat, sideTab, setSideTab, foc
                   而它是「AI 到底会动哪一块」的唯一提示 —— 不能被截。 */}
               <div className="wb-compose-scope" title={scopeLabel}>
                 作用于 <b>{scopeLabel}</b>
-                {sceneVersionLabel && <span className="wb-compose-version">{sceneVersionLabel}</span>}
+                {/* 版本号本身是入口：用户看到「场景版本 v14」最自然的动作就是点它看历史。
+                    没读过场景时也允许点开 —— 面板会说清「还没有场景版本」，比一个死文本有用。 */}
+                <button type="button" className="wb-compose-version" onClick={onOpenVersions}
+                        title="查看场景版本历史与回退">
+                  {sceneVersionLabel ?? '查看场景版本'}
+                </button>
               </div>
               <textarea className="wb-input" rows={3} ref={inputRef}
                         value={chat.draft} onChange={(e) => chat.setDraft(e.target.value)}

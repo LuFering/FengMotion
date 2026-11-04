@@ -36,3 +36,56 @@
 /* 与工作台的意见引用框同一套视觉（--acc 描边 + --sel 填充 + --media-scrim 压边）：
    两侧画的是同一个框，看起来就必须一模一样，否则用户会以为两处不同。 */
 .wb-compare-region { position:absolute; pointer-events:none; z-index:2; border:1.5px solid var(--acc); background:var(--sel); box-shadow:0 0 0 1px var(--media-scrim); }
+
+/* ── 场景版本历史 ──────────────────────────────────────────────
+   与「预览版本」页签视觉同源（同一套 token、同样的列表节奏），
+   但区块名、徽标与动作措辞都刻意区分：一个回退的是文件，一个回退的是场景数据。
+   当前版本用 --acc 标出来，回退来源用中性标签 —— 只有「当前」值得强调。 */
+.wb-scene-versions { display:flex; flex-direction:column; overflow:hidden; min-height:0; color:var(--tx); }
+.wb-sv-current { display:flex; align-items:baseline; flex-wrap:wrap; gap:9px; padding:12px 13px; margin-bottom:18px; border:1px solid var(--line); border-radius:9px; background:var(--panel2); }
+.wb-sv-current-label { font-size:9px; letter-spacing:.08em; color:var(--tx3); }
+.wb-sv-current b { font-family:var(--font-mono); font-size:13px; font-weight:500; color:var(--acc-tx); }
+.wb-sv-current time { margin-left:auto; font-size:9px; color:var(--tx3); }
+.wb-sv-hint { font-size:10px; line-height:1.8; color:var(--tx3); margin:12px 0; }
+.wb-sv-err { color:var(--bad); }
+.wb-sv-failure { display:flex; align-items:flex-start; gap:8px; padding:11px 12px; margin-bottom:14px; border:1px solid color-mix(in srgb, var(--bad) 40%, transparent); border-radius:8px; background:color-mix(in srgb, var(--bad) 8%, transparent); color:var(--bad); }
+.wb-sv-failure>div { flex:1; min-width:0; }
+.wb-sv-failure p { margin:0 0 5px; font-size:10px; line-height:1.75; color:var(--tx); overflow-wrap:anywhere; }
+.wb-sv-failure small { font-size:9px; line-height:1.7; color:var(--tx3); }
+.wb-sv-failure>button { color:var(--tx3); font-size:14px; line-height:1; padding:0 2px; }
+.wb-sv-success { display:flex; align-items:center; gap:7px; padding:11px 12px; margin-bottom:14px; border:1px solid color-mix(in srgb, var(--ok) 38%, transparent); border-radius:8px; background:color-mix(in srgb, var(--ok) 7%, transparent); font-size:10px; line-height:1.7; color:var(--tx); }
+.wb-sv-success>svg { color:var(--ok); flex:none; }
+.wb-sv-list { display:flex; flex-direction:column; }
+.wb-sv-item { padding:15px 0; border-bottom:1px solid var(--line); }
+.wb-sv-item:last-child { border-bottom:none; }
+.wb-sv-item>header { display:flex; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:9px; }
+.wb-sv-num { font-family:var(--font-mono); font-size:12px; color:var(--tx2); }
+.wb-sv-item[data-current='true'] .wb-sv-num { color:var(--acc-tx); }
+.wb-sv-item>header time { margin-left:auto; font-size:9px; color:var(--tx3); }
+.wb-sv-badge { display:inline-flex; align-items:center; gap:4px; padding:2px 6px; border:1px solid color-mix(in srgb, var(--acc) 42%, transparent); border-radius:4px; font-size:8px; color:var(--acc-tx); }
+.wb-sv-badge-restore { border-color:var(--line2); color:var(--tx3); }
+.wb-sv-summary { margin:0 0 9px; font-size:11px; line-height:1.8; color:var(--tx); overflow-wrap:anywhere; }
+.wb-sv-prompt { margin-bottom:10px; font-size:10px; color:var(--tx3); }
+.wb-sv-prompt>summary { cursor:pointer; padding:3px 0; }
+.wb-sv-prompt>p { margin:7px 0 0; padding-left:10px; border-left:2px solid var(--line2); font-size:10px; line-height:1.85; color:var(--tx2); white-space:pre-wrap; overflow-wrap:anywhere; }
+/* 播放器限高：右栏本来就窄，16:9 占满宽度后会吃掉大半个可视区，
+   历史列表就只剩一条能看见 —— 而「扫一眼有哪几版」正是这个面板的主要用途。
+   用 max-height 收住，宽度仍自适应，不裁切画面。 */
+.wb-sv-video { display:block; width:100%; max-height:132px; margin-bottom:10px; border:1px solid var(--line); border-radius:7px; background:var(--stage-bg); object-fit:contain; }
+.wb-sv-noart { margin:0 0 10px; padding:13px 11px; border:1px dashed var(--line2); border-radius:7px; font-size:9px; line-height:1.7; color:var(--tx3); text-align:center; }
+/* 按钮文字「回退到此版本」在 350px 的右栏里会折成两行，图标与文字被拉开。
+   强制单行 + nowrap，宁可按钮短一点也不让它散开。 */
+.wb-sv-actions { display:flex; flex-wrap:wrap; gap:8px; }
+.wb-sv-actions>button { display:inline-flex; align-items:center; gap:5px; white-space:nowrap; flex:0 0 auto; }
+.wb-sv-warn { margin:9px 0 0; font-size:9px; line-height:1.75; color:var(--warn); }
+
+/* 面板按钮样式原本只写在 .wb-review-desk 作用域内，场景版本面板用了同一套类名
+   却拿不到样式 —— 按钮于是变成没有底色、没有边框的裸文字。
+   这里把它补进本面板的作用域，两处视觉保持一致。 */
+.wb-scene-versions .wb-desk-primary,
+.wb-scene-versions .wb-desk-secondary { display:inline-flex; align-items:center; justify-content:center; gap:6px; border:1px solid var(--line2); padding:8px 11px; border-radius:6px; color:var(--tx2); font-size:10px; line-height:1.4; background:transparent; }
+.wb-scene-versions .wb-desk-primary { background:var(--acc); border-color:var(--acc); color:var(--acc-ink); }
+.wb-scene-versions button:disabled { opacity:.4; cursor:default; }
+.wb-scene-versions button:not(:disabled):hover { filter:brightness(1.1); }
+.wb-scene-versions button:focus-visible,
+.wb-scene-versions summary:focus-visible { outline:2px solid var(--acc); outline-offset:3px; }

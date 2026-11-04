@@ -116,6 +116,27 @@ export interface ProjectSceneState {
   updatedAt: string | null
 }
 
+/**
+ * 一个场景历史版本。
+ *
+ * <p>场景版本与「预览版本」不是一回事：预览版本是工作流/编辑器产出的文件，
+ * 场景版本是**修改任务的提交结果**（每次提交留下完整 film 快照）。
+ * 两者各自独立，不要互相冒充。</p>
+ */
+export interface ProjectSceneVersion {
+  version: number
+  film: RenderTaskRequest['film']
+  taskId: string | null
+  prompt: string
+  editSummary: string
+  artifactPath: string | null
+  /** task = 修改任务产生；restore = 回退产生 */
+  source: string
+  /** 回退来源版本；非回退为 null */
+  fromVersion: number | null
+  createdAt: string
+}
+
 /** 前端事件回调。 */
 export type TaskEventHandler = (event: StudioTaskEvent) => void
 
@@ -366,6 +387,45 @@ export function createTaskClient(http: HttpClient) {
      */
     currentScene(projectId: string): Promise<ProjectSceneState> {
       return http.get<ProjectSceneState>(`/projects/${encodeURIComponent(projectId)}/scene`)
+    },
+
+    /**
+     * 列出项目的场景版本历史，新版本在前。
+     *
+     * <p>还没产生过快照的项目返回空数组 —— 这是真实状态（从旧库升级上来的
+     * 项目没有历史），调用方应显示「还没有版本」而不是「加载失败」。</p>
+     *
+     * @param projectId 项目 ID
+     * @returns 版本列表
+     */
+    async sceneVersions(projectId: string): Promise<ProjectSceneVersion[]> {
+      const result = await http.get<{ items?: ProjectSceneVersion[] }>(
+        `/projects/${encodeURIComponent(projectId)}/scene/versions`,
+      )
+      return Array.isArray(result?.items) ? result.items : []
+    },
+
+    /**
+     * 回退到某个场景版本。
+     *
+     * <p>回退会**新增**一个版本（内容等于目标版本），不会删除历史。
+     * 带上 {@code expectedVersion} 做乐观并发校验：界面看到的版本已过期时
+     * 后端返回 409，避免把别人后来的改动一起丢掉。</p>
+     *
+     * @param projectId 项目 ID
+     * @param version 要回退到的版本号
+     * @param expectedVersion 界面当前看到的版本号；不传则不做校验
+     * @returns 新产生的版本
+     */
+    restoreSceneVersion(
+      projectId: string,
+      version: number,
+      expectedVersion?: number,
+    ): Promise<ProjectSceneVersion> {
+      return http.post<ProjectSceneVersion>(
+        `/projects/${encodeURIComponent(projectId)}/scene/versions/${version}/restore`,
+        expectedVersion === undefined ? {} : { expectedVersion },
+      )
     },
 
     /**

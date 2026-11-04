@@ -50,4 +50,8 @@
 .wb-a2 .fw-constraint-row[data-unsupported] span { color:var(--hint); }
 .wb-a2 .wb-constraint-note { margin-top:6px; font-size:9px; line-height:1.7; color:var(--tx3); }
 /* 作用范围旁的场景版本：次级信息，但不能比作用范围本身更显眼 */
-.wb-a2 .wb-compose-version { margin-left:8px; font-size:9px; color:var(--hint); }
+/* 版本号是「查看历史」的入口，所以做成按钮样式而不是死文本：
+   静态文字可点性看不出来，用户不会去点。悬停给一点下划线提示。 */
+.wb-a2 .wb-compose-version { margin-left:8px; font-size:9px; color:var(--hint); border-bottom:1px dotted transparent; }
+.wb-a2 button.wb-compose-version:hover { color:var(--acc-tx); border-bottom-color:color-mix(in srgb, var(--acc) 55%, transparent); }
+.wb-a2 button.wb-compose-version:focus-visible { outline:2px solid var(--acc); outline-offset:2px; border-radius:3px; }
