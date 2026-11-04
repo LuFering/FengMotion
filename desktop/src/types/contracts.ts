@@ -897,6 +897,23 @@ export interface Asset {
   demo?: DemoFlag
 }
 
+/**
+ * 素材筛选面计数（`GET /assets/facets`）。
+ *
+ * 口径：**不受当前筛选影响**的全量计数。跟着筛选变的话，用户永远看不到
+ * 其他分类还有多少东西，也就没机会切过去。
+ *
+ * 未出现的取值后端补 0，所以这些映射始终包含全部枚举值。
+ */
+export interface AssetFacets {
+  total: number
+  mediaTypes: Record<string, number>
+  sourceTypes: Record<string, number>
+  reviewStatus: Record<string, number>
+  availability: Record<string, number>
+  licenseStatus: Record<string, number>
+}
+
 export interface AssetFolder {
   id: Id
   name: string

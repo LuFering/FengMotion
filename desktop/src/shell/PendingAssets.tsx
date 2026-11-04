@@ -11,7 +11,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { X, Trash2, Send, PackagePlus, AlertTriangle, FileText, Image as ImageIcon, Film, Music2, Type, ShoppingCart } from 'lucide-react'
 import { MEDIA_LABEL, type MyAsset } from '@/data/myAssets'
-import { formatBytes, formatDur, getThumbURL, listAssets } from '@/services/assetService'
+import { formatBytes, formatDur, getThumbURL, listAssets } from '@/services/assetApiService'
 import {
   PURPOSE_HINT, PURPOSE_LABEL, isAssetDrag, readAssetDragData,
   usePendingAssets, type AssetPurpose, type PendingAsset,

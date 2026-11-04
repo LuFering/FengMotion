@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { importFiles } from '@/services/assetService'
+import { importFiles } from '@/services/assetApiService'
 import { setAssetDragData, usePendingAssets, type PendingRefCard } from '@/shell/usePendingAssets'
 import { clearDragGhost, setDragGhost } from '@/shell/dragGhost'
 import { usePickMode } from '@/shell/usePickMode'
@@ -334,13 +334,14 @@ export function RefLibrary() {
     }
     setImporting({ name: videos[0].name, total: videos.length, done: 0 })
     try {
-      const ok = await importFiles(videos, (ev) => {
+      const outcome = await importFiles(videos, (ev) => {
         if (ev.phase === 'done') setImporting((p) => (p ? { ...p, done: p.done + 1 } : p))
       })
-      if (ok.length > 0) {
-        showToast(`已导入 ${ok.length} 个视频，等待分析`)
+      if (outcome.created.length > 0) {
+        showToast(`已导入 ${outcome.created.length} 个视频，等待分析`)
       } else {
-        showToast('导入失败：文件格式不支持或读取失败')
+        // 有失败项就报具体原因，而不是笼统的「格式不支持」。
+        showToast(`导入失败：${outcome.failed[0]?.error ?? '文件格式不支持或读取失败'}`)
       }
     } catch {
       showToast('导入失败，请重试')

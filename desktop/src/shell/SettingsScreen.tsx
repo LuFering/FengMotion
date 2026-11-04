@@ -3,7 +3,8 @@ import { Search, Settings2, Check, CircleHelp, Sparkles, Plug, Clapperboard, Dat
 import '@/styles/settings-refined.css'
 import { HARNESSES, REASONING_LABEL, DEFAULT_PREFS, prefsKey, loadPrefs, savePrefs,
          type ModelPrefs, type Reasoning } from '@/data/harnesses'
-import { formatBytes, initLibrary, listAssets, resetLibrary } from '@/services/assetService'
+import { assetStats, formatBytes } from '@/services/assetApiService'
+import { resetLibrary } from '@/services/assetService'
 import { type Settings, type ThemeId, type WallpaperId, type WallpaperScope,
          DEFAULT_SETTINGS, FEEDBACK, applyBackup, clearModelPrefs, downloadBackup, readBackup,
          normalizeSettings } from '@/shell/settings-model'
@@ -168,10 +169,11 @@ export function SettingsScreen({
   const wallInputRef = useRef<HTMLInputElement>(null)
 
   /** 读一次索引统计（清库/导入后也要重新读） */
+  /* 统计读服务端素材库：素材页已经迁到服务端，这里若还读 IndexedDB，
+     用户在设置里看到的条数会和素材页对不上。 */
   const refreshStats = () => {
-    void initLibrary()
-      .then(() => listAssets())
-      .then((list) => setStats({ count: list.length, bytes: list.reduce((s, a) => s + a.sizeBytes, 0) }))
+    void assetStats()
+      .then((s) => setStats(s))
       .catch(() => setStats(null))
   }
 
@@ -229,14 +231,20 @@ export function SettingsScreen({
     }
   }
 
-  /** 清空本地素材并重建：二次确认（影响逐条写明）后真的删库 */
+  /**
+   * 清空**浏览器里的旧素材索引**（IndexedDB）。
+   *
+   * 注意范围：素材库已迁到服务端，这个操作**不会删除服务端素材**。
+   * 界面上必须把这件事说清楚 —— 否则用户点完看到「已清空」，
+   * 回到素材页发现文件都还在，会以为清空失效或者删错了地方。
+   */
   const onWipeLibrary = async () => {
-    setNotice('正在清空并重建…')
+    setNotice('正在清空浏览器中的旧素材索引…')
     try {
       await resetLibrary()
       refreshStats()
       setConfirmWipe(false)
-      setNotice('已清空本地素材，只保留内置素材')
+      setNotice('已清空浏览器中的旧素材索引；素材库里的文件不受影响')
     } catch (err) {
       setNotice(`清空失败：${err instanceof Error ? err.message : '未知错误'}`)
     }
@@ -668,8 +676,8 @@ export function SettingsScreen({
                     清除
                   </Button>
                 </Row>
-                <Row label="清空本地素材并重建"
-                     hint="删掉你导入到本机的素材文件与索引，只重新种入内置素材。">
+                <Row label="清空浏览器中的旧素材索引"
+                     hint="仅清除旧版存在浏览器里的素材数据，不删除素材库里的文件。">
                   {!confirmWipe
                     ? <Button variant="destructive" size="sm" onClick={() => setConfirmWipe(true)}>清空…</Button>
                     : <Button variant="outline" size="sm" onClick={() => setConfirmWipe(false)}>取消</Button>}
@@ -677,15 +685,15 @@ export function SettingsScreen({
                 {confirmWipe && (
                   <div className="set-hint" role="alertdialog" aria-label="确认清空本地素材">
                     <p style={{ margin: '0 0 6px', color: 'var(--bad)' }}>
-                      这一步会真的删除文件，不只是刷新列表：
+                      这一步会删除浏览器里的旧素材数据，<b>不影响素材库</b>：
                     </p>
                     <ul style={{ margin: '0 0 8px', paddingLeft: 18, lineHeight: 1.7 }}>
-                      <li>本机 IndexedDB 里你导入的所有素材文件会被删除，<b>不可撤销</b>；</li>
-                      <li>引用这些素材的项目与工作流可能因此缺文件；</li>
-                      <li>内置素材会重新种入，设置与项目本身不受影响。</li>
+                      <li>浏览器 IndexedDB 里旧版存的素材文件会被删除，<b>不可撤销</b>；</li>
+                      <li>素材库（应用管理的目录）里的文件<b>不会</b>被删除，素材页仍然可用；</li>
+                      <li>如果还有旧素材没迁移，删掉后就再也迁移不过来了。</li>
                     </ul>
                     <Button variant="destructive" size="sm" onClick={onWipeLibrary}>
-                      我明白，清空并重建
+                      我明白，清空旧索引
                     </Button>
                   </div>
                 )}

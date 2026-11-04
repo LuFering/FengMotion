@@ -1,6 +1,6 @@
 import { SceneComposition } from './SceneComposition'
 import { resolveDocument } from './service'
-import { importFiles, updateAsset, getFileURL } from '@/services/assetService'
+import { importFiles, updateAsset, getFileURL } from '@/services/assetApiService'
 import type { SceneDocument } from './types'
 import { studioHttpApi } from '@/services/api'
 export interface EditorRenderRecord {
@@ -79,9 +79,11 @@ export async function renderScene(
   const blob = await result.getBlob()
   if (signal.aborted) throw new DOMException('Cancelled', 'AbortError')
   const name = `${doc.name}.mp4`
-  const assets = await importFiles([new File([blob], name, { type: 'video/mp4' })], () => {})
-  if (!assets[0]) throw Error('视频已编码，但未能保存到素材库。')
-  await updateAsset(assets[0].id, {
+  const outcome = await importFiles([new File([blob], name, { type: 'video/mp4' })], () => {})
+  const saved = outcome.created[0]
+  // 失败时把服务端给的原因带出去：只说「未能保存」会让用户无从判断是空间不够还是类型不支持。
+  if (!saved) throw Error(`视频已编码，但未能保存到素材库：${outcome.failed[0]?.error ?? '未知原因'}`)
+  await updateAsset(saved.id, {
     sourceType: 'generated',
     refs: [{ kind: 'project', id: doc.projectId, label: doc.name }],
     tags: ['编辑器导出'],
@@ -102,7 +104,7 @@ export async function renderScene(
     projectId: doc.projectId,
     sceneId: doc.id,
     sceneName: doc.name,
-    assetId: assets[0].id,
+    assetId: saved.id,
     createdAt: new Date().toISOString(),
     revision: old.filter((r) => r.sceneId === doc.id).length + 1,
     document: structuredClone(document),

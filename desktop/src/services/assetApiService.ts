@@ -301,3 +301,25 @@ export async function initLibrary(): Promise<void> {
 export async function captureBuiltinPoster(): Promise<string | null> {
   return null
 }
+
+/**
+ * 素材库统计：总条数与总字节。
+ *
+ * 直接从服务端 facets 取总数，而不是把全部分页拉一遍再加起来 ——
+ * 设置页只需要一个数字，拉全量在素材多时会明显变慢。
+ */
+export async function assetStats(): Promise<{ count: number; bytes: number }> {
+  const api = studioHttpApi().assets
+  // 总条数用 facets 的全量计数（不受筛选影响）。
+  const facets = await api.facets()
+  // 字节数需要逐条累加，但只为这一项排序无关，仍分页取完；素材多是几十到几百条量级。
+  let bytes = 0
+  let cursor: string | null | undefined
+  for (let guard = 0; guard < 100; guard += 1) {
+    const page = await api.list({ cursor: cursor ?? undefined, limit: 200 })
+    for (const item of page.items) bytes += item.sizeBytes ?? 0
+    cursor = page.nextCursor
+    if (!cursor) break
+  }
+  return { count: facets.total, bytes }
+}

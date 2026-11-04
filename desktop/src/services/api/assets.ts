@@ -16,6 +16,7 @@ import type { HttpClient } from './http'
 import type { UploadOptions, UploadProgress, UploadResult } from './types'
 import type {
   Asset,
+  AssetFacets,
   AssetFolder,
   AssetImportRequest,
   AssetListQuery,
@@ -482,6 +483,16 @@ export function createAssetsResource(http: HttpClient) {
       const path = '/assets'
       const payload = await http.get<unknown>(path, { query: { ...query } })
       return asPage<Asset>(payload, { source: `GET ${path}` })
+    },
+
+    /**
+     * `GET /assets/facets`：筛选面与全量计数（asset.md §3.1）。
+     *
+     * 后端会把没出现过的取值补 0，所以这里不做「缺键」兜底 —— 缺键说明响应不对，
+     * 应当暴露出来而不是悄悄当 0。
+     */
+    facets(options: { signal?: AbortSignal } = {}): Promise<AssetFacets> {
+      return http.get<AssetFacets>('/assets/facets', { signal: options.signal })
     },
 
     /** `GET /assets/{assetId}`：详情含 `refs`（asset.md §3.4）。 */
