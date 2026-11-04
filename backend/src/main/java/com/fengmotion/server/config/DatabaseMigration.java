@@ -254,8 +254,11 @@ public class DatabaseMigration {
         jdbc.execute("CREATE INDEX IF NOT EXISTS idx_assets_media_type ON assets(media_type)");
         jdbc.execute("CREATE INDEX IF NOT EXISTS idx_assets_review_status ON assets(review_status)");
         jdbc.execute("CREATE INDEX IF NOT EXISTS idx_assets_last_used ON assets(last_used_at DESC)");
-        jdbc.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_assets_content_hash "
-                + "ON assets(content_hash) WHERE content_hash IS NOT NULL");
+        /* 内容哈希不唯一：文件本体可以去重，但用户记录不该被合并。
+           旧库可能建过 UNIQUE 索引，先删掉再建普通索引 —— 否则同内容的两条记录
+           根本插不进去（迁移会以 500 失败，且原因很难看出是索引问题）。 */
+        jdbc.execute("DROP INDEX IF EXISTS idx_assets_content_hash");
+        jdbc.execute("CREATE INDEX IF NOT EXISTS idx_assets_content_hash ON assets(content_hash)");
         // 资源引用关系：删除前据此判断 409，不静默级联。
         jdbc.execute("""
                 CREATE TABLE IF NOT EXISTS resource_refs (

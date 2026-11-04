@@ -473,6 +473,29 @@ export function createAssetsResource(http: HttpClient) {
     },
 
     /**
+     * `POST /assets` 单请求上传，可选「内容命中也保留独立记录」。
+     *
+     * 供迁移使用：旧库里同内容不同元数据的两条记录都要保留。
+     * 文件本体仍只存一份（服务端复用已有文件），但这条记录的名称/标签/文件夹独立。
+     *
+     * @param keepSeparateRecord true 表示即使内容命中也不合并成已有记录
+     */
+    async uploadOne(
+      file: File,
+      options: { folderId?: string; name?: string; keepSeparateRecord?: boolean; signal?: AbortSignal } = {},
+    ): Promise<Asset> {
+      const form = new FormData()
+      form.append('file', file, file.name)
+      if (options.folderId) form.append('folderId', options.folderId)
+      if (options.name) form.append('name', options.name)
+      if (options.keepSeparateRecord) form.append('keepSeparateRecord', 'true')
+      const res = await http.post<{ asset: Asset; deduped: boolean }>('/assets', form, {
+        signal: options.signal,
+      })
+      return res.asset
+    },
+
+    /**
      * `GET /assets`：筛选/搜索/排序按 asset.md §3.1；`tags` 以重复参数表达（见 config.ts）。
      *
      * 列表形状交给 `asPage` 归一：契约里「列表」有两种口径（README §2.3 游标分页、project.md 有限集合裸数组），

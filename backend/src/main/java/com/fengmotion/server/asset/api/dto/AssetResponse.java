@@ -31,6 +31,7 @@ import java.util.List;
  * @param updatedAt        ISO 8601
  * @param lastUsedAt       ISO 8601
  * @param etag             条件更新用
+ * @param contentHash      内容 SHA-256；迁移时用它校验「传上去的是不是同一个文件」
  * @param refs             引用方
  * @param demo             演示数据标记
  */
@@ -58,6 +59,7 @@ public record AssetResponse(
         String updatedAt,
         String lastUsedAt,
         String etag,
+        String contentHash,
         List<RefResponse> refs,
         boolean demo) {
 

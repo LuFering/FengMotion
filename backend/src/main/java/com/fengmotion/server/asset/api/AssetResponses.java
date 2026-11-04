@@ -59,6 +59,9 @@ public class AssetResponses {
                 asset.updatedAt() == null ? null : asset.updatedAt().toString(),
                 asset.lastUsedAt() == null ? null : asset.lastUsedAt().toString(),
                 asset.etag(),
+                // 暴露内容哈希：迁移要逐条校验「服务端的文件是不是本地那一个」，
+                // 只比大小抓不到内容被换掉的情况。
+                asset.contentHash(),
                 refList,
                 asset.demo());
     }

@@ -142,13 +142,22 @@ public class AssetController {
     public ResponseEntity<UploadResponse> upload(
             @RequestParam("file") MultipartFile file,
             @RequestParam(required = false) String folderId,
-            @RequestParam(required = false) String name) {
+            @RequestParam(required = false) String name,
+            /*
+             * 迁移用：内容命中也保留独立记录。
+             *
+             * 文件本体仍只存一份，但这条记录的名称/标签/授权/文件夹独立 ——
+             * 旧库里同内容不同元数据的两条记录都需要被保留下来。
+             * 普通导入不传，保持「同一文件不重复出现」的默认行为。
+             */
+            @RequestParam(required = false, defaultValue = "false") boolean keepSeparateRecord) {
         if (file == null || file.isEmpty()) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "validation_error", "文件内容为空");
         }
         AssetService.ImportResult result;
         try (InputStream in = file.getInputStream()) {
-            result = assets.importFile(file.getOriginalFilename(), file.getContentType(), folderId, name, in);
+            result = assets.importFile(file.getOriginalFilename(), file.getContentType(), folderId, name,
+                    in, keepSeparateRecord);
         } catch (IOException ex) {
             throw new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "internal_error", "读取上传内容失败");
         }
