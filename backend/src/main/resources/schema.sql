@@ -152,3 +152,74 @@ CREATE TABLE IF NOT EXISTS task_events (
 );
 
 CREATE INDEX IF NOT EXISTS idx_task_events_task_seq ON task_events(task_id, seq);
+
+
+-- ───────────────────────── 素材库（契约 docs/contracts/asset.md） ─────────────────────────
+--
+-- 五个状态维度各自成列，禁止压成一个 ready：
+--   source_type（从哪来） / processing_status（解析到哪步） / review_status（人确认过吗）
+--   availability（还能用吗） / license_status（授权，独立于审核）
+-- demo 与 source_type 正交：随应用分发的真实文件可以是 builtin，同时其演示用途仍可标 demo。
+--
+-- storage_path / thumbnail_path 存**相对**存储根的路径，不存绝对路径：
+-- 整目录搬迁或换机器后素材仍然可读，也不会把本机用户名写进库。
+-- content_hash 是文件内容 SHA-256，用于识别同一文件本体（去重），但不合并
+-- 名称/标签/授权这些用户记录。
+CREATE TABLE IF NOT EXISTS assets (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    media_type TEXT NOT NULL,
+    mime_type TEXT NOT NULL,
+    size_bytes INTEGER NOT NULL,
+    source_type TEXT NOT NULL,
+    processing_status TEXT NOT NULL,
+    processing_error TEXT,
+    review_status TEXT NOT NULL,
+    availability TEXT NOT NULL,
+    license_status TEXT NOT NULL,
+    license_details TEXT,
+    width INTEGER,
+    height INTEGER,
+    duration_ms INTEGER,
+    tags_json TEXT NOT NULL DEFAULT '[]',
+    folder_id TEXT,
+    storage_path TEXT NOT NULL,
+    thumbnail_path TEXT,
+    content_hash TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    last_used_at TEXT,
+    etag TEXT NOT NULL,
+    demo INTEGER NOT NULL DEFAULT 0,
+    FOREIGN KEY (folder_id) REFERENCES asset_folders(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_assets_folder ON assets(folder_id);
+CREATE INDEX IF NOT EXISTS idx_assets_media_type ON assets(media_type);
+CREATE INDEX IF NOT EXISTS idx_assets_review_status ON assets(review_status);
+CREATE INDEX IF NOT EXISTS idx_assets_last_used ON assets(last_used_at DESC);
+-- 同一内容哈希只允许一条：去重的落点。允许 NULL（历史数据可能没有哈希）。
+CREATE UNIQUE INDEX IF NOT EXISTS idx_assets_content_hash ON assets(content_hash) WHERE content_hash IS NOT NULL;
+
+CREATE TABLE IF NOT EXISTS asset_folders (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_asset_folders_name ON asset_folders(name);
+
+-- 引用关系：资源被谁用了。多值，不是状态。
+-- 删除素材前必须查这张表：有引用则 409 并列出引用方，不能静默级联。
+CREATE TABLE IF NOT EXISTS resource_refs (
+    resource_kind TEXT NOT NULL,
+    resource_id TEXT NOT NULL,
+    ref_kind TEXT NOT NULL,
+    ref_id TEXT NOT NULL,
+    ref_label TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (resource_kind, resource_id, ref_kind, ref_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_resource_refs_target ON resource_refs(ref_kind, ref_id);

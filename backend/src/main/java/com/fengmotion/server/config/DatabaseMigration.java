@@ -208,5 +208,67 @@ public class DatabaseMigration {
                     created_at TEXT NOT NULL
                 )
                 """);
+
+        // 素材库：五个状态维度各自成列（设计说明见 schema.sql）。
+        // 旧库不会重跑 schema.sql 的建表语句，所以这里必须独立建成同样的结构。
+        jdbc.execute("""
+                CREATE TABLE IF NOT EXISTS asset_folders (
+                    id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                )
+                """);
+        jdbc.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_asset_folders_name ON asset_folders(name)");
+        jdbc.execute("""
+                CREATE TABLE IF NOT EXISTS assets (
+                    id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    media_type TEXT NOT NULL,
+                    mime_type TEXT NOT NULL,
+                    size_bytes INTEGER NOT NULL,
+                    source_type TEXT NOT NULL,
+                    processing_status TEXT NOT NULL,
+                    processing_error TEXT,
+                    review_status TEXT NOT NULL,
+                    availability TEXT NOT NULL,
+                    license_status TEXT NOT NULL,
+                    license_details TEXT,
+                    width INTEGER,
+                    height INTEGER,
+                    duration_ms INTEGER,
+                    tags_json TEXT NOT NULL DEFAULT '[]',
+                    folder_id TEXT,
+                    storage_path TEXT NOT NULL,
+                    thumbnail_path TEXT,
+                    content_hash TEXT,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    last_used_at TEXT,
+                    etag TEXT NOT NULL,
+                    demo INTEGER NOT NULL DEFAULT 0,
+                    FOREIGN KEY (folder_id) REFERENCES asset_folders(id)
+                )
+                """);
+        jdbc.execute("CREATE INDEX IF NOT EXISTS idx_assets_folder ON assets(folder_id)");
+        jdbc.execute("CREATE INDEX IF NOT EXISTS idx_assets_media_type ON assets(media_type)");
+        jdbc.execute("CREATE INDEX IF NOT EXISTS idx_assets_review_status ON assets(review_status)");
+        jdbc.execute("CREATE INDEX IF NOT EXISTS idx_assets_last_used ON assets(last_used_at DESC)");
+        jdbc.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_assets_content_hash "
+                + "ON assets(content_hash) WHERE content_hash IS NOT NULL");
+        // 资源引用关系：删除前据此判断 409，不静默级联。
+        jdbc.execute("""
+                CREATE TABLE IF NOT EXISTS resource_refs (
+                    resource_kind TEXT NOT NULL,
+                    resource_id TEXT NOT NULL,
+                    ref_kind TEXT NOT NULL,
+                    ref_id TEXT NOT NULL,
+                    ref_label TEXT NOT NULL DEFAULT '',
+                    created_at TEXT NOT NULL,
+                    PRIMARY KEY (resource_kind, resource_id, ref_kind, ref_id)
+                )
+                """);
+        jdbc.execute("CREATE INDEX IF NOT EXISTS idx_resource_refs_target "
+                + "ON resource_refs(ref_kind, ref_id)");
     }
 }

@@ -20,3 +20,9 @@ fengmotion:
     probe-timeout-ms: 1000
     probe-cache-ms: 0
     turn-timeout-ms: 5000
+
+  # 素材文件必须落在 target 下，不能落到真实数据目录。
+  # 测试会真写文件；用默认的 ${fengmotion.data-dir}/library 会把测试素材
+  # 混进用户自己的素材库（真踩过：跑完测试后用户素材库里多出 8 个 x 文件）。
+  asset:
+    library-root: ./target/fengmotion-test-library
