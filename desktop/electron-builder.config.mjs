@@ -36,6 +36,8 @@ export default {
        界面的「建立创作上下文」会直接报 workflow_unavailable。
        这些工具是零依赖 .mjs，只需随包带上，不需要额外装依赖。 */
     { from: 'electron/resources/workflow-v5', to: 'workflow-v5' },
+    // ffmpeg/ffprobe：素材缩略图与音视频元数据。缺了不影响导入，但没有缩略图。
+    { from: 'electron/resources/ffmpeg', to: 'ffmpeg' },
   ],
   /* electron-builder 无论如何都会排除 node_modules（它假定依赖由自己管理），
      但 remotion/node_modules 是给渲染脚本用的、不参与打包期依赖解析。

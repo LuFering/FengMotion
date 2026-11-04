@@ -1488,3 +1488,50 @@ html[data-theme="tactile"] .mya-pickbtn { border-color: #22231f; }
 }
 .mya-card-head .num { flex: 0 0 auto; color: rgb(255 255 255 / .6); font-size: 10.5px; }
 .mya-card-head .mya-flag { flex: 0 0 auto; margin-left: 0; }
+
+/* ── 旧素材迁移提示条 ──────────────────────────────────────────
+   这是「等待用户决定」而不是失败：旧数据完好，只是还没搬过来。
+   用琥珀 warn（待定/警示）而不是 danger（失败）。 */
+.mya-migrate {
+  display: flex;
+  align-items: center;
+  gap: var(--fm-space-4);
+  margin: var(--fm-space-3) var(--fm-space-5) 0;
+  padding: var(--fm-space-3) 14px;
+  border-radius: var(--fm-radius-ctl);
+  /* 琥珀 = 警示/待定（tokens.css 的状态语义）：旧数据完好，只是还没搬过来，
+     不是失败。用红色会让人以为素材坏了。 */
+  background: color-mix(in srgb, var(--fm-c-warn) 14%, transparent);
+  color: var(--text);
+}
+.mya-migrate-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.mya-migrate-text strong {
+  font-size: var(--fm-text-label);
+  font-weight: 600;
+  color: var(--fm-c-warn);
+}
+.mya-migrate-text span {
+  font-size: var(--fm-text-meta);
+  color: var(--text-dim);
+  line-height: 1.5;
+}
+.mya-migrate-btn {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  padding: 7px 14px;
+  border-radius: var(--fm-radius-mark);
+  border: 0;
+  background: var(--fm-c-warn);
+  color: var(--void);
+  font-size: var(--fm-text-meta);
+  font-weight: 600;
+  cursor: pointer;
+}
+.mya-migrate-btn:disabled { opacity: 0.6; cursor: default; }
+.mya-migrate-btn:hover:not(:disabled) { filter: brightness(1.08); }

@@ -16,6 +16,7 @@ import type { HttpClient } from './http'
 import type { UploadOptions, UploadProgress, UploadResult } from './types'
 import type {
   Asset,
+  AssetFacets,
   AssetFolder,
   AssetImportRequest,
   AssetListQuery,
@@ -430,11 +431,21 @@ export function createAssetsResource(http: HttpClient) {
       await putChunk(uploadId, index, chunk, options)
     },
 
-    /** `POST .../complete` → `201` + `Asset`（`processingStatus=pending`，asset.md §3.2）。 */
-    completeUpload(uploadId: string, options: { signal?: AbortSignal } = {}): Promise<Asset> {
-      return http.post<Asset>(`${uploadPath(uploadId)}/complete`, undefined, {
+    /**
+     * `POST .../complete` → `201`（asset.md §3.2）。
+     *
+     * 后端返回的是 `{ asset, deduped }` 包装：上传完成后可能命中去重，
+     * 而「这次真的新建了素材」和「返回了一个已存在的素材」对用户是两件事，
+     * 所以服务端把 `deduped` 一并给出。这里解包成 `Asset`，同时兼容旧的裸 `Asset` 响应
+     * —— 只认一种形状时，换一种响应就会静默变成 `undefined`（曾经因此把
+     * 「上传成功」判成「服务端未返回素材」）。
+     */
+    async completeUpload(uploadId: string, options: { signal?: AbortSignal } = {}): Promise<Asset> {
+      const payload = await http.post<unknown>(`${uploadPath(uploadId)}/complete`, undefined, {
         signal: options.signal,
       })
+      if (isRecord(payload) && isRecord(payload.asset)) return payload.asset as unknown as Asset
+      return payload as Asset
     },
 
     /** `DELETE /assets/uploads/{uploadId}`：取消会话并清理已收分片（asset.md §3.2）。 */
@@ -447,6 +458,21 @@ export function createAssetsResource(http: HttpClient) {
 
   return {
     /**
+     * 素材本体的可访问 URL。
+     *
+     * 返回完整地址而不是相对路径：`<video src>` / `<img src>` 直接加载，
+     * 打包态后端端口是动态的，拼相对路径会打到前端 dev server 上。
+     */
+    contentUrl(assetId: string): string {
+      return http.url(`${assetPath(assetId)}/content`)
+    },
+
+    /** 缩略图 URL。素材没有缩略图时该地址会 404，调用方应先看 `thumbnailUrl` 是否存在。 */
+    thumbnailUrl(assetId: string): string {
+      return http.url(`${assetPath(assetId)}/thumbnail`)
+    },
+
+    /**
      * `GET /assets`：筛选/搜索/排序按 asset.md §3.1；`tags` 以重复参数表达（见 config.ts）。
      *
      * 列表形状交给 `asPage` 归一：契约里「列表」有两种口径（README §2.3 游标分页、project.md 有限集合裸数组），
@@ -457,6 +483,16 @@ export function createAssetsResource(http: HttpClient) {
       const path = '/assets'
       const payload = await http.get<unknown>(path, { query: { ...query } })
       return asPage<Asset>(payload, { source: `GET ${path}` })
+    },
+
+    /**
+     * `GET /assets/facets`：筛选面与全量计数（asset.md §3.1）。
+     *
+     * 后端会把没出现过的取值补 0，所以这里不做「缺键」兜底 —— 缺键说明响应不对，
+     * 应当暴露出来而不是悄悄当 0。
+     */
+    facets(options: { signal?: AbortSignal } = {}): Promise<AssetFacets> {
+      return http.get<AssetFacets>('/assets/facets', { signal: options.signal })
     },
 
     /** `GET /assets/{assetId}`：详情含 `refs`（asset.md §3.4）。 */

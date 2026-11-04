@@ -11,13 +11,38 @@
 |---|---|---|
 | 来源类型 | `sourceType` | `builtin` / `imported` / `generated` / `sample` |
 | 处理状态 | `processingStatus` | `pending` / `processing` / `ready` / `failed` |
-| 审核状态 | `reviewStatus` | `none` / `pending` / `approved` / `rejected` |
+| 审核状态 | `reviewStatus` | `none` / `pending` / `needs_review` / `approved` / `rejected` |
 | 可用状态 | `availability` | `enabled` / `disabled` / `deprecated` |
 | 引用关系 | `refs` | `ResourceRef[]`（多值，不是状态） |
+| 是否演示 | `demo` | `true` / 不出现（与上述五维**正交**，见 §1.2） |
 
 - 新导入素材：`processingStatus = pending`、`reviewStatus = none`、`availability = enabled`。
 - **授权状态是独立字段**（`licenseStatus`），审核只改审核，不推断授权；无可靠信息一律 `unknown`。
 - `deprecated` 是终态；`disabled` 时禁止新增引用，已有引用保留。
+
+### 1.1 审核状态语义与转换
+
+五个值**不可互相压平**：
+
+| 值 | 含义 | 初始值 | 允许的下一状态 |
+|---|---|---|---|
+| `none` | 从未提审 | **新导入素材的初始值** | → `pending` |
+| `pending` | 已提审，未出结论 | — | → `approved` / `rejected` / `needs_review` |
+| `needs_review` | 审过，结论是「需要修改后再提」 | — | → `pending`（修订后重提） / `rejected` |
+| `approved` | 审核通过 | — | → `needs_review`（发现问题回溯） |
+| `rejected` | 终局否定，不再采用 | — | → `pending`（修订后重提） |
+
+- `pending` 是「还没审」，`needs_review` 是「审了、要求改」——二者不可互相压平。
+- `rejected` 是终局否定，`needs_review` 是待修订。
+- 非法转换（如 `none` → `approved`）必须 4xx 拒绝。
+- 任何审核转换都**不改**`licenseStatus`。
+
+### 1.2 文件来源与演示属性是两个维度
+
+**不能用「文件是否真实存在」判断是不是演示数据。** 随应用分发的真实文件可以是 `sourceType=builtin`，同时其演示用途仍可标 `demo: true`。
+
+- `sourceType=sample` 只留给**内容本身是编造/占位**的条目。
+- **红线：演示条目的 `refs` 不得被包装成真实用户项目关系**，只能指向演示项目，且响应中可区分。
 
 ## 2. Asset
 
@@ -75,14 +100,17 @@
 
 ### 3.3 路径导入（桌面端）
 
-`POST /assets/import`：
-
 ```json
 { "filePath": "/Users/me/video-cut/token/assets/a1.jpg", "folderId": null }
 ```
 
-- 仅本地服务允许；远程后端返回 `422 capability_unavailable`。
-- 服务端必须校验路径在白名单根目录内，越界返回 `403`（复用 `validation_error` + `details.reason=path_not_allowed`）。
+- **第一版语义：通过路径选择后「复制入库」**，不是长期引用原文件。
+  - 「复制入库」= 文件本体复制进应用管理目录，之后原文件移动/删除不影响素材。
+  - 「长期引用原文件」= 不复制，素材指向外部路径，原文件失效则素材失效。**当前不支持。**
+  - 两者是不同能力；不做后者不等于前者永远不做，将来可加 `mode: "copy" | "reference"`。
+- 第一版若未实现该端点，必须返回 `422 capability_unavailable` 并在 `details.capability=pathImport` 注明；
+  **同时保证文件选择器与拖拽导入可用**（走 §3.2 上传）。
+- 仅本地服务允许；服务端必须校验路径在白名单根目录内，越界返回 `403`（`details.reason=path_not_allowed`）。
 - 成功返回 `Asset`；文件不存在 `404`，重复导入返回已有 `Asset` + `200`。
 
 ### 3.4 详情/更新/删除
@@ -97,6 +125,7 @@
 - 删除前检查引用：任一 `refs` 非空 → `409 conflict`，`details.refs` 列出项目/工作流/场景。
 - `availability=deprecated` 只能由显式请求设置，且不可逆；重复设置幂等。
 - `reviewStatus=approved` 要求 `processingStatus=ready`，否则 `409 conflict`。
+- 审核状态转换必须符合 §1.1 的转换表；非法转换（如 `none` → `approved`）返回 `409 conflict` + `details.from`/`details.to`。
 - 改名不改 `id`、不改文件本体。
 
 ### 3.5 文件夹

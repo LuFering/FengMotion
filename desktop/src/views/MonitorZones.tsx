@@ -1,6 +1,6 @@
 import { FileWarning } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { getFileURL, getThumbURL } from '@/services/assetService'
+import { getFileURL, getThumbURL } from '@/services/assetApiService'
 import { MEDIA_LABEL, type MediaType } from '@/data/myAssets'
 import type { AgentReference } from '@/services/studioApi'
 import type { MonitorVisualKind } from '@/data/monitorVisual'

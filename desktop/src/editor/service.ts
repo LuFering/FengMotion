@@ -1,4 +1,4 @@
-import { getFileURL, importFiles } from '@/services/assetService'
+import { getFileURL, importFiles } from '@/services/assetApiService'
 import type { EditorManifest, SceneDocument } from './types'
 import { validateDocument, documentFromSource } from './document'
 const key = (projectId: string) => `fengmotion:scene-documents:v1:${projectId}`
@@ -119,11 +119,12 @@ export async function importDocument(
               : path.endsWith('.wav')
                 ? 'audio/wav'
                 : 'application/octet-stream')
-    const [asset] = await importFiles(
+    const outcome = await importFiles(
       [new File([entries[path] as Uint8Array<ArrayBuffer>], path.split('/').at(-1)!, { type: mime })],
       () => {},
     )
-    if (!asset) throw Error('工程素材导入失败。')
+    const asset = outcome.created[0]
+    if (!asset) throw Error(`工程素材导入失败：${outcome.failed[0]?.error ?? '未知原因'}`)
     item.assetId = asset.id
     delete item.src
   }

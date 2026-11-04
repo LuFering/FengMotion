@@ -27,7 +27,7 @@ import { SceneInspector } from './SceneInspector'
 import { HtmlScenePreview } from './HtmlScenePreview'
 import { NativeScenePreview } from './NativeScenePreview'
 import { renderScene, type EditorRenderRecord } from './render'
-import { getFileURL, importFiles, initLibrary, listAssets } from '@/services/assetService'
+import { getFileURL, importFiles, initLibrary, listAssets } from '@/services/assetApiService'
 import type { MyAsset } from '@/data/myAssets'
 import type {
   EditorLayer,
@@ -781,9 +781,10 @@ export function SceneEditorWorkspace({
                   const files = Array.from(e.target.files ?? [])
                   if (files.length)
                     void importFiles(files, () => {})
-                      .then(async (imported) => {
+                      .then(async (outcome) => {
                         setAssets(await listAssets())
-                        if (imported[0]) await pickAsset(imported[0])
+                        if (outcome.created[0]) await pickAsset(outcome.created[0])
+                        else if (outcome.failed[0]) setMessage(outcome.failed[0].error)
                       })
                       .catch((err) => setMessage(String(err)))
                   e.target.value = ''

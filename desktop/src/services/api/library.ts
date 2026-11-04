@@ -86,6 +86,130 @@ export function referenceAnalysisGate(view: CapabilityView): CapabilityGate {
 
 export function createLibraryResource(http: HttpClient) {
   return {
+    /*
+     * 参考片：视频 / 片段 / 集合 / 偏好（对应后端 ReferenceVideoController 等）。
+     *
+     * 这一组刻意与上面的 `referenceVideos`/`referenceShots`/`collections` 分开：
+     * 那三个是按契约原始类型（`ReferenceShot`、带 ETag 的集合）暴露的，
+     * 而这里是我方后端实际实现的 `segments` 端点与「单元」语义。
+     * 两套共存期间以本组为准，避免调用方为了一个字段去猜走哪条路。
+     */
+    reference: {
+      /**
+       * 把服务端给的相对路径补成完整 URL。
+       *
+       * 后端只返回 `/api/assets/{id}/content` 这类相对路径（它不知道自己挂在哪个端口），
+       * 而 `<video src>` / `<img src>` 由浏览器直接加载 —— 相对路径会打到前端 dev server，
+       * 表现为「媒体永远加载不出来」。宿主机地址只有客户端知道。
+       */
+      absoluteUrl(path: string | null | undefined): string | null {
+        if (!path) return null
+        if (/^https?:\/\//i.test(path)) return path
+        // http.url 会拼上客户端解析出的 baseUrl（含 /api 前缀时已自带）。
+        const base = http.url('/')
+        const origin = base.replace(/\/api\/?$/, '').replace(/\/$/, '')
+        return origin + (path.startsWith('/') ? path : `/${path}`)
+      },
+
+      /** `GET /reference-videos`：列表。 */
+      async listVideos(query: { status?: string; tag?: string; q?: string } = {}): Promise<any[]> {
+        const page = await http.get<{ items: any[] }>('/reference-videos', {
+          query: { ...query, limit: 200 },
+        })
+        return page.items ?? []
+      },
+
+      /** `POST /reference-videos`：上传视频作为参考片（multipart）。 */
+      async uploadVideo(file: File, title?: string): Promise<any> {
+        const form = new FormData()
+        form.append('file', file, file.name)
+        if (title) form.append('title', title)
+        const res = await http.post<{ video: any; deduped: boolean }>('/reference-videos', form)
+        return res.video
+      },
+
+      /** `GET /reference-videos/{id}/segments`：该视频的片段。 */
+      async listSegments(query: { videoId?: string; limit?: number } = {}): Promise<any[]> {
+        if (query.videoId) {
+          return http.get<any[]>(`/reference-videos/${encodeURIComponent(query.videoId)}/segments`)
+        }
+        const page = await http.get<{ items: any[] }>('/reference-segments', {
+          query: { limit: query.limit ?? 200 },
+        })
+        return page.items ?? []
+      },
+
+      /** `POST /reference-videos/{id}/segments`：新增片段（毫秒）。 */
+      addSegment(
+        videoId: string,
+        body: { startMs: number; endMs: number; tags?: string[] },
+      ): Promise<any> {
+        return http.post<any>(`/reference-videos/${encodeURIComponent(videoId)}/segments`, body)
+      },
+
+      /** `PATCH /reference-segments/{id}`：改时间范围 / 标签 / 观察 / 建议。 */
+      updateSegment(
+        segmentId: string,
+        body: {
+          startMs?: number
+          endMs?: number
+          tags?: string[]
+          observation?: string
+          suggestion?: string
+        },
+      ): Promise<any> {
+        return http.patch<any>(`/reference-segments/${encodeURIComponent(segmentId)}`, body)
+      },
+
+      /** `DELETE /reference-segments/{id}`。 */
+      async deleteSegment(segmentId: string): Promise<void> {
+        await http.del(`/reference-segments/${encodeURIComponent(segmentId)}`)
+      },
+
+      /**
+       * `POST /reference-videos/{id}/analyze`：发起自动分析。
+       * 后端当前返回 422 `capability_unavailable` —— 如实抛出，不吞掉。
+       */
+      analyzeVideo(videoId: string): Promise<unknown> {
+        return http.post<unknown>(`/reference-videos/${encodeURIComponent(videoId)}/analyze`)
+      },
+
+      /** `GET /reference-preferences`：收藏与最近浏览。 */
+      getPreferences(): Promise<{ favorites: string[]; recent: string[] }> {
+        return http.get<{ favorites: string[]; recent: string[] }>('/reference-preferences')
+      },
+
+      /** `PATCH /reference-preferences`：逐个片段标记收藏 / 记浏览。 */
+      updatePreferences(
+        body: { segmentId: string; favorited?: boolean; viewed?: boolean },
+      ): Promise<{ favorites: string[]; recent: string[] }> {
+        return http.patch<{ favorites: string[]; recent: string[] }>('/reference-preferences', body)
+      },
+
+      /** `GET /reference-collections`。 */
+      async listCollections(): Promise<any[]> {
+        return http.get<any[]>('/reference-collections')
+      },
+
+      /** `POST /reference-collections`。 */
+      createCollection(body: { name: string; note?: string; segmentIds?: string[] }): Promise<any> {
+        return http.post<any>('/reference-collections', body)
+      },
+
+      /** `PATCH /reference-collections/{id}`。 */
+      async updateCollection(
+        id: string,
+        body: { name?: string; note?: string; segmentIds?: string[] },
+      ): Promise<void> {
+        await http.patch(`/reference-collections/${encodeURIComponent(id)}`, body)
+      },
+
+      /** `DELETE /reference-collections/{id}`：不删片段。 */
+      async deleteCollection(id: string): Promise<void> {
+        await http.del(`/reference-collections/${encodeURIComponent(id)}`)
+      },
+    },
+
     /* ---------------- 特效库（只读目录，不提供写端点） ---------------- */
     fx: {
       /**
@@ -111,6 +235,24 @@ export function createLibraryResource(http: HttpClient) {
       /** `GET /fx-techniques/{techniqueId}`：完整详情（列表项字段较少，不要用列表项充当详情）。 */
       getTechnique(techniqueId: string): Promise<FxTechnique> {
         return http.get<FxTechnique>(`/fx-techniques/${encodeURIComponent(techniqueId)}`)
+      },
+
+      /**
+       * `PATCH /fx-techniques/{techniqueId}/state`：更新用户收藏与最近浏览。
+       *
+       * 技法目录本身只读；这个端点是**唯一**的写入口，只动用户标记。
+       * 收藏与浏览互相独立：`favorited` 不传表示不改，`viewed=true` 才记一次浏览。
+       */
+      updateState(
+        techniqueId: string,
+        patch: { favorited?: boolean; viewed?: boolean },
+        options: { signal?: AbortSignal } = {},
+      ): Promise<{ favorited: boolean; lastViewedAt: string | null }> {
+        return http.patch<{ favorited: boolean; lastViewedAt: string | null }>(
+          `/fx-techniques/${encodeURIComponent(techniqueId)}/state`,
+          patch,
+          { signal: options.signal },
+        )
       },
     },
 

@@ -11,19 +11,68 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { X, Trash2, Send, PackagePlus, AlertTriangle, FileText, Image as ImageIcon, Film, Music2, Type, ShoppingCart } from 'lucide-react'
 import { MEDIA_LABEL, type MyAsset } from '@/data/myAssets'
-import { formatBytes, formatDur, getThumbURL, listAssets } from '@/services/assetService'
+import { formatBytes, formatDur, getThumbURL, listAssets } from '@/services/assetApiService'
 import {
   PURPOSE_HINT, PURPOSE_LABEL, isAssetDrag, readAssetDragData,
   usePendingAssets, type AssetPurpose, type PendingAsset,
 } from '@/shell/usePendingAssets'
 import type { DeliverableAsset } from '@/shell/usePendingAssets'
 
+/**
+ * 待发送条目 → 投递条目。
+ *
+ * 三种来源的字段差异很大，必须分开构造：
+ *   - 素材：有 assetId 与媒体类型；
+ *   - 参考片段：没有文件，但带视频、时间范围与想借鉴的内容；
+ *   - 特效：没有文件，但带技法 ID 与版本。
+ */
+export function toDeliverable(r: Resolved): DeliverableAsset {
+  if (r.kind === 'ref' && r.ref) {
+    return {
+      assetId: r.assetId,
+      name: r.ref.title,
+      kind: 'video',
+      purpose: r.purpose,
+      note: r.note,
+      source: 'ref',
+      refVideoId: r.ref.videoId,
+      refStart: r.ref.start,
+      refEnd: r.ref.end,
+      refWants: r.ref.brief,
+    }
+  }
+  if (r.kind === 'fx' && r.fx) {
+    return {
+      assetId: r.assetId,
+      name: r.fx.name,
+      kind: 'technique',
+      purpose: r.purpose,
+      note: r.note,
+      source: 'fx',
+      fxId: r.fx.fxId,
+      // PendingFxCard 目前没有 version 字段（契约有，前端未带），
+      // 不编一个版本号出来 —— 留空表示「版本未记录」。
+      fxVersion: undefined,
+    }
+  }
+  // 素材：此时 r.asset 一定存在（missing 的已被 sendable 过滤掉）。
+  return {
+    assetId: r.assetId,
+    name: r.asset?.name ?? r.assetId,
+    kind: r.asset?.mediaType === 'image' ? 'image'
+      : r.asset?.mediaType === 'video' ? 'video' : 'file',
+    purpose: r.purpose,
+    note: r.note,
+    source: 'asset',
+  }
+}
+
 const MEDIA_ICON = { image: ImageIcon, video: Film, audio: Music2, font: Type, doc: FileText }
 const PURPOSES: AssetPurpose[] = ['unspecified', 'visual', 'reference', 'audio', 'information']
 
 /** 抽屉里一条素材需要的展示信息：从素材服务按 ID 重新解析，
  *  不缓存 blob: URL（刷新后失效），只在本次会话里留着给缩略图用。 */
-interface Resolved extends PendingAsset {
+export interface Resolved extends PendingAsset {
   asset: MyAsset | null
   thumb: string | null
   missing: boolean
@@ -324,14 +373,10 @@ export function PendingAssetsDrawer({
                   onClick={() => {
                     setSending(true)
                     /* 只有真的放进了输入框才清理清单；放不进去（没有当前对话）就原样留着 */
-                    const ok = onSend(sendable.map((r) => ({
-                      assetId: r.assetId,
-                      name: r.asset!.name,
-                      kind: r.asset!.mediaType === 'image' ? 'image'
-                        : r.asset!.mediaType === 'video' ? 'video' : 'file',
-                      purpose: r.purpose,
-                      note: r.note,
-                    })))
+                    /* 三种资源分别构造。
+                       原实现读 `r.asset!.name`，而参考片与特效的 asset 恒为 null ——
+                       点「添加到对话」时必然抛错，等于这两个库的东西送不进创作。 */
+                    const ok = onSend(sendable.map((r) => toDeliverable(r)))
                     if (ok) removeMany(sendable.map((r) => r.assetId))
                     setSending(false)
                     if (ok) onClose()

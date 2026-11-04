@@ -208,5 +208,203 @@ public class DatabaseMigration {
                     created_at TEXT NOT NULL
                 )
                 """);
+
+        // 素材库：五个状态维度各自成列（设计说明见 schema.sql）。
+        // 旧库不会重跑 schema.sql 的建表语句，所以这里必须独立建成同样的结构。
+        jdbc.execute("""
+                CREATE TABLE IF NOT EXISTS asset_folders (
+                    id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                )
+                """);
+        jdbc.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_asset_folders_name ON asset_folders(name)");
+        jdbc.execute("""
+                CREATE TABLE IF NOT EXISTS assets (
+                    id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    media_type TEXT NOT NULL,
+                    mime_type TEXT NOT NULL,
+                    size_bytes INTEGER NOT NULL,
+                    source_type TEXT NOT NULL,
+                    processing_status TEXT NOT NULL,
+                    processing_error TEXT,
+                    review_status TEXT NOT NULL,
+                    availability TEXT NOT NULL,
+                    license_status TEXT NOT NULL,
+                    license_details TEXT,
+                    width INTEGER,
+                    height INTEGER,
+                    duration_ms INTEGER,
+                    tags_json TEXT NOT NULL DEFAULT '[]',
+                    folder_id TEXT,
+                    storage_path TEXT NOT NULL,
+                    thumbnail_path TEXT,
+                    content_hash TEXT,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    last_used_at TEXT,
+                    etag TEXT NOT NULL,
+                    demo INTEGER NOT NULL DEFAULT 0,
+                    FOREIGN KEY (folder_id) REFERENCES asset_folders(id)
+                )
+                """);
+        jdbc.execute("CREATE INDEX IF NOT EXISTS idx_assets_folder ON assets(folder_id)");
+        jdbc.execute("CREATE INDEX IF NOT EXISTS idx_assets_media_type ON assets(media_type)");
+        jdbc.execute("CREATE INDEX IF NOT EXISTS idx_assets_review_status ON assets(review_status)");
+        jdbc.execute("CREATE INDEX IF NOT EXISTS idx_assets_last_used ON assets(last_used_at DESC)");
+        jdbc.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_assets_content_hash "
+                + "ON assets(content_hash) WHERE content_hash IS NOT NULL");
+        // 资源引用关系：删除前据此判断 409，不静默级联。
+        jdbc.execute("""
+                CREATE TABLE IF NOT EXISTS resource_refs (
+                    resource_kind TEXT NOT NULL,
+                    resource_id TEXT NOT NULL,
+                    ref_kind TEXT NOT NULL,
+                    ref_id TEXT NOT NULL,
+                    ref_label TEXT NOT NULL DEFAULT '',
+                    created_at TEXT NOT NULL,
+                    PRIMARY KEY (resource_kind, resource_id, ref_kind, ref_id)
+                )
+                """);
+        jdbc.execute("CREATE INDEX IF NOT EXISTS idx_resource_refs_target "
+                + "ON resource_refs(ref_kind, ref_id)");
+
+        // 特效库（设计说明见 schema.sql）：技法目录只读，用户状态分表。
+        jdbc.execute("""
+                CREATE TABLE IF NOT EXISTS fx_techniques (
+                    id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    name_en TEXT NOT NULL DEFAULT '',
+                    aliases_json TEXT NOT NULL DEFAULT '[]',
+                    keywords_json TEXT NOT NULL DEFAULT '[]',
+                    intent TEXT NOT NULL DEFAULT '',
+                    category TEXT NOT NULL,
+                    category_label TEXT NOT NULL DEFAULT '',
+                    scenes_json TEXT NOT NULL DEFAULT '[]',
+                    anti_scenes_json TEXT NOT NULL DEFAULT '[]',
+                    exec_type TEXT NOT NULL,
+                    exec_label TEXT NOT NULL DEFAULT '',
+                    execution_status TEXT NOT NULL DEFAULT 'not-implemented',
+                    impl TEXT NOT NULL,
+                    impl_label TEXT NOT NULL DEFAULT '',
+                    complexity INTEGER NOT NULL DEFAULT 1,
+                    input_kinds_json TEXT NOT NULL DEFAULT '[]',
+                    input_labels_json TEXT NOT NULL DEFAULT '[]',
+                    input_requirement TEXT NOT NULL DEFAULT '',
+                    output TEXT NOT NULL DEFAULT '',
+                    dependencies_json TEXT NOT NULL DEFAULT '[]',
+                    steps_json TEXT NOT NULL DEFAULT '[]',
+                    compatibility_json TEXT NOT NULL DEFAULT '[]',
+                    limitations_json TEXT NOT NULL DEFAULT '[]',
+                    failures_json TEXT NOT NULL DEFAULT '[]',
+                    params_json TEXT NOT NULL DEFAULT '[]',
+                    preview_image_url TEXT NOT NULL DEFAULT '',
+                    preview_video_url TEXT,
+                    preview_caption TEXT NOT NULL DEFAULT '',
+                    related_json TEXT NOT NULL DEFAULT '[]',
+                    alternatives_json TEXT NOT NULL DEFAULT '[]',
+                    featured INTEGER NOT NULL DEFAULT 0,
+                    version TEXT NOT NULL DEFAULT '1.0.0',
+                    updated_at TEXT NOT NULL,
+                    demo INTEGER NOT NULL DEFAULT 0
+                )
+                """);
+        jdbc.execute("CREATE INDEX IF NOT EXISTS idx_fx_techniques_category "
+                + "ON fx_techniques(category)");
+        jdbc.execute("CREATE INDEX IF NOT EXISTS idx_fx_techniques_exec_type "
+                + "ON fx_techniques(exec_type)");
+        jdbc.execute("CREATE INDEX IF NOT EXISTS idx_fx_techniques_featured "
+                + "ON fx_techniques(featured)");
+        jdbc.execute("""
+                CREATE TABLE IF NOT EXISTS fx_user_state (
+                    technique_id TEXT PRIMARY KEY,
+                    favorited INTEGER NOT NULL DEFAULT 0,
+                    last_viewed_at TEXT,
+                    updated_at TEXT NOT NULL,
+                    FOREIGN KEY (technique_id) REFERENCES fx_techniques(id) ON DELETE CASCADE
+                )
+                """);
+        jdbc.execute("CREATE INDEX IF NOT EXISTS idx_fx_user_state_favorited "
+                + "ON fx_user_state(favorited)");
+
+        // 参考片库（设计说明见 schema.sql）。
+        // 文件本体复用素材（asset_id），分析里 observation/inference 分列，
+        // pending 维度不填默认值。
+        jdbc.execute("""
+                CREATE TABLE IF NOT EXISTS reference_videos (
+                    id TEXT PRIMARY KEY,
+                    title TEXT NOT NULL,
+                    duration_ms INTEGER NOT NULL DEFAULT 0,
+                    source TEXT NOT NULL DEFAULT '',
+                    description TEXT NOT NULL DEFAULT '',
+                    tags_json TEXT NOT NULL DEFAULT '[]',
+                    asset_id TEXT,
+                    thumbnail_url TEXT,
+                    status TEXT NOT NULL DEFAULT 'pending',
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    demo INTEGER NOT NULL DEFAULT 0,
+                    FOREIGN KEY (asset_id) REFERENCES assets(id)
+                )
+                """);
+        jdbc.execute("CREATE INDEX IF NOT EXISTS idx_reference_videos_status "
+                + "ON reference_videos(status)");
+        jdbc.execute("CREATE INDEX IF NOT EXISTS idx_reference_videos_asset "
+                + "ON reference_videos(asset_id)");
+        jdbc.execute("""
+                CREATE TABLE IF NOT EXISTS reference_segments (
+                    id TEXT PRIMARY KEY,
+                    video_id TEXT NOT NULL,
+                    idx INTEGER NOT NULL,
+                    start_ms INTEGER NOT NULL,
+                    end_ms INTEGER NOT NULL,
+                    status TEXT NOT NULL DEFAULT 'pending',
+                    tags_json TEXT NOT NULL DEFAULT '[]',
+                    observation TEXT NOT NULL DEFAULT '',
+                    inference TEXT NOT NULL DEFAULT '',
+                    suggestion TEXT NOT NULL DEFAULT '',
+                    analysis_json TEXT NOT NULL DEFAULT '{}',
+                    extra_analysis_json TEXT,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    FOREIGN KEY (video_id) REFERENCES reference_videos(id) ON DELETE CASCADE,
+                    UNIQUE (video_id, idx)
+                )
+                """);
+        jdbc.execute("CREATE INDEX IF NOT EXISTS idx_reference_segments_video "
+                + "ON reference_segments(video_id, idx)");
+        jdbc.execute("""
+                CREATE TABLE IF NOT EXISTS reference_collections (
+                    id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    note TEXT NOT NULL DEFAULT '',
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                )
+                """);
+        jdbc.execute("""
+                CREATE TABLE IF NOT EXISTS reference_collection_members (
+                    collection_id TEXT NOT NULL,
+                    segment_id TEXT NOT NULL,
+                    added_at TEXT NOT NULL,
+                    PRIMARY KEY (collection_id, segment_id),
+                    FOREIGN KEY (collection_id) REFERENCES reference_collections(id) ON DELETE CASCADE,
+                    FOREIGN KEY (segment_id) REFERENCES reference_segments(id) ON DELETE CASCADE
+                )
+                """);
+        jdbc.execute("CREATE INDEX IF NOT EXISTS idx_reference_members_segment "
+                + "ON reference_collection_members(segment_id)");
+        jdbc.execute("""
+                CREATE TABLE IF NOT EXISTS reference_preferences (
+                    kind TEXT NOT NULL,
+                    segment_id TEXT NOT NULL,
+                    marked_at TEXT NOT NULL,
+                    PRIMARY KEY (kind, segment_id)
+                )
+                """);
+        jdbc.execute("CREATE INDEX IF NOT EXISTS idx_reference_prefs_kind "
+                + "ON reference_preferences(kind, marked_at DESC)");
     }
 }

@@ -26,7 +26,7 @@ import { stageState, type StageVisual } from '@/data/stageVisual'
 import { containedMediaRect, formatMediaTime } from '@/data/previewGeometry'
 import { materialShelves, monitorReferences, type MaterialFile, type MaterialShelf } from '@/data/materialDeck'
 import { MEDIA_LABEL } from '@/data/myAssets'
-import { initLibrary } from '@/services/assetService'
+import { initLibrary } from '@/services/assetApiService'
 import {
   MonitorDelivery, MonitorMediaPreview, MonitorProblemsCollapsed, MonitorThumbRail,
   type MonitorProblem, type MonitorVisualItem,

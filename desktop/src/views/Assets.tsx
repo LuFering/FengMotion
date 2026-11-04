@@ -3,11 +3,15 @@ import {
   LICENSE_LABEL, MEDIA_ICON, MEDIA_LABEL, REVIEW_LABEL, SOURCE_LABEL,
   type LicenseStatus, type MediaType, type MyAsset, type ReviewStatus,
 } from '@/data/myAssets'
+// 素材库数据源：服务端（原 IndexedDB 已由 assetApiService 替代）。
+// 接口形状与旧 assetService 一致，视图逻辑不必改写。
 import {
-  captureBuiltinPoster, formatBytes, formatDur, getFileURL, getThumbURL,
-  importFiles, initLibrary, listAssets, listFolders, removeAssets, saveFolders,
-  updateAsset, type FolderRow,
-} from '@/services/assetService'
+  captureBuiltinPoster, createFolder, formatBytes, formatDur, getFileURL, getThumbURL,
+  importFiles, initLibrary, listAssets, listFolders, removeAssets,
+  updateAsset, assetThumbUrl, type FolderRow,
+} from '@/services/assetApiService'
+import { hasLegacyData } from '@/services/assetIndexedDb'
+import { migrateIndexedDbAssets, readAssetMigrationReport, type MigrationReport } from '@/services/assetMigration'
 import { isAssetDrag, setAssetDragData, usePendingAssets } from '@/shell/usePendingAssets'
 import { toast as emitToast } from '@/shell/toast'
 import { clearDragGhost, setDragGhost } from '@/shell/dragGhost'
@@ -134,6 +138,12 @@ export function Assets({ projectName }: { projectName?: string } = {}) {
   const [folders, setFolders] = useState<FolderRow[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(false)
+  /* 旧版素材在浏览器 IndexedDB 里。新版本读服务端，若不提示并迁移，
+     老用户打开就会看到空库 —— 那是「文件丢了」的观感，必须在界面上给出口。 */
+  const [legacyPending, setLegacyPending] = useState(false)
+  const [migration, setMigration] = useState<MigrationReport | null>(null)
+  const [migrating, setMigrating] = useState(false)
+  const [migrationDone, setMigrationDone] = useState(0)
   const [loadVersion, setLoadVersion] = useState(0)
   const [node, setNode] = useState<NodeId>('all')
   const [typeFilter, setTypeFilter] = useState<MediaType | 'all'>('all')
@@ -192,6 +202,11 @@ export function Assets({ projectName }: { projectName?: string } = {}) {
         setAssets(list.sort((a, b) => b.createdAt - a.createdAt))
         setFolders(fl)
         setLoading(false)
+        // 检测旧库：有数据且尚未迁移过才提示。已经迁移过的不再打扰。
+        const [legacy, report] = await Promise.all([hasLegacyData(), readAssetMigrationReport()])
+        if (!alive) return
+        setMigration(report)
+        setLegacyPending(legacy && report?.phase !== 'migrated')
       } catch {
         if (!alive) return
         setLoadError(true)
@@ -207,7 +222,9 @@ export function Assets({ projectName }: { projectName?: string } = {}) {
     ;(async () => {
       for (const a of assets) {
         if (!alive) return
-        const u = await getThumbURL(a.id)
+        // 列表响应里已经带了 thumbnailUrl，直接拼地址即可 ——
+        // 逐条再 get 一次会变成 N+1 请求（素材多时明显变慢），而这里拿到的信息是同一份。
+        const u = a.thumbnailPath ? assetThumbUrl(a.id) : await getThumbURL(a.id)
         if (u) setThumbs((m) => (m[a.id] === u ? m : { ...m, [a.id]: u }))
       }
       // 内置视频：懒截一帧当海报（真实帧；小文件先出图）
@@ -215,7 +232,7 @@ export function Assets({ projectName }: { projectName?: string } = {}) {
       for (const a of vids) {
         if (!alive) return
         {
-          const u = await captureBuiltinPoster(a.id)
+          const u = await captureBuiltinPoster()
           if (u && alive) setThumbs((m) => ({ ...m, [a.id]: u }))
         }
       }
@@ -326,12 +343,42 @@ export function Assets({ projectName }: { projectName?: string } = {}) {
   /* 导入：不再弹「导入队列」面板（作者要求删掉）。但过程不能一声不响 ——
      逐个文件导入要读尺寸/时长/抽缩略图，十个文件可能等好几秒。
      所以用已有的全局 toast 汇报结果：成功入库 N 个，失败的指出名字。 */
+  /**
+   * 把旧版浏览器素材迁移到服务端。
+   *
+   * 界面只做两件事：显示真实进度、迁移完刷新。规则都在 assetMigration 里：
+   * 逐条校验、失败不切换、旧库只读保留。
+   */
+  const runMigration = useCallback(async () => {
+    if (migrating) return
+    setMigrating(true)
+    try {
+      const report = await migrateIndexedDbAssets((progress) => {
+        setMigrationDone(progress.index)
+      })
+      setMigration(report)
+      if (report.phase === 'migrated') {
+        setLegacyPending(false)
+        emitToast(`已迁移 ${report.migrated} 个素材到素材库`)
+        setLoadVersion((v) => v + 1)
+      } else {
+        // 失败时不切换数据源，旧数据仍在浏览器里，用户可以重试。
+        emitToast(`迁移未完成：${report.failed} 个失败，原有素材仍然保留`)
+      }
+    } catch (error) {
+      emitToast(error instanceof Error ? error.message : '迁移失败')
+    } finally {
+      setMigrating(false)
+    }
+  }, [migrating])
+
   const runImport = useCallback(async (files: File[]) => {
     if (!files.length) return
     const failed: string[] = []
-    const ok = await importFiles(files, (e) => {
-      if (e.phase === 'error') failed.push(e.fileName)
+    const outcome = await importFiles(files, (e) => {
+      if (e.phase === 'error') failed.push(e.name)
     })
+    const ok = outcome.created
     if (ok.length) setAssets((prev) => [...ok, ...prev])
     if (ok.length > 0 && failed.length === 0) {
       emitToast(ok.length === 1 ? `已导入「${ok[0].name}」` : `已导入 ${ok.length} 个素材`)
@@ -429,13 +476,25 @@ export function Assets({ projectName }: { projectName?: string } = {}) {
   const doDelete = (ids: string[]) => {
     const refd = assets.filter((a) => ids.includes(a.id) && a.refs.length > 0)
     const msg = refd.length
-      ? `以下素材仍被引用：\n${refd.map((a) => `· ${a.name} ← ${a.refs.map((r) => r.label).join('、')}`).join('\n')}\n\n确定从素材库移除 ${ids.length} 项？`
-      : `从素材库移除 ${ids.length} 项？（本地索引删除，可重新导入）`
+      ? `以下素材仍被引用：\n${refd.map((a) => `· ${a.name} ← ${a.refs.map((r) => r.label).join('、')}`).join('\n')}\n\n服务端会拒绝删除被引用的素材；仍要尝试删除 ${ids.length} 项？`
+      : `从素材库移除 ${ids.length} 项？文件会一并删除，不可恢复。`
     if (!window.confirm(msg)) return
-    void removeAssets(ids)
-    setAssets((prev) => prev.filter((a) => !ids.includes(a.id)))
-    setSelected((s) => { const n = new Set(s); ids.forEach((i) => n.delete(i)); return n })
-    if (detailId && ids.includes(detailId)) setDetailId(null)
+    // 等服务端真实结果再更新界面：被引用的素材服务端会 409 拒绝，
+    // 若先乐观从列表里移除，用户会以为删掉了，刷新后又冒出来。
+    void removeAssets(ids).then(({ failed }) => {
+      const failedIds = new Set(failed.map((f) => f.id))
+      const removed = ids.filter((id) => !failedIds.has(id))
+      if (removed.length > 0) {
+        setAssets((prev) => prev.filter((a) => !removed.includes(a.id)))
+        setSelected((s) => { const n = new Set(s); removed.forEach((i) => n.delete(i)); return n })
+        if (detailId && removed.includes(detailId)) setDetailId(null)
+      }
+      if (failed.length > 0) {
+        emitToast(`有 ${failed.length} 项未删除：${failed[0].error}`)
+      }
+    }).catch((error: unknown) => {
+      emitToast(error instanceof Error ? error.message : '删除失败')
+    })
   }
 
   const copyPath = async (a: MyAsset) => {
@@ -459,10 +518,14 @@ export function Assets({ projectName }: { projectName?: string } = {}) {
   const addFolder = () => {
     const name = window.prompt('新建文件夹名称')
     if (!name?.trim()) return
-    const f: FolderRow = { id: `f-${crypto.randomUUID()}`, name: name.trim(), createdAt: Date.now() }
-    const next = [...folders, f]
-    setFolders(next)
-    void saveFolders(next)
+    // 文件夹由服务端建：同名会返回 409，所以这里等结果再更新界面，
+    // 不能先乐观插一条再用服务端的覆盖 —— 失败时界面会多出一个不存在的文件夹。
+    void createFolder(name.trim())
+      .then((f) => setFolders((prev) => [...prev, f]))
+      .catch((error: unknown) => {
+        const message = error instanceof Error ? error.message : '新建文件夹失败'
+        emitToast(message)
+      })
   }
 
   const moveToFolder = (ids: string[], folderId: string | null) => {
@@ -597,7 +660,7 @@ export function Assets({ projectName }: { projectName?: string } = {}) {
             <div className="mya-org-foot">
               <Icon name="cylinder" />
               <span className="mono">{formatBytes(counts.totalBytes)}</span>
-              <span>· 本地索引 {counts.all} 项</span>
+              <span>· 素材库 {counts.all} 项</span>
             </div>
           </aside>
         )}
@@ -715,6 +778,37 @@ export function Assets({ projectName }: { projectName?: string } = {}) {
           {pop && <div className="mya-popshade" onClick={() => setPop(null)} />}
 
           <main className="mya-canvas">
+            {legacyPending && (
+              <div className="mya-migrate" role="status">
+                <div className="mya-migrate-text">
+                  {migration?.phase === 'failed' ? (
+                    <>
+                      <strong>上次迁移未完成</strong>
+                      <span>
+                        已有 {migration.migrated} 个迁移成功、{migration.failed} 个失败。
+                        失败项仍保留在浏览器里，可以重试。
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <strong>发现旧版素材</strong>
+                      <span>
+                        旧版把素材存在浏览器里，新版存在素材库。迁移会把文件复制到素材库并保留名称、标签与授权；
+                        原来的浏览器数据不会删除。
+                      </span>
+                    </>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  className="mya-migrate-btn"
+                  onClick={() => void runMigration()}
+                  disabled={migrating}
+                >
+                  {migrating ? `迁移中 ${migrationDone} / ${migration?.total ?? 0}` : '迁移到素材库'}
+                </button>
+              </div>
+            )}
             <div className="mya-scroll">
               {loading ? (
                 <LoadingState variant="grid" rows={8} />
@@ -728,7 +822,7 @@ export function Assets({ projectName }: { projectName?: string } = {}) {
                   <EmptyState
                     icon="image"
                     title="素材库还是空的"
-                    body={'把图片、视频、音频、字体拖进来，或点右上角「导入素材」。\n文件本体保存在本地索引，刷新后仍在。'}
+                    body={'把图片、视频、音频、字体拖进来，或点右上角「导入素材」。\n文件会复制进应用管理的素材库，删除原文件不影响使用。'}
                     action={{ label: '导入素材', onClick: () => inputRef.current?.click() }}
                   />
                 ) : (
