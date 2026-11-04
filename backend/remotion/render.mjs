@@ -13,10 +13,30 @@
  *   node render.mjs --props /tmp/film.json --out /tmp/out.mp4 [--browser /path/to/chrome]
  */
 
-import { readFile, writeFile } from 'node:fs/promises'
+import { copyFile, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import { createRequire } from 'node:module'
+
+/**
+ * 递归复制目录。
+ *
+ * <p>用它而不是 fs.promises.cp：后者在部分 Node 版本对只读源目录的行为不一致，
+ * 而这里正好要处理「源可能只读」的情形，自己实现更好控制。</p>
+ *
+ * @param from 源目录
+ * @param to 目标目录
+ */
+async function cpDir(from, to) {
+  await mkdir(to, { recursive: true })
+  for (const entry of await readdir(from, { withFileTypes: true })) {
+    const src = path.join(from, entry.name)
+    const dest = path.join(to, entry.name)
+    if (entry.isDirectory()) await cpDir(src, dest)
+    else await copyFile(src, dest)
+  }
+}
 
 /**
  * 解析依赖所在目录。
@@ -104,14 +124,38 @@ async function main() {
   const props = JSON.parse(await readFile(args.props, 'utf8'))
 
   // 打包含 TSX 的工程：Remotion 自己用 esbuild 编译，不需要预先构建
+  /* 工程目录必须是可写的。
+     打包成 AppImage 后，工程位于只读挂载点（/tmp/.mount_xxx/resources/remotion）。
+     Remotion 与 webpack 会往工程目录里写两类东西，且都不是我们能忽略的：
+       · node_modules/.cache —— webpack 缓存
+       · .remotion / .cache   —— Chrome Headless Shell 下载与 bundler 产物
+     实测只读下报 EROFS / EACCES，最终表现为「渲染脚本输出不是合法 JSON」，
+     真正原因埋在 stderr 里。
+     与其逐个猜 Remotion 的缓存开关，不如把工程整体复制到可写临时目录再跑 ——
+     源码只有几十 KB，复制成本可忽略，且不怕它以后再加新的写盘点。 */
+  const workDir = path.join(os.tmpdir(), `fengmotion-render-${process.pid}-${Date.now()}`)
+  await mkdir(workDir, { recursive: true })
+  await cpDir(path.join(import.meta.dirname, 'src'), path.join(workDir, 'src'), { recursive: true })
+  /* 切到可写目录再渲染：Remotion 会把 .remotion（Chrome 下载）与
+     .cache（webpack）写到「当前工作目录」，只读镜像下直接 EACCES。
+     仅复制源码不够，必须连 cwd 一起换掉。 */
+  process.chdir(workDir)
+
   const serveUrl = await bundle({
-    entryPoint: path.join(import.meta.dirname, 'src', 'index.tsx'),
+    entryPoint: path.join(workDir, 'src', 'index.tsx'),
   })
+
+  /* browserExecutable 必须同时给 selectComposition：
+     只给 renderMedia 的话，selectComposition 会先去找 Chrome Headless Shell，
+     找不到就下载 90MB —— 用户首次渲染会平白等一次大文件下载。
+     后端会传 --browser（系统 Chrome），这里两处都用上。 */
+  const browserExecutable = args.browser || null
 
   const composition = await selectComposition({
     serveUrl,
     id: 'Film',
     inputProps: props,
+    browserExecutable,
   })
 
   await renderMedia({
@@ -122,7 +166,7 @@ async function main() {
     inputProps: props,
     // 显式指定浏览器：默认会去找 Chrome Headless Shell，没装就现下载 90MB。
     // 后端调用时会把系统 Chrome 路径传进来。
-    browserExecutable: args.browser || null,
+    browserExecutable,
     // 日志交给 stderr，stdout 只留结果，方便后端解析
     onProgress: ({ progress }) => {
       if (Math.round(progress * 100) % 25 === 0) {
@@ -130,6 +174,9 @@ async function main() {
       }
     },
   })
+
+  // 临时工程复制用完即删：每次渲染都会复制一份，不清理会堆积在 /tmp
+  await rm(workDir, { recursive: true, force: true })
 
   process.stdout.write(JSON.stringify({
     ok: true,

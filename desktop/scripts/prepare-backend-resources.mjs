@@ -14,7 +14,7 @@
  */
 
 import { execFileSync } from 'node:child_process'
-import { cpSync, existsSync, mkdirSync, readdirSync, rmSync, statSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 
 const repoRoot = path.resolve(import.meta.dirname, '..')
@@ -34,6 +34,8 @@ const remotionSrc = path.resolve(repoRoot, '..', 'backend', 'remotion')
 const remotionOut = path.join(outRoot, 'remotion')
 const remotionModulesOut = path.join(remotionOut, 'node_modules')
 const REMOTION_RUNTIME_PACKAGES = ['@remotion/bundler', '@remotion/renderer']
+/** 与 desktop 使用的 Remotion 版本保持一致；换版本时这里和 desktop 一起改。 */
+const REMOTION_VERSION = '4.0.519'
 
 /** 执行一个命令，失败时抛出可读错误。 */
 function run(cmd, args, cwd) {
@@ -127,20 +129,28 @@ function buildRemotion() {
   cpSync(path.join(remotionSrc, 'render.mjs'), path.join(remotionOut, 'render.mjs'))
   cpSync(path.join(remotionSrc, 'src'), path.join(remotionOut, 'src'), { recursive: true })
 
-  /* 依赖从 desktop/node_modules 拷：这些包已在本地装好，
-     再 npm install 一遍既慢又可能拉到不同版本。 */
-  let copied = 0
-  for (const pkg of REMOTION_RUNTIME_PACKAGES) {
-    const from = path.join(repoRoot, 'node_modules', pkg)
-    if (!existsSync(from)) {
-      throw new Error(`缺少运行时依赖 ${pkg}，请先在 desktop/ 下 npm install`)
-    }
-    const to = path.join(remotionModulesOut, pkg)
-    mkdirSync(path.dirname(to), { recursive: true })
-    cpSync(from, to, { recursive: true })
-    copied += 1
+  /* 依赖用 npm install 装一份完整的，而不是从 desktop/node_modules 逐个拷。
+     原因：@remotion/bundler 自身还有大量传递依赖（@remotion/studio-shared、
+     esbuild、react 等），手工列举必然漏 —— 实测漏了 studio-shared，
+     打包应用渲染报 Cannot find module。unpacked 测试能过是因为它蹭到了
+     desktop/node_modules 的完整依赖树，AppImage 里是隔离的，不会侥幸。
+     版本锁在这里，避免随 desktop 依赖漂移。 */
+  const deps = REMOTION_RUNTIME_PACKAGES.map((p) => `${p}@${REMOTION_VERSION}`)
+  const pkgJson = {
+    name: 'fengmotion-remotion-runtime',
+    private: true,
+    version: '0.0.0',
+    dependencies: Object.fromEntries(REMOTION_RUNTIME_PACKAGES.map((p) => [p, REMOTION_VERSION])),
   }
-  console.log(`  render.mjs + src/ 已复制，运行依赖 ${copied} 个`)
+  writeFileSync(path.join(remotionOut, 'package.json'), JSON.stringify(pkgJson, null, 2) + '\n')
+  console.log(`  安装运行依赖：${deps.join(', ')}`)
+  run('npm', ['install', '--omit=dev', '--no-audit', '--no-fund'], remotionOut)
+
+  const pkgCount = existsSync(remotionModulesOut) ? readdirSync(remotionModulesOut).length : 0
+  if (pkgCount === 0) {
+    throw new Error(`Remotion 运行依赖安装失败：${remotionModulesOut} 为空`)
+  }
+  console.log(`  render.mjs + src/ 已复制，运行依赖已安装（顶层包 ${pkgCount} 个）`)
 }
 
 /* ── 4. 校验 ─────────────────────────────────────────────── */
@@ -165,6 +175,13 @@ function verify() {
   for (const pkg of REMOTION_RUNTIME_PACKAGES) {
     if (!existsSync(path.join(remotionModulesOut, pkg))) {
       throw new Error(`缺少 Remotion 运行依赖：${pkg}`)
+    }
+  }
+  /* 传递依赖也必须抽查：它们是「打包后渲染失败」的真实原因，
+     只检查两个顶层包会漏掉整类问题。 */
+  for (const pkg of ['@remotion/studio-shared', '@remotion/studio']) {
+    if (!existsSync(path.join(remotionModulesOut, pkg))) {
+      throw new Error(`缺少 Remotion 传递依赖：${pkg}`)
     }
   }
   console.log('  Remotion 工程与依赖: 就绪')

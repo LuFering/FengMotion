@@ -225,6 +225,16 @@ app.setName('FengMotion')
  */
 app.setDesktopName('fengmotion.desktop')
 
+/* 验收用调试端口：Electron 会把未知命令行参数当成应用参数（实测报 bad option），
+   所以走环境变量而不是 argv。默认关闭，只在内测/自动化时设
+   FENGMOTION_DEBUG_PORT。必须在 ready 之前 appendSwitch 才生效。 */
+const debugPort = process.env.FENGMOTION_DEBUG_PORT
+if (debugPort && /^\d+$/.test(debugPort)) {
+  app.commandLine.appendSwitch('remote-debugging-port', debugPort)
+  app.commandLine.appendSwitch('remote-allow-origins', '*')
+  console.log(`[debug] 已开启远程调试端口 ${debugPort}`)
+}
+
 // 单实例：避免重复启动开出多个窗口（Linux 上双击图标常见）。
 const gotLock = app.requestSingleInstanceLock()
 if (!gotLock) {

@@ -192,9 +192,17 @@ export async function startBackend(options: StartOptions): Promise<BackendHandle
     if (!stopped) console.warn(`[backend] 进程退出 code=${code} signal=${signal}`)
   })
 
-  const healthy = await waitForHealthy(apiBase, 60_000)
+  /* 启动窗口给到 180 秒。实测数据：
+     · 本地磁盘（unpacked）约 5 秒
+     · AppImage 首次挂载运行 30 秒以上，仍在初始化
+     原因是 AppImage 是只读 FUSE 镜像，JVM 逐个读取大量 class 比本地磁盘慢一个量级；
+     系统页缓存热起来后才接近本地速度。原来给 60 秒，真机首启会被判超时并杀掉后端 ——
+     现象是「应用开着但 Agent 一直不可用」，用户无从判断。
+     宁可多等，也不要杀掉一个正在正常启动的进程。 */
+  const startupTimeoutMs = 180_000
+  const healthy = await waitForHealthy(apiBase, startupTimeoutMs)
   if (!healthy) {
-    console.error('[backend] 启动超时，终止进程')
+    console.error(`[backend] 启动超时（等待 ${startupTimeoutMs / 1000} 秒），终止进程`)
     child.kill()
     return null
   }
