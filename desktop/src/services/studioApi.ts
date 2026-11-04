@@ -1,5 +1,5 @@
 
-export type TaskKind = 'modify' | 'render' | 'create' | 'undo' | 'redo' | 'restore'
+export type TaskKind = 'modify' | 'render' | 'undo' | 'redo' | 'restore'
 export type TaskStatus = 'queued' | 'running' | 'building' | 'completed' | 'failed' | 'cancelled'
 export type TaskEventKind = 'accepted' | 'progress' | 'build' | 'complete' | 'error' | 'cancelled'
 

@@ -1038,23 +1038,13 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
         return false
       }
       if (!probe.scene.initialized) {
-        /* 项目还没有场景 —— 这正是「从一句需求做第一条片子」的场景。
-           以前这里直接报错，把唯一的创建入口堵死了：用户看到
-           「请先用真实渲染预览生成一次」，而那个按钮给的是项目名标题片，
-           不是一个能把他这句话变成分镜的东西。
-           现在改走 create：模型按 prompt 生成分镜 → 渲染 → 提交为版本 1。
-           产生的场景与修改能力同字段，所以下一步还能继续用自然语言调整。 */
-        const created = await tasks.startCreate(projectId, { kind: 'create', prompt }, (status) => {
-          void refreshCurrentScene(status)
-        })
-        if (!created.taskId) {
-          setRealModifyError(created.failure?.message || '创建失败')
-          return false
-        }
-        setRealModifyError('')
-        chat.addUserMessage(prompt, created.taskId, projectId)
-        setBottomTab('activity')
-        return true
+        /* 修改需要已有场景做基线，没有就明确拒绝。
+           这里刻意不再自己造一条「从一句话生成」的旁路：项目已有的
+           workflow-v5 才是创作路径，绕开它另做一条简化管线
+           （比如只生成文字卡片）会偏离产品方向，也让两套流程并存。
+           真正的创作入口应走工作流，等它接通后替换这句提示。 */
+        setRealModifyError('项目还没有场景。请先在工作流里创作一条片子，再对它提出修改。')
+        return false
       }
 
       /* 范围沿用 buildRequest 的推导结果：它在到处都在用，另写一份
@@ -1329,6 +1319,12 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
                        <RailProgressPanel
                          key={progressWorkflow?.id ?? 'none'}
                          workflow={progressWorkflow}
+                         /* 传项目与原始需求：Prompt-first 开跑时要真实建立
+                            workflow-v5 创作上下文（写入 prompt.original.md）。
+                            用「制作要求原文」而不是输入框草稿 —— 后者是随时会变的一句话，
+                            原文才是 workflow-v5 要求的创作依据。 */
+                         projectId={projectId}
+                         prompt={review.brief.original || undefined}
                          task={liveTask}
                          onOpenTask={openTaskRecords}
                          autoRun={!!(launch && progressWorkflow && launch.workflowId === progressWorkflow.id && launch.autoRun)}
@@ -2356,9 +2352,7 @@ function RightPanel({ projectId, target, preview, chat, sideTab, setSideTab, foc
               <textarea className="wb-input" rows={3} ref={inputRef}
                         value={chat.draft} onChange={(e) => chat.setDraft(e.target.value)}
                         onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void submit() } }}
-                        placeholder={sceneVersion === null || !sceneVersion.initialized
-                          ? '描述你想要一条什么片子，例如：做一条 10 秒的咖啡店宣传片…'
-                          : target.kind === 'project' ? '补充创作要求，或描述希望调整的内容…' : `描述「${scopeShort}」要改哪里、保留什么…`} />
+                        placeholder={target.kind === 'project' ? '补充创作要求，或描述希望调整的内容…' : `描述「${scopeShort}」要改哪里、保留什么…`} />
               {keepNotes && <button type="button" className="wb-keep-summary" onClick={() => onOpenReview('brief')} title={keepNotes}>始终保留：{keepNotes}</button>}
               <button type="button" className="wb-compose-brief-link" onClick={() => onOpenReview('brief')}>查看制作要求与后续纠正 <ArrowUpRight size={11}/></button>
               {enabledConstraints.length > 0 && (
@@ -2381,7 +2375,7 @@ function RightPanel({ projectId, target, preview, chat, sideTab, setSideTab, foc
                 {/* 能力边界必须写在入口旁：用户会默认「能对话就能随便改」，
                     实际只认「把文字改成 X」「文字/背景颜色改成 X」两种说法。 */}
                 <span className="wb-compose-capability" title="当前仅支持修改文字与颜色；其它要求会被明确拒绝，不会瞎改">
-                  {sceneVersion !== null && sceneVersion.initialized ? '仅支持文字 / 颜色' : '按需求生成分镜' }
+                  仅支持文字 / 颜色
                 </span>
                 <button className="mini mini-ghost" type="button"
                         onClick={() => { const v = chat.draft.trim(); if (v) onDemoSubmit(v) }}
@@ -2391,8 +2385,7 @@ function RightPanel({ projectId, target, preview, chat, sideTab, setSideTab, foc
                 </button>
                 <button className="mini mini-strong" type="submit"
                         disabled={!chat.draft.trim() || realModifyBusy}>
-                  <Send className="size-3" />{realModifyBusy ? '提交中…' : activeLive ? '排队记录'
-                    : sceneVersion === null || !sceneVersion.initialized ? '生成视频' : '提交修改'}
+                  <Send className="size-3" />{realModifyBusy ? '提交中…' : activeLive ? '排队记录' : '提交修改'}
                 </button>
               </div>
             </div>

@@ -16,15 +16,6 @@ public enum TaskKind {
     /** 按用户的修改意图改动现有场景后再出片。第一版部分支持。 */
     MODIFY("modify"),
 
-    /**
-     * 从一句自然语言需求生成初始视频场景并出片。
-     *
-     * <p>与 {@link #MODIFY} 的区别是「有没有基线」：修改需要已有场景并做版本预检，
-     * 创建是从零生成，产物是项目的第一个版本。两者的模型提示与校验规则完全不同，
-     * 所以必须是两种任务，不能用一个 kind 加分支糊过去。</p>
-     */
-    CREATE("create"),
-
     /** 检查产物质量。未实现。 */
     CHECK("check"),
 
@@ -52,10 +43,10 @@ public enum TaskKind {
     /**
      * 第一版是否真的实现了。
      *
-     * @return render/modify/create 为 true，其余为 false
+     * @return render/modify 为 true，其余为 false
      */
     public boolean supported() {
-        return this == RENDER || this == MODIFY || this == CREATE;
+        return this == RENDER || this == MODIFY;
     }
 
     /**
