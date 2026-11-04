@@ -71,27 +71,39 @@ class ModelModifyPlannerParseTest {
     }
 
     @Test
-    @DisplayName("白名单外字段被丢弃而不是整份失败")
-    void dropsUnsupportedFields() {
-        ModifyPlan plan = parse("""
+    @DisplayName("含白名单外字段时整份拒绝，不做部分执行")
+    void rejectsWholePlanOnUnsupportedField() {
+        /* 这是曾经的缺陷：旧实现丢掉 backgroundImage 那条、照常执行 text 那条，
+           用户拿到一个「只改了字、没换图」却被标为完成的结果。
+           现在必须整份失败，并指出具体哪一项不支持。 */
+        ApiException e = assertThrows(ApiException.class, () -> parse("""
                 {"edits":[
                   {"sceneId":"s1","field":"text","from":"a","to":"b","reason":"改字"},
                   {"sceneId":"s1","field":"backgroundImage","from":"","to":"x.png","reason":"换图"}
                 ]}
-                """);
-
-        assertEquals(1, plan.edits().size(), "只保留白名单内的字段");
-        assertEquals("text", plan.edits().get(0).field());
+                """));
+        assertEquals("unsupported_field", e.getCode());
+        assertTrue(e.getMessage().contains("backgroundImage"), "要指出不支持的字段：" + e.getMessage());
+        assertTrue(e.getMessage().contains("整份方案未执行"), "要说清没有部分执行：" + e.getMessage());
     }
 
     @Test
-    @DisplayName("没有任何合法编辑时明确失败，不返回空方案")
-    void rejectsWhenNoLegalEdits() {
+    @DisplayName("只有白名单外字段时同样整份拒绝")
+    void rejectsOnlyUnsupportedField() {
         ApiException e = assertThrows(ApiException.class, () -> parse("""
                 {"edits":[{"sceneId":"s1","field":"transition","from":"cut","to":"fade","reason":"x"}]}
                 """));
-        assertEquals("modify_plan_invalid", e.getCode());
-        assertTrue(e.getMessage().contains("文字与颜色"));
+        assertEquals("unsupported_field", e.getCode());
+        assertTrue(e.getMessage().contains("transition"));
+    }
+
+    @Test
+    @DisplayName("缺少 field 的条目也按不支持处理，不被跳过")
+    void rejectsMissingField() {
+        ApiException e = assertThrows(ApiException.class, () -> parse("""
+                {"edits":[{"sceneId":"s1","to":"b","reason":"没有 field"}]}
+                """));
+        assertEquals("unsupported_field", e.getCode());
     }
 
     @Test

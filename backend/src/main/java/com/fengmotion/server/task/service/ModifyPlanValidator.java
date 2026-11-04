@@ -29,7 +29,11 @@ public final class ModifyPlanValidator {
             "durationSeconds");
 
     /**
-     * 明确不支持的字段：收到就报 {@code unsupported_field}，不静默忽略。
+     * 已知但明确不支持的字段，用于给用户更具体的提示。
+     *
+     * <p>实际拦截范围<strong>不限于</strong>这里列出的几项：
+     * 只要不在 {@link #ALLOWED_FIELDS} 内就一律拒绝。这个集合只影响提示措辞，
+     * 不是第二道放行名单 —— 漏列的字段同样会被拦住。</p>
      */
     public static final java.util.Set<String> REJECTED_FIELDS = java.util.Set.of(
             "backgroundImage",

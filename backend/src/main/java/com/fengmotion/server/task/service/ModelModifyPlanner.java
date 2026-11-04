@@ -178,13 +178,19 @@ public class ModelModifyPlanner {
         }
 
         List<ModifyPlan.Edit> edits = new ArrayList<>();
+        List<String> unsupported = new ArrayList<>();
         for (JsonNode node : editsNode) {
             String sceneId = node.path("sceneId").asText(null);
             String field = node.path("field").asText(null);
-            /* 白名单外的字段在这里就丢掉，并留下日志：
-               放进去只会让 applier 整份拒绝，用户拿不到任何可用结果。 */
-            if (field == null || !ModifyPlanValidator.isAllowed(field)) {
-                log.info("模型给出了不支持的字段，已忽略：sceneId={} field={}", sceneId, field);
+            /* 白名单外的字段**不能在这里悄悄丢掉**。
+               早先的实现是 continue 跳过，后果是：模型同时提出「改文字 + 换图片」时，
+               图片那条被丢弃、文字那条照常执行，任务显示「已完成」，
+               用户却拿到一个只改了一半的片子 —— 与「任一不合法就整份拒绝」的约定相反。
+               现在先收集，再整份拒绝，并明确告知哪几项当前不支持。 */
+            if (!ModifyPlanValidator.isAllowed(field)) {
+                unsupported.add(sceneId == null
+                        ? String.valueOf(field)
+                        : sceneId + "." + field);
                 continue;
             }
             edits.add(new ModifyPlan.Edit(
@@ -193,6 +199,13 @@ public class ModelModifyPlanner {
                     node.path("from").asText(""),
                     node.path("to").asText(""),
                     node.path("reason").asText("")));
+        }
+
+        if (!unsupported.isEmpty()) {
+            throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, "unsupported_field",
+                    "模型提出了当前不支持的修改项（" + String.join("、", unsupported)
+                            + "）。为避免只改一半，整份方案未执行。当前只支持："
+                            + String.join("、", ModifyPlanValidator.ALLOWED_FIELDS));
         }
 
         if (edits.isEmpty()) {
