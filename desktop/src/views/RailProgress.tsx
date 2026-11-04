@@ -23,12 +23,18 @@ import { Progress } from '@/components/ui/progress'
  * 没跑过就如实写「未运行」，不按内容猜、不编百分比 —— 工作流里没有「第几秒、
  * 第几个镜头」这种刻度，那是渲染切片，不是内容。
  *
- * 运行仍是演示执行器（不调 AI、不写文件、不出片），所以标记保留、不删。
+ * 运行仍是演示执行器推进节点（不调 AI、不出片），但 **Prompt-first 开跑时
+ * 会真实写入 workflow-v5 创作上下文**（prompt.original.md 等），
+ * 所以不能再简单标成「纯演示」——界面要把这两件事分开说。
  */
 
-export function RailProgressPanel({ workflow, autoRun, task, onRunStart, onRunEnd, onRunEvent, onRunningChange, onOpenTask, onOpenEditor, onOpenExecution }: {
+export function RailProgressPanel({ workflow, projectId, prompt, autoRun, task, onRunStart, onRunEnd, onRunEvent, onRunningChange, onOpenTask, onOpenEditor, onOpenExecution }: {
   /** 当前项目的工作流；节点参数由外面传进来（写回决定后外面会重取，这里才跟着更新） */
   workflow: WorkflowDef | null
+  /** 当前项目 ID：有值时运行会真实建立 workflow-v5 创作上下文 */
+  projectId?: string
+  /** 用户原始需求：会被逐字写进 prompt.original.md */
+  prompt?: string
   /** 从创作启动层带过来的「建好就开跑」 */
   autoRun: boolean
   /** AI 任务此刻在哪个内容上。只在真的还在跑时有值 —— 没有就整块不显示，
@@ -74,6 +80,8 @@ export function RailProgressPanel({ workflow, autoRun, task, onRunStart, onRunEn
     const handle = startDemoRun(workflow, {
       onEvent: (event) => onRunEvent?.(event),
       onNodeStatus: (nodeId, status) => setStatuses((prev) => ({ ...prev, [nodeId]: status })),
+      projectId,
+      prompt,
     })
     execution.current = handle
     void handle.done.then((r) => {
@@ -83,7 +91,7 @@ export function RailProgressPanel({ workflow, autoRun, task, onRunStart, onRunEn
       onRunningChange?.(false)
       onRunEnd?.()
     })
-  }, [workflow, running, onRunStart, onRunEnd, onRunEvent, onRunningChange])
+  }, [workflow, projectId, prompt, running, onRunStart, onRunEnd, onRunEvent, onRunningChange])
 
   useEffect(() => {
     /* 只在挂载时判断一次：已经有运行记录就直接呈现，不重跑 */

@@ -806,6 +806,12 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
       onEvent: (e) => setLiveEvents((prev) => [...prev, e]),
       onNodeStatus: (nodeId, status) =>
         setNodes((prev) => prev.map((n) => (n.id === nodeId ? { ...n, data: { ...n.data, status } } : n))),
+      /* 工作流自带所属项目：编辑器里跑的时候也要真实建立创作上下文，
+         否则「在工作流里创作」与「在工作台里创作」会是两种行为。
+         prompt 必须一起带上 ——「创作需求」节点的文本就是用户的原始需求，
+         只传 projectId 会让后端收到空需求，运行直接被拒。 */
+      projectId: snap.projectId ?? undefined,
+      prompt: String(snap.nodes.find((n) => n.type === 'prompt')?.params.text ?? '') || undefined,
     })
     runHandle.current = handle
     void handle.done.then((run) => {

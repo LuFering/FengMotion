@@ -9,8 +9,17 @@
  *   创作与渲染只产「渲染请求记录」，绝不伪造视频。
  * · Structured 运行 = 状态评估：按阶段清点产物与 Gate，产出状态报告；
  *   Gate 的确认只能由用户在检查器里对具体产物版本做出，运行永不代确认。
+ *
+ * <p><strong>哪些是真的、哪些还是演示</strong>（必须分清，否则界面会撒谎）：
+ * 真实的只有一件事 —— Prompt-first 运行开始时，通过后端调用 workflow-v5 的
+ * init-project 工具，把用户原文逐字写进项目目录，建立
+ * prompt.original.md / lookdev-brief.md / qa/passes 这些创作上下文。
+ * 其余节点推进、产物快照、渲染请求记录仍是本层生成的模拟数据，
+ * 不产出视频。所以运行结束的提示必须写明「尚未生成视频」。</p>
  */
 import type { AgentTask, ChangeSet, TaskEvent, TaskStatus } from './studioApi'
+import { studioHttpApi } from './api'
+import type { WorkflowContextState } from './api/workflowContext'
 import {
   ARTIFACT_KIND_MAP,
   GATE_DEFS,
@@ -450,6 +459,10 @@ export function startDemoRun(
   callbacks: {
     onEvent: (event: TaskEvent) => void
     onNodeStatus: (nodeId: string, status: WfNodeStatus) => void
+    /** 当前项目；有值时 Prompt-first 运行会真实建立 workflow-v5 创作上下文 */
+    projectId?: string
+    /** 用户原始需求；会逐字写进 prompt.original.md */
+    prompt?: string
   },
 ): DemoRunHandle {
   const runId = uid('run')
@@ -481,6 +494,8 @@ export function startDemoRun(
 
   const done = (async (): Promise<WorkflowRun> => {
     let status: TaskStatus = 'completed'
+    /* 真实建立起来的上下文；null 表示没建（无项目或失败） */
+    let contextInfo: WorkflowContextState | null = null
     if (wf.path === 'structured') {
       emit('accepted', 'queued', `演示评估已接收（${wf.name} · 修订 ${wf.revision}）。Structured 运行只做状态评估：清点产物与 Gate，不生成产物、不代替用户确认。`)
       const stageRows: Array<Record<string, unknown>> = []
@@ -533,8 +548,36 @@ export function startDemoRun(
         emit('complete', 'completed', '状态评估结束：已生成评估报告；没有新产物被生成、没有 Gate 被代为确认。')
       }
     } else {
-      emit('accepted', 'queued', `演示执行器已接收运行请求（${wf.name} · 修订 ${wf.revision}）。Prompt-first 路径无强制门；本次为 DEMO 运行。`)
-      const order = topoOrder(wf)
+      emit('accepted', 'queued', `已接收运行请求（${wf.name} · 修订 ${wf.revision}）。Prompt-first 路径无强制门。`)
+
+      /* 唯一真实的一步：把用户原文落进项目目录，建立 workflow-v5 认的创作上下文。
+         没有这一步，后面所有「产物快照」都建在空地基上 —— 那套流程要读
+         prompt.original.md 才有创作依据。失败要如实说失败，并继续把
+         其余演示节点跑完会让用户以为上下文建好了。 */
+      if (callbacks.projectId && (callbacks.prompt ?? '').trim()) {
+        emit('progress', 'running', '正在建立 workflow-v5 创作上下文（写入 prompt.original.md）…')
+        try {
+          const state = await studioHttpApi().workflowContext.init(callbacks.projectId, callbacks.prompt)
+          contextInfo = state
+          emit('build', 'building', state.initialized
+            ? `创作上下文已就绪：${state.files.length} 个文件，原文 ${state.promptLength} 字。workflow-v5 工具${state.toolAvailable ? '可用' : '未找到（请检查配置）'}。`
+            : '创作上下文未建立成功：没有找到 prompt.original.md。')
+        } catch (error) {
+          /* 上下文没建起来就不该继续假装在创作 —— 直接失败，并说明原因。 */
+          status = 'failed'
+          emit('error', 'failed', `建立创作上下文失败：${error instanceof Error ? error.message : String(error)}`)
+        }
+      } else if (!callbacks.projectId) {
+        emit('progress', 'running', '未指定项目目录：跳过创作上下文写入，仅做界面流程演示。')
+      } else {
+        /* 有项目但没写需求：不建立上下文，并明确告诉用户缺什么。
+           以前这里会用模板占位建出一个「已就绪」，用户以为存好了原文。 */
+        status = 'failed'
+        emit('error', 'failed', '缺少创作需求：请先在「制作要求」里写下这次想做什么，'
+          + 'workflow-v5 需要 prompt.original.md 保存你的原文，而不是模板占位。')
+      }
+
+      const order = status === 'failed' ? [] : topoOrder(wf)
       for (const node of order) {
         if (cancelled) {
           status = 'cancelled'
@@ -564,7 +607,9 @@ export function startDemoRun(
         setStatus(node.id, 'completed')
         emit('build', 'building', `${label}：${artifact.summary}`)
       }
-      if (status === 'completed') emit('complete', 'completed', '演示运行结束：产物均为工作稿/引用/请求记录快照；未接入真实渲染，没有视频生成。')
+      if (status === 'completed') emit('complete', 'completed', contextInfo
+        ? `运行结束：已建立 workflow-v5 创作上下文（${contextInfo.files.length} 个文件）。后续节点产物为界面演示快照，**尚未真实渲染，没有生成视频**；真正出片需要按 lookdev 与测试帧推进。`
+        : '运行结束：产物均为工作稿/引用/请求记录快照；未接入真实渲染，没有视频生成。')
       if (status === 'cancelled') emit('cancelled', 'cancelled', '演示运行已取消；已生成的产物保留在本次运行记录中。')
     }
     task.status = status
