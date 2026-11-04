@@ -111,12 +111,24 @@ export function createLibraryResource(http: HttpClient) {
         return origin + (path.startsWith('/') ? path : `/${path}`)
       },
 
-      /** `GET /reference-videos`：列表。 */
+      /**
+       * `GET /reference-videos`：列表（逐页取完）。
+       *
+       * 原先固定 `limit: 200` 并丢弃 `nextCursor` —— 超过 200 条的参考片
+       * 永远不会出现在界面上，且没有任何提示。现在按游标翻到底。
+       */
       async listVideos(query: { status?: string; tag?: string; q?: string } = {}): Promise<any[]> {
-        const page = await http.get<{ items: any[] }>('/reference-videos', {
-          query: { ...query, limit: 200 },
-        })
-        return page.items ?? []
+        const all: any[] = []
+        let cursor: string | undefined
+        for (let guard = 0; guard < 200; guard += 1) {
+          const page = await http.get<{ items: any[]; nextCursor?: string | null }>('/reference-videos', {
+            query: { ...query, limit: 200, ...(cursor ? { cursor } : {}) },
+          })
+          all.push(...(page.items ?? []))
+          cursor = page.nextCursor ?? undefined
+          if (!cursor) break
+        }
+        return all
       },
 
       /** `POST /reference-videos`：上传视频作为参考片（multipart）。 */
@@ -128,15 +140,27 @@ export function createLibraryResource(http: HttpClient) {
         return res.video
       },
 
-      /** `GET /reference-videos/{id}/segments`：该视频的片段。 */
+      /**
+       * 片段列表（逐页取完）。
+       *
+       * 单个视频的片段是完整数组端点；跨视频的 `/reference-segments` 是分页的，
+       * 同样不能只取第一页。
+       */
       async listSegments(query: { videoId?: string; limit?: number } = {}): Promise<any[]> {
         if (query.videoId) {
           return http.get<any[]>(`/reference-videos/${encodeURIComponent(query.videoId)}/segments`)
         }
-        const page = await http.get<{ items: any[] }>('/reference-segments', {
-          query: { limit: query.limit ?? 200 },
-        })
-        return page.items ?? []
+        const all: any[] = []
+        let cursor: string | undefined
+        for (let guard = 0; guard < 200; guard += 1) {
+          const page = await http.get<{ items: any[]; nextCursor?: string | null }>('/reference-segments', {
+            query: { limit: query.limit ?? 200, ...(cursor ? { cursor } : {}) },
+          })
+          all.push(...(page.items ?? []))
+          cursor = page.nextCursor ?? undefined
+          if (!cursor) break
+        }
+        return all
       },
 
       /** `POST /reference-videos/{id}/segments`：新增片段（毫秒）。 */

@@ -88,6 +88,11 @@ public class SqliteAssetRepository implements AssetRepository {
     }
 
     @Override
+    public int countSharingHash(String contentHash, String excludeId) {
+        return assets.countSharingHash(contentHash, excludeId);
+    }
+
+    @Override
     public Optional<Asset> updateWithEtag(Asset asset, String expectedEtag) {
         AssetRow row = new AssetRow();
         row.setId(asset.id());

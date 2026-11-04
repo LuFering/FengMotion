@@ -198,8 +198,10 @@ CREATE INDEX IF NOT EXISTS idx_assets_folder ON assets(folder_id);
 CREATE INDEX IF NOT EXISTS idx_assets_media_type ON assets(media_type);
 CREATE INDEX IF NOT EXISTS idx_assets_review_status ON assets(review_status);
 CREATE INDEX IF NOT EXISTS idx_assets_last_used ON assets(last_used_at DESC);
--- 同一内容哈希只允许一条：去重的落点。允许 NULL（历史数据可能没有哈希）。
-CREATE UNIQUE INDEX IF NOT EXISTS idx_assets_content_hash ON assets(content_hash) WHERE content_hash IS NOT NULL;
+-- 内容哈希**不唯一**：文件本体可以去重，但用户记录不该被合并 ——
+-- 旧库里完全可能存在两条内容相同、名称/标签/授权不同的记录。
+-- 去重靠服务层「按哈希找一条已存在的文件复用」，不靠数据库唯一约束。
+CREATE INDEX IF NOT EXISTS idx_assets_content_hash ON assets(content_hash);
 
 CREATE TABLE IF NOT EXISTS asset_folders (
     id TEXT PRIMARY KEY,

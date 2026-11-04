@@ -211,6 +211,7 @@ export interface ImportFailure {
 export async function importFiles(
   files: File[],
   onEvent: (e: { phase: 'queued' | 'reading' | 'done' | 'error'; name: string; index: number; error?: string }) => void,
+  options: { keepSeparateRecord?: boolean } = {},
 ): Promise<{ created: MyAsset[]; failed: ImportFailure[] }> {
   const api = studioHttpApi().assets
   const created: MyAsset[] = []
@@ -221,11 +222,16 @@ export async function importFiles(
     try {
       // uploadFile 只回传 uploadId/assetId，完整对象要再取一次。
       // assetId 为 null 说明服务端没生成素材（例如去重未命中且合并失败），如实报错。
-      const result = await api.uploadFile(file)
-      if (!result.assetId) {
-        throw new Error('服务端未返回素材 ID')
-      }
-      const asset = await api.get(result.assetId)
+      // 迁移走单请求上传（带 keepSeparateRecord）；普通导入仍走分片上传。
+      const asset = options.keepSeparateRecord
+        ? await api.uploadOne(file, { keepSeparateRecord: true })
+        : await (async () => {
+            const result = await api.uploadFile(file)
+            if (!result.assetId) {
+              throw new Error('服务端未返回素材 ID')
+            }
+            return api.get(result.assetId)
+          })()
       created.push(toMyAsset(asset))
       onEvent({ phase: 'done', name: file.name, index })
     } catch (error) {

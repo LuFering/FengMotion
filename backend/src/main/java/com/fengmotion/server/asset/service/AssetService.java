@@ -79,6 +79,26 @@ public class AssetService {
     @Transactional
     public ImportResult importFile(String fileName, String mimeType, String folderId, String name,
             InputStream stream) {
+        // 默认行为：同一内容只保留一条记录（用户重复拖同一个文件时不该出现两条）。
+        return importFile(fileName, mimeType, folderId, name, stream, false);
+    }
+
+    /**
+     * 导入，可选择「即使内容相同也保留独立记录」。
+     *
+     * <p>为什么需要这个选项：文件本体可以去重（磁盘只存一份），但**用户记录不该被合并**。
+     * 旧库里完全可能存在两条内容相同、名称/标签/授权/文件夹不同的记录
+     * （同一个人导了两次、分别打了不同标签）。迁移时如果按哈希直接返回已有记录，
+     * 第二条的名称与标签就永久丢了，而用户看到的却是「迁移完成」。</p>
+     *
+     * <p>保留独立记录时，文件本体仍指向同一个哈希目录，不额外占磁盘 ——
+     * 去重的是文件，不是用户记录。</p>
+     *
+     * @param keepSeparateRecord true 表示即使命中去重也新建一条记录
+     */
+    @Transactional
+    public ImportResult importFile(String fileName, String mimeType, String folderId, String name,
+            InputStream stream, boolean keepSeparateRecord) {
         if (fileName == null || fileName.isBlank()) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "validation_error", "文件名不能为空");
         }
@@ -105,13 +125,37 @@ public class AssetService {
                 throw ex;
             }
             Optional<Asset> existing = assets.findByHash(hash);
-            if (existing.isPresent()) {
+            /* 命中去重还不够，要确认那份文件真的在磁盘上、并且不是空壳。
+               实测踩到过：库里记录还在、目录也在，但 original 文件已经没了
+               （删除流程中断、外部清理、或旧版本留下的空目录）。此时照常「复用」
+               会得到一条打不开的素材，而界面显示导入成功。
+
+               所以复用前先验文件；文件不可用时把本次导入的内容重新落盘，
+               让这条记录重新可用 —— 用户要的是能用的素材，不是一条空洞的索引。
+
+               注意「保留独立记录」分支也要验：它把已有记录的路径抄给新记录，
+               文件若已丢，抄过来的就是一条死记录。 */
+            boolean canReuse = existing.isPresent() && fileUsable(existing.get());
+            if (existing.isPresent() && !canReuse) {
+                log.warn("命中已有记录但文件不可用，将重新落盘：{}（哈希 {}）", fileName, hash);
+                // 不可复用时不能走「复用路径」的独立记录分支，否则新记录同样打不开。
+                existing = Optional.empty();
+            }
+            if (existing.isPresent() && !keepSeparateRecord) {
                 Files.deleteIfExists(tmp);
                 log.info("导入命中去重：{}（哈希 {}）", fileName, hash);
                 // 去重不该吞掉用户这次的目标文件夹：用户把已存在的文件拖进「参考资料」，
                 // 期待它出现在那里。若只返回旧记录，界面报「导入成功」而文件不在该文件夹，
                 // 用户会以为拖拽失效。名称/标签不合并（那是用户各自的记录），只移动归属。
                 return new ImportResult(placeInFolder(existing.get(), folderId), true);
+            }
+            if (existing.isPresent()) {
+                // 显式要求保留独立记录：文件本体复用同一份（不重复落盘），
+                // 但新建一条索引，让这条记录的名称/标签/文件夹能独立存在。
+                Files.deleteIfExists(tmp);
+                log.info("内容命中但保留独立记录：{}（哈希 {}）", fileName, hash);
+                return new ImportResult(duplicateRecordOf(existing.get(), fileName, mimeType, folderId,
+                        name, mediaType, hash, size), false);
             }
             if (size == 0) {
                 Files.deleteIfExists(tmp);
@@ -124,6 +168,80 @@ public class AssetService {
         } catch (NoSuchAlgorithmException ex) {
             throw new IllegalStateException("运行环境缺少 SHA-256", ex);
         }
+    }
+
+    /**
+     * 已有记录对应的文件是否真的可用。
+     *
+     * <p>不能只看数据库：记录存在不代表文件存在，更不代表文件不是空壳。
+     * 这里同时检查「路径可解析」「文件存在」「文件非空」，
+     * 因为一个 0 字节的 original 与「文件丢了」对用户是同一个结果：打不开。</p>
+     *
+     * @param asset 已有记录
+     * @return 文件可复用时 true
+     */
+    private boolean fileUsable(Asset asset) {
+        String url = asset.fileUrl();
+        if (url == null || url.isBlank()) {
+            return false;
+        }
+        try {
+            Path file = storage.resolve(url);
+            return java.nio.file.Files.isRegularFile(file)
+                    && java.nio.file.Files.size(file) > 0;
+        } catch (IllegalArgumentException ex) {
+            // 路径越界或写坏：同样视为不可用，不要把它当成有效文件去复用。
+            log.warn("素材文件路径无效：{}", url, ex);
+            return false;
+        } catch (IOException ex) {
+            log.warn("检查素材文件失败：{}", url, ex);
+            return false;
+        }
+    }
+
+    /**
+     * 基于已有素材的文件，新建一条**独立的用户记录**。
+     *
+     * <p>文件本体复用同一份（`storagePath` 与 `contentHash` 相同，不占第二份磁盘），
+     * 但 id、名称、标签、文件夹、授权、审核都独立 —— 这正是「去重文件、不合并记录」。</p>
+     *
+     * <p>`content_hash` 上**没有**唯一约束（见 schema.sql）：多条记录可以共享同一内容。
+     * 去重由服务层保证 —— 文件只落盘一份，新记录直接复用已有记录的存储路径。</p>
+     */
+    private Asset duplicateRecordOf(Asset existing, String fileName, String mimeType, String folderId,
+            String name, AssetStates.MediaType mediaType, String hash, long size) {
+        Instant now = Instant.now();
+        String id = "asset_" + UUID.randomUUID();
+        Asset copy = new Asset(
+                id,
+                name == null || name.isBlank() ? fileName : name,
+                mediaType,
+                effectiveMimeType(fileName, mimeType, mediaType),
+                size,
+                AssetStates.SourceType.IMPORTED,
+                existing.processingStatus(),
+                existing.processingError(),
+                AssetStates.ReviewStatus.NONE,
+                AssetStates.Availability.ENABLED,
+                AssetStates.LicenseStatus.UNKNOWN,
+                null,
+                existing.width(),
+                existing.height(),
+                existing.durationMs(),
+                List.of(),
+                folderId,
+                // 复用同一份文件本体；缩略图也复用。
+                existing.fileUrl(),
+                existing.thumbnailUrl(),
+                // 保留真实哈希：多条记录共享同一内容时都记同一个哈希，
+                // 后续仍能按它找到可复用的文件本体。
+                hash,
+                now,
+                now,
+                null,
+                id,
+                false);
+        return assets.save(copy);
     }
 
     /**
@@ -329,8 +447,16 @@ public class AssetService {
         }
         assets.deleteById(id);
         refs.clear(ResourceRefService.KIND_ASSET, id);
-        // 文件本体最后删：库里删成功但文件删失败，最坏是留个孤儿文件；
-        // 反过来则是「记录还在但文件没了」，那会让素材打不开。
+        /* 文件本体最后删：库里删成功但文件删失败，最坏是留个孤儿文件；
+           反过来则是「记录还在但文件没了」，那会让素材打不开。
+
+           但「同内容多记录」（keepSeparateRecord）只让记录各自独立，磁盘上是同一份文件。
+           这时先删的那条若把目录整个删掉，另一条记录就变成打不开的空壳 ——
+           所以要先确认自己是不是最后一个使用者。 */
+        if (current.contentHash() != null && assets.countSharingHash(current.contentHash(), id) > 0) {
+            log.info("删除素材记录但保留文件：仍有其他记录共用内容哈希 {}", current.contentHash());
+            return;
+        }
         try {
             Path dir = storage.resolve(storage.relativeDirFor(current.contentHash() == null
                     ? id : current.contentHash()));

@@ -22,6 +22,18 @@ public interface AssetRepository {
     Optional<Asset> findByHash(String contentHash);
 
     /**
+     * 除指定记录外，还有多少条记录共用这个内容哈希。
+     *
+     * <p>删除素材时用它判断「是不是最后一个使用者」：同内容的记录只在数据库里
+     * 各自独立，磁盘上是同一份文件，先删的那条不能把文件一起带走。</p>
+     *
+     * @param contentHash 内容哈希
+     * @param excludeId   正在删除的记录 ID
+     * @return 其他共用者数量
+     */
+    int countSharingHash(String contentHash, String excludeId);
+
+    /**
      * 带 etag 的条件更新。
      *
      * @return 更新后的素材；etag 不匹配时返回 {@link Optional#empty()}

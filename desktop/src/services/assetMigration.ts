@@ -34,7 +34,7 @@ export type MigrationPhase = 'idle' | 'migrating' | 'verifying' | 'migrated' | '
  * 这比直接报失败更糟。
  */
 export interface MigrationChecks {
-  /** 文件本体：字节数一致。 */
+  /** 文件本体：字节数一致**且** SHA-256 与本地一致。 */
   file: boolean
   /** 名称。 */
   name: boolean
@@ -46,6 +46,8 @@ export interface MigrationChecks {
   review: boolean
   /** 文件夹归属（在 migrateFolders 阶段回填）。 */
   folder: boolean
+  /** 旧 ID → 新 ID 的对照是否记录成功（迁移后还要能追溯「这条是哪条变来的」）。 */
+  idMap: boolean
 }
 
 export interface MigrationItemResult {
@@ -109,6 +111,21 @@ function migrateReviewStatus(status: string): string {
 }
 
 /**
+ * 计算 blob 的 SHA-256（小写十六进制）。
+ *
+ * <p>为什么迁移必须校验内容而不只是字节数：旧库里两条元数据不同的记录，
+ * 内容其实可能不同（改过内容但大小恰好相同）。只比大小会把它们判成「同一份」，
+ * 迁移后看起来成功、实际丢了一个。哈希能真正发现这类问题。</p>
+ */
+async function sha256Hex(blob: Blob): Promise<string> {
+  const buffer = await blob.arrayBuffer()
+  const digest = await crypto.subtle.digest('SHA-256', buffer)
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('')
+}
+
+/**
  * 执行（或继续）迁移。
  *
  * @param onProgress 逐条进度回调；用于界面显示「第几条 / 共几条」而不是编造的百分比
@@ -161,7 +178,10 @@ export async function migrateIndexedDbAssets(
 
     try {
       const file = new File([blob], asset.name, { type: asset.mimeType || blob.type || '' })
-      const outcome = await importFiles([file], () => {})
+      /* keepSeparateRecord=true：旧库里同内容不同元数据的两条记录都要保留。
+         文件本体仍只存一份，但名称/标签/授权/文件夹各自独立 ——
+         否则第二条的名称会永久丢失，而界面显示「迁移完成」。 */
+      const outcome = await importFiles([file], () => {}, { keepSeparateRecord: true })
       // 把服务端的真实失败原因往上抛，而不是笼统的「未返回素材」——
       // 后者会掩盖「类型不支持」「连不上」这类可操作的信息。
       if (outcome.failed.length > 0) {
@@ -171,23 +191,35 @@ export async function migrateIndexedDbAssets(
       if (!server) {
         throw new Error('服务端未返回素材')
       }
-      // 逐条校验：字节数必须一致。内容哈希由服务端算，这里比大小是为了抓
-      // 「传上去的不是这个文件」这类明显错误。
+      /* 逐条校验：字节数一致**且** SHA-256 一致。
+         只比大小抓不到「内容被换掉但大小相同」的情况 —— 那种错误迁移后
+         看起来成功，实际文件已经不对了。 */
       if (server.sizeBytes !== blob.size) {
         throw new Error(`大小校验不一致：本地 ${blob.size}，服务端 ${server.sizeBytes}`)
+      }
+      const localHash = await sha256Hex(blob)
+      const serverHash = (server as { contentHash?: string | null }).contentHash
+      if (!serverHash) {
+        // 服务端没给出哈希就无法校验内容 —— 不当作成功，如实报出来。
+        throw new Error('服务端未返回内容哈希，无法校验文件内容')
+      }
+      if (serverHash.toLowerCase() !== localHash) {
+        throw new Error(`内容校验不一致：本地 ${localHash.slice(0, 12)}…，服务端 ${serverHash.slice(0, 12)}…`)
       }
       // 保留用户原来的名称/标签/授权/审核状态：这些是用户自己的记录，
       // 迁移不是重建，不该丢。
       const meta = await applyLocalMetadata(server.id, asset)
-      const fileOk = true // 上面已校验过字节数，走到这里就是一致
+      // 走到这里说明字节数与 SHA-256 都已核对一致。
       const itemChecks: MigrationChecks = {
-        file: fileOk,
+        file: true,
         name: meta.checks.name,
         tags: meta.checks.tags,
         license: meta.checks.license,
         review: meta.checks.review,
         // 文件夹在 migrateFolders 阶段回填，这里先占位为「待归位」。
         folder: false,
+        // 旧 ID → 新 ID 已在上面的 push 里记录（serverId 字段）。
+        idMap: true,
       }
       /* 有未完成项就**不算成功**。
          原先只要文件传上去就标 ok:true，元数据失败只写在 error 里 ——
@@ -283,7 +315,7 @@ export async function migrateIndexedDbAssets(
 async function applyLocalMetadata(
   serverId: string,
   local: MyAsset,
-): Promise<{ checks: Omit<MigrationChecks, 'file' | 'folder'>; incomplete: string[] }> {
+): Promise<{ checks: Omit<MigrationChecks, 'file' | 'folder' | 'idMap'>; incomplete: string[] }> {
   const incomplete: string[] = []
   const checks = { name: true, tags: true, license: true, review: true }
 

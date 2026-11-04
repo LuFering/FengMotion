@@ -7,6 +7,8 @@ import {
   loadPreferences,
   setFavorite as apiSetFavorite,
   touchRecent,
+  updateSegment as apiUpdateSegment,
+  deleteSegment as apiDeleteSegment,
   uploadReferenceVideo,
   type LocalSegment,
   type ServerVideo,
@@ -175,6 +177,15 @@ export function RefLibrary() {
   const [segments, setSegments] = useState<LocalSegment[]>([])
   const [catalogLoading, setCatalogLoading] = useState(true)
   const [catalogError, setCatalogError] = useState<string | null>(null)
+  /* 片段编辑的草稿值。必须放在所有条件返回之前 ——
+     hooks 数量在渲染之间不能变化，否则 React 会抛
+     「Rendered more hooks than during the previous render」。 */
+  const [observationDraft, setObservationDraft] = useState('')
+  const [suggestionDraft, setSuggestionDraft] = useState('')
+  const [startDraft, setStartDraft] = useState('0')
+  const [endDraft, setEndDraft] = useState('0')
+
+
   const [filmId, setFilmId] = useState('')
   const [segmentId, setSegmentId] = useState('')
   const [pos, setPos] = useState(0)
@@ -274,6 +285,25 @@ export function RefLibrary() {
     [videos],
   )
   const segment = segmentByIdMap.get(segmentId) ?? filmSegments[0]
+
+  /* 有视频但没有片段是**正常状态**（刚导入、还没标记）。
+     这里给出一组安全的默认值，让播放器与分析面板都能渲染，
+     而不是因为没有片段就崩溃或退回引导页。 */
+  const current: LocalSegment = (segment as LocalSegment | undefined) ?? {
+    // film 在空库时不存在，这里用空串兜底 —— 不能写 film.id，会直接崩。
+    id: '', videoId: film?.id ?? '', index: 0, start: 0, end: 0,
+    status: 'pending', tags: [], observation: '', inference: '', suggestion: '',
+    analysis: {
+      cameraMove: { value: '', source: null, confidence: null, evidence: '', pending: true },
+      rhythm: { value: '', source: null, confidence: null, evidence: '', pending: true },
+      lighting: { value: '', source: null, confidence: null, evidence: '', pending: true },
+      composition: { value: '', source: null, confidence: null, evidence: '', pending: true },
+      transition: { value: '', source: null, confidence: null, evidence: '', pending: true },
+      reusable: { value: '', source: null, confidence: null, evidence: '', pending: true },
+    },
+    extraAnalysis: {},
+  }
+  const hasSegment = !!segment
   const segmentIndex = filmSegments.findIndex((s) => s.id === segment?.id)
   const reusable = !!segment && !segment.analysis.reusable.pending && /可借鉴|可复用/.test(segment.analysis.reusable.value)
 
@@ -542,6 +572,16 @@ export function RefLibrary() {
     }
   }
 
+  /* 草稿跟着当前片段走：切换片段或服务端回写后输入框要显示最新真实值，
+     否则用户会看到上一条片段的内容。 */
+  useEffect(() => {
+    setObservationDraft(current.observation)
+    setSuggestionDraft(current.suggestion)
+    setStartDraft(current.start.toFixed(1))
+    setEndDraft(current.end.toFixed(1))
+  }, [current.id, current.observation, current.suggestion, current.start, current.end])
+
+
   const browseList = useMemo(() => {
     // 数据源是服务端片段，不是演示常量。
     let list: LocalSegment[] = segments.slice()
@@ -622,23 +662,54 @@ export function RefLibrary() {
       </div>
     )
   }
-  /* 有视频但没有片段是**正常状态**（刚导入、还没标记）。
-     这里给出一组安全的默认值，让播放器与分析面板都能渲染，
-     而不是因为没有片段就崩溃或退回引导页。 */
-  const current: LocalSegment = (segment as LocalSegment | undefined) ?? {
-    id: '', videoId: film.id, index: 0, start: 0, end: 0,
-    status: 'pending', tags: [], observation: '', inference: '', suggestion: '',
-    analysis: {
-      cameraMove: { value: '', source: null, confidence: null, evidence: '', pending: true },
-      rhythm: { value: '', source: null, confidence: null, evidence: '', pending: true },
-      lighting: { value: '', source: null, confidence: null, evidence: '', pending: true },
-      composition: { value: '', source: null, confidence: null, evidence: '', pending: true },
-      transition: { value: '', source: null, confidence: null, evidence: '', pending: true },
-      reusable: { value: '', source: null, confidence: null, evidence: '', pending: true },
-    },
-    extraAnalysis: {},
+
+  /**
+   * 保存片段的人工改动。
+   *
+   * 只提交变化的那几项；失败时提示并回读服务端值，避免界面显示一个没存上的结果。
+   */
+  const saveSegmentEdits = async (patch: {
+    observation?: string
+    suggestion?: string
+    startSec?: number
+    endSec?: number
+  }) => {
+    if (!hasSegment) return
+    // 时间没变就别白跑一次请求（blur 会触发，即使没改）。
+    const unchanged =
+      (patch.observation === undefined || patch.observation === current.observation) &&
+      (patch.suggestion === undefined || patch.suggestion === current.suggestion) &&
+      (patch.startSec === undefined || Math.abs(patch.startSec - current.start) < 0.05) &&
+      (patch.endSec === undefined || Math.abs(patch.endSec - current.end) < 0.05)
+    if (unchanged) return
+    try {
+      const updated = await apiUpdateSegment(current.id, patch)
+      setSegments((prev) => prev.map((sg) => (sg.id === updated.id ? updated : sg)))
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : '保存失败')
+      // 回读真实值，别让界面留着一个没保存成功的草稿。
+      setObservationDraft(current.observation)
+      setSuggestionDraft(current.suggestion)
+      setStartDraft(current.start.toFixed(1))
+      setEndDraft(current.end.toFixed(1))
+    }
   }
-  const hasSegment = !!segment
+
+  /** 删除片段（不影响视频与素材）。 */
+  const removeSegment = async (segmentIdToRemove: string) => {
+    if (!window.confirm('删除这个片段？视频本身不受影响。')) return
+    try {
+      await apiDeleteSegment(segmentIdToRemove)
+      const remain = segments.filter((sg) => sg.id !== segmentIdToRemove)
+      setSegments(remain)
+      const next = remain.find((sg) => sg.videoId === film?.id)
+      setSegmentId(next?.id ?? '')
+      showToast('已删除片段')
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : '删除失败')
+    }
+  }
+
   const isFav = hasSegment && stored.favorites.includes(current.id)
   const inOutbox = hasSegment && outbox.includes(current.id)
   const pendingCount = hasSegment ? pendingFieldCount(segment) : 0
@@ -815,14 +886,74 @@ export function RefLibrary() {
                 {current.analysis.reusable.pending ? '待分析' : current.analysis.reusable.value}
               </span>
             </div>
-            {/* 给 AI 的话：默认折叠。想直接抄作业的用户可以展开，不想被术语干扰的可以不看。 */}
-            {(current.observation || current.inference) && (
-              <details className="rfc-brief">
-                <summary>这条片段交给 AI 时附带的话</summary>
-                <p>{current.observation}</p>
-                {current.inference && <p>{current.inference}</p>}
-              </details>
-            )}
+            {/* 人工记录与模型推断分开呈现（契约 §4.2 铁律）：
+                观察是「你看得到的」，推断是模型给的。混在一起用户会把推断当事实。
+                观察与建议可编辑并写回服务端；推断只读 —— 允许手改推断
+                等于把人的猜测伪装成模型结论。 */}
+            <div className="rfc-manual">
+              <label className="rfc-manual-field">
+                <span className="rfc-manual-k">你看到的画面（观察）</span>
+                <textarea
+                  className="rfc-manual-input"
+                  value={observationDraft}
+                  placeholder="例如：人物剪影居中，背景道路持续向后拉伸"
+                  onChange={(e) => setObservationDraft(e.target.value)}
+                  // 从事件读当前值：onBlur 里的 state 可能还是上一次渲染的快照。
+                  onBlur={(e) => void saveSegmentEdits({ observation: e.currentTarget.value })}
+                  rows={2}
+                />
+              </label>
+              <label className="rfc-manual-field">
+                <span className="rfc-manual-k">建议怎么用（建议）</span>
+                <textarea
+                  className="rfc-manual-input"
+                  value={suggestionDraft}
+                  placeholder="例如：可借鉴居中构图，但不要直接使用这画面"
+                  onChange={(e) => setSuggestionDraft(e.target.value)}
+                  onBlur={(e) => void saveSegmentEdits({ suggestion: e.currentTarget.value })}
+                  rows={2}
+                />
+              </label>
+              {current.inference && (
+                <div className="rfc-manual-field">
+                  <span className="rfc-manual-k">
+                    模型推断 <i className="rfc-manual-tag">只读</i>
+                  </span>
+                  <p className="rfc-manual-infer">{current.inference}</p>
+                </div>
+              )}
+            </div>
+
+            {/* 起止时间可调：动作可能只有半秒，也可能持续十秒 ——
+                固定 3 秒只是快捷方式，不是完整的人工切片。 */}
+            <div className="rfc-range-edit">
+              <span className="rfc-manual-k">片段范围</span>
+              <label>
+                起点
+                <input
+                  type="number" step="0.1" min="0"
+                  value={startDraft}
+                  onChange={(e) => setStartDraft(e.target.value)}
+                  onBlur={(e) => void saveSegmentEdits({ startSec: Number(e.currentTarget.value) })}
+                />
+              </label>
+              <label>
+                终点
+                <input
+                  type="number" step="0.1" min="0"
+                  value={endDraft}
+                  onChange={(e) => setEndDraft(e.target.value)}
+                  onBlur={(e) => void saveSegmentEdits({ endSec: Number(e.currentTarget.value) })}
+                />
+              </label>
+              <button
+                type="button"
+                className="rfc-manual-del"
+                onClick={() => void removeSegment(current.id)}
+                title="删除这个片段（不影响视频本身）"
+              >删除片段</button>
+            </div>
+
             {current.tags.length > 0 && (
               <div className="rfc-tags">
                 {current.tags.map((t) => (
