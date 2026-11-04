@@ -99,9 +99,15 @@ public class WorkflowProjectController {
         String intent = request == null ? null : request.intent();
         var references = request == null ? null : request.references();
         var outcome = projectRender.createThenRender(projectId, intent, references);
-        return new CreateResponse(outcome.reply(), outcome.agentMs(), outcome.artifactPath(),
-                outcome.version(), outcome.render().durationInFrames(),
-                outcome.render().width(), outcome.render().height(), outcome.render().fps(),
+        /* 未渲染时没有 render 结果，尺寸/帧数一律给 0，而不是编一个默认规格 ——
+           前端看 state 就知道该显示「等待补充信息」还是播放器。 */
+        var render = outcome.render();
+        return new CreateResponse(outcome.state(), outcome.reply(), outcome.agentMs(),
+                outcome.artifactPath(), outcome.version(),
+                render == null ? 0 : render.durationInFrames(),
+                render == null ? 0 : render.width(),
+                render == null ? 0 : render.height(),
+                render == null ? 0 : render.fps(),
                 outcome.resources().stream()
                         .map(r -> new UsedResource(r.kind(), r.id(), r.label(), r.usage(),
                                 r.path(), r.startMs(), r.endMs()))
@@ -138,17 +144,19 @@ public class WorkflowProjectController {
     /**
      * 创作结果。
      *
+     * @param state            {@code rendered} 有新片；{@code awaiting_info} agent 只提问未改工程
      * @param reply            agent 说明
      * @param agentMs          agent 耗时
-     * @param artifactPath     产物路径
-     * @param version          版本号
-     * @param durationInFrames 时长帧数
-     * @param width            宽
-     * @param height           高
-     * @param fps              帧率
+     * @param artifactPath     产物路径；未渲染时为 null
+     * @param version          版本号；未渲染时为 null
+     * @param durationInFrames 时长帧数；未渲染时为 0
+     * @param width            宽；未渲染时为 0
+     * @param height           高；未渲染时为 0
+     * @param fps              帧率；未渲染时为 0
+     * @param resources        本轮用到的三库资源
      */
-    public record CreateResponse(String reply, long agentMs, String artifactPath,
-                                 long version, int durationInFrames,
+    public record CreateResponse(String state, String reply, long agentMs, String artifactPath,
+                                 Long version, int durationInFrames,
                                  int width, int height, int fps,
                                  List<UsedResource> resources) {
     }

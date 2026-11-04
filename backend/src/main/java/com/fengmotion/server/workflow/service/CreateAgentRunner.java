@@ -3,6 +3,10 @@ package com.fengmotion.server.workflow.service;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.MessageDigest;
+import java.util.HexFormat;
+import java.util.List;
+import java.util.stream.Stream;
 import java.time.Duration;
 import java.time.Instant;
 
@@ -46,6 +50,14 @@ public class CreateAgentRunner {
     private final ObjectMapper json;
 
     /**
+     * 还没有任何源码时的指纹。
+     *
+     * <p>新建工程在 agent 动手前根本没有 {@code src/}。这时指纹是一个确定的「空」值，
+     * 而不是「读取失败」—— 否则 agent 从零建出整个工程也会被判成「没有改动」。</p>
+     */
+    static final String EMPTY_FINGERPRINT = "files=0;sha256=empty";
+
+    /**
      * agent 单次创作超时。
      *
      * <p>实测 agent 会自己跑 tsc / remotion bundle 自查，单轮 2–15 分钟不等，
@@ -76,19 +88,84 @@ public class CreateAgentRunner {
            只塞进这一轮的 prompt，等于这些信息随会话消失。 */
         writeResourceBrief(projectRoot, resources);
 
+        /* 动手之前先留一份源码指纹，用来判断这一轮到底有没有改到画面。 */
+        String beforeHash = sourceFingerprint(projectRoot);
+
         String instruction = buildInstruction(intent, resources);
         Instant startedAt = Instant.now();
         String reply = ask(projectRoot, instruction);
         long elapsedMs = Duration.between(startedAt, Instant.now()).toMillis();
 
         /* 判断 agent 到底动没动工程：没改动就如实说，不要假装完成。
-           用户点了一次「让 agent 改」，结果什么都没变，必须能看出来。 */
+           用户点了一次「让 agent 改」，结果什么都没变，必须能看出来。
+
+           注意：不能只看 src/index.tsx 和 film.config.json 是否存在 ——
+           对已有工程，这两个文件本来就在，agent 什么都不做也会「存在」，
+           于是旧工程被重渲一遍，用户却以为改好了。所以比内容指纹。 */
         boolean hasEntry = Files.isRegularFile(projectRoot.resolve("src").resolve("index.tsx"));
         boolean hasConfig = Files.isRegularFile(projectRoot.resolve(ProjectFilmConfig.FILE_NAME));
+        String afterHash = sourceFingerprint(projectRoot);
+        boolean changed = didChange(beforeHash, afterHash);
 
-        log.info("创作 agent 完成：project={} 耗时={}ms entry={} config={}",
-                projectRoot.getFileName(), elapsedMs, hasEntry, hasConfig);
-        return new AgentOutcome(reply, elapsedMs, hasEntry, hasConfig);
+        log.info("创作 agent 完成：project={} 耗时={}ms entry={} config={} changed={}",
+                projectRoot.getFileName(), elapsedMs, hasEntry, hasConfig, changed);
+        return new AgentOutcome(reply, elapsedMs, hasEntry, hasConfig, changed, beforeHash, afterHash);
+    }
+
+    /**
+     * 这一轮是否真的改到了工程。
+     *
+     * <p>判据是内容指纹变化，而不是「文件存在」。对已有工程，
+     * {@code src/index.tsx} 与 {@code film.config.json} 本来就存在，
+     * 用存在性判断会把「agent 只提问」记成「已完成」。</p>
+     *
+     * <p>指纹读取失败（null / error）时返回 false：宁可让用户多点一次，
+     * 也不能把没改的东西报成改好了。</p>
+     *
+     * @param before 动手前指纹
+     * @param after  动手后指纹
+     * @return 内容真的变了为 true
+     */
+    static boolean didChange(String before, String after) {
+        if (before == null || after == null) return false;
+        if (before.startsWith("error:") || after.startsWith("error:")) return false;
+        return !before.equals(after);
+    }
+
+    /**
+     * 工程源码的内容指纹。
+     *
+     * <p>只取源码与配置文件，不含 {@code renders/}、{@code node_modules/}、
+     * {@code public/}（后者放的是素材副本，agent 只是复制过去，不代表改了画面）。
+     * 用内容而不是修改时间：agent 重写一遍相同内容时 mtime 会变，但画面没变。</p>
+     *
+     * @param projectRoot 项目根
+     * @return 形如 "files=N;sha256=..." 的指纹；读不到时返回 "error:x"
+     */
+    // 包可见：单测要直接对比同一工程改动前后的指纹
+    static String sourceFingerprint(Path projectRoot) {
+        Path src = projectRoot.resolve("src");
+        /* src 还不存在是正常状态：新建工程时 agent 才创建源码。
+           这不是错误 —— 当成错误会让「从零建出的工程」被判成「没有改动」。 */
+        if (!Files.isDirectory(src)) {
+            return EMPTY_FINGERPRINT;
+        }
+        try (Stream<Path> walk = Files.walk(src)) {
+            List<Path> files = walk.filter(Files::isRegularFile).sorted().toList();
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            for (Path file : files) {
+                digest.update(projectRoot.relativize(file).toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                digest.update(Files.readAllBytes(file));
+            }
+            Path config = projectRoot.resolve(ProjectFilmConfig.FILE_NAME);
+            if (Files.isRegularFile(config)) {
+                digest.update(Files.readAllBytes(config));
+            }
+            return "files=" + files.size() + ";sha256=" + HexFormat.of().formatHex(digest.digest());
+        } catch (Exception ex) {
+            log.warn("计算源码指纹失败：{}", projectRoot, ex);
+            return "error:" + ex.getClass().getSimpleName();
+        }
     }
 
     /**
@@ -210,7 +287,19 @@ public class CreateAgentRunner {
      * @param hasEntry     是否产出 src/index.tsx
      * @param hasConfig    是否产出 film.config.json
      */
-    public record AgentOutcome(String reply, long elapsedMs, boolean hasEntry, boolean hasConfig) {
+    /**
+     * 一轮创作的结果。
+     *
+     * @param reply      agent 的说明
+     * @param elapsedMs  耗时
+     * @param hasEntry   入口文件是否存在
+     * @param hasConfig  工程配置是否存在
+     * @param changed    源码内容是否真的变了（false = agent 只说了话没动手）
+     * @param beforeHash 动手前的源码指纹
+     * @param afterHash  动手后的源码指纹
+     */
+    public record AgentOutcome(String reply, long elapsedMs, boolean hasEntry, boolean hasConfig,
+                               boolean changed, String beforeHash, String afterHash) {
     }
 
     /** 什么都不做的监听器：这一轮不需要流式回调。 */

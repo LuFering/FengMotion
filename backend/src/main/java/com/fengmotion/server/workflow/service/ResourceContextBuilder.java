@@ -1,5 +1,7 @@
 package com.fengmotion.server.workflow.service;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -8,9 +10,11 @@ import org.springframework.stereotype.Component;
 
 import com.fengmotion.server.asset.domain.Asset;
 import com.fengmotion.server.asset.service.AssetService;
+import com.fengmotion.server.asset.service.AssetStorage;
 import com.fengmotion.server.common.ApiException;
 import com.fengmotion.server.fx.domain.FxTechnique;
 import com.fengmotion.server.fx.service.FxTechniqueService;
+import com.fengmotion.server.reference.domain.ReferenceSegment;
 import com.fengmotion.server.reference.domain.ReferenceVideo;
 import com.fengmotion.server.reference.service.ReferenceVideoService;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -45,6 +49,7 @@ public class ResourceContextBuilder {
     private final AssetService assets;
     private final FxTechniqueService techniques;
     private final ReferenceVideoService references;
+    private final AssetStorage storage;
 
     /**
      * 由请求体里的 references 组装人类可读 + 机器可读的资源上下文。
@@ -68,13 +73,16 @@ public class ResourceContextBuilder {
                     Asset asset = assets.require(id);
                     String purpose = ref.path("purpose").asText("unspecified");
                     String note = ref.path("note").asText("");
-                    lines.add(describeAsset(asset, purpose, note));
+                    /* 库里的 fileUrl 是相对路径，前端拿到的却是 /api/assets/{id}/content。
+                       直接写进上下文 agent 读不到 —— 必须换成 agent 能打开的绝对路径。 */
+                    Path file = absoluteAssetPath(asset);
+                    lines.add(describeAsset(asset, file, purpose, note));
                     resolved.add(new ResolvedResource("asset", id, asset.name(), purpose,
-                            asset.fileUrl(), null, null));
+                            file.toString(), null, null));
                 }
                 case "reference" -> {
                     String segmentId = required(ref, "segmentId", kind);
-                    var segment = references.requireSegment(segmentId);
+                    ReferenceSegment segment = references.requireSegment(segmentId);
                     ReferenceVideo video = references.requireVideo(segment.videoId());
                     String wants = ref.path("wants").asText("");
                     String avoid = ref.path("avoid").asText("");
@@ -83,10 +91,11 @@ public class ResourceContextBuilder {
                        让 agent 知道「这段是这个时间窗」。 */
                     long startMs = ref.hasNonNull("startMs") ? ref.path("startMs").asLong() : segment.startMs();
                     long endMs = ref.hasNonNull("endMs") ? ref.path("endMs").asLong() : segment.endMs();
-                    lines.add(describeReference(video, segment.index(), startMs, endMs, wants, avoid));
+                    Path file = absoluteReferencePath(video);
+                    lines.add(describeReference(video, file, segment, startMs, endMs, wants, avoid));
                     resolved.add(new ResolvedResource("reference", segmentId,
                             video.title() + " · 片段 " + (segment.index() + 1),
-                            "reference", null, startMs, endMs));
+                            "reference", file == null ? null : file.toString(), startMs, endMs));
                 }
                 case "technique" -> {
                     String id = required(ref, "techniqueId", kind);
@@ -127,14 +136,63 @@ public class ResourceContextBuilder {
     }
 
     /**
+     * 把素材记录解析成 agent 可打开的绝对路径。
+     *
+     * <p><strong>为什么必须在这里做</strong>：库里存的是相对存储根的路径，
+     * API 返回给前端的是 {@code /api/assets/{id}/content} —— 两种形式 agent 都拿不到文件。
+     * agent 的工作目录是项目目录，只有绝对路径它才读得到。</p>
+     *
+     * @param asset 素材
+     * @return 绝对路径
+     * @throws ApiException 文件已丢失时
+     */
+    private Path absoluteAssetPath(Asset asset) {
+        try {
+            Path file = storage.resolve(asset.fileUrl());
+            if (!Files.isRegularFile(file)) {
+                throw new ApiException(HttpStatus.NOT_FOUND, "asset_file_missing",
+                        "素材「" + asset.name() + "」的文件已不在库中，无法交给 agent 使用");
+            }
+            return file;
+        } catch (IllegalArgumentException ex) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "asset_file_missing",
+                    "素材「" + asset.name() + "」的存储路径无效：" + ex.getMessage());
+        }
+    }
+
+    /**
+     * 把参考片解析成 agent 可打开的绝对视频路径。
+     *
+     * <p>没有关联素材（或素材文件已丢）的参考片只能给出口头描述：
+     * 这时<strong>不能声称「可以去看这段视频」</strong>，否则 agent 会去找一个不存在的文件。</p>
+     *
+     * @param video 参考片
+     * @return 绝对路径；本机没有文件时为 null
+     */
+    private Path absoluteReferencePath(ReferenceVideo video) {
+        if (!video.playable()) {
+            return null;
+        }
+        try {
+            Asset asset = assets.require(video.assetId());
+            Path file = storage.resolve(asset.fileUrl());
+            return Files.isRegularFile(file) ? file : null;
+        } catch (RuntimeException ex) {
+            log.warn("参考片 {} 关联素材不可用：{}", video.id(), ex.getMessage());
+            return null;
+        }
+    }
+
+    /**
      * 描述一份素材。
      *
      * @param asset   素材
+     * @param file    绝对文件路径
      * @param purpose 用途
      * @param note    用户补充说明
      * @return 一行描述
      */
-    private String describeAsset(Asset asset, String purpose, String note) {
+    private String describeAsset(Asset asset, Path file, String purpose, String note) {
         String use = switch (purpose) {
             case "visual" -> "用作画面素材（应当出现在成片里）";
             case "reference" -> "仅参考其风格/构图，不要直接放进成片";
@@ -144,8 +202,7 @@ public class ResourceContextBuilder {
         };
         StringBuilder sb = new StringBuilder();
         sb.append("- 素材「").append(asset.name()).append("」：").append(use).append('\n');
-        sb.append("  文件：").append(asset.fileUrl())
-          .append("（").append(asset.mimeType()).append("）\n");
+        sb.append("  文件路径：").append(file).append("（").append(asset.mimeType()).append("）\n");
         if (!note.isBlank()) sb.append("  用户说明：").append(note).append('\n');
         return sb.toString().stripTrailing();
     }
@@ -153,25 +210,50 @@ public class ResourceContextBuilder {
     /**
      * 描述一段参考片。
      *
+     * <p>把「看哪里」「看哪一段」「要借鉴什么」「别人的观察」四件事一次说清：
+     * 只说「参考片第 2 段」时，agent 既不知道文件在哪，也不知道这段里有什么，
+     * 最后大概率靠猜 —— 猜出来的不是给人看的工程。</p>
+     *
      * @param video   参考片
-     * @param index   片段序号（0 起）
+     * @param file    绝对文件路径；本机无文件时为 null
+     * @param segment 片段记录（带人工观察与推断）
      * @param startMs 起始毫秒
      * @param endMs   结束毫秒
      * @param wants   想借鉴什么
      * @param avoid   要避开什么
-     * @return 一行描述
+     * @return 一段描述
      */
-    private String describeReference(ReferenceVideo video, int index, long startMs, long endMs,
-                                     String wants, String avoid) {
+    private String describeReference(ReferenceVideo video, Path file, ReferenceSegment segment,
+                                     long startMs, long endMs, String wants, String avoid) {
         StringBuilder sb = new StringBuilder();
-        sb.append("- 参考片「").append(video.title()).append("」第 ").append(index + 1)
+        sb.append("- 参考片「").append(video.title()).append("」第 ").append(segment.index() + 1)
           .append(" 段（").append(seconds(startMs)).append(" – ").append(seconds(endMs)).append("）：")
           .append("借鉴这一段的手法，不要直接使用它的画面\n");
+        if (file != null) {
+            sb.append("  视频文件：").append(file).append('\n');
+            sb.append("  要看的区间：").append(seconds(startMs)).append(" 到 ").append(seconds(endMs))
+              .append("（只观察这一段；需要时可抽帧查看，但成片里不得出现该文件的任何画面）\n");
+        } else {
+            sb.append("  本机没有这条参考片的视频文件，无法直接观看；")
+              .append("以下是已有的人工观察，请据此理解这一段，不要假装看过画面\n");
+        }
         if (!wants.isBlank()) sb.append("  想借鉴：").append(wants).append('\n');
         if (!avoid.isBlank()) sb.append("  要避开：").append(avoid).append('\n');
-        if (video.source() != null && !video.source().isBlank()) {
-            sb.append("  原文件：").append(video.source())
-              .append("（需要时可自行抽帧观察，但成片不得使用该文件的画面）\n");
+
+        /* 人工观察与模型推断分开放：合并成一句，agent 会把推断当事实写进工程。
+           契约（library.md §4.2）要求两者分开呈现，这里对 agent 同样适用。 */
+        String observation = segment.observation();
+        if (observation != null && !observation.isBlank()) {
+            sb.append("  人工观察（已确认看到的内容）：").append(truncate(observation, 400)).append('\n');
+        }
+        String inference = segment.inference();
+        if (inference != null && !inference.isBlank()) {
+            sb.append("  模型推断（未经确认，只能作参考，不要当事实照搬）：")
+              .append(truncate(inference, 300)).append('\n');
+        }
+        String suggestion = segment.suggestion();
+        if (suggestion != null && !suggestion.isBlank()) {
+            sb.append("  既有用法建议：").append(truncate(suggestion, 300)).append('\n');
         }
         return sb.toString().stripTrailing();
     }

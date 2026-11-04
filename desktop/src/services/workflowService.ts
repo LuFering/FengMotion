@@ -630,6 +630,17 @@ export function startDemoRun(
                 || String(wf.nodes.find((n) => n.type === 'prompt')?.params.text ?? '')
                 || undefined,
             )
+            /* agent 只提问、没动工程：这一轮没有产物。
+               节点不能标「已完成」，否则用户以为片子做出来了；
+               也不该判「失败」—— 它在正常地等用户补充信息，所以标为等待。 */
+            if (rendered.state === 'awaiting_info' || !rendered.artifactPath) {
+              await wait(200)
+              emit('error', 'failed',
+                `${label}：Agent 需要你补充信息，本轮没有修改工程，也没有渲染新片。它的说明：${rendered.reply.slice(0, 300)}`)
+              status = 'failed'
+              for (const rest of order.slice(order.indexOf(node) + 1)) setStatus(rest.id, 'skipped')
+              break
+            }
             createdArtifact = rendered
             const artifact: WfArtifact = {
               id: uid('art'),

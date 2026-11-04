@@ -152,8 +152,18 @@ public class ProjectRenderService {
                     "创作 agent 没有给出可渲染的工程（" + missing + "）。它的说明：" + agentResult.reply());
         }
 
+        /* agent 只说话不动手（通常是信息不够，反过来向用户提问）时，绝不能渲染。
+           已有工程本来就能渲，渲出来的是上一版画面 —— 用户看到「渲染成功 + 新版本号」，
+           会以为改动已经生效。这里如实返回「等你补充信息」，版本链不动。 */
+        if (!agentResult.changed()) {
+            log.info("创作 agent 未修改工程：project={} reply={}",
+                    root.getFileName(), abbreviate(agentResult.reply()));
+            return CreateOutcome.awaitingInfo(agentResult.reply(), agentResult.elapsedMs(),
+                    resources.resolved());
+        }
+
         RenderOutcome rendered = render(projectId, intent);
-        return new CreateOutcome(agentResult.reply(), agentResult.elapsedMs(),
+        return new CreateOutcome(CreateOutcome.RENDERED, agentResult.reply(), agentResult.elapsedMs(),
                 rendered.artifactPath(), rendered.version(), rendered.result(),
                 resources.resolved());
     }
@@ -161,15 +171,41 @@ public class ProjectRenderService {
     /**
      * agent 改工程 + 渲染的结果。
      *
+     * @param state       结果状态：{@code rendered} 有新片；{@code awaiting_info} agent 在等用户补充信息
      * @param reply       agent 的说明
      * @param agentMs     agent 耗时
-     * @param artifactPath 产物路径
-     * @param version     版本号
-     * @param render      渲染规格
+     * @param artifactPath 产物路径（未渲染时为 null）
+     * @param version     版本号（未渲染时为 null）
+     * @param render      渲染规格（未渲染时为 null）
+     * @param resources   本轮用到的三库资源
      */
-    public record CreateOutcome(String reply, long agentMs, String artifactPath,
-                                long version, ProjectFilmRenderer.Result render,
+    public record CreateOutcome(String state, String reply, long agentMs, String artifactPath,
+                                Long version, ProjectFilmRenderer.Result render,
                                 java.util.List<ResourceContextBuilder.ResolvedResource> resources) {
+
+        /** 已出新片。 */
+        public static final String RENDERED = "rendered";
+
+        /** agent 没有改动工程，通常在等用户补充信息。 */
+        public static final String AWAITING_INFO = "awaiting_info";
+
+        /** 本轮没有渲染：版本与产物都为空，前端据此显示「等待补充」而不是播放器。 */
+        public static CreateOutcome awaitingInfo(String reply, long agentMs,
+                java.util.List<ResourceContextBuilder.ResolvedResource> resources) {
+            return new CreateOutcome(AWAITING_INFO, reply, agentMs, null, null, null, resources);
+        }
+    }
+
+    /**
+     * 截断日志里的长文本。
+     *
+     * @param text 原文
+     * @return 不超过 200 字的片段
+     */
+    private String abbreviate(String text) {
+        if (text == null) return "";
+        String flat = text.replace('\n', ' ').strip();
+        return flat.length() <= 200 ? flat : flat.substring(0, 200) + "…";
     }
 
     /**

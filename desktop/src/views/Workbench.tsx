@@ -8,6 +8,7 @@ import {
   Square, X, Maximize2, Minimize2,
 } from 'lucide-react'
 import { studioHttpApi } from '@/services/api'
+import { ResourcePicker } from '@/components/ResourcePicker'
 import { RailProgressPanel } from './RailProgress'
 import { ProjectArtifacts } from './ProjectArtifacts'
 import { useHarnesses, availabilityOf } from '@/shell/useHarnesses'
@@ -517,6 +518,13 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
   /* 这次创作实际解析到的三库资源。
      消息里存了引用不等于 agent 用上了 —— 把解析结果显示出来，
      用户才能核对「我选的素材/参考片/特效有没有真的传下去」。 */
+  /* agent 在等用户补充信息时的原文说明。
+     非空表示这一轮它只提问、没有改工程 —— 界面据此显示等待条，
+     而不是把上一版画面当成「刚改好」播放。 */
+  const [awaitingInfo, setAwaitingInfo] = useState('')
+  /* 「从资源库引用」面板：素材/参考片/特效要在提交前挂到这一轮的意见上。
+     没有这个入口时，用户选不到三库资源，只能靠调接口验证 —— 界面上走不通。 */
+  const [resourcePickerOpen, setResourcePickerOpen] = useState(false)
   const [usedResources, setUsedResources] = useState<NonNullable<import('@/services/api/workflowContext').FilmCreateResult['resources']>>([])
   useEffect(() => {
     let active = true
@@ -1116,6 +1124,20 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
           const result = await studioHttpApi().workflowContext.create(projectId, prompt, libraryRefs)
           setAgentReply(result.reply)
           setUsedResources(result.resources ?? [])
+
+          /* agent 只提问、没有改动工程：没有产物也没有新版本。
+             这时绝不能提示「已渲染出版本 vN」—— 旧工程本来就能渲，
+             渲出来的还是上一版画面，用户会误以为改动生效了。
+             界面上给出「等待补充信息」，并把 agent 的问题留在对话里。 */
+          if (result.state === 'awaiting_info') {
+            setAwaitingInfo(result.reply)
+            rereadRuns()
+            setRealModifyError('')
+            setNotice('Agent 需要你补充信息，尚未改动工程，因此没有渲染新片。')
+            return true
+          }
+
+          setAwaitingInfo('')
           setNotice(`Agent 已改完并渲染出版本 v${result.version}。`)
           /* 刷新版本与画面：让用户立刻看到新一版，并能与上一版对比。 */
           void sceneVersions.refresh(true)
@@ -1552,6 +1574,16 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
                   <button type="button" onClick={() => setUsedResources([])} aria-label="关闭"><X className="ml-1 inline size-3" /></button>
                 </div>
               )}
+              {awaitingInfo && (
+                /* agent 只提问、没改工程：明确告诉用户「这一轮没有新片」，
+                   并说明补充方式。不显示版本号、不提示渲染成功。 */
+                <div className="fw-mon-notice fw-mon-awaiting" role="alert">
+                  <strong>等待你补充信息（未修改工程，未渲染新片）：</strong>
+                  {awaitingInfo.slice(0, 400)}
+                  <span className="fwm-muted">　补充后在下面对话里继续发一次即可。</span>
+                  <button type="button" onClick={() => setAwaitingInfo('')} aria-label="关闭"><X className="ml-1 inline size-3" /></button>
+                </div>
+              )}
               {agentReply && (
                 <div className="fw-mon-notice" role="status">
                   <strong>Agent：</strong>{agentReply.slice(0, 220)}
@@ -1628,7 +1660,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
                       onNavigate={onNavigate}
                       references={references} onRemoveReference={removeReference}
                       onLocateReference={locateReference} onToggleReferenceRole={toggleReferenceRole}
-                      onClearReferences={clearReferences} onScopeChange={(next) => { setScope(next); setTargetReference(next === 'project' ? currentProjectRef : defaultTarget) }}
+                      onClearReferences={clearReferences} onOpenResourcePicker={() => setResourcePickerOpen(true)} onScopeChange={(next) => { setScope(next); setTargetReference(next === 'project' ? currentProjectRef : defaultTarget) }}
                       onResumeRequest={(request) => {
                         setReferences(structuredClone(request.references ?? [])); setConstraints(structuredClone(request.constraints)); setScope(request.scope); chat.setDraft(request.prompt); focusFeedback()
                       }} onOpenReview={openReview} keepNotes={review.keepNotes} reviewSaved={review.saved} />
@@ -1646,6 +1678,17 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
         )}
         </>}
       </div>
+
+      {/* 从资源库引用：素材/参考片/特效在这里挂到本轮意见上。
+          放在工作台根节点，右栏收起时也能打开。 */}
+      <ResourcePicker
+        open={resourcePickerOpen}
+        onOpenChange={setResourcePickerOpen}
+        onAdd={(ref) => {
+          setReferences((old) => old.some((r) => r.id === ref.id) ? old : [ref, ...old])
+          setNotice(`已引用「${ref.label}」，写一句要求后提交。`)
+        }}
+      />
 
       {/* ═══ 基岛：状态栏（独立胶囊，不铺整条底板）═══════════════ */}
       <div className="wb-statusbar">
@@ -2275,7 +2318,7 @@ function RightPanel({ projectId, target, preview, chat, sideTab, setSideTab, foc
   constraints, setConstraints, activeTask, cancelTask, records, onSubmit, onQuickAction,
   pending, onStartQueued, onCancelQueued,
   onNavigate, references, onRemoveReference,
-  onLocateReference, onToggleReferenceRole, onClearReferences, onScopeChange,
+  onLocateReference, onToggleReferenceRole, onClearReferences, onScopeChange, onOpenResourcePicker,
   onOpenReview, keepNotes, reviewSaved, onResumeRequest,
   realModifyBusy, realModifyError, onClearRealModifyError, onDemoSubmit, sceneVersion, onOpenVersions }:
   { projectId: string; target: AgentReference; preview: StageVisual | null; chat: ChatState; sideTab: SideTab; setSideTab: (v: SideTab) => void; focusChatKey: number
@@ -2294,6 +2337,7 @@ function RightPanel({ projectId, target, preview, chat, sideTab, setSideTab, foc
     references: AgentReference[]; onRemoveReference: (id: string) => void
     onLocateReference: (ref: AgentReference) => void; onToggleReferenceRole: (id: string) => void
     onClearReferences: () => void; onScopeChange: (next: 'project'|'scene'|'selection') => void
+    onOpenResourcePicker: () => void
     onOpenReview: (tab: ReviewDeskTab) => void; keepNotes: string; reviewSaved: boolean; onResumeRequest: (request: TaskRequest) => void
     /** 真实修改正在提交：按钮要禁用并改文案，否则用户会连点发多次 */
     realModifyBusy: boolean
@@ -2383,7 +2427,8 @@ function RightPanel({ projectId, target, preview, chat, sideTab, setSideTab, foc
                               onRemoveReference={onRemoveReference}
                               onLocateReference={onLocateReference}
                               onToggleReferenceRole={onToggleReferenceRole}
-                              onClearReferences={onClearReferences} />
+                              onClearReferences={onClearReferences}
+                              onOpenResourcePicker={onOpenResourcePicker} />
 
               {messages.length === 0 && !preview && <div className="wb-feedback-starters"><span>从一个细节开始</span>{[['画面风格', '关于画面风格，我希望：'], ['必须保留', '请保留以下内容，不要修改：'], ['参考用法', '关于参考资料，请借鉴：']].map(([label, draft]) => <button type="button" key={label} onClick={() => { chat.setDraft(chat.draft.trim() ? `${chat.draft}\n${draft}` : draft); inputRef.current?.focus() }}>{label}<Plus size={12}/></button>)}</div>}
               {messages.map((m) => (
@@ -2601,12 +2646,17 @@ function RightPanel({ projectId, target, preview, chat, sideTab, setSideTab, foc
    场景是编辑对象，AI 只是它的一个动作。这里把「改哪一场、这一场是什么、
    当前参数/约束/引用/执行状态」放在一处；默认右栏是对话。 */
 function ReferenceChips({ references, defaultLabel, onRemoveReference, onLocateReference,
-  onToggleReferenceRole, onClearReferences }:
+  onToggleReferenceRole, onClearReferences, onOpenResourcePicker }:
   { references: AgentReference[]; defaultLabel: string
     onRemoveReference: (id: string) => void; onLocateReference: (ref: AgentReference) => void
-    onToggleReferenceRole: (id: string) => void; onClearReferences: () => void }) {
+    onToggleReferenceRole: (id: string) => void; onClearReferences: () => void
+    onOpenResourcePicker: () => void }) {
+  /* 三库引用单独标出来：它们决定 agent 会去读哪个文件、哪一段，
+     和「当前目标/上下文」这类画面位置引用不是一回事。 */
+  const libraryKinds = new Set(['asset', 'reference', 'technique'])
   return (
     <div className="fw-ref-chips">
+      <button className="fw-ref-clear" type="button" onClick={onOpenResourcePicker} title="从素材库 / 参考片库 / 特效库选择">+ 引用资源</button>
       {references.length === 0
         ? <span className="fw-ref-empty">{defaultLabel}</span>
         : references.map((ref) => (
@@ -2614,7 +2664,12 @@ function ReferenceChips({ references, defaultLabel, onRemoveReference, onLocateR
             <button className="fw-ref-role" type="button" title={ref.kind === 'preview' && !ref.source.workflowId && ref.source.origin !== 'editor' ? '参考资料仅作为上下文' : '切换目标/上下文'} disabled={ref.kind === 'preview' && !ref.source.workflowId && ref.source.origin !== 'editor'}
                     onClick={() => onToggleReferenceRole(ref.id)}>{ref.role === 'target' ? '目标' : '上下文'}</button>
             <button className="fw-ref-label" type="button" title="定位到引用"
-                    onClick={() => onLocateReference(ref)}>{ref.label}</button>
+                    onClick={() => {
+                      /* 三库资源没有「画面位置」可定位：点了只给一句说明，
+                         不要假装跳转成功。 */
+                      if (libraryKinds.has(ref.kind)) return
+                      onLocateReference(ref)
+                    }}>{ref.label}</button>
             <button type="button" title="移除引用" onClick={() => onRemoveReference(ref.id)}>×</button>
           </span>
         ))}

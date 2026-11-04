@@ -61,12 +61,22 @@ export interface FilmProjectState {
 
 /** agent 创作 + 渲染结果。 */
 export interface FilmCreateResult {
+  /**
+   * 结果状态。
+   *
+   * <p>`rendered` = 工程被改动并渲出了新片；
+   * `awaiting_info` = agent 只提问、没有改动工程，此时没有产物也没有新版本 ——
+   * 界面必须显示「等待补充信息」，不能把旧工程重渲出来的片子当成修改成功。</p>
+   */
+  state: 'rendered' | 'awaiting_info'
   /** agent 对这次改动的说明 */
   reply: string
   /** agent 耗时 */
   agentMs: number
-  artifactPath: string
-  version: number
+  /** 未渲染时为 null */
+  artifactPath: string | null
+  /** 未渲染时为 null */
+  version: number | null
   durationInFrames: number
   width: number
   height: number
