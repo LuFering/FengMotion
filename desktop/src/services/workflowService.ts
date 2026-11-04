@@ -19,7 +19,7 @@
  */
 import type { AgentTask, ChangeSet, TaskEvent, TaskStatus } from './studioApi'
 import { studioHttpApi } from './api'
-import type { WorkflowContextState } from './api/workflowContext'
+import type { FilmCreateResult, WorkflowContextState } from './api/workflowContext'
 import {
   ARTIFACT_KIND_MAP,
   GATE_DEFS,
@@ -57,7 +57,14 @@ export interface WfArtifact {
   filename: string
   summary: string
   content: string
-  demo: true
+  /**
+   * 这个产物是真实文件还是界面快照。
+   *
+   * <p>以前这里写死 `true`，等于类型层面就规定了「所有产物都是假的」。
+   * 「制作与渲染」节点现在会真的调 agent 改工程并渲染出片，
+   * 那个产物必须能标记成 false，界面才不会把真视频说成演示快照。</p>
+   */
+  demo: boolean
 }
 
 export type WfNodeStatus = 'pending' | 'running' | 'completed' | 'failed' | 'skipped'
@@ -361,7 +368,7 @@ function incoming(wf: WorkflowDef, nodeId: string, port: string): WfEdgeInstance
 const json = (v: unknown) => JSON.stringify(v, null, 2)
 
 function pfArtifact(node: WfNodeInstance): WfArtifact {
-  const base = { id: uid('art'), nodeId: node.id, nodeType: node.type, demo: true as const }
+  const base = { id: uid('art'), nodeId: node.id, nodeType: node.type, demo: true }
   const p = node.params
   switch (node.type) {
     case 'prompt': {
@@ -496,6 +503,8 @@ export function startDemoRun(
     let status: TaskStatus = 'completed'
     /* 真实建立起来的上下文；null 表示没建（无项目或失败） */
     let contextInfo: WorkflowContextState | null = null
+    /* 真实渲染出来的产物；null 表示这一轮没有真的出片 */
+    let createdArtifact: FilmCreateResult | null = null
     if (wf.path === 'structured') {
       emit('accepted', 'queued', `演示评估已接收（${wf.name} · 修订 ${wf.revision}）。Structured 运行只做状态评估：清点产物与 Gate，不生成产物、不代替用户确认。`)
       const stageRows: Array<Record<string, unknown>> = []
@@ -607,7 +616,56 @@ export function startDemoRun(
           break
         }
         setStatus(node.id, 'running')
-        emit('progress', 'running', `${label}：开始处理。`)
+
+        /* 「制作与渲染」是这条路径上唯一能真的出片的节点：
+           它对应 agent 改工程 + 后端渲染。其余节点（提示词、审片）
+           仍是界面快照 —— 所以每个节点的日志都要分别讲清真假，
+           不能笼统标成「已完成」让人以为整条链都真的跑了。 */
+        if (node.type === 'create' && callbacks.projectId) {
+          emit('progress', 'running', `${label}：Agent 正在读需求并修改工程…`)
+          try {
+            const rendered = await studioHttpApi().workflowContext.create(
+              callbacks.projectId,
+              callbacks.prompt
+                || String(wf.nodes.find((n) => n.type === 'prompt')?.params.text ?? '')
+                || undefined,
+            )
+            createdArtifact = rendered
+            const artifact: WfArtifact = {
+              id: uid('art'),
+              nodeId: node.id,
+              nodeType: 'create',
+              kind: 'render',
+              title: '制作与渲染 · 真实产物',
+              filename: rendered.artifactPath.split('/').pop() ?? 'film.mp4',
+              summary: `真实渲染：${rendered.width}×${rendered.height} · ${rendered.durationInFrames} 帧 · 版本 v${rendered.version}`,
+              content: json({
+                real: true,
+                artifactPath: rendered.artifactPath,
+                version: rendered.version,
+                agentReply: rendered.reply,
+                agentMs: rendered.agentMs,
+              }),
+              demo: false,
+            }
+            artifacts.push(artifact)
+            setStatus(node.id, 'completed')
+            emit('build', 'building', `${label}：${artifact.summary}`)
+            emit('progress', 'running', `Agent 说明：${rendered.reply.slice(0, 200)}`)
+          } catch (error) {
+            /* 真实环节失败就整条运行失败：不能因为后面还有演示节点
+               就把失败咽下去 —— 用户会以为片子做出来了。 */
+            const message = error instanceof Error ? error.message : String(error)
+            setStatus(node.id, 'failed')
+            emit('error', 'failed', `${label}失败：${message.slice(0, 300)}`)
+            status = 'failed'
+            for (const rest of order.slice(order.indexOf(node) + 1)) setStatus(rest.id, 'skipped')
+            break
+          }
+          continue
+        }
+
+        emit('progress', 'running', `${label}：开始处理（界面快照，不产出文件）。`)
         await wait(380)
         if (cancelled) {
           setStatus(node.id, 'skipped')
@@ -619,9 +677,11 @@ export function startDemoRun(
         setStatus(node.id, 'completed')
         emit('build', 'building', `${label}：${artifact.summary}`)
       }
-      if (status === 'completed') emit('complete', 'completed', contextInfo
-        ? `运行结束：已建立 workflow-v5 创作上下文（${contextInfo.files.length} 个文件）。后续节点产物为界面演示快照，**尚未真实渲染，没有生成视频**；真正出片需要按 lookdev 与测试帧推进。`
-        : '运行结束：产物均为工作稿/引用/请求记录快照；未接入真实渲染，没有视频生成。')
+      if (status === 'completed') emit('complete', 'completed', createdArtifact
+        ? `运行结束：已产出真实视频（版本 v${createdArtifact.version}，${createdArtifact.width}×${createdArtifact.height}）。其余节点的产物为界面快照，不代表已有对应文件。`
+        : contextInfo
+          ? `运行结束：已建立 workflow-v5 创作上下文（${contextInfo.files.length} 个文件），但**没有真实渲染**——「制作与渲染」节点未连到项目或未执行。`
+          : '运行结束：产物均为工作稿/引用/请求记录快照；未接入真实渲染，没有视频生成。')
       if (status === 'cancelled') emit('cancelled', 'cancelled', '演示运行已取消；已生成的产物保留在本次运行记录中。')
     }
     task.status = status

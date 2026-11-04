@@ -25,13 +25,27 @@ import { createRequire } from 'node:module'
  * @param from 源目录
  * @param to 目标目录
  */
+/** 复制工程时跳过的目录名。 */
+const SKIP_DIRS = new Set(['node_modules', '.cache', '.remotion', 'renders', '.git'])
+
 export async function cpDir(from, to) {
   await mkdir(to, { recursive: true })
   for (const entry of await readdir(from, { withFileTypes: true })) {
     const src = path.join(from, entry.name)
     const dest = path.join(to, entry.name)
-    if (entry.isDirectory()) await cpDir(src, dest)
-    else await copyFile(src, dest)
+    /* 符号链接要跳过：agent 常为了自查在项目里建
+       node_modules -> 别处的链接，copyfile 对指向目录的链接会报
+       EISDIR，整个渲染就挂了。而且那种链接本来也不该被复制 ——
+       真实依赖由 FENGMOTION_NODE_MODULES 统一提供。 */
+    if (entry.isSymbolicLink()) continue
+    if (entry.isDirectory()) {
+      /* 这些目录不必复制：node_modules 可能是巨大或无效的依赖副本，
+         .cache/.remotion 是上一轮渲染留下的缓存，renders 是产物。 */
+      if (SKIP_DIRS.has(entry.name)) continue
+      await cpDir(src, dest)
+    } else if (entry.isFile()) {
+      await copyFile(src, dest)
+    }
   }
 }
 

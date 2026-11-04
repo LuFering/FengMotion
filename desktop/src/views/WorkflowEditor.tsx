@@ -1245,7 +1245,7 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
                 </button>
               ))}
             </div>
-            {drawerTab === 'history' && <div className="wfe-runhistory">{workflowService.listRuns(workflowId).length === 0 ? <p className="wfe-hint">尚无演示运行记录。</p> : workflowService.listRuns(workflowId).map((run) => <button type="button" key={run.id} data-selected={lastRun?.id === run.id || undefined} onClick={() => { setLastRun(run); setLiveEvents([]); setViewing(null); setDrawerTab('events') }}><b>{new Date(run.startedAt).toLocaleString('zh-CN')}</b><span>{RUN_STATUS_TXT[run.status] ?? run.status} · v{run.revision} · {run.artifacts.length} 项产物 · 演示</span></button>)}</div>}
+            {drawerTab === 'history' && <div className="wfe-runhistory">{workflowService.listRuns(workflowId).length === 0 ? <p className="wfe-hint">尚无演示运行记录。</p> : workflowService.listRuns(workflowId).map((run) => <button type="button" key={run.id} data-selected={lastRun?.id === run.id || undefined} onClick={() => { setLastRun(run); setLiveEvents([]); setViewing(null); setDrawerTab('events') }}><b>{new Date(run.startedAt).toLocaleString('zh-CN')}</b><span>{RUN_STATUS_TXT[run.status] ?? run.status} · v{run.revision} · {run.artifacts.length} 项产物 · {run.artifacts.some((a) => !a.demo) ? '含真实产物' : '演示'}</span></button>)}</div>}
             {drawerTab === 'events' && (
               <ul className="wfe-events">
                 {eventsToShow.length === 0 && <li className="wfe-hint">暂无事件。点击顶部「{isStructured ? '评估状态' : '运行'}」开始。</li>}
@@ -1289,7 +1289,12 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
                       <div key={a.id} className="wfe-artifact">
                         <div className="wfe-artifact-main">
                           <b>{a.title}</b>
-                          <span>{a.summary}</span>
+                          {/* 真实产物与界面快照必须能区分：
+                              以前所有产物都标「演示」，真渲出来的视频混在里面
+                              用户分不清哪个能播。 */}
+                          <span data-real={!a.demo || undefined}>
+                            {a.demo ? '界面快照 · 无对应文件' : '真实产物'} · {a.summary}
+                          </span>
                         </div>
                         <button type="button" className="wfe-btn sm" onClick={() => setViewing(a)}><Eye size={12} /> 查看</button>
                         <button type="button" className="wfe-btn sm" onClick={() => downloadArtifact(a)}><Download size={12} /> 下载</button>
