@@ -104,6 +104,36 @@ CREATE TABLE IF NOT EXISTS project_scenes (
 );
 
 
+-- 场景历史版本：每个提交过的版本各留一行，供版本列表与回退使用。
+--
+-- 为什么不复用 project_scenes：那张表刻意只有一行（当前版本），
+-- 版本号是条件更新的比较依据。把历史塞进去会破坏「单行即当前」这个前提。
+--
+-- 为什么存整份 film 而不存 diff：回退必须能把场景还原成某一版的完整内容。
+-- 存 diff 需要顺序重放，任一环节缺失都会还原出错误结果，而这里数据量很小。
+--
+-- (project_id, version) 是主键：同一版本只可能存在一份快照，
+-- 重复写入是 bug 而不是覆盖。
+-- source 区分「由任务产生」与「由回退产生」，回退记录额外保留 from_version。
+CREATE TABLE IF NOT EXISTS project_scene_versions (
+    project_id TEXT NOT NULL,
+    version INTEGER NOT NULL,
+    film_json TEXT NOT NULL,
+    task_id TEXT,
+    prompt TEXT NOT NULL DEFAULT '',
+    edit_summary TEXT NOT NULL DEFAULT '',
+    artifact_path TEXT,
+    source TEXT NOT NULL DEFAULT 'task',
+    from_version INTEGER,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (project_id) REFERENCES projects(id),
+    PRIMARY KEY (project_id, version)
+);
+
+CREATE INDEX IF NOT EXISTS idx_scene_versions_project_version
+    ON project_scene_versions(project_id, version DESC);
+
+
 -- 任务事件：状态迁移的唯一可观察出口。
 -- seq 在任务内严格递增，客户端据此断线重连时补发（Last-Event-ID）。
 CREATE TABLE IF NOT EXISTS task_events (

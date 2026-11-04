@@ -14,6 +14,7 @@ import com.fengmotion.server.catalog.service.RemotionRenderer;
 import com.fengmotion.server.common.ApiException;
 import com.fengmotion.server.project.domain.Project;
 import com.fengmotion.server.project.domain.ProjectScene;
+import com.fengmotion.server.project.domain.ProjectSceneVersion;
 import com.fengmotion.server.project.store.ProjectRepository;
 import com.fengmotion.server.project.store.ProjectSceneRepository;
 import com.fengmotion.server.task.domain.Task;
@@ -145,8 +146,10 @@ public class ModifyTaskRunner {
 
         // ⑤ 条件提交：渲染成功之后才更新当前场景
         progress.report(90, "渲染完成，正在提交场景版本");
-        Optional<Long> committed = scenes.updateIfVersionMatches(
-                task.projectId(), baseVersion, modified, task.id());
+        Optional<Long> committed = scenes.commitWithSnapshot(
+                task.projectId(), baseVersion, modified, task.id(),
+                task.prompt(), summarizePlan(plan), "renders/" + fileName,
+                ProjectSceneVersion.SOURCE_TASK, null);
         if (committed.isEmpty()) {
             /* 版本已变：说明期间有别的修改提交了。
                本次产物保留（用户可能要），但明确标记未成为当前版本，
@@ -174,6 +177,38 @@ public class ModifyTaskRunner {
      */
     private long currentVersion(String projectId) {
         return scenes.find(projectId).map(ProjectScene::version).orElse(-1L);
+    }
+
+    /**
+     * 把方案压成一行变更摘要，存进历史快照。
+     *
+     * <p>版本列表里只显示「版本 7 / 任务 abc」对用户没有意义 ——
+     * 他要知道的是「这一版把标题改成了什么」。摘要按字段名 + 新值生成，
+     * 长度做了截断，避免用户写一大段字幕时把列表撑开。</p>
+     *
+     * @param plan 修改方案
+     * @return 一行摘要
+     */
+    private String summarizePlan(ModifyPlan plan) {
+        if (plan == null || plan.edits() == null || plan.edits().isEmpty()) {
+            return "";
+        }
+        List<String> parts = new java.util.ArrayList<>();
+        for (ModifyPlan.Edit edit : plan.edits()) {
+            parts.add(edit.field() + " → " + abbreviate(edit.to()));
+        }
+        return String.join("，", parts);
+    }
+
+    /**
+     * 截断过长的值，避免摘要失控。
+     *
+     * @param value 原值
+     * @return 截断后的值
+     */
+    private String abbreviate(String value) {
+        String text = value == null ? "" : value.trim();
+        return text.length() <= 20 ? text : text.substring(0, 20) + "…";
     }
 
     /**

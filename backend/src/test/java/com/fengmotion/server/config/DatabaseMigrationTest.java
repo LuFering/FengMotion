@@ -38,6 +38,51 @@ class DatabaseMigrationTest {
         assertTrue(tables.contains("chat_message_idempotency"));
     }
 
+    /** 旧库没有场景历史表；升级后自动补建，且不伪造历史数据。 */
+    @Test
+    void createsSceneVersionsTableOnOldDatabase() {
+        DriverManagerDataSource dataSource = new DriverManagerDataSource(
+                "jdbc:sqlite:" + tempDir.resolve("scene-versions.db"));
+        JdbcTemplate jdbc = new JdbcTemplate(dataSource);
+        // 模拟只有当前场景表的旧库
+        jdbc.execute("""
+                CREATE TABLE project_scenes (
+                    project_id TEXT PRIMARY KEY,
+                    version INTEGER NOT NULL,
+                    film_json TEXT NOT NULL,
+                    task_id TEXT,
+                    updated_at TEXT NOT NULL
+                )
+                """);
+        jdbc.execute("""
+                CREATE TABLE tasks (
+                    id TEXT PRIMARY KEY,
+                    project_id TEXT NOT NULL,
+                    kind TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    prompt TEXT NOT NULL,
+                    request_json TEXT,
+                    progress INTEGER NOT NULL DEFAULT 0,
+                    message TEXT NOT NULL DEFAULT '',
+                    artifact_path TEXT,
+                    error_code TEXT,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    finished_at TEXT
+                )
+                """);
+
+        DatabaseMigration.migrate(jdbc);
+        DatabaseMigration.migrate(jdbc);
+
+        List<String> tables = jdbc.query("SELECT name FROM sqlite_master WHERE type='table'",
+                (rs, row) -> rs.getString("name"));
+        assertTrue(tables.contains("project_scene_versions"), "旧库要能补出历史表");
+        // 迁移不为已有当前场景编造历史快照：那一版从未被记录过，伪造会误导回退
+        assertEquals(0, jdbc.queryForObject(
+                "SELECT COUNT(*) FROM project_scene_versions", Integer.class));
+    }
+
     /** 早期只有会话表、没有 soft delete 列的旧库，升级后能保存并读回 deleted_at。 */
     @Test
     void addsDeletedAtToOldChatSessionsTable() {

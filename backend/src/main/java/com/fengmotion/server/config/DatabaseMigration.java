@@ -166,6 +166,27 @@ public class DatabaseMigration {
                     FOREIGN KEY (project_id) REFERENCES projects(id)
                 )
                 """);
+        // 场景历史版本表：旧库补建，新库由 schema.sql 建出。
+        // 从旧库升级上来的项目，当前版本还没有对应快照 —— 迁移不伪造历史，
+        // 由读取侧把「当前版本缺快照」当作正常情况处理（第一个快照从下次提交开始）。
+        jdbc.execute("""
+                CREATE TABLE IF NOT EXISTS project_scene_versions (
+                    project_id TEXT NOT NULL,
+                    version INTEGER NOT NULL,
+                    film_json TEXT NOT NULL,
+                    task_id TEXT,
+                    prompt TEXT NOT NULL DEFAULT '',
+                    edit_summary TEXT NOT NULL DEFAULT '',
+                    artifact_path TEXT,
+                    source TEXT NOT NULL DEFAULT 'task',
+                    from_version INTEGER,
+                    created_at TEXT NOT NULL,
+                    FOREIGN KEY (project_id) REFERENCES projects(id),
+                    PRIMARY KEY (project_id, version)
+                )
+                """);
+        jdbc.execute("CREATE INDEX IF NOT EXISTS idx_scene_versions_project_version "
+                + "ON project_scene_versions(project_id, version DESC)");
         // 任务上的场景版本关联：可追溯「这次任务基于哪一版、产出了哪一版」。
         Set<String> taskColumns = new HashSet<>(jdbc.query("PRAGMA table_info(tasks)",
                 (rs, row) -> rs.getString("name")));
