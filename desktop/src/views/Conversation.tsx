@@ -181,7 +181,7 @@ export function Conversation(props: {
   openProject: string | null
   onSelectProject: (id: string) => void
   /** 左栏直建项目（dsh workspace.create 语义：不弹表单，建完就地改名） */
-  onNewProject: () => Promise<{ id: string }>
+  onNewProject: () => Promise<{ id: string; name: string }>
   /** 左栏行内改名（Enter/失焦提交，Esc 放弃） */
   onRenameProject?: (id: string, name: string) => Promise<void>
   onCreateProject: (input: NewProjectInput) => Promise<{ id: string }>
@@ -1075,7 +1075,9 @@ export function Conversation(props: {
     try {
     const p = await props.onNewProject()
     setEditing(p.id)
-    setEditText('未命名项目')
+    /* 回填真实名字而不是写死「未命名项目」：
+       写死以后用户按回车就把它改成同名，与已有目录撞上。 */
+    setEditText(p.name ?? '未命名项目')
     setCollapsedGroups((prev) => {
       const next = new Set(prev)
       next.delete(p.id)

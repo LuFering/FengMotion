@@ -102,9 +102,23 @@ public class ProjectService {
             throw new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "internal_error", "创建工作区目录失败");
         }
 
-        // 目标目录已存在时返回冲突，不覆盖已有文件。
+        /* 目标目录已存在时的处理分两种，不能一律报错：
+         *
+         * 1) 用户显式给了 rootPath：那是他指定的确切位置，占用就是冲突，
+         *    必须报错 —— 悄悄换个目录存等于把项目放到别处。
+         * 2) 没给 rootPath（前端「新建项目」就是这种）：目录名由名称推导，
+         *    同名撞车是正常现象，应该自动避让。
+         *
+         * 原先两种情况都直接 409「项目目录已存在」。前端新建项目固定用
+         * 「未命名项目」当名字，于是第一次之后每次新建都失败；
+         * 更糟的是 init 失败会留下一个只有 AGENTS.md 的目录，
+         * 之后的删除又清不掉（目录非空），用户从此再也建不出项目。 */
+        boolean explicitRoot = request.rootPath() != null;
         try {
-            projectDirectoryService.create(projectPath); // 创建项目目录
+            /* 用新变量接返回值，不要自赋值：`x = f(x)` 里右边的 x 会被当成
+               新声明的局部变量（null），导致后面 NPE。 */
+            Path created = projectDirectoryService.createAvoidingCollision(projectPath, explicitRoot);
+            projectPath = created;
         } catch (FileAlreadyExistsException ex) {
             throw new ApiException(
                     HttpStatus.CONFLICT,

@@ -1,5 +1,6 @@
 package com.fengmotion.server.project.service;
 import java.io.IOException;
+import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -31,6 +32,40 @@ public class ProjectDirectoryService {
         Path created = Files.createDirectory(projectPath);
         writeAgentGuide(created);
         return created;
+    }
+
+    /**
+     * 创建项目目录；同名时按需避让。
+     *
+     * <p><strong>为什么默认目录要避让</strong>：目录名由项目名推导，而「新建项目」
+     * 本来就会重复用同一个默认名。一律报「目录已存在」，用户就再也建不出第二个。
+     * 显式指定 rootPath 时不避让 —— 那是用户点名的位置，悄悄换到别处更糟。</p>
+     *
+     * <p>避让采用「名称-2、名称-3 …」：保留原名便于辨认，又不会盖掉已有目录。</p>
+     *
+     * @param projectPath 期望路径
+     * @param failIfExists true 表示同名即失败（显式路径的情况）
+     * @return 实际创建的目录
+     * @throws IOException 无法创建，或显式路径已存在
+     */
+    public Path createAvoidingCollision(Path projectPath, boolean failIfExists) throws IOException {
+        if (failIfExists || !Files.exists(projectPath)) {
+            return create(projectPath);
+        }
+        String base = projectPath.getFileName().toString();
+        Path parent = projectPath.getParent();
+        /* 上限 1000：同名项目堆到上千个说明有别的毛病，
+           继续试探只会让请求卡在这里。到上限后如实报冲突。 */
+        for (int suffix = 2; suffix <= 1000; suffix++) {
+            Path candidate = parent.resolve(base + "-" + suffix);
+            if (Files.exists(candidate)) continue;
+            try {
+                return create(candidate);
+            } catch (FileAlreadyExistsException raced) {
+                // 并发下被别人抢先建走，继续试下一个后缀
+            }
+        }
+        throw new FileAlreadyExistsException(projectPath.toString(), null, "同名项目目录过多");
     }
 
     /**

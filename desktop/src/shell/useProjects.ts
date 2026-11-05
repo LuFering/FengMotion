@@ -61,8 +61,18 @@ export function useProjects() {
     return result
   }, [])
 
+  /**
+   * 左栏「新建项目」：建一个空项目，建完在行内改名。
+   *
+   * 默认名带毫秒时间戳：原先是固定「未命名项目」，而项目目录由名称推导，
+   * 于是第二次新建必然撞上第一次的目录，报「项目目录已存在」。
+   * 后端现在也会自动避让重名，但名字本身唯一更好 ——
+   * 用户看到的行内名不会出现两个一模一样的「未命名项目」。
+   */
   const createBlank = useCallback(async (name?: string) => {
-    const project = await studioHttpApi().projects.create({ name: name?.trim() || '未命名项目' })
+    const project = await studioHttpApi().projects.create({
+      name: name?.trim() || `未命名项目-${Date.now()}`,
+    })
     const result = toProject(project)
     setList((current) => [result, ...current.filter((p) => p.id !== result.id)])
     return result

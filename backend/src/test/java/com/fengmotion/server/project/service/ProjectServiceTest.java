@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.when;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
@@ -14,6 +15,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import java.io.IOException;
 import java.nio.file.Path;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
@@ -35,6 +37,19 @@ class ProjectServiceTest {
 
     @org.junit.jupiter.api.io.TempDir
     Path workspace;
+
+    /**
+     * 默认让「创建目录」返回入参路径本身。
+     *
+     * <p>这些用例验证的是编排顺序（先建目录再落库、失败要清理），
+     * 不是同名避让；不 stub 的话 mock 会返回 null，downstream 直接 NPE。
+     * 避让行为由 {@link ProjectDirectoryCollisionTest} 用真实文件系统覆盖。</p>
+     */
+    @BeforeEach
+    void stubDirectoryCreation() throws IOException {
+        when(projectDirectoryService.createAvoidingCollision(any(Path.class), org.mockito.ArgumentMatchers.anyBoolean()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+    }
 
     /** 未指定目录时使用配置的工作区和项目名称。 */
     @Test
@@ -132,7 +147,7 @@ class ProjectServiceTest {
     void rejectsExistingDirectoryWithoutSaving() throws IOException {
         Path path = Path.of("/projects/existing");
         doThrow(new java.nio.file.FileAlreadyExistsException(path.toString()))
-                .when(projectDirectoryService).create(path);
+                .when(projectDirectoryService).createAvoidingCollision(path, true);
 
         ApiException error = assertThrows(ApiException.class,
                 () -> projectService.create(new CreateProjectRequest("测试项目", null, null, path.toString())));
@@ -154,7 +169,7 @@ class ProjectServiceTest {
         projectService.create(request);
 
         InOrder order = inOrder(projectDirectoryService, projectRepository);
-        order.verify(projectDirectoryService).create(Path.of("/projects/test"));
+        order.verify(projectDirectoryService).createAvoidingCollision(Path.of("/projects/test"), true);
         order.verify(projectRepository).save(any(Project.class));
     }
 }
