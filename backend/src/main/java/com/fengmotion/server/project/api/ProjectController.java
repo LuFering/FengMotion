@@ -4,6 +4,7 @@ import com.fengmotion.server.common.ApiException;
 import com.fengmotion.server.project.api.dto.CreateProjectRequest;
 import com.fengmotion.server.project.api.dto.ProjectDetail;
 import com.fengmotion.server.project.domain.Project;
+import com.fengmotion.server.project.service.ProjectArtifactLister;
 import com.fengmotion.server.project.service.ProjectCreationCoordinator;
 import com.fengmotion.server.project.service.ProjectQueryService;
 import com.fengmotion.server.project.service.ProjectUpdateService;
@@ -27,6 +28,7 @@ public class ProjectController {
     
     // Lombok 生成包含这些 final 字段的构造方法，由 Spring 注入对应服务。
     private final ProjectCreationCoordinator creation; // 协调创建、事务和幂等处理
+    private final ProjectArtifactLister artifacts; // 列出项目目录里的真实文件
     private final ProjectQueryService query; // 查询项目详情及列表
     private final ProjectUpdateService update; // 更新与归档项目
 
@@ -74,6 +76,21 @@ public class ProjectController {
      */
     @GetMapping("/{id}")
     public ProjectDetail get(@PathVariable String id) { return query.get(id); }
+
+    /**
+     * 列出项目目录里真实存在的文件。
+     *
+     * <p>前端一直按这个路径取「产物」，但后端此前没有实现 ——
+     * 结果界面拿到 404，只能退回到写死的示例数据（Token 科普那几条），
+     * 打开任何项目看到的都是同一批别人的产物。</p>
+     *
+     * @param id 项目 ID
+     * @return 文件清单；项目还没有目录时 items 为空
+     */
+    @GetMapping("/{id}/artifacts")
+    public ProjectArtifactLister.Listing artifacts(@PathVariable String id) {
+        return artifacts.list(id);
+    }
 
     /**
      * 更新请求体中指定的项目字段。

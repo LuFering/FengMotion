@@ -114,10 +114,14 @@ export function ProjectArtifacts({ projectId, refreshKey = 0 }: ProjectArtifacts
             <button type="button" className="fw-file-row"
                     aria-expanded={preview === item.path}
                     onClick={() => setPreview(preview === item.path ? null : item.path)}>
-              <span className="fw-file-name">{item.name}</span>
-              <span className="fw-file-meta">
-                {item.path.includes('/') && <span className="fw-file-dir">{item.path.slice(0, item.path.lastIndexOf('/'))}/</span>}
-                {fmtSize(item.sizeBytes)} · {fmtAgo(item.modifiedAt)}
+              <span className="fw-file-text">
+                <span className="fw-file-name">{item.name}</span>
+                {/* 目录放到文件名下面：和文件名挤在一行时，右侧元信息会把名字
+                    压成「pr…」，一眼看不出是哪个文件。 */}
+                <span className="fw-file-meta">
+                  {item.path.includes('/') && <span className="fw-file-dir">{item.path.slice(0, item.path.lastIndexOf('/'))}/</span>}
+                  {fmtSize(item.sizeBytes)} · {fmtAgo(item.modifiedAt)}
+                </span>
               </span>
             </button>
           </li>

@@ -1,14 +1,15 @@
 import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
-  ArrowDownToLine, ArrowLeftRight, ArrowUpRight, BookOpen, Check,
+  ArrowDownToLine, ArrowLeftRight, ArrowUpRight, Check,
   ChevronDown, ChevronLeft, ChevronRight, Clock3, FileCode2, FileText, Film, FolderOpen, History,
   Image as ImageIcon, ListTree, LoaderCircle, MessagesSquare, Music2, Type as TypeIcon,
-  ShieldCheck,
   PanelBottom, Plus, RotateCcw, Send, Settings2,
   Square, X, Maximize2, Minimize2,
 } from 'lucide-react'
 import { studioHttpApi } from '@/services/api'
 import { ResourcePicker } from '@/components/ResourcePicker'
+import { registerComposer } from '@/shell/usePendingAssets'
+import { creationIntent, deliveredReferences, libraryReferences } from '@/services/creationResources'
 import { RailProgressPanel } from './RailProgress'
 import { ProjectArtifacts } from './ProjectArtifacts'
 import { useHarnesses, availabilityOf } from '@/shell/useHarnesses'
@@ -443,7 +444,17 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
   const [selectedArtifactId, setSelectedArtifactId] = useState<string | null>(initialArtifact)
   const [editorDocumentId, setEditorDocumentId] = useState<string | null>(null)
   const [editMode, setEditMode] = useState(new URLSearchParams(window.location.search).get('edit') === '1' || new URLSearchParams(window.location.search).get('panel') === 'edit')
-  const [references, setReferences] = useState<AgentReference[]>([])
+  const [references, setReferences] = useState<AgentReference[]>(() => progressWorkflow ? workflowResourceReferences(progressWorkflow) : [])
+  const referencesEdited = useRef(false)
+  useEffect(() => {
+    registerComposer((items) => {
+      referencesEdited.current = true
+      const incoming = deliveredReferences(items)
+      setReferences((old) => [...old.filter((ref) => !incoming.some((next) => next.id === ref.id)), ...incoming])
+      return true
+    })
+    return () => registerComposer(null)
+  }, [])
   const [regionMode, setRegionMode] = useState(false)
   const [regionRect, setRegionRect] = useState<{ x: number; y: number; w: number; h: number } | null>(null)
   const [regionBox, setRegionBox] = useState<{ x: number; y: number; w: number; h: number } | null>(null)
@@ -755,12 +766,6 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
       seek(target)
     }
     setRailOpen(false)                    // 窄屏选完就收起抽屉
-  }
-  const selectArtifact = (id: string) => {
-    setSelectedArtifactId(id)
-    setEditMode(false)
-    setRailTab('artifacts')
-    setRailOpen(false)
   }
   const openEdit = () => {
     setEditorDocumentId(viewedPreview?.origin === 'editor' ? viewedPreview.artifactId : null)
@@ -1418,7 +1423,6 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
                      projectId={projectId}
                      open={railOpen} onClose={() => setRailOpen(false)}
                      tab={railTab} onTab={setRailTab}
-                     selectedArtifactId={selectedArtifactId} onSelectArtifact={selectArtifact}
                      confirmed={confirmed}
                      decisions={decisions} onDecide={decideNode}
                      workflowId={workflow?.id ?? null}
@@ -1756,13 +1760,6 @@ function ArtifactView({ artifact, onLocate, onReference, onClose }:
 }
 
 /* ── 左栏：场景列表（paba .fw-ing）────────────────────────── */
-function ArtifactIcon({ type }: { type: WorkbenchArtifact['type'] }) {
-  const Icon = type === 'content-contract' ? FileText
-    : type === 'lookdev' ? BookOpen
-    : type === 'film-plan' ? ListTree
-    : ShieldCheck
-  return <Icon className="size-3.5" />
-}
 
 /* ── 牌堆 ────────────────────────────────────────────────────────
    待决定与已确认共用同一套交互（原来只有待决定有，已确认是一行行平铺的记录）：
@@ -1966,14 +1963,12 @@ function RailDeck<T extends DeckEntry>({ items, dotStatus, variant, leavingId, r
 }
 
 function ProjectRail({ projectName, projectId, open, onClose, tab, onTab, onOpenBrief, onEditScene,
-  selectedArtifactId, onSelectArtifact,
   confirmed,
   decisions, onDecide, workflowId, outline, materials, openShelf, onToggleShelf,
   activeSceneId, liveState, onSelectContent, onOpenWorkflowEditor,
   wholeFilmActive, onSelectWholeFilm, onOpenMaterials, progressPanel }:
   { projectName: string; projectId: string; open: boolean; onClose: () => void
     tab: RailTab; onTab: (tab: RailTab) => void
-    selectedArtifactId: string | null; onSelectArtifact: (id: string) => void
     confirmed: { id: string; title: string; hint: string }[]
     decisions: { wfId: string; nodeId: string; id: string; title: string; hint: string; detail: string }[]
     onDecide: (wfId: string, nodeId: string, verdict: 'done' | 'rework') => void
@@ -2040,21 +2035,10 @@ function ProjectRail({ projectName, projectId, open, onClose, tab, onTab, onOpen
 
       {tab === 'artifacts' ? (
         <div className="fw-artifacts" role="tabpanel">
-          {/* 工作流产出的文档型产物（有版本与状态） */}
-          {WORKBENCH_ARTIFACTS.map((a) => (
-            <button key={a.id} type="button" className="fw-artifact"
-                    aria-current={a.id === selectedArtifactId ? 'true' : undefined}
-                    onClick={() => onSelectArtifact(a.id)}>
-              <span className="fw-artifact-ic"><ArtifactIcon type={a.type} /></span>
-              <span className="fw-artifact-main">
-                <b>{a.title}</b>
-                <small>{ARTIFACT_TYPE_LABEL[a.type]} · {a.version}</small>
-              </span>
-              <span className="fw-artifact-status" data-status={a.status}>{ARTIFACT_STATUS_LABEL[a.status]}</span>
-            </button>
-          ))}
-          {/* 项目目录里真实存在的文件（AI 产出的视频、脚本等）——
-              与上面的工作流产物分开呈现：来源不同，一个来自流程节点，一个来自磁盘。 */}
+          {/* 只列项目目录里真实存在的东西。
+              原先这里固定渲染 WORKBENCH_ARTIFACTS（Token 科普、视觉方向、导演处理、
+              质量证据四条示例），打开任何项目都显示同样内容 —— 用户会把它当成
+              自己项目的产出。示例已经删除，空就如实说空。 */}
           <ProjectArtifacts projectId={projectId} />
         </div>
       ) : tab === 'content' ? (

@@ -1524,7 +1524,7 @@ textarea.fw-edit-input { resize: vertical; }
 
 .fw-file-row {
   display: flex;
-  align-items: baseline;
+  align-items: flex-start;
   gap: 8px;
   width: 100%;
   padding: 5px 8px;
@@ -1543,10 +1543,16 @@ textarea.fw-edit-input { resize: vertical; }
   color: var(--tx1);
 }
 
-.fw-file-name {
-  /* 文件名可能很长，让它先占满再省略，不要挤压右侧元信息 */
+/* 文件名与元信息竖排：横排时两者抢宽度，名字会被压成几个字 */
+.fw-file-text {
+  display: flex;
   flex: 1;
+  flex-direction: column;
+  gap: 1px;
   min-width: 0;
+}
+
+.fw-file-name {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1558,9 +1564,11 @@ textarea.fw-edit-input { resize: vertical; }
 }
 
 .fw-file-meta {
-  flex: 0 0 auto;
+  overflow: hidden;
   color: var(--tx3);
   font-size: 10.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .fw-file-dir {
