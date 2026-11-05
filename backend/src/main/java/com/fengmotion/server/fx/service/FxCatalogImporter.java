@@ -171,7 +171,10 @@ public class FxCatalogImporter {
                 stringOrDefault(item.get("version"), "1.0.0"),
                 parseUpdatedAt(item.get("updatedAt")),
                 // 内置目录本身就是演示/示例数据的一部分，如实标注。
-                true);
+                true,
+                // 内置目录没有外部来源：sourceKind 固定 builtin，其余留空。
+                // 不用「有链接就算外部」来推断类型 —— 内置条目将来也可能补链接。
+                "builtin", "", "", "", "", "", "", "", null);
     }
 
     /**

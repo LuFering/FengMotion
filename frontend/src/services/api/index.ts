@@ -56,7 +56,7 @@ export interface StudioApiClient {
   readonly checks: ReturnType<typeof createChecksResource>
   readonly workflows: ReturnType<typeof createWorkflowsResource>
   readonly library: ReturnType<typeof createLibraryResource>
-  /** workflow-v5 创作上下文（项目目录里的 prompt.original.md 等） */
+  /** workflow-v0.1.0 创作上下文（项目目录里的 prompt.original.md 等） */
   readonly workflowContext: ReturnType<typeof createWorkflowContextResource>
   /** 语义检索（`/retrieval/search`）。结果带状态，调用方须读响应体而非状态码。 */
   readonly retrieval: ReturnType<typeof createRetrievalResource>

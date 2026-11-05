@@ -788,6 +788,13 @@ export function FxLibrary() {
                     <div className="fxc-media">
                       <SilentVideoPreview src={t.previewVideo} poster={t.previewImage}
                         active={!drawerOpen && !workflowFor} label={`${t.name} 动态预览`} />
+                      {/* 没有预览图也没有视频的条目（shotcraft 的 124 张配方卡）：
+                          不放大段文字占位 —— 分类名放在中部会和下方标题抢位置，
+                          实测看起来像排版错乱。改用极淡的纹理 + 右下角一个小标记，
+                          既说明「这里没有预览」，又不制造视觉噪音。 */}
+                      {!t.previewImage && !t.previewVideo && (
+                        <span className="fxc-media-empty" aria-hidden="true" />
+                      )}
                       {pick.active && <PickCheck checked={pick.has(t.id)} />}
                       {t.previewVideo && <span className="fxc-preview-label"><Play size={10} aria-hidden="true" />动态预览</span>}
                       {/* 加入待发送：与素材库/参考片库同一位置、同一规格 */}
@@ -988,6 +995,48 @@ export function FxLibrary() {
                         </ul>
                       </>
                     )}
+                  </section>
+                )}
+
+                {/* 来源与许可：外部导入的条目必须写清出处。
+                    内置条目不是 external，不显示这一段 —— 给自带的 16 条也挂一句
+                    「来源：本项目」，只会让面板变长而没有信息量。 */}
+                {current.sourceKind && current.sourceKind !== 'builtin' && (
+                  <section className="fx-dsec">
+                    <h3 className="fx-label">来源与许可</h3>
+                    <dl className="fx-io">
+                      {current.sourceProject && (
+                        <div><dt>项目</dt><dd>{current.sourceProject}</dd></div>
+                      )}
+                      {current.sourceUrl && (
+                        <div>
+                          <dt>链接</dt>
+                          <dd>
+                            <a href={current.sourceUrl} target="_blank" rel="noreferrer">
+                              {current.sourceUrl}
+                            </a>
+                          </dd>
+                        </div>
+                      )}
+                      {current.sourceVersion && (
+                        <div><dt>版本</dt><dd className="num">{current.sourceVersion}</dd></div>
+                      )}
+                      {/* 代码与样片许可分开显示：两者常常不同（lemo 就是 MIT + CC BY 4.0），
+                          合成一行会让人误判能不能商用。 */}
+                      {current.licenseCode && (
+                        <div><dt>代码许可</dt><dd>{current.licenseCode}</dd></div>
+                      )}
+                      {current.licensePreview && (
+                        <div><dt>预览素材</dt><dd>{current.licensePreview}</dd></div>
+                      )}
+                    </dl>
+                    {current.attribution && (
+                      <p className="fx-attribution">{current.attribution}</p>
+                    )}
+                    {/* 有源码不等于能一键跑：这里明说，避免用户以为点了就会生成。 */}
+                    <p className="fx-attribution">
+                      该条目仅提供说明与源码参考，FengMotion 尚未接入执行适配器，不能一键运行。
+                    </p>
                   </section>
                 )}
 

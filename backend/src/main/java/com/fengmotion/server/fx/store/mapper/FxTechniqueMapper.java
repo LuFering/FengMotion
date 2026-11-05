@@ -28,7 +28,9 @@ public interface FxTechniqueMapper {
                  complexity, input_kinds_json, input_labels_json, input_requirement, output,
                  dependencies_json, steps_json, compatibility_json, limitations_json, failures_json,
                  params_json, preview_image_url, preview_video_url, preview_caption,
-                 related_json, alternatives_json, featured, version, updated_at, demo)
+                 related_json, alternatives_json, featured, version, updated_at, demo,
+                 source_kind, source_project, source_url, source_version,
+                 license_code, license_preview, attribution, source_path, imported_at)
             VALUES
                 (#{id}, #{name}, #{nameEn}, #{aliasesJson}, #{keywordsJson}, #{intent}, #{category},
                  #{categoryLabel}, #{scenesJson}, #{antiScenesJson}, #{execType}, #{execLabel},
@@ -36,7 +38,9 @@ public interface FxTechniqueMapper {
                  #{inputLabelsJson}, #{inputRequirement}, #{output}, #{dependenciesJson}, #{stepsJson},
                  #{compatibilityJson}, #{limitationsJson}, #{failuresJson}, #{paramsJson},
                  #{previewImageUrl}, #{previewVideoUrl}, #{previewCaption}, #{relatedJson},
-                 #{alternativesJson}, #{featured}, #{version}, #{updatedAt}, #{demo})
+                 #{alternativesJson}, #{featured}, #{version}, #{updatedAt}, #{demo},
+                 #{sourceKind}, #{sourceProject}, #{sourceUrl}, #{sourceVersion},
+                 #{licenseCode}, #{licensePreview}, #{attribution}, #{sourcePath}, #{importedAt})
             """)
     void upsert(FxTechniqueRow row);
 

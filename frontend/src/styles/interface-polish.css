@@ -221,3 +221,11 @@
   font-size:10.5px; line-height:1.4; color:var(--tx3);
   white-space:nowrap; pointer-events:none;
 }
+
+/* 来源署名与限制说明：比正文更弱的一档，不和技法内容抢注意力。 */
+.fxlib .fx-attribution {
+  margin:6px 0 0;
+  font-size:10.5px; line-height:1.5; color:var(--tx3);
+}
+.fxlib .fx-io a { color:var(--tx2); text-decoration:underline; text-underline-offset:2px; word-break:break-all; }
+.fxlib .fx-io a:hover { color:var(--tx1); }

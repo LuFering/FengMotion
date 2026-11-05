@@ -164,6 +164,17 @@ public class FxTechniqueController {
                 t.version(),
                 t.updatedAt() == null ? null : t.updatedAt().toString(),
                 t.demo(),
+                /* 来源与许可原样透传：界面要显示「这条从哪来、能不能商用」。
+                   留空的字段就是「不知道」，不要在前端补默认文案。 */
+                t.sourceKind(),
+                t.sourceProject(),
+                t.sourceUrl(),
+                t.sourceVersion(),
+                t.licenseCode(),
+                t.licensePreview(),
+                t.attribution(),
+                t.sourcePath(),
+                t.importedAt() == null ? null : t.importedAt().toString(),
                 toUserState(state));
     }
 

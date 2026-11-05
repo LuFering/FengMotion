@@ -81,5 +81,32 @@ public record FxTechnique(
         boolean featured,
         String version,
         Instant updatedAt,
-        boolean demo) {
+        boolean demo,
+        /* ── 来源与许可 ──
+           从外部仓库导入的条目必须能回答「这是谁的、从哪来的、能不能商用、会不会过期」。
+           这四个问题缺一个，用户就不敢用 —— 这正是这类素材库最常见的信任缺口。 */
+
+        /** 来源类型：builtin（本项目自带）/ lemo / shotcraft / scene。 */
+        String sourceKind,
+        /** 来源项目名，例如 lemo-opuscar。 */
+        String sourceProject,
+        /** 原始链接（仓库或条目页）。 */
+        String sourceUrl,
+        /** 版本或 commit；不知道时为空串，不编「latest」。 */
+        String sourceVersion,
+        /** 代码与文档的许可，例如 MIT。 */
+        String licenseCode,
+        /** 预览素材的许可，例如 CC BY 4.0。与代码许可分开：两者常不同。 */
+        String licensePreview,
+        /** 署名要求原文。 */
+        String attribution,
+        /** 本地源码位置；没有为空串。 */
+        String sourcePath,
+        /** 导入时间；内置条目为 null。 */
+        Instant importedAt) {
+
+    /** 是否是外部导入的条目（而非本项目自带）。 */
+    public boolean external() {
+        return sourceKind != null && !sourceKind.isBlank() && !"builtin".equals(sourceKind);
+    }
 }

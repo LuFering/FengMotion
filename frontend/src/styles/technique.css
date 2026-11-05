@@ -740,3 +740,18 @@ button.fx-mini:hover { background: var(--hover); color: var(--tx); }
 .fx-related { display: flex; flex-wrap: wrap; gap: 6px; }
 .fx-relchip { padding: 4px 10px; border: 1px solid var(--line2); border-radius: 999px; background: transparent; color: var(--tx2); font-size: 12px; cursor: pointer; }
 .fx-relchip:hover, .fx-favbtn:hover { background: var(--hover); color: var(--tx); }
+
+/* 无预览条目的占位：给出分类名而不是空白。
+   实测导入 124 条 shotcraft 卡片后整页是黑的，用户会以为导入没成功。 */
+/* 无预览条目的底板：极淡的对角线纹理，暗示「这里有意留空」而不是加载失败。
+   不放文字：分类名在卡片里已经出现过一次，再放中部会和标题抢位置。 */
+.fxc-media-empty {
+  position: absolute; inset: 0;
+  z-index: 0;
+  background-color: var(--inset);
+  background-image: repeating-linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--tx3) 7%, transparent) 0 1px,
+    transparent 1px 9px
+  );
+}

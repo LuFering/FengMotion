@@ -320,6 +320,40 @@ public class DatabaseMigration {
                 + "ON fx_techniques(exec_type)");
         jdbc.execute("CREATE INDEX IF NOT EXISTS idx_fx_techniques_featured "
                 + "ON fx_techniques(featured)");
+
+        /* 来源与许可列：后加的，老库需要补。
+           用 PRAGMA 判断而不是无条件 ALTER —— SQLite 的 ADD COLUMN 重复执行会报错。 */
+        java.util.Set<String> fxCols = new java.util.HashSet<>(jdbc.query(
+                "PRAGMA table_info(fx_techniques)", (rs, row) -> rs.getString("name")));
+        if (!fxCols.contains("source_kind")) {
+            jdbc.execute("ALTER TABLE fx_techniques ADD COLUMN source_kind TEXT NOT NULL DEFAULT 'builtin'");
+        }
+        if (!fxCols.contains("source_project")) {
+            jdbc.execute("ALTER TABLE fx_techniques ADD COLUMN source_project TEXT NOT NULL DEFAULT ''");
+        }
+        if (!fxCols.contains("source_url")) {
+            jdbc.execute("ALTER TABLE fx_techniques ADD COLUMN source_url TEXT NOT NULL DEFAULT ''");
+        }
+        if (!fxCols.contains("source_version")) {
+            jdbc.execute("ALTER TABLE fx_techniques ADD COLUMN source_version TEXT NOT NULL DEFAULT ''");
+        }
+        if (!fxCols.contains("license_code")) {
+            jdbc.execute("ALTER TABLE fx_techniques ADD COLUMN license_code TEXT NOT NULL DEFAULT ''");
+        }
+        if (!fxCols.contains("license_preview")) {
+            jdbc.execute("ALTER TABLE fx_techniques ADD COLUMN license_preview TEXT NOT NULL DEFAULT ''");
+        }
+        if (!fxCols.contains("attribution")) {
+            jdbc.execute("ALTER TABLE fx_techniques ADD COLUMN attribution TEXT NOT NULL DEFAULT ''");
+        }
+        if (!fxCols.contains("source_path")) {
+            jdbc.execute("ALTER TABLE fx_techniques ADD COLUMN source_path TEXT NOT NULL DEFAULT ''");
+        }
+        if (!fxCols.contains("imported_at")) {
+            jdbc.execute("ALTER TABLE fx_techniques ADD COLUMN imported_at TEXT");
+        }
+        jdbc.execute("CREATE INDEX IF NOT EXISTS idx_fx_techniques_source "
+                + "ON fx_techniques(source_kind)");
         jdbc.execute("""
                 CREATE TABLE IF NOT EXISTS fx_user_state (
                     technique_id TEXT PRIMARY KEY,

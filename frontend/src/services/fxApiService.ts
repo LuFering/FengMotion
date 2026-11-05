@@ -31,6 +31,15 @@ interface ServerFxTechnique {
   execType: string
   execLabel: string
   executionStatus: string
+  sourceKind?: string
+  sourceProject?: string
+  sourceUrl?: string
+  sourceVersion?: string
+  licenseCode?: string
+  licensePreview?: string
+  attribution?: string
+  sourcePath?: string
+  importedAt?: string
   impl: string
   implLabel: string
   complexity: number
@@ -68,6 +77,21 @@ export interface FxListPage {
  * 只做字段改名与取值收窄，**不改写语义**：
  * `execType` 仍是源库标签，本机可执行性单独通过 {@link executionStatusOf} 判断。
  */
+/**
+ * 把后端返回的相对路径解析成可直接放进 <img>/<video> 的完整地址。
+ *
+ * <p>已经带协议的（http/https/data/blob）原样返回：内置技法里有外链预览图，
+ * 再拼一次 base 会得到 `http://host/http://...` 这种坏地址。</p>
+ */
+function toAbsolute(url: string): string {
+  if (/^(https?:|data:|blob:)/i.test(url)) return url
+  /* 能力库里的预览图存的是「相对业务路径」（如 lemo-opuscar/styles/x/poster.jpg），
+     需要挂到后端的静态前缀下；http.url() 已经自动带上 API base，
+     所以这里只补前缀，不再加 /api。 */
+  const path = url.startsWith('/') ? url : `/capability-assets/${url}`
+  return studioHttpApi().http.url(path)
+}
+
 function toLocal(item: ServerFxTechnique): FxTechnique & { executionStatus?: string } {
   return {
     id: item.id,
@@ -95,7 +119,12 @@ function toLocal(item: ServerFxTechnique): FxTechnique & { executionStatus?: str
     limitations: item.limitations ?? [],
     failures: item.failures ?? [],
     params: item.params ?? [],
-    previewImage: item.previewImageUrl,
+    /* 预览图必须解析成完整地址。
+       后端存的是 `/capability-assets/...` 这类相对路径，直接塞进 <img src>
+       会打到前端 dev server（5175）上而不是后端（18096），结果整页图片 404。
+       已实测：图片全部 ok=false，卡片仍是一片黑。
+       走 http.url() 与素材缩略图的处理保持一致。 */
+    previewImage: item.previewImageUrl ? toAbsolute(item.previewImageUrl) : '',
     previewVideo: item.previewVideoUrl,
     previewCaption: item.previewCaption,
     related: item.related ?? [],
@@ -105,6 +134,16 @@ function toLocal(item: ServerFxTechnique): FxTechnique & { executionStatus?: str
     updatedAt: item.updatedAt,
     // 本机可执行状态随条目一起带出来，供界面判断，不影响 execType 的展示。
     executionStatus: item.executionStatus,
+    // 来源与许可原样透传：留空就是「不知道」，不在这里补默认文案。
+    sourceKind: item.sourceKind,
+    sourceProject: item.sourceProject,
+    sourceUrl: item.sourceUrl,
+    sourceVersion: item.sourceVersion,
+    licenseCode: item.licenseCode,
+    licensePreview: item.licensePreview,
+    attribution: item.attribution,
+    sourcePath: item.sourcePath,
+    importedAt: item.importedAt,
   }
 }
 

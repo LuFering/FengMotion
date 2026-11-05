@@ -44,6 +44,16 @@ public record FxTechniqueResponse(
         String version,
         String updatedAt,
         boolean demo,
+        /** 来源：builtin / lemo / shotcraft / scene。界面据此区分「自带」与「外部导入」。 */
+        String sourceKind,
+        String sourceProject,
+        String sourceUrl,
+        String sourceVersion,
+        String licenseCode,
+        String licensePreview,
+        String attribution,
+        String sourcePath,
+        String importedAt,
         UserStateResponse userState) {
 
     /** 参数。 */

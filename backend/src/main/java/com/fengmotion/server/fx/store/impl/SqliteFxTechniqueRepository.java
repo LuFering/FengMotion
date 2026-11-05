@@ -81,6 +81,15 @@ public class SqliteFxTechniqueRepository implements FxTechniqueRepository {
         row.setVersion(t.version());
         row.setUpdatedAt(t.updatedAt().toString());
         row.setDemo(t.demo() ? 1 : 0);
+        row.setSourceKind(t.sourceKind() == null || t.sourceKind().isBlank() ? "builtin" : t.sourceKind());
+        row.setSourceProject(nullToEmpty(t.sourceProject()));
+        row.setSourceUrl(nullToEmpty(t.sourceUrl()));
+        row.setSourceVersion(nullToEmpty(t.sourceVersion()));
+        row.setLicenseCode(nullToEmpty(t.licenseCode()));
+        row.setLicensePreview(nullToEmpty(t.licensePreview()));
+        row.setAttribution(nullToEmpty(t.attribution()));
+        row.setSourcePath(nullToEmpty(t.sourcePath()));
+        row.setImportedAt(t.importedAt() == null ? null : t.importedAt().toString());
         techniques.upsert(row);
     }
 
@@ -204,7 +213,19 @@ public class SqliteFxTechniqueRepository implements FxTechniqueRepository {
                 row.getFeatured() != null && row.getFeatured() == 1,
                 row.getVersion(),
                 row.getUpdatedAt() == null ? Instant.EPOCH : Instant.parse(row.getUpdatedAt()),
-                row.getDemo() != null && row.getDemo() == 1);
+                row.getDemo() != null && row.getDemo() == 1,
+                /* 老库迁移后这些列可能为 null：一律回落到「内置、无来源」，
+                   绝不用 null 让界面显示成「未知来源」—— 内置条目本来就是无来源。 */
+                row.getSourceKind() == null || row.getSourceKind().isBlank() ? "builtin" : row.getSourceKind(),
+                nullToEmpty(row.getSourceProject()),
+                nullToEmpty(row.getSourceUrl()),
+                nullToEmpty(row.getSourceVersion()),
+                nullToEmpty(row.getLicenseCode()),
+                nullToEmpty(row.getLicensePreview()),
+                nullToEmpty(row.getAttribution()),
+                nullToEmpty(row.getSourcePath()),
+                row.getImportedAt() == null || row.getImportedAt().isBlank()
+                        ? null : Instant.parse(row.getImportedAt()));
     }
 
     private static <E extends Enum<E>> Map<String, Integer> fill(E[] values,
@@ -268,5 +289,9 @@ public class SqliteFxTechniqueRepository implements FxTechniqueRepository {
         } catch (com.fasterxml.jackson.core.JsonProcessingException ex) {
             return List.of();
         }
+    }
+
+    private static String nullToEmpty(String value) {
+        return value == null ? "" : value;
     }
 }

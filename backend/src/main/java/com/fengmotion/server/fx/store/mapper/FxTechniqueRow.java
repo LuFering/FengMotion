@@ -47,4 +47,13 @@ public class FxTechniqueRow {
     private String version;
     private String updatedAt;
     private Integer demo;
+    private String sourceKind;
+    private String sourceProject;
+    private String sourceUrl;
+    private String sourceVersion;
+    private String licenseCode;
+    private String licensePreview;
+    private String attribution;
+    private String sourcePath;
+    private String importedAt;
 }

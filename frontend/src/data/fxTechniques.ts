@@ -56,6 +56,19 @@ export interface FxTechnique {
   featured: boolean
   version: string
   updatedAt: string
+  /* ── 来源与许可 ──
+     外部导入的条目必须能回答「从哪来、能不能商用」。
+     留空表示「不知道」，界面不要补默认文案。 */
+  /** builtin / lemo / shotcraft / scene */
+  sourceKind?: string
+  sourceProject?: string
+  sourceUrl?: string
+  sourceVersion?: string
+  licenseCode?: string
+  licensePreview?: string
+  attribution?: string
+  sourcePath?: string
+  importedAt?: string
 }
 
 export const FX_CATEGORIES: Array<{ id: FxCategory; label: string }> = [

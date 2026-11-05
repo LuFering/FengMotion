@@ -273,12 +273,35 @@ CREATE TABLE IF NOT EXISTS fx_techniques (
     featured INTEGER NOT NULL DEFAULT 0,
     version TEXT NOT NULL DEFAULT '1.0.0',
     updated_at TEXT NOT NULL,
-    demo INTEGER NOT NULL DEFAULT 0
+    demo INTEGER NOT NULL DEFAULT 0,
+    -- 来源与许可：从 capabilities/ 等外部仓库导入的条目必须记清楚出处，
+    -- 否则用户无法判断「这条能商用吗」「会不会过期」。
+    -- 内置技法这四列为空串，表示「本项目自带，无外部来源」。
+    --
+    -- source_kind 区分条目类型：builtin（本项目自带）/ lemo / shotcraft / scene。
+    -- 不用「有没有 source_url」来推断类型 —— 内置条目将来也可能加链接。
+    source_kind TEXT NOT NULL DEFAULT 'builtin',
+    source_project TEXT NOT NULL DEFAULT '',
+    source_url TEXT NOT NULL DEFAULT '',
+    source_version TEXT NOT NULL DEFAULT '',
+    -- 许可分两段：代码/文档与预览素材的授权往往不同（lemo 就是 MIT + CC BY 4.0）。
+    -- 合成一列会让用户误以为整个条目是单一许可。
+    license_code TEXT NOT NULL DEFAULT '',
+    license_preview TEXT NOT NULL DEFAULT '',
+    attribution TEXT NOT NULL DEFAULT '',
+    -- 本地源码位置（相对 capabilities 根或绝对路径）；没有源码为空串。
+    source_path TEXT NOT NULL DEFAULT '',
+    imported_at TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_fx_techniques_category ON fx_techniques(category);
 CREATE INDEX IF NOT EXISTS idx_fx_techniques_exec_type ON fx_techniques(exec_type);
 CREATE INDEX IF NOT EXISTS idx_fx_techniques_featured ON fx_techniques(featured);
+-- 注意：这个索引不写在 schema.sql 里。
+-- schema.sql 里的 CREATE TABLE IF NOT EXISTS 对已存在的表是空操作，
+-- 因此老库执行到这里时 source_kind 列还不存在（要等 ApplicationReady 之后的
+-- DatabaseMigration 才补列），CREATE INDEX 会直接让整个启动失败。
+-- 索引改由 DatabaseMigration 在补完列之后创建。
 
 -- 收藏与最近浏览。独立于参考片偏好（reference-preferences 是参考片的，三库不混用）。
 CREATE TABLE IF NOT EXISTS fx_user_state (
