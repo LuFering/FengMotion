@@ -346,6 +346,12 @@ export default function App() {
               {isSub && !current && view !== 'assets' && (
                 <PickProject onBack={openList} />
               )}
+              {/* 进入「工作台」但没有当前项目：原先这里什么都不渲染，
+                  整页只剩侧栏 —— 看起来像白屏，用户不知道发生了什么。
+                  明确告诉他还没选项目，并给一条回列表的路。 */}
+              {view === 'production' && !current && (
+                <PickProject onBack={openList} />
+              )}
               {/* 创作资产是例外：既可作为项目内的上下文视图，
                   也可作为不带项目过滤的全局入口 */}
               {isSub && view === 'assets' && <Assets projectName={current?.name} />}
