@@ -1039,6 +1039,43 @@ html[data-theme="tactile"] #pane-conversation {
   white-space: pre-wrap;
 }
 
+/* 工具调用：整组默认收成一行摘要。
+   一轮改工程常产生十几条 bash/read/write，逐条展开会把 agent 的正文淹掉。 */
+.cv3-tool-group {
+  margin: 6px 0;
+  border-radius: 6px;
+  background: var(--hole);
+}
+
+.cv3-tool-group-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 9px;
+  color: var(--tx3);
+  font-size: 11.5px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.cv3-tool-group-head::-webkit-details-marker { display: none; }
+
+/* 摘要上露出失败：不能让用户展开才发现出错 */
+.cv3-tool-group[data-state='failed'] .cv3-tool-group-title { color: var(--bad); }
+
+.cv3-tool-group-title { font-weight: 550; }
+
+.cv3-tool-group-hint {
+  margin-left: auto;
+  color: var(--tx3);
+  opacity: 0.7;
+  font-size: 10.5px;
+}
+
+.cv3-tool-group > .cv3-tool-list {
+  padding: 0 9px 4px;
+}
+
 /* 工具调用行：0.5px 底边分隔，标签 + 详情 */
 .cv3-tools {
   display: flex;

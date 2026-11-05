@@ -93,36 +93,70 @@ const PERM_MODES = [
  * @param calls 调用记录
  * @param live  是否来自正在进行的流；历史记录没有「执行中」这种中间态
  */
+/**
+ * 已起过回复流的用户消息 id（模块级，跨组件卸载保留）。
+ *
+ * <p>切去工作台再切回来会让本视图重新挂载。<strong>后端不支持断点续读</strong>
+ * （ChatStreamController 的 Last-Event-ID 只校验格式），所以「重新连上同一条流」
+ * 做不到；能做的只有：记住已经跑过的那一轮，不要重复起流，
+ * 并把真实结果从服务端消息里读回来。</p>
+ */
+const MODULE_SERVED_IDS = new Set<string>()
+
 function renderToolCalls(
   calls: { callId?: string; name: string; arguments?: string; done?: boolean; isError?: boolean }[],
   live: boolean,
 ) {
   if (calls.length === 0) return null
+  const failed = calls.filter((c) => c.isError).length
+  const running = live ? calls.filter((c) => c.done !== true).length : 0
+  /**
+   * 整组收进一层折叠。
+   *
+   * 原先每个调用都渲染成一张展开的卡片（名字 + 状态 + 完整参数），
+   * 一轮改工程能产生十几条 `bash` / `read` / `write`，对话区几乎全是
+   * 工具日志，agent 真正说了什么反而被埋掉。
+   * 现在默认只占一行摘要，想看细节再展开。
+   *
+   * 失败与进行中要露在摘要上：不能让用户展开才发现出错。
+   */
+  const summary = [
+    `${calls.length} 个工具调用`,
+    running > 0 ? `${running} 个执行中` : '',
+    failed > 0 ? `${failed} 个失败` : '',
+  ].filter(Boolean).join(' · ')
+
   return (
-    <ul className="cv3-tool-list">
-      {calls.map((call, index) => {
-        // 历史记录没有 callId 时用下标兜底：key 只作用于渲染复用，不承担语义
-        const key = call.callId ?? `${call.name}-${index}`
-        const done = live ? call.done === true : call.done !== false
-        return (
-          <li key={key} className="cv3-tool"
-              data-state={call.isError ? 'failed' : done ? 'done' : 'running'}>
-            <details>
-              <summary className="cv3-tool-head">
-                <span className="cv3-tool-name">{call.name}</span>
-                {/* 状态必须带文字，不能只靠颜色（色弱也要看得出来） */}
-                <span className="cv3-tool-state">
-                  {call.isError ? '失败' : done ? '完成' : '执行中'}
-                </span>
-              </summary>
-              {call.arguments
-                ? <pre className="cv3-tool-body">{call.arguments}</pre>
-                : <p className="cv3-tool-body cv3-tool-body-empty">这次调用没有参数</p>}
-            </details>
-          </li>
-        )
-      })}
-    </ul>
+    <details className="cv3-tool-group" data-state={failed > 0 ? 'failed' : running > 0 ? 'running' : 'done'}>
+      <summary className="cv3-tool-group-head">
+        <span className="cv3-tool-group-title">{summary}</span>
+        <span className="cv3-tool-group-hint">展开看细节</span>
+      </summary>
+      <ul className="cv3-tool-list">
+        {calls.map((call, index) => {
+          // 历史记录没有 callId 时用下标兜底：key 只作用于渲染复用，不承担语义
+          const key = call.callId ?? `${call.name}-${index}`
+          const done = live ? call.done === true : call.done !== false
+          return (
+            <li key={key} className="cv3-tool"
+                data-state={call.isError ? 'failed' : done ? 'done' : 'running'}>
+              <details>
+                <summary className="cv3-tool-head">
+                  <span className="cv3-tool-name">{call.name}</span>
+                  {/* 状态必须带文字，不能只靠颜色（色弱也要看得出来） */}
+                  <span className="cv3-tool-state">
+                    {call.isError ? '失败' : done ? '完成' : '执行中'}
+                  </span>
+                </summary>
+                {call.arguments
+                  ? <pre className="cv3-tool-body">{call.arguments}</pre>
+                  : <p className="cv3-tool-body cv3-tool-body-empty">这次调用没有参数</p>}
+              </details>
+            </li>
+          )
+        })}
+      </ul>
+    </details>
   )
 }
 
@@ -337,8 +371,10 @@ export function Conversation(props: {
   const [prefs, setPrefs] = useState<Record<string, ModelPrefs>>(loadPrefs)
   const fileRef = useRef<HTMLInputElement>(null)
   const imageRef = useRef<HTMLInputElement>(null)
-  /* 已经排过回复的用户消息 id：防止同一条被排两次（重挂载 / 增量刷新） */
-  const servedRef = useRef(new Set<string>())
+  /* 已经排过回复的用户消息 id：防止同一条被排两次（重挂载 / 增量刷新）。
+     必须是模块级：组件卸载（切去工作台）后 useRef 会重建，
+     续流时就分不清「这条已经在跑」还是「还没开始」，会重复起流。 */
+  const servedRef = MODULE_SERVED_IDS
   /* 当前回复流的退订函数：切会话或卸载时用它断线 */
   const streamStopRef = useRef<(() => void) | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -514,7 +550,7 @@ export function Conversation(props: {
   const reqConfirmed = useMemo(() => isRequirementConfirmed(reqTexts), [reqTexts])
 
   /** 起一条演示回复流（只属于本页草稿）。返回退订函数：退订 = 断线，不当作完成。 */
-  const startReply = (userMessageId: string) => {
+  const startReply = () => {
     const serviceSessionId = props.activeSessionId ?? DRAFT_SESSION
     const aiId = chat.startAiMessage()
     let settled = false
@@ -552,9 +588,11 @@ export function Conversation(props: {
     return () => {
       stop()
       if (settled) return
-      /* 中断：撤销登记并撤掉没说完的那条 —— 半截文本既不当成回复留着，
-         也不当成「已回复」；下次进入会重新起流 */
-      servedRef.current.delete(userMessageId)
+      /* 中断：撤掉没说完的那条 —— 半截文本既不当成回复留着，也不当成「已回复」。
+         但**不撤销 servedRef 的登记**：切去工作台会让本视图卸载，
+         若在这里撤登记，重挂载就分不清「这轮还在跑、只是看不见」，
+         会再起一条流，用户回来看到两条重复回复。
+         续流由上面那个 effect 按「有没有 AI 回复」判断，不需要靠撤销登记来触发。 */
       chat.removeMessage(aiId)
       setPending(false)
     }
@@ -614,19 +652,40 @@ export function Conversation(props: {
         cleanup 顺手把刚建的流掐断，表现就是回复永远停在头几个字。
      ⚠️ 退订等同于断线：**不当作完成**，并把没说完的那条从界面上撤掉，
         否则 StrictMode 重挂载会留下一条半截回复，再叠一条新的。 */
+  /* 服务端会话的续流：切去工作台会让本视图卸载，卸载时那条流被 cleanup 断掉。
+     后端不支持断点续读（Last-Event-ID 只校验格式），所以这里不尝试「接上旧流」，
+     而是在回到本视图时判断「最后一轮是否留下了没有回复的用户消息」：
+     有就重起一次流，让用户能接着说话，而不是永远卡在「正在回复…」或干脆没反应。
+
+     注意：重起等于让 agent 再跑一遍这一轮。这正是原先失败的点 ——
+     旧代码直接 return，切回来就什么都不做，用户再发消息也失败。 */
+  useEffect(() => {
+    if (!activeIsServer) return
+    if (!props.activeSessionId) return
+    if (lastUserId === null) return
+    /* 最后一轮已经有 AI 回复：这轮结束了，不用再起流 */
+    const at = messages.findIndex((m) => m.id === lastUserId)
+    if (at >= 0 && messages.slice(at + 1).some((m) => m.role === 'ai')) return
+    /* 同一条已经在跑（首次挂载刚起的流）：不要重复 */
+    if (servedRef.has(lastUserId) && pending) return
+    servedRef.add(lastUserId)
+    startServerReply()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeIsServer, props.activeSessionId, lastUserId])
+
   useEffect(() => {
     /* 服务端会话：回复走 startServerReply（真实 SSE），不排演示回复。
        演示回复只能属于「仅本页」的草稿会话 —— 否则等于把保存在的消息演成假回答。 */
     if (activeIsServer) return
-    if (lastUserId === null || servedRef.current.has(lastUserId)) return
+    if (lastUserId === null || servedRef.has(lastUserId)) return
     /* 这条用户消息后面已经有回复了就不再排：切到工作台再切回来会让本视图重挂载，
        新挂载的 servedRef 是空的，只按 id 判断会把同一条再排一次流，
        在末尾留下一个空的「正在回复…」。 */
     const at = messages.findIndex((m) => m.id === lastUserId)
     if (at >= 0 && messages.slice(at + 1).some((m) => m.role === 'ai')) return
-    servedRef.current.add(lastUserId)
+    servedRef.add(lastUserId)
     setPending(true)
-    return startReply(lastUserId)
+    return startReply()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lastUserId, activeIsServer])
 
