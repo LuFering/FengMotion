@@ -302,6 +302,18 @@ export default function App() {
                             return p
                           }}
                           onRenameProject={(id, name) => projects.rename(id, name)}
+                          /* 归档：移出列表，文件留着。
+                             删除当前打开的项目时要一起清掉 openProject：
+                             否则工作台还停在一个已经不在列表里的项目上，
+                             界面看着正常，点任何操作都会报「项目不存在」。 */
+                          onArchiveProject={async (id) => {
+                            await projects.archive(id)
+                            if (openProject === id) setOpenProject(null)
+                          }}
+                          onDeleteProject={async (id) => {
+                            await projects.purge(id)
+                            if (openProject === id) setOpenProject(null)
+                          }}
                           onLaunch={handleLaunch}
                           onOpenWorkbench={() => { if (openProject) setView('production') }} />
           </div>

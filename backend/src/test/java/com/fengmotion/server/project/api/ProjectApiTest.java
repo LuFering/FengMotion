@@ -10,9 +10,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.transaction.TestTransaction;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -110,18 +112,19 @@ class ProjectApiTest {
     }
 
     /** 默认删除是归档：项目从列表与详情消失，目录保留；物理删除仍返回能力不可用。 */
+    /**
+     * 默认删除是归档（移出列表、目录保留）；{@code purge=true} 是物理删除（目录真删）。
+     *
+     * <p>两种语义必须分开：把「删除项目」接到归档上，用户以为清了硬盘，
+     * 实际只是隐藏了列表项；反过来当成物理删除，文件就没了。</p>
+     */
     @Test
-    void archivesProjectByDefaultAndRejectsPurge() throws Exception {
+    void archivesProjectByDefaultAndPurgesOnRequest() throws Exception {
         Path path = tempDir.resolve("archivable");
         String body = objectMapper.writeValueAsString(java.util.Map.of("name", "待归档", "rootPath", path.toString()));
         String created = mvc.perform(post("/api/projects").contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
         String id = objectMapper.readTree(created).get("id").asText();
-
-        // 物理删除尚未接入，不静默降级成归档。
-        mvc.perform(delete("/api/projects/{id}", id).param("purge", "true"))
-                .andExpect(status().isUnprocessableEntity())
-                .andExpect(jsonPath("$.error.code").value("capability_unavailable"));
 
         mvc.perform(delete("/api/projects/{id}", id)).andExpect(status().isNoContent());
         mvc.perform(get("/api/projects/{id}", id)).andExpect(status().isNotFound());
@@ -133,6 +136,30 @@ class ProjectApiTest {
 
         // 重复删除按不存在处理。
         mvc.perform(delete("/api/projects/{id}", id)).andExpect(status().isNotFound());
+    }
+
+    /** 物理删除：目录真的被删掉。 */
+    @Test
+    void purgeDeletesProjectDirectory() throws Exception {
+        Path path = tempDir.resolve("purgable");
+        String body = objectMapper.writeValueAsString(java.util.Map.of("name", "待删除", "rootPath", path.toString()));
+        String created = mvc.perform(post("/api/projects").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        String id = objectMapper.readTree(created).get("id").asText();
+        assertTrue(Files.isDirectory(path));
+
+        /* 本测试类带 @Transactional（用于测试间隔离），删除会被卷进外层事务，
+           方法结束时回滚 —— 那样测的是「回滚后的样子」而不是真实行为。
+           这里显式提交，让删除真正落地。 */
+        TestTransaction.flagForCommit();
+        TestTransaction.end();
+
+        mvc.perform(delete("/api/projects/{id}", id).param("purge", "true"))
+                .andExpect(status().isNoContent());
+
+        // 目录没了，项目记录也没了。
+        assertFalse(Files.exists(path), "物理删除必须把项目目录删掉");
+        mvc.perform(get("/api/projects/{id}", id)).andExpect(status().isNotFound());
     }
 
     @Test

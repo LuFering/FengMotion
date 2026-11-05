@@ -5,6 +5,7 @@ import com.fengmotion.server.project.api.dto.CreateProjectRequest;
 import com.fengmotion.server.project.api.dto.ProjectDetail;
 import com.fengmotion.server.project.domain.Project;
 import com.fengmotion.server.project.service.ProjectCreationCoordinator;
+import com.fengmotion.server.project.service.ProjectPurgeService;
 import com.fengmotion.server.project.service.ProjectQueryService;
 import com.fengmotion.server.project.service.ProjectUpdateService;
 
@@ -29,6 +30,7 @@ public class ProjectController {
     private final ProjectCreationCoordinator creation; // 协调创建、事务和幂等处理
     private final ProjectQueryService query; // 查询项目详情及列表
     private final ProjectUpdateService update; // 更新与归档项目
+    private final ProjectPurgeService purgeService; // 物理删除：删目录与从属数据
 
     
     /**
@@ -91,21 +93,26 @@ public class ProjectController {
     }
 
     /**
-     * 删除项目：默认归档，{@code purge=true} 时请求物理删除。
+     * 删除项目。
      *
-     * <p>归档只把项目移出查询结果，项目目录与数据保留；物理删除尚未接入，
-     * 返回 {@code 422 capability_unavailable}，不静默降级成归档。</p>
+     * <p>两种语义，靠 {@code purge} 区分，**不要混用**：</p>
+     * <ul>
+     *   <li>默认（{@code purge=false}）：<strong>归档</strong> —— 项目移出列表，
+     *       目录与数据都保留。</li>
+     *   <li>{@code purge=true}：<strong>物理删除</strong> —— 删掉项目目录与
+     *       数据库里的从属数据，不可撤销。三库资源（素材、技法、参考片）不受影响。</li>
+     * </ul>
      *
-     * @param id 项目 ID
-     * @param purge 是否请求物理删除，默认为 false（请求归档）
+     * @param id    项目 ID
+     * @param purge 是否请求物理删除；默认 false（请求归档）
      */
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void archive(@PathVariable String id, @RequestParam(defaultValue = "false") boolean purge) {
+    public void remove(@PathVariable String id, @RequestParam(defaultValue = "false") boolean purge) {
         if (purge) {
-            throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY,
-                    "capability_unavailable", "物理删除尚未接入");
+            purgeService.purge(id);
+        } else {
+            update.archive(id);
         }
-        update.archive(id);
     }
 }

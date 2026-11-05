@@ -87,7 +87,30 @@ export function useProjects() {
     setList((items) => items.map((p) => p.id === id ? toProject(updated) : p))
   }, [])
 
-  return { list, loading, error, refresh, create, createBlank, rename }
+  /**
+   * 归档项目：移出列表，目录与成片仍留在磁盘上。
+   *
+   * <p>失败不本地移除：服务端没删成功时列表里还留着，用户还能重试，
+   * 比界面上先消失、服务端其实没动要好。</p>
+   */
+  const archive = useCallback(async (id: string) => {
+    await studioHttpApi().projects.remove(id)
+    setList((items) => items.filter((p) => p.id !== id))
+  }, [])
+
+  /**
+   * 物理删除项目：项目目录与从属数据真的被删掉，不可撤销。
+   *
+   * <p>与归档分开成两个方法，是因为两者的后果完全不同：
+   * 归档能恢复，删除不能。把它们混成一个「删除」，用户以为清了硬盘，
+   * 结果只是隐藏了列表项 —— 或者反过来，以为只是隐藏，结果文件没了。</p>
+   */
+  const purge = useCallback(async (id: string) => {
+    await studioHttpApi().projects.purge(id)
+    setList((items) => items.filter((p) => p.id !== id))
+  }, [])
+
+  return { list, loading, error, refresh, create, createBlank, rename, archive, purge }
 }
 
 /** 目录名：中文也能用（去掉文件系统不认的字符，空格变 -） */

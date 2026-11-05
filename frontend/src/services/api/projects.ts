@@ -77,7 +77,10 @@ export interface ProjectsResource {
     etag: string,
     options?: UpdateProjectOptions,
   ): Promise<ProjectDetail>
+  /** 归档项目：移出列表，目录与数据保留。 */
   remove(projectId: string): Promise<void>
+  /** 物理删除：删掉项目目录与从属数据，不可撤销。 */
+  purge(projectId: string): Promise<void>
   timeline(projectId: string): Promise<Timeline>
   scenes(projectId: string, query?: PageQuery): Promise<Page<Scene>>
   scene(projectId: string, sceneId: string): Promise<Scene>
@@ -147,6 +150,12 @@ export function createProjectsResource(http: HttpClient): ProjectsResource {
       // 成功 204（无内容）。有未完成任务时服务端返回 409 conflict 并列出 blockingTasks（project.md §3.5），
       // 这里不吞、不重试：界面要提示「先停掉这些任务」，而不是显示删除成功。
       await http.del(projectPath(projectId))
+    },
+
+    async purge(projectId) {
+      // purge=true 走物理删除：项目目录与从属数据真的被删掉。
+      // 与 remove（归档）分开：归档可恢复，删除不可撤销，界面上必须是两个不同的操作。
+      await http.del(projectPath(projectId), { query: { purge: 'true' } })
     },
 
     timeline(projectId) {

@@ -22,6 +22,70 @@ public class ProjectDirectoryService {
     private String workflowDir = "";
 
     /**
+     * 项目目录里的身份标记文件。
+     *
+     * <p><strong>为什么需要它</strong>：删除项目要删掉整个目录，而目录路径来自
+     * 数据库的 {@code root_path} 一列 —— 那一列被改坏或来自旧迁移时可能指向
+     * 任意位置。只有「这个目录确实属于这个项目」被证明过，才允许删。</p>
+     *
+     * <p>目录里原本没有任何可机器读取的身份信息：{@code AGENTS.md} 里的项目 ID
+     * 是嵌在命令示例里的，格式随模板变化，不适合当判据。</p>
+     */
+    public static final String IDENTITY_FILE = "project.json";
+
+    /**
+     * 写入项目身份标记。
+     *
+     * <p>标记在项目 ID 生成之后才能写 —— ID 是后端生成的，而目录先于记录创建。</p>
+     *
+     * @param projectDir 项目目录
+     * @param projectId  项目 ID
+     * @param name       项目名（仅供人看与排查）
+     * @throws IOException 写入失败
+     */
+    public void writeIdentity(Path projectDir, String projectId, String name) throws IOException {
+        String json = "{\"id\":\"" + projectId + "\",\"name\":\"" + escapeJson(name) + "\"}\n";
+        Files.writeString(projectDir.resolve(IDENTITY_FILE), json,
+                java.nio.charset.StandardCharsets.UTF_8);
+    }
+
+    /**
+     * 读取目录里的项目 ID。
+     *
+     * @param projectDir 项目目录
+     * @return 标记里的项目 ID；没有标记或标记不可读时为空
+     */
+    public java.util.Optional<String> readIdentity(Path projectDir) {
+        Path marker = projectDir.resolve(IDENTITY_FILE);
+        if (!Files.isRegularFile(marker)) {
+            return java.util.Optional.empty();
+        }
+        try {
+            String text = Files.readString(marker, java.nio.charset.StandardCharsets.UTF_8);
+            int key = text.indexOf("\"id\"");
+            if (key < 0) {
+                return java.util.Optional.empty();
+            }
+            int from = text.indexOf('"', text.indexOf(':', key) + 1);
+            int to = from < 0 ? -1 : text.indexOf('"', from + 1);
+            if (from < 0 || to < 0) {
+                return java.util.Optional.empty();
+            }
+            return java.util.Optional.of(text.substring(from + 1, to));
+        } catch (IOException unreadable) {
+            return java.util.Optional.empty();
+        }
+    }
+
+    /** JSON 字符串里的引号与反斜杠要转义，否则项目名带引号就写坏文件。 */
+    private static String escapeJson(String value) {
+        if (value == null) {
+            return "";
+        }
+        return value.replace("\\", "\\\\").replace("\"", "\\\"");
+    }
+
+    /**
      * 确保工作区目录存在；必要时一并创建缺失的父目录。
      *
      * @param workspace 工作区目录路径

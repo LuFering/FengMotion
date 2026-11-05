@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
 import {
   AlertCircle, Archive, ArchiveRestore, Check, ChevronDown, ChevronLeft, ChevronRight, Ellipsis, FileText, FolderPlus, ImageIcon,
@@ -38,6 +38,10 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuTrigger,
   DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem,
 } from '../components/ui/dropdown-menu'
+import {
+  Dialog, DialogContent, DialogTitle, DialogDescription,
+} from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
 import { ViewSwitch } from '../components/ViewSwitch'
 import type { ProjectSummary } from '../data/projects'
 import '../styles/conversation.css'
@@ -234,8 +238,11 @@ export function Conversation(props: {
   activeSessionId: string | null
   homeTransfer?: { sessionId: string; draft: string; files: { file: File; kind: 'file' | 'image' | 'video' }[] } | null
   onHomeTransferConsumed?: () => void
-  /** 删除项目：服务端暂无端点，界面禁用（见左栏菜单），本视图不再接手 */
-  onDeleteProject?: (projectId: string) => void
+  /** 归档项目：移出列表，项目目录与成片保留在磁盘上。 */
+  onArchiveProject?: (projectId: string) => Promise<void>
+  /** 删除项目：物理删除，项目目录与成片一并删掉，不可撤销。
+      返回 Promise 是为了让失败能落到左栏的错误提示，而不是静默关掉对话框。 */
+  onDeleteProject?: (projectId: string) => Promise<void>
 }) {
   const { chat } = props
   const [projectPending, setProjectPending] = useState(false)
@@ -341,6 +348,67 @@ export function Conversation(props: {
   /* 行内重命名：editing = 正在编辑的 id，editText = 输入值 */
   const [editing, setEditing] = useState<string | null>(null)
   const [editText, setEditText] = useState('')
+  /* 归档确认：待归档的项目；null = 没在归档。归档只是移出列表，文件留着。 */
+  const [archivingProject, setArchivingProject] = useState<ProjectSummary | null>(null)
+  /* 删除确认：待删的项目；null = 没在删。
+     删除走物理删除，项目目录真的被删掉，所以确认框要用户输入项目名。 */
+  const [deletingProject, setDeletingProject] = useState<ProjectSummary | null>(null)
+  const [deletingBusy, setDeletingBusy] = useState(false)
+  /* 删除确认框里输入的项目名：必须与项目名完全一致才让删。
+     不可撤销的操作不能靠一次点击就生效 —— 手滑点错的代价太大。 */
+  const [deleteConfirmText, setDeleteConfirmText] = useState('')
+
+  /**
+   * 确认归档项目：移出列表，文件留着。
+   *
+   * <p>失败时关掉对话框并把原因留在左栏：项目仍在列表里，
+   * 让用户看见「没删掉」比对话框一直卡在原地有用。</p>
+   */
+  const confirmArchiveProject = useCallback(async () => {
+    if (!archivingProject) return
+    if (!props.onArchiveProject) {
+      setProjectError('归档项目未接入')
+      setArchivingProject(null)
+      return
+    }
+    setDeletingBusy(true)
+    try {
+      await props.onArchiveProject(archivingProject.id)
+      setArchivingProject(null)
+    } catch (error) {
+      showProjectError(error)
+      setArchivingProject(null)
+    } finally {
+      setDeletingBusy(false)
+    }
+  }, [archivingProject, props])
+
+  /**
+   * 确认删除项目：物理删除，目录与成片真的被删掉。
+   *
+   * <p>要求项目名逐字一致才放行：这一步不可撤销，
+   * 一次误点就可能丢掉几十分钟的渲染成果。</p>
+   */
+  const confirmDeleteProject = useCallback(async () => {
+    if (!deletingProject) return
+    /* 没接上删除实现时如实说「没删」，不能关掉对话框装作删掉了 ——
+       项目还在列表里，用户会以为是自己看错了。 */
+    if (!props.onDeleteProject) {
+      setProjectError('删除项目未接入')
+      setDeletingProject(null)
+      return
+    }
+    setDeletingBusy(true)
+    try {
+      await props.onDeleteProject(deletingProject.id)
+      setDeletingProject(null)
+    } catch (error) {
+      showProjectError(error)
+      setDeletingProject(null)
+    } finally {
+      setDeletingBusy(false)
+    }
+  }, [deletingProject, props])
 
   /* ── 输入区工具栏（对齐 dsh InputBar：左侧附件/权限，右侧模型/发送）──
      attachments=待发送附件；permission=权限模式（dsh preset.readOnly/workspaceWrite/fullAccess）；
@@ -1368,8 +1436,13 @@ export function Conversation(props: {
                                       onClick={() => { setEditing(proj.id); setEditText(proj.name); setRowMenu(null) }}>
                                 <Pencil size={13} /><span>重命名项目</span>
                               </button>
-                              <button type="button" role="menuitem" data-danger disabled title="删除功能尚未接入">
-                                <Trash2 size={13} /><span>删除项目（暂不可用）</span>
+                              <button type="button" role="menuitem"
+                                      onClick={() => { setRowMenu(null); setArchivingProject(proj) }}>
+                                <Archive size={13} /><span>归档项目</span>
+                              </button>
+                              <button type="button" role="menuitem" data-danger
+                                      onClick={() => { setRowMenu(null); setDeletingProject(proj) }}>
+                                <Trash2 size={13} /><span>删除项目</span>
                               </button>
                             </div>
                           )}
@@ -1999,6 +2072,55 @@ export function Conversation(props: {
           </div>
         </div>
       </div>
+
+      {/* 归档项目确认：只是移出列表，文件与成片都留着。 */}
+      <Dialog open={archivingProject !== null} onOpenChange={(o) => { if (!o && !deletingBusy) setArchivingProject(null) }}>
+        <DialogContent className="cv3-del-dlg" showCloseButton aria-describedby={undefined}>
+          <DialogTitle className="cv3-del-title">归档项目</DialogTitle>
+          <DialogDescription className="cv3-del-desc">
+            「{archivingProject?.name}」将从项目列表中移除。
+            <strong>项目目录与已渲染的成片仍保留在磁盘上</strong>，之后可以再找回来。
+          </DialogDescription>
+          <div className="cv3-del-acts">
+            <Button variant="ghost" size="sm" onClick={() => setArchivingProject(null)} disabled={deletingBusy}>取消</Button>
+            <Button variant="default" size="sm" onClick={() => void confirmArchiveProject()} disabled={deletingBusy}>
+              {deletingBusy ? '归档中…' : '归档项目'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* 删除项目确认：物理删除，目录与成片真的被删掉。
+          要求逐字输入项目名才放行 —— 这一步不可撤销，
+          一次手滑点错就可能丢掉几十分钟的渲染成果。 */}
+      <Dialog open={deletingProject !== null} onOpenChange={(o) => {
+        if (!o && !deletingBusy) { setDeletingProject(null); setDeleteConfirmText('') }
+      }}>
+        <DialogContent className="cv3-del-dlg" showCloseButton aria-describedby={undefined}>
+          <DialogTitle className="cv3-del-title">删除项目</DialogTitle>
+          <DialogDescription className="cv3-del-desc">
+            「{deletingProject?.name}」的项目目录与已渲染的成片
+            <strong>将被永久删除，无法恢复</strong>。
+            三库里的素材、技法、参考片不受影响。
+          </DialogDescription>
+          <label className="cv3-del-input">
+            <span className="cv3-del-input-label">输入项目名以确认</span>
+            <input value={deleteConfirmText} onChange={(e) => setDeleteConfirmText(e.target.value)}
+                   placeholder={deletingProject?.name} aria-label="输入项目名以确认删除"
+                   disabled={deletingBusy} autoComplete="off" />
+          </label>
+          <div className="cv3-del-acts">
+            <Button variant="ghost" size="sm"
+                    onClick={() => { setDeletingProject(null); setDeleteConfirmText('') }}
+                    disabled={deletingBusy}>取消</Button>
+            <Button variant="destructive" size="sm"
+                    onClick={() => void confirmDeleteProject()}
+                    disabled={deletingBusy || deleteConfirmText !== deletingProject?.name}>
+              {deletingBusy ? '删除中…' : '永久删除'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -2773,3 +2773,72 @@ html[data-theme="tactile"] .cv3-ddm {
   font-size: 11px;
   line-height: 18px;
 }
+
+/* ── 删除项目确认对话框 ──────────────────────────────────────
+   窄面板，不占屏幕：删除是一次确认，不是一个需要沉浸的工作区。 */
+.cv3-del-dlg {
+  width: min(460px, calc(100vw - 48px));
+  max-width: none;
+  padding: 20px;
+  gap: 12px;
+  background: var(--surf);
+  border-radius: var(--fm-radius-panel);
+}
+.cv3-del-title {
+  margin: 0;
+  font-size: 15px;
+  line-height: 22px;
+  font-weight: 600;
+  color: var(--fg);
+}
+.cv3-del-desc {
+  margin: 0;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--tx2);
+}
+/* 「目录与成片保留」这句是用户判断要不要继续的关键信息，
+   不能和普通说明一样淡 —— 用正文色，其余部分才弱下去。 */
+.cv3-del-desc strong {
+  color: var(--fg);
+  font-weight: 600;
+}
+.cv3-del-acts {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+/* 删除确认：要求逐字输入项目名。
+   不用 shadcn Input —— 它是表单控件，这里要的是「一个必须被打对的字符串」，
+   视觉上更接近输入框而不是按钮，但语义是校验闸门。 */
+.cv3-del-input {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.cv3-del-input-label {
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--tx3);
+}
+.cv3-del-input input {
+  width: 100%;
+  height: 30px;
+  padding: 0 9px;
+  font-size: 13px;
+  color: var(--fg);
+  background: var(--inset);
+  border: 1px solid var(--line);
+  border-radius: var(--fm-radius-sm, 6px);
+  outline: none;
+}
+.cv3-del-input input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+.cv3-del-input input::placeholder {
+  color: var(--tx3);
+  opacity: .7;
+}

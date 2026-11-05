@@ -17,6 +17,7 @@ import com.fengmotion.server.project.domain.Project;
 import com.fengmotion.server.project.store.ProjectRepository;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * 处理项目创建：校验请求、确定项目目录、创建目录并保存项目记录。
@@ -28,6 +29,7 @@ import lombok.RequiredArgsConstructor;
  */
 @Service
 @RequiredArgsConstructor
+@Slf4j
 
 public class ProjectService {
 
@@ -156,6 +158,15 @@ public class ProjectService {
         // ID 到这一步才存在，回填到 AGENTS.md 的渲染命令里。
         // 失败不影响项目可用（Agent 只是不知道渲染接口），所以不让它抛出去。
         projectDirectoryService.rewriteAgentGuide(projectPath, project.id());
+
+        /* 写身份标记：删除项目时靠它确认「这个目录确实属于这个项目」。
+           失败不阻断创建，但那个项目以后删不掉（校验会拒绝），
+           所以要留下痕迹，不能静默吞掉。 */
+        try {
+            projectDirectoryService.writeIdentity(projectPath, project.id(), project.name());
+        } catch (IOException failed) {
+            log.warn("写入项目身份标记失败，该项目将无法物理删除：{}", failed.getMessage());
+        }
 
         return project;
     }
