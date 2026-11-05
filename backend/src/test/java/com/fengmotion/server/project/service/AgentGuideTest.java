@@ -65,6 +65,38 @@ class AgentGuideTest {
     }
 
     @Test
+    @DisplayName("旧版本的框架指引会被升级，不当成用户自维护跳过")
+    void oldFrameworkGuideIsUpgraded() throws Exception {
+        /* 真实故障：升级判定只认当前版本标记，v2 的文件对不上 v3，
+           结果 25 个已有项目全被当成「用户改过」跳过，永远拿不到新指引。 */
+        Path dir = tempDir.resolve("p-old");
+        Files.createDirectories(dir);
+        Files.writeString(dir.resolve("AGENTS.md"),
+                "<!-- fengmotion:agent-guide:v2 --># 旧版指引\n\n旧内容\n");
+
+        var result = service.upgradeAgentGuide(dir, "p-old");
+
+        assertEquals(ProjectDirectoryService.GuideUpgrade.UPDATED, result,
+                "旧版框架指引应当被升级，而不是跳过");
+        String guide = Files.readString(dir.resolve("AGENTS.md"));
+        assertTrue(guide.contains("agent-guide:v3"), "升级后应是当前版本");
+        assertTrue(guide.contains("/api/assets"), "升级后应带上三库指引");
+    }
+
+    @Test
+    @DisplayName("用户自己改过的指引不被覆盖")
+    void userEditedGuideIsKept() throws Exception {
+        Path dir = tempDir.resolve("p-mine");
+        Files.createDirectories(dir);
+        Files.writeString(dir.resolve("AGENTS.md"), "# 我自己的创作规范\n\n不要覆盖我。\n");
+
+        var result = service.upgradeAgentGuide(dir, "p-mine");
+
+        assertEquals(ProjectDirectoryService.GuideUpgrade.SKIPPED_USER_EDITED, result);
+        assertTrue(Files.readString(dir.resolve("AGENTS.md")).contains("不要覆盖我"));
+    }
+
+    @Test
     @DisplayName("指引给出 workflow-v5 工具的真实绝对路径，而不是找不到的相对路径")
     void guideGivesAbsoluteToolchainPath() throws Exception {
         /* 原先只写「工具在 workflow-v5/ 下」，而 agent 的工作目录是项目目录，

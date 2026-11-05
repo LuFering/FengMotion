@@ -101,6 +101,15 @@ public class ProjectDirectoryService {
      */
     static final String GENERATED_MARKER = "<!-- fengmotion:agent-guide:v3 -->";
 
+    /**
+     * 识别任意版本的框架标记。
+     *
+     * <p>用来判断「这份指引是框架生成的」，与「这是哪一版」无关。
+     * 只看当前版本会导致每次升级都把所有旧项目当成用户自维护而跳过。</p>
+     */
+    private static final java.util.regex.Pattern FRAMEWORK_MARKER =
+            java.util.regex.Pattern.compile("<!--\\s*fengmotion:agent-guide:v\\d+\\s*-->");
+
     private void writeAgentGuide(Path projectDir) {
         writeText(projectDir.resolve("AGENTS.md"), agentGuide(projectIdOf(projectDir), workflowDir));
     }
@@ -309,7 +318,10 @@ public class ProjectDirectoryService {
         } catch (IOException unreadable) {
             return GuideUpgrade.UNREADABLE;
         }
-        if (text.startsWith(GENERATED_MARKER)) {
+        /* 判断「是不是框架写的」要看任意版本的标记，不能只看当前版本 ——
+           否则每次升版本（v2 → v3）旧文件都对不上，全被当成「用户改过」跳过，
+           已有项目永远拿不到新指引。实测：25 个项目全部被跳过。 */
+        if (FRAMEWORK_MARKER.matcher(text).lookingAt()) {
             // 已是当前版本：只在确实需要时重写，避免无谓改动文件时间
             if (text.equals(agentGuide(projectId, workflowDir))) {
                 return GuideUpgrade.CURRENT;
