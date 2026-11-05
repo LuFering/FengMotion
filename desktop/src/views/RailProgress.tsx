@@ -5,7 +5,8 @@ import {
 } from '@/services/workflowService'
 import { WF_NODE_DEFS } from '@/data/workflowTemplates'
 import { fmtDay, TASK_STATUS_LABEL } from '@/shell/status'
-import type { TaskEvent } from '@/services/studioApi'
+import type { AgentReference, TaskEvent } from '@/services/studioApi'
+import type { FilmCreateResult } from '@/services/api/workflowContext'
 import { Progress } from '@/components/ui/progress'
 
 /**
@@ -28,7 +29,10 @@ import { Progress } from '@/components/ui/progress'
  * 所以不能再简单标成「纯演示」——界面要把这两件事分开说。
  */
 
-export function RailProgressPanel({ workflow, projectId, prompt, autoRun, task, onRunStart, onRunEnd, onRunEvent, onRunningChange, onOpenTask, onOpenEditor, onOpenExecution }: {
+export function RailProgressPanel({ workflow, projectId, prompt, references, disabled, onCreateResult, autoRun, task, onRunStart, onRunEnd, onRunEvent, onRunningChange, onOpenTask, onOpenEditor, onOpenExecution }: {
+  references?: AgentReference[]
+  disabled?: boolean
+  onCreateResult?: (result: FilmCreateResult) => void
   /** 当前项目的工作流；节点参数由外面传进来（写回决定后外面会重取，这里才跟着更新） */
   workflow: WorkflowDef | null
   /** 当前项目 ID：有值时运行会真实建立 workflow-v5 创作上下文 */
@@ -55,6 +59,7 @@ export function RailProgressPanel({ workflow, projectId, prompt, autoRun, task, 
   /** 去看这次到底跑了什么 —— 底部任务面板的执行过程 */
   onOpenExecution: () => void
 }) {
+  const realCreation = workflow?.path === 'prompt-first' && !!projectId
   const stages = useMemo(
     () => (workflow?.nodes ?? []).filter((n) => WF_NODE_DEFS.some((d) => d.type === n.type)),
     [workflow],
@@ -69,7 +74,7 @@ export function RailProgressPanel({ workflow, projectId, prompt, autoRun, task, 
   const run = finished ?? (workflow ? (workflowService.listRuns(workflow.id)[0] ?? null) : null)
 
   const doRun = useCallback(() => {
-    if (!workflow || running) return
+    if (!workflow || running || disabled) return
     setRunning(true)
     setFinished(null)
     setStatuses({})
@@ -82,6 +87,8 @@ export function RailProgressPanel({ workflow, projectId, prompt, autoRun, task, 
       onNodeStatus: (nodeId, status) => setStatuses((prev) => ({ ...prev, [nodeId]: status })),
       projectId,
       prompt,
+      references,
+      onCreateResult,
     })
     execution.current = handle
     void handle.done.then((r) => {
@@ -91,15 +98,14 @@ export function RailProgressPanel({ workflow, projectId, prompt, autoRun, task, 
       onRunningChange?.(false)
       onRunEnd?.()
     })
-  }, [workflow, projectId, prompt, running, onRunStart, onRunEnd, onRunEvent, onRunningChange])
+  }, [workflow, projectId, prompt, references, disabled, onCreateResult, running, onRunStart, onRunEnd, onRunEvent, onRunningChange])
 
   useEffect(() => {
     /* 只在挂载时判断一次：已经有运行记录就直接呈现，不重跑 */
-    if (!autoRun || startedRef.current || !workflow) return
+    if (!autoRun || startedRef.current || !workflow || disabled) return
     startedRef.current = true
     if (!run) doRun()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [autoRun, workflow, run, doRun, disabled])
 
   if (!workflow || stages.length === 0) return null
 
@@ -122,7 +128,7 @@ export function RailProgressPanel({ workflow, projectId, prompt, autoRun, task, 
       {/* 标题做成依附左边缘的标签页：数字并进标签内部，右侧不再单独挂一个计数。
           形状是作者选定的 T1（单角斜切），样式见 workbench-a2.css 的 .fw-tag。 */}
       <div className="fw-scene-hd">
-        <span className="fw-tag">演示执行<span className="fw-tag-n num">{done}/{stages.length}</span></span>
+        <span className="fw-tag">{realCreation ? '创作进度' : '演示执行'}<span className="fw-tag-n num">{done}/{stages.length}</span></span>
       </div>
       <div className="fw-prog">
         {/* 正在制作：压在这一张卡的第一行，不另开栏目。说的是「在哪个内容上」，
@@ -144,17 +150,16 @@ export function RailProgressPanel({ workflow, projectId, prompt, autoRun, task, 
                   aria-label={`阶段进度 ${done}/${stages.length}`} />
         <span className="fw-prog-now">
           <i className="fm-dot" data-s={next ? (runningStage ? 'running' : 'idle') : 'done'} />
-          <b>{next ? labelOf(next) : '本次演示已结束'}</b>
-          <span className="fw-prog-state">{next ? (runningStage ? '进行中' : '待做') : '已完成'}</span>
+          <b>{next ? labelOf(next) : realCreation ? '本轮已结束' : '本次演示已结束'}</b>
+          <span className="fw-prog-state">{next ? (runningStage ? '进行中' : statusOfNode(next.id) === 'awaiting_info' ? '等待补充' : '待做') : '已完成'}</span>
         </span>
         <span className="fw-prog-meta">
           <span>{run ? `${fmtDay(at)} · ${TASK_STATUS_LABEL[run.status] ?? run.status}` : '未运行'}</span>
-          <span className="fw-prog-demo">演示执行器</span>
+          <span className="fw-prog-demo">{realCreation ? 'Agent 创作与渲染' : '演示执行器'}</span>
         </span>
         <div className="fw-prog-acts">
-          <button type="button" className="fw-prog-run" onClick={() => running ? execution.current?.cancel() : doRun()}>
-            {/* 三个按钮平分这一行，5 个字会截断成「再运行…」，所以用 4 字 */}
-            {running ? '停止演示' : run ? '再次演示' : '运行演示'}
+          <button type="button" className="fw-prog-run" disabled={disabled || (running && realCreation)} onClick={() => running ? execution.current?.cancel() : doRun()}>
+            {realCreation ? (running ? '正在制作' : run ? '继续制作' : '开始制作') : running ? '停止演示' : run ? '再次演示' : '运行演示'}
           </button>
           <button type="button" className="fw-prog-mini" onClick={onOpenExecution}>查看执行</button>
           <button type="button" className="fw-prog-mini" onClick={onOpenEditor}>工作流</button>

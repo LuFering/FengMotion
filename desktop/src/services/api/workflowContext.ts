@@ -11,6 +11,18 @@
  * 而这些此前从来没有落到项目目录里 —— 那套流程因此无法真正启动。</p>
  */
 import type { HttpClient } from './http'
+import type { AgentReference } from '../studioApi'
+
+export interface CreationState {
+  state: 'running' | 'rendered' | 'awaiting_info' | 'failed' | 'interrupted'
+  intent: string | null
+  reply: string | null
+  references: AgentReference[] | null
+  artifactPath: string | null
+  version: number | null
+  error: string | null
+  updatedAt: string
+}
 
 /** 一个项目的 workflow 创作上下文状态。 */
 export interface WorkflowContextState {
@@ -49,6 +61,34 @@ const RENDER_TIMEOUT_MS = 20 * 60 * 1000
 const CREATE_TIMEOUT_MS = 25 * 60 * 1000
 
 /** 项目工程配置状态。 */
+/**
+ * 项目里真实存在的产物。
+ *
+ * <p>与 `data/workbenchArtifacts` 的示例数据不同：这里是后端读项目目录得到的，
+ * 打开哪个项目就列哪个目录的文件。空数组表示「还没有产物」，
+ * 界面要如实显示，不要填占位。</p>
+ */
+export interface ProjectArtifacts {
+  /** 项目目录 */
+  directory: string
+  /** 文档型产物（md / json 等） */
+  documents: {
+    name: string
+    /** prompt / correction / decision / plan / lookdev / quality / config / qa / other */
+    kind: string
+    path: string
+    sizeBytes: number
+    modifiedAt: string
+  }[]
+  /** 渲染出的视频 */
+  renders: {
+    name: string
+    path: string
+    sizeBytes: number
+    modifiedAt: string
+  }[]
+}
+
 export interface FilmProjectState {
   projectId: string
   /** 是否已有可渲染的工程（film.config.json 合法且入口存在） */
@@ -137,6 +177,14 @@ export interface WorkflowContextResource {
   film(projectId: string): Promise<FilmProjectState>
 
   /**
+   * 读取项目里真实存在的产物。
+   *
+   * @param projectId 项目 ID
+   * @returns 文档与渲染产物；都为空表示这个项目还没有产物
+   */
+  artifacts(projectId: string): Promise<ProjectArtifacts>
+
+  /**
    * 渲染项目工程。
    *
    * <p>渲染的是 agent 写在项目里的 Remotion 源码，不是场景 props。
@@ -170,7 +218,8 @@ export interface WorkflowContextResource {
    * @param intent 这一轮要做什么；省略则按现有需求与纠正推进
    * @returns agent 说明与渲染结果
    */
-  create(projectId: string, intent?: string, references?: unknown[]): Promise<FilmCreateResult>
+  creation(projectId: string): Promise<CreationState | null>
+  create(projectId: string, intent?: string, references?: AgentReference[]): Promise<FilmCreateResult>
 }
 
 /**
@@ -196,6 +245,10 @@ export function createWorkflowContextResource(http: HttpClient): WorkflowContext
       return http.get<FilmProjectState>(`${base(projectId)}/film`)
     },
 
+    artifacts(projectId) {
+      return http.get<ProjectArtifacts>(`${base(projectId)}/artifacts`)
+    },
+
     renderFilm(projectId, prompt) {
       /* 渲染通常 30 秒起，首次还要下载浏览器。默认 15 秒超时必然掐断，
          而掐断后用户看到的是「请求超时」——完全看不出是在渲染。 */
@@ -207,6 +260,10 @@ export function createWorkflowContextResource(http: HttpClient): WorkflowContext
       return http.post<WorkflowContextState>(`${base(projectId)}/corrections`, { text })
     },
 
+    creation(projectId) {
+      return http.get<CreationState | null>(`${base(projectId)}/creation`)
+    },
+
     create(projectId, intent, references) {
       /* agent 改工程要读需求、写代码、可能自查，实测 100~200 秒。
          给足时间，别让默认 15 秒把一次正常创作当成失败。
@@ -214,7 +271,7 @@ export function createWorkflowContextResource(http: HttpClient): WorkflowContext
          references 必须一起发：用户选了三库资源却只发需求的话，
          agent 根本不知道有这些资源，用户会以为已经用上了。 */
       return http.post<FilmCreateResult>(`${base(projectId)}/create`,
-        { intent: intent ?? '', ...(references && references.length > 0 ? { references } : {}) },
+        { intent: intent ?? '', ...(references !== undefined ? { references } : {}) },
         { timeoutMs: CREATE_TIMEOUT_MS })
     },
   }

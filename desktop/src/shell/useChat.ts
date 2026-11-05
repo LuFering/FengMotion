@@ -6,6 +6,7 @@ export interface ChatMessage {
   text: string
   /** 服务端确认并保存的附件，用于回看消息时显示文件名。 */
   attachments?: { name: string; mimeType: string; sizeBytes: number; fileId?: string }[]
+  references?: import('@/types/contracts').AgentReference[]
   taskId?: string
   projectId?: string
   /** 消息时间（工作台对话 tab 只渲染 text，本字段对它无影响） */

@@ -31,6 +31,7 @@ export const TIER_LABEL: Record<StageTier, string> = {
 /** 档位 → 产物 kind。只认 workflow-v5 真有的产物类型，不发明新的。 */
 const TIER_OF_KIND: Record<string, StageTier> = {
   delivery: 'final',
+  render: 'final',
   animatic: 'animatic',
   passes: 'animatic',
   'proof-10s': 'proof',
@@ -75,7 +76,7 @@ export interface StageState {
   /** 有没有任何一次运行 —— 没有运行 = 还没开始，不是「做完了没画面」 */
   hasRun: boolean
   /** 最近一次运行的状态。空态文案按它分：没跑过 / 正在跑 / 跑完没出画面 */
-  lastRunStatus: 'none' | 'running' | 'completed' | 'failed' | 'cancelled'
+  lastRunStatus: 'none' | 'running' | 'completed' | 'failed' | 'cancelled' | 'awaiting_info'
   /** 最近一次运行产出的、不含画面的东西（如渲染请求记录）—— 空态如实说明它不产生视频 */
   requestOnly: boolean
 }
@@ -157,7 +158,7 @@ export function stageState(workflows: WorkflowDef[], runs: WorkflowRun[]): Stage
   const runStatus: StageState['lastRunStatus'] =
     status === 'running' || status === 'queued' || status === 'building' ? 'running'
       : status === 'completed' ? 'completed'
-      : status === 'failed' ? 'failed' : 'cancelled'
+      : status === 'failed' ? 'failed' : status === 'awaiting_info' ? 'awaiting_info' : 'cancelled'
 
   /* 跑完了、有产物、但没有任何产物指到画面 —— 那多半只产出了请求记录。
      这不是失败，要如实说清楚「没有视频生成」，不能让用户等一个不会来的画面。 */

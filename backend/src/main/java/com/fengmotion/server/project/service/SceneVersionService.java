@@ -36,6 +36,9 @@ public class SceneVersionService {
 
     private final ProjectRepository projects;
     private final ProjectSceneRepository scenes;
+    private final com.fengmotion.server.workflow.service.ProjectSourceSnapshots sourceSnapshots;
+    private final com.fengmotion.server.workflow.service.ProjectOperationLock operations;
+    private final com.fengmotion.server.workflow.service.CreationStateStore creationStates;
 
     /**
      * 列出项目的版本历史。
@@ -78,6 +81,15 @@ public class SceneVersionService {
      * @return 新版本
      */
     public ProjectSceneVersion restore(String projectId, long targetVersion, Long expectedVersion) {
+        operations.acquire(projectId);
+        try {
+            return restoreUnlocked(projectId, targetVersion, expectedVersion);
+        } finally {
+            operations.release(projectId);
+        }
+    }
+
+    private ProjectSceneVersion restoreUnlocked(String projectId, long targetVersion, Long expectedVersion) {
         requireProject(projectId);
 
         ProjectSceneVersion target = scenes.findVersion(projectId, targetVersion).orElseThrow(() ->
@@ -106,6 +118,38 @@ public class SceneVersionService {
         }
 
         JsonNode film = target.film();
+        if (film != null && "project-render".equals(film.path("kind").asText())) {
+            String snapshot = film.path("sourceSnapshot").asText("");
+            if (snapshot.isBlank()) {
+                throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, "source_snapshot_unavailable",
+                        "这个旧版本没有保存工程源码，只能预览视频，无法恢复工程");
+            }
+            var project = projects.findById(projectId).orElseThrow();
+            java.nio.file.Path root = java.nio.file.Path.of(project.rootPath()).toAbsolutePath().normalize();
+            try (var recovery = sourceSnapshots.restore(root, snapshot, film.path("sourceHash").asText(null))) {
+                Optional<Long> committed = scenes.commitWithSnapshot(projectId, baseVersion, film, null,
+                        "恢复工程到版本 " + targetVersion, "恢复工程及素材到版本 " + targetVersion,
+                        target.artifactPath(), ProjectSceneVersion.SOURCE_RESTORE, targetVersion);
+                if (committed.isEmpty()) throw new ApiException(HttpStatus.CONFLICT, "scene_version_conflict",
+                        "项目在恢复期间被更新，已保留恢复前工程，请刷新后重试");
+                recovery.commit();
+                try {
+                    creationStates.write(root, creationStates.state("rendered", "恢复版本 " + targetVersion,
+                            "已恢复版本 " + targetVersion + " 的工程代码与素材，沿用该版视频。",
+                            film.get("resources"), target.artifactPath(), committed.get(), null));
+                } catch (RuntimeException statusFailure) {
+                    log.warn("工程已恢复，但创作状态写入失败：{}", projectId, statusFailure);
+                }
+                return scenes.findVersion(projectId, committed.get()).orElseThrow();
+            } catch (java.io.IOException failure) {
+                throw new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "source_restore_failed",
+                        "恢复未完成，请检查项目中的 .fengmotion/restore-backups：" + failure.getMessage());
+            }
+        }
+        if ("project-render".equals(current.get().film().path("kind").asText())) {
+            throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, "source_snapshot_unavailable",
+                    "当前项目已使用源码工程，不能用旧场景数据覆盖；可预览旧版视频");
+        }
         if (film == null || !film.path("scenes").isArray()) {
             /* 快照里的 film 坏了（手工改库、磁盘损坏）：不能拿坏数据去覆盖当前场景。 */
             throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, "snapshot_corrupt",

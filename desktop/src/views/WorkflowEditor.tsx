@@ -952,9 +952,9 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
         
         <span className="wfe-revision">v{workflow.revision}</span>
         <span className="wfe-savestate"><CheckCircle2 size={12}/>{dirty ? '未保存' : '已保存'}</span>
-        <span className="wfe-demo">演示模式</span>
+        <span className="wfe-demo">{!isStructured && workflow.projectId ? '创作与渲染已连接' : '演示模式'}</span>
         <span className="wfe-spacer" /><button type="button" className="wfe-btn wfe-history-toggle" onClick={() => { setDrawerOpen(true); setDrawerTab('history') }}><History size={14}/> 运行记录</button>
-        {running && (
+        {running && (isStructured || !workflow.projectId) && (
           <button type="button" className="wfe-btn" onClick={() => runHandle.current?.cancel()}>
             <Ban size={13} strokeWidth={2.2} /> 取消
           </button>
@@ -963,7 +963,7 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
           <Save size={13} strokeWidth={2.2} /> 保存
         </button>
         <button type="button" className="wfe-btn is-primary" onClick={doRun} disabled={running}>
-          <Play size={13} strokeWidth={2.2} /> {running ? '运行中…' : isStructured ? '演示评估' : '演示运行'}
+          <Play size={13} strokeWidth={2.2} /> {running ? '运行中…' : isStructured ? '演示评估' : workflow.projectId ? '开始制作' : '演示运行'}
         </button>
       </div>
 
@@ -1325,6 +1325,7 @@ const RUN_STATUS_TXT: Record<string, string> = {
   completed: '已完成',
   failed: '失败',
   skipped: '已跳过',
+  awaiting_info: '等待补充',
 }
 
 function InspHead(props: { kicker: string; title: string; chip?: ReactNode }) {

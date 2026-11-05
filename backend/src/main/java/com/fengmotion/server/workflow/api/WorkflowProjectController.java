@@ -93,6 +93,11 @@ public class WorkflowProjectController {
      * @param request   可选的本轮意图
      * @return 结果
      */
+    @GetMapping("/creation")
+    public com.fengmotion.server.workflow.service.CreationStateStore.State creation(@PathVariable String projectId) {
+        return projectRender.creationState(projectId);
+    }
+
     @PostMapping("/create")
     public CreateResponse create(@PathVariable String projectId,
                                  @RequestBody(required = false) CreateRequest request) {

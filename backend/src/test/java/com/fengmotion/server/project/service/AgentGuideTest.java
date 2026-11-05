@@ -79,7 +79,9 @@ class AgentGuideTest {
         assertEquals(ProjectDirectoryService.GuideUpgrade.UPDATED, result,
                 "旧版框架指引应当被升级，而不是跳过");
         String guide = Files.readString(dir.resolve("AGENTS.md"));
-        assertTrue(guide.contains("agent-guide:v3"), "升级后应是当前版本");
+        /* 不写死具体版本号：一升版本就要改测试，测的其实是「有没有升到当前版本」 */
+        assertTrue(guide.startsWith(ProjectDirectoryService.GENERATED_MARKER),
+                "升级后应是当前版本：" + guide.substring(0, 60));
         assertTrue(guide.contains("/api/assets"), "升级后应带上三库指引");
     }
 

@@ -50,6 +50,10 @@ public class ProjectRenderService {
     private final CreateAgentRunner agent;
     private final ResourceContextBuilder resourceContexts;
     private final ObjectMapper json;
+    private final CreationStateStore creationStates;
+
+    private final ProjectOperationLock operations;
+    private final ProjectSourceSnapshots sourceSnapshots;
 
     /** 源码目录：只扫这些，避免把 renders/ 与依赖缓存算进指纹。 */
     private static final List<String> SOURCE_DIRS = List.of("src");
@@ -66,6 +70,25 @@ public class ProjectRenderService {
      * @return 结果
      */
     public RenderOutcome render(String projectId, String prompt) {
+        operations.acquire(projectId);
+        try {
+            RenderOutcome outcome = renderUnlocked(projectId, prompt);
+            try {
+                Path root = Path.of(projects.findById(projectId).orElseThrow().rootPath()).toAbsolutePath().normalize();
+                var previous = creationStates.read(root);
+                creationStates.write(root, creationStates.state(CreateOutcome.RENDERED, prompt,
+                        "已重新渲染当前工程。", previous == null ? null : previous.references(),
+                        outcome.artifactPath(), outcome.version(), null));
+            } catch (RuntimeException statusFailure) {
+                log.warn("渲染已提交，但状态保存失败：{}", projectId, statusFailure);
+            }
+            return outcome;
+        } finally {
+            operations.release(projectId);
+        }
+    }
+
+    private RenderOutcome renderUnlocked(String projectId, String prompt) {
         Project project = projects.findById(projectId)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "not_found", "项目不存在"));
         String rootPath = project.rootPath();
@@ -75,24 +98,29 @@ public class ProjectRenderService {
         Path root = Path.of(rootPath).toAbsolutePath().normalize();
 
         // 入口与 composition 从项目配置读，缺失/越界都在这里拒绝
-        ProjectFilmConfig.FilmConfig config = configs.read(root);
+        configs.read(root);
+        String sourceSnapshot = sourceSnapshots.capture(root);
+        Path renderRoot = sourceSnapshots.resolve(root, sourceSnapshot);
+        ProjectFilmConfig.FilmConfig config = configs.read(renderRoot);
 
         String fileName = "project-" + Instant.now().toEpochMilli() + ".mp4";
         Path output = root.resolve("renders").resolve(fileName);
 
+        long baseVersion = scenes.find(projectId)
+                .filter(ProjectScene::present).map(ProjectScene::version).orElse(0L);
         Instant startedAt = Instant.now();
-        ProjectFilmRenderer.Result result = renderer.render(root, config, output);
+        ProjectFilmRenderer.Result result = renderer.render(renderRoot, config, output);
         long elapsedMs = java.time.Duration.between(startedAt, Instant.now()).toMillis();
 
-        JsonNode fingerprint = fingerprint(root, config, result, elapsedMs);
+        ObjectNode fingerprint = (ObjectNode) fingerprint(renderRoot, config, result, elapsedMs);
+        fingerprint.put("sourceSnapshot", sourceSnapshot);
+        fingerprint.put("sourceHash", CreateAgentRunner.sourceFingerprint(renderRoot));
+        var creation = creationStates.read(root);
+        if (creation != null && creation.references() != null) fingerprint.set("resources", creation.references());
 
         /* 与「修改」共用版本链：这样项目工程的每一次真实渲染都会推进版本，
            后续修改与回退都基于它。film 字段存的是这次渲染的完整记录，
            而不是 scenes —— 项目工程的「内容」是源码，不是场景 JSON。 */
-        long baseVersion = scenes.find(projectId)
-                .filter(ProjectScene::present)
-                .map(ProjectScene::version)
-                .orElse(0L);
         Optional<Long> committed = scenes.commitWithSnapshot(
                 projectId, baseVersion, fingerprint, null,
                 prompt == null ? "" : prompt,
@@ -130,6 +158,28 @@ public class ProjectRenderService {
      * @return 结果
      */
     public CreateOutcome createThenRender(String projectId, String intent, JsonNode references) {
+        operations.acquire(projectId);
+        try {
+            return createUnlocked(projectId, intent, references);
+        } finally {
+            operations.release(projectId);
+        }
+    }
+
+    /** 运行中状态只对本进程有效，重启遗留的运行记录应告诉用户本轮已中断。 */
+    public CreationStateStore.State creationState(String projectId) {
+        Project project = projects.findById(projectId)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "not_found", "项目不存在"));
+        if (project.rootPath() == null) return null;
+        var state = creationStates.read(Path.of(project.rootPath()).toAbsolutePath().normalize());
+        if (state != null && "running".equals(state.state()) && !operations.isBusy(projectId)) {
+            return creationStates.state("interrupted", state.intent(), state.reply(), state.references(),
+                    state.artifactPath(), state.version(), "上次创作已中断，请检查工程后继续或重新渲染");
+        }
+        return state;
+    }
+
+    private CreateOutcome createUnlocked(String projectId, String intent, JsonNode references) {
         Project project = projects.findById(projectId)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "not_found", "项目不存在"));
         String rootPath = project.rootPath();
@@ -141,31 +191,47 @@ public class ProjectRenderService {
         /* 资源必须先解析成 agent 能读懂的描述再交出去。
            直接把 ID 列表丢给 agent，它无从知道用户到底想「用进画面」还是「只借鉴」；
            查不到也要在这里报错，不能跳过 —— 用户会以为资源已经用上了。 */
-        var resources = resourceContexts.build(references);
-
-        var agentResult = agent.run(root, intent, resources);
-        if (!agentResult.hasEntry() || !agentResult.hasConfig()) {
-            String missing = !agentResult.hasEntry()
-                    ? "src/index.tsx 没有产出"
-                    : ProjectFilmConfig.FILE_NAME + " 没有产出";
-            throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, "create_incomplete",
-                    "创作 agent 没有给出可渲染的工程（" + missing + "）。它的说明：" + agentResult.reply());
+        var previous = creationStates.read(root);
+        // 省略资源表示继续上轮选择；显式 [] 才表示清空，避免回答追问时丢掉素材。
+        JsonNode effectiveRefs = references == null || references.isNull()
+                ? previous == null ? null : previous.references() : references;
+        var resources = resourceContexts.build(effectiveRefs);
+        String instruction = intent;
+        if (previous != null && CreateOutcome.AWAITING_INFO.equals(previous.state())) {
+            instruction = "上一轮用户要求：\n" + previous.intent()
+                    + "\nAgent 上一轮的说明/问题：\n" + previous.reply()
+                    + "\n用户本轮补充：\n" + (intent == null ? "按已有要求继续" : intent);
         }
-
-        /* agent 只说话不动手（通常是信息不够，反过来向用户提问）时，绝不能渲染。
-           已有工程本来就能渲，渲出来的是上一版画面 —— 用户看到「渲染成功 + 新版本号」，
-           会以为改动已经生效。这里如实返回「等你补充信息」，版本链不动。 */
-        if (!agentResult.changed()) {
-            log.info("创作 agent 未修改工程：project={} reply={}",
-                    root.getFileName(), abbreviate(agentResult.reply()));
-            return CreateOutcome.awaitingInfo(agentResult.reply(), agentResult.elapsedMs(),
-                    resources.resolved());
+        creationStates.write(root, creationStates.state("running", intent, null, effectiveRefs, null, null, null));
+        String reply = null;
+        try {
+            var agentResult = agent.run(root, instruction, resources);
+            reply = agentResult.reply();
+            // 新项目尚无入口也能正常追问；先判断是否改动，再校验可渲染性。
+            if (!agentResult.changed()) {
+                creationStates.write(root, creationStates.state(CreateOutcome.AWAITING_INFO,
+                        intent, reply, effectiveRefs, null, null, null));
+                return CreateOutcome.awaitingInfo(reply, agentResult.elapsedMs(), resources.resolved());
+            }
+            configs.read(root);
+            RenderOutcome rendered = renderUnlocked(projectId, intent);
+            try {
+                creationStates.write(root, creationStates.state(CreateOutcome.RENDERED, intent, reply,
+                        effectiveRefs, rendered.artifactPath(), rendered.version(), null));
+            } catch (RuntimeException statusFailure) {
+                log.warn("视频版本已提交，但创作状态保存失败：{}", projectId, statusFailure);
+            }
+            return new CreateOutcome(CreateOutcome.RENDERED, reply, agentResult.elapsedMs(),
+                    rendered.artifactPath(), rendered.version(), rendered.result(), resources.resolved());
+        } catch (RuntimeException failure) {
+            try {
+                creationStates.write(root, creationStates.state("failed", intent, reply, effectiveRefs,
+                        null, null, failure.getMessage()));
+            } catch (RuntimeException statusFailure) {
+                failure.addSuppressed(statusFailure);
+            }
+            throw failure;
         }
-
-        RenderOutcome rendered = render(projectId, intent);
-        return new CreateOutcome(CreateOutcome.RENDERED, agentResult.reply(), agentResult.elapsedMs(),
-                rendered.artifactPath(), rendered.version(), rendered.result(),
-                resources.resolved());
     }
 
     /**

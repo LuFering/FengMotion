@@ -5,7 +5,8 @@ import {
   ListFilter, LoaderCircle, MessageSquarePlus, PanelLeft, Pencil, Pin, PinOff, Plus, Search, Send, Shield,
   ShieldAlert, ShieldCheck, Trash2, X,
 } from 'lucide-react'
-import { registerComposer, type DeliverableAsset } from '@/shell/usePendingAssets'
+import { registerComposer, type DeliverableAsset, type AssetPurpose } from '@/shell/usePendingAssets'
+import { deliveredReferences } from '@/services/creationResources'
 import { PURPOSE_LABEL } from '@/shell/usePendingAssets'
 import { studioHttpApi } from '@/services/api'
 import { newIdempotencyKey } from '@/services/api/config'
@@ -873,7 +874,7 @@ export function Conversation(props: {
     /* 上传状态只对**真实文件素材**有意义。
        参考片段与技法没有文件可上传，它们的价值是「借鉴什么」，
        拿 fileId / MIME 去校验会把它们全判成「不合格附件」而发不出去。 */
-    const fileAttachments = attachments.filter((a) => (a.source ?? 'asset') === 'asset')
+    const fileAttachments = attachments.filter((a) => !a.assetId && (a.source ?? 'asset') === 'asset')
     if (fileAttachments.some((a) => !a.fileId || a.uploading || a.uploadError)) {
       setSendError('请等待附件上传完成；上传失败的附件请移除后重新添加。')
       return
@@ -938,33 +939,9 @@ export function Conversation(props: {
       /* 参考片与特效走 references 通道。
          它们没有文件可传，但必须让 agent 知道「这是要借鉴的片段/技法」——
          塞进 attachments 会被 fileId 校验挡掉，等于送不进去。 */
-      const refs = attachments
-        .filter((a) => (a.source ?? 'asset') !== 'asset')
-        .map((a) => {
-          const role = a.purpose === 'reference' ? ('context' as const) : ('target' as const)
-          if (a.source === 'ref') {
-            return {
-              id: a.assetId,
-              role,
-              kind: 'reference' as const,
-              segmentId: a.assetId,
-              videoId: a.refVideoId,
-              startMs: a.refStart === undefined ? undefined : Math.round(a.refStart * 1000),
-              endMs: a.refEnd === undefined ? undefined : Math.round(a.refEnd * 1000),
-              wants: a.refWants,
-              label: a.name,
-            }
-          }
-          return {
-            id: a.assetId,
-            role,
-            kind: 'technique' as const,
-            techniqueId: a.fxId ?? a.assetId,
-            version: a.fxVersion,
-            intent: 'reference' as const,
-            label: a.name,
-          }
-        })
+      const refs = deliveredReferences(attachments
+        .filter((item) => item.assetId)
+        .map((item) => ({ ...item, assetId: item.assetId!, purpose: (item.purpose ?? 'unspecified') as AssetPurpose })))
       const saved = await props.threads.sendMessage(sessionId, text, {
         idempotencyKey: key,
         ...(ready.length > 0 ? { attachments: ready } : {}),
@@ -1167,7 +1144,14 @@ export function Conversation(props: {
     })
     const wf = workflowService.createFromPath(quick ? 'prompt-first' : proPath, 'general', name.slice(0, 24) || '未命名创作', {
       projectId: project.id,
-      seedPrompt: brief,
+      // 项目承接用户的整段讨论，按消息顺序保留原话，不能只带第一句。
+      seedPrompt: userMessages.map((message) => message.text).join('\n\n'),
+      resourceReferences: [
+        ...chat.messages.flatMap((message) => message.role === 'user' ? (message.references ?? []).filter((ref) => ref.kind === 'asset' || ref.kind === 'reference' || ref.kind === 'technique') : []),
+        ...deliveredReferences(attachments
+          .filter((item) => item.assetId && !item.uploading && !item.uploadError)
+          .map((item) => ({ ...item, assetId: item.assetId!, purpose: (item.purpose ?? 'unspecified') as AssetPurpose }))),
+      ],
     })
     chat.addAiMessage({
       text: '项目建好了，制作方案也备了一份。',

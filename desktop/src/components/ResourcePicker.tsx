@@ -61,6 +61,8 @@ export function ResourcePicker({
   const [segments, setSegments] = useState<SegmentRow[]>([])
   const [activeVideo, setActiveVideo] = useState('')
   const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [segmentsLoading, setSegmentsLoading] = useState(false)
 
   /* 素材用途与说明 */
   const [purpose, setPurpose] = useState<'visual' | 'reference' | 'audio' | 'information'>('visual')
@@ -79,20 +81,33 @@ export function ResourcePicker({
     if (!open) return
     let active = true
     setError('')
+    setLoading(true)
     const load = async () => {
       try {
-        if (kind === 'asset') {
-          const page = await api.assets.list({ limit: 100 })
-          if (active) setAssets((page.items ?? []) as AssetRow[])
-        } else if (kind === 'reference') {
+        if (kind === 'reference') {
           const list = await api.library.reference.listVideos()
           if (active) setVideos(list as VideoRow[])
         } else {
-          const page = await api.library.fx.listTechniques({ limit: 100 })
-          if (active) setTechniques((page.items ?? []) as TechniqueRow[])
+          let cursor: string | undefined
+          const rows: (AssetRow | TechniqueRow)[] = []
+          const cursors = new Set<string>()
+          do {
+            const page = kind === 'asset'
+              ? await api.assets.list({ limit: 100, cursor })
+              : await api.library.fx.listTechniques({ limit: 100, cursor })
+            if (!active) return
+            rows.push(...page.items)
+            cursor = page.nextCursor ?? undefined
+            if (cursor && cursors.has(cursor)) throw new Error('资源分页异常，请重新打开后再试')
+            if (cursor) cursors.add(cursor)
+          } while (cursor)
+          if (active && kind === 'asset') setAssets(rows as AssetRow[])
+          if (active && kind === 'technique') setTechniques(rows as TechniqueRow[])
         }
       } catch (cause) {
         if (active) setError(cause instanceof Error ? cause.message : String(cause))
+      } finally {
+        if (active) setLoading(false)
       }
     }
     void load()
@@ -101,13 +116,17 @@ export function ResourcePicker({
 
   /* 选中视频后再读它的片段：只有片段能表达「哪一段」 */
   useEffect(() => {
-    if (!activeVideo) { setSegments([]); return }
+    setSegments([])
+    if (!activeVideo || !open) { setSegmentsLoading(false); return }
     let active = true
+    setError('')
+    setSegmentsLoading(true)
     void api.library.reference.listSegments({ videoId: activeVideo })
       .then((rows) => { if (active) setSegments(rows as SegmentRow[]) })
       .catch((cause) => { if (active) setError(cause instanceof Error ? cause.message : String(cause)) })
+      .finally(() => { if (active) setSegmentsLoading(false) })
     return () => { active = false }
-  }, [activeVideo, api])
+  }, [activeVideo, open, api])
 
   const videoTitle = useMemo(
     () => videos.find((v) => v.id === activeVideo)?.title ?? '',
@@ -121,7 +140,8 @@ export function ResourcePicker({
           <DialogTitle className="t-head">从资源库引用</DialogTitle>
         </DialogHeader>
 
-        {error && <p className="t-meta text-danger">{error}</p>}
+        {error && <p role="alert" className="t-meta text-danger">{error}</p>}
+        {(loading || segmentsLoading) && <p role="status" className="t-meta text-muted-foreground">正在读取资源…</p>}
 
         <Tabs value={kind} onValueChange={(v) => { setKind(v as typeof kind); setActiveVideo('') }}>
           <TabsList>
@@ -146,9 +166,9 @@ export function ResourcePicker({
             <Input placeholder="补充说明（可选）" value={note} onChange={(e) => setNote(e.target.value)} />
             <ScrollArea className="h-64">
               <div className="flex flex-col gap-1 pr-3">
-                {assets.length === 0 && <p className="t-meta text-muted-foreground">素材库还没有内容</p>}
+                {!loading && !error && assets.length === 0 && <p className="t-meta text-muted-foreground">素材库还没有内容</p>}
                 {assets.map((a) => (
-                  <Button key={a.id} variant="ghost" className="h-auto justify-between px-2 py-2"
+                  <Button key={a.id} disabled={loading || !!error} variant="ghost" className="h-auto justify-between px-2 py-2"
                     onClick={() => {
                       onAdd({
                         id: `asset:${a.id}`,
@@ -176,7 +196,7 @@ export function ResourcePicker({
           <TabsContent value="reference" className="flex flex-col gap-3">
             <ScrollArea className="h-40">
               <div className="flex flex-col gap-1 pr-3">
-                {videos.length === 0 && <p className="t-meta text-muted-foreground">参考片库还没有内容</p>}
+                {!loading && !error && videos.length === 0 && <p className="t-meta text-muted-foreground">参考片库还没有内容</p>}
                 {videos.map((v) => (
                   <Button key={v.id} variant={activeVideo === v.id ? 'secondary' : 'ghost'}
                     className="h-auto justify-between px-2 py-2" onClick={() => setActiveVideo(v.id)}>
@@ -192,11 +212,11 @@ export function ResourcePicker({
                 <span className="t-meta">要看哪一段</span>
                 <ScrollArea className="h-40">
                   <div className="flex flex-col gap-1 pr-3">
-                    {segments.length === 0 && (
+                    {!segmentsLoading && !error && segments.length === 0 && (
                       <p className="t-meta text-muted-foreground">这条参考片还没有切片段，请先在参考片库切出一段。</p>
                     )}
                     {segments.map((s) => (
-                      <Button key={s.id} variant="ghost" className="h-auto justify-between px-2 py-2"
+                      <Button key={s.id} disabled={segmentsLoading || s.videoId !== activeVideo || !!error} variant="ghost" className="h-auto justify-between px-2 py-2"
                         onClick={() => {
                           onAdd({
                             id: `reference:${s.id}`,
@@ -251,9 +271,9 @@ export function ResourcePicker({
             </div>
             <ScrollArea className="h-64">
               <div className="flex flex-col gap-1 pr-3">
-                {techniques.length === 0 && <p className="t-meta text-muted-foreground">特效库还没有内容</p>}
+                {!loading && !error && techniques.length === 0 && <p className="t-meta text-muted-foreground">特效库还没有内容</p>}
                 {techniques.map((t) => (
-                  <Button key={t.id} variant="ghost" className="h-auto justify-between px-2 py-2"
+                  <Button key={t.id} disabled={loading || !!error} variant="ghost" className="h-auto justify-between px-2 py-2"
                     onClick={() => {
                       onAdd({
                         id: `technique:${t.id}`,

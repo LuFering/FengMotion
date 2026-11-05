@@ -59,7 +59,7 @@ export const fmtClock = (sec: number) => {
     以前这张表长在 Workbench 里，别的组件要用只能再抄一份。 */
 export const TASK_STATUS_LABEL: Record<string, string> = {
   queued: '排队中', running: '执行中', building: '构建中',
-  completed: '已完成', cancelled: '已停止', failed: '失败',
+  completed: '已完成', cancelled: '已停止', failed: '失败', awaiting_info: '等待补充',
 }
 
 /** 日期说成人话：今天 / 昨天 / 9月3日。左栏记录的「已通过 · 今天」用它。 */

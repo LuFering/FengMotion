@@ -58,9 +58,11 @@ public class ResourceContextBuilder {
      * @return 组装结果；没有三库资源时 available=false
      */
     public ResourceContext build(JsonNode refsNode) {
-        if (refsNode == null || !refsNode.isArray() || refsNode.isEmpty()) {
-            return ResourceContext.EMPTY;
+        if (refsNode == null || refsNode.isNull()) return ResourceContext.EMPTY;
+        if (!refsNode.isArray() || refsNode.size() > 100) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "reference_invalid", "资源引用必须是数组，且不能超过 100 项");
         }
+        if (refsNode.isEmpty()) return ResourceContext.EMPTY;
 
         List<String> lines = new ArrayList<>();
         List<ResolvedResource> resolved = new ArrayList<>();
@@ -86,11 +88,19 @@ public class ResourceContextBuilder {
                     ReferenceVideo video = references.requireVideo(segment.videoId());
                     String wants = ref.path("wants").asText("");
                     String avoid = ref.path("avoid").asText("");
-                    /* 时间范围以片段自身的界为准：用户可能改过引用里的范围，
-                       但片段记录的范围才是素材实际对应的那段。两者都带上，
-                       让 agent 知道「这段是这个时间窗」。 */
+                    if (ref.hasNonNull("videoId") && !video.id().equals(ref.path("videoId").asText())) {
+                        throw new ApiException(HttpStatus.BAD_REQUEST, "reference_invalid", "参考片与片段不匹配，请重新选择");
+                    }
+                    for (String field : List.of("startMs", "endMs")) {
+                        if (ref.hasNonNull(field) && !ref.path(field).isIntegralNumber()) {
+                            throw new ApiException(HttpStatus.BAD_REQUEST, "reference_invalid", "参考片时间必须是整数毫秒");
+                        }
+                    }
                     long startMs = ref.hasNonNull("startMs") ? ref.path("startMs").asLong() : segment.startMs();
                     long endMs = ref.hasNonNull("endMs") ? ref.path("endMs").asLong() : segment.endMs();
+                    if (startMs < segment.startMs() || endMs > segment.endMs() || endMs <= startMs) {
+                        throw new ApiException(HttpStatus.BAD_REQUEST, "reference_invalid", "引用区间已超出片段，请重新选择参考片段");
+                    }
                     Path file = absoluteReferencePath(video);
                     lines.add(describeReference(video, file, segment, startMs, endMs, wants, avoid));
                     resolved.add(new ResolvedResource("reference", segmentId,

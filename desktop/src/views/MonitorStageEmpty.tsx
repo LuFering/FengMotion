@@ -17,15 +17,16 @@ export function MonitorStageEmpty({ stage, brief, correctionCount = 0, onDiscuss
   const probe = useHarnesses()
   const agentReady = availabilityOf(probe, 'deepseek').state === 'available'
   const running = stage.lastRunStatus === 'running'
-  const title = running ? '制作记录正在更新' : stage.lastRunStatus === 'failed' ? '制作遇到了问题' : stage.lastRunStatus === 'cancelled' ? '已暂停这次制作' : '等待第一份画面'
-  const status = running ? (realRunning ? '正在制作' : '演示执行中') : stage.lastRunStatus === 'failed' ? '运行未完成' : stage.lastRunStatus === 'cancelled' ? '运行已停止' : stage.hasRun ? '已有演示记录 · 暂无预览' : '尚未开始制作'
+  const waiting = stage.lastRunStatus === 'awaiting_info'
+  const title = running ? '正在制作第一份画面' : waiting ? '等待你补充制作要求' : stage.lastRunStatus === 'failed' ? '制作遇到了问题' : stage.lastRunStatus === 'cancelled' ? '已暂停这次制作' : '等待第一份画面'
+  const status = running ? (realRunning ? '正在制作' : '演示执行中') : waiting ? '等待补充 · 尚未出片' : stage.lastRunStatus === 'failed' ? '运行未完成' : stage.lastRunStatus === 'cancelled' ? '运行已停止' : stage.hasRun ? '本轮尚无画面' : '尚未开始制作'
   return <div className="wb-preflight wb-studio-preflight" aria-live="polite">
     <div className="wb-waiting-stage">
       <div className="wb-waiting-state"><span className={running ? 'is-running' : ''}/>{status}</div>
       <div className="wb-waiting-content">
         <div className="wb-waiting-symbol" aria-hidden="true">{running ? <LoaderCircle size={30} className="animate-spin"/> : <Film size={30} strokeWidth={1.3}/>}</div>
         <h2>{title}</h2>
-        <p>{running ? (realRunning ? '正在处理制作任务。' : '演示正在记录制作过程，你可以继续补充要求。') : '从一个场景开始，让想法有具体的样子。'}</p>
+        <p>{running ? (realRunning ? '正在处理制作任务。' : '演示正在记录制作过程，你可以继续补充要求。') : waiting ? '在右侧对话中回答 Agent 的问题后继续。' : '写下制作要求，让 Agent 开始创作。'}</p>
         <div className="wb-waiting-actions">
           <button type="button" className="wb-start-editor" onClick={onEdit}>打开场景编辑器<ArrowRight size={15}/></button>
           <button type="button" className="wb-view-execution" onClick={onOpenExecution}><ListChecks size={14}/>制作记录</button>

@@ -107,11 +107,22 @@ export interface ModifyTaskRequest {
  * <p>{@code initialized=false} 时 {@code film} 为 null —— 这是「还没有场景」的
  * 明确状态，不是空场景。调用方必须区分，不能自己造一份默认场景冒充已有内容。</p>
  */
+export interface ProjectRenderSnapshot {
+  kind: 'project-render'
+  entry: string
+  compositionId: string
+  sourceSnapshot?: string
+  sourceHash?: string
+  output: { durationInFrames: number; width: number; height: number; fps: number; renderMs: number }
+}
+
+export type ProjectFilmSnapshot = RenderTaskRequest['film'] | ProjectRenderSnapshot
+
 export interface ProjectSceneState {
   projectId: string
   initialized: boolean
   version: number
-  film: RenderTaskRequest['film'] | null
+  film: ProjectFilmSnapshot | null
   taskId: string | null
   updatedAt: string | null
 }
@@ -125,7 +136,7 @@ export interface ProjectSceneState {
  */
 export interface ProjectSceneVersion {
   version: number
-  film: RenderTaskRequest['film']
+  film: ProjectFilmSnapshot
   taskId: string | null
   prompt: string
   editSummary: string

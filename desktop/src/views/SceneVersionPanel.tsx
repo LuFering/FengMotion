@@ -143,6 +143,8 @@ export function SceneVersionPanel({ projectId, scene, versions, onClose }: {
           {items.map((item) => {
             const isCurrent = item.version === currentVersion
             const isConfirming = confirming === item.version
+            const sourceProject = 'kind' in item.film && item.film.kind === 'project-render'
+            const canRestore = !sourceProject || ('sourceSnapshot' in item.film && !!item.film.sourceSnapshot)
             return (
               <article className="wb-sv-item" key={item.version} data-current={isCurrent}>
                 <header>
@@ -168,7 +170,8 @@ export function SceneVersionPanel({ projectId, scene, versions, onClose }: {
 
                 <VersionVideo projectId={projectId} artifactPath={item.artifactPath} />
 
-                {!isCurrent && (
+                {!isCurrent && !canRestore && <p className="wb-sv-hint">这个旧版本未保存工程源码，可预览视频，无法恢复工程。</p>}
+                {!isCurrent && canRestore && (
                   <div className="wb-sv-actions">
                     {isConfirming ? (
                       <>
@@ -204,7 +207,7 @@ export function SceneVersionPanel({ projectId, scene, versions, onClose }: {
 
                 {isConfirming && (
                   <p className="wb-sv-warn">
-                    回退只还原场景数据，不会重新生成视频。回退后要继续修改，基线就是这一版的内容。
+                    {sourceProject ? '恢复该版工程代码与素材，沿用该版视频；后续修改从该版工程继续。' : '回退只还原场景数据，不会重新生成视频。后续修改以此版为基线。'}
                   </p>
                 )}
               </article>

@@ -48,6 +48,8 @@ public class ChatStreamController {
     private final ChatSessionService sessions;
     private final ChatMessageService messages;
     private final ChatStreamService stream;
+    private final com.fengmotion.server.workflow.service.ResourceContextBuilder resourceContexts;
+    private final com.fasterxml.jackson.databind.ObjectMapper json;
 
     /**
      * 订阅会话回复流。
@@ -125,12 +127,26 @@ public class ChatStreamController {
         }
         // 历史按正序返回，这里翻到最后一页取最后一条用户消息。
         ChatMessageService.Page page = messages.list(sessionId, null, 200);
-        List<ChatMessage> items = page.items();
+        List<ChatMessage> items = new java.util.ArrayList<>(page.items());
+        while (page.nextCursor() != null) {
+            page = messages.list(sessionId, page.nextCursor(), 200);
+            // 只保留最后一条用户消息与当前页，避免长对话全部驻留内存。
+            ChatMessage previousUser = null;
+            for (ChatMessage item : items) if (ChatMessage.ROLE_USER.equals(item.role())) previousUser = item;
+            items = new java.util.ArrayList<>();
+            if (previousUser != null) items.add(previousUser);
+            items.addAll(page.items());
+        }
         for (int i = items.size() - 1; i >= 0; i--) {
             ChatMessage item = items.get(i);
             if (ChatMessage.ROLE_USER.equals(item.role())
                     && item.text() != null && !item.text().isBlank()) {
-                return new Resolution(item.text(), item.attachments());
+                var resources = resourceContexts.build(item.references());
+                String text = item.text();
+                if (resources.available()) {
+                    text += "\n\n用户随这条消息指定的资源及用途：\n" + resources.description();
+                }
+                return new Resolution(text, item.attachments());
             }
         }
         return null;
@@ -150,8 +166,7 @@ public class ChatStreamController {
         response.setStatus(ex.getStatus().value());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding(StandardCharsets.UTF_8.name());
-        response.getWriter().write("""
-                {"error":{"code":"%s","message":"%s","requestId":"req_%s"}}"""
-                .formatted(ex.getCode(), ex.getMessage(), UUID.randomUUID()));
+        json.writeValue(response.getWriter(), java.util.Map.of("error", java.util.Map.of(
+                "code", ex.getCode(), "message", ex.getMessage(), "requestId", "req_" + UUID.randomUUID())));
     }
 }

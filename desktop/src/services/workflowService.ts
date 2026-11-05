@@ -5,19 +5,16 @@
  * 的 AgentTask / TaskEvent，产物变更摘要复用 ChangeSet。
  *
  * v5 语义：
- * · Prompt-first 运行 = 逐节点生成工作稿/引用/请求记录的真实快照；
- *   创作与渲染只产「渲染请求记录」，绝不伪造视频。
+ * · Prompt-first：初始化项目上下文，在 create 节点真实创作与渲染；其余节点保留快照。
  * · Structured 运行 = 状态评估：按阶段清点产物与 Gate，产出状态报告；
  *   Gate 的确认只能由用户在检查器里对具体产物版本做出，运行永不代确认。
  *
- * <p><strong>哪些是真的、哪些还是演示</strong>（必须分清，否则界面会撒谎）：
- * 真实的只有一件事 —— Prompt-first 运行开始时，通过后端调用 workflow-v5 的
- * init-project 工具，把用户原文逐字写进项目目录，建立
- * prompt.original.md / lookdev-brief.md / qa/passes 这些创作上下文。
- * 其余节点推进、产物快照、渲染请求记录仍是本层生成的模拟数据，
- * 不产出视频。所以运行结束的提示必须写明「尚未生成视频」。</p>
+ * 有项目的 Prompt-first 路径会真实初始化上下文，并在 create 节点调用 agent 创作与渲染。
+ * 其它节点仍只生成界面快照；Structured 只做状态评估，不自动批准 Gate。
+ * 每项产物分别记录 demo 状态，运行记录仍保存在当前浏览器。
+ * awaiting_info 是正常等待状态，不算渲染成功或执行失败。
  */
-import type { AgentTask, ChangeSet, TaskEvent, TaskStatus } from './studioApi'
+import type { AgentReference, AgentTask, ChangeSet, TaskEvent, TaskStatus } from './studioApi'
 import { studioHttpApi } from './api'
 import type { FilmCreateResult, WorkflowContextState } from './api/workflowContext'
 import {
@@ -46,6 +43,7 @@ export interface WorkflowDef {
   updatedAt: string
   nodes: WfNodeInstance[]
   edges: WfEdgeInstance[]
+  resourceReferences?: AgentReference[]
 }
 
 export interface WfArtifact {
@@ -67,7 +65,7 @@ export interface WfArtifact {
   demo: boolean
 }
 
-export type WfNodeStatus = 'pending' | 'running' | 'completed' | 'failed' | 'skipped'
+export type WfNodeStatus = 'pending' | 'running' | 'completed' | 'failed' | 'skipped' | 'awaiting_info'
 
 export interface WorkflowRun {
   id: string
@@ -186,7 +184,7 @@ export const workflowService = {
     path: WfPath,
     presetId: string,
     name?: string,
-    opts?: { projectId?: string | null; seedPrompt?: string },
+    opts?: { projectId?: string | null; seedPrompt?: string; resourceReferences?: AgentReference[] },
   ): WorkflowDef {
     const graph = path === 'prompt-first' ? promptFirstGraph(presetId) : structuredGraph()
     /* 创作启动层带入的用户需求：PF 写进提示词节点的 text（主干第一节点），
@@ -201,6 +199,7 @@ export const workflowService = {
       id: uid('wf'),
       name: name ?? (path === 'prompt-first' ? '未命名创作' : '未命名结构化制作'),
       description: seed ?? '',
+      resourceReferences: opts?.resourceReferences ? structuredClone(opts.resourceReferences) : undefined,
       path,
       presetId,
       projectId: opts?.projectId !== undefined ? opts.projectId : presetId === 'talking' ? 'token' : null,
@@ -461,6 +460,31 @@ export interface DemoRunHandle {
   cancel: () => void
 }
 
+/** 显式引用优先，兼容工作流节点中已保存的资源 ID；不把演示名称当真实素材。 */
+export function workflowResourceReferences(wf: WorkflowDef): AgentReference[] {
+  const refs: AgentReference[] = [...(wf.resourceReferences ?? [])]
+  for (const node of wf.nodes) {
+    if (node.type === 'refs') {
+      for (const id of (node.params.assetIds as string[] | undefined) ?? []) {
+        if (!refs.some((r) => r.kind === 'asset' && r.assetId === id)) refs.push({
+          id: `asset:${id}`, kind: 'asset', role: 'context', assetId: id, purpose: 'unspecified', label: id,
+        })
+      }
+      for (const id of (node.params.refSegmentIds as string[] | undefined) ?? []) {
+        if (!refs.some((r) => r.kind === 'reference' && r.segmentId === id)) refs.push({
+          id: `reference:${id}`, kind: 'reference', role: 'context', segmentId: id, label: id,
+        })
+      }
+    }
+    if (node.type === 'capability') for (const id of (node.params.techniqueIds as string[] | undefined) ?? []) {
+      if (!refs.some((r) => r.kind === 'technique' && r.techniqueId === id)) refs.push({
+        id: `technique:${id}`, kind: 'technique', role: 'context', techniqueId: id, intent: 'reference', label: id,
+      })
+    }
+  }
+  return refs
+}
+
 export function startDemoRun(
   wf: WorkflowDef,
   callbacks: {
@@ -470,6 +494,8 @@ export function startDemoRun(
     projectId?: string
     /** 用户原始需求；会逐字写进 prompt.original.md */
     prompt?: string
+    references?: AgentReference[]
+    onCreateResult?: (result: FilmCreateResult) => void
   },
 ): DemoRunHandle {
   const runId = uid('run')
@@ -489,6 +515,7 @@ export function startDemoRun(
     wf.nodes.filter((n) => n.type !== 'lane').map((n) => [n.id, 'pending' as WfNodeStatus]),
   )
   let cancelled = false
+  let realCreationStarted = false
   const emit = (kind: TaskEvent['kind'], status: TaskStatus, message: string) => {
     const event: TaskEvent = { id: uid('evt'), taskId, kind, status, message, at: new Date().toISOString(), mock: true }
     events.push(event)
@@ -624,20 +651,23 @@ export function startDemoRun(
         if (node.type === 'create' && callbacks.projectId) {
           emit('progress', 'running', `${label}：Agent 正在读需求并修改工程…`)
           try {
+            realCreationStarted = true
             const rendered = await studioHttpApi().workflowContext.create(
               callbacks.projectId,
               callbacks.prompt
                 || String(wf.nodes.find((n) => n.type === 'prompt')?.params.text ?? '')
                 || undefined,
+              callbacks.references ?? workflowResourceReferences(wf),
             )
+            callbacks.onCreateResult?.(rendered)
             /* agent 只提问、没动工程：这一轮没有产物。
                节点不能标「已完成」，否则用户以为片子做出来了；
                也不该判「失败」—— 它在正常地等用户补充信息，所以标为等待。 */
             if (rendered.state === 'awaiting_info' || !rendered.artifactPath) {
-              await wait(200)
-              emit('error', 'failed',
-                `${label}：Agent 需要你补充信息，本轮没有修改工程，也没有渲染新片。它的说明：${rendered.reply.slice(0, 300)}`)
-              status = 'failed'
+              setStatus(node.id, 'awaiting_info')
+              emit('progress', 'awaiting_info',
+                `${label}：等待补充信息，本轮没有渲染新片。${rendered.reply}`)
+              status = 'awaiting_info'
               for (const rest of order.slice(order.indexOf(node) + 1)) setStatus(rest.id, 'skipped')
               break
             }
@@ -653,7 +683,9 @@ export function startDemoRun(
               content: json({
                 real: true,
                 artifactPath: rendered.artifactPath,
+                file: studioHttpApi().artifacts.contentUrl(callbacks.projectId, rendered.artifactPath),
                 version: rendered.version,
+                resources: rendered.resources,
                 agentReply: rendered.reply,
                 agentMs: rendered.agentMs,
               }),
@@ -706,7 +738,7 @@ export function startDemoRun(
               additions: a.content.split('\n').length,
               deletions: 0,
             })),
-            buildStatus: status === 'completed' ? 'passed' : 'failed',
+            buildStatus: status === 'completed' ? 'passed' : status === 'awaiting_info' ? 'not-run' : 'failed',
             mock: true,
           }
         : null
@@ -731,7 +763,8 @@ export function startDemoRun(
     return run
   })()
 
-  return { runId, done, cancel: () => { cancelled = true } }
+  // 后端创作请求尚无取消接口；离开页面不能被记录成「已经停止后端」。
+  return { runId, done, cancel: () => { if (!realCreationStarted) cancelled = true } }
 }
 
 /* ── 单节点运行（检查器三格契约的「只运行此节点」） ──────────────────

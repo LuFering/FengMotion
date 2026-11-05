@@ -21,7 +21,7 @@ import { useAgentTasks, type TaskRecord } from '@/hooks/useAgentTasks'
 import type { ProjectSceneState } from '@/services/api/taskClient'
 import type { FilmProjectState } from '@/services/api/workflowContext'
 import type { AgentReference, AgentTask, ModificationConstraints, TaskRequest, PreviewSource, TaskEvent } from '@/services/studioApi'
-import { evaluateGate, gateSummaryOf, GATE_PRIMARY_KIND, workflowService } from '@/services/workflowService'
+import { evaluateGate, gateSummaryOf, GATE_PRIMARY_KIND, workflowService, workflowResourceReferences } from '@/services/workflowService'
 import { GATE_DEFS } from '@/data/workflowTemplates'
 import { contentOutline, type ContentOutline, type ContentRow } from '@/data/contentOutline'
 import { stageState, type StageVisual } from '@/data/stageVisual'
@@ -349,7 +349,9 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
      所以空态要单独听任务的实时状态，否则跑的过程中画面区一直写着「还没开始跑」。 */
   /* 工作流运行不走 tasks（那是对话提交的任务），所以「正在跑」要单独接一路信号。 */
   const [workflowRunning, setWorkflowRunning] = useState(false)
-  const stageLive = Boolean(liveTask) || workflowRunning
+  const [remoteCreationBusy, setRemoteCreationBusy] = useState(false)
+  const [sourceCreationBusy, setSourceCreationBusy] = useState(false)
+  const stageLive = Boolean(liveTask) || workflowRunning || sourceCreationBusy || remoteCreationBusy
   const [editorPreviews, setEditorPreviews] = useState<StageVisual[]>([])
   const [editorExportTick, setEditorExportTick] = useState(0)
   useEffect(() => { let active = true; void editorRenderVisuals(projectId).then(items => { if (active) setEditorPreviews(items) }).catch(() => undefined); return () => { active = false } }, [projectId, editorExportTick])
@@ -373,7 +375,12 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
      用户会以为回退把项目弄坏了。
      这条 hook 必须在 stage 之前：画面区要合并场景版本自带的视频，
      而那份列表就来自这里。 */
-  const sceneVersions = useSceneVersions(projectId, setCurrentSceneState)
+  const sceneVersions = useSceneVersions(projectId, (scene) => {
+    setCurrentSceneState(scene)
+    setSelectedVisual(null); setSelectedArtifactId(null); setComparison(null)
+    setRealModifyError('')
+    rereadRuns()
+  })
 
   /* 场景版本自带的视频：修改/创建任务真正提交过的那条片子。
      它与工作流产物是两条来源，但用户只关心「现在这条片子长什么样」，
@@ -409,7 +416,9 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
     const base = stageState(projectWorkflows, workflowService.listRuns())
     /* 场景版本优先排在最前：它是用户最近一次真实提交的结果，
        比工作流演示产物更该被当作「当前这条片子」。 */
+    const seen = new Set<string>()
     const visuals = [...sceneVisuals, ...editorPreviews, ...base.visuals]
+      .filter((visual) => seen.has(visual.file) ? false : (seen.add(visual.file), true))
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
     const combined = { ...base, visuals }
     return stageLive ? { ...combined, lastRunStatus: 'running' as const } : combined
@@ -508,6 +517,8 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
             : '已连接'
 
   const [realModifyBusy, setRealModifyBusy] = useState(false)
+  const sourceOperation = useRef(false)
+  const restoredCreationAt = useRef<string | null>(null)
   const [realModifyError, setRealModifyError] = useState('')
   useEffect(() => {
     if (!notice) return
@@ -545,6 +556,38 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
     return () => { active = false }
   }, [projectId, runsTick, editorExportTick])
 
+  useEffect(() => {
+    let active = true
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const restore = async () => {
+      try {
+        const saved = await studioHttpApi().workflowContext.creation(projectId)
+        if (!active || !saved) return
+        const running = saved.state === 'running'
+        setRemoteCreationBusy(running)
+        if (!sourceOperation.current && !workflowRunning && saved.updatedAt !== restoredCreationAt.current) {
+          restoredCreationAt.current = saved.updatedAt
+          setAgentReply(saved.reply ?? '')
+          if (saved.reply) chat.appendMessage({ id: `creation:${projectId}:${saved.updatedAt}`, role: 'ai', text: saved.reply, projectId, at: new Date(saved.updatedAt).getTime() })
+          setAwaitingInfo(saved.state === 'awaiting_info' ? saved.reply ?? '' : '')
+          setRealModifyError(saved.error ?? '')
+          if (!referencesEdited.current && saved.references) setReferences(saved.references)
+        }
+        if (running) timer = setTimeout(() => void restore(), 4000)
+        else {
+          void sceneVersions.refresh(true)
+          void tasks.currentScene(projectId).then((probe) => { if (active && probe.scene) setCurrentSceneState(probe.scene) })
+        }
+      } catch (error) {
+        if (active) setRealModifyError(`读取创作记录失败：${error instanceof Error ? error.message : String(error)}`)
+      }
+    }
+    void restore()
+    return () => { active = false; if (timer) clearTimeout(timer) }
+    // 按项目与运行轮次恢复，不随 hooks 的对象引用重复请求。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId, runsTick])
+
   /* 进工作台就把该项目的任务历史读回来。
      任务已经落库，但前端记录只在内存 —— 不回读的话刷新一次历史就"没了"，
      用户会以为渲染结果丢了。切换项目时也重新读。 */
@@ -571,7 +614,8 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
    * @returns 是否成功
    */
   const submitProjectRender = async (): Promise<boolean> => {
-    if (realRenderBusy) return false
+    if (sourceOperation.current || realRenderBusy || realModifyBusy || workflowRunning || remoteCreationBusy) return false
+    sourceOperation.current = true
     setRealRenderBusy(true)
     setFilmRenderError('')
     try {
@@ -591,28 +635,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
       setNotice(`渲染失败：${message.slice(0, 160)}`)
       return false
     } finally {
-      setRealRenderBusy(false)
-    }
-  }
-
-  const submitRealRender = async () => {
-    if (realRenderBusy) return
-    setRealRenderBusy(true)
-    try {
-      const title = projectName.trim() || 'FengMotion'
-      // 简报首行作为副标题；没有简报时给一句占位，不留空
-      const firstLine = review.brief.original.trim().split(String.fromCharCode(10))[0] ?? ''
-      const subtitle = firstLine.slice(0, 40) || '真实渲染预览'
-      const film = {
-        width: 1280, height: 720, fps: 30,
-        backgroundColor: '#0b1220', color: '#ffffff',
-        scenes: [
-          { id: 's1', text: title, subtitle, durationSeconds: 2, textAnimation: 'fade' as const },
-        ],
-      }
-      const taskId = await tasks.startReal(projectId, film, `渲染「${title}」预览`)
-      setNotice(taskId ? '已提交真实渲染，出片后可在产物页播放' : '提交失败：请确认后端已连接')
-    } finally {
+      sourceOperation.current = false
       setRealRenderBusy(false)
     }
   }
@@ -885,8 +908,8 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
   const addContextReference = (ref: AgentReference) => {
     setReferences((old) => old.some((item) => item.id === ref.id) ? old : [...old, ref])
   }
-  const removeReference = (id: string) => setReferences((old) => old.filter((item) => item.id !== id))
-  const clearReferences = () => setReferences([])
+  const removeReference = (id: string) => { referencesEdited.current = true; setReferences((old) => old.filter((item) => item.id !== id)) }
+  const clearReferences = () => { referencesEdited.current = true; setReferences([]) }
   const locateReference = (ref: AgentReference) => {
     if (ref.kind === 'preview') {
       setComparison(null); setEditMode(false); setSelectedArtifactId(null)
@@ -1104,29 +1127,44 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
    * @returns 是否已成功提交
    */
   const submitRealModify = async (prompt: string): Promise<boolean> => {
-    if (realModifyBusy) return false
+    if (!prompt.trim()) { setRealModifyError('请先写下制作要求'); focusFeedback(); return false }
+    if (sourceOperation.current || realModifyBusy || realRenderBusy || workflowRunning || remoteCreationBusy) return false
+    sourceOperation.current = true
     setRealModifyBusy(true)
+    setSourceCreationBusy(true)
     try {
       /* 项目有 Remotion 工程时，修改走另一条路：
          意见写进 corrections.md，由 agent 改工程源码，再渲染出新的版本。
          不能走 modify 任务 —— 那条改的是 scenes 数据，
          而这个项目的画面在源码里，改数据不会让画面变。 */
-      if (filmProject?.ready) {
+      const context = await studioHttpApi().workflowContext.state(projectId)
+      const baseline = await tasks.currentScene(projectId)
+      if (!baseline.scene && !context.initialized && !filmProject?.ready) {
+        throw new Error(baseline.failure.message || '无法读取项目当前版本')
+      }
+      if (filmProject?.ready || context.initialized || !baseline.scene?.initialized) {
         try {
           /* 先落盘再让 agent 改：意见写进 corrections.md 是持久依据，
              agent 下一轮（甚至换个会话）都能读到。只发对话不落盘，
              刷新一次就没了，而用户以为已经提了。 */
-          await studioHttpApi().workflowContext.recordCorrection(projectId, prompt)
-          review.addCorrection(prompt)
+          if (context.initialized) {
+            await studioHttpApi().workflowContext.recordCorrection(projectId, prompt)
+            review.addCorrection(prompt)
+          } else {
+            await studioHttpApi().workflowContext.init(projectId, review.brief.original || prompt)
+            if (review.brief.original && review.brief.original !== prompt) {
+              await studioHttpApi().workflowContext.recordCorrection(projectId, prompt)
+              review.addCorrection(prompt)
+            }
+          }
           chat.addUserMessage(prompt, undefined, projectId)
           setNotice('修改意见已记入。Agent 正在按它改工程…')
 
           /* 只传三库资源：project/scene/frame 这些由原有链路处理，
              agent 侧只认「用户明确交给它的素材/参考片/特效」。 */
-          const libraryRefs = references.filter(
-            (r) => r.kind === 'asset' || r.kind === 'reference' || r.kind === 'technique',
-          )
-          const result = await studioHttpApi().workflowContext.create(projectId, prompt, libraryRefs)
+          const request = buildRequest(prompt, 'modify', constraints)
+          const intent = creationIntent(prompt, request.references ?? [], constraints, review.keepNotes)
+          const result = await studioHttpApi().workflowContext.create(projectId, intent, libraryReferences(request.references ?? []))
           setAgentReply(result.reply)
           setUsedResources(result.resources ?? [])
 
@@ -1143,6 +1181,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
           }
 
           setAwaitingInfo('')
+          setSelectedVisual(null); setSelectedArtifactId(null); setComparison(null)
           setNotice(`Agent 已改完并渲染出版本 v${result.version}。`)
           /* 刷新版本与画面：让用户立刻看到新一版，并能与上一版对比。 */
           void sceneVersions.refresh(true)
@@ -1229,8 +1268,14 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
       chat.addUserMessage(prompt, result.taskId, projectId)
       setBottomTab('activity')
       return true
+    } catch (error) {
+      setRealModifyError(error instanceof Error ? error.message : String(error))
+      return false
     } finally {
+      sourceOperation.current = false
       setRealModifyBusy(false)
+      setSourceCreationBusy(false)
+      rereadRuns()
     }
   }
 
@@ -1455,6 +1500,18 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
                             原文才是 workflow-v5 要求的创作依据。 */
                          projectId={projectId}
                          prompt={review.brief.original || undefined}
+                          references={libraryReferences(references)}
+                          disabled={realModifyBusy || realRenderBusy || remoteCreationBusy}
+                          onCreateResult={(result) => {
+                            setAgentReply(result.reply)
+                            setAwaitingInfo(result.state === 'awaiting_info' ? result.reply : '')
+                            setUsedResources(result.resources ?? [])
+                            if (result.state === 'rendered') {
+                              setSelectedVisual(null); setSelectedArtifactId(null); setComparison(null)
+                              void sceneVersions.refresh(true)
+                              void tasks.currentScene(projectId).then((probe) => { if (probe.scene) setCurrentSceneState(probe.scene) })
+                            }
+                          }}
                          task={liveTask}
                          onOpenTask={openTaskRecords}
                          autoRun={!!(launch && progressWorkflow && launch.workflowId === progressWorkflow.id && launch.autoRun)}
@@ -1560,10 +1617,10 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
                     )}
                   </div>
                 ) : (
-                  <MonitorStageEmpty stage={stage} realRunning={Boolean(liveTask && !projectTask?.task.mock)} brief={review.brief.original} correctionCount={review.corrections.length}
+                  <MonitorStageEmpty stage={awaitingInfo && !stageLive ? { ...stage, lastRunStatus: 'awaiting_info' } : stage} realRunning={Boolean(liveTask && !projectTask?.task.mock) || workflowRunning || sourceCreationBusy || remoteCreationBusy} brief={review.brief.original} correctionCount={review.corrections.length}
                                      onDiscuss={() => openReview('brief')} onEdit={openEdit}
-                                     onRealRender={() => void (filmProject?.ready ? submitProjectRender() : submitRealRender())} realRenderBusy={realRenderBusy}
-                                     renderTargetLabel={filmProject?.ready ? '渲染项目工程' : '真实渲染预览'}
+                                     onRealRender={() => void (filmProject?.ready ? submitProjectRender() : awaitingInfo ? focusFeedback() : submitRealModify(review.brief.original || chat.draft))} realRenderBusy={realRenderBusy || realModifyBusy || workflowRunning || remoteCreationBusy}
+                                     renderTargetLabel={filmProject?.ready ? '渲染项目工程' : awaitingInfo ? '补充制作要求' : '开始制作'}
                                      onOpenExecution={() => { setBottomTab('activity'); setTrayOpen(true) }} />
                 )}
               {usedResources.length > 0 && (
@@ -1645,7 +1702,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
               setComparisonAt(at.kind === 'preview' ? { timeSeconds: at.timeSeconds, bbox: at.bbox } : null)
             }}
             onLocate={(opinion) => { const target = opinion.request.references?.find((r) => r.role === 'target'); if (target) locateReference(target) }}
-            onContinue={continueOpinion}/> : <RightPanel realModifyBusy={realModifyBusy} realModifyError={realModifyError}
+            onContinue={continueOpinion}/> : <RightPanel sourceMode={!!filmProject?.ready || projectWorkflows.length > 0 || !currentSceneState?.initialized} realModifyBusy={realModifyBusy || realRenderBusy || workflowRunning || remoteCreationBusy} realModifyError={realModifyError}
                        onClearRealModifyError={() => setRealModifyError('')}
                        onDemoSubmit={submitDemo}
                        sceneVersion={currentSceneState}
@@ -1689,7 +1746,8 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
         open={resourcePickerOpen}
         onOpenChange={setResourcePickerOpen}
         onAdd={(ref) => {
-          setReferences((old) => old.some((r) => r.id === ref.id) ? old : [ref, ...old])
+          referencesEdited.current = true
+          setReferences((old) => [ref, ...old.filter((r) => r.id !== ref.id)])
           setNotice(`已引用「${ref.label}」，写一句要求后提交。`)
         }}
       />
@@ -2304,7 +2362,7 @@ function RightPanel({ projectId, target, preview, chat, sideTab, setSideTab, foc
   onNavigate, references, onRemoveReference,
   onLocateReference, onToggleReferenceRole, onClearReferences, onScopeChange, onOpenResourcePicker,
   onOpenReview, keepNotes, reviewSaved, onResumeRequest,
-  realModifyBusy, realModifyError, onClearRealModifyError, onDemoSubmit, sceneVersion, onOpenVersions }:
+  sourceMode, realModifyBusy, realModifyError, onClearRealModifyError, onDemoSubmit, sceneVersion, onOpenVersions }:
   { projectId: string; target: AgentReference; preview: StageVisual | null; chat: ChatState; sideTab: SideTab; setSideTab: (v: SideTab) => void; focusChatKey: number
     scope: 'project'|'scene'|'selection'
     /** 输入框上显示的作用范围（真名，不是枚举）与它的短名（占位文案用） */
@@ -2325,6 +2383,7 @@ function RightPanel({ projectId, target, preview, chat, sideTab, setSideTab, foc
     onOpenReview: (tab: ReviewDeskTab) => void; keepNotes: string; reviewSaved: boolean; onResumeRequest: (request: TaskRequest) => void
     /** 真实修改正在提交：按钮要禁用并改文案，否则用户会连点发多次 */
     realModifyBusy: boolean
+    sourceMode: boolean
     /** 上次真实修改失败的原因；非空表示要一直显示到用户处理 */
     realModifyError: string
     onClearRealModifyError: () => void
@@ -2352,7 +2411,7 @@ function RightPanel({ projectId, target, preview, chat, sideTab, setSideTab, foc
     const v = chat.draft.trim()
     if (!v || realModifyBusy) return
     const ok = await onSubmit(v)
-    if (ok) chat.setDraft('')
+    if (ok && inputRef.current?.value.trim() === v) chat.setDraft('')
   }
   const inputRef = useRef<HTMLTextAreaElement | null>(null)
   /* 问题/场景带入对话时聚焦输入框：只在切到对话后触发，不抢其他视图的焦点。 */
@@ -2518,7 +2577,7 @@ function RightPanel({ projectId, target, preview, chat, sideTab, setSideTab, foc
               </div>
               <textarea className="wb-input" rows={3} ref={inputRef}
                         value={chat.draft} onChange={(e) => chat.setDraft(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void submit() } }}
+                        onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); void submit() } }}
                         placeholder={target.kind === 'project' ? '补充创作要求，或描述希望调整的内容…' : `描述「${scopeShort}」要改哪里、保留什么…`} />
               {keepNotes && <button type="button" className="wb-keep-summary" onClick={() => onOpenReview('brief')} title={keepNotes}>始终保留：{keepNotes}</button>}
               <button type="button" className="wb-compose-brief-link" onClick={() => onOpenReview('brief')}>查看制作要求与后续纠正 <ArrowUpRight size={11}/></button>
@@ -2541,8 +2600,8 @@ function RightPanel({ projectId, target, preview, chat, sideTab, setSideTab, foc
                 <button className="iconbtn" type="button" title="上传还没接通" disabled><Plus /></button>
                 {/* 能力边界必须写在入口旁：用户会默认「能对话就能随便改」，
                     实际只认「把文字改成 X」「文字/背景颜色改成 X」两种说法。 */}
-                <span className="wb-compose-capability" title="当前仅支持修改文字与颜色；其它要求会被明确拒绝，不会瞎改">
-                  仅支持文字 / 颜色
+                <span className="wb-compose-capability" title={sourceMode ? 'Agent 按要求修改工程，保留条件随本轮要求提交' : '旧场景路径目前仅支持文字与颜色'}>
+                  {sourceMode ? 'Agent 创作' : '仅支持文字 / 颜色'}
                 </span>
                 <button className="mini mini-ghost" type="button"
                         onClick={() => { const v = chat.draft.trim(); if (v) onDemoSubmit(v) }}
@@ -2585,7 +2644,7 @@ function RightPanel({ projectId, target, preview, chat, sideTab, setSideTab, foc
             {CONSTRAINT_LABELS.map(([key, label]) => {
               /* 真实修改暂不执行这些约束：禁用而不是让人勾上然后静默忽略。
                  勾了却不生效，用户会以为改动受到了保护。 */
-              const supported = REAL_MODIFY_SUPPORTED_CONSTRAINTS.has(key)
+              const supported = sourceMode || REAL_MODIFY_SUPPORTED_CONSTRAINTS.has(key)
               return (
                 <div key={key} className="fw-constraint-row" data-unsupported={!supported || undefined}
                      title={supported ? undefined : '当前仅支持修改文字与颜色，该保留条件暂不生效'}>

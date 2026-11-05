@@ -99,7 +99,7 @@ public class ProjectDirectoryService {
      * 只升级带标记的文件：用户改过的指引属于他的创作资产，
      * 框架无权覆盖 —— 那会把他写下的项目约定悄悄冲掉。</p>
      */
-    static final String GENERATED_MARKER = "<!-- fengmotion:agent-guide:v3 -->";
+    static final String GENERATED_MARKER = "<!-- fengmotion:agent-guide:v4 -->";
 
     /**
      * 识别任意版本的框架标记。
@@ -185,6 +185,23 @@ public class ProjectDirectoryService {
                 简单需求几步代码就够了，为了「走完流程」去补一堆用不上的文档是浪费时间。
                 但**只要你写了 `film-plan.md` 这类结构化文件，就该跑对应校验**，
                 别把一份自己都没验过的计划当依据。
+
+                ## 语义检索（创作前必做一次）
+
+                三库（素材/参考片/特效）与外部能力库（风格 51 个、镜头卡 136 张、Remotion 组件）
+                已经统一建好语义索引。**用自然语言查，不要靠猜**：
+
+                ```bash
+                curl -s "http://127.0.0.1:8080/api/retrieval/search?q=镜头快速推近背景被拉开的眩晕感&limit=8"
+                ```
+
+                - `q` 写你想要的**视觉感受**，不是库里的术语。说「老电影那种颗粒感」比说「film grain」更容易命中。
+                - `kinds` 可选：`technique`（特效）、`capability`（风格/镜头卡/组件）、`asset`、`reference`。
+                - 返回 `score` 是相似度（0–1，越大越像），`text` 是命中的原文片段，`id` 是资源标识。
+
+                **什么时候查**：定视觉方向（lookdev）、排镜头计划（film-plan）、需要具体动效写法时。
+                每轮至少查一次；没有匹配就写一句「已检索，无匹配」再自己设计 ——
+                不查就自己编视觉，是画面平庸的直接原因。
 
                 ## 三个资源库（素材 / 参考片 / 特效）
 

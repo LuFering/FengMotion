@@ -95,6 +95,7 @@ export function toViewMessage(m: ContractMessage): ChatMessage {
     role: m.role === 'user' ? 'user' : 'ai',
     text: m.text,
     ...(m.attachments?.length ? { attachments: m.attachments } : {}),
+    ...(m.references?.length ? { references: m.references } : {}),
     taskId: m.taskId,
     at: toMs(m.createdAt),
     // 工具调用记录随消息读回：这是「切走会话再回来还能看到跑了什么」的唯一来源。
@@ -240,7 +241,7 @@ export interface SessionsState {
   sendMessage: (
     sessionId: string,
     text: string,
-    options?: { idempotencyKey?: string; attachments?: ContractMessage['attachments'] },
+    options?: { idempotencyKey?: string; attachments?: ContractMessage['attachments']; references?: ContractMessage['references'] },
   ) => Promise<ChatMessage>
   /** 是否有会话请求在途 */
   loading: boolean
@@ -633,12 +634,13 @@ export function useSessions() {
   const sendMessage = useCallback(async (
     sessionId: string,
     text: string,
-    options: { idempotencyKey?: string; attachments?: ContractMessage['attachments'] } = {},
+    options: { idempotencyKey?: string; attachments?: ContractMessage['attachments']; references?: ContractMessage['references'] } = {},
   ): Promise<ChatMessage> => {
     /* 附件只带 fileId 等元信息，不带路径与字节 —— 契约要求消息只引用已上传的附件。
        空数组不传：让请求体保持「没有附件」的形状，而不是一个空列表。 */
     const body = {
       text,
+      ...(options.references?.length ? { references: options.references } : {}),
       ...(options.attachments && options.attachments.length > 0
         ? { attachments: options.attachments }
         : {}),
