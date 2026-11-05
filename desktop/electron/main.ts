@@ -271,7 +271,7 @@ if (!gotLock) {
         ? process.resourcesPath
         : existsSync(path.join(installedRoot, 'backend'))
           ? installedRoot
-          : path.resolve(__dirname, '..', '..', 'backend')
+          : path.resolve(__dirname, '..', '..', '..', 'backend')
       backendHandle = await startBackend({
         resourcesRoot,
         /* 数据目录必须与后端 application.yml 的 fengmotion.data-dir 默认值一致
