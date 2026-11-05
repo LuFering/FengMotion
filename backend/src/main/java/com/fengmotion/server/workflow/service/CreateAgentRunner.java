@@ -296,19 +296,44 @@ public class CreateAgentRunner {
                         但不要凭空引用库里不存在的技法名。）
                         """;
             }
+            case DEGRADED_LITERAL_NO_MATCH -> {
+                return """
+                        （本轮语义检索不可用，改用索引原文做字面匹配，也没有结果。
+                        **这不等于「库里没有相关内容」** —— 字面匹配不懂同义词，
+                        「眩晕感」搜不到「多莉变焦」属于正常。可以自行设计画面，
+                        但不要声称查过库、也不要编造库里没有的技法名。）
+                        """;
+            }
+            case DEGRADED_LITERAL_WITH_HITS -> {
+                /* 有结果，但必须说清是字面匹配：不说的话，agent 会把
+                   「关键词碰巧出现过」当成「语义相关」，进而过度信任这些候选。 */
+            }
             default -> {
                 // SUCCESS_WITH_HITS，走下面的候选清单
             }
         }
 
-        StringBuilder sb = new StringBuilder("""
-                下面是从技法库与能力库按这一轮需求召回的相关条目（不是用户指定，是可选参考）：
-                用得上就照着做或借鉴，用不上就别硬套；不要编造库里没有的技法。
-                完整检索记录见项目目录的 %s。
-                """.formatted(RETRIEVAL_LOG));
+        boolean degraded = result.status() == RetrievalResult.Status.DEGRADED_LITERAL_WITH_HITS;
+        StringBuilder sb = new StringBuilder();
+        if (degraded) {
+            sb.append("""
+                    下面是从技法库与能力库召回的字面匹配条目（**本轮语义检索不可用，
+                    这些只是原文里出现了相近的词，不代表语义相关**）：
+                    请自行判断是否真的贴合本轮需求，宁可不采用也不要硬套；
+                    不要编造库里没有的技法。
+                    完整检索记录见项目目录的 %s。
+                    """.formatted(RETRIEVAL_LOG));
+        } else {
+            sb.append("""
+                    下面是从技法库与能力库按这一轮需求召回的相关条目（不是用户指定，是可选参考）：
+                    用得上就照着做或借鉴，用不上就别硬套；不要编造库里没有的技法。
+                    完整检索记录见项目目录的 %s。
+                    """.formatted(RETRIEVAL_LOG));
+        }
         for (var hit : result.hits()) {
             sb.append("- [").append(hit.kind()).append("] ").append(hit.id())
-              .append("（相似度 ").append(String.format("%.2f", hit.score())).append("）：")
+              .append(degraded ? "（字面匹配 " : "（相似度 ")
+              .append(String.format("%.2f", hit.score())).append("）：")
               .append(abbreviate(hit.text(), 160)).append('\n');
         }
         return sb.toString();
@@ -333,8 +358,10 @@ public class CreateAgentRunner {
           .append(switch (result.status()) {
               case SUCCESS_WITH_HITS -> "检索成功，有候选";
               case SUCCESS_NO_MATCH -> "检索成功，无相近条目";
+              case DEGRADED_LITERAL_WITH_HITS -> "语义检索不可用，改为索引原文字面匹配，有候选";
+              case DEGRADED_LITERAL_NO_MATCH -> "语义检索不可用，字面匹配也没有结果";
               case INDEX_NOT_READY -> "索引未就绪，本轮没有真正比对过内容";
-              case SERVICE_FAILED -> "向量服务调用失败，本轮没有真正比对过内容";
+              case SERVICE_FAILED -> "向量服务调用失败，且无可做字面匹配的原文";
           })
           .append("）\n")
           .append("- 查询：").append(oneLine(result.query())).append('\n')
@@ -344,9 +371,11 @@ public class CreateAgentRunner {
             sb.append("- 命中：无\n");
         } else {
             sb.append("- 命中：\n");
+            boolean literal = result.status() == RetrievalResult.Status.DEGRADED_LITERAL_WITH_HITS;
             for (var hit : result.hits()) {
                 sb.append("  - `").append(hit.kind()).append(':').append(hit.id()).append("` 段")
-                  .append(hit.chunk()).append(" 相似度 ").append(String.format("%.3f", hit.score()))
+                  .append(hit.chunk()).append(literal ? " 字面匹配 " : " 相似度 ")
+                  .append(String.format("%.3f", hit.score()))
                   .append("：").append(oneLine(abbreviate(hit.text(), 200))).append('\n');
             }
         }

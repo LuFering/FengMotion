@@ -20,30 +20,72 @@ public record RetrievalResult(Status status, String query, List<String> kinds, L
     /**
      * 检索状态。
      *
-     * <p>四种状态互斥，且都有各自的处置方式，不能合并：</p>
+     * <p>各种状态互斥，且都有各自的处置方式，不能合并：</p>
      */
     public enum Status {
 
-        /** 检索成功，且有命中。 */
+        /** 语义检索成功，且有命中。 */
         SUCCESS_WITH_HITS,
 
-        /** 检索成功，但没有相近内容 —— 这才是「查过，确实没有」。 */
+        /** 语义检索成功，但没有相近内容 —— 这才是「查过，确实没有」。 */
         SUCCESS_NO_MATCH,
 
         /** 索引为空或尚未建立：系统还没准备好，不是「没有匹配」。 */
         INDEX_NOT_READY,
 
-        /** 调不通 embedding 服务（没配 key、网络异常、超时）。 */
+        /**
+         * 语义检索不可用，改用索引原文做字面匹配，且有命中。
+         *
+         * <p>为什么单列、而不是并进 SERVICE_FAILED 或算作成功：索引里存着当初写入的
+         * 原文，向量服务不可用时这些原文仍能按字面搜到。说成「失败」用户会以为整个
+         * 检索坏了；说成「成功」用户又会把字面命中当成语义命中。
+         * 两者都会误导，所以单独一个状态：<strong>结果可用，但能力已降级</strong>。</p>
+         */
+        DEGRADED_LITERAL_WITH_HITS,
+
+        /**
+         * 语义检索不可用，字面兜底也跑过了，但没有命中。
+         *
+         * <p>与 {@link #SERVICE_FAILED} 的区别在处置方式：这个状态表示两种检索都试过，
+         * 应对办法是换关键词或补内容；SERVICE_FAILED 表示连字面都没查成。</p>
+         */
+        DEGRADED_LITERAL_NO_MATCH,
+
+        /** 调不通 embedding 服务，且没有可用的字面兜底（索引为空或查询为空）。 */
         SERVICE_FAILED
     }
 
     /**
-     * 是否成功执行了检索（无论有无命中）。
+     * 是否成功执行了「语义」检索（无论有无命中）。
      *
-     * @return 检索真的跑通了返回 true
+     * <p>降级状态不算语义成功：调用方据此判断能不能把结果称为「语义匹配」。</p>
+     *
+     * @return 语义检索真的跑通了返回 true
      */
     public boolean succeeded() {
         return status == Status.SUCCESS_WITH_HITS || status == Status.SUCCESS_NO_MATCH;
+    }
+
+    /**
+     * 是否给出了可用结果（语义或字面）。
+     *
+     * <p>界面用这个决定要不要渲染列表：降级命中同样应该展示，
+     * 只是必须同时标出「字面匹配，非语义」。</p>
+     *
+     * @return 有可展示的结果返回 true
+     */
+    public boolean usable() {
+        return status == Status.SUCCESS_WITH_HITS || status == Status.DEGRADED_LITERAL_WITH_HITS;
+    }
+
+    /**
+     * 结果是否为降级（字面匹配）产出。
+     *
+     * @return 降级返回 true
+     */
+    public boolean degraded() {
+        return status == Status.DEGRADED_LITERAL_WITH_HITS
+                || status == Status.DEGRADED_LITERAL_NO_MATCH;
     }
 
     /**

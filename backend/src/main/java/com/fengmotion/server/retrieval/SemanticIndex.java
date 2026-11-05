@@ -131,12 +131,18 @@ public class SemanticIndex {
             return RetrievalResult.empty(RetrievalResult.Status.INDEX_NOT_READY, query, kinds);
         }
         if (!embeddings.available()) {
-            return RetrievalResult.empty(RetrievalResult.Status.SERVICE_FAILED, query, kinds);
+            /* 没有 key 不等于「查不了」：索引表里存着当初写入的原文，
+               这些原文可以按字面匹配。此时如实标成降级，而不是把整个检索判成失败 ——
+               用户至少还能凭字面找到东西，也知道这次不是语义匹配。 */
+            return literalFallback(query, kinds, limit);
         }
 
         List<float[]> queryVector = embeddings.embed(List.of(query));
         if (queryVector.isEmpty()) {
-            return RetrievalResult.empty(RetrievalResult.Status.SERVICE_FAILED, query, kinds);
+            /* 配了 key 但调用失败（网络、超时、额度）：同样退回字面，
+               并保持降级状态。只报 SERVICE_FAILED 会让用户失去全部检索能力。 */
+            log.warn("向量化失败，检索退回字面匹配：query={}", abbreviate(query));
+            return literalFallback(query, kinds, limit);
         }
         float[] target = queryVector.get(0);
 
@@ -161,6 +167,165 @@ public class SemanticIndex {
         return new RetrievalResult(
                 top.isEmpty() ? RetrievalResult.Status.SUCCESS_NO_MATCH : RetrievalResult.Status.SUCCESS_WITH_HITS,
                 query, kinds, List.copyOf(top));
+    }
+
+    /**
+     * 字面兜底：在索引原文里按关键词匹配。
+     *
+     * <p>这不是「凑一个结果」：索引表的 {@code text} 列存的就是当初写入索引的原文
+     * （技法说明、风格描述、镜头卡正文），语义服务不可用时它依然可读可搜。
+     * 只是匹配方式是字面包含，不懂同义词 —— 所以结果必须标成降级。</p>
+     *
+     * <p><strong>切词方式</strong>：没有引入分词器。做法是把查询按非字母数字/非汉字切块，
+     * 每块长度 ≥2 才参与匹配，打分按「命中了几个词块」排。这样
+     * 「镜头快速推近 眩晕」里的「镜头」「推近」「眩晕」都能各自命中，
+     * 比整句 {@code LIKE} 实用得多，也不引入中文分词的依赖与调参成本。</p>
+     *
+     * @param query 查询文本
+     * @param kinds 限定来源；空表示全部
+     * @param limit 最多返回条数
+     * @return 带降级状态的检索结果
+     */
+    private RetrievalResult literalFallback(String query, List<String> kinds, int limit) {
+        List<String> terms = splitTerms(query);
+        if (terms.isEmpty()) {
+            /* 查询切不出可用词块（例如全是单个汉字或标点）：确实没法字面匹配，
+               此时说「服务失败」是诚实的 —— 我们没能执行任何检索。 */
+            return RetrievalResult.empty(RetrievalResult.Status.SERVICE_FAILED, query, kinds);
+        }
+
+        String kindFilter = (kinds == null || kinds.isEmpty())
+                ? ""
+                : " WHERE ref_kind IN (" + String.join(",", kinds.stream().map(k -> "?").toList()) + ")";
+        Object[] args = (kinds == null || kinds.isEmpty()) ? new Object[0] : kinds.toArray();
+
+        List<Hit> hits = new ArrayList<>();
+        /* 这里必须用一个显式类型的 RowCallbackHandler，而不是裸 lambda：
+           JdbcTemplate 同时有 query(String, RowCallbackHandler, Object...) 和
+           query(String, ResultSetExtractor, Object...) 两个重载，而两者都是函数式接口。
+           裸 lambda + Object[] 变参时，编译器/运行时的重载选择会落到 ResultSetExtractor
+           分支，随后在 Tomcat 线程里抛 NoClassDefFoundError（日志框架自身又崩掉，
+           真正的异常被吞掉，接口只会返回空响应）。实测过：不带 kinds 正常、
+           一带 kinds 就整个请求挂掉。
+
+           显式声明类型即可消除歧义，且 rowCallback 里不要自己 while(rs.next())。 */
+        jdbc.query("SELECT ref_kind, ref_id, chunk_no, text FROM semantic_index" + kindFilter,
+                (org.springframework.jdbc.core.RowCallbackHandler) rs -> {
+                    String text = rs.getString("text");
+                    int matched = countMatchedTerms(text, terms);
+                    if (matched == 0) {
+                        return;
+                    }
+                    /* 分数 = 命中词块占比。语义相似度在 0–1 之间连续分布，
+                       字面占比也是 0–1，形状接近但含义不同；
+                       调用方靠 status 区分，不靠分数。 */
+                    double score = (double) matched / terms.size();
+                    hits.add(new Hit(rs.getString("ref_kind"), rs.getString("ref_id"),
+                            rs.getInt("chunk_no"), text, score));
+                }, args);
+
+        hits.sort(Comparator.comparingDouble(Hit::score).reversed());
+        List<Hit> top = hits.size() > limit ? hits.subList(0, limit) : hits;
+        return new RetrievalResult(
+                top.isEmpty()
+                        ? RetrievalResult.Status.DEGRADED_LITERAL_NO_MATCH
+                        : RetrievalResult.Status.DEGRADED_LITERAL_WITH_HITS,
+                query, kinds, List.copyOf(top));
+    }
+
+    /**
+     * 把查询切成参与字面匹配的词块。
+     *
+     * <p>中文没有空格，所以这里不能只按标点切 —— 实测踩到过：
+     * 查询「镜头快速推近、背景被拉开的眩晕感」按标点切成整块
+     * 「镜头快速推近」和「背景被拉开的眩晕感」，而索引里写的是「多莉变焦」，
+     * 整块做子串匹配永远不命中，于是降级后依然是一条结果都没有。</p>
+     *
+     * <p>规则因此是：<strong>连续的中日韩文字切成长度 2 的二元组</strong>，
+     * 拉丁字母数字仍按词切（≥2 字符）。二元组是中文检索的常用近似：
+     * 「眩晕感」→「眩晕」「晕感」，只要原文出现「眩晕」就能命中，
+     * 又不会像单字那样到处误命中。</p>
+     */
+    static List<String> splitTerms(String query) {
+        if (query == null || query.isBlank()) {
+            return List.of();
+        }
+        List<String> terms = new ArrayList<>();
+        int i = 0;
+        while (i < query.length()) {
+            char c = query.charAt(i);
+            if (isCjk(c)) {
+                int start = i;
+                while (i < query.length() && isCjk(query.charAt(i))) {
+                    i++;
+                }
+                addCjkBigrams(terms, query.substring(start, i));
+            } else if (Character.isLetterOrDigit(c)) {
+                int start = i;
+                while (i < query.length()
+                        && Character.isLetterOrDigit(query.charAt(i))
+                        && !isCjk(query.charAt(i))) {
+                    i++;
+                }
+                addIfUseful(terms, query.substring(start, i));
+            } else {
+                i++;
+            }
+        }
+        return terms;
+    }
+
+    /** 是否中日韩文字（含扩展 A 与兼容区）。 */
+    private static boolean isCjk(char c) {
+        return (c >= 0x4E00 && c <= 0x9FFF)
+                || (c >= 0x3400 && c <= 0x4DBF)
+                || (c >= 0xF900 && c <= 0xFAFF);
+    }
+
+    /**
+     * 把一段连续中文切成二元组。
+     *
+     * <p>只有 2 个字时直接用整段（切不出二元组，但整段本身就是有效词）。
+     * 单字不单独成词 —— 单字匹配误命中太多，会把真正的结果挤出榜单。</p>
+     */
+    private static void addCjkBigrams(List<String> terms, String run) {
+        if (run.length() == 1) {
+            return;
+        }
+        if (run.length() == 2) {
+            addIfUseful(terms, run);
+            return;
+        }
+        for (int i = 0; i + 2 <= run.length(); i++) {
+            addIfUseful(terms, run.substring(i, i + 2));
+        }
+    }
+
+    private static void addIfUseful(List<String> terms, String term) {
+        String trimmed = term.trim();
+        if (trimmed.length() >= 2 && !terms.contains(trimmed)) {
+            terms.add(trimmed);
+        }
+    }
+
+    /** 文本里命中了几个词块（不区分大小写）。 */
+    private static int countMatchedTerms(String text, List<String> terms) {
+        if (text == null || text.isEmpty()) {
+            return 0;
+        }
+        String lower = text.toLowerCase(java.util.Locale.ROOT);
+        int matched = 0;
+        for (String term : terms) {
+            if (lower.contains(term.toLowerCase(java.util.Locale.ROOT))) {
+                matched++;
+            }
+        }
+        return matched;
+    }
+
+    /** 日志里用的短查询：避免整段 prompt 进日志。 */
+    private static String abbreviate(String query) {
+        return query.length() <= 40 ? query : query.substring(0, 40) + "…";
     }
 
     /**

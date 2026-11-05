@@ -55,6 +55,47 @@ class RetrievalStatusTest {
     }
 
     @Test
+    @DisplayName("降级命中可用，但不能称为语义成功")
+    void degradedHitsAreUsableButNotSemantic() {
+        var hit = new SemanticIndex.Hit("capability", "lemo:art-deco", 0,
+                "Black lacquer, engraved gold line", 0.5);
+        RetrievalResult degraded = new RetrievalResult(
+                RetrievalResult.Status.DEGRADED_LITERAL_WITH_HITS, QUERY, KINDS, List.of(hit));
+
+        assertTrue(degraded.usable(), "降级命中仍应展示给用户");
+        assertFalse(degraded.succeeded(), "字面匹配不能算作语义检索成功");
+        assertTrue(degraded.degraded());
+    }
+
+    @Test
+    @DisplayName("降级无命中与向量服务失败是两回事")
+    void degradedNoMatchDiffersFromServiceFailed() {
+        RetrievalResult degraded = RetrievalResult.empty(
+                RetrievalResult.Status.DEGRADED_LITERAL_NO_MATCH, QUERY, KINDS);
+        RetrievalResult failed = RetrievalResult.empty(
+                RetrievalResult.Status.SERVICE_FAILED, QUERY, KINDS);
+
+        assertTrue(degraded.degraded(), "字面兜底跑过但没有结果，属于降级");
+        assertFalse(failed.degraded(), "连字面都没查成，不是降级");
+        assertFalse(degraded.usable());
+        assertFalse(failed.usable());
+        assertFalse(degraded.succeeded());
+        assertFalse(failed.succeeded());
+    }
+
+    @Test
+    @DisplayName("正常语义成功不算降级")
+    void semanticSuccessIsNotDegraded() {
+        var hit = new SemanticIndex.Hit("technique", "fx-dolly-zoom", 0, "推近同时拉开背景", 0.81);
+        RetrievalResult found = new RetrievalResult(
+                RetrievalResult.Status.SUCCESS_WITH_HITS, QUERY, KINDS, List.of(hit));
+
+        assertFalse(found.degraded());
+        assertTrue(found.usable());
+        assertTrue(found.succeeded());
+    }
+
+    @Test
     @DisplayName("有命中时保留查询与范围，便于事后追溯")
     void hitsKeepQueryAndKinds() {
         var hit = new SemanticIndex.Hit("technique", "fx-dolly-zoom", 0, "推近同时拉开背景", 0.67);
