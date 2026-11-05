@@ -1210,7 +1210,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
       if (!probe.scene.initialized) {
         /* 修改需要已有场景做基线，没有就明确拒绝。
            这里刻意不再自己造一条「从一句话生成」的旁路：项目已有的
-           workflow-v5 才是创作路径，绕开它另做一条简化管线
+           workflow-v0.1.0 才是创作路径，绕开它另做一条简化管线
            （比如只生成文字卡片）会偏离产品方向，也让两套流程并存。
            真正的创作入口应走工作流，等它接通后替换这句提示。 */
         setRealModifyError('项目还没有场景。请先在工作流里创作一条片子，再对它提出修改。')
@@ -1495,9 +1495,9 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
                          key={progressWorkflow?.id ?? 'none'}
                          workflow={progressWorkflow}
                          /* 传项目与原始需求：Prompt-first 开跑时要真实建立
-                            workflow-v5 创作上下文（写入 prompt.original.md）。
+                            workflow-v0.1.0 创作上下文（写入 prompt.original.md）。
                             用「制作要求原文」而不是输入框草稿 —— 后者是随时会变的一句话，
-                            原文才是 workflow-v5 要求的创作依据。 */
+                            原文才是 workflow-v0.1.0 要求的创作依据。 */
                          projectId={projectId}
                          prompt={review.brief.original || undefined}
                           references={libraryReferences(references)}

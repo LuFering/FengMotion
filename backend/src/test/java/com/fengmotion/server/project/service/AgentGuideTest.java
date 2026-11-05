@@ -16,7 +16,7 @@ import org.junit.jupiter.api.io.TempDir;
  *
  * <p>这件事的分量在于：指引决定创作 agent 拿到什么工作方式。
  * 旧指引要求「先想清楚分镜再写 JSON」，会把 agent 一直推向文字卡片，
- * 与 workflow-v5 的 Prompt-first 方向相反 —— 只改新建模板不够，
+ * 与 workflow-v0.1.0 的 Prompt-first 方向相反 —— 只改新建模板不够，
  * 已有项目也得覆盖到，但用户自己改过的不能碰。</p>
  */
 @DisplayName("agent 指引")
@@ -99,18 +99,18 @@ class AgentGuideTest {
     }
 
     @Test
-    @DisplayName("指引给出 workflow-v5 工具的真实绝对路径，而不是找不到的相对路径")
+    @DisplayName("指引给出 workflow-v0.1.0 工具的真实绝对路径，而不是找不到的相对路径")
     void guideGivesAbsoluteToolchainPath() throws Exception {
-        /* 原先只写「工具在 workflow-v5/ 下」，而 agent 的工作目录是项目目录，
+        /* 原先只写「工具在 workflow-v0.1.0/ 下」，而 agent 的工作目录是项目目录，
            相对路径它根本找不到 —— 那些校验工具从未被调用过。 */
         org.springframework.test.util.ReflectionTestUtils.setField(
-                service, "workflowDir", "/opt/fm/resources/workflow-v5");
+                service, "workflowDir", "/opt/fm/resources/workflow-v0.1.0");
 
         Path dir = tempDir.resolve("p-tools");
         service.create(dir);
         String guide = Files.readString(dir.resolve("AGENTS.md"));
 
-        assertTrue(guide.contains("/opt/fm/resources/workflow-v5"),
+        assertTrue(guide.contains("/opt/fm/resources/workflow-v0.1.0"),
                 "要给出绝对路径，agent 才执行得到");
         assertTrue(guide.contains("validate-shot-plan.mjs"), "要点出主要校验工具");
     }
@@ -139,7 +139,7 @@ class AgentGuideTest {
         service.create(dir);
         String guide = Files.readString(dir.resolve("AGENTS.md"));
 
-        /* workflow-v5 的 Prompt-first 默认不要求逐层填完文件。
+        /* workflow-v0.1.0 的 Prompt-first 默认不要求逐层填完文件。
            指引若写成一串「先…再…」，agent 会把简单需求也当成必须走完整流程，
            凭空多出一堆用户没要的中间产物。 */
         assertTrue(guide.contains("不是必过门槛") || guide.contains("不必为此写一份完整 brief"),

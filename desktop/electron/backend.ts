@@ -189,21 +189,21 @@ export async function startBackend(options: StartOptions): Promise<BackendHandle
   /* 浏览器缓存不用指定：Remotion 自己放在 ~/.cache 并跨次复用
      （安装态实测首次 140 秒含下载、第二次 33 秒）。 */
 
-  /* workflow-v5 创作工具：打包态在 resources/workflow-v5，开发态在仓库里。
+  /* workflow-v0.1.0 创作工具：打包态在 resources/workflow-v0.1.0，开发态在仓库里。
      不传的话后端只能按 user.dir 猜，安装后必然猜不到，
      「建立创作上下文」会直接报 workflow_unavailable ——
      与上面 Remotion 是同一类坑，一并显式传。 */
   const workflowArgs: string[] = []
-  const workflowDir = path.join(options.resourcesRoot, 'workflow-v5')
+  const workflowDir = path.join(options.resourcesRoot, 'workflow-v0.1.0')
   if (existsSync(path.join(workflowDir, 'prompt-first', 'tools', 'init-project.mjs'))) {
     workflowArgs.push(`--fengmotion.workflow.dir=${workflowDir}`)
   } else {
     // 开发态：后端仓库的兄弟目录
-    const devWorkflow = path.resolve(__dirname, '..', '..', '..', 'frontend', 'workflow-v5')
+    const devWorkflow = path.resolve(__dirname, '..', '..', '..', 'frontend', 'workflow-v0.1.0')
     if (existsSync(path.join(devWorkflow, 'prompt-first', 'tools', 'init-project.mjs'))) {
       workflowArgs.push(`--fengmotion.workflow.dir=${devWorkflow}`)
     } else {
-      console.warn(`[backend] 未找到 workflow-v5：${workflowDir}（创作上下文将不可用）`)
+      console.warn(`[backend] 未找到 workflow-v0.1.0：${workflowDir}（创作上下文将不可用）`)
     }
   }
 

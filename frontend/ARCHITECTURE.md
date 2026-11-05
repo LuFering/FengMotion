@@ -12,7 +12,7 @@ FengMotion Desktop 是 AI 视频创作工作台（桌面优先）。当前形态
 - 项目级（2）：制作工作台 `Workbench`、发布与验收 `RenderDelivery`
 - 其中工作流、发布与验收、项目总览（`ProjectOverview`）当前以 iframe 装载 `public/replica/` 下的静态复刻页，是过渡形态，原生化路径见 [前端开发计划](docs/dev/开发进度.md)
 
-创作管线（Agent 工作流）以版本目录形式存放在仓库根：`workflow-v2` … `workflow-v5`（当前 v5，v0.5.14.2）。工作流定义「怎么创作」，前端工作台是它的操作界面；两者的对象模型差异（v5 已非镜头中心、工作台仍是）是当前前端改造的背景，见 `docs/design/` 下各规格。
+创作管线位于 `workflow-v0.1.0/`，定义「怎么创作」；前端工作台是它的操作界面。工作流默认采用 Prompt-first，相关规格见 `docs/design/`。
 
 ## 目录职责
 
@@ -22,7 +22,7 @@ FengMotion Desktop 是 AI 视频创作工作台（桌面优先）。当前形态
 | `public/` | 随构建发布的静态资源。`public/replica/` 为 iframe 过渡页，禁止继续在其中堆新功能 |
 | `docs/` | 文档站（GitHub Pages，`index.html` 为站点首页）与设计规格。`docs/design/` 设计规格（设计系统、工作流规格、知识库规格、导航图）；`docs/dev/` 开发文档（规范、进度、日志、协议、决策记录）；`docs/assets/`、`docs/media/` 站点素材 |
 | `design/` | 设计稿与参考素材（截图、logo 等），不是代码，不进构建 |
-| `workflow-v2` … `workflow-v5` | Agent 创作管线各版本。旧版本只读存档，不再修改；新版本以新目录开启 |
+| `workflow-v0.1.0/` | 当前 Agent 创作管线、工具和模板 |
 | `.claude/` | 维护者的本地 Agent 配置，协作者勿改 |
 | `.github/` | PR / Issue 模板 |
 
@@ -36,7 +36,7 @@ FengMotion Desktop 是 AI 视频创作工作台（桌面优先）。当前形态
 
 - 产品/设计规格：`docs/design/`、`docs/页面职责合同.md`
 - 开发流程与规范：[docs/dev/](docs/dev/README.md)
-- Agent 管线：`workflow-v5/README.md` 起读
+- Agent 管线：`workflow-v0.1.0/README.md` 起读
 - 给 AI 的工作约定：`CLAUDE.md`
 
 ### 工作台本地审阅（2026-10-29）

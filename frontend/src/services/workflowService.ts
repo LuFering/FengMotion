@@ -490,7 +490,7 @@ export function startDemoRun(
   callbacks: {
     onEvent: (event: TaskEvent) => void
     onNodeStatus: (nodeId: string, status: WfNodeStatus) => void
-    /** 当前项目；有值时 Prompt-first 运行会真实建立 workflow-v5 创作上下文 */
+    /** 当前项目；有值时 Prompt-first 运行会真实建立 workflow-v0.1.0 创作上下文 */
     projectId?: string
     /** 用户原始需求；会逐字写进 prompt.original.md */
     prompt?: string
@@ -576,7 +576,7 @@ export function startDemoRun(
           nodeType: 'evaluation',
           kind: 'evaluation',
           title: 'Structured · 状态评估报告',
-          filename: 'v5-status-report.json',
+          filename: 'workflow-status-report.json',
           summary: `状态评估 · 产物 ${stageRows.length} 项（缺 ${missing}）/ Gate ${gateRows.length} 个`,
           content: json(report),
           demo: true,
@@ -586,12 +586,12 @@ export function startDemoRun(
     } else {
       emit('accepted', 'queued', `已接收运行请求（${wf.name} · 修订 ${wf.revision}）。Prompt-first 路径无强制门。`)
 
-      /* 唯一真实的一步：把用户原文落进项目目录，建立 workflow-v5 认的创作上下文。
+      /* 唯一真实的一步：把用户原文落进项目目录，建立 workflow-v0.1.0 认的创作上下文。
          没有这一步，后面所有「产物快照」都建在空地基上 —— 那套流程要读
          prompt.original.md 才有创作依据。失败要如实说失败，并继续把
          其余演示节点跑完会让用户以为上下文建好了。 */
       if (callbacks.projectId && (callbacks.prompt ?? '').trim()) {
-        emit('progress', 'running', '正在建立 workflow-v5 创作上下文（写入 prompt.original.md）…')
+        emit('progress', 'running', '正在建立 workflow-v0.1.0 创作上下文（写入 prompt.original.md）…')
         try {
           const outcome = await studioHttpApi().workflowContext.init(callbacks.projectId, callbacks.prompt)
           const state = outcome.state
@@ -608,7 +608,7 @@ export function startDemoRun(
             emit('build', 'building', `需求与已有原文一致，上下文无变化：${state.files.length} 个文件，原文 ${state.promptLength} 字。`)
           } else {
             emit('build', 'building', `创作上下文已就绪：${state.files.length} 个文件，原文 ${state.promptLength} 字。`
-              + `workflow-v5 工具${state.toolAvailable ? '可用' : '未找到（请检查配置）'}。`)
+              + `workflow-v0.1.0 工具${state.toolAvailable ? '可用' : '未找到（请检查配置）'}。`)
           }
         } catch (error) {
           /* 上下文没建起来就不该继续假装在创作 —— 直接失败，并说明原因。 */
@@ -622,7 +622,7 @@ export function startDemoRun(
            以前这里会用模板占位建出一个「已就绪」，用户以为存好了原文。 */
         status = 'failed'
         emit('error', 'failed', '缺少创作需求：请先在「制作要求」里写下这次想做什么，'
-          + 'workflow-v5 需要 prompt.original.md 保存你的原文，而不是模板占位。')
+          + 'workflow-v0.1.0 需要 prompt.original.md 保存你的原文，而不是模板占位。')
       }
 
       const order = status === 'failed' ? [] : topoOrder(wf)
@@ -723,7 +723,7 @@ export function startDemoRun(
       if (status === 'completed') emit('complete', 'completed', createdArtifact
         ? `运行结束：已产出真实视频（版本 v${createdArtifact.version}，${createdArtifact.width}×${createdArtifact.height}）。其余节点的产物为界面快照，不代表已有对应文件。`
         : contextInfo
-          ? `运行结束：已建立 workflow-v5 创作上下文（${contextInfo.files.length} 个文件），但**没有真实渲染**——「制作与渲染」节点未连到项目或未执行。`
+          ? `运行结束：已建立 workflow-v0.1.0 创作上下文（${contextInfo.files.length} 个文件），但**没有真实渲染**——「制作与渲染」节点未连到项目或未执行。`
           : '运行结束：产物均为工作稿/引用/请求记录快照；未接入真实渲染，没有视频生成。')
       if (status === 'cancelled') emit('cancelled', 'cancelled', '演示运行已取消；已生成的产物保留在本次运行记录中。')
     }

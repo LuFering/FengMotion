@@ -1,7 +1,7 @@
 /**
  * 工作流（v5 重构）
  *
- * 内容模型对齐 workflow-v5：Prompt-first 是默认创作路径（首页主入口），
+ * 内容模型对齐 workflow-v0.1.0：Prompt-first 是默认创作路径（首页主入口），
  * Structured 是按需的阶段+Gate 协议（次级入口）；题材只是预设。
  * 首页工作流卡显示路径、最近产物与真实 Gate 进度（服务层同一评估口径）。
  * 数据只经 workflowService。

@@ -2,7 +2,7 @@
  * 工作流编辑器（v5 重构）
  *
  * 骨架沿用第一期（命令条/左构建栏/画布/Inspector/执行抽屉，React Flow 仅作引擎），
- * 内容模型换成 workflow-v5：Prompt-first 自由节点图（无 Gate）、Structured
+ * 内容模型换成 workflow-v0.1.0：Prompt-first 自由节点图（无 Gate）、Structured
  * 阶段泳道 + 产物节点 + Gate 检查点。Gate 的确认只能由用户在检查器里对
  * 具体产物版本做出；演示运行永不代确认。
  */

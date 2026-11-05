@@ -28,7 +28,7 @@ export const TIER_LABEL: Record<StageTier, string> = {
   frame: '测试帧',
 }
 
-/** 档位 → 产物 kind。只认 workflow-v5 真有的产物类型，不发明新的。 */
+/** 档位 → 产物 kind。只认 workflow-v0.1.0 真有的产物类型，不发明新的。 */
 const TIER_OF_KIND: Record<string, StageTier> = {
   delivery: 'final',
   render: 'final',

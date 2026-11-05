@@ -17,12 +17,12 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * 项目与 workflow-v5 的衔接。
+ * 项目与 workflow-v0.1.0 的衔接。
  *
- * <p><strong>为什么需要这一层</strong>：workflow-v5 的创作上下文是
+ * <p><strong>为什么需要这一层</strong>：workflow-v0.1.0 的创作上下文是
  * <em>项目目录里的文件</em>（{@code prompt.original.md} 等），而应用里用户只看到
  * 「项目」。两者此前没有任何连接：应用从不让用户写下原始需求，
- * 项目目录里也就没有 workflow-v5 认的创作上下文，那套流程自然跑不起来。</p>
+ * 项目目录里也就没有 workflow-v0.1.0 认的创作上下文，那套流程自然跑不起来。</p>
  *
  * <p><strong>这一层只做「建立上下文」，不做创作</strong>：把用户原文逐字落盘、
  * 建好 {@code qa/passes/}，然后如实报告目录状态。它不会替你写 lookdev、
@@ -72,7 +72,7 @@ public class WorkflowProjectService {
                工具的语义是不覆盖原文（对的 —— 原文是创作依据），
                但它也不会把新需求记下来，于是用户第二次说的话会静默消失，
                界面还照样显示「上下文已就绪」。
-               按 workflow-v5 的约定，后续要求属于「纠正」，应追加到 corrections.md。 */
+               按 workflow-v0.1.0 的约定，后续要求属于「纠正」，应追加到 corrections.md。 */
             String existing = readIfPossible(original);
             if (existing != null && existing.trim().equals(prompt.trim())) {
                 // 同一条需求重复提交（比如界面重复点击）：什么都不用做，也不能重复记一条纠正
@@ -118,7 +118,7 @@ public class WorkflowProjectService {
     /**
      * 把后续需求作为纠正追加到 corrections.md。
      *
-     * <p>格式照 workflow-v5 的模板：时间 + 用户原话。这里只记原话，
+     * <p>格式照 workflow-v0.1.0 的模板：时间 + 用户原话。这里只记原话，
      * 「影响范围」「是否已落实到 decisions」由创作阶段判断后补，不代填。</p>
      *
      * @param root   项目目录
@@ -310,8 +310,8 @@ public class WorkflowProjectService {
      *
      * @param projectId    项目 ID
      * @param directory    项目目录
-     * @param initialized  是否已有 prompt.original.md（这是 workflow-v5 的入口条件）
-     * @param toolAvailable workflow-v5 工具目录是否可找到
+     * @param initialized  是否已有 prompt.original.md（这是 workflow-v0.1.0 的入口条件）
+     * @param toolAvailable workflow-v0.1.0 工具目录是否可找到
      * @param files        已存在的 Prompt-first 文件
      * @param promptLength 原文长度；读不到时为 -1
      * @param renderedPasses   真正有视频产物的轮次数；读不到时为 -1

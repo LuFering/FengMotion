@@ -91,9 +91,9 @@ FengMotion/
 │   └── docs/                后端设计与实现记录
 ├── frontend/                前端应用与创作方法
 │   ├── src/                 界面、工作台、资源库与服务接口
-│   ├── workflow-v5/         当前创作方法、模板和工具
-│   ├── docs/                设计、接口和开发文档
-│   └── workflow-v2–v4/      早期工作流资料，供回顾
+│   ├── workflow-v0.1.0/     当前创作方法、模板和工具
+│   └── docs/                设计、接口和开发文档
+├── harness/                 Harness 独立开发预留目录
 ├── desktop/                 桌面壳与多平台部署配置
 │   ├── electron/            Electron 进程与系统集成
 │   └── scripts/             桌面构建、打包与安装脚本

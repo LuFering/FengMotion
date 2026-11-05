@@ -16,10 +16,10 @@ import com.fengmotion.server.workflow.service.WorkflowProjectService;
 import lombok.RequiredArgsConstructor;
 
 /**
- * 项目 × workflow-v5 的衔接端点。
+ * 项目 × workflow-v0.1.0 的衔接端点。
  *
  * <p>只暴露两件事：读上下文状态、建立上下文（把用户原文落盘）。
- * 创作本身仍由 workflow-v5 的创作指令驱动，这里不代劳 ——
+ * 创作本身仍由 workflow-v0.1.0 的创作指令驱动，这里不代劳 ——
  * 接口少是刻意的，避免又长出一条与工作流并行的简化管线。</p>
  */
 @RestController
@@ -290,7 +290,7 @@ public class WorkflowProjectController {
      * @param projectId    项目 ID
      * @param directory    项目目录
      * @param initialized  是否已有 prompt.original.md
-     * @param toolAvailable workflow-v5 工具是否可用
+     * @param toolAvailable workflow-v0.1.0 工具是否可用
      * @param files        已存在的 Prompt-first 文件
      * @param promptLength 原文长度；-1 表示读不到
      * @param renderedPasses   有视频产物的轮次；-1 表示读不到

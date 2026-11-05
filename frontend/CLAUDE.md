@@ -19,7 +19,7 @@
    工作流没有「镜」这个单位，也没有「第几秒到第几秒是什么画面」这种映射；
    那是 HyperFrames 渲染的实现切片（`film/index.html` 的 `.clip`），
    属于「这条片这次怎么渲的」，不属于内容。
-   **工作台 / 工作流界面该显示什么，一律以 `workflow-v5/` 目录、
+   **工作台 / 工作流界面该显示什么，一律以 `workflow-v0.1.0/` 目录、
    `src/data/workflowTemplates.ts`（节点与产物定义）、
    `src/services/workflowService.ts`（图与 Gate 求值）为准。**
    拿成片切片当内容搬进界面，是已经犯过的错。

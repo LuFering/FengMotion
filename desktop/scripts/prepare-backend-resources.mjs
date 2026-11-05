@@ -33,11 +33,11 @@ const backendOut = path.join(outRoot, 'backend')
 const remotionSrc = path.resolve(repoRoot, '..', 'backend', 'remotion')
 const remotionOut = path.join(outRoot, 'remotion')
 const remotionModulesOut = path.join(remotionOut, 'node_modules')
-/* workflow-v5 创作工具：agent 的创作依据与校验工具都在这里。
+/* workflow-v0.1.0 创作工具：agent 的创作依据与校验工具都在这里。
    不随包带上的话，打包应用里后端找不到 workflow 目录，
    「建立创作上下文」直接失败 —— 开发态能跑不代表安装态能跑。 */
-const workflowSrc = path.resolve(repoRoot, '..', 'frontend', 'workflow-v5')
-const workflowOut = path.join(outRoot, 'workflow-v5')
+const workflowSrc = path.resolve(repoRoot, '..', 'frontend', 'workflow-v0.1.0')
+const workflowOut = path.join(outRoot, 'workflow-v0.1.0')
 /* ffmpeg / ffprobe：缩略图抽帧与音视频元数据探测。
    不随包带上的话，打包应用里素材页全是占位图标、时长显示「未知」——
    导入不会失败（后端有降级），但体验会明显退化，所以要一起带。
@@ -181,12 +181,12 @@ function buildRemotion() {
   console.log(`  render.mjs + src/ 已复制，运行依赖已安装（顶层包 ${pkgCount} 个）`)
 }
 
-/* ── 4. workflow-v5 创作工具 ──────────────────────────────── */
+/* ── 4. workflow-v0.1.0 创作工具 ──────────────────────────────── */
 function buildWorkflowTools() {
-  console.log('\n[4/6] 打包 workflow-v5 创作工具')
+  console.log('\n[4/6] 打包 workflow-v0.1.0 创作工具')
 
   if (!existsSync(workflowSrc)) {
-    throw new Error(`找不到 workflow-v5 目录：${workflowSrc}`)
+    throw new Error(`找不到 workflow-v0.1.0 目录：${workflowSrc}`)
   }
   rmSync(workflowOut, { recursive: true, force: true })
   /* 只拷工具、模板与说明，不拷 examples（那是校验用的夹具，
@@ -198,7 +198,7 @@ function buildWorkflowTools() {
   })
   const initTool = path.join(workflowOut, 'prompt-first', 'tools', 'init-project.mjs')
   if (!existsSync(initTool)) {
-    throw new Error(`workflow-v5 缺少 init-project 工具：${initTool}`)
+    throw new Error(`workflow-v0.1.0 缺少 init-project 工具：${initTool}`)
   }
   console.log('  工具与模板已复制（不含 examples 夹具）')
 }
@@ -295,8 +295,8 @@ function verify() {
   console.log('  Remotion 工程与依赖: 就绪')
 
   const initTool = path.join(workflowOut, 'prompt-first', 'tools', 'init-project.mjs')
-  if (!existsSync(initTool)) throw new Error(`缺少 workflow-v5 init-project：${initTool}`)
-  console.log('  workflow-v5 工具: 就绪')
+  if (!existsSync(initTool)) throw new Error(`缺少 workflow-v0.1.0 init-project：${initTool}`)
+  console.log('  workflow-v0.1.0 工具: 就绪')
 
   const ffmpegBin = path.join(ffmpegOut, 'ffmpeg')
   if (existsSync(ffmpegBin)) {

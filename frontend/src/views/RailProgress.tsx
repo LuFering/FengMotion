@@ -25,7 +25,7 @@ import { Progress } from '@/components/ui/progress'
  * 第几个镜头」这种刻度，那是渲染切片，不是内容。
  *
  * 运行仍是演示执行器推进节点（不调 AI、不出片），但 **Prompt-first 开跑时
- * 会真实写入 workflow-v5 创作上下文**（prompt.original.md 等），
+ * 会真实写入 workflow-v0.1.0 创作上下文**（prompt.original.md 等），
  * 所以不能再简单标成「纯演示」——界面要把这两件事分开说。
  */
 
@@ -35,7 +35,7 @@ export function RailProgressPanel({ workflow, projectId, prompt, references, dis
   onCreateResult?: (result: FilmCreateResult) => void
   /** 当前项目的工作流；节点参数由外面传进来（写回决定后外面会重取，这里才跟着更新） */
   workflow: WorkflowDef | null
-  /** 当前项目 ID：有值时运行会真实建立 workflow-v5 创作上下文 */
+  /** 当前项目 ID：有值时运行会真实建立 workflow-v0.1.0 创作上下文 */
   projectId?: string
   /** 用户原始需求：会被逐字写进 prompt.original.md */
   prompt?: string

@@ -9,14 +9,14 @@ export type SceneRef = Extract<AgentReference, { kind: 'scene' }>
  *
  * 规矩（作者定）：**有可靠结构才展示，没有就保留「整片」，不强行拆段。**
  * 所以这里不发明任何结构，只读工作流真的产出的产物（`run.artifacts[].content`），
- * 按 workflow-v5 里存在的产物形态认字段：
+ * 按 workflow-v0.1.0 里存在的产物形态认字段：
  *
  *   scene-spec     场景规格 —— `scenes[].from / durationInFrames`（配根上的 fps）
  *                              → 有真实时间，可定位
  *   scene-intents  场景意图 —— `scenes[].name` → 只有名字，不假装有时间
  *   film-plan      导演处理 —— `stages[]` 叙事阶段 → 只有名字
  *
- * 字段名照 `workflow-v5/`（`FIXTURES.md` 说夹具内容只管校验、不当模板；
+ * 字段名照 `workflow-v0.1.0/`（`FIXTURES.md` 说夹具内容只管校验、不当模板；
  * 这里同样只认字段名，不认夹具内容）。
  *
  * ⚠️ 那条占位视频（`activeFilm.ts` 的 25 个片段、`productionData.ts` 的 UNITS+STORYBOARD、

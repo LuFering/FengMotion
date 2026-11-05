@@ -1,7 +1,7 @@
 /**
  * 工作流模板与节点定义（v5 重构）
  *
- * 定案（《工作流v5重构定案-对话结论》）：内容模型对齐 workflow-v5 v0.5.14.2——
+ * 定案（《工作流v5重构定案-对话结论》）：内容模型对齐 workflow-v0.1.0——
  * · 路径决定结构：Prompt-first（默认）/ Structured（按需）；题材只是预设，
  *   只给提示词结构与默认参数，不再每个题材复制一套节点图。
  * · 产物是节点，阶段是泳道，Gate 是阶段边界上的独立检查点。
@@ -109,7 +109,7 @@ export const PF_NODE_DEFS: WfNodeDef[] = [
     type: 'create',
     label: '创作与渲染',
     group: '核心',
-    description: 'Remotion 创作与渲染；中间规格未完成不阻断（v5 硬规则）',
+    description: 'Remotion 创作与渲染；中间规格未完成不阻断（工作流规则）',
     inputs: [
       { id: 'prompt', type: 'PromptDoc', label: '提示词', required: true },
       { id: 'refs', type: 'RefSet', label: '引用集' },

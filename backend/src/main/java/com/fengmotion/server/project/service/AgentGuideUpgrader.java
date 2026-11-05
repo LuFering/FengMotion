@@ -17,7 +17,7 @@ import lombok.extern.slf4j.Slf4j;
  *
  * <p><strong>为什么需要它</strong>：早期框架给每个项目写了一份
  * 「先想清楚分镜再写 JSON，一次提交整部片」的指引。那会把创作 agent
- * 引向文字卡片，与 workflow-v5 的 Prompt-first 方向相反。
+ * 引向文字卡片，与 workflow-v0.1.0 的 Prompt-first 方向相反。
  * 只改新建模板是不够的 —— 已有项目会继续按旧指引工作，
  * 用户打开老项目仍然得到受限的结果。</p>
  *

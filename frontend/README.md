@@ -28,8 +28,7 @@ npm run lint      # 静态检查
 | `src/shell/` | 导航、对话与应用状态 |
 | `src/editor/`、`src/remotion/` | 编辑与预览相关代码 |
 | `public/` | 应用需要的静态资源与示例 |
-| `workflow-v5/` | 当前创作方法、模板、工具与评估计划 |
-| `workflow-v2/`–`workflow-v4/` | 历史工作流资料，保留供回顾 |
+| `workflow-v0.1.0/` | 当前创作方法、模板、工具与评估计划 |
 | `docs/` | 设计、接口、开发记录与界面评审 |
 | `design/` | 设计素材与早期页面探索 |
 

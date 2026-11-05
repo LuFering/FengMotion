@@ -16,7 +16,7 @@ import com.fengmotion.server.common.ApiException;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * 调用 workflow-v5 的零依赖 Node 工具。
+ * 调用 workflow-v0.1.0 的零依赖 Node 工具。
  *
  * <p><strong>为什么由后端调、而不是前端调</strong>：这些工具读写的是项目目录里的
  * 真实文件（{@code prompt.original.md}、{@code qa/passes/}），属于服务端职责。
@@ -35,7 +35,7 @@ import lombok.extern.slf4j.Slf4j;
 @Component
 public class WorkflowToolRunner {
 
-    /** workflow-v5 目录；安装态由打包脚本放到 resources 下。 */
+    /** workflow-v0.1.0 目录；安装态由打包脚本放到 resources 下。 */
     @Value("${fengmotion.workflow.dir:}")
     private String workflowDir;
 
@@ -48,9 +48,9 @@ public class WorkflowToolRunner {
     private long timeoutSeconds;
 
     /**
-     * 解析 workflow-v5 根目录。
+     * 解析 workflow-v0.1.0 根目录。
      *
-     * <p>未配置时按开发态布局推断（backend/../frontend/workflow-v5）。
+     * <p>未配置时按开发态布局推断（backend/../frontend/workflow-v0.1.0）。
      * 找不到返回 null，由调用方明确报错 —— 不做「静默跳过」，
      * 那样界面会以为已经初始化成功。</p>
      *
@@ -62,10 +62,10 @@ public class WorkflowToolRunner {
             candidates.add(Path.of(workflowDir));
         }
         Path cwd = Path.of(System.getProperty("user.dir")).toAbsolutePath().normalize();
-        // 开发态：后端在 backend/，workflow-v5 在 frontend/workflow-v5
-        candidates.add(cwd.resolveSibling("frontend").resolve("workflow-v5"));
-        candidates.add(cwd.resolve("frontend").resolve("workflow-v5"));
-        candidates.add(cwd.resolve("workflow-v5"));
+        // 开发态：后端在 backend/，workflow-v0.1.0 在 frontend/workflow-v0.1.0
+        candidates.add(cwd.resolveSibling("frontend").resolve("workflow-v0.1.0"));
+        candidates.add(cwd.resolve("frontend").resolve("workflow-v0.1.0"));
+        candidates.add(cwd.resolve("workflow-v0.1.0"));
 
         for (Path candidate : candidates) {
             if (Files.isDirectory(candidate.resolve("prompt-first").resolve("tools"))) {
@@ -102,7 +102,7 @@ public class WorkflowToolRunner {
            模板里的占位文字不是用户原文，写进去之后
            「initialized=true、原文 113 字」会是假的 —— 用户以为创作依据已经存好，
            实际存的是「（在这里粘贴用户原始高级提示词）」。
-           workflow-v5 也明确规定 prompt.original.md 必须是用户原文。 */
+           workflow-v0.1.0 也明确规定 prompt.original.md 必须是用户原文。 */
         if (prompt == null || prompt.isBlank()) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "workflow_prompt_required",
                     "没有创作需求：prompt.original.md 要求写入用户原文，不能用模板占位。"
@@ -222,7 +222,7 @@ public class WorkflowToolRunner {
         Path root = resolveWorkflowRoot();
         if (root == null) {
             throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "workflow_unavailable",
-                    "找不到 workflow-v5 目录。请设置 fengmotion.workflow.dir 指向 frontend/workflow-v5");
+                    "找不到 workflow-v0.1.0 目录。请设置 fengmotion.workflow.dir 指向 frontend/workflow-v0.1.0");
         }
         return root;
     }

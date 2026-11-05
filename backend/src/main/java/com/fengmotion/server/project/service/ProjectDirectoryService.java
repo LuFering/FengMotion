@@ -12,9 +12,9 @@ import org.springframework.stereotype.Service;
 public class ProjectDirectoryService {
 
     /**
-     * workflow-v5 目录的真实绝对路径。
+     * workflow-v0.1.0 目录的真实绝对路径。
      *
-     * <p>指引里原先只写了「工具在 {@code workflow-v5/} 下」，而 agent 的工作目录是
+     * <p>指引里原先只写了「工具在 {@code workflow-v0.1.0/} 下」，而 agent 的工作目录是
      * 项目目录 —— 相对路径它根本找不到，于是那些校验工具从来没被调用过。
      * 这里注入安装/开发时的真实路径，写进指引让 agent 能直接执行。</p>
      */
@@ -179,7 +179,7 @@ public class ProjectDirectoryService {
     }
 
     /**
-     * 指引里展示的 workflow-v5 路径。
+     * 指引里展示的 workflow-v0.1.0 路径。
      *
      * <p>没配置时给一句人话，别写一个空路径让 agent 去猜。</p>
      *
@@ -187,7 +187,7 @@ public class ProjectDirectoryService {
      */
     private static String effectiveWorkflowDir(String workflowDir) {
         return (workflowDir == null || workflowDir.isBlank())
-                ? "（未配置 workflow-v5 目录，校验工具本轮不可用）"
+                ? "（未配置 workflow-v0.1.0 目录，校验工具本轮不可用）"
                 : workflowDir;
     }
 
@@ -201,7 +201,7 @@ public class ProjectDirectoryService {
         return GENERATED_MARKER + """
                 # 这个项目怎么创作
 
-                你在一个 FengMotion 项目目录里工作。这个项目按 **workflow-v5 的 Prompt-first**
+                你在一个 FengMotion 项目目录里工作。这个项目按 **workflow-v0.1.0 的 Prompt-first**
                 路径创作：先读用户原文，决定画面，再写 Remotion 代码，渲染出来看片、修改。
 
                 **不要先把整部片写成一份「场景 JSON」。** 那种做法只能表达文字、颜色和时长，
@@ -219,20 +219,20 @@ public class ProjectDirectoryService {
 
                 ## 创作方式（方法，不是必过门槛）
 
-                下面这些是 workflow-v5 Prompt-first 的推荐做法，**按项目需要采用，不是每个需求都要走完的流程**。
+                下面这些是 workflow-v0.1.0 Prompt-first 的推荐做法，**按项目需要采用，不是每个需求都要走完的流程**。
                 用户明确要求的表达形式、风格或结构，优先于这里的建议。
 
                 - **先想清画面再写代码**：这条片的视觉命题、关键画面、光与镜头是什么？
                   需要时记进 `lookdev-brief.md`。一句话的简单需求，可能几行代码就够了，不必为此写一份完整 brief。
                 - **能算的先算**：构图、字号、安全区、时长、缓动这些能写成规则的就别靠反复渲染试。
-                  `workflow-v5/prompt-first/templates/visual-encoding.ts` 是骨架，按需复制，不必强行套用。
+                  `workflow-v0.1.0/prompt-first/templates/visual-encoding.ts` 是骨架，按需复制，不必强行套用。
                 - **渲染用来验证算不出来的东西**：材质、光、合成、文字实际落位。
                   不必大批量抽帧；想验证什么，就先说清假设再看对应的帧。
                 - **看片后再改**：需要留痕时把这一轮的渲染与观察记进 `qa/passes/NN/`。
 
                 ## 工作流工具（真实路径，可直接执行）
 
-                workflow-v5 的校验工具装在下面这个绝对路径下（不是项目目录里，用相对路径找不到）：
+                workflow-v0.1.0 的校验工具装在下面这个绝对路径下（不是项目目录里，用相对路径找不到）：
 
                 ```
                 %s
@@ -373,7 +373,7 @@ public class ProjectDirectoryService {
      * 把已有项目的 agent 指引升级到当前版本。
      *
      * <p><strong>为什么需要它</strong>：早期框架写入的指引要求「先想清楚分镜再写 JSON」，
-     * 与 workflow-v5 的 Prompt-first 方向相反。只改新建模板的话，
+     * 与 workflow-v0.1.0 的 Prompt-first 方向相反。只改新建模板的话，
      * 所有已有项目的 agent 仍会被旧指引引向文字卡片，
      * 等于改了一半。</p>
      *

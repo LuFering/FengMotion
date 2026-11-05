@@ -24,7 +24,7 @@ import com.fengmotion.server.project.domain.Project;
 import com.fengmotion.server.project.store.ProjectRepository;
 
 /**
- * 项目与 workflow-v5 的衔接。
+ * 项目与 workflow-v0.1.0 的衔接。
  *
  * <p>要验的核心是<strong>「原文不被改写」</strong>：{@code prompt.original.md}
  * 是整条 Prompt-first 流程的创作依据，一旦被后来的摘要或模板覆盖，
@@ -166,7 +166,7 @@ class WorkflowProjectServiceTest {
         /* 曾经的缺陷：无需求时回落到模板，得到「initialized=true、原文 113 字」，
            而磁盘上存的是「（在这里粘贴用户原始高级提示词）」——
            用户以为创作依据已保存，实际是占位符。
-           workflow-v5 明确要求 prompt.original.md 是用户原文。 */
+           workflow-v0.1.0 明确要求 prompt.original.md 是用户原文。 */
         var e = assertThrows(com.fengmotion.server.common.ApiException.class,
                 () -> service.init(projectId, null));
         assertEquals("workflow_prompt_required", e.getCode());
@@ -230,8 +230,10 @@ class WorkflowProjectServiceTest {
     @DisplayName("工具目录可被解析到，否则整套流程无从运行")
     void workflowRootIsResolvable() {
         var runner = new WorkflowToolRunner();
-        // 开发态布局：backend/ 与 frontend/workflow-v5 同级
-        assertTrue(runner.resolveWorkflowRoot() != null,
-                "测试环境下应能定位 workflow-v5；找不到说明路径推断错了");
+        // 开发态布局：backend/ 与 frontend/workflow-v0.1.0 同级
+        Path root = runner.resolveWorkflowRoot();
+        assertTrue(root != null, "测试环境下应能定位 workflow-v0.1.0；找不到说明路径推断错了");
+        assertEquals("workflow-v0.1.0", root.getFileName().toString());
+        assertTrue(Files.isRegularFile(root.resolve("prompt-first/tools/init-project.mjs")));
     }
 }
