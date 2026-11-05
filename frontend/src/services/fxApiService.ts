@@ -134,6 +134,57 @@ export async function listTechniques(): Promise<FxTechnique[]> {
   return all
 }
 
+/**
+ * 语义检索技法与能力库，返回**排序后的 ID**。
+ *
+ * <p>为什么只返回 ID 而不返回技法对象：技法的展示字段由 `listTechniques()`
+ * 那份目录提供，这里只决定「怎么排、哪些优先」。两处各拿一份完整对象，
+ * 迟早会出现同一技法在两个来源里字段不一致。</p>
+ *
+ * <p>为什么要把状态一起返回：`degraded` 为 true 时结果是字面匹配，
+ * 界面必须标明「非语义命中」，否则用户会高估检索质量。</p>
+ *
+ * @param query 用户的自然语言查询
+ * @param limit 最多返回的候选数
+ * @return 命中排序与检索状态；查询为空时返回空结果
+ */
+export async function searchTechniqueIds(
+  query: string,
+  limit = 40,
+): Promise<{ ids: string[]; degraded: boolean; usable: boolean; reason?: string }> {
+  const trimmed = query.trim()
+  if (!trimmed) return { ids: [], degraded: false, usable: false }
+  try {
+    /* 只查 technique 与 capability：特效库页面不该被素材或参考片结果污染。
+       后端在重建能力库索引时会清理失效条目，因此这里拿到的 ID 一定对应真实条目。 */
+    const result = await studioHttpApi().retrieval.search({
+      q: trimmed,
+      kinds: 'technique,capability',
+      limit,
+    })
+    return {
+      /* 库内技法的 ID 形如 fx-dolly-zoom（`technique` 来源直接可用）；
+         capability 来源的 ID 带前缀（lemo: / shotcraft: / scene:），
+         它们尚未入库为特效条目，先不参与本地目录的排序。 */
+      /* 必须按 id 去重：一个技法在索引里被切成多段（名称/用途/做法…），
+         同一技法可能有 3–4 段同时命中。不去重就会在界面里重复出现同一张卡片，
+         用户会以为库里有多条同名技法。保留首次出现的顺序 = 该技法最高分那一段的排名。 */
+      ids: [
+        ...new Set(
+          result.hits.filter((hit) => hit.kind === 'technique').map((hit) => hit.id),
+        ),
+      ],
+      degraded: result.degraded,
+      usable: result.usable,
+      reason: result.reason,
+    }
+  } catch {
+    /* 网络或服务异常：这里静默退回本地字面匹配，由调用方照常过滤。
+       检索是「让搜索更好」，不是「让搜索能用」—— 它挂掉不能连带搜索挂掉。 */
+    return { ids: [], degraded: false, usable: false }
+  }
+}
+
 /** 读取技法详情。 */
 export async function getTechnique(id: string): Promise<FxTechnique | null> {
   try {

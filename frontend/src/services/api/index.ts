@@ -34,6 +34,7 @@ import { createChecksResource } from './checks'
 import { createWorkflowsResource } from './workflows'
 import { createLibraryResource } from './library'
 import { createWorkflowContextResource } from './workflowContext'
+import { createRetrievalResource } from './retrieval'
 
 export interface StudioApiClient {
   readonly http: HttpClient
@@ -57,6 +58,8 @@ export interface StudioApiClient {
   readonly library: ReturnType<typeof createLibraryResource>
   /** workflow-v5 创作上下文（项目目录里的 prompt.original.md 等） */
   readonly workflowContext: ReturnType<typeof createWorkflowContextResource>
+  /** 语义检索（`/retrieval/search`）。结果带状态，调用方须读响应体而非状态码。 */
+  readonly retrieval: ReturnType<typeof createRetrievalResource>
   /** 改基址/超时等（设置页保存后调用）。返回新配置，供界面显示来源。 */
   patchConfig(patch: ApiConfigPatch): ApiConfig
   /** 七项能力的合并视图（服务端 + 本机），用于显示「能力来自哪里」。 */
@@ -105,6 +108,7 @@ export function createStudioApiClient(options: CreateApiClientOptions = {}): Stu
     workflows: createWorkflowsResource(http),
     library: createLibraryResource(http),
     workflowContext: createWorkflowContextResource(http),
+    retrieval: createRetrievalResource(http),
 
     patchConfig(patch) {
       return http.patchConfig(patch)

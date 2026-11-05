@@ -27,7 +27,7 @@ import {
   type FxTechnique,
 } from '@/data/fxTechniques'
 import {
-  importLegacyFavorites, listTechniques, loadUserState, markViewed, setFavorite,
+  importLegacyFavorites, listTechniques, loadUserState, markViewed, searchTechniqueIds, setFavorite,
 } from '@/services/fxApiService'
 import { SilentVideoPreview } from '@/components/SilentVideoPreview'
 import { PROJECTS, STAGE_LABEL } from '@/data/projects'
@@ -206,6 +206,11 @@ export function FxLibrary() {
   const [techniques, setTechniques] = useState<FxTechnique[]>(EMPTY_TECHNIQUES)
   const [catalogError, setCatalogError] = useState<string | null>(null)
   const [catalogLoading, setCatalogLoading] = useState(true)
+  /* 语义检索给出的候选排序。null 表示「还没查过或查询为空」，
+     此时沿用原本的目录顺序；空数组表示「查过但没有语义命中」。 */
+  const [semanticOrder, setSemanticOrder] = useState<string[] | null>(null)
+  /* 检索状态：只有 degraded 为 true 时才需要在界面上说明「这是字面匹配」。 */
+  const [semanticNote, setSemanticNote] = useState<{ degraded: boolean; reason?: string } | null>(null)
 
   const searchRef = useRef<HTMLInputElement>(null)
   const drawerRef = useRef<HTMLElement>(null)
@@ -299,12 +304,47 @@ export function FxLibrary() {
     void markViewed(id)
   }
 
+  /* 语义检索：查询变化后延迟发起，避免每敲一个字都打一次接口。
+     结果只用来排序，不做过滤 —— 过滤仍由下面的分面逻辑负责，
+     否则「搜索一次就丢掉了分类/复杂度等筛选」会让人莫名其妙。 */
+  useEffect(() => {
+    const key = query.trim()
+    if (!key) {
+      setSemanticOrder(null)
+      setSemanticNote(null)
+      return
+    }
+    let alive = true
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        const found = await searchTechniqueIds(key)
+        if (!alive) return
+        setSemanticOrder(found.usable ? found.ids : null)
+        setSemanticNote(found.degraded ? { degraded: true, reason: found.reason } : null)
+      })()
+    }, 320)
+    return () => {
+      alive = false
+      window.clearTimeout(timer)
+    }
+  }, [query])
+
   /** 只应用搜索：分类/范围的计数不受其它分面影响，避免数字塌陷 */
   const searched = useMemo(() => {
     const key = query.trim().toLowerCase()
     if (!key) return techniques
-    return techniques.filter((t) => searchBlob(t).includes(key))
-  }, [query, techniques])
+    /* 检索命中的优先，其余本地字面命中的排在后面。
+       两者都要保留：语义检索可能漏掉用户精确输入的名字（例如刚入库、
+       还没进索引的技法），把它们直接过滤掉会让用户以为搜索坏了。 */
+    const literal = techniques.filter((t) => searchBlob(t).includes(key))
+    if (!semanticOrder || semanticOrder.length === 0) return literal
+    const semantic = semanticOrder
+      .map((id) => techniques.find((t) => t.id === id))
+      .filter((t): t is FxTechnique => !!t)
+    const semanticIds = new Set(semantic.map((t) => t.id))
+    const rest = literal.filter((t) => !semanticIds.has(t.id))
+    return [...semantic, ...rest]
+  }, [query, techniques, semanticOrder])
 
   const scoped = useMemo(() => {
     if (scope === 'featured') return searched.filter((t) => t.featured)
@@ -532,6 +572,13 @@ export function FxLibrary() {
               shortcutHint="/"
               ariaLabel="搜索技法"
             />
+            {/* 检索降级时必须明说：不标注的话，用户会把字面匹配当成语义命中，
+                据此判断「库里只有这些」。这是库内最容易误导人的一处。 */}
+            {query.trim() && semanticNote?.degraded && (
+              <p className="fx-search-note" role="status">
+                语义检索暂不可用，以下按关键词字面匹配
+              </p>
+            )}
           </div>
           <div className="fx-filterwrap">
             <button

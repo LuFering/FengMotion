@@ -211,3 +211,13 @@
   .rfc .rfc-browse-head .rfc-tabs { order:3; width:100%; }
   .cv3 .cv3-head { padding-right:16px; padding-left:12px; }
 }
+
+/* 检索降级提示：跟在搜索框下方的一行小字。
+   用 --tx3（次要文字）而不是警告色：这不是错误，是能力降级，
+   用红色会让人以为搜索坏了。 */
+.fxlib .fx-cmd-search { position:relative; }
+.fxlib .fx-search-note {
+  position:absolute; top:100%; left:2px; margin-top:3px;
+  font-size:10.5px; line-height:1.4; color:var(--tx3);
+  white-space:nowrap; pointer-events:none;
+}
