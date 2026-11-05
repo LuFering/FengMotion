@@ -8,7 +8,7 @@
 
 一款正在开发中的 AI 视频创作桌面应用。用自然语言描述画面，借助 Remotion 编写和渲染视频，再通过对话继续修改。
 
-[项目主页](https://lufering.github.io/FengMotion/) · [开发指南](#本地开发) · [项目结构](#项目结构) · [当前进展](#当前进展)
+[项目主页](https://lufering.github.io/FengMotion/) · [下载试用](#下载试用) · [开发路线图](ROADMAP.md) · [版本记录](CHANGELOG.md) · [参与贡献](CONTRIBUTING.md)
 
 </div>
 
@@ -103,7 +103,7 @@ FengMotion/
 - [桌面端开发说明](desktop/README.md)
 - [后端开发说明](backend/README.md)
 - [实现状态与已知限制](backend/docs/当前实现状态.md)
-- [参与开发](desktop/CONTRIBUTING.md)
+- [开发路线图](ROADMAP.md) · [版本记录](CHANGELOG.md) · [参与贡献](CONTRIBUTING.md)
 
 ## 参与与反馈
 
