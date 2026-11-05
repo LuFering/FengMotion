@@ -1,14 +1,10 @@
 package com.fengmotion.server.fx.service;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
-import java.util.UUID;
 import java.util.stream.Stream;
 
 import org.slf4j.Logger;
@@ -17,72 +13,54 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fengmotion.server.fx.domain.FxParam;
 import com.fengmotion.server.fx.domain.FxStates;
 import com.fengmotion.server.fx.domain.FxTechnique;
+import com.fengmotion.server.fx.service.capability.CapabilitySource;
 import com.fengmotion.server.fx.store.FxTechniqueRepository;
 
 /**
- * 把 {@code capabilities/} 里的三个开源技能库导入特效库。
+ * 把技能库目录导入特效库。
  *
- * <p>这三个库此前只进了语义索引，用户能搜到但<strong>点不进去</strong> ——
- * 因为它们在特效目录里不存在。本类负责把它们变成真正的条目：
- * 可浏览、可收藏、可检索、能看到来源与许可。</p>
+ * <p><strong>从「三条写死路径」改成「格式驱动的通用导入」</strong>：
+ * 导入器不再认识 lemo / shotcraft 的具体布局，只做三件事 ——
+ * 遍历目录、问每个 {@link CapabilitySource} 认不认、把结果落成特效条目。
+ * 新增一种格式只需多写一个解析器实现，这里不用改。</p>
  *
- * <p><strong>三条不能妥协的规则</strong>：</p>
+ * <p><strong>三条不妥协的规则</strong>：</p>
  * <ol>
- *   <li><strong>来源必须如实</strong>：项目名、链接、版本、许可、署名，缺什么就留空，
- *       不猜、不补「latest」。用户要靠这些判断能不能商用。</li>
- *   <li><strong>不谎报可执行</strong>：这些条目一律 {@code not-implemented}。
- *       有源码 ≠ 我们能跑 —— 依赖、适配、参数都还没做。</li>
- *   <li><strong>重复导入不丢用户数据</strong>：按 ID upsert，已存在的条目保留
- *       原来的 {@code executionStatus}（本机事实），收藏在独立表里不受影响。</li>
+ *   <li>来源如实：解析器给了什么就存什么，没给就留空，不猜、不补「latest」。</li>
+ *   <li>不谎报可执行：一律 {@code not-implemented}。有源码 ≠ 能一键跑。</li>
+ *   <li>重复导入不丢用户数据：按 ID upsert，保留已有 {@code executionStatus}；
+ *       收藏在独立表，不受影响。</li>
  * </ol>
- *
- * <p>不做的事：不执行任何仓库里的安装脚本；不下载远程预览视频（只记录链接，
- * 是否可访问由界面层决定并如实降级）。</p>
  */
 @Service
 public class FxCapabilityImporter {
 
     private static final Logger log = LoggerFactory.getLogger(FxCapabilityImporter.class);
 
-    /** lemo 风格条目的 ID 前缀。带上来源前缀，避免和内置技法撞 ID。 */
-    private static final String LEMO_PREFIX = "lemo-";
-    /** shotcraft 镜头卡的 ID 前缀。 */
-    private static final String SHOT_PREFIX = "shot-";
-
-    /** 各仓库的固定元信息。集中一处，避免散落在每个解析方法里。 */
-    private static final String LEMO_REPO = "https://github.com/lemomo-ai/lemo-opuscar";
-    private static final String LEMO_ATTRIBUTION = "LemoLab（代码与文档 MIT；样片视频及静帧 CC BY 4.0，"
-            + "转载或商用须署名 LemoLab 并附仓库链接）";
-    private static final String SHOTCRAFT_REPO = "https://github.com/vincentwei1021/video-shotcraft";
-
     private final FxTechniqueRepository repository;
-    private final ObjectMapper json;
+    private final List<CapabilitySource> sources;
 
     @Value("${fengmotion.retrieval.capabilities-dir:}")
     private String capabilitiesDir;
 
-    public FxCapabilityImporter(FxTechniqueRepository repository, ObjectMapper json) {
+    public FxCapabilityImporter(FxTechniqueRepository repository, List<CapabilitySource> sources) {
         this.repository = repository;
-        this.json = json;
-    }
-
-    /** 导入结果。 */
-    public record ImportResult(int imported, int skipped, String note) {
+        this.sources = sources;
     }
 
     /**
-     * 导入全部能力库条目。
+     * 导入结果。
      *
-     * <p>目录未配置时如实返回说明，不假装成功 —— 否则用户会以为「导入完成了」
-     * 而页面上什么都没有。</p>
-     *
-     * @return 导入结果
+     * @param imported 写入条目数
+     * @param skipped  认得出格式但无内容、或解析失败的文件数
+     * @param note     未执行时的说明；正常执行时为 null
      */
+    public record ImportResult(int imported, int skipped, String note) {
+    }
+
+    /** 导入配置目录下的全部技能库。 */
     @Transactional
     public ImportResult importAll() {
         if (capabilitiesDir == null || capabilitiesDir.isBlank()) {
@@ -92,376 +70,195 @@ public class FxCapabilityImporter {
         if (!Files.isDirectory(root)) {
             return new ImportResult(0, 0, "capabilities 目录不存在：" + root);
         }
+        return importFrom(root);
+    }
 
-        List<FxTechnique> collected = new ArrayList<>();
-        int rejected = 0;
-        rejected += importStyles(root.resolve("lemo-opuscar/styles"), collected);
-        rejected += importShotCards(root.resolve("video-shotcraft/references/shots"), collected);
+    /**
+     * 从任意目录导入。
+     *
+     * <p>根目录下每个子目录视为一个「来源库」，各自用全部解析器扫一遍。
+     * 这样用户新增一个技能库时，只需要把目录放进来，不用改代码、不用改配置。</p>
+     *
+     * @param root 扫描根
+     * @return 导入结果
+     */
+    @Transactional
+    public ImportResult importFrom(Path root) {
+        List<CapabilitySource.ParsedItem> collected = new ArrayList<>();
+        int skipped = 0;
 
+        List<Path> libraries = new ArrayList<>();
+        try (Stream<Path> children = Files.list(root)) {
+            for (Path child : children.toList()) {
+                if (Files.isDirectory(child) && !isIgnoredDirectory(child)) {
+                    libraries.add(child);
+                }
+            }
+        } catch (Exception unreadable) {
+            return new ImportResult(0, 0, "无法读取目录：" + root);
+        }
+
+        for (Path library : libraries) {
+            for (CapabilitySource source : sources) {
+                skipped += source.scan(library, collected);
+            }
+        }
+
+        /* 同一 ID 可能被两个解析器同时产出（例如带 front matter 的 md 同时被
+           FrontMatterSource 与 GenericMarkdownSource 认到）。GenericMarkdownSource
+           已经在 supports 里排除了这类文件，但这里再按 ID 去一次重更稳妥：
+           后出现的会覆盖先出现的，等于「更专用的解析器优先」（按 @Order 排序）。 */
+        List<CapabilitySource.ParsedItem> unique = dedupe(collected);
+
+        int imported = write(unique);
+        log.info("能力库导入：{} 个来源库，解析 {} 条，去重后 {} 条，跳过 {}",
+                libraries.size(), collected.size(), unique.size(), skipped);
+        return new ImportResult(imported, skipped, null);
+    }
+
+    private static List<CapabilitySource.ParsedItem> dedupe(List<CapabilitySource.ParsedItem> items) {
+        java.util.LinkedHashMap<String, CapabilitySource.ParsedItem> byId = new java.util.LinkedHashMap<>();
+        for (CapabilitySource.ParsedItem item : items) {
+            if (item.id() == null || item.id().isBlank()) {
+                continue;
+            }
+            byId.put(item.id(), item);
+        }
+        return List.copyOf(byId.values());
+    }
+
+    /** 把解析结果落成特效条目；重复 ID 会覆盖（upsert），因此幂等。 */
+    private int write(List<CapabilitySource.ParsedItem> items) {
         Instant now = Instant.now();
         int imported = 0;
-        for (FxTechnique technique : collected) {
+        for (CapabilitySource.ParsedItem item : items) {
             try {
-                repository.upsert(withPreservedStatus(technique, now));
+                repository.upsert(toTechnique(item, now));
                 imported++;
-            } catch (RuntimeException ex) {
-                /* 单条失败不该让整批泡汤，但必须留下记录 —— 静默跳过会让
-                   「页面上少了几条」变成查不出来的问题。 */
-                log.warn("导入能力库条目失败（id={}）：{}", technique.id(), ex.getMessage());
-                rejected++;
+            } catch (RuntimeException failed) {
+                /* 单条失败不该让整批泡汤，但必须留痕：
+                   静默跳过会让「页面上少了几条」变成查不出来的问题。 */
+                log.warn("写入能力库条目失败（id={}）：{}", item.id(), failed.getMessage());
             }
         }
-        log.info("能力库导入完成：成功 {}，跳过 {}", imported, rejected);
-        return new ImportResult(imported, rejected, null);
+        return imported;
     }
 
-    /**
-     * 保留已存在条目的执行状态。
-     *
-     * <p>{@code executionStatus} 是「这台机器能不能跑」的本机事实。
-     * 目录刷新把它重置成默认值，会让用户已经验证过的状态凭空消失。</p>
-     */
-    private FxTechnique withPreservedStatus(FxTechnique fresh, Instant importedAt) {
-        FxStates.ExecutionStatus status = repository.findById(fresh.id())
+    private FxTechnique toTechnique(CapabilitySource.ParsedItem item, Instant importedAt) {
+        /* 保留已存在的执行状态：那是「这台机器能不能跑」的本机事实，
+           目录刷新把它重置回默认值，会让用户验证过的状态凭空消失。 */
+        FxStates.ExecutionStatus status = repository.findById(item.id())
                 .map(FxTechnique::executionStatus)
                 .orElse(FxStates.ExecutionStatus.NOT_IMPLEMENTED);
+
+        String categoryLabel = item.categoryHint() == null || item.categoryHint().isBlank()
+                ? "参考" : item.categoryHint();
+
         return new FxTechnique(
-                fresh.id(), fresh.name(), fresh.nameEn(), fresh.aliases(), fresh.keywords(),
-                fresh.intent(), fresh.category(), fresh.categoryLabel(), fresh.scenes(),
-                fresh.antiScenes(), fresh.execType(), fresh.execLabel(), status, fresh.impl(),
-                fresh.implLabel(), fresh.complexity(), fresh.inputKinds(), fresh.inputLabels(),
-                fresh.inputRequirement(), fresh.output(), fresh.dependencies(), fresh.steps(),
-                fresh.compatibility(), fresh.limitations(), fresh.failures(), fresh.params(),
-                fresh.previewImageUrl(), fresh.previewVideoUrl(), fresh.previewCaption(),
-                fresh.related(), fresh.alternatives(), fresh.featured(), fresh.version(),
-                fresh.updatedAt(), fresh.demo(),
-                fresh.sourceKind(), fresh.sourceProject(), fresh.sourceUrl(), fresh.sourceVersion(),
-                fresh.licenseCode(), fresh.licensePreview(), fresh.attribution(),
-                fresh.sourcePath(), importedAt);
-    }
-
-    /**
-     * lemo-opuscar 的影片风格。
-     *
-     * <p>每个风格目录里有 {@code style.json}（结构化元数据）、{@code STYLE.md}
-     * （视觉语言说明）与 {@code poster.jpg}（海报）。这里以 style.json 为主，
-     * 因为它是唯一可靠的结构化来源；STYLE.md 只取首段作为「意图」。</p>
-     *
-     * @return 被拒绝的条目数
-     */
-    private int importStyles(Path styles, List<FxTechnique> out) {
-        if (!Files.isDirectory(styles)) {
-            log.info("未找到 lemo 风格目录，跳过：{}", styles);
-            return 0;
-        }
-        int rejected = 0;
-        try (Stream<Path> dirs = Files.list(styles)) {
-            for (Path dir : dirs.toList()) {
-                if (!Files.isDirectory(dir)) continue;
-                Path meta = dir.resolve("style.json");
-                if (!Files.isRegularFile(meta)) continue;
-                try {
-                    out.add(toStyle(dir, meta));
-                } catch (RuntimeException | IOException ex) {
-                    log.warn("跳过风格 {}：{}", dir.getFileName(), ex.getMessage());
-                    rejected++;
-                }
-            }
-        } catch (IOException unreadable) {
-            log.warn("读取 lemo 风格目录失败：{}", unreadable.getMessage());
-            return rejected + 1;
-        }
-        return rejected;
-    }
-
-    private FxTechnique toStyle(Path dir, Path meta) throws IOException {
-        JsonNode node = json.readTree(Files.readString(meta, StandardCharsets.UTF_8));
-        String slug = text(node, "slug");
-        if (slug.isBlank()) slug = dir.getFileName().toString();
-        String cn = text(node, "cn");
-        String en = text(node, "en");
-        String name = cn.isBlank() ? en : cn;
-        if (name.isBlank()) name = slug;
-
-        /* 一个风格能否用于创作，用户最先问的是「它长什么样、适合什么场合」。
-           line_cn 是一句话描述，uses 是适用场合 —— 两者都进意图与场景，
-           这样界面上不用点开就能判断要不要用。 */
-        String line = text(node, "line_cn").isBlank() ? text(node, "line") : text(node, "line_cn");
-        List<String> uses = new ArrayList<>();
-        JsonNode usesNode = node.path("uses");
-        if (usesNode.isArray()) {
-            for (JsonNode item : usesNode) {
-                String v = item.asText("");
-                if (!v.isBlank()) uses.add(v);
-            }
-        }
-
-        String excerpt = firstParagraph(dir.resolve("STYLE.md"));
-        Path poster = dir.resolve("poster.jpg");
-        /* 海报是本地真实文件；预览视频只在 Releases 里，本机没有。
-           只给海报、不给视频，界面就会如实显示「暂无动态预览」。
-           不把远程 mp4 写进 previewVideoUrl：那会让人以为本地已有该文件。
-
-           这里存的是「在能力库里的相对位置」，不是完整 URL，也不带 /api：
-           前端统一按 API base 解析所有地址（base 本身以 /api 结尾），
-           再带一层 /api 会被拼成 /api/api/...，实测过，图片全部 404。
-           WebConfig.CAPABILITY_PREFIX 负责把它挂到对外的访问路径上。 */
-        String posterUrl = Files.isRegularFile(poster)
-                ? "lemo-opuscar/styles/" + slug + "/poster.jpg"
-                : "";
-
-        String categoryLabel = text(node, "category_cn");
-        return new FxTechnique(
-                LEMO_PREFIX + slug,
-                name,
-                en,
-                List.of(slug),
-                uses,
-                line.isBlank() ? excerpt : line,
-                styleCategory(categoryLabel),
-                categoryLabel.isBlank() ? "风格" : categoryLabel,
-                uses,
-                /* antiScenes 留空而不是编一段：STYLE.md 里确实写了「不要做成什么」，
-                   但那是自然语言段落，硬转成短句列表会失真。 */
+                item.id(),
+                item.name(),
+                nullToEmpty(item.nameEn()),
                 List.of(),
-                /* 源库只提供「风格说明 + 演示源码」，没有可调用的渲染适配器。
-                   标 reference：可参考，不能一键跑。 */
+                item.keywords() == null ? List.of() : item.keywords(),
+                nullToEmpty(item.intent()),
+                mapCategory(item.categoryHint()),
+                categoryLabel,
+                item.scenes() == null ? List.of() : item.scenes(),
+                List.of(),
+                /* 能力库条目都是「说明 + 源码」，没有可调用的执行适配器。 */
                 FxStates.ExecType.REFERENCE,
                 "仅参考",
-                FxStates.ExecutionStatus.NOT_IMPLEMENTED,
+                status,
                 FxStates.Impl.AI,
                 "AI 生成",
-                /* 复杂度按是否含角色/透视等结构性要求粗分，只是排序用的近似值，
-                   不是精确度量。 */
                 3,
                 List.of(),
                 List.of(),
                 "",
-                "风格说明 + 演示源码",
+                "说明与源码参考",
+                List.of(),
+                item.steps() == null ? List.of() : item.steps(),
                 List.of(),
                 List.of(),
                 List.of(),
                 List.of(),
-                List.of(),
-                List.of(),
-                posterUrl,
-                /* 预览视频：官方画廊有，但本机没有文件，且链接可用性未验证。
-                   留空并写明出处，比给一个可能打不开的链接诚实。 */
+                item.previewImage() == null ? "" : item.previewImage(),
                 null,
-                "本地无预览视频；官方画廊 https://lemomo-ai.github.io/lemo-opuscar/ 有对应样片",
+                "",
                 List.of(),
                 List.of(),
                 false,
                 "1.0.0",
-                /* 用源文件的最后修改时间当「来源版本时间」，而不是 Instant.EPOCH：
-                   EPOCH 会在界面上显示成 1970-01-01，看起来像数据坏了（实测截图见过）。
-                   文件不存在时退回导入时刻，仍然是有意义的真实时间。 */
-                lastModified(meta),
+                importedAt,
                 false,
-                "lemo",
-                "lemo-opuscar",
-                LEMO_REPO,
-                text(node, "num"),
-                "MIT",
-                "CC BY 4.0",
-                LEMO_ATTRIBUTION,
-                dir.toString(),
-                null);
-    }
-
-    /** lemo 的分类是「图形与排版」这类中文短标签，直接映射到特效库的分类。 */
-    private FxStates.Category styleCategory(String label) {
-        String l = label == null ? "" : label;
-        if (l.contains("排版") || l.contains("文字") || l.contains("字体")) {
-            return FxStates.Category.STYLIZE;
-        }
-        return FxStates.Category.STYLIZE;
+                /* source_kind 用来源项目名：它至少说明「这条来自哪个库」，
+                   比一个统一叫 capability 的值更有用，也让界面能按库筛选。 */
+                item.sourceProject() == null || item.sourceProject().isBlank()
+                        ? "capability" : item.sourceProject(),
+                nullToEmpty(item.sourceProject()),
+                nullToEmpty(item.sourceUrl()),
+                nullToEmpty(item.sourceVersion()),
+                nullToEmpty(item.licenseCode()),
+                nullToEmpty(item.licensePreview()),
+                nullToEmpty(item.attribution()),
+                nullToEmpty(item.sourcePath()),
+                importedAt);
     }
 
     /**
-     * video-shotcraft 的镜头配方卡。
+     * 把源给的分类提示映射到特效库的分类枚举。
      *
-     * <p>每张卡是一个 markdown，带 front matter：
-     * {@code name} / {@code 一句话} / {@code 适用} / {@code 时长} / {@code 能量}。
-     * 这些字段直接对应用户选卡时要判断的东西。</p>
-     *
-     * @return 被拒绝的条目数
+     * <p>匹配不到时归到「合成」。不挑一个看起来接近的：
+     * 分类错了用户会按错误的入口去找，而「合成」是一个可解释的兜底。</p>
      */
-    private int importShotCards(Path shots, List<FxTechnique> out) {
-        if (!Files.isDirectory(shots)) {
-            log.info("未找到 shotcraft 镜头卡目录，跳过：{}", shots);
-            return 0;
+    static FxStates.Category mapCategory(String hint) {
+        if (hint == null || hint.isBlank()) {
+            return FxStates.Category.COMPOSITING;
         }
-        int rejected = 0;
-        try (Stream<Path> walk = Files.walk(shots, 3)) {
-            for (Path file : walk.filter(Files::isRegularFile).toList()) {
-                String fileName = file.getFileName().toString();
-                if (!fileName.endsWith(".md")) continue;
-                if (isRepoDoc(fileName)) continue;
-                try {
-                    out.add(toShotCard(file, shots));
-                } catch (RuntimeException | IOException ex) {
-                    log.warn("跳过镜头卡 {}：{}", fileName, ex.getMessage());
-                    rejected++;
-                }
-            }
-        } catch (IOException unreadable) {
-            log.warn("读取 shotcraft 目录失败：{}", unreadable.getMessage());
-            return rejected + 1;
-        }
-        return rejected;
+        String h = hint.toLowerCase(java.util.Locale.ROOT);
+        /* 先判「风格」再判「排版」：lemo 的分类叫「图形与排版」，
+           它描述的是整片视觉风格，不是文字动画。
+           先匹配「排版」会把 52 个风格全归成文字动画 —— 测试抓到过。 */
+        if (containsAny(h, "风格", "styl", "graphic", "图形")) return FxStates.Category.STYLIZE;
+        if (containsAny(h, "运镜", "镜头", "camera")) return FxStates.Category.CAMERA;
+        if (containsAny(h, "转场", "transition")) return FxStates.Category.TRANSITION;
+        if (containsAny(h, "光", "light")) return FxStates.Category.LIGHTING;
+        if (containsAny(h, "粒子", "particle")) return FxStates.Category.PARTICLES;
+        if (containsAny(h, "文字", "排版", "type", "typography", "text")) return FxStates.Category.TYPOGRAPHY;
+        return FxStates.Category.COMPOSITING;
     }
 
-    private FxTechnique toShotCard(Path file, Path shotsRoot) throws IOException {
-        String raw = Files.readString(file, StandardCharsets.UTF_8);
-        String name = frontMatter(raw, "name");
-        if (name.isBlank()) name = file.getFileName().toString().replace(".md", "");
-        String oneLine = frontMatter(raw, "一句话");
-        String fit = frontMatter(raw, "适用");
-        String duration = frontMatter(raw, "时长");
-
-        String relative = shotsRoot.relativize(file).toString();
-        String categoryDir = relative.contains("/") ? relative.substring(0, relative.indexOf('/')) : "";
-
-        return new FxTechnique(
-                SHOT_PREFIX + name,
-                name,
-                name,
-                List.of(),
-                /* 把分类目录也当检索词：用户会说「转场镜头」，而卡片名可能是英文。 */
-                categoryDir.isBlank() ? List.of() : List.of(categoryDir),
-                oneLine,
-                shotCategory(categoryDir),
-                shotCategoryLabel(categoryDir),
-                fit.isBlank() ? List.of() : List.of(fit),
-                List.of(),
-                FxStates.ExecType.REFERENCE,
-                "仅参考",
-                FxStates.ExecutionStatus.NOT_IMPLEMENTED,
-                FxStates.Impl.OFFLINE,
-                "离线",
-                3,
-                List.of(FxStates.InputKind.VIDEO),
-                List.of("视频"),
-                "",
-                "镜头配方 + Remotion 示例源码",
-                List.of(),
-                /* 时长是源库给的参考值，直接进步骤说明区而不另造字段。 */
-                duration.isBlank() ? List.of() : List.of("参考时长：" + duration),
-                List.of(),
-                List.of(),
-                List.of(),
-                List.of(),
-                "",
-                null,
-                "本地无预览视频；官方画廊 https://vincentwei1021.github.io/video-shotcraft/ 有动态样片",
-                List.of(),
-                List.of(),
-                false,
-                "1.0.0",
-                lastModified(file),
-                false,
-                "shotcraft",
-                "video-shotcraft",
-                SHOTCRAFT_REPO,
-                "",
-                /* shotcraft 的许可需逐个确认：仓库里只有 ATTRIBUTION.md 说明引用来源，
-                   没有统一 license 文件。这里如实留空，不写「MIT」这种没依据的结论。 */
-                "",
-                "",
-                "" + SHOTCRAFT_REPO,
-                file.toString(),
-                null);
-    }
-
-    private FxStates.Category shotCategory(String dir) {
-        if (dir == null) return FxStates.Category.CAMERA;
-        return switch (dir) {
-            case "transition" -> FxStates.Category.TRANSITION;
-            case "camera" -> FxStates.Category.CAMERA;
-            case "typography" -> FxStates.Category.TYPOGRAPHY;
-            case "effects" -> FxStates.Category.COMPOSITING;
-            case "opening", "outro" -> FxStates.Category.TYPOGRAPHY;
-            case "interaction", "ui-entrance" -> FxStates.Category.COMPOSITING;
-            case "data" -> FxStates.Category.COMPOSITING;
-            default -> FxStates.Category.COMPOSITING;
-        };
-    }
-
-    private String shotCategoryLabel(String dir) {
-        if (dir == null || dir.isBlank()) return "镜头";
-        return switch (dir) {
-            case "transition" -> "转场";
-            case "camera" -> "运镜";
-            case "typography" -> "文字";
-            case "effects" -> "特效";
-            case "opening" -> "开场";
-            case "outro" -> "收尾";
-            case "interaction" -> "交互";
-            case "ui-entrance" -> "界面入场";
-            case "data" -> "数据";
-            case "rhythm" -> "节奏";
-            default -> "镜头";
-        };
-    }
-
-    /** 读取 front matter 里的单行字段；没有 front matter 时返回空串。 */
-    static String frontMatter(String raw, String key) {
-        if (raw == null || !raw.startsWith("---")) return "";
-        int end = raw.indexOf("\n---", 3);
-        String block = end > 0 ? raw.substring(3, end) : raw.substring(3);
-        for (String line : block.split("\n")) {
-            int colon = line.indexOf(':');
-            if (colon <= 0) continue;
-            if (line.substring(0, colon).trim().equals(key)) {
-                return line.substring(colon + 1).trim();
+    private static boolean containsAny(String haystack, String... needles) {
+        for (String needle : needles) {
+            if (haystack.contains(needle)) {
+                return true;
             }
         }
-        return "";
+        return false;
     }
 
-    /** 取 markdown 第一个非标题段落，用作风格的一句话说明。 */
-    private String firstParagraph(Path file) {
-        if (!Files.isRegularFile(file)) return "";
-        try {
-            String raw = Files.readString(file, StandardCharsets.UTF_8);
-            for (String block : raw.split("\n\n")) {
-                String trimmed = block.strip();
-                if (trimmed.isEmpty() || trimmed.startsWith("#") || trimmed.startsWith(">")) continue;
-                return trimmed.length() > 400 ? trimmed.substring(0, 400) : trimmed;
-            }
-        } catch (IOException unreadable) {
-            return "";
-        }
-        return "";
-    }
-
-    private static boolean isRepoDoc(String fileName) {
-        String lower = fileName.toLowerCase(Locale.ROOT);
-        return lower.startsWith("readme") || lower.startsWith("attribution")
-                || lower.startsWith("license") || lower.startsWith("changelog");
-    }
-
-    private static String text(JsonNode node, String field) {
-        return node.path(field).asText("");
-    }
-
-    /** 生成一个稳定 ID（仅用于将来「用户自建条目」；导入条目用前缀 + slug）。 */
-    static String newId(String prefix) {
-        return prefix + UUID.randomUUID();
+    private static String nullToEmpty(String value) {
+        return value == null ? "" : value;
     }
 
     /**
-     * 源文件的最后修改时间。
+     * 是否是导入时该整体跳过的目录。
      *
-     * <p>不用 {@code Instant.EPOCH} 当占位：它会在界面上显示成 1970-01-01，
-     * 用户会以为数据损坏。文件时间读不到时退回当前时刻，仍然是真实时间点。</p>
+     * <p>这些目录里放的是资产而不是条目：videos 是样片、assets 是素材、
+     * demo/template 是实现工程。把它们当库扫，会把几百个文件当条目收进来。</p>
      */
-    private static Instant lastModified(Path file) {
-        try {
-            return Files.getLastModifiedTime(file).toInstant();
-        } catch (IOException unreadable) {
-            return Instant.now();
+    private static boolean isIgnoredDirectory(Path dir) {
+        if (dir.getFileName() == null) {
+            return true;
         }
+        String name = dir.getFileName().toString().toLowerCase(java.util.Locale.ROOT);
+        return name.startsWith(".")
+                || name.equals("node_modules")
+                || name.equals("dist")
+                || name.equals("build")
+                || name.equals("assets")
+                || name.equals("videos")
+                || name.equals("template")
+                || name.equals("demos");
     }
 }
