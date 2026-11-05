@@ -402,9 +402,14 @@ export function Conversation(props: {
     try {
       await props.onDeleteProject(deletingProject.id)
       setDeletingProject(null)
+      /* 连输入框一起清掉：这段文字是上一次删除的残留，
+         留在 state 里会让下一个删除框直接带着上次的项目名出现 ——
+         上次输的恰好就是这次的项目名时，按钮会直接可点。 */
+      setDeleteConfirmText('')
     } catch (error) {
       showProjectError(error)
       setDeletingProject(null)
+      setDeleteConfirmText('')
     } finally {
       setDeletingBusy(false)
     }
@@ -1441,7 +1446,14 @@ export function Conversation(props: {
                                 <Archive size={13} /><span>归档项目</span>
                               </button>
                               <button type="button" role="menuitem" data-danger
-                                      onClick={() => { setRowMenu(null); setDeletingProject(proj) }}>
+                                      onClick={() => {
+                                        setRowMenu(null)
+                                        /* 打开时就清空确认框：上一次删除留下的文字
+                                           不能出现在这一次里 —— 那等于替用户预填了
+                                           一个可能恰好匹配的项目名。 */
+                                        setDeleteConfirmText('')
+                                        setDeletingProject(proj)
+                                      }}>
                                 <Trash2 size={13} /><span>删除项目</span>
                               </button>
                             </div>
