@@ -1,33 +1,6 @@
-# Logs
-logs
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
-
-node_modules
-dist
-dist-ssr
-*.local
-
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-.idea
-.DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
-
-# 桌面壳构建产物（由 scripts/build-electron.mjs 与 install-desktop.mjs 生成，不入库）
-electron/build
-build/icons
-build/icons-variants
-
-# 打包产物（含 54MB JRE 与 38MB 后端 jar，由 prepare-backend-resources.mjs 生成）
+node_modules/
+electron/build/
 electron/resources/
+build/icons/
+build/icons-variants/
 release/

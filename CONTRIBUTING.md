@@ -24,7 +24,7 @@ git switch -c fix/your-topic
 
 ```bash
 # 桌面端
-cd desktop
+cd frontend
 npm install
 npm run build
 npm run lint
@@ -35,7 +35,7 @@ cd backend
 mvn test
 ```
 
-桌面端命令在 `desktop/` 执行，后端命令在 `backend/` 执行。自动化检查不替代真实模型、渲染、安装和界面使用测试。
+前端命令在 `frontend/` 执行，后端命令在 `backend/` 执行；桌面壳和打包命令见[桌面端说明](desktop/README.md)。自动化检查不替代真实模型、渲染、安装和界面使用测试。
 
 ## 提交 Pull Request
 
@@ -45,4 +45,4 @@ mvn test
 - 保持真实能力与演示状态的区别；不要把引用送达、构建通过或计划中的能力当作完整验收。
 - 请勿提交 API 密钥、个人模型配置、用户项目、未经授权的素材或生成缓存。
 
-提交可使用简明的 Conventional Commits，例如 `fix(workbench): 修复预览状态`。更详细的桌面端设计约定和协作说明见[桌面端贡献指南](desktop/CONTRIBUTING.md)与[设计原则](desktop/docs/design/前端设计原则与已确认界面.md)。
+提交可使用简明的 Conventional Commits，例如 `fix(workbench): 修复预览状态`。更详细的桌面端设计约定和协作说明见[桌面端贡献指南](frontend/CONTRIBUTING.md)与[设计原则](frontend/docs/design/前端设计原则与已确认界面.md)。

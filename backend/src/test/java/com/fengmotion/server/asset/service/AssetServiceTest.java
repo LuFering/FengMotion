@@ -250,7 +250,7 @@ class AssetServiceTest {
     @Test
     @DisplayName("图片不保存时长：ffprobe 报的单帧时长不是语义上的时长")
     void imageHasNoDuration() throws Exception {
-        Path png = Paths.get("../desktop/public/editor-sources/token/assets/apps/yuanbao.png");
+        Path png = Paths.get("../frontend/public/editor-sources/token/assets/apps/yuanbao.png");
         org.junit.jupiter.api.Assumptions.assumeTrue(Files.isRegularFile(png), "本机缺少示例图片，跳过");
         Asset asset;
         try (var in = Files.newInputStream(png)) {
@@ -265,7 +265,7 @@ class AssetServiceTest {
     @Test
     @DisplayName("视频导入后带真实宽度和时长，并生成缩略图")
     void videoGetsMetadataAndThumbnail() throws Exception {
-        Path mp4 = Paths.get("../desktop/public/fx/motion/fx-dolly-zoom.mp4");
+        Path mp4 = Paths.get("../frontend/public/fx/motion/fx-dolly-zoom.mp4");
         org.junit.jupiter.api.Assumptions.assumeTrue(Files.isRegularFile(mp4), "本机缺少示例视频，跳过");
         Asset asset;
         try (var in = Files.newInputStream(mp4)) {

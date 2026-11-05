@@ -52,7 +52,7 @@ export async function cpDir(from, to) {
 /**
  * 解析依赖所在目录。
  *
- * <p>顺序：环境变量 → {@code <repo>/desktop/node_modules} → {@code <repo>/node_modules}。
+ * <p>顺序：环境变量 → {@code <repo>/frontend/node_modules} → {@code <repo>/node_modules}。
  * 逐个验证存在性：写死一条路径时目录改名会得到「Cannot find module」，
  * 而不是一句说清方向的错误。</p>
  *
@@ -66,7 +66,7 @@ export function resolveNodeModules(helperDir) {
 
   const repoRoot = path.resolve(helperDir, '..', '..')
   const candidates = [
-    path.join(repoRoot, 'desktop', 'node_modules'),
+    path.join(repoRoot, 'frontend', 'node_modules'),
     path.join(repoRoot, 'node_modules'),
   ]
   for (const candidate of candidates) {
@@ -74,7 +74,7 @@ export function resolveNodeModules(helperDir) {
   }
   throw new Error(
     `找不到 node_modules，已尝试：${candidates.join('、')}。`
-    + '请先在 desktop/ 下安装依赖，或设置 FENGMOTION_NODE_MODULES。',
+    + '请先在 frontend/ 下安装依赖，或设置 FENGMOTION_NODE_MODULES。',
   )
 }
 

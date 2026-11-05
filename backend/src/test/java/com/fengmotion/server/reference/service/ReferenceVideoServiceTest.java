@@ -38,7 +38,7 @@ import com.fengmotion.server.reference.store.ReferenceRepository.VideoQuery;
 @Transactional
 class ReferenceVideoServiceTest {
 
-    private static final Path SAMPLE = Paths.get("../desktop/public/fx/motion/fx-dolly-zoom.mp4");
+    private static final Path SAMPLE = Paths.get("../frontend/public/fx/motion/fx-dolly-zoom.mp4");
 
     @Autowired
     private ReferenceVideoService service;

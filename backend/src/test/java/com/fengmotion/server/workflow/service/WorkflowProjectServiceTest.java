@@ -230,7 +230,7 @@ class WorkflowProjectServiceTest {
     @DisplayName("工具目录可被解析到，否则整套流程无从运行")
     void workflowRootIsResolvable() {
         var runner = new WorkflowToolRunner();
-        // 开发态布局：backend/ 与 desktop/workflow-v5 同级
+        // 开发态布局：backend/ 与 frontend/workflow-v5 同级
         assertTrue(runner.resolveWorkflowRoot() != null,
                 "测试环境下应能定位 workflow-v5；找不到说明路径推断错了");
     }

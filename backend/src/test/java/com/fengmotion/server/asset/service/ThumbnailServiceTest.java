@@ -33,7 +33,7 @@ class ThumbnailServiceTest {
 
     /** 仓库里真实存在的示例视频，用于验证真实解码路径。 */
     private static final Path SAMPLE_VIDEO = Paths.get(
-            "../desktop/public/fx/motion/fx-dolly-zoom.mp4");
+            "../frontend/public/fx/motion/fx-dolly-zoom.mp4");
 
     @Autowired
     private ThumbnailService thumbnails;

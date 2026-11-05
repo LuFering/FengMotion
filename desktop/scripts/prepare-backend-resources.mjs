@@ -36,7 +36,7 @@ const remotionModulesOut = path.join(remotionOut, 'node_modules')
 /* workflow-v5 创作工具：agent 的创作依据与校验工具都在这里。
    不随包带上的话，打包应用里后端找不到 workflow 目录，
    「建立创作上下文」直接失败 —— 开发态能跑不代表安装态能跑。 */
-const workflowSrc = path.resolve(repoRoot, 'workflow-v5')
+const workflowSrc = path.resolve(repoRoot, '..', 'frontend', 'workflow-v5')
 const workflowOut = path.join(outRoot, 'workflow-v5')
 /* ffmpeg / ffprobe：缩略图抽帧与音视频元数据探测。
    不随包带上的话，打包应用里素材页全是占位图标、时长显示「未知」——

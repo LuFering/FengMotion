@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="desktop/public/assets/brand/fengmotion-mark.png" alt="FengMotion 标志" width="96" />
+<img src="frontend/public/assets/brand/fengmotion-mark.png" alt="FengMotion 标志" width="96" />
 
 # FengMotion
 
@@ -71,14 +71,14 @@ curl http://127.0.0.1:8080/api/health
 ### 启动前端
 
 ```bash
-cd FengMotion/desktop
+cd FengMotion/frontend
 npm install
 npm run dev
 ```
 
 打开终端显示的本地地址，默认是 `http://localhost:5173`。页面能够打开不代表 AI 已经配置完成；开始创作前，请确认 DSH、模型和渲染环境可用。
 
-Linux 桌面应用的构建方式见 [桌面打包与更新](desktop/docs/dev/桌面打包与更新.md)。打包和安装仍需按目标机器验证。
+Linux 桌面应用的构建方式见 [桌面打包与更新](frontend/docs/dev/桌面打包与更新.md)。打包和安装仍需按目标机器验证。
 
 ## 项目结构
 
@@ -89,18 +89,20 @@ FengMotion/
 │   ├── remotion/            渲染工程与脚本
 │   ├── dsh-plugin/          对话流桥接插件
 │   └── docs/                后端设计与实现记录
-├── desktop/                 桌面应用
+├── frontend/                前端应用与创作方法
 │   ├── src/                 界面、工作台、资源库与服务接口
-│   ├── electron/            Electron 桌面壳
 │   ├── workflow-v5/         当前创作方法、模板和工具
 │   ├── docs/                设计、接口和开发文档
 │   └── workflow-v2–v4/      早期工作流资料，供回顾
+├── desktop/                 桌面壳与多平台部署配置
+│   ├── electron/            Electron 进程与系统集成
+│   └── scripts/             桌面构建、打包与安装脚本
 └── docs/                    项目展示网站（GitHub Pages）
 ```
 
 默认情况下，项目文件位于 `~/FengMotion/projects/`，应用数据库和附件位于 `~/.config/FengMotion/data/`。不同环境可通过配置调整。
 
-- [桌面端开发说明](desktop/README.md)
+- [前端开发说明](frontend/README.md) · [桌面打包说明](desktop/README.md)
 - [后端开发说明](backend/README.md)
 - [实现状态与已知限制](backend/docs/当前实现状态.md)
 - [开发路线图](ROADMAP.md) · [版本记录](CHANGELOG.md) · [参与贡献](CONTRIBUTING.md)

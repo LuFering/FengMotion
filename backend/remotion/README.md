@@ -47,7 +47,7 @@ stdout 输出一行 JSON 结果，stderr 为渲染进度。
 ## 依赖从哪来
 
 **不在这里 npm install。** Remotion 全家桶几百 MB，再装一份是浪费。
-默认复用 `FengMotion-desktop/node_modules`，可用 `FENGMOTION_NODE_MODULES` 覆盖。
+默认复用仓库的 `frontend/node_modules`，可用 `FENGMOTION_NODE_MODULES` 覆盖。
 
 ## 浏览器
 

@@ -23,7 +23,7 @@ const home = os.homedir()
 const INSTALL_DIR = path.join(home, '.local', 'opt', 'fengmotion-desktop')
 const APP_DIR = path.join(INSTALL_DIR, 'app')
 
-const DIST_SRC = path.join(repoRoot, 'dist')
+const DIST_SRC = path.join(repoRoot, '..', 'frontend', 'dist')
 const SHELL_SRC = path.join(repoRoot, 'electron', 'build')
 const ICONS_SRC = path.join(repoRoot, 'build', 'icons')
 

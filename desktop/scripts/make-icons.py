@@ -19,7 +19,7 @@ import os
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SRC = os.path.join(ROOT, 'public', 'assets', 'brand', 'fengmotion-mark.png')
+SRC = os.path.join(ROOT, '..', 'frontend', 'public', 'assets', 'brand', 'fengmotion-mark.png')
 OUT_DIR = os.path.join(ROOT, 'build', 'icons')
 
 SIZES = [16, 32, 48, 64, 128, 256, 512]

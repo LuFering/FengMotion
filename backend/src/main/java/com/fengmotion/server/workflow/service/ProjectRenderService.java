@@ -330,7 +330,7 @@ public class ProjectRenderService {
     private JsonNode dependencyVersions() {
         ObjectNode node = json.createObjectNode();
         Path pkg = Path.of(System.getProperty("user.dir"))
-                .resolve("..").resolve("desktop").resolve("package.json").normalize();
+                .resolve("..").resolve("frontend").resolve("package.json").normalize();
         if (!Files.isRegularFile(pkg)) return node;
         try {
             JsonNode root = json.readTree(Files.readString(pkg));

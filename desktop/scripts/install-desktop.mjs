@@ -44,7 +44,7 @@ const DESKTOP_PATH = path.join(DESKTOP_DIR, `${APP_ID}.desktop`)
 const ICON_ROOT = path.join(home, '.local', 'share', 'icons', 'hicolor')
 
 const ELECTRON_SRC = path.join(repoRoot, 'node_modules', 'electron', 'dist')
-const DIST_SRC = path.join(repoRoot, 'dist')
+const DIST_SRC = path.join(repoRoot, '..', 'frontend', 'dist')
 const SHELL_SRC = path.join(repoRoot, 'electron', 'build')
 const ICONS_SRC = path.join(repoRoot, 'build', 'icons')
 /* 运行时资源由 prepare-backend-resources.mjs 产出。
@@ -67,7 +67,7 @@ function assertPrerequisites() {
   const missing = required.filter(([p]) => !existsSync(p))
   if (missing.length > 0) {
     const lines = missing.map(([p, label]) => `  · 缺少${label}：${p}`).join('\n')
-    throw new Error(`${lines}\n\n请先运行：\n  npm run build && node scripts/build-electron.mjs && node scripts/prepare-backend-resources.mjs`)
+    throw new Error(`${lines}\n\n请先运行：\n  npm --prefix ../frontend run build && npm run build:shell && npm run resources`)
   }
 }
 

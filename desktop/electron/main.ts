@@ -72,7 +72,7 @@ function resolveDistRoot(): string {
     // 用户级安装布局：opt/fengmotion-desktop/app/main.cjs → 同目录下的 dist
     path.join(__dirname, 'dist'),
     // 开发布局：electron/build/main.cjs → 上两级是仓库根，dist 在那里
-    path.join(__dirname, '..', '..', 'dist'),
+    path.join(__dirname, '..', '..', '..', 'frontend', 'dist'),
     // 打包后：app.getAppPath() 指向 resources/app
     path.join(app.getAppPath(), 'dist'),
     path.join(process.resourcesPath ?? '', 'app', 'dist'),
@@ -133,7 +133,7 @@ function resolveIconPath(): string | undefined {
     path.join(__dirname, 'build', 'icons', '512x512.png'),
     // 开发布局
     path.join(__dirname, '..', '..', 'build', 'icons', '512x512.png'),
-    path.join(__dirname, '..', '..', 'public', 'favicon.png'),
+    path.join(__dirname, '..', '..', '..', 'frontend', 'public', 'favicon.png'),
   ]
   return candidates.find((p) => existsSync(p))
 }

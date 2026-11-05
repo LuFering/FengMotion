@@ -19,7 +19,7 @@ export default {
   // 只打包壳代码与前端产物；源码、脚本、node_modules 里无关的部分都排除
   files: [
     'electron/build/**/*',
-    'dist/**/*',
+    { from: '../frontend/dist', to: 'dist', filter: ['**/*'] },
     'package.json',
     '!**/*.map',
   ],

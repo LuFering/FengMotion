@@ -225,7 +225,7 @@ project_id TEXT;                              -- 允许 NULL（工作区级任�
 |---|---|---|
 | 连续运动 | `fengmotion-brand45.mp4` 8s–14s | 主体位移/缩放能否被正确描述；是否编造速度曲线 |
 | 明显切换 | `morning-poem-30s.mp4` 0s–2s | 能否看出镜头切换；是否把切换说成"渐变" |
-| 动态图形 | `desktop/public/fx/motion/fx-dolly-zoom.mp4` 全片 | 能否说明"手法"而非只描述画面元素 |
+| 动态图形 | `frontend/public/fx/motion/fx-dolly-zoom.mp4` 全片 | 能否说明"手法"而非只描述画面元素 |
 
 异常路径必须覆盖：
 

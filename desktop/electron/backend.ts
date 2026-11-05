@@ -199,7 +199,7 @@ export async function startBackend(options: StartOptions): Promise<BackendHandle
     workflowArgs.push(`--fengmotion.workflow.dir=${workflowDir}`)
   } else {
     // 开发态：后端仓库的兄弟目录
-    const devWorkflow = path.resolve(__dirname, '..', '..', 'workflow-v5')
+    const devWorkflow = path.resolve(__dirname, '..', '..', '..', 'frontend', 'workflow-v5')
     if (existsSync(path.join(devWorkflow, 'prompt-first', 'tools', 'init-project.mjs'))) {
       workflowArgs.push(`--fengmotion.workflow.dir=${devWorkflow}`)
     } else {

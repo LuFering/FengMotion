@@ -3,7 +3,7 @@
  *
  * <p><strong>与 `workflows.ts` 不是一回事</strong>：那边对接的是后端 workflow 域
  * （定义/版本/运行状态机，`docs/contracts/workflow.md`）。这里是真正把
- * `desktop/workflow-v5` 那套 Prompt-first 流程接进来的入口 ——
+ * `frontend/workflow-v5` 那套 Prompt-first 流程接进来的入口 ——
  * 它管的是项目目录里的创作上下文文件（`prompt.original.md` 等），
  * 由后端调用 workflow-v5 的零依赖 Node 工具写入。</p>
  *

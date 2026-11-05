@@ -4,7 +4,7 @@
 
 ## 启动与检查
 
-需要 Java 21、Maven，以及渲染所需的 Node.js。先在 `../desktop/` 执行 `npm install` 安装前端与渲染依赖，然后在本目录运行：
+需要 Java 21、Maven，以及渲染所需的 Node.js。先在 `../frontend/` 执行 `npm install` 安装前端与渲染依赖，然后在本目录运行：
 
 ```bash
 mvn spring-boot:run

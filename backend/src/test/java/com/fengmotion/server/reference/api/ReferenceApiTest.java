@@ -35,7 +35,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 class ReferenceApiTest {
 
-    private static final Path SAMPLE = Paths.get("../desktop/public/fx/motion/fx-dolly-zoom.mp4");
+    private static final Path SAMPLE = Paths.get("../frontend/public/fx/motion/fx-dolly-zoom.mp4");
 
     @Autowired
     private MockMvc mvc;

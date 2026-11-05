@@ -50,7 +50,7 @@ public class WorkflowToolRunner {
     /**
      * 解析 workflow-v5 根目录。
      *
-     * <p>未配置时按开发态布局推断（backend/../desktop/workflow-v5）。
+     * <p>未配置时按开发态布局推断（backend/../frontend/workflow-v5）。
      * 找不到返回 null，由调用方明确报错 —— 不做「静默跳过」，
      * 那样界面会以为已经初始化成功。</p>
      *
@@ -62,9 +62,9 @@ public class WorkflowToolRunner {
             candidates.add(Path.of(workflowDir));
         }
         Path cwd = Path.of(System.getProperty("user.dir")).toAbsolutePath().normalize();
-        // 开发态：后端在 backend/，workflow-v5 在 desktop/workflow-v5
-        candidates.add(cwd.resolveSibling("desktop").resolve("workflow-v5"));
-        candidates.add(cwd.resolve("desktop").resolve("workflow-v5"));
+        // 开发态：后端在 backend/，workflow-v5 在 frontend/workflow-v5
+        candidates.add(cwd.resolveSibling("frontend").resolve("workflow-v5"));
+        candidates.add(cwd.resolve("frontend").resolve("workflow-v5"));
         candidates.add(cwd.resolve("workflow-v5"));
 
         for (Path candidate : candidates) {
@@ -222,7 +222,7 @@ public class WorkflowToolRunner {
         Path root = resolveWorkflowRoot();
         if (root == null) {
             throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "workflow_unavailable",
-                    "找不到 workflow-v5 目录。请设置 fengmotion.workflow.dir 指向 desktop/workflow-v5");
+                    "找不到 workflow-v5 目录。请设置 fengmotion.workflow.dir 指向 frontend/workflow-v5");
         }
         return root;
     }
