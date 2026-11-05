@@ -4,11 +4,22 @@ import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 /** 提供项目目录的基础文件操作；异常由调用方处理。 */
 
 @Service 
 public class ProjectDirectoryService {
+
+    /**
+     * workflow-v5 目录的真实绝对路径。
+     *
+     * <p>指引里原先只写了「工具在 {@code workflow-v5/} 下」，而 agent 的工作目录是
+     * 项目目录 —— 相对路径它根本找不到，于是那些校验工具从来没被调用过。
+     * 这里注入安装/开发时的真实路径，写进指引让 agent 能直接执行。</p>
+     */
+    @Value("${fengmotion.workflow.dir:}")
+    private String workflowDir = "";
 
     /**
      * 确保工作区目录存在；必要时一并创建缺失的父目录。
@@ -88,10 +99,23 @@ public class ProjectDirectoryService {
      * 只升级带标记的文件：用户改过的指引属于他的创作资产，
      * 框架无权覆盖 —— 那会把他写下的项目约定悄悄冲掉。</p>
      */
-    static final String GENERATED_MARKER = "<!-- fengmotion:agent-guide:v2 -->";
+    static final String GENERATED_MARKER = "<!-- fengmotion:agent-guide:v3 -->";
 
     private void writeAgentGuide(Path projectDir) {
-        writeText(projectDir.resolve("AGENTS.md"), agentGuide(projectIdOf(projectDir)));
+        writeText(projectDir.resolve("AGENTS.md"), agentGuide(projectIdOf(projectDir), workflowDir));
+    }
+
+    /**
+     * 指引里展示的 workflow-v5 路径。
+     *
+     * <p>没配置时给一句人话，别写一个空路径让 agent 去猜。</p>
+     *
+     * @return 绝对路径或提示语
+     */
+    private static String effectiveWorkflowDir(String workflowDir) {
+        return (workflowDir == null || workflowDir.isBlank())
+                ? "（未配置 workflow-v5 目录，校验工具本轮不可用）"
+                : workflowDir;
     }
 
     /**
@@ -100,7 +124,7 @@ public class ProjectDirectoryService {
      * @param projectId 项目 ID（可能是占位符）
      * @return 指引全文
      */
-    private static String agentGuide(String projectId) {
+    private static String agentGuide(String projectId, String workflowDir) {
         return GENERATED_MARKER + """
                 # 这个项目怎么创作
 
@@ -133,10 +157,49 @@ public class ProjectDirectoryService {
                   不必大批量抽帧；想验证什么，就先说清假设再看对应的帧。
                 - **看片后再改**：需要留痕时把这一轮的渲染与观察记进 `qa/passes/NN/`。
 
-                ## 可用的工具
+                ## 工作流工具（真实路径，可直接执行）
 
-                - workflow-v5 的校验工具在 `workflow-v5/` 下（intent / director / gates / execution 各有 `validate-*.mjs`）。
-                  它们是判断工具，不是必须通过的门。Prompt-first 默认不要求逐层填完这些文件。
+                workflow-v5 的校验工具装在下面这个绝对路径下（不是项目目录里，用相对路径找不到）：
+
+                ```
+                %s
+                ```
+
+                常用的几个（用 `node` 执行，参数一般是项目目录）：
+
+                - `prompt-first/tools/validate-shot-plan.mjs` —— 检查镜头计划是否可执行（Prompt-first 的主校验）
+                - `prompt-first/tools/validate-animatic-review.mjs` —— 检查动画预览与审阅记录是否成对
+                - `gates/tools/validate-gates.mjs` —— 各层 gate 的总校验
+                - `intent/tools/validate-intent.mjs`、`execution/tools/validate-execution.mjs` —— 意图与执行层
+
+                **它们是判断工具，不是必过门槛**：Prompt-first 不要求每部片都逐层填完这些文件。
+                简单需求几步代码就够了，为了「走完流程」去补一堆用不上的文档是浪费时间。
+                但**只要你写了 `film-plan.md` 这类结构化文件，就该跑对应校验**，
+                别把一份自己都没验过的计划当依据。
+
+                ## 三个资源库（素材 / 参考片 / 特效）
+
+                应用里有三个库，它们**不在项目目录里**，要靠下面的接口取：
+
+                ```bash
+                curl -s "http://127.0.0.1:8080/api/assets?limit=20"                    # 素材库
+                curl -s "http://127.0.0.1:8080/api/reference-videos?limit=20"          # 参考片库
+                curl -s "http://127.0.0.1:8080/api/fx-techniques?limit=100"            # 特效库
+                ```
+
+                **什么时候该去查**：用户说「找个合适的素材」「用手法像某某的片」「加个转场特效」
+                这类没点名具体条目的要求时，**先调上面接口看库里有什么**，再决定用哪个；
+                不要凭空编一个素材名或假装用了某条参考片。
+
+                **用户已经点名给资源时**，本轮的项目目录里有一份 `resources-in-use.md`，
+                里面写了每个资源的绝对文件路径、用途（放进画面 / 仅参考 / 音频 / 资料）与
+                参考片的具体时间区间。**按那份文件用，不要自行更改用途**：
+                「仅参考」的不要去改画面，「用作画面」的必须真的出现在成片里。
+
+                素材与参考片是真实文件，用 `staticFile()` 引用前要先复制进项目的 `public/`
+                （参考片按需抽帧观察，但成片里不得出现它的画面）。
+                特效是「技法说明 + 做法步骤」，照着它写代码，不是一段可直接调用的组件。
+
                 ## 出片（当前能力的真实边界，别当成全能）
 
                 现在后端只有一个渲染接口，它接受的是**场景 props**：
@@ -153,8 +216,8 @@ public class ProjectDirectoryService {
                 能表达背景图、文字动画和转场，但表达不了复杂的运镜、光、材质与合成。
                 拿它做氛围短片会得到一张张「会动的字幕卡」。
                 所以：**它是验证与兜底手段，不是创作方式**。真正的画面要靠你在本目录里
-                写 Remotion 源码；项目级 Remotion 工程的渲染接线还在做，尚未对你的调用开放。
-                在它开放之前，不要声称自己已经渲染了工程代码。
+                写 Remotion 源码。写完把 `film.config.json` 的 `entry` 指到入口，
+                由后端渲染你的工程（你不需要自己调渲染接口）。
 
                 产物落在本项目 `renders/`，用户能在工作台「产物」页看到并播放。
 
@@ -164,7 +227,7 @@ public class ProjectDirectoryService {
                 - 不要伪造渲染结果：没出片就说没出片，不要编一个路径。
                 - 如果只能用上面那条场景 props 路径，就明确告诉用户「这一版是文字卡，画面还没做」，
                   不要把它描述成完成的创作。
-                """.formatted(projectId);
+                """.formatted(effectiveWorkflowDir(workflowDir), projectId);
     }
 
     /**
@@ -248,7 +311,7 @@ public class ProjectDirectoryService {
         }
         if (text.startsWith(GENERATED_MARKER)) {
             // 已是当前版本：只在确实需要时重写，避免无谓改动文件时间
-            if (text.equals(agentGuide(projectId))) {
+            if (text.equals(agentGuide(projectId, workflowDir))) {
                 return GuideUpgrade.CURRENT;
             }
             writeAgentGuide(projectDir, projectId);
@@ -265,7 +328,7 @@ public class ProjectDirectoryService {
      * @param projectId  项目 ID
      */
     private void writeAgentGuide(Path projectDir, String projectId) {
-        writeText(projectDir.resolve("AGENTS.md"), agentGuide(projectId));
+        writeText(projectDir.resolve("AGENTS.md"), agentGuide(projectId, workflowDir));
     }
 
     /** 指引升级结果。 */

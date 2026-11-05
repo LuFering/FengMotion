@@ -55,9 +55,47 @@ class AgentGuideTest {
            指引若不写清，agent 会把它当成通用出片能力，
            然后交出一堆「会动的字幕卡」还说是完成品。 */
         assertTrue(guide.contains("字幕卡"), "要点明这条路径会得到什么");
-        assertTrue(guide.contains("尚未对你的调用开放") || guide.contains("还在做"),
-                "项目级工程渲染还没开放，不能假装可用");
-        assertFalse(guide.contains("\"entry\""), "这条接口目前不接受 entry 参数，不能写进指引");
+        /* 项目级 Remotion 工程的渲染后来开放了（后端按 film.config.json 渲染 agent 写的源码），
+           所以指引不再说「还在做」，而是告诉 agent 写完源码由后端渲染。
+           这里守的是「别让 agent 以为要自己调渲染接口」。 */
+        assertTrue(guide.contains("由后端渲染你的工程"),
+                "要写明工程由后端渲染，agent 不必自己调接口");
+        assertFalse(guide.contains("尚未对你的调用开放"),
+                "能力已开放，不能再写未开放");
+    }
+
+    @Test
+    @DisplayName("指引给出 workflow-v5 工具的真实绝对路径，而不是找不到的相对路径")
+    void guideGivesAbsoluteToolchainPath() throws Exception {
+        /* 原先只写「工具在 workflow-v5/ 下」，而 agent 的工作目录是项目目录，
+           相对路径它根本找不到 —— 那些校验工具从未被调用过。 */
+        org.springframework.test.util.ReflectionTestUtils.setField(
+                service, "workflowDir", "/opt/fm/resources/workflow-v5");
+
+        Path dir = tempDir.resolve("p-tools");
+        service.create(dir);
+        String guide = Files.readString(dir.resolve("AGENTS.md"));
+
+        assertTrue(guide.contains("/opt/fm/resources/workflow-v5"),
+                "要给出绝对路径，agent 才执行得到");
+        assertTrue(guide.contains("validate-shot-plan.mjs"), "要点出主要校验工具");
+    }
+
+    @Test
+    @DisplayName("指引说明三库在哪、怎么查、什么时候该查")
+    void guideExplainsThreeLibraries() throws Exception {
+        Path dir = tempDir.resolve("p-libs");
+        service.create(dir);
+        String guide = Files.readString(dir.resolve("AGENTS.md"));
+
+        /* 库里有什么，agent 原先完全不知道：AGENTS.md 一个字没提三库，
+           只有用户手动选了资源、由 resources-in-use.md 带路径时才用得上。
+           用户说「找个合适的素材」时它不会去翻库。 */
+        assertTrue(guide.contains("/api/assets"), "素材库接口");
+        assertTrue(guide.contains("/api/reference-videos"), "参考片库接口");
+        assertTrue(guide.contains("/api/fx-techniques"), "特效库接口");
+        assertTrue(guide.contains("resources-in-use.md"), "用户已点名资源时的依据文件");
+        assertTrue(guide.contains("不要自行更改用途"), "用途不能被 agent 改");
     }
 
     @Test
