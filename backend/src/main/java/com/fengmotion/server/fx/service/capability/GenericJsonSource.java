@@ -43,7 +43,7 @@ public class GenericJsonSource implements CapabilitySource {
 
     @Override
     public String kind() {
-        return "json";
+        return "generic-json";
     }
 
     @Override

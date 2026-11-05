@@ -38,7 +38,7 @@ public class StyleDirectorySource implements CapabilitySource {
 
     @Override
     public String kind() {
-        return "style";
+        return "style-directory";
     }
 
     /**

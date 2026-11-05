@@ -121,40 +121,18 @@ public interface CapabilitySource {
                 || name.equals("usage.md") || name.equals("install.md")) {
             return true;
         }
-        /* 模板与草稿目录不是真实条目。 */
         for (Path segment : file) {
             String dir = segment.toString().toLowerCase(Locale.ROOT);
-            if (dir.equals("_template") || dir.equals("template") || dir.equals("draft")
-                    || dir.equals("sample") || dir.equals("samples")) {
+            if (dir.equals(".git")) {
                 return true;
             }
-        }
-        /* 「references/ 下、但不在 shots/ 里」的是流程与方法论文档，
-           不是可借鉴的技法本身。
-           为什么用这条结构性规则而不是继续加关键词：关键词只能一个一个补，
-           遇到英文 slug（如 promo-energy-arc）就漏。目录层次才是稳定信号。 */
-        List<String> parts = new ArrayList<>();
-        for (Path segment : file) {
-            parts.add(segment.toString().toLowerCase(Locale.ROOT));
-        }
-        int referencesAt = parts.indexOf("references");
-        if (referencesAt >= 0 && !parts.contains("shots")) {
-            return true;
-        }
-        for (Path segment : file) {
-            String dir = segment.toString().toLowerCase(Locale.ROOT);
-            if (dir.equals("node_modules") || dir.equals(".git") || dir.equals("dist")
-                    || dir.equals("build") || dir.equals("__pycache__")) {
-                return true;
-            }
-            /* 实现工程与资产目录里放的是「这条风格怎么被做出来的」，
-               不是技法本身。实测：不排除这些目录时，从 lemo 里多收了
-               300 多条 demo/lines.json、demo/cues.json 之类的台词与音乐提示，
-               条目名叫 "L1"、"5.4" —— 看起来像数据损坏，实际是收了实现细节。 */
-            if (dir.equals("demo") || dir.equals("demos") || dir.equals("src")
-                    || dir.equals("assets") || dir.equals("videos") || dir.equals("audio")
-                    || dir.equals("template") || dir.equals("templates")
-                    || dir.equals("core") || dir.equals("plugin") || dir.equals("scripts")) {
+            /* 这里只放「任何库都不该导入」的目录：依赖、构建产物、版本控制。
+               业务目录（demo/src/assets/core…）**不在这里判断** ——
+               同一个 "src" 对 lemo 是实现工程，对 remotion-scenes 却是组件本体。
+               写死在此会让后者一条都导不进来（实测踩过）。
+               业务目录的取舍由 fx/sources.yml 的 include/exclude 决定。 */
+            if (dir.equals("node_modules") || dir.equals("dist") || dir.equals("build")
+                    || dir.equals("__pycache__") || dir.equals("coverage")) {
                 return true;
             }
         }

@@ -1,0 +1,60 @@
+# 能力库来源配置
+#
+# 为什么放在 YAML 而不是代码里：这些规则描述的是「每个库长什么样」，
+# 属于数据。之前写死在 Java 里，每接入一个新库就要补一次排除规则
+# （实测补了四轮：demo 目录、仓库说明、模板目录、流程文档）。
+#
+# 规则语法：
+#   include / exclude 用 gitignore 风格的 glob，`**` 跨目录、`*` 同层
+#   exclude 优先于 include —— 命中排除就不收，哪怕同时符合包含
+#   categoryFrom: top 取顶层目录名 / parent 取上一级目录名 / none 不设
+#
+# 新增一个库：加一段配置即可，不需要改代码。
+
+sources:
+  # lemo-opuscar：一个风格目录含 style.json + poster.jpg + STYLE.md
+  - name: lemo-opuscar
+    include:
+      - "styles/**/style.json"
+    exclude:
+      - "**/_template/**"
+      - "**/README*"
+      # demo/ 里放的是「这条风格怎么被做出来的」实现工程，
+      # 其中的 lines.json / cues.json 是台词与音乐提示点。
+      # 不排除时会多收 300 多条，条目名叫 "L1"、"5.4"（实测）。
+      - "**/demo/**"
+      - "**/core/**"
+      - "**/plugin/**"
+    categoryFrom: parent
+    parsers:
+      - style-directory
+
+  # video-shotcraft：一张镜头配方卡 = 一个带 front matter 的 md
+  # 注意 references/ 下只收 shots/：其余是流程与方法论文档，不是技法。
+  - name: video-shotcraft
+    include:
+      - "references/shots/**/*.md"
+    exclude:
+      - "**/README*"
+      - "**/ATTRIBUTION*"
+      - "**/LICENSE*"
+      # references/ 下除 shots/ 外都是流程与方法论文档
+      # （pipeline、sound-design、publish-upload-post…），不是技法。
+      # 这条用 include 的 paths 已经限定，这里是双保险。
+      - "references/*.md"
+      - "**/sequences/**"
+    categoryFrom: parent
+    parsers:
+      - front-matter
+
+  # remotion-scenes：只有 .tsx 源码，没有元数据。
+  # 需要源码候选发现器（纯规则）+ 模型补语义，本阶段先只做规则部分。
+  - name: remotion-scenes
+    include:
+      - "src/scenes/**/*.tsx"
+    exclude:
+      - "**/index.tsx"
+    categoryFrom: top
+    parsers:
+      - tsx-component
+    needsModel: true

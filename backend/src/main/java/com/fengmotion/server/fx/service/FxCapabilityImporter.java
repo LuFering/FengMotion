@@ -16,6 +16,8 @@ import org.springframework.transaction.annotation.Transactional;
 import com.fengmotion.server.fx.domain.FxStates;
 import com.fengmotion.server.fx.domain.FxTechnique;
 import com.fengmotion.server.fx.service.capability.CapabilitySource;
+import com.fengmotion.server.fx.service.capability.SourceProfile;
+import com.fengmotion.server.fx.service.capability.SourceProfileLoader;
 import com.fengmotion.server.fx.store.FxTechniqueRepository;
 
 /**
@@ -41,13 +43,16 @@ public class FxCapabilityImporter {
 
     private final FxTechniqueRepository repository;
     private final List<CapabilitySource> sources;
+    private final SourceProfileLoader profileLoader;
 
     @Value("${fengmotion.retrieval.capabilities-dir:}")
     private String capabilitiesDir;
 
-    public FxCapabilityImporter(FxTechniqueRepository repository, List<CapabilitySource> sources) {
+    public FxCapabilityImporter(FxTechniqueRepository repository, List<CapabilitySource> sources,
+            SourceProfileLoader profileLoader) {
         this.repository = repository;
         this.sources = sources;
+        this.profileLoader = profileLoader;
     }
 
     /**
@@ -87,21 +92,38 @@ public class FxCapabilityImporter {
         List<CapabilitySource.ParsedItem> collected = new ArrayList<>();
         int skipped = 0;
 
-        List<Path> libraries = new ArrayList<>();
-        try (Stream<Path> children = Files.list(root)) {
-            for (Path child : children.toList()) {
-                if (Files.isDirectory(child) && !isIgnoredDirectory(child)) {
-                    libraries.add(child);
-                }
+        /* 按来源配置逐库扫描：每个来源声明自己的 include/exclude glob，
+           规则不再是代码里的 if。没有配置的库不会被扫 ——
+           这比「扫到什么都收」安全：多收一条噪音，用户就要在列表里翻。
+           但必须如实报告「有几个目录没有配置」，否则新放进来的库静默不生效。 */
+        List<SourceProfile> profiles = profileLoader.load();
+        List<String> unconfigured = new ArrayList<>();
+
+        for (SourceProfile profile : profiles) {
+            Path libraryRoot = profile.resolveRoot(root);
+            if (!Files.isDirectory(libraryRoot)) {
+                log.info("来源 {} 的目录不存在，跳过：{}", profile.name(), libraryRoot);
+                continue;
             }
-        } catch (Exception unreadable) {
-            return new ImportResult(0, 0, "无法读取目录：" + root);
+            for (CapabilitySource source : sourcesFor(profile)) {
+                skipped += scanWithProfile(source, libraryRoot, profile, collected);
+            }
         }
 
-        for (Path library : libraries) {
-            for (CapabilitySource source : sources) {
-                skipped += source.scan(library, collected);
+        /* 没被任何来源配置覆盖的子目录：明确报告，便于补配置。 */
+        try (Stream<Path> children = Files.list(root)) {
+            for (Path child : children.toList()) {
+                if (!Files.isDirectory(child) || isIgnoredDirectory(child)) {
+                    continue;
+                }
+                boolean covered = profiles.stream()
+                        .anyMatch(p -> p.resolveRoot(root).equals(child));
+                if (!covered) {
+                    unconfigured.add(child.getFileName().toString());
+                }
             }
+        } catch (Exception ignored) {
+            // 只是补充信息，读不到不影响导入
         }
 
         /* 同一 ID 可能被两个解析器同时产出（例如带 front matter 的 md 同时被
@@ -111,8 +133,12 @@ public class FxCapabilityImporter {
         List<CapabilitySource.ParsedItem> unique = dedupe(collected);
 
         int imported = write(unique);
-        log.info("能力库导入：{} 个来源库，解析 {} 条，去重后 {} 条，跳过 {}",
-                libraries.size(), collected.size(), unique.size(), skipped);
+        if (!unconfigured.isEmpty()) {
+            log.warn("以下目录没有来源配置，本次未导入：{}（在 fx/sources.yml 里补一段即可）",
+                    String.join("、", unconfigured));
+        }
+        log.info("能力库导入：{} 个来源配置，解析 {} 条，去重后 {} 条，跳过 {}",
+                profiles.size(), collected.size(), unique.size(), skipped);
         return new ImportResult(imported, skipped, null);
     }
 
@@ -125,6 +151,80 @@ public class FxCapabilityImporter {
             byId.put(item.id(), item);
         }
         return List.copyOf(byId.values());
+    }
+
+    /**
+     * 按来源配置挑出要用的解析器。
+     *
+     * <p>配置里 {@code parsers} 是解析器的 {@link CapabilitySource#kind()}。
+     * 留空表示用全部 —— 但源码型解析器不该在没配置时也跑，
+     * 否则每个库都会顺带扫一遍 .tsx，产出没人要的条目。</p>
+     */
+    private List<CapabilitySource> sourcesFor(SourceProfile profile) {
+        if (profile.parsers() == null || profile.parsers().isEmpty()) {
+            return sources.stream()
+                    .filter(s -> !"tsx-component".equals(s.kind()))
+                    .toList();
+        }
+        List<CapabilitySource> chosen = new ArrayList<>();
+        for (String kind : profile.parsers()) {
+            boolean found = false;
+            for (CapabilitySource source : sources) {
+                if (source.kind().equals(kind)) {
+                    chosen.add(source);
+                    found = true;
+                }
+            }
+            if (!found) {
+                /* 配置里写了不存在的解析器名：必须报出来。
+                   实测踩过：配置写 style-directory、代码返回 style，
+                   名称对不上导致整库一条都导不进来，而日志只说「导入 0 条」。 */
+                log.warn("来源 {} 配置了不存在的解析器 \"{}\"，可用：{}",
+                        profile.name(), kind,
+                        sources.stream().map(CapabilitySource::kind).toList());
+            }
+        }
+        return chosen;
+    }
+
+    /**
+     * 用来源配置的 glob 扫描一个库。
+     *
+     * <p>不复用 {@link CapabilitySource#scan}：那个方法只做「逐文件问 supports」，
+     * 不应用 include/exclude。规则放在配置里之后，过滤必须在这一层先做，
+     * 否则解析器还是会把没配置的文件收进来。</p>
+     */
+    private int scanWithProfile(CapabilitySource source, Path libraryRoot,
+            SourceProfile profile, List<CapabilitySource.ParsedItem> out) {
+        int skipped = 0;
+        try (Stream<Path> walk = Files.walk(libraryRoot, 8)) {
+            for (Path file : walk.filter(Files::isRegularFile).toList()) {
+                String relative = libraryRoot.relativize(file).toString().replace('\\', '/');
+                if (!profile.accepts(relative)) {
+                    continue;
+                }
+                if (CapabilitySource.isNoise(file)) {
+                    continue;
+                }
+                if (!source.supports(file)) {
+                    continue;
+                }
+                try {
+                    List<CapabilitySource.ParsedItem> items = source.parse(file, libraryRoot);
+                    if (items.isEmpty()) {
+                        skipped++;
+                    } else {
+                        out.addAll(items);
+                    }
+                } catch (Exception failed) {
+                    /* 单文件失败不该让整批泡汤，但必须计入跳过数。 */
+                    skipped++;
+                }
+            }
+        } catch (Exception unreadable) {
+            return skipped + 1;
+        }
+        return skipped;
     }
 
     /** 把解析结果落成特效条目；重复 ID 会覆盖（upsert），因此幂等。 */

@@ -46,7 +46,7 @@ public class FrontMatterSource implements CapabilitySource {
 
     @Override
     public String kind() {
-        return "md";
+        return "front-matter";
     }
 
     @Override

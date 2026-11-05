@@ -36,7 +36,7 @@ public class GenericMarkdownSource implements CapabilitySource {
 
     @Override
     public String kind() {
-        return "md";
+        return "generic-markdown";
     }
 
     @Override
