@@ -409,5 +409,24 @@ public class DatabaseMigration {
                 """);
         jdbc.execute("CREATE INDEX IF NOT EXISTS idx_reference_prefs_kind "
                 + "ON reference_preferences(kind, marked_at DESC)");
+
+        /* 语义检索索引。旧库不会重跑 schema.sql，这里必须同样建一遍。
+           一个资源可以有多段（标题/别名/步骤分别成段），故主键带 chunk_no。 */
+        jdbc.execute("""
+                CREATE TABLE IF NOT EXISTS semantic_index (
+                    ref_kind TEXT NOT NULL,
+                    ref_id TEXT NOT NULL,
+                    chunk_no INTEGER NOT NULL,
+                    text TEXT NOT NULL,
+                    content_hash TEXT NOT NULL,
+                    model TEXT NOT NULL,
+                    dim INTEGER NOT NULL,
+                    vector BLOB NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    PRIMARY KEY (ref_kind, ref_id, chunk_no)
+                )
+                """);
+        jdbc.execute("CREATE INDEX IF NOT EXISTS idx_semantic_ref "
+                + "ON semantic_index(ref_kind, ref_id)");
     }
 }

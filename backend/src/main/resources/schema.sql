@@ -378,3 +378,26 @@ CREATE TABLE IF NOT EXISTS reference_preferences (
 );
 
 CREATE INDEX IF NOT EXISTS idx_reference_prefs_kind ON reference_preferences(kind, marked_at DESC);
+
+-- 语义检索索引：三库 + capabilities 统一到这里。
+--
+-- 为什么单独一张表而不给各库加列：向量要跟着「可检索文本」走，
+-- 而同一个资源可能被切成多条（标题、别名、做法步骤分别成段），
+-- 一资源多向量比一资源一列更自然；也让「内容变了重算」按段判断。
+--
+-- source 区分来源：asset / reference / technique / capability。
+-- content_hash 用于跳过重复计算：文本没变就不重新调 embedding。
+CREATE TABLE IF NOT EXISTS semantic_index (
+    ref_kind TEXT NOT NULL,        -- asset | reference | technique | capability
+    ref_id TEXT NOT NULL,
+    chunk_no INTEGER NOT NULL,     -- 同一资源内第几段（0 起）
+    text TEXT NOT NULL,            -- 参与检索的原文（便于排查召回来源）
+    content_hash TEXT NOT NULL,    -- 上述文本的 SHA-256，决定是否重算
+    model TEXT NOT NULL,           -- 生成向量的模型，换模型时整体失效
+    dim INTEGER NOT NULL,
+    vector BLOB NOT NULL,          -- float32 小端序列
+    updated_at TEXT NOT NULL,
+    PRIMARY KEY (ref_kind, ref_id, chunk_no)
+);
+
+CREATE INDEX IF NOT EXISTS idx_semantic_ref ON semantic_index(ref_kind, ref_id);

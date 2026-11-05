@@ -68,6 +68,16 @@ fengmotion:
     # 否则壳内所有 fetch 都会被 CORS 拦成 403。
     allowed-origins: http://localhost:5173,http://localhost:4173,fengmotion://app
 
+  # 语义检索：三库 + capabilities 共用一个索引。
+  # key 从环境变量读，不要写进仓库。
+  retrieval:
+    enabled: ${FENGMOTION_RETRIEVAL_ENABLED:true}
+    capabilities-dir: ${FENGMOTION_CAPABILITIES_DIR:}
+    embedding:
+      api-key: ${DASHSCOPE_API_KEY:}
+      endpoint: ${FENGMOTION_EMBEDDING_ENDPOINT:https://dashscope.aliyuncs.com/compatible-mode/v1/embeddings}
+      timeout-seconds: 30
+
   workflow:
     # agent 改工程单轮超时（秒）。实测含自查 2–15 分钟，留足余量。
     agent-timeout-seconds: ${FENGMOTION_AGENT_TIMEOUT:1200}

@@ -18,6 +18,7 @@ import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
  */
 @SpringBootApplication
 @ConfigurationPropertiesScan
+@org.springframework.scheduling.annotation.EnableAsync
 public class FengMotionServerApplication {
     public static void main(String[] args) {
         // 必须先于 SpringApplication.run：SQLite 不会创建缺少的父目录，
