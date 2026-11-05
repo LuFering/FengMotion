@@ -96,6 +96,17 @@ class RetrievalStatusTest {
     }
 
     @Test
+    @DisplayName("相似度阈值落在「相关」与「无关」的实测区间之间")
+    void thresholdSitsBetweenRealScores() {
+        /* 实测：相关查询（眩晕感→多莉变焦）0.65 以上；无关查询（量子纠缠猫咪）最高 0.49。
+           阈值必须夹在中间，否则要么漏召回、要么把噪声当结果。 */
+        assertTrue(SemanticIndex.MIN_SEMANTIC_SCORE > 0.50,
+                "阈值低于实测无关上限 0.49，会让无关查询返回噪声结果");
+        assertTrue(SemanticIndex.MIN_SEMANTIC_SCORE < 0.65,
+                "阈值高于实测相关下限 0.65，会把真正相关的结果滤掉");
+    }
+
+    @Test
     @DisplayName("有命中时保留查询与范围，便于事后追溯")
     void hitsKeepQueryAndKinds() {
         var hit = new SemanticIndex.Hit("technique", "fx-dolly-zoom", 0, "推近同时拉开背景", 0.67);

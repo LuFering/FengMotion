@@ -35,6 +35,19 @@ public class SemanticIndex {
     private final EmbeddingProvider embeddings;
 
     /**
+     * 语义命中的最低相似度。
+     *
+     * <p>实测依据：相关查询（「镜头快速推近、背景被拉开的眩晕感」→ 多莉变焦）
+     * 得分在 0.65–0.72；完全无关的查询（「量子纠缠猫咪太空歌剧」）最高也到 0.48。
+     * 取 0.55 落在两者之间，且相关结果仍有充足余量。</p>
+     *
+     * <p>这个值是经验值，不是理论值：换 embedding 模型或换语料后必须重测，
+     * 否则会出现「阈值偏高导致漏召回」或「偏低导致噪声回归」。分档见
+     * {@code docs/research/reference-multiframe-analysis.md} 的同类记录习惯。</p>
+     */
+    static final double MIN_SEMANTIC_SCORE = 0.55;
+
+    /**
      * 一条待索引文本。
      *
      * @param kind  来源：asset / reference / technique / capability
@@ -67,7 +80,16 @@ public class SemanticIndex {
         if (docs.isEmpty()) return 0;
         if (!embeddings.available()) return 0;
 
-        /* 先挑出真正需要重算的：与库里的 content_hash 比对。
+        /* 先清掉本轮语料里已经不存在、且未被重写的旧条目。
+           不做这一步的话，源文件删掉或改名后旧索引会永远留着：
+           用户搜到一个「ATTRIBUTION」或已删除的镜头卡，点进去发现文件不存在。
+           这正是「索引与磁盘脱节」的由来。
+
+           只清理本轮语料覆盖到的 kind：asset/reference/technique 由各自的服务维护，
+           在 capabilities 重建时不该顺手抹掉。 */
+        removeStale(docs);
+
+        /* 再挑出真正需要重算的：与库里的 content_hash 比对。
            这一步很关键 —— 全量重算在每次启动时都会烧一遍 token。 */
         List<Doc> pending = new ArrayList<>();
         for (Doc doc : docs) {
@@ -107,6 +129,48 @@ public class SemanticIndex {
         }
         log.info("语义索引更新 {} 段（共 {} 段）", written, docs.size());
         return written;
+    }
+
+    /**
+     * 删除本轮语料里已不存在的旧条目。
+     *
+     * <p>只处理本次 {@code docs} 出现过的 kind：素材、参考片、特效由各自服务维护，
+     * 在重建能力库索引时把它们一起删掉会造成「检索忽然少了东西」。</p>
+     *
+     * <p>判定方式是「库里存在、但本轮语料不再包含这个 ref_id」。
+     * 命中时直接按 {@code (kind, ref_id)} 删除该资源的全部段，
+     * 避免残留一半旧段导致文字与向量错位。</p>
+     *
+     * @param docs 本轮语料
+     */
+    private void removeStale(List<Doc> docs) {
+        java.util.Set<String> kinds = new java.util.HashSet<>();
+        java.util.Set<String> liveIds = new java.util.HashSet<>();
+        for (Doc doc : docs) {
+            kinds.add(doc.kind());
+            liveIds.add(doc.kind() + "\u0000" + doc.id());
+        }
+        if (kinds.isEmpty()) return;
+
+        String placeholders = String.join(",", kinds.stream().map(k -> "?").toList());
+        List<String> stale = new ArrayList<>();
+        jdbc.query("SELECT DISTINCT ref_kind, ref_id FROM semantic_index WHERE ref_kind IN ("
+                        + placeholders + ")",
+                (org.springframework.jdbc.core.RowCallbackHandler) rs -> {
+                    String key = rs.getString("ref_kind") + "\u0000" + rs.getString("ref_id");
+                    if (!liveIds.contains(key)) {
+                        stale.add(key);
+                    }
+                }, kinds.toArray());
+
+        if (stale.isEmpty()) return;
+        int removed = 0;
+        for (String key : stale) {
+            String[] parts = key.split("\u0000", 2);
+            removed += jdbc.update("DELETE FROM semantic_index WHERE ref_kind=? AND ref_id=?",
+                    parts[0], parts[1]);
+        }
+        log.info("语义索引清理 {} 段已失效条目（对应的源已不存在或已改名）", removed);
     }
 
     /**
@@ -153,13 +217,18 @@ public class SemanticIndex {
 
         List<Hit> hits = new ArrayList<>();
         jdbc.query("SELECT ref_kind, ref_id, chunk_no, text, vector FROM semantic_index" + kindFilter,
-                rs -> {
-                    while (rs.next()) {
-                        float[] vector = fromBytes(rs.getBytes("vector"));
-                        hits.add(new Hit(rs.getString("ref_kind"), rs.getString("ref_id"),
-                                rs.getInt("chunk_no"), rs.getString("text"),
-                                cosine(target, vector)));
+                (org.springframework.jdbc.core.RowCallbackHandler) rs -> {
+                    float[] vector = fromBytes(rs.getBytes("vector"));
+                    double score = cosine(target, vector);
+                    /* 低于阈值的直接丢掉。不设阈值时任何查询都会有「命中」：
+                       实测查「量子纠缠猫咪太空歌剧」，库里的甩镜头、雨滴叠加也能拿到 0.48
+                       并被当成结果返回。用户会以为库里真有相关内容 —— 这比返回空更糟，
+                       因为空至少是诚实的。 */
+                    if (score < MIN_SEMANTIC_SCORE) {
+                        return;
                     }
+                    hits.add(new Hit(rs.getString("ref_kind"), rs.getString("ref_id"),
+                            rs.getInt("chunk_no"), rs.getString("text"), score));
                 }, args);
 
         hits.sort(Comparator.comparingDouble(Hit::score).reversed());

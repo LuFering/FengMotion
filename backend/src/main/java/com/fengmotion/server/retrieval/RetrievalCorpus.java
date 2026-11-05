@@ -178,10 +178,17 @@ public class RetrievalCorpus {
      */
     private List<SemanticIndex.Doc> fromCapabilities() {
         List<SemanticIndex.Doc> docs = new ArrayList<>();
-        if (capabilitiesDir == null || capabilitiesDir.isBlank()) return docs;
+        if (capabilitiesDir == null || capabilitiesDir.isBlank()) {
+            /* 空配置不能静默跳过：索引里可能还留着上一次的条目，
+               用户看到「382 条 capability 可搜」，实际这些条目已经和磁盘上的仓库脱节了。
+               日志必须说清「本轮一条都没索引」，否则排障时会被误导。 */
+            log.info("未配置 capabilities 目录（fengmotion.retrieval.capabilities-dir），"
+                    + "本轮不索引任何能力库条目");
+            return docs;
+        }
         Path root = Path.of(capabilitiesDir);
         if (!Files.isDirectory(root)) {
-            log.debug("capabilities 目录不存在：{}", root);
+            log.warn("capabilities 目录不存在，本轮不索引能力库：{}", root);
             return docs;
         }
         try {
@@ -191,12 +198,16 @@ public class RetrievalCorpus {
         } catch (RuntimeException failed) {
             log.warn("索引 capabilities 失败：{}", failed.getMessage());
         }
-        log.info("capabilities 索引条目：{} 段", docs.size());
+        log.info("capabilities 索引条目：{} 段（目录 {}）", docs.size(), root);
         return docs;
     }
 
     /**
-     * lemo 的 51 个风格：每个 STYLE.md 的前几段。
+     * lemo 的风格：STYLE.md 正文 + style.json 的元数据。
+     *
+     * <p>为什么要把 style.json 也拼进去：风格名和分类是最直接的检索入口
+     * （用户会说「装饰艺术」或「art deco」），而 STYLE.md 正文多是视觉描述，
+     * 未必包含风格自己的名字。</p>
      *
      * @param styles 风格目录
      * @param docs   收集容器
@@ -205,11 +216,14 @@ public class RetrievalCorpus {
         if (!Files.isDirectory(styles)) return;
         try (Stream<Path> dirs = Files.list(styles)) {
             for (Path dir : dirs.toList()) {
+                if (!Files.isDirectory(dir)) continue;
                 Path style = dir.resolve("STYLE.md");
                 if (!Files.isRegularFile(style)) continue;
-                String text = excerpt(style, 700);
-                if (text.isBlank()) continue;
-                docs.add(new SemanticIndex.Doc(KIND_CAPABILITY, "lemo:" + dir.getFileName(), 0, text));
+                String body = excerpt(style, 900);
+                if (body.isBlank()) continue;
+                String meta = styleMeta(dir.resolve("style.json"));
+                docs.add(new SemanticIndex.Doc(KIND_CAPABILITY, "lemo:" + dir.getFileName(), 0,
+                        (meta.isBlank() ? "" : meta + " ") + body));
             }
         } catch (IOException unreadable) {
             log.warn("读取 lemo 风格失败：{}", unreadable.getMessage());
@@ -217,7 +231,38 @@ public class RetrievalCorpus {
     }
 
     /**
+     * 读 {@code style.json} 里对检索有用的字段。
+     *
+     * <p>字段名不假设固定：不同风格的文件结构可能演进，这里只挑几个常见的
+     * 名字（name / title / category / tags / description），取不到就跳过，
+     * 绝不因为一个字段缺失让整个风格索引失败。</p>
+     */
+    private String styleMeta(Path styleJson) {
+        if (!Files.isRegularFile(styleJson)) return "";
+        try {
+            JsonNode node = json.readTree(Files.readString(styleJson, StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder();
+            for (String field : List.of("name", "title", "nameZh", "nameEn", "category", "description")) {
+                String value = node.path(field).asText("");
+                if (!value.isBlank()) sb.append(value).append(' ');
+            }
+            JsonNode tags = node.path("tags");
+            if (tags.isArray()) {
+                for (JsonNode tag : tags) {
+                    if (!tag.asText("").isBlank()) sb.append(tag.asText()).append(' ');
+                }
+            }
+            return sb.toString().strip();
+        } catch (IOException unreadable) {
+            return "";
+        }
+    }
+
+    /**
      * shotcraft 的镜头卡：每张卡的说明。
+     *
+     * <p>只收目录下的卡片，跳过 {@code ATTRIBUTION.md} 这类仓库说明文件 ——
+     * 它们不是技法，收进来会让「署名与许可」被当成一条可借鉴的镜头配方召回。</p>
      *
      * @param shots 镜头卡目录
      * @param docs  收集容器
@@ -228,10 +273,11 @@ public class RetrievalCorpus {
             for (Path file : walk.filter(Files::isRegularFile).toList()) {
                 String name = file.getFileName().toString();
                 if (!name.endsWith(".md")) continue;
-                String text = excerpt(file, 600);
+                if (isRepoDoc(name)) continue;
+                String text = excerpt(file, 900);
                 if (text.isBlank()) continue;
                 docs.add(new SemanticIndex.Doc(KIND_CAPABILITY,
-                        "shotcraft:" + file.getFileName().toString().replace(".md", ""), 0, text));
+                        "shotcraft:" + name.replace(".md", ""), 0, text));
             }
         } catch (IOException unreadable) {
             log.warn("读取 shotcraft 卡失败：{}", unreadable.getMessage());
@@ -239,7 +285,16 @@ public class RetrievalCorpus {
     }
 
     /**
-     * remotion-scenes 的组件：按目录名建索引（组件本身没有说明文档）。
+     * remotion-scenes 的组件：读组件源码里的注释与参数说明。
+     *
+     * <p>原实现只把文件名拼成「Remotion 组件 X（分类）」，等于没有内容可检索：
+     * 用户说「文字逐字打出来」，文件名 {@code RollerTypewriter} 里的 Typewriter
+     * 帮不上忙（何况查询是中文）。实测这类条目 205 条占了 capability 的大头，
+     * 却几乎搜不出来。</p>
+     *
+     * <p>改成读源码：组件顶部的注释/中文说明、{@code export const} 名、
+     * 以及 props 里的中文注释，都是真正能描述「这个组件做什么」的文本。
+     * 源码本身不整体入库 —— 代码噪声太大，会把真正的语义信号稀释掉。</p>
      *
      * @param scenes 组件目录
      * @param docs   收集容器
@@ -250,13 +305,67 @@ public class RetrievalCorpus {
             for (Path file : walk.filter(Files::isRegularFile).toList()) {
                 String name = file.getFileName().toString();
                 if (!name.endsWith(".tsx")) continue;
-                docs.add(new SemanticIndex.Doc(KIND_CAPABILITY,
-                        "scene:" + name.replace(".tsx", ""), 0,
-                        "Remotion 组件 " + name.replace(".tsx", "") + "（" + file.getParent().getFileName() + "）"));
+                /* index.tsx 是导出清单，不是组件；收进来只会制造大量同质条目。 */
+                if ("index.tsx".equals(name)) continue;
+                String component = name.substring(0, name.length() - 4);
+                String category = file.getParent() != null ? file.getParent().getFileName().toString() : "";
+                String hint = sourceHints(file);
+                docs.add(new SemanticIndex.Doc(KIND_CAPABILITY, "scene:" + component, 0,
+                        ("Remotion 组件 " + component + "（分类 " + category + "）"
+                                + (hint.isBlank() ? "" : " " + hint)).strip()));
             }
         } catch (IOException unreadable) {
             log.warn("读取 scenes 组件失败：{}", unreadable.getMessage());
         }
+    }
+
+    /**
+     * 从组件源码里挑出对检索有用的文字。
+     *
+     * <p>只取注释与标识符：注释通常写着「这是做什么的」（这批组件里大量是日文与英文），
+     * 标识符名（如 Roller / Carousel / Glitch）也携带含义，
+     * 而完整代码只会把语义信号稀释掉。</p>
+     *
+     * @param file 组件源码
+     * @return 摘要文本；读不出时为空串
+     */
+    private String sourceHints(Path file) {
+        try {
+            String raw = Files.readString(file, StandardCharsets.UTF_8);
+            StringBuilder sb = new StringBuilder();
+            /* 块注释与行注释里的文字。 */
+            java.util.regex.Matcher block = java.util.regex.Pattern
+                    .compile("/\\*\\*(.*?)\\*/", java.util.regex.Pattern.DOTALL).matcher(raw);
+            while (block.find() && sb.length() < 300) {
+                String body = block.group(1).replaceAll("(?m)^\\s*\\*\\s?", "").strip();
+                if (!body.isBlank()) sb.append(body).append(' ');
+            }
+            java.util.regex.Matcher line = java.util.regex.Pattern
+                    .compile("//\\s*(.+)").matcher(raw);
+            while (line.find() && sb.length() < 400) {
+                sb.append(line.group(1).strip()).append(' ');
+            }
+            /* 组件名再按驼峰拆成词，补足注释缺失的情况（RollerTypewriter → Roller Typewriter）。 */
+            String component = file.getFileName().toString().replace(".tsx", "");
+            String words = component.replaceAll("([a-z0-9])([A-Z])", "$1 $2");
+            if (!words.equals(component)) sb.append(words);
+            String out = sb.toString().replaceAll("\\s+", " ").strip();
+            return out.length() > 400 ? out.substring(0, 400) : out;
+        } catch (IOException unreadable) {
+            return "";
+        }
+    }
+
+    /**
+     * 是否是仓库级说明文件（署名、许可、索引），而不是可借鉴的技法卡片。
+     */
+    private static boolean isRepoDoc(String fileName) {
+        String lower = fileName.toLowerCase(java.util.Locale.ROOT);
+        return lower.startsWith("readme")
+                || lower.startsWith("attribution")
+                || lower.startsWith("license")
+                || lower.startsWith("changelog")
+                || lower.startsWith("contributing");
     }
 
     /**
