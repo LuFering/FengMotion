@@ -117,6 +117,10 @@ function buildJre() {
     'java.security.sasl',   // 同上，认证协议族
     'jdk.unsupported',      // Unsafe/反射，Spring 与多个库依赖
     'jdk.crypto.ec',        // TLS 椭圆曲线（检查更新走 HTTPS）
+    /* java.net.http —— 语义检索调 DashScope 用的 HttpClient。
+       漏了它在安装态是启动即失败：EmbeddingProvider 构造时 NoClassDefFoundError，
+       整个后端起不来。开发态用完整 JDK 永远发现不了，只能靠安装验证。 */
+    'java.net.http',
   ].join(',')
 
   // jlink 要求输出目录不存在：它自己会创建。先删干净，不要预建。
