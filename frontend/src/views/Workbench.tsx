@@ -1560,13 +1560,11 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
                     版本号与生成日期、重新渲染、预览版本与对比这三组信息
                     已按要求从顶栏移除 —— 版本历史走控制台的「场景版本」页签，
                     渲染入口在下方交付区，顶栏不再重复。 */}
-                <span className="wb-viewer-index">监看</span>
                 <h2 className="wb-viewer-title truncate">画面预览</h2>
                 {stageStale && <span className="wb-status" data-status="waiting">对应旧版本</span>}
               </>
             ) : (
               <>
-                <span className="wb-viewer-index">监看</span>
                 <h2 className="wb-viewer-title truncate">画面预览</h2>
                 <span className="wb-status" data-status="idle">
                   {stage.lastRunStatus === 'running' ? '制作中' : '还没有画面'}
