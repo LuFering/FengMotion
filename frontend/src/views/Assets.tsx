@@ -598,9 +598,88 @@ export function Assets({ projectName }: { projectName?: string } = {}) {
     <div className="mya">
       <PageHeader
         title="我的素材"
-        meta={projectName ? <span className="mya-heading-project">{projectName}</span> : undefined}
         actions={
           <>
+            {/* 搜索与视图控制放在标题行右侧：原来它们单独占一条工具条，
+                于是顶部出现「标题行 + 工具条」两层，中间那行是空的。 */}
+            {!orgOpen && (
+              <button type="button" className="mya-toolbtn" onClick={() => setOrgOpen(true)}
+                      title="展开组织栏" aria-label="展开组织栏">
+                <Icon name="panel-left-open" />组织
+              </button>
+            )}
+            <div className="mya-content-search">
+              <SearchField
+                value={search}
+                onChange={setSearch}
+                placeholder="搜索名称、标签、来源"
+                ariaLabel="搜索素材"
+                onClear={() => setSearch('')}
+              />
+            </div>
+            <span className="mya-crumb" hidden={node === 'all' && typeFilter === 'all'}>
+              <b>{node === 'all' ? '全部素材' : activeLabel}</b>
+              {typeFilter !== 'all' && <>{' / '}<b>{MEDIA_LABEL[typeFilter]}</b></>}
+            </span>
+            <span className="mya-spacer" />
+            <div className="mya-seg" role="group" aria-label="视图模式">
+              <button type="button" className={viewMode === 'grid' ? 'on' : undefined}
+                      aria-pressed={viewMode === 'grid'} onClick={() => setViewMode('grid')}>
+                <Icon name="layout-grid" />网格
+              </button>
+              <button type="button" className={viewMode === 'list' ? 'on' : undefined}
+                      aria-pressed={viewMode === 'list'} onClick={() => setViewMode('list')}>
+                <Icon name="list" />列表
+              </button>
+            </div>
+            {(node !== 'all' || search || typeFilter !== 'all') && (
+              <button type="button" className="mya-clearbtn mya-clearbtn-sm" onClick={clearFilter}>清除筛选</button>
+            )}
+            <div className="mya-tool-wrap">
+              <button type="button" className="mya-toolbtn" data-on={typeFilter !== 'all' || undefined}
+                      aria-haspopup="listbox" aria-expanded={pop === 'type'}
+                      onClick={() => setPop(pop === 'type' ? null : 'type')}>
+                <Icon name="layers" />类型
+                {typeFilter !== 'all' && <em>{MEDIA_LABEL[typeFilter]}</em>}
+                <Icon name="chevron-down" />
+              </button>
+              {pop === 'type' && (
+                <div className="mya-pop" role="listbox" aria-label="按类型筛选">
+                  <button type="button" className="mya-poprow" data-on={typeFilter === 'all' || undefined}
+                          onClick={() => { setTypeFilter('all'); setPop(null) }}>
+                    <span>全部类型</span><span className="mya-pop-n mono">{assets.length}</span>
+                    {typeFilter === 'all' && <Icon name="check" />}
+                  </button>
+                  {TYPE_IDS.map((t) => (
+                    <button key={t} type="button" className="mya-poprow" data-on={typeFilter === t || undefined}
+                            onClick={() => { setTypeFilter(t); setPop(null) }}>
+                      <Icon name={MEDIA_ICON[t]} />
+                      <span>{MEDIA_LABEL[t]}</span><span className="mya-pop-n mono">{counts.type(t)}</span>
+                      {typeFilter === t && <Icon name="check" />}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="mya-tool-wrap">
+              <button type="button" className="mya-toolbtn"
+                      aria-haspopup="listbox" aria-expanded={pop === 'sort'}
+                      onClick={() => setPop(pop === 'sort' ? null : 'sort')}>
+                <Icon name="list-ordered" />排序<em>{SORT_LABEL[sortKey]}</em>
+                <Icon name="chevron-down" />
+              </button>
+              {pop === 'sort' && (
+                <div className="mya-pop" role="listbox" aria-label="排序方式">
+                  {(Object.keys(SORT_LABEL) as SortKey[]).map((k) => (
+                    <button key={k} type="button" className="mya-poprow" data-on={sortKey === k || undefined}
+                            onClick={() => { setSortKey(k); setPop(null) }}>
+                      <span>{SORT_LABEL[k]}</span>
+                      {sortKey === k && <Icon name="check" />}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             {!pickMode && (
               <button type="button" className="mya-pickbtn" onClick={enterPick}>
                 <Icon name="square-check" />选择素材
@@ -666,16 +745,17 @@ export function Assets({ projectName }: { projectName?: string } = {}) {
         )}
 
         <div className="mya-main">
-          <div className="mya-toolbar">
-            {/* 选择模式下不显示这条旧批量栏：底部已经有确认条了，
-                两套"已选 N 项"同屏出现会让人不知道该看哪个。 */}
-            {pickMode ? (
-              <div className="mya-toolbar-pick">
-                <Icon name="square-check" />
-                <b>选择素材</b>
-                <span>点卡片选中，选完点底部「确认加入待发送」</span>
-              </div>
-            ) : selected.size > 0 ? (
+          {/* 搜索与「网格 / 列表 / 类型 / 排序」已并入页头，顶部不再叠两层空白。
+              这条工具条只在选择模式或批量操作时出现，用来放临时的操作行。 */}
+          {(pickMode || selected.size > 0) && (
+            <div className="mya-toolbar">
+              {pickMode ? (
+                <div className="mya-toolbar-pick">
+                  <Icon name="square-check" />
+                  <b>选择素材</b>
+                  <span>点卡片选中，选完点底部「确认加入待发送」</span>
+                </div>
+              ) : (
               <div className="mya-batch" role="region" aria-label="批量操作">
                 <span className="mya-batch-n">已选 {selected.size} 项</span>
                 {/* 加入待发送放在最前：多选之后最常做的是"这次就用这几个" */}
@@ -692,89 +772,9 @@ export function Assets({ projectName }: { projectName?: string } = {}) {
                 <button type="button" onClick={() => exportList([...selected])}>导出清单</button>
                 <button type="button" className="mya-danger" onClick={() => doDelete([...selected])}>删除</button>
               </div>
-            ) : (
-              <>
-                {!orgOpen && (
-                  <button type="button" className="mya-toolbtn" onClick={() => setOrgOpen(true)}
-                          title="展开组织栏" aria-label="展开组织栏">
-                    <Icon name="panel-left-open" />组织
-                  </button>
-                )}
-                <div className="mya-content-search">
-                  <SearchField
-                    value={search}
-                    onChange={setSearch}
-                    placeholder="搜索名称、标签、来源"
-                    ariaLabel="搜索素材"
-                    onClear={() => setSearch('')}
-                  />
-                </div>
-                <span className="mya-crumb" hidden={node === 'all' && typeFilter === 'all'}>
-                  <b>{node === 'all' ? '全部素材' : activeLabel}</b>
-                  {typeFilter !== 'all' && <>{' / '}<b>{MEDIA_LABEL[typeFilter]}</b></>}
-                </span>
-                <span className="mya-spacer" />
-                <div className="mya-seg" role="group" aria-label="视图模式">
-                  <button type="button" className={viewMode === 'grid' ? 'on' : undefined}
-                          aria-pressed={viewMode === 'grid'} onClick={() => setViewMode('grid')}>
-                    <Icon name="layout-grid" />网格
-                  </button>
-                  <button type="button" className={viewMode === 'list' ? 'on' : undefined}
-                          aria-pressed={viewMode === 'list'} onClick={() => setViewMode('list')}>
-                    <Icon name="list" />列表
-                  </button>
-                </div>
-                {(node !== 'all' || search || typeFilter !== 'all') && (
-                  <button type="button" className="mya-clearbtn mya-clearbtn-sm" onClick={clearFilter}>清除筛选</button>
-                )}
-                <div className="mya-tool-wrap">
-                  <button type="button" className="mya-toolbtn" data-on={typeFilter !== 'all' || undefined}
-                          aria-haspopup="listbox" aria-expanded={pop === 'type'}
-                          onClick={() => setPop(pop === 'type' ? null : 'type')}>
-                    <Icon name="layers" />类型
-                    {typeFilter !== 'all' && <em>{MEDIA_LABEL[typeFilter]}</em>}
-                    <Icon name="chevron-down" />
-                  </button>
-                  {pop === 'type' && (
-                    <div className="mya-pop" role="listbox" aria-label="按类型筛选">
-                      <button type="button" className="mya-poprow" data-on={typeFilter === 'all' || undefined}
-                              onClick={() => { setTypeFilter('all'); setPop(null) }}>
-                        <span>全部类型</span><span className="mya-pop-n mono">{assets.length}</span>
-                        {typeFilter === 'all' && <Icon name="check" />}
-                      </button>
-                      {TYPE_IDS.map((t) => (
-                        <button key={t} type="button" className="mya-poprow" data-on={typeFilter === t || undefined}
-                                onClick={() => { setTypeFilter(t); setPop(null) }}>
-                          <Icon name={MEDIA_ICON[t]} />
-                          <span>{MEDIA_LABEL[t]}</span><span className="mya-pop-n mono">{counts.type(t)}</span>
-                          {typeFilter === t && <Icon name="check" />}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                <div className="mya-tool-wrap">
-                  <button type="button" className="mya-toolbtn"
-                          aria-haspopup="listbox" aria-expanded={pop === 'sort'}
-                          onClick={() => setPop(pop === 'sort' ? null : 'sort')}>
-                    <Icon name="list-ordered" />排序<em>{SORT_LABEL[sortKey]}</em>
-                    <Icon name="chevron-down" />
-                  </button>
-                  {pop === 'sort' && (
-                    <div className="mya-pop" role="listbox" aria-label="排序方式">
-                      {(Object.keys(SORT_LABEL) as SortKey[]).map((k) => (
-                        <button key={k} type="button" className="mya-poprow" data-on={sortKey === k || undefined}
-                                onClick={() => { setSortKey(k); setPop(null) }}>
-                          <span>{SORT_LABEL[k]}</span>
-                          {sortKey === k && <Icon name="check" />}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </>
-            )}
-          </div>
+              )}
+            </div>
+          )}
           {pop && <div className="mya-popshade" onClick={() => setPop(null)} />}
 
           <main className="mya-canvas">
@@ -1070,7 +1070,6 @@ export function Assets({ projectName }: { projectName?: string } = {}) {
                 </select>
               </div>
               {detail.licenseDetails && <p className="mya-detail-note">{detail.licenseDetails}</p>}
-              <p className="mya-note">授权与审核相互独立：审核只改审核状态，不会替你推断授权。</p>
 
               <div className="mya-sec">引用关系</div>
               {detail.refs.length ? (

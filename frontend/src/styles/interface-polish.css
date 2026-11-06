@@ -140,12 +140,24 @@
 .fxlib .fx-activechip { order:4; }
 .fxlib .fx-result-summary { order:5; color:var(--tx3); font-size:11px; white-space:nowrap; }
 /* 素材管理：页头去掉独立面板，搜索与视图控制进入内容工具条。 */
-.mya > .fm-page-head { min-height:72px; align-items:center; padding:6px 16px 12px; background:transparent; border:0; border-radius:0; box-shadow:none; }
-.mya .fm-page-head-main { display:flex; flex-direction:column; align-items:flex-start; gap:5px; min-width:0; }
+/* 顶部只留一行：标题、搜索、视图控制、两个动作按钮都在同一条基线上。
+   原来搜索和视图控制单独占一条工具条，于是标题行下面多出一条空白带。 */
+.mya > .fm-page-head { position:relative; z-index:30; min-height:56px; align-items:center; padding:6px 20px 10px; background:transparent; border:0; border-radius:0; box-shadow:none; gap:14px; }
+.mya .fm-page-head-main { display:flex; flex-direction:row; align-items:center; gap:10px; flex:0 0 auto; min-width:0; }
 .mya .fm-page-head-meta { display:block; line-height:1.5; }
 .mya .mya-heading-project { display:block; color:var(--tx3); font-size:11px; max-width:280px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+/* 工具条只在选择模式 / 批量操作时出现，因此不再保留常驻的底部横线。 */
 .mya .mya-toolbar { padding:0 20px 12px; min-height:46px; background:transparent; border:0; border-bottom:1px solid var(--line); border-radius:0; box-shadow:none; gap:10px; flex-wrap:wrap; }
-.mya .mya-content-search { flex:1 1 200px; max-width:300px; min-width:160px; }
+.mya .mya-content-search { flex:0 1 460px; max-width:460px; min-width:150px; }
+/* 动作区从左往右铺开：搜索紧接标题，视图控制在最右端两个按钮之前。
+   原来 actions 用 margin-left:auto 整体右靠，标题与搜索之间会空出一大块。 */
+.mya > .fm-page-head .fm-page-head-actions { flex:1 1 auto; margin-left:0; justify-content:flex-start; }
+.mya .fm-page-head-actions .mya-seg,
+.mya .fm-page-head-actions .mya-tool-wrap,
+.mya .fm-page-head-actions .mya-crumb,
+.mya .fm-page-head-actions .mya-clearbtn-sm,
+.mya .fm-page-head-actions .mya-toolbtn { flex:0 0 auto; }
+.mya .fm-page-head-actions .mya-spacer { display:block; flex:1 1 auto; min-width:0; }
 .mya .mya-content-search .fm-searchfield { width:100%; max-width:none; height:34px; border-radius:7px; }
 .mya .mya-content-search .fm-searchfield-input { font-size:12px; }
 .mya .mya-content-search .fm-searchfield:focus-within { border-color:var(--acc); box-shadow:0 0 0 2px var(--sel); }
@@ -192,8 +204,9 @@
   .fxlib .fx-meta-scope { flex:1 0 100%; }
   .fxlib .fx-pop { max-height:calc(100dvh - 260px); }
   .fxlib .fx-cmd-search { margin-left:0; flex:1; max-width:none; }
-  .mya .mya-content-search { max-width:none; }
-  .mya .mya-toolbar .mya-crumb { order:4; flex-basis:100%; max-width:none; }
+  .mya .mya-content-search { max-width:none; flex:1 1 100%; }
+  .mya .fm-page-head-actions { flex-wrap:wrap; }
+  .mya .fm-page-head-actions .mya-crumb { order:4; flex-basis:100%; max-width:none; }
   .wfl .wfshop-header .wfshop-search { width:180px; }
   .rfc .rfc-browse-head { gap:14px; }
   .rfc .rfc-browse-title { font-size:20px; }
