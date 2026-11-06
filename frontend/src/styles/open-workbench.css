@@ -1,0 +1,73 @@
+/* 工作台的对话与画面布局，颜色与控件沿用工作台主题。 */
+#pane-flow .wb-a2.wb-studio .open-workbench-layout,
+#pane-flow .wb-a2.wb-studio .open-workbench-layout[data-panel='open'] {
+  display: grid;
+  grid-template-columns: minmax(0, var(--open-chat-width, 460px)) 4px minmax(0, 1fr);
+  gap: 0;
+  transition: none;
+}
+#pane-flow .wb-a2.wb-studio .open-workbench-layout[data-panel='closed'] { grid-template-columns: 40px minmax(0, 1fr); }
+#pane-flow .wb-a2.wb-studio .open-workbench-layout[data-editor='true'] { grid-template-columns: minmax(0, 1fr); }
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-ing {
+  position: absolute; inset: 0 auto 0 0; z-index: 31;
+  width: min(300px, 90%); display: none; box-shadow: var(--shadow-float);
+}
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-ing[data-open] { display: flex; }
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-scrim {
+  display: block; position: absolute; inset: 0; z-index: 30;
+  border: 0; background: var(--media-scrim); cursor: pointer;
+}
+#pane-flow .wb-a2.wb-studio .wb-projectbar .fw-mobile,
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-ing .fw-mobile { display: grid; }
+#pane-flow .wb-a2.wb-studio .open-workbench-conversation { min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+/* 对话列是平铺的一列，不是一张卡片。参考架构里两侧都是同一个工作区的两块，
+   给对话再套一层边框+圆角，看起来就像两个并排的独立应用。 */
+#pane-flow .wb-a2.wb-studio .open-workbench-conversation > .fw-panel,
+#pane-flow .wb-a2.wb-studio .open-workbench-conversation > .wb-review-desk,
+#pane-flow .wb-a2.wb-studio .open-workbench-conversation > .wb-scene-versions {
+  position: static; width: 100%; min-width: 0; min-height: 0; flex: 1;
+  border: 0; border-radius: 0; background: transparent;
+  animation: none; transition: none;
+}
+/* 两列之间靠分隔条和灰阶分层，不靠两条并排的边框 */
+#pane-flow .wb-a2.wb-studio .open-workbench-layout { background: var(--panel); }
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-canvas { background: var(--bg); border-left: 0; }
+#pane-flow .wb-a2.wb-studio .open-workbench-resize { cursor: col-resize; touch-action: none; position: relative; z-index: 2; border-left: 1px solid var(--line); }
+#pane-flow .wb-a2.wb-studio .open-workbench-resize:hover,
+#pane-flow .wb-a2.wb-studio .open-workbench-resize:focus-visible,
+#pane-flow .wb-a2.wb-studio .open-workbench-layout[data-resizing] .open-workbench-resize { background: var(--acc); outline: none; }
+#pane-flow .wb-a2.wb-studio .open-workbench-layout[data-resizing] { user-select: none; }
+#pane-flow .wb-a2.wb-studio .open-workbench-conversation .fw-panel-reopen { display: flex; width: 100%; height: 100%; }
+#pane-flow .wb-a2.wb-studio .open-workbench-conversation .fw-panel-reopen-float { display: none; }
+#pane-flow .wb-a2.wb-studio .wb-assistant-heading { height: auto; min-height: 72px; padding: 16px 20px; }
+#pane-flow .wb-a2.wb-studio .wb-assistant-heading > div { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+#pane-flow .wb-a2.wb-studio .wb-assistant-heading strong { font-size: 15px; font-weight: 600; }
+#pane-flow .wb-a2.wb-studio .wb-assistant-heading span { font-size: 11px; color: var(--tx3); }
+#pane-flow .wb-a2.wb-studio .fw-panel .fw-panel-hd { padding: 8px 16px; border-bottom: 1px solid var(--line); }
+#pane-flow .wb-a2.wb-studio .open-workbench-thread { flex: 1; min-height: 0; overflow-y: auto; }
+#pane-flow .wb-a2.wb-studio .open-workbench-messages { display: flex; flex-direction: column; gap: 16px; padding: 20px; }
+#pane-flow .wb-a2.wb-studio .open-workbench-thread-label { color: var(--tx3); font-size: 11px; text-align: center; }
+#pane-flow .wb-a2.wb-studio .open-workbench-empty { padding: 20px 0 8px; }
+#pane-flow .wb-a2.wb-studio .open-workbench-empty b { color: var(--tx); font-size: 14px; font-weight: 600; }
+#pane-flow .wb-a2.wb-studio .open-workbench-empty p { color: var(--tx2); font-size: 12px; line-height: 1.6; margin: 8px 0 0; }
+#pane-flow .wb-a2.wb-studio .wb-feedback-starters { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+#pane-flow .wb-a2.wb-studio .fw-compose { flex: none; padding: 12px 16px 16px; }
+#pane-flow .wb-a2.wb-studio .fw-compose > .fw-ref-chips { margin-bottom: 8px; max-height: 88px; overflow-y: auto; }
+#pane-flow .wb-a2.wb-studio .fw-sheet { padding: 12px; }
+#pane-flow .wb-a2.wb-studio .fw-sheet .wb-input { min-height: 76px; }
+#pane-flow .wb-a2.wb-studio .fw-sheet:focus-within { box-shadow: none; }
+/* 画面区：视频是这一列的主角，下面的版本信息压成一条，
+   别让它把画面推到只剩半屏（参考实现里右侧是整块工作区）。 */
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-canvas > .fw-scroll,
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-canvas > div { min-height: 0; }
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-monitor { flex: 1 1 auto; min-height: 0; }
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-mon-rail { max-height: 96px; }
+@media (max-width: 900px) {
+  #pane-flow .wb-a2.wb-studio .open-workbench-layout,
+  #pane-flow .wb-a2.wb-studio .open-workbench-layout[data-panel='open'],
+  #pane-flow .wb-a2.wb-studio .open-workbench-layout[data-panel='closed'] { grid-template-columns: minmax(0, 1fr); }
+  #pane-flow .wb-a2.wb-studio .open-workbench-resize { display: none; }
+  #pane-flow .wb-a2.wb-studio .open-workbench-conversation { position: absolute; inset: 0 auto 0 0; z-index: 25; width: min(400px, 92%); }
+  #pane-flow .wb-a2.wb-studio .open-workbench-layout[data-panel='closed'] .open-workbench-conversation { width: 40px; height: 100%; }
+  #pane-flow .wb-a2.wb-studio .open-workbench-conversation > .fw-panel { box-shadow: var(--shadow-float); }
+}

@@ -49,12 +49,14 @@ import { RequestSnapshot, WorkflowExecutionLog } from './WorkbenchReview'
 import { WorkbenchReviewDesk, type ReviewDeskTab } from './WorkbenchReviewDesk'
 import { WorkbenchPreviewCompare } from './WorkbenchPreviewCompare'
 import { SceneVersionPanel } from './SceneVersionPanel'
+import { useWorkbenchSplit } from '@/hooks/useWorkbenchSplit'
 import { useWorkbenchReview } from '@/hooks/useWorkbenchReview'
 import { useSceneVersions } from '@/hooks/useSceneVersions'
 import { summarizeRounds, type ReviewOpinion, type RoundDelta, type RoundSummary } from '@/services/workbenchReviewService'
 import { PreviewReviewTools } from './PreviewReviewTools'
 import '../styles/workbench-review.css'
 import '../styles/workbench-desk.css'
+import '../styles/open-workbench.css'
 
 /**
  * 制作工作台 · 二级 —— 三栏工具面板
@@ -159,6 +161,7 @@ interface WorkbenchProps {
 }
 
 export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack, onSwitchProject, launch, onOpenWorkflowEditor, onDismissLaunch }: WorkbenchProps) {
+  const split = useWorkbenchSplit()
   /** 打开的哪个项目 —— 从一级目录传下来的 id 解析。
       ⚠️ 必须用传入的目录：对话视图里新建的项目只存在于内存态，
         拿静态 PROJECTS 查不到会静默落回第一个种子项目（顶栏名字对不上）。 */
@@ -1363,7 +1366,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
       {/* ═══ 基岛：顶栏 ═════════════════════════════════════════ */}
       <div className="wb-projectbar">
         <ToolButton label="返回我的创作" onClick={onBack}><ChevronLeft /></ToolButton>
-        <button className="mini fw-mobile" type="button" title="场景列表"
+        <button className="mini fw-mobile" type="button" title="项目内容与进度" aria-label="项目内容与进度" aria-expanded={railOpen}
                 onClick={() => setRailOpen((v) => !v)}>
           <PanelBottom className="size-3.5" />
         </button>
@@ -1461,7 +1464,8 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
       </div>
 
       {/* ═══ 三栏（paba .fw 网格）══════════════════════════════ */}
-      <div className="fw relative" data-panel={panelOpen ? 'open' : 'closed'}>
+      <div ref={split.containerRef} className="fw relative open-workbench-layout" data-panel={panelOpen ? 'open' : 'closed'} data-editor={editMode} data-resizing={split.dragging || undefined}
+           style={{ '--open-chat-width': `${split.width}px` } as React.CSSProperties}>
         {railOpen && <button className="fw-scrim" aria-label="收起场景列表" onClick={() => setRailOpen(false)} />}
 
         <ProjectRail onOpenBrief={() => openReview('brief')} onEditScene={openEdit} projectName={project.name}
@@ -1523,6 +1527,61 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
                          onOpenExecution={() => { setBottomTab('activity'); setTrayOpen(true) }}
                        />
                      } />
+
+        {!editMode && <div className="open-workbench-conversation">
+        {/* 对话和审阅共用左侧工作区 */}
+        {panelOpen ? (versionsOpen ? <SceneVersionPanel projectId={projectId} scene={currentSceneState} versions={sceneVersions}
+            onClose={() => { setVersionsOpen(false); void sceneVersions.refresh(true) }}/> : reviewTab ? <WorkbenchReviewDesk projectId={projectId} review={review} tab={reviewTab} onTab={setReviewTab} visuals={stage.visuals} viewedId={viewedPreview?.id}
+            onClose={() => { setReviewTab(null); focusFeedback() }} onDiscuss={focusFeedback}
+            onView={showPreview} onCompare={(left, right) => {
+              setEditMode(false); setSelectedArtifactId(null); setComparison([left, right]); setTrayOpen(false)
+              /* 带上当前目标引用的时间与区域：用户从第 37.2 秒的框选意见点过来对比，
+                 就该从 37.2 秒、同一个框开始看，而不是从 0 秒各看各的。 */
+              const at = effectiveTarget
+              setComparisonAt(at.kind === 'preview' ? { timeSeconds: at.timeSeconds, bbox: at.bbox } : null)
+            }}
+            onLocate={(opinion) => { const target = opinion.request.references?.find((r) => r.role === 'target'); if (target) locateReference(target) }}
+            onContinue={continueOpinion}/> : <RightPanel sourceMode={!!filmProject?.ready || projectWorkflows.length > 0 || !currentSceneState?.initialized} realModifyBusy={realModifyBusy || realRenderBusy || workflowRunning || remoteCreationBusy} realModifyError={realModifyError}
+                       onClearRealModifyError={() => setRealModifyError('')}
+                       onDemoSubmit={submitDemo}
+                       sceneVersion={currentSceneState}
+                       onOpenVersions={() => setVersionsOpen(true)}
+                       chat={chat} sideTab={sideTab} setSideTab={selectSideTab}
+                      focusChatKey={focusChatKey}
+                      scope={scope}
+                      scopeLabel={scopeLabel} scopeShort={scopeShort} projectId={projectId} target={effectiveTarget} preview={viewedPreview ?? stageLead}
+                      onOpenTask={openTaskRecords}
+                      onBackFromTask={() => { setEditMode(false); setSideTab(taskReturnTab) }}
+                      onCollapse={() => setPanelOpen(false)}
+                      constraints={constraints} setConstraints={setConstraints}
+                      activeTask={projectTask?.task ?? null} cancelTask={cancelTaskAndHold}
+                      records={projectRecords} onSubmit={submit} onQuickAction={runQuickAction}
+                      pending={pendingSubmits} onStartQueued={startQueued} onCancelQueued={cancelQueued}
+                      onNavigate={onNavigate}
+                      references={references} onRemoveReference={removeReference}
+                      onLocateReference={locateReference} onToggleReferenceRole={toggleReferenceRole}
+                      onClearReferences={clearReferences} onOpenResourcePicker={() => setResourcePickerOpen(true)} onScopeChange={(next) => { setScope(next); setTargetReference(next === 'project' ? currentProjectRef : defaultTarget) }}
+                      onResumeRequest={(request) => {
+                        setReferences(structuredClone(request.references ?? [])); setConstraints(structuredClone(request.constraints)); setScope(request.scope); chat.setDraft(request.prompt); focusFeedback()
+                      }} onOpenReview={openReview} keepNotes={review.keepNotes} reviewSaved={review.saved} />
+        ) : (
+          <>
+            <button className="fw-panel-reopen" type="button" aria-label="打开对话"
+                    onClick={() => setPanelOpen(true)}>
+              <MessagesSquare className="size-4" /><span>对话</span>
+            </button>
+            <button className="fw-panel-reopen-float" type="button" aria-label="打开对话"
+                    onClick={() => setPanelOpen(true)}>
+              <MessagesSquare className="size-4" />对话
+            </button>
+          </>
+        )}
+        </div>}
+        {!editMode && panelOpen && <div className="open-workbench-resize" role="separator" tabIndex={0}
+          aria-label="调整对话区宽度" aria-orientation="vertical"
+          aria-valuemin={split.bounds.min} aria-valuemax={split.bounds.max} aria-valuenow={split.width}
+          onPointerDown={split.onPointerDown} onPointerMove={split.onPointerMove}
+          onPointerUp={split.onPointerUp} onPointerCancel={split.onPointerCancel} onKeyDown={split.onKeyDown} />}
 
         {editMode ? <SceneEditorWorkspace projectId={projectId} initialSceneId={selectedId} initialDocumentId={editorDocumentId} onClose={closeEdit} onRendered={() => { setSelectedVisual(null); setSelectedArtifactId(null); setComparison(null); setEditorExportTick((n) => n + 1) }}/> : <>
         {/* 中栏：监看器。没产出画面时换「需求与参考」形态（同一块区域，不是另一个页面）*/}
@@ -1645,7 +1704,10 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
                   <button type="button" onClick={() => setAwaitingInfo('')} aria-label="关闭"><X className="ml-1 inline size-3" /></button>
                 </div>
               )}
-              {agentReply && (
+              {/* agent 这轮说了什么，左侧对话里已经有了（appendMessage / 恢复时写入）。
+                  这里只在对话尚未收到这条回复时才补一条 —— 两处同时显示同一句话，
+                  等于把同一条信息说两遍，还把画面区往下挤。 */}
+              {agentReply && !chat.messages.some((m) => m.role === 'ai' && m.text === agentReply) && (
                 <div className="fw-mon-notice" role="status">
                   <strong>Agent：</strong>{agentReply.slice(0, 220)}
                   <button type="button" onClick={() => setAgentReply('')} aria-label="关闭"><X className="ml-1 inline size-3" /></button>
@@ -1690,53 +1752,6 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
               )}
         </main>
 
-        {/* 右栏：对话 / 设置 —— 收起后宽屏留一条对话入口窄列，窄屏留一个浮层入口。 */}
-        {panelOpen ? (versionsOpen ? <SceneVersionPanel projectId={projectId} scene={currentSceneState} versions={sceneVersions}
-            onClose={() => { setVersionsOpen(false); void sceneVersions.refresh(true) }}/> : reviewTab ? <WorkbenchReviewDesk projectId={projectId} review={review} tab={reviewTab} onTab={setReviewTab} visuals={stage.visuals} viewedId={viewedPreview?.id}
-            onClose={() => { setReviewTab(null); focusFeedback() }} onDiscuss={focusFeedback}
-            onView={showPreview} onCompare={(left, right) => {
-              setEditMode(false); setSelectedArtifactId(null); setComparison([left, right]); setTrayOpen(false)
-              /* 带上当前目标引用的时间与区域：用户从第 37.2 秒的框选意见点过来对比，
-                 就该从 37.2 秒、同一个框开始看，而不是从 0 秒各看各的。 */
-              const at = effectiveTarget
-              setComparisonAt(at.kind === 'preview' ? { timeSeconds: at.timeSeconds, bbox: at.bbox } : null)
-            }}
-            onLocate={(opinion) => { const target = opinion.request.references?.find((r) => r.role === 'target'); if (target) locateReference(target) }}
-            onContinue={continueOpinion}/> : <RightPanel sourceMode={!!filmProject?.ready || projectWorkflows.length > 0 || !currentSceneState?.initialized} realModifyBusy={realModifyBusy || realRenderBusy || workflowRunning || remoteCreationBusy} realModifyError={realModifyError}
-                       onClearRealModifyError={() => setRealModifyError('')}
-                       onDemoSubmit={submitDemo}
-                       sceneVersion={currentSceneState}
-                       onOpenVersions={() => setVersionsOpen(true)}
-                       chat={chat} sideTab={sideTab} setSideTab={selectSideTab}
-                      focusChatKey={focusChatKey}
-                      scope={scope}
-                      scopeLabel={scopeLabel} scopeShort={scopeShort} projectId={projectId} target={effectiveTarget} preview={viewedPreview ?? stageLead}
-                      onOpenTask={openTaskRecords}
-                      onBackFromTask={() => { setEditMode(false); setSideTab(taskReturnTab) }}
-                      onCollapse={() => setPanelOpen(false)}
-                      constraints={constraints} setConstraints={setConstraints}
-                      activeTask={projectTask?.task ?? null} cancelTask={cancelTaskAndHold}
-                      records={projectRecords} onSubmit={submit} onQuickAction={runQuickAction}
-                      pending={pendingSubmits} onStartQueued={startQueued} onCancelQueued={cancelQueued}
-                      onNavigate={onNavigate}
-                      references={references} onRemoveReference={removeReference}
-                      onLocateReference={locateReference} onToggleReferenceRole={toggleReferenceRole}
-                      onClearReferences={clearReferences} onOpenResourcePicker={() => setResourcePickerOpen(true)} onScopeChange={(next) => { setScope(next); setTargetReference(next === 'project' ? currentProjectRef : defaultTarget) }}
-                      onResumeRequest={(request) => {
-                        setReferences(structuredClone(request.references ?? [])); setConstraints(structuredClone(request.constraints)); setScope(request.scope); chat.setDraft(request.prompt); focusFeedback()
-                      }} onOpenReview={openReview} keepNotes={review.keepNotes} reviewSaved={review.saved} />
-        ) : (
-          <>
-            <button className="fw-panel-reopen" type="button" aria-label="打开对话"
-                    onClick={() => setPanelOpen(true)}>
-              <MessagesSquare className="size-4" /><span>对话</span>
-            </button>
-            <button className="fw-panel-reopen-float" type="button" aria-label="打开对话"
-                    onClick={() => setPanelOpen(true)}>
-              <MessagesSquare className="size-4" />对话
-            </button>
-          </>
-        )}
         </>}
       </div>
 
@@ -2434,7 +2449,7 @@ function RightPanel({ projectId, target, preview, chat, sideTab, setSideTab, foc
 
   return (
     <aside className="fw-panel" aria-label="AI 对话">
-      <div className="wb-assistant-heading"><MessagesSquare size={16}/><strong>创作助手</strong><span>本机记录</span></div>
+      <div className="wb-assistant-heading"><div><strong>创作对话</strong><span>围绕当前项目提出要求与修改</span></div></div>
       <div className="fw-ing-hd fw-panel-hd">
         {sideTab !== 'edit' && <SegmentedControl value={sideTab === 'settings' || sideTab === 'task' ? '' : sideTab}
                           onChange={(next) => setSideTab(next as SideTab)}
@@ -2451,28 +2466,19 @@ function RightPanel({ projectId, target, preview, chat, sideTab, setSideTab, foc
         <ToolButton label="完整对话" onClick={() => onNavigate('conversation')}>
           <MessagesSquare className="size-3.5" />
         </ToolButton>
-        <ToolButton label="收起右侧栏" onClick={onCollapse}>
-          <ChevronRight className="size-3.5" />
+        <ToolButton label="收起对话" onClick={onCollapse}>
+          <ChevronLeft className="size-3.5" />
         </ToolButton>
       </div>
 
       {sideTab === 'scene' ? (<div className="fw-scroll wb-target-facts"><span className="wb-target-kicker">修改目标</span><h3>{target.label}</h3><p>{target.kind === 'project' ? '本次意见作用于整个项目；选中具体预览或内容后，可以缩小修改范围。' : '意见会连同当前目标一起发送。查看发送记录可核对当时的范围。'}</p>{preview && <dl><dt>预览类型</dt><dd>{preview.tierLabel}</dd><dt>{preview.origin === 'editor' ? '编辑版本' : '工作流版本'}</dt><dd>v{preview.revision}</dd><dt>预览生成于</dt><dd>{new Date(preview.createdAt).toLocaleString('zh-CN')}</dd></dl>}<button type="button" className="wb-btn-ghost" onClick={() => setSideTab('chat')}><MessagesSquare size={14}/> 对这个目标提意见</button></div>
       ) : sideTab === 'chat' ? (
         <>
-          <div className="fw-scroll">
-            <div className="flex flex-col gap-3 p-3.5">
-              {/* 上下文条（paba .fw-ctx）：你在改哪个场景 */}
-              <div className="fw-ctx wb-feedback-context"><span className="wb-feedback-context-icon"><MessagesSquare size={18}/></span><div className="min-w-0"><b>{preview ? '这份画面，想怎么调整？' : '继续完善你的想法'}</b><small>{preview ? '选中画面，留下具体的修改意见。' : '描述风格、补充细节，或标记要保留的内容。'}</small></div></div>
-
+          <div className="fw-scroll open-workbench-thread">
+            <div className="open-workbench-messages">
+              <div className="open-workbench-thread-label">本次创作</div>
+              {messages.length === 0 && <div className="open-workbench-empty"><b>{preview ? '从画面开始讨论' : '描述你想制作的视频'}</b><p>{preview ? '选择画面、时间或区域，提出具体的修改意见。' : '写下创作要求，也可以引用素材与参考。'}</p></div>}
               {/* 消息：AI 不用气泡，用户用 --soft 底（fm-components §9） */}
-              <ReferenceChips references={references}
-                              defaultLabel={target.kind === 'project' ? '当前目标：整个项目' : `当前目标：${target.label}`}
-                              onRemoveReference={onRemoveReference}
-                              onLocateReference={onLocateReference}
-                              onToggleReferenceRole={onToggleReferenceRole}
-                              onClearReferences={onClearReferences}
-                              onOpenResourcePicker={onOpenResourcePicker} />
-
               {messages.length === 0 && !preview && <div className="wb-feedback-starters"><span>从一个细节开始</span>{[['画面风格', '关于画面风格，我希望：'], ['必须保留', '请保留以下内容，不要修改：'], ['参考用法', '关于参考资料，请借鉴：']].map(([label, draft]) => <button type="button" key={label} onClick={() => { chat.setDraft(chat.draft.trim() ? `${chat.draft}\n${draft}` : draft); inputRef.current?.focus() }}>{label}<Plus size={12}/></button>)}</div>}
               {messages.map((m) => (
                 m.role === 'user'
@@ -2563,6 +2569,7 @@ function RightPanel({ projectId, target, preview, chat, sideTab, setSideTab, foc
 
           {/* 对话输入：与首页同一张纸片（.fw-sheet），主按钮是胶囊 */}
           <form className="fw-compose" onSubmit={(e) => { e.preventDefault(); void submit() }}>
+            <ReferenceChips references={references} defaultLabel={target.kind === 'project' ? '当前目标：整个项目' : `当前目标：${target.label}`} onRemoveReference={onRemoveReference} onLocateReference={onLocateReference} onToggleReferenceRole={onToggleReferenceRole} onClearReferences={onClearReferences} onOpenResourcePicker={onOpenResourcePicker} />
             <div className="fw-sheet">
               {/* 作用范围独占输入框上方一行：写在按钮旁边会被挤成两行、还会把名字截掉，
                   而它是「AI 到底会动哪一块」的唯一提示 —— 不能被截。 */}
@@ -2575,7 +2582,7 @@ function RightPanel({ projectId, target, preview, chat, sideTab, setSideTab, foc
                   {sceneVersionLabel ?? '查看场景版本'}
                 </button>
               </div>
-              <textarea className="wb-input" rows={3} ref={inputRef}
+              <textarea className="wb-input" rows={3} ref={inputRef} aria-label="创作要求或修改意见"
                         value={chat.draft} onChange={(e) => chat.setDraft(e.target.value)}
                         onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); void submit() } }}
                         placeholder={target.kind === 'project' ? '补充创作要求，或描述希望调整的内容…' : `描述「${scopeShort}」要改哪里、保留什么…`} />
