@@ -1,20 +1,20 @@
 /* 偏好设置局部视觉层，复用壳层主题令牌。 */
 .set-dlg.set-refined {
-  width: min(1000px,calc(100vw - 40px)); height: min(740px,calc(100dvh - 40px));
+  width: min(880px,calc(100vw - 64px)); height: min(624px,calc(100dvh - 72px));
   max-width: none; border: 1px solid var(--line); border-radius: 16px;
   background: var(--surf); box-shadow: 0 24px 80px rgb(0 0 0 / .28);
 }
-.set-refined .set-dlg-head { min-height: 56px; padding: 0 54px 0 22px; gap: 9px; background: var(--surf); border-bottom: 1px solid var(--line); color: var(--dim); }
+.set-refined .set-dlg-head { min-height: 48px; padding: 0 50px 0 18px; gap: 9px; background: var(--surf); border-bottom: 1px solid var(--line); color: var(--dim); }
 .set-refined .set-dlg-title { font-size: 15px; line-height: 1.5; font-weight: 600; }
 .set-refined .set-local-label { margin-left: auto; font-size: 10px; color: var(--ph); }
-.set-refined > [data-slot='dialog-close'] { top: 14px; right: 14px; }
-.set-refined .set-nav { flex-basis: 208px; min-height: 0; padding: 17px 12px 14px; gap: 4px; background: var(--hole); overflow-y: auto; }
+.set-refined > [data-slot='dialog-close'] { top: 11px; right: 12px; }
+.set-refined .set-nav { flex-basis: 180px; min-height: 0; padding: 14px 10px 12px; gap: 2px; background: var(--hole); overflow-y: auto; }
 .set-refined .set-nav::after { display: none; }
-.set-refined .set-nav-search { display: flex; align-items: center; gap: 7px; flex: none; height: 34px; margin: 0 2px 15px; padding: 0 9px; background: var(--surf); border: 1px solid var(--line); border-radius: 7px; color: var(--ph); }
+.set-refined .set-nav-search { display: flex; align-items: center; gap: 7px; flex: none; height: 31px; margin: 0 2px 12px; padding: 0 9px; background: var(--surf); border: 1px solid var(--line); border-radius: 7px; color: var(--ph); }
 .set-refined .set-nav-search input { width: 100%; min-width: 0; outline: none; background: transparent; font-size: 11px; color: var(--fg); }
 .set-refined .set-nav-search:focus-within { border-color: var(--acc); }
 .set-refined .set-nav-search input::placeholder { color: var(--ph); }
-.set-refined .set-nav-item { flex: none; min-height: 49px; padding: 8px 11px; gap: 10px; border-radius: 8px; }
+.set-refined .set-nav-item { flex: none; min-height: 42px; padding: 7px 10px; gap: 9px; border-radius: 7px; }
 .set-refined .set-nav-item > svg { flex: none; color: var(--dim); stroke-width: 1.6; }
 .set-refined .set-nav-item[data-on] { background: color-mix(in srgb,var(--acc) 12%,transparent); color: var(--fg); }
 .set-refined .set-nav-item[data-on] > svg { color: var(--acc); }
@@ -23,7 +23,7 @@
 .set-refined .set-nav-item[data-on] .set-nav-txt small { color: var(--dim); }
 .set-refined .set-nav-foot { font-size: 10px; color: var(--ph); padding: 22px 10px 0; margin-top: auto; }
 .set-refined .set-search-empty { color: var(--dim); font-size: 11px; padding: 10px; }
-.set-refined .set-panel { padding: 24px 30px 32px; scrollbar-width: thin; overscroll-behavior: contain; background: var(--surf); }
+.set-refined .set-panel { padding: 20px 26px 26px; scrollbar-width: thin; overscroll-behavior: contain; background: var(--surf); }
 /* 分区标题一律不画：左栏高亮已经说明「你在哪一栏」，右侧直接进内容。
    分区内的每个功能 = 一个 .set-group，功能之间只用一条浅横线分隔，
    不再用底色卡片把内容圈起来。横线用当前前景色兑出来，深浅主题都压得住。 */
@@ -31,15 +31,15 @@
 .set-refined .set-group { display: flex; flex-direction: column; gap: 0; margin: 0; padding: 0; border-radius: 0; background: transparent; }
 /* 功能块之间、以及同一块内的相邻行之间，只留一条浅横线。放在 .set-group 之后，
    否则会被上面那条 border 归零的声明盖掉。 */
-.set-refined .set-sec > * + * { margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--set-rule); }
+.set-refined .set-sec > * + * { margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--set-rule); }
 /* 块内也一样：标题下面的第一件东西不画线，之后每件东西（一行设置、
    一个壁纸网格、一张快捷键表）都用同一条横线起头。 */
-.set-refined .set-group > * + * { margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--set-rule); }
+.set-refined .set-group > * + * { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--set-rule); }
 .set-refined .set-group > .set-subhead + * { margin-top: 0; padding-top: 0; border-top: 0; }
 .set-refined .set-sec > .set-hint:first-of-type { margin: -6px 0 17px; font-size: 11px; line-height: 1.8; }
 .set-refined .set-subhead { font-size: 13px; margin-top: 0; margin-bottom: 10px; font-weight: 550; }
 .set-refined .set-hint { font-size: 11px; line-height: 1.8; color: var(--dim); }
-.set-refined .set-row { min-height: 64px; gap: 20px; padding: 13px 0; }
+.set-refined .set-row { min-height: 54px; gap: 20px; padding: 10px 0; }
 .set-refined .set-row-label b { font-size: 12px; font-weight: 500; line-height: 1.6; }
 .set-refined .set-row-label em { font-size: 11px; line-height: 1.7; max-width: 310px; }
 .set-refined .set-row-control { font-size: 11px; text-align: right; }
