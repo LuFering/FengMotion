@@ -39,6 +39,13 @@
   gap: 0; padding: 0;
 }
 #pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-canvas { background: var(--bg); border-left: 0; }
+/* 对话列不投影：它是背景上的一块，不是浮起的卡片。
+   原样式给 .fw-canvas 挂了 --shadow-hero、给 .fw-panel 挂了 --shadow-mid，
+   这两层阴影会从左列边缘渗出来，在导航栏和对话区之间形成一道假的分界线。 */
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-canvas,
+#pane-flow .wb-a2.wb-studio .open-workbench-conversation > .fw-panel,
+#pane-flow .wb-a2.wb-studio .open-workbench-conversation > .wb-review-desk,
+#pane-flow .wb-a2.wb-studio .open-workbench-conversation > .wb-scene-versions { box-shadow: none; }
 /* 对话区不设边框：它是背景上的一块文字与输入，不是并排的第二张卡片。 */
 #pane-flow .wb-a2.wb-studio .open-workbench-conversation { background: transparent; }
 #pane-flow .wb-a2.wb-studio .open-workbench-resize { cursor: col-resize; touch-action: none; position: relative; z-index: 2; border-left: 0; }
@@ -70,20 +77,36 @@
 #pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-canvas > .fw-scroll,
 #pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-canvas > div { min-height: 0; }
 #pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-monitor { flex: 1 1 auto; min-height: 0; }
-/* 画面框是这一页唯一的「纸片」：单独成色 + 圆角 + 投影，浮在统一背景上。
+/* 画面框是这一页唯一的「纸片」：单独成色 + 大圆角 + 柔和投影，四边留白浮在背景上。
    其余区域（顶栏、对话、秒数行、缩略条、底部信息）一律退回背景色，
-   只靠字号与间距分层 —— 这样视线自然落在画面上，而不是被一圈圈面板框住。 */
+   只靠字号与间距分层 —— 这样视线自然落在画面上，而不是被一圈圈面板框住。
+   形状对齐参考里那张输入卡片：白色纸面、20px 圆角、四周都有空气。 */
 #pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-mon-visual {
-  background: var(--stage-bg);
-  border-radius: 12px;
+  background: var(--surf);
+  border-radius: 20px;
   overflow: hidden;
-  box-shadow: 0 10px 34px rgb(0 0 0 / .30), 0 2px 8px rgb(0 0 0 / .18);
-  margin: 0 14px 2px;
+  box-shadow: 0 12px 40px rgb(20 22 40 / .12), 0 2px 8px rgb(20 22 40 / .06);
+  margin: 0 16px 12px;
+}
+/* 视频本体仍靠自己的黑色背景，但让它随卡片圆角一起裁切，
+   否则四角会出现直角黑边，把「纸片」的形状破坏掉。 */
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-mon-visual .fw-stage,
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-mon-visual video,
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-mon-visual img { border-radius: 20px; }
+/* 舞台自己有 --stage-bg 灰底，会盖住卡片的白纸面 —— 退回透明，
+   让白色卡片成为承托画面的一层。 */
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-mon-visual > .fw-stage {
+  background-color: transparent;
+  padding: 14px;
 }
 #pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-toolbar,
 #pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-mon-rail,
 #pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-mon-thumbs,
 #pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-mon-btn { background: transparent; }
+/* 画面区上下两条横条（工具栏 / 缩略与交付信息）也退回背景色：
+   它们原本各自铺一层 --panel，把整列切成三段不同的色带。 */
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-toolbar { background: var(--bg); border-bottom: 0; }
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-mon-rail { background: var(--bg); }
 #pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-mon-rail { border-top: 0; }
 #pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-canvas { background: var(--bg); }
 #pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-mon-rail { max-height: 96px; }
