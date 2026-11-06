@@ -1365,17 +1365,19 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
 
       {/* ═══ 基岛：顶栏 ═════════════════════════════════════════ */}
       <div className="wb-projectbar">
-        <ToolButton label="返回我的创作" onClick={onBack}><ChevronLeft /></ToolButton>
-        <button className="mini fw-mobile" type="button" title="项目内容与进度" aria-label="项目内容与进度" aria-expanded={railOpen}
-                onClick={() => setRailOpen((v) => !v)}>
-          <PanelBottom className="size-3.5" />
-        </button>
-        <span className="wb-logo" aria-hidden="true"><Film size={17}/></span>
+        {/* 左上角不再放「返回我的创作」和「项目内容与进度」两个孤立方按钮：
+            返回有左侧导航「我的创作」常驻，抽屉入口收进了项目标识胶囊的菜单 ——
+            顶栏左侧只留一处「我在哪个项目」，视线不用先在一排按钮里找位置。 */}
         <div className="wb-crumb">
           <div className="wb-project-context" ref={switchRef} data-open={switchOpen ? '' : undefined}>
+            {/* 项目标识做成一颗胶囊：图标、项目名、展开箭头同属一个控件。
+                原先图标是一个独立的白色方块、项目名又是一个透明按钮，
+                三块并排看起来像三个不相干的按钮，而不是「当前项目」这一件事。 */}
             <button className="wb-project-switch" type="button"
                     aria-expanded={switchOpen} aria-haspopup="menu"
+                    title={`当前项目：${project.name}`}
                     onClick={() => setSwitchOpen((v) => !v)}>
+              <span className="wb-logo" aria-hidden="true"><Film size={15}/></span>
               <span className="wb-project-name">{project.name}</span>
               <ChevronDown className="wb-caret" />
             </button>
@@ -1396,6 +1398,9 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
                     {p.id === project.id && <Check className="size-3.5 wb-menu-check" />}
                   </button>
                 ))}
+                {/* 「项目空间」那四个页签（概览/产物/内容/资料）已按作者要求移除：
+                    菜单只负责「换哪个项目」，不要再塞第二种导航 ——
+                    两类操作混在一个下拉里，用户点之前不知道会换项目还是换页。 */}
                 <button type="button" role="menuitem" className="wb-switch-all"
                         onClick={() => { setSwitchOpen(false); onBack() }}>
                   <FolderOpen className="size-3.5" />全部项目

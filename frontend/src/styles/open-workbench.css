@@ -127,6 +127,60 @@
 /* 缩略条原本被压到 96px 高（想给画面多留空间），但缩略卡本身就有 110px，
    结果卡片下半截压到了交付信息行上。让它按内容自然高，重叠消失。 */
 #pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-mon-rail { max-height: none; }
+
+/* ── 顶栏：项目标识胶囊 ────────────────────────────────────────
+   原来顶栏左边是四样东西并排：返回按钮、一个方形图标按钮、白色图标方块、项目名。
+   四块等重的控件挤在一起，眼睛要先数一遍才知道哪个是「我在哪个项目」。
+   现在只留一颗胶囊：图标、项目名、展开箭头同属一个控件，点它切换项目 / 进项目空间。 */
+#pane-flow .wb-a2.wb-studio .wb-project-switch {
+  height: 34px;
+  padding: 0 8px 0 4px;
+  gap: 8px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  transition: background-color 160ms var(--eo), border-color 160ms var(--eo);
+}
+#pane-flow .wb-a2.wb-studio .wb-project-switch:hover,
+#pane-flow .wb-a2.wb-studio .wb-project-switch[aria-expanded='true'] { background: var(--hole); border-color: var(--line); }
+/* 图标不再是独立的白色方块，而是胶囊里的一枚徽标 ——
+   尺寸跟着胶囊高度走，底色比胶囊深一档，靠色阶而不是靠边框区分。 */
+#pane-flow .wb-a2.wb-studio .wb-logo {
+  display: grid; place-items: center;
+  width: 26px; height: 26px; flex: 0 0 26px;
+  border-radius: 999px;
+  background: var(--panel2);
+  color: var(--tx2);
+  box-shadow: none;
+}
+#pane-flow .wb-a2.wb-studio .wb-project-switch .wb-project-name { font-size: 14px; font-weight: 600; letter-spacing: -.01em; }
+#pane-flow .wb-a2.wb-studio .wb-project-switch .wb-caret { width: 13px; height: 13px; }
+#pane-flow .wb-a2.wb-studio .wb-project-switch[aria-expanded='true'] .wb-caret { transform: rotate(180deg); }
+/* 菜单是绝对定位，得有个定位祖先贴在胶囊下面。
+   原来这层没有 position，菜单会跑到整个工作区布局的左上角去，
+   离胶囊很远，看起来像凭空浮出来的一块。 */
+#pane-flow .wb-a2.wb-studio .wb-project-context { position: relative; }
+/* 顶栏自己有入场动画 wbRiseIn（animation-fill-mode: both），这会让它形成一个
+   独立层叠上下文：菜单上的 z-index 只在这一层内比较，比不过后面的 .fw 布局，
+   于是菜单被下面的对话区文字盖住。给顶栏自己一个层级，整层（含菜单）才会浮上去。 */
+#pane-flow .wb-a2.wb-studio .wb-projectbar { position: relative; z-index: 40; }
+#pane-flow .wb-a2.wb-studio .wb-switch-menu { top: 40px; }
+/* 项目多的时候（这台机器上有 24 个）菜单会被撑到比视口还高，
+   底部项点不到、还会盖住整个页面。给它一个视口内的高度上限并允许滚动。 */
+#pane-flow .wb-a2.wb-studio .wb-switch-menu {
+  max-height: min(70vh, 520px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+/* 胶囊变高了，菜单得跟着往下让，否则会压在项目名上。 */
+/* 「项目名 + 0/0 场」原先是一行内联文本，两段直接粘在一起（「三库嵌入验证0/0 场」）。
+   改成两端对齐：名字在左、场次在右，长名字自己省略。 */
+#pane-flow .wb-a2.wb-studio .wb-switch-menu .wb-menu-project {
+  flex: 1; min-width: 0;
+  display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+}
+#pane-flow .wb-a2.wb-studio .wb-switch-menu .wb-menu-project b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#pane-flow .wb-a2.wb-studio .wb-switch-menu .wb-menu-project small { flex: 0 0 auto; }
 @media (max-width: 900px) {
   #pane-flow .wb-a2.wb-studio .open-workbench-layout,
   #pane-flow .wb-a2.wb-studio .open-workbench-layout[data-panel='open'],
