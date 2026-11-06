@@ -58,11 +58,16 @@
 #pane-flow .wb-a2.wb-studio .open-workbench-layout[data-resizing] { user-select: none; }
 #pane-flow .wb-a2.wb-studio .open-workbench-conversation .fw-panel-reopen { display: flex; width: 100%; height: 100%; }
 #pane-flow .wb-a2.wb-studio .open-workbench-conversation .fw-panel-reopen-float { display: none; }
-#pane-flow .wb-a2.wb-studio .wb-assistant-heading { height: auto; min-height: 72px; padding: 16px 20px; }
-#pane-flow .wb-a2.wb-studio .wb-assistant-heading > div { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+/* 标题只留一个词，所以不需要 72px 那套「标题 + 副标题」的高度。
+   压到 40px 并去掉下边框：这一列没有面板感，标题只是给眼睛一个落点。 */
+#pane-flow .wb-a2.wb-studio .wb-assistant-heading {
+  height: 40px; min-height: 40px; padding: 0 20px;
+  border-bottom: 0;
+}
 #pane-flow .wb-a2.wb-studio .wb-assistant-heading strong { font-size: 15px; font-weight: 600; }
 #pane-flow .wb-a2.wb-studio .wb-assistant-heading span { font-size: 11px; color: var(--tx3); }
-#pane-flow .wb-a2.wb-studio .fw-panel .fw-panel-hd { padding: 8px 16px; border-bottom: 1px solid var(--line); }
+/* 页签行跟着上移，省下的一段高度全给消息流和输入框。 */
+#pane-flow .wb-a2.wb-studio .fw-panel .fw-panel-hd { padding: 4px 16px 8px; border-bottom: 0; }
 #pane-flow .wb-a2.wb-studio .open-workbench-thread { flex: 1; min-height: 0; overflow-y: auto; }
 #pane-flow .wb-a2.wb-studio .open-workbench-messages { display: flex; flex-direction: column; gap: 16px; padding: 20px; }
 #pane-flow .wb-a2.wb-studio .open-workbench-thread-label { color: var(--tx3); font-size: 11px; text-align: center; }

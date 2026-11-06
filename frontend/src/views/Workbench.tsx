@@ -1560,7 +1560,6 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
                       scopeLabel={scopeLabel} scopeShort={scopeShort} projectId={projectId} target={effectiveTarget} preview={viewedPreview ?? stageLead}
                       onOpenTask={openTaskRecords}
                       onBackFromTask={() => { setEditMode(false); setSideTab(taskReturnTab) }}
-                      onCollapse={() => setPanelOpen(false)}
                       constraints={constraints} setConstraints={setConstraints}
                       activeTask={projectTask?.task ?? null} cancelTask={cancelTaskAndHold}
                       records={projectRecords} onSubmit={submit} onQuickAction={runQuickAction}
@@ -2366,7 +2365,7 @@ function PreviewTargetHighlight({ mediaRef, bbox }: { mediaRef: React.RefObject<
 
 /* ── 右栏：对话 / 修改设置 ──────────────────────────────────── */
 function RightPanel({ projectId, target, preview, chat, sideTab, setSideTab, focusChatKey, scope, scopeLabel, scopeShort,
-  onOpenTask, onBackFromTask, onCollapse,
+  onOpenTask, onBackFromTask,
   constraints, setConstraints, activeTask, cancelTask, records, onSubmit, onQuickAction,
   pending, onStartQueued, onCancelQueued,
   onNavigate, references, onRemoveReference,
@@ -2378,7 +2377,7 @@ function RightPanel({ projectId, target, preview, chat, sideTab, setSideTab, foc
     /** 输入框上显示的作用范围（真名，不是枚举）与它的短名（占位文案用） */
     scopeLabel: string; scopeShort: string
     onOpenTask: () => void
-    onBackFromTask: () => void; onCollapse: () => void
+    onBackFromTask: () => void
     constraints: ModificationConstraints
     setConstraints: React.Dispatch<React.SetStateAction<ModificationConstraints>>
     activeTask: AgentTask | null; cancelTask: (id: string) => void; records: TaskRecord[]
@@ -2444,7 +2443,11 @@ function RightPanel({ projectId, target, preview, chat, sideTab, setSideTab, foc
 
   return (
     <aside className="fw-panel" aria-label="AI 对话">
-      <div className="wb-assistant-heading"><div><strong>创作对话</strong><span>围绕当前项目提出要求与修改</span></div></div>
+      {/* 标题只留「控制台」三个字，不再写「围绕当前项目提出要求与修改」这种
+          描述性副标题 —— 这一列里所有控件都在说同一件事，再解释一遍只是占高度。
+          原位置还有个「完整对话」和「收起对话」按钮：完整对话有顶栏的视图切换，
+          收起对话有画面区的「专注画面」，两个都是重复入口，已删除。 */}
+      <div className="wb-assistant-heading"><strong>控制台</strong></div>
       <div className="fw-ing-hd fw-panel-hd">
         {sideTab !== 'edit' && <SegmentedControl value={sideTab === 'settings' || sideTab === 'task' ? '' : sideTab}
                           onChange={(next) => setSideTab(next as SideTab)}
@@ -2457,13 +2460,8 @@ function RightPanel({ projectId, target, preview, chat, sideTab, setSideTab, foc
         <ToolButton label="修改设置" active={sideTab === 'settings'} onClick={() => setSideTab('settings')}>
           <Settings2 className="size-3.5" />
         </ToolButton>
-        {/* 原型：从工作台切回完整对话视图（同一份 useChat 会话） */}
-        <ToolButton label="完整对话" onClick={() => onNavigate('conversation')}>
-          <MessagesSquare className="size-3.5" />
-        </ToolButton>
-        <ToolButton label="收起对话" onClick={onCollapse}>
-          <ChevronLeft className="size-3.5" />
-        </ToolButton>
+        {/* 「完整对话」与「收起对话」已删除：前者有顶栏的视图切换，后者有画面区
+            「专注画面」和面板收起后的「打开对话」，都是重复入口。 */}
       </div>
 
       {sideTab === 'scene' ? (<div className="fw-scroll wb-target-facts"><span className="wb-target-kicker">修改目标</span><h3>{target.label}</h3><p>{target.kind === 'project' ? '本次意见作用于整个项目；选中具体预览或内容后，可以缩小修改范围。' : '意见会连同当前目标一起发送。查看发送记录可核对当时的范围。'}</p>{preview && <dl><dt>预览类型</dt><dd>{preview.tierLabel}</dd><dt>{preview.origin === 'editor' ? '编辑版本' : '工作流版本'}</dt><dd>v{preview.revision}</dd><dt>预览生成于</dt><dd>{new Date(preview.createdAt).toLocaleString('zh-CN')}</dd></dl>}<button type="button" className="wb-btn-ghost" onClick={() => setSideTab('chat')}><MessagesSquare size={14}/> 对这个目标提意见</button></div>
