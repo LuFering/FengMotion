@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Search as SeekSearch } from '@/components/Search'
+import { WebSearchTrace, isSearchTool, type SearchCall } from '@/components/WebSearchTrace'
 import type { CSSProperties, ReactNode } from 'react'
 import {
   AlertCircle, Archive, ArchiveRestore, Check, ChevronDown, ChevronLeft, ChevronRight, Ellipsis, FileText, FolderPlus, ImageIcon,
@@ -110,12 +111,16 @@ const PERM_MODES = [
 const MODULE_SERVED_IDS = new Set<string>()
 
 function renderToolCalls(
-  calls: { callId?: string; name: string; arguments?: string; done?: boolean; isError?: boolean }[],
+  calls: SearchCall[],
   live: boolean,
 ) {
-  if (calls.length === 0) return null
-  const failed = calls.filter((c) => c.isError).length
-  const running = live ? calls.filter((c) => c.done !== true).length : 0
+  /* 联网搜索单独成一条「研究轨迹」（见 WebSearchTrace）：它回答的是
+     「Agent 去哪查了」，和 bash/read/write 这类「做了什么」不是一件事，
+     混在一份日志里就都看不清了。 */
+  const shown = calls.filter((c) => !isSearchTool(c.name))
+  if (shown.length === 0) return null
+  const failed = shown.filter((c) => c.isError).length
+  const running = live ? shown.filter((c) => c.done !== true).length : 0
   /**
    * 整组收进一层折叠。
    *
@@ -127,7 +132,7 @@ function renderToolCalls(
    * 失败与进行中要露在摘要上：不能让用户展开才发现出错。
    */
   const summary = [
-    `${calls.length} 个工具调用`,
+    `${shown.length} 个工具调用`,
     running > 0 ? `${running} 个执行中` : '',
     failed > 0 ? `${failed} 个失败` : '',
   ].filter(Boolean).join(' · ')
@@ -139,7 +144,7 @@ function renderToolCalls(
         <span className="cv3-tool-group-hint">展开看细节</span>
       </summary>
       <ul className="cv3-tool-list">
-        {calls.map((call, index) => {
+        {shown.map((call, index) => {
           // 历史记录没有 callId 时用下标兜底：key 只作用于渲染复用，不承担语义
           const key = call.callId ?? `${call.name}-${index}`
           const done = live ? call.done === true : call.done !== false
@@ -1657,6 +1662,7 @@ export function Conversation(props: {
                   <div className="cv3-rich">{renderRich(m.text)}</div>
                   {/* 这条回复执行过的工具调用。来自服务端读回的消息（切走会话再回来仍在），
                       与进行中的实时列表是同一份数据的两个阶段 —— 后者落库后由这里接管。 */}
+                  {m.executedTools && <WebSearchTrace calls={m.executedTools} live={false} />}
                   {m.executedTools && renderToolCalls(m.executedTools, false)}
                   {m.streaming && <p className="cv3-streaming">正在回复…</p>}
                   {/* 失败就说失败：半截文本不得冒充完成（契约 §4） */}
@@ -1821,7 +1827,10 @@ export function Conversation(props: {
               {toolCalls.length > 0
                 && !messages[messages.length - 1]?.executedTools
                 && (
-                renderToolCalls(toolCalls, true)
+                <>
+                  <WebSearchTrace calls={toolCalls} live />
+                  {renderToolCalls(toolCalls, true)}
+                </>
               )}
               {/* token 用量：回答「这一轮花了多少」。只显示上游真的报了的桶，
                   没报的不占位 —— 显示「输入 0」会让人以为完全没消耗。

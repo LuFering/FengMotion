@@ -1,0 +1,484 @@
+/* ══ Web search trace ═══════════════════════════════════════
+   照 BoardUI Web Search 的结构重建。
+
+   ── 它是一棵树，不是一列行 ────────────────────────────────
+   原组件的几何关系（数值取自它的实现）：
+
+     标题行          icon(16) + 文案，位于最左
+       │  桥接 6px，偏移 7
+       └─ 子层缩进 7
+            ├─ 每行再内缩 14：钩子占 12，正文从 14 开始
+            │    └─ 该行有来源时，再嵌一层：
+            │         桥接 5px，偏移 7
+            │         来源行缩进 7，自身再内缩 14
+            └─ …
+
+   所以竖干不是「每行画一段」，而是：每行在 0..12 处画一根钩子
+   （竖 0→8 再弯到 x=11.5），非末行再画一根 8→行底的竖线，
+   两者首尾相接，看起来就是一条贯通的干。
+
+   ── 生长 ──────────────────────────────────────────────────
+   原组件每行是「高度从 0 长出来 + 从下方 4px 浮上来 + 模糊 6px 淡入」，
+   钩子用 pathLength 描出来，竖线用 scaleY 拉出来。
+   这里用同样的三条动作，换成 CSS 动画（项目没有 motion 依赖）：
+   · 行：grid-template-rows 0fr → 1fr，同时位移与模糊归零；
+   · 钩子：stroke-dashoffset 描边；
+   · 竖线：scaleY 0 → 1。
+
+   灰阶映射：text-secondary → --tx2，icon-quaternary → --tx3，
+   bg-primary → --surf，border-button-default → --line。 */
+
+.wst {
+  --wst-rail-w: 12px;
+  /* 钩子 svg 的 viewBox 高度 */
+  --wst-hook-h: 15px;
+  /* 钩子竖段的长度：路径 M0.5 0 V8 的终点，超过这里就是弯钩了 */
+  --wst-hook-v: 8px;
+  width: 100%;
+  margin-top: 10px;
+}
+
+/* ── 标题行 ────────────────────────────────────────────────
+   整棵树的根：一个图标加一句话，不带钩子。 */
+.wst-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding-block: 4px;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--tx2);
+}
+
+.wst-head > .wst-icon { margin-top: 2px; }
+
+/* ── 图标位：16px，和原组件的 size-4 一致 ─────────────────── */
+.wst-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  color: var(--tx2);
+}
+
+.wst-icon svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+}
+
+/* ── 一层子枝 ───────────────────────────────────────────────
+   这里有两个容易搞混的数，必须分开（原组件也是分开的）：
+
+     缩进 STEP = 7px     子枝的行从父行内容处再往右 7px
+     行内缩进 = 14px     每行自己的 padding，钩子占 12、正文从 14 起
+
+   子枝竖线的 x = 父行内容 + STEP，而连接线也画在 STEP 处，
+   两者对齐；连接线还要**往上伸进父行** 6px，子枝才像是挂在父行下面，
+   而不是浮在旁边。
+
+   之前把缩进和连接线都写成 14px，同时子枝自己还叠了一层 14px 行内缩进，
+   子枝竖线因此比父行竖干右了 28px，中间没有任何横向连接 —— 看着就是断开。 */
+.wst-children {
+  position: relative;
+  margin-top: 2px;
+}
+
+/* 子枝的行往右 7px；每行内部再各自缩进 14px */
+.wst-children > .wst-rows { margin-inline-start: 7px; }
+
+/* ── 连接线：原版的 GuideBridge ────────────────────────────
+   它是一条**很短的竖线**：从子枝容器顶往上 5px、往下越过子行顶 1px。
+   不做长贯穿 —— 长贯穿会穿过父行内容，把图标劈开（实测就是这样）。
+
+   它只负责补「父行步骤行底部 → 子行顶部」那一小段留白，
+   横向在 7px 处，与子枝竖线同 x。 */
+.wst-children::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: 7px;
+  top: -5px;
+  height: 6px;
+  width: 1px;
+  background: var(--tx3);
+  pointer-events: none;
+}
+
+@keyframes wst-draw-v {
+  from { transform: scaleY(0); }
+  to   { transform: scaleY(1); }
+}
+
+.wst-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── 一根日志行 ─────────────────────────────────────────────
+   钩子画在 0..12 的导轨带里，正文从 14 开始。
+   高度用 grid 行做生长：0fr → 1fr 可动画，auto 不可。
+
+   动效分三段，故意错开：
+     0ms    竖线开始向下长（scaleY 0 → 1），120ms 长完
+     90ms   钩子拐出去（描边 0 → 26），150ms 画完
+     200ms  内容落位（浮起 4px + 去模糊 + 淡入），280ms 落定
+   线永远领先内容 —— 树是先长出来的，文字后挂上去。 */
+
+.wst-row {
+  position: relative;
+  display: grid;
+  grid-template-rows: 0fr;
+  padding-inline-start: 14px;
+  animation: wst-grow 420ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes wst-grow {
+  to { grid-template-rows: 1fr; }
+}
+
+/* 生长时内容是「被裁」的，所以要给底边一层渐隐，否则文字会从中间被切断。
+   --wst-fade 要能动画，必须先用 @property 注册成 <length>。 */
+@property --wst-fade {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+.wst-row > .wst-body {
+  --wst-fade: 0px;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    #000 calc(100% - var(--wst-fade)),
+    transparent calc(100% + 1px)
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    #000 calc(100% - var(--wst-fade)),
+    transparent calc(100% + 1px)
+  );
+  animation:
+    wst-rise 280ms cubic-bezier(0.22, 1, 0.36, 1) 200ms both,
+    wst-unfade 260ms cubic-bezier(0.22, 1, 0.36, 1) 200ms both;
+}
+
+@keyframes wst-unfade {
+  from { --wst-fade: 22px; }
+  to   { --wst-fade: 0px; }
+}
+
+@keyframes wst-rise {
+  from { opacity: 0; transform: translateY(4px); filter: blur(6px); }
+  to   { opacity: 1; transform: none; filter: none; }
+}
+
+/* ── 导轨 ──────────────────────────────────────────────────
+   一条线，不是一个钩子加一条干。
+
+   之前用三段拼：子层连接段、SVG 钩子（含 0..8 的竖段）、竖干（8..行底）。
+   三段各自算位置，亚像素取整后首尾对不上，放大 8 倍就能看到缝。
+
+   现在改成：整行画一条连续的竖线（.wst-trunk，top 0 / bottom 0），
+   弯钩只用 CSS 画「从竖线拐向右」那一段，纵向完全不参与。
+   一条线负责纵向，永远不会和自己断开。
+
+   弯钩用 border-left + border-bottom + 圆角，等价于原来那条
+   M0.5 0 V8 Q0.5 14 6.5 14 H11.5 的路径，而且不需要 SVG 对位。 */
+.wst-rail {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  width: var(--wst-rail-w);
+  pointer-events: none;
+  color: var(--tx3);
+}
+
+/* 整行的连续竖线：纵向只由它负责。
+   生长用 scaleY 从顶端拉下来 —— transform-origin: top。 */
+.wst-trunk {
+  position: absolute;
+  inset-inline-start: 0;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: currentColor;
+  transform-origin: top;
+  animation: wst-draw-v 120ms linear both;
+}
+
+/* 弯钩：横向拐出去那一小段。
+   用 SVG 描边而不是 CSS 边框，因为边框无法「画出来」——
+   描边可以 stroke-dashoffset 从 0 到满，线才是在生长而不是闪现。
+
+   路径就是原组件那条：M0.5 0 V8 Q0.5 14 6.5 14 H11.5。
+   它自带 0..8 的竖段，与 .wst-trunk 重叠，不会留缝。 */
+.wst-hook {
+  position: absolute;
+  inset-inline-start: 0;
+  top: 0;
+  width: 12px;
+  height: var(--wst-hook-h);
+  overflow: visible;
+}
+
+.wst-hook path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1;
+  stroke-linecap: round;
+  stroke-dasharray: 26;
+  stroke-dashoffset: 26;
+  animation: wst-draw-hook 150ms linear 90ms forwards;
+}
+
+@keyframes wst-draw-hook {
+  to { stroke-dashoffset: 0; }
+}
+
+/* 末行没有后续兄弟：竖线止于钩底，不再向下延伸。
+   选择器同时认 .wst-row[data-last] —— 子枝行（来源）的标记挂在 li 上，
+   只写 .wst-rail[data-last] 的话它不生效，竖线会画满整行、向下多伸一截。
+
+   高度只到 8px，也就是钩子竖段的长度（路径 M0.5 0 V8 的终点）。
+   钩子在 y=8 处开始弯向右边，竖线若继续往下画，就会在弯钩下方
+   露出一截小尾巴 —— 那正是截图里看到的。 */
+.wst-row[data-last] .wst-trunk,
+.wst-rail[data-last] .wst-trunk {
+  bottom: auto;
+  height: var(--wst-hook-v);
+}
+
+/* ── 步骤行 ─────────────────────────────────────────────────
+   py-1 + 一行 20px：行高 28，与原组件节奏一致。 */
+.wst-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  /* 5px 上下：比 4 松一点，几行叠在一起时不会糊成一片 */
+  padding-block: 5px;
+}
+
+.wst-step > .wst-icon { margin-top: 2px; }
+
+.wst-line {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--tx2);
+}
+
+/* 查询词：等宽、弱一档，原组件的 font-mono + caption-1 */
+.wst-query {
+  margin-inline-start: 6px;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 11.5px;
+  color: var(--tx3);
+}
+
+/* 右侧计数：等宽数字，不换行 */
+.wst-meta {
+  flex: none;
+  padding-top: 1px;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--tx3);
+  font-variant-numeric: tabular-nums;
+}
+
+.wst-step[data-state='failed'] .wst-line,
+.wst-step[data-state='failed'] .wst-icon { color: var(--bad); }
+
+/* 正在跑的那一行：文字轻微呼吸，跑完就停 */
+.wst-shimmer {
+  animation: wst-breathe 1.6s ease-in-out infinite;
+}
+
+@keyframes wst-breathe {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.55; }
+}
+
+/* ── 来源行：一行「来源 + 重叠标记 + 展开箭头」 ──────────── */
+.wst-sources-toggle {
+  display: flex;
+  align-items: center;
+  padding: 4px 0;
+  border: 0;
+  background: none;
+  color: var(--tx2);
+  font: inherit;
+  cursor: pointer;
+}
+
+.wst-sources-toggle:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--fg) 40%, transparent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.wst-sources-label {
+  font-size: 13px;
+  line-height: 20px;
+}
+
+/* 重叠堆叠：每个标记压住前一个 6px */
+.wst-stack {
+  display: flex;
+  align-items: center;
+  margin-inline-start: 8px;
+}
+
+.wst-stack > * + * { margin-inline-start: -6px; }
+
+/* 站点标记：20px 圆、1px 边线、项目底色 */
+.wst-mark {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--surf);
+  overflow: hidden;
+}
+
+.wst-mark svg { width: 12px; height: 12px; }
+
+.wst-mark-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--tx3);
+}
+
+.wst-more {
+  margin-inline-start: 8px;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--tx3);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 展开箭头：展开时翻转，300ms */
+.wst-caret {
+  display: grid;
+  place-items: center;
+  margin-inline-start: 4px;
+  width: 16px;
+  height: 16px;
+  color: var(--tx3);
+  transition: transform 300ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.wst-caret[data-open] { transform: rotate(180deg); }
+
+.wst-caret svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+}
+
+/* ── 展开后的来源列表：逐条落下 ──────────────────────────── */
+.wst-source-list {
+  list-style: none;
+  margin: 2px 0 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.wst-source-row {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  /* 用显式高度而不是 max-height：来源行是列向 flex 的子项，min-height:auto
+     会让 max-height:0 压不到 0，收起的行仍各留 8px 内边距；
+     再叠上 content-box 时的内边距，6 条能留出 48px 的空档。 */
+  height: 0;
+  padding: 0 4px;
+  border-radius: 6px;
+  opacity: 0;
+  overflow: hidden;
+  transition:
+    height 280ms cubic-bezier(0.22, 1, 0.36, 1),
+    padding 280ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 160ms ease,
+    background-color 150ms ease;
+}
+
+.wst-source-row[data-visible] {
+  height: 28px;
+  padding-block: 4px;
+  opacity: 1;
+}
+
+.wst-source-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  text-decoration: none;
+  color: inherit;
+}
+
+.wst-source-row:has(.wst-source-main[href]):hover {
+  background: var(--hover);
+}
+
+.wst-source-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--tx2);
+}
+
+/* 域名在窄容器里让位：先保标题 */
+.wst-source-domain {
+  flex: none;
+  font-size: 11px;
+  color: var(--tx3);
+}
+
+@media (max-width: 420px) {
+  .wst-source-domain { display: none; }
+}
+
+/* ── 减少动效 ───────────────────────────────────────────────
+   全部停下，但保留最终状态（行是展开的、钩子是画完的）。 */
+@media (prefers-reduced-motion: reduce) {
+  .wst-row {
+    animation: none;
+    grid-template-rows: 1fr;
+  }
+  .wst-row > .wst-body,
+  .wst-hook path,
+  .wst-trunk,
+  .wst-shimmer,
+  .wst-caret,
+  .wst-source-row {
+    animation: none;
+    transition: none;
+  }
+  .wst-hook path { stroke-dashoffset: 0; }
+  .wst-trunk { transform: none; }
+}

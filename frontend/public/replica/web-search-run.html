@@ -1,0 +1,653 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<title>联网搜索轨迹 · 运行演示</title>
+<style>
+*,*::before,*::after{box-sizing:border-box}
+:root{
+  --bg:#fcfcfd; --surf:#ffffff; --hole:#eef0f4; --line:#1919320f;
+  --fg:#191a20; --dim:#5b5e66; --ph:#8a8f99; --tx1:#191a20; --tx2:#5b5e66; --tx3:#8a8f99;
+  --hover:#eef0f4; --acc:#3B8CF8; --good:#3FBF8F; --bad:#F0708C;
+  --font-mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+body{margin:0;background:var(--bg);color:var(--fg);
+  font-family:-apple-system,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  padding:36px;display:flex;justify-content:center}
+.wrap{width:430px}
+.bar{display:flex;align-items:center;gap:10px;margin-bottom:18px}
+.run{padding:7px 16px;border:1px solid var(--line);border-radius:8px;background:var(--surf);
+  color:var(--fg);font-size:13px;cursor:pointer}
+.run:hover{background:var(--hole)}
+.run[disabled]{opacity:.5;cursor:default}
+.status{font-size:12px;color:var(--tx3)}
+/* ↓↓↓ 下面是组件的样式，构建时原样注入，不手抄 ↓↓↓ */
+/* ══ Web search trace ═══════════════════════════════════════
+   照 BoardUI Web Search 的结构重建。
+
+   ── 它是一棵树，不是一列行 ────────────────────────────────
+   原组件的几何关系（数值取自它的实现）：
+
+     标题行          icon(16) + 文案，位于最左
+       │  桥接 6px，偏移 7
+       └─ 子层缩进 7
+            ├─ 每行再内缩 14：钩子占 12，正文从 14 开始
+            │    └─ 该行有来源时，再嵌一层：
+            │         桥接 5px，偏移 7
+            │         来源行缩进 7，自身再内缩 14
+            └─ …
+
+   所以竖干不是「每行画一段」，而是：每行在 0..12 处画一根钩子
+   （竖 0→8 再弯到 x=11.5），非末行再画一根 8→行底的竖线，
+   两者首尾相接，看起来就是一条贯通的干。
+
+   ── 生长 ──────────────────────────────────────────────────
+   原组件每行是「高度从 0 长出来 + 从下方 4px 浮上来 + 模糊 6px 淡入」，
+   钩子用 pathLength 描出来，竖线用 scaleY 拉出来。
+   这里用同样的三条动作，换成 CSS 动画（项目没有 motion 依赖）：
+   · 行：grid-template-rows 0fr → 1fr，同时位移与模糊归零；
+   · 钩子：stroke-dashoffset 描边；
+   · 竖线：scaleY 0 → 1。
+
+   灰阶映射：text-secondary → --tx2，icon-quaternary → --tx3，
+   bg-primary → --surf，border-button-default → --line。 */
+
+.wst {
+  --wst-rail-w: 12px;
+  /* 钩子 svg 的 viewBox 高度 */
+  --wst-hook-h: 15px;
+  /* 钩子竖段的长度：路径 M0.5 0 V8 的终点，超过这里就是弯钩了 */
+  --wst-hook-v: 8px;
+  width: 100%;
+  margin-top: 10px;
+}
+
+/* ── 标题行 ────────────────────────────────────────────────
+   整棵树的根：一个图标加一句话，不带钩子。 */
+.wst-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding-block: 4px;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--tx2);
+}
+
+.wst-head > .wst-icon { margin-top: 2px; }
+
+/* ── 图标位：16px，和原组件的 size-4 一致 ─────────────────── */
+.wst-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  color: var(--tx2);
+}
+
+.wst-icon svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+}
+
+/* ── 一层子枝 ───────────────────────────────────────────────
+   这里有两个容易搞混的数，必须分开（原组件也是分开的）：
+
+     缩进 STEP = 7px     子枝的行从父行内容处再往右 7px
+     行内缩进 = 14px     每行自己的 padding，钩子占 12、正文从 14 起
+
+   子枝竖线的 x = 父行内容 + STEP，而连接线也画在 STEP 处，
+   两者对齐；连接线还要**往上伸进父行** 6px，子枝才像是挂在父行下面，
+   而不是浮在旁边。
+
+   之前把缩进和连接线都写成 14px，同时子枝自己还叠了一层 14px 行内缩进，
+   子枝竖线因此比父行竖干右了 28px，中间没有任何横向连接 —— 看着就是断开。 */
+.wst-children {
+  position: relative;
+  margin-top: 2px;
+}
+
+/* 子枝的行往右 7px；每行内部再各自缩进 14px */
+.wst-children > .wst-rows { margin-inline-start: 7px; }
+
+/* ── 连接线：原版的 GuideBridge ────────────────────────────
+   它是一条**很短的竖线**：从子枝容器顶往上 5px、往下越过子行顶 1px。
+   不做长贯穿 —— 长贯穿会穿过父行内容，把图标劈开（实测就是这样）。
+
+   它只负责补「父行步骤行底部 → 子行顶部」那一小段留白，
+   横向在 7px 处，与子枝竖线同 x。 */
+.wst-children::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: 7px;
+  top: -5px;
+  height: 6px;
+  width: 1px;
+  background: var(--tx3);
+  pointer-events: none;
+}
+
+@keyframes wst-draw-v {
+  from { transform: scaleY(0); }
+  to   { transform: scaleY(1); }
+}
+
+.wst-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── 一根日志行 ─────────────────────────────────────────────
+   钩子画在 0..12 的导轨带里，正文从 14 开始。
+   高度用 grid 行做生长：0fr → 1fr 可动画，auto 不可。
+
+   动效分三段，故意错开：
+     0ms    竖线开始向下长（scaleY 0 → 1），120ms 长完
+     90ms   钩子拐出去（描边 0 → 26），150ms 画完
+     200ms  内容落位（浮起 4px + 去模糊 + 淡入），280ms 落定
+   线永远领先内容 —— 树是先长出来的，文字后挂上去。 */
+
+.wst-row {
+  position: relative;
+  display: grid;
+  grid-template-rows: 0fr;
+  padding-inline-start: 14px;
+  animation: wst-grow 420ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes wst-grow {
+  to { grid-template-rows: 1fr; }
+}
+
+/* 生长时内容是「被裁」的，所以要给底边一层渐隐，否则文字会从中间被切断。
+   --wst-fade 要能动画，必须先用 @property 注册成 <length>。 */
+@property --wst-fade {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+.wst-row > .wst-body {
+  --wst-fade: 0px;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    #000 calc(100% - var(--wst-fade)),
+    transparent calc(100% + 1px)
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    #000 calc(100% - var(--wst-fade)),
+    transparent calc(100% + 1px)
+  );
+  animation:
+    wst-rise 280ms cubic-bezier(0.22, 1, 0.36, 1) 200ms both,
+    wst-unfade 260ms cubic-bezier(0.22, 1, 0.36, 1) 200ms both;
+}
+
+@keyframes wst-unfade {
+  from { --wst-fade: 22px; }
+  to   { --wst-fade: 0px; }
+}
+
+@keyframes wst-rise {
+  from { opacity: 0; transform: translateY(4px); filter: blur(6px); }
+  to   { opacity: 1; transform: none; filter: none; }
+}
+
+/* ── 导轨 ──────────────────────────────────────────────────
+   一条线，不是一个钩子加一条干。
+
+   之前用三段拼：子层连接段、SVG 钩子（含 0..8 的竖段）、竖干（8..行底）。
+   三段各自算位置，亚像素取整后首尾对不上，放大 8 倍就能看到缝。
+
+   现在改成：整行画一条连续的竖线（.wst-trunk，top 0 / bottom 0），
+   弯钩只用 CSS 画「从竖线拐向右」那一段，纵向完全不参与。
+   一条线负责纵向，永远不会和自己断开。
+
+   弯钩用 border-left + border-bottom + 圆角，等价于原来那条
+   M0.5 0 V8 Q0.5 14 6.5 14 H11.5 的路径，而且不需要 SVG 对位。 */
+.wst-rail {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  width: var(--wst-rail-w);
+  pointer-events: none;
+  color: var(--tx3);
+}
+
+/* 整行的连续竖线：纵向只由它负责。
+   生长用 scaleY 从顶端拉下来 —— transform-origin: top。 */
+.wst-trunk {
+  position: absolute;
+  inset-inline-start: 0;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: currentColor;
+  transform-origin: top;
+  animation: wst-draw-v 120ms linear both;
+}
+
+/* 弯钩：横向拐出去那一小段。
+   用 SVG 描边而不是 CSS 边框，因为边框无法「画出来」——
+   描边可以 stroke-dashoffset 从 0 到满，线才是在生长而不是闪现。
+
+   路径就是原组件那条：M0.5 0 V8 Q0.5 14 6.5 14 H11.5。
+   它自带 0..8 的竖段，与 .wst-trunk 重叠，不会留缝。 */
+.wst-hook {
+  position: absolute;
+  inset-inline-start: 0;
+  top: 0;
+  width: 12px;
+  height: var(--wst-hook-h);
+  overflow: visible;
+}
+
+.wst-hook path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1;
+  stroke-linecap: round;
+  stroke-dasharray: 26;
+  stroke-dashoffset: 26;
+  animation: wst-draw-hook 150ms linear 90ms forwards;
+}
+
+@keyframes wst-draw-hook {
+  to { stroke-dashoffset: 0; }
+}
+
+/* 末行没有后续兄弟：竖线止于钩底，不再向下延伸。
+   选择器同时认 .wst-row[data-last] —— 子枝行（来源）的标记挂在 li 上，
+   只写 .wst-rail[data-last] 的话它不生效，竖线会画满整行、向下多伸一截。
+
+   高度只到 8px，也就是钩子竖段的长度（路径 M0.5 0 V8 的终点）。
+   钩子在 y=8 处开始弯向右边，竖线若继续往下画，就会在弯钩下方
+   露出一截小尾巴 —— 那正是截图里看到的。 */
+.wst-row[data-last] .wst-trunk,
+.wst-rail[data-last] .wst-trunk {
+  bottom: auto;
+  height: var(--wst-hook-v);
+}
+
+/* ── 步骤行 ─────────────────────────────────────────────────
+   py-1 + 一行 20px：行高 28，与原组件节奏一致。 */
+.wst-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  /* 5px 上下：比 4 松一点，几行叠在一起时不会糊成一片 */
+  padding-block: 5px;
+}
+
+.wst-step > .wst-icon { margin-top: 2px; }
+
+.wst-line {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--tx2);
+}
+
+/* 查询词：等宽、弱一档，原组件的 font-mono + caption-1 */
+.wst-query {
+  margin-inline-start: 6px;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 11.5px;
+  color: var(--tx3);
+}
+
+/* 右侧计数：等宽数字，不换行 */
+.wst-meta {
+  flex: none;
+  padding-top: 1px;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--tx3);
+  font-variant-numeric: tabular-nums;
+}
+
+.wst-step[data-state='failed'] .wst-line,
+.wst-step[data-state='failed'] .wst-icon { color: var(--bad); }
+
+/* 正在跑的那一行：文字轻微呼吸，跑完就停 */
+.wst-shimmer {
+  animation: wst-breathe 1.6s ease-in-out infinite;
+}
+
+@keyframes wst-breathe {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.55; }
+}
+
+/* ── 来源行：一行「来源 + 重叠标记 + 展开箭头」 ──────────── */
+.wst-sources-toggle {
+  display: flex;
+  align-items: center;
+  padding: 4px 0;
+  border: 0;
+  background: none;
+  color: var(--tx2);
+  font: inherit;
+  cursor: pointer;
+}
+
+.wst-sources-toggle:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--fg) 40%, transparent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.wst-sources-label {
+  font-size: 13px;
+  line-height: 20px;
+}
+
+/* 重叠堆叠：每个标记压住前一个 6px */
+.wst-stack {
+  display: flex;
+  align-items: center;
+  margin-inline-start: 8px;
+}
+
+.wst-stack > * + * { margin-inline-start: -6px; }
+
+/* 站点标记：20px 圆、1px 边线、项目底色 */
+.wst-mark {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--surf);
+  overflow: hidden;
+}
+
+.wst-mark svg { width: 12px; height: 12px; }
+
+.wst-mark-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--tx3);
+}
+
+.wst-more {
+  margin-inline-start: 8px;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--tx3);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 展开箭头：展开时翻转，300ms */
+.wst-caret {
+  display: grid;
+  place-items: center;
+  margin-inline-start: 4px;
+  width: 16px;
+  height: 16px;
+  color: var(--tx3);
+  transition: transform 300ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.wst-caret[data-open] { transform: rotate(180deg); }
+
+.wst-caret svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+}
+
+/* ── 展开后的来源列表：逐条落下 ──────────────────────────── */
+.wst-source-list {
+  list-style: none;
+  margin: 2px 0 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.wst-source-row {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  /* 用显式高度而不是 max-height：来源行是列向 flex 的子项，min-height:auto
+     会让 max-height:0 压不到 0，收起的行仍各留 8px 内边距；
+     再叠上 content-box 时的内边距，6 条能留出 48px 的空档。 */
+  height: 0;
+  padding: 0 4px;
+  border-radius: 6px;
+  opacity: 0;
+  overflow: hidden;
+  transition:
+    height 280ms cubic-bezier(0.22, 1, 0.36, 1),
+    padding 280ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 160ms ease,
+    background-color 150ms ease;
+}
+
+.wst-source-row[data-visible] {
+  height: 28px;
+  padding-block: 4px;
+  opacity: 1;
+}
+
+.wst-source-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  text-decoration: none;
+  color: inherit;
+}
+
+.wst-source-row:has(.wst-source-main[href]):hover {
+  background: var(--hover);
+}
+
+.wst-source-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--tx2);
+}
+
+/* 域名在窄容器里让位：先保标题 */
+.wst-source-domain {
+  flex: none;
+  font-size: 11px;
+  color: var(--tx3);
+}
+
+@media (max-width: 420px) {
+  .wst-source-domain { display: none; }
+}
+
+/* ── 减少动效 ───────────────────────────────────────────────
+   全部停下，但保留最终状态（行是展开的、钩子是画完的）。 */
+@media (prefers-reduced-motion: reduce) {
+  .wst-row {
+    animation: none;
+    grid-template-rows: 1fr;
+  }
+  .wst-row > .wst-body,
+  .wst-hook path,
+  .wst-trunk,
+  .wst-shimmer,
+  .wst-caret,
+  .wst-source-row {
+    animation: none;
+    transition: none;
+  }
+  .wst-hook path { stroke-dashoffset: 0; }
+  .wst-trunk { transform: none; }
+}
+
+</style></head><body><div class="wrap">
+<div class="bar">
+  <button class="run" id="run">运行</button>
+  <span class="status" id="status">点「运行」看生长过程</span>
+</div>
+<div id="host"></div>
+</div>
+<script>
+const STEPS=[{"label": "搜索团队在组件库中实际支付的费用", "meta": "5 个结果", "icon": "bulb", "sources": [{"title": "Tailwind UI vs building your own: a cost breakdown", "domain": "www.reddit.com", "brand": "reddit", "href": "https://www.reddit.com"}, {"title": "We shipped our design system in 6 weeks. Here is what it cost", "domain": "www.linkedin.com", "brand": "linkedin", "href": "https://www.linkedin.com"}, {"title": "shadcn/ui — the registry model explained", "domain": "github.com", "brand": "github", "href": "https://github.com"}, {"title": "Design tokens: a practical guide", "domain": "www.figma.com", "brand": "figma", "href": "https://www.figma.com"}, {"title": "How we price a component library", "domain": "www.notion.com", "brand": "notion", "href": "https://www.notion.so"}]}, {"label": "搜索 X 为", "query": "component library OR design system pricing", "meta": "7 帖子", "icon": "x"}, {"label": "在 Reddit 上搜索", "query": "r/reactjs worth paying for", "meta": "12 线程", "icon": "reddit"}, {"label": "阅读最强三线程", "icon": "bulb"}];
+const MARKS={"reddit": "<svg viewBox=\"0 0 256 256\" width=\"12\" height=\"12\" aria-hidden=\"true\"><circle cx=\"128\" cy=\"128\" r=\"128\" fill=\"#ff4500\"/><path fill=\"#fff\" d=\"M213.15 129.22c0-10.376-8.391-18.617-18.617-18.617a18.74 18.74 0 0 0-12.97 5.189c-12.818-9.157-30.368-15.107-49.9-15.87l8.544-39.981l27.773 5.95c.307 7.02 6.104 12.667 13.278 12.667c7.324 0 13.275-5.95 13.275-13.278c0-7.324-5.95-13.275-13.275-13.275c-5.188 0-9.768 3.052-11.904 7.478l-30.976-6.562c-.916-.154-1.832 0-2.443.458c-.763.458-1.22 1.22-1.371 2.136l-9.464 44.558c-19.837.612-37.692 6.562-50.662 15.872a18.74 18.74 0 0 0-12.971-5.188c-10.377 0-18.617 8.391-18.617 18.617c0 7.629 4.577 14.037 10.988 16.939a33.6 33.6 0 0 0-.458 5.646c0 28.686 33.42 52.036 74.621 52.036c41.202 0 74.622-23.196 74.622-52.036a35 35 0 0 0-.458-5.646c6.408-2.902 10.985-9.464 10.985-17.093M85.272 142.495c0-7.324 5.95-13.275 13.278-13.275c7.324 0 13.275 5.95 13.275 13.275s-5.95 13.278-13.275 13.278c-7.327.15-13.278-5.953-13.278-13.278m74.317 35.251c-9.156 9.157-26.553 9.768-31.588 9.768c-5.188 0-22.584-.765-31.59-9.768c-1.371-1.373-1.371-3.51 0-4.883c1.374-1.371 3.51-1.371 4.884 0c5.8 5.8 18.008 7.782 26.706 7.782s21.058-1.983 26.704-7.782c1.374-1.371 3.51-1.371 4.884 0c1.22 1.373 1.22 3.51 0 4.883m-2.443-21.822c-7.325 0-13.275-5.95-13.275-13.275s5.95-13.275 13.275-13.275c7.327 0 13.277 5.95 13.277 13.275c0 7.17-5.95 13.275-13.277 13.275\"/></svg>", "linkedin": "<svg viewBox=\"0 0 256 256\" width=\"12\" height=\"12\" aria-hidden=\"true\"><path fill=\"#0a66c2\" d=\"M218.123 218.127h-37.931v-59.403c0-14.165-.253-32.4-19.728-32.4c-19.756 0-22.779 15.434-22.779 31.369v60.43h-37.93V95.967h36.413v16.694h.51a39.91 39.91 0 0 1 35.928-19.733c38.445 0 45.533 25.288 45.533 58.186zM56.955 79.27c-12.157.002-22.014-9.852-22.016-22.009s9.851-22.014 22.008-22.016c12.157-.003 22.014 9.851 22.016 22.008A22.013 22.013 0 0 1 56.955 79.27m18.966 138.858H37.95V95.967h37.97zM237.033.018H18.89C8.58-.098.125 8.161-.001 18.471v219.053c.122 10.315 8.576 18.582 18.89 18.474h218.144c10.336.128 18.823-8.139 18.966-18.474V18.454c-.147-10.33-8.635-18.588-18.966-18.453\"/></svg>", "github": "<svg viewBox=\"0 0 256 250\" width=\"12\" height=\"12\" aria-hidden=\"true\"><path fill=\"#161614\" d=\"M128.001 0C57.317 0 0 57.307 0 128.001c0 56.554 36.676 104.535 87.535 121.46c6.397 1.185 8.746-2.777 8.746-6.158c0-3.052-.12-13.135-.174-23.83c-35.61 7.742-43.124-15.103-43.124-15.103c-5.823-14.795-14.213-18.73-14.213-18.73c-11.613-7.944.876-7.78.876-7.78c12.853.902 19.621 13.19 19.621 13.19c11.417 19.568 29.945 13.911 37.249 10.64c1.149-8.272 4.466-13.92 8.127-17.116c-28.431-3.236-58.318-14.212-58.318-63.258c0-13.975 5-25.394 13.188-34.358c-1.329-3.224-5.71-16.242 1.24-33.874c0 0 10.749-3.44 35.21 13.121c10.21-2.836 21.16-4.258 32.038-4.307c10.878.049 21.837 1.47 32.066 4.307c24.431-16.56 35.165-13.12 35.165-13.12c6.967 17.63 2.584 30.65 1.255 33.873c8.207 8.964 13.173 20.383 13.173 34.358c0 49.163-29.944 59.988-58.447 63.157c4.591 3.972 8.682 11.762 8.682 23.704c0 17.126-.148 30.91-.148 35.126c0 3.407 2.304 7.398 8.792 6.14C219.37 232.5 256 184.537 256 128.002C256 57.307 198.691 0 128.001 0m-80.06 182.34c-.282.636-1.283.827-2.194.39c-.929-.417-1.45-1.284-1.15-1.922c.276-.655 1.279-.838 2.205-.399c.93.418 1.46 1.293 1.139 1.931m6.296 5.618c-.61.566-1.804.303-2.614-.591c-.837-.892-.994-2.086-.375-2.66c.63-.566 1.787-.301 2.626.591c.838.903 1 2.088.363 2.66m4.32 7.188c-.785.545-2.067.034-2.86-1.104c-.784-1.138-.784-2.503.017-3.05c.795-.547 2.058-.055 2.861 1.075c.782 1.157.782 2.522-.019 3.08m7.304 8.325c-.701.774-2.196.566-3.29-.49c-1.119-1.032-1.43-2.496-.726-3.27c.71-.776 2.213-.558 3.315.49c1.11 1.03 1.45 2.505.701 3.27m9.442 2.81c-.31 1.003-1.75 1.459-3.199 1.033c-1.448-.439-2.395-1.613-2.103-2.626c.301-1.01 1.747-1.484 3.207-1.028c1.446.436 2.396 1.602 2.095 2.622m10.744 1.193c.036 1.055-1.193 1.93-2.715 1.95c-1.53.034-2.769-.82-2.786-1.86c0-1.065 1.202-1.932 2.733-1.958c1.522-.03 2.768.818 2.768 1.868m10.555-.405c.182 1.03-.875 2.088-2.387 2.37c-1.485.271-2.861-.365-3.05-1.386c-.184-1.056.893-2.114 2.376-2.387c1.514-.263 2.868.356 3.061 1.403\"/></svg>", "figma": "<svg viewBox=\"0 0 256 384\" width=\"12\" height=\"12\" aria-hidden=\"true\"><path fill=\"#0acf83\" d=\"M64 384c35.328 0 64-28.672 64-64v-64H64c-35.328 0-64 28.672-64 64s28.672 64 64 64\"/><path fill=\"#a259ff\" d=\"M0 192c0-35.328 28.672-64 64-64h64v128H64c-35.328 0-64-28.672-64-64\"/><path fill=\"#f24e1e\" d=\"M0 64C0 28.672 28.672 0 64 0h64v128H64C28.672 128 0 99.328 0 64\"/><path fill=\"#ff7262\" d=\"M128 0h64c35.328 0 64 28.672 64 64s-28.672 64-64 64h-64z\"/><path fill=\"#1abcfe\" d=\"M256 192c0 35.328-28.672 64-64 64s-64-28.672-64-64s28.672-64 64-64s64 28.672 64 64\"/></svg>", "notion": "<svg viewBox=\"0 0 256 268\" width=\"12\" height=\"12\" aria-hidden=\"true\"><path fill=\"#fff\" d=\"M16.092 11.538L164.09.608c18.179-1.56 22.85-.508 34.28 7.801l47.243 33.282C253.406 47.414 256 48.975 256 55.207v182.527c0 11.439-4.155 18.205-18.696 19.24L65.44 267.378c-10.913.517-16.11-1.043-21.825-8.327L8.826 213.814C2.586 205.487 0 199.254 0 191.97V29.726c0-9.352 4.155-17.153 16.092-18.188\"/><path d=\"M164.09.608L16.092 11.538C4.155 12.573 0 20.374 0 29.726v162.245c0 7.284 2.585 13.516 8.826 21.843l34.789 45.237c5.715 7.284 10.912 8.844 21.825 8.327l171.864-10.404c14.532-1.035 18.696-7.801 18.696-19.24V55.207c0-5.911-2.336-7.614-9.21-12.66l-1.185-.856L198.37 8.409C186.94.1 182.27-.952 164.09.608M69.327 52.22c-14.033.945-17.216 1.159-25.186-5.323L23.876 30.778c-2.06-2.086-1.026-4.69 4.163-5.207l142.274-10.395c11.947-1.043 18.17 3.12 22.842 6.758l24.401 17.68c1.043.525 3.638 3.637.517 3.637L71.146 52.095zm-16.36 183.954V81.222c0-6.767 2.077-9.887 8.3-10.413L230.02 60.93c5.724-.517 8.31 3.12 8.31 9.879v153.917c0 6.767-1.044 12.49-10.387 13.008l-161.487 9.361c-9.343.517-13.489-2.594-13.489-10.921M212.377 89.53c1.034 4.681 0 9.362-4.681 9.897l-7.783 1.542v114.404c-6.758 3.637-12.981 5.715-18.18 5.715c-8.308 0-10.386-2.604-16.609-10.396l-50.898-80.079v77.476l16.1 3.646s0 9.362-12.989 9.362l-35.814 2.077c-1.043-2.086 0-7.284 3.63-8.318l9.351-2.595V109.823l-12.98-1.052c-1.044-4.68 1.55-11.439 8.826-11.965l38.426-2.585l52.958 81.113v-71.76l-13.498-1.552c-1.043-5.733 3.111-9.896 8.3-10.404z\"/></svg>", "x": "<svg viewBox=\"0 0 251 256\" width=\"12\" height=\"12\" aria-hidden=\"true\"><path d=\"M149.079 108.399L242.33 0h-22.098l-80.97 94.12L74.59 0H0l97.796 142.328L0 256h22.1l85.507-99.395L175.905 256h74.59L149.073 108.399zM118.81 143.58l-9.909-14.172l-78.84-112.773h33.943l63.625 91.011l9.909 14.173l82.705 118.3H186.3l-67.49-96.533z\"/></svg>", "bulb": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 3a6 6 0 0 0-3.7 10.7c.5.4.8 1 .9 1.7l.1.6h5.4l.1-.6c.1-.7.4-1.3.9-1.7A6 6 0 0 0 12 3Z\"/><path d=\"M9.6 19h4.8\"/></svg>"};
+const host=document.getElementById('host');
+const btn=document.getElementById('run'), status=document.getElementById('status');
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const wait=ms=>new Promise(r=>setTimeout(r,reduce?0:ms));
+
+const LENS='<svg viewBox="0 0 18 18" aria-hidden="true"><circle cx="7.6" cy="7.6" r="5.4"/><path d="M11.6 11.6 L15.4 15.4"/></svg>';
+function iconFor(s){
+  if(s.icon==='bulb') return MARKS.bulb;
+  if(s.icon && MARKS[s.icon]) return MARKS[s.icon];
+  return LENS;
+}
+function mark(s){
+  const inner = MARKS[s.brand] || '<span class="wst-mark-dot"></span>';
+  return `<span class="wst-mark" title="${s.title} · ${s.domain}">${inner}</span>`;
+}
+
+function stepHtml(s,state){
+  const q=s.query?`<span class="wst-query">${s.query}</span>`:'';
+  const m=s.meta?`<span class="wst-meta">${s.meta}</span>`:'';
+  const label=state==='running'?`<span class="wst-shimmer">${s.label}</span>`:s.label;
+  return `<div class="wst-step" data-state="${state}">
+<span class="wst-icon">${iconFor(s)}</span>
+<p class="wst-line">${label}${q}</p>${m}</div>`;
+}
+
+function sourcesHtml(src){
+  const head=src.slice(0,6);
+  const stack=head.map(s=>mark(s)).join('');
+  const more=src.length>6?`<span class="wst-more">+${src.length-6}</span>`:'';
+  return `<button type="button" class="wst-sources-toggle"><span class="wst-sources-label">来源</span>
+<span class="wst-stack">${stack}</span>${more}
+<span class="wst-caret" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M4.5 6.5 L8 10 L11.5 6.5"/></svg></span></button>
+<ul class="wst-source-list"></ul>`;
+}
+
+/* 一根导轨：连续竖线 + CSS 弯钩。纵向只由 .wst-trunk 负责。 */
+function railHtml(){
+  return '<span class="wst-rail"><span class="wst-trunk"></span>'
+       + '<svg class="wst-hook" viewBox="0 0 12 15" fill="none">'
+       + '<path d="M0.5 0 V8 Q0.5 14 6.5 14 H11.5" stroke="currentColor" stroke-width="1"/>'
+       + '</svg></span>';
+}
+
+/* 末行标记：最后一行且没有子枝时，竖线止于钩底 */
+function markLast(rows){
+  [...rows.children].forEach((r,j)=>{
+    const rail=r.querySelector(':scope > .wst-rail');
+    if(!rail) return;
+    const isLast=(j===rows.children.length-1);
+    const hasBranch=!!r.querySelector(':scope > .wst-body > .wst-children');
+    if(isLast && !hasBranch) rail.setAttribute('data-last','');
+    else rail.removeAttribute('data-last');
+  });
+}
+
+let running=false;
+async function play(){
+  if(running) return;
+  running=true; btn.disabled=true;
+  host.innerHTML='';
+  status.textContent='正在搜索…';
+
+  const wrap=document.createElement('section');
+  wrap.className='wst'; wrap.dataset.state='running'; wrap.dataset.head='';
+  wrap.innerHTML=`<div class="wst-head"><span class="wst-icon">${LENS}</span><span>跑了 ${STEPS.length} 次搜索</span></div>
+<div class="wst-children"><ul class="wst-rows"></ul></div>`;
+  host.appendChild(wrap);
+  const rows=wrap.querySelector('.wst-children > .wst-rows');
+  await wait(320);
+
+  for(let i=0;i<STEPS.length;i++){
+    const s=STEPS[i];
+    const li=document.createElement('li');
+    li.className='wst-row';
+    if(i===0) li.dataset.first='';
+    li.innerHTML=railHtml()+`<div class="wst-body">${stepHtml(s,'running')}</div>`;
+    rows.appendChild(li);
+
+    /* 刚加进来这行保持「搜索中」，只收尾更早的行 */
+    const current=li.querySelector('.wst-step');
+    [...rows.querySelectorAll('.wst-step')].forEach(st=>{
+      if(st===current) return;
+      if(st.dataset.state!=='running') return;
+      const idx=[...rows.querySelectorAll('.wst-step')].indexOf(st);
+      const prev=STEPS[idx];
+      st.dataset.state=(prev&&prev.fail)?'failed':'done';
+      const sh=st.querySelector('.wst-shimmer');
+      if(sh) sh.replaceWith(document.createTextNode(prev?prev.label:'搜索网页'));
+    });
+    markLast(rows);
+
+    await wait(1400);
+
+    const st=li.querySelector('.wst-step');
+    st.dataset.state=s.fail?'failed':'done';
+    const sh=st.querySelector('.wst-shimmer');
+    if(sh) sh.replaceWith(document.createTextNode(s.label));
+
+    if(s.sources && s.sources.length){
+      await wait(420);
+      const branch=document.createElement('div');
+      branch.className='wst-children';
+      branch.innerHTML=`<ul class="wst-rows"><li class="wst-row" data-last>${railHtml()}<div class="wst-body">${sourcesHtml(s.sources)}</div></li></ul>`;
+      li.querySelector('.wst-body').appendChild(branch);
+      await wait(280);
+
+      const list=branch.querySelector('.wst-source-list');
+      for(const src of s.sources){
+        const row=document.createElement('li');
+        row.className='wst-source-row';
+        row.innerHTML=`${mark(src)}<a class="wst-source-main" href="${src.href}"><span class="wst-source-title">${src.title}</span><span class="wst-source-domain">${src.domain}</span></a>`;
+        list.appendChild(row);
+      }
+      const toggle=branch.querySelector('.wst-sources-toggle');
+      const caret=branch.querySelector('.wst-caret');
+      toggle.setAttribute('aria-expanded','false');
+      toggle.addEventListener('click',async ()=>{
+        const open=toggle.getAttribute('aria-expanded')==='true';
+        const next=!open;
+        toggle.setAttribute('aria-expanded', String(next));
+        if(next) caret.setAttribute('data-open',''); else caret.removeAttribute('data-open');
+        const items=[...list.children];
+        if(next){ for(const r of items){ r.dataset.visible=''; await wait(110); } }
+        else { for(const r of items.reverse()){ r.removeAttribute('data-visible'); await wait(70); } }
+      });
+      markLast(rows);
+    }
+  }
+
+  wrap.dataset.state='done';
+  status.textContent='完成 · 共 '+STEPS.length+' 次搜索';
+  btn.textContent='再运行一次';
+  running=false; btn.disabled=false;
+}
+btn.addEventListener('click',play);
+</script></body></html>
