@@ -191,7 +191,51 @@
   #pane-flow .wb-a2.wb-studio .open-workbench-layout[data-panel='open'],
   #pane-flow .wb-a2.wb-studio .open-workbench-layout[data-panel='closed'] { grid-template-columns: minmax(0, 1fr); }
   #pane-flow .wb-a2.wb-studio .open-workbench-resize { display: none; }
-  #pane-flow .wb-a2.wb-studio .open-workbench-conversation { position: absolute; inset: 0 auto 0 0; z-index: 25; width: min(400px, 92%); }
+  /* 窄屏时这一列是浮在画面上的抽屉，必须有自己的底 ——
+     否则对话文字会直接叠在视频上，两边的字互相干扰。 */
+  #pane-flow .wb-a2.wb-studio .open-workbench-conversation {
+    position: absolute; inset: 0 auto 0 0; z-index: 25; width: min(400px, 92%);
+    background: var(--bg); border-right: 1px solid var(--line);
+  }
   #pane-flow .wb-a2.wb-studio .open-workbench-layout[data-panel='closed'] .open-workbench-conversation { width: 40px; height: 100%; }
   #pane-flow .wb-a2.wb-studio .open-workbench-conversation > .fw-panel { box-shadow: var(--shadow-float); }
 }
+
+/* ── 控制台页签栏：图标 + 悬浮文字 ──────────────────────────────
+   原来是「对话 / 当前目标」两个文字按钮 + 一个孤立齿轮，形态不一致，
+   看不出是同层级的视图切换。统一成图标按钮后，一行就能扫完，
+   文字放进 Tooltip，鼠标靠近才出现 —— 图标本身足够表达含义。 */
+#pane-flow .wb-a2.wb-studio .wb-console-tabs {
+  display: flex; align-items: center; gap: 6px;
+  padding: 0 16px 8px;
+  border-bottom: 0;
+}
+#pane-flow .wb-a2.wb-studio .wb-console-tablist {
+  display: flex; align-items: center; gap: 2px;
+  flex: 0 0 auto; min-width: 0;
+}
+#pane-flow .wb-a2.wb-studio .wb-console-tab {
+  position: relative;
+  display: grid; place-items: center;
+  width: 32px; height: 32px; flex: 0 0 32px;
+  padding: 0; border: 1px solid transparent; border-radius: 9px;
+  background: transparent; color: var(--tx3);
+  cursor: pointer;
+  transition: background-color 140ms var(--eo), color 140ms var(--eo), border-color 140ms var(--eo);
+}
+#pane-flow .wb-a2.wb-studio .wb-console-tab:hover { background: var(--hole); color: var(--tx2); }
+/* 选中态靠「实底 + 主色」表达，不靠一条下划线 ——
+   图标按钮没有文字宽度可以挂下划线，实底是唯一一眼可辨的选中形态。 */
+#pane-flow .wb-a2.wb-studio .wb-console-tab[data-active] {
+  background: var(--sel, var(--hole));
+  border-color: var(--line);
+  color: var(--acc);
+}
+#pane-flow .wb-a2.wb-studio .wb-console-more {
+  display: grid; place-items: center;
+  width: 26px; height: 32px; flex: 0 0 26px;
+  padding: 0; border: 1px solid transparent; border-radius: 8px;
+  background: transparent; color: var(--tx3); cursor: pointer;
+  transition: background-color 140ms var(--eo), color 140ms var(--eo);
+}
+#pane-flow .wb-a2.wb-studio .wb-console-more:hover { background: var(--hole); color: var(--tx2); }

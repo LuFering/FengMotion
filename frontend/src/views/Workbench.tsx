@@ -1,9 +1,9 @@
 import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
   ArrowDownToLine, ArrowLeftRight, ArrowUpRight, Check,
-  ChevronDown, ChevronLeft, ChevronRight, Clock3, FileCode2, FileText, Film, FolderOpen, History,
-  Image as ImageIcon, ListTree, LoaderCircle, MessagesSquare, Music2, Type as TypeIcon,
-  PanelBottom, Plus, RotateCcw, Send, Settings2,
+  ChevronDown, ChevronLeft, ChevronRight, ClipboardList, Clock3, FileCode2, FileText, Film, FolderOpen, History,
+  Image as ImageIcon, ListChecks, LoaderCircle, MessagesSquare, Music2, Target, Type as TypeIcon,
+  Plus, RotateCcw, Send, Settings2,
   Square, X, Maximize2, Minimize2,
 } from 'lucide-react'
 import { studioHttpApi } from '@/services/api'
@@ -83,7 +83,25 @@ const INITIAL_FRAME = FILM_FPS
 const scenePreviewOffset = (durationFrames: number) =>
   Math.min(Math.round(FILM_FPS), Math.round(durationFrames * 0.45))
 
-type SideTab = 'scene' | 'chat' | 'task' | 'edit' | 'settings'
+/* 控制台的全部视图。原来「预览版本」和「制作审阅」不在这个枚举里，
+   各自用 versionsOpen / reviewTab 两个互斥状态控制，页签栏只能看见前四个。
+   合成一个枚举后，一条图标页签栏就能覆盖左栏所有界面。 */
+type SideTab = 'chat' | 'scene' | 'settings' | 'task' | 'versions' | 'review' | 'edit'
+
+/* 控制台页签：图标 + 悬浮文字。
+   always=true 的是默认就露出来的 4 个 —— 它们对应「我在跟谁说话 / 改哪一块 /
+   任务在跑什么 / 改了之后留下了什么」这条主线，其余按需展开。
+   edit 不放进来：Remotion 编辑器是从画面区「场景编辑器」按钮进入的模式，
+   不是一个可以常驻的页面。 */
+const CONSOLE_TABS: { id: SideTab; label: string; icon: (props: { size?: number }) => ReactNode; always?: boolean }[] = [
+  { id: 'chat', label: '对话', icon: MessagesSquare, always: true },
+  { id: 'scene', label: '当前目标', icon: Target, always: true },
+  { id: 'task', label: '执行记录', icon: ListChecks, always: true },
+  { id: 'settings', label: '修改设置', icon: Settings2, always: true },
+  { id: 'versions', label: '场景版本', icon: History },
+  { id: 'review', label: '制作审阅', icon: ClipboardList },
+  { id: 'edit', label: '场景编辑器', icon: EditParamsIcon },
+]
 
 /** 左栏的四个页签：概览（要你决定的事）/ 产物 / 内容（这部片有哪些画面）/ 资料。 */
 type RailTab = 'overview' | 'artifacts' | 'content' | 'materials'
@@ -279,7 +297,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
      两侧才能对齐到同一位置、叠同一个框，才叫「在相同位置比较」（文档第 8 节）。 */
   const [comparisonAt, setComparisonAt] = useState<{ timeSeconds?: number; bbox?: { x: number; y: number; w: number; h: number } } | null>(null)
   const [previewLocation, setPreviewLocation] = useState<{ visualId: string; timeSeconds?: number; bbox?: { x: number; y: number; w: number; h: number } } | null>(null)
-  const openReview = (tab: ReviewDeskTab) => { if (previewMediaRef.current instanceof HTMLVideoElement) previewMediaRef.current.pause(); setReviewTab(tab); setPanelOpen(true); setEditMode(false) }
+  const openReview = (tab: ReviewDeskTab) => { if (previewMediaRef.current instanceof HTMLVideoElement) previewMediaRef.current.pause(); setReviewTab(tab); setSideTab('review'); setPanelOpen(true); setEditMode(false) }
   const decideNode = (wfId: string, nodeId: string, verdict: 'done' | 'rework') => {
     const target = workflowService.getWorkflow(wfId)
     if (!target || !target.nodes.some((n) => n.id === nodeId)) return
@@ -372,7 +390,6 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
   const [currentSceneState, setCurrentSceneState] = useState<ProjectSceneState | null>(null)
   /* 版本历史面板与审阅面板共用右栏位置。它不进 sideTab：
      那不是对话的子页签，而是一次「查看历史」的临时切换。 */
-  const [versionsOpen, setVersionsOpen] = useState(false)
   /* 场景版本历史。回退成功后要把新的当前场景写回 currentSceneState，
      否则下一次提交仍带旧的 baseVersion，会被后端 409 拒绝 ——
      用户会以为回退把项目弄坏了。
@@ -489,7 +506,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
   /* 右栏默认就是对话：场景详情、执行记录、修改设置是次级视图，按需打开。
      ?panel 仍可深链到指定视图。 */
   const [sideTab, setSideTab] = useState<SideTab>(
-    new URLSearchParams(window.location.search).get('edit') === '1' ? 'edit' : initialPanel === 'scene' || initialPanel === 'chat' || initialPanel === 'task' || initialPanel === 'edit' || initialPanel === 'settings'
+    new URLSearchParams(window.location.search).get('edit') === '1' ? 'edit' : initialPanel === 'scene' || initialPanel === 'chat' || initialPanel === 'task' || initialPanel === 'edit' || initialPanel === 'settings' || initialPanel === 'versions' || initialPanel === 'review'
       ? initialPanel as SideTab
       : 'chat')
   /* 右栏收起态：窄屏下改走浮层，宽屏下留一条对话入口窄列。 */
@@ -505,20 +522,6 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
   /* 真实修改的忙碌与错误状态。错误单独存而不是塞进 notice：
      notice 是会自动消失的提示，而「刚才为什么没改成功」要一直留着，
      直到用户重发或主动关掉。 */
-  /* Agent 可用性读真实探测，不写死。
-     原来顶部状态条固定显示「离线 / 还没接 Agent 和渲染」——在 DSH 已经接入、
-     真实修改也能出片之后，那句话会让人以为功能没做（真机确认过）。
-     判据与 Home / MonitorStageEmpty 一致：/api/capabilities 的 agent 项。 */
-  const harnessProbe = useHarnesses()
-  const agentAvailability = availabilityOf(harnessProbe, 'deepseek')
-  const agentReady = agentAvailability.state === 'available'
-  const agentAvailabilityLabel =
-    agentAvailability.state === 'checking' ? '检测中'
-      : agentAvailability.state === 'not_connected' ? '未连接'
-        : agentAvailability.state === 'misconfigured' ? '配置有误'
-          : agentAvailability.state === 'unknown' ? '状态未知'
-            : '已连接'
-
   const [realModifyBusy, setRealModifyBusy] = useState(false)
   const sourceOperation = useRef(false)
   const restoredCreationAt = useRef<string | null>(null)
@@ -1416,35 +1419,12 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
           <span className="wb-crumb-scene">{stageLead ? stageLead.tierLabel : '制作工作台'}</span>
         </div>
         <span className="wb-spacer" />
+        {/* 顶栏只留「导出」这一个动作按钮。
+            原先这里有四组按钮：制作审阅、场景编辑器、Agent 连接状态、
+            预览版本与对比、任务面板 —— 全是「进到左栏某一页」的入口，
+            和左栏页签栏重复。现在它们都归到控制台的页签上，
+            顶栏只保留真正属于「这一屏之外」的动作：导出。 */}
         <div className="wb-top-actions">
-          <button type="button" className="wb-review-entry" aria-pressed={reviewTab !== null} onClick={() => reviewTab ? setReviewTab(null) : openReview('opinions')}>
-            <ListTree size={14}/>制作审阅{review.opinions.some((o) => o.status === 'open') && <span>{review.opinions.filter((o) => o.status === 'open').length}</span>}
-          </button>
-          <button type="button" className="wb-remotion-entry" aria-pressed={editMode}
-                  onClick={editMode ? closeEdit : openEdit}>
-            <EditParamsIcon size={15} />{editMode ? '返回监看' : '场景编辑器'}
-          </button>
-          {/* Agent 状态：读真实探测，不写死。
-              原先固定「离线」，与实际能力相反 —— DSH 接了、渲染也通了，
-              界面却说「提交只会记录，不会真的改项目文件」。 */}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button className="wb-agent-status" type="button"
-                      data-ready={agentReady || undefined}
-                      aria-label={agentReady ? 'Agent 已连接' : `Agent ${agentAvailabilityLabel}`}>
-                <span className="wb-agent-dot" />{agentReady ? '已连接' : agentAvailabilityLabel}
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom" sideOffset={6}>
-              {agentReady
-                ? 'Agent 已连接：提交修改会真的改动项目场景并产出视频。'
-                : `${agentAvailabilityLabel}：提交只会记录，不会改动项目文件。${harnessProbe.note ? `（${harnessProbe.note}）` : ''}`}
-            </TooltipContent>
-          </Tooltip>
-          <ToolButton label="预览版本与对比" onClick={() => openReview('versions')}><History /></ToolButton>
-          {/* 任务面板入口原先在底部状态栏，那条已去掉，入口收到这里：
-              运行时它是唯一能看执行进度的地方，不能跟着状态栏一起消失。 */}
-          <ToolButton label={trayOpen ? '收起任务面板' : '任务面板'} active={trayOpen} onClick={() => setTrayOpen((v) => !v)}><PanelBottom /></ToolButton>
           {/* 导出只给这次制作真做出来的整片。没有整片就禁用，并说清楚缺什么 ——
               不能把素材库里那条旧成片当成本次交付让人下载。 */}
           <Tooltip>
@@ -1537,9 +1517,14 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
                      } />
 
         {!editMode && <div className="open-workbench-conversation">
-        {/* 对话和审阅共用左侧工作区 */}
-        {panelOpen ? (versionsOpen ? <SceneVersionPanel projectId={projectId} scene={currentSceneState} versions={sceneVersions}
-            onClose={() => { setVersionsOpen(false); void sceneVersions.refresh(true) }}/> : reviewTab ? <WorkbenchReviewDesk projectId={projectId} review={review} tab={reviewTab} onTab={setReviewTab} visuals={stage.visuals} viewedId={viewedPreview?.id}
+        {/* 标题与页签栏是这一列所有面板共用的底座：
+            对话 / 当前目标 / 执行记录 / 修改设置 / 场景版本 / 制作审阅 都在这条页签上，
+            切换时只换下面的内容区，页签本身不跟着面板一起消失。 */}
+        {/* 只在面板展开时渲染：收起态那一列只有 40px，是「对话」入口，
+            页签栏塞进去会竖排溢出。 */}
+        {panelOpen && <ConsoleChrome sideTab={sideTab} onChange={selectSideTab} onToggleEdit={() => (editMode ? closeEdit() : openEdit())} />}
+        {panelOpen ? (sideTab === 'versions' ? <SceneVersionPanel projectId={projectId} scene={currentSceneState} versions={sceneVersions}
+            onClose={() => { selectSideTab('chat'); void sceneVersions.refresh(true) }}/> : sideTab === 'review' ? <WorkbenchReviewDesk projectId={projectId} review={review} tab={reviewTab ?? 'opinions'} onTab={setReviewTab} visuals={stage.visuals} viewedId={viewedPreview?.id}
             onClose={() => { setReviewTab(null); focusFeedback() }} onDiscuss={focusFeedback}
             onView={showPreview} onCompare={(left, right) => {
               setEditMode(false); setSelectedArtifactId(null); setComparison([left, right]); setTrayOpen(false)
@@ -1553,7 +1538,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
                        onClearRealModifyError={() => setRealModifyError('')}
                        onDemoSubmit={submitDemo}
                        sceneVersion={currentSceneState}
-                       onOpenVersions={() => setVersionsOpen(true)}
+                       onOpenVersions={() => selectSideTab('versions')}
                        chat={chat} sideTab={sideTab} setSideTab={selectSideTab}
                       focusChatKey={focusChatKey}
                       scope={scope}
@@ -2310,22 +2295,6 @@ const fileEntry = (f: MaterialFile) => ({
   icon: MEDIA_NODE[f.media],
 })
 
-function ToolButton({ label, onClick, active, disabled, children }: {
-  label: string; onClick: () => void; active?: boolean; disabled?: boolean; children: React.ReactNode
-}) {
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <button className="iconbtn fw-toolbtn" type="button" aria-label={label}
-                aria-pressed={active || undefined} disabled={disabled} onClick={onClick}>
-          {children}
-        </button>
-      </TooltipTrigger>
-      <TooltipContent side="top" sideOffset={6}>{label}</TooltipContent>
-    </Tooltip>
-  )
-}
-
 /* ── 这次制作的画面 ───────────────────────────────────────────
    只渲染产物真的指到的那个文件（测试帧 / 试片 / 整片）。
    视频给原生控件，图片给静态画面 —— 不套播放器皮肤，
@@ -2361,6 +2330,43 @@ function PreviewTargetHighlight({ mediaRef, bbox }: { mediaRef: React.RefObject<
     return () => { observer.disconnect(); media.removeEventListener('loadedmetadata', measure); media.removeEventListener('load', measure) }
   }, [mediaRef, bbox])
   return rect ? <div className="wb-reference-highlight" role="img" aria-label="本条意见引用的画面区域" style={rect}><span>意见引用区域</span></div> : null
+}
+
+/* ── 左栏底座：标题 + 页签栏 ──────────────────────────────────
+   放在所有面板之上，切换面板时它不动 —— 否则切到「场景版本」这种整块替换的视图，
+   页签会跟着一起消失，用户就没有回去的路。
+   页签默认只露 4 个（对话 / 当前目标 / 执行记录 / 修改设置），
+   其余收进右侧箭头；点开再点收起。左栏只有 460px，六个图标平铺会把每个挤到看不清。 */
+function ConsoleChrome({ sideTab, onChange, onToggleEdit }: {
+  sideTab: SideTab; onChange: (v: SideTab) => void; onToggleEdit: () => void
+}) {
+  const [expanded, setExpanded] = useState(false)
+  return (
+    <>
+      <div className="wb-assistant-heading"><strong>控制台</strong></div>
+      <div className="fw-ing-hd fw-panel-hd wb-console-tabs" data-expanded={expanded || undefined}>
+        <div className="wb-console-tablist" role="tablist" aria-label="控制台视图">
+          {CONSOLE_TABS.filter((t) => expanded || t.always).map((t) => (
+            <Tooltip key={t.id}>
+              <TooltipTrigger asChild>
+                <button type="button" role="tab" aria-selected={sideTab === t.id} aria-label={t.label}
+                        className="wb-console-tab" data-active={sideTab === t.id || undefined}
+                        onClick={() => (t.id === 'edit' ? onToggleEdit() : onChange(t.id))}>
+                  <t.icon size={15} />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" sideOffset={6}>{t.label}</TooltipContent>
+            </Tooltip>
+          ))}
+        </div>
+        <button type="button" className="wb-console-more" aria-expanded={expanded}
+                aria-label={expanded ? '收起多余页签' : '展开全部页签'}
+                onClick={() => setExpanded((v) => !v)}>
+          {expanded ? <ChevronLeft size={13} /> : <ChevronRight size={13} />}
+        </button>
+      </div>
+    </>
+  )
 }
 
 /* ── 右栏：对话 / 修改设置 ──────────────────────────────────── */
@@ -2443,26 +2449,8 @@ function RightPanel({ projectId, target, preview, chat, sideTab, setSideTab, foc
 
   return (
     <aside className="fw-panel" aria-label="AI 对话">
-      {/* 标题只留「控制台」三个字，不再写「围绕当前项目提出要求与修改」这种
-          描述性副标题 —— 这一列里所有控件都在说同一件事，再解释一遍只是占高度。
-          原位置还有个「完整对话」和「收起对话」按钮：完整对话有顶栏的视图切换，
-          收起对话有画面区的「专注画面」，两个都是重复入口，已删除。 */}
-      <div className="wb-assistant-heading"><strong>控制台</strong></div>
-      <div className="fw-ing-hd fw-panel-hd">
-        {sideTab !== 'edit' && <SegmentedControl value={sideTab === 'settings' || sideTab === 'task' ? '' : sideTab}
-                          onChange={(next) => setSideTab(next as SideTab)}
-                          ariaLabel="场景与 AI 工作区"
-                          className="fw-panel-seg"
-                          options={[{ value: 'chat', label: '对话' }, { value: 'scene', label: '当前目标' }]} />}
-        {sideTab === 'edit' && <span className="fw-panel-title">Remotion 编辑器</span>}
-        {sideTab === 'task' && <span className="fw-panel-title">执行记录</span>}
-        {sideTab === 'settings' && <span className="fw-panel-title">修改设置</span>}
-        <ToolButton label="修改设置" active={sideTab === 'settings'} onClick={() => setSideTab('settings')}>
-          <Settings2 className="size-3.5" />
-        </ToolButton>
-        {/* 「完整对话」与「收起对话」已删除：前者有顶栏的视图切换，后者有画面区
-            「专注画面」和面板收起后的「打开对话」，都是重复入口。 */}
-      </div>
+      {/* 标题与页签栏已上移到底座（ConsoleChrome）：三个面板共用同一条页签，
+          否则切到「场景版本」时整条页签会跟着旧面板一起消失。 */}
 
       {sideTab === 'scene' ? (<div className="fw-scroll wb-target-facts"><span className="wb-target-kicker">修改目标</span><h3>{target.label}</h3><p>{target.kind === 'project' ? '本次意见作用于整个项目；选中具体预览或内容后，可以缩小修改范围。' : '意见会连同当前目标一起发送。查看发送记录可核对当时的范围。'}</p>{preview && <dl><dt>预览类型</dt><dd>{preview.tierLabel}</dd><dt>{preview.origin === 'editor' ? '编辑版本' : '工作流版本'}</dt><dd>v{preview.revision}</dd><dt>预览生成于</dt><dd>{new Date(preview.createdAt).toLocaleString('zh-CN')}</dd></dl>}<button type="button" className="wb-btn-ghost" onClick={() => setSideTab('chat')}><MessagesSquare size={14}/> 对这个目标提意见</button></div>
       ) : sideTab === 'chat' ? (
