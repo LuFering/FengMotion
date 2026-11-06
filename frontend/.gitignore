@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# 组件演示页的临时构建产物（源码在 src/demo/，产物在 public/replica/）
+demo-out
