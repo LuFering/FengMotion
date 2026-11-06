@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Search as SeekSearch } from '@/components/Search'
-import { WebSearchTrace, isSearchTool, type SearchCall } from '@/components/WebSearchTrace'
-import type { CSSProperties, ReactNode } from 'react'
+import { WebSearchTrace, type SearchCall } from '@/components/WebSearchTrace'
+import { ChatMessage as ChatBubble, ChatComposer, TaskList, ThinkingIndicator, type TaskItem } from '@/components/chat'
+import type { CSSProperties } from 'react'
 import {
   AlertCircle, Archive, ArchiveRestore, Check, ChevronDown, ChevronLeft, ChevronRight, Ellipsis, FileText, FolderPlus, ImageIcon,
-  ListFilter, LoaderCircle, MessageSquarePlus, PanelLeft, Pencil, Pin, PinOff, Plus, Send, Shield,
+  ListFilter, LoaderCircle, MessageSquarePlus, PanelLeft, Pencil, Pin, PinOff, Shield,
   ShieldAlert, ShieldCheck, Trash2, X,
 } from 'lucide-react'
 import { registerComposer, type DeliverableAsset, type AssetPurpose } from '@/shell/usePendingAssets'
@@ -110,65 +111,62 @@ const PERM_MODES = [
  */
 const MODULE_SERVED_IDS = new Set<string>()
 
-function renderToolCalls(
-  calls: SearchCall[],
-  live: boolean,
-) {
-  /* 联网搜索单独成一条「研究轨迹」（见 WebSearchTrace）：它回答的是
-     「Agent 去哪查了」，和 bash/read/write 这类「做了什么」不是一件事，
-     混在一份日志里就都看不清了。 */
-  const shown = calls.filter((c) => !isSearchTool(c.name))
-  if (shown.length === 0) return null
-  const failed = shown.filter((c) => c.isError).length
-  const running = live ? shown.filter((c) => c.done !== true).length : 0
-  /**
-   * 整组收进一层折叠。
-   *
-   * 原先每个调用都渲染成一张展开的卡片（名字 + 状态 + 完整参数），
-   * 一轮改工程能产生十几条 `bash` / `read` / `write`，对话区几乎全是
-   * 工具日志，agent 真正说了什么反而被埋掉。
-   * 现在默认只占一行摘要，想看细节再展开。
-   *
-   * 失败与进行中要露在摘要上：不能让用户展开才发现出错。
-   */
-  const summary = [
-    `${shown.length} 个工具调用`,
-    running > 0 ? `${running} 个执行中` : '',
-    failed > 0 ? `${failed} 个失败` : '',
-  ].filter(Boolean).join(' · ')
+/**
+ * 把工具调用转成 TaskList 的任务。
+ *
+ * 为什么要分组：一轮视频任务里十几次 bash/read/write，平铺成一张清单
+ * 看起来是「一堆零散动作」；按工具名归成几个任务（读文件 / 执行命令 / 写文件），
+ * 才看得出这一轮到底做了哪几类事。
+ *
+ * 不编造内容：任务的 title 用工具名本身，runningTitle 只是加「正在」前缀，
+ * 步骤就是真实的每一次调用与其参数。没有任何一条是推测出来的。
+ */
+function toolCallsToTasks(calls: SearchCall[], running: boolean): TaskItem[] {
+  /* 按工具名归组，但保留首次出现的顺序 —— 顺序是「实际发生顺序」，
+     按字母排会把它变成一份看起来像清单的东西，而不是一条日志 */
+  const groups = new Map<string, SearchCall[]>()
+  for (const call of calls) {
+    const list = groups.get(call.name)
+    if (list) list.push(call)
+    else groups.set(call.name, [call])
+  }
 
-  return (
-    <details className="cv3-tool-group" data-state={failed > 0 ? 'failed' : running > 0 ? 'running' : 'done'}>
-      <summary className="cv3-tool-group-head">
-        <span className="cv3-tool-group-title">{summary}</span>
-        <span className="cv3-tool-group-hint">展开看细节</span>
-      </summary>
-      <ul className="cv3-tool-list">
-        {shown.map((call, index) => {
-          // 历史记录没有 callId 时用下标兜底：key 只作用于渲染复用，不承担语义
-          const key = call.callId ?? `${call.name}-${index}`
-          const done = live ? call.done === true : call.done !== false
-          return (
-            <li key={key} className="cv3-tool"
-                data-state={call.isError ? 'failed' : done ? 'done' : 'running'}>
-              <details>
-                <summary className="cv3-tool-head">
-                  <span className="cv3-tool-name">{call.name}</span>
-                  {/* 状态必须带文字，不能只靠颜色（色弱也要看得出来） */}
-                  <span className="cv3-tool-state">
-                    {call.isError ? '失败' : done ? '完成' : '执行中'}
-                  </span>
-                </summary>
-                {call.arguments
-                  ? <pre className="cv3-tool-body">{call.arguments}</pre>
-                  : <p className="cv3-tool-body cv3-tool-body-empty">这次调用没有参数</p>}
-              </details>
-            </li>
-          )
-        })}
-      </ul>
-    </details>
-  )
+  return [...groups.entries()].map(([name, list]) => {
+    const failed = list.filter((c) => c.isError).length
+    const done = list.filter((c) => c.done === true).length
+    const finished = !running || done === list.length
+    return {
+      title: `${name} · ${list.length} 次${failed > 0 ? ` · ${failed} 失败` : ''}`,
+      runningTitle: `正在执行 ${name}`,
+      steps: list.map((call) => ({
+        label: call.arguments ? shortArgs(call.arguments) : `${name} 调用`,
+        chips: call.isError ? [{ label: '失败' }] : undefined,
+      })),
+      /* finished 只影响标题换字，不改数据 */
+      ...(finished ? {} : {}),
+    }
+  })
+}
+
+/**
+ * TaskList 的 revealed 是「单元数」：每个任务 1 个标题单元 + 每步 1 个单元。
+ * 这里按真实到达数算：已完成的调用算落地，进行中的那一条也先显示出来
+ * （它已经在跑了，藏起来等于假装没发生）。
+ */
+function toolCallsRevealed(calls: SearchCall[]): number {
+  const groups = new Map<string, number>()
+  for (const call of calls) groups.set(call.name, (groups.get(call.name) ?? 0) + 1)
+  /* 每个组：1 个标题 + N 步 = 1 + N 个单元 */
+  let total = 0
+  for (const n of groups.values()) total += 1 + n
+  return total
+}
+
+/** 参数摘要：单行、截断。完整参数在 WebSearchTrace / 展开态里能看，
+    这里只做「这一步大概在干什么」的提示。 */
+function shortArgs(args: string): string {
+  const oneLine = args.replace(/\s+/g, ' ').trim()
+  return oneLine.length > 72 ? `${oneLine.slice(0, 72)}…` : oneLine
 }
 
 /* 相对时间（对齐 dsh time.ago：刚刚 / N分钟 / N小时 / N天 / N个月 / N年） */
@@ -192,33 +190,6 @@ function fmtWhen(t: number): string {
   return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`
 }
 
-/* 富文本小渲染：段落 + 数字编号列表 + 行内 `代码` 与 **加粗**（只渲染文本自带的结构，不编造内容） */
-function renderInline(line: string, keyPrefix: string): ReactNode {
-  return line.split(/(`[^`]+`|\*\*[^*]+\*\*)/g).map((p, i) => {
-    if (p.startsWith('`') && p.endsWith('`') && p.length >= 2) return <code key={`${keyPrefix}-${i}`}>{p.slice(1, -1)}</code>
-    if (p.startsWith('**') && p.endsWith('**') && p.length >= 4) return <b key={`${keyPrefix}-${i}`}>{p.slice(2, -2)}</b>
-    return <span key={`${keyPrefix}-${i}`}>{p}</span>
-  })
-}
-
-function renderRich(text: string): ReactNode {
-  const blocks: ReactNode[] = []
-  let list: string[] = []
-  let k = 0
-  const flush = () => {
-    if (list.length === 0) return
-    blocks.push(<ol key={`ol-${k++}`}>{list.map((item, i) => <li key={i}>{renderInline(item, `li-${k}-${i}`)}</li>)}</ol>)
-    list = []
-  }
-  text.split('\n').forEach((line) => {
-    const m = line.match(/^\d+[.、]\s+(.*)$/)
-    if (m) { list.push(m[1]); return }
-    flush()
-    if (line.trim()) blocks.push(<p key={`p-${k++}`}>{renderInline(line, `p-${k}`)}</p>)
-  })
-  flush()
-  return blocks
-}
 
 export function Conversation(props: {
   chat: ChatState
@@ -270,6 +241,9 @@ export function Conversation(props: {
   }, [])
   const [proPath, setProPath] = useState<WfPath>('prompt-first')
   const [pending, setPending] = useState(false)
+  /** 本轮开始时间：给 ThinkingIndicator 的计时器用。
+      记在 state 里而不是渲染时 Date.now()，否则每帧都会变、计时器会抖。 */
+  const [pendingStartedAt, setPendingStartedAt] = useState<number | null>(null)
   /**
    * Agent 当前阶段。
    *
@@ -764,6 +738,7 @@ export function Conversation(props: {
     const at = messages.findIndex((m) => m.id === lastUserId)
     if (at >= 0 && messages.slice(at + 1).some((m) => m.role === 'ai')) return
     servedRef.add(lastUserId)
+    setPendingStartedAt(Date.now())
     setPending(true)
     return startReply()
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -776,12 +751,6 @@ export function Conversation(props: {
     if (el.scrollHeight - el.scrollTop - el.clientHeight < 320) el.scrollTop = el.scrollHeight
   }, [messages, pending])
 
-  const growInput = () => {
-    const el = inputRef.current
-    if (!el) return
-    el.style.height = 'auto'
-    el.style.height = `${Math.min(el.scrollHeight, 336)}px`
-  }
 
   /**
    * 服务端会话的回复流（SSE）。
@@ -799,6 +768,7 @@ export function Conversation(props: {
     streamStopRef.current?.()
     const aiId = chat.startAiMessage({ demo: false })
     let produced = false
+    setPendingStartedAt(Date.now())
     setPending(true)
     // 新的一轮从零开始记工具调用：上一轮的记录属于上一条回复，留着会串味。
     setToolCalls([])
@@ -1045,6 +1015,20 @@ export function Conversation(props: {
     }
   }
 
+  /**
+   * 重试这一轮：把最后一条用户消息原样再发一次。
+   *
+   * 为什么不是「重新请求服务端生成」：本项目的回复来自一轮真实的 Agent 执行，
+   * 后端不支持断点续读（Last-Event-ID 只校验格式），所以「接着刚才那条继续」
+   * 做不到。能做的是把同一句话再发一遍 —— 幂等键保证服务端不会重复落库。
+   */
+  const retryLastRound = useCallback(() => {
+    const lastUser = [...messages].reverse().find((m) => m.role === 'user')
+    if (!lastUser || pending) return
+    send(lastUser.text)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages, pending])
+
   const submit = () => {
     send(chat.draft)
     requestAnimationFrame(() => {
@@ -1095,9 +1079,146 @@ export function Conversation(props: {
     backendModels.length === 0 || backendModels.some((m) => m.id === model)
       ? model
       : (backendModels.find((m) => m.default) ?? backendModels[0]).id
-  const canSend = !pending
-    && (activeIsServer || harnessState.state === 'available')
-    && (chat.draft.trim().length > 0 || attachments.length > 0)
+  /**
+   * 引擎 / 模型选择器。
+   *
+   * 从原输入框里抽出来成为独立变量：新 Composer 的 trailing 槽需要它，
+   * 而它是这一段最长的 JSX，留在调用处会把输入框的骨架埋掉。
+   * 行为与外观完全沿用原来的两段式 chip + 两级弹窗 —— 第 10 项要求「用对话界面的」，
+   * 所以这里不重写，只是搬家。
+   */
+  const composerModelPicker = (
+    <>
+    <Popover open={modelPane !== null || modelOpen} onOpenChange={(o) => {
+      if (!o) { setModelOpen(false); setModelPane(null) }
+      else setModelOpen(true)
+    }}>
+      <PopoverTrigger asChild>
+        <button type="button" className="cv3-hbtn"
+                data-off={harnessState.state !== 'available' || undefined}
+                data-connected={harnessState.state === 'available' || undefined}
+                aria-label="选择执行引擎与模型"
+                title={harnessState.state === 'available' ? '切换执行引擎' : (harnessState.note ?? '该引擎未接入')}
+                style={{ '--h-color': harness.color } as CSSProperties}>
+          <span className="cv3-hseg" data-off={harnessState.state !== 'available' || undefined}>
+            <i aria-hidden="true" />
+            <span className="cv3-hmark-img" aria-hidden="true"
+                  style={{ maskImage: `url(${harness.icon})`, WebkitMaskImage: `url(${harness.icon})` }} />
+            {harnessState.state === 'available'
+              ? <><span className="cv3-hdiv" aria-hidden="true" /><span className="cv3-hmodel">{effectiveModel}</span></>
+              : <span className="cv3-hoff">{AVAILABILITY_LABEL[harnessState.state]}</span>}
+          </span>
+          <ChevronDown size={12} className="cv3-hchev" aria-hidden="true" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent side="top" align="end" sideOffset={9} className="cv3-hpop">
+        <div className="cv3-hp-scroll">
+          {/* 一级：引擎列表；二级：该引擎的模型 + 模型设置（从右侧滑入） */}
+          <div className="cv3-hp-pane" data-active={modelPane === null || undefined}>
+            <div className="cv3-hp-head">
+              <b>执行引擎</b>
+              <span>
+                {probe.access === 'unavailable'
+                  ? 'DSH 未接入'
+                  : probe.access === 'demo'
+                    ? 'DSH 仅演示'
+                    : probe.access === 'unknown'
+                      ? '状态未知'
+                      : `${HARNESSES.filter((h) => stateOf(h.id).state === 'available').length} 个已接入`}
+              </span>
+            </div>
+            <div className="cv3-hp-list" role="listbox" aria-label="执行引擎">
+              {HARNESSES.map((h) => {
+                const state = stateOf(h.id)
+                return (
+                <button key={h.id} type="button" className="cv3-hp-item" role="option"
+                        aria-selected={h.id === harnessId}
+                        data-off={state.state !== 'available' || undefined}
+                        title={state.note ?? undefined}
+                        style={{ '--h-color': h.color } as CSSProperties}
+                        onClick={() => {
+                          setHarnessId(h.id)
+                          setModel(modelsOfHarness(h.id).models[0]?.id ?? '')
+                          setModelPane(h.id)
+                        }}>
+                  <span className="cv3-hp-logo" aria-hidden="true"
+                        style={{ maskImage: `url(${h.icon})`, WebkitMaskImage: `url(${h.icon})` }} />
+                  <span className="cv3-hp-txt">
+                    <b>{h.name}</b>
+                    <small>{AVAILABILITY_LABEL[state.state]}{state.state === 'not_connected' ? '，仅展示' : ''}</small>
+                  </span>
+                  {h.id === harnessId && <Check size={13} className="cv3-hp-ck" aria-hidden="true" />}
+                  <ChevronRight size={13} className="cv3-hp-go" aria-hidden="true" />
+                </button>
+              )
+              })}
+            </div>
+          </div>
+          <div className="cv3-hp-pane cv3-hp-models" data-active={modelPane !== null || undefined}>
+            <div className="cv3-hp-head">
+              <button type="button" className="cv3-hp-back" onClick={() => setModelPane(null)}>
+                <ChevronLeft size={11} aria-hidden="true" />引擎
+              </button>
+              <b>{harness.name}</b>
+            </div>
+            <div className="cv3-hp-list" role="listbox" aria-label="模型">
+              {modelsOfHarness(harness.id).models.map((m) => (
+                <div key={m.id} className="cv3-hp-modelwrap">
+                  <button type="button" className="cv3-hp-item cv3-hp-model" role="option"
+                          aria-selected={m.id === effectiveModel}
+                          onClick={() => setModel(m.id)}>
+                    <span className="cv3-hp-radio" aria-hidden="true" />
+                    <span className="cv3-hp-txt"><b className="num">{m.label}</b></span>
+                    {m.id === effectiveModel && <Check size={13} className="cv3-hp-ck" aria-hidden="true" />}
+                  </button>
+                  {/* 选中模型下方展开设置抽屉：思考强度 + 最大上下文。
+                      首页两个都给了，这里原来只有推理等级、缺最大上下文。 */}
+                  {m.id === effectiveModel && (
+                    <div className="cv3-hp-drawer">
+                      <div className="cv3-hp-row">
+                        <span className="cv3-hp-label">思考强度</span>
+                        <div className="cv3-hp-seg" role="radiogroup" aria-label="思考强度">
+                          {(['off', 'standard', 'enhanced'] as Reasoning[]).map((v) => (
+                            <button key={v} type="button" role="radio"
+                                    aria-checked={currentPrefs.reasoning === v}
+                                    className={currentPrefs.reasoning === v ? 'on' : undefined}
+                                    onClick={() => setPref({ reasoning: v })}>{REASONING_LABEL[v]}</button>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="cv3-hp-row">
+                        <span className="cv3-hp-label">最大上下文</span>
+                        <div className="cv3-hp-seg" role="radiogroup" aria-label="最大上下文">
+                          {([32, 64, 128] as const).map((v) => (
+                            <button key={v} type="button" role="radio"
+                                    aria-checked={currentPrefs.context === v}
+                                    className={currentPrefs.context === v ? 'on' : undefined}
+                                    onClick={() => setPref({ context: v })}>{v}K</button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+            {harnessState.state !== 'available' && (
+              <p className="cv3-hp-note">
+                {harness.name} {AVAILABILITY_LABEL[harnessState.state]}
+                {harnessState.note ? `：${harnessState.note}` : '：不会真的执行。'}
+              </p>
+            )}
+          </div>
+        </div>
+      </PopoverContent>
+    </Popover>
+    </>
+  )
+
+  /* 引擎不可用（未接入 / 未连接）时只拦发送，不锁输入框：
+     用户仍该能把想法先写下来，等引擎接上再发。
+     规则与原来 canSend 的后半段一致。 */
+  const sendBlocked = !(activeIsServer || harnessState.state === 'available')
 
   /* 附件：kind 按 MIME 判定；最多 6 个（同首页上限） */
   const addFiles = (files: File[], forced?: 'file' | 'image' | 'video', done?: () => void) => {
@@ -1202,9 +1323,6 @@ export function Conversation(props: {
     finally { setProjectPending(false) }
   }
 
-  const onInputKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); submit() }
-  }
 
   /* 开始制作：与 StartCreation 同一套创建逻辑（建项目 + createFromPath + 落工作台）；
      先把真实创建的项目与工作流记进“已创建”表，再切工作台 */
@@ -1655,25 +1773,42 @@ export function Conversation(props: {
               )}
 
               {messages.map((m) => m.role === 'user' ? (
-                <p key={m.id} className="cv3-user">{m.text}{m.attachments?.map((attachment, i) => <span className="cv3-user-attachment" key={`${attachment.fileId ?? attachment.name}-${i}`}>附件：{attachment.name}</span>)}</p>
+                <ChatBubble
+                  key={m.id}
+                  role="user"
+                  text={m.text}
+                  at={m.at}
+                  attachments={m.attachments?.map((a) => `附件：${a.name}`)}
+                />
               ) : (
                 <div key={m.id} className="cv3-ai-block">
-                  {/* 文字不完整时由下面的「正在回复…」点明，正文本身不做修饰 */}
-                  <div className="cv3-rich">{renderRich(m.text)}</div>
+                  {/* 正文走 ChatMessage：流式期间逐行 blur-in 生长，
+                      结束后换成 Markdown（含代码高亮）。
+                      之前是手写 renderRich，只认 **加粗**、反引号、`1. ` 编号，
+                      表格/多级列表/代码块全都走样 —— 那等于把结构信息丢了。 */}
+                  <ChatBubble
+                    role="ai"
+                    text={m.text}
+                    at={m.at}
+                    streaming={m.streaming}
+                    failed={m.failed}
+                    demo={m.demo}
+                    onRetry={m.failed ? () => retryLastRound() : undefined}
+                  />
                   {/* 这条回复执行过的工具调用。来自服务端读回的消息（切走会话再回来仍在），
                       与进行中的实时列表是同一份数据的两个阶段 —— 后者落库后由这里接管。 */}
                   {m.executedTools && <WebSearchTrace calls={m.executedTools} live={false} />}
-                  {m.executedTools && renderToolCalls(m.executedTools, false)}
-                  {m.streaming && <p className="cv3-streaming">正在回复…</p>}
-                  {/* 失败就说失败：半截文本不得冒充完成（契约 §4） */}
-                  {m.failed && (
-                    <p className="cv3-failed" role="alert">
-                      <AlertCircle size={13} /> 这条回复没有完成：{m.failed}
-                    </p>
-                  )}
-                  {/* 演示来源必须在消息上可见，不能只写在别处 */}
-                  {m.demo && !m.streaming && !m.failed && (
-                    <p className="cv3-demo-note">演示回复 · 未连接 Agent</p>
+                  {/* 历史记录也走同一个 TaskList：实时与回看必须是同一个样子，
+                      否则用户会以为这是两种不同的东西（也是之前 <details> 折叠条的问题）。
+                      已完成 = 全部单元都落地，所以 revealed 给满。 */}
+                  {m.executedTools && m.executedTools.length > 0 && (
+                    <TaskList
+                      tasks={toolCallsToTasks(m.executedTools, false)}
+                      revealed={toolCallsRevealed(m.executedTools)}
+                      run={false}
+                      working={false}
+                      collapseOnComplete
+                    />
                   )}
                   {m.toolCalls && m.toolCalls.length > 0 && (
                     <div className="cv3-tools">
@@ -1799,23 +1934,35 @@ export function Conversation(props: {
               ))}
 
               {pending && messages[messages.length - 1]?.role === 'user' && (
-                <p className="cv3-pending">
-                  <LoaderCircle className="cv3-spin" size={14} />
-                  {/* 如实显示当前阶段：正文由 delta 逐 token 到达，这里说明「在做什么」。 */}
-                  {agentPhase === null
-                    ? '正在回复…'
-                    : agentPhase.phase === 'thinking'
-                      ? '正在思考…'
-                      : agentPhase.phase === 'tool'
-                        ? (agentPhase.isError
-                            ? `工具失败${agentPhase.label ? `：${agentPhase.label}` : ''}`
-                            : `正在调用工具${agentPhase.label ? `：${agentPhase.label}` : ''}…`)
-                        : '正在回复…'}
-                </p>
+                /* 思考态用 ThinkingOrbs：状态与当前阶段一一对应，
+                   不是随便挑一个好看的动画。
+                   阶段来自后端结构化透传（thinking / tool / 回复），
+                   所以这里显示的是真实阶段，不是按时长猜的。 */
+                <ThinkingIndicator
+                  phase={
+                    agentPhase === null
+                      ? 'working'
+                      : agentPhase.phase === 'thinking'
+                        ? 'solving'
+                        : agentPhase.phase === 'tool'
+                          ? 'searching'
+                          : 'working'
+                  }
+                  label={
+                    agentPhase?.phase === 'tool' && agentPhase.label
+                      ? agentPhase.isError
+                        ? `工具失败：${agentPhase.label}`
+                        : `正在调用：${agentPhase.label}`
+                      : undefined
+                  }
+                  elapsed={pendingStartedAt ? (Date.now() - pendingStartedAt) / 1000 : undefined}
+                />
               )}
               {/* 工具调用历史：一轮里可能调十几次工具，只显示「当前一个」等于没有记录。
-                  收起态只列工具名与状态，点开看参数 —— 参数常是整段 JSON/脚本，
-                  默认铺开会把对话区顶走。失败项标红，与「进行中」明确区分。
+                  这里用 TaskList —— 它是 BoardUI 任务列表的 1:1 移植（第 6、7 项），
+                  按「任务 → 步骤」组织，比一串 <details> 更像「它到底做了什么」。
+                  revealed 传真实推进单元数：内部计时器完全关掉，
+                  显示进度等于真实到达的工具调用数，不编造。
 
                   注意这里**不能加 `pending &&`**：真机验收时发现，回复一结束整个列表
                   就连同 usage 一起消失，用户再也回看不到「刚才跑了什么」。
@@ -1829,7 +1976,12 @@ export function Conversation(props: {
                 && (
                 <>
                   <WebSearchTrace calls={toolCalls} live />
-                  {renderToolCalls(toolCalls, true)}
+                  <TaskList
+                    tasks={toolCallsToTasks(toolCalls, pending)}
+                    revealed={toolCallsRevealed(toolCalls)}
+                    run={!pending}
+                    working={pending ? '正在处理' : false}
+                  />
                 </>
               )}
               {/* token 用量：回答「这一轮花了多少」。只显示上游真的报了的桶，
@@ -1854,238 +2006,76 @@ export function Conversation(props: {
           </div>
 
           <div className="cv3-seat">
-            <form className="cv3-compose" onSubmit={(e) => { e.preventDefault(); submit() }}>
-              <div className="cv3-card">
-                {/* 待发送附件（对齐 dsh attachment.pending：可逐个移除） */}
-                {attachments.length > 0 && (
-                  <div className="cv3-attach-row">
-                    {attachments.map((a, i) => (
-                      <span key={`${a.name}-${i}`} className="cv3-attach-chip" data-kind={a.kind}
-                            data-from-pending={a.assetId ? '' : undefined}
-                            title={a.note ? `${PURPOSE_TXT[a.purpose ?? ''] ?? ''} · ${a.note}` : undefined}>
-                        {a.kind === 'image' ? <ImageIcon size={12} /> : <FileText size={12} />}
-                        <span className="cv3-attach-name">{a.name}{a.uploading ? ' · 上传中' : a.uploadError ? ` · 上传失败：${a.uploadError}` : ''}</span>
-                        {/* 用途是用户在待发送面板特意选的，必须跟着附件一起显示，
-                            否则「作为参考」和「用于画面」在输入框里长得一模一样 */}
-                        {a.purpose && a.purpose !== 'unspecified' && (
-                          <span className="cv3-attach-purpose">{PURPOSE_TXT[a.purpose] ?? a.purpose}</span>
-                        )}
-                        <button type="button" aria-label={`移除文件 ${a.name}`}
-                                onClick={() => setAttachments((l) => l.filter((_, j) => j !== i))}>
-                          <X size={11} />
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                )}
-                <textarea className="cv3-input" rows={1} ref={inputRef}
-                          value={chat.draft}
-                          onChange={(e) => { chat.setDraft(e.target.value); growInput(); setSendError(null) }}
-                          onKeyDown={onInputKeyDown}
-                          placeholder={activeIsServer
-                            ? '继续这条对话：消息会保存到服务端'
-                            : '说说你想做的片子，或补充制作要求'} />
-                {/* 发送失败：说清楚没有发出去、草稿还在，不让用户以为已经保存。
-                    失败文案本身已经带了「消息没有发出去」，这里不再加前缀重复。 */}
-                {sendError && (
-                  <p className="cv3-compose-note" role="alert" data-error="">
-                    <AlertCircle size={12} /> {sendError}
-                  </p>
-                )}
-                <div className="cv3-row">
-                  {/* 左侧：添加文件 / 权限模式 */}
-                  <div className="cv3-leading">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <button type="button" className="cv3-chip-btn" aria-label="添加文件或调用指令" title="添加文件或调用指令">
-                          <Plus size={14} />
-                        </button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent side="top" align="start" sideOffset={8} className="cv3-ddm cv3-ddm-add">
-                        <DropdownMenuLabel className="cv3-ddm-label">添加到这条对话</DropdownMenuLabel>
-                        <div className="cv3-addgrid">
-                          <button type="button" onClick={() => fileRef.current?.click()}>
-                            <span className="cv3-addicon"><FileText size={16} /></span>
-                            <b>文件</b>
-                            <em>剧本、分镜表</em>
-                          </button>
-                          <button type="button" onClick={() => imageRef.current?.click()}>
-                            <span className="cv3-addicon"><ImageIcon size={16} /></span>
-                            <b>图片</b>
-                            <em>参考画面</em>
-                          </button>
-                        </div>
-                        <p className="cv3-ddm-note">也可以直接把文件拖进输入框</p>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <button type="button" className="cv3-chip-btn cv3-perm-btn" aria-label="权限设置" title="权限设置">
-                          {permission === 'readOnly' ? <Shield size={13} />
-                            : permission === 'fullAccess' ? <ShieldAlert size={13} /> : <ShieldCheck size={13} />}
-                          <span className="cv3-chip-label">{PERM_LABEL[permission]}</span>
-                        </button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent side="top" align="start" sideOffset={8} className="cv3-ddm cv3-ddm-perm">
-                        <DropdownMenuLabel className="cv3-ddm-label">权限模式</DropdownMenuLabel>
-                        <DropdownMenuRadioGroup value={permission} onValueChange={(v) => setPermission(v as typeof permission)}>
-                          {PERM_MODES.map(({ id, label, desc, Icon }) => (
-                            <DropdownMenuRadioItem key={id} value={id} className="cv3-ddm-permrow">
-                              <span className="cv3-perm-icon" data-danger={id === 'fullAccess' || undefined}><Icon size={14} /></span>
-                              <span className="cv3-perm-text">
-                                <b>{label}</b>
-                                <em>{desc}</em>
-                              </span>
-                            </DropdownMenuRadioItem>
-                          ))}
-                        </DropdownMenuRadioGroup>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                  {/* 右侧：引擎与模型、发送。
-                      引擎/模型选择器照首页那套做（两段式 chip + 两级弹窗），
-                      原来是一个通用 CPU 图标 + 扁平菜单，和首页明显不是同一个东西。 */}
-                  <div className="cv3-trailing">
-                    <Popover open={modelPane !== null || modelOpen} onOpenChange={(o) => {
-                      if (!o) { setModelOpen(false); setModelPane(null) }
-                      else setModelOpen(true)
-                    }}>
-                      <PopoverTrigger asChild>
-                        <button type="button" className="cv3-hbtn"
-                                data-off={harnessState.state !== 'available' || undefined}
-                                data-connected={harnessState.state === 'available' || undefined}
-                                aria-label="选择执行引擎与模型"
-                                title={harnessState.state === 'available' ? '切换执行引擎' : (harnessState.note ?? '该引擎未接入')}
-                                style={{ '--h-color': harness.color } as CSSProperties}>
-                          <span className="cv3-hseg" data-off={harnessState.state !== 'available' || undefined}>
-                            <i aria-hidden="true" />
-                            <span className="cv3-hmark-img" aria-hidden="true"
-                                  style={{ maskImage: `url(${harness.icon})`, WebkitMaskImage: `url(${harness.icon})` }} />
-                            {harnessState.state === 'available'
-                              ? <><span className="cv3-hdiv" aria-hidden="true" /><span className="cv3-hmodel">{effectiveModel}</span></>
-                              : <span className="cv3-hoff">{AVAILABILITY_LABEL[harnessState.state]}</span>}
-                          </span>
-                          <ChevronDown size={12} className="cv3-hchev" aria-hidden="true" />
-                        </button>
-                      </PopoverTrigger>
-                      <PopoverContent side="top" align="end" sideOffset={9} className="cv3-hpop">
-                        <div className="cv3-hp-scroll">
-                          {/* 一级：引擎列表；二级：该引擎的模型 + 模型设置（从右侧滑入） */}
-                          <div className="cv3-hp-pane" data-active={modelPane === null || undefined}>
-                            <div className="cv3-hp-head">
-                              <b>执行引擎</b>
-                              <span>
-                                {probe.access === 'unavailable'
-                                  ? 'DSH 未接入'
-                                  : probe.access === 'demo'
-                                    ? 'DSH 仅演示'
-                                    : probe.access === 'unknown'
-                                      ? '状态未知'
-                                      : `${HARNESSES.filter((h) => stateOf(h.id).state === 'available').length} 个已接入`}
-                              </span>
-                            </div>
-                            <div className="cv3-hp-list" role="listbox" aria-label="执行引擎">
-                              {HARNESSES.map((h) => {
-                                const state = stateOf(h.id)
-                                return (
-                                <button key={h.id} type="button" className="cv3-hp-item" role="option"
-                                        aria-selected={h.id === harnessId}
-                                        data-off={state.state !== 'available' || undefined}
-                                        title={state.note ?? undefined}
-                                        style={{ '--h-color': h.color } as CSSProperties}
-                                        onClick={() => {
-                                          setHarnessId(h.id)
-                                          setModel(modelsOfHarness(h.id).models[0]?.id ?? '')
-                                          setModelPane(h.id)
-                                        }}>
-                                  <span className="cv3-hp-logo" aria-hidden="true"
-                                        style={{ maskImage: `url(${h.icon})`, WebkitMaskImage: `url(${h.icon})` }} />
-                                  <span className="cv3-hp-txt">
-                                    <b>{h.name}</b>
-                                    <small>{AVAILABILITY_LABEL[state.state]}{state.state === 'not_connected' ? '，仅展示' : ''}</small>
-                                  </span>
-                                  {h.id === harnessId && <Check size={13} className="cv3-hp-ck" aria-hidden="true" />}
-                                  <ChevronRight size={13} className="cv3-hp-go" aria-hidden="true" />
-                                </button>
-                              )
-                              })}
-                            </div>
-                          </div>
-                          <div className="cv3-hp-pane cv3-hp-models" data-active={modelPane !== null || undefined}>
-                            <div className="cv3-hp-head">
-                              <button type="button" className="cv3-hp-back" onClick={() => setModelPane(null)}>
-                                <ChevronLeft size={11} aria-hidden="true" />引擎
-                              </button>
-                              <b>{harness.name}</b>
-                            </div>
-                            <div className="cv3-hp-list" role="listbox" aria-label="模型">
-                              {modelsOfHarness(harness.id).models.map((m) => (
-                                <div key={m.id} className="cv3-hp-modelwrap">
-                                  <button type="button" className="cv3-hp-item cv3-hp-model" role="option"
-                                          aria-selected={m.id === effectiveModel}
-                                          onClick={() => setModel(m.id)}>
-                                    <span className="cv3-hp-radio" aria-hidden="true" />
-                                    <span className="cv3-hp-txt"><b className="num">{m.label}</b></span>
-                                    {m.id === effectiveModel && <Check size={13} className="cv3-hp-ck" aria-hidden="true" />}
-                                  </button>
-                                  {/* 选中模型下方展开设置抽屉：思考强度 + 最大上下文。
-                                      首页两个都给了，这里原来只有推理等级、缺最大上下文。 */}
-                                  {m.id === effectiveModel && (
-                                    <div className="cv3-hp-drawer">
-                                      <div className="cv3-hp-row">
-                                        <span className="cv3-hp-label">思考强度</span>
-                                        <div className="cv3-hp-seg" role="radiogroup" aria-label="思考强度">
-                                          {(['off', 'standard', 'enhanced'] as Reasoning[]).map((v) => (
-                                            <button key={v} type="button" role="radio"
-                                                    aria-checked={currentPrefs.reasoning === v}
-                                                    className={currentPrefs.reasoning === v ? 'on' : undefined}
-                                                    onClick={() => setPref({ reasoning: v })}>{REASONING_LABEL[v]}</button>
-                                          ))}
-                                        </div>
-                                      </div>
-                                      <div className="cv3-hp-row">
-                                        <span className="cv3-hp-label">最大上下文</span>
-                                        <div className="cv3-hp-seg" role="radiogroup" aria-label="最大上下文">
-                                          {([32, 64, 128] as const).map((v) => (
-                                            <button key={v} type="button" role="radio"
-                                                    aria-checked={currentPrefs.context === v}
-                                                    className={currentPrefs.context === v ? 'on' : undefined}
-                                                    onClick={() => setPref({ context: v })}>{v}K</button>
-                                          ))}
-                                        </div>
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                            {harnessState.state !== 'available' && (
-                              <p className="cv3-hp-note">
-                                {harness.name} {AVAILABILITY_LABEL[harnessState.state]}
-                                {harnessState.note ? `：${harnessState.note}` : '：不会真的执行。'}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      </PopoverContent>
-                    </Popover>
-                    <button className="cv3-send" type="submit" disabled={!canSend} aria-label="发送">
-                      {pending ? <LoaderCircle size={16} className="cv3-spin" /> : <Send size={16} />}
+            {/* 输入框：几何取自 BoardUI 免费聊天模板（52px 胶囊 / 36px 圆钮 /
+                10px 间距），加载态是环绕光带。
+                引擎与模型选择器沿用对话界面原来那一套（composerModelPicker），
+                不换实现 —— 第 10 项要的就是「用对话界面的」。 */}
+            <ChatComposer
+              value={chat.draft}
+              onValueChange={(v) => { chat.setDraft(v); setSendError(null) }}
+              onSubmit={submit}
+              busy={pending}
+              placeholder={activeIsServer
+                ? '继续这条对话：消息会保存到服务端'
+                : '说说你想做的片子，或补充制作要求'}
+              onAttach={() => fileRef.current?.click()}
+              sendBlocked={sendBlocked}
+              leading={(
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button type="button" className="cv3-chip-btn cv3-perm-btn" aria-label="权限设置" title="权限设置">
+                      {permission === 'readOnly' ? <Shield size={13} />
+                        : permission === 'fullAccess' ? <ShieldAlert size={13} /> : <ShieldCheck size={13} />}
+                      <span className="cv3-chip-label">{PERM_LABEL[permission]}</span>
                     </button>
-                  </div>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent side="top" align="start" sideOffset={8} className="cv3-ddm cv3-ddm-perm">
+                    <DropdownMenuLabel className="cv3-ddm-label">权限模式</DropdownMenuLabel>
+                    <DropdownMenuRadioGroup value={permission} onValueChange={(v) => setPermission(v as typeof permission)}>
+                      {PERM_MODES.map(({ id, label, desc, Icon }) => (
+                        <DropdownMenuRadioItem key={id} value={id} className="cv3-ddm-permrow">
+                          <span className="cv3-perm-icon" data-danger={id === 'fullAccess' || undefined}><Icon size={14} /></span>
+                          <span className="cv3-perm-text">
+                            <b>{label}</b>
+                            <em>{desc}</em>
+                          </span>
+                        </DropdownMenuRadioItem>
+                      ))}
+                    </DropdownMenuRadioGroup>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+              trailing={composerModelPicker}
+              above={attachments.length > 0 ? (
+                <div className="cv3-attach-row">
+                  {attachments.map((a, i) => (
+                    <span key={`${a.name}-${i}`} className="cv3-attach-chip" data-kind={a.kind}
+                          data-from-pending={a.assetId ? '' : undefined}
+                          title={a.note ? `${PURPOSE_TXT[a.purpose ?? ''] ?? ''} · ${a.note}` : undefined}>
+                      {a.kind === 'image' ? <ImageIcon size={12} /> : <FileText size={12} />}
+                      <span className="cv3-attach-name">{a.name}{a.uploading ? ' · 上传中' : a.uploadError ? ` · 上传失败：${a.uploadError}` : ''}</span>
+                      {a.purpose && a.purpose !== 'unspecified' && (
+                        <span className="cv3-attach-purpose">{PURPOSE_TXT[a.purpose] ?? a.purpose}</span>
+                      )}
+                      <button type="button" aria-label={`移除文件 ${a.name}`}
+                              onClick={() => setAttachments((l) => l.filter((_, j) => j !== i))}>
+                        <X size={11} />
+                      </button>
+                    </span>
+                  ))}
                 </div>
-                {/* 隐藏的文件选择器（对齐 dsh 的 file input：多选） */}
-                <input ref={fileRef} type="file" multiple hidden onChange={onPickFiles} />
-                <input ref={imageRef} type="file" accept="image/*" multiple hidden
-                       onChange={(e) => addFiles(Array.from(e.target.files ?? []), 'image', () => { if (imageRef.current) imageRef.current.value = '' })} />
-              </div>
-            </form>
-            {/* 「N 条需求」计数已去掉：它数的是用户消息条数，不是需求条数
-                （用户可能只发一句「继续」），挂在这里既不准也没人看。
-                「已开始制作」是真实状态，保留。 */}
-            <footer className="cv3-status">
-              {launched && <span className="cv3-pill">已开始制作</span>}
-            </footer>
+              ) : null}
+              error={sendError ? (
+                <p className="cv3-compose-note" role="alert" data-error="">
+                  <AlertCircle size={12} /> {sendError}
+                </p>
+              ) : null}
+              statusLeft={launched ? <span className="cv3-pill">已开始制作</span> : null}
+            />
+            {/* 隐藏的文件选择器（对齐 dsh 的 file input：多选） */}
+            <input ref={fileRef} type="file" multiple hidden onChange={onPickFiles} />
+            <input ref={imageRef} type="file" accept="image/*" multiple hidden
+                   onChange={(e) => addFiles(Array.from(e.target.files ?? []), 'image', () => { if (imageRef.current) imageRef.current.value = '' })} />
           </div>
         </div>
       </div>
