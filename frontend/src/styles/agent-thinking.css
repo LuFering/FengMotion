@@ -1,0 +1,116 @@
+/* ══ Agent thinking ═══════════════════════════════════════
+   组件源码来自 BoardUI（免费组件，MIT）。这里只放它用到的样式，
+   类名保持 bui-agent-thinking-* 原样 —— 换名字会让源码和样式对不上。
+
+   原组件靠 Tailwind 工具类排版（text-body-medium、gap-2.5 等）。
+   本项目没有把这些类搬进来：它们只在有 Tailwind 的宿主里生效，
+   所以下面用等价的手写规则补齐，组件在哪种宿主里渲染都一致。
+
+   token 映射：
+     --bui-agent-thinking-tone 由组件按变体/覆盖色写入
+     text-tertiary / text-secondary → --tx3 / --tx2 */
+
+/* ── 状态行 ─────────────────────────────────────────────────
+   role=status，图标 + 标签 +（可选）计时器，间距 10px。 */
+.agent-thinking {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  line-height: 20px;
+}
+
+/* ── 微光标签 ───────────────────────────────────────────────
+   一道柔光从文字上扫过。
+
+   不用 background-clip: text —— 实测在这台机器的 Electron 里，
+   对渐变不生效，而配着写的 color: transparent 已经把文字藏了，
+   结果是「什么都看不见」。试过两种渐变写法都不行。
+
+   改成：文字保持实色、始终可读，高光作为独立的一层叠在上面扫过。
+   视觉上同样是「亮带扫过文字」，但不存在文字消失的可能。 */
+.bui-agent-thinking-label {
+  position: relative;
+  display: inline-block;
+  color: var(--bui-agent-thinking-tone, currentColor);
+  isolation: isolate;
+}
+
+.bui-agent-thinking-label::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: 3px;
+  background: linear-gradient(
+    100deg,
+    transparent 0%,
+    transparent 42%,
+    color-mix(in srgb, #fff 60%, transparent) 50%,
+    transparent 58%,
+    transparent 100%
+  );
+  background-size: 300% 100%;
+  mix-blend-mode: overlay;
+  pointer-events: none;
+  animation: agent-thinking-shimmer 2.6s linear infinite;
+}
+
+@keyframes agent-thinking-shimmer {
+  from { background-position: 200% 0; }
+  to   { background-position: -100% 0; }
+}
+
+/* ── 星星 ───────────────────────────────────────────────────
+   五颗星各自错开闪烁：缩到 0 → 弹到 1 → 收一点，然后消失。
+   容器稍微压暗，让闪烁有对比。 */
+.bui-agent-thinking-stars {
+  color: currentColor;
+}
+
+.bui-agent-thinking-star {
+  animation-name: bui-agent-thinking-star;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+  transform: scale(0);
+}
+
+@keyframes bui-agent-thinking-star {
+  0%, to { opacity: 0; transform: scale(0); }
+  40%    { opacity: 1; transform: scale(1); }
+  60%    { opacity: 0.9; transform: scale(0.8); }
+}
+
+/* ── 无限符号的彗星 ─────────────────────────────────────────
+   一条短划沿路径匀速跑，就是那颗「彗星」。 */
+.bui-agent-thinking-comet {
+  animation-name: bui-agent-thinking-dash;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+@keyframes bui-agent-thinking-dash {
+  to { stroke-dashoffset: -100px; }
+}
+
+/* ── 减少动效 ───────────────────────────────────────────────
+   原组件在 prefers-reduced-motion 下让所有动画停下并给出静态状态，
+   这里做同样的事：微光停、星星保持可见、彗星停在起点。 */
+@media (prefers-reduced-motion: reduce) {
+  .bui-agent-thinking-label {
+    animation: none;
+    background: none;
+    color: var(--bui-agent-thinking-tone, currentColor);
+    -webkit-text-fill-color: currentColor;
+  }
+
+  .bui-agent-thinking-star {
+    opacity: 0.7;
+    animation: none;
+    transform: none;
+  }
+
+  .bui-agent-thinking-comet {
+    animation: none;
+  }
+}

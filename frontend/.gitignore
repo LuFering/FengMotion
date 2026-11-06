@@ -25,3 +25,5 @@ dist-ssr
 
 # 组件演示页的临时构建产物（源码在 src/demo/，产物在 public/replica/）
 demo-out
+demo-out-thinking
+demo-out-components

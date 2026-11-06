@@ -8,7 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "build:demo": "vite build --config vite.demo.config.ts && node scripts/sync-demo.mjs"
+    "build:demo": "vite build --config vite.components.config.ts && node scripts/sync-demo.mjs"
   },
   "dependencies": {
     "@fontsource-variable/geist": "^5.3.0",
