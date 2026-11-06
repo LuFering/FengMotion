@@ -3,7 +3,10 @@
 #pane-flow .wb-a2.wb-studio .open-workbench-layout[data-panel='open'] {
   display: grid;
   grid-template-columns: minmax(0, var(--open-chat-width, 460px)) 4px minmax(0, 1fr);
+  /* .fw 原本是三张卡片并排：gap 8 + padding 8。
+     两列工作区里这两条会把对话列顶出内缩、底部留白，还让分隔条悬空。 */
   gap: 0;
+  padding: 0;
   transition: none;
 }
 #pane-flow .wb-a2.wb-studio .open-workbench-layout[data-panel='closed'] { grid-template-columns: 40px minmax(0, 1fr); }
@@ -29,10 +32,16 @@
   border: 0; border-radius: 0; background: transparent;
   animation: none; transition: none;
 }
-/* 两列之间靠分隔条和灰阶分层，不靠两条并排的边框 */
-#pane-flow .wb-a2.wb-studio .open-workbench-layout { background: var(--panel); }
+/* 两列同属一个工作区，共用整页背景；只有画面框单独成色、浮在上面。 */
+#pane-flow .wb-a2.wb-studio .open-workbench-layout {
+  background: var(--bg);
+  /* 整块工作区是一条连续背景，两列不该再有各自的内边距与间隙 */
+  gap: 0; padding: 0;
+}
 #pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-canvas { background: var(--bg); border-left: 0; }
-#pane-flow .wb-a2.wb-studio .open-workbench-resize { cursor: col-resize; touch-action: none; position: relative; z-index: 2; border-left: 1px solid var(--line); }
+/* 对话区不设边框：它是背景上的一块文字与输入，不是并排的第二张卡片。 */
+#pane-flow .wb-a2.wb-studio .open-workbench-conversation { background: transparent; }
+#pane-flow .wb-a2.wb-studio .open-workbench-resize { cursor: col-resize; touch-action: none; position: relative; z-index: 2; border-left: 0; }
 #pane-flow .wb-a2.wb-studio .open-workbench-resize:hover,
 #pane-flow .wb-a2.wb-studio .open-workbench-resize:focus-visible,
 #pane-flow .wb-a2.wb-studio .open-workbench-layout[data-resizing] .open-workbench-resize { background: var(--acc); outline: none; }
@@ -61,6 +70,22 @@
 #pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-canvas > .fw-scroll,
 #pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-canvas > div { min-height: 0; }
 #pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-monitor { flex: 1 1 auto; min-height: 0; }
+/* 画面框是这一页唯一的「纸片」：单独成色 + 圆角 + 投影，浮在统一背景上。
+   其余区域（顶栏、对话、秒数行、缩略条、底部信息）一律退回背景色，
+   只靠字号与间距分层 —— 这样视线自然落在画面上，而不是被一圈圈面板框住。 */
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-mon-visual {
+  background: var(--stage-bg);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 10px 34px rgb(0 0 0 / .30), 0 2px 8px rgb(0 0 0 / .18);
+  margin: 0 14px 2px;
+}
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-toolbar,
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-mon-rail,
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-mon-thumbs,
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-mon-btn { background: transparent; }
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-mon-rail { border-top: 0; }
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-canvas { background: var(--bg); }
 #pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-mon-rail { max-height: 96px; }
 @media (max-width: 900px) {
   #pane-flow .wb-a2.wb-studio .open-workbench-layout,

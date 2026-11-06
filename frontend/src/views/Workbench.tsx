@@ -1437,6 +1437,9 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
             </TooltipContent>
           </Tooltip>
           <ToolButton label="预览版本与对比" onClick={() => openReview('versions')}><History /></ToolButton>
+          {/* 任务面板入口原先在底部状态栏，那条已去掉，入口收到这里：
+              运行时它是唯一能看执行进度的地方，不能跟着状态栏一起消失。 */}
+          <ToolButton label={trayOpen ? '收起任务面板' : '任务面板'} active={trayOpen} onClick={() => setTrayOpen((v) => !v)}><PanelBottom /></ToolButton>
           {/* 导出只给这次制作真做出来的整片。没有整片就禁用，并说清楚缺什么 ——
               不能把素材库里那条旧成片当成本次交付让人下载。 */}
           <Tooltip>
@@ -1767,22 +1770,9 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
         }}
       />
 
-      {/* ═══ 基岛：状态栏（独立胶囊，不铺整条底板）═══════════════ */}
-      <div className="wb-statusbar">
-        <span className="wb-status-chip">
-          <i className="wb-status-dot" data-s={liveTask || workflowRunning ? 'running' : 'idle'} />
-          {editMode ? '本机编辑' : workflowRunning ? '演示运行中' : liveTask ? liveTask.state : stageLead?.origin === 'editor' ? '本机导出' : '演示模式'}
-        </span>
-        <button className="wb-status-chip is-btn" type="button" aria-pressed={trayOpen}
-                onClick={() => setTrayOpen((v) => !v)}>
-          <PanelBottom className="size-3" />{trayOpen ? '收起任务面板' : '任务面板'}
-          {tasks.active?.task ? ` · ${tasks.active.task.title}` : ''}
-        </button>
-        {/* 只留总时长：场数在左栏「场景结构 N 场」已经报过一次，
-            这里再说一遍就是同一件事写两处。 */}
-        {stageLead && <span className="wb-status-chip">{stageLead.tierLabel} · {stageLead.origin === 'editor' ? '编辑版本' : '工作流'} v{stageLead.revision}</span>}
-        <span className="wb-spacer" />
-      </div>
+      {/* 底部状态栏已移除：画面区底部已有「最终文件 / 输出规格 / 审片 / 检查」一行，
+          再挂一条演示模式、任务面板、版本号的胶囊，等于把同批信息说第三遍，
+          还把画面往上挤。任务面板入口移到顶栏。 */}
     </div>
   )
 }
