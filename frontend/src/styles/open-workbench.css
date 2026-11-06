@@ -108,6 +108,9 @@
 #pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-toolbar { background: var(--bg); border-bottom: 0; }
 #pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-mon-rail { background: var(--bg); }
 #pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-mon-rail { border-top: 0; }
+/* 秒数 / 引用此帧那一行原本铺 --panel2 并带一条上边线，
+   在画面框下面又切出一道色带 —— 同样退回背景，只留文字与按钮。 */
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .wb-preview-tools { background: var(--bg); border-top: 0; }
 #pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-canvas { background: var(--bg); }
 #pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-mon-rail { max-height: 96px; }
 @media (max-width: 900px) {
