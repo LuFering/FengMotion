@@ -6,7 +6,11 @@
    ═══════════════════════════════════════════════════════════════ */
 
 /* 入口按钮：与 .mya-pickbtn 同规格（30px 高、描边、悬停变强调色） */
-.pk-btn {
+/* 选择器写成 .pk-btn.pk-btn（0,2,0）是有意的：三个库各有一条按钮复位
+   （.fxlib :where(button) / .rfc button / .wfl :where(button)）会把 border
+   与 padding 归零，单类名（0,1,0）压不回去 —— 实测「选择特效」因此变成
+   没有框的纯文字，和旁边的「导入来源」不成对。 */
+.pk-btn.pk-btn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -23,7 +27,7 @@
   white-space: nowrap;
   transition: border-color .15s var(--eo, ease), color .15s var(--eo, ease);
 }
-.pk-btn:hover { border-color: var(--acc); color: var(--acc); }
+.pk-btn.pk-btn:hover { border-color: var(--acc); color: var(--acc); }
 .pk-ico { width: 14px; height: 14px; flex: none; }
 
 /* 卡片左上角的选中框：

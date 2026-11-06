@@ -17,7 +17,7 @@
 .wfl .wfshop-search .fm-searchfield-input { font-size:12px; line-height:1.5; }
 .fxlib .fx-cmd-search .fm-searchfield:focus-within,
 .mya .fm-page-head-actions .fm-searchfield:focus-within,
-.wfl .wfshop-search .fm-searchfield:focus-within { outline:none; border-color:var(--acc); box-shadow:0 0 0 2px var(--sel); }
+.wfl .wfshop-search .fm-searchfield:focus-within { outline:none; border-color:color-mix(in srgb,var(--fg) 26%,var(--line)); background:var(--surf); box-shadow:none; }
 .fxlib .fx-toolbtn,
 .mya .fm-page-head-actions .mya-pickbtn,
 .mya .fm-page-head-actions .mya-primary { min-height:34px; border-radius:7px; font-size:11px; font-weight:500; gap:7px; }
@@ -160,7 +160,7 @@
 .mya .fm-page-head-actions .mya-spacer { display:block; flex:1 1 auto; min-width:0; }
 .mya .mya-content-search .fm-searchfield { width:100%; max-width:none; height:34px; border-radius:7px; }
 .mya .mya-content-search .fm-searchfield-input { font-size:12px; }
-.mya .mya-content-search .fm-searchfield:focus-within { border-color:var(--acc); box-shadow:0 0 0 2px var(--sel); }
+.mya .mya-content-search .fm-searchfield:focus-within { border-color:color-mix(in srgb,var(--fg) 26%,var(--line)); background:var(--surf); box-shadow:none; }
 .mya .mya-crumb[hidden] { display:none; }
 .mya .mya-toolbar .mya-crumb { color:var(--tx2); max-width:150px; }
 .mya .mya-toolbar .mya-crumb b { font-weight:500; }

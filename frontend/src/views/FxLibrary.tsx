@@ -38,6 +38,7 @@ import { usePickMode } from '@/shell/usePickMode'
 import { PickBar, PickButton, PickCheck } from '@/shell/PickModeUI'
 import { toast as emitToast } from '@/shell/toast'
 import { SearchField } from '@/components/SearchField'
+import { CapabilityImportDialog } from './CapabilityImportDialog'
 
 /**
  * 特效技法库 —— 按《前端下一步开发计划》§4.4（04-B）落地：
@@ -162,6 +163,8 @@ export function FxLibrary() {
   const [previewKind, setPreviewKind] = useState<'all' | 'motion' | 'still'>('all')
   const [sort, setSort] = useState<SortKey>('cat')
   const [filtersOpen, setFiltersOpen] = useState(false)
+  /* 「从 GitHub 导入技能」弹窗。入口是页头的一个按钮，不常驻任何内容。 */
+  const [importOpen, setImportOpen] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [playingId, setPlayingId] = useState<string | null>(null)
@@ -548,10 +551,16 @@ export function FxLibrary() {
 
   return (
     <div className="fxlib">
+      <CapabilityImportDialog open={importOpen} onOpenChange={setImportOpen} onImported={() => {
+        void listTechniques().then((list) => { setTechniques(list); setCatalogError(null) })
+          .catch(() => setCatalogError('刷新技法库失败'))
+      }} />
       <section className="fx-panel" aria-label="特效技法库" inert={drawerOpen || workflowFor ? true : undefined}>
         <div className="fx-cmd">
           <div className="fx-heading-group"><h1 className="fx-cmd-title">特效技法库</h1></div>
           {!pick.active && <PickButton onClick={pick.enter} label="特效" />}
+          {/* 入口：粘贴 GitHub 仓库地址，识别其中的技能后导入。 */}
+          <button type="button" className="fx-toolbtn" onClick={() => setImportOpen(true)}>导入来源</button>
         </div>
 
         {/* 去 AI 味：整行图例删除——组件不再解释自己；能力与复杂度直接写进卡片元信息行 */}

@@ -76,10 +76,12 @@
               background-color var(--fm-dur-micro) var(--fm-ease);
 }
 .fm-searchfield:hover { border-color: color-mix(in srgb, var(--fg) 18%, var(--line)) }
+/* 聚焦不再用强调蓝：搜索框是常驻控件，蓝色焦点环会让整条顶栏看起来「被选中」。
+   改成描边加深一档 + 底色提亮，仍看得出焦点在哪，但不抢画面。 */
 .fm-searchfield:focus-within {
-  border-color: var(--acc);
-  outline: 2px solid var(--soft);
-  outline-offset: 1px;
+  border-color: color-mix(in srgb, var(--fg) 26%, var(--line));
+  background: var(--surf);
+  outline: none;
 }
 
 .fm-searchfield-icon {

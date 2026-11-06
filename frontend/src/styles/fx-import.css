@@ -1,0 +1,222 @@
+/* ═══════════════════════════════════════════════════════════════
+   从 GitHub 导入技能 —— 弹窗
+   ─────────────────────────────────────────────────────────────
+   只有一条主路径：粘贴仓库地址 → 识别 → 勾选 → 导入。
+   所以版式也按这个顺序排，不做左右分栏、不放并列的多种入口。
+   token 统一走 --surf / --hole / --line / --fg / --dim / --ph / --acc。
+   ═══════════════════════════════════════════════════════════════ */
+
+.fxi-dlg {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  width: min(760px, calc(100vw - 64px));
+  max-width: none;
+  max-height: min(640px, calc(100dvh - 80px));
+  padding: 0;
+  overflow: hidden;
+  background: var(--surf);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: 0 24px 70px rgb(0 0 0 / .26);
+}
+
+.fxi-head {
+  flex: none;
+  padding: 18px 52px 14px 22px;
+  border-bottom: 1px solid var(--line);
+}
+.fxi-title { margin: 0; font-size: 15px; font-weight: 600; line-height: 1.5; color: var(--fg); }
+.fxi-sub { margin: 5px 0 0; font-size: 11.5px; line-height: 1.7; color: var(--dim); }
+
+.fxi-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px 22px 18px;
+  scrollbar-width: thin;
+}
+
+/* ── 地址输入 ─────────────────────────────────────────────── */
+.fxi-field { display: flex; flex-direction: column; gap: 7px; }
+.fxi-label { font-size: 11px; font-weight: 600; letter-spacing: .02em; color: var(--dim); }
+.fxi-row { display: flex; align-items: center; gap: 8px; }
+.fxi-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 36px;
+  padding: 0 11px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--hole);
+  color: var(--fg);
+  font: inherit;
+  font-size: 12.5px;
+  outline: none;
+  transition: border-color .15s, background-color .15s;
+}
+.fxi-input::placeholder { color: var(--ph); }
+.fxi-input:focus { border-color: color-mix(in srgb, var(--fg) 26%, var(--line)); background: var(--surf); }
+.fxi-input[aria-invalid='true'] { border-color: color-mix(in srgb, var(--bad, #d64545) 45%, var(--line)); }
+.fxi-hint { margin: 0; font-size: 11px; line-height: 1.7; color: var(--ph); }
+
+.fxi-go {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--acc);
+  color: #fff;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: opacity .15s;
+}
+.fxi-go:hover { opacity: .88; }
+.fxi-go:disabled { opacity: .45; cursor: not-allowed; }
+
+/* ── 结果区 ───────────────────────────────────────────────── */
+.fxi-result { margin-top: 18px; border-top: 1px solid var(--line); padding-top: 14px; }
+.fxi-summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  font-size: 11.5px;
+  color: var(--dim);
+}
+.fxi-summary b { color: var(--fg); font-weight: 600; }
+.fxi-chips { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+.fxi-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 20px;
+  padding: 0 7px;
+  border-radius: 5px;
+  background: var(--hole);
+  color: var(--dim);
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+}
+.fxi-chip b { color: var(--fg); font-weight: 600; }
+.fxi-selectall {
+  border: 0;
+  background: none;
+  padding: 0;
+  color: var(--acc);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+.fxi-selectall:hover { text-decoration: underline; }
+
+.fxi-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.fxi-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color .12s;
+}
+.fxi-item + .fxi-item { border-top: 1px solid color-mix(in srgb, var(--fg) 7%, transparent); border-radius: 0; }
+.fxi-item:hover { background: var(--hole); }
+.fxi-item[data-skip] { opacity: .55; cursor: default; }
+.fxi-item[data-skip]:hover { background: none; }
+
+.fxi-item-main { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1 1 auto; }
+.fxi-item-top { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.fxi-item-name { font-size: 12.5px; font-weight: 550; color: var(--fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fxi-tag {
+  flex: none;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  line-height: 18px;
+  color: var(--dim);
+  background: var(--hole);
+}
+.fxi-tag[data-kind='add'] { color: var(--acc); background: color-mix(in srgb, var(--acc) 10%, transparent); }
+.fxi-tag[data-kind='update'] { color: var(--warn-tx, #9a6b00); background: color-mix(in srgb, var(--warn, #d9a300) 14%, transparent); }
+.fxi-item-desc { font-size: 11.5px; line-height: 1.6; color: var(--dim); }
+.fxi-item-src { font-size: 10.5px; line-height: 1.6; color: var(--ph); overflow-wrap: anywhere; }
+
+/* ── 空态 / 加载 / 错误 ───────────────────────────────────── */
+.fxi-note {
+  margin-top: 16px;
+  padding: 22px 18px;
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+  text-align: center;
+  font-size: 11.5px;
+  line-height: 1.8;
+  color: var(--ph);
+}
+.fxi-note b { display: block; margin-bottom: 4px; font-size: 12px; font-weight: 550; color: var(--dim); }
+.fxi-error {
+  margin-top: 14px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bad, #d64545) 9%, transparent);
+  color: var(--bad-tx, #a12f2f);
+  font-size: 11.5px;
+  line-height: 1.7;
+}
+.fxi-loading { display: flex; align-items: center; gap: 8px; margin-top: 16px; font-size: 11.5px; color: var(--dim); }
+.fxi-spin {
+  width: 13px;
+  height: 13px;
+  border: 1.5px solid var(--line);
+  border-top-color: var(--acc);
+  border-radius: 50%;
+  animation: fxiSpin .8s linear infinite;
+}
+@keyframes fxiSpin { to { transform: rotate(360deg); } }
+
+/* ── 底部 ─────────────────────────────────────────────────── */
+.fxi-foot {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 22px;
+  border-top: 1px solid var(--line);
+  background: var(--surf);
+}
+.fxi-foot-n { font-size: 11px; color: var(--dim); font-variant-numeric: tabular-nums; }
+.fxi-foot .fxi-spacer { flex: 1 1 auto; }
+.fxi-btn {
+  height: 32px;
+  padding: 0 13px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surf);
+  color: var(--fg);
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.fxi-btn:hover { border-color: color-mix(in srgb, var(--fg) 22%, var(--line)); }
+.fxi-btn[data-primary] { border-color: transparent; background: var(--acc); color: #fff; font-weight: 600; }
+.fxi-btn[data-primary]:disabled { opacity: .45; cursor: not-allowed; }
+.fxi-btn:disabled { opacity: .5; cursor: not-allowed; }
+
+@media (max-width: 720px) {
+  .fxi-dlg { width: calc(100vw - 24px); max-height: calc(100dvh - 32px); }
+  .fxi-head { padding: 16px 46px 12px 16px; }
+  .fxi-body { padding: 14px 16px 16px; }
+  .fxi-foot { padding: 10px 16px; }
+  .fxi-row { flex-wrap: wrap; }
+  .fxi-go { width: 100%; }
+}
