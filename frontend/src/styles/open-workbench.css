@@ -77,42 +77,53 @@
 #pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-canvas > .fw-scroll,
 #pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-canvas > div { min-height: 0; }
 #pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-monitor { flex: 1 1 auto; min-height: 0; }
-/* 画面框是这一页唯一的「纸片」：单独成色 + 大圆角 + 柔和投影，四边留白浮在背景上。
-   其余区域（顶栏、对话、秒数行、缩略条、底部信息）一律退回背景色，
-   只靠字号与间距分层 —— 这样视线自然落在画面上，而不是被一圈圈面板框住。
+/* 整个画面列（监看顶栏 + 画面 + 秒数行 + 缩略条 + 交付信息）是这一页唯一的「纸片」：
+   白色纸面 + 大圆角 + 柔和投影，四边留白浮在背景上。
+   纸片的边界要落在这一列的容器上，而不是只落在视频那一块 ——
+   否则只有画面变白，顶栏和底部信息还是背景色，读起来像三段拼起来的区域。
    形状对齐参考里那张输入卡片：白色纸面、20px 圆角、四周都有空气。 */
-#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-mon-visual {
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-canvas {
   background: var(--surf);
   border-radius: 20px;
   overflow: hidden;
   box-shadow: 0 12px 40px rgb(20 22 40 / .12), 0 2px 8px rgb(20 22 40 / .06);
-  margin: 0 16px 12px;
+  margin: 12px 16px;
 }
-/* 视频本体仍靠自己的黑色背景，但让它随卡片圆角一起裁切，
-   否则四角会出现直角黑边，把「纸片」的形状破坏掉。 */
+/* 卡片内部各条横带不再各自铺色（原本是 --panel / --panel2 / --hole 三种底色），
+   白色纸面成为唯一一层底，条与条之间靠留白和字号分层。 */
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-toolbar,
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-mon-rail,
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-mon-thumbs,
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-mon-btn,
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .wb-preview-tools,
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-mon-delivery {
+  background: transparent;
+  border-top: 0;
+  border-bottom: 0;
+}
+/* 画面框本身不再是卡片：它退成白纸面里的一个区域，靠留白界定，不再叠第二层底与投影。 */
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-mon-visual {
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
+  margin: 0;
+  padding: 16px;
+  overflow: visible;
+}
+/* 视频保留自己的黑底，圆角比外卡小一档 —— 外 20px、内嵌画面 14px，
+   两个圆角同尺寸时看起来像两张等大的卡片贴在一起。 */
 #pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-mon-visual .fw-stage,
 #pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-mon-visual video,
-#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-mon-visual img { border-radius: 20px; }
-/* 舞台自己有 --stage-bg 灰底，会盖住卡片的白纸面 —— 退回透明，
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-mon-visual img { border-radius: 14px; }
+/* 舞台自己有 --stage-bg 灰底，会盖住白纸面 —— 退回透明，
    让白色卡片成为承托画面的一层。 */
 #pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-mon-visual > .fw-stage {
   background-color: transparent;
   padding: 14px;
 }
-#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-toolbar,
-#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-mon-rail,
-#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-mon-thumbs,
-#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-mon-btn { background: transparent; }
-/* 画面区上下两条横条（工具栏 / 缩略与交付信息）也退回背景色：
-   它们原本各自铺一层 --panel，把整列切成三段不同的色带。 */
-#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-toolbar { background: var(--bg); border-bottom: 0; }
-#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-mon-rail { background: var(--bg); }
-#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-mon-rail { border-top: 0; }
-/* 秒数 / 引用此帧那一行原本铺 --panel2 并带一条上边线，
-   在画面框下面又切出一道色带 —— 同样退回背景，只留文字与按钮。 */
-#pane-flow .wb-a2.wb-studio .open-workbench-layout .wb-preview-tools { background: var(--bg); border-top: 0; }
-#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-canvas { background: var(--bg); }
-#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-mon-rail { max-height: 96px; }
+/* 缩略条原本被压到 96px 高（想给画面多留空间），但缩略卡本身就有 110px，
+   结果卡片下半截压到了交付信息行上。让它按内容自然高，重叠消失。 */
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-mon-rail { max-height: none; }
 @media (max-width: 900px) {
   #pane-flow .wb-a2.wb-studio .open-workbench-layout,
   #pane-flow .wb-a2.wb-studio .open-workbench-layout[data-panel='open'],
