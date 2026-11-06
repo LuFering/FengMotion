@@ -33,12 +33,15 @@
   animation: none; transition: none;
 }
 /* 两列同属一个工作区，共用整页背景；只有画面框单独成色、浮在上面。 */
+/* 这里必须是透明，不能写实色 --bg：整页背景是挂在 .wb-a2 上的一张
+   radial-gradient（顶部中心偏亮，向下渐暗）。布局层铺实色会把下半截的渐变
+   盖平，于是顶栏显渐变、下面显纯色，看起来像中间横着一条色带。 */
 #pane-flow .wb-a2.wb-studio .open-workbench-layout {
-  background: var(--bg);
+  background: transparent;
   /* 整块工作区是一条连续背景，两列不该再有各自的内边距与间隙 */
   gap: 0; padding: 0;
 }
-#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-canvas { background: var(--bg); border-left: 0; }
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-canvas { border-left: 0; }
 /* 对话列不投影：它是背景上的一块，不是浮起的卡片。
    原样式给 .fw-canvas 挂了 --shadow-hero、给 .fw-panel 挂了 --shadow-mid，
    这两层阴影会从左列边缘渗出来，在导航栏和对话区之间形成一道假的分界线。 */
