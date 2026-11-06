@@ -1,0 +1,27 @@
+/* ═══════════════════════════════════════════════════════════════
+   AI 思考状态行
+
+   ThinkingOrb 20px 与文字基线对齐；行高 20px 与消息行一致，
+   状态出现/消失时不会把下面的内容推开一格。
+   ═══════════════════════════════════════════════════════════════ */
+
+.ti {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 20px;
+  font-size: 12.5px;
+  line-height: 20px;
+  color: var(--dim);
+}
+
+.ti-label {
+  white-space: nowrap;
+}
+
+.ti-elapsed {
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 11px;
+  color: var(--ph);
+  font-variant-numeric: tabular-nums;
+}

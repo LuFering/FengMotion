@@ -1,0 +1,87 @@
+/* ═══════════════════════════════════════════════════════════════
+   对话骨架屏
+
+   行高与真实内容对齐（消息行 20px 文字 + 12px 间距；
+   会话行 32px），加载完成时布局不跳。
+   ═══════════════════════════════════════════════════════════════ */
+
+.cs {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.cs-item {
+  display: flex;
+  gap: 8px;
+}
+.cs-item[data-role='user'] {
+  justify-content: flex-end;
+}
+
+.cs-avatar {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  border-radius: 999px;
+  background: var(--hole);
+}
+
+.cs-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.cs-line {
+  height: 12px;
+  border-radius: 5px;
+  background: linear-gradient(
+    90deg,
+    var(--hole) 25%,
+    color-mix(in srgb, var(--hole) 60%, var(--fg) 6%) 37%,
+    var(--hole) 63%
+  );
+  background-size: 300% 100%;
+  animation: cs-shimmer 1.6s ease-in-out infinite;
+}
+
+/* ── 会话列表骨架 ────────────────────────────────────────────── */
+
+.cs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 4px 8px;
+}
+
+.cs-list-row {
+  height: 14px;
+  border-radius: 5px;
+  background: linear-gradient(
+    90deg,
+    var(--hole) 25%,
+    color-mix(in srgb, var(--hole) 60%, var(--fg) 6%) 37%,
+    var(--hole) 63%
+  );
+  background-size: 300% 100%;
+  animation: cs-shimmer 1.6s ease-in-out infinite;
+}
+
+@keyframes cs-shimmer {
+  from {
+    background-position: 150% center;
+  }
+  to {
+    background-position: -50% center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cs-line,
+  .cs-list-row {
+    animation: none;
+    background: var(--hole);
+  }
+}

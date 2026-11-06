@@ -1,0 +1,171 @@
+/* ═══════════════════════════════════════════════════════════════
+   对话消息样式
+
+   几何取自 BoardUI 免费聊天模板（agent-chat-message.tsx）：
+     · 用户气泡  max-w 75% / rounded-2xl(16px) / px-3(12) py-[11px]
+     · AI 回复   无气泡 / 行间距 12px / 左右内边距 4px
+     · 操作条    按钮 28×28 / 图标 14px / 悬停才显形
+     · 时间戳    12px / 三级文字色 / 左边距 4px
+
+   颜色全部走本项目 token（--fg / --dim / --ph / --hole / --line / --soft），
+   不引 BoardUI 的 --color-text-* 一套。
+   ═══════════════════════════════════════════════════════════════ */
+
+.cm {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── 用户消息 ──────────────────────────────────────────────────
+   右对齐、宽度上限 75%。上限不是装饰：太宽的气泡会让「谁说的」
+   在长消息里失去辨识，视线要跑到最右边才能确认。 */
+
+.cm-user-wrap {
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.cm-user {
+  max-width: 75%;
+  padding: 11px 12px;
+  border-radius: 16px;
+  background: var(--soft);
+  color: var(--fg);
+  font-size: 13.5px;
+  line-height: 1.65;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.cm-user-attachments {
+  display: block;
+  margin-top: 6px;
+}
+.cm-user-attachment {
+  display: block;
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--dim);
+}
+
+.cm-user-actions {
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 150ms ease;
+}
+.cm-user-wrap:hover .cm-user-actions,
+.cm-user-wrap:focus-within .cm-user-actions {
+  opacity: 1;
+}
+
+/* ── AI 回复 ────────────────────────────────────────────────────
+   不用气泡：AI 的回复通常长、带结构（列表/代码），
+   套气泡等于给一大段结构化内容再包一层圆角，视觉噪音大于收益。 */
+
+.cm-ai {
+  flex-direction: row;
+  gap: 8px;
+  padding: 0 4px;
+}
+
+.cm-avatar {
+  flex: none;
+  padding-top: 2px;
+}
+
+.cm-ai-body {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* 逐行生长用 */
+.cm-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.cm-line {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.72;
+  color: var(--fg);
+  overflow-wrap: anywhere;
+}
+
+/* ── 状态说明 ──────────────────────────────────────────────────
+   演示 / 失败必须写明。含糊成普通文字，用户会以为那是真 Agent 说的。 */
+
+.cm-note {
+  margin: 0;
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--ph);
+}
+
+.cm-failed {
+  margin: 2px 0 0;
+  font-size: 12px;
+  line-height: 17px;
+  color: var(--bad);
+}
+
+/* ── 操作条 ────────────────────────────────────────────────────
+   常驻挂载、悬停或聚焦时显现（上游的做法）。
+   只在 hover 时渲染的话，键盘用户永远够不到，而且指针扫过会推动布局。 */
+
+.cm-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 150ms ease;
+}
+.cm-ai:hover .cm-actions,
+.cm-ai:focus-within .cm-actions {
+  opacity: 1;
+}
+.cm-actions.is-hidden {
+  pointer-events: none;
+  opacity: 0;
+}
+
+.cm-action {
+  display: flex;
+  width: 28px;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--ph);
+  cursor: pointer;
+  transition: background-color 150ms ease, color 150ms ease;
+}
+.cm-action:hover {
+  background: var(--hole);
+  color: var(--dim);
+}
+.cm-action:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--acc);
+}
+
+.cm-time {
+  margin-inline-start: 4px;
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--ph);
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cm-actions,
+  .cm-user-actions {
+    transition: none;
+  }
+}

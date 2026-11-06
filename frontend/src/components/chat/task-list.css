@@ -1,0 +1,275 @@
+/* ═══════════════════════════════════════════════════════════════
+   任务列表（TaskList）样式
+
+   来源：BoardUI「任务列表」，Pro 组件。数值取自它站点上编译后的 CSS/JS
+   chunk，不是目测：
+     · 行文字 text-body-regular = 13px / 20px
+     · 标题 text-body-medium   = 14px / 20px
+     · 碎片 text-caption-2-medium = 11px / 15px
+     · 连接线列宽 12px，行左内边距 16px（ps-4）
+     · 钩子 12×15，路径 M0.5 0 V8 Q0.5 14 6.5 14 H11.5
+     · 任务块间距 5px（gap-[5px]）
+     · 步骤列表 margin-top 2px / margin-left 8px
+
+   ⚠️ 颜色走本项目 token（--fg / --dim / --ph / --line / --hole），
+   不引入 BoardUI 的 --color-text-* 一套：本项目有三套主题，
+   引进来等于多一套需要同步的色板。
+   ═══════════════════════════════════════════════════════════════ */
+
+.tl-root {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  width: 100%;
+}
+
+/* ── 任务标题行 ─────────────────────────────────────────────── */
+
+.tl-task-head {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 0;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: inherit;
+  text-align: start;
+  cursor: pointer;
+  outline: none;
+}
+.tl-task-head:focus-visible {
+  box-shadow: 0 0 0 2px var(--acc);
+}
+
+.tl-task-icon {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  color: var(--dim);
+}
+
+.tl-task-title {
+  min-width: 0;
+  flex: 1;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
+  color: var(--dim);
+}
+
+/* 换字容器必须是 relative + inline-flex：
+   popLayout 会把旧字临时变成绝对定位，容器没有定位上下文时它会甩出布局，
+   表现为「文字拖影」。 */
+.tl-swap {
+  position: relative;
+  display: inline-flex;
+  min-width: 0;
+  overflow: hidden;
+}
+.tl-swap-item {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tl-task-caret {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  color: var(--ph);
+  transition: transform 300ms ease, color 150ms ease;
+}
+.tl-task-head:hover .tl-task-caret {
+  color: var(--dim);
+}
+.tl-task-caret.is-open {
+  transform: rotate(180deg);
+}
+
+/* ── 步骤列表 ───────────────────────────────────────────────── */
+
+.tl-task-body {
+  overflow: hidden;
+}
+
+.tl-steps {
+  display: flex;
+  flex-direction: column;
+  margin: 2px 0 0 8px;
+  padding: 0;
+  list-style: none;
+}
+
+.tl-row {
+  position: relative;
+  overflow: hidden;
+  padding-inline-start: 16px;
+}
+
+/* ── 连接线 ────────────────────────────────────────────────────
+   竖线用 inset 撑满行高（top:8 / bottom:0），这样行变高时线跟着长，
+   不会出现「线画完了、内容还在长」的断口。 */
+
+.tl-connector {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  width: 12px;
+  color: var(--line);
+  pointer-events: none;
+}
+
+.tl-connector-hook {
+  position: absolute;
+  top: 0;
+  inset-inline-start: 0;
+}
+
+.tl-connector-line {
+  position: absolute;
+  top: 8px;
+  bottom: 0;
+  inset-inline-start: 0;
+  width: 1px;
+  background: currentColor;
+  transform-origin: top;
+}
+
+/* 跨级竖线（资源列表用） */
+.tl-guide {
+  position: absolute;
+  width: 1px;
+  background: currentColor;
+  color: var(--line);
+  transform-origin: top;
+  pointer-events: none;
+}
+
+/* ── 步骤文字 ───────────────────────────────────────────────── */
+
+.tl-step {
+  display: block;
+  padding: 4px 0;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--dim);
+  overflow-wrap: anywhere;
+}
+
+/* ── 资源碎片 ──────────────────────────────────────────────────
+   跟在标签后面的小标签（文件名等）。长名字截断而不是换行 ——
+   换行会把一行日志撑成两行，日志的节奏就断了。 */
+
+.tl-chip {
+  display: inline-flex;
+  max-width: 100%;
+  align-items: center;
+  gap: 4px;
+  margin-inline: 3px 2px;
+  padding: 2px 6px 2px 6px;
+  border: 1px solid color-mix(in srgb, var(--line) 50%, transparent);
+  border-radius: 6px;
+  background: var(--hole);
+  vertical-align: middle;
+  transform: translateY(-1px);
+  transition: border-color 150ms ease, background-color 150ms ease;
+}
+.tl-chip--icon {
+  padding-inline-start: 4px;
+}
+.tl-chip:hover {
+  border-color: var(--line);
+}
+
+.tl-chip-icon {
+  display: flex;
+  width: 14px;
+  height: 14px;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+}
+
+.tl-chip-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  line-height: 15px;
+  font-weight: 500;
+  color: var(--fg);
+}
+
+/* ── 生长单元 ──────────────────────────────────────────────────
+   overflow: hidden 是必需的：高度动画期间内容必须被裁掉，
+   否则它会先整块显示再被压扁。 */
+
+.tl-unit {
+  overflow: hidden;
+}
+
+/* ── 底部「正在处理」行 ──────────────────────────────────────── */
+
+.tl-working {
+  overflow: hidden;
+}
+.tl-working-inner {
+  padding: 4px 0;
+}
+
+/* ── 微光文字 ──────────────────────────────────────────────────
+   ⚠️ 与 agent-thinking.css 同一处教训：这台机器的 Electron 里
+   `background-clip: text` 对渐变不生效，而配着写的 `color: transparent`
+   已经把文字藏了，结果是整行看不见。
+   所以这里同样是「文字保持实色 + 高光叠一层扫过」。 */
+
+.tl-shimmer {
+  position: relative;
+  display: inline;
+  color: var(--fg);
+}
+.tl-shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    100deg,
+    transparent 16%,
+    transparent 38%,
+    color-mix(in srgb, #fff 70%, transparent) 50%,
+    transparent 62%,
+    transparent 84%
+  );
+  background-size: 300% 100%;
+  background-position: 200% center;
+  mix-blend-mode: overlay;
+  pointer-events: none;
+  animation: tl-shimmer 3.4s linear infinite;
+  will-change: background-position;
+}
+
+@keyframes tl-shimmer {
+  from {
+    background-position: 200% center;
+  }
+  to {
+    background-position: -100% center;
+  }
+}
+
+/* ── 减少动态 ──────────────────────────────────────────────────
+   Motion 侧已经用 useReducedMotion 关掉位移动画，这里再兜一层 CSS 动画。 */
+
+@media (prefers-reduced-motion: reduce) {
+  .tl-shimmer::after {
+    animation: none;
+    background: none;
+  }
+  .tl-task-caret {
+    transition: none;
+  }
+}

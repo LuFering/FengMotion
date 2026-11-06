@@ -1,0 +1,214 @@
+/* ═══════════════════════════════════════════════════════════════
+   对话输入框样式
+
+   几何取自 BoardUI 免费聊天模板 agent-composer.tsx：
+     · 胶囊高 52px、padding 8px、圆钮 36px(size-9)、间距 10px
+     · 附件钮底色比胶囊亮一档
+     · 状态行高 26px
+
+   环绕光带（busy 时）：上游 ComposerLoader 是 SVG 描边虚线绕胶囊转。
+   这里用等价做法 —— conic-gradient 沿圆角描边 + 缓慢旋转 + 外发光。
+   不用 SVG 的原因：本项目的胶囊高度是自适应的（textarea 会长高），
+   SVG 需要 ResizeObserver 同步 viewBox，而渐变描边天然跟着盒子走。
+   ═══════════════════════════════════════════════════════════════ */
+
+.cc {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* ── 胶囊 ──────────────────────────────────────────────────────
+   position: relative 是给光带用的；光带是伪元素层，不能撑高盒子。 */
+
+.cc-pill {
+  position: relative;
+  display: flex;
+  width: 100%;
+  align-items: flex-end;
+  gap: 10px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--surf);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+.cc-pill:focus-within {
+  border-color: color-mix(in srgb, var(--acc) 55%, var(--line));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--acc) 14%, transparent);
+}
+
+/* 生成中的环绕光带。
+   ⚠️ 不能用「整块 conic 渐变 + rotate」：那个盒子的对角线长度远大于盒子本身，
+   旋转时视觉上确实转起来了，但实际尺寸会撑成菱形并溢出容器
+   （真机验收时看到光带跑到输入框外、跨到左栏底部）。
+   正确做法是把渐变画在**伪元素的一个内缩层**上，用 overflow:hidden 的父层裁掉，
+   旋转只发生在被裁的层里，盒子尺寸不变。 */
+.cc-glow {
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 0.85;
+}
+
+/* 光带本体：比容器大一圈的正方形，绕中心旋转，被父层裁成胶囊形状 */
+.cc-glow::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  /* 取对角线长度的 1.5 倍，保证旋转到任何角度都能盖满 */
+  width: 160%;
+  aspect-ratio: 1;
+  transform-origin: center;
+  background: conic-gradient(
+    from 0deg,
+    #5eead4,
+    #46baec,
+    #e633a4,
+    #00faa7,
+    #5eead4
+  );
+  /* 只保留贴边那一圈：中间挖空，看起来是描边而不是填满 */
+  -webkit-mask:
+    radial-gradient(closest-side, transparent calc(100% - 2px), #000 calc(100% - 1px));
+  mask: radial-gradient(closest-side, transparent calc(100% - 2px), #000 calc(100% - 1px));
+  animation: cc-spin 4.5s linear infinite;
+}
+
+@keyframes cc-spin {
+  from {
+    transform: translate(-50%, -50%) rotate(0turn);
+  }
+  to {
+    transform: translate(-50%, -50%) rotate(1turn);
+  }
+}
+
+/* ── 附件钮 ──────────────────────────────────────────────────────
+   36px 圆钮；底色比胶囊亮一档，让它是「可按的」而不是装饰。 */
+
+.cc-attach {
+  display: flex;
+  width: 36px;
+  height: 36px;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 999px;
+  background: var(--hole);
+  color: var(--dim);
+  cursor: pointer;
+  transition: background-color 150ms ease, color 150ms ease;
+}
+.cc-attach:hover {
+  background: color-mix(in srgb, var(--hole) 70%, var(--fg) 8%);
+  color: var(--fg);
+}
+.cc-attach:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--acc);
+}
+
+/* ── 输入区 ──────────────────────────────────────────────────────
+   透明底、无边框：胶囊本身就是输入框的外壳。
+   纵向 padding 与圆钮对齐，让首行文字和按钮同高。 */
+
+.cc-input {
+  min-width: 0;
+  flex: 1;
+  padding: 8px 0;
+  border: 0;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  font-size: 13.5px;
+  line-height: 1.6;
+  resize: none;
+  outline: none;
+  overflow-y: auto;
+}
+.cc-input::placeholder {
+  color: var(--ph);
+}
+.cc-input:disabled {
+  color: var(--ph);
+  cursor: not-allowed;
+}
+
+/* ── 发送 / 停止 ──────────────────────────────────────────────── */
+
+.cc-send-wrap {
+  display: flex;
+  flex: none;
+  align-items: center;
+}
+
+.cc-send,
+.cc-stop {
+  display: flex;
+  width: 36px;
+  height: 36px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background-color 150ms ease, opacity 150ms ease;
+}
+.cc-send {
+  background: var(--acc);
+  color: #fff;
+}
+.cc-send:hover:not(:disabled) {
+  background: var(--acc-d);
+}
+.cc-send:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+.cc-stop {
+  background: var(--hole);
+  color: var(--dim);
+}
+.cc-stop:hover {
+  background: color-mix(in srgb, var(--hole) 70%, var(--fg) 8%);
+  color: var(--fg);
+}
+.cc-send:focus-visible,
+.cc-stop:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--acc);
+}
+
+/* ── 状态行 ────────────────────────────────────────────────────
+   26px 固定高，两侧对齐。内容是本项目真实状态（连了哪个引擎、
+   第几条消息），不是装饰性文案。 */
+
+.cc-status {
+  display: flex;
+  height: 26px;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--ph);
+}
+.cc-status-left,
+.cc-status-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cc-glow {
+    animation: none;
+  }
+}

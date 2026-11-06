@@ -1,0 +1,211 @@
+/* ═══════════════════════════════════════════════════════════════
+   Markdown 正文样式
+
+   ⚠️ 主题切换是 html[data-theme]（dark / light / tactile），不是
+   prefers-color-scheme。所以代码高亮的配色也必须按 data-theme 选，
+   否则在深色界面里会渲染出一块浅色代码 —— 那是最刺眼的错。
+
+   做法：shiki 同时输出 light/dark 两套变量（--shiki-light / --shiki-dark），
+   这里按主题决定用哪一套。这样不用重建 DOM，切主题是纯 CSS 的事。
+   ═══════════════════════════════════════════════════════════════ */
+
+.md {
+  font-size: 13.5px;
+  line-height: 1.72;
+  color: var(--fg);
+  overflow-wrap: anywhere;
+}
+
+/* ── 段落与间距 ───────────────────────────────────────────────
+   首尾不留边距：消息之间的间距由外层列表控制，
+   这里再留一份就会出现「同一段间距大小不一」。 */
+
+.md > :first-child {
+  margin-top: 0;
+}
+.md > :last-child {
+  margin-bottom: 0;
+}
+
+.md p {
+  margin: 0 0 10px;
+}
+
+.md h1,
+.md h2,
+.md h3,
+.md h4 {
+  margin: 16px 0 8px;
+  color: var(--fg);
+  font-weight: 600;
+  line-height: 1.4;
+}
+.md h1 { font-size: 17px; }
+.md h2 { font-size: 16px; }
+.md h3 { font-size: 14.5px; }
+.md h4 { font-size: 13.5px; }
+
+/* ── 列表 ──────────────────────────────────────────────────────
+   列表项里的段落不再留底边距，否则每一项之间会被撑开一格。 */
+
+.md ul,
+.md ol {
+  margin: 0 0 10px;
+  padding-inline-start: 22px;
+}
+.md li {
+  margin: 2px 0;
+}
+.md li > p {
+  margin: 0;
+}
+.md li::marker {
+  color: var(--dim);
+}
+
+/* ── 行内元素 ────────────────────────────────────────────────── */
+
+.md strong {
+  font-weight: 600;
+  color: var(--fg);
+}
+
+.md a {
+  color: var(--acc);
+  text-decoration: none;
+  border-bottom: 1px solid color-mix(in srgb, var(--acc) 35%, transparent);
+}
+.md a:hover {
+  border-bottom-color: var(--acc);
+}
+
+.md-inline-code {
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: var(--hole);
+  border: 1px solid color-mix(in srgb, var(--line) 60%, transparent);
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 12px;
+  color: var(--fg);
+  white-space: break-spaces;
+}
+
+.md del {
+  color: var(--dim);
+}
+
+/* ── 表格 ──────────────────────────────────────────────────────
+   横向滚动而不是压缩：列多时压缩会把每个格子挤成两行，
+   表格就失去了「一眼对照」的作用。 */
+
+.md-table-wrap {
+  overflow-x: auto;
+  margin: 0 0 10px;
+}
+
+.md table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+}
+.md th,
+.md td {
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  text-align: start;
+  vertical-align: top;
+}
+.md th {
+  background: var(--hole);
+  font-weight: 600;
+  color: var(--fg);
+}
+.md td {
+  color: var(--dim);
+}
+
+/* ── 分隔线与引用 ─────────────────────────────────────────────── */
+
+.md hr {
+  margin: 14px 0;
+  border: 0;
+  border-top: 1px solid var(--line);
+}
+
+.md blockquote {
+  margin: 0 0 10px;
+  padding: 2px 0 2px 12px;
+  border-inline-start: 2px solid var(--line);
+  color: var(--dim);
+}
+
+/* ── 代码块 ──────────────────────────────────────────────────── */
+
+.md-code {
+  position: relative;
+  margin: 0 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--hole);
+  overflow: hidden;
+}
+
+.md-code-lang {
+  position: absolute;
+  top: 6px;
+  inset-inline-end: 10px;
+  font-size: 10.5px;
+  letter-spacing: 0.02em;
+  color: var(--ph);
+  text-transform: lowercase;
+  user-select: none;
+  pointer-events: none;
+}
+
+.md-code-body {
+  margin: 0;
+  padding: 10px 12px;
+  overflow-x: auto;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.md-code-fallback code {
+  color: var(--fg);
+  white-space: pre;
+}
+
+/* shiki 输出的 <pre class="shiki"> 已经有自己的背景色，这里统一压成 token 色 */
+.md-code-body .shiki,
+.md-code-body pre {
+  margin: 0;
+  background: transparent !important;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+}
+.md-code-body .shiki code {
+  display: block;
+  width: fit-content;
+  min-width: 100%;
+}
+
+/* ── 双主题着色 ────────────────────────────────────────────────
+   shiki 同时给出两套颜色。默认取深色（本项目工作台/对话默认深色），
+   浅色主题下改取 light。这样切主题不用重新跑高亮。 */
+
+.md-code-body .shiki span {
+  color: var(--shiki-dark, var(--shiki-light));
+}
+
+html[data-theme='light'] .md-code-body .shiki span,
+html[data-theme='tactile'] .md-code-body .shiki span {
+  color: var(--shiki-light, var(--shiki-dark));
+}
+
+/* 代码块背景也跟着主题走：深色用 hole，浅色用更浅一层 */
+html[data-theme='light'] .md-code,
+html[data-theme='tactile'] .md-code {
+  background: color-mix(in srgb, var(--hole) 55%, #fff 45%);
+}
