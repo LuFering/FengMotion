@@ -43,21 +43,15 @@ type SectionId =
   | 'general' | 'appearance' | 'ai' | 'creation'
   | 'plugins' | 'lab' | 'data' | 'about'
 
-/**
- * 分区导航项：图标 + 主标题 + 一行灰字。
- * 两行结构取自 open-design 的 `.settings-nav-item > span > strong + small`：
- * 单行导航只能靠图标区分，八项并排后全是「看不出差别的四个字」；
- * 加一行副标题，眼睛不用读完全称就知道那栏放什么。
- */
-const SECTIONS: Array<{ id: SectionId; label: string; desc: string; icon: string }> = [
-  { id: 'general', label: '通用', desc: '启动、快捷键', icon: 'compass' },
-  { id: 'appearance', label: '外观', desc: '主题、壁纸、动效', icon: 'sun' },
-  { id: 'ai', label: 'AI 与模型', desc: '引擎、模型、连接', icon: 'boxes' },
-  { id: 'creation', label: '创作与预览', desc: '规格偏好、接入状态', icon: 'clapperboard' },
-  { id: 'plugins', label: '插件', desc: '扩展与接入', icon: 'ungroup' },
-  { id: 'lab', label: '实验室', desc: '实验能力与接入状态', icon: 'sparkles' },
-  { id: 'data', label: '数据与存储', desc: '占用、备份、清理', icon: 'cylinder' },
-  { id: 'about', label: '关于与反馈', desc: '版本、邮箱、仓库', icon: 'circle-help' },
+const SECTIONS: Array<{ id: SectionId; label: string; icon: string }> = [
+  { id: 'general', label: '通用', icon: 'compass' },
+  { id: 'appearance', label: '外观', icon: 'sun' },
+  { id: 'ai', label: 'AI 与模型', icon: 'boxes' },
+  { id: 'creation', label: '创作与预览', icon: 'clapperboard' },
+  { id: 'plugins', label: '插件', icon: 'ungroup' },
+  { id: 'lab', label: '实验室', icon: 'sparkles' },
+  { id: 'data', label: '数据与存储', icon: 'cylinder' },
+  { id: 'about', label: '关于与反馈', icon: 'circle-help' },
 ]
 
 /** 主题样片的三条色带 = 各主题的 bg / surf / acc（设计常量，与 brand.css 一致） */
@@ -307,14 +301,14 @@ export function SettingsScreen({
   }
 
   const activeSection = SECTIONS.find((s) => s.id === section)!
-  const filteredSections = SECTIONS.filter((s) => `${s.label} ${s.desc}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()))
+  const filteredSections = SECTIONS.filter((s) => s.label.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()))
   const navIcons = { general: SlidersHorizontal, appearance: Palette, ai: Cpu, creation: Clapperboard, plugins: Plug, lab: Sparkles, data: Database, about: CircleHelp }
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose() }}>
       <DialogContent className="set-dlg set-refined" showCloseButton aria-describedby={undefined}>
         <div className="set-dlg-head">
-          <Settings2 size={17}/><DialogTitle className="set-dlg-title">设置</DialogTitle><span className="set-local-label">FengMotion Desktop · 本机偏好</span>
+          <Settings2 size={17}/><DialogTitle className="set-dlg-title">设置</DialogTitle>
         </div>
 
         <div className="set-dlg-body">
@@ -329,29 +323,25 @@ export function SettingsScreen({
                 <NavIcon size={16} />
                 <span className="set-nav-txt">
                   <b>{s.label}</b>
-                  <small>{s.desc}</small>
                 </span>
               </button>
             })}
             {filteredSections.length === 0 && <p className="set-search-empty">没有匹配的分类</p>}
-            <div className="set-nav-foot">偏好保存在此浏览器</div>
           </nav>
 
-          <div className="set-panel" key={section}>
-            <header className="set-section-heading"><span>偏好设置</span><h2>{activeSection.label}</h2><p>{activeSection.desc}</p></header>
+          {/* 分区标题已移除：用 aria-label 保留给读屏软件的分区名 */}
+          <div className="set-panel" key={section} role="region" aria-label={activeSection.label}>
             {/* ── 通用 ─────────────────────────────────────── */}
             {section === 'general' && (
               <section className="set-sec">
-                <h3 className="set-sec-head">通用</h3>
-                <Row label="启动时打开" hint="下次启动应用先进入哪个界面">
+                <Row label="启动时打开">
                   <Seg ariaLabel="启动时打开" value={settings.startView}
                        options={[{ value: 'home', label: '首页' }, { value: 'conversation', label: '我的创作' }]}
                        onChange={(v) => set('startView', v as Settings['startView'])} />
                 </Row>
 
-                <div className="set-card">
+                <div className="set-group">
                   <h4 className="set-subhead">快捷键</h4>
-                  <p className="set-hint">查看各界面的快捷操作，暂不支持自定义。</p>
                   <div className="set-keys">
                     {SHORTCUTS.map((k) => (
                       <div className="set-key" key={`${k.area}-${k.name}`}>
@@ -368,8 +358,6 @@ export function SettingsScreen({
             {/* ── 外观 ─────────────────────────────────────── */}
             {section === 'appearance' && (
               <section className="set-sec">
-                <h3 className="set-sec-head">外观</h3>
-                <p className="set-hint">选择界面主题，即时预览。</p>
                 <div className="set-theme-grid" role="radiogroup" aria-label="主题">
                   {THEMES.map((t) => (
                     <button key={t.id} type="button" role="radio"
@@ -387,11 +375,8 @@ export function SettingsScreen({
                   ))}
                 </div>
 
-                <div className="set-card">
+                <div className="set-group">
                 <h4 className="set-subhead">壁纸</h4>
-                <p className="set-hint">
-                  设置应用背景。自定义图片随设置保存，视频画面保持原样。
-                </p>
                 <div className="set-walls" role="radiogroup" aria-label="壁纸">
                   {WALLPAPERS.map((w) => {
                     const pv = wallPreview(w.id)
@@ -466,7 +451,7 @@ export function SettingsScreen({
                 </Row>
 
                 </div>
-                <div className="set-card">
+                <div className="set-group">
                 <h4 className="set-subhead">界面</h4>
                 <Row label="减弱动效" hint="压平界面动画与过渡；低性能设备或容易晕动时开启">
                   <Checkbox checked={settings.reduceMotion}
@@ -480,10 +465,6 @@ export function SettingsScreen({
             {/* ── AI 与模型 ─────────────────────────────────── */}
             {section === 'ai' && (
               <section className="set-sec">
-                <h3 className="set-sec-head">AI 与模型</h3>
-                <p className="set-hint">
-                  执行引擎负责跑任务与操作项目，模型服务提供模型与连接。与首页、对话输入区共用同一份数据。
-                </p>
 
                 {/* 已接入引擎三列等宽排列，只渲染实际接入项。 */}
                 <div className="set-hcards">
@@ -584,7 +565,7 @@ export function SettingsScreen({
                   )}
                 </div>
 
-                <div className="set-card">
+                <div className="set-group">
                 <h4 className="set-subhead">连接</h4>
                 <Row label="服务端点" hint="连接地址保存在本机，尚未验证连通性">
                   <Input aria-label="服务端点" className="set-endpoint" value={settings.harnessEndpoint} spellCheck={false}
@@ -593,12 +574,8 @@ export function SettingsScreen({
                 </Row>
                 </div>
 
-                <div className="set-card">
+                <div className="set-group">
                 <h4 className="set-subhead">模型偏好</h4>
-                <p className="set-hint">
-                  作用于 {harness.short} · {settings.model}；对话输入区的选择器可按模型单独调整，
-                  这里的改动下次进入对话时生效。
-                </p>
                 <Row label="思考强度">
                   <Seg ariaLabel="默认思考强度" value={curPrefs.reasoning}
                        options={(Object.keys(REASONING_LABEL) as Reasoning[]).map((r) => ({ value: r, label: REASONING_LABEL[r] }))}
@@ -617,7 +594,7 @@ export function SettingsScreen({
             {section === 'creation' && (
               <section className="set-sec">
                 <div className="set-unavailable"><Clapperboard size={28} strokeWidth={1.4}/><h3>创作默认值正在接入</h3><p>现有项目和编辑器暂未读取这里的偏好。视频规格仍在场景编辑器中设置。</p><span>尚未生效</span></div>
-                <div className="set-card"><h4 className="set-subhead">已保留的偏好</h4><p className="set-hint">原有选择仍保留在本机，接入前不会修改任何项目。</p><Row label="画幅 / 帧率 / 分辨率"><span className="num">{settings.aspectRatio} · {settings.fps} fps · {settings.resolution}</span></Row><Row label="循环播放"><span>{settings.previewLoop ? '开启' : '关闭'}</span></Row><Row label="时间显示"><span>{{timecode: '时间码', seconds: '秒数', frames: '帧数'}[settings.timeDisplay]}</span></Row><Row label="渲染完成提醒"><span>{settings.notifyOnRender ? '开启' : '关闭'}</span></Row></div>
+                <div className="set-group"><h4 className="set-subhead">已保留的偏好</h4><Row label="画幅 / 帧率 / 分辨率"><span className="num">{settings.aspectRatio} · {settings.fps} fps · {settings.resolution}</span></Row><Row label="循环播放"><span>{settings.previewLoop ? '开启' : '关闭'}</span></Row><Row label="时间显示"><span>{{timecode: '时间码', seconds: '秒数', frames: '帧数'}[settings.timeDisplay]}</span></Row><Row label="渲染完成提醒"><span>{settings.notifyOnRender ? '开启' : '关闭'}</span></Row></div>
               </section>
             )}
 
@@ -632,9 +609,8 @@ export function SettingsScreen({
             {/* ── 数据与存储 ────────────────────────────────── */}
             {section === 'data' && (
               <section className="set-sec">
-                <h3 className="set-sec-head">数据与存储</h3>
 
-                <div className="set-card">
+                <div className="set-group">
                 <h4 className="set-subhead">本机占用</h4>
                 <Row label="素材" hint="素材本体存在本机 IndexedDB，刷新与重启都在">
                   <span className="num">{stats ? `${stats.count} 项 · ${formatBytes(stats.bytes)}` : '读取中…'}</span>
@@ -644,7 +620,7 @@ export function SettingsScreen({
                 </Row>
 
                 </div>
-                <div className="set-card">
+                <div className="set-group">
                 <h4 className="set-subhead">备份与恢复</h4>
                 <Row label="导出设置" hint="下载 JSON：主题、壁纸（含自定义图）、偏好与对话默认（不含素材文件）">
                   <Button variant="outline" size="sm"
@@ -664,7 +640,7 @@ export function SettingsScreen({
                 </Row>
 
                 </div>
-                <div className="set-card">
+                <div className="set-group">
                 <h4 className="set-subhead">清理</h4>
                 <Row label="清除对话偏好" hint="思考强度与上下文上限回到默认（标准 · 64）">
                   <Button variant="outline" size="sm"
@@ -717,7 +693,6 @@ export function SettingsScreen({
             {/* ── 关于与反馈 ────────────────────────────────── */}
             {section === 'about' && (
               <section className="set-sec">
-                <h3 className="set-sec-head">关于与反馈</h3>
                 <Row label="产品"><span>FengMotion Desktop</span></Row>
                 <Row label="版本"><span className="num">v{APP_VERSION}</span></Row>
                 <Row label="数据存放">
@@ -727,12 +702,8 @@ export function SettingsScreen({
                   <span>DeepSeek 对话适配器可配置；视频 Agent 与渲染连接状态以工作台为准。</span>
                 </Row>
 
-                <div className="set-card">
+                <div className="set-group">
                 <h4 className="set-subhead">反馈</h4>
-                <p className="set-hint">
-                  邮件只预填收件地址、主题和版本号，不附带对话、项目或密钥；
-                  要贴截图请自己添加。
-                </p>
                 <div className="set-links">
                   <Button variant="outline" size="sm" onClick={mailto}>
                     写邮件…

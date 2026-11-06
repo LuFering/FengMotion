@@ -23,14 +23,20 @@
 .set-refined .set-nav-item[data-on] .set-nav-txt small { color: var(--dim); }
 .set-refined .set-nav-foot { font-size: 10px; color: var(--ph); padding: 22px 10px 0; margin-top: auto; }
 .set-refined .set-search-empty { color: var(--dim); font-size: 11px; padding: 10px; }
-.set-refined .set-panel { padding: 27px 30px 32px; scrollbar-width: thin; overscroll-behavior: contain; background: var(--surf); }
-.set-refined .set-section-heading { margin-bottom: 25px; }
-.set-refined .set-section-heading > span { display: block; color: var(--ph); font-size: 10px; letter-spacing: .05em; margin-bottom: 7px; }
-.set-refined .set-section-heading h2 { color: var(--fg); font-size: 24px; font-weight: 550; letter-spacing: -.04em; line-height: 1.3; margin: 0; }
-.set-refined .set-section-heading p { color: var(--dim); font-size: 12px; margin: 9px 0 0; }
-.set-refined .set-sec > .set-sec-head { display: none; }
+.set-refined .set-panel { padding: 24px 30px 32px; scrollbar-width: thin; overscroll-behavior: contain; background: var(--surf); }
+/* 分区标题一律不画：左栏高亮已经说明「你在哪一栏」，右侧直接进内容。
+   分区内的每个功能 = 一个 .set-group，功能之间只用一条浅横线分隔，
+   不再用底色卡片把内容圈起来。横线用当前前景色兑出来，深浅主题都压得住。 */
+.set-refined .set-sec { --set-rule: color-mix(in srgb, var(--fg) 11%, transparent); gap: 0; }
+.set-refined .set-group { display: flex; flex-direction: column; gap: 0; margin: 0; padding: 0; border-radius: 0; background: transparent; }
+/* 功能块之间、以及同一块内的相邻行之间，只留一条浅横线。放在 .set-group 之后，
+   否则会被上面那条 border 归零的声明盖掉。 */
+.set-refined .set-sec > * + * { margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--set-rule); }
+/* 块内也一样：标题下面的第一件东西不画线，之后每件东西（一行设置、
+   一个壁纸网格、一张快捷键表）都用同一条横线起头。 */
+.set-refined .set-group > * + * { margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--set-rule); }
+.set-refined .set-group > .set-subhead + * { margin-top: 0; padding-top: 0; border-top: 0; }
 .set-refined .set-sec > .set-hint:first-of-type { margin: -6px 0 17px; font-size: 11px; line-height: 1.8; }
-.set-refined .set-card { border: 1px solid var(--line); background: var(--hole); padding: 18px 20px; border-radius: 10px; margin: 22px 0 0; }
 .set-refined .set-subhead { font-size: 13px; margin-top: 0; margin-bottom: 10px; font-weight: 550; }
 .set-refined .set-hint { font-size: 11px; line-height: 1.8; color: var(--dim); }
 .set-refined .set-row { min-height: 64px; gap: 20px; padding: 13px 0; }
@@ -40,7 +46,6 @@
 .set-refined .set-row-control .ch-tabs { flex-wrap: wrap; height: auto; padding: 3px; gap: 2px; border: 1px solid var(--line); border-radius: 7px; background: var(--hole); }
 .set-refined .ch-tabs [role='radio'] { height: 28px; border-radius: 4px; font-size: 11px; padding: 0 10px; color: var(--dim); }
 .set-refined .ch-tabs [aria-checked='true'] { background: var(--surf); color: var(--fg); box-shadow: 0 1px 3px rgb(0 0 0 / .12); }
-.set-refined .set-card .set-row + .set-row { box-shadow: none; border-top: 1px solid var(--line); }
 .set-refined .set-key { min-height: 44px; gap: 6px; font-size: 12px; }
 .set-refined .set-key em { font-size: 10px; color: var(--ph); }
 .set-refined .set-key kbd { min-width: 25px; padding: 4px 6px; border: 1px solid var(--line); border-radius: 5px; background: var(--surf); box-shadow: 0 2px 0 var(--line); font-size: 10px; }
@@ -103,8 +108,6 @@
   .set-refined .set-nav-item svg,.set-refined .set-nav-txt small,.set-refined .set-nav-foot,.set-refined .set-nav-search { display:none; }
   .set-refined .set-nav-txt b { font-size:11px; }
   .set-refined .set-panel { padding:22px 18px; }
-  .set-refined .set-section-heading { margin-bottom:20px; }
-  .set-refined .set-card { padding:15px; }
 }
 .set-refined .set-wall-prev,.set-refined .set-wall-add { width:100%; aspect-ratio:auto; }
 .set-refined .set-row-control [data-slot='button'] { border-radius:6px; font-size:11px; }
