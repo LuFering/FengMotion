@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Search as SeekSearch } from '@/components/Search'
 import type { CSSProperties, ReactNode } from 'react'
 import {
   AlertCircle, Archive, ArchiveRestore, Check, ChevronDown, ChevronLeft, ChevronRight, Ellipsis, FileText, FolderPlus, ImageIcon,
-  ListFilter, LoaderCircle, MessageSquarePlus, PanelLeft, Pencil, Pin, PinOff, Plus, Search, Send, Shield,
+  ListFilter, LoaderCircle, MessageSquarePlus, PanelLeft, Pencil, Pin, PinOff, Plus, Send, Shield,
   ShieldAlert, ShieldCheck, Trash2, X,
 } from 'lucide-react'
 import { registerComposer, type DeliverableAsset, type AssetPurpose } from '@/shell/usePendingAssets'
@@ -1247,7 +1248,11 @@ export function Conversation(props: {
       {!rail && <aside className="cv3-side" data-drawer={drawer || undefined} aria-label="项目与对话">
         {/* 左栏标题与项目/对话操作同层，视图选项靠近下面的列表。 */}
         <div className="cv3-side-top">
-          <h1 className="cv3-library-title">我的创作</h1>
+          {/* 搜索并进这一排：收起时和旁边的图标按钮同款，点开时占满整条，
+              同排其他按钮随即隐去，收起后再回来（见 conversation.css）。 */}
+          <SeekSearch value={query} onChange={setQuery} width={248} size={28}
+                      placeholder="搜索对话名称" ariaLabel="搜索对话" />
+          <div className="cv3-top-actions">
           <button type="button" className="cv3-icon-btn" aria-label="新建对话" title="新建对话"
                   onClick={() => newSession()}>
             <MessageSquarePlus size={15} />
@@ -1293,6 +1298,7 @@ export function Conversation(props: {
               </div>
             )}
           </div>
+          </div>
         </div>
 
         {/* 读取/创建的项目与对话状态：放在标题下方，标题始终锚在左栏顶部，
@@ -1327,16 +1333,6 @@ export function Conversation(props: {
             <button type="button" onClick={props.onRetrySessions}>重试</button>
           </p>
         )}
-
-        {/* 搜索会话（对齐 dsh search.placeholder / search.noMatches） */}
-        <label className="cv3-search">
-          <Search size={13} aria-hidden="true" />
-          <input value={query} onChange={(e) => setQuery(e.target.value)}
-                 placeholder="搜索对话名称" aria-label="搜索对话" />
-          {query && (
-            <button type="button" aria-label="清除搜索" onClick={() => setQuery('')}><X size={12} /></button>
-          )}
-        </label>
 
         <div className="cv3-side-list">
           {/* 只有「真的一条会话都没有、也没有任何项目」时才整块换成提示。

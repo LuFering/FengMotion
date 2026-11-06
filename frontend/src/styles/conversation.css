@@ -224,6 +224,41 @@ html[data-theme="tactile"] #pane-conversation {
   color: var(--tx1);
 }
 
+/* ── 搜索：Bencho 的 Search 组件，并进顶行那一排图标 ──────
+   收起时它和旁边的图标按钮同款（透明底、悬停提亮、同一个 28px 见方），
+   点开后占满整行，同排按钮隐去；收起后按钮回来。
+   外框宽度跟着对象走（--w 是弹簧在写的那个数），所以这一行不会在
+   展开前后跳动。 */
+.cv3-side-top .cv3-top-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  transition: opacity 120ms ease;
+}
+.cv3-side-top .cv3-top-actions .cv3-viewwrap { margin-left: 0; }
+
+.cv3-side-top .sek {
+  /* 收起态不画底色：这一排的其他按钮都是透明的，搜索也不该例外 */
+  --pane: transparent;
+  --pane-edge: transparent;
+  width: var(--w);
+  height: 28px;
+  flex: none;
+}
+/* 展开后它就是一条输入槽，用项目的输入底色 */
+.cv3-side-top .sek[data-open='true'] { --pane: var(--hole); }
+.cv3-side-top .sek:not([data-open='true']) .sek-skin:hover { background: var(--hover); }
+/* 28px 的槽装不下 16px 的字；按比例回到项目 12px 的控件字号 */
+.cv3-side-top .sek .sek-field { font-size: 12px; }
+
+/* 展开时同排按钮淡出并退出点击（:has 读的是组件自己的状态，
+   组件不必为宿主多开一个回调） */
+.cv3-side-top:has(.sek[data-open='true']) .cv3-top-actions {
+  opacity: 0;
+  pointer-events: none;
+}
+
 /* ── 搜索框（对齐 dsh search.placeholder：搜索会话名称）── */
 .cv3-search {
   display: flex;
