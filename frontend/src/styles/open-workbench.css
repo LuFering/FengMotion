@@ -239,3 +239,78 @@
   transition: background-color 140ms var(--eo), color 140ms var(--eo);
 }
 #pane-flow .wb-a2.wb-studio .wb-console-more:hover { background: var(--hole); color: var(--tx2); }
+
+/* ── 画面区顶栏标题 ────────────────────────────────────────────
+   原来是「监看」(10px 等宽灰字) + 「画面预览」(12px 550) 并排，
+   两者字号与字重太接近，读起来像两个并列标签，看不出主次。
+   现在「监看」退成真正的眉标（更小、更淡、加字距），
+   「画面预览」升为这一屏的主标题（14px/650），一眼能分出层级。 */
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-toolbar .wb-viewer-index {
+  font-family: var(--font-sans);
+  font-size: 9.5px;
+  font-weight: 500;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--tx3);
+  opacity: .75;
+}
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-toolbar .wb-viewer-title {
+  font-size: 14px;
+  font-weight: 650;
+  letter-spacing: -.01em;
+}
+
+/* ── 画面播放控制条（替代原生 controls）──────────────────────
+   原生控件条是 Chrome 画的：一条深色渐变蒙层压在画面底部，
+   按钮间距、圆角、字体都不跟项目主题走。这里换成自己画的一条窄条，
+   只在鼠标移入画面时浮现 —— 不播放的时候不该常驻挡住画面。
+   位置贴画面底边内侧，宽度随画面走，不跨到留白上。 */
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .wb-player {
+  position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%);
+  z-index: 3;
+  display: flex; align-items: center; gap: 8px;
+  /* 宽度跟着画面走：控制条是画面的附属，不该是一颗小药丸浮在中间。
+     左右各留 16px 内缩，避免压到画面边缘。 */
+  width: calc(100% - 32px);
+  padding: 6px 12px;
+  border: 1px solid rgb(255 255 255 / .12);
+  border-radius: 999px;
+  background: rgb(14 16 24 / .78);
+  backdrop-filter: blur(10px);
+  color: #fff;
+  opacity: 0; pointer-events: none;
+  transition: opacity 160ms var(--eo);
+}
+/* 画面或控制条自身被指向时浮现；键盘 focus 也要能看到，否则键盘用户没法操作。 */
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-stage-frame:hover .wb-player,
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .wb-player:hover,
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .wb-player:focus-within {
+  opacity: 1; pointer-events: auto;
+}
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .wb-player-btn {
+  display: grid; place-items: center;
+  width: 26px; height: 26px; flex: 0 0 26px;
+  padding: 0; border: 0; border-radius: 50%;
+  background: transparent; color: inherit; cursor: pointer;
+  transition: background-color 140ms var(--eo);
+}
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .wb-player-btn:hover { background: rgb(255 255 255 / .14); }
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .wb-player-time {
+  font-family: var(--font-mono); font-size: 11px; font-variant-numeric: tabular-nums;
+  color: rgb(255 255 255 / .82); white-space: nowrap;
+}
+/* 进度条：可点可拖。轨道用半透明白，已播部分用主色，
+   这样在任意画面底色上都能看清进度到哪。 */
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .wb-player-bar {
+  flex: 1 1 auto; min-width: 60px; height: 18px;
+  display: flex; align-items: center; cursor: pointer;
+}
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .wb-player-track {
+  display: block; width: 100%; height: 3px;
+  border-radius: 999px; background: rgb(255 255 255 / .22);
+  overflow: hidden;
+}
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .wb-player-fill {
+  display: block; height: 100%;
+  border-radius: 999px; background: var(--acc);
+}

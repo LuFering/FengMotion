@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import { studioHttpApi } from '@/services/api'
 import { ResourcePicker } from '@/components/ResourcePicker'
+import { StagePlayerControls } from '@/components/StagePlayerControls'
 import { registerComposer } from '@/shell/usePendingAssets'
 import { creationIntent, deliveredReferences, libraryReferences } from '@/services/creationResources'
 import { RailProgressPanel } from './RailProgress'
@@ -21,16 +22,16 @@ import { useAgentTasks, type TaskRecord } from '@/hooks/useAgentTasks'
 import type { ProjectSceneState } from '@/services/api/taskClient'
 import type { FilmProjectState } from '@/services/api/workflowContext'
 import type { AgentReference, AgentTask, ModificationConstraints, TaskRequest, PreviewSource, TaskEvent } from '@/services/studioApi'
-import { evaluateGate, gateSummaryOf, GATE_PRIMARY_KIND, workflowService, workflowResourceReferences } from '@/services/workflowService'
+import { evaluateGate, GATE_PRIMARY_KIND, workflowService, workflowResourceReferences } from '@/services/workflowService'
 import { GATE_DEFS } from '@/data/workflowTemplates'
 import { contentOutline, type ContentOutline, type ContentRow } from '@/data/contentOutline'
 import { stageState, type StageVisual } from '@/data/stageVisual'
 import { containedMediaRect, formatMediaTime } from '@/data/previewGeometry'
-import { materialShelves, monitorReferences, type MaterialFile, type MaterialShelf } from '@/data/materialDeck'
+import { materialShelves, type MaterialFile, type MaterialShelf } from '@/data/materialDeck'
 import { MEDIA_LABEL } from '@/data/myAssets'
 import { initLibrary } from '@/services/assetApiService'
 import {
-  MonitorDelivery, MonitorMediaPreview, MonitorProblemsCollapsed, MonitorThumbRail,
+  MonitorMediaPreview, MonitorProblemsCollapsed,
   type MonitorProblem, type MonitorVisualItem,
 } from './MonitorZones'
 import { MonitorStageEmpty } from './MonitorStageEmpty'
@@ -451,11 +452,6 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
   /* 能导出的前提是这次制作真有整片那一档，且不是过期版本。
      试片、测试帧不能导出：那不是整片，导出来用户会以为拿到成片了。 */
   const stageDeliverable = stageLead?.tier === 'final' && !stageStale
-  /* Gate 评估：交付检查项之一，但不直接推导交付（交付另看最终文件与规格）。 */
-  const stageGates = useMemo(() => {
-    if (!projectId) return []
-    return workflowsSnapshot.filter((w) => w.projectId === projectId).flatMap((w) => gateSummaryOf(w))
-  }, [projectId, workflowsSnapshot])
   /* 资料页那摞素材卡：本项目真实文件按格式堆叠，外加一张「缺失 / 不可用」。
      工作流引用节点绑定了哪些，卡片上如实标出（不吹成「AI 精选」）。 */
   const materials = useMemo(
@@ -683,34 +679,6 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
       }))
     return [...out.map(({ decidedAt: _d, ...p }) => p), ...located]
   }, [projectId, workflowsSnapshot, outline])
-  /* 视觉资料：参考素材（服务 + 工作流绑定）+ 方向样稿 / 试片（运行产物里真带视觉文件的才算）。 */
-  /* 缩略入口只放参考：参考图是拿来对照的，属于监看；
-     素材（成片/片段/抽帧）归「资料」页，混进来就变成一排没意义的文件块。 */
-  const galleryRefs = useMemo((): MonitorVisualItem[] => monitorReferences(projectId).map((f) => ({
-    id: f.id, name: f.name, kind: 'ref', mediaType: f.media,
-    thumb: f.thumb, filePath: undefined, assetId: f.id, sourceLabel: undefined,
-  })), [projectId])
-  /* 交付事实：最终文件（成片交付节点）+ 输出规格（创作节点 + 提示词）+ 审片（看片节点）+ 检查（Gate 评估）。 */
-  const delivery = useMemo(() => {
-    const hasFinalFile = stageLead?.tier === 'final' && !stageStale
-    const finalFile = hasFinalFile ? stageLead.name : '尚无文件'
-    const create = progressWorkflow?.nodes.find((n) => n.type === 'create')
-    const prompt = progressWorkflow?.nodes.find((n) => n.type === 'prompt')
-    const specParts = [String(create?.params.resolution ?? ''), String(prompt?.params.ratio ?? ''), String(create?.params.mode ?? '')].filter(Boolean)
-    const specs = specParts.length ? specParts.join(' · ') : '未设定'
-    const review = progressWorkflow?.nodes.find((n) => n.type === 'review')
-    const rc = (review?.params.checks ?? {}) as Record<string, boolean>
-    const rday = review ? fmtDay(String(review.params.decidedAt ?? '')) : ''
-    const samePreview = review?.params.reviewedVisualId === stageLead?.id
-    const reviewText = samePreview && rc.done ? `用户已确认${rday ? ` · ${rday}` : ''}` : samePreview && rc.rework ? `用户要求修改${rday ? ` · ${rday}` : ''}` : '本版尚未审阅'
-    const confirmed = stageGates.filter((g) => g.decision === 'confirmed').length
-    const blocked = stageGates.flatMap((g) => g.blocked).length
-    const stale = stageGates.some((g) => g.stale)
-    const checks = stageGates.length === 0
-      ? '技术检查尚未执行'
-      : `工作流 ${confirmed}/${stageGates.length} 项已确认${blocked > 0 ? ` · ${blocked} 项受阻` : ''}${stale ? ' · 有检查项对应旧版本' : ''} · 技术检查尚未执行`
-    return { hasFinalFile, finalFile, specs, review: reviewText, checks }
-  }, [stageLead, stageStale, progressWorkflow, stageGates])
   /* 换画面时把「上一个画面的框选/时间引用」撤下来。
      不撤的话会出现「用户看着 B、提交的却是 A 的区域引用」—— 文档第 7 节最在意的
      就是「用户指的对象与 AI 实际修改的对象是否一致」。
@@ -733,24 +701,6 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
     }
     setVisualSel({ projectId, item }); setRegionMode(false); setRegionRect(null); setRegionBox(null) }
   const viewedPreview = selectedVisual ? stage.visuals.find((v) => `stage:${v.id}` === selectedVisual.id) ?? null : stageLead
-  /* 缩略入口：一行，当前预览在前，其后是参考、样稿、试片 —— 不分组标题、不铺网格。 */
-  const railItems = useMemo((): MonitorVisualItem[] => {
-    /* 先列这次制作产出的画面（最近的那档在最前），后面才是参考素材。
-       早先的档位也留着：测试帧→试片→整片是同一个项目的演进，
-       用户要能随时回去看「上一版长什么样」，所以不按「已通过」把它们删掉。 */
-    const produced: MonitorVisualItem[] = stage.visuals.map((v) => ({
-      id: `stage:${v.id}`, name: v.name, kind: v.tier === 'final' ? 'film' : 'testfilm',
-      mediaType: v.media, filePath: v.file, sourceLabel: v.tierLabel,
-    }))
-    return [...produced, ...galleryRefs]
-  }, [stage, galleryRefs])
-  const railSelectedId = selectedVisual ? selectedVisual.id : (stageLead ? `stage:${stageLead.id}` : null)
-  const onRailSelect = (item: MonitorVisualItem) => {
-    setComparison(null)
-    setPreviewLocation(null)
-    if (item.id === `stage:${stageLead?.id}`) setSelectedVisual(null)
-    else setSelectedVisual(item)
-  }
   /* 问题收起态：只记展开了哪一条，默认全部收起。 */
   const [expandedProblemId, setExpandedProblemId] = useState<string | null>(null)
   const toggleProblem = (id: string) => setExpandedProblemId((cur) => (cur === id ? null : id))
@@ -1606,21 +1556,13 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
               <>
                 {/* 画面身份：这是这次制作的哪一档（测试帧 / 试片 / 粗略整片 / 整片）。
                     名字和档位都从运行产物里来，不套旧成片的「演示旧版」标签。 */}
+                {/* 顶栏只留画面身份（监看 / 画面预览）。
+                    版本号与生成日期、重新渲染、预览版本与对比这三组信息
+                    已按要求从顶栏移除 —— 版本历史走控制台的「场景版本」页签，
+                    渲染入口在下方交付区，顶栏不再重复。 */}
                 <span className="wb-viewer-index">监看</span>
                 <h2 className="wb-viewer-title truncate">画面预览</h2>
-                <span className="wb-status" data-status="done">{stageLead.tierLabel}</span><span className="wb-current-preview-meta">{stageLead.origin === 'editor' ? '编辑版本 ' : ''}v{stageLead.revision} · {new Date(stageLead.createdAt).toLocaleDateString('zh-CN')}</span>
                 {stageStale && <span className="wb-status" data-status="waiting">对应旧版本</span>}
-                <span className="wb-spacer" />
-                {/* 有画面时也要能重渲：以前只有空态才有渲染入口，
-                    片子出来后想按新要求重渲就找不到按钮了。 */}
-                {filmProject?.ready && (
-                  <button type="button" className="fw-mon-btn" disabled={realRenderBusy}
-                          onClick={() => void submitProjectRender()}>
-                    {realRenderBusy ? <LoaderCircle size={12} className="animate-spin"/> : <Film size={12}/>}
-                    {realRenderBusy ? '渲染中…' : '重新渲染工程'}
-                  </button>
-                )}
-<button type="button" className="fw-mon-btn" onClick={() => openReview('versions')}>预览版本与对比 <ArrowLeftRight size={12}/></button>
               </>
             ) : (
               <>
@@ -1717,24 +1659,24 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
                   {notice}<X className="ml-1 inline size-3" />
                 </button>
               )}
-              {viewedPreview && <PreviewReviewTools key={viewedPreview.id} available={previewReady} video={viewedPreview.media === 'video'} time={previewTime} duration={previewDuration} regionMode={regionMode} onFrame={referenceFrame}
+              {viewedPreview && <PreviewReviewTools key={viewedPreview.id} available={previewReady} video={viewedPreview.media === 'video'} duration={previewDuration} regionMode={regionMode} onFrame={referenceFrame}
                 currentTime={() => previewMediaRef.current instanceof HTMLVideoElement ? previewMediaRef.current.currentTime : previewTime}
                 onRegion={() => { if (previewMediaRef.current instanceof HTMLVideoElement) previewMediaRef.current.pause(); setRegionMode((v) => !v); setRegionRect(null) }}
                 onRange={(start, end) => { if (previewMediaRef.current instanceof HTMLVideoElement) previewMediaRef.current.pause(); setTargetReference({ id: `preview:${viewedPreview.id}:${start}:${end}`, role: 'target', kind: 'preview', source: previewSource(viewedPreview), timeSeconds: start, endTimeSeconds: end, label: `${viewedPreview.name} · ${formatMediaTime(start)}–${formatMediaTime(end)}` }); focusFeedback() }}/>}
-              <div className="fw-mon-rail">
-                <MonitorThumbRail items={railItems} selectedId={railSelectedId} onSelect={onRailSelect} />
-                {liveTask && (
+              {/* 缩略条与交付信息行已按要求移除：
+                  缩略条是「这一档画面有哪几个版本」，和控制台的「场景版本」页签重复；
+                  交付信息（最终文件 / 输出规格 / 审片 / 检查）属于交付环节，
+                  挂在监看器下面只是把画面往下挤。画面区只留画面本身。 */}
+              {liveTask && (
+                <div className="fw-mon-rail">
                   <span className="fw-mon-task">
                     <span className="fm-dot" data-s="running" />
                     {liveTask.state} · {liveTask.label}
                   </span>
-                )}
-              </div>
+                </div>
+              )}
               <MonitorProblemsCollapsed problems={monitorProblems} expandedId={expandedProblemId}
                                         onToggle={toggleProblem} onLocate={locateProblem} onAskFix={askFix} />
-              {delivery.hasFinalFile && (
-                <MonitorDelivery finalFile={delivery.finalFile} specs={delivery.specs} review={delivery.review} checks={delivery.checks} />
-              )}
 
             </div>
           )}
@@ -2308,8 +2250,20 @@ function StageFrame({ visual, mediaRef, onTime, onDuration, location, currentTim
     }
   }, [location, visual.id, mediaRef, onTime])
   const [failed, setFailed] = useState(false)
+  /* 播放态自己管：原生 controls 已去掉，播放/暂停由自定义控制条驱动。
+     不读 video.paused 是因为它不会触发重渲染，按钮图标就不会跟着变。 */
+  const [playing, setPlaying] = useState(false)
+  const [duration, setDuration] = useState(0)
   if (failed) return <div className="fw-mon-empty"><div className="fw-mon-empty-title">{visual.tierLabel}暂时无法播放</div><p className="fw-mon-empty-sub">文件可能已移动或连接中断。</p><button type="button" className="wb-media-retry" onClick={() => setFailed(false)}>重新加载预览</button></div>
-  return <>{visual.media === 'video' ? <video ref={(el) => { mediaRef.current = el }} className="fw-stage-media" src={visual.file} controls playsInline onLoadedData={() => onReady(true)} onTimeUpdate={(e) => onTime(e.currentTarget.currentTime)} onLoadedMetadata={(e) => { onDuration(e.currentTarget.duration); const seconds = location?.visualId === visual.id ? location.timeSeconds ?? 0 : 0; e.currentTarget.currentTime = Math.min(seconds, e.currentTarget.duration); onTime(e.currentTarget.currentTime) }} onError={() => { onReady(false); onDuration(0); setFailed(true) }}/> : <img ref={(el) => { mediaRef.current = el }} className="fw-stage-media" src={visual.file} alt={visual.tierLabel} onLoad={() => onReady(true)} onError={() => { onReady(false); onDuration(0); setFailed(true) }}/>}{location?.visualId === visual.id && location.bbox && (visual.media === 'image' || location.timeSeconds === undefined || Math.abs(currentTime - location.timeSeconds) < 0.08) && <PreviewTargetHighlight mediaRef={mediaRef} bbox={location.bbox}/>}</>
+  const togglePlay = () => {
+    const media = mediaRef.current
+    if (!(media instanceof HTMLVideoElement)) return
+    if (media.paused) { void media.play(); setPlaying(true) } else { media.pause(); setPlaying(false) }
+  }
+  return <>{visual.media === 'video' ? <>
+    <video ref={(el) => { mediaRef.current = el }} className="fw-stage-media" src={visual.file} playsInline onLoadedData={() => onReady(true)} onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} onTimeUpdate={(e) => onTime(e.currentTarget.currentTime)} onLoadedMetadata={(e) => { onDuration(e.currentTarget.duration); setDuration(e.currentTarget.duration); const seconds = location?.visualId === visual.id ? location.timeSeconds ?? 0 : 0; e.currentTarget.currentTime = Math.min(seconds, e.currentTarget.duration); onTime(e.currentTarget.currentTime) }} onError={() => { onReady(false); onDuration(0); setFailed(true) }}/>
+    <StagePlayerControls mediaRef={mediaRef} duration={duration} playing={playing} onToggle={togglePlay} onTime={onTime} currentTime={currentTime}/>
+  </> : <img ref={(el) => { mediaRef.current = el }} className="fw-stage-media" src={visual.file} alt={visual.tierLabel} onLoad={() => onReady(true)} onError={() => { onReady(false); onDuration(0); setFailed(true) }}/>}{location?.visualId === visual.id && location.bbox && (visual.media === 'image' || location.timeSeconds === undefined || Math.abs(currentTime - location.timeSeconds) < 0.08) && <PreviewTargetHighlight mediaRef={mediaRef} bbox={location.bbox}/>}</>
 }
 
 function PreviewTargetHighlight({ mediaRef, bbox }: { mediaRef: React.RefObject<HTMLVideoElement | HTMLImageElement | null>; bbox: { x: number; y: number; w: number; h: number } }) {
