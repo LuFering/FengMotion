@@ -587,8 +587,10 @@
   display: flex;
   width: 100%;
   align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
+  gap: 6px;
+  /* 6px 而不是 8px：抽屉是常驻条，多出来的每一像素都在把输入框往下推。
+     正文区才是主角，这条只需读得清。 */
+  padding: 6px 10px;
   border: 0;
   background: none;
   color: var(--dim);
@@ -688,7 +690,8 @@
 .chk-drawer-inner {
   min-height: 0;
   overflow: hidden;
-  padding: 0 8px 8px;
+  /* 展开体左右 10、底部 6：与头部对齐，并让最后一行不贴着圆角 */
+  padding: 0 10px 6px;
 }
 
 /* 抽屉里的清单不再是一张卡片：它已经在抽屉这个表面上了，
@@ -698,4 +701,18 @@
   padding: 0;
   background: none;
   border: 0;
+}
+
+/* ── 紧凑行（抽屉内）───────────────────────────────────────
+   行高 30 由 JS 直接写在 style 上；这里只管字号与间距。
+   字号必须跟着缩：行高 30 配 14px 字会让文字贴边、
+   且与 30px 的行不成比例，读起来比原来更挤。 */
+.chk-say[data-compact] {
+  font-size: 13px;
+  line-height: 1.25;
+}
+
+/* 抽屉里的勾选框稍小一档，与外层 13px 的字同高 */
+.chk-drawer .chk-box {
+  box-shadow: inset 0 0 0 1.2px color-mix(in srgb, var(--fg) 26%, transparent);
 }

@@ -387,12 +387,19 @@ export function Checklist({
      而不必维护两套长得不一样的东西。 */
   items: controlled,
   title,
+  /* ── 紧凑：抽屉里用 ─────────────────────────────────────
+     原版行高 40px、字号 14px，那是「一整张卡片单独摆在页面上」的尺度。
+     放进抽屉（停靠在输入框上方的一条）时这个尺度偏大：
+     五条任务就顶到 250px，把输入框推得很高，反而挡住正文。
+     紧凑模式把行高压到 30、字号 13，五条正好 ~150px。 */
+  compact = false,
 }: {
   corner?: number;
   bounce?: number;
   box?: number;
   items?: ChecklistItem[];
   title?: string;
+  compact?: boolean;
 } = {}) {
   /* ── one array, not two ─────────────────────────────────
      The list used to be a constant and the ticks a parallel
@@ -435,6 +442,8 @@ export function Checklist({
 
   const r = clamp(corner, 0, 40);
   const side = clamp(Math.round(box), 14, 28);
+  /* 行高与字号随紧凑模式走：两者要一起缩，只缩一个会让文字在行里偏上或偏下 */
+  const rowH = compact ? 30 : ROW;
 
   /* ── the whole finish, as one derived boolean ────────────
      Not a state. Every task ticked IS the finish, so there is
@@ -496,8 +505,8 @@ export function Checklist({
      look equal, and doing it from the box's CURRENT size means
      it stays equal as the Box knob moves rather than at one
      setting of it. */
-  const slack = (ROW - side) / 2;
-  const padV = Math.max(0, PAD - slack);
+  const slack = (rowH - side) / 2;
+  const padV = compact ? 4 : Math.max(0, PAD - slack);
 
   /* ── where the heap goes ─────────────────────────────────
      Worked out from the bottom up, because that is the order
@@ -506,10 +515,10 @@ export function Checklist({
      below. `inset` is the air inside a row that the heap gives
      up — the whole of the fall is three of those. */
   const body = BODY(side, line);
-  const inset = (ROW - body) / 2;
+  const inset = (rowH - body) / 2;
   /* every row the card holds, the spare one included */
   const slots = items.length + (spare ? 1 : 0);
-  const floor = padV + ROW * slots;
+  const floor = padV + rowH * slots;
   /* ── and a tilted slip stands on ONE CORNER ─────────────
      The floor is where the LOWEST point of the bottom slip
      comes to rest, not where its middle does. Tilting it drops
@@ -533,7 +542,7 @@ export function Checklist({
   /* the bottom slip is flat, so its lowest point is its own
      edge and the seat needs no correction for a tilt */
   const seat = floor - inset - body;
-  const restTop = (i: number) => padV + i * ROW;
+  const restTop = (i: number) => padV + i * rowH;
   const pileTop = (i: number) => seat - (items.length - 1 - i) * (body + touch);
   const drops = items.map((_, i) => Math.max(0, pileTop(i) - restTop(i)));
   /* the top row travels furthest, so it sets the clock and the
@@ -565,7 +574,7 @@ export function Checklist({
            真实清单的行数由模型决定，改成随内容自适应。 */
         controlled
           ? { width: W, padding: `${padV}px ${PAD}px`, borderRadius: r }
-          : { width: W, height: padV * 2 + ROW * slots, padding: `${padV}px ${PAD}px`, borderRadius: r }
+          : { width: W, height: padV * 2 + rowH * slots, padding: `${padV}px ${PAD}px`, borderRadius: r }
       }
     >
       {/* ── AnimatePresence, for the two that leave ─────────
@@ -595,6 +604,8 @@ export function Checklist({
           /* the slip is the part of the row you can see, and
              the part that comes to rest on the one below */
           inset={inset}
+          rowH={rowH}
+          compact={compact}
           drift={DRIFT[i]}
           tilt={leans[i]}
           index={i}
@@ -679,6 +690,8 @@ function Row({
   drop,
   secs,
   inset,
+  rowH,
+  compact,
   drift,
   tilt,
   layer,
@@ -696,6 +709,8 @@ function Row({
   drop: number;
   secs: number;
   inset: number;
+  rowH: number;
+  compact: boolean;
   drift: number;
   tilt: number;
   layer?: number;
@@ -762,7 +777,7 @@ function Row({
       aria-checked={on}
       data-fell={fell || undefined}
       onClick={onToggle}
-      style={{ height: ROW, zIndex: layer, "--slip": `${inset}px` } as React.CSSProperties}
+      style={{ height: rowH, zIndex: layer, "--slip": `${inset}px` } as React.CSSProperties}
       /* the row is drawn where it has always been drawn and
          MOVED from there, so the card's layout never changes
          and the wall's observer never hears about any of this */
@@ -822,7 +837,7 @@ function Row({
         </svg>
       </span>
 
-      <span className="chk-say" ref={say}>
+      <span className="chk-say" ref={say} data-compact={compact || undefined}>
         {/* the words give up their ink as the rule crosses
             them — read off the same number, so a half-crossed
             line is half-faded and the two can never disagree */}
@@ -872,6 +887,18 @@ export function ChecklistDrawer({
   defaultOpen?: boolean
 }) {
   const [open, setOpen] = useState(defaultOpen)
+  /* ── 全部完成后自动收起 ─────────────────────────────────
+     展开态五条任务要 197px，常驻在输入框上方会把正文顶掉一半。
+     任务全做完时，用户不需要再盯着这份清单看 —— 折叠成一行
+     「任务已完成 5/5」就够，需要时还能点开。
+     用户手动展开/收起之后不再自动干预（touched），否则
+     他自己点开查看的动作会被下一次状态变化强行合上。 */
+  const [touched, setTouched] = useState(false)
+  const doneAll = items.length > 0 && items.every((t) => t.status === "completed")
+  useEffect(() => {
+    if (touched) return
+    setOpen(!doneAll && items.length > 0)
+  }, [doneAll, items.length, touched])
   const done = items.filter((t) => t.status === "completed").length
   const total = items.length
   const active = items.find((t) => t.status === "in_progress")
@@ -888,7 +915,7 @@ export function ChecklistDrawer({
         type="button"
         className="chk-drawer-head"
         aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => { setTouched(true); setOpen((v) => !v) }}
       >
         {/* 三角与项目里其它折叠标题一致：收起时朝右，展开时朝下 */}
         <svg className="chk-drawer-caret" viewBox="0 0 12 12" aria-hidden="true">
@@ -912,7 +939,7 @@ export function ChecklistDrawer({
 
       <div className="chk-drawer-body" hidden={!open}>
         <div className="chk-drawer-inner">
-          <Checklist items={items} />
+          <Checklist items={items} compact />
         </div>
       </div>
     </div>

@@ -412,6 +412,18 @@ function shortArgs(args: string): string {
     return oneLine.length > 72 ? `${oneLine.slice(0, 72)}…` : oneLine
   }
 
+  /* ── 数组参数（todo_write 的 todos）───────────────────────
+     它的唯一字段是一个对象数组，下面那套「取字符串字段」的逻辑
+     一个都取不到，结果整行显示「（无参数）」—— 看起来像调用失败了。
+     这里按语义翻译：给出条目数 + 正在做的那条。 */
+  if (Array.isArray(parsed.todos)) {
+    const list = parsed.todos as { content?: unknown; status?: unknown }[]
+    const doing = list.find((t) => t?.status === 'in_progress')
+    const doingText = typeof doing?.content === 'string' ? doing.content.trim() : ''
+    const head = `更新任务清单 · ${list.length} 项`
+    return truncate(doingText ? `${head}：${doingText}` : head)
+  }
+
   /* 优先级按「哪个字段最能说明这一步在干什么」排 */
   const KEYS = ['description', 'command', 'query', 'pattern', 'file_path', 'path', 'url', 'prompt']
   for (const k of KEYS) {
