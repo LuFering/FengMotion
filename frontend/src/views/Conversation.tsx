@@ -1813,14 +1813,11 @@ export function Conversation(props: {
    * 有些系统给 .key/.md 的 type 是空串，只看 MIME 会全部落进 document。
    */
   const attachmentKind = (a: { name: string; kind: 'file' | 'image' | 'video' | 'technique'; mimeType?: string }):
-    'image' | 'document' | 'spreadsheet' | 'presentation' | 'code' | 'video' => {
+    'image' | 'file' => {
     const mime = a.mimeType ?? ''
+    // 只有图片走方图形态，其余（含视频/文档/表格）都走文件胶囊 —— 与原版一致
     if (a.kind === 'image' || mime.startsWith('image/')) return 'image'
-    if (a.kind === 'video' || mime.startsWith('video/')) return 'video'
-    if (/\.(xlsx?|csv|numbers)$/i.test(a.name)) return 'spreadsheet'
-    if (/\.(pptx?|key)$/i.test(a.name)) return 'presentation'
-    if (/\.(tsx?|jsx?|py|java|go|rs|rb|php|css|html|json|yaml|yml|sh)$/i.test(a.name)) return 'code'
-    return 'document'
+    return 'file'
   }
 
   const addFiles = (files: File[], forced?: 'file' | 'image' | 'video', done?: () => void) => {
@@ -2737,16 +2734,12 @@ export function Conversation(props: {
                 <ComposerAttachments
                   items={attachments.map((a) => ({
                     name: a.name,
+                    /* LeiBox 原版只有两种形态：图片方图、其余为文件胶囊。 */
                     kind: attachmentKind(a),
                     src: a.previewUrl,
-                    /* 上传中用进度环表示。后端目前不回报字节级进度，
-                       所以这里给的是「进行中」的确定性提示而不是假进度：
-                       环画到 35%，与组件原版无进度时的动效位置一致。 */
+                    /* 真实上传进度：XHR 上报的百分比，落地后置 undefined 让环消失 */
                     progress: a.uploading ? (a.progress ?? 0) : undefined,
                     error: a.uploadError,
-                    /* 用途不进图块（图块只有 56px，塞不下），
-                       但保留在 title 里 —— 「这张图用于画面」是用户特意选的，
-                       丢了就查不到了 */
                     note: a.purpose && a.purpose !== 'unspecified'
                       ? (PURPOSE_TXT[a.purpose] ?? a.purpose)
                       : undefined,

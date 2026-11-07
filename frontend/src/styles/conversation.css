@@ -1501,7 +1501,9 @@ html[data-theme="tactile"] #pane-conversation {
 
 /* 工具条上的胶囊按钮（dsh InputBar 的 chip：28px 高、13/20） */
 /* 胶囊内的次要动作按钮（权限模式等）。
-   几何对齐参考组件实测值：高 30、全圆角、padding 5px 10px 5px 8px、gap 4。 */
+   几何对齐参考组件：高 30、全圆角、padding 5px 10px 5px 8px、gap 4。
+   底色也是常显的浅灰胶囊（参考图里是 #F2F2F2）——
+   之前是透明底，看起来只是一段文字，用户不知道它可以点。 */
 .cv3-chip-btn {
   display: inline-flex;
   align-items: center;
@@ -1511,7 +1513,7 @@ html[data-theme="tactile"] #pane-conversation {
   padding: 5px 10px 5px 8px;
   border: 0;
   border-radius: 999px;
-  background: transparent;
+  background: var(--hole);
   color: var(--tx2);
   font: inherit;
   font-size: 13px;
@@ -1523,7 +1525,7 @@ html[data-theme="tactile"] #pane-conversation {
 
 .cv3-chip-btn:hover,
 .cv3-chip-btn[data-on] {
-  background: var(--hover);
+  background: color-mix(in srgb, var(--hole) 74%, var(--fg) 10%);
   color: var(--tx1);
 }
 

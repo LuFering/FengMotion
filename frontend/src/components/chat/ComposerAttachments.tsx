@@ -1,54 +1,43 @@
 /**
  * ComposerAttachments —— 输入框内的待发送附件。
  *
- * 按 BoardUI「Composer 附件」组件的真实实现还原。
- * 所有数值取自该组件线上 DOM 的计算样式（不是估算）：
- *   图块        56×56、圆角 12px、边框 1px #EBEBEB
- *   缩略图      图片占满 56×56，圆角 11px，object-cover
- *   类型图标    24×24，位置 top:4px / left:3px
- *   文件名      9px / 行高 15px / 字重 500 / 字距 0.2px
- *               位置 top:36px / left:6px，max-width:44px 截断
- *   进度文字    9px，位置 top:3px / right:3px，等宽数字
- *   移除按钮    16×16 圆形，50% 透明白底，× 为 7×7 描边
- *   进度环      沿圆角矩形顺时针描边，pathLength=100
+ * 结构与尺寸取自 LeiBox「Agent 对话输入框」的官方原版源码
+ * （components/ComposerAttachmentList.tsx 与 ComposerAttachButton.tsx）：
  *
- * 图标资源是组件同款 SVG（src/assets/composer-icons），原样保留，
- * 因为它们自带多层渐变与内阴影，手绘只能做出近似。
+ *   容器      flex / 间距 10px（gap-2.5）/ 横向可滚 / 上下留 6px、4px
+ *   图片项    68×68 方图、圆角 10px、1px 描边、bg-ui-tint
+ *             移除按钮 20×20、-right-1 -top-1、2px 与底色的描边环
+ *   文件项    高 56（h-14）、最宽 220px、圆角 16px（rounded-2xl）
+ *             底色 bg-black/5；图标块 40×40 / 圆角 12px / 白底
+ *             文件名 12px·500；状态 11px 次级色；移除按钮 24×24
+ *
+ * 与官方原版的一处差异（有明确理由）：
+ *   上传中用**进度环**表示，而不是原版底部那条「识别中…」文字。
+ *   本项目的上传是真传（选文件即 POST /api/uploads，发送时只带 fileId），
+ *   XHR 能给到真实百分比，画环比写一句"处理中"信息量更高。
+ *   环沿图块/卡片外缘描一圈，角落显示百分比，落地后一起消失。
  */
 
-import { useState } from 'react'
-import codeIcon from '@/assets/composer-icons/code.svg'
-import documentIcon from '@/assets/composer-icons/document.svg'
-import presentationIcon from '@/assets/composer-icons/presentation.svg'
-import spreadsheetIcon from '@/assets/composer-icons/spreadsheet.svg'
-import videoIcon from '@/assets/composer-icons/video.svg'
+import { CircleAlert, File, FileText, Image as ImageIcon, X } from 'lucide-react'
 import './composer-attachments.css'
 
-/** 附件的六种类型，对应组件里的六种图块。 */
-export type ComposerAttachmentKind =
-  | 'image'
-  | 'document'
-  | 'spreadsheet'
-  | 'presentation'
-  | 'code'
-  | 'video'
+/** 附件分类，对应两种视觉形态。 */
+export type ComposerAttachmentKind = 'image' | 'file'
 
 /** 一张待发送附件。 */
 export interface ComposerAttachment {
   name: string
   kind: ComposerAttachmentKind
-  /** 图片附件的本地预览地址；有则直接铺满图块 */
+  /** 图片的本地预览地址（object URL）；有则铺满方图 */
   src?: string
-  /**
-   * 上传进度 0–100。
-   * 有值（含 0）时显示进度环并在角落计数；
-   * `undefined` 表示已落地 —— 环消失、角标消失，图块不再变暗。
-   */
+  /** 真实上传进度 0–100；undefined 表示已落地 */
   progress?: number
-  /** 上传失败原因 */
+  /** 失败原因 */
   error?: string
-  /** 补充说明（如附件用途）。图块放不下，写进 title 提示。 */
+  /** 补充说明（用途等），进 title */
   note?: string
+  /** 文件项副标题：类型说明或错误。缺省按「文件」显示 */
+  caption?: string
 }
 
 export interface ComposerAttachmentsProps {
@@ -56,23 +45,37 @@ export interface ComposerAttachmentsProps {
   onRemove: (index: number) => void
 }
 
-/** 非图片类型的图标。 */
-const KIND_ICON: Record<Exclude<ComposerAttachmentKind, 'image'>, string> = {
-  document: documentIcon,
-  spreadsheet: spreadsheetIcon,
-  presentation: presentationIcon,
-  code: codeIcon,
-  video: videoIcon,
+/**
+ * 进度环路径：一个贴合 68/56 方框的圆角矩形。
+ *
+ * 用 viewBox="0 0 100 100" 的归一化坐标 + preserveAspectRatio="none"，
+ * 这样同一段 path 能同时用在 68×68 的方块和 220×56 的长条上 ——
+ * 不必为两种形状各写一条弧线。
+ */
+/**
+ * 圆角矩形路径：从顶部中点起顺时针一圈。
+ *
+ * 用 100 单位宽的标准坐标系，pathLength="100" 让 dasharray 直接等于百分比。
+ * 宽高分别适配图片（正方形）与文件（长条），避免同一个框被拉伸。
+ */
+function ringPath(isImage: boolean): string {
+  const w = 100
+  const h = isImage ? 100 : 46   // 68:68 与 220:56，与 CSS 中的实际比例接近
+  const r = isImage ? 7 : 14
+  return [
+    `M ${w / 2} 1`,
+    `H ${w - r}`, `A ${r} ${r} 0 0 1 ${w - 1} ${r + 1}`,
+    `V ${h - r - 1}`, `A ${r} ${r} 0 0 1 ${w - r} ${h - 1}`,
+    `H ${r}`, `A ${r} ${r} 0 0 1 1 ${h - r - 1}`,
+    `V ${r + 1}`, `A ${r} ${r} 0 0 1 ${r} 1`,
+    'Z',
+  ].join(' ')
 }
 
-/**
- * 进度环的路径。
- *
- * 取自组件真实 SVG：一个 56×56 圆角矩形，顺时针从顶部中点开始。
- * 用 pathLength="100" 把长度归一化，这样 strokeDasharray 可以直接
- * 写百分比，不用自己算周长。
- */
-const RING_PATH = 'M 28 1 H 44 A 11 11 0 0 1 55 12 V 44 A 11 11 0 0 1 44 55 H 12 A 11 11 0 0 1 1 44 V 12 A 11 11 0 0 1 12 1 Z'
+/** 与 ringPath 配套的 viewBox；文件项允许横向拉伸以匹配真实宽度。 */
+function ringViewBox(isImage: boolean): string {
+  return isImage ? '0 0 100 100' : '0 0 100 46'
+}
 
 /** 去掉扩展名，只留主文件名（截断交给 CSS）。 */
 function stem(name: string): string {
@@ -81,10 +84,6 @@ function stem(name: string): string {
 }
 
 export function ComposerAttachments({ items, onRemove }: ComposerAttachmentsProps) {
-  /* 悬停的是哪一张：用来决定移除按钮显不显示。
-     组件原版是 hover 才显现（触屏常显），与它保持一致。 */
-  const [hovered, setHovered] = useState<number | null>(null)
-
   if (items.length === 0) {
     return null
   }
@@ -93,48 +92,67 @@ export function ComposerAttachments({ items, onRemove }: ComposerAttachmentsProp
     <ul className="cat-strip" aria-label="待发送的附件">
       {items.map((item, i) => {
         const uploading = item.progress !== undefined
-        const pct = uploading ? Math.min(100, Math.max(0, item.progress ?? 0)) : 100
+        const pct = uploading ? Math.min(99, Math.max(0, item.progress ?? 0)) : 100
+        const isImage = item.kind === 'image'
+
         return (
           <li
             key={`${item.name}-${i}`}
-            className="cat-tile"
-            data-uploading={uploading ? '' : undefined}
+            className={isImage ? 'cat-image' : 'cat-file'}
             data-error={item.error ? '' : undefined}
             title={[item.name, item.note, item.error ? `上传失败：${item.error}` : null]
               .filter(Boolean).join(' · ')}
-            onMouseEnter={() => setHovered(i)}
-            onMouseLeave={() => setHovered((h) => (h === i ? null : h))}
           >
-            {/* 内容层：图片铺缩略图，其他类型显示 24px 图标 + 文件名。
-                上传中整层变暗（组件原版就是这样表示「还没落地」）。 */}
-            <div className="cat-body" data-dim={uploading ? '' : undefined}>
-              {item.kind === 'image' && item.src ? (
-                <img className="cat-thumb" src={item.src} alt="" />
-              ) : (
-                <>
-                  <img
-                    className="cat-icon"
-                    src={KIND_ICON[item.kind as Exclude<ComposerAttachmentKind, 'image'>]}
-                    alt=""
-                    aria-hidden
-                  />
-                  <span className="cat-name">{stem(item.name)}</span>
-                </>
-              )}
-            </div>
+            {isImage ? (
+              <>
+                {item.src ? (
+                  <img className="cat-thumb" src={item.src} alt="" />
+                ) : (
+                  <span className="cat-thumb-empty" aria-hidden>
+                    <ImageIcon size={20} />
+                  </span>
+                )}
 
-            {/* 进度环：只在 0–99 之间画；到 100 即视为落地，环与角标一起消失 */}
+                {/* 失败的图片：底部压一条错误提示（原版的 status 条位置） */}
+                {item.error ? (
+                  <span className="cat-badge" role="alert">
+                    <CircleAlert size={12} />
+                    <span>{stem(item.name)}</span>
+                  </span>
+                ) : null}
+              </>
+            ) : (
+              <>
+                <span className="cat-file-icon" aria-hidden>
+                  <FileIcon name={item.name} />
+                </span>
+                <span className="cat-file-text">
+                  <span className="cat-file-name">{stem(item.name)}</span>
+                  <span className="cat-file-meta" data-error={item.error ? '' : undefined}>
+                    {item.error ? item.error : item.caption ?? '文件'}
+                  </span>
+                </span>
+              </>
+            )}
+
+            {/* 进度环：上传中才画，覆盖整块外缘。
+                图片是正方形、文件是长条，两者用同一段路径会被拉伸，
+                所以按形态给不同的 viewBox（见 ringViewBox）。 */}
             {uploading && pct < 100 ? (
               <>
-                <svg className="cat-ring" viewBox="0 0 56 56" aria-hidden>
+                <svg className="cat-ring" viewBox={ringViewBox(isImage)} aria-hidden>
                   <path
-                    d={RING_PATH}
+                    d={ringPath(isImage)}
                     fill="none"
                     stroke="var(--acc)"
                     strokeWidth={2}
                     strokeLinecap="round"
-                    pathLength={100}
-                    strokeDasharray={`${pct} 200`}
+                    /* 不用 pathLength + 百分比：Chrome 里 dasharray 仍按
+                       真实的 px 长度解释，于是 "3 200" 几乎是空的，
+                       环只画出顶部一小段（实测 getTotalLength=260）。
+                       这里直接给一个足够长的路径，把 dasharray 写成本形状
+                       的近似周长比例，两种形状各自成立。 */
+                    strokeDasharray={`${pct * (isImage ? 3.6 : 5.4)} ${isImage ? 400 : 700}`}
                   />
                 </svg>
                 <span className="cat-pct" aria-hidden>{Math.round(pct)}%</span>
@@ -143,23 +161,26 @@ export function ComposerAttachments({ items, onRemove }: ComposerAttachmentsProp
 
             <button
               type="button"
-              className="cat-remove"
-              data-visible={hovered === i || item.error ? '' : undefined}
+              className={isImage ? 'cat-remove cat-remove-image' : 'cat-remove cat-remove-file'}
               aria-label={item.error
                 ? `移除附件 ${item.name}（上传失败：${item.error}）`
                 : `移除附件 ${item.name}`}
               onClick={() => onRemove(i)}
             >
-              <svg viewBox="0 0 6.8 6.8" width="7" height="7" aria-hidden>
-                <path d="M0.57 0.57L6.23 6.23" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-                <path d="M6.23 0.57L0.57 6.23" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-              </svg>
+              <X size={isImage ? 10 : 11} strokeWidth={2.6} />
             </button>
           </li>
         )
       })}
     </ul>
   )
+}
+
+/** 文件类型图标：文本类与普通文件区分（对齐原版 file-lines / file）。 */
+function FileIcon({ name }: { name: string }) {
+  return /\.(txt|md|markdown|csv|json|ya?ml|log)$/i.test(name)
+    ? <FileText size={18} strokeWidth={1.9} />
+    : <File size={18} strokeWidth={1.9} />
 }
 
 export default ComposerAttachments

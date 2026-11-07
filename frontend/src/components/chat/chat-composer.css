@@ -27,9 +27,15 @@
 
 /* 上排文字、下排控件：胶囊改成纵向，文字独占整行。
    一行塞满控件时，680px 里文字区只剩中间一小段，长占位文字被挤成两行。 */
-/* 胶囊外观取自 LeiBox「Agent 对话输入框」：
-   圆角 24px、内边距 14px（p-3.5）、焦点时阴影加深。
-   比原来的 18px 圆角更圆润，与内部 36px 圆钮的弧度更协调。 */
+/* 胶囊外观严格取自 LeiBox `InputSurface`（components/ui/InputSurface.tsx）：
+     无边框 / rounded-[24px] / shadow-[0_6px_20px_rgba(31,38,48,0.08)]
+     聚焦 shadow-[0_8px_26px_rgba(31,38,48,0.12)]
+     内边距 14px，底部 10px（Composer 里是 p-3.5 pb-2.5）
+   它明确写了「不靠边框、靠阴影表达层次」，所以这里没有 border。
+
+   连续圆角：LeiBox 的 theme/continuousCorners.ts 在浏览器支持时
+   会把半径乘 (1 + 0.6) 并配合 corner-shape，做出 Apple 式 squircle。
+   这里同样按 @supports 降级 —— 不支持的浏览器退回普通 24px 圆角。 */
 .cc-pill {
   position: relative;
   display: flex;
@@ -37,17 +43,23 @@
   flex-direction: column;
   gap: 2px;
   padding: 14px 14px 10px;
-  border: 1px solid var(--line);
   border-radius: 24px;
   background: var(--surf);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
-  transition: border-color 150ms ease, box-shadow 150ms ease;
+  box-shadow: 0 6px 20px rgba(31, 38, 48, 0.08);
+  transition: box-shadow 150ms ease;
+}
+
+@supports (corner-shape: superellipse(2)) {
+  .cc-pill {
+    border-radius: 38.4px;      /* 24 × 1.6 */
+    corner-shape: superellipse(2);
+  }
 }
 
 /* 聚焦时阴影加深（参考组件用 focus-within 表达「正在这里输入」）。
    用 box-shadow 而不是改边框色：改边框会让整块轻微跳动。 */
 .cc-pill:focus-within {
-  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 8px 26px rgba(31, 38, 48, 0.12);
 }
 
 /* 胶囊内部顶部的附加区（附件卡片）。

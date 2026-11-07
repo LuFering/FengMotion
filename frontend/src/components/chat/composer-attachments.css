@@ -1,160 +1,250 @@
 /* ═══════════════════════════════════════════════════════════════
-   输入框内的待发送附件（BoardUI「Composer 附件」组件）
+   输入框内的待发送附件（LeiBox Agent 对话输入框 · 原版形态）
 
-   数值全部取自该组件线上 DOM 的计算样式：
-     图块    56×56 / 圆角 12px / 边框 1px #EBEBEB
-     缩略图  56×56 / 圆角 11px / object-fit:cover
-     图标    24×24 / top:4px / left:3px
-     文件名  9px / lh 15px / w500 / ls .2px / top:36px / left:6px
-             max-width:44px 截断
-     角标    9px / top:3px / right:3px / tabular-nums
-     移除    16×16 圆 / 50% 透明白底 / × 7×7
-     进度环  沿圆角矩形顺时针，stroke-width 2，pathLength 100
+   尺寸取自官方源码 components/ComposerAttachmentList.tsx：
+     容器    gap 10px（gap-2.5）/ 横向可滚 / 上下 6px、4px
+     图片    68×68 / 圆角 10px / 1px 描边 / bg-ui-tint
+             移除钮 20×20，-right-1 -top-1，带 2px 底色描边环
+     文件    高 56 / 最宽 220 / 圆角 16 / bg-black 5%
+             图标块 40×40 圆角 12 白底；名字 12·500；状态 11 次级
+             移除钮 24×24
 
-   深色适配：图块底色与描边走主题变量；图标本身是彩色 SVG，
-   在深色底上依然可读，不做反色处理（反色会让它们失真）。
+   进度环是本项目加的（见组件注释）：官方用一条「识别中…」文字，
+   这里换成真实百分比的环 —— 上传是真实的，画环信息量更高。
    ═══════════════════════════════════════════════════════════════ */
 
 .cat-strip {
   display: flex;
-  flex-wrap: wrap;
+  max-width: 100%;
   align-items: flex-start;
-  gap: 8px;
-  padding: 0;
-  margin: 0;
+  gap: 10px;
+  /* 与胶囊左右内边距对齐；横向溢出时自身滚动，不把胶囊撑宽 */
+  margin: 0 -4px 8px;
+  padding: 6px 4px 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
   list-style: none;
 }
 
-/* ── 图块 ────────────────────────────────────────────────────── */
-.cat-tile {
+.cat-strip::-webkit-scrollbar {
+  display: none;
+}
+
+/* ── 图片项：68×68 方图 ──────────────────────────────────────── */
+.cat-image {
   position: relative;
+  display: flex;
   flex: none;
-  width: 56px;
-  height: 56px;
-  box-sizing: border-box;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  /* 参考组件用 #EBEBEB；深色下用主题的洞色，观感一致但不会刺眼 */
-  background: transparent;
-}
-
-/* 失败态：描边染红但只到 45%，并降低整体不透明度。
-   不用满强度红框：后端目前不支持 Office 文档，这类失败很常见，
-   满强度红框会让一整排图块看起来像坏了 —— 失败信息在 title 里也能读到。 */
-.cat-tile[data-error] {
-  border-color: color-mix(in srgb, var(--bad) 45%, var(--line));
-}
-
-.cat-tile[data-error] .cat-body {
-  opacity: 0.5;
-}
-
-/* 内容层：图标与文件名都按绝对坐标摆，与组件原版一致 ——
-   这样 56px 的盒子里，「24px 图标在上、9px 名字在下」的比例才不会跑偏 */
-.cat-body {
-  position: absolute;
-  inset: 0;
-  transition: opacity 300ms ease-out;
-}
-
-/* 上传中变暗：表达「还没落地」，与组件原版一致 */
-.cat-body[data-dim] {
-  opacity: 0.55;
+  width: 68px;
+  height: 68px;
 }
 
 .cat-thumb {
-  position: absolute;
-  inset: 0;
   width: 100%;
   height: 100%;
-  border-radius: 11px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--hole);
   object-fit: cover;
 }
 
-.cat-icon {
-  position: absolute;
-  top: 4px;
-  left: 3px;
-  width: 24px;
-  height: 24px;
+.cat-thumb-empty {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--hole);
+  color: var(--dim);
 }
 
-.cat-name {
+/* 图片的失败提示：贴在底部，与原版 status 条同位 */
+.cat-badge {
   position: absolute;
-  top: 32px;
-  left: 5px;
-  max-width: 44px;
+  right: 4px;
+  bottom: 4px;
+  left: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 6px;
+  background: var(--surf);
+  color: var(--bad);
+  font-size: 10px;
+  line-height: 16px;
+}
+
+.cat-badge > span {
+  min-width: 0;
   overflow: hidden;
-  color: var(--dim);
-  font-size: 9px;
-  font-weight: 500;
-  line-height: 15px;
-  letter-spacing: 0.2px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-/* ── 进度环 ──────────────────────────────────────────────────── */
-/* -inset-px 让环压在边框上（边框 1px + 环 2px 各占一半），
-   看起来像绕着图块描了一圈 */
-.cat-ring {
-  position: absolute;
-  inset: -1px;
-  width: 56px;
+/* ── 文件项：56 高横向胶囊 ──────────────────────────────────── */
+.cat-file {
+  position: relative;
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  max-width: 220px;
   height: 56px;
-  pointer-events: none;
+  padding: 0 8px;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--fg) 5%, transparent);
 }
 
-.cat-pct {
-  position: absolute;
-  top: 3px;
-  right: 3px;
+/* 40×40 白底图标块（深色主题下用洞色，比卡片再亮一档） */
+.cat-file-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--surf);
+  color: var(--tx2);
+}
+
+.cat-file-text {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
+.cat-file-name {
+  overflow: hidden;
   color: var(--fg);
-  font-size: 9px;
-  font-variant-numeric: tabular-nums;
+  font-size: 12px;
   font-weight: 500;
+  line-height: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cat-file-meta {
+  overflow: hidden;
+  color: var(--dim);
+  font-size: 11px;
   line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cat-file-meta[data-error] {
+  color: var(--bad);
 }
 
 /* ── 移除按钮 ────────────────────────────────────────────────── */
-/* 组件原版：16×16 圆形、50% 透明白底、白色 ×，hover 时出现。
-   深色主题下「白底 ×」在浅色图块上会看不见，所以底色改用
-   黑/白混合的中性半透明，两套主题都成立。 */
+/* 图片：20×20，贴在角外侧，带 2px 与胶囊同色的描边环（原版做法）——
+   这圈描边把按钮和图片「切开」，压在照片上也看得清 */
 .cat-remove {
   position: absolute;
-  top: 2px;
-  right: 2px;
-  display: inline-flex;
-  flex: none;
-  align-items: center;
-  justify-content: center;
-  width: 16px;
-  height: 16px;
+  z-index: 10;
+  display: grid;
+  place-items: center;
   padding: 0;
   border: 0;
   border-radius: 50%;
-  background: color-mix(in srgb, var(--fg) 38%, transparent);
-  color: #fff;
   cursor: pointer;
   opacity: 0;
   transition: opacity 200ms ease-in-out;
 }
 
-.cat-tile:hover .cat-remove,
-.cat-remove:focus-visible,
-.cat-remove[data-visible] {
+.cat-remove-image {
+  top: -4px;
+  right: -4px;
+  width: 20px;
+  height: 20px;
+  box-shadow: 0 0 0 2px var(--surf);
+  background: #525252;
+  color: #fff;
+}
+
+.cat-remove-image:hover {
+  background: #262626;
+}
+
+/* 文件：24×24，在胶囊内部右侧 */
+.cat-remove-file {
+  position: static;
+  flex: none;
+  width: 24px;
+  height: 24px;
+  background: transparent;
+  color: var(--dim);
+}
+
+.cat-remove-file:hover {
+  background: var(--hover);
+  color: var(--fg);
+}
+
+.cat-image:hover .cat-remove,
+.cat-file:hover .cat-remove,
+.cat-remove:focus-visible {
   opacity: 1;
 }
 
-.cat-remove:hover {
-  background: color-mix(in srgb, var(--fg) 62%, transparent);
-}
-
-/* 触屏没有 hover：常显，否则点不到 */
 @media (hover: none) {
   .cat-remove { opacity: 1; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .cat-remove { transition: none; }
+}
+
+/* ── 进度环 ──────────────────────────────────────────────────── */
+/* 覆盖整块外缘：inset -1px 让描边压在边框上。
+   不用 preserveAspectRatio=none：那会把圆角矩形横向拉扁，
+   笔画宽度随方向变化，圆角处看起来像断了一截（实测文件胶囊的环
+   只在顶部画出一小段）。改用非缩放的描边宽度 + 由组件里的
+   viewBox 按实际宽高比裁切，环始终是均匀的一圈。 */
+.cat-ring {
+  position: absolute;
+  inset: -1px;
+  width: calc(100% + 2px);
+  height: calc(100% + 2px);
+  pointer-events: none;
+  overflow: visible;
+}
+
+.cat-pct {
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  color: var(--fg);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  line-height: 16px;
+}
+
+/* 文件项没有底色遮罩，百分比加一层浅底才读得清 */
+.cat-file .cat-pct {
+  top: 4px;
+  right: 6px;
+  padding: 0 3px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--surf) 82%, transparent);
+}
+
+/* 失败态：整块描边染红 */
+.cat-image[data-error] .cat-thumb {
+  border-color: color-mix(in srgb, var(--bad) 55%, var(--line));
+}
+
+.cat-file[data-error] {
+  outline: 1px solid color-mix(in srgb, var(--bad) 45%, transparent);
+}
+
+/* 上传中变淡，表达「还没落地」 */
+.cat-image[data-uploading] .cat-thumb,
+.cat-file[data-uploading] .cat-file-icon {
+  opacity: 0.62;
 }
