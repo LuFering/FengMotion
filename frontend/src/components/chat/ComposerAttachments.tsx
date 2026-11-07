@@ -19,6 +19,7 @@
  */
 
 import { CircleAlert, File, FileText, Image as ImageIcon, X } from 'lucide-react'
+import { SpringDisclosure } from './SpringDisclosure'
 import './composer-attachments.css'
 
 /** 附件分类，对应两种视觉形态。 */
@@ -89,6 +90,9 @@ export function ComposerAttachments({ items, onRemove }: ComposerAttachmentsProp
   }
 
   return (
+    /* 外层用高度弹簧：附件出现/消失时输入框不会被"撑一下再回落"，
+       而是弹性地长高/收起（对照原版 SpringDisclosure） */
+    <SpringDisclosure open={items.length > 0} unmountOnExit={false}>
     <ul className="cat-strip" aria-label="待发送的附件">
       {items.map((item, i) => {
         const uploading = item.progress !== undefined
@@ -98,7 +102,7 @@ export function ComposerAttachments({ items, onRemove }: ComposerAttachmentsProp
         return (
           <li
             key={`${item.name}-${i}`}
-            className={isImage ? 'cat-image' : 'cat-file'}
+            className={`${isImage ? 'cat-image' : 'cat-file'} cat-enter`}
             data-error={item.error ? '' : undefined}
             title={[item.name, item.note, item.error ? `上传失败：${item.error}` : null]
               .filter(Boolean).join(' · ')}
@@ -173,6 +177,7 @@ export function ComposerAttachments({ items, onRemove }: ComposerAttachmentsProp
         )
       })}
     </ul>
+    </SpringDisclosure>
   )
 }
 

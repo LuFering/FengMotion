@@ -248,3 +248,46 @@
 .cat-file[data-uploading] .cat-file-icon {
   opacity: 0.62;
 }
+
+/* ── 展开/收起（SpringDisclosure） ─────────────────────────────── */
+.spring-disclosure {
+  overflow: hidden;
+}
+
+.spring-disclosure-body {
+  /* 让 margin 不溢出，高度测量才准确 */
+  display: flow-root;
+}
+
+/* ── 附件卡片入场 ─────────────────────────────────────────────── */
+/* 对照原版 AttachmentMotionItem：从 y+6 / scale .96 弹进来，
+   弹簧 360/24 / 0.42s。用采样成 linear() 的弹簧曲线，
+   会有一点点过冲，比匀速 ease 更有"落位"感。 */
+.cat-enter {
+  animation: cat-enter 420ms both;
+  /* linear() 用纯数字进度（0–1），带 % 浏览器会整条规则失效 */
+  animation-timing-function: linear(
+    0, 0.041, 0.135, 0.255, 0.383, 0.504, 0.613, 0.708,
+    0.789, 0.857, 0.912, 0.955, 0.988, 1.011, 1.027,
+    1.036, 1.040, 1.041, 1.039, 1.036, 1.031,
+    1.026, 1.021, 1.016, 1.012, 1.008, 1.005,
+    1.002, 1.000, 0.999, 0.998, 0.997, 0.996, 0.996,
+    0.996, 0.996, 0.996, 0.997, 0.997, 0.998, 0.998,
+    0.999, 0.999, 1.000, 1.000, 1.000, 1.000, 1.000, 1
+  );
+}
+
+@keyframes cat-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cat-enter { animation: none; }
+}

@@ -17,6 +17,7 @@ import {
   FileText, Folder, Presentation, Sheet, Target, ListChecks, Code2,
 } from 'lucide-react'
 import { MorphPanel } from './MorphPanel'
+import { useSpringPress } from './useSpringPress'
 import { Plus } from 'lucide-react'
 import './attach-menu.css'
 
@@ -57,6 +58,7 @@ export function AttachMenu({
   onPickFiles, onGoal, onPlan, onPluginHint, disabled = false, disabledHint,
 }: AttachMenuProps) {
   const [open, setOpen] = useState(false)
+  const pressRef = useSpringPress<HTMLButtonElement>()
   const actions: AttachMenuItem[] = [
     { id: 'files', label: '文件和文件夹', icon: Folder, onSelect: onPickFiles },
     ...(onGoal
@@ -77,6 +79,7 @@ export function AttachMenu({
   return (
     <span className="am-anchor">
       <button
+        ref={pressRef}
         type="button"
         className="cc-attach"
         aria-label="添加附件"

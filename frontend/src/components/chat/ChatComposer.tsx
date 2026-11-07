@@ -15,6 +15,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { ArrowUp, Plus, Square } from 'lucide-react'
+import { useSpringPress } from './useSpringPress'
 import './chat-composer.css'
 
 export interface ChatComposerProps {
@@ -139,6 +140,8 @@ export function ChatComposer({
   maxHeight = 168,
 }: ChatComposerProps) {
   const inputRef = useRef<HTMLTextAreaElement>(null)
+  /* 发送钮与加号同一套按压弹簧 —— 原版所有圆钮都有这个反馈 */
+  const sendPressRef = useSpringPress<HTMLButtonElement>()
 
   /* 自动增高：先归零再按 scrollHeight 设，否则删字时高度不会回落。
      窄栏里 minRows 会按容器宽度自动降级（见下），所以这里读 effectiveRows。 */
@@ -212,6 +215,7 @@ export function ChatComposer({
                 </button>
               ) : (
                 <button
+                  ref={sendPressRef}
                   type="submit"
                   className="cc-send"
                   aria-label="发送"

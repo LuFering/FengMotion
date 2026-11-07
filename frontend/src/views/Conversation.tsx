@@ -18,6 +18,7 @@ import {
 import { ComposerAttachments } from '@/components/chat/ComposerAttachments'
 import { AttachMenu } from '@/components/chat/AttachMenu'
 import { ContextRing } from '@/components/chat/ContextRing'
+import { useSpringPress } from '@/components/chat/useSpringPress'
 import type { CSSProperties } from 'react'
 import {
   AlertCircle, AlertTriangle, Archive, ArchiveRestore, Check, ChevronDown, ChevronLeft, ChevronRight,
@@ -834,6 +835,8 @@ export function Conversation(props: {
   const servedRef = MODULE_SERVED_IDS
   /* 当前回复流的退订函数：切会话或卸载时用它断线 */
   const streamStopRef = useRef<(() => void) | null>(null)
+  /* 权限胶囊的按压弹簧：与加号、发送钮同一套 */
+  const permPressRef = useSpringPress<HTMLButtonElement>()
   const scrollRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   /* 待发送 → 本输入框。注册期间才接受投递；离开这个视图就注销，
@@ -2716,6 +2719,7 @@ export function Conversation(props: {
                     {/* 结构照搬 LeiBox Composer.tsx 的审批按钮：
                         12px 图标（mr-1.5）+ 截断文字 + 末尾 ChevronDown(10, ml-1) */}
                     <button type="button" className="cv3-chip-btn cv3-perm-btn"
+                            ref={permPressRef}
                             data-danger={permission === 'fullAccess' || undefined}
                             aria-label="权限设置" title="权限设置">
                       {permission === 'readOnly'
