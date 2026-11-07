@@ -39,6 +39,8 @@ CREATE INDEX IF NOT EXISTS idx_chat_sessions_project ON chat_sessions(project_id
 -- 让用户切走会话再回来时还能查到「这条回复当时做了什么」；
 -- reasoning 保存这条回复的思考过程正文。推理原先只在 SSE 帧里过一遍、不落库，
 -- 结果是一切走会话思考就消失 —— 而思考是模型行为的记录，属于用户要回看的内容。
+-- todos_json 保存模型排的任务清单（todo_write）。不落库的话，
+-- completed 之后重读历史会把界面上的清单冲掉（实测：闪一下就没了）。
 CREATE TABLE IF NOT EXISTS chat_messages (
     id TEXT PRIMARY KEY,
     session_id TEXT NOT NULL,
@@ -49,6 +51,8 @@ CREATE TABLE IF NOT EXISTS chat_messages (
     references_json TEXT,
     attachments_json TEXT,
     tool_calls_json TEXT,
+    reasoning TEXT,
+    todos_json TEXT,
     created_at TEXT NOT NULL,
     FOREIGN KEY (session_id) REFERENCES chat_sessions(id),
     UNIQUE (session_id, seq)

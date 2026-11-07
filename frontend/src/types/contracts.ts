@@ -1283,6 +1283,8 @@ export interface ChatMessage {
   /** 这条助手回复的思考过程正文；没有思考时不出现。
       与 toolCalls 同理：思考也是回复的一部分，切走会话再回来要能重新看到。 */
   reasoning?: string
+  /** 模型排的任务清单；没有清单时不出现。切走会话再回来要能回看。 */
+  todos?: ChatStreamTodoItem[]
   createdAt: IsoDateTime
   demo?: DemoFlag
 }

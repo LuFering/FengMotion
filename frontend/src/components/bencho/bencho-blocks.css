@@ -43,14 +43,20 @@
   --pane-edge: var(--line);
   --signal: var(--acc);
   --font-ui: var(--font-sans);
-  /* the cool half of the wheel only, rose round through blue to green:
-     no orange or yellow, so the set stays one family, but each step is
-     a clear jump in hue so no two kinds can be mistaken */
-  --k-sys: #ec4f8c;
-  --k-tools: #9a5cf6;
-  --k-files: #3d7ef5;
-  --k-chat: #1db4cc;
-  --k-mem: #2ccb7e;
+  /* ── 色相改成项目自己的语言 ───────────────────────────────
+     原版是 Bencho 的五色体系（玫红/紫/蓝/青/绿）—— 那是一个多色
+     品牌配色，放进只用一个品牌蓝的项目里，一眼就不像同一个产品
+     （用户实测反馈：风格和颜色与项目不符）。
+
+     本项目的语义色只有一组：--acc 品牌蓝 / --ok 绿 / --warn 琥珀 / --bad 红。
+     所以这里不再造第二套色相，而是把「五种内容」表达为
+     「品牌蓝的五个强度」—— 同色系、靠明度分层，读起来是一个系统。
+     需要更强区分时把组件切到 colour="Mono" 即可（那条路径本来就是灰阶）。 */
+  --k-sys: var(--acc);
+  --k-tools: color-mix(in srgb, var(--acc) 82%, var(--surf));
+  --k-files: color-mix(in srgb, var(--acc) 62%, var(--surf));
+  --k-chat: color-mix(in srgb, var(--acc) 44%, var(--surf));
+  --k-mem: color-mix(in srgb, var(--acc) 28%, var(--surf));
   /* 20 dots of 11 on a 3px gap, plus the padding */
   width: 309px;
   box-sizing: border-box;
@@ -476,7 +482,12 @@
 .chk-fill {
   position: absolute;
   inset: 0;
-  background: var(--fill-on, var(--ink));
+  /* ── 勾选态用品牌蓝，不用正文色 ─────────────────────────
+     原版用 --fill-on（本项目是近白/近黑）填满方块，在深色主题里
+     是一块纯白、在浅色里是一块纯黑 —— 那是「高亮」，不是「已完成」。
+     本项目表达选中/进行中的颜色一直是 --acc，勾选态跟它走，
+     整条清单才落进同一套语义色里。 */
+  background: var(--acc);
   /* from the middle out — an origin at a corner would read as
      a panel sliding in rather than as the box filling */
   transform-origin: center;}
@@ -493,7 +504,9 @@
   height: 68%;
   overflow: visible;
   fill: none;
-  stroke: var(--fill-slab, var(--card));
+  /* 勾画在品牌蓝的填充上，用 on-accent（本项目对「强调色之上的前景色」
+     的定义），而不是卡片底色 —— 浅色主题下卡片底也是浅的，会看不见。 */
+  stroke: var(--on-accent, #fff);
   stroke-width: 2.6;
   stroke-linecap: round;
   stroke-linejoin: round;}

@@ -134,6 +134,7 @@ public class ChatMessageService {
                 validated.attachments(),
                 null, // 用户消息不产生工具调用
                 null, // 用户消息没有思考过程
+                null, // 用户消息没有任务清单
                 now));
 
         if (idempotencyKey != null) {

@@ -28,5 +28,7 @@ public class ChatMessageRow {
     private String toolCallsJson;
     /** 这条助手回复的思考过程正文；没有推理（或历史消息）时为 null。 */
     private String reasoning;
+    /** 这条助手回复的任务清单（JSON 数组）；没有清单时为 null。 */
+    private String todosJson;
     private String createdAt;
 }

@@ -54,13 +54,14 @@ public class SqliteChatMessageRepository implements ChatMessageRepository {
         row.setAttachmentsJson(toJson(message.attachments()));
         row.setToolCallsJson(toJson(message.toolCalls()));
         row.setReasoning(blankToNull(message.reasoning()));
+        row.setTodosJson(toJson(message.todos()));
         row.setCreatedAt(message.createdAt().toString());
         mapper.insert(row);
 
         // 返回带真实序号的对象，调用方可直接用于响应与游标。
         return new ChatMessage(message.id(), message.sessionId(), seq, message.role(), message.text(),
                 message.taskId(), message.references(), message.attachments(), message.toolCalls(),
-                message.reasoning(), message.createdAt());
+                message.reasoning(), message.todos(), message.createdAt());
     }
 
     @Override
@@ -126,6 +127,7 @@ public class SqliteChatMessageRepository implements ChatMessageRepository {
                 fromJson(row.getAttachmentsJson()),
                 fromJson(row.getToolCallsJson()),
                 row.getReasoning(),
+                fromJson(row.getTodosJson()),
                 Instant.parse(row.getCreatedAt()));
     }
 }

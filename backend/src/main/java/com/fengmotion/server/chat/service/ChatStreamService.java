@@ -266,7 +266,8 @@ public class ChatStreamService {
                 // 成功：先把助手消息落库，再发 completed。顺序很重要——先落库保证
                 // 前端拿到 completed 时，历史接口一定已经能读到这条消息。
                 ChatMessage saved = appendAssistantMessage(
-                        sessionId, outcome.text(), outcome.reasoning(), listener.collectedToolCalls());
+                        sessionId, outcome.text(), outcome.reasoning(),
+                        listener.collectedToolCalls(), listener.collectedTodos());
                 // 先发 done 表达「本回合结束」，再发 completed 携带正文。
                 // 前端契约里 done 是收尾 phase，缺了它界面会停在「正在思考」。
                 listener.emitPhase("done", null, null);
@@ -420,7 +421,8 @@ public class ChatStreamService {
      * @return 已保存的消息
      */
     private ChatMessage appendAssistantMessage(String sessionId, String text, String reasoning,
-                                               com.fasterxml.jackson.databind.JsonNode toolCalls) {
+                                               com.fasterxml.jackson.databind.JsonNode toolCalls,
+                                               com.fasterxml.jackson.databind.JsonNode todos) {
         String body = text == null || text.isBlank() ? "" : text;
         return transactions.execute(status -> {
             messages.acquireWriteLock();
@@ -438,6 +440,8 @@ public class ChatStreamService {
                     toolCalls == null || toolCalls.isEmpty() ? null : toolCalls,
                     // 空白推理同样存 null：界面上「没有思考过程」只有一种表示。
                     reasoning == null || reasoning.isBlank() ? null : reasoning,
+                    // 空清单同样存 null：没有任务清单时读回来仍是「没有」。
+                    todos == null || todos.isEmpty() ? null : todos,
                     now));
             sessions.touch(sessionId, now);
             return saved;
@@ -581,6 +585,11 @@ public class ChatStreamService {
         if (message.reasoning() != null) {
             body.put("reasoning", message.reasoning());
         }
+        // 任务清单随 completed 一起下发：前端先挂到这条回复上，
+        // 之后由历史接口读回（同一个字段名），保证两个时刻看到的一致。
+        if (message.todos() != null) {
+            body.set("todos", message.todos());
+        }
         body.put("createdAt", message.createdAt().toString());
         writeFrame(out, "completed", data);
     }
@@ -656,6 +665,14 @@ public class ChatStreamService {
         private final List<ObjectNode> toolCalls = new java.util.ArrayList<>();
 
         /** 本流所属的会话 ID；用于把引擎回传的标题写回正确的会话。 */
+        /**
+         * 本轮最后一次 todo_write 的清单（整表替换语义，留最后一份即可）。
+         *
+         * <p>留着是为了随消息落库：只发 SSE 帧的话，completed 之后前端重读历史
+         * 会拿到一条没有清单的消息，界面上的任务清单随即被冲掉（实测闪一下就没了）。</p>
+         */
+        private com.fasterxml.jackson.databind.node.ArrayNode latestTodos;
+
         private final String sessionId;
 
         SseListener(PrintWriter out, String sessionId) {
@@ -668,6 +685,11 @@ public class ChatStreamService {
          *
          * @return 调用记录的 JSON 数组；没有调用时为空数组
          */
+        /** 本轮最后的任务清单；没有调用过 todo_write 时为 null。 */
+        com.fasterxml.jackson.databind.node.ArrayNode collectedTodos() {
+            return latestTodos;
+        }
+
         com.fasterxml.jackson.databind.node.ArrayNode collectedToolCalls() {
             com.fasterxml.jackson.databind.node.ArrayNode array = json.createArrayNode();
             toolCalls.forEach(array::add);
@@ -787,6 +809,7 @@ public class ChatStreamService {
         if (items.isEmpty()) {
             return;
         }
+        latestTodos = items;
         ObjectNode data = json.createObjectNode();
         data.put("type", "todo");
         data.set("todos", items);

@@ -1109,7 +1109,7 @@ export function Conversation(props: {
         produced = true
         // 带上本轮工具记录：completed 到服务端消息读回之间有个异步空档，
         // 不先挂上去，列表会在这一瞬间闪空。
-        chat.finishAiMessage(aiId, message.text, toolCallsRef.current, message.reasoning)
+        chat.finishAiMessage(aiId, message.text, toolCallsRef.current, message.reasoning, message.todos)
         /* 服务端会话的内容以 server 消息数组为准（见上方 serverMirror 的说明）。
            这里必须把刚落库的回复重新读回来：否则下一次发消息、或任何让
            `activeThread.messages` 身份变化的操作，都会用「只有用户消息」的数组

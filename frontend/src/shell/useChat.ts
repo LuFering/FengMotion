@@ -118,6 +118,7 @@ export function useChat() {
     text: string,
     executedTools?: { callId?: string; name: string; arguments?: string; done?: boolean; isError?: boolean }[],
     reasoning?: string,
+    todos?: { content: string; status: 'pending' | 'in_progress' | 'completed' }[],
   ) => {
     setMessages((items) => items.map((m) => (
       m.id === messageId
@@ -129,6 +130,9 @@ export function useChat() {
             /* 思考过程同理：流式期间已经逐块写进 thinking，服务端读回之前
                这里补一次终值，避免「重读之前那一瞬间」思考块消失。 */
             ...(reasoning ? { thinking: reasoning } : {}),
+            /* 任务清单同理：completed 到重读历史之间有一瞬空档，
+               这里先挂上，避免清单在那一瞬消失。 */
+            ...(todos && todos.length > 0 ? { todos } : {}),
           }
         : m
     )))
