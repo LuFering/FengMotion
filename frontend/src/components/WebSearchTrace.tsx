@@ -93,7 +93,7 @@ function stepsOf(calls: SearchCall[], sources?: Record<string, SearchSource[]>):
       const query = queryOf(c.arguments);
       return {
         key,
-        label: "搜索网页",
+        label: "网页搜索",
         query: query || undefined,
         meta: found.length > 0 ? `${found.length} 条来源` : undefined,
         done: c.done === true,
@@ -278,7 +278,10 @@ export function WebSearchTrace({
       {showHead && (
         <div className="wst-head">
           <span className="wst-icon"><LensIcon /></span>
-          <span>跑了 {steps.length} 次搜索</span>
+          {/* 标题与任务列表同一套命名：「名称 · N 次」。
+              之前是「跑了 N 次搜索」，与下面「bash · 2 次」不是同一种句式，
+              两块并排时看起来像两种东西。 */}
+          <span>网页搜索 · {steps.length} 次</span>
         </div>
       )}
 
