@@ -162,7 +162,9 @@ function toolCallsToTasks(calls: SearchCall[], running: boolean): TaskItem[] {
       steps: list.map((call) => {
         const chips = call.arguments ? toolChips(call.arguments) : []
         return {
-          label: call.arguments ? shortArgs(call.arguments) : `${name} 调用`,
+          /* 没参数（或参数是 `{}`）时依次兜底：
+             中文说明 > 工具名。直接写「无参数」占一整行却什么也没说。 */
+          label: (call.arguments && shortArgs(call.arguments)) || NO_ARG_HINT[name] || name,
           /* 失败标记优先：出错时最该看到的是「失败了」，不是它碰了哪个文件 */
           chips: call.isError ? [{ label: '失败' }] : (chips.length > 0 ? chips : undefined),
         }
@@ -403,6 +405,21 @@ function FileTypeIcon({ name }: { name: string }) {
  *   command / description / file_path / path / pattern / query / url
  * 都不认识时才退回「键名：值」的压缩形式。
  */
+/**
+ * 无参数工具的中文说明。
+ *
+ * 有些工具的意图完全由「调用本身」表达（`list_agents` 不带任何参数）。
+ * 此时行内容只能靠工具名，但直接写英文名读起来是「代码」不是「动作」。
+ * 只列确实见过且语义明确的几个；没收录的退回工具名，不硬编。
+ */
+const NO_ARG_HINT: Record<string, string> = {
+  list_agents: '查看子代理列表',
+  list_tasks: '查看任务列表',
+  list_jobs: '查看后台任务',
+  exit_plan_mode: '退出计划模式',
+  get_goal: '查看当前目标',
+}
+
 function shortArgs(args: string): string {
   let parsed: Record<string, unknown> | null = null
   try {
@@ -462,9 +479,9 @@ function shortArgs(args: string): string {
     })
 
   /* 真的没有任何参数（如 list_agents 的参数就是 `{}`）。
-     这是**正常状态**，不是失败 —— 所以写「无参数」而不是「（无参数）」：
-     括号加「无」读起来像出错，而这类工具本来就靠调用本身表达意图。 */
-  if (parts.length === 0) return '无参数'
+     返回空串，让调用方用工具名兜底 —— 「无参数」占满一整行却什么也没说，
+     连着几次调用就是几行废话。这类工具靠调用本身表达意图。 */
+  if (parts.length === 0) return ''
   return truncate(parts.join(' '))
 }
 
