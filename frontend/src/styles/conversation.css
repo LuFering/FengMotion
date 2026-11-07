@@ -1500,19 +1500,21 @@ html[data-theme="tactile"] #pane-conversation {
 }
 
 /* 工具条上的胶囊按钮（dsh InputBar 的 chip：28px 高、13/20） */
+/* 胶囊内的次要动作按钮（权限模式等）。
+   几何对齐参考组件实测值：高 30、全圆角、padding 5px 10px 5px 8px、gap 4。 */
 .cv3-chip-btn {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  height: 28px;
+  gap: 4px;
+  height: 30px;
   max-width: 100%;
-  padding: 0 8px;
+  padding: 5px 10px 5px 8px;
   border: 0;
-  border-radius: var(--fm-radius-mark);
+  border-radius: 999px;
   background: transparent;
-  color: var(--tx3);
+  color: var(--tx2);
   font: inherit;
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1;
   white-space: nowrap;
   cursor: pointer;
@@ -1550,16 +1552,18 @@ html[data-theme="tactile"] #pane-conversation {
   to { --cv-spin: 360deg; }
 }
 
+/* 引擎/模型选择器。几何对齐参考组件实测值：
+   高 32、圆角 12px（不是全圆）、padding 6px 4px 6px 8px、gap 2。 */
 .cv3-hbtn {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 7px;
-  height: 28px;
+  gap: 2px;
+  height: 32px;
   max-width: 220px;
-  padding: 0 7px 0 9px;
+  padding: 6px 4px 6px 8px;
   border: 1px solid var(--cv-line);
-  border-radius: 999px;
+  border-radius: 12px;
   background: var(--hole);
   color: var(--tx2);
   font: inherit;
@@ -1609,14 +1613,16 @@ html[data-theme="tactile"] #pane-conversation {
   border-color: color-mix(in srgb, var(--warn) 40%, var(--cv-line));
 }
 
+/* 引擎段：参考组件里模型名是 13px 常规字重、次要色 ——
+   它只是「当前用的是哪个模型」，不是需要强调的标题。 */
 .cv3-hseg {
   display: flex;
   align-items: center;
   gap: 6px;
   min-width: 0;
-  color: var(--tx1);
-  font-size: 12px;
-  font-weight: 600;
+  color: var(--tx2);
+  font-size: 13px;
+  font-weight: 400;
   white-space: nowrap;
 }
 
@@ -2740,21 +2746,24 @@ html[data-theme="tactile"] .cv3-ddm {
   display: none;
 }
 
-/* 输入框里的模型选择器与发送钮同高（32px），
-   否则一行里出现 28/30/32 三种高度，底栏看起来是歪的。 */
+/* 输入框里的模型选择器：几何与参考组件一致（高 32 / 圆角 12 /
+   padding 6px 4px 6px 8px / 有底色有描边）。
+   之前这里是「透明底 + 透明边框」，只有 hover 才显形；
+   参考组件里它是一个常显的小胶囊，用户随时能看出「现在用的是哪个模型」。 */
 .cc-bar .cv3-hbtn {
   height: 32px;
   max-width: 240px;
-  padding: 0 9px 0 11px;
-  background: transparent;
-  border-color: transparent;
-}
-.cc-bar .cv3-hbtn:hover {
+  padding: 6px 4px 6px 8px;
+  gap: 2px;
+  border-radius: 12px;
   background: var(--hole);
   border-color: var(--cv-line);
 }
+.cc-bar .cv3-hbtn:hover {
+  border-color: color-mix(in srgb, var(--fg) 24%, var(--cv-line));
+}
 .cc-bar .cv3-hmodel {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--tx2);
 }
 

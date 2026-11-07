@@ -14,7 +14,7 @@
  */
 
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { ArrowUp, Paperclip, Square } from 'lucide-react'
+import { ArrowUp, Plus, Square } from 'lucide-react'
 import './chat-composer.css'
 
 export interface ChatComposerProps {
@@ -188,7 +188,7 @@ export function ChatComposer({
           <div className="cc-bar-left">
             {onAttach ? (
               <button type="button" className="cc-attach" aria-label="添加附件" title="添加附件" onClick={onAttach}>
-                <Paperclip size={15} />
+                <Plus size={18} strokeWidth={2.2} />
               </button>
             ) : null}
             {leading}
