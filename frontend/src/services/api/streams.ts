@@ -14,6 +14,7 @@ import type {
   AgentTask,
   ChatMessage,
   ChatStreamContext,
+  ChatStreamDeliverables,
   ChatStreamJob,
   ChatStreamMessage,
   ChatStreamStatus,
@@ -451,6 +452,11 @@ export interface ChatStreamHandlers {
    */
   onJob?: (job: ChatStreamJob) => void
   /**
+   * 模型交付的文件。可选：旧后端不产这帧时不会调用。
+   * 一条回复可能来多次，由调用方按路径去重合并。
+   */
+  onDeliverables?: (frame: ChatStreamDeliverables) => void
+  /**
    * 引擎为这条会话起的标题。可选：旧后端不产这帧时不会调用。
    * 收到后应更新会话标题，否则左栏只能一直是「未命名对话」。
    */
@@ -661,6 +667,24 @@ export function openChatSessionStream(
             ...(dur !== undefined ? { durationMs: dur } : {}),
             ...(str(j.detail) ? { detail: str(j.detail) } : {}),
           })
+        }
+        return 'continue'
+      }
+      case 'deliverables': {
+        /* 产物帧。没有 path 的条目直接丢弃 —— 卡片点了也打不开，
+           留着只会是个死项。 */
+        const d = payload as unknown as Record<string, unknown>
+        const raw = Array.isArray(d.files) ? d.files : []
+        const files = raw
+          .map((f) => f as Record<string, unknown>)
+          .filter((f) => typeof f.path === 'string' && f.path.trim().length > 0)
+          .map((f) => ({
+            path: String(f.path),
+            ...(typeof f.description === 'string' && f.description.trim()
+              ? { description: f.description } : {}),
+          }))
+        if (files.length > 0) {
+          handlers.onDeliverables?.({ type: 'deliverables', files })
         }
         return 'continue'
       }

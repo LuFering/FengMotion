@@ -188,6 +188,27 @@ public class DshSdkSession {
         }
 
         /**
+         * 模型交付了一批文件（{@code present} 工具）。
+         *
+         * <p>这是「产物卡片」的唯一数据来源：模型做了什么、东西在哪，
+         * 都靠这里。以前这条事件被整条丢弃，用户只能从正文里自己找路径。</p>
+         *
+         * @param files 本次交付的文件；带绝对路径与一句说明
+         */
+        default void onDeliverables(java.util.List<Deliverable> files) {
+            // 默认忽略
+        }
+
+        /**
+         * 一个交付物。
+         *
+         * @param path        文件路径
+         * @param description 给用户看的一句说明；可能为空
+         */
+        record Deliverable(String path, String description) {
+        }
+
+        /**
          * 一个后台任务的状态快照。
          *
          * @param jobId     任务 ID（同一任务注册与结算相同）
@@ -651,6 +672,25 @@ public class DshSdkSession {
                             data.path("status").asText("completed"),
                             duration,
                             detail.isBlank() ? null : detail));
+                }
+                /* 模型交付的文件（present 工具）。这是产物卡片的唯一来源 ——
+                   以前整条丢弃，用户只能从正文里自己找路径。 */
+                case "deliverables/presented" -> {
+                    JsonNode files = data.path("files");
+                    if (files.isArray() && !files.isEmpty()) {
+                        java.util.List<Listener.Deliverable> list = new java.util.ArrayList<>();
+                        for (JsonNode f : files) {
+                            String path = f.path("path").asText("");
+                            if (path.isBlank()) {
+                                continue;
+                            }
+                            String desc = f.path("description").asText("");
+                            list.add(new Listener.Deliverable(path, desc.isBlank() ? null : desc));
+                        }
+                        if (!list.isEmpty()) {
+                            listener.onDeliverables(list);
+                        }
+                    }
                 }
                 case "request/context" -> {
                     JsonNode window = data.path("contextWindow");

@@ -31,6 +31,8 @@ import com.fasterxml.jackson.databind.JsonNode;
  * @param todos       模型排的任务清单（JSON 数组）；没有清单时为 null。
  * @param usage       这条回复的 token 用量（JSON 对象，含 promptTokens 等）；
  *                    没有用量记录时为 null。
+ * @param deliverables 这条回复交付的文件（JSON 数组，present 工具）；
+ *                     没有交付时为 null。
  * @param createdAt   创建时间
  */
 public record ChatMessage(
@@ -46,6 +48,7 @@ public record ChatMessage(
         String reasoning,
         JsonNode todos,
         JsonNode usage,
+        JsonNode deliverables,
         Instant createdAt) {
 
     /** 系统角色只供内部使用，不下发展示；判断时集中在这里，避免各处散写字符串。 */

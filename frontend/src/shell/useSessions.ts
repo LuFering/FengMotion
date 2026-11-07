@@ -110,6 +110,8 @@ export function toViewMessage(m: ContractMessage): ChatMessage {
     // 用量同样随消息读回：不读回来，上下文占用条只在「刚发完这一轮」可见，
     // 刷新或重开会话就没了 —— 而「现在装了几成」正是重看历史时要问的。
     ...(m.usage ? { usage: m.usage } : {}),
+    // 产物同样随消息读回：不读回来，completed 之后重读历史会把卡片冲掉。
+    ...(m.deliverables && m.deliverables.length > 0 ? { deliverables: m.deliverables } : {}),
   }
 }
 

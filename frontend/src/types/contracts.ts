@@ -1288,6 +1288,9 @@ export interface ChatMessage {
   /** 这条回复的 token 用量；没有记录时不出现。
       带上它，刷新后上下文占用条仍在，而不是只在「刚发完这一轮」时可见。 */
   usage?: ChatMessageUsage
+  /** 这条回复交付的文件；没有交付时不出现。
+      带上它，刷新后产物卡片仍在（否则 completed 重读历史会把它冲掉）。 */
+  deliverables?: { path: string; description?: string }[]
   createdAt: IsoDateTime
   demo?: DemoFlag
 }
@@ -1540,6 +1543,17 @@ export interface ChatStreamJob {
   detail?: string
 }
 
+/**
+ * 产物帧：模型通过 `present` 工具交付的文件。
+ *
+ * 这是「东西在哪」的唯一结构化来源。此前后端整条丢弃，用户只能从正文里
+ * 自己抠路径。一条回复可能分多次交付，故调用方按路径去重合并。
+ */
+export interface ChatStreamDeliverables {
+  type: 'deliverables'
+  files: { path: string; description?: string }[]
+}
+
 export type ChatStreamMessage =
   | ChatStreamDelta
   | ChatStreamReasoning
@@ -1549,6 +1563,7 @@ export type ChatStreamMessage =
   | ChatStreamUsage
   | ChatStreamContext
   | ChatStreamJob
+  | ChatStreamDeliverables
   | ChatStreamTitle
   | ChatStreamTodo
   | ChatStreamDiagnostic

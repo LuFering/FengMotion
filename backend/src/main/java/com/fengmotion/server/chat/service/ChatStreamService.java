@@ -268,7 +268,7 @@ public class ChatStreamService {
                 ChatMessage saved = appendAssistantMessage(
                         sessionId, outcome.text(), outcome.reasoning(),
                         listener.collectedToolCalls(), listener.collectedTodos(),
-                        listener.collectedUsage());
+                        listener.collectedUsage(), listener.collectedDeliverables());
                 // 先发 done 表达「本回合结束」，再发 completed 携带正文。
                 // 前端契约里 done 是收尾 phase，缺了它界面会停在「正在思考」。
                 listener.emitPhase("done", null, null);
@@ -426,7 +426,8 @@ public class ChatStreamService {
     private ChatMessage appendAssistantMessage(String sessionId, String text, String reasoning,
                                                com.fasterxml.jackson.databind.JsonNode toolCalls,
                                                com.fasterxml.jackson.databind.JsonNode todos,
-                                               com.fasterxml.jackson.databind.JsonNode usage) {
+                                               com.fasterxml.jackson.databind.JsonNode usage,
+                                               com.fasterxml.jackson.databind.JsonNode deliverables) {
         String body = text == null || text.isBlank() ? "" : text;
         return transactions.execute(status -> {
             messages.acquireWriteLock();
@@ -447,6 +448,8 @@ public class ChatStreamService {
                     // 空清单同样存 null：没有任务清单时读回来仍是「没有」。
                     todos == null || todos.isEmpty() ? null : todos,
                     usage == null || usage.isEmpty() ? null : usage,
+                    // 空数组同样存 null：没有交付时读回来仍是「没有」。
+                    deliverables == null || deliverables.isEmpty() ? null : deliverables,
                     now));
             sessions.touch(sessionId, now);
             return saved;
@@ -598,6 +601,9 @@ public class ChatStreamService {
         if (message.usage() != null) {
             body.set("usage", message.usage());
         }
+        if (message.deliverables() != null) {
+            body.set("deliverables", message.deliverables());
+        }
         body.put("createdAt", message.createdAt().toString());
         writeFrame(out, "completed", data);
     }
@@ -696,6 +702,16 @@ public class ChatStreamService {
         private long toolsTokens = -1;
         private long contextWindow = -1;
 
+        /**
+         * 本轮交付的文件（present 工具）。
+         *
+         * <p>按顺序累积并去重：一条回复可能分多次 present 同一文件，
+         * 后到的覆盖前面的（说明可能更完整）。不落库的话，
+         * completed 之后重读历史会把产物卡片冲掉。</p>
+         */
+        private final java.util.Map<String, com.fasterxml.jackson.databind.node.ObjectNode> deliverables
+                = new java.util.LinkedHashMap<>();
+
         private final String sessionId;
 
         SseListener(PrintWriter out, String sessionId) {
@@ -719,6 +735,20 @@ public class ChatStreamService {
          * @return `{inputTokens, outputTokens, cacheReadTokens, totalTokens,
          *          promptTokens, toolsTokens, contextWindow}`，缺的桶不出现
          */
+        /**
+         * 本轮交付的文件；一次都没交付时为 null。
+         *
+         * @return JSON 数组（每项 path + 可选 description）
+         */
+        com.fasterxml.jackson.databind.node.ArrayNode collectedDeliverables() {
+            if (deliverables.isEmpty()) {
+                return null;
+            }
+            com.fasterxml.jackson.databind.node.ArrayNode array = json.createArrayNode();
+            deliverables.values().forEach(array::add);
+            return array;
+        }
+
         com.fasterxml.jackson.databind.node.ObjectNode collectedUsage() {
             if (sumInput < 0 && sumOutput < 0 && sumTotal < 0) {
                 return null;
@@ -1034,6 +1064,38 @@ public class ChatStreamService {
                 data.put("detail", job.detail());
             }
             writeFrame(out, "job", data);
+        }
+
+        @Override
+        public void onDeliverables(java.util.List<DshSdkSession.Listener.Deliverable> files) {
+            /* 产物帧。前端据此显示「交付了哪些文件」——
+               这是用户做完一件事最想知道的事（东西在哪），
+               不该逼他从正文里自己找路径。 */
+            if (files == null || files.isEmpty()) {
+                return;
+            }
+            /* 同时累积，供落库用：只发帧的话刷新后卡片就没了。 */
+            for (DshSdkSession.Listener.Deliverable f : files) {
+                ObjectNode node = json.createObjectNode();
+                node.put("path", f.path());
+                if (f.description() != null) {
+                    node.put("description", f.description());
+                }
+                deliverables.put(f.path(), node);
+            }
+            ObjectNode data = json.createObjectNode();
+            data.put("type", "deliverables");
+            var array = json.createArrayNode();
+            for (DshSdkSession.Listener.Deliverable f : files) {
+                ObjectNode node = json.createObjectNode();
+                node.put("path", f.path());
+                if (f.description() != null) {
+                    node.put("description", f.description());
+                }
+                array.add(node);
+            }
+            data.set("files", array);
+            writeFrame(out, "deliverables", data);
         }
 
         @Override

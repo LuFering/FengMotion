@@ -44,6 +44,8 @@ CREATE INDEX IF NOT EXISTS idx_chat_sessions_project ON chat_sessions(project_id
 -- usage_json 保存这条回复的 token 用量。不落库的话，上下文占用条只在
 -- 「刚发完这一轮」时可见，刷新或重开会话就消失 —— 而「现在装了几成」
 -- 恰恰是重看历史时最想知道的事。
+-- deliverables_json 保存这条回复交付的文件（present 工具）。不落库的话，
+-- completed 之后重读历史会把卡片冲掉（实测：闪一下就没了，与 todos 同因）。
 CREATE TABLE IF NOT EXISTS chat_messages (
     id TEXT PRIMARY KEY,
     session_id TEXT NOT NULL,
@@ -57,6 +59,7 @@ CREATE TABLE IF NOT EXISTS chat_messages (
     reasoning TEXT,
     todos_json TEXT,
     usage_json TEXT,
+    deliverables_json TEXT,
     created_at TEXT NOT NULL,
     FOREIGN KEY (session_id) REFERENCES chat_sessions(id),
     UNIQUE (session_id, seq)

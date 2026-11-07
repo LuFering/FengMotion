@@ -32,5 +32,7 @@ public class ChatMessageRow {
     private String todosJson;
     /** 这条助手回复的 token 用量（JSON 对象）；没有用量记录时为 null。 */
     private String usageJson;
+    /** 这条助手回复交付的文件（JSON 数组）；没有交付时为 null。 */
+    private String deliverablesJson;
     private String createdAt;
 }

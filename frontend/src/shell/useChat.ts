@@ -33,6 +33,12 @@ export interface ChatMessage {
    */
   diagnostics?: { kind: 'compaction' | 'max-tokens' | 'retry' | 'interrupted'; detail?: string }[]
   /**
+   * 这条回复交付的文件（present 工具）。
+   *
+   * 用户在对话里最想知道「东西在哪」，这个信息不该埋在正文里要他自己抠路径。
+   */
+  deliverables?: { path: string; description?: string }[]
+  /**
    * 这条回复的 token 用量（落库形态，从历史读回）。
    *
    * 与流式期间的临时用量分开记：那个只在「刚发完」时存在，刷新就没了；
@@ -152,6 +158,7 @@ export function useChat() {
     executedTools?: { callId?: string; name: string; arguments?: string; done?: boolean; isError?: boolean }[],
     reasoning?: string,
     todos?: { content: string; status: 'pending' | 'in_progress' | 'completed' }[],
+    deliverables?: { path: string; description?: string }[],
   ) => {
     setMessages((items) => items.map((m) => (
       m.id === messageId
@@ -166,6 +173,9 @@ export function useChat() {
             /* 任务清单同理：completed 到重读历史之间有一瞬空档，
                这里先挂上，避免清单在那一瞬消失。 */
             ...(todos && todos.length > 0 ? { todos } : {}),
+            /* 产物同理：completed 到重读历史之间有一瞬空档，
+               这里先挂上，避免卡片在那一瞬消失。 */
+            ...(deliverables && deliverables.length > 0 ? { deliverables } : {}),
           }
         : m
     )))

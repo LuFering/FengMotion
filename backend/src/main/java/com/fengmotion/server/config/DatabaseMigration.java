@@ -109,6 +109,7 @@ public class DatabaseMigration {
                     reasoning TEXT,
                     todos_json TEXT,
                     usage_json TEXT,
+                    deliverables_json TEXT,
                     created_at TEXT NOT NULL,
                     FOREIGN KEY (session_id) REFERENCES chat_sessions(id),
                     UNIQUE (session_id, seq)
@@ -137,6 +138,10 @@ public class DatabaseMigration {
         // 而「这条会话现在装了几成上下文」正是重看历史时要问的。
         if (!messageColumns.contains("usage_json")) {
             jdbc.execute("ALTER TABLE chat_messages ADD COLUMN usage_json TEXT");
+        }
+        // 产物列：交付的文件。不落库的话，completed 之后重读历史会把卡片冲掉。
+        if (!messageColumns.contains("deliverables_json")) {
+            jdbc.execute("ALTER TABLE chat_messages ADD COLUMN deliverables_json TEXT");
         }
         jdbc.execute("CREATE INDEX IF NOT EXISTS idx_chat_messages_session_seq ON chat_messages(session_id, seq)");
         // 任务域：任务主表与事件表。旧库没有，新库由这里补出。

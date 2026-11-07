@@ -27,6 +27,8 @@ import com.fengmotion.server.chat.domain.ChatMessage;
  * @param todos       模型排的任务清单；没有时不出现。同样要能回看。
  * @param usage       这条回复的 token 用量；没有时不出现。
  *                    带上它，刷新后上下文占用条还在，而不是只在「刚发完」时可见。
+ * @param deliverables 这条回复交付的文件；没有交付时不出现。
+ *                    不带它的话，重读历史后产物卡片会消失。
  * @param createdAt   创建时间
  */
 public record ChatMessageResponse(
@@ -41,6 +43,7 @@ public record ChatMessageResponse(
         @JsonInclude(JsonInclude.Include.NON_NULL) String reasoning,
         @JsonInclude(JsonInclude.Include.NON_NULL) JsonNode todos,
         @JsonInclude(JsonInclude.Include.NON_NULL) JsonNode usage,
+        @JsonInclude(JsonInclude.Include.NON_NULL) JsonNode deliverables,
         Instant createdAt) {
 
     /** 将领域对象转换为 API 响应对象。 */
@@ -57,6 +60,7 @@ public record ChatMessageResponse(
                 message.reasoning(),
                 message.todos(),
                 message.usage(),
+                message.deliverables(),
                 message.createdAt());
     }
 }

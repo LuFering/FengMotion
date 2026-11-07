@@ -3,6 +3,7 @@ import { Search as SeekSearch } from '@/components/Search'
 import { WebSearchTrace, isSearchTool, type SearchCall } from '@/components/WebSearchTrace'
 import { ChecklistDrawer } from '@/components/bencho/Checklist'
 import { JobPanel, type JobView } from '@/components/chat/JobPanel'
+import { Deliverables } from '@/components/chat/Deliverables'
 import { ContextMeter, type MeterPart } from '@/components/bencho/ContextMeter'
 import {
   ChatMessage as ChatBubble, ChatComposer, ThinkingIndicator, MarkdownText,
@@ -427,6 +428,18 @@ function shortArgs(args: string): string {
     return truncate(doingText ? `${head}：${doingText}` : head)
   }
 
+  /* ── 交付参数（present 的 files）─────────────────────────
+     和 todo_write 同因：唯一字段是对象数组，取字符串字段那套取不到，
+     整行会显示「（无参数）」，看起来像调用失败。这里给出文件名。 */
+  if (Array.isArray(parsed.files)) {
+    const list = parsed.files as { path?: unknown }[]
+    const names = list
+      .map((f) => (typeof f?.path === 'string' ? f.path.split(/[\\/]/).pop() ?? '' : ''))
+      .filter(Boolean)
+    const head = `交付 ${list.length} 个文件`
+    return truncate(names.length > 0 ? `${head}：${names.join('、')}` : head)
+  }
+
   /* 优先级按「哪个字段最能说明这一步在干什么」排 */
   const KEYS = ['description', 'command', 'query', 'pattern', 'file_path', 'path', 'url', 'prompt']
   for (const k of KEYS) {
@@ -641,6 +654,15 @@ export function Conversation(props: {
    * 这里只负责维护事实，不管「该不该显示」。
    */
   const [jobs, setJobs] = useState<JobView[]>([])
+
+  /**
+   * 本轮交付的产物。
+   *
+   * 用 ref 而不是 state：它只在收尾时用到一次（挂到消息上），
+   * 中途不驱动渲染 —— 每来一帧都 setState 会白跑一次渲染。
+   * 按 path 去重：一条回复可能分多次 present，同一文件不重复列。
+   */
+  const deliverablesRef = useRef<{ path: string; description?: string }[]>([])
   /* dsh 响应式：1024 以下左栏自动收为 56px 轨，手动展开为覆盖式抽屉 */
   const [narrow, setNarrow] = useState(() => (typeof window === 'undefined' ? false : window.innerWidth < 1024))
   const [sideExpanded, setSideExpanded] = useState(() => (typeof window === 'undefined' ? true : window.innerWidth >= 1024))
@@ -1152,6 +1174,8 @@ export function Conversation(props: {
     // 新的一轮从零开始记工具调用：上一轮的记录属于上一条回复，留着会串味。
     setToolCalls([])
     toolCallsRef.current = []
+    // 产物同理：上一轮交付的文件不属于这一条回复。
+    deliverablesRef.current = []
     setUsage(null)
     const handle = studioHttpApi().chat.stream(sessionId, {
       /* 推理增量进「思考过程」块，不进正文 */
@@ -1175,7 +1199,8 @@ export function Conversation(props: {
         produced = true
         // 带上本轮工具记录：completed 到服务端消息读回之间有个异步空档，
         // 不先挂上去，列表会在这一瞬间闪空。
-        chat.finishAiMessage(aiId, message.text, toolCallsRef.current, message.reasoning, message.todos)
+        chat.finishAiMessage(aiId, message.text, toolCallsRef.current, message.reasoning, message.todos,
+                             deliverablesRef.current)
         /* 服务端会话的内容以 server 消息数组为准（见上方 serverMirror 的说明）。
            这里必须把刚落库的回复重新读回来：否则下一次发消息、或任何让
            `activeThread.messages` 身份变化的操作，都会用「只有用户消息」的数组
@@ -1298,6 +1323,12 @@ export function Conversation(props: {
         if ((u.inputTokens ?? 0) > 0 && prompt > 0) {
           setContextUsed(prompt)
         }
+      },
+      onDeliverables: (f) => {
+        /* 合并去重：同一 path 后到的覆盖前面的（说明可能更完整）。 */
+        const map = new Map(deliverablesRef.current.map((x) => [x.path, x]))
+        for (const item of f.files) map.set(item.path, item)
+        deliverablesRef.current = [...map.values()]
       },
       onJob: (j) => {
         /* 同一 jobId 会来两帧：registered（running）与 settled（终态）。
@@ -2276,6 +2307,11 @@ export function Conversation(props: {
                         </tbody>
                       </table>
                     </div>
+                  )}
+                  {/* 交付的产物：模型主动 present 的文件。
+                      放在回复最末 —— 「说了什么」之后才是「东西在哪」。 */}
+                  {m.deliverables && m.deliverables.length > 0 && (
+                    <Deliverables files={m.deliverables} />
                   )}
                 </div>
               ))}
