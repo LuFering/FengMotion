@@ -1,0 +1,350 @@
+/* ═══════════════════════════════════════════════════════════════
+   AI 回复区样式 —— 逐条对齐 dsh 的 ChatView
+
+   每个数值后面标了它在 dsh 里的类名，改之前先核对来源。
+   dsh 的语义变量（--dsw-*）本项目没有，用本项目 token 一一对应：
+     --dsw-alias-label-primary     → --fg
+     --dsw-alias-label-secondary   → --dim
+     --dsw-alias-label-tertiary    → --ph
+     --dsw-alias-label-caption     → --ph
+     --dsw-alias-border-l1 / l2    → --line
+     --dsw-alias-markdown-code-block → --hole
+     --dsw-alias-bg-base           → --surf
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── 正文（.xPs6ua_root / _body）───────────────────────────── */
+
+.ai-answer {
+  display: flex;
+  flex-direction: column;
+  font-size: 14px;
+  line-height: 24px;
+  color: var(--fg);
+}
+
+.ai-answer-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ── 操作条（.xPs6ua_actions：margin-top 16px / margin-left -6px）──
+   左移 6px 是为了让 28px 按钮的图标与正文左边缘对齐。 */
+
+.ai-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-top: 16px;
+  margin-left: -6px;
+}
+
+/* ── 思考折叠（.NpTkMG_*）──────────────────────────────────────
+   收起态固定 24px：dsh 用 contain:size + height 定死。
+   不这么做的话，「思考中 → 完成」切换会把下面的正文顶一下。 */
+
+.ai-reason {
+  display: flex;
+  flex-direction: column;
+  color: var(--ph);
+}
+.ai-reason:not([data-expanded]) {
+  contain: size layout;
+  height: 24px;
+  overflow: hidden;
+}
+
+.ai-reason-head {
+  display: flex;
+  min-width: 0;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  line-height: 20px;
+  text-align: start;
+  cursor: pointer;
+}
+.ai-reason-head:hover {
+  color: var(--dim);
+}
+
+.ai-reason-caret {
+  flex: none;
+  transition: transform 150ms ease;
+}
+.ai-reason[data-expanded] .ai-reason-caret {
+  transform: rotate(90deg);
+}
+
+.ai-reason-title {
+  flex: none;
+  font-weight: 400;
+}
+
+/* 分隔点是 2×2px 圆点，margin 0 8px（.NpTkMG_separator） */
+.ai-reason-sep {
+  flex: none;
+  width: 2px;
+  height: 2px;
+  margin: 0 8px;
+  border-radius: 1px;
+  background: var(--ph);
+}
+
+.ai-reason-time {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+  color: var(--ph);
+}
+
+/* 摘要单行省略；流式时右侧渐隐而不是硬切（.NpTkMG_summary[data-streaming]） */
+.ai-reason-summary {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ph);
+}
+.ai-reason-summary[data-streaming] {
+  -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 48px), transparent);
+  mask-image: linear-gradient(90deg, #000 calc(100% - 48px), transparent);
+  text-overflow: clip;
+}
+
+/* 展开后的正文：左缩进 22px（.NpTkMG_thinkBody） */
+.ai-reason-body {
+  min-width: 0;
+  padding: 4px 0 4px 22px;
+  color: var(--dim);
+  font-size: 13px;
+  line-height: 22px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* ── 工具调用（.aDgvMW_callRow / .cxT0Bq_*）────────────────── */
+
+.ai-calls {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ai-call {
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--fm-radius-mark, 6px);
+}
+
+.ai-call-head {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  border: 0;
+  background: none;
+  color: var(--dim);
+  font: inherit;
+  font-size: 13px;
+  line-height: 20px;
+  text-align: start;
+  cursor: pointer;
+}
+.ai-call-head:hover {
+  color: var(--fg);
+}
+
+/* 状态点：dsh 执行中用空心方块，完成/失败用符号。
+   这里统一用小圆点 + 文字状态，颜色不单独承担语义（色弱也要能看出）。 */
+.ai-call-dot {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--ph);
+}
+.ai-call[data-state='running'] .ai-call-dot {
+  background: var(--acc);
+}
+.ai-call[data-state='done'] .ai-call-dot {
+  background: var(--ok, #2e7d32);
+}
+.ai-call[data-state='failed'] .ai-call-dot {
+  background: var(--bad, #a33d32);
+}
+
+.ai-call-name {
+  flex: none;
+  color: var(--fg);
+  font-weight: 500;
+}
+
+.ai-call-summary {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ph);
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 12px;
+}
+
+.ai-call-status {
+  flex: none;
+  font-size: 12px;
+  color: var(--ph);
+}
+.ai-call[data-state='failed'] .ai-call-status {
+  color: var(--bad, #a33d32);
+}
+
+/* 子调用：左边线 .5px、缩进 22px + 8px（.aDgvMW_subCalls） */
+.ai-call-sub {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 4px 0 2px 22px;
+  padding-left: 8px;
+  border-left: 0.5px solid var(--line);
+}
+
+/* ── 运行指示（.dM7RPG_running）───────────────────────────────
+   字号比正文小 2px、行高 22px、图标与文字 gap 6px。 */
+
+.ai-running {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 13px;
+  line-height: 22px;
+  color: var(--dim);
+}
+
+.ai-running-icon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+}
+
+.ai-running-text {
+  min-width: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-reason-caret {
+    transition: none;
+  }
+}
+
+/* ── 工具结果面板（.cxT0Bq_root）───────────────────────────────
+   .5px 边线、radius-lg、代码块底色、最大高 320px、内边距 10/14 */
+.ai-result {
+  margin: 4px 0 4px 4px;
+  border: 0.5px solid var(--line);
+  border-radius: var(--fm-radius-card, 12px);
+  background: var(--hole);
+  color: var(--dim);
+  font-size: 13px;
+  overflow: hidden;
+}
+.ai-result-caption {
+  padding: 10px 14px 6px;
+  font-size: 12px;
+  color: var(--ph);
+}
+.ai-result-body {
+  max-height: 320px;
+  margin: 0;
+  padding: 10px 14px;
+  overflow: auto;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* 工具头不可展开时不显示手型 */
+.ai-call-head:disabled {
+  cursor: default;
+}
+
+/* ── 运行分隔线（.dM7RPG_runningDivider）：0.5px、margin 8px 0 10px */
+.ai-running-divider {
+  width: 100%;
+  height: 0.5px;
+  margin: 8px 0 10px;
+  background: var(--line);
+  pointer-events: none;
+}
+
+/* ── 整轮折叠卡（.rHOitW_root）──────────────────────────────────
+   .5px 边线、radius-xl、header padding 12/16、图标 15px、标题 14px */
+.ai-turn-card {
+  border: 0.5px solid var(--line);
+  border-radius: var(--fm-radius-panel, 18px);
+  background: var(--hole);
+  overflow: hidden;
+  transition: background-color 100ms;
+}
+.ai-turn-card:hover {
+  background: color-mix(in srgb, var(--hole) 85%, var(--fg) 6%);
+}
+
+.ai-turn-head {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border: 0;
+  background: none;
+  color: var(--ph);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  transition: color 100ms;
+}
+.ai-turn-head:hover {
+  color: var(--dim);
+}
+
+.ai-turn-icon {
+  display: inline-flex;
+  flex: none;
+  color: inherit;
+}
+.ai-turn-caret {
+  transition: transform 150ms ease;
+}
+.ai-turn-caret.is-open {
+  transform: rotate(90deg);
+}
+
+.ai-turn-title {
+  flex: none;
+  font-size: 14px;
+}
+
+.ai-turn-time {
+  flex: none;
+  margin-left: auto;
+  font-size: 12px;
+  color: inherit;
+}
+
+.ai-turn-body {
+  padding: 0 16px 12px;
+}

@@ -83,6 +83,18 @@ export function useChat() {
     ])
     return id
   }
+  /**
+   * 追加推理增量。
+   *
+   * 与 appendAiText 分开而不是复用它：正文与推理是两条流，
+   * 混在 text 里会把推理写进答案（用户复制、朗读、以及 Markdown 渲染都会带上）。
+   */
+  const appendAiReasoning = (messageId: string, delta: string) => {
+    setMessages((items) =>
+      items.map((m) => (m.id === messageId ? { ...m, thinking: (m.thinking ?? '') + delta } : m)),
+    )
+  }
+
   const appendAiText = (messageId: string, delta: string) => {
     if (!delta) return
     setMessages((items) => items.map((m) => (m.id === messageId ? { ...m, text: m.text + delta } : m)))
@@ -123,7 +135,7 @@ export function useChat() {
   }
   return {
     messages, draft, setDraft, addUserMessage, setMessageTaskId, addAiMessage, appendMessage, clearChat,
-    replaceMessages, startAiMessage, appendAiText, finishAiMessage, failAiMessage, removeMessage,
+    replaceMessages, startAiMessage, appendAiText, appendAiReasoning, finishAiMessage, failAiMessage, removeMessage,
   }
 }
 

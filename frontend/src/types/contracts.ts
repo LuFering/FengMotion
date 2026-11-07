@@ -1329,6 +1329,18 @@ export interface ChatStreamDelta {
   delta: string
 }
 
+/**
+ * 推理增量帧。
+ *
+ * <p>与 {@link ChatStreamDelta} 分开：那个进正文（会被渲染、复制、朗读），
+ * 这个进折叠的「思考过程」块。混在一个通道里，任一处漏判就会把推理混进答案。</p>
+ */
+export interface ChatStreamReasoning {
+  type: 'reasoning'
+  messageId: Id
+  delta: string
+}
+
 export interface ChatStreamCompleted {
   type: 'completed'
   message: ChatMessage
@@ -1430,6 +1442,7 @@ export interface ChatStreamHeartbeat {
 
 export type ChatStreamMessage =
   | ChatStreamDelta
+  | ChatStreamReasoning
   | ChatStreamCompleted
   | ChatStreamTask
   | ChatStreamStatus

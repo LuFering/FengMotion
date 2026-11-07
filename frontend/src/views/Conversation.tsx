@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Search as SeekSearch } from '@/components/Search'
-import { WebSearchTrace, type SearchCall } from '@/components/WebSearchTrace'
-import { ChatMessage as ChatBubble, ChatComposer, TaskList, ThinkingIndicator, type TaskItem } from '@/components/chat'
+import { WebSearchTrace } from '@/components/WebSearchTrace'
+import {
+  ChatMessage as ChatBubble, ChatComposer, ThinkingIndicator, MarkdownText,
+  ReasoningBlock, ToolCalls, AnswerBody, AnswerActions, MessageActions, RunningDivider,
+} from '@/components/chat'
 import type { CSSProperties } from 'react'
 import {
   AlertCircle, Archive, ArchiveRestore, Check, ChevronDown, ChevronLeft, ChevronRight, Ellipsis, FileText, FolderPlus, ImageIcon,
@@ -112,60 +115,56 @@ const PERM_MODES = [
 const MODULE_SERVED_IDS = new Set<string>()
 
 /**
- * 把工具调用转成 TaskList 的任务。
+ * 已经失败过的用户消息 id（模块级，跨卸载保留）。
  *
- * 为什么要分组：一轮视频任务里十几次 bash/read/write，平铺成一张清单
- * 看起来是「一堆零散动作」；按工具名归成几个任务（读文件 / 执行命令 / 写文件），
- * 才看得出这一轮到底做了哪几类事。
- *
- * 不编造内容：任务的 title 用工具名本身，runningTitle 只是加「正在」前缀，
- * 步骤就是真实的每一次调用与其参数。没有任何一条是推测出来的。
+ * <p>为什么必须记：失败时 `onError` 会把占位的 AI 消息删掉，于是
+ * 「最后一轮没有 AI 回复」这个条件重新成立，自动起流的 effect 会再起一次 ——
+ * 引擎持续失败时就是一个**无限重试循环**（真机实测：错误提示已经显示，
+ * 思考态却还在跑，计时器一路涨到 0:37 并继续）。
+ * 记下失败的 id，自动路径就不再重试；用户点「重试」才重发。</p>
  */
-function toolCallsToTasks(calls: SearchCall[], running: boolean): TaskItem[] {
-  /* 按工具名归组，但保留首次出现的顺序 —— 顺序是「实际发生顺序」，
-     按字母排会把它变成一份看起来像清单的东西，而不是一条日志 */
-  const groups = new Map<string, SearchCall[]>()
-  for (const call of calls) {
-    const list = groups.get(call.name)
-    if (list) list.push(call)
-    else groups.set(call.name, [call])
-  }
-
-  return [...groups.entries()].map(([name, list]) => {
-    const failed = list.filter((c) => c.isError).length
-    const done = list.filter((c) => c.done === true).length
-    const finished = !running || done === list.length
-    return {
-      title: `${name} · ${list.length} 次${failed > 0 ? ` · ${failed} 失败` : ''}`,
-      runningTitle: `正在执行 ${name}`,
-      steps: list.map((call) => ({
-        label: call.arguments ? shortArgs(call.arguments) : `${name} 调用`,
-        chips: call.isError ? [{ label: '失败' }] : undefined,
-      })),
-      /* finished 只影响标题换字，不改数据 */
-      ...(finished ? {} : {}),
-    }
-  })
-}
+const MODULE_FAILED_IDS = new Set<string>()
 
 /**
- * TaskList 的 revealed 是「单元数」：每个任务 1 个标题单元 + 每步 1 个单元。
- * 这里按真实到达数算：已完成的调用算落地，进行中的那一条也先显示出来
- * （它已经在跑了，藏起来等于假装没发生）。
+ * 参数摘要。
+ *
+ * ⚠️ 不能直接把 JSON 原文截断显示 —— 实测步骤行会变成
+ * `{"description":"Run echo hello and report out...`，用户读不出「在干什么」。
+ * 工具参数是有结构的，要按已知字段取「人话」那一段：
+ *   command / description / file_path / path / pattern / query / url
+ * 都不认识时才退回「键名：值」的压缩形式。
  */
-function toolCallsRevealed(calls: SearchCall[]): number {
-  const groups = new Map<string, number>()
-  for (const call of calls) groups.set(call.name, (groups.get(call.name) ?? 0) + 1)
-  /* 每个组：1 个标题 + N 步 = 1 + N 个单元 */
-  let total = 0
-  for (const n of groups.values()) total += 1 + n
-  return total
+function shortArgs(args: string): string {
+  let parsed: Record<string, unknown> | null = null
+  try {
+    const v = JSON.parse(args)
+    if (v && typeof v === 'object' && !Array.isArray(v)) parsed = v as Record<string, unknown>
+  } catch {
+    /* 不是 JSON（例如纯命令字符串）：直接当文本用 */
+  }
+
+  if (!parsed) {
+    const oneLine = args.replace(/\s+/g, ' ').trim()
+    return oneLine.length > 72 ? `${oneLine.slice(0, 72)}…` : oneLine
+  }
+
+  /* 优先级按「哪个字段最能说明这一步在干什么」排 */
+  const KEYS = ['description', 'command', 'query', 'pattern', 'file_path', 'path', 'url', 'prompt']
+  for (const k of KEYS) {
+    const v = parsed[k]
+    if (typeof v === 'string' && v.trim()) return truncate(v.trim())
+  }
+
+  /* 兜底：取前两个字符串字段，拼成「键：值」 */
+  const parts = Object.entries(parsed)
+    .filter(([, v]) => typeof v === 'string' || typeof v === 'number')
+    .slice(0, 2)
+    .map(([k, v]) => `${k}=${String(v)}`)
+  return truncate(parts.join(' ') || '（无参数）')
 }
 
-/** 参数摘要：单行、截断。完整参数在 WebSearchTrace / 展开态里能看，
-    这里只做「这一步大概在干什么」的提示。 */
-function shortArgs(args: string): string {
-  const oneLine = args.replace(/\s+/g, ' ').trim()
+function truncate(t: string): string {
+  const oneLine = t.replace(/\s+/g, ' ').trim()
   return oneLine.length > 72 ? `${oneLine.slice(0, 72)}…` : oneLine
 }
 
@@ -244,6 +243,21 @@ export function Conversation(props: {
   /** 本轮开始时间：给 ThinkingIndicator 的计时器用。
       记在 state 里而不是渲染时 Date.now()，否则每帧都会变、计时器会抖。 */
   const [pendingStartedAt, setPendingStartedAt] = useState<number | null>(null)
+  /**
+   * 每秒自增一次，只为驱动思考态计时器的重渲染。
+   *
+   * 不在渲染里直接 Date.now()：那样要等别的原因触发重渲染，数字才会跳，
+   * 实测会一直停在 0:00（没有 state 变化就没有重渲染）。
+   */
+  /* tick 的值本身不参与渲染，它只是「让这个组件每秒重算一次」的开关：
+     elapsed 是算出来的（now - startedAt），父组件不重渲染就不会更新。 */
+  const [tick, setTick] = useState(0)
+  void tick
+  useEffect(() => {
+    if (!pending) return
+    const timer = window.setInterval(() => setTick((n) => n + 1), 1000)
+    return () => window.clearInterval(timer)
+  }, [pending])
   /**
    * Agent 当前阶段。
    *
@@ -722,6 +736,8 @@ export function Conversation(props: {
     if (at >= 0 && messages.slice(at + 1).some((m) => m.role === 'ai')) return
     /* 同一条已经在跑（首次挂载刚起的流）：不要重复 */
     if (servedRef.has(lastUserId) && pending) return
+    /* 失败过的不要再自动重起：会变成无限重试（见 MODULE_FAILED_IDS 注释） */
+    if (MODULE_FAILED_IDS.has(lastUserId)) return
     servedRef.add(lastUserId)
     startServerReply()
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -737,6 +753,7 @@ export function Conversation(props: {
        在末尾留下一个空的「正在回复…」。 */
     const at = messages.findIndex((m) => m.id === lastUserId)
     if (at >= 0 && messages.slice(at + 1).some((m) => m.role === 'ai')) return
+    if (MODULE_FAILED_IDS.has(lastUserId)) return
     servedRef.add(lastUserId)
     setPendingStartedAt(Date.now())
     setPending(true)
@@ -750,6 +767,25 @@ export function Conversation(props: {
     if (!el) return
     if (el.scrollHeight - el.scrollTop - el.clientHeight < 320) el.scrollTop = el.scrollHeight
   }, [messages, pending])
+
+  /**
+   * 用户是否已经翻离底部。
+   *
+   * dsh 在翻离底部时给一个 34px 的「回到最新」圆钮（.dM7RPG_toBottom）：
+   * 生成中内容一直往下长，翻上去看历史的人需要一个明确的一步返回，
+   * 否则只能自己一路往下滚。
+   */
+  const [awayFromBottom, setAwayFromBottom] = useState(false)
+  const onScrollTrack = useCallback(() => {
+    const el = scrollRef.current
+    if (!el) return
+    setAwayFromBottom(el.scrollHeight - el.scrollTop - el.clientHeight > 320)
+  }, [])
+  const backToBottom = useCallback(() => {
+    const el = scrollRef.current
+    if (!el) return
+    el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
+  }, [])
 
 
   /**
@@ -775,6 +811,10 @@ export function Conversation(props: {
     toolCallsRef.current = []
     setUsage(null)
     const handle = studioHttpApi().chat.stream(sessionId, {
+      /* 推理增量进「思考过程」块，不进正文 */
+      onReasoning: (_messageId, delta) => {
+        chat.appendAiReasoning(aiId, delta)
+      },
       onDelta: (_messageId, delta) => {
         produced = true
         chat.appendAiText(aiId, delta)
@@ -796,7 +836,12 @@ export function Conversation(props: {
       onError: (error) => {
         // 能力缺口：删掉占位，改用「Agent 未接入」说明，不当作回复失败
         chat.removeMessage(aiId)
+        /* 记下这条失败，自动路径不再重试 —— 否则删掉占位后
+           「最后一轮没有 AI 回复」又成立，effect 会无限重起流。 */
+        const failedUser = [...messages].reverse().find((mm) => mm.role === 'user')
+        if (failedUser) MODULE_FAILED_IDS.add(failedUser.id)
         setPending(false)
+        setPendingStartedAt(null)
         setAgentPhase(null)
         setReplyNote(error.isCapabilityGap
           ? 'Agent 暂时不可用：这条消息已保存在服务端，但没有收到回复。'
@@ -1025,6 +1070,9 @@ export function Conversation(props: {
   const retryLastRound = useCallback(() => {
     const lastUser = [...messages].reverse().find((m) => m.role === 'user')
     if (!lastUser || pending) return
+    /* 用户主动重试：清掉失败标记，否则自动路径与手动路径都被挡住 */
+    MODULE_FAILED_IDS.delete(lastUser.id)
+    servedRef.delete(lastUser.id)
     send(lastUser.text)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages, pending])
@@ -1711,22 +1759,14 @@ export function Conversation(props: {
           </div>
         </header>
 
-        <div className="cv3-scroll" ref={scrollRef}>
+        <div className="cv3-scroll" ref={scrollRef} onScroll={onScrollTrack}>
           <div className="cv3-view">
             <div className="cv3-col">
               {/* 服务端会话：历史、发送与 Agent 回复都已接上。
                  这里只说明「消息会持久化」这一件用户关心的事实 ——
                  之前那句「Agent 回复尚未接入」在接入之后成了错误信息，
                  会让人以为发了也没回答（真机截图确认过）。 */}
-              {activeIsServer && (
-                <div className="cv3-server-note" role="status">
-                  <ShieldCheck size={14} />
-                  <div>
-                    <b>这条对话已保存在服务端。</b>
-                    <p>发出去的消息与回复都会存进服务端，重开后仍可回看。</p>
-                  </div>
-                </div>
-              )}
+
               {/* 历史读取：加载中 / 失败（可重试）。失败时不清空已读到的部分，
                   但必须说明「不是完整历史」—— 空会话与没读到是两件事。 */}
               {activeIsServer && !activeMessagesLoaded && !activeThread?.messagesError && (
@@ -1778,48 +1818,85 @@ export function Conversation(props: {
                   role="user"
                   text={m.text}
                   at={m.at}
-                  attachments={m.attachments?.map((a) => `附件：${a.name}`)}
+                  attachments={m.attachments?.map((a) => ({
+                    name: a.name,
+                    kind: a.mimeType?.startsWith('image/') ? 'image' as const : 'file' as const,
+                    sizeBytes: a.sizeBytes,
+                  }))}
                 />
               ) : (
                 <div key={m.id} className="cv3-ai-block">
-                  {/* 正文走 ChatMessage：流式期间逐行 blur-in 生长，
-                      结束后换成 Markdown（含代码高亮）。
-                      之前是手写 renderRich，只认 **加粗**、反引号、`1. ` 编号，
-                      表格/多级列表/代码块全都走样 —— 那等于把结构信息丢了。 */}
-                  <ChatBubble
-                    role="ai"
-                    text={m.text}
-                    at={m.at}
-                    streaming={m.streaming}
-                    failed={m.failed}
-                    demo={m.demo}
-                    onRetry={m.failed ? () => retryLastRound() : undefined}
-                  />
-                  {/* 这条回复执行过的工具调用。来自服务端读回的消息（切走会话再回来仍在），
-                      与进行中的实时列表是同一份数据的两个阶段 —— 后者落库后由这里接管。 */}
-                  {m.executedTools && <WebSearchTrace calls={m.executedTools} live={false} />}
-                  {/* 历史记录也走同一个 TaskList：实时与回看必须是同一个样子，
-                      否则用户会以为这是两种不同的东西（也是之前 <details> 折叠条的问题）。
-                      已完成 = 全部单元都落地，所以 revealed 给满。 */}
-                  {m.executedTools && m.executedTools.length > 0 && (
-                    <TaskList
-                      tasks={toolCallsToTasks(m.executedTools, false)}
-                      revealed={toolCallsRevealed(m.executedTools)}
-                      run={false}
-                      working={false}
-                      collapseOnComplete
+                  {/* ══ 过程区（turn-process）═══════════════════════════
+                      顺序照 dsh 的 ChatView：思考 → 工具调用 → 运行指示。
+                      这三块回答的是「它怎么做到的」，正文回答「结论是什么」，
+                      所以必须在正文之前、且视觉上更弱。 */}
+
+                  {/* 思考过程：dsh 是收起 24px 的折叠块，展开才显示推理正文。
+                      之前完全没有这一块 —— 后端把 phase/reasoning 透传上来了，
+                      界面上却没有位置放，等于丢了一整类信息。 */}
+                  {m.thinking ? (
+                    <ReasoningBlock
+                      text={m.thinking}
+                      streaming={m.streaming}
                     />
+                  ) : null}
+
+                  {/* 工具调用：dsh 是一行一个调用（工具名 + 摘要 + 状态），
+                      子调用缩进带左边线。之前用 TaskList 把它们归成「任务」，
+                      读起来像另一种东西；这里改回 dsh 的逐行结构。 */}
+                  {m.executedTools && m.executedTools.length > 0 && (
+                    <>
+                      <WebSearchTrace calls={m.executedTools} live={false} />
+                      <ToolCalls
+                        calls={m.executedTools.map((c) => ({
+                          name: c.name,
+                          summary: shortArgs(c.arguments ?? ''),
+                          done: c.done !== false,
+                          isError: c.isError,
+                          /* 后端目前不下发工具输出，所以这里没有 result。
+                             展开只能看到参数 —— 这是真实情况，不补假数据。 */
+                          result: c.arguments,
+                        }))}
+                      />
+                    </>
                   )}
                   {m.toolCalls && m.toolCalls.length > 0 && (
-                    <div className="cv3-tools">
-                      {m.toolCalls.map((t, i) => (
-                        <div key={i} className="cv3-tool">
-                          <b>{t.label}</b>
-                          <span>{t.detail}</span>
-                        </div>
-                      ))}
-                    </div>
+                    <ToolCalls
+                      calls={m.toolCalls.map((t) => ({
+                        name: t.label,
+                        summary: t.detail,
+                        done: true,
+                      }))}
+                    />
                   )}
+
+                  {/* 正文：Markdown + 代码高亮。
+                      之前是手写 renderRich，只认 **加粗**、反引号、`1. ` 编号，
+                      表格/多级列表/代码块全都走样 —— 那等于把结构信息丢了。 */}
+                  {m.text ? (
+                    <AnswerBody>
+                      <MarkdownText text={m.text} />
+                    </AnswerBody>
+                  ) : null}
+
+                  {/* 失败 / 演示标记：必须可见，不能只靠别处说明 */}
+                  {m.failed ? (
+                    <p className="cm-failed" role="alert">这条回复没有完成：{m.failed}</p>
+                  ) : null}
+                  {m.demo && !m.streaming && !m.failed ? (
+                    <p className="cm-note">演示回复 · 未连接 Agent</p>
+                  ) : null}
+
+                  {/* 操作条：dsh 放在正文之后、左移 6px 对齐文字 */}
+                  {!m.streaming && m.text ? (
+                    <AnswerActions>
+                      <MessageActions
+                        text={m.text}
+                        at={m.at}
+                        onRetry={m.failed ? () => retryLastRound() : undefined}
+                      />
+                    </AnswerActions>
+                  ) : null}
                   {m.changes && m.changes.length > 0 && (
                     <div className="cv3-changes">
                       <b className="cv3-changes-title">新建的东西</b>
@@ -1933,11 +2010,19 @@ export function Conversation(props: {
                 </div>
               ))}
 
-              {pending && messages[messages.length - 1]?.role === 'user' && (
-                /* 思考态用 ThinkingOrbs：状态与当前阶段一一对应，
-                   不是随便挑一个好看的动画。
-                   阶段来自后端结构化透传（thinking / tool / 回复），
-                   所以这里显示的是真实阶段，不是按时长猜的。 */
+              {/* ⚠️ 这里原来写的是「pending 且最后一条是 user」。
+                  但真实流程一发送就会插入一条 streaming 的 AI 消息（useChat.startAiMessage），
+                  所以「最后一条是 user」永远不成立 —— 思考态从来没显示过（实测 ti=0 全程）。
+                  正确条件：pending 且当前 AI 消息还没有正文（有正文就该看正文，不是看思考）。 */}
+              {pending && (messages[messages.length - 1]?.role === 'ai' ? !messages[messages.length - 1]?.text : true) && (
+                <>
+                {/* dsh 只在「上一块不是用户消息」时画这条 0.5px 分隔线：
+                    紧跟在用户发言之后时，气泡本身就足够分隔，再画一条是多余的。 */}
+                {messages[messages.length - 1]?.role !== 'user' ? <RunningDivider /> : null}
+                {/* 思考态用 ThinkingOrbs：状态与当前阶段一一对应，
+                    不是随便挑一个好看的动画。
+                    阶段来自后端结构化透传（thinking / tool / 回复），
+                    所以这里显示的是真实阶段，不是按时长猜的。 */}
                 <ThinkingIndicator
                   phase={
                     agentPhase === null
@@ -1957,6 +2042,7 @@ export function Conversation(props: {
                   }
                   elapsed={pendingStartedAt ? (Date.now() - pendingStartedAt) / 1000 : undefined}
                 />
+                </>
               )}
               {/* 工具调用历史：一轮里可能调十几次工具，只显示「当前一个」等于没有记录。
                   这里用 TaskList —— 它是 BoardUI 任务列表的 1:1 移植（第 6、7 项），
@@ -1976,11 +2062,13 @@ export function Conversation(props: {
                 && (
                 <>
                   <WebSearchTrace calls={toolCalls} live />
-                  <TaskList
-                    tasks={toolCallsToTasks(toolCalls, pending)}
-                    revealed={toolCallsRevealed(toolCalls)}
-                    run={!pending}
-                    working={pending ? '正在处理' : false}
+                  <ToolCalls
+                    calls={toolCalls.map((c) => ({
+                      name: c.name,
+                      summary: shortArgs(c.arguments ?? ''),
+                      done: c.done === true,
+                      isError: c.isError,
+                    }))}
                   />
                 </>
               )}
@@ -2005,11 +2093,24 @@ export function Conversation(props: {
             </div>
           </div>
 
+          {/* 「回到最新」：翻离底部时才出现（dsh 的 34px 圆钮） */}
+          {awayFromBottom ? (
+            <button type="button" className="cv3-to-bottom" aria-label="回到最新" title="回到最新"
+                    onClick={backToBottom}>
+              <ChevronDown size={16} />
+            </button>
+          ) : null}
+
           <div className="cv3-seat">
             {/* 输入框：几何取自 BoardUI 免费聊天模板（52px 胶囊 / 36px 圆钮 /
                 10px 间距），加载态是环绕光带。
                 引擎与模型选择器沿用对话界面原来那一套（composerModelPicker），
-                不换实现 —— 第 10 项要的就是「用对话界面的」。 */}
+                不换实现 —— 第 10 项要的就是「用对话界面的」。
+                ⚠️ 必须包在 .cv3-compose 里：那个类带着左右 32px 内边距与
+                「与消息列同宽并居中」的约束。原先是 .cv3-card 提供宽度，
+                换成新组件后如果直接挂到 .cv3-seat 上，输入框会横跨整个主区
+                （实测 1044px vs 消息列 680px），跟上面的对话完全不对齐。 */}
+            <div className="cv3-compose">
             <ChatComposer
               value={chat.draft}
               onValueChange={(v) => { chat.setDraft(v); setSendError(null) }}
@@ -2072,6 +2173,7 @@ export function Conversation(props: {
               ) : null}
               statusLeft={launched ? <span className="cv3-pill">已开始制作</span> : null}
             />
+            </div>
             {/* 隐藏的文件选择器（对齐 dsh 的 file input：多选） */}
             <input ref={fileRef} type="file" multiple hidden onChange={onPickFiles} />
             <input ref={imageRef} type="file" accept="image/*" multiple hidden

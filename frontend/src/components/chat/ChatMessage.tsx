@@ -17,7 +17,7 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { motion, useReducedMotion } from 'motion/react'
-import { Check, Copy, RotateCcw, Volume2, VolumeX } from 'lucide-react'
+import { Check, Copy, FileText, RotateCcw, ThumbsDown, ThumbsUp, Volume2, VolumeX } from 'lucide-react'
 import { MarkdownText } from './MarkdownText'
 import './chat-message.css'
 
@@ -32,8 +32,27 @@ export interface ChatMessageProps {
   failed?: string
   /** 演示回复标记 */
   demo?: boolean
-  /** 附件名列表（用户消息上显示） */
-  attachments?: string[]
+  /**
+   * 附件（用户消息上显示）。
+   *
+   * dsh 把附件渲染成两种形态：图片预览 + 240×64 的文件卡片，
+   * 不是一行「附件：xxx」的纯文字。
+   */
+  attachments?: {
+    name: string
+    /** image 走图片预览，其余走文件卡片 */
+    kind?: 'image' | 'file'
+    /** 图片地址（有则显示预览） */
+    url?: string
+    /** 大小，显示在卡片第二行 */
+    sizeBytes?: number
+  }[]
+  /** 引用摘要（dsh 的 referenceSummary）：这条消息引用了哪些素材/参考 */
+  referenceSummary?: string[]
+  /** 停止生成（dsh 的 xPs6ua_stopped 标记） */
+  stopped?: boolean
+  /** 反馈回调：点赞 / 点踩 */
+  onFeedback?: (value: 'up' | 'down') => void
   /** 重试这一轮（仅 AI 且失败/演示时给） */
   onRetry?: () => void
   /** 编辑并重发对应的用户消息 */
@@ -42,6 +61,14 @@ export interface ChatMessageProps {
   below?: ReactNode
   /** AI 消息头像槽（工作台用 EyeTracker，对话界面不传） */
   avatar?: ReactNode
+}
+
+/** 字节数 → "1.2 KB"。不显示时返回空串，调用方据此决定要不要渲染第二行 */
+function fmtBytes(n?: number): string {
+  if (n === undefined || n <= 0) return ''
+  if (n < 1024) return `${n} B`
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`
+  return `${(n / 1024 / 1024).toFixed(1)} MB`
 }
 
 /* ── 相对时间（与左栏会话列表同一套口径）──────────────────── */
@@ -106,17 +133,20 @@ function ActionButton({
 
 /* ── AI 操作条 ──────────────────────────────────────────────── */
 
-function MessageActions({
+export function MessageActions({
   text,
   at,
-  hidden,
+  hidden = false,
   onRetry,
+  onFeedback,
 }: {
   text: string
   at?: number
-  hidden: boolean
+  hidden?: boolean
   onRetry?: () => void
+  onFeedback?: (value: 'up' | 'down') => void
 }) {
+  const [voted, setVoted] = useState<'up' | 'down' | null>(null)
   const [copied, setCopied] = useState(false)
   const [speaking, setSpeaking] = useState(false)
 
@@ -168,6 +198,25 @@ function MessageActions({
         {speaking ? <VolumeX size={14} /> : <Volume2 size={14} />}
       </ActionButton>
 
+      {/* 反馈：dsh 有独立的 message-feedback 面板，这里先给两个按钮。
+          点过之后保持高亮 —— 让用户看得见「我评过了」，而不是点完没反应。 */}
+      {onFeedback ? (
+        <>
+          <ActionButton
+            label={voted === 'up' ? '已标记为好' : '这条回复有用'}
+            onClick={() => { setVoted('up'); onFeedback('up') }}
+          >
+            <ThumbsUp size={14} className={voted === 'up' ? 'cm-voted' : undefined} />
+          </ActionButton>
+          <ActionButton
+            label={voted === 'down' ? '已标记为差' : '这条回复没用'}
+            onClick={() => { setVoted('down'); onFeedback('down') }}
+          >
+            <ThumbsDown size={14} className={voted === 'down' ? 'cm-voted' : undefined} />
+          </ActionButton>
+        </>
+      ) : null}
+
       {onRetry ? (
         <ActionButton label="重试这一轮" onClick={onRetry}>
           <RotateCcw size={14} />
@@ -193,6 +242,9 @@ export function ChatMessage({
   failed,
   demo,
   attachments,
+  referenceSummary,
+  stopped,
+  onFeedback,
   onRetry,
   onEditResend,
   below,
@@ -204,18 +256,35 @@ export function ChatMessage({
   if (role === 'user') {
     return (
       <div className="cm cm-user-wrap">
-        <div className="cm-user">
-          {text}
-          {attachments?.length ? (
-            <span className="cm-user-attachments">
-              {attachments.map((name, i) => (
-                <span key={`${name}-${i}`} className="cm-user-attachment">
-                  {name}
+        {/* 附件在气泡之上（dsh 的 userStack 是 gap 8px 的纵向栈）：
+            图片走预览，其余走 240×64 文件卡片 */}
+        {attachments?.length ? (
+          <div className="cm-attachments">
+            {attachments.map((a, i) =>
+              a.kind === 'image' && a.url ? (
+                <img key={`${a.name}-${i}`} src={a.url} alt={a.name} className="cm-image" />
+              ) : (
+                <span key={`${a.name}-${i}`} className="cm-file">
+                  <span className="cm-file-icon" aria-hidden>
+                    <FileText size={20} />
+                  </span>
+                  <span className="cm-file-content">
+                    <span className="cm-file-name">{a.name}</span>
+                    {fmtBytes(a.sizeBytes) ? (
+                      <span className="cm-file-meta">{fmtBytes(a.sizeBytes)}</span>
+                    ) : null}
+                  </span>
                 </span>
-              ))}
-            </span>
-          ) : null}
-        </div>
+              ),
+            )}
+          </div>
+        ) : null}
+
+        {referenceSummary?.length ? (
+          <div className="cm-refs">引用：{referenceSummary.join('、')}</div>
+        ) : null}
+
+        {text ? <div className="cm-user">{text}</div> : null}
         {onEditResend && !streaming ? (
           <div className="cm-user-actions">
             <ActionButton label="编辑并重发" onClick={() => onEditResend(text)}>
@@ -236,6 +305,7 @@ export function ChatMessage({
             两者不能同时用：Markdown 会把行合并成段落，逐行动画就没有落点了。 */}
         {streaming ? <StreamedLines text={text} animate={!reduce} /> : <MarkdownText text={text} />}
 
+        {stopped && !failed ? <p className="cm-stopped">已停止生成</p> : null}
         {demo && !streaming && !failed ? <p className="cm-note">演示回复 · 未连接 Agent</p> : null}
         {failed ? (
           <p className="cm-failed" role="alert">
@@ -243,7 +313,7 @@ export function ChatMessage({
           </p>
         ) : null}
 
-        <MessageActions text={text} at={at} hidden={streaming} onRetry={onRetry} />
+        <MessageActions text={text} at={at} hidden={streaming} onRetry={onRetry} onFeedback={onFeedback} />
       </div>
     </div>
   )

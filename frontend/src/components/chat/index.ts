@@ -5,7 +5,20 @@
  * 同一个语义在两处长成两个样，用户会以为是两种不同的东西。
  */
 
-export { ChatMessage } from './ChatMessage'
+export { ChatMessage, MessageActions } from './ChatMessage'
+
+export {
+  ReasoningBlock,
+  ToolCalls,
+  ToolCallRow,
+  RunningRow,
+  AnswerBody,
+  AnswerActions,
+  ToolResultPanel,
+  RunningDivider,
+  TurnTrigger,
+} from './AiTurn'
+export type { ToolCallItem } from './AiTurn'
 export type { ChatMessageProps } from './ChatMessage'
 
 export { ChatComposer } from './ChatComposer'

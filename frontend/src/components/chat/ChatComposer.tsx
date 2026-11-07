@@ -32,6 +32,23 @@ export interface ChatComposerProps {
   trailing?: ReactNode
   /** 左侧额外控件（权限模式等） */
   leading?: ReactNode
+  /**
+   * 胶囊下方的次级动作行（例如工作台的「演示」）。
+   *
+   * ⚠️ 不要把这些动作塞进胶囊：工作台那栏只有 313px 宽，
+   * 一个 48px 的按钮会把输入区压到 191px，占位文字换行后被裁掉
+   * （真机测量确认）。也不要塞进 26px 的状态行 —— 32px 的按钮会溢出。
+   * 动作放在胶囊外、状态行上方，与原来 .fw-sheet 的行布局一致。
+   */
+  footer?: ReactNode
+  /**
+   * 最小行数。
+   *
+   * textarea 的自动高度只按 value 算，占位文字换行不会撑高它，
+   * 窄栏里就会出现「占位文字第二行被裁掉」。给窄栏（工作台 313px）
+   * 传 2 行即可；对话界面 680px 宽，1 行足够。
+   */
+  minRows?: number
   /** 输入框上方的附件卡片区 */
   above?: ReactNode
   /** 输入框下方的错误提示 */
@@ -61,6 +78,8 @@ export function ChatComposer({
   onAttach,
   trailing,
   leading,
+  footer,
+  minRows = 1,
   above,
   error,
   statusLeft,
@@ -76,8 +95,10 @@ export function ChatComposer({
     const el = inputRef.current
     if (!el) return
     el.style.height = 'auto'
-    el.style.height = `${Math.min(el.scrollHeight, maxHeight)}px`
-  }, [value, maxHeight])
+    const line = 22 /* 13.5px × 1.6 行高，与 .cc-input 的 line-height 对应 */
+    const floor = minRows * line
+    el.style.height = `${Math.min(Math.max(el.scrollHeight, floor), maxHeight)}px`
+  }, [value, maxHeight, minRows])
 
   const canSend = value.trim().length > 0 && !disabled && !sendBlocked
 
@@ -99,7 +120,7 @@ export function ChatComposer({
 
         <textarea
           ref={inputRef}
-          rows={1}
+          rows={minRows}
           className="cc-input"
           value={value}
           placeholder={placeholder}
@@ -140,6 +161,8 @@ export function ChatComposer({
           )}
         </div>
       </div>
+
+      {footer ? <div className="cc-footer">{footer}</div> : null}
 
       {error}
 

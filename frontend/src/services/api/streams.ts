@@ -421,6 +421,11 @@ export function openTaskEventStream(
 
 export interface ChatStreamHandlers {
   onDelta?: (messageId: string, delta: string) => void
+  /**
+   * 推理增量。与 {@link onDelta} 分开：这里的内容进「思考过程」折叠块，
+   * 不进正文。后端没开推理或模型不产出时不会调用。
+   */
+  onReasoning?: (messageId: string, delta: string) => void
   onCompleted?: (message: ChatMessage) => void
   onTask?: (messageId: string, taskId: string) => void
   /**
@@ -504,6 +509,13 @@ export function openChatSessionStream(
         const delta = payload as { messageId?: unknown; delta?: unknown }
         if (typeof delta.messageId === 'string' && typeof delta.delta === 'string') {
           handlers.onDelta?.(delta.messageId, delta.delta)
+        }
+        return 'continue'
+      }
+      case 'reasoning': {
+        const r = payload as { messageId?: unknown; delta?: unknown }
+        if (typeof r.messageId === 'string' && typeof r.delta === 'string') {
+          handlers.onReasoning?.(r.messageId, r.delta)
         }
         return 'continue'
       }

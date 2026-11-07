@@ -212,3 +212,22 @@
     animation: none;
   }
 }
+
+/* ── 嵌进既有输入区时的宽度约束 ────────────────────────────────
+   对话界面的 .cv3-compose 只提供左右内边距，宽度原本由 .cv3-card 的
+   max-width + margin:auto 提供。新组件直接放进 .cv3-compose 时必须自己
+   带上同一条约束，否则会横跨整个主区（实测 1044px，而消息列 680px）。 */
+.cv3-compose > .cc {
+  width: 100%;
+  max-width: min(920px, max(680px, 64%), calc(100% - 32px));
+  margin: 0 auto;
+}
+
+/* ── 胶囊下方的次级动作行 ──────────────────────────────────────
+   与胶囊左对齐；按钮本身沿用调用方的样式（工作台是 .mini）。 */
+.cc-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}

@@ -2877,3 +2877,33 @@ html[data-theme="tactile"] .cv3-ddm {
   color: var(--tx3);
   opacity: .7;
 }
+
+/* 「回到最新」圆钮 —— 对齐 dsh 的 .dM7RPG_toBottom：
+   34px 圆钮、浮在输入区上方、有投影，翻离底部时才出现。 */
+.cv3-to-bottom {
+  position: absolute;
+  bottom: 132px;
+  left: 50%;
+  z-index: 8;
+  display: flex;
+  width: 34px;
+  height: 34px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--cv-line);
+  border-radius: 100px;
+  background: var(--cv-elev);
+  box-shadow: var(--cv-shadow);
+  color: var(--tx1);
+  cursor: pointer;
+  transform: translateX(-50%);
+  transition: background-color 120ms ease;
+}
+.cv3-to-bottom:hover {
+  background: var(--panel2);
+}
+.cv3-to-bottom:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--acc);
+}

@@ -17,24 +17,39 @@
 }
 
 /* ── 用户消息 ──────────────────────────────────────────────────
-   右对齐、宽度上限 75%。上限不是装饰：太宽的气泡会让「谁说的」
-   在长消息里失去辨识，视线要跑到最右边才能确认。 */
+   数值逐条取自 dsh 的 ChatView 用户气泡（sVmmmW_userRow / _userStack / _bubble）：
+     · 行：纵向、右对齐、gap 6px
+     · 栈：max-width = min(内容宽 × .702, 82%)
+     · 气泡：padding 10px 16px、圆角 radius-xl、字号 14px / 行高 22px、
+             white-space: pre-wrap、word-break: break-word
+   颜色用 --dsw-specific-bubble（dsh 的语义变量），本项目没有就在
+   brand.css 里补一个别名指向 --soft，不再自造一套蓝。
+
+   之前用的是 BoardUI 的 16px + --soft，与 dsh 不一致 —— 这一版对齐 dsh。 */
 
 .cm-user-wrap {
   align-items: flex-end;
-  gap: 2px;
+  gap: 6px;
+}
+
+/* dsh 的宽度基准。dsh 在布局层定义它（--dsh-chat-content-width，默认 748px），
+   本项目没有那个变量，所以在组件自己的作用域里补一个：
+   不补的话 min(calc(var(...) * .702), 82%) 里的 var 解析失败，
+   整个算式退化，气泡宽度就变成不可预测的。 */
+.cm-user-wrap {
+  --dsh-chat-content-width: 748px;
 }
 
 .cm-user {
-  max-width: 75%;
-  padding: 11px 12px;
-  border-radius: 16px;
-  background: var(--soft);
+  max-width: min(calc(var(--dsh-chat-content-width, 748px) * 0.702), 82%);
+  padding: 10px 16px;
+  border-radius: var(--fm-radius-float, 14px);
+  background: var(--dsw-specific-bubble, var(--soft));
   color: var(--fg);
-  font-size: 13.5px;
-  line-height: 1.65;
+  font-size: 14px;
+  line-height: 22px;
   white-space: pre-wrap;
-  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .cm-user-attachments {
@@ -168,4 +183,110 @@
   .cm-user-actions {
     transition: none;
   }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   用户消息的其余部分 —— 对齐 dsh MessageItem（css$14）
+
+   dsh 的用户消息不只是气泡，它是「附件卡片 / 图片 / 引用摘要 / 操作」
+   的纵向栈。之前我只做了气泡，其余全缺。
+   ═══════════════════════════════════════════════════════════════ */
+
+/* 附件行（.sVmmmW_attachmentRow）：右对齐、换行、gap 8px */
+.cm-attachments {
+  display: flex;
+  max-width: 100%;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* 文件卡片（.sVmmmW_fileCard）：
+   固定 240×64、radius-lg、.5px 边线、padding 8/12、图标 28px */
+.cm-file {
+  display: inline-flex;
+  box-sizing: border-box;
+  width: 240px;
+  min-height: 64px;
+  flex: 0 0 240px;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border: 0.5px solid var(--line);
+  border-radius: var(--fm-radius-card, 12px);
+  background: var(--hole);
+}
+.cm-file-icon {
+  display: flex;
+  width: 28px;
+  height: 28px;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  color: var(--dim);
+}
+.cm-file-content {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+}
+.cm-file-name {
+  overflow: hidden;
+  font-size: 14px;
+  line-height: 22px;
+  font-weight: 500;
+  color: var(--fg);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cm-file-meta {
+  overflow: hidden;
+  font-size: 12px;
+  line-height: 15px;
+  color: var(--ph);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 图片预览：与文件卡同宽，圆角遮住裁切边 */
+.cm-image {
+  display: block;
+  max-width: 240px;
+  max-height: 180px;
+  border-radius: var(--fm-radius-card, 12px);
+  border: 0.5px solid var(--line);
+  object-fit: cover;
+}
+
+/* 引用摘要（.sVmmmW_referenceSummary）：13px/18px、三级色 */
+.cm-refs {
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--ph);
+  text-align: end;
+}
+
+/* 用户消息操作（.dsh MessageIconActions）：28px 高、右下角 */
+.cm-user .cm-actions,
+.cm-user-wrap .cm-actions {
+  margin-top: 0;
+  margin-left: 0;
+}
+
+/* 停止标记（.xPs6ua_stopped）：11px/18px、圆角、灰底、左对齐 */
+.cm-stopped {
+  align-self: flex-start;
+  margin: 0;
+  padding: 0 6px;
+  border-radius: var(--fm-radius-mark, 6px);
+  background: var(--hole);
+  color: var(--ph);
+  font-size: 11px;
+  line-height: 18px;
+}
+
+/* 已投票的图标：用强调色标出，让「我评过了」可见 */
+.cm-voted {
+  color: var(--acc);
 }
