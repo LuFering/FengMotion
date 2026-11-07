@@ -18,6 +18,10 @@ import lombok.Setter;
 @ConfigurationProperties(prefix = "fengmotion.harness")
 public class HarnessProperties {
 
+    private static final org.slf4j.Logger LOG =
+            org.slf4j.LoggerFactory.getLogger(HarnessProperties.class);
+
+
     /** 是否启用引擎接入；关闭时相关接口如实返回不可用，而不是假装成功。 */
     private boolean enabled = true;
 
@@ -65,18 +69,65 @@ public class HarnessProperties {
            安装态（app/resources/backend/fengmotion-server.jar）都要能对上，
            所以向上找最多 4 层，命中 dsh-plugin 就用它。 */
         try {
-            Path self = Path.of(HarnessProperties.class.getProtectionDomain()
-                    .getCodeSource().getLocation().toURI());
+            /* 只用字符串解析定位 jar，不构造 jar 内的 Path：
+               `Path.of(jarUri)` 会抛 FileSystemNotFoundException: Provider "jar"
+               not installed（Spring Boot 的嵌套 jar 文件系统未挂载），
+               `Path.of(uri)` 对 "jar:file:/…" 又会抛 URI is not hierarchical。
+               两条路都走不通，所以这里把 location 规范成普通文件路径再看。 */
+            String loc = HarnessProperties.class.getProtectionDomain()
+                    .getCodeSource().getLocation().toString();
+            /* 实测 Spring Boot 3 的 code source 有三种写法，都要能剥成 jar 路径：
+               · nested:/a/b.jar/!BOOT-INF/classes   （Boot 3.2+ 当前用的）
+               · jar:file:/a/b.jar!/BOOT-INF/classes
+               · file:/a/b.jar                       （直接跑 jar）
+               统一规则：去掉协议前缀，截到第一个 "/!" 或 "!/" 之前。 */
+            /* 注意：前缀可能叠加。实测 Boot 3 的原始串是
+               "jar:nested:/…/fengmotion-server.jar/!BOOT-INF/classes/!/"，
+               jar: 与 nested: 两层都有。所以必须反复剥离直到没有前缀，
+               一次性遍历 list 只剥掉第一层，剩下的 "nested:" 会让下面的
+               路径判断整体失效（表现为永远找不到插件）。 */
+            boolean stripped = true;
+            while (stripped) {
+                stripped = false;
+                for (String prefix : new String[]{"jar:", "nested:", "file:", "zip:"}) {
+                    if (loc.startsWith(prefix)) {
+                        loc = loc.substring(prefix.length());
+                        stripped = true;
+                        break;
+                    }
+                }
+            }
+            int bang = loc.indexOf("!/");
+            if (bang < 0) {
+                bang = loc.indexOf("/!");
+            }
+            if (bang >= 0) {
+                loc = loc.substring(0, bang);
+            }
+            if (loc.startsWith("file:")) {
+                loc = loc.substring(5);
+            }
+            Path self = Path.of(java.net.URLDecoder.decode(loc, java.nio.charset.StandardCharsets.UTF_8));
             Path dir = java.nio.file.Files.isDirectory(self) ? self : self.getParent();
-            for (int i = 0; i < 5 && dir != null; i++) {
+            LOG.info("stream plugin: codeSource={} startDir={}", self, dir);
+            /* 起点取 jar 自己所在目录，再向上找。安装态 jar 在
+               app/resources/backend/，插件在 app/dsh-plugin（上两层）；
+               开发态 classes 在 backend/target/classes/，插件在 backend/dsh-plugin
+               （上三层）。两个都要命中，所以统一向上找，不写死层数。 */
+            for (int i = 0; i < 8 && dir != null; i++) {
                 Path candidate = dir.resolve("dsh-plugin");
                 if (java.nio.file.Files.isRegularFile(candidate.resolve("index.js"))) {
+                    LOG.info("stream plugin: 命中 {}", candidate);
                     return candidate;
                 }
                 dir = dir.getParent();
             }
-        } catch (Exception ignored) {
-            /* 推不出来就当没有：调用方退回整段到达，不编造路径 */
+            LOG.warn("stream plugin: 从 {} 向上未找到 dsh-plugin/index.js", self);
+        } catch (Exception failure) {
+            /* 推不出来就当没有：调用方退回整段到达，不编造路径。
+               记下来原因 —— 否则界面上只是「没有逐字效果」，无从判断是路径推错
+               还是有异常被吞掉。 */
+            LOG.warn("stream plugin: 从 jar 位置推断插件目录失败，退回整段到达模式", failure);
         }
         return null;
     }

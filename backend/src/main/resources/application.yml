@@ -93,7 +93,12 @@ fengmotion:
     patch: ${FENGMOTION_DSH_PATCH:/home/lufering/.dsh/profiles/desktop/cordis.patch.yml}
     # 流式桥接插件目录：订阅 DSH 内部的 token 级帧并转写到 stderr，
     # 后端据此产出 SSE delta 帧。留空则退回「整段到达」。
-    stream-plugin: ${user.dir}/dsh-plugin
+    # ⚠️ 不能用 ${user.dir}：安装态后端的工作目录是启动它的目录（例如仓库根），
+    # 而 dsh-plugin 随包在应用目录下。用 user.dir 会指向一个不存在的路径，
+    # 插件从未被加载 —— 表现是 SSE 里永远没有 delta / reasoning 帧。
+    # 改为相对 jar 所在目录解析（见 HarnessProperties 的注释），
+    # 并由 FENGMOTION_STREAM_PLUGIN 覆盖。
+    stream-plugin: ${FENGMOTION_STREAM_PLUGIN:}
     # 模型路由与模型 ID；必须与 patch 里的 provider 名称一致。
     provider: agent2api-ecs
     model: deepseek-v4.1-flash

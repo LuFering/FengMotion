@@ -217,6 +217,15 @@ public class DshSdkSession {
             new java.util.concurrent.LinkedBlockingQueue<>();
 
     /**
+     * 主循环等待增量帧的最长时间（毫秒）。
+     *
+     * <p>它是「多久回头看一眼 stdout」的上限，不是「多久没数据就放弃」。
+     * 取小值是为了让 stdout 上的协议帧（idle、assistant/message）不被压住；
+     * 取值不必更小 —— poll 在帧到达时会立即返回，实时性不受这个上限影响。</p>
+     */
+    private static final long STREAM_POLL_MILLIS = 5;
+
+    /**
      * 构造一次会话驱动。
      *
      * @param channel  已启动的子进程通道
@@ -414,12 +423,15 @@ public class DshSdkSession {
                 if (!channel.isAlive()) {
                     throw new IOException("DSH 子进程已退出，未收到 idle 通知");
                 }
-                JsonNode pending = awaitStreamFrame(timeoutRemaining(deadline));
+                /* 等待时长必须远小于整轮超时：这条 stdout 上随时可能来 idle /
+                   assistant/message，若在这里一觉睡到 deadline，协议帧会一直被压着，
+                   表现就是「完全没有回复」。实测：没装流式插件时队列永远为空，
+                   阻塞到整轮超时，界面完全没有结果 —— 必须用短超时反复回来看 stdout。
+                   poll 是事件驱动的：帧一到立刻返回，不会像 sleep 那样白等到期。 */
+                long wait = Math.min(timeoutRemaining(deadline), STREAM_POLL_MILLIS * 1_000_000L);
+                JsonNode pending = awaitStreamFrame(wait);
                 if (pending != null) {
-                    if ("stream/delta".equals(pending.path("method").asText(""))) {
-                        dispatchStreamFrame(pending, listener, reasoning);
-                    }
-                    continue;
+                    dispatchStreamFrame(pending, listener, reasoning);
                 }
                 continue;
             }

@@ -30,6 +30,9 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class DshLauncher {
 
+    private static final org.slf4j.Logger LOG =
+            org.slf4j.LoggerFactory.getLogger(DshLauncher.class);
+
     private final HarnessProperties properties;
 
     /**
@@ -53,11 +56,18 @@ public class DshLauncher {
         // 挂载流式桥接插件：把 token 级帧转写到 stderr。用临时 patch 文件注入，
         // 不改用户自己的 profile —— 插件是后端的一部分，不该污染用户的 DSH 配置。
         Path plugin = properties.streamPluginPath();
+        /* 这条日志必须保留：插件没挂上时界面上只是「没有逐字效果」，
+           从任何其他地方都看不出是路径没解析到、还是 dsh 没接受 patch 参数。 */
+        LOG.info("stream plugin: resolved={} exists={}", plugin,
+                plugin != null && java.nio.file.Files.isRegularFile(plugin.resolve("index.js")));
         if (plugin != null) {
             Path overlay = writePluginOverlay(plugin);
             if (overlay != null) {
                 command.add("--patch");
                 command.add(overlay.toString());
+                LOG.info("stream plugin: overlay={} args={}", overlay, command);
+            } else {
+                LOG.warn("stream plugin: overlay 写入失败，退回整段到达模式（无逐字效果）");
             }
         }
 

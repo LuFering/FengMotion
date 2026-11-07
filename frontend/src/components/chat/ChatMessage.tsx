@@ -112,24 +112,34 @@ const LINE_TRANSITION = { duration: 0.42, ease: [0.22, 0.61, 0.36, 1] as const }
 function useProgressiveText(target: string, enabled: boolean): string {
   const [shown, setShown] = useState(enabled ? 0 : target.length)
   const rafRef = useRef<number | null>(null)
+  /* 用 ref 记「当前已显示到哪」，让帧循环只依赖调度本身，
+     不因为 target 变化而反复重建 —— 重建会把已有的推进进度重置。 */
+  const shownRef = useRef(shown)
+  shownRef.current = shown
 
   useEffect(() => {
     if (!enabled) {
       setShown(target.length)
       return
     }
-    /* 落后太多时每帧多补一些：距离越远补得越快，否则一次 25 帧
-       会拖成好几秒，用户会觉得界面卡住。 */
+    if (shownRef.current >= target.length) return
+
     const step = () => {
-      setShown((cur) => {
-        if (cur >= target.length) return cur
-        const remain = target.length - cur
-        const take = Math.max(1, Math.ceil(remain / 6))
-        return Math.min(target.length, cur + take)
-      })
+      const cur = shownRef.current
+      if (cur >= target.length) {
+        /* 追平即停：不再排下一帧。
+           无条件下一次 requestAnimationFrame 会让循环永远跑下去，
+           流式结束后仍在空转（每帧一次 setState）。 */
+        rafRef.current = null
+        return
+      }
+      /* 落后越多补得越快：一次到达 25 帧时不至于拖成好几秒。 */
+      const take = Math.max(1, Math.ceil((target.length - cur) / 6))
+      setShown(Math.min(target.length, cur + take))
       rafRef.current = requestAnimationFrame(step)
     }
     rafRef.current = requestAnimationFrame(step)
+
     return () => {
       if (rafRef.current !== null) cancelAnimationFrame(rafRef.current)
       rafRef.current = null
