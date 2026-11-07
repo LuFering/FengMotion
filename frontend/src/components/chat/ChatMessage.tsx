@@ -15,7 +15,7 @@
  *     会真实失败（Agent 未接入、流中断），用户需要能重来
  */
 
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { motion, useReducedMotion } from 'motion/react'
 import { Check, Copy, FileText, RotateCcw, ThumbsDown, ThumbsUp, Volume2, VolumeX } from 'lucide-react'
 import { MarkdownText } from './MarkdownText'
@@ -94,8 +94,55 @@ const LINE_HIDDEN = { opacity: 0, filter: 'blur(5px)', y: 4 }
 const LINE_SHOWN = { opacity: 1, filter: 'blur(0px)', y: 0 }
 const LINE_TRANSITION = { duration: 0.42, ease: [0.22, 0.61, 0.36, 1] as const }
 
+/**
+ * 把「目标文本」平滑地逐字追上来。
+ *
+ * <p>上游（模型网关）不是逐 token 到达的，而是每隔几百毫秒给一批 ——
+ * 实测 342 个增量帧只落在 50 个时刻，其中一批就有 25 帧。直接渲染的话，
+ * 每次到达都是一大段文字瞬间出现，看起来没有「正在输入」的过程。</p>
+ *
+ * <p>这里按帧推进：每帧最多补齐一个预算量，直到追平目标。
+ * 内容本身一个字都不改，只是把「一次显示 200 字」摊成「几帧各显示一部分」。
+ * 追平后立刻停止，不拖慢收尾。</p>
+ *
+ * @param target 已经收到的完整文本
+ * @param enabled 关闭时（reduced-motion / 非流式）直接返回目标
+ * @returns 当前应当显示的前缀
+ */
+function useProgressiveText(target: string, enabled: boolean): string {
+  const [shown, setShown] = useState(enabled ? 0 : target.length)
+  const rafRef = useRef<number | null>(null)
+
+  useEffect(() => {
+    if (!enabled) {
+      setShown(target.length)
+      return
+    }
+    /* 落后太多时每帧多补一些：距离越远补得越快，否则一次 25 帧
+       会拖成好几秒，用户会觉得界面卡住。 */
+    const step = () => {
+      setShown((cur) => {
+        if (cur >= target.length) return cur
+        const remain = target.length - cur
+        const take = Math.max(1, Math.ceil(remain / 6))
+        return Math.min(target.length, cur + take)
+      })
+      rafRef.current = requestAnimationFrame(step)
+    }
+    rafRef.current = requestAnimationFrame(step)
+    return () => {
+      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current)
+      rafRef.current = null
+    }
+  }, [target, enabled])
+
+  /* 目标变短（例如被最终文本覆盖）时不能显示越界的前缀 */
+  return target.slice(0, Math.min(shown, target.length))
+}
+
 function StreamedLines({ text, animate }: { text: string; animate: boolean }) {
-  const lines = useMemo(() => text.split('\n').filter((l) => l.trim() !== ''), [text])
+  const visible = useProgressiveText(text, animate)
+  const lines = useMemo(() => visible.split('\n').filter((l) => l.trim() !== ''), [visible])
   return (
     <div className="cm-lines">
       {lines.map((line, i) => (

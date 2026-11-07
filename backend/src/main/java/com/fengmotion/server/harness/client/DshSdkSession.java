@@ -402,16 +402,24 @@ public class DshSdkSession {
                     continue;
                 }
             } else {
-                // 没有可读行：说明模型还在生成。稍等后回到循环顶部再排空 stderr，
-                // 这样 token 增量能按到达顺序尽快交给上层，而不是攒到最后一并处理。
+                /* 没有可读行：模型还在生成，正文增量在 stderr 队列里。
+                   这里**必须阻塞等队列**，不能 sleep 后再回来排空 ——
+                   sleep 期间到达的增量会全部堆在队列里，下一轮被一次性排空，
+                   界面表现就是「整段一下出现」而不是逐字打出来
+                   （实测 46 个增量帧只落在 5 个时刻，其中 18 帧挤在同一毫秒）。
+
+                   同时保留 stdout 的可读性检查：stdout 上的协议帧（idle、
+                   assistant/message 等）随时可能先到，睡眠期间也要能被处理。
+                   所以用带超时的 poll，醒来后两种通道都会在循环顶部重新检查。 */
                 if (!channel.isAlive()) {
                     throw new IOException("DSH 子进程已退出，未收到 idle 通知");
                 }
-                try {
-                    Thread.sleep(5);
-                } catch (InterruptedException interrupted) {
-                    Thread.currentThread().interrupt();
-                    throw new IOException("读取被中断", interrupted);
+                JsonNode pending = awaitStreamFrame(timeoutRemaining(deadline));
+                if (pending != null) {
+                    if ("stream/delta".equals(pending.path("method").asText(""))) {
+                        dispatchStreamFrame(pending, listener, reasoning);
+                    }
+                    continue;
                 }
                 continue;
             }
@@ -529,35 +537,79 @@ public class DshSdkSession {
     private void drainStreamFrames(Listener listener, ReasoningTrace reasoning) {
         JsonNode frame;
         while ((frame = streamFrames.poll()) != null) {
-            if (!"stream/delta".equals(frame.path("method").asText(""))) {
-                continue;
+            dispatchStreamFrame(frame, listener, reasoning);
+        }
+    }
+
+    /**
+     * 把一条插件流式帧翻译成回调。
+     *
+     * <p>抽成独立方法，是因为它有两个调用方：主循环开工前的批量排空，
+     * 以及「stdout 没东西可读」时的逐帧阻塞等待。两处必须用同一套翻译，
+     * 否则同一种帧在两条路径上表现不一致。</p>
+     *
+     * @param frame     插件帧
+     * @param listener  目标回调
+     * @param reasoning 推理累加器
+     */
+    private void dispatchStreamFrame(JsonNode frame, Listener listener, ReasoningTrace reasoning) {
+        if (!"stream/delta".equals(frame.path("method").asText(""))) {
+            return;
+        }
+        JsonNode params = frame.path("params");
+        String kind = params.path("kind").asText("");
+        if ("text".equals(kind)) {
+            String text = params.path("text").asText("");
+            if (!text.isEmpty()) {
+                listener.onTextDelta(text);
             }
-            JsonNode params = frame.path("params");
-            String kind = params.path("kind").asText("");
-            if ("text".equals(kind)) {
+        } else if ("thinking".equals(kind)) {
+            String text = params.path("text").asText("");
+            if (!text.isEmpty()) {
+                reasoning.appendDelta(text);
+                listener.onThinkingDelta(text);
+            }
+        } else if ("block_end".equals(kind)) {
+            /* 推理块的完整正文。有的通道只给整块、不给增量，所以这条必须收；
+               但同一块若已经通过 reasoning-delta 增量下发过，再收整块就是重复。
+               正文块（blockType=text）不走这里：正文有 text-delta 增量，
+               再收一次整块会重复。 */
+            if ("reasoning".equals(params.path("blockType").asText(""))) {
                 String text = params.path("text").asText("");
-                if (!text.isEmpty()) {
-                    listener.onTextDelta(text);
-                }
-            } else if ("thinking".equals(kind)) {
-                String text = params.path("text").asText("");
-                if (!text.isEmpty()) {
-                    reasoning.appendDelta(text);
+                if (reasoning.appendBlockOnce(text)) {
                     listener.onThinkingDelta(text);
-                }
-            } else if ("block_end".equals(kind)) {
-                /* 推理块的完整正文。有的通道只给整块、不给增量，所以这条必须收；
-                   但同一块若已经通过 reasoning-delta 增量下发过，再收整块就是重复。
-                   正文块（blockType=text）不走这里：正文有 text-delta 增量，
-                   再收一次整块会重复。 */
-                if ("reasoning".equals(params.path("blockType").asText(""))) {
-                    String text = params.path("text").asText("");
-                    if (reasoning.appendBlockOnce(text)) {
-                        listener.onThinkingDelta(text);
-                    }
                 }
             }
         }
+    }
+
+    /**
+     * 阻塞等待下一条插件流式帧，直到超时。
+     *
+     * <p>为什么不再是「sleep 5ms 再回主循环排空」：睡眠期间到达的增量会全部
+     * 堆在队列里，下一轮被一次性排空 —— 界面看到的是整段文字瞬间出现，
+     * 而不是逐字打出来。实测 46 个增量帧只落在 5 个时刻，其中 18 帧挤在同
+     * 一毫秒，打字机效果完全消失。改为在这里阻塞等待，帧一到就立刻下发。</p>
+     *
+     * @param nanos 最多等待的纳秒数
+     * @return 下一条帧；超时返回 null（调用方回主循环重新检查 stdout / 超时）
+     * @throws IOException 等待被中断时抛出
+     */
+    private JsonNode awaitStreamFrame(long nanos) throws IOException {
+        if (nanos <= 0) {
+            return null;
+        }
+        try {
+            return streamFrames.poll(Math.max(1, nanos), java.util.concurrent.TimeUnit.NANOSECONDS);
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+            throw new IOException("读取被中断", interrupted);
+        }
+    }
+
+    /** 距 deadline 还剩多少纳秒；已过期返回 0。 */
+    private long timeoutRemaining(long deadline) {
+        return Math.max(0, deadline - System.nanoTime());
     }
 
     /**
