@@ -40,17 +40,64 @@
 
 /* ── 标题行 ────────────────────────────────────────────────
    整棵树的根：一个图标加一句话，不带钩子。 */
+/* 标题行：与任务列表的 .tl-task-head 同一套几何与配色 ——
+   同 gap(8px)、同字号(13px/20px)、同颜色(--dim)、同箭头 16px。
+   两个组件并排出现时，标题必须长得一模一样，否则像两种东西。 */
 .wst-head {
   display: flex;
-  align-items: flex-start;
+  width: 100%;
+  align-items: center;
   gap: 8px;
-  padding-block: 4px;
-  font-size: 13px;
+  padding: 2px 0;
+  border: 0;
+  background: none;
+  color: var(--dim);
+  font: inherit;
+  /* 与任务列表标题完全一致：14px / 500 / 20px 行高。
+     之前这里是 13px + 常规字重，两块并排时一眼能看出是两种标题。 */
+  font-size: 14px;
   line-height: 20px;
-  color: var(--tx2);
+  font-weight: 500;
+  text-align: start;
+  cursor: pointer;
+  outline: none;
+}
+.wst-head:hover {
+  color: var(--fg);
+}
+.wst-head:focus-visible {
+  box-shadow: 0 0 0 2px var(--acc);
+  border-radius: 6px;
+}
+.wst-head-title {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wst-head .wst-caret {
+  /* 紧跟标题，不贴右边缘（与任务列表的 caret 位置一致） */
+  margin-inline-start: 0;
+  margin-inline-end: 8px;
+  color: var(--ph);
+  transition: transform 300ms cubic-bezier(0.22, 1, 0.36, 1), color 150ms ease;
+}
+.wst-head:hover .wst-caret {
+  color: var(--dim);
+}
+.wst-head .wst-caret[data-open] {
+  /* 展开时箭头朝上（与任务列表一致：展开 = 指向内容内部） */
+  transform: rotate(180deg);
 }
 
-.wst-head > .wst-icon { margin-top: 2px; }
+/* 折叠：高度 0 + 不可见。用 grid-template-rows 而不是 max-height，
+   因为后者需要猜一个上限值，动画结束时会有一段「空跑」。 */
+.wst-children[data-collapsed] {
+  display: none;
+}
+
+/* 标题行改为 align-items:center 后不再需要手工偏移 */
 
 /* ── 图标位：16px，和原组件的 size-4 一致 ─────────────────── */
 .wst-icon {
@@ -59,7 +106,8 @@
   place-items: center;
   width: 16px;
   height: 16px;
-  color: var(--tx2);
+  /* 与任务列表的标题图标同色：都是「这是哪类操作」的指示，不该有深浅差 */
+  color: var(--dim);
 }
 
 .wst-icon svg {
@@ -273,7 +321,9 @@
   margin: 0;
   font-size: 13px;
   line-height: 20px;
-  color: var(--tx2);
+  /* 与任务列表的 .tl-step 同一档（--dim）：
+     两块并排时步骤文字深浅必须一致，否则像两种不同的日志 */
+  color: var(--dim);
 }
 
 /* 查询词：等宽、弱一档，原组件的 font-mono + caption-1 */
@@ -281,7 +331,8 @@
   margin-inline-start: 6px;
   font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
   font-size: 11.5px;
-  color: var(--tx3);
+  /* 与任务列表的 chips 同档 */
+  color: var(--ph);
 }
 
 /* 右侧计数：等宽数字，不换行 */

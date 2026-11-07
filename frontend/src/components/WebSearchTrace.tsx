@@ -247,6 +247,13 @@ export function WebSearchTrace({
 
   const controlled = revealed !== undefined;
   const [seen, setSeen] = useState(0);
+  /**
+   * 抽屉开合。与任务列表（TaskList）同一套交互：
+   * 标题行可点、箭头 90° 旋转、内容高度 0 ↔ auto。
+   * 运行中强制展开 —— 用户此刻要看的就是它在查什么，
+   * 收起等于把正在发生的事藏起来。
+   */
+  const [collapsed, setCollapsed] = useState(false);
   const count = controlled ? Math.max(0, Math.min(revealed, steps.length)) : seen;
 
   /* 新行按顺序长出：给用户「正在往下发生」的读法，而不是一次铺满 */
@@ -276,16 +283,24 @@ export function WebSearchTrace({
       aria-live="polite"
     >
       {showHead && (
-        <div className="wst-head">
+        <button
+          type="button"
+          className="wst-head"
+          aria-expanded={!collapsed}
+          onClick={() => setCollapsed((v) => !v)}
+        >
           <span className="wst-icon"><LensIcon /></span>
-          {/* 标题与任务列表同一套命名：「名称 · N 次」。
-              之前是「跑了 N 次搜索」，与下面「bash · 2 次」不是同一种句式，
-              两块并排时看起来像两种东西。 */}
-          <span>网页搜索 · {steps.length} 次</span>
-        </div>
+          {/* 标题与任务列表同一套命名：「名称 · N 次」。 */}
+          <span className="wst-head-title">网页搜索 · {steps.length} 次</span>
+          {/* 复用来源行那个 wst-caret：同一个箭头形状、同一条缓动，
+              不另外引一个图标组件（两处箭头长得不一样会被看出来） */}
+          <span className="wst-caret" data-open={!collapsed || undefined} aria-hidden="true">
+            <svg viewBox="0 0 16 16"><path d="M4.5 6.5 L8 10 L11.5 6.5" /></svg>
+          </span>
+        </button>
       )}
 
-      <div className="wst-children">
+      <div className="wst-children" data-collapsed={(showHead && collapsed) || undefined}>
         <ul className="wst-rows">
           {visible.map((step, i) => {
             const isLastStep = i === visible.length - 1;
