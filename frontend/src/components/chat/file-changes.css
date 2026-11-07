@@ -1,13 +1,15 @@
 /* ── 文件改动列表 ────────────────────────────────────────
-   一条回复动过哪些文件。默认折叠成一行，「改动 N 个文件 +X −Y」，
-   点开才列明细 —— 它属于过程补充，不该和正文抢注意力。 */
+   行渲染照 shadcn/ui CodeBlock 的 diff 变体：
+   增行淡绿底、删行淡红底，+ / − 单独占一格且等宽，
+   行号右对齐 —— 读 diff 时眼睛沿「符号列」扫，不会被内容推歪。
+
+   外层折叠照 open-design 的 FileEditCard：默认收成一行。 */
 
 .fc {
   margin: 12px 0 0;
   max-width: 100%;
 }
 
-/* 摘要行：和工具调用列表同一量级 */
 .fc-summary {
   display: inline-flex;
   align-items: center;
@@ -23,8 +25,7 @@
 
 .fc-title { font-weight: 500; }
 
-/* 折叠箭头：展开时转 90°。用 transform 而不是换图标，
-   省一次组件切换，动效也更连贯。 */
+/* 折叠箭头：展开时转 90° */
 .fc-caret {
   flex: none;
   transition: transform 140ms ease;
@@ -32,8 +33,7 @@
 .fc-summary[aria-expanded='true'] .fc-caret,
 .fc-row[data-open] .fc-caret { transform: rotate(90deg); }
 
-/* 增删计数：绿/红是通用语义，但都带 +/- 符号，
-   不只靠颜色区分（色弱也读得出来）。 */
+/* 增删计数：带 +/- 符号，不只靠颜色（色弱也读得出） */
 .fc-add { color: var(--ok); font-size: 10.5px; }
 .fc-del { color: var(--bad); font-size: 10.5px; }
 .fc-none { color: var(--dim); font-size: 10.5px; opacity: 0.8; }
@@ -41,37 +41,35 @@
 .fc-list {
   list-style: none;
   margin: 6px 0 0;
-  padding: 0 0 0 4px;
-  border-left: 1px solid var(--line);
+  padding: 0;
 }
 
 .fc-row { min-width: 0; }
 
+/* 文件行：文件名和统计挨着，右侧留白。
+   不 flex:1 撑满 —— 那会把统计推到很右边，读起来像两个不相干的字段。 */
 .fc-head {
   display: flex;
   align-items: center;
   gap: 6px;
   width: 100%;
-  padding: 3px 4px;
+  padding: 4px 6px;
   border: none;
   background: none;
   font-size: 11px;
   color: var(--dim);
   text-align: left;
   cursor: pointer;
-  border-radius: 4px;
+  border-radius: 5px;
   min-width: 0;
 }
 .fc-head:hover:not(:disabled) { background: color-mix(in srgb, var(--fg) 4%, transparent); }
-/* 没有明细时不该有可点的手感 */
 .fc-head:disabled { cursor: default; }
 .fc-head:disabled .fc-caret { opacity: 0; }
 
 .fc-name {
-  /* 不 flex:1 —— 撑满会把统计推到很右边，文件名和数字之间空一大块，
-     读起来像两个不相干的字段。让它们挨着，右侧留白。 */
   flex: 0 1 auto;
-  max-width: 260px;
+  max-width: 240px;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -81,7 +79,6 @@
   color: var(--fg);
 }
 
-/* 写入/修改：用一个极小的标签，避免用户猜「这个文件是新建还是改的」 */
 .fc-kind {
   flex: none;
   font-size: 9.5px;
@@ -96,14 +93,13 @@
   flex: none;
   display: inline-flex;
   gap: 5px;
-  font-variant-numeric: tabular-nums;
-  /* 紧跟类型标签，不被推到行尾 */
   margin-left: 2px;
+  font-variant-numeric: tabular-nums;
 }
 
-/* ── 展开明细 ── */
+/* ── 展开明细：一个代码块容器，内部是 diff 行 ── */
 .fc-detail {
-  padding: 4px 0 8px 20px;
+  padding: 6px 0 8px 18px;
   min-width: 0;
 }
 
@@ -111,8 +107,8 @@
   font-family: var(--font-mono, ui-monospace, monospace);
   font-size: 10px;
   color: var(--dim);
-  opacity: 0.75;
-  margin-bottom: 4px;
+  opacity: 0.7;
+  margin-bottom: 5px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -121,33 +117,54 @@
 }
 
 .fc-hunk {
-  border-radius: 4px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
   overflow: hidden;
-  background: var(--hole);
+  background: var(--bg);
   margin-bottom: 4px;
 }
 
+/* 一行：行号 + 符号 + 内容。
+   行号和符号都 flex:none，内容 flex:1 —— 长行换行时不挤压左两列。 */
 .fc-line {
   display: flex;
-  gap: 6px;
-  padding: 0 6px;
+  align-items: baseline;
+  gap: 0;
   font-size: 10.5px;
-  line-height: 16px;
+  line-height: 17px;
 }
-/* 背景色只做辅助：符号 − / + 本身已经表达了增删 */
-.fc-line-del { background: color-mix(in srgb, var(--bad) 12%, transparent); }
-.fc-line-add { background: color-mix(in srgb, var(--ok) 12%, transparent); }
+.fc-line[data-sign='+'] { background: color-mix(in srgb, var(--ok) 11%, transparent); }
+.fc-line[data-sign='−'] { background: color-mix(in srgb, var(--bad) 11%, transparent); }
 
+/* 行号：右对齐等宽，宽度固定，避免位数变化时内容整体位移 */
+.fc-lineno {
+  flex: none;
+  width: 22px;
+  padding-right: 6px;
+  text-align: right;
+  color: var(--dim);
+  opacity: 0.45;
+  user-select: none;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 9.5px;
+}
+
+/* 符号列：固定宽度。读 diff 时眼睛沿这一列扫。 */
 .fc-sign {
   flex: none;
-  width: 8px;
-  color: var(--dim);
+  width: 14px;
+  text-align: center;
   user-select: none;
+  color: var(--dim);
+  font-family: var(--font-mono, ui-monospace, monospace);
 }
+.fc-line[data-sign='+'] .fc-sign { color: var(--ok); }
+.fc-line[data-sign='−'] .fc-sign { color: var(--bad); }
 
 .fc-text {
   min-width: 0;
   flex: 1;
+  padding-right: 8px;
   font-family: var(--font-mono, ui-monospace, monospace);
   white-space: pre-wrap;
   word-break: break-all;
