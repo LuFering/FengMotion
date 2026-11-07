@@ -199,18 +199,21 @@
    透明底、无边框：胶囊本身就是输入框的外壳。
    纵向 padding 与圆钮对齐，让首行文字和按钮同高。 */
 
+/* 文字区：对齐 LeiBox Composer 的 textarea ——
+   min-h 60px、正文 14px、行高 24px（text-sm leading-6）。 */
 .cc-input {
   display: block;
   width: 100%;
   min-width: 0;
+  min-height: 60px;
   /* 左右各 6px 让首字与下方附件钮的图标对齐（钮自身有内边距） */
   padding: 4px 6px;
   border: 0;
   background: transparent;
   color: var(--fg);
   font: inherit;
-  font-size: 13.5px;
-  line-height: 1.6;
+  font-size: 14px;
+  line-height: 24px;
   resize: none;
   outline: none;
   overflow-y: auto;
@@ -235,32 +238,34 @@
   align-items: center;
 }
 
-/* 发送 / 停止：36×36 实心圆，与添加附件同尺寸 ——
-   参考组件里这一对是底栏两端的对称圆钮。 */
+/* 发送 / 停止：32×32 实心圆（LeiBox .composer-send-btn 的 h-8 w-8）。
+   配色是「前景/背景反转」而不是品牌蓝：原版注释写明
+   light=深底钮、dark=浅底钮，让它在一排浅色控件里作为唯一实心块跳出来。 */
 .cc-send,
 .cc-stop {
   display: flex;
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   align-items: center;
   justify-content: center;
   border: 0;
   border-radius: 999px;
   cursor: pointer;
-  transition: background-color 150ms ease, opacity 150ms ease;
+  transition: background-color 150ms ease, color 150ms ease, opacity 150ms ease;
 }
 .cc-send {
-  background: var(--acc);
-  color: #fff;
+  background: var(--fg);
+  color: var(--bg);
 }
 .cc-send:hover:not(:disabled) {
-  background: var(--acc-d);
+  background: color-mix(in srgb, var(--fg) 88%, var(--bg));
 }
+/* 空闲态：前景 22% 透明（原版 composer-send-btn--idle），
+   不是整体 opacity —— 后者会把图标和底色一起压暗，看起来脏。 */
 .cc-send:disabled {
   cursor: not-allowed;
-  /* 0.55 而不是 0.4：0.4 时蓝色发灰发脏，看起来像按钮坏了；
-     0.55 仍能读出「暂不可用」，但保持品牌蓝的本色。 */
-  opacity: 0.55;
+  background: color-mix(in srgb, var(--fg) 22%, transparent);
+  color: color-mix(in srgb, var(--bg) 90%, var(--fg));
 }
 .cc-stop {
   background: var(--hole);

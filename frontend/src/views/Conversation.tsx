@@ -17,6 +17,7 @@ import {
 } from '@/components/chat'
 import { ComposerAttachments } from '@/components/chat/ComposerAttachments'
 import { AttachMenu } from '@/components/chat/AttachMenu'
+import { ContextRing } from '@/components/chat/ContextRing'
 import type { CSSProperties } from 'react'
 import {
   AlertCircle, AlertTriangle, Archive, ArchiveRestore, Check, ChevronDown, ChevronLeft, ChevronRight,
@@ -2705,7 +2706,9 @@ export function Conversation(props: {
               leading={(
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <button type="button" className="cv3-chip-btn cv3-perm-btn" aria-label="权限设置" title="权限设置">
+                    <button type="button" className="cv3-chip-btn cv3-perm-btn"
+                            data-danger={permission === 'fullAccess' || undefined}
+                            aria-label="权限设置" title="权限设置">
                       {permission === 'readOnly' ? <Shield size={13} />
                         : permission === 'fullAccess' ? <ShieldAlert size={13} /> : <ShieldCheck size={13} />}
                       <span className="cv3-chip-label">{PERM_LABEL[permission]}</span>
@@ -2727,7 +2730,23 @@ export function Conversation(props: {
                   </DropdownMenuContent>
                 </DropdownMenu>
               )}
-              trailing={composerModelPicker}
+              trailing={(
+                <>
+                  {/* 上下文容量环：原版底栏就是这个顺序 —— 环 → 模型胶囊 → 发送。
+                      分母与占用沿用下方占用条的取数逻辑（落库优先，其次流式）。 */}
+                  <ContextRing
+                    used={(() => {
+                      const stored = [...messages].reverse().find((m) => m.role === 'ai' && m.usage)?.usage
+                      return stored?.promptTokens ?? contextUsed
+                    })()}
+                    window={(() => {
+                      const stored = [...messages].reverse().find((m) => m.role === 'ai' && m.usage)?.usage
+                      return contextWindow ?? stored?.contextWindow ?? modelContextWindow ?? null
+                    })()}
+                  />
+                  {composerModelPicker}
+                </>
+              )}
               /* 附件卡片放进输入框内部：附件与文字是同一条消息的两半，
                  放进去共享同一个容器。标题栏保持在外，不做搬移。 */
               insideTop={attachments.length > 0 ? (

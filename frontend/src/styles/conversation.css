@@ -1500,32 +1500,44 @@ html[data-theme="tactile"] #pane-conversation {
 }
 
 /* 工具条上的胶囊按钮（dsh InputBar 的 chip：28px 高、13/20） */
-/* 胶囊内的次要动作按钮（权限模式等）。
-   几何对齐参考组件：高 30、全圆角、padding 5px 10px 5px 8px、gap 4。
-   底色也是常显的浅灰胶囊（参考图里是 #F2F2F2）——
-   之前是透明底，看起来只是一段文字，用户不知道它可以点。 */
+/* 权限模式胶囊。严格对齐 LeiBox Composer 的审批按钮：
+   h-8（32px）/ rounded-full / px-3 / text-[11px] font-medium / 常显 bg-black-5。
+   全权限时是橙色 #e25507 —— 原版刻意用暖色标出「这个模式更危险」。
+   之前是 30px、13px、统一灰色，既偏大又丢掉了这个风险提示。 */
 .cv3-chip-btn {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  height: 30px;
+  height: 32px;
   max-width: 100%;
-  padding: 5px 10px 5px 8px;
+  padding: 0 12px;
   border: 0;
   border-radius: 999px;
-  background: var(--hole);
+  background: color-mix(in srgb, var(--fg) 5%, transparent);
   color: var(--tx2);
   font: inherit;
-  font-size: 13px;
+  font-size: 11px;
+  font-weight: 500;
   line-height: 1;
   white-space: nowrap;
   cursor: pointer;
-  transition: background-color .12s, color .12s;
+  transition: background-color .15s, color .15s;
+}
+
+/* 全权限：橙色底 + 橙字（原版 .text-[#e25507] bg-[#e25507]/10） */
+.cv3-chip-btn[data-danger] {
+  background: color-mix(in srgb, #e25507 10%, transparent);
+  color: #e25507;
+}
+
+.cv3-chip-btn[data-danger]:hover {
+  background: color-mix(in srgb, #e25507 18%, transparent);
+  color: #e25507;
 }
 
 .cv3-chip-btn:hover,
 .cv3-chip-btn[data-on] {
-  background: color-mix(in srgb, var(--hole) 74%, var(--fg) 10%);
+  background: color-mix(in srgb, var(--fg) 10%, transparent);
   color: var(--tx1);
 }
 
