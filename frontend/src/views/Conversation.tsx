@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Search as SeekSearch } from '@/components/Search'
 import { WebSearchTrace, isSearchTool, type SearchCall } from '@/components/WebSearchTrace'
-import { Checklist } from '@/components/bencho/Checklist'
+import { ChecklistDrawer } from '@/components/bencho/Checklist'
 import {
   ChatMessage as ChatBubble, ChatComposer, ThinkingIndicator, MarkdownText,
   AnswerBody, AnswerActions, MessageActions, RunningDivider,
@@ -2085,17 +2085,6 @@ export function Conversation(props: {
                       · 其余工具 → TaskList（任务列表：一次任务 = 一个工具的多步调用）
                       两者混在一张清单里会互相稀释 —— 搜索回答「查了什么来源」，
                       任务列表回答「执行了哪几类动作」。 */}
-                  {/* 模型排的任务清单（todo_write）。放在过程区之上：
-                      它回答「这次要做什么、做到哪了」，比逐个工具调用更高一层。
-                      只读 —— 状态由模型推进，用户点不动。 */}
-                  {m.todos && m.todos.length > 0 && (
-                    <div className="cv3-todos">
-                      <Checklist
-                        items={m.todos}
-                        title={m.todos.every((t) => t.status === 'completed') ? '任务清单 · 已完成' : '任务清单'}
-                      />
-                    </div>
-                  )}
                   {m.executedTools && <WebSearchTrace calls={m.executedTools} live={false} />}
                   {(() => {
                     /* 过程日志：思考与工具调用合成一张任务列表 —— 这正是
@@ -2286,6 +2275,18 @@ export function Conversation(props: {
                 「与消息列同宽并居中」的约束。原先是 .cv3-card 提供宽度，
                 换成新组件后如果直接挂到 .cv3-seat 上，输入框会横跨整个主区
                 （实测 1044px vs 消息列 680px），跟上面的对话完全不对齐。 */}
+            {/* 任务清单抽屉：停靠在输入框上方，与输入框同宽。
+                数据取「最后一条有 todos 的 AI 消息」—— todo_write 是整表替换，
+                最后一份就是当前状态。 */}
+            {(() => {
+              const lastTodos = [...messages].reverse().find((m) => m.todos && m.todos.length > 0)?.todos
+              if (!lastTodos) return null
+              return (
+                <div className="cv3-todo-dock">
+                  <ChecklistDrawer items={lastTodos} defaultOpen={!pending} />
+                </div>
+              )
+            })()}
             <div className="cv3-compose">
             <ChatComposer
               value={chat.draft}

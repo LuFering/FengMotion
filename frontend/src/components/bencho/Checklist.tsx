@@ -443,7 +443,13 @@ export function Checklist({
      start climbing back without anything having to remember
      that they had fallen. That is the entire "you can undo
      it while it is on the floor" behaviour, and it is free. */
-  const fell = items.length > 0 && items.every((t) => t.done);
+  /* ── 受控（真实任务清单）不演「塌成一堆」的收尾 ──────────
+     原版是演示件：最后一条勾完，三行会塌落堆成一叠，这是它的彩蛋。
+     但那个动画给每行加了 y 位移和旋转，行框被撑到 68px（原本 40）；
+     真实清单有五六条，叠加后总高远超容器，最后一行就被裁掉
+     （实测 6 条：行高合计 345px，容器只有 246px）。
+     真实任务完成时用户要的是「看清全部已完成」，不是看它塌下来。 */
+  const fell = !controlled && items.length > 0 && items.every((t) => t.done);
   /* the spare row, and it holds its space even while the heap
      is down — fading it is a paint, removing it would change
      the card's height in the middle of a fall */
@@ -547,18 +553,20 @@ export function Checklist({
 
   return (
     <div
-      className="chk"
-      style={{
-        width: W,
-        /* ── STATED, so it can be animated ─────────────────
-           It was whatever the rows added up to. The same
-           number, written down, is a number CSS can move
-           between — see the transition on .chk. Adding a task
-           used to snap the card 40px taller in one frame. */
-        height: padV * 2 + ROW * slots,
-        padding: `${padV}px ${PAD}px`,
-        borderRadius: r,
-      }}
+      className={controlled ? "chk chk-auto" : "chk"}
+      style={
+        /* ── 受控（真实任务清单）不写死高度 ────────────────
+           原来 height 恒为 padV*2 + ROW*slots，那是原版按「3 条任务 +
+           1 个空行」推的。喂 5~6 条真实任务时这个数对不上：
+           卡片被定成固定高度，而 overflow:hidden 把超出的行直接裁掉
+           （实测：上下各一大片空白，中间的条目被切掉半行）。
+
+           演示态保留固定高度（它要能「长高一行」做动画）；
+           真实清单的行数由模型决定，改成随内容自适应。 */
+        controlled
+          ? { width: W, padding: `${padV}px ${PAD}px`, borderRadius: r }
+          : { width: W, height: padV * 2 + ROW * slots, padding: `${padV}px ${PAD}px`, borderRadius: r }
+      }
     >
       {/* ── AnimatePresence, for the two that leave ─────────
           A reset from five back to three removes two rows, and
@@ -835,6 +843,80 @@ function Row({
       </span>
     </motion.button>
   );
+}
+
+/* ══ ChecklistDrawer ══════════════════════════════════════
+   任务清单停靠在输入框上方的一条抽屉里。
+
+   ── 为什么不直接摆在正文里 ─────────────────────────────
+   清单是「过程」，不是「结论」。放在消息流里，它会把回答往下挤，
+   而且一次任务有五六条、每条一行，正文还没开始就先占了半屏。
+   DSH 自己也是把这类常驻状态（目标、作业）做成停靠在输入框上方的条，
+   而不是塞进对话 —— 因为它回答的是「现在做到哪了」，
+   这个问题随时要问，但每次不需要看全部。
+
+   ── 收起来也必须说清进度 ───────────────────────────────
+   折起来只留一行：标题 + 进度（n/m）+ 当前在做什么。
+   这三样足够回答「还在跑吗、卡在哪一步」，展开才看得到全部条目。
+   全部完成时自动变绿并显示「已完成」，让用户知道可以收工了。
+
+   ── 状态归模型，不给勾选 ───────────────────────────────
+   条目只读（见 Checklist 的受控模式）：清单由模型 todo_write 提交，
+   用户勾了模型并不知道，会造出假进度。 */
+export function ChecklistDrawer({
+  items,
+  defaultOpen = false,
+}: {
+  items: ChecklistItem[]
+  /** 默认展开。运行中建议展开一次，让用户看见计划。 */
+  defaultOpen?: boolean
+}) {
+  const [open, setOpen] = useState(defaultOpen)
+  const done = items.filter((t) => t.status === "completed").length
+  const total = items.length
+  const active = items.find((t) => t.status === "in_progress")
+  const allDone = total > 0 && done === total
+  const pct = total === 0 ? 0 : Math.round((done / total) * 100)
+
+  return (
+    <div
+      className="chk-drawer"
+      data-open={open || undefined}
+      data-done={allDone || undefined}
+    >
+      <button
+        type="button"
+        className="chk-drawer-head"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+      >
+        {/* 三角与项目里其它折叠标题一致：收起时朝右，展开时朝下 */}
+        <svg className="chk-drawer-caret" viewBox="0 0 12 12" aria-hidden="true">
+          <path d="M4.5 3 L8 6 L4.5 9" />
+        </svg>
+        <span className="chk-drawer-title">
+          {allDone ? "任务已完成" : "任务清单"}
+        </span>
+        <span className="chk-drawer-count num">
+          {done}/{total}
+        </span>
+        {/* 收起时显示当前步骤：这是「还在干活」的唯一线索，
+            没有它折叠态等于什么都没说 */}
+        {!open && active && (
+          <span className="chk-drawer-now">{active.content}</span>
+        )}
+        <span className="chk-drawer-bar" aria-hidden="true">
+          <i style={{ width: `${pct}%` }} />
+        </span>
+      </button>
+
+      <div className="chk-drawer-body" hidden={!open}>
+        <div className="chk-drawer-inner">
+          <Checklist items={items} />
+        </div>
+      </div>
+    </div>
+  )
 }
 
 export default Checklist;

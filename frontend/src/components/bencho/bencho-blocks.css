@@ -291,6 +291,14 @@
 
 .chk {
   box-sizing: border-box;
+  /* ── 受控（真实清单）不裁内容 ───────────────────────────
+     原版 overflow:hidden 是为了「加一行时卡片长高」的动画，
+     那需要把溢出裁掉。但真实清单的行数由模型决定，
+     裁切的结果就是最后一行被切掉半截（实测 6 条时 254 vs 246，差 8px）。
+     受控形态不需要那个动画，所以放开裁切。 */
+  &.chk-auto {
+    overflow: visible;
+  }
   /* ── 令牌映射：与 .ctx 同一套，只在本组件根上声明 ─────── */
   --card: var(--surf);
   --fill-slab: var(--surf);
@@ -548,4 +556,146 @@
   letter-spacing: 0;
   opacity: 0.55;
   padding-bottom: 2px;
+}
+
+/* ══ ChecklistDrawer ══════════════════════════════════════
+   停靠在输入框上方的任务清单抽屉。
+
+   配色沿用项目语义：普通态用 --line/--dim 的中性层，
+   全部完成才切到 --ok 绿 —— 这是项目里「完成」的既有含义，
+   不另造一套颜色。整块不含渐变、不含阴影，只靠表面灰阶分层，
+   与对话区其它过程块（任务列表、网页搜索）同一套语言。 */
+.chk-drawer {
+  --card: var(--surf);
+  --fill-slab: var(--surf);
+  --fill-on: var(--fg);
+  --ink: var(--fg);
+  --pane-edge: var(--line);
+  --signal: var(--acc);
+  --font-ui: var(--font-sans);
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surf);
+  font-family: var(--font-ui);
+  color: var(--fg);
+  overflow: hidden;
+}
+
+.chk-drawer-head {
+  position: relative;
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 0;
+  background: none;
+  color: var(--dim);
+  font: inherit;
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+  transition: color 150ms ease;
+}
+.chk-drawer-head:hover { color: var(--fg); }
+.chk-drawer-head:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--acc);
+}
+
+/* caret 与对话区其它折叠标题一致：收起朝右、展开朝下 */
+.chk-drawer-caret {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform 200ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.chk-drawer[data-open] .chk-drawer-caret { transform: rotate(90deg); }
+
+.chk-drawer-title {
+  flex: none;
+  font-weight: 500;
+  color: var(--fg);
+}
+
+/* n/m 计数：等宽数字，避免 9/10 → 10/10 时宽度跳动 */
+.chk-drawer-count {
+  flex: none;
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--dim);
+}
+
+/* 收起时的当前步骤：单行截断，它是折叠态下唯一的过程线索 */
+.chk-drawer-now {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ph);
+}
+
+/* 进度条：压在头部底边，1.5px，不占布局高度 */
+.chk-drawer-bar {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 1.5px;
+  background: var(--line);
+}
+.chk-drawer-bar > i {
+  display: block;
+  height: 100%;
+  background: var(--acc);
+  transition: width 420ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* 全部完成：整块改用「完成」语义色。
+   不能只靠颜色 —— 标题同时变成「任务已完成」，见组件内文案。 */
+.chk-drawer[data-done] {
+  border-color: color-mix(in srgb, var(--ok) 40%, var(--line));
+}
+.chk-drawer[data-done] .chk-drawer-title { color: var(--ok); }
+.chk-drawer[data-done] .chk-drawer-bar > i { background: var(--ok); }
+
+/* ── 展开体 ─────────────────────────────────────────────────
+   用 grid 行高做展开动画，而不是 max-height 猜一个值：
+   max-height 要为一个「可能很长」的清单预留上限，短清单就会出现
+   展开后还剩一大段空白时间的问题。
+
+   ⚠️ 展开态必须用 auto 而不是 1fr：1fr 会让这一行参与「填满剩余空间」
+   的分配，行高被压到比内容矮，再叠加 overflow:hidden 就把最后一行
+   切掉了（实测 6 条时 scrollHeight 254 vs clientHeight 246，正好少一行）。
+   收起用 0fr、展开用 auto，动画同样成立，且内容永远不被裁。 */
+.chk-drawer-body {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.chk-drawer[data-open] .chk-drawer-body {
+  grid-template-rows: auto;
+}
+.chk-drawer-body[hidden] { display: none; }
+
+.chk-drawer-inner {
+  min-height: 0;
+  overflow: hidden;
+  padding: 0 8px 8px;
+}
+
+/* 抽屉里的清单不再是一张卡片：它已经在抽屉这个表面上了，
+   再套一层底色会变成「卡片里的卡片」。 */
+.chk-drawer .chk.chk-auto {
+  width: 100%;
+  padding: 0;
+  background: none;
+  border: 0;
 }
