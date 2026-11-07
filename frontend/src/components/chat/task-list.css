@@ -309,3 +309,36 @@
     transition: none;
   }
 }
+
+/* ── 任务图标 ──────────────────────────────────────────────────
+   与 WebSearchTrace 的 .wst-icon 同一套规格：16px 见方、stroke 描边、
+   与标题同色（--dim）。两者并排时线宽、尺寸、颜色必须一致，
+   否则一眼能看出是两套图标。 */
+
+.tl-task-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  color: var(--dim);
+}
+
+/* 图标本体：svg 自带 .tl-task-svg，同时也带 .tl-task-icon（同一个元素上），
+   所以这里不需要额外规则；上面那条已提供尺寸与颜色。 */
+
+.tl-task-svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* 任务标题里已有图标后，标题文字不再需要额外左边距：
+   .tl-task-head 的 gap(8px) 已经隔开 */
+.tl-task-head .tl-task-icon + .tl-task-title {
+  margin-inline-start: 0;
+}
