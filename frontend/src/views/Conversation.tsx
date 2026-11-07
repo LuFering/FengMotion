@@ -5,6 +5,10 @@ import { ChecklistDrawer } from '@/components/bencho/Checklist'
 import { JobPanel, type JobView } from '@/components/chat/JobPanel'
 import { Deliverables } from '@/components/chat/Deliverables'
 import { SubagentBadge } from '@/components/chat/SubagentBadge'
+import { FileChanges } from '@/components/chat/FileChanges'
+import { collectFileChanges } from '@/components/chat/fileChanges'
+import { QuestionFormCard } from '@/components/chat/QuestionFormCard'
+import { splitQuestionForms } from '@/components/chat/questionForm'
 import { ContextMeter, type MeterPart } from '@/components/bencho/ContextMeter'
 import {
   ChatMessage as ChatBubble, ChatComposer, ThinkingIndicator, MarkdownText,
@@ -2315,10 +2319,38 @@ export function Conversation(props: {
 
                   {/* 正文：Markdown + 代码高亮。
                       之前是手写 renderRich，只认 **加粗**、反引号、`1. ` 编号，
-                      表格/多级列表/代码块全都走样 —— 那等于把结构信息丢了。 */}
+                      表格/多级列表/代码块全都走样 —— 那等于把结构信息丢了。
+
+                      正文里还可能夹着 `<question-form>` 表单（模型提问的唯一方式，
+                      见 components/chat/questionForm.ts 的说明）。只在**流式结束后**
+                      解析：流到一半时 JSON 还没闭合，提前解析会得到半张表。 */}
                   {m.text ? (
                     <AnswerBody>
-                      <MarkdownText text={m.text} />
+                      {(() => {
+                        if (m.streaming) return <MarkdownText text={m.text} />
+                        const segs = splitQuestionForms(m.text)
+                        /* 没有表单就走原路径，不为「可能有」付额外渲染成本 */
+                        if (segs.length === 1 && segs[0].kind === 'text') {
+                          return <MarkdownText text={segs[0].text} />
+                        }
+                        return segs.map((seg, i) =>
+                          seg.kind === 'text'
+                            ? (seg.text.trim() ? <MarkdownText key={i} text={seg.text} /> : null)
+                            : (
+                              <QuestionFormCard
+                                key={i}
+                                form={seg.form}
+                                interactive={!pending && m.id === messages[messages.length - 1]?.id}
+                                onSubmit={(msg) => {
+                                  /* 答案走普通用户消息 —— 这是绕开 dsh 工具应答通道的关键。
+                                     直接调 send 而不是 submit：send 收文本参数，
+                                     submit 是从输入框草稿里取的，这里不该污染草稿。 */
+                                  void send(msg)
+                                }}
+                              />
+                            ),
+                        )
+                      })()}
                     </AnswerBody>
                   ) : null}
 
@@ -2353,6 +2385,12 @@ export function Conversation(props: {
                       </table>
                     </div>
                   )}
+                  {/* 文件改动：这条回复动过哪些文件。放在产物之前 ——
+                      先「改了什么」再「交付了什么」，符合读的顺序。 */}
+                  {(() => {
+                    const fc = collectFileChanges(m.executedTools)
+                    return fc.length > 0 ? <FileChanges changes={fc} /> : null
+                  })()}
                   {/* 交付的产物：模型主动 present 的文件。
                       放在回复最末 —— 「说了什么」之后才是「东西在哪」。 */}
                   {m.deliverables && m.deliverables.length > 0 && (
