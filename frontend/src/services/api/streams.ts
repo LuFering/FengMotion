@@ -448,6 +448,14 @@ export interface ChatStreamHandlers {
    * 可选：旧后端不产这帧时不会调用。
    */
   onTodo?: (todos: { content: string; status: 'pending' | 'in_progress' | 'completed' }[]) => void
+  /**
+   * 过程诊断：上下文压缩 / token 上限 / 重试 / 中断。
+   * 可选：旧后端不产这帧时不会调用。
+   */
+  onDiagnostic?: (
+    kind: 'compaction' | 'max-tokens' | 'retry' | 'interrupted',
+    detail?: string,
+  ) => void
   onState?: (state: ChatStreamState) => void
   onError?: (error: ApiError) => void
 }
@@ -521,6 +529,16 @@ export function openChatSessionStream(
         const r = payload as { messageId?: unknown; delta?: unknown }
         if (typeof r.messageId === 'string' && typeof r.delta === 'string') {
           handlers.onReasoning?.(r.messageId, r.delta)
+        }
+        return 'continue'
+      }
+      case 'diagnostic': {
+        const d = payload as { kind?: unknown; detail?: unknown }
+        if (typeof d.kind === 'string') {
+          handlers.onDiagnostic?.(
+            d.kind as 'compaction' | 'max-tokens' | 'retry' | 'interrupted',
+            typeof d.detail === 'string' ? d.detail : undefined,
+          )
         }
         return 'continue'
       }

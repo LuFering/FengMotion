@@ -149,6 +149,23 @@ public class DshSdkSession {
         void onTurnEnded(boolean failed, String reason);
 
         /**
+         * 一条「过程诊断」：压缩上下文、达到 token 上限、模型重试、被中断。
+         *
+         * <p>这些事件都**不改变正文**，但解释了「为什么这次回复不对劲」——
+         * 上下文被压缩后模型可能忘了前文，达到 token 上限则会话被截断，
+         * 重试会让等待变长。以前它们全部落在 default 分支被丢弃，
+         * 用户只能看到「答复怪怪的」却没有任何线索。</p>
+         *
+         * <p>默认空实现：不是每个监听器都关心诊断。</p>
+         *
+         * @param kind  诊断类型：compaction / max-tokens / retry / interrupted
+         * @param detail 给人看的一句话说明；可能为空
+         */
+        default void onDiagnostic(String kind, String detail) {
+            // 默认忽略
+        }
+
+        /**
          * 整个 Agent 空闲，本次对话结束。
          */
         void onIdle();
@@ -523,8 +540,32 @@ public class DshSdkSession {
                     failure = failed ? describeFailure(reason) : null;
                     listener.onTurnEnded(failed, failure);
                 }
+                /* ── 过程诊断 ──────────────────────────────────────
+                   这几类事件不改变正文，但解释「为什么这次结果不对劲」。
+                   以前全部落进 default 被丢弃，用户看到的是「答复怪怪的」
+                   却没有任何线索。现在统一上报成诊断，由界面择要提示。 */
+                case "compaction/start", "manual-compaction" ->
+                        listener.onDiagnostic("compaction", "上下文已满，正在压缩历史记录");
+                case "compaction/summary" ->
+                        listener.onDiagnostic("compaction", "上下文已压缩，早期对话被摘要替代");
+                case "compaction/end" ->
+                        listener.onDiagnostic("compaction", "上下文压缩完成");
+                case "turn-max-tokens" -> {
+                    /* 达到本回合 token 上限：答复是被截断的，不是写完了。
+                       这必须让用户知道 —— 否则会以为模型就是说了一半。 */
+                    listener.onDiagnostic("max-tokens", "本回合达到 token 上限，回复可能不完整");
+                    failed = true;
+                    if (failure == null) {
+                        failure = "本回合达到 token 上限，回复被截断";
+                    }
+                }
+                case "llm/retry", "llm/retry-started" -> {
+                    String why = data.path("error").path("message").asText("");
+                    listener.onDiagnostic("retry",
+                            why.isBlank() ? "模型调用失败，正在重试" : "模型调用失败，正在重试：" + why);
+                }
                 default -> {
-                    // 其他事件（permission/preset、request/header、session/title 等）
+                    // 其他事件（permission/preset、request/header 等）
                     // 不影响本轮结果，按协议忽略即可。
                 }
             }

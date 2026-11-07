@@ -1462,6 +1462,19 @@ export interface ChatStreamTodo {
   todos: ChatStreamTodoItem[]
 }
 
+/**
+ * 过程诊断帧：解释「为什么这次结果不对劲」，不携带正文。
+ *
+ * <p>四类：上下文压缩、达到 token 上限、模型重试、被中断。
+ * 它们以前全被后端丢弃，用户只看到「答复怪怪的」却没有任何线索。</p>
+ */
+export interface ChatStreamDiagnostic {
+  type: 'diagnostic'
+  kind: 'compaction' | 'max-tokens' | 'retry' | 'interrupted'
+  /** 给人看的一句话说明；可能不出现。 */
+  detail?: string
+}
+
 export type ChatStreamMessage =
   | ChatStreamDelta
   | ChatStreamReasoning
@@ -1471,6 +1484,7 @@ export type ChatStreamMessage =
   | ChatStreamUsage
   | ChatStreamTitle
   | ChatStreamTodo
+  | ChatStreamDiagnostic
   | ChatStreamHeartbeat
   | ChatStreamEnd
   | StreamError

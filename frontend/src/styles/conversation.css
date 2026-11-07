@@ -2737,3 +2737,27 @@ html[data-theme="tactile"] .cv3-ddm {
   max-width: min(920px, max(680px, 64%), calc(100% - 32px));
   margin: 0 auto 8px;
 }
+
+/* ── 过程诊断（压缩 / token 上限 / 重试 / 中断）──────────────
+   一条低调的说明行，放在用量之前。
+   刻意不做成警告框：这几件事都不算失败（除了 token 上限），
+   做成红色横幅会让人以为出错了。用 --warn 只在真的会截断
+   （max-tokens）时提亮，其余走次要文字色。 */
+.cv3-diagnostic {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin: 2px 0 4px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dim);
+}
+.cv3-diagnostic > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.cv3-diagnostic > span[data-kind="max-tokens"] {
+  color: var(--warn);
+}
+.cv3-diagnostic svg { flex: none; opacity: .85; }

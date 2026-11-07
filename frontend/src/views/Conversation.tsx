@@ -9,7 +9,8 @@ import {
 } from '@/components/chat'
 import type { CSSProperties } from 'react'
 import {
-  AlertCircle, Archive, ArchiveRestore, Check, ChevronDown, ChevronLeft, ChevronRight, Ellipsis, FileText, FolderPlus, ImageIcon,
+  AlertCircle, AlertTriangle, Archive, ArchiveRestore, Check, ChevronDown, ChevronLeft, ChevronRight,
+  CircleSlash, Ellipsis, FileText, FolderPlus, ImageIcon, Minimize2, RotateCcw,
   ListFilter, LoaderCircle, MessageSquarePlus, PanelLeft, Pencil, Pin, PinOff, Shield,
   ShieldAlert, ShieldCheck, Trash2, X,
 } from 'lucide-react'
@@ -437,6 +438,14 @@ function shortArgs(args: string): string {
     .slice(0, 2)
     .map(([k, v]) => `${k}=${String(v)}`)
   return truncate(parts.join(' ') || '（无参数）')
+}
+
+/** 诊断类型的兜底文案（后端一般会给 detail）。 */
+const DIAGNOSTIC_LABEL: Record<string, string> = {
+  compaction: '上下文已压缩，早期对话被摘要替代',
+  'max-tokens': '本回合达到 token 上限，回复可能不完整',
+  retry: '模型调用失败，正在重试',
+  interrupted: '本轮被中断',
 }
 
 function truncate(t: string): string {
@@ -1116,6 +1125,11 @@ export function Conversation(props: {
       onTodo: (todos) => {
         /* 任务清单整表替换：模型每次 todo_write 都给完整清单。 */
         chat.setAiTodos(aiId, todos)
+      },
+      onDiagnostic: (kind, detail) => {
+        /* 压缩 / token 上限 / 重试：不改变正文，但解释了「为什么这次不对劲」。
+           以前后端直接丢弃，用户只能看到答复怪却无从判断。 */
+        chat.addAiDiagnostic(aiId, kind, detail)
       },
       onCompleted: (message) => {
         produced = true
@@ -2253,6 +2267,27 @@ export function Conversation(props: {
                   没报的不占位 —— 显示「输入 0」会让人以为完全没消耗。
                   缓存命中单独标出：它含在总计里，单看总计容易高估成本。
                   同样不能加 `pending &&`：用量是这一轮的结算，结束后才最该看见。 */}
+              {/* 过程诊断：压缩 / token 上限 / 重试。
+                  只在真发生过时出现；不带正文，不看也不影响阅读，
+                  但它解释「为什么这次答复不对劲」，藏起来等于没有。 */}
+              {(() => {
+                const last = [...messages].reverse().find((x) => x.role === 'ai')
+                const diags = last?.diagnostics
+                if (!diags || diags.length === 0) return null
+                return (
+                  <p className="cv3-diagnostic">
+                    {diags.map((d, i) => (
+                      <span key={`${d.kind}-${i}`} data-kind={d.kind}>
+                        {d.kind === 'max-tokens' ? <AlertTriangle size={12} />
+                          : d.kind === 'compaction' ? <Minimize2 size={12} />
+                          : d.kind === 'retry' ? <RotateCcw size={12} />
+                          : <CircleSlash size={12} />}
+                        {d.detail ?? DIAGNOSTIC_LABEL[d.kind]}
+                      </span>
+                    ))}
+                  </p>
+                )
+              })()}
               {usage && (usage.inputTokens !== undefined || usage.outputTokens !== undefined) && (
                 <p className="cv3-usage num">
                   {usage.inputTokens !== undefined && <>输入 {usage.inputTokens}</>}

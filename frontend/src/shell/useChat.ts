@@ -27,6 +27,11 @@ export interface ChatMessage {
    * 显式区分于下面的 `plan`（演示适配器手写的字符串数组）。
    */
   todos?: { content: string; status: 'pending' | 'in_progress' | 'completed' }[]
+  /**
+   * 本轮的过程诊断（压缩 / token 上限 / 重试）。
+   * 与 failed 分开：诊断不表示失败，只表示「这次为什么可能不对劲」。
+   */
+  diagnostics?: { kind: 'compaction' | 'max-tokens' | 'retry' | 'interrupted'; detail?: string }[]
   plan?: string[]
   /** “改了什么”表：只列真实创建的产物（项目 / 工作流），不编造文件改动 */
   changes?: { file: string; change: string }[]
@@ -108,6 +113,19 @@ export function useChat() {
     setMessages((items) => items.map((m) => (m.id === messageId ? { ...m, todos } : m)))
   }
 
+  /** 追加一条过程诊断；同 kind 只保留最后一条，避免重试刷屏。 */
+  const addAiDiagnostic = (
+    messageId: string,
+    kind: 'compaction' | 'max-tokens' | 'retry' | 'interrupted',
+    detail?: string,
+  ) => {
+    setMessages((items) => items.map((m) => {
+      if (m.id !== messageId) return m
+      const rest = (m.diagnostics ?? []).filter((d) => d.kind !== kind)
+      return { ...m, diagnostics: [...rest, { kind, detail }] }
+    }))
+  }
+
   const appendAiText = (messageId: string, delta: string) => {
     if (!delta) return
     setMessages((items) => items.map((m) => (m.id === messageId ? { ...m, text: m.text + delta } : m)))
@@ -156,7 +174,7 @@ export function useChat() {
   }
   return {
     messages, draft, setDraft, addUserMessage, setMessageTaskId, addAiMessage, appendMessage, clearChat,
-    replaceMessages, startAiMessage, appendAiText, appendAiReasoning, setAiTodos, finishAiMessage, failAiMessage, removeMessage,
+    replaceMessages, startAiMessage, appendAiText, appendAiReasoning, setAiTodos, addAiDiagnostic, finishAiMessage, failAiMessage, removeMessage,
   }
 }
 

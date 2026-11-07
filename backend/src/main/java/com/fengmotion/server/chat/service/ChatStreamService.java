@@ -871,6 +871,20 @@ public class ChatStreamService {
         }
 
         @Override
+        public void onDiagnostic(String kind, String detail) {
+            /* 诊断帧：只解释「为什么这次不对劲」，不携带正文。
+               界面据此提示（上下文被压缩 / token 上限 / 正在重试），
+               不显示就等于什么都没发生 —— 而这几件事都会让用户误判。 */
+            ObjectNode data = json.createObjectNode();
+            data.put("type", "diagnostic");
+            data.put("kind", kind);
+            if (detail != null && !detail.isBlank()) {
+                data.put("detail", detail);
+            }
+            writeFrame(out, "diagnostic", data);
+        }
+
+        @Override
         public void onSessionTitle(String title) {
             /* 引擎给会话命了名。落库 + 发帧两件事都要做：
                · 落库：左栏刷新后仍是这个名字，不会退回「未命名对话」
