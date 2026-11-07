@@ -12,7 +12,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fengmotion.server.chat.domain.ChatMessage;
 import com.fengmotion.server.chat.domain.ChatSession;
@@ -443,6 +445,7 @@ public class ChatStreamService {
     }
 
     /** 写一帧 {@code status}，用于表达「正在思考」「正在调用工具」等阶段。 */
+
     private void writeStatus(PrintWriter out, String phase, String toolName, String label) {
         writeStatus(out, phase, toolName, label, null, null, false);
     }
@@ -719,6 +722,13 @@ public class ChatStreamService {
 
         @Override
         public void onToolCall(String callId, String name, String arguments) {
+            /* todo_write 不只是「调了个工具」：它带的是整份待办清单的当前状态
+               （pending / in_progress / completed），界面要按它画任务进度。
+               单独发一帧 todo，前端据此渲染任务清单；其余工具走普通 status 帧。
+               调用记录仍然照常落进 toolCalls —— 它是「这条回复当时做了什么」的一部分。 */
+            if (isTodoWrite(name)) {
+                emitTodos(arguments);
+            }
             /* 工具调用**不能**走 emitPhase：那个方法按 phase 去重，而一轮里连续调用
                两个工具都是 tool 相位、却是两次不同调用 —— 去重会把第二次吞掉，
                界面上就永远停在第一个工具。所以这里直接发帧，并带上 callId 让前端
@@ -736,6 +746,65 @@ public class ChatStreamService {
                 record.put("arguments", truncate(arguments, MAX_ARGUMENT_CHARS));
             }
             toolCalls.add(record);
+        }
+
+        /** 是否是待办清单工具。DSH 的名字是 {@code todo_write}。 */
+        private static boolean isTodoWrite(String name) {
+        return "todo_write".equals(name) || "todowrite".equalsIgnoreCase(name == null ? "" : name.replace("_", ""));
+        }
+
+        /**
+         * 把 {@code todo_write} 的参数解析成一份待办清单，发一帧 {@code todo}。
+         *
+         * <p>参数形状是 {@code {"todos":[{"content":"...","status":"pending|in_progress|completed"}]}}。
+         * 解析失败就什么都不发 —— 宁可界面没有任务清单，也不要发一份编造的进度。</p>
+         */
+        private void emitTodos(String arguments) {
+        if (arguments == null || arguments.isBlank()) {
+            return;
+        }
+        JsonNode root;
+        try {
+            root = json.readTree(arguments);
+        } catch (Exception ignored) {
+            return;
+        }
+        JsonNode todos = root.path("todos");
+        if (!todos.isArray()) {
+            return;
+        }
+        ArrayNode items = json.createArrayNode();
+        for (JsonNode t : todos) {
+            String content = t.path("content").asText("");
+            if (content.isBlank()) {
+                continue;
+            }
+            ObjectNode item = json.createObjectNode();
+            item.put("content", content);
+            item.put("status", normalizeTodoStatus(t.path("status").asText("")));
+            items.add(item);
+        }
+        if (items.isEmpty()) {
+            return;
+        }
+        ObjectNode data = json.createObjectNode();
+        data.put("type", "todo");
+        data.set("todos", items);
+        writeFrame(out, "todo", data);
+        }
+
+        /**
+         * 归一化待办状态。
+         *
+         * <p>上游只给 pending / in_progress / completed 三种；其余一律当 pending ——
+         * 未知状态当成「已完成」会让界面虚报进度，那是更糟的错。</p>
+         */
+        private static String normalizeTodoStatus(String raw) {
+        return switch (raw == null ? "" : raw) {
+            case "in_progress", "in-progress", "inProgress", "running" -> "in_progress";
+            case "completed", "done" -> "completed";
+            default -> "pending";
+        };
         }
 
         @Override

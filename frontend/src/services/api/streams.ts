@@ -443,6 +443,11 @@ export interface ChatStreamHandlers {
    * 收到后应更新会话标题，否则左栏只能一直是「未命名对话」。
    */
   onTitle?: (title: string) => void
+  /**
+   * 待办清单：模型通过 todo_write 提交的整份清单（整表替换，后到的为准）。
+   * 可选：旧后端不产这帧时不会调用。
+   */
+  onTodo?: (todos: { content: string; status: 'pending' | 'in_progress' | 'completed' }[]) => void
   onState?: (state: ChatStreamState) => void
   onError?: (error: ApiError) => void
 }
@@ -516,6 +521,13 @@ export function openChatSessionStream(
         const r = payload as { messageId?: unknown; delta?: unknown }
         if (typeof r.messageId === 'string' && typeof r.delta === 'string') {
           handlers.onReasoning?.(r.messageId, r.delta)
+        }
+        return 'continue'
+      }
+      case 'todo': {
+        const t = payload as { todos?: unknown }
+        if (Array.isArray(t.todos)) {
+          handlers.onTodo?.(t.todos as { content: string; status: 'pending' | 'in_progress' | 'completed' }[])
         }
         return 'continue'
       }

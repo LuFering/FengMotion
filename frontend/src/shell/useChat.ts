@@ -22,6 +22,11 @@ export interface ChatMessage {
    * 分开存是为了不破坏演示路径，同时让真实回复切走会话再回来仍能回看。
    */
   executedTools?: { callId?: string; name: string; arguments?: string; done?: boolean; isError?: boolean }[]
+  /**
+   * 模型通过 todo_write 提交的待办清单（整表替换，最后一次为准）。
+   * 显式区分于下面的 `plan`（演示适配器手写的字符串数组）。
+   */
+  todos?: { content: string; status: 'pending' | 'in_progress' | 'completed' }[]
   plan?: string[]
   /** “改了什么”表：只列真实创建的产物（项目 / 工作流），不编造文件改动 */
   changes?: { file: string; change: string }[]
@@ -95,6 +100,14 @@ export function useChat() {
     )
   }
 
+  /** 待办清单整表替换：DSH 的 todo 工具就是整表语义，不做增量合并。 */
+  const setAiTodos = (
+    messageId: string,
+    todos: { content: string; status: 'pending' | 'in_progress' | 'completed' }[],
+  ) => {
+    setMessages((items) => items.map((m) => (m.id === messageId ? { ...m, todos } : m)))
+  }
+
   const appendAiText = (messageId: string, delta: string) => {
     if (!delta) return
     setMessages((items) => items.map((m) => (m.id === messageId ? { ...m, text: m.text + delta } : m)))
@@ -139,7 +152,7 @@ export function useChat() {
   }
   return {
     messages, draft, setDraft, addUserMessage, setMessageTaskId, addAiMessage, appendMessage, clearChat,
-    replaceMessages, startAiMessage, appendAiText, appendAiReasoning, finishAiMessage, failAiMessage, removeMessage,
+    replaceMessages, startAiMessage, appendAiText, appendAiReasoning, setAiTodos, finishAiMessage, failAiMessage, removeMessage,
   }
 }
 

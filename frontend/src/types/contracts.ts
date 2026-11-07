@@ -1443,6 +1443,23 @@ export interface ChatStreamHeartbeat {
   type: 'heartbeat'
 }
 
+/**
+ * 待办清单帧：模型通过 {@code todo_write} 提交的整份任务清单。
+ *
+ * <p>DSH 的 todo 工具是「整表替换」语义：每次调用都给出完整清单，
+ * 界面按最后一次为准，不做增量合并。状态由模型自己推进
+ * （pending → in_progress → completed）。</p>
+ */
+export interface ChatStreamTodoItem {
+  content: string
+  status: 'pending' | 'in_progress' | 'completed'
+}
+
+export interface ChatStreamTodo {
+  type: 'todo'
+  todos: ChatStreamTodoItem[]
+}
+
 export type ChatStreamMessage =
   | ChatStreamDelta
   | ChatStreamReasoning
@@ -1451,6 +1468,7 @@ export type ChatStreamMessage =
   | ChatStreamStatus
   | ChatStreamUsage
   | ChatStreamTitle
+  | ChatStreamTodo
   | ChatStreamHeartbeat
   | ChatStreamEnd
   | StreamError

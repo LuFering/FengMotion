@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Search as SeekSearch } from '@/components/Search'
 import { WebSearchTrace, isSearchTool, type SearchCall } from '@/components/WebSearchTrace'
+import { Checklist } from '@/components/bencho/Checklist'
 import {
   ChatMessage as ChatBubble, ChatComposer, ThinkingIndicator, MarkdownText,
   AnswerBody, AnswerActions, MessageActions, RunningDivider,
@@ -1100,6 +1101,10 @@ export function Conversation(props: {
         produced = true
         chat.appendAiText(aiId, delta)
       },
+      onTodo: (todos) => {
+        /* 任务清单整表替换：模型每次 todo_write 都给完整清单。 */
+        chat.setAiTodos(aiId, todos)
+      },
       onCompleted: (message) => {
         produced = true
         // 带上本轮工具记录：completed 到服务端消息读回之间有个异步空档，
@@ -2080,6 +2085,17 @@ export function Conversation(props: {
                       · 其余工具 → TaskList（任务列表：一次任务 = 一个工具的多步调用）
                       两者混在一张清单里会互相稀释 —— 搜索回答「查了什么来源」，
                       任务列表回答「执行了哪几类动作」。 */}
+                  {/* 模型排的任务清单（todo_write）。放在过程区之上：
+                      它回答「这次要做什么、做到哪了」，比逐个工具调用更高一层。
+                      只读 —— 状态由模型推进，用户点不动。 */}
+                  {m.todos && m.todos.length > 0 && (
+                    <div className="cv3-todos">
+                      <Checklist
+                        items={m.todos}
+                        title={m.todos.every((t) => t.status === 'completed') ? '任务清单 · 已完成' : '任务清单'}
+                      />
+                    </div>
+                  )}
                   {m.executedTools && <WebSearchTrace calls={m.executedTools} live={false} />}
                   {(() => {
                     /* 过程日志：思考与工具调用合成一张任务列表 —— 这正是
