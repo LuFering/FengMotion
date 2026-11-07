@@ -307,13 +307,20 @@
    py-1 + 一行 20px：行高 28，与原组件节奏一致。 */
 .wst-step {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 8px;
-  /* 5px 上下：比 4 松一点，几行叠在一起时不会糊成一片 */
-  padding-block: 5px;
+  /* 与任务列表的 .tl-row 对齐：上下 4px（那边是 py-1 = 4px）、
+     行高 20px，行总高 28px。之前是 5px，两块并排时行距差 2px 看得出来。 */
+  padding-block: 4px;
 }
 
-.wst-step > .wst-icon { margin-top: 2px; }
+/* 步骤行的图标：任务列表的步骤没有图标，搜索有。
+   两者并排时「有没有图标」本身就是信息差（搜索要标出「这是一次检索」），
+   保留但压到与步骤文字同色，不做成彩色焦点。 */
+.wst-step > .wst-icon {
+  color: var(--dim);
+  opacity: 0.75;
+}
 
 .wst-line {
   flex: 1;
@@ -345,8 +352,14 @@
   font-variant-numeric: tabular-nums;
 }
 
-.wst-step[data-state='failed'] .wst-line,
+/* 失败态：只把图标标红，正文保持 --dim。
+   ⚠️ 之前整行（.wst-line）都变红，与任务列表的处理不一致 ——
+   那边失败只染状态字，主文字仍是灰色。两块并排时，一个整行红、一个只有小字红，
+   看起来像两种不同严重程度的东西。
+   而且整行红会让「搜索了什么」这句话本身变得刺眼，读不下去。 */
 .wst-step[data-state='failed'] .wst-icon { color: var(--bad); }
+.wst-step[data-state='failed'] .wst-line { color: var(--dim); }
+.wst-step[data-state='failed'] .wst-query { color: var(--ph); }
 
 /* 正在跑的那一行：文字轻微呼吸，跑完就停 */
 .wst-shimmer {
@@ -532,4 +545,15 @@
   }
   .wst-hook path { stroke-dashoffset: 0; }
   .wst-trunk { transform: none; }
+}
+
+/* 行尾状态字：与任务列表的 .ai-call-status / 失败标记同一位置与字号 */
+.wst-status {
+  flex: none;
+  font-size: 12px;
+  line-height: 20px;
+  color: var(--ph);
+}
+.wst-status[data-state='failed'] {
+  color: var(--bad);
 }

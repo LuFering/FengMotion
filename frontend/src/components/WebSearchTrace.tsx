@@ -217,6 +217,9 @@ function StepLine({ step, active }: { step: Step; active: boolean }) {
         <span className={active ? "wst-shimmer" : undefined}>{step.label}</span>
         {step.query && <span className="wst-query">{step.query}</span>}
       </p>
+      {/* 失败必须带文字，不能只靠颜色（色弱也要能看出来），
+          也与任务列表「状态字在行尾」的位置一致 */}
+      {step.failed && <span className="wst-status" data-state="failed">失败</span>}
       {step.meta && <span className="wst-meta">{step.meta}</span>}
     </div>
   );
