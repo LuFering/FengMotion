@@ -1779,8 +1779,10 @@ html[data-theme="tactile"] #pane-conversation {
   transition: border-color .18s, background-color .18s;
 }
 
-/* 已接入引擎时，按钮外缘顺时针跑一圈品牌色光
-   （同首页 .hf-harnesswrap[data-connected]::before，数值一致）。
+/* 已接入引擎时，按钮外缘顺时针跑一圈品牌色光。
+   ⚠️ 在输入框里关掉（见下方 .cc-bar .cv3-hbtn[data-connected]::after）：
+   输入框是长时间停留的界面，持续旋转的 conic 渐变会把注意力从文字上拽走；
+   前端设计原则也明确「不做渐变」。首页那处是一次性点击的入口，保留。
    用 ::after + inset:-2px 画在按钮外缘；遮罩只留 2px 环，中间镂空。 */
 .cv3-hbtn[data-connected]::after {
   content: '';
@@ -2906,4 +2908,32 @@ html[data-theme="tactile"] .cv3-ddm {
 .cv3-to-bottom:focus-visible {
   outline: none;
   box-shadow: 0 0 0 2px var(--acc);
+}
+
+/* ── 输入框内的模型选择器：静态、无旋转光带 ────────────────────
+   理由见 .cv3-hbtn[data-connected]::after 的注释：输入框是长时间停留的
+   界面，持续动画会持续抢注意力。连接状态仍由左侧绿点表达，信息不丢。 */
+/* 直接不渲染这层伪元素：只关 animation/background 仍会留下一圈
+   box-shadow 描边（遮罩把阴影也裁成了环），看起来像边框没对齐。 */
+.cc-bar .cv3-hbtn[data-connected]::after {
+  content: none;
+  display: none;
+}
+
+/* 输入框里的模型选择器与发送钮同高（32px），
+   否则一行里出现 28/30/32 三种高度，底栏看起来是歪的。 */
+.cc-bar .cv3-hbtn {
+  height: 32px;
+  max-width: 240px;
+  padding: 0 9px 0 11px;
+  background: transparent;
+  border-color: transparent;
+}
+.cc-bar .cv3-hbtn:hover {
+  background: var(--hole);
+  border-color: var(--cv-line);
+}
+.cc-bar .cv3-hmodel {
+  font-size: 12px;
+  color: var(--tx2);
 }

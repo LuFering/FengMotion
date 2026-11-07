@@ -2264,24 +2264,6 @@ export function Conversation(props: {
                   </div>
                 )}
 
-                  {/* 真实 Agent 回复后的出口。
-                      与下面的演示卡是两条独立路径：这里**不假设**这条回复是需求梳理，
-                      也不建议「开始制作」—— 用户可能只是问了个普通问题。只给一个
-                      明确可行动作：带着这段对话去工作台继续。
-                      没有归属项目时不给按钮（工作台需要项目），改为提示先建项目 ——
-                      给一个点了会失败的按钮比不给更糟。 */}
-                  {!m.demo && m.id === messages[messages.length - 1]?.id && !m.streaming && !m.failed && (
-                    <div className="cv3-after">
-                      {currentProject ? (
-                        <button type="button" className="cv3-secondary cv3-after-btn"
-                                onClick={() => props.onOpenWorkbench()}>
-                          带着这段对话去工作台
-                        </button>
-                      ) : (
-                        <p className="cv3-after-hint">这条对话还没有归属项目，建一个项目即可进入工作台继续。</p>
-                      )}
-                    </div>
-                  )}
                   {/* 演示回复后的「下一步」卡：原来那块由本地伪造的「制作方案」三条带出来，
                       那三条是编的内容（不是模型给的，也不是工作流产的），已删。
                       入口本身保留：它是进入工作台的路。只跟演示回复走 ——

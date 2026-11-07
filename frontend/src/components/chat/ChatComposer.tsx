@@ -13,7 +13,7 @@
  *     里的环绕光带），因为原组件依赖 BoardUI 的 SVG 渐变体系
  */
 
-import { useEffect, useRef, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { ArrowUp, Paperclip, Square } from 'lucide-react'
 import './chat-composer.css'
 
@@ -68,6 +68,32 @@ export interface ChatComposerProps {
   maxHeight?: number
 }
 
+/**
+ * 窄栏里把 minRows 降下来。
+ *
+ * <p>调用方给的 minRows 是按「宽栏、占位文字会被折行」算的；两层布局之后
+ * 底栏自己占了一行，再保 2 行文字区就会在胶囊里空出一大片。这里按实际
+ * 宽度判断：容器窄于 380px 时至少降到 1 行。</p>
+ */
+function useNarrowRows(
+  ref: React.RefObject<HTMLTextAreaElement | null>,
+  minRows: number,
+): number {
+  const [narrow, setNarrow] = useState(false)
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const host = el.closest('.cc')
+    if (!host) return
+    const ro = new ResizeObserver(([entry]) => {
+      setNarrow(entry.contentRect.width < 380)
+    })
+    ro.observe(host)
+    return () => ro.disconnect()
+  }, [ref])
+  return narrow ? 1 : minRows
+}
+
 export function ChatComposer({
   value,
   onValueChange,
@@ -90,33 +116,36 @@ export function ChatComposer({
 }: ChatComposerProps) {
   const inputRef = useRef<HTMLTextAreaElement>(null)
 
-  /* 自动增高：先归零再按 scrollHeight 设，否则删字时高度不会回落 */
+  /* 自动增高：先归零再按 scrollHeight 设，否则删字时高度不会回落。
+     窄栏里 minRows 会按容器宽度自动降级（见下），所以这里读 effectiveRows。 */
+  const effectiveRows = useNarrowRows(inputRef, minRows)
   useEffect(() => {
     const el = inputRef.current
     if (!el) return
     el.style.height = 'auto'
     const line = 22 /* 13.5px × 1.6 行高，与 .cc-input 的 line-height 对应 */
-    const floor = minRows * line
+    const floor = effectiveRows * line
     el.style.height = `${Math.min(Math.max(el.scrollHeight, floor), maxHeight)}px`
-  }, [value, maxHeight, minRows])
+  }, [value, maxHeight, effectiveRows])
 
   const canSend = value.trim().length > 0 && !disabled && !sendBlocked
+  /* 底栏只有「发送」时不该单独占一行 —— 那会在胶囊底部留出一条空白带。
+     工作台那栏没有附件钮、没有模型选择器，正好是这种情况：此时退回单行，
+     发送钮直接贴在文字右侧。 */
+  const hasBarContent = Boolean(onAttach || leading || trailing)
 
   return (
     <div className="cc">
       {above}
 
+      {/* 两层结构：上排只有文字，下排放控件。
+          原先所有控件挤在一行，680px 里要同时塞下权限、附件、模型、发送，
+          模型选择器被压到 197px（长模型名直接撑满），文字区只剩中间一小段。
+          参考 Deep Agent Composer 的做法：文字独占一行，控件沉到底栏，
+          文字区因此能拿到整行宽度，模型选择器也不必再压。 */}
       <div className={`cc-pill${busy ? ' is-busy' : ''}`}>
         {/* 环绕光带：生成中才亮，与上游 ComposerLoader 的观感一致 */}
         {busy ? <span className="cc-glow" aria-hidden /> : null}
-
-        {leading}
-
-        {onAttach ? (
-          <button type="button" className="cc-attach" aria-label="添加附件" title="添加附件" onClick={onAttach}>
-            <Paperclip size={16} />
-          </button>
-        ) : null}
 
         <textarea
           ref={inputRef}
@@ -137,28 +166,40 @@ export function ChatComposer({
           }}
         />
 
-        {trailing}
+        <div className="cc-bar" data-compact={hasBarContent ? undefined : ''}>
+          <div className="cc-bar-left">
+            {onAttach ? (
+              <button type="button" className="cc-attach" aria-label="添加附件" title="添加附件" onClick={onAttach}>
+                <Paperclip size={15} />
+              </button>
+            ) : null}
+            {leading}
+          </div>
 
-        <div className="cc-send-wrap">
-          {busy && onStop ? (
-            <button type="button" className="cc-stop" aria-label="停止生成" title="停止生成" onClick={onStop}>
-              <Square size={14} />
-            </button>
-          ) : (
-            <button
-              type="submit"
-              className="cc-send"
-              aria-label="发送"
-              title="发送"
-              disabled={!canSend}
-              onClick={(e) => {
-                e.preventDefault()
-                if (canSend) onSubmit()
-              }}
-            >
-              <ArrowUp size={16} />
-            </button>
-          )}
+          <div className="cc-bar-right">
+            {trailing}
+            <div className="cc-send-wrap">
+              {busy && onStop ? (
+                <button type="button" className="cc-stop" aria-label="停止生成" title="停止生成" onClick={onStop}>
+                  <Square size={14} />
+                </button>
+              ) : (
+                <button
+                  type="submit"
+                  className="cc-send"
+                  aria-label="发送"
+                  title="发送"
+                  disabled={!canSend}
+                  onClick={(e) => {
+                    e.preventDefault()
+                    if (canSend) onSubmit()
+                  }}
+                >
+                  <ArrowUp size={16} />
+                </button>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 

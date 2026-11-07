@@ -17,23 +17,68 @@
   width: 100%;
   flex-direction: column;
   gap: 10px;
+  /* 输入框自己的提示色：不跟随可能被主题重定义的 --ph（见 .cc-input::placeholder）。
+     两个主题各给一个与正文拉开层级的灰。 */
+  --cc-ph: color-mix(in srgb, var(--fg) 45%, transparent);
 }
 
 /* ── 胶囊 ──────────────────────────────────────────────────────
    position: relative 是给光带用的；光带是伪元素层，不能撑高盒子。 */
 
+/* 上排文字、下排控件：胶囊改成纵向，文字独占整行。
+   一行塞满控件时，680px 里文字区只剩中间一小段，长占位文字被挤成两行。 */
 .cc-pill {
   position: relative;
   display: flex;
   width: 100%;
-  align-items: flex-end;
-  gap: 10px;
-  padding: 8px;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 10px 8px;
   border: 1px solid var(--line);
   border-radius: 18px;
   background: var(--surf);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
   transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+/* ── 底部控件栏 ────────────────────────────────────────────────
+   左：附件 + 权限；右：模型 + 发送。两端对齐，中间留白。 */
+.cc-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+/* 底栏只有发送钮时（工作台那栏）：去掉独立一行，让发送钮浮在胶囊右下，
+   文字区占满整行。用绝对定位而不是改结构 —— 结构保持一致，样式按内容切换。 */
+.cc-pill:has(.cc-bar[data-compact]) {
+  padding-bottom: 8px;
+}
+.cc-bar[data-compact] {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  justify-content: flex-end;
+}
+.cc-bar[data-compact] .cc-bar-left {
+  display: none;
+}
+/* 文字区右侧留出发送钮的宽度，避免长文本被按钮盖住 */
+.cc-pill:has(.cc-bar[data-compact]) .cc-input {
+  padding-right: 44px;
+}
+
+.cc-bar-left,
+.cc-bar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+/* 模型选择器所在的一侧要能被压缩，否则长模型名会把发送钮挤出去 */
+.cc-bar-right {
+  flex: 0 1 auto;
+  justify-content: flex-end;
 }
 .cc-pill:focus-within {
   border-color: color-mix(in srgb, var(--acc) 55%, var(--line));
@@ -94,8 +139,8 @@
 
 .cc-attach {
   display: flex;
-  width: 36px;
-  height: 36px;
+  width: 30px;
+  height: 30px;
   flex: none;
   align-items: center;
   justify-content: center;
@@ -120,9 +165,11 @@
    纵向 padding 与圆钮对齐，让首行文字和按钮同高。 */
 
 .cc-input {
+  display: block;
+  width: 100%;
   min-width: 0;
-  flex: 1;
-  padding: 8px 0;
+  /* 左右各 6px 让首字与下方附件钮的图标对齐（钮自身有内边距） */
+  padding: 4px 6px;
   border: 0;
   background: transparent;
   color: var(--fg);
@@ -133,8 +180,12 @@
   outline: none;
   overflow-y: auto;
 }
+/* 占位文字用自己的变量，不吃全局 --ph。
+   原因：--ph 在不同作用域被重新定义过（workbench-a2.css 把它设成品牌蓝
+   #2F6FE4 / #8AB4FF），输入框落进工作台时占位文字就变成蓝色，
+   看起来像已输入内容。占位文字必须始终是「弱化的提示色」。 */
 .cc-input::placeholder {
-  color: var(--ph);
+  color: var(--cc-ph, var(--ph));
 }
 .cc-input:disabled {
   color: var(--ph);
@@ -152,8 +203,8 @@
 .cc-send,
 .cc-stop {
   display: flex;
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   align-items: center;
   justify-content: center;
   border: 0;
