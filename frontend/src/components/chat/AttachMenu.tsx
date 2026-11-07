@@ -11,11 +11,12 @@
  * 不产生附件的动作。直接弹文件框会让用户以为「加号 = 只能传文件」。
  */
 
+import { useState } from 'react'
 import type { ComponentType } from 'react'
 import {
-  ChevronRight, FileText, Folder, Presentation, Sheet, Target, ListChecks, Code2,
+  FileText, Folder, Presentation, Sheet, Target, ListChecks, Code2,
 } from 'lucide-react'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { MorphPanel } from './MorphPanel'
 import { Plus } from 'lucide-react'
 import './attach-menu.css'
 
@@ -55,6 +56,7 @@ export interface AttachMenuProps {
 export function AttachMenu({
   onPickFiles, onGoal, onPlan, onPluginHint, disabled = false, disabledHint,
 }: AttachMenuProps) {
+  const [open, setOpen] = useState(false)
   const actions: AttachMenuItem[] = [
     { id: 'files', label: '文件和文件夹', icon: Folder, onSelect: onPickFiles },
     ...(onGoal
@@ -73,52 +75,51 @@ export function AttachMenu({
   ].map((p) => ({ ...p, onSelect: () => onPluginHint?.(p.label) })) as AttachMenuItem[]
 
   return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <button
-          type="button"
-          className="cc-attach"
-          aria-label="添加附件"
-          title={disabled ? disabledHint : '添加附件'}
-          disabled={disabled}
-        >
-          {/* 36px 圆钮配 18px 图标：LeiBox 用 32px 钮 + 11px 图标，
-              但它的图标是实心 FontAwesome plus，视觉重量比描边图标重得多。
-              换到 stroke 图标上照搬 11px 会显得发虚，18px 才接近其观感。 */}
-          <Plus size={18} strokeWidth={2.4} />
-        </button>
-      </PopoverTrigger>
-      <PopoverContent side="top" align="start" sideOffset={8} className="am-pop" aria-label="添加">
-        <p className="am-group">添加</p>
-        <ul className="am-list">
-          {actions.map((item) => (
-            <li key={item.id}>
-              <button type="button" className="am-item" onClick={item.onSelect}>
-                <item.icon size={18} strokeWidth={1.8} />
-                <span className="am-label">{item.label}</span>
-                {item.hint ? <span className="am-hint">{item.hint}</span> : null}
-              </button>
-            </li>
-          ))}
-        </ul>
+    <span className="am-anchor">
+      <button
+        type="button"
+        className="cc-attach"
+        aria-label="添加附件"
+        title={disabled ? disabledHint : '添加附件'}
+        disabled={disabled}
+        onClick={() => setOpen((v) => !v)}
+      >
+        <Plus size={18} strokeWidth={2.4} />
+      </button>
 
-        <p className="am-group">插件</p>
-        <ul className="am-list">
-          {plugins.map((item) => (
-            <li key={item.id}>
-              <button type="button" className="am-item" data-tone={item.tone} onClick={item.onSelect}>
-                <span className="am-icon" aria-hidden>
-                  <item.icon size={16} strokeWidth={2} />
-                </span>
-                <span className="am-label">{item.label}</span>
-                <span className="am-hint">{item.hint}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
-        <ChevronRight size={0} aria-hidden />
-      </PopoverContent>
-    </Popover>
+      <MorphPanel open={open && !disabled} width={361} align="left">
+        <div className="am-body">
+          <p className="am-group">添加</p>
+          <ul className="am-list">
+            {actions.map((item) => (
+              <li key={item.id}>
+                <button type="button" className="am-item" onClick={() => { setOpen(false); item.onSelect() }}>
+                  <item.icon size={18} strokeWidth={1.8} />
+                  <span className="am-label">{item.label}</span>
+                  {item.hint ? <span className="am-hint">{item.hint}</span> : null}
+                </button>
+              </li>
+            ))}
+          </ul>
+
+          <p className="am-group">插件</p>
+          <ul className="am-list">
+            {plugins.map((item) => (
+              <li key={item.id}>
+                <button type="button" className="am-item" data-tone={item.tone}
+                        onClick={() => { setOpen(false); item.onSelect() }}>
+                  <span className="am-icon" aria-hidden>
+                    <item.icon size={16} strokeWidth={2} />
+                  </span>
+                  <span className="am-label">{item.label}</span>
+                  <span className="am-hint">{item.hint}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </MorphPanel>
+    </span>
   )
 }
 

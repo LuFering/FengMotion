@@ -167,12 +167,13 @@
 /* ── 附件钮 ──────────────────────────────────────────────────────
    36px 圆钮；底色比胶囊亮一档，让它是「可按的」而不是装饰。 */
 
-/* 添加附件：36×36 实心圆钮（参考组件实测 36×36、background #EBEBEB、无边框）。
-   比输入区其它控件大一圈，因为它是「发起动作」的主入口之一。 */
+/* 添加附件：32×32 实心圆钮。
+   数值取自官方 shadow DOM 实测（ComposerAttachButton 的 h-8 w-8），
+   与权限胶囊、上下文环、发送钮同高，底栏因此是一条齐平的线。 */
 .cc-attach {
   display: flex;
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   flex: none;
   align-items: center;
   justify-content: center;

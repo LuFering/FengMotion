@@ -7,6 +7,18 @@
      菜单项  高 32px / 图标 24×24 / 主文案 14px·500 / 说明 14px 次级色
    ═══════════════════════════════════════════════════════════════ */
 
+/* 锚点：面板相对它定位 */
+.am-anchor {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+}
+
+/* 面板内容：原版 padding 8px */
+.am-body {
+  padding: 8px;
+}
+
 .am-pop {
   width: 361px;
   max-width: calc(100vw - 32px);

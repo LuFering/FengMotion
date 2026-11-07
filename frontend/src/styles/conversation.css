@@ -1500,31 +1500,42 @@ html[data-theme="tactile"] #pane-conversation {
 }
 
 /* 工具条上的胶囊按钮（dsh InputBar 的 chip：28px 高、13/20） */
-/* 权限模式胶囊。严格对齐 LeiBox Composer 的审批按钮：
-   h-8（32px）/ rounded-full / px-3 / text-[11px] font-medium / 常显 bg-black-5。
-   全权限时是橙色 #e25507 —— 原版刻意用暖色标出「这个模式更危险」。
-   之前是 30px、13px、统一灰色，既偏大又丢掉了这个风险提示。 */
+/* 权限模式胶囊 —— 逐条翻译 LeiBox Composer.tsx 审批按钮的 Tailwind 类：
+     flex h-8 max-w-full min-w-0 items-center whitespace-nowrap
+     rounded-full px-3 text-[11px] font-medium
+     普通态 text-secondary bg-black/5 hover:bg-black/10 active:bg-black/[0.12]
+     全权限 text-[#e25507] bg-[#e25507]/10 hover:/18 active:/22
+   子元素：图标 12px + mr-1.5；文字 truncate；ChevronDown 10px + ml-1。 */
 .cv3-chip-btn {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 4px;
-  height: 32px;
+  height: 32px;                 /* h-8 */
   max-width: 100%;
-  padding: 0 12px;
+  min-width: 0;
+  flex-shrink: 1;
+  padding: 0 12px;              /* px-3 */
   border: 0;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--fg) 5%, transparent);
-  color: var(--tx2);
+  border-radius: 999px;         /* rounded-full */
+  background: color-mix(in srgb, #000 5%, transparent);  /* bg-black/5 */
+  color: var(--tx2);            /* text-text-secondary */
   font: inherit;
-  font-size: 11px;
-  font-weight: 500;
-  line-height: 1;
+  font-size: 11px;              /* text-[11px] */
+  font-weight: 500;             /* font-medium */
   white-space: nowrap;
   cursor: pointer;
-  transition: background-color .15s, color .15s;
+  transition: background-color 150ms, color 150ms;
 }
 
-/* 全权限：橙色底 + 橙字（原版 .text-[#e25507] bg-[#e25507]/10） */
+.cv3-chip-btn:hover {
+  background: color-mix(in srgb, #000 10%, transparent);  /* bg-black/10 */
+  color: var(--fg);
+}
+
+.cv3-chip-btn:active {
+  background: color-mix(in srgb, #000 12%, transparent);  /* bg-black/[0.12] */
+}
+
+/* 全权限：橙色警示（原版刻意用暖色标出「这个模式更危险」） */
 .cv3-chip-btn[data-danger] {
   background: color-mix(in srgb, #e25507 10%, transparent);
   color: #e25507;
@@ -1539,6 +1550,16 @@ html[data-theme="tactile"] #pane-conversation {
 .cv3-chip-btn[data-on] {
   background: color-mix(in srgb, var(--fg) 10%, transparent);
   color: var(--tx1);
+}
+
+.cv3-perm-ico {
+  margin-right: 6px;            /* mr-1.5 */
+  flex-shrink: 0;
+}
+
+.cv3-perm-chev {
+  margin-left: 4px;             /* ml-1 */
+  flex-shrink: 0;
 }
 
 .cv3-chip-label {
@@ -1566,23 +1587,25 @@ html[data-theme="tactile"] #pane-conversation {
   to { --cv-spin: 360deg; }
 }
 
-/* 引擎/模型选择器。几何对齐参考组件实测值：
-   高 32、圆角 12px（不是全圆）、padding 6px 4px 6px 8px、gap 2。 */
+/* 引擎/模型胶囊 —— 照搬 ModelThinkingSelector 的 trigger 类：
+     TintButton(h-8 rounded-full px-3 text-xs) + bg-ui-tint
+     内部：图标/文字 12px、档位 ml-1.5 次要色、箭头 ml-2 */
 .cv3-hbtn {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 2px;
-  height: 32px;
-  max-width: 220px;
-  padding: 6px 4px 6px 8px;
-  border: 1px solid var(--cv-line);
-  border-radius: 12px;
-  background: var(--hole);
-  color: var(--tx2);
+  height: 32px;                 /* h-8 */
+  max-width: 210px;             /* max-w-[210px] */
+  flex-shrink: 0;
+  padding: 0 12px;              /* px-3 */
+  border: 0;
+  border-radius: 999px;         /* rounded-full */
+  background: color-mix(in srgb, #000 5%, transparent);  /* bg-ui-tint */
+  color: var(--fg);
   font: inherit;
+  font-size: 12px;              /* text-xs */
   cursor: pointer;
-  transition: border-color .18s, background-color .18s;
+  transition: background-color 150ms;
 }
 
 /* 已接入引擎时，按钮外缘顺时针跑一圈品牌色光。
@@ -1674,6 +1697,13 @@ html[data-theme="tactile"] #pane-conversation {
   height: 12px;
   background: var(--cv-line-strong);
   opacity: .6;
+}
+
+.cv3-hdepth {
+  margin-left: 6px;             /* ml-1.5 */
+  flex-shrink: 0;
+  color: var(--tx2);
+  font-weight: 400;
 }
 
 .cv3-hmodel {
@@ -2770,25 +2800,18 @@ html[data-theme="tactile"] .cv3-ddm {
   display: none;
 }
 
-/* 输入框里的模型选择器：几何与参考组件一致（高 32 / 圆角 12 /
-   padding 6px 4px 6px 8px / 有底色有描边）。
-   之前这里是「透明底 + 透明边框」，只有 hover 才显形；
-   参考组件里它是一个常显的小胶囊，用户随时能看出「现在用的是哪个模型」。 */
+/* 输入框里的模型胶囊与原版一致：常显 bg-ui-tint、无边框、圆角全。
+   这里只覆盖宽度上限（底栏空间比原版窄），其余交给基类。 */
 .cc-bar .cv3-hbtn {
-  height: 32px;
   max-width: 240px;
-  padding: 6px 4px 6px 8px;
-  gap: 2px;
-  border-radius: 12px;
-  background: var(--hole);
-  border-color: var(--cv-line);
 }
 .cc-bar .cv3-hbtn:hover {
-  border-color: color-mix(in srgb, var(--fg) 24%, var(--cv-line));
+  background: color-mix(in srgb, #000 10%, transparent);
 }
 .cc-bar .cv3-hmodel {
-  font-size: 13px;
-  color: var(--tx2);
+  font-size: 12px;
+  color: var(--fg);
+  font-weight: 500;             /* font-medium */
 }
 
 /* ── 任务清单抽屉停靠位（todo_write）────────────────────────

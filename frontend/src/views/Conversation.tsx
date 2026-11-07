@@ -1672,15 +1672,22 @@ export function Conversation(props: {
                 aria-label="选择执行引擎与模型"
                 title={harnessState.state === 'available' ? '切换执行引擎' : (harnessState.note ?? '该引擎未接入')}
                 style={{ '--h-color': harness.color } as CSSProperties}>
+          {/* 结构照搬 ModelThinkingSelector 的 trigger：
+               推理档位图标(12, mr-1.5) → 模型名(font-medium)
+               → 档位文字(ml-1.5, 次要色) → ChevronDown(10, ml-2) */}
           <span className="cv3-hseg" data-off={harnessState.state !== 'available' || undefined}>
             <i aria-hidden="true" />
             <span className="cv3-hmark-img" aria-hidden="true"
                   style={{ maskImage: `url(${harness.icon})`, WebkitMaskImage: `url(${harness.icon})` }} />
-            {harnessState.state === 'available'
-              ? <><span className="cv3-hdiv" aria-hidden="true" /><span className="cv3-hmodel">{effectiveModel}</span></>
-              : <span className="cv3-hoff">{AVAILABILITY_LABEL[harnessState.state]}</span>}
+            {harnessState.state === 'available' ? (
+              <>
+                <span className="cv3-hdiv" aria-hidden="true" />
+                <span className="cv3-hmodel">{effectiveModel}</span>
+                <span className="cv3-hdepth">{REASONING_LABEL[currentPrefs.reasoning]}</span>
+              </>
+            ) : <span className="cv3-hoff">{AVAILABILITY_LABEL[harnessState.state]}</span>}
           </span>
-          <ChevronDown size={12} className="cv3-hchev" aria-hidden="true" />
+          <ChevronDown size={10} className="cv3-hchev" aria-hidden="true" />
         </button>
       </PopoverTrigger>
       <PopoverContent side="top" align="end" sideOffset={9} className="cv3-hpop">
@@ -2706,12 +2713,18 @@ export function Conversation(props: {
               leading={(
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
+                    {/* 结构照搬 LeiBox Composer.tsx 的审批按钮：
+                        12px 图标（mr-1.5）+ 截断文字 + 末尾 ChevronDown(10, ml-1) */}
                     <button type="button" className="cv3-chip-btn cv3-perm-btn"
                             data-danger={permission === 'fullAccess' || undefined}
                             aria-label="权限设置" title="权限设置">
-                      {permission === 'readOnly' ? <Shield size={13} />
-                        : permission === 'fullAccess' ? <ShieldAlert size={13} /> : <ShieldCheck size={13} />}
+                      {permission === 'readOnly'
+                        ? <Shield size={12} className="cv3-perm-ico" />
+                        : permission === 'fullAccess'
+                          ? <ShieldAlert size={12} className="cv3-perm-ico" />
+                          : <ShieldCheck size={12} className="cv3-perm-ico" />}
                       <span className="cv3-chip-label">{PERM_LABEL[permission]}</span>
+                      <ChevronDown size={10} className="cv3-perm-chev" />
                     </button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent side="top" align="start" sideOffset={8} className="cv3-ddm cv3-ddm-perm">

@@ -1,16 +1,15 @@
 /**
  * ContextRing —— 输入框底栏的上下文容量指示。
  *
- * 形态取自 LeiBox「Agent 对话输入框」的 ContextCapacityIndicator：
- *   · 一圈环形进度，中心是百分比数字
- *   · 低于 80% 用次要灰，80–92% 转琥珀，≥92% 转红
- *     （原版 capacityTone 的三档阈值）
- *   · 悬停显示已用 / 窗口 的具体 token 数
- *
- * 这是原版底栏左侧第一个元素。之前本项目只在消息流里放了一条 Bar，
- * 输入框旁边看不到「这轮还剩多少上下文」，发长对话时容易一头撞上压缩。
+ * 严格取自 LeiBox `ContextCapacityIndicator`：
+ *   · 按钮 h-8 w-8 圆形，内部 16×16（h-4 w-4）环形进度
+ *   · strokeWidth 12.5（相对 100 的 viewBox），圆头线帽
+ *   · 轨道色 = 次要色 30% 混背景；进度色按三档：
+ *       < 80% 次要灰 / ≥ 80% 琥珀 / ≥ 92% 红（capacityTone）
+ *   · 环本身**不显示数字**，数值放 hover 卡片里
  */
 
+import { useState } from 'react'
 import './context-ring.css'
 
 export interface ContextRingProps {
@@ -20,55 +19,74 @@ export interface ContextRingProps {
   window: number | null
 }
 
-/** 按占用比例分档取色（阈值与原版一致）。 */
-function toneOf(ratio: number): string {
-  if (ratio >= 0.92) return 'var(--bad)'
-  if (ratio >= 0.8) return 'var(--warn)'
-  return 'var(--dim)'
-}
-
-/** 大数字缩写：12345 → 12.3k。 */
-function short(n: number): string {
-  if (n >= 1000) return `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k`
+/** 与大数字缩写一致：12345 → 12.3k。 */
+function fmt(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}m`
+  if (n >= 1000) return `${(n / 1000).toFixed(n >= 10_000 ? 0 : 1)}k`
   return String(n)
 }
 
-export function ContextRing({ used, window }: ContextRingProps) {
-  /* 没有分母就不画占用率：那只能编一个数出来。
-     未知时显示一个空环，明确表达「还不知道」。 */
-  const known = used !== null && window !== null && window > 0
-  const ratio = known ? Math.max(0, Math.min(1, (used as number) / (window as number))) : 0
+export function ContextRing({ used, window: win }: ContextRingProps) {
+  const [open, setOpen] = useState(false)
+  /* 没有分母就不给占用率：那只能编一个数。空环 = 明确表达「还不知道」。 */
+  const known = used !== null && win !== null && win > 0
+  const ratio = known ? Math.max(0, Math.min(1, (used as number) / (win as number))) : 0
   const pct = Math.round(ratio * 100)
-  const stroke = toneOf(ratio)
-  const r = 8
-  const c = 2 * Math.PI * r
+
+  /* 三档取色，阈值与原版 capacityTone 一致 */
+  const stroke = !known ? 'var(--dim)'
+    : ratio >= 0.92 ? 'var(--bad)'
+    : ratio >= 0.8 ? 'var(--warn)'
+    : 'var(--tx2)'
+
+  /* 半径 15.9 + strokeWidth 12.5 的 viewBox 100 方案，与原版
+     react-circular-progressbar 的描边比例对齐（环比轨道细，圆头） */
+  const R = 44
+  const C = 2 * Math.PI * R
 
   return (
-    <span
-      className="cring"
-      title={known
-        ? `上下文占用 ${used} / ${window} tokens（${pct}%）`
-        : '上下文占用未知：这一轮还没上报用量'}
-      aria-label={known ? `上下文占用 ${pct}%` : '上下文占用未知'}
-    >
-      <svg className="cring-svg" viewBox="0 0 20 20" aria-hidden>
-        {/* 底环：始终画满，让「空环」也能被看见 */}
-        <circle cx="10" cy="10" r={r} fill="none" stroke="var(--line)" strokeWidth="2" />
-        {known ? (
+    <span className="cring-wrap">
+      <button
+        type="button"
+        className="cring-btn"
+        aria-label={known ? `上下文占用 ${pct}%` : '上下文占用未知'}
+        onClick={() => setOpen((v) => !v)}
+        onMouseEnter={() => setOpen(true)}
+        onMouseLeave={() => setOpen(false)}
+      >
+        <svg className="cring-svg" viewBox="0 0 100 100" aria-hidden>
           <circle
-            cx="10"
-            cy="10"
-            r={r}
+            cx="50" cy="50" r={R}
             fill="none"
-            stroke={stroke}
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeDasharray={`${c * ratio} ${c}`}
-            transform="rotate(-90 10 10)"
+            stroke="color-mix(in srgb, var(--tx2) 30%, var(--bg))"
+            strokeWidth="12.5"
           />
-        ) : null}
-      </svg>
-      {known ? <span className="cring-pct num">{short(used as number)}</span> : null}
+          {known ? (
+            <circle
+              cx="50" cy="50" r={R}
+              fill="none"
+              stroke={stroke}
+              strokeWidth="12.5"
+              strokeLinecap="round"
+              strokeDasharray={`${C * ratio} ${C}`}
+              transform="rotate(-90 50 50)"
+              style={{ transition: 'stroke-dasharray 300ms' }}
+            />
+          ) : null}
+        </svg>
+      </button>
+
+      {open ? (
+        <span className="cring-pop" role="tooltip">
+          <span className="cring-pop-row">
+            <span className="cring-pop-title">预计下一次请求</span>
+            <span className="cring-pop-pct">{known ? `${pct}%` : '—'}</span>
+          </span>
+          <span className="cring-pop-sub">
+            {known ? `${fmt(used as number)} / ${fmt(win as number)}` : '这一轮还没上报用量'}
+          </span>
+        </span>
+      ) : null}
     </span>
   )
 }
