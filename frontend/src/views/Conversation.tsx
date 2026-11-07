@@ -4,6 +4,7 @@ import { WebSearchTrace, isSearchTool, type SearchCall } from '@/components/WebS
 import { ChecklistDrawer } from '@/components/bencho/Checklist'
 import { JobPanel, type JobView } from '@/components/chat/JobPanel'
 import { Deliverables } from '@/components/chat/Deliverables'
+import { SubagentBadge } from '@/components/chat/SubagentBadge'
 import { ContextMeter, type MeterPart } from '@/components/bencho/ContextMeter'
 import {
   ChatMessage as ChatBubble, ChatComposer, ThinkingIndicator, MarkdownText,
@@ -447,12 +448,24 @@ function shortArgs(args: string): string {
     if (typeof v === 'string' && v.trim()) return truncate(v.trim())
   }
 
-  /* 兜底：取前两个字符串字段，拼成「键：值」 */
+  /* 兜底：取前两个**标量**字段，拼成「键：值」。
+     数组/对象也接进来 —— 它们至少说明「带了什么」，比什么都不说强。 */
   const parts = Object.entries(parsed)
-    .filter(([, v]) => typeof v === 'string' || typeof v === 'number')
+    .filter(([, v]) => v !== null && v !== undefined)
     .slice(0, 2)
-    .map(([k, v]) => `${k}=${String(v)}`)
-  return truncate(parts.join(' ') || '（无参数）')
+    .map(([k, v]) => {
+      if (typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean') {
+        return `${k}=${String(v)}`
+      }
+      if (Array.isArray(v)) return `${k}[${v.length}]`
+      return `${k}={…}`
+    })
+
+  /* 真的没有任何参数（如 list_agents 的参数就是 `{}`）。
+     这是**正常状态**，不是失败 —— 所以写「无参数」而不是「（无参数）」：
+     括号加「无」读起来像出错，而这类工具本来就靠调用本身表达意图。 */
+  if (parts.length === 0) return '无参数'
+  return truncate(parts.join(' '))
 }
 
 /** 诊断类型的兜底文案（后端一般会给 detail）。 */
@@ -1035,6 +1048,18 @@ export function Conversation(props: {
   /* 标题优先用当前项目名：左栏选项目之后，这里应该跟着变，
      否则用户会不知道现在聊的是哪一支片子 */
   const title = currentProject?.name ?? (usableName(firstBrief).slice(0, 14) || '未命名创作')
+
+  /**
+   * 当前会话的全部工具调用（历史 + 本轮实时）。
+   *
+   * 子代理徽标要从这里判断「有没有在跑的」。两条来源都要：
+   * 历史消息里的（切回来还能看到）+ 正在流式接收的（刚派出去的）。
+   * 流式那批不进 messages，只活在 chat.toolCalls 里。
+   */
+  const activeSubagentTools = [
+    ...messages.flatMap((m) => m.executedTools ?? []),
+    ...toolCalls.map((t) => ({ name: t.name, done: t.done, isError: t.isError })),
+  ]
   /* 「制作已开始」只认本会话里真的创建过东西（AI 消息带 changes），
      不能拿「左栏选中了某个项目」当依据 —— 那是切换当前项目，不是开始制作 */
   const launched = messages.some((m) => m.role === 'ai' && m.changes && m.changes.length > 0)
@@ -2145,6 +2170,9 @@ export function Conversation(props: {
             <button type="button" className="cv3-icon-btn" aria-label={sideExpanded ? '收起项目栏' : '展开项目栏'} title={sideExpanded ? '收起项目栏' : '展开项目栏'} onClick={() => setSideExpanded((o) => !o)}>
               <PanelLeft size={16} />
             </button>
+            {/* 子代理徽标：紧贴标题左侧。「派了个分身去干活」和「跑条 bash」
+                不是一个量级的事 —— 前者可能几十秒不回来，不标出来用户会以为卡住。 */}
+            <SubagentBadge tools={activeSubagentTools} />
             <div className="cv3-crumb" title={title}>{title}</div>
             {/* 后台任务：放在标题右侧而不是输入框上方 ——
                 它不是「要读的内容」，放输入框上方会把人往输入框推的视线打断。

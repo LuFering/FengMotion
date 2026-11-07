@@ -1,0 +1,41 @@
+/* ── 子代理徽标 ──────────────────────────────────────────
+   放在对话标题左侧，和标题同一行。体积必须很小 ——
+   它挨着标题，一旦占地方就会把标题挤走（和后台任务面板同一个约束）。
+
+   只有两种状态：`ok`（派出去了）和 `failed`（有没派成功的）。
+   没有「运行中」—— 那个状态在会话事件流里拿不到，不装作有。 */
+.sub-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--surf);
+  font-size: 10.5px;
+  line-height: 1;
+  color: var(--dim);
+  /* 与标题之间有呼吸，但不吃标题宽度 */
+  margin-right: 2px;
+}
+
+.sub-badge-num {
+  font-variant-numeric: tabular-nums;
+  font-size: 10.5px;
+}
+
+/* 有失败：用 --warn 提亮。不用 --bad（红）——
+   子代理没派出去通常不影响主流程继续，红会让人以为整轮坏了。 */
+.sub-badge[data-state='failed'] {
+  color: var(--warn);
+  border-color: color-mix(in srgb, var(--warn) 34%, var(--line));
+  background: color-mix(in srgb, var(--warn) 7%, var(--surf));
+}
+
+/* 正常：图标给一点品牌色，和标题区分开，但不抢眼 */
+.sub-badge[data-state='ok'] svg {
+  color: var(--acc);
+  opacity: 0.75;
+}
