@@ -29,15 +29,8 @@ import { HARNESSES, REASONING_LABEL, DEFAULT_PREFS, prefsKey, loadPrefs, savePre
 import { useHarnesses, availabilityOf, AVAILABILITY_LABEL, modelsOf } from '../shell/useHarnesses'
 import type { ChatState, ChatMessage } from '../shell/useChat'
 import { UNGROUPED, sessionTitle, type SessionsState } from '../shell/useSessions'
-import { workflowService } from '../services/workflowService'
-import {
-  chatApi, hydrateDemoChat, requirementCard, isRequirementConfirmed,
-  CONFIRM_REQUIREMENT_TEXT, NEEDS_MODEL_NOTE,
-} from '../services/chatService'
-import { GENOMES } from '../data/genomes'
+import { chatApi, hydrateDemoChat } from '../services/chatService'
 import type { NewProjectInput } from '../shell/useProjects'
-import type { WfPath } from '../data/workflowTemplates'
-import { SegmentedControl } from '../components/ui/segmented-control'
 import {
   Popover, PopoverContent, PopoverTrigger,
 } from '../components/ui/popover'
@@ -476,7 +469,6 @@ export function Conversation(props: {
   /** 会话列表读取失败的原因（左栏区分「没有会话」与「没读到」） */
   sessionsError: string | null
   onRetrySessions: () => void
-  onLaunch: (r: { workflowId: string; projectId: string | null; autoRun: boolean }) => void
   onOpenWorkbench: () => void
   /** 会话树（项目 + 对话两级）：左栏用它，拖拽改归属也走它 */
   threads: SessionsState
@@ -508,7 +500,6 @@ export function Conversation(props: {
     mountedRef.current = true
     return () => { mountedRef.current = false }
   }, [])
-  const [proPath, setProPath] = useState<WfPath>('prompt-first')
   const [pending, setPending] = useState(false)
   /** 本轮开始时间：给 ThinkingIndicator 的计时器用。
       记在 state 里而不是渲染时 Date.now()，否则每帧都会变、计时器会抖。 */
@@ -906,12 +897,6 @@ export function Conversation(props: {
 
   /* 最新的用户消息 id：回复 effect 只依赖它（见下方说明，不能依赖整个数组） */
   const lastUserId = userMessages.length > 0 ? userMessages[userMessages.length - 1].id : null
-
-  /* 需求确认卡的数据经服务层投影而来（视图不自己拼数据）。
-     投影覆盖「原文 + 后续纠正」，原文始终原样呈现。 */
-  const reqTexts = useMemo(() => userMessages.map((m) => m.text), [userMessages])
-  const reqCard = useMemo(() => requirementCard(reqTexts), [reqTexts])
-  const reqConfirmed = useMemo(() => isRequirementConfirmed(reqTexts), [reqTexts])
 
   /** 起一条演示回复流（只属于本页草稿）。返回退订函数：退订 = 断线，不当作完成。 */
   const startReply = () => {
@@ -1668,43 +1653,6 @@ export function Conversation(props: {
   }
 
 
-  /* 开始制作：与 StartCreation 同一套创建逻辑（建项目 + createFromPath + 落工作台）；
-     先把真实创建的项目与工作流记进“已创建”表，再切工作台 */
-  const launch = async (quick: boolean) => {
-    const brief = firstBrief
-    if (!brief.trim() || projectPending) return
-    setProjectPending(true)
-    setProjectError(null)
-    try {
-    const name = usableName(brief)
-    const projectName = name.slice(0, 14) || '未命名创作'
-    const project = await props.onCreateProject({
-      name: projectName,
-      genome: GENOMES[0]?.id ?? 'explainer',
-      targetDuration: 180,
-    })
-    const wf = workflowService.createFromPath(quick ? 'prompt-first' : proPath, 'general', name.slice(0, 24) || '未命名创作', {
-      projectId: project.id,
-      // 项目承接用户的整段讨论，按消息顺序保留原话，不能只带第一句。
-      seedPrompt: userMessages.map((message) => message.text).join('\n\n'),
-      resourceReferences: [
-        ...chat.messages.flatMap((message) => message.role === 'user' ? (message.references ?? []).filter((ref) => ref.kind === 'asset' || ref.kind === 'reference' || ref.kind === 'technique') : []),
-        ...deliveredReferences(attachments
-          .filter((item) => item.assetId && !item.uploading && !item.uploadError)
-          .map((item) => ({ ...item, assetId: item.assetId!, purpose: (item.purpose ?? 'unspecified') as AssetPurpose }))),
-      ],
-    })
-    chat.addAiMessage({
-      text: '项目建好了，制作方案也备了一份。',
-      changes: [
-        { file: projectName, change: '项目' },
-        { file: wf.name, change: '工作流' },
-      ],
-    })
-    props.onLaunch({ workflowId: wf.id, projectId: project.id, autoRun: quick })
-    } catch (error) { showProjectError(error) }
-    finally { setProjectPending(false) }
-  }
 
   return (
     <div className="cv3">
@@ -2203,85 +2151,6 @@ export function Conversation(props: {
                           ))}
                         </tbody>
                       </table>
-                    </div>
-                  )}
-                {/* 需求确认卡（说明文档 §3）：方向明确时不摆多个方向让用户逐项审批 ——
-                    这里只有一份「我读到的」，用户确认或纠正即可。
-                    「画面构想」如实标出要等模型，不编一段像分镜的文字顶上。
-                    只在**演示适配器**的回复后出现：那张卡假设「AI 回复 = 需求澄清」，
-                    而接上真 Agent 后，模型可能只是在回答普通问题（例如「介绍AI发展史」）。
-                    给那种回复挂一张「这条片子多长 / 什么画幅」的表单，是把创作流程
-                    硬套到所有对话上 —— 实测在真机验收时就是这样错的。 */}
-                {m.demo && messages[messages.length - 1]?.id === m.id && !m.streaming && !m.failed && userMessages.length > 0 && !reqConfirmed && (
-                  <div className="cv3-req">
-                    <div className="cv3-req-head">
-                      <b>需求确认</b>
-                      <span>对就确认，不对就直接说</span>
-                    </div>
-
-                    <div className="cv3-req-block">
-                      <span className="cv3-req-k">你的原始需求（原样保留）</span>
-                      <p className="cv3-req-orig">{reqCard.firstPrompt}</p>
-                    </div>
-
-                    {reqCard.corrections.length > 0 && (
-                      <div className="cv3-req-block">
-                        <span className="cv3-req-k">你后来补的（原样追加，不回改上面的原文）</span>
-                        <ul className="cv3-req-corrections">
-                          {reqCard.corrections.map((c, i) => <li key={i}>{c}</li>)}
-                        </ul>
-                      </div>
-                    )}
-
-                    <div className="cv3-req-block">
-                      <span className="cv3-req-k">我读到的（逐条附原文，可核对）</span>
-                      {reqCard.decided.length > 0 ? (
-                        <ul className="cv3-req-facts">
-                          {reqCard.decided.map((f, i) => (
-                            <li key={i}><b>{f.label}</b><span>出自「{f.quote}」</span></li>
-                          ))}
-                        </ul>
-                      ) : (
-                        <p className="cv3-req-none">原话里还没有可核对的字。</p>
-                      )}
-                      {reqCard.missing.length > 0 && (
-                        <p className="cv3-req-missing">还没说：{reqCard.missing.join('；')}</p>
-                      )}
-                    </div>
-
-                    <div className="cv3-req-block">
-                      <span className="cv3-req-k">画面构想</span>
-                      <p className="cv3-req-model">{NEEDS_MODEL_NOTE}</p>
-                      <p className="cv3-req-model">你也可以直接在下面写想拍什么，我原样记下。</p>
-                    </div>
-
-                    <div className="cv3-req-actions">
-                      <button type="button" className="cv3-primary"
-                              onClick={() => send(CONFIRM_REQUIREMENT_TEXT)}>确认，就按这些</button>
-                      <button type="button" className="cv3-secondary"
-                              onClick={() => inputRef.current?.focus()}>我要纠正</button>
-                    </div>
-                  </div>
-                )}
-
-                  {/* 演示回复后的「下一步」卡：原来那块由本地伪造的「制作方案」三条带出来，
-                      那三条是编的内容（不是模型给的，也不是工作流产的），已删。
-                      入口本身保留：它是进入工作台的路。只跟演示回复走 ——
-                      真 Agent 回答普通问题时不该弹「专业制作路径 / 开始制作」。 */}
-                  {m.demo && messages[messages.length - 1]?.id === m.id && !m.streaming && !m.failed && !launched && (
-                    <div className="cv3-plan">
-                      <b className="cv3-plan-title">下一步</b>
-                      <div className="cv3-plan-path">
-                        <span>专业制作路径</span>
-                        <SegmentedControl value={proPath}
-                                          onChange={(v) => setProPath(v as WfPath)}
-                                          ariaLabel="专业制作路径"
-                                          options={[{ value: 'prompt-first', label: 'Prompt-first' }, { value: 'structured', label: 'Structured' }]} />
-                      </div>
-                      <div className="cv3-plan-actions">
-                        <button type="button" className="cv3-primary" onClick={() => launch(true)}>开始制作</button>
-                        <button type="button" className="cv3-secondary" onClick={() => launch(false)}>先去工作台看看</button>
-                      </div>
                     </div>
                   )}
                 </div>

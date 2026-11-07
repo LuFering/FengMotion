@@ -324,7 +324,6 @@ export default function App() {
                             await projects.purge(id)
                             if (openProject === id) setOpenProject(null)
                           }}
-                          onLaunch={handleLaunch}
                           onOpenWorkbench={() => { if (openProject) setView('production') }} />
           </div>
         )}
