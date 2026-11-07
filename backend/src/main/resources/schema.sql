@@ -36,7 +36,9 @@ CREATE INDEX IF NOT EXISTS idx_chat_sessions_project ON chat_sessions(project_id
 -- seq 在会话内严格递增，是消息的稳定顺序与翻页键；
 -- references_json / attachments_json 原样保存前端提交的结构化引用和附件元信息；
 -- tool_calls_json 保存这条助手回复执行过的工具调用（模型调了哪些工具、参数、成败），
--- 让用户切走会话再回来时还能查到「这条回复当时做了什么」。
+-- 让用户切走会话再回来时还能查到「这条回复当时做了什么」；
+-- reasoning 保存这条回复的思考过程正文。推理原先只在 SSE 帧里过一遍、不落库，
+-- 结果是一切走会话思考就消失 —— 而思考是模型行为的记录，属于用户要回看的内容。
 CREATE TABLE IF NOT EXISTS chat_messages (
     id TEXT PRIMARY KEY,
     session_id TEXT NOT NULL,

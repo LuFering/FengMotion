@@ -53,13 +53,14 @@ public class SqliteChatMessageRepository implements ChatMessageRepository {
         row.setReferencesJson(toJson(message.references()));
         row.setAttachmentsJson(toJson(message.attachments()));
         row.setToolCallsJson(toJson(message.toolCalls()));
+        row.setReasoning(blankToNull(message.reasoning()));
         row.setCreatedAt(message.createdAt().toString());
         mapper.insert(row);
 
         // 返回带真实序号的对象，调用方可直接用于响应与游标。
         return new ChatMessage(message.id(), message.sessionId(), seq, message.role(), message.text(),
                 message.taskId(), message.references(), message.attachments(), message.toolCalls(),
-                message.createdAt());
+                message.reasoning(), message.createdAt());
     }
 
     @Override
@@ -90,6 +91,16 @@ public class SqliteChatMessageRepository implements ChatMessageRepository {
         }
     }
 
+    /**
+     * 空白文本存 NULL 而不是空串。
+     *
+     * <p>「没有思考」和「思考内容是空的」在库里应是同一件事：读回来都表示这条回复
+     * 没有思考记录。存空串会让读取方要同时判断 null 和 blank，容易漏。</p>
+     */
+    private String blankToNull(String text) {
+        return text == null || text.isBlank() ? null : text;
+    }
+
     /** 文本还原为 JSON 树；列值为 NULL 时返回 null。 */
     private JsonNode fromJson(String text) {
         if (text == null) {
@@ -114,6 +125,7 @@ public class SqliteChatMessageRepository implements ChatMessageRepository {
                 fromJson(row.getReferencesJson()),
                 fromJson(row.getAttachmentsJson()),
                 fromJson(row.getToolCallsJson()),
+                row.getReasoning(),
                 Instant.parse(row.getCreatedAt()));
     }
 }

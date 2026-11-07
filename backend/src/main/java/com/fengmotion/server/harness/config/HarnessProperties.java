@@ -43,8 +43,42 @@ public class HarnessProperties {
      *
      * @return 路径；未配置时返回 null
      */
+    /**
+     * 流式桥接插件目录。
+     *
+     * <p>显式配置了就用配置值；留空则按「应用目录下的 dsh-plugin」推断 ——
+     * 即 {@code <jar 所在目录>/dsh-plugin}。</p>
+     *
+     * <p>为什么不能直接写 {@code ${user.dir}/dsh-plugin}：安装态后端的工作目录
+     * 是启动它的那个目录（实测是仓库根），不是应用目录。用 user.dir 会指向
+     * 一个不存在的路径，插件因此从未被加载 —— 表现是 SSE 里永远没有
+     * delta / reasoning 帧，而日志里没有任何报错（{@code writePluginOverlay}
+     * 找不到 index.js 时只是返回 null 并静默跳过）。</p>
+     *
+     * @return 插件目录；找不到时返回 null（调用方退回整段到达模式）
+     */
     public Path streamPluginPath() {
-        return streamPlugin == null || streamPlugin.isBlank() ? null : Path.of(streamPlugin);
+        if (streamPlugin != null && !streamPlugin.isBlank()) {
+            return Path.of(streamPlugin);
+        }
+        /* 兜底：从自身 jar 的位置推应用目录。开发态（target/classes）与
+           安装态（app/resources/backend/fengmotion-server.jar）都要能对上，
+           所以向上找最多 4 层，命中 dsh-plugin 就用它。 */
+        try {
+            Path self = Path.of(HarnessProperties.class.getProtectionDomain()
+                    .getCodeSource().getLocation().toURI());
+            Path dir = java.nio.file.Files.isDirectory(self) ? self : self.getParent();
+            for (int i = 0; i < 5 && dir != null; i++) {
+                Path candidate = dir.resolve("dsh-plugin");
+                if (java.nio.file.Files.isRegularFile(candidate.resolve("index.js"))) {
+                    return candidate;
+                }
+                dir = dir.getParent();
+            }
+        } catch (Exception ignored) {
+            /* 推不出来就当没有：调用方退回整段到达，不编造路径 */
+        }
+        return null;
     }
 
     /** 子进程工作目录；留空时使用服务进程当前目录。 */

@@ -1280,6 +1280,9 @@ export interface ChatMessage {
   attachments?: TaskAttachment[]
   /** 这条助手回复执行过的工具调用；没有调用时不出现。 */
   toolCalls?: ChatMessageToolCall[]
+  /** 这条助手回复的思考过程正文；没有思考时不出现。
+      与 toolCalls 同理：思考也是回复的一部分，切走会话再回来要能重新看到。 */
+  reasoning?: string
   createdAt: IsoDateTime
   demo?: DemoFlag
 }

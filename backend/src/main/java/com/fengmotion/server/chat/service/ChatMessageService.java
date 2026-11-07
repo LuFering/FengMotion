@@ -133,6 +133,7 @@ public class ChatMessageService {
                 validated.references(),
                 validated.attachments(),
                 null, // 用户消息不产生工具调用
+                null, // 用户消息没有思考过程
                 now));
 
         if (idempotencyKey != null) {

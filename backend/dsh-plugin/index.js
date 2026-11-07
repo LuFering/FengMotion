@@ -67,8 +67,6 @@ export function apply(ctx) {
       case 'chunk': {
         const chunk = frame.chunk
         if (chunk == null) return
-        /* 诊断：把所有 chunk 类型写到 stderr，确认引擎实际发了什么 */
-        try { process.stderr.write(`[diag] chunk.type=${chunk.type}\n`) } catch {}
         switch (chunk.type) {
           case 'text-delta':
             emit({ kind: 'text', text: chunk.text })

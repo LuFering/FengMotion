@@ -26,5 +26,7 @@ public class ChatMessageRow {
     private String attachmentsJson;
     /** 这条助手回复执行过的工具调用（JSON 数组）文本；没有调用时为 null。 */
     private String toolCallsJson;
+    /** 这条助手回复的思考过程正文；没有推理（或历史消息）时为 null。 */
+    private String reasoning;
     private String createdAt;
 }

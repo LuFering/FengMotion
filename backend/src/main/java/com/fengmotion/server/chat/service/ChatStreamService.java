@@ -264,7 +264,7 @@ public class ChatStreamService {
                 // 成功：先把助手消息落库，再发 completed。顺序很重要——先落库保证
                 // 前端拿到 completed 时，历史接口一定已经能读到这条消息。
                 ChatMessage saved = appendAssistantMessage(
-                        sessionId, outcome.text(), listener.collectedToolCalls());
+                        sessionId, outcome.text(), outcome.reasoning(), listener.collectedToolCalls());
                 // 先发 done 表达「本回合结束」，再发 completed 携带正文。
                 // 前端契约里 done 是收尾 phase，缺了它界面会停在「正在思考」。
                 listener.emitPhase("done", null, null);
@@ -413,9 +413,11 @@ public class ChatStreamService {
      *
      * @param sessionId 会话 ID
      * @param text      助手正文
+     * @param reasoning 思考过程正文；没有推理时为 null
+     * @param toolCalls 本轮工具调用记录；没有时为 null
      * @return 已保存的消息
      */
-    private ChatMessage appendAssistantMessage(String sessionId, String text,
+    private ChatMessage appendAssistantMessage(String sessionId, String text, String reasoning,
                                                com.fasterxml.jackson.databind.JsonNode toolCalls) {
         String body = text == null || text.isBlank() ? "" : text;
         return transactions.execute(status -> {
@@ -432,6 +434,8 @@ public class ChatStreamService {
                     null,
                     // 空数组存 null：没有工具调用时不留一个 []，读回来仍是「没有」。
                     toolCalls == null || toolCalls.isEmpty() ? null : toolCalls,
+                    // 空白推理同样存 null：界面上「没有思考过程」只有一种表示。
+                    reasoning == null || reasoning.isBlank() ? null : reasoning,
                     now));
             sessions.touch(sessionId, now);
             return saved;
@@ -569,6 +573,11 @@ public class ChatStreamService {
         body.put("sessionId", message.sessionId());
         body.put("role", message.role());
         body.put("text", message.text());
+        // 思考过程随 completed 一起下发：前端据此把它挂到这条回复上，
+        // 之后切走再回来由历史接口读回，两处都走同一个字段名。
+        if (message.reasoning() != null) {
+            body.put("reasoning", message.reasoning());
+        }
         body.put("createdAt", message.createdAt().toString());
         writeFrame(out, "completed", data);
     }
@@ -626,6 +635,15 @@ public class ChatStreamService {
         /** 是否已经发过至少一个正文增量。 */
         private boolean streamed;
         /**
+         * 本轮已经通过增量帧下发过的推理正文。
+         *
+         * <p>推理有两条下发路径：token 级 {@code reasoning-delta}（逐段实时）与
+         * {@code assistant/message} 携带的整份推理（一次给全）。实测同一次对话里
+         * 两条都会到达，而后者是前者的完整拼接 —— 不去重就会让界面上的思考内容
+         * 整段重复一遍（实测 453 字被显示成 906 字）。</p>
+         */
+        private final StringBuilder reasoningStreamed = new StringBuilder();
+        /**
          * 本轮的工具调用记录，用于随助手消息一起落库。
          *
          * <p>按 {@code callId} 归并：开始帧建条目，结果帧回填成败。之所以在后端也记一份
@@ -670,6 +688,7 @@ public class ChatStreamService {
                「思考过程」。原先这里什么都不发（理由是「前端没有推理展示位」），
                现在对话界面已经有 ReasoningBlock，这条链路要接通，
                否则用户永远看不到模型在想什么。 */
+            reasoningStreamed.append(text);
             writeReasoning(out, pendingMessageId, text);
         }
 
@@ -752,13 +771,9 @@ public class ChatStreamService {
             // （type=reasoning），一次给全，没有 token 级增量。界面上的「思考过程」
             // 需要一个位置放它，所以这里单独发 reasoning 帧。
             // 不去动模型侧：推理一直都在，只是之前没人转出来。
-            try {
-                java.nio.file.Files.writeString(java.nio.file.Path.of("/tmp/reasoning-diag.txt"),
-                        "called\ntext.len=" + (text == null ? -1 : text.length())
-                        + "\nreasoning.len=" + (reasoning == null ? -1 : reasoning.length())
-                        + "\npreview=" + (reasoning == null ? "" : reasoning.substring(0, Math.min(120, reasoning.length()))) + "\n");
-            } catch (Exception ignored) { }
-            if (reasoning != null && !reasoning.isBlank()) {
+            /* 整份推理只在「增量一条都没发过」时才下发。
+               两条路径都发过的结果就是界面重复显示，落库那份由 Outcome 统一去重。 */
+            if (reasoning != null && !reasoning.isBlank() && reasoningStreamed.length() == 0) {
                 writeReasoning(out, pendingMessageId, reasoning);
             }
         }

@@ -370,7 +370,7 @@ public class DshSdkSession {
     private Outcome readUntilIdle(String sessionId, Listener listener, Duration timeout)
             throws IOException {
         StringBuilder text = new StringBuilder();
-        StringBuilder reasoning = new StringBuilder();
+        ReasoningTrace reasoning = new ReasoningTrace();
         boolean failed = false;
         String failure = null;
         int turn = 0;
@@ -383,7 +383,7 @@ public class DshSdkSession {
 
             // 先排空 stderr 里的 token 级增量。必须在读 stdout 之前做：
             // stdout 可能长时间没有新行，若先阻塞在那里，实时增量就全被压后了。
-            drainStreamFrames(listener);
+            drainStreamFrames(listener, reasoning);
 
             // 再消费等待响应期间缓存的通知，否则 prompt 阶段收到的 running 会丢失。
             JsonNode frame;
@@ -435,9 +435,9 @@ public class DshSdkSession {
                        推理增量（reasoning-delta）经常紧跟在 idle 之后才被读到，
                        直接 return 会把它们全部丢掉 —— 表现是「插件明明收到了推理帧，
                        后端一次都没回调」，而正文增量因为先到所以正常。 */
-                    drainStreamFrames(listener);
+                    drainStreamFrames(listener, reasoning);
                     listener.onIdle();
-                    return new Outcome(text.toString(), reasoning.toString(), failed, failure);
+                    return new Outcome(text.toString(), reasoning.result(), failed, failure);
                 }
                 continue;
             }
@@ -481,8 +481,9 @@ public class DshSdkSession {
                     String think = collectReasoning(message.path("content"));
                     text.setLength(0);
                     text.append(body);
-                    reasoning.setLength(0);
-                    reasoning.append(think);
+                    /* 不再 setLength(0) 覆盖：推理是逐块攒起来的，
+                       这里覆盖会把前面步骤的推理冲掉；交给 ReasoningTrace 去重。 */
+                    reasoning.appendMessageReasoning(think);
                     listener.onAssistantMessage(body, think);
                     // 用量挂在消息上而不是独立事件（实测）：在同一个分支里顺带取出。
                     // 缺字段用 -1 表示「上游没给」，不用 0 —— 0 是「用了 0 个 token」，
@@ -516,9 +517,16 @@ public class DshSdkSession {
      * <p>只处理 {@code stream/delta}；其余 method 忽略。帧的 {@code kind} 决定回调类型：
      * {@code text} 是正文增量、{@code thinking} 是推理增量。</p>
      *
+     * <p><strong>推理为什么需要去重</strong>：同一条通道上，推理可能既有 token 级
+     * {@code reasoning-delta}，又有块结束时的 {@code block_end}（带整块正文）。
+     * 两条都收会把同一段思考记两遍 —— 界面上显示重复，落库也重复。
+     * 这里按「块」记账：块内先到增量就标记已下发，块结束时不再补发整块；
+     * 只有整块先行（没有增量）的情况才用整块正文。正文（text）不受影响。</p>
+     *
      * @param listener 目标回调
+     * @param reasoning 本轮推理正文的累加器；由调用方创建并最终读走
      */
-    private void drainStreamFrames(Listener listener) {
+    private void drainStreamFrames(Listener listener, ReasoningTrace reasoning) {
         JsonNode frame;
         while ((frame = streamFrames.poll()) != null) {
             if (!"stream/delta".equals(frame.path("method").asText(""))) {
@@ -534,20 +542,84 @@ public class DshSdkSession {
             } else if ("thinking".equals(kind)) {
                 String text = params.path("text").asText("");
                 if (!text.isEmpty()) {
+                    reasoning.appendDelta(text);
                     listener.onThinkingDelta(text);
                 }
             } else if ("block_end".equals(kind)) {
-                /* 推理块的完整正文。DSH 的 SDK 通道既不发 reasoning-delta、
-                   也不发 assistant/message 事件，推理只能从这里拿到（一次性整块）。
+                /* 推理块的完整正文。有的通道只给整块、不给增量，所以这条必须收；
+                   但同一块若已经通过 reasoning-delta 增量下发过，再收整块就是重复。
                    正文块（blockType=text）不走这里：正文有 text-delta 增量，
                    再收一次整块会重复。 */
                 if ("reasoning".equals(params.path("blockType").asText(""))) {
                     String text = params.path("text").asText("");
-                    if (!text.isEmpty()) {
+                    if (reasoning.appendBlockOnce(text)) {
                         listener.onThinkingDelta(text);
                     }
                 }
             }
+        }
+    }
+
+    /**
+     * 一轮对话里累积到的推理正文。
+     *
+     * <p>推理有三条可能来源：token 级 {@code reasoning-delta}、块结束时的整块正文、
+     * 以及 {@code assistant/message} 附带的整份推理。三处都写同一个累加器，就必须
+     * 在这里统一去重 —— 否则界面上和库里都会出现「同一段思考重复两遍」。</p>
+     */
+    private static final class ReasoningTrace {
+        private final StringBuilder text = new StringBuilder();
+        /** 是否已经通过 assistant/message 收过整份推理。 */
+        private boolean messageSeen;
+
+        /** 追加一段推理增量。 */
+        void appendDelta(String chunk) {
+            text.append(chunk);
+        }
+
+        /**
+         * 追加一整块推理正文，但**已经通过增量下发过的部分不重复追加**。
+         *
+         * <p>为什么用「内容比对」而不是「按块标记」：实测块事件的到达顺序是交错的 ——
+         * {@code block-start(reasoning)} → 若干 {@code reasoning-delta} →
+         * {@code block-start(text)} → 正文增量 → 最后才 {@code block-end(reasoning)}。
+         * 推理块的结束事件排在下一个块开始之后，任何「当前打开的是哪个块」的标记
+         * 都会被正文块冲掉，去重随之失效（实测正是这样把 178 字重复存了一遍）。
+         * 直接比对累积文本的结尾最稳：同一段内容不论以增量还是整块到达，只记一次。</p>
+         *
+         * @param whole 整块推理正文
+         * @return 是否真的追加了（调用方据此决定要不要再发给前端）
+         */
+        boolean appendBlockOnce(String whole) {
+            if (whole == null || whole.isEmpty()) {
+                return false;
+            }
+            if (text.length() >= whole.length()
+                    && text.substring(text.length() - whole.length()).contentEquals(whole)) {
+                return false;
+            }
+            text.append(whole);
+            return true;
+        }
+
+        /**
+         * {@code assistant/message} 附带的整份推理。
+         *
+         * <p>只在还没收到任何推理时采用：实测走 SSE 时它是空的（{@code reasoning.len=0}），
+         * 但别的通道可能只给这一份。已经有内容时不能覆盖 —— 那会把逐块攒起来的
+         * 多步推理冲成最后一步。</p>
+         */
+        void appendMessageReasoning(String whole) {
+            if (whole == null || whole.isBlank() || messageSeen || text.length() > 0) {
+                return;
+            }
+            messageSeen = true;
+            text.append(whole);
+        }
+
+        /** 最终推理正文；没有推理时为空串。 */
+        String result() {
+            return text.toString();
         }
     }
 

@@ -101,6 +101,9 @@ export function toViewMessage(m: ContractMessage): ChatMessage {
     // 工具调用记录随消息读回：这是「切走会话再回来还能看到跑了什么」的唯一来源。
     // 没有调用时保持 undefined，界面上不出现空列表。
     ...(m.toolCalls && m.toolCalls.length > 0 ? { executedTools: m.toolCalls } : {}),
+    // 思考过程同样随消息读回：界面上它是折叠的「思考」任务，
+    // 不读回来就会一切换会话就消失（此前正是如此）。
+    ...(m.reasoning ? { thinking: m.reasoning } : {}),
   }
 }
 
@@ -225,9 +228,11 @@ export interface SessionsState {
   adoptServerTitle: (id: string, title: string) => void
   setPinned: (id: string, pinned: boolean) => void
   setArchived: (id: string, archived: boolean) => void
-  /** 拉取给定项目（缺省则先读项目列表）中尚未加载过的会话。 */
-  refresh: (projectIds?: string[]) => Promise<void>
-  /** 重新读取某项目（忽略已加载标记，用于重试） */
+  /** 拉取给定项目（缺省则先读项目列表）中尚未加载过的会话。
+      `force` = 连已加载过的项目也重读：列表是服务端的快照，别处新建的会话
+      只有重读才会出现（此前按项目去重，导致「切换项目后新会话永远看不到」）。 */
+  refresh: (projectIds?: string[], options?: { force?: boolean }) => Promise<void>
+  /** 重新读取某项目（忽略已加载标记，用于重试 / 切换项目时刷新） */
   reload: (projectId: string) => Promise<void>
   /** 对创建失败的本页草稿重试真实创建；成功后用服务端会话替换本页 id。 */
   retryCreate: (sessionId: string) => Promise<CreateSessionResult>
@@ -365,8 +370,15 @@ export function useSessions() {
     }
   }, [commitSessions])
 
-  /** 拉取给定项目（缺省先读项目列表）中尚未加载过的会话。 */
-  const refresh = useCallback(async (projectIds?: string[]) => {
+  /**
+   * 拉取给定项目（缺省先读项目列表）的会话。
+   *
+   * 默认只读「还没读过」的项目，避免切视图时重复打请求；
+   * `force` 时连读过的项目也重读 —— 必须提供这条路径：会话列表是服务端的快照，
+   * 在别处（工作台 / 另一个窗口 / 上一轮对话）新建的会话，只有重读才会出现。
+   */
+  const refresh = useCallback(async (projectIds?: string[], options?: { force?: boolean }) => {
+    const force = options?.force === true
     let ids = projectIds
     if (!ids) {
       try {
@@ -378,7 +390,7 @@ export function useSessions() {
       }
     }
     for (const id of ids) {
-      if (!loadedRef.current.has(id)) await loadProject(id)
+      if (force || !loadedRef.current.has(id)) await loadProject(id)
     }
   }, [loadProject])
 

@@ -75,8 +75,18 @@ export default function App() {
   }, [projects.loading, loadedProjectIds, refreshSessionsForProjects])
   /** 重试会话读取：对全部项目强制重读（失败的项目、以及新项目都在其中） */
   const retrySessions = () => {
-    for (const p of projects.list) void threads.reload(p.id)
+    void threads.refresh(projects.list.map((p) => p.id), { force: true })
   }
+  /* 切换项目 / 回到对话视图时，强制重读当前项目的会话。
+     会话列表是服务端的快照：在工作台或别处新建的会话，不重读就永远不出现
+     （原先 refresh 按项目去重，读过一次之后再也不拉，新会话等于不可见）。 */
+  const conversationVisible = view === 'conversation'
+  useEffect(() => {
+    if (!conversationVisible || !openProject) return
+    void threads.reload(openProject)
+    // 只在「进入对话视图」或「换项目」时重读；threads.reload 是稳定引用
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversationVisible, openProject])
   /* 「返回项目目录」：项目列表页已移除，回「我的创作」（对话视图）。
      保留当前选中项目，便于从对话视图一键回工作台。 */
   const openList = () => { setView('conversation') }

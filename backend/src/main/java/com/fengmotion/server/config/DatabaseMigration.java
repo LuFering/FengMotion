@@ -119,6 +119,12 @@ public class DatabaseMigration {
         if (!messageColumns.contains("tool_calls_json")) {
             jdbc.execute("ALTER TABLE chat_messages ADD COLUMN tool_calls_json TEXT");
         }
+        // 思考过程列：与 tool_calls_json 同理，是这条助手回复的一部分。
+        // 旧库补列，新库由上面的建表语句带出；历史消息该列为 NULL，
+        // 读回来就是「那条回复没有思考记录」，不会伪造内容。
+        if (!messageColumns.contains("reasoning")) {
+            jdbc.execute("ALTER TABLE chat_messages ADD COLUMN reasoning TEXT");
+        }
         jdbc.execute("CREATE INDEX IF NOT EXISTS idx_chat_messages_session_seq ON chat_messages(session_id, seq)");
         // 任务域：任务主表与事件表。旧库没有，新库由这里补出。
         jdbc.execute("""

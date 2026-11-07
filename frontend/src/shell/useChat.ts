@@ -104,6 +104,7 @@ export function useChat() {
     messageId: string,
     text: string,
     executedTools?: { callId?: string; name: string; arguments?: string; done?: boolean; isError?: boolean }[],
+    reasoning?: string,
   ) => {
     setMessages((items) => items.map((m) => (
       m.id === messageId
@@ -112,6 +113,9 @@ export function useChat() {
             /* 把本轮收集到的工具记录挂到消息上：completed 之后会异步重读服务端消息，
                在那之前实时列表已经随 pending 消失 —— 不挂上的话，这一瞬间列表会闪空。 */
             ...(executedTools && executedTools.length > 0 ? { executedTools } : {}),
+            /* 思考过程同理：流式期间已经逐块写进 thinking，服务端读回之前
+               这里补一次终值，避免「重读之前那一瞬间」思考块消失。 */
+            ...(reasoning ? { thinking: reasoning } : {}),
           }
         : m
     )))

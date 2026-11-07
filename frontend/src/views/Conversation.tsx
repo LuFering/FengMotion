@@ -1094,7 +1094,7 @@ export function Conversation(props: {
         produced = true
         // 带上本轮工具记录：completed 到服务端消息读回之间有个异步空档，
         // 不先挂上去，列表会在这一瞬间闪空。
-        chat.finishAiMessage(aiId, message.text, toolCallsRef.current)
+        chat.finishAiMessage(aiId, message.text, toolCallsRef.current, message.reasoning)
         /* 服务端会话的内容以 server 消息数组为准（见上方 serverMirror 的说明）。
            这里必须把刚落库的回复重新读回来：否则下一次发消息、或任何让
            `activeThread.messages` 身份变化的操作，都会用「只有用户消息」的数组
@@ -2114,7 +2114,10 @@ export function Conversation(props: {
                        「执行了什么」）。搜索类不进来，它有自己的轨迹。 */
                     const tools = (m.executedTools ?? []).filter((c) => !isSearchTool(c.name))
                     const tasks = [
-                      ...(m.thinking ? [{ title: '思考', steps: [{ label: truncate(m.thinking) }] }] : []),
+                      /* 思考用全文而不是 truncate：推理已经落库，界面却只显示
+                         开头 72 字，等于把存下来的内容又丢掉一次。多行排版见
+                         task-list.css 的 .tl-step--multiline。 */
+                      ...(m.thinking ? [{ title: '思考', steps: [{ label: m.thinking, multiline: true }] }] : []),
                       ...toolCallsToTasks(tools, false),
                     ]
                     if (tasks.length === 0) return null
@@ -2333,7 +2336,9 @@ export function Conversation(props: {
                     tasks={[
                       /* 实时思考：推理帧到达后，第一个任务就是「思考」。
                          与历史路径同一个结构，用户看到的永远是同一种组织方式。 */
-                      ...((streamingThinking || lastThinking) ? [{ title: '思考', runningTitle: '正在思考', steps: [{ label: truncate(streamingThinking || lastThinking) }] }] : []),
+                      /* 与历史消息里的思考同样用全文：实时看和回看应是同一份内容，
+                         只在这里截断会让「正在思考」比「回看」少显示一大段。 */
+                      ...((streamingThinking || lastThinking) ? [{ title: '思考', runningTitle: '正在思考', steps: [{ label: streamingThinking || lastThinking, multiline: true }] }] : []),
                       ...toolCallsToTasks(toolCalls.filter((c) => !isSearchTool(c.name)), pending),
                     ]}
                     revealed={((streamingThinking || lastThinking) ? 2 : 0) + toolCallsRevealed(toolCalls.filter((c) => !isSearchTool(c.name)))}

@@ -44,6 +44,14 @@ export interface TaskStepChip {
 export interface TaskStep {
   label: string
   chips?: TaskStepChip[]
+  /**
+   * 保留换行，按多行排版。
+   *
+   * <p>工具步骤是「一行一条日志」，压成单行才有日志的节奏；
+   * 但思考过程是一整段自然语言，压成单行再截断就只剩开头一句，
+   * 用户等于看不到思考内容。这类步骤用 `multiline` 保留原文。</p>
+   */
+  multiline?: boolean
 }
 
 export interface TaskItem {
@@ -259,7 +267,7 @@ function StepRow({
 }) {
   return (
     <LogRow first={first} last={last} reduce={reduce}>
-      <span className="tl-step">
+      <span className={step.multiline ? 'tl-step tl-step--multiline' : 'tl-step'}>
         {active ? <ShimmerText>{step.label}</ShimmerText> : step.label}
         {step.chips?.map((chip, i) => (
           <Chip key={`${chip.label}-${i}`} chip={chip} />

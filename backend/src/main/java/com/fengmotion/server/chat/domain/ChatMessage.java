@@ -26,6 +26,8 @@ import com.fasterxml.jackson.databind.JsonNode;
  * @param references  结构化引用；没有时为 null
  * @param attachments 附件元信息；没有时为 null
  * @param toolCalls   这条助手回复执行过的工具调用（JSON 数组）；没有调用时为 null
+ * @param reasoning   这条助手回复的思考过程正文；没有推理时为 null。
+ *                    只对助手消息有值：思考是模型的产出，用户消息没有「思考」可记。
  * @param createdAt   创建时间
  */
 public record ChatMessage(
@@ -38,6 +40,7 @@ public record ChatMessage(
         JsonNode references,
         JsonNode attachments,
         JsonNode toolCalls,
+        String reasoning,
         Instant createdAt) {
 
     /** 系统角色只供内部使用，不下发展示；判断时集中在这里，避免各处散写字符串。 */
