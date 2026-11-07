@@ -2115,6 +2115,13 @@ export function Conversation(props: {
               <PanelLeft size={16} />
             </button>
             <div className="cv3-crumb" title={title}>{title}</div>
+            {/* 后台任务：放在标题右侧而不是输入框上方 ——
+                它不是「要读的内容」，放输入框上方会把人往输入框推的视线打断。
+                只显示还在跑的、以及出事的（快任务完成即移除），
+                实测一个会话 13060 个 job，全列出来等于刷屏。 */}
+            {jobs.length > 0 && (
+              <JobPanel jobs={jobs} onDismiss={(id) => setJobs((prev) => prev.filter((x) => x.jobId !== id))} />
+            )}
             <ViewSwitch current="conversation" workbenchDisabled={props.openProject === null}
                         onSwitch={(target) => { if (target === 'workbench') props.onOpenWorkbench() }} />
           </div>
@@ -2454,13 +2461,6 @@ export function Conversation(props: {
                 </div>
               )
             })()}
-            {/* 后台任务：只显示还在跑的、以及出事的。正常完成的快任务不占位 ——
-                实测一个会话 13060 个 job，全列出来等于刷屏。 */}
-            {jobs.length > 0 && (
-              <div className="cv3-job-dock">
-                <JobPanel jobs={jobs} onDismiss={(id) => setJobs((prev) => prev.filter((x) => x.jobId !== id))} />
-              </div>
-            )}
             <div className="cv3-compose">
             <ChatComposer
               value={chat.draft}

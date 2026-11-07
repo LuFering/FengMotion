@@ -4,25 +4,33 @@
 
    宽度跟输入框一致（由外层 .cv3-job-dock 控制），自己不设宽度 ——
    否则两处停靠物会左右错位。 */
+/* 放在标题栏里，所以要「横着长」而不是「竖着堆」：
+   标题行只有 30px 高，竖排会被撑开把标题挤变形。
+   宽度也有上限 —— 它挨着会话标题，拉太长会把标题和右侧切换器挤走。 */
 .jobp {
   display: flex;
-  flex-direction: column;
+  align-items: center;
   gap: 1px;
-  padding: 4px 6px;
+  /* 多条任务时横向排，排不下才换行 */
+  flex-wrap: wrap;
+  max-width: min(360px, 32vw);
+  min-width: 0;
+  padding: 2px 4px;
   background: var(--surf);
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 7px;
 }
 
 .jobp-row {
   display: flex;
   align-items: center;
-  gap: 6px;
-  height: 22px;
+  gap: 5px;
+  height: 20px;
   padding: 0 4px;
   font-size: 11px;
   color: var(--dim);
-  /* 长命令不换行：这行是「告知」，撑高会把输入框挤走 */
+  /* 单条任务自身的宽度上限：命令再长也不许把标题行撑开 */
+  max-width: 300px;
   min-width: 0;
 }
 
@@ -36,7 +44,9 @@
 
 .jobp-label {
   flex: 1;
+  /* 命令行可能很长，这里必须能被截断 —— 详情在 title 里 */
   min-width: 0;
+  max-width: 200px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
