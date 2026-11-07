@@ -32,6 +32,21 @@ export interface ChatMessage {
    * 与 failed 分开：诊断不表示失败，只表示「这次为什么可能不对劲」。
    */
   diagnostics?: { kind: 'compaction' | 'max-tokens' | 'retry' | 'interrupted'; detail?: string }[]
+  /**
+   * 这条回复的 token 用量（落库形态，从历史读回）。
+   *
+   * 与流式期间的临时用量分开记：那个只在「刚发完」时存在，刷新就没了；
+   * 这个是持久事实，用来重建上下文占用条。
+   */
+  usage?: {
+    inputTokens?: number
+    outputTokens?: number
+    cacheReadTokens?: number
+    totalTokens?: number
+    promptTokens?: number
+    toolsTokens?: number
+    contextWindow?: number
+  }
   plan?: string[]
   /** “改了什么”表：只列真实创建的产物（项目 / 工作流），不编造文件改动 */
   changes?: { file: string; change: string }[]

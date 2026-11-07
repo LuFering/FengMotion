@@ -267,7 +267,8 @@ public class ChatStreamService {
                 // 前端拿到 completed 时，历史接口一定已经能读到这条消息。
                 ChatMessage saved = appendAssistantMessage(
                         sessionId, outcome.text(), outcome.reasoning(),
-                        listener.collectedToolCalls(), listener.collectedTodos());
+                        listener.collectedToolCalls(), listener.collectedTodos(),
+                        listener.collectedUsage());
                 // 先发 done 表达「本回合结束」，再发 completed 携带正文。
                 // 前端契约里 done 是收尾 phase，缺了它界面会停在「正在思考」。
                 listener.emitPhase("done", null, null);
@@ -418,11 +419,14 @@ public class ChatStreamService {
      * @param text      助手正文
      * @param reasoning 思考过程正文；没有推理时为 null
      * @param toolCalls 本轮工具调用记录；没有时为 null
+     * @param todos     本轮任务清单；没有时为 null
+     * @param usage     本轮 token 用量；没有时为 null
      * @return 已保存的消息
      */
     private ChatMessage appendAssistantMessage(String sessionId, String text, String reasoning,
                                                com.fasterxml.jackson.databind.JsonNode toolCalls,
-                                               com.fasterxml.jackson.databind.JsonNode todos) {
+                                               com.fasterxml.jackson.databind.JsonNode todos,
+                                               com.fasterxml.jackson.databind.JsonNode usage) {
         String body = text == null || text.isBlank() ? "" : text;
         return transactions.execute(status -> {
             messages.acquireWriteLock();
@@ -442,6 +446,7 @@ public class ChatStreamService {
                     reasoning == null || reasoning.isBlank() ? null : reasoning,
                     // 空清单同样存 null：没有任务清单时读回来仍是「没有」。
                     todos == null || todos.isEmpty() ? null : todos,
+                    usage == null || usage.isEmpty() ? null : usage,
                     now));
             sessions.touch(sessionId, now);
             return saved;
@@ -590,6 +595,9 @@ public class ChatStreamService {
         if (message.todos() != null) {
             body.set("todos", message.todos());
         }
+        if (message.usage() != null) {
+            body.set("usage", message.usage());
+        }
         body.put("createdAt", message.createdAt().toString());
         writeFrame(out, "completed", data);
     }
@@ -673,6 +681,21 @@ public class ChatStreamService {
          */
         private com.fasterxml.jackson.databind.node.ArrayNode latestTodos;
 
+        /**
+         * 本轮累计的 token 用量，以及最后一次请求的 prompt 大小。
+         *
+         * <p>按桶累加（`usage`）：一条回复可能有多次模型调用，用户想知道这轮总共花了多少。
+         * 而 `promptTokens` 取**最后一次**覆盖：上下文占用问的是「此刻装了多少」，
+         * 不是「一共流过多少」——后者会把 100% 撑爆。</p>
+         */
+        private long sumInput = -1;
+        private long sumOutput = -1;
+        private long sumCacheRead = -1;
+        private long sumTotal = -1;
+        private long lastPrompt = -1;
+        private long toolsTokens = -1;
+        private long contextWindow = -1;
+
         private final String sessionId;
 
         SseListener(PrintWriter out, String sessionId) {
@@ -688,6 +711,27 @@ public class ChatStreamService {
         /** 本轮最后的任务清单；没有调用过 todo_write 时为 null。 */
         com.fasterxml.jackson.databind.node.ArrayNode collectedTodos() {
             return latestTodos;
+        }
+
+        /**
+         * 本轮用量的持久化形态；一次用量都没收到时为 null。
+         *
+         * @return `{inputTokens, outputTokens, cacheReadTokens, totalTokens,
+         *          promptTokens, toolsTokens, contextWindow}`，缺的桶不出现
+         */
+        com.fasterxml.jackson.databind.node.ObjectNode collectedUsage() {
+            if (sumInput < 0 && sumOutput < 0 && sumTotal < 0) {
+                return null;
+            }
+            com.fasterxml.jackson.databind.node.ObjectNode node = json.createObjectNode();
+            if (sumInput >= 0) node.put("inputTokens", sumInput);
+            if (sumOutput >= 0) node.put("outputTokens", sumOutput);
+            if (sumCacheRead >= 0) node.put("cacheReadTokens", sumCacheRead);
+            if (sumTotal >= 0) node.put("totalTokens", sumTotal);
+            if (lastPrompt >= 0) node.put("promptTokens", lastPrompt);
+            if (toolsTokens >= 0) node.put("toolsTokens", toolsTokens);
+            if (contextWindow > 0) node.put("contextWindow", contextWindow);
+            return node.isEmpty() ? null : node;
         }
 
         com.fasterxml.jackson.databind.node.ArrayNode collectedToolCalls() {
@@ -922,7 +966,67 @@ public class ChatStreamService {
             if (usage.totalTokens() >= 0) {
                 data.put("totalTokens", usage.totalTokens());
             }
+            /* 同时累加，供落库用：只发帧的话刷新后占用条就没了。 */
+            sumInput = addPositive(sumInput, usage.inputTokens());
+            sumOutput = addPositive(sumOutput, usage.outputTokens());
+            sumCacheRead = addPositive(sumCacheRead, usage.cacheReadTokens());
+            sumTotal = addPositive(sumTotal, usage.totalTokens());
+            /* prompt 取最后一次（覆盖）：窗口占用问的是「此刻装了多少」。
+               inputTokens 为 0 的样本跳过 —— 压缩刚结束时上游只报 output，
+               直接采用会把占用打到 0。 */
+            if (usage.inputTokens() > 0) {
+                long prompt = usage.inputTokens()
+                        + Math.max(0, usage.cacheReadTokens())
+                        + Math.max(0, usage.cacheWriteTokens());
+                if (prompt > 0) {
+                    lastPrompt = prompt;
+                }
+            }
             writeFrame(out, "usage", data);
+        }
+
+        /**
+         * 累加一个可能为 -1（未知）的桶。
+         *
+         * @param sum  已有合计；-1 表示还没有有效值
+         * @param add  新增值；-1 表示上游没报
+         * @return 新的合计；两者都未知时保持 -1
+         */
+        private static long addPositive(long sum, long add) {
+            if (add < 0) {
+                return sum;
+            }
+            return sum < 0 ? add : sum + add;
+        }
+
+        @Override
+        public void onContextWindow(long contextWindow) {
+            /* 上下文容量帧。单独发，不塞进 usage 帧 —— 两者来源不同
+               （请求上下文 vs 模型结算），更新时机也不同，混在一起会让前端
+               以为「收到窗口就代表有新的用量」。 */
+            if (contextWindow <= 0) {
+                return;
+            }
+            this.contextWindow = contextWindow;
+            ObjectNode data = json.createObjectNode();
+            data.put("type", "context");
+            data.put("contextWindow", contextWindow);
+            writeFrame(out, "context", data);
+        }
+
+        @Override
+        public void onToolsTokens(long toolsTokens) {
+            /* 工具 schema 的估算占用。走和容量帧同一个字段，前端把它合进
+               「这一轮共发了多少」的分档里 —— 前端不需要知道它俩来源不同，
+               它们都是「这个请求的固定开销」。 */
+            if (toolsTokens <= 0) {
+                return;
+            }
+            this.toolsTokens = toolsTokens;
+            ObjectNode data = json.createObjectNode();
+            data.put("type", "context");
+            data.put("toolsTokens", toolsTokens);
+            writeFrame(out, "context", data);
         }
 
         @Override

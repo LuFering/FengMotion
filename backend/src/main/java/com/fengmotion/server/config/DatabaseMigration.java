@@ -108,6 +108,7 @@ public class DatabaseMigration {
                     tool_calls_json TEXT,
                     reasoning TEXT,
                     todos_json TEXT,
+                    usage_json TEXT,
                     created_at TEXT NOT NULL,
                     FOREIGN KEY (session_id) REFERENCES chat_sessions(id),
                     UNIQUE (session_id, seq)
@@ -131,6 +132,11 @@ public class DatabaseMigration {
         // 否则 completed 之后重读历史会把界面上的清单冲掉（实测闪一下就没了）。
         if (!messageColumns.contains("todos_json")) {
             jdbc.execute("ALTER TABLE chat_messages ADD COLUMN todos_json TEXT");
+        }
+        // 用量列：上下文占用条的数据来源。不落库的话刷新就丢，
+        // 而「这条会话现在装了几成上下文」正是重看历史时要问的。
+        if (!messageColumns.contains("usage_json")) {
+            jdbc.execute("ALTER TABLE chat_messages ADD COLUMN usage_json TEXT");
         }
         jdbc.execute("CREATE INDEX IF NOT EXISTS idx_chat_messages_session_seq ON chat_messages(session_id, seq)");
         // 任务域：任务主表与事件表。旧库没有，新库由这里补出。

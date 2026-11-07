@@ -29,6 +29,8 @@ import com.fasterxml.jackson.databind.JsonNode;
  * @param reasoning   这条助手回复的思考过程正文；没有推理时为 null。
  *                    只对助手消息有值：思考是模型的产出，用户消息没有「思考」可记。
  * @param todos       模型排的任务清单（JSON 数组）；没有清单时为 null。
+ * @param usage       这条回复的 token 用量（JSON 对象，含 promptTokens 等）；
+ *                    没有用量记录时为 null。
  * @param createdAt   创建时间
  */
 public record ChatMessage(
@@ -43,6 +45,7 @@ public record ChatMessage(
         JsonNode toolCalls,
         String reasoning,
         JsonNode todos,
+        JsonNode usage,
         Instant createdAt) {
 
     /** 系统角色只供内部使用，不下发展示；判断时集中在这里，避免各处散写字符串。 */

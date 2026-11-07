@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Search as SeekSearch } from '@/components/Search'
 import { WebSearchTrace, isSearchTool, type SearchCall } from '@/components/WebSearchTrace'
 import { ChecklistDrawer } from '@/components/bencho/Checklist'
+import { ContextMeter, type MeterPart } from '@/components/bencho/ContextMeter'
 import {
   ChatMessage as ChatBubble, ChatComposer, ThinkingIndicator, MarkdownText,
   AnswerBody, AnswerActions, MessageActions, RunningDivider,
@@ -601,6 +602,35 @@ export function Conversation(props: {
     cacheReadTokens?: number
     totalTokens?: number
   } | null>(null)
+
+  /**
+   * 上下文窗口大小 —— 占用率的分母。
+   *
+   * 和 `usage` 刻意分开：usage 是**累计账单**（按桶累加，回答「这条会话花了多少」），
+   * 这里要的是**此刻装了多少**（最后一次请求的 prompt 有多大）。
+   * 混成一个数会得出「占了 300%」这种荒谬结论。
+   *
+   * `null` 表示引擎没报（适配器不上报），此时不画占用率，而不是编一个分母。
+   */
+  const [contextWindow, setContextWindow] = useState<number | null>(null)
+
+  /**
+   * 工具 schema 的估算占用（token）。来源是 DSH 的 `request/header`。
+   *
+   * 分档里的 System / Messages 两档只能拿到「合起来多少」——
+   * 要靠这个值和 System 提示长度反推，所以它是独立一份。
+   * `null` 表示还没发过请求（或引擎没给）。
+   */
+  const [toolsTokens, setToolsTokens] = useState<number | null>(null)
+
+  /**
+   * 此刻上下文里装了多少 token —— 占用率的分子。
+   *
+   * 取**最后一次**请求的 prompt 大小（覆盖，不累加）。与上面的 `usage`
+   * 是两码事：那个是累计账单，问「这条会话一共花了多少」；这个是当前水位，
+   * 问「现在装了几成」。用累加值算占用会得到超过 100% 的荒谬结果。
+   */
+  const [contextUsed, setContextUsed] = useState<number | null>(null)
   /* dsh 响应式：1024 以下左栏自动收为 56px 轨，手动展开为覆盖式抽屉 */
   const [narrow, setNarrow] = useState(() => (typeof window === 'undefined' ? false : window.innerWidth < 1024))
   const [sideExpanded, setSideExpanded] = useState(() => (typeof window === 'undefined' ? true : window.innerWidth >= 1024))
@@ -1249,6 +1279,22 @@ export function Conversation(props: {
               ? { totalTokens: add(prev?.totalTokens, u.totalTokens) } : {}),
           }
         })
+        /* 上下文占用要的是**最后一次请求的 prompt 大小**，不是累加值 ——
+           所以单独存一份，绝不能复用上面那个按桶累加的 `usage`。
+           公式与 DSH 一致：未缓存输入 + 缓存读 + 缓存写（不含输出，
+           因为输出还没回到上下文里）。inputTokens 为 0 的样本要跳过：
+           压缩刚结束时上游只报 output，直接用会把进度条打到 0。 */
+        const prompt = (u.inputTokens ?? 0) + (u.cacheReadTokens ?? 0) + (u.cacheWriteTokens ?? 0)
+        if ((u.inputTokens ?? 0) > 0 && prompt > 0) {
+          setContextUsed(prompt)
+        }
+      },
+      onContext: (c) => {
+        /* 窗口大小只跟模型走，不随轮次变 —— 覆盖即可，不累加。
+           引擎没报（适配器不上报）时这帧根本不会来，保持 null = 「不知道」。
+           工具 schema 同理：每次请求都一样，覆盖。 */
+        if (c.contextWindow !== undefined) setContextWindow(c.contextWindow)
+        if (c.toolsTokens !== undefined) setToolsTokens(c.toolsTokens)
       },
     })
     streamStopRef.current = () => handle.close()
@@ -1439,6 +1485,15 @@ export function Conversation(props: {
     backendModels.length === 0 || backendModels.some((m) => m.id === model)
       ? model
       : (backendModels.find((m) => m.default) ?? backendModels[0]).id
+  /**
+   * 当前模型的上下文窗口（分母），来自后端模型目录。
+   *
+   * 这条兜底是必需的：DSH 只在 provider/model/窗口**变化时**才发一次
+   * `request/context`，所以续接老会话时那一帧根本不会来（实测：全新会话有，
+   * 续接会话没有）。只靠流里的帧，老会话的占用率永远不显示。
+   * 模型目录里的 contextWindow 与流里那份是同一个值，可以直接用。
+   */
+  const modelContextWindow = backendModels.find((m) => m.id === effectiveModel)?.contextWindow
   /**
    * 引擎 / 模型选择器。
    *
@@ -2286,6 +2341,40 @@ export function Conversation(props: {
                       </span>
                     ))}
                   </p>
+                )
+              })()}
+              {/* 上下文占用：只有拿到真实分子和分母才画。
+                  分母（窗口）取决于适配器是否上报，没报就整块不出现 —— 画一个
+                  没有分母的进度条不如不画，那只是个装饰。
+                  分档口径：system / tools 是启发式估算（DSH 用 chars/4），
+                  messages 由「实测总量 − 前两档」得出，所以三者相加正好等于
+                  实测 prompt 大小，不会出现「分档加起来和总数对不上」。 */}
+              {(() => {
+                /* 优先读**这条回复落库的用量**：它是持久事实，刷新后仍在。
+                   流式状态（contextUsed 等）只在「刚发完这一轮」存在，单独用会让
+                   占用条一刷新就消失。两者取值相同，落库那份是同一轮记下来的。 */
+                const stored = [...messages].reverse().find((m) => m.role === 'ai' && m.usage)?.usage
+                const used = stored?.promptTokens ?? contextUsed
+                const tools = stored?.toolsTokens ?? toolsTokens
+                /* 分母优先用流/落库里的实测值；续接老会话时那一帧不会来
+                   （DSH 只在 provider/model/窗口变化时才发），退回模型目录里的同名字段。 */
+                const win = contextWindow ?? stored?.contextWindow ?? modelContextWindow ?? null
+                if (win === null || used === null || used === undefined) return null
+                const parts: MeterPart[] = []
+                if (tools !== null && tools !== undefined && tools > 0) {
+                  parts.push({ id: 'tools', name: 'Tools', tokens: tools, estimated: true })
+                }
+                /* system 提示长度前端拿不到（后端没透出），所以并入 messages。
+                   宁可少分一档，也不编一个数。 */
+                const rest = Math.max(0, used - (tools ?? 0))
+                if (rest > 0) {
+                  parts.push({ id: 'messages', name: 'Messages', tokens: rest, estimated: true })
+                }
+                if (parts.length === 0) return null
+                return (
+                  <div className="cv3-ctxmeter">
+                    <ContextMeter parts={parts} window={win} style="Bar" />
+                  </div>
                 )
               })()}
               {usage && (usage.inputTokens !== undefined || usage.outputTokens !== undefined) && (

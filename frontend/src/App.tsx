@@ -58,6 +58,15 @@ export default function App() {
   const tasks = useAgentTasks()
   const projects = useProjects()
   const threads = useSessions()
+  /* 调试入口：?session=<id> 直达某条会话（配合 ?view=conversation&project=）。
+     会话列表加载完成后才认这个 id，否则会被「默认选第一条」的逻辑覆盖掉。 */
+  const deepLinkSession = initialQuery.get('session')
+  useEffect(() => {
+    if (!deepLinkSession) return
+    /* 会话列表还没回来时先不动 —— 否则会被「默认选第一条」覆盖掉 */
+    if (!threads.sessions.some((s) => s.id === deepLinkSession)) return
+    if (threads.activeId !== deepLinkSession) threads.setActiveId(deepLinkSession)
+  }, [deepLinkSession, threads])
   /** 当前项目 —— 项目管理组的每个视图都要它 */
   const current = projects.list.find((p) => p.id === openProject) ?? null
   /** 项目加载完成后读取各项目的已存会话（后端契约 agent.md §2）。

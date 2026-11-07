@@ -141,6 +141,39 @@ public class DshSdkSession {
         }
 
         /**
+         * 当前模型的上下文容量 —— 占用率的分母。
+         *
+         * <p><strong>来源是 {@code request/context} 事件</strong>：DSH 每次真正发请求前
+         * 记一条，带 {@code contextWindow}。实测该字段<b>可能缺失</b>（取决于适配器
+         * 是否上报），所以用 -1 表示「不知道」，不补一个假的分母。</p>
+         *
+         * <p>别和 {@link TokenUsage} 混淆：usage 是<b>这次用了多少</b>，
+         * 这里是<b>最多能用多少</b>。两者来自不同事件，更新时机也不同 ——
+         * usage 每轮都变，窗口只跟模型走。</p>
+         *
+         * @param contextWindow 上下文窗口 token 数；上游没报时为 -1
+         */
+        default void onContextWindow(long contextWindow) {
+            // 默认忽略
+        }
+
+        /**
+         * 本次请求的工具 schema 占用的 token（估算）。
+         *
+         * <p>来自 {@code request/header} 事件。上下文分档里 tools 那一档
+         * <b>没有别的来源</b> —— usage 只给总数，拆不出这部分。</p>
+         *
+         * <p>算法与 DSH 一致：工具定义的 JSON 长度 / 4（+4 结构开销）。
+         * 用同一个公式是为了让界面上的数字和本机 dsh 对得上，
+         * 而不是各算各的。</p>
+         *
+         * @param toolsTokens 工具 schema 的估算 token 数
+         */
+        default void onToolsTokens(long toolsTokens) {
+            // 默认忽略
+        }
+
+        /**
          * 一轮结束。
          *
          * @param failed 是否失败
@@ -564,8 +597,29 @@ public class DshSdkSession {
                     listener.onDiagnostic("retry",
                             why.isBlank() ? "模型调用失败，正在重试" : "模型调用失败，正在重试：" + why);
                 }
+                /* DSH 每次真正发请求前记一条请求上下文，带 contextWindow。
+                   这是上下文占用率的分母的唯一来源 —— usage 帧只给分子。
+                   字段缺失（适配器没上报）时传 -1，让上层知道「不知道」，
+                   而不是拿一个猜的数字去除。 */
+                case "request/context" -> {
+                    JsonNode window = data.path("contextWindow");
+                    if (window.isNumber()) {
+                        listener.onContextWindow(window.asLong());
+                    }
+                }
+                /* 本次请求的工具 schema。上下文分档里 tools 那一档的唯一来源 ——
+                   除了它，别处都拿不到「工具定义占了多少 token」。
+                   按 DSH 自己的估算公式（JSON 长度 / 4）算，保证与本机 dsh
+                   界面上的数字口径一致，不自创算法。 */
+                case "request/header" -> {
+                    JsonNode tools = data.path("header").path("tools");
+                    if (tools.isArray() && !tools.isEmpty()) {
+                        long chars = tools.toString().length();
+                        listener.onToolsTokens(chars / 4 + 4);
+                    }
+                }
                 default -> {
-                    // 其他事件（permission/preset、request/header 等）
+                    // 其他事件（permission/preset 等）
                     // 不影响本轮结果，按协议忽略即可。
                 }
             }

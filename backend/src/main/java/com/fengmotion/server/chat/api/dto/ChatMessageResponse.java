@@ -25,6 +25,8 @@ import com.fengmotion.server.chat.domain.ChatMessage;
  * @param reasoning   这条助手回复的思考过程正文；没有时不出现。
  *                    与 toolCalls 同理：思考也是这条回复的一部分，切走会话再回来要能看到。
  * @param todos       模型排的任务清单；没有时不出现。同样要能回看。
+ * @param usage       这条回复的 token 用量；没有时不出现。
+ *                    带上它，刷新后上下文占用条还在，而不是只在「刚发完」时可见。
  * @param createdAt   创建时间
  */
 public record ChatMessageResponse(
@@ -38,6 +40,7 @@ public record ChatMessageResponse(
         @JsonInclude(JsonInclude.Include.NON_NULL) JsonNode toolCalls,
         @JsonInclude(JsonInclude.Include.NON_NULL) String reasoning,
         @JsonInclude(JsonInclude.Include.NON_NULL) JsonNode todos,
+        @JsonInclude(JsonInclude.Include.NON_NULL) JsonNode usage,
         Instant createdAt) {
 
     /** 将领域对象转换为 API 响应对象。 */
@@ -53,6 +56,7 @@ public record ChatMessageResponse(
                 message.toolCalls(),
                 message.reasoning(),
                 message.todos(),
+                message.usage(),
                 message.createdAt());
     }
 }

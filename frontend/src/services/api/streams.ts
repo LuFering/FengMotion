@@ -13,6 +13,7 @@
 import type {
   AgentTask,
   ChatMessage,
+  ChatStreamContext,
   ChatStreamMessage,
   ChatStreamStatus,
   ChatStreamTitle,
@@ -439,6 +440,11 @@ export interface ChatStreamHandlers {
    */
   onUsage?: (usage: ChatStreamUsage) => void
   /**
+   * 上下文窗口大小（占用率的分母）。可选：适配器没上报时后端不发这帧。
+   * 只在模型切换时才会变，收到就存下来复用。
+   */
+  onContext?: (context: ChatStreamContext) => void
+  /**
    * 引擎为这条会话起的标题。可选：旧后端不产这帧时不会调用。
    * 收到后应更新会话标题，否则左栏只能一直是「未命名对话」。
    */
@@ -608,6 +614,24 @@ export function openChatSessionStream(
           ...(num(u.totalTokens) !== undefined ? { totalTokens: num(u.totalTokens) } : {}),
         }
         handlers.onUsage?.(usage)
+        return 'continue'
+      }
+      case 'context': {
+        /* 上下文帧，携带两类独立信息：
+           contextWindow=分母（适配器上报才有），toolsTokens=工具 schema 估算。
+           两者可能分两帧到，所以逐字段放行，不要求同时存在。
+           非正数一律当没有 —— 0 当分母会除零，0 当占用会污染分档。 */
+        const c = payload as unknown as Record<string, unknown>
+        const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : undefined)
+        const w = num(c.contextWindow)
+        const t = num(c.toolsTokens)
+        if (w !== undefined || t !== undefined) {
+          handlers.onContext?.({
+            type: 'context',
+            ...(w !== undefined ? { contextWindow: w } : {}),
+            ...(t !== undefined ? { toolsTokens: t } : {}),
+          })
+        }
         return 'continue'
       }
       case 'title': {

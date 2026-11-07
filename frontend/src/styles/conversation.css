@@ -2572,6 +2572,38 @@ html[data-theme="tactile"] .cv3-ddm {
   cursor: not-allowed;
 }
 
+/* 上下文占用（Bencho Context meter）：属于「辅助信息」层，和 token 用量同档。
+   原版是独立大卡片（标题+大数字+条+chips），放进消息末尾会喧宾夺主。
+   这里压成三行：读数、条、分档 —— 去掉它自己的标题行（「Context」），
+   因为旁边就是用量行，语境已经很清楚。 */
+.cv3-ctxmeter {
+  margin: 10px 0 0 0;
+  max-width: 280px;
+}
+.cv3-ctxmeter .ctx {
+  padding: 0;
+  background: none;
+  box-shadow: none;
+  border: none;
+}
+/* 标题行隐藏但保留 DOM：里面还带着「N%」这个最关键的数字，挪到读数行去 */
+.cv3-ctxmeter .ctx-head { display: none; }
+.cv3-ctxmeter .ctx-figure { margin: 0 0 6px; gap: 5px; }
+.cv3-ctxmeter .ctx-num { font-size: 13px; line-height: 16px; font-weight: 500; }
+.cv3-ctxmeter .ctx-of { font-size: 10.5px; color: var(--tx3); }
+.cv3-ctxmeter .ctx-bar { height: 4px; gap: 2px; }
+.cv3-ctxmeter .ctx-chips { margin-top: 6px; gap: 4px; }
+.cv3-ctxmeter .ctx-chip {
+  font-size: 10.5px;
+  line-height: 14px;
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+.cv3-ctxmeter .ctx-swatch { width: 6px; height: 6px; border-radius: 2px; }
+/* 顶部那行「N% · 估算」被隐藏后，百分比改由这里承担：
+   在读数后面补一个同色的百分比，避免信息丢失 */
+.cv3-ctxmeter .ctx-pct { font-size: 10.5px; color: var(--tx3); }
+
 /* token 用量：辅助信息，比正文再弱一档。等宽数字方便对比不同轮的消耗。 */
 .cv3-usage {
   /* 与工具列表同一量级的上边距：它也是贴在正文末尾的独立区块，不能和正文黏在一起 */

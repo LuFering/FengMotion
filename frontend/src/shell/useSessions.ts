@@ -107,6 +107,9 @@ export function toViewMessage(m: ContractMessage): ChatMessage {
     // 任务清单同样随消息读回：不读回来，completed 之后重读历史
     // 会把刚显示的清单冲掉 —— 用户看到的就是「闪一下就没了」。
     ...(m.todos && m.todos.length > 0 ? { todos: m.todos } : {}),
+    // 用量同样随消息读回：不读回来，上下文占用条只在「刚发完这一轮」可见，
+    // 刷新或重开会话就没了 —— 而「现在装了几成」正是重看历史时要问的。
+    ...(m.usage ? { usage: m.usage } : {}),
   }
 }
 

@@ -1285,8 +1285,33 @@ export interface ChatMessage {
   reasoning?: string
   /** 模型排的任务清单；没有清单时不出现。切走会话再回来要能回看。 */
   todos?: ChatStreamTodoItem[]
+  /** 这条回复的 token 用量；没有记录时不出现。
+      带上它，刷新后上下文占用条仍在，而不是只在「刚发完这一轮」时可见。 */
+  usage?: ChatMessageUsage
   createdAt: IsoDateTime
   demo?: DemoFlag
+}
+
+/**
+ * 一条助手回复的 token 用量（落库形态）。
+ *
+ * 与流式 `ChatStreamUsage` 的区别：这里多了 `promptTokens`（最后一次请求的
+ * prompt 大小 —— 上下文占用的分子）和 `toolsTokens` / `contextWindow`
+ * （工具 schema 估算与窗口容量），都是从同一条 dsh 请求里记下来的。
+ */
+export interface ChatMessageUsage {
+  /** 本轮各次调用累加的未缓存输入。 */
+  inputTokens?: number
+  outputTokens?: number
+  cacheReadTokens?: number
+  /** 上游给出的总计（含缓存命中）。 */
+  totalTokens?: number
+  /** 最后一次请求的 prompt 大小（不含输出）—— 上下文占用用它。 */
+  promptTokens?: number
+  /** 本次请求工具 schema 的估算 token。 */
+  toolsTokens?: number
+  /** 当时的上下文窗口容量；适配器没上报时不出现。 */
+  contextWindow?: number
 }
 
 export interface ChatSessionCreateRequest {
@@ -1475,6 +1500,24 @@ export interface ChatStreamDiagnostic {
   detail?: string
 }
 
+/**
+ * 上下文容量帧：当前模型最多能吃多少 token（占用率的分母）。
+ *
+ * 来源是 DSH 的 `request/context` 事件，每次发请求前记一条。
+ * **和 `usage` 是两回事**：usage 说「这次用了多少」，这里说「最多能用多少」。
+ * 分开发是因为更新时机不同 —— usage 每轮都变，窗口只跟模型走。
+ *
+ * 该字段 DSH 侧可能缺失（适配器没上报），所以后端**没值就不发帧**，
+ * 前端读不到就当作「不知道」，不要编一个分母出来。
+ */
+export interface ChatStreamContext {
+  type: 'context'
+  /** 上下文窗口 token 数。窗口大小只在换模型时变，收到就覆盖。 */
+  contextWindow?: number
+  /** 工具 schema 的估算 token（DSH 的 `request/header`，chars/4）。 */
+  toolsTokens?: number
+}
+
 export type ChatStreamMessage =
   | ChatStreamDelta
   | ChatStreamReasoning
@@ -1482,6 +1525,7 @@ export type ChatStreamMessage =
   | ChatStreamTask
   | ChatStreamStatus
   | ChatStreamUsage
+  | ChatStreamContext
   | ChatStreamTitle
   | ChatStreamTodo
   | ChatStreamDiagnostic

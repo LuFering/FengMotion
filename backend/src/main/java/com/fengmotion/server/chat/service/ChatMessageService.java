@@ -135,6 +135,7 @@ public class ChatMessageService {
                 null, // 用户消息不产生工具调用
                 null, // 用户消息没有思考过程
                 null, // 用户消息没有任务清单
+                null, // 用户消息没有用量记录（用量只属于助手回复）
                 now));
 
         if (idempotencyKey != null) {

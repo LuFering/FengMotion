@@ -52,11 +52,11 @@
      所以这里不再造第二套色相，而是把「五种内容」表达为
      「品牌蓝的五个强度」—— 同色系、靠明度分层，读起来是一个系统。
      需要更强区分时把组件切到 colour="Mono" 即可（那条路径本来就是灰阶）。 */
+  /* 三档，只用 DSH 真有的分类：System / Tools / Messages。
+     原版五档里的 Files、Memory 本项目拿不到数据，删掉而不是留空。 */
   --k-sys: var(--acc);
-  --k-tools: color-mix(in srgb, var(--acc) 82%, var(--surf));
-  --k-files: color-mix(in srgb, var(--acc) 62%, var(--surf));
-  --k-chat: color-mix(in srgb, var(--acc) 44%, var(--surf));
-  --k-mem: color-mix(in srgb, var(--acc) 28%, var(--surf));
+  --k-tools: color-mix(in srgb, var(--acc) 72%, var(--surf));
+  --k-msg: color-mix(in srgb, var(--acc) 44%, var(--surf));
   /* 20 dots of 11 on a 3px gap, plus the padding */
   width: 309px;
   box-sizing: border-box;
@@ -135,20 +135,16 @@
 /* mono: the kinds as strengths of the ink, strongest first */
 .ctx[data-mono] {
   --k-sys: var(--fill-on, #17181a);
-  --k-tools: color-mix(in srgb, var(--fill-on, #17181a) 76%, var(--fill-slab, #fff));
-  --k-files: color-mix(in srgb, var(--fill-on, #17181a) 54%, var(--fill-slab, #fff));
-  --k-chat: color-mix(in srgb, var(--fill-on, #17181a) 36%, var(--fill-slab, #fff));
-  --k-mem: color-mix(in srgb, var(--fill-on, #17181a) 22%, var(--fill-slab, #fff));}
+  --k-tools: color-mix(in srgb, var(--fill-on, #17181a) 68%, var(--fill-slab, #fff));
+  --k-msg: color-mix(in srgb, var(--fill-on, #17181a) 38%, var(--fill-slab, #fff));}
 
 .ctx-dot[data-kind="sys"] { background: var(--k-sys); }
 
 .ctx-dot[data-kind="tools"] { background: var(--k-tools); }
 
-.ctx-dot[data-kind="files"] { background: var(--k-files); }
 
-.ctx-dot[data-kind="chat"] { background: var(--k-chat); }
+.ctx-dot[data-kind="messages"] { background: var(--k-msg); }
 
-.ctx-dot[data-kind="mem"] { background: var(--k-mem); }
 
 /* the bar style: one stacked bar, a segment per kind and the room
    left as a faint tail; widths ease, so Compact slides the chat down */
@@ -183,11 +179,9 @@
 
 .ctx-seg[data-kind="tools"] { background: var(--k-tools); }
 
-.ctx-seg[data-kind="files"] { background: var(--k-files); }
 
-.ctx-seg[data-kind="chat"] { background: var(--k-chat); }
+.ctx-seg[data-kind="messages"] { background: var(--k-msg); }
 
-.ctx-seg[data-kind="mem"] { background: var(--k-mem); }
 
 .ctx-seg-room { background: color-mix(in srgb, var(--fill-on, #17181a) 8%, var(--fill-slab, #fff)); }
 
@@ -227,11 +221,9 @@
 
 .ctx-swatch[data-kind="tools"] { background: var(--k-tools); }
 
-.ctx-swatch[data-kind="files"] { background: var(--k-files); }
 
-.ctx-swatch[data-kind="chat"] { background: var(--k-chat); }
+.ctx-swatch[data-kind="messages"] { background: var(--k-msg); }
 
-.ctx-swatch[data-kind="mem"] { background: var(--k-mem); }
 
 .ctx-act {
   height: 28px;
