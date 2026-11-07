@@ -4,7 +4,7 @@ import { WebSearchTrace, isSearchTool, type SearchCall } from '@/components/WebS
 import {
   ChatMessage as ChatBubble, ChatComposer, ThinkingIndicator, MarkdownText,
   AnswerBody, AnswerActions, MessageActions, RunningDivider,
-  TaskList, type TaskItem,
+  TaskList, type TaskItem, type TaskStepChip,
 } from '@/components/chat'
 import type { CSSProperties } from 'react'
 import {
@@ -160,10 +160,14 @@ function toolCallsToTasks(calls: SearchCall[], running: boolean): TaskItem[] {
       icon: function Icon({ className }: { className?: string }) {
         return <ToolIcon name={name} className={className} />
       },
-      steps: list.map((call) => ({
-        label: call.arguments ? shortArgs(call.arguments) : `${name} 调用`,
-        chips: call.isError ? [{ label: '失败' }] : undefined,
-      })),
+      steps: list.map((call) => {
+        const chips = call.arguments ? toolChips(call.arguments) : []
+        return {
+          label: call.arguments ? shortArgs(call.arguments) : `${name} 调用`,
+          /* 失败标记优先：出错时最该看到的是「失败了」，不是它碰了哪个文件 */
+          chips: call.isError ? [{ label: '失败' }] : (chips.length > 0 ? chips : undefined),
+        }
+      }),
     }
   })
 }
@@ -260,6 +264,108 @@ function ToolIcon({ name, className }: { name: string; className?: string }) {
   return (
     <svg {...common}>
       <circle cx="9" cy="9" r="3.2" />
+    </svg>
+  )
+}
+
+
+/**
+ * 从工具参数里抽出「这一步碰到了哪些文件」。
+ *
+ * 对应 BoardUI 任务列表的 chips：步骤行右侧跟一串小标签，
+ * 每个标签是一个文件名 + 文件类型图标。它解决的问题是
+ * 「Read / 写 / 编辑 这些动词本身没有信息量」——真正想知道的是
+ * 它读了哪个文件。
+ *
+ * 只从参数里取真实出现的路径，不做推测：
+ * 认 file_path / path / file 这类字段，以及命令里看起来像文件名的词。
+ */
+function toolChips(args: string): TaskStepChip[] {
+  let parsed: Record<string, unknown> | null = null
+  try {
+    const v = JSON.parse(args)
+    if (v && typeof v === 'object' && !Array.isArray(v)) parsed = v as Record<string, unknown>
+  } catch {
+    /* 非 JSON：下面按命令文本猜 */
+  }
+
+  const paths: string[] = []
+  if (parsed) {
+    for (const k of ['file_path', 'path', 'file', 'target', 'filename']) {
+      const v = parsed[k]
+      if (typeof v === 'string' && v.trim()) paths.push(v.trim())
+    }
+  }
+  /* 命令里出现的文件名：取最后一个路径段，过滤掉纯参数与 URL */
+  if (paths.length === 0) {
+    const text = parsed ? String(parsed.command ?? '') : args
+    for (const word of text.split(/\s+/)) {
+      if (!/[./]/.test(word)) continue
+      if (word.startsWith('-') || word.startsWith('http')) continue
+      const base = word.replace(/^["']|["']$/g, '').split('/').pop() ?? ''
+      if (base && /\.\w+$/.test(base)) paths.push(base)
+    }
+  }
+
+  return paths.slice(0, 4).map((p) => {
+    const label = p.split('/').pop() || p
+    return { label, icon: <FileTypeIcon name={label} /> }
+  })
+}
+
+
+/**
+ * 文件类型图标（chip 里的那个小字）。
+ *
+ * BoardUI 用 React 官方图标标 .tsx 文件；本项目没有那套品牌图标，
+ * 改成按扩展名区分的通用图形 —— 目的是「一眼看出这是代码还是文档」，
+ * 不是「认出这是哪个框架」。
+ */
+function FileTypeIcon({ name }: { name: string }) {
+  const ext = (name.split('.').pop() ?? '').toLowerCase()
+  const common = { viewBox: '0 0 16 16', 'aria-hidden': true, className: 'tl-chip-svg' } as const
+
+  /* 代码类 */
+  if (['ts', 'tsx', 'js', 'jsx', 'py', 'go', 'rs', 'java', 'c', 'cpp', 'sh'].includes(ext)) {
+    return (
+      <svg {...common}>
+        <path d="M5.6 4.4 L2.6 8 L5.6 11.6" />
+        <path d="M10.4 4.4 L13.4 8 L10.4 11.6" />
+      </svg>
+    )
+  }
+  /* 配置 / 数据 */
+  if (['json', 'yml', 'yaml', 'toml', 'xml', 'csv'].includes(ext)) {
+    return (
+      <svg {...common}>
+        <path d="M3 3 H13 V13 H3 Z" />
+        <path d="M3 6.5 H13" />
+      </svg>
+    )
+  }
+  /* 文档 */
+  if (['md', 'txt', 'doc', 'docx', 'pdf'].includes(ext)) {
+    return (
+      <svg {...common}>
+        <path d="M4 2 H10 L12.5 4.5 V14 H4 Z" />
+        <path d="M6 7 H10.5" />
+        <path d="M6 9.8 H10.5" />
+      </svg>
+    )
+  }
+  /* 图片 / 视频 */
+  if (['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg', 'mp4', 'mov', 'webm'].includes(ext)) {
+    return (
+      <svg {...common}>
+        <rect x="2.5" y="3.5" width="11" height="9" rx="1.5" />
+        <path d="M2.5 10.5 L6 7.5 L9 10" />
+      </svg>
+    )
+  }
+  /* 兜底：普通文件 */
+  return (
+    <svg {...common}>
+      <path d="M4 2 H10 L12.5 4.5 V14 H4 Z" />
     </svg>
   )
 }
@@ -745,6 +851,32 @@ export function Conversation(props: {
 
   /* 工作台对话 tab 的 intro 免责句不属于创作会话，对话视图里滤掉 */
   const messages = useMemo(() => chat.messages.filter((m) => m.id !== 'intro'), [chat.messages])
+  /**
+   * 当前这轮实时推理的文本。
+   *
+   * 推理是「边想边说」的：帧到达时 AI 消息的 text 还是空的，thinking 已经有内容。
+   * 所以取最后一条 AI 消息的 thinking，而不是等整轮结束。
+   */
+  const streamingThinking = useMemo(() => {
+    const last = messages[messages.length - 1]
+    return last?.role === 'ai' ? (last.thinking ?? '') : ''
+  }, [messages])
+
+  /**
+   * 本轮推理的最终文本。
+   *
+   * 与 streamingThinking 分开：那个只在「最后一条是 AI 且还在流」时有值，
+   * 一轮结束后就变空 —— 于是「思考」任务会从列表里消失，用户再也看不到
+   * 这一轮想过什么。这里取本轮所有 AI 消息的 thinking 中最后一段非空的，
+   * 让结束后仍可回看（与历史路径的呈现一致）。
+   */
+  const lastThinking = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const m = messages[i]
+      if (m.role === 'ai' && m.thinking) return m.thinking
+    }
+    return ''
+  }, [messages])
   const userMessages = useMemo(() => messages.filter((m) => m.role === 'user'), [messages])
 
   /* 最新的用户消息 id：回复 effect 只依赖它（见下方说明，不能依赖整个数组） */
@@ -2198,8 +2330,13 @@ export function Conversation(props: {
                 <>
                   <WebSearchTrace calls={toolCalls} live />
                   <TaskList
-                    tasks={toolCallsToTasks(toolCalls.filter((c) => !isSearchTool(c.name)), pending)}
-                    revealed={toolCallsRevealed(toolCalls.filter((c) => !isSearchTool(c.name)))}
+                    tasks={[
+                      /* 实时思考：推理帧到达后，第一个任务就是「思考」。
+                         与历史路径同一个结构，用户看到的永远是同一种组织方式。 */
+                      ...((streamingThinking || lastThinking) ? [{ title: '思考', runningTitle: '正在思考', steps: [{ label: truncate(streamingThinking || lastThinking) }] }] : []),
+                      ...toolCallsToTasks(toolCalls.filter((c) => !isSearchTool(c.name)), pending),
+                    ]}
+                    revealed={((streamingThinking || lastThinking) ? 2 : 0) + toolCallsRevealed(toolCalls.filter((c) => !isSearchTool(c.name)))}
                     run={!pending}
                     working={pending ? '正在处理' : false}
                   />

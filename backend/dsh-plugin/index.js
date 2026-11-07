@@ -67,6 +67,8 @@ export function apply(ctx) {
       case 'chunk': {
         const chunk = frame.chunk
         if (chunk == null) return
+        /* 诊断：把所有 chunk 类型写到 stderr，确认引擎实际发了什么 */
+        try { process.stderr.write(`[diag] chunk.type=${chunk.type}\n`) } catch {}
         switch (chunk.type) {
           case 'text-delta':
             emit({ kind: 'text', text: chunk.text })
@@ -77,10 +79,19 @@ export function apply(ctx) {
           case 'block-start':
             emit({ kind: 'block_start', blockType: chunk.blockType })
             break
-          case 'block-end':
-            // 组装好的完整块：后端可用它校验拼接结果，不必逐帧重组。
-            emit({ kind: 'block_end', blockType: chunk.block?.type })
+          case 'block-end': {
+            /* 组装好的完整块。推理块（type=reasoning）的正文只能从这里拿到：
+               DSH 的 SDK 通道不发 reasoning-delta，也不发 assistant/message 事件，
+               而推理是一次性以完整块下发的。之前这里只转 blockType、不转 text，
+               后端就拿不到推理内容，界面上永远没有「思考过程」。 */
+            const block = chunk.block
+            emit({
+              kind: 'block_end',
+              blockType: block?.type,
+              ...(block?.type === 'reasoning' && typeof block.text === 'string' ? { text: block.text } : {}),
+            })
             break
+          }
           case 'usage':
             emit({
               kind: 'usage',

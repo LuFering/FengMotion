@@ -544,6 +544,22 @@ public class ChatStreamService {
         writeFrame(out, "delta", data);
     }
 
+    /**
+     * 写一帧 {@code reasoning}：推理增量。
+     *
+     * <p>与 {@code delta} 分开、而不是塞进同一个帧加个 kind 字段，是因为两者
+     * 在前端的落点完全不同：{@code delta} 进正文（会被 Markdown 渲染、被复制、
+     * 被朗读），{@code reasoning} 进折叠的「思考过程」块。混在一个通道里，
+     * 前端必须靠字段判断该往哪写，任一处漏判就会把推理混进正文。</p>
+     */
+    private void writeReasoning(PrintWriter out, String messageId, String delta) {
+        ObjectNode data = json.createObjectNode();
+        data.put("type", "reasoning");
+        data.put("messageId", messageId);
+        data.put("delta", delta);
+        writeFrame(out, "reasoning", data);
+    }
+
     /** 写一帧 {@code completed}，携带完整的助手消息。 */
     private void writeCompleted(PrintWriter out, ChatMessage message) {
         ObjectNode data = json.createObjectNode();
@@ -649,8 +665,12 @@ public class ChatStreamService {
 
         @Override
         public void onThinkingDelta(String text) {
-            // 推理增量不写入正文：只用于说明「还在思考」，不改变已输出的答案。
-            // 前端目前没有推理展示位，因此这里不发帧，避免污染正文。
+            /* 推理增量单独成帧，不进正文。
+               正文走 delta，推理走 reasoning —— 界面上前者是答案、后者是折叠的
+               「思考过程」。原先这里什么都不发（理由是「前端没有推理展示位」），
+               现在对话界面已经有 ReasoningBlock，这条链路要接通，
+               否则用户永远看不到模型在想什么。 */
+            writeReasoning(out, pendingMessageId, text);
         }
 
         /**
@@ -727,6 +747,20 @@ public class ChatStreamService {
         public void onAssistantMessage(String text, String reasoning) {
             // 正文只在整轮结束后以 completed 帧发出（此处可能还会被后续步骤覆盖），
             // 因此这里不发 delta——没有 token 级增量，也不该把中间态当最终结果。
+            //
+            // 推理内容不同：DSH 把它放在 assistant/message 的 content 块里
+            // （type=reasoning），一次给全，没有 token 级增量。界面上的「思考过程」
+            // 需要一个位置放它，所以这里单独发 reasoning 帧。
+            // 不去动模型侧：推理一直都在，只是之前没人转出来。
+            try {
+                java.nio.file.Files.writeString(java.nio.file.Path.of("/tmp/reasoning-diag.txt"),
+                        "called\ntext.len=" + (text == null ? -1 : text.length())
+                        + "\nreasoning.len=" + (reasoning == null ? -1 : reasoning.length())
+                        + "\npreview=" + (reasoning == null ? "" : reasoning.substring(0, Math.min(120, reasoning.length()))) + "\n");
+            } catch (Exception ignored) { }
+            if (reasoning != null && !reasoning.isBlank()) {
+                writeReasoning(out, pendingMessageId, reasoning);
+            }
         }
 
         @Override

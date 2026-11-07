@@ -430,6 +430,12 @@ public class DshSdkSession {
                 if ("running".equals(status)) {
                     listener.onTurnStarted(turn == 0 ? 1 : turn);
                 } else if ("idle".equals(status)) {
+                    /* 退出前必须再排空一次 stderr。
+                       stderr 由独立线程写入队列，到达顺序与 stdout 的通知不保证同步；
+                       推理增量（reasoning-delta）经常紧跟在 idle 之后才被读到，
+                       直接 return 会把它们全部丢掉 —— 表现是「插件明明收到了推理帧，
+                       后端一次都没回调」，而正文增量因为先到所以正常。 */
+                    drainStreamFrames(listener);
                     listener.onIdle();
                     return new Outcome(text.toString(), reasoning.toString(), failed, failure);
                 }
@@ -529,6 +535,17 @@ public class DshSdkSession {
                 String text = params.path("text").asText("");
                 if (!text.isEmpty()) {
                     listener.onThinkingDelta(text);
+                }
+            } else if ("block_end".equals(kind)) {
+                /* 推理块的完整正文。DSH 的 SDK 通道既不发 reasoning-delta、
+                   也不发 assistant/message 事件，推理只能从这里拿到（一次性整块）。
+                   正文块（blockType=text）不走这里：正文有 text-delta 增量，
+                   再收一次整块会重复。 */
+                if ("reasoning".equals(params.path("blockType").asText(""))) {
+                    String text = params.path("text").asText("");
+                    if (!text.isEmpty()) {
+                        listener.onThinkingDelta(text);
+                    }
                 }
             }
         }
