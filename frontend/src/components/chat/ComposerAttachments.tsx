@@ -1,40 +1,53 @@
 /**
- * ComposerAttachments —— 输入框内的待发送附件区。
+ * ComposerAttachments —— 输入框内的待发送附件。
  *
- * 形态参考 dsh 网页版插件的输入框附件：每张附件是一块**方形卡片**
- * （图标 + 文件名，右上角移除），横向排列，整体嵌在输入框内部上方，
- * 而不是飘在输入框外侧的一行 chip。
+ * 按 BoardUI「Composer 附件」组件的真实实现还原。
+ * 所有数值取自该组件线上 DOM 的计算样式（不是估算）：
+ *   图块        56×56、圆角 12px、边框 1px #EBEBEB
+ *   缩略图      图片占满 56×56，圆角 11px，object-cover
+ *   类型图标    24×24，位置 top:4px / left:3px
+ *   文件名      9px / 行高 15px / 字重 500 / 字距 0.2px
+ *               位置 top:36px / left:6px，max-width:44px 截断
+ *   进度文字    9px，位置 top:3px / right:3px，等宽数字
+ *   移除按钮    16×16 圆形，50% 透明白底，× 为 7×7 描边
+ *   进度环      沿圆角矩形顺时针描边，pathLength=100
  *
- * 为什么改掉原来的 chip：
- *   · 原来的 chip 只有 24px 高、一行一个，文件名一长就挤在一起，
- *     看不出这是「文件」还是「标签」
- *   · 卡片式能一眼区分文件类型（图标占主要视觉），且与下方文字区
- *     属于同一块白色容器，用户的阅读顺序是「附件 → 我要说什么」，
- *     而不是「外面一堆标签 → 输入框」
- *
- * 图标按文件类型着色：图像 / 视频 / 表格 / 文档 / 其他各一色，
- * 颜色全部取自品牌 token（--acc 系列），不引入外部调色盘。
+ * 图标资源是组件同款 SVG（src/assets/composer-icons），原样保留，
+ * 因为它们自带多层渐变与内阴影，手绘只能做出近似。
  */
 
-import { FileText, FileSpreadsheet, Image as ImageIcon, Film, File, X, Loader2, AlertCircle } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { useState } from 'react'
+import codeIcon from '@/assets/composer-icons/code.svg'
+import documentIcon from '@/assets/composer-icons/document.svg'
+import presentationIcon from '@/assets/composer-icons/presentation.svg'
+import spreadsheetIcon from '@/assets/composer-icons/spreadsheet.svg'
+import videoIcon from '@/assets/composer-icons/video.svg'
 import './composer-attachments.css'
+
+/** 附件的六种类型，对应组件里的六种图块。 */
+export type ComposerAttachmentKind =
+  | 'image'
+  | 'document'
+  | 'spreadsheet'
+  | 'presentation'
+  | 'code'
+  | 'video'
 
 /** 一张待发送附件。 */
 export interface ComposerAttachment {
-  /** 文件名（含扩展名） */
   name: string
-  /** 粗分类，决定图标与配色 */
-  kind: 'image' | 'video' | 'sheet' | 'doc' | 'other'
-  /** 上传中 */
-  uploading?: boolean
+  kind: ComposerAttachmentKind
+  /** 图片附件的本地预览地址；有则直接铺满图块 */
+  src?: string
+  /**
+   * 上传进度 0–100。
+   * 有值（含 0）时显示进度环并在角落计数；
+   * `undefined` 表示已落地 —— 环消失、角标消失，图块不再变暗。
+   */
+  progress?: number
   /** 上传失败原因 */
-  uploadError?: string
-  /** 附件用途（项目资源引用时才有） */
-  purpose?: string
-  /** 用途的中文说明 */
-  purposeLabel?: string
-  /** 补充说明，作为 title 提示 */
+  error?: string
+  /** 补充说明（如附件用途）。图块放不下，写进 title 提示。 */
   note?: string
 }
 
@@ -43,86 +56,105 @@ export interface ComposerAttachmentsProps {
   onRemove: (index: number) => void
 }
 
-/** 每种类型一组图标与配色 token。 */
-const KIND_META = {
-  image: { Icon: ImageIcon, tone: 'img' },
-  video: { Icon: Film, tone: 'vid' },
-  sheet: { Icon: FileSpreadsheet, tone: 'sheet' },
-  doc: { Icon: FileText, tone: 'doc' },
-  other: { Icon: File, tone: 'other' },
-} as const
+/** 非图片类型的图标。 */
+const KIND_ICON: Record<Exclude<ComposerAttachmentKind, 'image'>, string> = {
+  document: documentIcon,
+  spreadsheet: spreadsheetIcon,
+  presentation: presentationIcon,
+  code: codeIcon,
+  video: videoIcon,
+}
 
 /**
- * 去掉扩展名，只留主文件名。
+ * 进度环的路径。
  *
- * 卡片宽度固定，长文件名必须截断；保留扩展名信息由底部的
- * 大写小字后缀单独呈现，所以这里剥掉避免「.mp4」占掉正文宽度。
+ * 取自组件真实 SVG：一个 56×56 圆角矩形，顺时针从顶部中点开始。
+ * 用 pathLength="100" 把长度归一化，这样 strokeDasharray 可以直接
+ * 写百分比，不用自己算周长。
  */
+const RING_PATH = 'M 28 1 H 44 A 11 11 0 0 1 55 12 V 44 A 11 11 0 0 1 44 55 H 12 A 11 11 0 0 1 1 44 V 12 A 11 11 0 0 1 12 1 Z'
+
+/** 去掉扩展名，只留主文件名（截断交给 CSS）。 */
 function stem(name: string): string {
   const i = name.lastIndexOf('.')
   return i > 0 ? name.slice(0, i) : name
 }
 
-/** 取扩展名（大写，不含点）；没有则返回空串。 */
-function ext(name: string): string {
-  const i = name.lastIndexOf('.')
-  return i > 0 ? name.slice(i + 1).toUpperCase() : ''
-}
-
 export function ComposerAttachments({ items, onRemove }: ComposerAttachmentsProps) {
+  /* 悬停的是哪一张：用来决定移除按钮显不显示。
+     组件原版是 hover 才显现（触屏常显），与它保持一致。 */
+  const [hovered, setHovered] = useState<number | null>(null)
+
   if (items.length === 0) {
     return null
   }
+
   return (
-    <ul className="ca-row" aria-label="待发送的附件">
+    <ul className="cat-strip" aria-label="待发送的附件">
       {items.map((item, i) => {
-        const { Icon, tone } = KIND_META[item.kind] ?? KIND_META.other
-        const suffix = ext(item.name)
+        const uploading = item.progress !== undefined
+        const pct = uploading ? Math.min(100, Math.max(0, item.progress ?? 0)) : 100
         return (
           <li
             key={`${item.name}-${i}`}
-            className="ca-card"
-            data-tone={tone}
-            data-busy={item.uploading ? '' : undefined}
-            data-error={item.uploadError ? '' : undefined}
-            title={[item.name, item.purposeLabel, item.note].filter(Boolean).join(' · ')}
+            className="cat-tile"
+            data-uploading={uploading ? '' : undefined}
+            data-error={item.error ? '' : undefined}
+            title={[item.name, item.note, item.error ? `上传失败：${item.error}` : null]
+              .filter(Boolean).join(' · ')}
+            onMouseEnter={() => setHovered(i)}
+            onMouseLeave={() => setHovered((h) => (h === i ? null : h))}
           >
-            {/* 图标区：占据卡片上半部的主体视觉，颜色由 data-tone 决定 */}
-            <span className="ca-figure" aria-hidden>
-              <Icon size={19} strokeWidth={1.6} />
-            </span>
+            {/* 内容层：图片铺缩略图，其他类型显示 24px 图标 + 文件名。
+                上传中整层变暗（组件原版就是这样表示「还没落地」）。 */}
+            <div className="cat-body" data-dim={uploading ? '' : undefined}>
+              {item.kind === 'image' && item.src ? (
+                <img className="cat-thumb" src={item.src} alt="" />
+              ) : (
+                <>
+                  <img
+                    className="cat-icon"
+                    src={KIND_ICON[item.kind as Exclude<ComposerAttachmentKind, 'image'>]}
+                    alt=""
+                    aria-hidden
+                  />
+                  <span className="cat-name">{stem(item.name)}</span>
+                </>
+              )}
+            </div>
 
-            {/* 文件名：主名截断 + 后缀小字。两行结构保证长名也不会把卡片撑破 */}
-            <span className="ca-name">{stem(item.name)}</span>
-            {suffix ? <span className="ca-ext">{suffix}</span> : null}
-
-            {/* 用途角标：只有项目资源引用才出现，标出「这张图是干吗用的」 */}
-            {item.purposeLabel ? <span className="ca-purpose">{item.purposeLabel}</span> : null}
-
-            {/* 上传中：盖住图标显示进度环，避免用户重复添加 */}
-            {item.uploading ? (
-              <span className="ca-busy" role="status" aria-label={`${item.name} 上传中`}>
-                <Loader2 size={15} className="ca-spin" />
-              </span>
+            {/* 进度环：只在 0–99 之间画；到 100 即视为落地，环与角标一起消失 */}
+            {uploading && pct < 100 ? (
+              <>
+                <svg className="cat-ring" viewBox="0 0 56 56" aria-hidden>
+                  <path
+                    d={RING_PATH}
+                    fill="none"
+                    stroke="var(--acc)"
+                    strokeWidth={2}
+                    strokeLinecap="round"
+                    pathLength={100}
+                    strokeDasharray={`${pct} 200`}
+                  />
+                </svg>
+                <span className="cat-pct" aria-hidden>{Math.round(pct)}%</span>
+              </>
             ) : null}
 
-            {/* 上传失败：图标换成警示色，并在 title 里给出原因 */}
-            {item.uploadError ? (
-              <span className="ca-fail" aria-label={`${item.name} 上传失败：${item.uploadError}`}>
-                <AlertCircle size={14} />
-              </span>
-            ) : null}
-
-            <Button
+            <button
               type="button"
-              variant="ghost"
-              size="icon-xs"
-              className="ca-remove"
-              aria-label={`移除附件 ${item.name}`}
+              className="cat-remove"
+              data-visible={hovered === i || item.error ? '' : undefined}
+              aria-label={item.error
+                ? `移除附件 ${item.name}（上传失败：${item.error}）`
+                : `移除附件 ${item.name}`}
               onClick={() => onRemove(i)}
             >
-              <X />
-            </Button>
+              <svg viewBox="0 0 6.8 6.8" width="7" height="7" aria-hidden>
+                <path d="M0.57 0.57L6.23 6.23" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+                <path d="M6.23 0.57L0.57 6.23" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+              </svg>
+            </button>
           </li>
         )
       })}

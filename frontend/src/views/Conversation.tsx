@@ -812,6 +812,10 @@ export function Conversation(props: {
        而不是静默消失让用户以为选上了。 */
     uploading?: boolean
     uploadError?: string
+    /* 本地预览地址（object URL）。图片附件在卡片里直接显示缩略图，
+       而不是一个「图片」图标 —— 用户选了两张图，必须能看出是哪两张。
+       生命周期：随附件一起移除时回收，见 removeAttachment。 */
+    previewUrl?: string
   }[]>([])
   const [permission, setPermission] = useState<'readOnly' | 'workspaceWrite' | 'fullAccess'>('workspaceWrite')
   const [harnessId, setHarnessId] = useState(HARNESSES[0].id)
@@ -1784,17 +1788,55 @@ export function Conversation(props: {
   const sendBlocked = !(activeIsServer || harnessState.state === 'available')
 
   /* 附件：kind 按 MIME 判定；最多 6 个（同首页上限） */
+  /**
+   * 移除一个待发送附件。
+   *
+   * 必须回收 object URL：附件被删掉后，那张预览图不再有任何引用，
+   * 但浏览器不会自己释放 blob，反复加删图片会让内存一直涨。
+   */
+  const removeAttachment = (index: number) => {
+    setAttachments((list) => {
+      const target = list[index]
+      if (target?.previewUrl) URL.revokeObjectURL(target.previewUrl)
+      return list.filter((_, i) => i !== index)
+    })
+  }
+
+  /**
+   * 把附件映射到 BoardUI 组件的六种图块类型。
+   *
+   * 判据优先用 MIME（浏览器已给出准确类型），MIME 不可靠时退回扩展名 ——
+   * 有些系统给 .key/.md 的 type 是空串，只看 MIME 会全部落进 document。
+   */
+  const attachmentKind = (a: { name: string; kind: 'file' | 'image' | 'video' | 'technique'; mimeType?: string }):
+    'image' | 'document' | 'spreadsheet' | 'presentation' | 'code' | 'video' => {
+    const mime = a.mimeType ?? ''
+    if (a.kind === 'image' || mime.startsWith('image/')) return 'image'
+    if (a.kind === 'video' || mime.startsWith('video/')) return 'video'
+    if (/\.(xlsx?|csv|numbers)$/i.test(a.name)) return 'spreadsheet'
+    if (/\.(pptx?|key)$/i.test(a.name)) return 'presentation'
+    if (/\.(tsx?|jsx?|py|java|go|rs|rb|php|css|html|json|yaml|yml|sh)$/i.test(a.name)) return 'code'
+    return 'document'
+  }
+
   const addFiles = (files: File[], forced?: 'file' | 'image' | 'video', done?: () => void) => {
     if (files.length > 0) {
-      const picked = files.slice(0, 6).map((f) => ({
-        file: f,
-        uploadId: crypto.randomUUID(),
-        name: f.name,
-        size: f.size,
-        kind: (forced ?? (f.type.startsWith('image/') ? 'image' : f.type.startsWith('video/') ? 'video' : 'file')) as 'file' | 'image' | 'video',
-        mimeType: f.type,
-        uploading: true,
-      }))
+      const picked = files.slice(0, 6).map((f) => {
+        const kind = (forced ?? (f.type.startsWith('image/') ? 'image' : f.type.startsWith('video/') ? 'video' : 'file')) as 'file' | 'image' | 'video'
+        return {
+          file: f,
+          uploadId: crypto.randomUUID(),
+          name: f.name,
+          size: f.size,
+          kind,
+          mimeType: f.type,
+          uploading: true,
+          /* 图片直接给本地 object URL 做缩略图：卡片上显示真实画面，
+             用户才能确认「选的是不是这张」。
+             其他类型不需要，不创建以免多占内存。 */
+          previewUrl: kind === 'image' ? URL.createObjectURL(f) : undefined,
+        }
+      })
       /* 先在界面里占位（显示「上传中」），再逐个上传。
          选完就传、而不是等发送时再传：用户能看到进度，发送时也不用等。 */
       setAttachments((prev) => [...prev, ...picked].slice(0, 6))
@@ -2666,19 +2708,21 @@ export function Conversation(props: {
                 <ComposerAttachments
                   items={attachments.map((a) => ({
                     name: a.name,
-                    kind: a.kind === 'image' ? 'image'
-                      : a.kind === 'video' ? 'video'
-                      : /\.(xlsx|xls|csv)$/i.test(a.name) ? 'sheet'
-                      : /\.(docx?|pdf|md|txt)$/i.test(a.name) ? 'doc'
-                      : 'other',
-                    uploading: a.uploading,
-                    uploadError: a.uploadError,
-                    purposeLabel: a.purpose && a.purpose !== 'unspecified'
+                    kind: attachmentKind(a),
+                    src: a.previewUrl,
+                    /* 上传中用进度环表示。后端目前不回报字节级进度，
+                       所以这里给的是「进行中」的确定性提示而不是假进度：
+                       环画到 35%，与组件原版无进度时的动效位置一致。 */
+                    progress: a.uploading ? 35 : undefined,
+                    error: a.uploadError,
+                    /* 用途不进图块（图块只有 56px，塞不下），
+                       但保留在 title 里 —— 「这张图用于画面」是用户特意选的，
+                       丢了就查不到了 */
+                    note: a.purpose && a.purpose !== 'unspecified'
                       ? (PURPOSE_TXT[a.purpose] ?? a.purpose)
                       : undefined,
-                    note: a.note,
                   }))}
-                  onRemove={(i) => setAttachments((l) => l.filter((_, j) => j !== i))}
+                  onRemove={removeAttachment}
                 />
               ) : null}
               error={sendError ? (

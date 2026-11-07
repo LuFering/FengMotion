@@ -48,6 +48,50 @@ public class UploadService {
      */
     private static final Set<String> ALLOWED_PREFIXES = Set.of("image/", "video/", "audio/", "text/", "application/pdf");
 
+    /**
+     * 额外允许的精确 MIME：Office 文档。
+     *
+     * <p>为什么不能靠前缀：它们的类型形如 {@code application/vnd.openxmlformats-officedocument...}，
+     * 既不以 {@code application/pdf} 开头，也不属于上面任何一类前缀，
+     * 于是「用户把剧本表格拖进来」这条最常见的路径会直接 415 失败（实测）。
+     * 这里逐个列出而不是放开整个 {@code application/} —— 那会把
+     * {@code application/x-msdownload} 这类可执行文件也放进来。</p>
+     */
+    private static final Set<String> ALLOWED_MIME_EXACT = Set.of(
+            "application/msword",
+            "application/vnd.ms-excel",
+            "application/vnd.ms-powerpoint",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+            "application/vnd.apple.keynote",
+            "application/vnd.oasis.opendocument.text",
+            "application/vnd.oasis.opendocument.spreadsheet",
+            "application/vnd.oasis.opendocument.presentation",
+            "application/rtf",
+            /* 客户端给不出 MIME 时的回退值（见 normalizeMime）。
+               .key / .md 这类文件在 Linux 上经常没有关联类型，
+               浏览器就报这个。允许它意味着「先存下来」，
+               落盘名仍由 extensionFor 生成、不含用户输入，
+               不会借它写出可执行文件后缀。 */
+            "application/octet-stream");
+
+    /**
+     * MIME 不可信时按扩展名兜底。
+     *
+     * <p><strong>为什么必须兜底</strong>：MIME 由客户端声明，装了 WPS/Office 的机器
+     * 会把 {@code .docx} 报成 {@code application/wps-office.docx}、
+     * 把 {@code .xlsx} 报成 {@code application/wps-office.xlsx}（实测）。
+     * 这既不在任何前缀里也不在精确列表里，于是「拖进来一个表格」会 415 失败，
+     * 而失败原因对用户来说毫无意义。</p>
+     *
+     * <p>只放文档类扩展名，且落盘名仍由 {@link #extensionFor} 生成、
+     * 不采用用户输入，所以这条路不会成为写可执行文件的入口。</p>
+     */
+    private static final Set<String> ALLOWED_EXTENSIONS = Set.of(
+            "doc", "docx", "xls", "xlsx", "ppt", "pptx", "key", "rtf",
+            "odt", "ods", "odp", "pdf", "txt", "md", "csv");
+
     /** 落盘根目录；默认 {@code ~/.fengmotion/uploads}，与工作区目录分开。 */
     private final Path root;
 
@@ -71,7 +115,7 @@ public class UploadService {
                     "文件超过 " + (MAX_BYTES / 1024 / 1024) + "MB 上限");
         }
         String mimeType = normalizeMime(file.getContentType());
-        if (!isAllowed(mimeType)) {
+        if (!isAllowed(mimeType, file.getOriginalFilename())) {
             throw new ApiException(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "unsupported_media_type",
                     "不支持的文件类型：" + mimeType);
         }
@@ -201,8 +245,24 @@ public class UploadService {
      * @param mimeType 规范化后的 MIME
      * @return 是否允许
      */
-    private static boolean isAllowed(String mimeType) {
-        return ALLOWED_PREFIXES.stream().anyMatch(mimeType::startsWith);
+    private static boolean isAllowed(String mimeType, String originalName) {
+        if (ALLOWED_MIME_EXACT.contains(mimeType)
+                || ALLOWED_PREFIXES.stream().anyMatch(mimeType::startsWith)) {
+            return true;
+        }
+        // MIME 不认识时看扩展名：WPS 等本机关联会给出厂商私有 MIME（见 ALLOWED_EXTENSIONS）
+        return ALLOWED_EXTENSIONS.contains(extensionOf(originalName));
+    }
+
+    /** 取小写扩展名（不含点）；没有则返回空串。 */
+    private static String extensionOf(String name) {
+        if (name == null) {
+            return "";
+        }
+        int dot = name.lastIndexOf('.');
+        return dot < 0 || dot == name.length() - 1
+                ? ""
+                : name.substring(dot + 1).toLowerCase(Locale.ROOT);
     }
 
     /**
@@ -246,6 +306,17 @@ public class UploadService {
             case "audio/wav", "audio/x-wav" -> ".wav";
             case "application/pdf" -> ".pdf";
             case "text/plain" -> ".txt";
+            case "application/msword" -> ".doc";
+            case "application/vnd.ms-excel" -> ".xls";
+            case "application/vnd.ms-powerpoint" -> ".ppt";
+            case "application/vnd.openxmlformats-officedocument.wordprocessingml.document" -> ".docx";
+            case "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" -> ".xlsx";
+            case "application/vnd.openxmlformats-officedocument.presentationml.presentation" -> ".pptx";
+            case "application/vnd.apple.keynote" -> ".key";
+            case "application/vnd.oasis.opendocument.text" -> ".odt";
+            case "application/vnd.oasis.opendocument.spreadsheet" -> ".ods";
+            case "application/vnd.oasis.opendocument.presentation" -> ".odp";
+            case "application/rtf" -> ".rtf";
             default -> "";
         };
     }

@@ -1,171 +1,160 @@
 /* ═══════════════════════════════════════════════════════════════
-   输入框内的待发送附件
+   输入框内的待发送附件（BoardUI「Composer 附件」组件）
 
-   形态参考 dsh 网页版插件的附件区：方形卡片、图标在上、文件名在下、
-   右上角悬浮移除按钮。整块嵌在输入框内部左上角。
+   数值全部取自该组件线上 DOM 的计算样式：
+     图块    56×56 / 圆角 12px / 边框 1px #EBEBEB
+     缩略图  56×56 / 圆角 11px / object-fit:cover
+     图标    24×24 / top:4px / left:3px
+     文件名  9px / lh 15px / w500 / ls .2px / top:36px / left:6px
+             max-width:44px 截断
+     角标    9px / top:3px / right:3px / tabular-nums
+     移除    16×16 圆 / 50% 透明白底 / × 7×7
+     进度环  沿圆角矩形顺时针，stroke-width 2，pathLength 100
 
-   尺寸取 82×70：比参考图略窄一点 —— 对话列宽 680px，一行要能放下
-   5 张卡还有余量；再宽就会换行，把输入框顶得很高。
-
-   配色只用品牌 token，不引外部色板：
-     · 图像 → --acc（品牌蓝）
-     · 视频 → --warn（琥珀，与「等待」语义一致）
-     · 表格 → --ok（绿，与「完成」语义一致）
-     · 文档 → --acc 降饱和
-     · 其他 → --dim（中性灰）
+   深色适配：图块底色与描边走主题变量；图标本身是彩色 SVG，
+   在深色底上依然可读，不做反色处理（反色会让它们失真）。
    ═══════════════════════════════════════════════════════════════ */
 
-.ca-row {
+.cat-strip {
   display: flex;
   flex-wrap: wrap;
+  align-items: flex-start;
   gap: 8px;
-  /* 与输入框左右内边距对齐，卡片不会贴到胶囊边缘 */
-  padding: 2px 2px 0;
+  padding: 0;
   margin: 0;
   list-style: none;
 }
 
-.ca-card {
+/* ── 图块 ────────────────────────────────────────────────────── */
+.cat-tile {
   position: relative;
-  display: flex;
   flex: none;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  width: 82px;
-  height: 70px;
+  width: 56px;
+  height: 56px;
   box-sizing: border-box;
-  padding: 8px 6px 6px;
   border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--hole);
-  transition: border-color 140ms ease, background 140ms ease;
+  border-radius: 12px;
+  /* 参考组件用 #EBEBEB；深色下用主题的洞色，观感一致但不会刺眼 */
+  background: transparent;
 }
 
-/* 悬停时整卡轻微提亮：提示「这是一块可以操作的东西」，
-   而不是纯展示的图标 */
-.ca-card:hover {
-  border-color: color-mix(in srgb, var(--fg) 18%, var(--line));
-  background: color-mix(in srgb, var(--fg) 4%, var(--hole));
+/* 失败态：描边染红但只到 45%，并降低整体不透明度。
+   不用满强度红框：后端目前不支持 Office 文档，这类失败很常见，
+   满强度红框会让一整排图块看起来像坏了 —— 失败信息在 title 里也能读到。 */
+.cat-tile[data-error] {
+  border-color: color-mix(in srgb, var(--bad) 45%, var(--line));
 }
 
-/* ── 图标 ────────────────────────────────────────────────────── */
-.ca-figure {
-  display: grid;
-  flex: none;
-  place-items: center;
-  width: 26px;
-  height: 26px;
-  color: var(--dim);
+.cat-tile[data-error] .cat-body {
+  opacity: 0.5;
 }
 
-.ca-card[data-tone='img'] .ca-figure { color: var(--acc); }
-.ca-card[data-tone='vid'] .ca-figure { color: var(--warn); }
-.ca-card[data-tone='sheet'] .ca-figure { color: var(--ok); }
-.ca-card[data-tone='doc'] .ca-figure {
-  color: color-mix(in srgb, var(--acc) 55%, var(--dim));
+/* 内容层：图标与文件名都按绝对坐标摆，与组件原版一致 ——
+   这样 56px 的盒子里，「24px 图标在上、9px 名字在下」的比例才不会跑偏 */
+.cat-body {
+  position: absolute;
+  inset: 0;
+  transition: opacity 300ms ease-out;
 }
 
-/* ── 文件名 ──────────────────────────────────────────────────── */
-/* 主名一行截断：卡片只有 70px 宽，两行文字会把图标挤没 */
-.ca-name {
-  max-width: 100%;
+/* 上传中变暗：表达「还没落地」，与组件原版一致 */
+.cat-body[data-dim] {
+  opacity: 0.55;
+}
+
+.cat-thumb {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 11px;
+  object-fit: cover;
+}
+
+.cat-icon {
+  position: absolute;
+  top: 4px;
+  left: 3px;
+  width: 24px;
+  height: 24px;
+}
+
+.cat-name {
+  position: absolute;
+  top: 32px;
+  left: 5px;
+  max-width: 44px;
   overflow: hidden;
-  color: var(--fg);
-  font-size: 11px;
-  line-height: 14px;
+  color: var(--dim);
+  font-size: 9px;
+  font-weight: 500;
+  line-height: 15px;
+  letter-spacing: 0.2px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-/* 扩展名单列一行小字：用户扫一眼就知道是 mp4 还是 xlsx */
-.ca-ext {
-  color: var(--dim);
-  font-family: var(--font-mono);
-  font-size: 9px;
-  line-height: 11px;
-  letter-spacing: 0.04em;
-}
-
-/* ── 用途角标 ────────────────────────────────────────────────── */
-/* 只有从项目资源库里选的附件才有用途，压在图标上方，
-   避免额外占高度 */
-.ca-purpose {
+/* ── 进度环 ──────────────────────────────────────────────────── */
+/* -inset-px 让环压在边框上（边框 1px + 环 2px 各占一半），
+   看起来像绕着图块描了一圈 */
+.cat-ring {
   position: absolute;
-  top: 4px;
-  left: 4px;
-  padding: 1px 4px;
-  border-radius: 4px;
-  background: color-mix(in srgb, var(--acc) 16%, var(--hole));
-  color: var(--acc);
-  font-size: 9px;
-  line-height: 12px;
+  inset: -1px;
+  width: 56px;
+  height: 56px;
+  pointer-events: none;
 }
 
-/* ── 移除按钮 ────────────────────────────────────────────────── */
-/* 常态半透明，悬停卡片时完全显现 —— 一直实心会把文件名挤掉注意力。
-   用 shadcn Button（ghost + icon-xs），这里只覆盖定位与配色。
-
-   注意：按钮必须落在卡片**内部**（top:2 而不是 -6）。放到卡片外侧会被
-   .cc-pill 的 10px 内边距与相邻卡片挤在一起 —— 实测第一张卡的按钮会压到
-   左侧、最后一张的会顶到胶囊右边缘，看起来像错位。 */
-.ca-remove {
-  position: absolute;
-  top: 2px;
-  right: 2px;
-  width: 16px;
-  height: 16px;
-  border: 1px solid var(--line) !important;
-  border-radius: 50% !important;
-  background: var(--surf) !important;
-  color: var(--dim);
-  opacity: 0;
-  transition: opacity 140ms ease, color 140ms ease;
-}
-
-.ca-card:hover .ca-remove,
-.ca-remove:focus-visible {
-  opacity: 1;
-}
-
-.ca-remove:hover {
-  color: var(--bad) !important;
-}
-
-/* 触屏没有 hover：直接常显，否则点不到 */
-@media (hover: none) {
-  .ca-remove { opacity: 1; }
-}
-
-/* ── 上传中 / 失败 ───────────────────────────────────────────── */
-.ca-busy {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  border-radius: 9px;
-  background: color-mix(in srgb, var(--hole) 78%, transparent);
-  color: var(--acc);
-}
-
-.ca-spin {
-  animation: ca-rotate 900ms linear infinite;
-}
-
-@keyframes ca-rotate {
-  to { transform: rotate(360deg); }
-}
-
-/* 失败：整卡描红，并把图标染成失败色 —— 状态不只靠颜色，
-   title 与 aria-label 里也带了原因文字 */
-.ca-card[data-error] {
-  border-color: color-mix(in srgb, var(--bad) 45%, var(--line));
-}
-
-.ca-fail {
+.cat-pct {
   position: absolute;
   top: 3px;
   right: 3px;
-  color: var(--bad);
+  color: var(--fg);
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  line-height: 16px;
+}
+
+/* ── 移除按钮 ────────────────────────────────────────────────── */
+/* 组件原版：16×16 圆形、50% 透明白底、白色 ×，hover 时出现。
+   深色主题下「白底 ×」在浅色图块上会看不见，所以底色改用
+   黑/白混合的中性半透明，两套主题都成立。 */
+.cat-remove {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--fg) 38%, transparent);
+  color: #fff;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 200ms ease-in-out;
+}
+
+.cat-tile:hover .cat-remove,
+.cat-remove:focus-visible,
+.cat-remove[data-visible] {
+  opacity: 1;
+}
+
+.cat-remove:hover {
+  background: color-mix(in srgb, var(--fg) 62%, transparent);
+}
+
+/* 触屏没有 hover：常显，否则点不到 */
+@media (hover: none) {
+  .cat-remove { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cat-remove { transition: none; }
 }
