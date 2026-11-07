@@ -34,6 +34,17 @@ export interface AttachMenuItem {
 
 export interface AttachMenuProps {
   onPickFiles: () => void
+  /**
+   * 已达附件上限时禁用加号。
+   *
+   * 这是参考组件里加号唯一的「状态变化」：数量到顶后按钮变灰、
+   * 光标变禁用，悬停提示改成「已达上限」而不是「添加」。
+   * 之前这里永远是可点的，用户点开菜单、选文件、再被静默截断，
+   * 完全不知道发生了什么。
+   */
+  disabled?: boolean
+  /** 禁用原因（悬停提示） */
+  disabledHint?: string
   /** 这些动作本项目还没有，传 undefined 就不渲染 */
   onGoal?: () => void
   onPlan?: () => void
@@ -41,7 +52,9 @@ export interface AttachMenuProps {
   onPluginHint?: (label: string) => void
 }
 
-export function AttachMenu({ onPickFiles, onGoal, onPlan, onPluginHint }: AttachMenuProps) {
+export function AttachMenu({
+  onPickFiles, onGoal, onPlan, onPluginHint, disabled = false, disabledHint,
+}: AttachMenuProps) {
   const actions: AttachMenuItem[] = [
     { id: 'files', label: '文件和文件夹', icon: Folder, onSelect: onPickFiles },
     ...(onGoal
@@ -62,8 +75,17 @@ export function AttachMenu({ onPickFiles, onGoal, onPlan, onPluginHint }: Attach
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <button type="button" className="cc-attach" aria-label="添加附件" title="添加附件">
-          <Plus size={18} strokeWidth={2.2} />
+        <button
+          type="button"
+          className="cc-attach"
+          aria-label="添加附件"
+          title={disabled ? disabledHint : '添加附件'}
+          disabled={disabled}
+        >
+          {/* 36px 圆钮配 18px 图标：LeiBox 用 32px 钮 + 11px 图标，
+              但它的图标是实心 FontAwesome plus，视觉重量比描边图标重得多。
+              换到 stroke 图标上照搬 11px 会显得发虚，18px 才接近其观感。 */}
+          <Plus size={18} strokeWidth={2.4} />
         </button>
       </PopoverTrigger>
       <PopoverContent side="top" align="start" sideOffset={8} className="am-pop" aria-label="添加">

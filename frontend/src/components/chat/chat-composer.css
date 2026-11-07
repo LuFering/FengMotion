@@ -27,18 +27,27 @@
 
 /* 上排文字、下排控件：胶囊改成纵向，文字独占整行。
    一行塞满控件时，680px 里文字区只剩中间一小段，长占位文字被挤成两行。 */
+/* 胶囊外观取自 LeiBox「Agent 对话输入框」：
+   圆角 24px、内边距 14px（p-3.5）、焦点时阴影加深。
+   比原来的 18px 圆角更圆润，与内部 36px 圆钮的弧度更协调。 */
 .cc-pill {
   position: relative;
   display: flex;
   width: 100%;
   flex-direction: column;
   gap: 2px;
-  padding: 10px 10px 8px;
+  padding: 14px 14px 10px;
   border: 1px solid var(--line);
-  border-radius: 18px;
+  border-radius: 24px;
   background: var(--surf);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
   transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+/* 聚焦时阴影加深（参考组件用 focus-within 表达「正在这里输入」）。
+   用 box-shadow 而不是改边框色：改边框会让整块轻微跳动。 */
+.cc-pill:focus-within {
+  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.12);
 }
 
 /* 胶囊内部顶部的附加区（附件卡片）。

@@ -2690,6 +2690,10 @@ export function Conversation(props: {
                 : '说说你想做的片子，或补充制作要求'}
               attachMenu={(
                 <AttachMenu
+                  /* 上限与后端/组件一致：达到后加号禁用并说明原因，
+                     而不是等用户选完文件再静默截断。 */
+                  disabled={attachments.length >= 6}
+                  disabledHint={`最多 ${6} 个附件，先移除一个再添加`}
                   onPickFiles={() => fileRef.current?.click()}
                   /* 目标与计划模式本项目还没接引擎能力，但入口留着并如实说明，
                      而不是藏起来 —— 藏起来用户会以为「这个产品没有」。 */

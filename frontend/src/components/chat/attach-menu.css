@@ -111,3 +111,15 @@
 .am-hint {
   margin-left: 2px;
 }
+
+/* 加号禁用态（附件已达上限）：与参考组件一致 —— 变淡 + 禁用光标。
+   没有这一态时，用户点开菜单选完文件会被静默丢弃。 */
+.cc-attach:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.cc-attach:disabled:hover {
+  background: var(--hole);
+  color: var(--fg);
+}
