@@ -83,6 +83,38 @@ public class ChatStreamService {
     private final ThreadLocal<Runnable> currentFlush = new ThreadLocal<>();
 
     /**
+     * 正在执行的轮次：会话 ID → 该轮子进程。
+     *
+     * <p><strong>为什么需要这张表</strong>：DSH 的 SDK 协议没有 {@code cancel} 方法
+     * （见 {@code HarnessCapabilities#cancel} 的注释：只能销毁子进程）。前端点「停止」
+     * 过去只是 abort 了浏览器侧的 SSE 连接，后端子进程照样跑完、照样落库 ——
+     * 用户以为停了，其实还在烧 token、还在写文件。要真正停下，必须有人按会话
+     * 找到那个子进程并 kill 掉，这张表就是那个「找到」的凭据。</p>
+     *
+     * <p>只记「正在跑」的轮次：一轮结束（无论成败）就从表里移除，
+     * 否则长期运行会累积已死进程的引用。</p>
+     */
+    private final java.util.Map<String, DshProcess> runningTurns =
+            new java.util.concurrent.ConcurrentHashMap<>();
+
+    /**
+     * 已被用户主动停止的轮次：会话 ID → 停止时间。
+     *
+     * <p>为什么要单独记：子进程被 kill 之后，{@code readUntilIdle} 会以
+     * 「stdout 已关闭 / 进程已退出」抛 IOException，这条路径与真正的引擎故障
+     * 长得一模一样。若不区分，用户主动停止就会显示成「Agent 执行失败」，
+     * 而且会误触发重试提示。有这张表就能把结果说成「已停止」。</p>
+     *
+     * <p>带时间戳是为了让它自然过期：一次停止只应影响紧接着结束的那一轮，
+     * 不能永久把这个会话的所有失败都解释成「用户停止」。</p>
+     */
+    private final java.util.Map<String, Long> stoppedTurns =
+            new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** 「刚被停止」的有效窗口：超过这个时长的失败仍按真实故障处理。 */
+    private static final long STOP_MARK_TTL_MS = 60_000L;
+
+    /**
      * 引擎当前是否可用。
      *
      * <p>Controller 用它做前置判断：引擎不可用是比「没有可发送的内容」更根本的阻塞，
@@ -92,6 +124,85 @@ public class ChatStreamService {
      */
     public boolean isAvailable() {
         return harness.isAvailable();
+    }
+
+    /**
+     * 单轮的执行预算（超时上限）。
+     *
+     * <p><strong>为什么不是直接用配置的 180 秒</strong>：180 秒对视频制作这类
+     * 「编译 + 渲染 + 多轮工具调用」的任务太短，一次真机任务很容易超过。
+     * 但也不能简单把超时调大 —— 那样用户会在界面上干等十分钟，且一旦用户离开
+     * 页面，这轮就白跑了。</p>
+     *
+     * <p>这里的做法是「前台跑 180 秒，没跑完就转后台继续跑」：SSE 连接上先
+     * 告诉用户「已转后台」，进程不杀、任务继续执行，完成后照样落库；
+     * 用户下次打开会话时从历史里看到结果。所以实际给引擎的时间是
+     * {@code turnTimeoutMs + backgroundBudgetMs}，前台只等前一段。</p>
+     *
+     * <p>两段都从配置读，部署时想整体改大只需调 {@code turn-timeout-ms}。</p>
+     *
+     * @return 本轮允许引擎执行的总时长
+     */
+    private Duration turnBudget() {
+        return Duration.ofMillis(properties.getTurnTimeoutMs() + properties.getBackgroundBudgetMs());
+    }
+
+    /** 前台等待上限：超过就把这一轮交给后台，不再往 SSE 上推帧。 */
+    private Duration foregroundBudget() {
+        return Duration.ofMillis(properties.getTurnTimeoutMs());
+    }
+
+    /**
+     * 停止某会话正在执行的轮次。
+     *
+     * <p>协议层没有取消能力，所以这里做的是「销毁子进程」：先打上停止标记，
+     * 再关掉通道（{@link DshProcess#close()} 本身是「关 stdin → destroy →
+     * destroyForcibly」的阶梯）。子进程一死，正在阻塞的 {@code readUntilIdle}
+     * 立刻抛 IOException，那一轮的 {@code doStream} 走失败分支收尾，
+     * 并把结果如实报成「已停止」而不是「执行失败」。</p>
+     *
+     * <p><strong>被停止的轮次不落库</strong>：模型可能已经生成了半截正文，
+     * 但用户明确表示不要了，把它当成功消息存下来等于假装这轮完成了。
+     * 这与契约「不得用半截文本冒充完成」一致。</p>
+     *
+     * @param sessionId 会话 ID
+     * @return true 表示确实停下了一个正在跑的轮次；false 表示本来就没有在跑
+     */
+    public boolean stop(String sessionId) {
+        DshProcess process = runningTurns.get(sessionId);
+        if (process == null) {
+            // 没有在跑的轮次：不是错误，前端不该因此弹错。常见于
+            // 「点停止」与「这轮刚好自己结束」撞在一起。
+            cleanupStopMark(sessionId);
+            return false;
+        }
+        stoppedTurns.put(sessionId, System.currentTimeMillis());
+        LOG.info("stop requested: session={} alive={}", sessionId, process.isAlive());
+        process.close();
+        return true;
+    }
+
+    /**
+     * 本轮是否因用户主动停止而结束。
+     *
+     * @param sessionId 会话 ID
+     * @return true 表示刚被用户停止过
+     */
+    private boolean wasStopped(String sessionId) {
+        Long at = stoppedTurns.get(sessionId);
+        if (at == null) {
+            return false;
+        }
+        if (System.currentTimeMillis() - at > STOP_MARK_TTL_MS) {
+            cleanupStopMark(sessionId);
+            return false;
+        }
+        return true;
+    }
+
+    /** 移除停止标记；幂等。 */
+    private void cleanupStopMark(String sessionId) {
+        stoppedTurns.remove(sessionId);
     }
 
     /**
@@ -213,6 +324,13 @@ public class ChatStreamService {
 
         DshProcess process = null;
         AtomicBoolean finished = new AtomicBoolean(false);
+        /**
+         * 这一轮是否已交给后台线程收尾。
+         *
+         * <p>转后台之后，finally 不能再关进程 —— 关了就等于把正在后台跑的任务杀掉了，
+         * 而用户刚被告知「已转后台继续执行」。</p>
+         */
+        AtomicBoolean handedOff = new AtomicBoolean(false);
         // 分段计时：回答「每轮的进程启动到底占多少」这个问题。
         // 只有分得清 spawn / resume / 首 token / 总时长，才能判断要不要上常驻进程；
         // 当前决定是按 A 方案（每轮一个进程），这组数据用来验证该决定是否成立。
@@ -220,6 +338,13 @@ public class ChatStreamService {
         try {
             process = launcher.startSdk();
             timing.markSpawned();
+            /* 注册到「正在跑」表：这一刻起，用户点「停止」才能真正停到这个进程。
+               注册必须在 startSdk 之后、prompt 之前 —— 早于 startSdk 没有进程可记，
+               晚于 prompt 则用户在启动阶段点停止会落空（而那正是最容易想取消的时刻：
+               模型还没开始吐字，用户已经意识到发错了）。 */
+            runningTurns.put(sessionId, process);
+            // 新一轮开始即清掉上一轮的停止标记，避免旧的「已停止」污染本轮的失败判断。
+            cleanupStopMark(sessionId);
 
             DshSdkSession driver = new DshSdkSession(
                     process, json, properties.getProvider(), properties.getModel());
@@ -252,16 +377,46 @@ public class ChatStreamService {
             List<DshSdkSession.InlineImage> images = inlineImages(attachments);
             LOG.info("prompt images: attachmentsPresent={} resolved={}",
                     attachments != null, images.size());
+            /* 前台等 turnTimeoutMs，超时则交棒后台继续跑。
+               handedOff 置位后，driver 不再回调 listener，但循环继续读事件，
+               所以 finally 不能关进程 —— 关了就是把还在跑的任务杀掉。 */
             DshSdkSession.Outcome outcome = driver.prompt(
                     harnessSessionId,
                     userText,
                     images,
                     listener,
-                    Duration.ofMillis(properties.getTurnTimeoutMs()));
+                    turnBudget(),
+                    foregroundBudget(),
+                    () -> {
+                        // 交接只发生在「前台超时」这一刻，做三件事：
+                        // 1) 标记已交棒，finally 不再关进程
+                        // 2) 通知前端「转后台了」，让它安心关连接
+                        // 3) 之后这一轮由本线程继续阻塞直到结束
+                        handedOff.set(true);
+                        LOG.info("turn handed off to background: session={}", sessionId);
+                        writeBackground(out);
+                        writeEnd(out);
+                    });
 
-            if (outcome.failed()) {
+            if (handedOff.get()) {
+                // 后台阶段：连接已由交接时的 end 帧收尾，这里只负责把结果落库。
+                // 前端下次打开会话时从历史里读到 —— 不假装它还在前台推送。
+                if (!outcome.failed()) {
+                    appendAssistantMessage(
+                            sessionId, outcome.text(), outcome.reasoning(),
+                            listener.collectedToolCalls(), listener.collectedTodos(),
+                            listener.collectedUsage(), listener.collectedDeliverables());
+                }
+            } else if (outcome.failed()) {
                 // 失败：发错误帧，不落库、不发 completed。前端据此显示失败而不是「已完成」。
-                writeError(out, "agent_error", outcome.failure() == null ? "Agent 执行失败" : outcome.failure());
+                // 但「用户主动停止」不是失败 —— 用 stopped 帧区分，否则界面会
+                // 报「Agent 执行失败」，用户还以为是自己把引擎弄坏了。
+                if (wasStopped(sessionId)) {
+                    writeStopped(out);
+                } else {
+                    writeError(out, "agent_error", outcome.failure() == null ? "Agent 执行失败" : outcome.failure());
+                }
+                writeEnd(out);
             } else {
                 // 成功：先把助手消息落库，再发 completed。顺序很重要——先落库保证
                 // 前端拿到 completed 时，历史接口一定已经能读到这条消息。
@@ -273,19 +428,29 @@ public class ChatStreamService {
                 // 前端契约里 done 是收尾 phase，缺了它界面会停在「正在思考」。
                 listener.emitPhase("done", null, null);
                 writeCompleted(out, saved);
+                writeEnd(out);
             }
-            writeEnd(out);
             finished.set(true);
         } catch (IOException failure) {
-            // 进程/协议层失败：同样发错误帧，不假装完成。
-            writeError(writer, "agent_unavailable",
-                    failure.getMessage() == null ? "与引擎通信失败" : failure.getMessage());
+            // 用户停止会让子进程 stdout 立刻关闭，这条路径与真实故障无法从异常本身区分，
+            // 所以先查停止标记：是用户停的就报「已停止」，不是才报通信失败。
+            if (wasStopped(sessionId)) {
+                writeStopped(writer);
+            } else {
+                // 进程/协议层失败：同样发错误帧，不假装完成。
+                writeError(writer, "agent_unavailable",
+                        failure.getMessage() == null ? "与引擎通信失败" : failure.getMessage());
+            }
             writeEnd(writer);
             finished.set(true);
         } finally {
             timing.markFinished();
             logTurnTiming(sessionId, continuation, timing);
+            /* 这里是唯一关进程的地方。转后台的那一轮虽然中途发过 end 帧，
+               但读取循环一直跑到任务自然结束才回到 finally —— 也就是说
+               「后台线程」就是当前这个请求线程，不需要另起线程池。 */
             if (process != null) {
+                runningTurns.remove(sessionId, process);
                 process.close();
             }
             // 极端情况下（例如写帧时抛出 unchecked）确保连接被关闭而不是悬挂。
@@ -616,6 +781,34 @@ public class ChatStreamService {
         error.put("message", message);
         error.put("requestId", "req_" + UUID.randomUUID());
         writeFrame(out, "error", data);
+    }
+
+    /**
+     * 写一帧 {@code stopped}：用户主动停止。
+     *
+     * <p>独立于 {@code error} 的原因：这两件事在界面上必须说不同的话。
+     * 「Agent 执行失败」暗示引擎或模型出了问题，用户会想去重试或改配置；
+     * 而停止是用户自己的决定，正确反馈就是「已停止」，不该再提供重试。
+     * 这也是不落库的显式告知 —— 半截回复不会被当成一条完成的消息。</p>
+     */
+    private void writeStopped(PrintWriter out) {
+        ObjectNode data = json.createObjectNode();
+        data.put("reason", "user_stopped");
+        writeFrame(out, "stopped", data);
+    }
+
+    /**
+     * 写一帧 {@code background}：本轮超时，已转后台继续执行。
+     *
+     * <p>必须如实告诉用户「还在跑，只是不在这个界面等了」。
+     * 如果什么都不发就让连接结束，界面会把它当成一轮空回复；
+     * 如果发失败，用户会以为任务挂了而重发一遍 —— 那才是真的浪费。</p>
+     */
+    private void writeBackground(PrintWriter out) {
+        ObjectNode data = json.createObjectNode();
+        data.put("reason", "foreground_timeout");
+        data.put("message", "任务已转后台继续执行，完成后可在历史中查看");
+        writeFrame(out, "background", data);
     }
 
     /** 写终止帧。 */

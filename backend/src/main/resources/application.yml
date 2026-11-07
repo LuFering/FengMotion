@@ -105,5 +105,7 @@ fengmotion:
     # 探测缓存：避免每次请求都 spawn 一个 dsh 进程。
     probe-timeout-ms: 5000
     probe-cache-ms: 60000
-    # 单轮对话硬超时；超时后销毁子进程并发出错误帧，不静默结束。
+    # 前台等待上限。超过不是失败，而是把这一轮转后台继续跑（进程不杀、完成仍落库）。
     turn-timeout-ms: 180000
+    # 转后台后额外允许执行的时间；总硬上限 = turn-timeout-ms + background-budget-ms。
+    background-budget-ms: 600000

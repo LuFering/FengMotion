@@ -41,6 +41,15 @@
   transition: border-color 150ms ease, box-shadow 150ms ease;
 }
 
+/* 胶囊内部顶部的附加区（附件卡片）。
+   单独一层是为了让它参与胶囊的纵向布局：胶囊是 flex column + gap，
+   附件区一出现就把文字区往下推，而不是盖住它。 */
+.cc-inside-top {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+}
+
 /* ── 底部控件栏 ────────────────────────────────────────────────
    左：附件 + 权限；右：模型 + 发送。两端对齐，中间留白。 */
 .cc-bar {

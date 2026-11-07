@@ -147,8 +147,22 @@ public class HarnessProperties {
     /** 探测结果缓存时长（毫秒）。 */
     private long probeCacheMs = 60_000;
 
-    /** 单次对话的硬超时（毫秒）；超时后销毁子进程并发错误帧，不静默结束。 */
+    /**
+     * 前台等待上限（毫秒）。
+     *
+     * <p>超过这个时长并不是「失败」，而是把这一轮转成后台继续执行：
+     * 进程不杀、任务继续跑、完成时照样落库，用户下次打开会话从历史里看到结果。
+     * 这样既不会让界面无限期挂着，也不会把已经跑了一半的长任务白扔一次。</p>
+     */
     private long turnTimeoutMs = 180_000;
+
+    /**
+     * 转后台之后额外允许执行的时长（毫秒）。
+     *
+     * <p>真正的硬上限是 {@code turnTimeoutMs + backgroundBudgetMs}：到了这个总时长
+     * 才销毁子进程。默认再给 10 分钟，够一次带渲染的任务跑完。</p>
+     */
+    private long backgroundBudgetMs = 600_000;
 
     /**
      * patch 文件路径。

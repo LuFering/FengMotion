@@ -67,6 +67,16 @@ export interface ChatResource {
    * 这是「为这一条消息临时带上的文件」。两者后端是不同的存储位置，不要混用。
    */
   uploadAttachment(file: File, options?: { signal?: AbortSignal }): Promise<UploadedAttachment>
+  /**
+   * 让服务端真正停下这条会话正在跑的那一轮。
+   *
+   * 必须调它，不能只 abort 前端那条 SSE：SDK 协议没有 cancel，
+   * 光断连接的话后端子进程会继续跑完并照常落库（还照常花 token）。
+   *
+   * @returns `stopped` 为 true 表示确实停掉了一轮；false 表示本来就没在跑
+   *          （「点停止」与「这轮刚好结束」撞在一起时会出现，不是错误）
+   */
+  stop(sessionId: string): Promise<{ stopped: boolean }>
 }
 
 /** 附件上传结果（对应后端 `POST /api/uploads` 的响应）。 */
@@ -176,6 +186,10 @@ export function createChatResource(http: HttpClient): ChatResource {
         signal: options.signal,
       })
       return unwrapSentMessage(payload)
+    },
+
+    stop(sessionId) {
+      return http.post<{ stopped: boolean }>(`/chat-sessions/${encodeURIComponent(sessionId)}/stop`)
     },
 
     stream(sessionId, handlers, options) {

@@ -265,6 +265,52 @@ public class DshSdkSession {
     }
 
     /**
+     * 什么都不做的回调实现，用于「转后台之后」的读取阶段。
+     *
+     * <p>转后台时 HTTP 连接已经关闭，继续往 SSE 写帧既没有读者，也可能抛异常；
+     * 但读取循环仍然要继续消费事件，否则 stdout 管道会被填满而把子进程卡死。
+     * 所以这里保留一个「只读不广播」的 listener：事件照常处理（正文仍在
+     * {@code Outcome} 里累计），只是不再对外通知。</p>
+     */
+    private static final class SilentListener implements Listener {
+        @Override
+        public void onTurnStarted(int turn) {
+        }
+
+        @Override
+        public void onStepStarted(int turn, int step) {
+        }
+
+        @Override
+        public void onToolCall(String callId, String name, String arguments) {
+        }
+
+        @Override
+        public void onToolResult(String callId, String text, boolean isError) {
+        }
+
+        @Override
+        public void onTextDelta(String text) {
+        }
+
+        @Override
+        public void onThinkingDelta(String text) {
+        }
+
+        @Override
+        public void onAssistantMessage(String text, String reasoning) {
+        }
+
+        @Override
+        public void onIdle() {
+        }
+
+        @Override
+        public void onTurnEnded(boolean failed, String failure) {
+        }
+    }
+
+    /**
      * 一张要随消息发给模型的图片。
      *
      * <p>{@code mimeType} 必须是 DSH 协议允许的四种之一（png/jpeg/webp/gif）：
@@ -438,6 +484,34 @@ public class DshSdkSession {
     public Outcome prompt(String sessionId, String text, java.util.List<InlineImage> images,
                           Listener listener, Duration timeout)
             throws IOException {
+        return prompt(sessionId, text, images, listener, timeout, null, null);
+    }
+
+    /**
+     * 发送一条带图片的用户消息，并支持「转后台继续跑」。
+     *
+     * <p><strong>为什么需要前台截止时间</strong>：视频制作这类任务的单轮耗时
+     * 经常超过浏览器愿意等的时间，但直接按超时杀掉进程又会把已经跑了一半的
+     * 工作白扔。所以拆成两段：{@code foreground} 之内正常推送事件；
+     * 超过之后调用 {@code onHandoff} 通知调用方「转后台了」，
+     * 本方法继续阻塞读取，但不再回调 listener —— 直到任务自然结束或
+     * 达到 {@code timeout} 这个硬上限。调用方在 onHandoff 里做完交接后，
+     * 就能让 HTTP 连接正常关闭，而后台线程仍在等这一轮跑完。</p>
+     *
+     * @param sessionId   DSH 侧会话标识
+     * @param text        用户消息正文
+     * @param images      随消息发送的图片
+     * @param listener    事件回调；转后台后不再调用
+     * @param timeout     整轮硬上限
+     * @param foreground  前台推送上限；null 表示全程在前台
+     * @param onHandoff   超过前台上限时调用一次；null 表示不支持转后台
+     * @return 本轮结果
+     * @throws IOException 协议或进程错误
+     */
+    public Outcome prompt(String sessionId, String text, java.util.List<InlineImage> images,
+                          Listener listener, Duration timeout,
+                          Duration foreground, Runnable onHandoff)
+            throws IOException {
         long id = channel.nextRequestId();
         ObjectNode params = json.createObjectNode();
         params.put("sessionId", sessionId);
@@ -463,7 +537,7 @@ public class DshSdkSession {
         // session/prompt 的响应只是入队回执，收到后不能当作「已回复」。
         awaitResponse(id, timeout);
 
-        return readUntilIdle(sessionId, listener, timeout);
+        return readUntilIdle(sessionId, listener, timeout, foreground, onHandoff);
     }
 
     /**
@@ -475,23 +549,45 @@ public class DshSdkSession {
      * @return 本轮结果
      * @throws IOException 读流失败或超时
      */
-    private Outcome readUntilIdle(String sessionId, Listener listener, Duration timeout)
+    private Outcome readUntilIdle(String sessionId, Listener listener, Duration timeout,
+                                  Duration foreground, Runnable onHandoff)
             throws IOException {
         StringBuilder text = new StringBuilder();
         ReasoningTrace reasoning = new ReasoningTrace();
         boolean failed = false;
         String failure = null;
         int turn = 0;
-        long deadline = System.nanoTime() + timeout.toNanos();
+        long start = System.nanoTime();
+        long deadline = start + timeout.toNanos();
+        long foregroundDeadline = foreground == null
+                ? Long.MAX_VALUE
+                : start + foreground.toNanos();
+        /* 是否已经转后台。一旦置位就不再回调 listener：
+           此时 HTTP 连接可能已经关闭，继续往里写只会产生无意义的异常，
+           更重要的是——转后台的语义是「用户不再盯着看」，不该再假装在实时推送。 */
+        boolean handedOff = false;
+        // 转后台后用来吞掉所有对外回调，同时照常累计结果。
+        SilentListener sink = new SilentListener();
 
         while (true) {
+            if (!handedOff && System.nanoTime() > foregroundDeadline) {
+                handedOff = true;
+                if (onHandoff != null) {
+                    try {
+                        onHandoff.run();
+                    } catch (RuntimeException ignored) {
+                        // 交接失败不能影响任务本身继续执行。
+                    }
+                }
+            }
+            Listener active = handedOff ? sink : listener;
             if (System.nanoTime() > deadline) {
                 throw new IOException("等待 Agent 完成超时（" + timeout.toSeconds() + " 秒）");
             }
 
             // 先排空 stderr 里的 token 级增量。必须在读 stdout 之前做：
             // stdout 可能长时间没有新行，若先阻塞在那里，实时增量就全被压后了。
-            drainStreamFrames(listener, reasoning);
+            drainStreamFrames(active, reasoning);
 
             // 再消费等待响应期间缓存的通知，否则 prompt 阶段收到的 running 会丢失。
             JsonNode frame;
@@ -695,7 +791,7 @@ public class DshSdkSession {
                 case "request/context" -> {
                     JsonNode window = data.path("contextWindow");
                     if (window.isNumber()) {
-                        listener.onContextWindow(window.asLong());
+                        active.onContextWindow(window.asLong());
                     }
                 }
                 /* 本次请求的工具 schema。上下文分档里 tools 那一档的唯一来源 ——
@@ -706,7 +802,7 @@ public class DshSdkSession {
                     JsonNode tools = data.path("header").path("tools");
                     if (tools.isArray() && !tools.isEmpty()) {
                         long chars = tools.toString().length();
-                        listener.onToolsTokens(chars / 4 + 4);
+                        active.onToolsTokens(chars / 4 + 4);
                     }
                 }
                 default -> {

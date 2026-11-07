@@ -15,12 +15,13 @@ import {
   AnswerBody, AnswerActions, MessageActions, RunningDivider,
   TaskList, type TaskItem, type TaskStepChip,
 } from '@/components/chat'
+import { ComposerAttachments } from '@/components/chat/ComposerAttachments'
 import type { CSSProperties } from 'react'
 import {
   AlertCircle, AlertTriangle, Archive, ArchiveRestore, Check, ChevronDown, ChevronLeft, ChevronRight,
-  CircleSlash, Ellipsis, FileText, FolderPlus, ImageIcon, Minimize2, RotateCcw,
+  CircleSlash, Ellipsis, FolderPlus, Minimize2, RotateCcw,
   ListFilter, LoaderCircle, MessageSquarePlus, PanelLeft, Pencil, Pin, PinOff, Shield,
-  ShieldAlert, ShieldCheck, Trash2, X,
+  ShieldAlert, ShieldCheck, Trash2,
 } from 'lucide-react'
 import { registerComposer, type DeliverableAsset, type AssetPurpose } from '@/shell/usePendingAssets'
 import { deliveredReferences } from '@/services/creationResources'
@@ -1397,6 +1398,25 @@ export function Conversation(props: {
             : [...prev, next]
         })
       },
+      onStopped: () => {
+        /* 用户自己按的停止。撤掉占位并回到可输入状态；
+           已吐出的半截正文不留 —— 那一轮没有落库，留着会让人以为
+           「这条回复就说到这儿」，下次读历史时它又消失。 */
+        chat.removeMessage(aiId)
+        setPending(false)
+        setPendingStartedAt(null)
+        setAgentPhase(null)
+        setReplyNote('已停止生成。这一轮没有保存到会话里。')
+      },
+      onBackground: (info) => {
+        /* 超时转后台 ≠ 失败。任务还在跑，完成时会落库。
+           这里必须放在 replyNote（中性说明）而不是失败提示里，
+           否则用户会以为挂了而重发一遍 —— 那才是真的重复消耗。 */
+        setPending(false)
+        setPendingStartedAt(null)
+        setAgentPhase(null)
+        setReplyNote(info.message)
+      },
       onContext: (c) => {
         /* 窗口大小只跟模型走，不随轮次变 —— 覆盖即可，不累加。
            引擎没报（适配器不上报）时这帧根本不会来，保持 null = 「不知道」。
@@ -1406,6 +1426,26 @@ export function Conversation(props: {
       },
     })
     streamStopRef.current = () => handle.close()
+  }
+
+  /**
+   * 停止本轮生成。
+   *
+   * 顺序很重要：**先让服务端停**，再断开本地流。
+   * 反过来的话，本地连接先断，后端的子进程就再也收不到停止信号 ——
+   * 那正是过去「点了停止但其实还在跑」的成因。
+   *
+   * 服务端返回 404/网络错误时不打断收尾：用户已经表达了「不要了」，
+   * 界面必须先回到可输入状态；本地流照常断开，并把真实原因写进提示里。
+   */
+  const stopGeneration = () => {
+    const sessionId = props.activeSessionId
+    if (sessionId) {
+      studioHttpApi().chat.stop(sessionId).catch((cause: unknown) => {
+        setReplyNote(`服务端没有确认停止：${sendErrorText(cause)}`)
+      })
+    }
+    streamStopRef.current?.()
   }
 
   /** 发送失败的原因（人话优先；网络/未找到/内容不合规各有说法）。 */
@@ -2586,6 +2626,9 @@ export function Conversation(props: {
               onValueChange={(v) => { chat.setDraft(v); setSendError(null) }}
               onSubmit={submit}
               busy={pending}
+              /* 之前这里没传 onStop，停止按钮根本不会渲染出来 ——
+                 「生成中能停」只是组件里有这个能力，界面上到不了。 */
+              onStop={stopGeneration}
               placeholder={activeIsServer
                 ? '继续这条对话：消息会保存到服务端'
                 : '说说你想做的片子，或补充制作要求'}
@@ -2617,24 +2660,26 @@ export function Conversation(props: {
                 </DropdownMenu>
               )}
               trailing={composerModelPicker}
-              above={attachments.length > 0 ? (
-                <div className="cv3-attach-row">
-                  {attachments.map((a, i) => (
-                    <span key={`${a.name}-${i}`} className="cv3-attach-chip" data-kind={a.kind}
-                          data-from-pending={a.assetId ? '' : undefined}
-                          title={a.note ? `${PURPOSE_TXT[a.purpose ?? ''] ?? ''} · ${a.note}` : undefined}>
-                      {a.kind === 'image' ? <ImageIcon size={12} /> : <FileText size={12} />}
-                      <span className="cv3-attach-name">{a.name}{a.uploading ? ' · 上传中' : a.uploadError ? ` · 上传失败：${a.uploadError}` : ''}</span>
-                      {a.purpose && a.purpose !== 'unspecified' && (
-                        <span className="cv3-attach-purpose">{PURPOSE_TXT[a.purpose] ?? a.purpose}</span>
-                      )}
-                      <button type="button" aria-label={`移除文件 ${a.name}`}
-                              onClick={() => setAttachments((l) => l.filter((_, j) => j !== i))}>
-                        <X size={11} />
-                      </button>
-                    </span>
-                  ))}
-                </div>
+              /* 附件卡片放进输入框内部：附件与文字是同一条消息的两半，
+                 放进去共享同一个容器。标题栏保持在外，不做搬移。 */
+              insideTop={attachments.length > 0 ? (
+                <ComposerAttachments
+                  items={attachments.map((a) => ({
+                    name: a.name,
+                    kind: a.kind === 'image' ? 'image'
+                      : a.kind === 'video' ? 'video'
+                      : /\.(xlsx|xls|csv)$/i.test(a.name) ? 'sheet'
+                      : /\.(docx?|pdf|md|txt)$/i.test(a.name) ? 'doc'
+                      : 'other',
+                    uploading: a.uploading,
+                    uploadError: a.uploadError,
+                    purposeLabel: a.purpose && a.purpose !== 'unspecified'
+                      ? (PURPOSE_TXT[a.purpose] ?? a.purpose)
+                      : undefined,
+                    note: a.note,
+                  }))}
+                  onRemove={(i) => setAttachments((l) => l.filter((_, j) => j !== i))}
+                />
               ) : null}
               error={sendError ? (
                 <p className="cv3-compose-note" role="alert" data-error="">

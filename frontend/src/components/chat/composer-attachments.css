@@ -1,0 +1,171 @@
+/* ═══════════════════════════════════════════════════════════════
+   输入框内的待发送附件
+
+   形态参考 dsh 网页版插件的附件区：方形卡片、图标在上、文件名在下、
+   右上角悬浮移除按钮。整块嵌在输入框内部左上角。
+
+   尺寸取 82×70：比参考图略窄一点 —— 对话列宽 680px，一行要能放下
+   5 张卡还有余量；再宽就会换行，把输入框顶得很高。
+
+   配色只用品牌 token，不引外部色板：
+     · 图像 → --acc（品牌蓝）
+     · 视频 → --warn（琥珀，与「等待」语义一致）
+     · 表格 → --ok（绿，与「完成」语义一致）
+     · 文档 → --acc 降饱和
+     · 其他 → --dim（中性灰）
+   ═══════════════════════════════════════════════════════════════ */
+
+.ca-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  /* 与输入框左右内边距对齐，卡片不会贴到胶囊边缘 */
+  padding: 2px 2px 0;
+  margin: 0;
+  list-style: none;
+}
+
+.ca-card {
+  position: relative;
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  width: 82px;
+  height: 70px;
+  box-sizing: border-box;
+  padding: 8px 6px 6px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--hole);
+  transition: border-color 140ms ease, background 140ms ease;
+}
+
+/* 悬停时整卡轻微提亮：提示「这是一块可以操作的东西」，
+   而不是纯展示的图标 */
+.ca-card:hover {
+  border-color: color-mix(in srgb, var(--fg) 18%, var(--line));
+  background: color-mix(in srgb, var(--fg) 4%, var(--hole));
+}
+
+/* ── 图标 ────────────────────────────────────────────────────── */
+.ca-figure {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  color: var(--dim);
+}
+
+.ca-card[data-tone='img'] .ca-figure { color: var(--acc); }
+.ca-card[data-tone='vid'] .ca-figure { color: var(--warn); }
+.ca-card[data-tone='sheet'] .ca-figure { color: var(--ok); }
+.ca-card[data-tone='doc'] .ca-figure {
+  color: color-mix(in srgb, var(--acc) 55%, var(--dim));
+}
+
+/* ── 文件名 ──────────────────────────────────────────────────── */
+/* 主名一行截断：卡片只有 70px 宽，两行文字会把图标挤没 */
+.ca-name {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--fg);
+  font-size: 11px;
+  line-height: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 扩展名单列一行小字：用户扫一眼就知道是 mp4 还是 xlsx */
+.ca-ext {
+  color: var(--dim);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  line-height: 11px;
+  letter-spacing: 0.04em;
+}
+
+/* ── 用途角标 ────────────────────────────────────────────────── */
+/* 只有从项目资源库里选的附件才有用途，压在图标上方，
+   避免额外占高度 */
+.ca-purpose {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--acc) 16%, var(--hole));
+  color: var(--acc);
+  font-size: 9px;
+  line-height: 12px;
+}
+
+/* ── 移除按钮 ────────────────────────────────────────────────── */
+/* 常态半透明，悬停卡片时完全显现 —— 一直实心会把文件名挤掉注意力。
+   用 shadcn Button（ghost + icon-xs），这里只覆盖定位与配色。
+
+   注意：按钮必须落在卡片**内部**（top:2 而不是 -6）。放到卡片外侧会被
+   .cc-pill 的 10px 内边距与相邻卡片挤在一起 —— 实测第一张卡的按钮会压到
+   左侧、最后一张的会顶到胶囊右边缘，看起来像错位。 */
+.ca-remove {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--line) !important;
+  border-radius: 50% !important;
+  background: var(--surf) !important;
+  color: var(--dim);
+  opacity: 0;
+  transition: opacity 140ms ease, color 140ms ease;
+}
+
+.ca-card:hover .ca-remove,
+.ca-remove:focus-visible {
+  opacity: 1;
+}
+
+.ca-remove:hover {
+  color: var(--bad) !important;
+}
+
+/* 触屏没有 hover：直接常显，否则点不到 */
+@media (hover: none) {
+  .ca-remove { opacity: 1; }
+}
+
+/* ── 上传中 / 失败 ───────────────────────────────────────────── */
+.ca-busy {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--hole) 78%, transparent);
+  color: var(--acc);
+}
+
+.ca-spin {
+  animation: ca-rotate 900ms linear infinite;
+}
+
+@keyframes ca-rotate {
+  to { transform: rotate(360deg); }
+}
+
+/* 失败：整卡描红，并把图标染成失败色 —— 状态不只靠颜色，
+   title 与 aria-label 里也带了原因文字 */
+.ca-card[data-error] {
+  border-color: color-mix(in srgb, var(--bad) 45%, var(--line));
+}
+
+.ca-fail {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  color: var(--bad);
+}

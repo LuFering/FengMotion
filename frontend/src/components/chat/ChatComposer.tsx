@@ -49,8 +49,22 @@ export interface ChatComposerProps {
    * 传 2 行即可；对话界面 680px 宽，1 行足够。
    */
   minRows?: number
-  /** 输入框上方的附件卡片区 */
+  /**
+   * 输入框上方的附加区（在胶囊**外面**）。
+   *
+   * 曾经用来放待发送附件；现在附件改到胶囊内部（见 {@link insideTop}），
+   * 这个插槽留给「任务清单抽屉」这类确实该压在输入框上的整块面板。
+   */
   above?: ReactNode
+  /**
+   * 胶囊**内部**顶部的附加区：待发送附件卡片放这里。
+   *
+   * 为什么放进胶囊：附件和输入的文字是同一件事的两半
+   * （「给这张图写个说明」），分在外外两块会让眼睛来回跳；
+   * 放进胶囊后它们共享同一个白色容器与同一圈圆角，
+   * 视觉上读作「这块区域就是我在编辑的消息」。
+   */
+  insideTop?: ReactNode
   /** 输入框下方的错误提示 */
   error?: ReactNode
   /** 底部状态行左侧/右侧文案 */
@@ -107,6 +121,7 @@ export function ChatComposer({
   footer,
   minRows = 1,
   above,
+  insideTop,
   error,
   statusLeft,
   statusRight,
@@ -146,6 +161,9 @@ export function ChatComposer({
       <div className={`cc-pill${busy ? ' is-busy' : ''}`}>
         {/* 环绕光带：生成中才亮，与上游 ComposerLoader 的观感一致 */}
         {busy ? <span className="cc-glow" aria-hidden /> : null}
+
+        {/* 附件卡片：胶囊内部顶部，位于输入文字之上 */}
+        {insideTop ? <div className="cc-inside-top">{insideTop}</div> : null}
 
         <textarea
           ref={inputRef}

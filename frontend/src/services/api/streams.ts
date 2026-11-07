@@ -430,6 +430,22 @@ export interface ChatStreamHandlers {
    */
   onReasoning?: (messageId: string, delta: string) => void
   onCompleted?: (message: ChatMessage) => void
+  /**
+   * 用户主动停止了一轮。
+   *
+   * 与 {@link onError} 分开：停止是用户自己的决定，界面应显示「已停止」
+   * 并回到可输入状态，而不是弹「执行失败」让人以为要重试。
+   * 停止的那一轮不会落库，所以不会再有 `completed`。
+   */
+  onStopped?: () => void
+  /**
+   * 本轮超过前台等待上限，已转后台继续执行。
+   *
+   * 收到它意味着：连接即将结束，但任务**没有失败也没被取消**，
+   * 完成时会照常落库。界面该说的是「转后台了，完成后可查看历史」，
+   * 绝不能报错 —— 报错会诱导用户重发，那才是真的重复开销。
+   */
+  onBackground?: (info: { message: string }) => void
   onTask?: (messageId: string, taskId: string) => void
   /**
    * 阶段进度。DSH 的 SDK 通道没有 token 级增量（见后端 `harness集成与接口清单.md` §1.1），
@@ -692,6 +708,15 @@ export function openChatSessionStream(
         // 空标题不覆盖：用空串盖掉会让本来有名字的会话变成无名
         const t = (payload as unknown as Partial<ChatStreamTitle>).title
         if (typeof t === 'string' && t.trim() !== '') handlers.onTitle?.(t)
+        return 'continue'
+      }
+      case 'stopped': {
+        handlers.onStopped?.()
+        return 'continue'
+      }
+      case 'background': {
+        const bg = payload as unknown as { message?: string }
+        handlers.onBackground?.({ message: typeof bg.message === 'string' && bg.message ? bg.message : '任务已转后台继续执行' })
         return 'continue'
       }
       case 'heartbeat':
