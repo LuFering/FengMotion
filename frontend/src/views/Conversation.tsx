@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Search as SeekSearch } from '@/components/Search'
-import { WebSearchTrace } from '@/components/WebSearchTrace'
+import { WebSearchTrace, isSearchTool, type SearchCall } from '@/components/WebSearchTrace'
 import {
   ChatMessage as ChatBubble, ChatComposer, ThinkingIndicator, MarkdownText,
-  ReasoningBlock, ToolCalls, AnswerBody, AnswerActions, MessageActions, RunningDivider,
+  AnswerBody, AnswerActions, MessageActions, RunningDivider,
+  TaskList, type TaskItem,
 } from '@/components/chat'
 import type { CSSProperties } from 'react'
 import {
@@ -124,6 +125,53 @@ const MODULE_SERVED_IDS = new Set<string>()
  * 记下失败的 id，自动路径就不再重试；用户点「重试」才重发。</p>
  */
 const MODULE_FAILED_IDS = new Set<string>()
+
+
+/**
+ * 把工具调用转成 TaskList 的任务。
+ *
+ * ⚠️ 只处理**非搜索类**调用：网页搜索有自己的一套轨迹（WebSearchTrace），
+ * 它回答的是「去查了什么来源」，和「执行了哪些命令」不是一件事。
+ * 混在一张任务列表里，两类信息会互相稀释。
+ *
+ * 按工具名归组、保留首次出现顺序（顺序就是实际发生顺序）：
+ * 一轮十几次 bash/read/write 平铺成一行一个，看起来是「一堆零散动作」；
+ * 归成「读文件 / 执行命令 / 写文件」几个任务，才看得出这一轮做了哪几类事。
+ */
+function toolCallsToTasks(calls: SearchCall[], running: boolean): TaskItem[] {
+  const groups = new Map<string, SearchCall[]>()
+  for (const call of calls) {
+    const list = groups.get(call.name)
+    if (list) list.push(call)
+    else groups.set(call.name, [call])
+  }
+
+  return [...groups.entries()].map(([name, list]) => {
+    const failed = list.filter((c) => c.isError).length
+    const done = list.filter((c) => c.done === true).length
+    const allDone = done === list.length
+    return {
+      title: `${name} · ${list.length} 次${failed > 0 ? ` · ${failed} 失败` : ''}`,
+      runningTitle: running && !allDone ? `正在执行 ${name}` : undefined,
+      steps: list.map((call) => ({
+        label: call.arguments ? shortArgs(call.arguments) : `${name} 调用`,
+        chips: call.isError ? [{ label: '失败' }] : undefined,
+      })),
+    }
+  })
+}
+
+/**
+ * TaskList 的 revealed 是「单元数」：每个任务 1 个标题单元 + 每步 1 个单元。
+ * 按真实到达数算，不编造进度。
+ */
+function toolCallsRevealed(calls: SearchCall[]): number {
+  const groups = new Map<string, number>()
+  for (const call of calls) groups.set(call.name, (groups.get(call.name) ?? 0) + 1)
+  let total = 0
+  for (const n of groups.values()) total += 1 + n
+  return total
+}
 
 /**
  * 参数摘要。
@@ -1831,42 +1879,38 @@ export function Conversation(props: {
                       这三块回答的是「它怎么做到的」，正文回答「结论是什么」，
                       所以必须在正文之前、且视觉上更弱。 */}
 
-                  {/* 思考过程：dsh 是收起 24px 的折叠块，展开才显示推理正文。
-                      之前完全没有这一块 —— 后端把 phase/reasoning 透传上来了，
-                      界面上却没有位置放，等于丢了一整类信息。 */}
-                  {m.thinking ? (
-                    <ReasoningBlock
-                      text={m.thinking}
-                      streaming={m.streaming}
-                    />
-                  ) : null}
-
-                  {/* 工具调用：dsh 是一行一个调用（工具名 + 摘要 + 状态），
-                      子调用缩进带左边线。之前用 TaskList 把它们归成「任务」，
-                      读起来像另一种东西；这里改回 dsh 的逐行结构。 */}
-                  {m.executedTools && m.executedTools.length > 0 && (
-                    <>
-                      <WebSearchTrace calls={m.executedTools} live={false} />
-                      <ToolCalls
-                        calls={m.executedTools.map((c) => ({
-                          name: c.name,
-                          summary: shortArgs(c.arguments ?? ''),
-                          done: c.done !== false,
-                          isError: c.isError,
-                          /* 后端目前不下发工具输出，所以这里没有 result。
-                             展开只能看到参数 —— 这是真实情况，不补假数据。 */
-                          result: c.arguments,
-                        }))}
+                  {/* 过程区按两类分开呈现：
+                      · 网页搜索 → WebSearchTrace（来源轨迹，它内部只认搜索类工具）
+                      · 其余工具 → TaskList（任务列表：一次任务 = 一个工具的多步调用）
+                      两者混在一张清单里会互相稀释 —— 搜索回答「查了什么来源」，
+                      任务列表回答「执行了哪几类动作」。 */}
+                  {m.executedTools && <WebSearchTrace calls={m.executedTools} live={false} />}
+                  {(() => {
+                    /* 过程日志：思考与工具调用合成一张任务列表 —— 这正是
+                       BoardUI 任务列表的用法（一条日志里既有「正在思考」也有
+                       「执行了什么」）。搜索类不进来，它有自己的轨迹。 */
+                    const tools = (m.executedTools ?? []).filter((c) => !isSearchTool(c.name))
+                    const tasks = [
+                      ...(m.thinking ? [{ title: '思考', steps: [{ label: truncate(m.thinking) }] }] : []),
+                      ...toolCallsToTasks(tools, false),
+                    ]
+                    if (tasks.length === 0) return null
+                    return (
+                      <TaskList
+                        tasks={tasks}
+                        revealed={(m.thinking ? 2 : 0) + toolCallsRevealed(tools)}
+                        run={false}
+                        working={false}
                       />
-                    </>
-                  )}
+                    )
+                  })()}
+                  {/* 演示适配器的工具摘要：同样用任务列表，保持两处一致 */}
                   {m.toolCalls && m.toolCalls.length > 0 && (
-                    <ToolCalls
-                      calls={m.toolCalls.map((t) => ({
-                        name: t.label,
-                        summary: t.detail,
-                        done: true,
-                      }))}
+                    <TaskList
+                      tasks={[{ title: '工具调用', steps: m.toolCalls.map((t) => ({ label: `${t.label}：${t.detail}` })) }]}
+                      revealed={1 + m.toolCalls.length}
+                      run={false}
+                      working={false}
                     />
                   )}
 
@@ -2062,14 +2106,21 @@ export function Conversation(props: {
                 && (
                 <>
                   <WebSearchTrace calls={toolCalls} live />
-                  <ToolCalls
-                    calls={toolCalls.map((c) => ({
-                      name: c.name,
-                      summary: shortArgs(c.arguments ?? ''),
-                      done: c.done === true,
-                      isError: c.isError,
-                    }))}
+                  <TaskList
+                    tasks={toolCallsToTasks(toolCalls.filter((c) => !isSearchTool(c.name)), pending)}
+                    revealed={toolCallsRevealed(toolCalls.filter((c) => !isSearchTool(c.name)))}
+                    run={!pending}
+                    working={pending ? '正在处理' : false}
                   />
+                  {/* 思考中但还没有工具调用：单独一条「思考」任务，
+                      让过程区始终有东西可看，而不是一片空白等正文。 */}
+                  {pending && toolCalls.length === 0 && !messages[messages.length - 1]?.text ? (
+                    <TaskList
+                      tasks={[{ title: '思考', runningTitle: '正在思考', steps: [{ label: '分析你的要求' }] }]}
+                      run={false}
+                      working={false}
+                    />
+                  ) : null}
                 </>
               )}
               {/* token 用量：回答「这一轮花了多少」。只显示上游真的报了的桶，
