@@ -22,28 +22,30 @@
   gap: 5px;
   width: 100%;
   /* 过程区（思考 / 工具调用）是「它怎么做到的」，正文是「结论是什么」。
-     两者在视觉上必须分开，否则一条回复读起来是一整段没有层次的话。
-     做法：内嵌一层底色 + 发丝边线 + 圆角，像一个附在正文前的过程面板。
+     需要一层区分，但不能做成「高亮面板」——之前用 --hole 实色 + 1px 边线，
+     整块浮在页面上像被选中的卡片，比正文还抢眼。
 
-     ⚠️ 用 --hole（比页面深一档）而不是 --surf：--surf 与页面几乎同色，
-     压上去看不出边界；--hole 在浅色主题下比 --bg 亮、在深色主题下比 --bg 深，
-     两种主题都能形成一档层次。 */
-  padding: 10px 12px;
-  border: 1px solid var(--line);
+     改成极淡的一层：页面底色里掺 4% 的前景色。
+     它只让这块区域「略微沉一点」，不形成边界感；深浅两套主题都自动跟随，
+     不需要为浅色/深色各写一份。 */
+  padding: 8px 10px;
   border-radius: var(--fm-radius-card, 12px);
-  background: var(--hole);
+  background: color-mix(in srgb, var(--fg) 4%, transparent);
 }
 
-/* 过程区里的连接线要比正文上的发丝线更弱一档：
-   底色变深后原来的 --line 会显得偏亮，看起来像主线条。 */
+/* 过程区的连接线。
+   ⚠️ 之前压到 --line 的 75% 透明度，配上深底色后整条线几乎看不见 ——
+   用户反馈「bash 下方的线太模糊」。连接线是「步骤属于这个任务」的唯一提示，
+   看不清就等于没有层级。这里改为用 --dim（正文级次要色），比发丝线实一档。 */
 .tl-root .tl-connector,
 .tl-root .tl-guide {
-  color: color-mix(in srgb, var(--line) 75%, transparent);
+  color: var(--dim);
 }
 
-/* 过程区里的步骤文字再压暗一点，保证「标题 > 步骤」的层级 */
+/* 步骤文字保持 --dim：与标题（--dim 加粗）拉开字重差即可，
+   不靠再压暗来分层（压到 --ph 在浅色主题下几乎看不清）。 */
 .tl-root .tl-step {
-  color: var(--ph);
+  color: var(--dim);
 }
 
 /* ── 任务标题行 ─────────────────────────────────────────────── */
@@ -142,7 +144,7 @@
   inset-block: 0;
   inset-inline-start: 0;
   width: 12px;
-  color: var(--line);
+  color: var(--dim);
   pointer-events: none;
 }
 
@@ -157,7 +159,9 @@
   top: 8px;
   bottom: 0;
   inset-inline-start: 0;
-  width: 1px;
+  /* 1px → 1.5px：淡底上 1px 会糊成一团灰，
+     连接线又是「步骤属于这个任务」的唯一提示，必须看得清。 */
+  width: 1.5px;
   background: currentColor;
   transform-origin: top;
 }
@@ -165,9 +169,9 @@
 /* 跨级竖线（资源列表用） */
 .tl-guide {
   position: absolute;
-  width: 1px;
+  width: 1.5px;
   background: currentColor;
-  color: var(--line);
+  color: var(--dim);
   transform-origin: top;
   pointer-events: none;
 }

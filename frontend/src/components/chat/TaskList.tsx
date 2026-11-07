@@ -109,7 +109,9 @@ function StepConnector({ first, last, reduce }: { first: boolean; last: boolean;
         <motion.path
           d={HOOK_PATH}
           stroke="currentColor"
-          strokeWidth={1}
+          /* 与 .tl-connector-line 的 1.5px 对齐：钩子和竖线粗细不一致时，
+             拐角处会出现一个明显的「台阶」 */
+          strokeWidth={1.5}
           initial={!reduce && { pathLength: 0 }}
           animate={{ pathLength: 1 }}
           /* 非首行延后一拍：钩子等竖线先接上，否则看起来是两笔画同时落 */
