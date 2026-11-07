@@ -1518,6 +1518,28 @@ export interface ChatStreamContext {
   toolsTokens?: number
 }
 
+/**
+ * 后台任务帧：bash / 长任务的开始与结束。
+ *
+ * DSH 把每个任务登记成 job，成对发 registered / settled。这两类事件
+ * 以前被后端整条丢弃，界面上完全没有任务的存在 —— 慢任务期间用户只看到
+ * 「卡住了」，被 kill 的任务更是无声无息（实测一个会话 13060 个 job 里 200 个 killed）。
+ */
+export interface ChatStreamJob {
+  type: 'job'
+  jobId: string
+  /** 任务类型，如 `bash`。 */
+  kind: string
+  /** 给人看的标签，通常是命令行。 */
+  label: string
+  /** `running` 表示还在跑；其余是终态。 */
+  status: 'running' | 'completed' | 'killed' | 'failed'
+  /** 已运行毫秒；未结束时没有这个字段。 */
+  durationMs?: number
+  /** 结算说明，如 `exit code: 0`。 */
+  detail?: string
+}
+
 export type ChatStreamMessage =
   | ChatStreamDelta
   | ChatStreamReasoning
@@ -1526,6 +1548,7 @@ export type ChatStreamMessage =
   | ChatStreamStatus
   | ChatStreamUsage
   | ChatStreamContext
+  | ChatStreamJob
   | ChatStreamTitle
   | ChatStreamTodo
   | ChatStreamDiagnostic

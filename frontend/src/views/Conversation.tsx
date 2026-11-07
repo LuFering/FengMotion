@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Search as SeekSearch } from '@/components/Search'
 import { WebSearchTrace, isSearchTool, type SearchCall } from '@/components/WebSearchTrace'
 import { ChecklistDrawer } from '@/components/bencho/Checklist'
+import { JobPanel, type JobView } from '@/components/chat/JobPanel'
 import { ContextMeter, type MeterPart } from '@/components/bencho/ContextMeter'
 import {
   ChatMessage as ChatBubble, ChatComposer, ThinkingIndicator, MarkdownText,
@@ -631,6 +632,15 @@ export function Conversation(props: {
    * 问「现在装了几成」。用累加值算占用会得到超过 100% 的荒谬结果。
    */
   const [contextUsed, setContextUsed] = useState<number | null>(null)
+
+  /**
+   * 正在跑、或刚跑完的后台任务。
+   *
+   * 同一个 jobId 会来两帧（running → 终态），所以按 id 覆盖而不是追加 ——
+   * 追加会得到两条同名记录。完成的短任务由 JobPanel 自己移除，
+   * 这里只负责维护事实，不管「该不该显示」。
+   */
+  const [jobs, setJobs] = useState<JobView[]>([])
   /* dsh 响应式：1024 以下左栏自动收为 56px 轨，手动展开为覆盖式抽屉 */
   const [narrow, setNarrow] = useState(() => (typeof window === 'undefined' ? false : window.innerWidth < 1024))
   const [sideExpanded, setSideExpanded] = useState(() => (typeof window === 'undefined' ? true : window.innerWidth >= 1024))
@@ -1288,6 +1298,27 @@ export function Conversation(props: {
         if ((u.inputTokens ?? 0) > 0 && prompt > 0) {
           setContextUsed(prompt)
         }
+      },
+      onJob: (j) => {
+        /* 同一 jobId 会来两帧：registered（running）与 settled（终态）。
+           按 id 覆盖，不能追加 —— 追加会变成两条同名记录。
+           startedAt 只在本机记一次：settled 帧不带开始时间，若覆盖掉就
+           算不出「它跑了多久」。 */
+        setJobs((prev) => {
+          const at = prev.find((x) => x.jobId === j.jobId)
+          const next: JobView = {
+            jobId: j.jobId,
+            kind: j.kind,
+            label: j.label,
+            status: j.status,
+            startedAt: at?.startedAt ?? Date.now(),
+            ...(j.durationMs !== undefined ? { durationMs: j.durationMs } : {}),
+            ...(j.detail !== undefined ? { detail: j.detail } : {}),
+          }
+          return at
+            ? prev.map((x) => (x.jobId === j.jobId ? next : x))
+            : [...prev, next]
+        })
       },
       onContext: (c) => {
         /* 窗口大小只跟模型走，不随轮次变 —— 覆盖即可，不累加。
@@ -2423,6 +2454,13 @@ export function Conversation(props: {
                 </div>
               )
             })()}
+            {/* 后台任务：只显示还在跑的、以及出事的。正常完成的快任务不占位 ——
+                实测一个会话 13060 个 job，全列出来等于刷屏。 */}
+            {jobs.length > 0 && (
+              <div className="cv3-job-dock">
+                <JobPanel jobs={jobs} onDismiss={(id) => setJobs((prev) => prev.filter((x) => x.jobId !== id))} />
+              </div>
+            )}
             <div className="cv3-compose">
             <ChatComposer
               value={chat.draft}

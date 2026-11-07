@@ -14,6 +14,7 @@ import type {
   AgentTask,
   ChatMessage,
   ChatStreamContext,
+  ChatStreamJob,
   ChatStreamMessage,
   ChatStreamStatus,
   ChatStreamTitle,
@@ -445,6 +446,11 @@ export interface ChatStreamHandlers {
    */
   onContext?: (context: ChatStreamContext) => void
   /**
+   * 后台任务开始 / 结束。可选：旧后端不产这帧时不会调用。
+   * 同一个 jobId 会来两次（running → 终态），由调用方按 id 覆盖而不是追加。
+   */
+  onJob?: (job: ChatStreamJob) => void
+  /**
    * 引擎为这条会话起的标题。可选：旧后端不产这帧时不会调用。
    * 收到后应更新会话标题，否则左栏只能一直是「未命名对话」。
    */
@@ -630,6 +636,30 @@ export function openChatSessionStream(
             type: 'context',
             ...(w !== undefined ? { contextWindow: w } : {}),
             ...(t !== undefined ? { toolsTokens: t } : {}),
+          })
+        }
+        return 'continue'
+      }
+      case 'job': {
+        /* 任务帧。status 只认四个值 —— 上游给别的就当没有这帧，
+           不猜一个「可能完成」糊弄过去。 */
+        const j = payload as unknown as Record<string, unknown>
+        const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v : undefined)
+        const jobId = str(j.jobId)
+        const status = str(j.status)
+        const allowed = ['running', 'completed', 'killed', 'failed'] as const
+        const ok = allowed.find((x) => x === status)
+        if (jobId && ok) {
+          const dur = typeof j.durationMs === 'number' && Number.isFinite(j.durationMs) && j.durationMs >= 0
+            ? j.durationMs : undefined
+          handlers.onJob?.({
+            type: 'job',
+            jobId,
+            kind: str(j.kind) ?? '',
+            label: str(j.label) ?? '',
+            status: ok,
+            ...(dur !== undefined ? { durationMs: dur } : {}),
+            ...(str(j.detail) ? { detail: str(j.detail) } : {}),
           })
         }
         return 'continue'

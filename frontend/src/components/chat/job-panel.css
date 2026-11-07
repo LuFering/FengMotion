@@ -1,0 +1,82 @@
+/* ── 后台任务面板 ────────────────────────────────────────
+   贴在输入框上方，和任务清单抽屉同一层「过程信息」。
+   刻意比任务清单更轻：它只是「有东西在跑」的告知，不是要读的内容。
+
+   宽度跟输入框一致（由外层 .cv3-job-dock 控制），自己不设宽度 ——
+   否则两处停靠物会左右错位。 */
+.jobp {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 4px 6px;
+  background: var(--surf);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.jobp-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 22px;
+  padding: 0 4px;
+  font-size: 11px;
+  color: var(--dim);
+  /* 长命令不换行：这行是「告知」，撑高会把输入框挤走 */
+  min-width: 0;
+}
+
+.jobp-icon {
+  display: inline-flex;
+  align-items: center;
+  color: var(--dim);
+  flex: none;
+}
+.jobp-kind { flex: none; color: var(--dim); opacity: 0.7; }
+
+.jobp-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--fg);
+  /* 命令行用等宽，和对话里的工具调用一致 */
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 10.5px;
+}
+
+.jobp-time {
+  flex: none;
+  color: var(--dim);
+  font-variant-numeric: tabular-nums;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* 状态靠文字也靠色：只有「出事」才提亮，跑动中的只是普通色。
+   状态不能只靠颜色表达 —— 所以 killed / failed 都带文字标签。 */
+.jobp-row[data-status='running'] .jobp-icon { color: var(--acc); }
+.jobp-row[data-status='completed'] .jobp-icon { color: var(--ok); }
+.jobp-row[data-status='killed'] .jobp-time,
+.jobp-row[data-status='failed'] .jobp-time { color: var(--warn); }
+
+.jobp-tag {
+  padding: 0 4px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--warn) 16%, transparent);
+  font-size: 10px;
+  line-height: 14px;
+}
+
+/* 跑动中的转圈：用 CSS 而不是逐帧 state，省一次重渲染 */
+.jobp-spin { animation: jobp-rotate 1s linear infinite; }
+@keyframes jobp-rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .jobp-spin { animation: none; }
+}

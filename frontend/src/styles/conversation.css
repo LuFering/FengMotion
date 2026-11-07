@@ -2770,6 +2770,14 @@ html[data-theme="tactile"] .cv3-ddm {
   margin: 0 auto 8px;
 }
 
+/* 后台任务面板：与任务清单抽屉同宽同位置，两者可能同时出现，
+   所以用同样的宽度约束，避免上下两块左右参差。 */
+.cv3-job-dock {
+  width: 100%;
+  max-width: min(920px, max(680px, 64%), calc(100% - 32px));
+  margin: 0 auto 8px;
+}
+
 /* ── 过程诊断（压缩 / token 上限 / 重试 / 中断）──────────────
    一条低调的说明行，放在用量之前。
    刻意不做成警告框：这几件事都不算失败（除了 token 上限），

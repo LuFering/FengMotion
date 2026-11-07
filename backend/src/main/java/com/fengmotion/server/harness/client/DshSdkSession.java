@@ -174,6 +174,34 @@ public class DshSdkSession {
         }
 
         /**
+         * 一个后台任务（job）开始或结束。
+         *
+         * <p>DSH 把每次 bash / 长任务登记成 job，成对发 {@code job/registered} 与
+         * {@code job/settled}。这两类事件以前落在 default 分支被丢弃，所以界面上
+         * <b>完全看不到任务的存在</b>：慢任务期间用户只看到「卡住了」，
+         * 被 kill 的任务更是无声无息（实测一个会话里 13060 个 job 有 200 个 killed）。</p>
+         *
+         * @param job 任务快照；结束事件带 status 与耗时
+         */
+        default void onJob(JobInfo job) {
+            // 默认忽略
+        }
+
+        /**
+         * 一个后台任务的状态快照。
+         *
+         * @param jobId     任务 ID（同一任务注册与结算相同）
+         * @param kind      任务类型，如 {@code bash}
+         * @param label     给人看的标签，通常是命令行
+         * @param status    状态：{@code running} / {@code completed} / {@code killed} / {@code failed}
+         * @param durationMs 已运行毫秒；未结束时为 -1
+         * @param detail    结算说明，如 {@code exit code: 0}；未结束时为 null
+         */
+        record JobInfo(String jobId, String kind, String label, String status,
+                       long durationMs, String detail) {
+        }
+
+        /**
          * 一轮结束。
          *
          * @param failed 是否失败
@@ -601,6 +629,29 @@ public class DshSdkSession {
                    这是上下文占用率的分母的唯一来源 —— usage 帧只给分子。
                    字段缺失（适配器没上报）时传 -1，让上层知道「不知道」，
                    而不是拿一个猜的数字去除。 */
+                /* 后台任务（bash / 长任务）。成对出现：registered 表示开始，
+                   settled 带 status 与耗时。以前全落 default 被丢弃 ——
+                   慢任务期间用户只看到「卡住」，被 kill 也无声无息。 */
+                case "job/registered" -> listener.onJob(new Listener.JobInfo(
+                        data.path("jobId").asText(""),
+                        data.path("kind").asText(""),
+                        data.path("label").asText(""),
+                        "running",
+                        -1L,
+                        null));
+                case "job/settled" -> {
+                    long started = data.path("startedAt").asLong(0);
+                    long finished = data.path("finishedAt").asLong(0);
+                    long duration = (started > 0 && finished >= started) ? finished - started : -1L;
+                    String detail = data.path("detail").asText("");
+                    listener.onJob(new Listener.JobInfo(
+                            data.path("jobId").asText(""),
+                            data.path("kind").asText(""),
+                            data.path("label").asText(""),
+                            data.path("status").asText("completed"),
+                            duration,
+                            detail.isBlank() ? null : detail));
+                }
                 case "request/context" -> {
                     JsonNode window = data.path("contextWindow");
                     if (window.isNumber()) {

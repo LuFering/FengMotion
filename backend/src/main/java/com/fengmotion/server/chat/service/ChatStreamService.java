@@ -1015,6 +1015,28 @@ public class ChatStreamService {
         }
 
         @Override
+        public void onJob(DshSdkSession.Listener.JobInfo job) {
+            /* 任务帧。前端拿它维护「还在跑的任务」列表 ——
+               慢任务要看得见，被 kill 的也要有痕迹（实测 13060 个 job 里 200 个 killed）。 */
+            if (job.jobId().isBlank()) {
+                return;
+            }
+            ObjectNode data = json.createObjectNode();
+            data.put("type", "job");
+            data.put("jobId", job.jobId());
+            data.put("kind", job.kind());
+            data.put("label", job.label());
+            data.put("status", job.status());
+            if (job.durationMs() >= 0) {
+                data.put("durationMs", job.durationMs());
+            }
+            if (job.detail() != null) {
+                data.put("detail", job.detail());
+            }
+            writeFrame(out, "job", data);
+        }
+
+        @Override
         public void onToolsTokens(long toolsTokens) {
             /* 工具 schema 的估算占用。走和容量帧同一个字段，前端把它合进
                「这一轮共发了多少」的分档里 —— 前端不需要知道它俩来源不同，
