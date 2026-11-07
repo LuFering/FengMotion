@@ -28,6 +28,14 @@ export interface ChatComposerProps {
   placeholder?: string
   /** 附件按钮（上游是空位；本项目接了真实上传时传这个） */
   onAttach?: () => void
+  /**
+   * 自定义的「加号」动作区。
+   *
+   * 点了不该直接弹系统文件框 —— 参考组件里先弹一个「添加」菜单
+   * （文件和文件夹 / 目标 / 计划模式 / 文件 / 电子表格 / 演讲 / 代码块）。
+   * 传了这个就由调用方自己渲染触发器与菜单，样式仍由 .cc-attach 提供。
+   */
+  attachMenu?: ReactNode
   /** 模型选择器等右侧控件（工作台那栏复用对话界面同一套） */
   trailing?: ReactNode
   /** 左侧额外控件（权限模式等） */
@@ -116,6 +124,7 @@ export function ChatComposer({
   busy = false,
   placeholder = '说说你想做的片子…',
   onAttach,
+  attachMenu,
   trailing,
   leading,
   footer,
@@ -147,7 +156,7 @@ export function ChatComposer({
   /* 底栏只有「发送」时不该单独占一行 —— 那会在胶囊底部留出一条空白带。
      工作台那栏没有附件钮、没有模型选择器，正好是这种情况：此时退回单行，
      发送钮直接贴在文字右侧。 */
-  const hasBarContent = Boolean(onAttach || leading || trailing)
+  const hasBarContent = Boolean(onAttach || attachMenu || leading || trailing)
 
   return (
     <div className="cc">
@@ -186,11 +195,11 @@ export function ChatComposer({
 
         <div className="cc-bar" data-compact={hasBarContent ? undefined : ''}>
           <div className="cc-bar-left">
-            {onAttach ? (
+            {attachMenu ?? (onAttach ? (
               <button type="button" className="cc-attach" aria-label="添加附件" title="添加附件" onClick={onAttach}>
                 <Plus size={18} strokeWidth={2.2} />
               </button>
-            ) : null}
+            ) : null)}
             {leading}
           </div>
 

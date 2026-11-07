@@ -16,6 +16,7 @@ import {
   TaskList, type TaskItem, type TaskStepChip,
 } from '@/components/chat'
 import { ComposerAttachments } from '@/components/chat/ComposerAttachments'
+import { AttachMenu } from '@/components/chat/AttachMenu'
 import type { CSSProperties } from 'react'
 import {
   AlertCircle, AlertTriangle, Archive, ArchiveRestore, Check, ChevronDown, ChevronLeft, ChevronRight,
@@ -812,6 +813,9 @@ export function Conversation(props: {
        而不是静默消失让用户以为选上了。 */
     uploading?: boolean
     uploadError?: string
+    /* 真实上传进度 0–100。上传中才有值；落地后置 undefined，
+       图块据此判断「环该不该画、角落要不要显示百分比」。 */
+    progress?: number
     /* 本地预览地址（object URL）。图片附件在卡片里直接显示缩略图，
        而不是一个「图片」图标 —— 用户选了两张图，必须能看出是哪两张。
        生命周期：随附件一起移除时回收，见 removeAttachment。 */
@@ -1844,12 +1848,22 @@ export function Conversation(props: {
       for (const item of picked) {
         // 走真实后端的 /api/uploads（studioHttpApi），不是演示适配器 chatApi ——
         // 后者是本地 mock，没有上传能力。
-        void studioHttpApi().chat.uploadAttachment(item.file)
+        void studioHttpApi().chat.uploadAttachment(item.file, {
+          /* 真实进度：图块上的环按它走动，角落显示百分比。
+             到 100 就不再传 —— 后面等服务器回 201 的那一小段
+             环已经画满，不会出现「满格却还在转」的怪状态。 */
+          onProgress: (percent: number) => {
+            if (!mountedRef.current) return
+            setAttachments((prev) => prev.map((a) => (
+              a.uploadId === item.uploadId ? { ...a, progress: percent } : a
+            )))
+          },
+        })
           .then((uploaded: { fileId: string; mimeType: string }) => {
             if (!mountedRef.current) return
             setAttachments((prev) => prev.map((a) => (
               a.uploadId === item.uploadId && a.uploading
-                ? { ...a, fileId: uploaded.fileId, mimeType: uploaded.mimeType, uploading: false, uploadError: undefined }
+                ? { ...a, fileId: uploaded.fileId, mimeType: uploaded.mimeType, uploading: false, uploadError: undefined, progress: undefined }
                 : a
             )))
           })
@@ -2674,7 +2688,18 @@ export function Conversation(props: {
               placeholder={activeIsServer
                 ? '继续这条对话：消息会保存到服务端'
                 : '说说你想做的片子，或补充制作要求'}
-              onAttach={() => fileRef.current?.click()}
+              attachMenu={(
+                <AttachMenu
+                  onPickFiles={() => fileRef.current?.click()}
+                  /* 目标与计划模式本项目还没接引擎能力，但入口留着并如实说明，
+                     而不是藏起来 —— 藏起来用户会以为「这个产品没有」。 */
+                  onGoal={() => setReplyNote('「目标」模式还没接入：目前请直接在消息里写清你要达成的结果。')}
+                  onPlan={() => setReplyNote('「计划模式」还没接入：可以先让我列一个计划，再逐步执行。')}
+                  onPluginHint={(label) => setReplyNote(
+                    `「${label}」由模型在对话里直接生成，不需要在这里上传文件 —— 直接告诉它你要什么即可。`,
+                  )}
+                />
+              )}
               sendBlocked={sendBlocked}
               leading={(
                 <DropdownMenu>
@@ -2713,7 +2738,7 @@ export function Conversation(props: {
                     /* 上传中用进度环表示。后端目前不回报字节级进度，
                        所以这里给的是「进行中」的确定性提示而不是假进度：
                        环画到 35%，与组件原版无进度时的动效位置一致。 */
-                    progress: a.uploading ? 35 : undefined,
+                    progress: a.uploading ? (a.progress ?? 0) : undefined,
                     error: a.uploadError,
                     /* 用途不进图块（图块只有 56px，塞不下），
                        但保留在 title 里 —— 「这张图用于画面」是用户特意选的，

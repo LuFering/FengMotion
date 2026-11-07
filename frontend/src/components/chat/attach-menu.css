@@ -1,0 +1,113 @@
+/* ═══════════════════════════════════════════════════════════════
+   加号弹出的「添加」菜单
+
+   数值对 BoardUI 组件实测：
+     浮层    361px 宽 / 圆角 16px / 1px 边框 / padding 8px
+     分组标题 14px / 常规字重 / 次要色
+     菜单项  高 32px / 图标 24×24 / 主文案 14px·500 / 说明 14px 次级色
+   ═══════════════════════════════════════════════════════════════ */
+
+.am-pop {
+  width: 361px;
+  max-width: calc(100vw - 32px);
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surf);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
+}
+
+.am-group {
+  margin: 6px 0 4px;
+  padding: 0 8px;
+  color: var(--dim);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.am-group:first-child {
+  margin-top: 0;
+}
+
+.am-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* 菜单项：图标 + 主文案 + 说明，整行可点 */
+.am-item {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 10px;
+  min-height: 32px;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 120ms ease;
+}
+
+.am-item:hover {
+  background: var(--hover);
+}
+
+/* 普通动作项的图标是描边风格，直接跟随文字色 */
+.am-item > svg {
+  flex: none;
+  color: var(--tx2);
+}
+
+.am-label {
+  flex: none;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 22px;
+}
+
+/* 说明文字：与主文案同一行，次要色。
+   参考组件里它是 14px 次级色（不是更小的字号），所以这里不缩小 */
+.am-hint {
+  color: var(--dim);
+  font-size: 14px;
+  line-height: 22px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 插件项图标：24px 的实心色块 + 白色线条图标。
+   参考组件里用的是带多层渐变的插件插画，这里用「色块 + 描边图标」近似：
+   小尺寸下两者的辨识度相当，而插画要额外引 4 份资源。
+   图标必须够粗（strokeWidth 2.2）才不会在色块上糊成一团。 */
+.am-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  color: #fff;
+}
+
+.am-icon > svg {
+  stroke-width: 2.2;
+}
+
+.am-item[data-tone='gray'] .am-icon { background: #a8a8a8; }
+.am-item[data-tone='blue'] .am-icon { background: #338af3; }
+.am-item[data-tone='purple'] .am-icon { background: #9f7ef6; }
+.am-item[data-tone='teal'] .am-icon { background: #66e5d7; color: #0f766e; }
+
+/* 说明文字与主文案之间留一点空隙，否则「演讲创建营销资产」会连成一句 */
+.am-hint {
+  margin-left: 2px;
+}

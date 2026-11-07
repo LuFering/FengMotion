@@ -66,7 +66,20 @@ export interface ChatResource {
    * 与 `assets.uploads.*` 的分片协议不是一回事：那是「项目素材」（有归属、可版本化），
    * 这是「为这一条消息临时带上的文件」。两者后端是不同的存储位置，不要混用。
    */
-  uploadAttachment(file: File, options?: { signal?: AbortSignal }): Promise<UploadedAttachment>
+  uploadAttachment(
+    file: File,
+    options?: {
+      signal?: AbortSignal
+      /**
+       * 真实上传进度回调（0–100）。
+       *
+       * 用 XHR 而不是 fetch 才拿得到它：fetch 至今没有上传进度事件，
+       * 只能用「假动画」糊弄，而假进度会在网络慢时先跑完再长时间不动，
+       * 比不显示进度更让人困惑。
+       */
+      onProgress?: (percent: number) => void
+    },
+  ): Promise<UploadedAttachment>
   /**
    * 让服务端真正停下这条会话正在跑的那一轮。
    *
@@ -169,12 +182,15 @@ export function createChatResource(http: HttpClient): ChatResource {
       return asPage<ChatMessage>(payload, { source: `GET /chat-sessions/${sessionId}/messages` })
     },
 
-    async uploadAttachment(file, options = {}) {
-      /* multipart 交给 HttpClient 判断：它对 FormData 不设 Content-Type，
-         由浏览器自己带 boundary（手动设会导致 boundary 丢失、后端解析失败）。 */
+    uploadAttachment(file, options = {}) {
+      /* 不用 http.post：需要 XMLHttpRequest 的 upload.onprogress 才有真实进度。
+         这里只承担 multipart 上传这一件事，其他请求仍走 HttpClient。 */
       const form = new FormData()
       form.append('file', file, file.name)
-      return http.post<UploadedAttachment>('/uploads', form, { signal: options.signal })
+      return http.uploadWithProgress<UploadedAttachment>('/uploads', form, {
+        signal: options.signal,
+        onProgress: options.onProgress,
+      })
     },
 
     async sendMessage(sessionId, body, options = {}) {

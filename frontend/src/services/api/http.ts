@@ -9,8 +9,9 @@
  * 4. **SSE 入口**：`openEventStream` 保留响应体供流状态机消费（EventSource 不能带请求头，故用 fetch 流）。
  */
 import type { ApiConfig, ApiConfigPatch, ApiResponse, QueryParams, RequestOptions } from './types'
+import type { ApiErrorDetail } from '@/types/contracts'
 import { buildApiUrl, newIdempotencyKey } from './config'
-import { ApiError } from './errors'
+import { ApiError, apiErrorFromDetail } from './errors'
 
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
 
@@ -100,6 +101,75 @@ export class HttpClient {
     }
     for (const [key, value] of Object.entries(options.headers ?? {})) headers.set(key, value)
     return headers
+  }
+
+  /**
+   * 带真实进度的上传（multipart）。
+   *
+   * <p><strong>为什么单独开一条 XHR 通道</strong>：{@code fetch} 没有上传进度事件，
+   * 拿不到「已经发出多少字节」。界面上要画进度环就只能编，而编出来的进度
+   * 在慢网络下会先跑满再长时间不动 —— 那比不显示更让人困惑。
+   * XHR 的 {@code upload.onprogress} 是浏览器里唯一可靠的来源。</p>
+   *
+   * <p>不设 Content-Type：交给浏览器生成 multipart boundary，
+   * 手动设会让 boundary 丢失，后端解析直接失败。</p>
+   *
+   * @param path    相对路径，例如 {@code /uploads}
+   * @param form    表单数据
+   * @param options 取消信号与进度回调
+   * @returns 服务器返回的 JSON
+   */
+  uploadWithProgress<T>(
+    path: string,
+    form: FormData,
+    options: { signal?: AbortSignal; onProgress?: (percent: number) => void } = {},
+  ): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+      const xhr = new XMLHttpRequest()
+      xhr.open('POST', this.url(path))
+      xhr.withCredentials = this.current.credentials === 'include'
+      xhr.setRequestHeader('Accept', 'application/json')
+
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable && event.total > 0) {
+          options.onProgress?.(Math.round((event.loaded / event.total) * 100))
+        }
+      }
+      xhr.onload = () => {
+        // 2xx 之外统一走 ApiError，与 HttpClient.request 的错误形状保持一致
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            resolve(JSON.parse(xhr.responseText) as T)
+          } catch {
+            reject(new ApiError({ code: 'internal_error', message: '上传响应不是合法 JSON', httpStatus: xhr.status }))
+          }
+          return
+        }
+        // 错误体形状与 ApiExceptionHandler 一致：{ error: { code, message, requestId } }
+        try {
+          const body = JSON.parse(xhr.responseText) as { error: ApiErrorDetail }
+          reject(apiErrorFromDetail(body.error, xhr.status))
+        } catch {
+          // 非 JSON 错误体：给一个可读的通用失败，不把解析异常暴露给用户
+          reject(new ApiError({
+            code: 'internal_error',
+            message: `上传失败（HTTP ${xhr.status}）`,
+            httpStatus: xhr.status,
+          }))
+        }
+      }
+      xhr.onerror = () => reject(new ApiError({ code: 'network_error', message: '上传时网络中断' }))
+      xhr.onabort = () => reject(new ApiError({ code: 'aborted', message: '上传已取消' }))
+
+      if (options.signal) {
+        if (options.signal.aborted) {
+          xhr.abort()
+          return
+        }
+        options.signal.addEventListener('abort', () => xhr.abort(), { once: true })
+      }
+      xhr.send(form)
+    })
   }
 
   /**
