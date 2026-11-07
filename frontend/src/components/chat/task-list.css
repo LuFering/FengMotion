@@ -21,6 +21,29 @@
   flex-direction: column;
   gap: 5px;
   width: 100%;
+  /* 过程区（思考 / 工具调用）是「它怎么做到的」，正文是「结论是什么」。
+     两者在视觉上必须分开，否则一条回复读起来是一整段没有层次的话。
+     做法：内嵌一层底色 + 发丝边线 + 圆角，像一个附在正文前的过程面板。
+
+     ⚠️ 用 --hole（比页面深一档）而不是 --surf：--surf 与页面几乎同色，
+     压上去看不出边界；--hole 在浅色主题下比 --bg 亮、在深色主题下比 --bg 深，
+     两种主题都能形成一档层次。 */
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--fm-radius-card, 12px);
+  background: var(--hole);
+}
+
+/* 过程区里的连接线要比正文上的发丝线更弱一档：
+   底色变深后原来的 --line 会显得偏亮，看起来像主线条。 */
+.tl-root .tl-connector,
+.tl-root .tl-guide {
+  color: color-mix(in srgb, var(--line) 75%, transparent);
+}
+
+/* 过程区里的步骤文字再压暗一点，保证「标题 > 步骤」的层级 */
+.tl-root .tl-step {
+  color: var(--ph);
 }
 
 /* ── 任务标题行 ─────────────────────────────────────────────── */
