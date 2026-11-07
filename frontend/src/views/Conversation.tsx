@@ -268,6 +268,29 @@ function ToolIcon({ name, className }: { name: string; className?: string }) {
   )
 }
 
+/**
+ * 「思考」任务的图标。
+ *
+ * <p>思考不是工具调用，但它和工具步骤同处一张任务列表；不给图标时，
+ * 工具行前面都有图标、唯独思考行前面空一格，看起来像渲染漏了。</p>
+ */
+function ThinkingIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 18 18"
+      aria-hidden
+      className={`tl-task-svg${className ? ` ${className}` : ''}`}
+    >
+      {/* 一个思考气泡：外框 + 两个点，与工具图标的线宽保持一致 */}
+      <path d="M9 2.8 C12.9 2.8 15.6 5.2 15.6 8.2 C15.6 11.2 12.9 13.6 9 13.6
+               C7.9 13.6 6.9 13.4 6 13 L3 14.4 L3.9 11.6
+               C2.9 10.7 2.4 9.5 2.4 8.2 C2.4 5.2 5.1 2.8 9 2.8 Z" />
+      <circle cx="6.6" cy="8.2" r="0.9" fill="currentColor" stroke="none" />
+      <circle cx="11.4" cy="8.2" r="0.9" fill="currentColor" stroke="none" />
+    </svg>
+  )
+}
+
 
 /**
  * 从工具参数里抽出「这一步碰到了哪些文件」。
@@ -326,7 +349,9 @@ function FileTypeIcon({ name }: { name: string }) {
   const common = { viewBox: '0 0 16 16', 'aria-hidden': true, className: 'tl-chip-svg' } as const
 
   /* 代码类 */
-  if (['ts', 'tsx', 'js', 'jsx', 'py', 'go', 'rs', 'java', 'c', 'cpp', 'sh'].includes(ext)) {
+  /* mjs / cjs / mts / cts 也是 JS/TS，漏掉会掉进文档图标的兜底，
+     同一个项目里 .js 是代码图标、.mjs 是文档图标，看起来像渲染错了。 */
+  if (['ts', 'tsx', 'js', 'jsx', 'mjs', 'cjs', 'mts', 'cts', 'py', 'go', 'rs', 'java', 'c', 'cpp', 'sh'].includes(ext)) {
     return (
       <svg {...common}>
         <path d="M5.6 4.4 L2.6 8 L5.6 11.6" />
@@ -2117,7 +2142,7 @@ export function Conversation(props: {
                       /* 思考用全文而不是 truncate：推理已经落库，界面却只显示
                          开头 72 字，等于把存下来的内容又丢掉一次。多行排版见
                          task-list.css 的 .tl-step--multiline。 */
-                      ...(m.thinking ? [{ title: '思考', steps: [{ label: m.thinking, multiline: true }] }] : []),
+                      ...(m.thinking ? [{ title: '思考', icon: ThinkingIcon, steps: [{ label: m.thinking, multiline: true }] }] : []),
                       ...toolCallsToTasks(tools, false),
                     ]
                     if (tasks.length === 0) return null
@@ -2338,7 +2363,7 @@ export function Conversation(props: {
                          与历史路径同一个结构，用户看到的永远是同一种组织方式。 */
                       /* 与历史消息里的思考同样用全文：实时看和回看应是同一份内容，
                          只在这里截断会让「正在思考」比「回看」少显示一大段。 */
-                      ...((streamingThinking || lastThinking) ? [{ title: '思考', runningTitle: '正在思考', steps: [{ label: streamingThinking || lastThinking, multiline: true }] }] : []),
+                      ...((streamingThinking || lastThinking) ? [{ title: '思考', runningTitle: '正在思考', icon: ThinkingIcon, steps: [{ label: streamingThinking || lastThinking, multiline: true }] }] : []),
                       ...toolCallsToTasks(toolCalls.filter((c) => !isSearchTool(c.name)), pending),
                     ]}
                     revealed={((streamingThinking || lastThinking) ? 2 : 0) + toolCallsRevealed(toolCalls.filter((c) => !isSearchTool(c.name)))}
