@@ -11,47 +11,32 @@ import { QuestionFormCard } from '@/components/chat/QuestionFormCard'
 import { splitQuestionForms } from '@/components/chat/questionForm'
 import { ContextMeter, type MeterPart } from '@/components/bencho/ContextMeter'
 import {
-  ChatMessage as ChatBubble, ChatComposer, ThinkingIndicator, MarkdownText,
+  ChatMessage as ChatBubble, ThinkingIndicator, MarkdownText,
   AnswerBody, AnswerActions, MessageActions, RunningDivider,
   TaskList, type TaskItem, type TaskStepChip,
 } from '@/components/chat'
-import { ComposerAttachments } from '@/components/chat/ComposerAttachments'
-import { AttachMenu } from '@/components/chat/AttachMenu'
-import { ContextRing } from '@/components/chat/ContextRing'
-import { useSpringPress } from '@/components/chat/useSpringPress'
-import type { CSSProperties } from 'react'
 import {
-  AlertCircle, AlertTriangle, Archive, ArchiveRestore, Check, ChevronDown, ChevronLeft, ChevronRight,
+  AlertCircle, AlertTriangle, Archive, ArchiveRestore, Check, ChevronDown, ChevronRight,
   CircleSlash, Ellipsis, FolderPlus, Minimize2, RotateCcw,
-  ListFilter, LoaderCircle, MessageSquarePlus, PanelLeft, Pencil, Pin, PinOff, Shield,
-  ShieldAlert, ShieldCheck, Trash2,
+  ListFilter, LoaderCircle, MessageSquarePlus, PanelLeft, Pencil, Pin, PinOff,
+  Trash2,
 } from 'lucide-react'
+import { LeiBoxComposer } from '@/components/chat/LeiBoxComposer'
 import { registerComposer, type DeliverableAsset, type AssetPurpose } from '@/shell/usePendingAssets'
 import { deliveredReferences } from '@/services/creationResources'
-import { PURPOSE_LABEL } from '@/shell/usePendingAssets'
 import { studioHttpApi } from '@/services/api'
 import { newIdempotencyKey } from '@/services/api/config'
 import { ApiError, userMessageForError } from '@/services/api/errors'
 
-/** 用途 → 输入框里显示的短标签（与待发送面板同一套文案） */
-const PURPOSE_TXT: Record<string, string> = PURPOSE_LABEL
-
 /** 从空白进入（还没建会话）时，服务层用的会话键。
  *  必须是每段对话各一个键：两条未落盘的对话共用一个键会在适配器里串消息。 */
 const DRAFT_SESSION = '__draft__'
-import { HARNESSES, REASONING_LABEL, DEFAULT_PREFS, prefsKey, loadPrefs, savePrefs, type ModelPrefs, type Reasoning } from '../data/harnesses'
-import { useHarnesses, availabilityOf, AVAILABILITY_LABEL, modelsOf } from '../shell/useHarnesses'
+import { HARNESSES, DEFAULT_PREFS, prefsKey, loadPrefs, savePrefs, type ModelPrefs } from '../data/harnesses'
+import { useHarnesses, availabilityOf, modelsOf } from '../shell/useHarnesses'
 import type { ChatState, ChatMessage } from '../shell/useChat'
 import { UNGROUPED, sessionTitle, type SessionsState } from '../shell/useSessions'
 import { chatApi, hydrateDemoChat } from '../services/chatService'
 import type { NewProjectInput } from '../shell/useProjects'
-import {
-  Popover, PopoverContent, PopoverTrigger,
-} from '../components/ui/popover'
-import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuTrigger,
-  DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem,
-} from '../components/ui/dropdown-menu'
 import {
   Dialog, DialogContent, DialogTitle, DialogDescription,
 } from '@/components/ui/dialog'
@@ -87,21 +72,6 @@ function usableName(text: string): string {
   const first = text.trim().split('\n')[0] ?? ''
   return first.length >= 2 && !/^[\d\s\p{P}]+$/u.test(first) ? first : ''
 }
-
-/* 权限模式文案（对齐 dsh preset.readOnly / workspaceWrite / fullAccess）
-   每个模式配一句说明：权限是「放开多少」的选择，只说名字看不出后果。 */
-const PERM_LABEL = {
-  readOnly: '仅可查看',
-  workspaceWrite: '工作区内修改',
-  fullAccess: '完全权限',
-} as const
-
-const PERM_MODES = [
-  { id: 'readOnly' as const, label: '仅可查看', desc: '只读取文件，不做任何修改', Icon: Shield },
-  { id: 'workspaceWrite' as const, label: '工作区内修改', desc: '只允许改当前工作目录内的文件', Icon: ShieldCheck },
-  { id: 'fullAccess' as const, label: '完全权限', desc: '减少确认步骤，可执行敏感操作', Icon: ShieldAlert },
-]
-
 
 /**
  * 工具调用列表的渲染。
@@ -720,8 +690,12 @@ export function Conversation(props: {
   const [rowMenu, setRowMenu] = useState<string | null>(null)
   /* 引擎/模型弹窗：modelOpen = 是否展开，modelPane = 当前在哪一级
      （null = 引擎列表；某引擎 id = 该引擎的模型页）。对齐首页的 harnessPane。 */
+  /* 模型/引擎选择状态：输入框已换成 LeiBox 官方组件（它自带模型与推理
+     档位菜单），这几个状态暂时没有消费方，但引擎切换、会话偏好仍要用到，
+     保留并显式标记，避免被当成死代码删掉。 */
   const [modelOpen, setModelOpen] = useState(false)
   const [modelPane, setModelPane] = useState<string | null>(null)
+  void modelOpen; void setModelOpen; void modelPane; void setModelPane
   /* 行内重命名：editing = 正在编辑的 id，editText = 输入值 */
   const [editing, setEditing] = useState<string | null>(null)
   const [editText, setEditText] = useState('')
@@ -823,9 +797,9 @@ export function Conversation(props: {
        生命周期：随附件一起移除时回收，见 removeAttachment。 */
     previewUrl?: string
   }[]>([])
-  const [permission, setPermission] = useState<'readOnly' | 'workspaceWrite' | 'fullAccess'>('workspaceWrite')
   const [harnessId, setHarnessId] = useState(HARNESSES[0].id)
   const [model, setModel] = useState(HARNESSES[0].models[0])
+  void setHarnessId; void setModel
   const [prefs, setPrefs] = useState<Record<string, ModelPrefs>>(loadPrefs)
   const fileRef = useRef<HTMLInputElement>(null)
   const imageRef = useRef<HTMLInputElement>(null)
@@ -835,8 +809,6 @@ export function Conversation(props: {
   const servedRef = MODULE_SERVED_IDS
   /* 当前回复流的退订函数：切会话或卸载时用它断线 */
   const streamStopRef = useRef<(() => void) | null>(null)
-  /* 权限胶囊的按压弹簧：与加号、发送钮同一套 */
-  const permPressRef = useSpringPress<HTMLButtonElement>()
   const scrollRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   /* 待发送 → 本输入框。注册期间才接受投递；离开这个视图就注销，
@@ -1096,7 +1068,6 @@ export function Conversation(props: {
   ]
   /* 「制作已开始」只认本会话里真的创建过东西（AI 消息带 changes），
      不能拿「左栏选中了某个项目」当依据 —— 那是切换当前项目，不是开始制作 */
-  const launched = messages.some((m) => m.role === 'ai' && m.changes && m.changes.length > 0)
   /* ── 左栏数据管线（对齐 dsh：筛选 → 搜索 → 排序 → 分组）──
      1. archiveFilter：隐藏已归档（默认）/ 全部 / 仅已归档
      2. query：按会话名称过滤（大小写不敏感）
@@ -1440,25 +1411,6 @@ export function Conversation(props: {
     streamStopRef.current = () => handle.close()
   }
 
-  /**
-   * 停止本轮生成。
-   *
-   * 顺序很重要：**先让服务端停**，再断开本地流。
-   * 反过来的话，本地连接先断，后端的子进程就再也收不到停止信号 ——
-   * 那正是过去「点了停止但其实还在跑」的成因。
-   *
-   * 服务端返回 404/网络错误时不打断收尾：用户已经表达了「不要了」，
-   * 界面必须先回到可输入状态；本地流照常断开，并把真实原因写进提示里。
-   */
-  const stopGeneration = () => {
-    const sessionId = props.activeSessionId
-    if (sessionId) {
-      studioHttpApi().chat.stop(sessionId).catch((cause: unknown) => {
-        setReplyNote(`服务端没有确认停止：${sendErrorText(cause)}`)
-      })
-    }
-    streamStopRef.current?.()
-  }
 
   /** 发送失败的原因（人话优先；网络/未找到/内容不合规各有说法）。 */
   const sendErrorText = (cause: unknown): string => {
@@ -1595,8 +1547,9 @@ export function Conversation(props: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages, pending])
 
-  const submit = () => {
-    send(chat.draft)
+  /* 输入框换成官方组件后文字由它自己持有，这里接收它交上来的正文 */
+  const submit = (text?: string) => {
+    send(text ?? chat.draft)
     requestAnimationFrame(() => {
       const el = inputRef.current
       if (el) el.style.height = 'auto'
@@ -1607,6 +1560,7 @@ export function Conversation(props: {
   const harness = HARNESSES.find((h) => h.id === harnessId) ?? HARNESSES[0]
   const prefKey = prefsKey(harnessId, model)
   const currentPrefs: ModelPrefs = prefs[prefKey] ?? DEFAULT_PREFS
+  void currentPrefs
   const setPref = (patch: Partial<ModelPrefs>) => {
     setPrefs((all) => {
       const next = { ...all, [prefKey]: { ...(all[prefKey] ?? DEFAULT_PREFS), ...patch } }
@@ -1614,6 +1568,7 @@ export function Conversation(props: {
       return next
     })
   }
+  void setPref
   /* 未接入的引擎不许发送（与首页同口径），附件/草稿至少有一个才算有内容。
      服务端会话同样可发：消息会真的保存（POST /chat-sessions/{id}/messages），
      只是回复要等 Agent 接入 —— 这一点由发送后的说明点明，不用禁用输入来表达。 */
@@ -1627,7 +1582,9 @@ export function Conversation(props: {
    */
   const probe = useHarnesses()
   const harnessState = availabilityOf(probe, harness.id)
+  void harnessState
   const stateOf = (id: string) => availabilityOf(probe, id)
+  void stateOf
   /**
    * 模型列表以**后端目录**为准（`/api/harnesses/{id}/models`）。
    * 本地 `harness.models` 是产品侧写的名字，与 DSH 实际路由的模型不一致。
@@ -1654,182 +1611,6 @@ export function Conversation(props: {
    * 模型目录里的 contextWindow 与流里那份是同一个值，可以直接用。
    */
   const modelContextWindow = backendModels.find((m) => m.id === effectiveModel)?.contextWindow
-  /**
-   * 引擎 / 模型选择器。
-   *
-   * 从原输入框里抽出来成为独立变量：新 Composer 的 trailing 槽需要它，
-   * 而它是这一段最长的 JSX，留在调用处会把输入框的骨架埋掉。
-   * 行为与外观完全沿用原来的两段式 chip + 两级弹窗 —— 第 10 项要求「用对话界面的」，
-   * 所以这里不重写，只是搬家。
-   */
-  const composerModelPicker = (
-    <>
-    <Popover open={modelPane !== null || modelOpen} onOpenChange={(o) => {
-      if (!o) { setModelOpen(false); setModelPane(null) }
-      else setModelOpen(true)
-    }}>
-      <PopoverTrigger asChild>
-        <button type="button" className="cv3-hbtn"
-                data-off={harnessState.state !== 'available' || undefined}
-                data-connected={harnessState.state === 'available' || undefined}
-                aria-label="选择执行引擎与模型"
-                title={harnessState.state === 'available' ? '切换执行引擎' : (harnessState.note ?? '该引擎未接入')}
-                style={{ '--h-color': harness.color } as CSSProperties}>
-          {/* 结构照搬 ModelThinkingSelector 的 trigger：
-               推理档位图标(12, mr-1.5) → 模型名(font-medium)
-               → 档位文字(ml-1.5, 次要色) → ChevronDown(10, ml-2) */}
-          <span className="cv3-hseg" data-off={harnessState.state !== 'available' || undefined}>
-            <i aria-hidden="true" />
-            <span className="cv3-hmark-img" aria-hidden="true"
-                  style={{ maskImage: `url(${harness.icon})`, WebkitMaskImage: `url(${harness.icon})` }} />
-            {harnessState.state === 'available' ? (
-              <>
-                <span className="cv3-hdiv" aria-hidden="true" />
-                <span className="cv3-hmodel">{effectiveModel}</span>
-                <span className="cv3-hdepth">{REASONING_LABEL[currentPrefs.reasoning]}</span>
-              </>
-            ) : <span className="cv3-hoff">{AVAILABILITY_LABEL[harnessState.state]}</span>}
-          </span>
-          <ChevronDown size={10} className="cv3-hchev" aria-hidden="true" />
-        </button>
-      </PopoverTrigger>
-      <PopoverContent side="top" align="end" sideOffset={9} className="cv3-hpop">
-        <div className="cv3-hp-scroll">
-          {/* 一级：引擎列表；二级：该引擎的模型 + 模型设置（从右侧滑入） */}
-          <div className="cv3-hp-pane" data-active={modelPane === null || undefined}>
-            <div className="cv3-hp-head">
-              <b>执行引擎</b>
-              <span>
-                {probe.access === 'unavailable'
-                  ? 'DSH 未接入'
-                  : probe.access === 'demo'
-                    ? 'DSH 仅演示'
-                    : probe.access === 'unknown'
-                      ? '状态未知'
-                      : `${HARNESSES.filter((h) => stateOf(h.id).state === 'available').length} 个已接入`}
-              </span>
-            </div>
-            <div className="cv3-hp-list" role="listbox" aria-label="执行引擎">
-              {HARNESSES.map((h) => {
-                const state = stateOf(h.id)
-                return (
-                <button key={h.id} type="button" className="cv3-hp-item" role="option"
-                        aria-selected={h.id === harnessId}
-                        data-off={state.state !== 'available' || undefined}
-                        title={state.note ?? undefined}
-                        style={{ '--h-color': h.color } as CSSProperties}
-                        onClick={() => {
-                          setHarnessId(h.id)
-                          setModel(modelsOfHarness(h.id).models[0]?.id ?? '')
-                          setModelPane(h.id)
-                        }}>
-                  <span className="cv3-hp-logo" aria-hidden="true"
-                        style={{ maskImage: `url(${h.icon})`, WebkitMaskImage: `url(${h.icon})` }} />
-                  <span className="cv3-hp-txt">
-                    <b>{h.name}</b>
-                    <small>{AVAILABILITY_LABEL[state.state]}{state.state === 'not_connected' ? '，仅展示' : ''}</small>
-                  </span>
-                  {h.id === harnessId && <Check size={13} className="cv3-hp-ck" aria-hidden="true" />}
-                  <ChevronRight size={13} className="cv3-hp-go" aria-hidden="true" />
-                </button>
-              )
-              })}
-            </div>
-          </div>
-          <div className="cv3-hp-pane cv3-hp-models" data-active={modelPane !== null || undefined}>
-            <div className="cv3-hp-head">
-              <button type="button" className="cv3-hp-back" onClick={() => setModelPane(null)}>
-                <ChevronLeft size={11} aria-hidden="true" />引擎
-              </button>
-              <b>{harness.name}</b>
-            </div>
-            <div className="cv3-hp-list" role="listbox" aria-label="模型">
-              {modelsOfHarness(harness.id).models.map((m) => (
-                <div key={m.id} className="cv3-hp-modelwrap">
-                  <button type="button" className="cv3-hp-item cv3-hp-model" role="option"
-                          aria-selected={m.id === effectiveModel}
-                          onClick={() => setModel(m.id)}>
-                    <span className="cv3-hp-radio" aria-hidden="true" />
-                    <span className="cv3-hp-txt"><b className="num">{m.label}</b></span>
-                    {m.id === effectiveModel && <Check size={13} className="cv3-hp-ck" aria-hidden="true" />}
-                  </button>
-                  {/* 选中模型下方展开设置抽屉：思考强度 + 最大上下文。
-                      首页两个都给了，这里原来只有推理等级、缺最大上下文。 */}
-                  {m.id === effectiveModel && (
-                    <div className="cv3-hp-drawer">
-                      <div className="cv3-hp-row">
-                        <span className="cv3-hp-label">思考强度</span>
-                        <div className="cv3-hp-seg" role="radiogroup" aria-label="思考强度">
-                          {(['off', 'standard', 'enhanced'] as Reasoning[]).map((v) => (
-                            <button key={v} type="button" role="radio"
-                                    aria-checked={currentPrefs.reasoning === v}
-                                    className={currentPrefs.reasoning === v ? 'on' : undefined}
-                                    onClick={() => setPref({ reasoning: v })}>{REASONING_LABEL[v]}</button>
-                          ))}
-                        </div>
-                      </div>
-                      <div className="cv3-hp-row">
-                        <span className="cv3-hp-label">最大上下文</span>
-                        <div className="cv3-hp-seg" role="radiogroup" aria-label="最大上下文">
-                          {([32, 64, 128] as const).map((v) => (
-                            <button key={v} type="button" role="radio"
-                                    aria-checked={currentPrefs.context === v}
-                                    className={currentPrefs.context === v ? 'on' : undefined}
-                                    onClick={() => setPref({ context: v })}>{v}K</button>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-            {harnessState.state !== 'available' && (
-              <p className="cv3-hp-note">
-                {harness.name} {AVAILABILITY_LABEL[harnessState.state]}
-                {harnessState.note ? `：${harnessState.note}` : '：不会真的执行。'}
-              </p>
-            )}
-          </div>
-        </div>
-      </PopoverContent>
-    </Popover>
-    </>
-  )
-
-  /* 引擎不可用（未接入 / 未连接）时只拦发送，不锁输入框：
-     用户仍该能把想法先写下来，等引擎接上再发。
-     规则与原来 canSend 的后半段一致。 */
-  const sendBlocked = !(activeIsServer || harnessState.state === 'available')
-
-  /* 附件：kind 按 MIME 判定；最多 6 个（同首页上限） */
-  /**
-   * 移除一个待发送附件。
-   *
-   * 必须回收 object URL：附件被删掉后，那张预览图不再有任何引用，
-   * 但浏览器不会自己释放 blob，反复加删图片会让内存一直涨。
-   */
-  const removeAttachment = (index: number) => {
-    setAttachments((list) => {
-      const target = list[index]
-      if (target?.previewUrl) URL.revokeObjectURL(target.previewUrl)
-      return list.filter((_, i) => i !== index)
-    })
-  }
-
-  /**
-   * 把附件映射到 BoardUI 组件的六种图块类型。
-   *
-   * 判据优先用 MIME（浏览器已给出准确类型），MIME 不可靠时退回扩展名 ——
-   * 有些系统给 .key/.md 的 type 是空串，只看 MIME 会全部落进 document。
-   */
-  const attachmentKind = (a: { name: string; kind: 'file' | 'image' | 'video' | 'technique'; mimeType?: string }):
-    'image' | 'file' => {
-    const mime = a.mimeType ?? ''
-    // 只有图片走方图形态，其余（含视频/文档/表格）都走文件胶囊 —— 与原版一致
-    if (a.kind === 'image' || mime.startsWith('image/')) return 'image'
-    return 'file'
-  }
 
   const addFiles = (files: File[], forced?: 'file' | 'image' | 'video', done?: () => void) => {
     if (files.length > 0) {
@@ -2685,111 +2466,22 @@ export function Conversation(props: {
               )
             })()}
             <div className="cv3-compose">
-            <ChatComposer
-              value={chat.draft}
-              onValueChange={(v) => { chat.setDraft(v); setSendError(null) }}
-              onSubmit={submit}
+            {/* 输入框整体使用 LeiBox 官方「Agent 对话输入框」原版实现：
+                内部是官方打包产物（自带 React / GSAP / 图标与全部动效），
+                不再保留任何自研元素。 */}
+            <LeiBoxComposer
               busy={pending}
-              /* 之前这里没传 onStop，停止按钮根本不会渲染出来 ——
-                 「生成中能停」只是组件里有这个能力，界面上到不了。 */
-              onStop={stopGeneration}
-              placeholder={activeIsServer
-                ? '继续这条对话：消息会保存到服务端'
-                : '说说你想做的片子，或补充制作要求'}
-              attachMenu={(
-                <AttachMenu
-                  /* 上限与后端/组件一致：达到后加号禁用并说明原因，
-                     而不是等用户选完文件再静默截断。 */
-                  disabled={attachments.length >= 6}
-                  disabledHint={`最多 ${6} 个附件，先移除一个再添加`}
-                  onPickFiles={() => fileRef.current?.click()}
-                  /* 目标与计划模式本项目还没接引擎能力，但入口留着并如实说明，
-                     而不是藏起来 —— 藏起来用户会以为「这个产品没有」。 */
-                  onGoal={() => setReplyNote('「目标」模式还没接入：目前请直接在消息里写清你要达成的结果。')}
-                  onPlan={() => setReplyNote('「计划模式」还没接入：可以先让我列一个计划，再逐步执行。')}
-                  onPluginHint={(label) => setReplyNote(
-                    `「${label}」由模型在对话里直接生成，不需要在这里上传文件 —— 直接告诉它你要什么即可。`,
-                  )}
-                />
-              )}
-              sendBlocked={sendBlocked}
-              leading={(
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    {/* 结构照搬 LeiBox Composer.tsx 的审批按钮：
-                        12px 图标（mr-1.5）+ 截断文字 + 末尾 ChevronDown(10, ml-1) */}
-                    <button type="button" className="cv3-chip-btn cv3-perm-btn"
-                            ref={permPressRef}
-                            data-danger={permission === 'fullAccess' || undefined}
-                            aria-label="权限设置" title="权限设置">
-                      {permission === 'readOnly'
-                        ? <Shield size={12} className="cv3-perm-ico" />
-                        : permission === 'fullAccess'
-                          ? <ShieldAlert size={12} className="cv3-perm-ico" />
-                          : <ShieldCheck size={12} className="cv3-perm-ico" />}
-                      <span className="cv3-chip-label">{PERM_LABEL[permission]}</span>
-                      <ChevronDown size={10} className="cv3-perm-chev" />
-                    </button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent side="top" align="start" sideOffset={8} className="cv3-ddm cv3-ddm-perm">
-                    <DropdownMenuLabel className="cv3-ddm-label">权限模式</DropdownMenuLabel>
-                    <DropdownMenuRadioGroup value={permission} onValueChange={(v) => setPermission(v as typeof permission)}>
-                      {PERM_MODES.map(({ id, label, desc, Icon }) => (
-                        <DropdownMenuRadioItem key={id} value={id} className="cv3-ddm-permrow">
-                          <span className="cv3-perm-icon" data-danger={id === 'fullAccess' || undefined}><Icon size={14} /></span>
-                          <span className="cv3-perm-text">
-                            <b>{label}</b>
-                            <em>{desc}</em>
-                          </span>
-                        </DropdownMenuRadioItem>
-                      ))}
-                    </DropdownMenuRadioGroup>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              )}
-              trailing={(
-                <>
-                  {/* 上下文容量环：原版底栏就是这个顺序 —— 环 → 模型胶囊 → 发送。
-                      分母与占用沿用下方占用条的取数逻辑（落库优先，其次流式）。 */}
-                  <ContextRing
-                    used={(() => {
-                      const stored = [...messages].reverse().find((m) => m.role === 'ai' && m.usage)?.usage
-                      return stored?.promptTokens ?? contextUsed
-                    })()}
-                    window={(() => {
-                      const stored = [...messages].reverse().find((m) => m.role === 'ai' && m.usage)?.usage
-                      return contextWindow ?? stored?.contextWindow ?? modelContextWindow ?? null
-                    })()}
-                  />
-                  {composerModelPicker}
-                </>
-              )}
-              /* 附件卡片放进输入框内部：附件与文字是同一条消息的两半，
-                 放进去共享同一个容器。标题栏保持在外，不做搬移。 */
-              insideTop={attachments.length > 0 ? (
-                <ComposerAttachments
-                  items={attachments.map((a) => ({
-                    name: a.name,
-                    /* LeiBox 原版只有两种形态：图片方图、其余为文件胶囊。 */
-                    kind: attachmentKind(a),
-                    src: a.previewUrl,
-                    /* 真实上传进度：XHR 上报的百分比，落地后置 undefined 让环消失 */
-                    progress: a.uploading ? (a.progress ?? 0) : undefined,
-                    error: a.uploadError,
-                    note: a.purpose && a.purpose !== 'unspecified'
-                      ? (PURPOSE_TXT[a.purpose] ?? a.purpose)
-                      : undefined,
-                  }))}
-                  onRemove={removeAttachment}
-                />
-              ) : null}
-              error={sendError ? (
-                <p className="cv3-compose-note" role="alert" data-error="">
-                  <AlertCircle size={12} /> {sendError}
-                </p>
-              ) : null}
-              statusLeft={launched ? <span className="cv3-pill">已开始制作</span> : null}
+              onSubmit={(payload) => {
+                if (payload.text.trim()) submit(payload.text)
+              }}
             />
+            {/* 发送失败提示：官方组件只负责输入与提交，
+                发送结果（网络/校验失败）仍由本页判断并显示。 */}
+            {sendError ? (
+              <p className="cv3-compose-note" role="alert" data-error="">
+                <AlertCircle size={12} /> {sendError}
+              </p>
+            ) : null}
             </div>
             {/* 隐藏的文件选择器（对齐 dsh 的 file input：多选） */}
             <input ref={fileRef} type="file" multiple hidden onChange={onPickFiles} />

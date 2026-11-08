@@ -1,0 +1,29 @@
+/* LeiBox 官方输入框的宿主容器。
+   组件在 Shadow DOM 内自带全部样式，这里只负责外框尺寸。 */
+
+.lbx-host {
+  width: 100%;
+}
+
+/* 官方根节点 [data-motion-surface] 带 min-height:600px（那是它作为
+   独立演示页时的画布高度），真实输入框只有约 132px。
+   宿主侧限高即可：内容自身高度决定可见区域，多出的空白被裁掉。
+   注意不能给 .lbx-host 设 overflow:hidden —— 权限/模型菜单是向上
+   弹出的浮层，裁掉就看不到了。 */
+.lbx-host {
+  /* 输入框自然高度 + 向上弹层需要的余量由父容器承担，这里只压掉舞台空白 */
+  max-height: 200px;
+  overflow: visible;
+}
+
+/* 舞台本体：把 600px 的画布压成内容高度 */
+.lbx-host [data-motion-surface] {
+  min-height: 0 !important;
+  height: auto !important;
+}
+
+/* 舞台内层是 Shadow DOM，外部选择器穿不进去；这里只处理宿主侧可见的
+   一层，Shadow 内部的定位留官方原样（它就是按页首布局的）。 */
+.lbx-host > div {
+  min-height: 0 !important;
+}
