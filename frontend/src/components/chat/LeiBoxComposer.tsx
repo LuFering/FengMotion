@@ -345,12 +345,18 @@ export function LeiBoxComposer({
       'rgb(255,255,255)'
 
     /* 圆角 / 底色 / 阴影：官方 0.22s power2.out，从「环」的样子开始 */
+    /* 起点用圆环轨迹色而不是全透明：圆环刚被隐藏，卡片就从同一个颜色
+       接上，视觉上是「环自己变厚变成卡片」，不是「凭空浮出一张白卡」。 */
+    const ringTrail =
+      (ringRef.current &&
+        getComputedStyle(ringRef.current.querySelector('.lbx-ctxring-trail') as Element).stroke) ||
+      'rgba(25,26,32,0.28)'
     el.animate(
       [
-        { borderRadius: '999px', backgroundColor: 'rgba(0,0,0,0)', boxShadow: '0 0 0 rgba(0,0,0,0)' },
+        { borderRadius: '999px', backgroundColor: ringTrail, boxShadow: '0 0 0 rgba(0,0,0,0)' },
         { borderRadius: '20px', backgroundColor: cardBg, boxShadow: '0 12px 32px rgba(0,0,0,0.16)' },
       ],
-      { duration: 220, easing: 'cubic-bezier(0.215, 0.61, 0.355, 1)', fill: 'both' },
+      { duration: 260, easing: 'cubic-bezier(0.215, 0.61, 0.355, 1)', fill: 'both' },
     )
     /* 宽 / 高：两条独立弹簧，height 比 width 晚 57ms 起 */
     el.animate(springKeyframes('width', 32, finalW, MORPH.open.width), {
@@ -392,12 +398,24 @@ export function LeiBoxComposer({
       [{ opacity: 1 }, { opacity: 0 }],
       { duration: 120, easing: 'linear', fill: 'both' },
     )
+    /* 外壳保持有底，直到缩到接近圆环尺寸才收掉 ——
+       提前在 220ms 淡成透明的话，剩下的 400ms 里卡片看不见、
+       圆环又还没回来，屏幕上就是一段空白。
+
+       末段把底色过渡到**圆环轨迹的颜色**：卡片缩成小圆的那一刻，
+       颜色已经和圆环一致，接着圆环淡入就完全接得上，
+       不会出现「白圆 → 灰环」那一下跳色。 */
+    const ringTrail =
+      (ringRef.current &&
+        getComputedStyle(ringRef.current.querySelector('.lbx-ctxring-trail') as Element).stroke) ||
+      'rgba(25,26,32,0.28)'
     el.animate(
       [
         { borderRadius: '20px', backgroundColor: cardBg, boxShadow: '0 12px 32px rgba(0,0,0,0.16)' },
-        { borderRadius: '999px', backgroundColor: 'rgba(0,0,0,0)', boxShadow: '0 0 0 rgba(0,0,0,0)' },
+        { borderRadius: '20px', backgroundColor: cardBg, boxShadow: '0 6px 18px rgba(0,0,0,0.10)', offset: 0.7 },
+        { borderRadius: '999px', backgroundColor: ringTrail, boxShadow: '0 0 0 rgba(0,0,0,0)' },
       ],
-      { duration: 220, easing: 'cubic-bezier(0.215, 0.61, 0.355, 1)', fill: 'both' },
+      { duration: 620, easing: 'linear', fill: 'both' },
     )
     el.animate(springKeyframes('width', w, 32, MORPH.close.width), {
       duration: MORPH.close.width.duration * 1000,
@@ -414,19 +432,39 @@ export function LeiBoxComposer({
       easing: 'linear',
       fill: 'both',
     })
+    /* 圆环在卡片缩小的后半段交叉淡入：卡片还在、圆环已经隐隐出现，
+       两者叠一下，就不会有任何一帧是空的。 */
+    const ringEl = ringRef.current
+    if (ringEl) {
+      ringEl.animate([{ opacity: 0 }, { opacity: 1 }], {
+        duration: 300,
+        delay: 280,
+        easing: 'cubic-bezier(0.215, 0.61, 0.355, 1)',
+        fill: 'both',
+      })
+    }
+
     const total = Math.max(
       MORPH.close.width.delay * 1000 + MORPH.close.width.duration * 1000,
       MORPH.close.height.delay * 1000 + MORPH.close.height.duration * 1000,
     )
     window.setTimeout(() => {
-      /* 收回到 32×32 之后才把圆环还回来 —— 早于这个时点会出现
-         「圆环和缩小的卡片同时在场」的重影。 */
-      const ringEl = ringRef.current
-      if (ringEl) ringEl.style.opacity = ''
-      /* 把残留的 fill:both 动画全部取消，否则下次展开时
-         offsetWidth 读到的是被动画压到的 32px，动画会「原地不动」。 */
+      /* 先取消残留动画（fill:both 会把尺寸钉在 32px，
+         下次展开时 offsetWidth 读到它就等于没动），
+         再**同一帧**里卸卡片 + 还圆环。
+         ⚠️ 这两个动作必须一起做：分开成两次状态更新的话，
+         中间会有一帧「卡片已缩到 32、圆环还没显示」，
+         用户看到的就是那一下闪空。 */
       el.getAnimations().forEach((a) => a.cancel())
       el.firstElementChild?.getAnimations().forEach((a) => a.cancel())
+
+      const ringEl = ringRef.current
+      if (ringEl) {
+        /* 先取消交叉淡入的动画再清 inline opacity ——
+           直接清会被动画的 fill:both 覆盖，圆环就停在半透明。 */
+        ringEl.getAnimations().forEach((a) => a.cancel())
+        ringEl.style.opacity = ''
+      }
       setCtxClosing(false)
       setCtxOpen(false)
     }, total + 20)
@@ -458,13 +496,13 @@ export function LeiBoxComposer({
             onFocus={openCtx}
           >
             <svg viewBox="0 0 32 32" aria-hidden="true">
-              <circle cx="16" cy="16" r="13" fill="none" strokeWidth="3" className="lbx-ctxring-trail" />
+              <circle cx="16" cy="16" r="13" fill="none" strokeWidth="4" className="lbx-ctxring-trail" />
               <circle
                 cx="16"
                 cy="16"
                 r="13"
                 fill="none"
-                strokeWidth="3"
+                strokeWidth="4"
                 strokeLinecap="round"
                 className="lbx-ctxring-path"
                 strokeDasharray={`${2 * Math.PI * 13}`}

@@ -43,6 +43,8 @@
 .lbx-ctxring {
   display: grid;
   place-items: center;
+  /* 按钮保持 32×32（点击区不缩），只把里面的环画小 ——
+     环本身 32px 时视觉上比旁边的胶囊重，缩到 24 才和它们等重。 */
   width: 32px;
   height: 32px;
   padding: 0;
@@ -58,8 +60,8 @@
 }
 
 .lbx-ctxring > svg {
-  width: 32px;
-  height: 32px;
+  width: 24px;
+  height: 24px;
 }
 
 .lbx-ctxring-trail {
