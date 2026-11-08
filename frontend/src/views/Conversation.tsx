@@ -2466,6 +2466,9 @@ export function Conversation(props: {
               )
             })()}
             <div className="cv3-compose">
+            {/* 居中盒：宽度约束与正文列 .cv3-col 同源（见 conversation.css 的 --cv-compose-w），
+                否则输入框会比正文宽出一截，看上去被「拉长」且左右对不齐。 */}
+            <div className="lbx-compose-box">
             {/* 输入框整体使用 LeiBox 官方「Agent 对话输入框」原版实现：
                 内部是官方打包产物（自带 React / GSAP / 图标与全部动效），
                 不再保留任何自研元素。 */}
@@ -2482,6 +2485,7 @@ export function Conversation(props: {
                 <AlertCircle size={12} /> {sendError}
               </p>
             ) : null}
+            </div>
             </div>
             {/* 隐藏的文件选择器（对齐 dsh 的 file input：多选） */}
             <input ref={fileRef} type="file" multiple hidden onChange={onPickFiles} />

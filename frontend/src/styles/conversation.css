@@ -1364,9 +1364,21 @@ html[data-theme="tactile"] #pane-conversation {
   background: linear-gradient(180deg, rgb(0 0 0 / 0) 0, var(--cv-page) 36px);
 }
 
+/* 输入框必须与正文列（.cv3-col）同宽对齐 —— 两者各用一套宽度，
+   输入框会比正文左右各宽出一大截，看起来「拉长了」对不齐。
+   这里复用 .cv3-col 的同一公式，只改由谁居中：正文列自己 margin:auto，
+   输入框外层撑满、由内层 .lbx-compose-box 居中。 */
 .cv3-compose {
   min-width: 0;
   padding: 0 32px 4px;
+  /* 公式与 .cv3-col 保持一致，改一处必须同步另一处 */
+  --cv-compose-w: min(920px, max(680px, 64%), calc(100% - 32px));
+}
+
+.cv3-compose > .lbx-compose-box {
+  width: 100%;
+  max-width: var(--cv-compose-w);
+  margin: 0 auto;
 }
 
 /* 输入卡 —— 直接套首页输入框（.hf-composer）的配方：
