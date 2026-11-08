@@ -81,10 +81,11 @@ export function LeiBoxComposer({ onSubmit, busy = false }: LeiBoxComposerProps) 
         },
       })
 
-      /* 官方根节点带 min-height:600px（它独立成页时的画布高度），
-         真实输入框只有 ~132px。这层样式在 Shadow DOM 内部，
-         外部 CSS 选择器穿不进去，只能挂载后用 JS 直接改。
-         宿主高度随内容走，避免在对话页底部留下 470px 白块。 */
+      /* 官方根节点带 min-height:600px（它独立成页时的画布高度）。
+         这层样式在 Shadow DOM 内部，外部 CSS 穿不进去，只能挂载后改 style。
+         注意：**不要给宿主写死高度** —— 官方根节点的实际高度（约 180px）
+         比内部输入框（约 132px）多一圈内边距，写死会把内容裁掉、
+         露出一条白边。这里只做「取消最小高度」这一件事，高度交给内容自己决定。 */
       window.setTimeout(() => {
         const surface = hostRef.current?.querySelector('[data-motion-surface]') as HTMLElement | null
         if (!surface) return
@@ -95,12 +96,20 @@ export function LeiBoxComposer({ onSubmit, busy = false }: LeiBoxComposerProps) 
         if (stage) {
           stage.style.minHeight = '0'
           stage.style.height = 'auto'
-        }
-        const composer = shadow?.querySelector('.original-composer-container') as HTMLElement | null
-        if (composer) {
-          /* 以输入框真实高度锁住宿主 */
-          const h = Math.ceil(composer.getBoundingClientRect().height) + 8
-          hostRef.current!.style.height = `${h}px`
+          /* 舞台原本是整页的白色画布（980×180 白底、0 圆角），
+             输入框只占中间 768×132。嵌进来后这层白底就成了
+             输入框外面的一个白框。把它透明掉、去掉内边距，
+             只留输入框本身的圆角与阴影。 */
+          stage.style.background = 'transparent'
+          stage.style.padding = '0'
+          stage.style.margin = '0'
+          stage.style.display = 'block'
+          const shell = shadow?.querySelector('[data-message-composer-surface]') as HTMLElement | null
+          if (shell) {
+            /* 输入框默认 max-width 768，跟随宿主宽度更自然 */
+            shell.style.width = '100%'
+            shell.style.maxWidth = '100%'
+          }
         }
       }, 300)
     }).catch((error: unknown) => {
