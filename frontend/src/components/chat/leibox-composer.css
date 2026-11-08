@@ -100,3 +100,13 @@
 .lbx-ctxring > svg {
   transition: scale 260ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }
+
+/* ── 形变期间：底色交给外层容器 ────────────────────────────
+   卡片自己的底色在 .ctx 上（bencho-blocks.css 的 --fill-slab）。
+   但形变动画做的是「圆环灰 → 卡片白」这个渐变，改的是外层容器 ——
+   如果 .ctx 仍然是不透明白底，它会把外层整个盖住，渐变根本看不见。
+   所以形变期间让 .ctx 让出底色，由外层负责显示。 */
+.lbx-ctxpop[data-morphing] > .ctx {
+  background: transparent;
+  border-radius: inherit;
+}

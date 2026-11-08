@@ -347,17 +347,24 @@ export function LeiBoxComposer({
     /* 圆角 / 底色 / 阴影：官方 0.22s power2.out，从「环」的样子开始 */
     /* 起点用圆环轨迹色而不是全透明：圆环刚被隐藏，卡片就从同一个颜色
        接上，视觉上是「环自己变厚变成卡片」，不是「凭空浮出一张白卡」。 */
-    const ringTrail =
-      (ringRef.current &&
-        getComputedStyle(ringRef.current.querySelector('.lbx-ctxring-trail') as Element).stroke) ||
-      'rgba(25,26,32,0.28)'
-    el.animate(
+    /* 起点用「实心化的圆环色」而不是轨迹的 28% 透明度：轨迹本来就是淡的
+       （那是个未填充的槽），拿它当卡片起始底色，渐变几乎看不出来。
+       alpha 提到 0.55 才有肉眼可见的「灰 → 白」过渡。 */
+    const ringTrail = 'rgba(25,26,32,0.55)'
+    /* 形变期间把底色让给外层容器（见 leibox-composer.css 的 [data-morphing]），
+       否则 .ctx 自己的不透明白底会把渐变整个盖住 —— 那样看起来就只是
+       「一张白卡从小变大」，完全没有颜色过渡。 */
+    el.setAttribute('data-morphing', '')
+    const shell = el.animate(
       [
         { borderRadius: '999px', backgroundColor: ringTrail, boxShadow: '0 0 0 rgba(0,0,0,0)' },
         { borderRadius: '20px', backgroundColor: cardBg, boxShadow: '0 12px 32px rgba(0,0,0,0.16)' },
       ],
       { duration: 260, easing: 'cubic-bezier(0.215, 0.61, 0.355, 1)', fill: 'both' },
     )
+    /* 渐变色走完就把底交还给 .ctx —— 它自带圆角与底色，
+       交接时两者颜色相同，不会闪。 */
+    shell.finished.then(() => el.removeAttribute('data-morphing')).catch(() => {})
     /* 宽 / 高：两条独立弹簧，height 比 width 晚 57ms 起 */
     el.animate(springKeyframes('width', 32, finalW, MORPH.open.width), {
       duration: MORPH.open.width.duration * 1000,
@@ -405,10 +412,11 @@ export function LeiBoxComposer({
        末段把底色过渡到**圆环轨迹的颜色**：卡片缩成小圆的那一刻，
        颜色已经和圆环一致，接着圆环淡入就完全接得上，
        不会出现「白圆 → 灰环」那一下跳色。 */
-    const ringTrail =
-      (ringRef.current &&
-        getComputedStyle(ringRef.current.querySelector('.lbx-ctxring-trail') as Element).stroke) ||
-      'rgba(25,26,32,0.28)'
+    /* 起点用「实心化的圆环色」而不是轨迹的 28% 透明度：轨迹本来就是淡的
+       （那是个未填充的槽），拿它当卡片起始底色，渐变几乎看不出来。
+       alpha 提到 0.55 才有肉眼可见的「灰 → 白」过渡。 */
+    const ringTrail = 'rgba(25,26,32,0.55)'
+    el.setAttribute('data-morphing', '')
     el.animate(
       [
         { borderRadius: '20px', backgroundColor: cardBg, boxShadow: '0 12px 32px rgba(0,0,0,0.16)' },
