@@ -52,6 +52,14 @@ export interface ChatMessage {
     promptTokens?: number
     toolsTokens?: number
     contextWindow?: number
+    /** 上下文分档快照；旧后端不产时保持 undefined。 */
+    breakdown?: {
+      systemTokens: number
+      memoryTokens: number
+      filesTokens: number
+      resultsTokens: number
+      chatTokens: number
+    }
   }
   plan?: string[]
   /** “改了什么”表：只列真实创建的产物（项目 / 工作流），不编造文件改动 */

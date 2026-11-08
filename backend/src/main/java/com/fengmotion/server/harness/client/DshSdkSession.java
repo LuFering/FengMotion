@@ -174,6 +174,28 @@ public class DshSdkSession {
         }
 
         /**
+         * 上下文分档：按内容类别拆开的估算占用。
+         *
+         * <p><strong>为什么需要它</strong>：{@code usage} 只给总数，用户看不到
+         * 「这一堆 token 到底被什么吃掉了」，于是既判断不了要不要压缩，
+         * 也不知道该清哪一块。分档把总数拆成可解释的几类。</p>
+         *
+         * <p><strong>分类口径参照 magpie 的 {@code prompt.parts}</strong>（实测其
+         * {@code parts} 各项之和与 {@code tokens} 完全相等）：system / memory /
+         * files / results / chat 五类。DSH 自己的 {@code contextBreakdown}
+         * 投影只分 system / tools / message 三档，粒度不够 —— 它把附件、
+         * 工具输出、对话全算进 message，正是这里要拆开的部分。</p>
+         *
+         * <p>每类 token 用 DSH 同一个估算公式（字符数 / 4 + 结构开销），
+         * 保证与本机 dsh 的数字口径一致，不自创算法。</p>
+         *
+         * @param breakdown 分档快照；没出现的类别其值为 0
+         */
+        default void onContextBreakdown(ContextBreakdown breakdown) {
+            // 默认忽略
+        }
+
+        /**
          * 一个后台任务（job）开始或结束。
          *
          * <p>DSH 把每次 bash / 长任务登记成 job，成对发 {@code job/registered} 与
@@ -206,6 +228,23 @@ public class DshSdkSession {
          * @param description 给用户看的一句说明；可能为空
          */
         record Deliverable(String path, String description) {
+        }
+
+        /**
+         * 上下文分档快照。
+         *
+         * <p>五类互斥，合计约等于 {@code usage} 的 prompt 总量（估算口径与
+         * 供应商上报口径有系统性差异，不保证精确相等 —— 界面应按「构成
+         * 近似」呈现，不要当成账单）。</p>
+         *
+         * @param systemTokens  系统提示词（最近一条存活的 system 消息）
+         * @param memoryTokens  记忆与项目规则：AGENTS.md、reminders 等
+         * @param filesTokens   附件与读过的文件：图片、read 结果、shell 读取
+         * @param resultsTokens 工具输出：bash 回显、浏览器快照等
+         * @param chatTokens    对话正文：历史轮次与当前轮
+         */
+        record ContextBreakdown(long systemTokens, long memoryTokens, long filesTokens,
+                                long resultsTokens, long chatTokens) {
         }
 
         /**
@@ -371,6 +410,22 @@ public class DshSdkSession {
     private static final long STREAM_POLL_MILLIS = 5;
 
     /**
+     * 上下文分档累加器。
+     *
+     * <p>整个会话共用一个：分档要统计的是「此刻上下文里还剩什么」，
+     * 而事件流是增量的，必须从头累积才能得到当前状态。</p>
+     */
+    private final ContextBreakdownMeter breakdownMeter = new ContextBreakdownMeter();
+
+    /**
+     * 会话工作目录。
+     *
+     * <p>分档里的 memory 一项要按目录找 AGENTS.md / CLAUDE.md，
+     * 所以得把它留住 —— 只在 initialize 时出现过一次。</p>
+     */
+    private String cwd;
+
+    /**
      * 构造一次会话驱动。
      *
      * @param channel  已启动的子进程通道
@@ -408,6 +463,7 @@ public class DshSdkSession {
      * @throws IOException 协议或进程错误
      */
     public String initialize(String cwd, Duration timeout) throws IOException {
+        this.cwd = cwd;
         long id = channel.nextRequestId();
         ObjectNode params = json.createObjectNode();
         params.put("cwd", cwd);
@@ -668,6 +724,12 @@ public class DshSdkSession {
             String type = event.path("type").asText("");
             JsonNode data = event.path("data");
 
+            /* 每个事件都要喂给分档累加器 —— 它自己判断哪些类型参与统计、
+               哪些（压缩、替换）要扣掉旧内容。放在 switch 之前是为了
+               不漏掉任何 surface 事件。 */
+            breakdownMeter.accept(type, event.path("seq").asLong(-1),
+                    event.path("surfaceOp"), data);
+
             switch (type) {
                 case "turn/start" -> {
                     turn = data.path("turn").asInt(1);
@@ -716,7 +778,10 @@ public class DshSdkSession {
                     String kind = reason.path("kind").asText("completed");
                     failed = !"completed".equals(kind);
                     failure = failed ? describeFailure(reason) : null;
-                    listener.onTurnEnded(failed, failure);
+                    /* 分档在一轮结束时上报一次：它的数字只在本轮消息全部落地后
+                       才稳定，轮中上报会给出一个不断跳动的中间值。 */
+                    active.onContextBreakdown(breakdownMeter.snapshot(cwd));
+                    active.onTurnEnded(failed, failure);
                 }
                 /* ── 过程诊断 ──────────────────────────────────────
                    这几类事件不改变正文，但解释「为什么这次结果不对劲」。
@@ -802,7 +867,11 @@ public class DshSdkSession {
                     JsonNode tools = data.path("header").path("tools");
                     if (tools.isArray() && !tools.isEmpty()) {
                         long chars = tools.toString().length();
-                        active.onToolsTokens(chars / 4 + 4);
+                        /* 向上取整，与 DSH 的 estimateToolsTokens 一致
+                           （Math.ceil(len/4)+4）。用整数除法会在边界上少算 1。 */
+                        long tokens = (chars + 3) / 4 + 4;
+                        breakdownMeter.setToolsTokens(tokens);
+                        active.onToolsTokens(tokens);
                     }
                 }
                 default -> {

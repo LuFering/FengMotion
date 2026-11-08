@@ -14,7 +14,8 @@
  * （见下方 fitStyle），让它以输入框的自然高度嵌进对话页。
  */
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import './leibox-composer.css'
 
 /** 官方暴露的挂载工厂。 */
 type MountFn = (el: HTMLElement, options?: Record<string, unknown>) => {
@@ -36,9 +37,44 @@ export interface LeiBoxSubmitPayload {
   permission?: string
 }
 
+/** 官方上下文圆圈的构成块。 */
+export interface ContextBlock {
+  kind: string
+  source: string
+  name: string
+  tokens: number
+}
+
+/**
+ * 官方上下文圆圈要的数据快照。
+ *
+ * 字段名照抄官方 hse 组件的 props 约定（`contextUsage` + `blocks`），
+ * 不是我们自创的形状 —— 名字传错官方会静默当作 null，圆圈恒显示 0%。
+ */
+export interface ContextUsageSnapshot {
+  context_window: number
+  /** 构成块；官方自己会排序、算「其他/未归类」并渲染列表 */
+  blocks: ContextBlock[]
+  projected_request_tokens?: number
+  measured_prompt_tokens?: number
+  estimated_prompt_tokens?: number
+}
+
 export interface LeiBoxComposerProps {
   onSubmit?: (payload: LeiBoxSubmitPayload) => void
   busy?: boolean
+  /** 上下文快照；null 时官方圆圈显示 0% */
+  contextUsage?: ContextUsageSnapshot | null
+  /** 分子兜底：没有快照时用它算百分比 */
+  contextUsageFallbackTokens?: number
+  /**
+   * 上下文弹层的内容。
+   *
+   * 官方圆环点开自带的是一张「预计下一次请求 N%」的小卡 —— 那是它自己的
+   * 表述方式，和本项目要的「上下文被什么吃掉」不是一回事。这里把内容换成
+   * 调用方给的节点（Bencho 的 ContextMeter），由它画在官方弹层的位置上。
+   */
+  contextPanel?: React.ReactNode
 }
 
 /** 脚本加载状态做全局复用：2.7MB 只该拉一次。 */
@@ -59,9 +95,17 @@ function loadEngine(): Promise<void> {
   return enginePromise
 }
 
-export function LeiBoxComposer({ onSubmit, busy = false }: LeiBoxComposerProps) {
+export function LeiBoxComposer({
+  onSubmit,
+  busy = false,
+  contextUsage = null,
+  contextUsageFallbackTokens = 0,
+  contextPanel = null,
+}: LeiBoxComposerProps) {
   const hostRef = useRef<HTMLDivElement>(null)
   const instanceRef = useRef<ReturnType<MountFn> | null>(null)
+  /* 自己的上下文面板是否展开 */
+  const [ctxOpen, setCtxOpen] = useState(false)
   /* 回调放 ref：挂载只发生一次，不能因 props 变化重建组件 */
   const submitRef = useRef(onSubmit)
   submitRef.current = onSubmit
@@ -128,6 +172,19 @@ export function LeiBoxComposer({ onSubmit, busy = false }: LeiBoxComposerProps) 
         /* 4) 根节点也不再需要 600px 画布高度 */
         surface.style.minHeight = '0'
         surface.style.height = 'auto'
+
+        /* 5) 隐藏官方那枚上下文圆钮，由本组件自己在同一位置画。
+           官方圆钮点开是一张「预计下一次请求 N%」的小卡 —— 那是它自己的
+           表述方式，回答不了「上下文被什么吃掉」。把它藏掉、换成我们自己的
+           圆钮 + Bencho 点阵面板，位置与尺寸沿用官方（32x32）。
+           只藏按钮，不动其它工具：属性选择器精确匹配 aria-label 前缀。 */
+        const style = shadow.querySelector('style[data-lbx-hide-ctx]')
+        if (!style) {
+          const el = document.createElement('style')
+          el.setAttribute('data-lbx-hide-ctx', '')
+          el.textContent = 'button[aria-label^="Context"]{visibility:hidden!important}'
+          shadow.appendChild(el)
+        }
         return true
       }
 
@@ -162,7 +219,62 @@ export function LeiBoxComposer({ onSubmit, busy = false }: LeiBoxComposerProps) 
     instanceRef.current?.update?.({ busy })
   }, [busy])
 
-  return <div ref={hostRef} className="lbx-host" data-ready={undefined} />
+  /* 上下文数据后到（一轮跑完才有），所以单独一个 effect 推给官方组件。
+     官方 update() 内部会整包合并并重渲染，圆圈与它自己的分档面板一起刷新。 */
+  useEffect(() => {
+    instanceRef.current?.update?.({
+      contextUsage: contextUsage ?? null,
+      contextUsageFallbackTokens: contextUsageFallbackTokens ?? 0,
+    })
+  }, [contextUsage, contextUsageFallbackTokens])
+
+  /* 有数据才画自己的圆钮；没有数据时按钮位留空，与官方「无数据不显示」一致 */
+  const ratio =
+    contextUsage && contextUsage.context_window > 0
+      ? Math.min(1, (contextUsageFallbackTokens ?? 0) / contextUsage.context_window)
+      : null
+
+  return (
+    /* 圆钮必须放在 .lbx-host **内部** —— 那个容器是 position:relative，
+       放外面的话 offsetParent 会一路找到 .cv3-seat，right 的参照系就错了
+       （实测偏了 182px，正好压在模型胶囊上）。 */
+    <div ref={hostRef} className="lbx-host" data-ready={undefined}>
+      {/* 自己画的上下文圆钮：盖在官方圆钮被隐藏的那个位置上。
+          官方那枚点开是「预计下一次请求 N%」的小卡，换成本组件的点阵面板。 */}
+      {ratio !== null && contextPanel ? (
+        <div className="lbx-ctxwrap">
+          <button
+            type="button"
+            className="lbx-ctxring"
+            aria-label={`上下文占用 ${Math.round(ratio * 100)}%`}
+            title="上下文占用"
+            onClick={() => setCtxOpen((v) => !v)}
+          >
+            <svg viewBox="0 0 32 32" aria-hidden="true">
+              <circle cx="16" cy="16" r="13" fill="none" strokeWidth="3" className="lbx-ctxring-trail" />
+              <circle
+                cx="16"
+                cy="16"
+                r="13"
+                fill="none"
+                strokeWidth="3"
+                strokeLinecap="round"
+                className="lbx-ctxring-path"
+                strokeDasharray={`${2 * Math.PI * 13}`}
+                strokeDashoffset={`${2 * Math.PI * 13 * (1 - ratio)}`}
+                transform="rotate(-90 16 16)"
+              />
+            </svg>
+          </button>
+          {ctxOpen ? (
+            <div className="lbx-ctxpop" role="dialog" aria-label="上下文组成">
+              {contextPanel}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  )
 }
 
 export default LeiBoxComposer

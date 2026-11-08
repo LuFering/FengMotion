@@ -5,6 +5,8 @@
      露出宿主自己的底色，看起来像输入框外面多了一个白框 */
 
 .lbx-host {
+  /* 圆钮用绝对定位贴到工具条那一格，宿主必须成为它的定位基准 */
+  position: relative;
   width: 100%;
   /* 高度完全交给内部内容；官方根节点自带 600px 的 min-height
      会在挂载后由 JS 置零（见组件注释）。 */
@@ -19,4 +21,93 @@
   min-height: 132px;
   border-radius: 24px;
   background: var(--surf);
+}
+
+/* ── 自建的上下文圆钮 + 点阵面板 ─────────────────────────────
+   官方那枚圆钮点开是「预计下一次请求 N%」的小卡，换成本组件自己画：
+   圆钮按官方尺寸（32×32，环宽 3，半径 13）放在原来那一格。
+
+   定位方式：宿主是 position:relative 的整行，工具条固定在底部右侧，
+   所以圆钮用「右下角 + 固定偏移」贴到官方那一格的位置上。 */
+.lbx-ctxwrap {
+  /* 精确盖在官方圆钮那一格上：实测距右 238、距底 10、32×32。
+     官方圆钮改成 visibility:hidden 后仍占位，所以位置不会漂。 */
+  position: absolute;
+  right: 238px;
+  bottom: 10px;
+  width: 32px;
+  height: 32px;
+  z-index: 20;
+}
+
+.lbx-ctxring {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  cursor: pointer;
+  transition: background-color 150ms ease;
+}
+
+.lbx-ctxring:hover {
+  background: color-mix(in srgb, var(--fg) 6%, transparent);
+}
+
+.lbx-ctxring > svg {
+  width: 32px;
+  height: 32px;
+}
+
+.lbx-ctxring-trail {
+  /* 浅色底上 18% 几乎看不见，提到 28% 才有「一个环」的样子 */
+  stroke: color-mix(in srgb, var(--fg) 28%, transparent);
+}
+
+.lbx-ctxring-path {
+  stroke: var(--fg);
+  transition: stroke-dashoffset 300ms ease;
+}
+
+/* 面板：锚在圆钮上方，右对齐，不遮挡输入框 */
+/* 弹层：锚在圆钮上方，右对齐。
+   进场沿用 Bencho 那套手感 —— 落下而非弹出：从下方 6px 升起、2px 模糊散开、
+   缩放 0.98 → 1，240ms 收住。没有弹跳，因为它不是按钮而是「展开一块数据」。 */
+.lbx-ctxpop {
+  position: absolute;
+  right: -8px;
+  bottom: calc(100% + 8px);
+  transform-origin: bottom right;
+  animation: lbx-ctxpop-in 240ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes lbx-ctxpop-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+    filter: blur(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lbx-ctxpop {
+    animation-duration: 1ms;
+  }
+}
+
+/* 圆钮自己的按压反馈：按下缩 0.96，松开回弹（与 Bencho 的 .ctx-chip 同参数） */
+.lbx-ctxring:active > svg {
+  scale: 0.96;
+}
+
+.lbx-ctxring > svg {
+  transition: scale 260ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }

@@ -896,6 +896,15 @@ public class ChatStreamService {
         private long contextWindow = -1;
 
         /**
+         * 上下文分档快照。
+         *
+         * <p>和 {@code lastPrompt} 一起构成上下文卡片的全部数据：
+         * 总数用来画进度，分档用来解释这堆 token 被什么吃掉了。
+         * 为 null 表示还没收到过（一轮都没跑完），界面就不画分档条。</p>
+         */
+        private com.fasterxml.jackson.databind.node.ObjectNode contextBreakdown;
+
+        /**
          * 本轮交付的文件（present 工具）。
          *
          * <p>按顺序累积并去重：一条回复可能分多次 present 同一文件，
@@ -943,7 +952,9 @@ public class ChatStreamService {
         }
 
         com.fasterxml.jackson.databind.node.ObjectNode collectedUsage() {
-            if (sumInput < 0 && sumOutput < 0 && sumTotal < 0) {
+            /* 分档也算用量信息：有些轮次拿得到分档但 usage 为空
+               （例如全部命中缓存），不能因此把分档一起丢掉。 */
+            if (sumInput < 0 && sumOutput < 0 && sumTotal < 0 && contextBreakdown == null) {
                 return null;
             }
             com.fasterxml.jackson.databind.node.ObjectNode node = json.createObjectNode();
@@ -954,6 +965,7 @@ public class ChatStreamService {
             if (lastPrompt >= 0) node.put("promptTokens", lastPrompt);
             if (toolsTokens >= 0) node.put("toolsTokens", toolsTokens);
             if (contextWindow > 0) node.put("contextWindow", contextWindow);
+            if (contextBreakdown != null) node.set("breakdown", contextBreakdown);
             return node.isEmpty() ? null : node;
         }
 
@@ -1303,6 +1315,29 @@ public class ChatStreamService {
             ObjectNode data = json.createObjectNode();
             data.put("type", "context");
             data.put("toolsTokens", toolsTokens);
+            writeFrame(out, "context", data);
+        }
+
+        @Override
+        public void onContextBreakdown(DshSdkSession.Listener.ContextBreakdown breakdown) {
+            /* 上下文分档：把「已用 N token」拆成 system / memory / files /
+               results / chat。单独发一帧，因为它是这一刻的快照（不是增量），
+               前端整块替换即可。 */
+            if (breakdown == null) {
+                return;
+            }
+            ObjectNode data = json.createObjectNode();
+            data.put("type", "breakdown");
+            data.put("systemTokens", breakdown.systemTokens());
+            data.put("memoryTokens", breakdown.memoryTokens());
+            data.put("filesTokens", breakdown.filesTokens());
+            data.put("resultsTokens", breakdown.resultsTokens());
+            data.put("chatTokens", breakdown.chatTokens());
+            /* 持久化用的是去掉 type 的副本：type 只是 SSE 帧的分发标签，
+               存进消息的 usage 里会污染数据形状。 */
+            com.fasterxml.jackson.databind.node.ObjectNode stored = data.deepCopy();
+            stored.remove("type");
+            this.contextBreakdown = stored;
             writeFrame(out, "context", data);
         }
 

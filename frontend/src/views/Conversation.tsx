@@ -22,6 +22,7 @@ import {
   Trash2,
 } from 'lucide-react'
 import { LeiBoxComposer } from '@/components/chat/LeiBoxComposer'
+import type { ContextUsageSnapshot } from '@/components/chat/LeiBoxComposer'
 import { registerComposer, type DeliverableAsset, type AssetPurpose } from '@/shell/usePendingAssets'
 import { deliveredReferences } from '@/services/creationResources'
 import { studioHttpApi } from '@/services/api'
@@ -43,6 +44,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { ViewSwitch } from '../components/ViewSwitch'
 import type { ProjectSummary } from '../data/projects'
+import type { ContextBreakdown } from '../types/contracts'
 import '../styles/conversation.css'
 
 /**
@@ -644,6 +646,14 @@ export function Conversation(props: {
    * `null` 表示还没发过请求（或引擎没给）。
    */
   const [toolsTokens, setToolsTokens] = useState<number | null>(null)
+
+  /**
+   * 上下文分档：把「已用 N token」拆成 system / memory / files / results / chat。
+   *
+   * `null` 表示后端还没上报（跑完一轮后才有）。分档口径对齐 magpie 的
+   * prompt.parts —— 它回答了 usage 总数回答不了的问题：哪一块在膨胀。
+   */
+  const [breakdown, setBreakdown] = useState<ContextBreakdown | null>(null)
 
   /**
    * 此刻上下文里装了多少 token —— 占用率的分子。
@@ -1406,6 +1416,9 @@ export function Conversation(props: {
            工具 schema 同理：每次请求都一样，覆盖。 */
         if (c.contextWindow !== undefined) setContextWindow(c.contextWindow)
         if (c.toolsTokens !== undefined) setToolsTokens(c.toolsTokens)
+        /* 分档是整块快照，直接覆盖。它是「此刻上下文里有什么」，
+           不是累计值 —— 累加会把压缩掉的内容也算进去。 */
+        if (c.breakdown !== undefined) setBreakdown(c.breakdown)
       },
     })
     streamStopRef.current = () => handle.close()
@@ -1611,6 +1624,69 @@ export function Conversation(props: {
    * 模型目录里的 contextWindow 与流里那份是同一个值，可以直接用。
    */
   const modelContextWindow = backendModels.find((m) => m.id === effectiveModel)?.contextWindow
+
+  /*
+   * 组装官方输入框圆圈要的上下文快照。
+   *
+   * 字段名与形状照抄官方 hse 组件（contextUsage / context_window / blocks），
+   * 不是我们自创的 —— 名字对不上官方会静默当作 null，圆圈恒显示 0%。
+   *
+   * 数据取「最后一条带 usage 的 AI 消息」：那是落库的持久事实，刷新后仍在；
+   * 流式状态只在刚发完这一轮时存在，单独用会让圆圈一刷新就归零。
+   */
+  const lastUsageMsg = [...messages].reverse().find((m) => m.role === 'ai' && m.usage)?.usage
+  const composerPromptTokens = lastUsageMsg?.promptTokens ?? contextUsed ?? null
+  const composerWindow =
+    lastUsageMsg?.contextWindow ?? contextWindow ?? modelContextWindow ?? 0
+  const composerBreakdown = lastUsageMsg?.breakdown ?? breakdown ?? null
+  /* ⚠️ 必须等到**真的有实测 token 数**才给快照。
+     只看窗口大小是不够的：窗口来自模型目录，任何状态下都有值，
+     于是「一次对话都没开始」也会传出一个 projected_request_tokens: 0 的快照，
+     官方圆圈据此画出 1%、并弹出「预计下一次请求 8k / 1M」的空面板 ——
+     那正是用户看到的空状态 bug。没有数据就什么都不传，官方自己不渲染。 */
+  const composerContextUsage: ContextUsageSnapshot | null =
+    composerWindow > 0 && composerPromptTokens !== null && composerPromptTokens > 0
+      ? {
+          context_window: composerWindow,
+          /* 官方自己会排序、算「其他/未归类」、渲染成列表，
+             所以我们只按它的 kind/source/name/tokens 约定给原始分档。 */
+          blocks: composerBreakdown
+            ? [
+                { kind: 'system', source: 'prompt', name: '系统提示', tokens: composerBreakdown.systemTokens },
+                { kind: 'memory', source: 'rules', name: '记忆与规则', tokens: composerBreakdown.memoryTokens },
+                { kind: 'files', source: 'files', name: '附件与文件', tokens: composerBreakdown.filesTokens },
+                { kind: 'results', source: 'tools', name: '工具输出', tokens: composerBreakdown.resultsTokens },
+                { kind: 'chat', source: 'turns', name: '对话', tokens: composerBreakdown.chatTokens },
+              ].filter((b) => b.tokens > 0)
+            : [],
+          projected_request_tokens: composerPromptTokens,
+        }
+      : null
+
+  /*
+   * 输入框圆圈点开的内容：Bencho 的 ContextMeter（点阵 + 分段条）。
+   *
+   * 原生「运行官方代码」那版点开是一张「预计下一次请求 N%」的小卡 ——
+   * 那是官方的表述，回答不了「上下文被什么吃掉」。这里换成点阵版：
+   * 200 个格子、一格一个窗口比例，五档各占自己的颜色带。
+   *
+   * 没有真实数据（一次对话都没开始）时**不渲染**，官方弹层也保持空白 ——
+   * 画一个 0% 的空卡比不画更容易让人以为读数坏了。
+   */
+  const composerMeterParts: MeterPart[] =
+    composerBreakdown && composerPromptTokens
+      ? [
+          { id: 'sys', name: 'System', tokens: composerBreakdown.systemTokens },
+          { id: 'tools', name: 'Tools', tokens: (toolsTokens ?? 0) + composerBreakdown.resultsTokens, estimated: true },
+          { id: 'files', name: 'Files', tokens: composerBreakdown.filesTokens },
+          { id: 'chat', name: 'Chat', tokens: composerBreakdown.chatTokens },
+          { id: 'mem', name: 'Memory', tokens: composerBreakdown.memoryTokens },
+        ].filter((p) => p.tokens > 0)
+      : []
+  const composerMeterPanel =
+    composerMeterParts.length > 0 && composerWindow > 0 ? (
+      <ContextMeter parts={composerMeterParts} window={composerWindow} style="Field" />
+    ) : null
 
   const addFiles = (files: File[], forced?: 'file' | 'image' | 'video', done?: () => void) => {
     if (files.length > 0) {
@@ -2402,15 +2478,28 @@ export function Conversation(props: {
                    （DSH 只在 provider/model/窗口变化时才发），退回模型目录里的同名字段。 */
                 const win = contextWindow ?? stored?.contextWindow ?? modelContextWindow ?? null
                 if (win === null || used === null || used === undefined) return null
+                /* 分档：后端按 magpie 的 prompt.parts 口径拆成五类。
+                   没有分档（老消息）时才退回「工具 + 其余」的粗分。 */
+                const bd = stored?.breakdown ?? breakdown
                 const parts: MeterPart[] = []
-                if (tools !== null && tools !== undefined && tools > 0) {
-                  parts.push({ id: 'tools', name: 'Tools', tokens: tools, estimated: true })
-                }
-                /* system 提示长度前端拿不到（后端没透出），所以并入 messages。
-                   宁可少分一档，也不编一个数。 */
-                const rest = Math.max(0, used - (tools ?? 0))
-                if (rest > 0) {
-                  parts.push({ id: 'messages', name: 'Messages', tokens: rest, estimated: true })
+                if (bd) {
+                  /* 五档：System / Tools / Files / Chat / Memory。
+                     后端的 resultsTokens（bash 回显、浏览器快照）并进 Tools ——
+                     两者都是「工具带来的开销」，且 id 必须唯一（React key 与配色都靠它）。 */
+                  const toolsTotal = (tools ?? 0) + bd.resultsTokens
+                  if (bd.systemTokens > 0) parts.push({ id: 'sys', name: 'System', tokens: bd.systemTokens })
+                  if (toolsTotal > 0) parts.push({ id: 'tools', name: 'Tools', tokens: toolsTotal, estimated: true })
+                  if (bd.filesTokens > 0) parts.push({ id: 'files', name: 'Files', tokens: bd.filesTokens })
+                  if (bd.chatTokens > 0) parts.push({ id: 'chat', name: 'Chat', tokens: bd.chatTokens })
+                  if (bd.memoryTokens > 0) parts.push({ id: 'mem', name: 'Memory', tokens: bd.memoryTokens })
+                } else {
+                  if (tools !== null && tools !== undefined && tools > 0) {
+                    parts.push({ id: 'tools', name: 'Tools', tokens: tools, estimated: true })
+                  }
+                  const rest = Math.max(0, used - (tools ?? 0))
+                  if (rest > 0) {
+                    parts.push({ id: 'chat', name: 'Messages', tokens: rest, estimated: true })
+                  }
                 }
                 if (parts.length === 0) return null
                 return (
@@ -2471,9 +2560,14 @@ export function Conversation(props: {
             <div className="lbx-compose-box">
             {/* 输入框整体使用 LeiBox 官方「Agent 对话输入框」原版实现：
                 内部是官方打包产物（自带 React / GSAP / 图标与全部动效），
-                不再保留任何自研元素。 */}
+                不再保留任何自研元素。
+                contextUsage 是官方圆圈（以及它自带的「上下文组成」面板）的数据源：
+                传进去圆圈才显示真实百分比，而不是恒定的 0%。 */}
             <LeiBoxComposer
               busy={pending}
+              contextUsage={composerContextUsage}
+              contextUsageFallbackTokens={composerPromptTokens ?? undefined}
+              contextPanel={composerMeterPanel}
               onSubmit={(payload) => {
                 if (payload.text.trim()) submit(payload.text)
               }}

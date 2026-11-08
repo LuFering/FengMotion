@@ -20,6 +20,7 @@ import type {
   ChatStreamStatus,
   ChatStreamTitle,
   ChatStreamUsage,
+  ContextBreakdown,
   StreamError,
   TaskEvent,
   TaskStatus,
@@ -653,11 +654,36 @@ export function openChatSessionStream(
         const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : undefined)
         const w = num(c.contextWindow)
         const t = num(c.toolsTokens)
-        if (w !== undefined || t !== undefined) {
+        /* 分档是整块快照（不是增量）：五类一起到，某类为 0 是「确实是空的」，
+           所以这里不能用上面的 num() —— 它把 0 当成「没有」。 */
+        const bd = c.breakdown
+        const bdNum = (v: unknown) =>
+          typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : undefined
+        let breakdown: ContextBreakdown | undefined
+        if (bd && typeof bd === 'object') {
+          const b = bd as Record<string, unknown>
+          const s = bdNum(b.systemTokens)
+          const m = bdNum(b.memoryTokens)
+          const f = bdNum(b.filesTokens)
+          const r = bdNum(b.resultsTokens)
+          const ch = bdNum(b.chatTokens)
+          if (s !== undefined && m !== undefined && f !== undefined
+              && r !== undefined && ch !== undefined) {
+            breakdown = {
+              systemTokens: s,
+              memoryTokens: m,
+              filesTokens: f,
+              resultsTokens: r,
+              chatTokens: ch,
+            }
+          }
+        }
+        if (w !== undefined || t !== undefined || breakdown !== undefined) {
           handlers.onContext?.({
             type: 'context',
             ...(w !== undefined ? { contextWindow: w } : {}),
             ...(t !== undefined ? { toolsTokens: t } : {}),
+            ...(breakdown !== undefined ? { breakdown } : {}),
           })
         }
         return 'continue'

@@ -1315,6 +1315,8 @@ export interface ChatMessageUsage {
   toolsTokens?: number
   /** 当时的上下文窗口容量；适配器没上报时不出现。 */
   contextWindow?: number
+  /** 上下文分档快照；旧后端不产时保持 undefined。 */
+  breakdown?: ContextBreakdown
 }
 
 export interface ChatSessionCreateRequest {
@@ -1519,6 +1521,28 @@ export interface ChatStreamContext {
   contextWindow?: number
   /** 工具 schema 的估算 token（DSH 的 `request/header`，chars/4）。 */
   toolsTokens?: number
+  /** 分档快照；一轮结束时到达。旧后端不产时保持 undefined。 */
+  breakdown?: ContextBreakdown
+}
+
+/**
+ * 上下文分档：把「已用 N token」拆成可解释的几类。
+ *
+ * 分类口径对齐 magpie 的 `prompt.parts`（实测其各项之和等于总数）。
+ * DSH 自带的 contextBreakdown 只分 system / tools / message 三档，
+ * 粒度不够 —— 它把附件、工具输出、对话全算进 message。
+ */
+export interface ContextBreakdown {
+  /** 系统提示词与工具 schema */
+  systemTokens: number
+  /** 记忆与项目规则：AGENTS.md、CLAUDE.md */
+  memoryTokens: number
+  /** 附件与读过的文件：图片、read 工具结果 */
+  filesTokens: number
+  /** 工具输出：bash 回显、浏览器快照 */
+  resultsTokens: number
+  /** 对话正文：历史轮次与当前轮 */
+  chatTokens: number
 }
 
 /**

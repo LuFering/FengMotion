@@ -43,20 +43,14 @@
   --pane-edge: var(--line);
   --signal: var(--acc);
   --font-ui: var(--font-sans);
-  /* ── 色相改成项目自己的语言 ───────────────────────────────
-     原版是 Bencho 的五色体系（玫红/紫/蓝/青/绿）—— 那是一个多色
-     品牌配色，放进只用一个品牌蓝的项目里，一眼就不像同一个产品
-     （用户实测反馈：风格和颜色与项目不符）。
-
-     本项目的语义色只有一组：--acc 品牌蓝 / --ok 绿 / --warn 琥珀 / --bad 红。
-     所以这里不再造第二套色相，而是把「五种内容」表达为
-     「品牌蓝的五个强度」—— 同色系、靠明度分层，读起来是一个系统。
-     需要更强区分时把组件切到 colour="Mono" 即可（那条路径本来就是灰阶）。 */
-  /* 三档，只用 DSH 真有的分类：System / Tools / Messages。
-     原版五档里的 Files、Memory 本项目拿不到数据，删掉而不是留空。 */
-  --k-sys: var(--acc);
-  --k-tools: color-mix(in srgb, var(--acc) 72%, var(--surf));
-  --k-msg: color-mix(in srgb, var(--acc) 44%, var(--surf));
+  /* the cool half of the wheel only, rose round through blue to green:
+     no orange or yellow, so the set stays one family, but each step is
+     a clear jump in hue so no two kinds can be mistaken */
+  --k-sys: #ec4f8c;
+  --k-tools: #9a5cf6;
+  --k-files: #3d7ef5;
+  --k-chat: #1db4cc;
+  --k-mem: #2ccb7e;
   /* 20 dots of 11 on a 3px gap, plus the padding */
   width: 309px;
   box-sizing: border-box;
@@ -135,15 +129,16 @@
 /* mono: the kinds as strengths of the ink, strongest first */
 .ctx[data-mono] {
   --k-sys: var(--fill-on, #17181a);
-  --k-tools: color-mix(in srgb, var(--fill-on, #17181a) 68%, var(--fill-slab, #fff));
-  --k-msg: color-mix(in srgb, var(--fill-on, #17181a) 38%, var(--fill-slab, #fff));}
+  --k-tools: color-mix(in srgb, var(--fill-on, #17181a) 76%, var(--fill-slab, #fff));
+  --k-files: color-mix(in srgb, var(--fill-on, #17181a) 54%, var(--fill-slab, #fff));
+  --k-chat: color-mix(in srgb, var(--fill-on, #17181a) 36%, var(--fill-slab, #fff));
+  --k-mem: color-mix(in srgb, var(--fill-on, #17181a) 22%, var(--fill-slab, #fff));}
 
 .ctx-dot[data-kind="sys"] { background: var(--k-sys); }
-
 .ctx-dot[data-kind="tools"] { background: var(--k-tools); }
-
-
-.ctx-dot[data-kind="messages"] { background: var(--k-msg); }
+.ctx-dot[data-kind="files"] { background: var(--k-files); }
+.ctx-dot[data-kind="chat"] { background: var(--k-chat); }
+.ctx-dot[data-kind="mem"] { background: var(--k-mem); }
 
 
 /* the bar style: one stacked bar, a segment per kind and the room
@@ -176,11 +171,10 @@
 }
 
 .ctx-seg[data-kind="sys"] { background: var(--k-sys); }
-
 .ctx-seg[data-kind="tools"] { background: var(--k-tools); }
-
-
-.ctx-seg[data-kind="messages"] { background: var(--k-msg); }
+.ctx-seg[data-kind="files"] { background: var(--k-files); }
+.ctx-seg[data-kind="chat"] { background: var(--k-chat); }
+.ctx-seg[data-kind="mem"] { background: var(--k-mem); }
 
 
 .ctx-seg-room { background: color-mix(in srgb, var(--fill-on, #17181a) 8%, var(--fill-slab, #fff)); }
@@ -218,11 +212,10 @@
 .ctx-swatch { display: block; width: 8px; height: 8px; border-radius: 2px; }
 
 .ctx-swatch[data-kind="sys"] { background: var(--k-sys); }
-
 .ctx-swatch[data-kind="tools"] { background: var(--k-tools); }
-
-
-.ctx-swatch[data-kind="messages"] { background: var(--k-msg); }
+.ctx-swatch[data-kind="files"] { background: var(--k-files); }
+.ctx-swatch[data-kind="chat"] { background: var(--k-chat); }
+.ctx-swatch[data-kind="mem"] { background: var(--k-mem); }
 
 
 .ctx-act {
