@@ -75,7 +75,83 @@ export interface LeiBoxComposerProps {
    * 调用方给的节点（Bencho 的 ContextMeter），由它画在官方弹层的位置上。
    */
   contextPanel?: React.ReactNode
+  /**
+   * 官方胶囊的模型清单。
+   *
+   * 官方胶囊读的是 `bridge.api.getSettings()` 返回的 `available_models`，
+   * 而那个值就来自挂载时传入的 `models` —— 所以换掉这一项，
+   * 胶囊里显示的就是后端真实目录，不需要自建控件。
+   */
+  models?: Array<{ id: string; label?: string }>
+  /** 当前选中的模型 id；官方胶囊据此高亮并显示名字 */
+  selectedModel?: string
+  /** 已接入的引擎清单（官方胶囊第一级抽屉） */
+  harnesses?: Array<{ id: string; name: string }>
+  /** 当前引擎 id */
+  harness?: string
+  /** 用户在抽屉里换了引擎 */
+  onHarnessChange?: (id: string) => void
+  /** 每个引擎的真实模型目录（换引擎后胶囊里要换成它的模型） */
+  modelsByHarness?: Record<string, Array<{ id: string; label?: string }>>
+  /** 用户在官方胶囊里换模型 */
+  onModelChange?: (modelId: string) => void
+  /** 用户在官方胶囊里换推理强度 */
+  onThinkingChange?: (level: string) => void
 }
+
+
+/**
+ * 胶囊的环绕光与两级抽屉样式。
+ *
+ * 必须注入到官方组件的 Shadow DOM 里 —— 这些类名作用在它渲染出来的节点上，
+ * 外部样式表穿不进去。光效沿用首页输入框那套（conic-gradient + mask xor
+ * 裁成 2px 描边 + drop-shadow 发光），不用 box-shadow 是因为渐变要跑起来。
+ */
+const PILL_CSS = `
+@property --lbx-hz-spin { syntax: '<angle>'; initial-value: 0deg; inherits: false; }
+.lbx-hz-glow { position: relative; display: inline-flex; }
+.lbx-hz-glow-ring {
+  position: absolute; inset: -2px; border-radius: 999px; padding: 2px;
+  pointer-events: none;
+  background: conic-gradient(from var(--lbx-hz-spin),
+    transparent 0deg, transparent 130deg,
+    color-mix(in srgb, var(--theme-accent, #3B8CF8) 45%, transparent) 200deg,
+    var(--theme-accent, #3B8CF8) 265deg,
+    #fff 292deg,
+    var(--theme-accent, #3B8CF8) 315deg,
+    color-mix(in srgb, var(--theme-accent, #3B8CF8) 45%, transparent) 350deg,
+    transparent 360deg);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--theme-accent, #3B8CF8) 90%, transparent))
+          drop-shadow(0 0 11px color-mix(in srgb, var(--theme-accent, #3B8CF8) 60%, transparent));
+  animation: lbx-hz-spin-cw 2.8s linear infinite;
+}
+@keyframes lbx-hz-spin-cw { to { --lbx-hz-spin: 360deg; } }
+@media (prefers-reduced-motion: reduce) { .lbx-hz-glow-ring { animation: none; } }
+
+.lbx-hz-panel { overflow: hidden; padding: 6px 0; }
+.lbx-hz-track { display: flex; width: 200%; transition: transform 320ms cubic-bezier(0.19, 1, 0.22, 1); }
+.lbx-hz-panel[data-pane="model"] .lbx-hz-track { transform: translateX(-50%); }
+.lbx-hz-page { width: 50%; flex-shrink: 0; padding: 0 10px; }
+.lbx-hz-row {
+  display: flex; align-items: center; gap: 6px; width: 100%;
+  padding: 7px 8px; margin: 1px 0; border: 0; border-radius: 8px;
+  background: transparent; color: inherit; font: inherit; font-size: 12.5px;
+  text-align: left; cursor: pointer; transition: background-color 140ms ease;
+}
+.lbx-hz-row:hover { background: color-mix(in srgb, currentColor 7%, transparent); }
+.lbx-hz-row--on { background: color-mix(in srgb, var(--theme-accent, #3B8CF8) 14%, transparent); }
+.lbx-hz-back {
+  display: inline-flex; align-items: center; gap: 3px;
+  margin: 2px 0 4px; padding: 3px 6px; border: 0; border-radius: 6px;
+  background: transparent; color: inherit; font: inherit; font-size: 11px;
+  opacity: .65; cursor: pointer;
+}
+.lbx-hz-back:hover { opacity: 1; background: color-mix(in srgb, currentColor 7%, transparent); }
+`
 
 /** 脚本加载状态做全局复用：2.7MB 只该拉一次。 */
 let enginePromise: Promise<void> | null = null
@@ -149,6 +225,14 @@ export function LeiBoxComposer({
   contextUsage = null,
   contextUsageFallbackTokens = 0,
   contextPanel = null,
+  models,
+  selectedModel,
+  harnesses,
+  harness,
+  onHarnessChange,
+  modelsByHarness,
+  onModelChange,
+  onThinkingChange,
 }: LeiBoxComposerProps) {
   const hostRef = useRef<HTMLDivElement>(null)
   const instanceRef = useRef<ReturnType<MountFn> | null>(null)
@@ -164,6 +248,16 @@ export function LeiBoxComposer({
   /* 回调放 ref：挂载只发生一次，不能因 props 变化重建组件 */
   const submitRef = useRef(onSubmit)
   submitRef.current = onSubmit
+  const modelsRef = useRef(models)
+  modelsRef.current = models
+  const selectedRef = useRef(selectedModel)
+  selectedRef.current = selectedModel
+  const hzRef = useRef({ harnesses, harness, onHarnessChange, modelsByHarness })
+  hzRef.current = { harnesses, harness, onHarnessChange, modelsByHarness }
+  const modelCbRef = useRef(onModelChange)
+  modelCbRef.current = onModelChange
+  const thinkCbRef = useRef(onThinkingChange)
+  thinkCbRef.current = onThinkingChange
 
   useEffect(() => {
     let disposed = false
@@ -175,6 +269,16 @@ export function LeiBoxComposer({
       const factory = window.__LeiBoxComposer
       if (!factory) return
       instanceRef.current = factory.mount(hostRef.current, {
+        /* 官方胶囊的模型清单直接读这里（bridge.api.getSettings 的 available_models），
+           所以传真实目录它显示的就是真模型，不用另做一套控件。 */
+        models: (modelsRef.current ?? []).map((m) => m.id),
+        selectedModel: selectedRef.current ?? modelsRef.current?.[0]?.id,
+        harnesses: hzRef.current.harnesses ?? [],
+        harness: hzRef.current.harness ?? '',
+        modelsByHarness: hzRef.current.modelsByHarness ?? {},
+        onHarnessChange: (id: string) => hzRef.current.onHarnessChange?.(id),
+        onModelChange: (id: string) => modelCbRef.current?.(id),
+        onValueChange: (level: string) => thinkCbRef.current?.(level),
         onSubmit: (payload: LeiBoxSubmitPayload) => {
           if (payload?.text?.trim()) submitRef.current?.(payload)
         },
@@ -250,6 +354,16 @@ export function LeiBoxComposer({
           el.textContent = 'button[aria-label^="Context"]{visibility:hidden!important}'
           shadow.appendChild(el)
         }
+
+        /* 胶囊的环绕光与两级抽屉样式。
+           必须在 shadow 内注入：这些类名作用在官方组件渲染的节点上，
+           外部样式表穿不进 Shadow DOM。 */
+        if (!shadow.querySelector('style[data-lbx-pill]')) {
+          const el = document.createElement('style')
+          el.setAttribute('data-lbx-pill', '')
+          el.textContent = PILL_CSS
+          shadow.appendChild(el)
+        }
         return true
       }
 
@@ -283,6 +397,31 @@ export function LeiBoxComposer({
   useEffect(() => {
     instanceRef.current?.update?.({ busy })
   }, [busy])
+
+  /* 模型目录是异步到的（/api/harnesses/{id}/models），到了就推给官方胶囊。
+     官方 update 会合并 props 并重渲染，胶囊里的清单随之更新。 */
+  useEffect(() => {
+    if (!models || models.length === 0) return
+    instanceRef.current?.update?.({
+      models: models.map((m) => m.id),
+      selectedModel: selectedRef.current ?? models[0]?.id,
+    })
+  }, [models])
+
+  /* 用户换了模型（或后端默认模型变化）时同步给官方胶囊 */
+  useEffect(() => {
+    if (!selectedModel) return
+    instanceRef.current?.update?.({ selectedModel })
+  }, [selectedModel])
+
+  /* 引擎清单与目录异步到；到了推给官方胶囊，抽屉里才有内容可列 */
+  useEffect(() => {
+    instanceRef.current?.update?.({
+      harnesses: harnesses ?? [],
+      harness: harness ?? '',
+      modelsByHarness: modelsByHarness ?? {},
+    })
+  }, [harnesses, harness, modelsByHarness])
 
   /* 上下文数据后到（一轮跑完才有），所以单独一个 effect 推给官方组件。
      官方 update() 内部会整包合并并重渲染，圆圈与它自己的分档面板一起刷新。 */

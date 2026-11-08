@@ -500,6 +500,10 @@ export interface ChatStreamOptions {
   idleTimeoutMs?: number
   reconnectLimit?: number
   lastEventId?: string
+  /** 本轮使用的模型 id（后端真实目录里的那个）。不传则用后端默认模型。 */
+  model?: string
+  /** 推理强度：simple / medium / deep。不传则由后端默认。 */
+  thinking?: string
 }
 
 export interface ChatStreamHandle {
@@ -776,10 +780,19 @@ export function openChatSessionStream(
       }
       try {
         cycleStartedAt = Date.now()
-        const response = await http.openEventStream(`/chat-sessions/${sessionId}/stream`, {
-          lastEventId: lastEventId ?? undefined,
-          signal,
-        })
+        /* model 作为查询参数透传：后端用它构造本次的 dsh 会话，
+           不传就用它自己配置的默认模型。 */
+        const qs = new URLSearchParams()
+        if (options.model && options.model.trim()) qs.set('model', options.model)
+        if (options.thinking && options.thinking.trim()) qs.set('thinking', options.thinking)
+        const query = qs.toString() ? `?${qs.toString()}` : ''
+        const response = await http.openEventStream(
+          `/chat-sessions/${sessionId}/stream${query}`,
+          {
+            lastEventId: lastEventId ?? undefined,
+            signal,
+          },
+        )
         emitState('streaming')
 
         for await (const message of readSseMessages(response, { signal, idleTimeoutMs })) {

@@ -808,8 +808,11 @@ export function Conversation(props: {
     previewUrl?: string
   }[]>([])
   const [harnessId, setHarnessId] = useState(HARNESSES[0].id)
+  void setHarnessId
   const [model, setModel] = useState(HARNESSES[0].models[0])
-  void setHarnessId; void setModel
+  /* 推理强度：三档，随请求一起发给引擎。
+     取值与官方胶囊的 thinkingOptions 一致（simple / medium / deep）。 */
+  const [thinking, setThinking] = useState<'simple' | 'medium' | 'deep'>('medium')
   const [prefs, setPrefs] = useState<Record<string, ModelPrefs>>(loadPrefs)
   const fileRef = useRef<HTMLInputElement>(null)
   const imageRef = useRef<HTMLInputElement>(null)
@@ -1045,6 +1048,10 @@ export function Conversation(props: {
           if (!produced) chat.removeMessage(aiId)
           break
       }
+    }, {
+      /* 把胶囊里选中的真实模型与推理强度透传给后端 —— 选了什么就用什么。 */
+      model: effectiveModel,
+      thinking,
     })
     streamStopRef.current = stop
     return () => {
@@ -2573,6 +2580,21 @@ export function Conversation(props: {
               contextUsage={composerContextUsage}
               contextUsageFallbackTokens={composerPromptTokens ?? undefined}
               contextPanel={composerMeterPanel}
+              models={backendModels.map((m) => ({ id: m.id, label: m.label }))}
+              selectedModel={effectiveModel}
+              /* 官方胶囊两级抽屉：第一级列已接入的引擎，第二级是它的真实模型 */
+              harnesses={probe.harnesses
+                .filter((h) => availabilityOf(probe, h.id).state === 'available')
+                .map((h) => ({ id: h.id, name: h.name }))}
+              harness={probe.harnesses.find((h) => availabilityOf(probe, h.id).state === 'available')?.id ?? ''}
+              modelsByHarness={Object.fromEntries(
+                Object.entries(probe.modelsByHarness).map(([k, v]) => [
+                  k,
+                  v.map((m) => ({ id: m.id, label: m.label })),
+                ]),
+              )}
+              onModelChange={setModel}
+              onThinkingChange={(lv) => setThinking(lv as 'simple' | 'medium' | 'deep')}
               onSubmit={(payload) => {
                 if (payload.text.trim()) submit(payload.text)
               }}

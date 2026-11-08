@@ -383,6 +383,14 @@ public class DshSdkSession {
     private final String model;
 
     /**
+     * 推理强度（simple / medium / deep）。
+     *
+     * <p>DSH 的 {@code initialize} 接受 {@code reasoningEffort}；
+     * 传 null 时它用自己的默认档，不要补一个猜测值。</p>
+     */
+    private final String reasoningEffort;
+
+    /**
      * 等待响应期间读到的通知帧。
      *
      * <p>{@code awaitResponse} 为了找到匹配 id 的响应会顺带读到通知帧；这些通知
@@ -434,11 +442,22 @@ public class DshSdkSession {
      * @param model    模型 ID，例如 {@code deepseek-v4.1-flash}
      */
     public DshSdkSession(DshProcess channel, ObjectMapper json, String provider, String model) {
+        this(channel, json, provider, model, null);
+    }
+
+    /**
+     * 带推理强度的一轮会话。
+     *
+     * @param reasoningEffort simple / medium / deep；null 表示用引擎自己的默认
+     */
+    public DshSdkSession(DshProcess channel, ObjectMapper json, String provider, String model,
+                         String reasoningEffort) {
         this.channel = channel;
         this.stdout = channel.openStdout();
         this.json = json;
         this.provider = provider;
         this.model = model;
+        this.reasoningEffort = reasoningEffort;
     }
 
     /**
@@ -469,6 +488,9 @@ public class DshSdkSession {
         params.put("cwd", cwd);
         params.put("provider", provider);
         params.put("model", model);
+        if (reasoningEffort != null && !reasoningEffort.isBlank()) {
+            params.put("reasoningEffort", reasoningEffort);
+        }
         channel.sendRequest(id, "initialize", params);
 
         JsonNode result = awaitResponse(id, timeout);

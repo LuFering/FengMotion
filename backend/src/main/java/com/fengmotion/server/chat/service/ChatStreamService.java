@@ -230,9 +230,32 @@ public class ChatStreamService {
      */
     public void stream(String sessionId, PrintWriter writer, String userText,
                        com.fasterxml.jackson.databind.JsonNode attachments, Runnable flush) {
+        stream(sessionId, writer, userText, attachments, null, null, flush);
+    }
+
+    /**
+     * 指定模型的一轮对话。
+     *
+     * @param model 本轮使用的模型 id；null 或空串表示用配置里的默认模型
+     */
+    public void stream(String sessionId, PrintWriter writer, String userText,
+                       com.fasterxml.jackson.databind.JsonNode attachments, String model,
+                       Runnable flush) {
+        stream(sessionId, writer, userText, attachments, model, null, flush);
+    }
+
+    /**
+     * 指定模型与推理强度的一轮对话。
+     *
+     * @param model    模型 id；null 表示用配置默认
+     * @param thinking 推理强度 simple/medium/deep；null 表示用引擎默认
+     */
+    public void stream(String sessionId, PrintWriter writer, String userText,
+                       com.fasterxml.jackson.databind.JsonNode attachments, String model,
+                       String thinking, Runnable flush) {
         currentFlush.set(flush);
         try {
-            doStream(sessionId, writer, userText, attachments);
+            doStream(sessionId, writer, userText, attachments, model, thinking);
         } finally {
             currentFlush.remove();
         }
@@ -303,7 +326,8 @@ public class ChatStreamService {
     }
 
     private void doStream(String sessionId, PrintWriter writer, String userText,
-                          com.fasterxml.jackson.databind.JsonNode attachments) {
+                          com.fasterxml.jackson.databind.JsonNode attachments, String model,
+                          String thinking) {
         // 先做前置校验：引擎不可用或会话不存在时直接抛错，由 Controller 返回错误信封，
         // 而不是先建一条永远不会有内容的连接。
         if (!harness.isAvailable()) {
@@ -346,8 +370,13 @@ public class ChatStreamService {
             // 新一轮开始即清掉上一轮的停止标记，避免旧的「已停止」污染本轮的失败判断。
             cleanupStopMark(sessionId);
 
+            /* 模型优先用本轮指定的那个（前端 harness 抽屉里选的），
+               没指定才回落到配置默认值 —— 这样「选了什么就用什么」是真的生效，
+               而不是只在界面上换个名字。 */
+            String effectiveModel =
+                    (model == null || model.isBlank()) ? properties.getModel() : model;
             DshSdkSession driver = new DshSdkSession(
-                    process, json, properties.getProvider(), properties.getModel());
+                    process, json, properties.getProvider(), effectiveModel, thinking);
             // stderr 必须在 driver 之后开始排空：插件把 token 级帧写在这里，
             // 需要直接灌进 driver 的队列，读到的帧才不会被当成诊断日志丢掉。
             process.drainStderr(200, frame -> {
