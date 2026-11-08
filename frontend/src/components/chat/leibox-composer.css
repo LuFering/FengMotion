@@ -11,3 +11,12 @@
   height: auto;
   background: transparent;
 }
+
+/* 加载占位：官方脚本 2.7MB，首帧前宿主是空的。
+   给一个与输入框等高（132px）的圆角占位，避免「空白 → 突然出现」的跳变。
+   visibility 由 JS 在压平完成后恢复，见组件注释。 */
+.lbx-host:empty {
+  min-height: 132px;
+  border-radius: 24px;
+  background: var(--surf);
+}
