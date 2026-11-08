@@ -9,7 +9,7 @@ import { FileChanges } from '@/components/chat/FileChanges'
 import { collectFileChanges } from '@/components/chat/fileChanges'
 import { QuestionFormCard } from '@/components/chat/QuestionFormCard'
 import { splitQuestionForms } from '@/components/chat/questionForm'
-import { ContextMeter, type MeterPart } from '@/components/bencho/ContextMeter'
+import { ContextMeter, type Kind } from '@/components/bencho/ContextMeter'
 import {
   ChatMessage as ChatBubble, ThinkingIndicator, MarkdownText,
   AnswerBody, AnswerActions, MessageActions, RunningDivider,
@@ -1673,19 +1673,25 @@ export function Conversation(props: {
    * 没有真实数据（一次对话都没开始）时**不渲染**，官方弹层也保持空白 ——
    * 画一个 0% 的空卡比不画更容易让人以为读数坏了。
    */
-  const composerMeterParts: MeterPart[] =
-    composerBreakdown && composerPromptTokens
-      ? [
-          { id: 'sys', name: 'System', tokens: composerBreakdown.systemTokens },
-          { id: 'tools', name: 'Tools', tokens: (toolsTokens ?? 0) + composerBreakdown.resultsTokens, estimated: true },
-          { id: 'files', name: 'Files', tokens: composerBreakdown.filesTokens },
-          { id: 'chat', name: 'Chat', tokens: composerBreakdown.chatTokens },
-          { id: 'mem', name: 'Memory', tokens: composerBreakdown.memoryTokens },
-        ].filter((p) => p.tokens > 0)
-      : []
+  /* 原版语义：k 是千 token，窗口也是千 token，一个点 = 1K。
+     resultsTokens（bash 回显等工具输出）并进 Tools —— 两者都是工具开销，
+     且组件的 React key 与配色都要求 id 唯一。 */
+  const composerMeterKinds: Kind[] = composerBreakdown
+    ? [
+        { id: 'sys', name: 'System', k: composerBreakdown.systemTokens / 1000 },
+        { id: 'tools', name: 'Tools', k: ((toolsTokens ?? 0) + composerBreakdown.resultsTokens) / 1000 },
+        { id: 'files', name: 'Files', k: composerBreakdown.filesTokens / 1000 },
+        { id: 'chat', name: 'Chat', k: composerBreakdown.chatTokens / 1000 },
+        { id: 'mem', name: 'Memory', k: composerBreakdown.memoryTokens / 1000 },
+      ]
+    : []
   const composerMeterPanel =
-    composerMeterParts.length > 0 && composerWindow > 0 ? (
-      <ContextMeter parts={composerMeterParts} window={composerWindow} style="Field" />
+    composerMeterKinds.length > 0 && composerWindow > 0 ? (
+      <ContextMeter
+        kinds={composerMeterKinds}
+        windowK={Math.round(composerWindow / 1000)}
+        style="Bar"
+      />
     ) : null
 
   const addFiles = (files: File[], forced?: 'file' | 'image' | 'video', done?: () => void) => {
@@ -2481,30 +2487,29 @@ export function Conversation(props: {
                 /* 分档：后端按 magpie 的 prompt.parts 口径拆成五类。
                    没有分档（老消息）时才退回「工具 + 其余」的粗分。 */
                 const bd = stored?.breakdown ?? breakdown
-                const parts: MeterPart[] = []
+                const parts: Kind[] = []
                 if (bd) {
                   /* 五档：System / Tools / Files / Chat / Memory。
                      后端的 resultsTokens（bash 回显、浏览器快照）并进 Tools ——
                      两者都是「工具带来的开销」，且 id 必须唯一（React key 与配色都靠它）。 */
                   const toolsTotal = (tools ?? 0) + bd.resultsTokens
-                  if (bd.systemTokens > 0) parts.push({ id: 'sys', name: 'System', tokens: bd.systemTokens })
-                  if (toolsTotal > 0) parts.push({ id: 'tools', name: 'Tools', tokens: toolsTotal, estimated: true })
-                  if (bd.filesTokens > 0) parts.push({ id: 'files', name: 'Files', tokens: bd.filesTokens })
-                  if (bd.chatTokens > 0) parts.push({ id: 'chat', name: 'Chat', tokens: bd.chatTokens })
-                  if (bd.memoryTokens > 0) parts.push({ id: 'mem', name: 'Memory', tokens: bd.memoryTokens })
+                  parts.push(
+                    { id: 'sys', name: 'System', k: bd.systemTokens / 1000 },
+                    { id: 'tools', name: 'Tools', k: toolsTotal / 1000 },
+                    { id: 'files', name: 'Files', k: bd.filesTokens / 1000 },
+                    { id: 'chat', name: 'Chat', k: bd.chatTokens / 1000 },
+                    { id: 'mem', name: 'Memory', k: bd.memoryTokens / 1000 },
+                  )
                 } else {
-                  if (tools !== null && tools !== undefined && tools > 0) {
-                    parts.push({ id: 'tools', name: 'Tools', tokens: tools, estimated: true })
-                  }
-                  const rest = Math.max(0, used - (tools ?? 0))
-                  if (rest > 0) {
-                    parts.push({ id: 'chat', name: 'Messages', tokens: rest, estimated: true })
-                  }
+                  parts.push(
+                    { id: 'tools', name: 'Tools', k: (tools ?? 0) / 1000 },
+                    { id: 'chat', name: 'Messages', k: Math.max(0, used - (tools ?? 0)) / 1000 },
+                  )
                 }
                 if (parts.length === 0) return null
                 return (
                   <div className="cv3-ctxmeter">
-                    <ContextMeter parts={parts} window={win} style="Bar" />
+                    <ContextMeter kinds={parts} windowK={Math.round(win / 1000)} style="Bar" />
                   </div>
                 )
               })()}

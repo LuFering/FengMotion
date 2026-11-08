@@ -95,6 +95,54 @@ function loadEngine(): Promise<void> {
   return enginePromise
 }
 
+
+/* ── 官方弹层形变动效（composer-engine.js 的 Z1 + t1 + a1）──────────
+   原版是 GSAP 时间线：外层从**触发元素的矩形**长成卡片矩形，
+   width / height 各跑一条弹簧，圆角与底色 0.22s 收口。
+   这里把同一组弹簧参数翻成 WAAPI 关键帧 —— WAAPI 不接受函数式缓动，
+   但可以用 offset + 线性插值精确复现同一条弹簧曲线。 */
+
+/** 官方 t1：hover 展开 / 收回两条不同的弹簧（stiffness, damping, duration(s), delay(s)）。 */
+const MORPH = {
+  open: {
+    width: { stiffness: 306.25, damping: 28, duration: 0.7, delay: 0 },
+    height: { stiffness: 196, damping: 18.34, duration: 0.86, delay: 0.057 },
+  },
+  close: {
+    width: { stiffness: 400, damping: 33, duration: 0.64, delay: 0.07 },
+    height: { stiffness: 600.25, damping: 40, duration: 0.62, delay: 0 },
+  },
+} as const
+
+/** 官方 a1：欠阻尼弹簧的单位阶跃响应，秒为单位推进。 */
+function springEase(stiffness: number, damping: number, duration: number) {
+  const decay = damping / 2
+  const freq = Math.sqrt(Math.max(1, stiffness - decay * decay))
+  return (t: number) => {
+    if (t <= 0) return 0
+    if (t >= 1) return 1
+    const e = t * duration
+    return 1 - Math.exp(-decay * e) * (Math.cos(freq * e) + (decay / freq) * Math.sin(freq * e))
+  }
+}
+
+/** 生成一条属性的弹簧关键帧（from → to），offset 均匀采样。 */
+function springKeyframes(
+  prop: 'width' | 'height',
+  from: number,
+  to: number,
+  cfg: { stiffness: number; damping: number; duration: number },
+  steps = 40,
+) {
+  const ease = springEase(cfg.stiffness, cfg.damping, cfg.duration)
+  const frames: Record<string, string | number>[] = []
+  for (let i = 0; i <= steps; i++) {
+    const t = i / steps
+    frames.push({ offset: t, [prop]: `${from + (to - from) * ease(t)}px` })
+  }
+  return frames
+}
+
 export function LeiBoxComposer({
   onSubmit,
   busy = false,
@@ -104,8 +152,15 @@ export function LeiBoxComposer({
 }: LeiBoxComposerProps) {
   const hostRef = useRef<HTMLDivElement>(null)
   const instanceRef = useRef<ReturnType<MountFn> | null>(null)
-  /* 自己的上下文面板是否展开 */
+  /* 面板是否展开。官方是 PreviewCard：hover 开、离开关，不是点击。 */
   const [ctxOpen, setCtxOpen] = useState(false)
+  /* 关闭中：节点要留到形变收回去再卸，否则会「啪」地消失 */
+  const [ctxClosing, setCtxClosing] = useState(false)
+  const hoverTimer = useRef<number | null>(null)
+  /* 面板根节点：形变动效要量它的最终尺寸 */
+  const popRef = useRef<HTMLDivElement>(null)
+  /* 圆钮：展开时隐藏它，让卡片从它所在的位置长出来 */
+  const ringRef = useRef<HTMLButtonElement>(null)
   /* 回调放 ref：挂载只发生一次，不能因 props 变化重建组件 */
   const submitRef = useRef(onSubmit)
   submitRef.current = onSubmit
@@ -162,8 +217,18 @@ export function LeiBoxComposer({
            去掉深色舞台专用的布局类 */
         composer.classList.add('font-sans', 'text-text-base')
 
-        /* 2) 用输入框容器替换掉舞台 —— 舞台节点直接出 DOM，不留占位 */
-        stage.replaceWith(composer)
+        /* 2) 把舞台压成「零外框」而不是从 DOM 里摘掉它。
+           ⚠️ 不能用 stage.replaceWith(composer)：那会把 React 渲染的节点
+           从 DOM 里拿走，React 的树和真实 DOM 就对不上了 —— 之后任何一次
+           重渲染（每轮 contextUsage 更新都会）都会抛
+           `NotFoundError: Failed to removeChild`，渲染进程直接崩。
+           这里只改样式：背景透明、内边距清零、最小高度归零，视觉上和删掉一样。 */
+        stage.style.background = 'transparent'
+        stage.style.minHeight = '0'
+        stage.style.height = 'auto'
+        stage.style.padding = '0'
+        stage.style.borderRadius = '0'
+        stage.style.boxShadow = 'none'
 
         /* 3) 输入框跟随宿主宽度（官方默认 max-width 768） */
         composer.style.width = '100%'
@@ -228,7 +293,146 @@ export function LeiBoxComposer({
     })
   }, [contextUsage, contextUsageFallbackTokens])
 
-  /* 有数据才画自己的圆钮；没有数据时按钮位留空，与官方「无数据不显示」一致 */
+  /* ── 悬停开合：官方 PreviewCard 的 delay 120 / closeDelay 150 ──────
+     不是点击切换。点击在官方那里被 trigger-press 显式取消了。 */
+  const openCtx = () => {
+    if (hoverTimer.current) window.clearTimeout(hoverTimer.current)
+    hoverTimer.current = window.setTimeout(() => {
+      setCtxClosing(false)
+      setCtxOpen(true)
+    }, 120)
+  }
+  const closeCtx = () => {
+    if (hoverTimer.current) window.clearTimeout(hoverTimer.current)
+    hoverTimer.current = window.setTimeout(() => {
+      if (!popRef.current) {
+        setCtxOpen(false)
+        return
+      }
+      setCtxClosing(true)
+    }, 150)
+  }
+  useEffect(() => () => {
+    if (hoverTimer.current) window.clearTimeout(hoverTimer.current)
+  }, [])
+
+  /* 展开：从圆环的 32×32 长成卡片 —— 官方 open 弹簧。 */
+  useEffect(() => {
+    if (!ctxOpen || ctxClosing) return
+    const el = popRef.current
+    if (!el) return
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+
+    /* ⚠️ 不能量外层：它此刻可能还带着上一次动画的尺寸（甚至就是 32×32），
+       量到的「目标尺寸」会等于起点，动画等于没动，随后又被收起逻辑接走。
+       内层 .ctx 才是内容的自然尺寸（卡片固定 309px 宽、高度随图例换行）。 */
+    const inner = el.firstElementChild as HTMLElement | null
+    const finalW = inner?.offsetWidth || el.scrollWidth
+    const finalH = inner?.offsetHeight || el.scrollHeight
+    if (finalW <= 0 || finalH <= 0) return
+
+    /* ── 圆环让位 ────────────────────────────────────────────
+       官方在展开的同一帧把触发元素设为 opacity:0（`S2.style.opacity="0"`），
+       收起时再还原。所以视觉上是「圆环自己长成卡片把它盖住」，
+       而不是卡片浮在圆环旁边。 */
+    const ringEl = ringRef.current
+    if (ringEl) ringEl.style.opacity = '0'
+
+    /* 卡片底色在内层 .ctx 上，外层容器本身透明 —— 直接读外层会拿到
+       rgba(0,0,0,0)，整张卡就没有底。 */
+    const cardBg =
+      (el.firstElementChild && getComputedStyle(el.firstElementChild).backgroundColor) ||
+      'rgb(255,255,255)'
+
+    /* 圆角 / 底色 / 阴影：官方 0.22s power2.out，从「环」的样子开始 */
+    el.animate(
+      [
+        { borderRadius: '999px', backgroundColor: 'rgba(0,0,0,0)', boxShadow: '0 0 0 rgba(0,0,0,0)' },
+        { borderRadius: '20px', backgroundColor: cardBg, boxShadow: '0 12px 32px rgba(0,0,0,0.16)' },
+      ],
+      { duration: 220, easing: 'cubic-bezier(0.215, 0.61, 0.355, 1)', fill: 'both' },
+    )
+    /* 宽 / 高：两条独立弹簧，height 比 width 晚 57ms 起 */
+    el.animate(springKeyframes('width', 32, finalW, MORPH.open.width), {
+      duration: MORPH.open.width.duration * 1000,
+      delay: MORPH.open.width.delay * 1000,
+      easing: 'linear',
+      fill: 'both',
+    })
+    el.animate(springKeyframes('height', 32, finalH, MORPH.open.height), {
+      duration: MORPH.open.height.duration * 1000,
+      delay: MORPH.open.height.delay * 1000,
+      easing: 'linear',
+      fill: 'both',
+    })
+    /* 内容比外壳晚一点：官方先让环的样子停一瞬，再淡入内容 */
+    el.firstElementChild?.animate(
+      [{ opacity: 0, filter: 'blur(3px)' }, { opacity: 1, filter: 'blur(0px)' }],
+      { duration: 180, delay: 180, easing: 'cubic-bezier(0.215, 0.61, 0.355, 1)', fill: 'both' },
+    )
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ctxOpen, ctxClosing])
+
+  /* 收回：从当前尺寸缩回圆环 —— 官方 close 弹簧，收完再卸节点。 */
+  useEffect(() => {
+    if (!ctxClosing) return
+    const el = popRef.current
+    if (!el) return
+    const w = el.offsetWidth
+    const h = el.offsetHeight
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setCtxClosing(false)
+      setCtxOpen(false)
+      return
+    }
+    const cardBg =
+      (el.firstElementChild && getComputedStyle(el.firstElementChild).backgroundColor) ||
+      'rgb(255,255,255)'
+    el.firstElementChild?.animate(
+      [{ opacity: 1 }, { opacity: 0 }],
+      { duration: 120, easing: 'linear', fill: 'both' },
+    )
+    el.animate(
+      [
+        { borderRadius: '20px', backgroundColor: cardBg, boxShadow: '0 12px 32px rgba(0,0,0,0.16)' },
+        { borderRadius: '999px', backgroundColor: 'rgba(0,0,0,0)', boxShadow: '0 0 0 rgba(0,0,0,0)' },
+      ],
+      { duration: 220, easing: 'cubic-bezier(0.215, 0.61, 0.355, 1)', fill: 'both' },
+    )
+    el.animate(springKeyframes('width', w, 32, MORPH.close.width), {
+      duration: MORPH.close.width.duration * 1000,
+      delay: MORPH.close.width.delay * 1000,
+      easing: 'linear',
+      fill: 'both',
+    })
+    /* 用最长的那个动画（width，0.64s + 70ms 延迟）作为「收完」的时点，
+       不依赖 onfinish —— 多条 fill:both 的动画同时跑时，
+       先结束的那条会把 onfinish 的时序搞乱。 */
+    el.animate(springKeyframes('height', h, 32, MORPH.close.height), {
+      duration: MORPH.close.height.duration * 1000,
+      delay: MORPH.close.height.delay * 1000,
+      easing: 'linear',
+      fill: 'both',
+    })
+    const total = Math.max(
+      MORPH.close.width.delay * 1000 + MORPH.close.width.duration * 1000,
+      MORPH.close.height.delay * 1000 + MORPH.close.height.duration * 1000,
+    )
+    window.setTimeout(() => {
+      /* 收回到 32×32 之后才把圆环还回来 —— 早于这个时点会出现
+         「圆环和缩小的卡片同时在场」的重影。 */
+      const ringEl = ringRef.current
+      if (ringEl) ringEl.style.opacity = ''
+      /* 把残留的 fill:both 动画全部取消，否则下次展开时
+         offsetWidth 读到的是被动画压到的 32px，动画会「原地不动」。 */
+      el.getAnimations().forEach((a) => a.cancel())
+      el.firstElementChild?.getAnimations().forEach((a) => a.cancel())
+      setCtxClosing(false)
+      setCtxOpen(false)
+    }, total + 20)
+  }, [ctxClosing])
+
+  /* 圆环的进度比例；没有数据就不画圆钮（与官方「无数据不显示」一致） */
   const ratio =
     contextUsage && contextUsage.context_window > 0
       ? Math.min(1, (contextUsageFallbackTokens ?? 0) / contextUsage.context_window)
@@ -242,13 +446,16 @@ export function LeiBoxComposer({
       {/* 自己画的上下文圆钮：盖在官方圆钮被隐藏的那个位置上。
           官方那枚点开是「预计下一次请求 N%」的小卡，换成本组件的点阵面板。 */}
       {ratio !== null && contextPanel ? (
-        <div className="lbx-ctxwrap">
+        <div className="lbx-ctxwrap" onMouseEnter={openCtx} onMouseLeave={closeCtx}>
           <button
+            ref={ringRef}
             type="button"
             className="lbx-ctxring"
             aria-label={`上下文占用 ${Math.round(ratio * 100)}%`}
             title="上下文占用"
-            onClick={() => setCtxOpen((v) => !v)}
+            /* 悬停即开（由外层 onMouseEnter 负责），点击不切换 ——
+               官方的 PreviewCard 也是 hover 触发，并显式取消 trigger-press。 */
+            onFocus={openCtx}
           >
             <svg viewBox="0 0 32 32" aria-hidden="true">
               <circle cx="16" cy="16" r="13" fill="none" strokeWidth="3" className="lbx-ctxring-trail" />
@@ -266,11 +473,18 @@ export function LeiBoxComposer({
               />
             </svg>
           </button>
-          {ctxOpen ? (
-            <div className="lbx-ctxpop" role="dialog" aria-label="上下文组成">
+          {(ctxOpen || ctxClosing) && (
+            <div
+              ref={popRef}
+              className="lbx-ctxpop"
+              role="dialog"
+              aria-label="上下文组成"
+              onMouseEnter={openCtx}
+              onMouseLeave={closeCtx}
+            >
               {contextPanel}
             </div>
-          ) : null}
+          )}
         </div>
       ) : null}
     </div>

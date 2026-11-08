@@ -74,33 +74,20 @@
 
 /* 面板：锚在圆钮上方，右对齐，不遮挡输入框 */
 /* 弹层：锚在圆钮上方，右对齐。
-   进场沿用 Bencho 那套手感 —— 落下而非弹出：从下方 6px 升起、2px 模糊散开、
-   缩放 0.98 → 1，240ms 收住。没有弹跳，因为它不是按钮而是「展开一块数据」。 */
+   形变动效由 JS 的 WAAPI 逐帧完成（见 LeiBoxComposer 的 useEffect）——
+   面板从 32×32 的全圆角长成卡片，所以这里只管定位与「裁掉溢出」，
+   不写 CSS 动画：两套同时改 opacity 会互相覆盖。 */
 .lbx-ctxpop {
   position: absolute;
-  right: -8px;
-  bottom: calc(100% + 8px);
+  /* 起点与圆钮的**右下角**重合：卡片右边界对齐圆钮右边界，
+     底边对齐圆钮底边，然后向左上方长开。
+     官方 `data-side="top" / align="end"` 就是这个方位（弹层在触发点上方、右对齐）。
+     ⚠️ 不能用 left:0 —— 那会往右展开，卡片直接被窗口右边缘裁掉。 */
+  right: 0;
+  bottom: 0;
   transform-origin: bottom right;
-  animation: lbx-ctxpop-in 240ms cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-
-@keyframes lbx-ctxpop-in {
-  from {
-    opacity: 0;
-    transform: translateY(6px) scale(0.98);
-    filter: blur(2px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-    filter: blur(0);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .lbx-ctxpop {
-    animation-duration: 1ms;
-  }
+  /* 形变过程中内容不溢出圆角 */
+  overflow: hidden;
 }
 
 /* 圆钮自己的按压反馈：按下缩 0.96，松开回弹（与 Bencho 的 .ctx-chip 同参数） */
