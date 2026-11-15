@@ -132,7 +132,7 @@ public class StyleDirectorySource implements CapabilitySource {
 
         /* 海报：同目录下的 poster/cover/cover.jpg 都认。
            返回相对扫描根的路径，导入器负责拼成可访问地址。 */
-        String poster = firstExisting(dir, "poster.jpg", "poster.png", "cover.jpg", "cover.png", "thumb.jpg");
+        String poster = firstExisting(dir, scanRoot, "poster.jpg", "poster.png", "cover.jpg", "cover.png", "thumb.jpg");
 
         return new ParsedItem(
                 "lemo-" + slug,
@@ -204,10 +204,15 @@ public class StyleDirectorySource implements CapabilitySource {
         return "";
     }
 
-    private static String firstExisting(Path dir, String... names) {
+    private static String firstExisting(Path dir, Path scanRoot, String... names) {
         for (String name : names) {
-            if (Files.isRegularFile(dir.resolve(name))) {
-                return dir.getFileName() + "/" + name;
+            Path file = dir.resolve(name);
+            if (Files.isRegularFile(file)) {
+                try {
+                    return scanRoot.relativize(file).toString().replace('\\', '/');
+                } catch (Exception ignored) {
+                    return dir.getFileName() + "/" + name;
+                }
             }
         }
         return "";

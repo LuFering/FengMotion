@@ -31,6 +31,7 @@ import {
   importLegacyFavorites, listTechniques, loadUserState, markViewed, searchTechniqueIds, setFavorite,
 } from '@/services/fxApiService'
 import { SilentVideoPreview } from '@/components/SilentVideoPreview'
+import { FxVisualPoster } from '@/components/FxVisualPoster'
 import { PROJECTS, STAGE_LABEL } from '@/data/projects'
 import { EmptyState } from '@/components/fm/EmptyState'
 import { setAssetDragData, usePendingAssets, type PendingFxCard } from '@/shell/usePendingAssets'
@@ -883,14 +884,18 @@ export function FxLibrary() {
                     onDragEnd={clearDragGhost}
                   >
                     <div className="fxc-media">
-                      <SilentVideoPreview src={t.previewVideo} poster={t.previewImage}
-                        active={!drawerOpen && !workflowFor} label={`${t.name} 动态预览`} />
-                      {/* 没有预览图也没有视频的条目（shotcraft 的 124 张配方卡）：
-                          不放大段文字占位 —— 分类名放在中部会和下方标题抢位置，
-                          实测看起来像排版错乱。改用极淡的纹理 + 右下角一个小标记，
-                          既说明「这里没有预览」，又不制造视觉噪音。 */}
-                      {!t.previewImage && !t.previewVideo && (
-                        <span className="fxc-media-empty" aria-hidden="true" />
+                      {t.previewVideo ? (
+                        <SilentVideoPreview
+                          src={t.previewVideo}
+                          poster={t.previewImage}
+                          active={!drawerOpen && !workflowFor}
+                          label={`${t.name} 动态预览`}
+                        />
+                      ) : (
+                        <FxVisualPoster
+                          technique={t}
+                          className="fxc-media-poster"
+                        />
                       )}
                       {pick.active && <PickCheck checked={pick.has(t.id)} />}
                       {t.previewVideo && <span className="fxc-preview-label"><Play size={10} aria-hidden="true" />动态预览</span>}
@@ -978,12 +983,7 @@ export function FxLibrary() {
           >
             <div className="fx-drawer-scroll">
               <div className="fx-preview">
-                <img
-                  src={current.previewImage}
-                  alt=""
-                  onError={(e) => e.currentTarget.classList.add('is-broken')}
-                />
-                {playing && current.previewVideo && (
+                {current.previewVideo && playing ? (
                   <video
                     key={current.id}
                     className="fx-preview-video"
@@ -994,6 +994,14 @@ export function FxLibrary() {
                     playsInline
                     autoPlay
                     onError={() => setPlayingId(null)}
+                  />
+                ) : (
+                  <FxVisualPoster
+                    technique={current}
+                    interactive
+                    playing={playing}
+                    onTogglePlay={() => setPlayingId((p) => (p === current.id ? null : current.id))}
+                    className="fx-drawer-visual"
                   />
                 )}
                 {current.previewVideo && (

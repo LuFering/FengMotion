@@ -871,3 +871,247 @@ button.fx-mini:hover { background: var(--hover); color: var(--tx); }
   white-space: pre-wrap;
   word-break: break-all;
 }
+
+/* ── 动态视觉海报 (FxVisualPoster) ─────────────────────────────── */
+.fx-visual-poster {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  border-radius: inherit;
+  user-select: none;
+}
+
+.fx-visual-poster.is-real-image {
+  background: #090a10;
+}
+.fx-visual-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.fx-visual-badge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  font-size: 9px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.65);
+  color: #93c5fd;
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Remotion 画面代码组件视效 */
+.is-remotion-scene {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 12px;
+}
+.fx-scene-glow {
+  position: absolute;
+  inset: -20px;
+  filter: blur(28px);
+  opacity: 0.65;
+  transition: transform 0.1s linear, opacity 0.3s;
+  pointer-events: none;
+}
+.fxc-poster:hover .fx-scene-glow,
+.is-remotion-scene.is-animating .fx-scene-glow {
+  opacity: 0.95;
+  filter: blur(22px);
+}
+.fx-scene-grid {
+  position: absolute;
+  inset: 0;
+  background-image: linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+  background-size: 18px 18px;
+  pointer-events: none;
+}
+.fx-scene-content {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.fx-scene-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 9.5px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #bfdbfe;
+  backdrop-filter: blur(6px);
+  width: fit-content;
+  margin-bottom: 2px;
+}
+.fx-scene-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: 0.02em;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.8);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.fx-scene-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10.5px;
+  color: #94a3b8;
+}
+.fx-scene-path {
+  font-family: monospace;
+  font-size: 9.5px;
+  opacity: 0.75;
+}
+.fx-scene-timeline {
+  width: 100%;
+  height: 2.5px;
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 2px;
+  margin-top: 6px;
+  overflow: hidden;
+}
+.fx-scene-progress {
+  height: 100%;
+  background: #38bdf8;
+  box-shadow: 0 0 8px #38bdf8;
+  transition: width 0.08s linear;
+}
+
+/* 3D 摄像机运镜视锥体视口 */
+.is-camera-shot {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 12px;
+}
+.fx-camera-grid {
+  position: absolute;
+  inset: -40px 0 0 0;
+  height: 140%;
+  background-image: linear-gradient(rgba(56, 189, 248, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(56, 189, 248, 0.08) 1px, transparent 1px);
+  background-size: 20px 20px;
+  pointer-events: none;
+  opacity: 0.7;
+}
+.fx-camera-frustum-wrap {
+  position: relative;
+  z-index: 2;
+  height: 70px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.fx-camera-cone {
+  position: absolute;
+  width: 90px;
+  height: 60px;
+  background: radial-gradient(ellipse at bottom, rgba(56, 189, 248, 0.35) 0%, transparent 70%);
+  clip-path: polygon(50% 100%, 0% 0%, 100% 0%);
+  filter: blur(4px);
+  transition: transform 0.1s linear;
+}
+.fx-camera-marker {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.fx-camera-focal {
+  font-size: 9px;
+  font-family: monospace;
+  color: #93c5fd;
+  background: rgba(0, 0, 0, 0.6);
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+.fx-camera-info {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.fx-camera-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 9.5px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(245, 158, 11, 0.2);
+  color: #fde68a;
+  width: fit-content;
+}
+.fx-camera-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #ffffff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.8);
+}
+.fx-camera-intent {
+  font-size: 10px;
+  color: #94a3b8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 播放按钮 */
+.fx-visual-play-btn {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  z-index: 5;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  transition: all 0.15s;
+}
+.fx-visual-play-btn:hover {
+  background: var(--primary);
+  border-color: var(--primary);
+  transform: scale(1.08);
+}
+
+/* 抽屉大尺寸适配 */
+.fx-drawer-visual {
+  height: 100%;
+  border-radius: 10px;
+}

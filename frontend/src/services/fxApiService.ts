@@ -83,12 +83,14 @@ export interface FxListPage {
  * <p>已经带协议的（http/https/data/blob）原样返回：内置技法里有外链预览图，
  * 再拼一次 base 会得到 `http://host/http://...` 这种坏地址。</p>
  */
-function toAbsolute(url: string): string {
+function toAbsolute(url: string, sourceProject?: string): string {
+  if (!url) return ''
   if (/^(https?:|data:|blob:)/i.test(url)) return url
-  /* 能力库里的预览图存的是「相对业务路径」（如 lemo-opuscar/styles/x/poster.jpg），
-     需要挂到后端的静态前缀下；http.url() 已经自动带上 API base，
-     所以这里只补前缀，不再加 /api。 */
-  const path = url.startsWith('/') ? url : `/capability-assets/${url}`
+  let clean = url.replace(/^\//, '')
+  if (sourceProject && sourceProject !== 'builtin' && !clean.startsWith(sourceProject + '/')) {
+    clean = `${sourceProject}/${clean}`
+  }
+  const path = `/capability-assets/${clean}`
   return studioHttpApi().http.url(path)
 }
 
@@ -124,7 +126,7 @@ function toLocal(item: ServerFxTechnique): FxTechnique & { executionStatus?: str
        会打到前端 dev server（5175）上而不是后端（18096），结果整页图片 404。
        已实测：图片全部 ok=false，卡片仍是一片黑。
        走 http.url() 与素材缩略图的处理保持一致。 */
-    previewImage: item.previewImageUrl ? toAbsolute(item.previewImageUrl) : '',
+    previewImage: item.previewImageUrl ? toAbsolute(item.previewImageUrl, item.sourceProject) : '',
     previewVideo: item.previewVideoUrl,
     previewCaption: item.previewCaption,
     related: item.related ?? [],
