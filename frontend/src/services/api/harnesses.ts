@@ -65,6 +65,8 @@ export interface HarnessModel {
   default: boolean
   contextWindow?: number
   maxTokens?: number
+  /** SDK 模型元数据中的可选强度；缺失表示未知，空数组表示明确没有档位。 */
+  reasoningEfforts?: string[]
 }
 
 /**
@@ -111,6 +113,8 @@ export function createHarnessResource(http: HttpClient): HarnessResource {
         default: item.default === true || item.isDefault === true,
         ...(typeof item.contextWindow === 'number' ? { contextWindow: item.contextWindow } : {}),
         ...(typeof item.maxTokens === 'number' ? { maxTokens: item.maxTokens } : {}),
+        ...(Array.isArray(item.reasoningEfforts) && item.reasoningEfforts.every((v) => typeof v === 'string')
+          ? { reasoningEfforts: item.reasoningEfforts as string[] } : {}),
       }))
     },
   }

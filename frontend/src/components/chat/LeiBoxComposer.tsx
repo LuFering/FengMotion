@@ -29,6 +29,40 @@ declare global {
   }
 }
 
+/**
+ * 把文本写进官方组件的受控 textarea。
+ *
+ * <p><strong>为什么不能直接 `textarea.value = text`</strong>：官方输入框是
+ * 受控组件（bundle 里 `value: ne` + `onChange: Cse`），真正显示内容的是
+ * 它上方那层镜像 div（`data-message-composer-content`），而镜像由内部 state 驱动。
+ * 只改 DOM 的 value 不动 state，镜像仍是空的 —— 用户看到的还是空输入框。
+ * 必须先走原生 value setter，再派发冒泡的 input 事件，React 才会把值收进 state。</p>
+ *
+ * @returns 是否写入成功
+ */
+/** 程序化写入期间置位：此时触发的 input 事件不是用户操作，不应推进输入轮次。 */
+let programmaticWrite = false
+
+function writeComposerText(textarea: HTMLTextAreaElement, text: string): boolean {
+  if (textarea.value === text) return true
+  const descriptor = Object.getOwnPropertyDescriptor(
+    window.HTMLTextAreaElement.prototype,
+    'value',
+  )
+  if (!descriptor?.set) return false
+  /* 绕开 React 挂在自己实例上的 value 拦截，直接改原生值，
+     再派发事件让受控层同步 —— 这是驱动受控输入框的标准做法。 */
+  descriptor.set.call(textarea, text)
+  programmaticWrite = true
+  try {
+    textarea.dispatchEvent(new Event('input', { bubbles: true }))
+  } finally {
+    /* 事件是同步派发的，处理完立刻复位，避免影响后续真实输入。 */
+    programmaticWrite = false
+  }
+  return true
+}
+
 /** 提交内容（官方 onSubmit 的 payload 子集）。 */
 export interface LeiBoxSubmitPayload {
   text: string
@@ -63,6 +97,36 @@ export interface ContextUsageSnapshot {
 export interface LeiBoxComposerProps {
   onSubmit?: (payload: LeiBoxSubmitPayload) => void
   busy?: boolean
+  /**
+   * 停止当前生成。
+   *
+   * <p><strong>注意官方实现</strong>：它只看 `busy` 决定画停止键，
+   * 并不检查 `onStop` 是否存在（bundle 里是 `A ? 停止键 : 发送键`，
+   * 点击时 `A ? onStop?.() : submit()`）。所以「不传 onStop」并不能隐藏停止键，
+   * 只会得到一个点了没反应的按钮。</p>
+   *
+   * <p>因此本组件把语义拆开：{@link canStop} 为真时才把 busy 传给官方组件，
+   * 让停止键只在确实能停的时候出现。</p>
+   */
+  onStop?: () => void
+  /**
+   * 当前是否真的能停止。
+   *
+   * <p>与 busy 分开：工程任务（改工程/渲染/工作流）运行时要显示「忙碌、不可重复提交」，
+   * 但不能给停止键 —— 那类任务走后端任务通道，会话流停不了它。
+   * 为 false 时本组件不把 busy 透给官方组件，官方因此画发送键（禁用态）。</p>
+   */
+  canStop?: boolean
+  /** 正在停止：官方据此把停止键切成「停止中」并禁用重复点击 */
+  stopping?: boolean
+  /**
+   * 用户产生了真实输入（键盘/粘贴）。
+   *
+   * <p>用来作废「刚发送」标记：发送成功后官方输入框会迟来一次 flush，
+   * 需要拦；但用户**主动重新输入同一句话**时不能拦，
+   * 否则草稿存不下、那句话也没法作为新一轮发送。区分靠输入事件时序。</p>
+   */
+  onUserInput?: () => void
   /** 上下文快照；null 时官方圆圈显示 0% */
   contextUsage?: ContextUsageSnapshot | null
   /** 分子兜底：没有快照时用它算百分比 */
@@ -86,7 +150,7 @@ export interface LeiBoxComposerProps {
   /** 当前选中的模型 id；官方胶囊据此高亮并显示名字 */
   selectedModel?: string
   /** 已接入的引擎清单（官方胶囊第一级抽屉） */
-  harnesses?: Array<{ id: string; name: string }>
+  harnesses?: Array<{ id: string; name: string; iconUrl?: string; available?: boolean; models?: Array<{ id: string; name: string; reasoningEfforts?: string[] }> }>
   /** 当前引擎 id */
   harness?: string
   /** 用户在抽屉里换了引擎 */
@@ -97,6 +161,15 @@ export interface LeiBoxComposerProps {
   onModelChange?: (modelId: string) => void
   /** 用户在官方胶囊里换推理强度 */
   onThinkingChange?: (level: string) => void
+  selectedEffort?: string | null
+  modelTrigger?: 'pill' | 'square'
+  showContextRing?: boolean
+  /** 外部绑定的草稿内容（支持受控还原与清空） */
+  draft?: string
+  /** 文本变化回调（支持外部草稿库实时监听） */
+  onDraftChange?: (text: string) => void
+  /** 即时刷写回调（切页、失焦、发送前强刷，避免防抖遗漏） */
+  onFlush?: (text: string) => void
 }
 
 
@@ -131,6 +204,14 @@ const PILL_CSS = `
 }
 @keyframes lbx-hz-spin-cw { to { --lbx-hz-spin: 360deg; } }
 @media (prefers-reduced-motion: reduce) { .lbx-hz-glow-ring { animation: none; } }
+
+/* 角度在主文档注册，光沿胶囊边缘顺时针绕行。 */
+.fm-model-trigger::after {
+  background: conic-gradient(from var(--lbx-model-angle), transparent 0deg, transparent 145deg, #8bd4ff 235deg, #339cff 300deg, #fff 330deg, #339cff 348deg, transparent 360deg) !important;
+  animation: lbx-model-flow 3.4s linear infinite !important;
+}
+@keyframes lbx-model-flow { from { --lbx-model-angle: 0deg; } to { --lbx-model-angle: 360deg; } }
+@media (prefers-reduced-motion: reduce) { .fm-model-trigger::after { animation: none !important; } }
 
 .lbx-hz-panel { overflow: hidden; padding: 6px 0; }
 .lbx-hz-track { display: flex; width: 200%; transition: transform 320ms cubic-bezier(0.19, 1, 0.22, 1); }
@@ -233,9 +314,43 @@ export function LeiBoxComposer({
   modelsByHarness,
   onModelChange,
   onThinkingChange,
+  selectedEffort,
+  modelTrigger = 'pill',
+  showContextRing = true,
+  draft,
+  onDraftChange,
+  onFlush,
+  onStop,
+  canStop = false,
+  stopping = false,
+  onUserInput,
 }: LeiBoxComposerProps) {
   const hostRef = useRef<HTMLDivElement>(null)
   const instanceRef = useRef<ReturnType<MountFn> | null>(null)
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null)
+  const latestTextRef = useRef<string>(draft ?? '')
+  const draftRef = useRef(draft)
+  draftRef.current = draft
+  const draftChangeRef = useRef(onDraftChange)
+  draftChangeRef.current = onDraftChange
+  const flushRef = useRef(onFlush)
+  flushRef.current = onFlush
+  /* 停止回调：挂载 effect 只跑一次，闭包会捕获旧的 onStop，
+     所以和 flush/submit 一样用 ref 转发最新值。 */
+  const stopRef = useRef(onStop)
+  const userInputRef = useRef(onUserInput)
+  userInputRef.current = onUserInput
+  stopRef.current = onStop
+  const canStopRef = useRef(canStop)
+  canStopRef.current = canStop
+  const [localEffort, setLocalEffort] = useState('medium')
+  /* 绑定完成时用一次 setState 触发重渲染，好让下面「每次渲染都校验」的
+     草稿回填 effect 立刻有机会跑一次（官方组件异步挂载，光靠 draft 变化不够）。 */
+  const [, setTextareaReady] = useState(false)
+  /* 递增即触发官方组件重新挂载：用于「发送键 ⇄ 停止键」切换
+     （官方没有暴露重新绑定回调的接口）。 */
+  const [remountTick, setRemountTick] = useState(0)
+  const effectiveEffort = selectedEffort ?? localEffort
   /* 面板是否展开。官方是 PreviewCard：hover 开、离开关，不是点击。 */
   const [ctxOpen, setCtxOpen] = useState(false)
   /* 关闭中：节点要留到形变收回去再卸，否则会「啪」地消失 */
@@ -252,8 +367,8 @@ export function LeiBoxComposer({
   modelsRef.current = models
   const selectedRef = useRef(selectedModel)
   selectedRef.current = selectedModel
-  const hzRef = useRef({ harnesses, harness, onHarnessChange, modelsByHarness })
-  hzRef.current = { harnesses, harness, onHarnessChange, modelsByHarness }
+  const hzRef = useRef({ harnesses, harness, onHarnessChange, modelsByHarness, effectiveEffort, modelTrigger, showContextRing })
+  hzRef.current = { harnesses, harness, onHarnessChange, modelsByHarness, effectiveEffort, modelTrigger, showContextRing }
   const modelCbRef = useRef(onModelChange)
   modelCbRef.current = onModelChange
   const thinkCbRef = useRef(onThinkingChange)
@@ -261,8 +376,28 @@ export function LeiBoxComposer({
 
   useEffect(() => {
     let disposed = false
+    let themeObserver: MutationObserver | null = null
+    let anchorObserver: ResizeObserver | null = null
+    let anchorMutation: MutationObserver | null = null
+    let anchorFrame = 0
     const host = hostRef.current
     if (!host) return
+
+    const positionContextRing = () => {
+      cancelAnimationFrame(anchorFrame)
+      anchorFrame = requestAnimationFrame(() => {
+        if (disposed) return
+        const shadow = host.querySelector('[data-motion-surface]')?.shadowRoot
+        const anchor = shadow?.querySelector('button[aria-label^="Context"]')
+        if (!anchor) { host.removeAttribute('data-context-anchored'); return }
+        const base = host.getBoundingClientRect()
+        const rect = anchor.getBoundingClientRect()
+        if (!rect.width || !rect.height) { host.removeAttribute('data-context-anchored'); return }
+        host.style.setProperty('--lbx-context-left', `${rect.left - base.left}px`)
+        host.style.setProperty('--lbx-context-top', `${rect.top - base.top}px`)
+        host.setAttribute('data-context-anchored', '')
+      })
+    }
 
     void loadEngine().then(() => {
       if (disposed || !hostRef.current) return
@@ -275,13 +410,32 @@ export function LeiBoxComposer({
         selectedModel: selectedRef.current ?? modelsRef.current?.[0]?.id,
         harnesses: hzRef.current.harnesses ?? [],
         harness: hzRef.current.harness ?? '',
+        selectedHarnessId: hzRef.current.harness ?? null,
+        selectedEffort: hzRef.current.effectiveEffort,
+        modelTrigger: hzRef.current.modelTrigger,
+        showContextRing: hzRef.current.showContextRing,
         modelsByHarness: hzRef.current.modelsByHarness ?? {},
         onHarnessChange: (id: string) => hzRef.current.onHarnessChange?.(id),
         onModelChange: (id: string) => modelCbRef.current?.(id),
+        onSelectionChange: (selection: { harnessId: string; modelId: string }) => {
+          hzRef.current.onHarnessChange?.(selection.harnessId)
+          modelCbRef.current?.(selection.modelId)
+        },
+        onEffortChange: (level: string) => { setLocalEffort(level); thinkCbRef.current?.(level) },
         onValueChange: (level: string) => thinkCbRef.current?.(level),
         onSubmit: (payload: LeiBoxSubmitPayload) => {
-          if (payload?.text?.trim()) submitRef.current?.(payload)
+          if (payload?.text?.trim()) {
+            flushRef.current?.(payload.text.trim())
+            submitRef.current?.(payload)
+          }
         },
+        /* 能停时：busy=true + onStop → 官方画可点的停止键。
+           不能停（工程任务在跑）：先传 busy=false 画发送键，
+           再由下面的 effect 把它禁用并改说明文案 —— 直接传 busy=true 会画停止键，
+           即使禁用也会让人以为「这个能停」。 */
+        ...(canStopRef.current
+          ? { busy: true, onStop: () => stopRef.current?.(), stopping: false }
+          : { busy: false }),
       })
 
       /* 官方根节点带 min-height:600px（它独立成页时的画布高度）。
@@ -320,6 +474,177 @@ export function LeiBoxComposer({
         /* 保留类名里与排版相关的部分（font-sans / text-text-base），
            去掉深色舞台专用的布局类 */
         composer.classList.add('font-sans', 'text-text-base')
+
+        const resolveEffectiveTheme = (): 'dark' | 'light' | 'tactile' => {
+          const docTheme = document.documentElement.getAttribute('data-theme')
+          if (docTheme === 'dark' || docTheme === 'tactile' || docTheme === 'light') return docTheme
+          const hostEl = hostRef.current
+          const closestTheme = hostEl?.closest('[data-theme]')?.getAttribute('data-theme')
+          if (closestTheme === 'dark' || closestTheme === 'tactile' || closestTheme === 'light') return closestTheme
+          const closestMode = hostEl?.closest('[data-mode]')?.getAttribute('data-mode')
+          if (closestMode === 'dark') return 'dark'
+          return 'dark' // 工作台默认纯黑模式兜底
+        }
+
+        const syncTheme = () => {
+          const theme = resolveEffectiveTheme()
+          composer.dataset.theme = theme
+          composer.classList.toggle('dark', theme === 'dark')
+          const vars = theme === 'dark'
+            ? { bg: '#121316', elevated: '#16171b', fg: '#ededed', secondary: '#9a9a9a', border: 'rgba(255,255,255,0.08)', hover: 'rgba(255,255,255,0.06)' }
+            : theme === 'tactile'
+              ? { bg: '#eae6da', elevated: '#ddd8c9', fg: '#22231f', secondary: '#55534a', border: 'rgba(34,35,31,0.18)', hover: '#ded9cd' }
+              : { bg: '#ffffff', elevated: '#ffffff', fg: '#1f2937', secondary: '#667085', border: '#e5e7eb', hover: '#f1f3f6' }
+          for (const [name, value] of Object.entries({
+            '--theme-bg': vars.bg,
+            '--theme-elevated': vars.elevated,
+            '--theme-fg': vars.fg,
+            '--theme-text-secondary': vars.secondary,
+            '--theme-border': vars.border,
+            '--theme-hover': vars.hover,
+          })) {
+            composer.style.setProperty(name, value)
+          }
+        }
+        syncTheme()
+        themeObserver = new MutationObserver(syncTheme)
+        themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
+
+        /* 注入经过三种主题适配与高度/圆角精修的样式规则 */
+        const themeStyle = document.createElement('style')
+        themeStyle.textContent = `
+          /* ── 紧凑型外框与圆角恢复：由方形改回优雅流线型大圆角卡片，大幅压缩上下高度 ── */
+          [data-message-composer-surface] {
+            border-radius: 20px !important;
+            transition: background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease !important;
+          }
+          [data-message-composer-surface] > div {
+            padding: 8px 12px 6px 12px !important;
+          }
+
+          /* ── 压缩输入区域最小高度：从 60px 缩为 36px ── */
+          textarea.composer-textarea {
+            min-height: 36px !important;
+            height: 36px !important;
+            line-height: 20px !important;
+            font-size: 13px !important;
+            padding: 0 !important;
+          }
+          /* 镜像高亮渲染层同步高度 */
+          [data-message-composer-surface] [style*="min-height: 60px"],
+          [data-message-composer-surface] [style*="minHeight: 60px"] {
+            min-height: 36px !important;
+            line-height: 20px !important;
+            font-size: 13px !important;
+          }
+
+          /* ── 底部操作工具行（加号、权限、模型、发送）微调紧凑 ── */
+          [data-message-composer-surface] .composer-footer,
+          [data-message-composer-surface] .mt-2.flex.items-center,
+          [data-message-composer-surface] div:has(> button[aria-label="发送消息"]),
+          [data-message-composer-surface] div:has(> button[aria-label="Stop"]) {
+            margin-top: 4px !important;
+          }
+
+          /* ── 主题模式 1：深色模式（dark） ── */
+          [data-theme="dark"] [data-message-composer-surface] {
+            background: #15161a !important;
+            color: #ededed !important;
+            border: 1px solid rgba(255, 255, 255, 0.09) !important;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.04) !important;
+          }
+          [data-theme="dark"] [data-message-composer-surface]:focus-within {
+            border-color: rgba(59, 140, 248, 0.45) !important;
+            box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(59, 140, 248, 0.25) !important;
+          }
+          [data-theme="dark"] textarea.composer-textarea {
+            color: #ededed !important;
+          }
+          [data-theme="dark"] textarea.composer-textarea::placeholder,
+          [data-theme="dark"] .composer-textarea--empty {
+            color: #6e6e6e !important;
+          }
+          /* 占位文字高亮层深色适配 */
+          [data-theme="dark"] .text-gray-400,
+          [data-theme="dark"] span:has(+ textarea) {
+            color: #6e6e6e !important;
+          }
+          /* 加号按钮深色 */
+          [data-theme="dark"] button[aria-label*="添加"],
+          [data-theme="dark"] button[aria-label*="Add"],
+          [data-theme="dark"] .group\\/add {
+            background: rgba(255, 255, 255, 0.06) !important;
+            color: #9a9a9a !important;
+          }
+          [data-theme="dark"] button[aria-label*="添加"]:hover,
+          [data-theme="dark"] button[aria-label*="Add"]:hover,
+          [data-theme="dark"] .group\\/add:hover {
+            background: rgba(255, 255, 255, 0.12) !important;
+            color: #ededed !important;
+          }
+          /* 权限选择器按钮深色 */
+          [data-theme="dark"] button:has(span.sr-only):not([aria-label*="添加"]):not([aria-label*="发送"]) {
+            color: #9a9a9a !important;
+          }
+          [data-theme="dark"] button:has(span.sr-only):not([aria-label*="添加"]):not([aria-label*="发送"]):hover {
+            color: #ededed !important;
+          }
+          /* 发送按钮深色禁用态 */
+          [data-theme="dark"] button[aria-label="发送消息"]:disabled {
+            background: rgba(255, 255, 255, 0.08) !important;
+            color: rgba(255, 255, 255, 0.25) !important;
+          }
+
+          /* ── 主题模式 2：触感/纸感模式（tactile） ── */
+          [data-theme="tactile"] [data-message-composer-surface] {
+            background: #ddd8c9 !important;
+            color: #22231f !important;
+            border: 1px solid rgba(34, 35, 31, 0.18) !important;
+            box-shadow: 0 2px 8px rgba(34, 35, 31, 0.08) !important;
+          }
+          [data-theme="tactile"] [data-message-composer-surface]:focus-within {
+            border-color: rgba(217, 169, 43, 0.6) !important;
+            box-shadow: 0 4px 12px rgba(34, 35, 31, 0.12) !important;
+          }
+          [data-theme="tactile"] textarea.composer-textarea {
+            color: #22231f !important;
+          }
+          [data-theme="tactile"] textarea.composer-textarea::placeholder {
+            color: #8a8676 !important;
+          }
+          [data-theme="tactile"] button[aria-label*="添加"],
+          [data-theme="tactile"] button[aria-label*="Add"],
+          [data-theme="tactile"] .group\\/add {
+            background: rgba(34, 35, 31, 0.08) !important;
+            color: #55534a !important;
+          }
+
+          /* ── 主题模式 3：浅色模式（light）保持默认设计不用改 ── */
+
+          /* ── 弹出菜单（权限菜单与添加菜单）在所有主题下均有实色背景 ── */
+          .morph-menu-content {
+            background: var(--theme-elevated, #16171b) !important;
+            color: var(--theme-fg, #ededed) !important;
+            border: 1px solid var(--theme-border, rgba(255,255,255,0.1)) !important;
+            border-radius: 14px !important;
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45) !important;
+          }
+          [data-theme="tactile"] .morph-menu-content {
+            background: #eae6da !important;
+            color: #22231f !important;
+            border: 1px solid rgba(34, 35, 31, 0.18) !important;
+            box-shadow: 0 8px 24px rgba(34, 35, 31, 0.15) !important;
+          }
+          [data-theme="light"] .morph-menu-content {
+            background: #ffffff !important;
+            color: #1f2937 !important;
+            border: 1px solid #e5e7eb !important;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1) !important;
+          }
+
+          ${hzRef.current.showContextRing ? '' : '.composer-model-tools > div:has(button[aria-label^="Context"]) { display: none !important; }'}
+        `
+        shadow.appendChild(themeStyle)
 
         /* 2) 把舞台压成「零外框」而不是从 DOM 里摘掉它。
            ⚠️ 不能用 stage.replaceWith(composer)：那会把 React 渲染的节点
@@ -364,22 +689,93 @@ export function LeiBoxComposer({
           el.textContent = PILL_CSS
           shadow.appendChild(el)
         }
+        if (!anchorObserver) {
+          anchorObserver = new ResizeObserver(positionContextRing)
+          if (host) anchorObserver.observe(host)
+          const tools = shadow.querySelector('.composer-model-tools')
+          if (tools) anchorObserver.observe(tools)
+          const model = shadow.querySelector('.fm-model-trigger')
+          if (model) anchorObserver.observe(model)
+          anchorMutation = new MutationObserver(positionContextRing)
+          anchorMutation.observe(shadow, { childList: true, subtree: true })
+          window.addEventListener('resize', positionContextRing)
+        }
+        positionContextRing()
+
+        /* ── 核心：绑定内部 Shadow DOM 原生 textarea，实现双向受控与草稿桥接 ── */
+        const textarea = shadow.querySelector('textarea.composer-textarea') as HTMLTextAreaElement | null
+        if (textarea) {
+          textareaRef.current = textarea
+          setTextareaReady(true)
+          if (draftRef.current && typeof draftRef.current === 'string') {
+            latestTextRef.current = draftRef.current
+            writeComposerText(textarea, draftRef.current)
+          }
+
+          const handleInput = () => {
+            const val = textarea.value
+            latestTextRef.current = val
+            /* 程序化同步（清空/回填草稿）产生的 input 不是用户操作：
+               不能推进输入轮次，否则「刚发送」标记会被自己清空动作作废，
+               迟来的 flush 又把已发文字写回草稿。 */
+            if (!programmaticWrite) userInputRef.current?.()
+            draftChangeRef.current?.(val)
+          }
+          const handleBlur = () => {
+            flushRef.current?.(textarea.value)
+          }
+          textarea.addEventListener('input', handleInput)
+          textarea.addEventListener('blur', handleBlur)
+        }
+
         return true
       }
 
-      /* 先隐藏 → 替换 → 显示，三步在同一帧内完成，用户看不到中间态 */
+      /* 先隐藏 → 替换 → 显示，三步在同一帧内完成，用户看不到中间态。
+         ⚠️ 但隐藏必须**无论如何都恢复**：官方舞台是 600px 的可见画布，
+         我们只替换掉它。若 flatten 失败而 host 仍停在 hidden，
+         整个输入框就都不可见、不可点 —— 用户看到一块空白，键盘也无法聚焦
+         （真机复现过：textarea 存在但 visibility:hidden，点击落到外层容器）。
+         所以这里用 try/finally 保证恢复，并允许多帧重试。 */
       const host = hostRef.current
       if (host) host.style.visibility = 'hidden'
-      requestAnimationFrame(() => {
-        const ok = flatten()
-        if (host) host.style.visibility = ''
-        if (!ok) {
-          requestAnimationFrame(() => {
-            flatten()
-            if (host) host.style.visibility = ''
-          })
+      let frames = 0
+      const restore = () => {
+        const h = hostRef.current
+        if (h) h.style.visibility = ''
+      }
+      const attempt = () => {
+        frames += 1
+        let ok = false
+        try {
+          ok = flatten()
+        } catch {
+          ok = false
         }
-      })
+        if (ok) {
+          restore()
+          return
+        }
+        /* 失败原因几乎都是「官方组件还没把 stage/composer 渲染出来」——
+           它是异步挂载的，rAF 一帧未必够。用 rAF 连试若干帧，
+           再退到定时重试，总共约 2 秒；仍不行才放弃并恢复可见
+           （宁可露出官方原样舞台，也不能让输入框永久不可见）。 */
+        if (frames < 12) {
+          requestAnimationFrame(attempt)
+        }
+      }
+      requestAnimationFrame(attempt)
+      /* 定时兜底：不依赖 rAF（后台标签页里 rAF 会被节流甚至暂停） */
+      const retryTimer = window.setInterval(() => {
+        if (flatten()) {
+          window.clearInterval(retryTimer)
+          restore()
+        }
+      }, 200)
+      window.setTimeout(() => {
+        window.clearInterval(retryTimer)
+        restore()
+      }, 2200)
     }).catch((error: unknown) => {
       /* 加载失败要说清楚：静默留一个空框会让人以为输入框坏了 */
       if (hostRef.current) {
@@ -389,14 +785,96 @@ export function LeiBoxComposer({
 
     return () => {
       disposed = true
+      themeObserver?.disconnect()
+      anchorObserver?.disconnect()
+      anchorMutation?.disconnect()
+      cancelAnimationFrame(anchorFrame)
+      window.removeEventListener('resize', positionContextRing)
+      host.removeAttribute('data-context-anchored')
+      if (textareaRef.current) {
+        flushRef.current?.(textareaRef.current.value)
+      }
       instanceRef.current?.destroy?.()
       instanceRef.current = null
+      textareaRef.current = null
+      setTextareaReady(false)
     }
-  }, [])
+    /* remountTick：停止能力变化时重建官方组件，才能切换发送/停止键。 */
+  }, [remountTick])
+
+  /**
+   * 把外部草稿写回官方组件的 textarea。
+   *
+   * <p><strong>为什么故意不写依赖数组</strong>：官方组件是异步挂载的，
+   * textarea 在 shadow DOM 里出现的时间不确定。若只在 [draft] 变化时执行，
+   * 「刷新后草稿从 localStorage 恢复」这一场景就会漏掉 —— 那时 draft 早在
+   * 绑定完成前就有值了，effect 执行时 textareaRef 还是 null，之后不再重跑，
+   * 结果就是「草稿在存储里、输入框却空着」（真机实测复现）。
+   * 每次渲染都校验一次代价极小（一次字符串比较），且能保证在 textarea
+   * 就绪的那一刻补上；正常输入时两者相等，不会覆盖用户正在打的字。</p>
+   */
+  useEffect(() => {
+    const textarea = textareaRef.current
+    if (!textarea || draft === undefined) return
+    if (textarea.value === draft) return
+    latestTextRef.current = draft
+    writeComposerText(textarea, draft)
+    /* 草稿被外部清空（发送成功）时，官方输入框里可能还留着原文。
+       不同步清掉的话，它的 blur / unmount 回调会把旧文字 flush 回草稿，
+       用户下次进来就看到「已经发出去的话还在输入框里」。 */
+    if (draft === '' && textarea.value !== '') {
+      writeComposerText(textarea, '')
+    }
+  })
 
   useEffect(() => {
-    instanceRef.current?.update?.({ busy })
-  }, [busy])
+    instanceRef.current?.update?.({ busy: canStop ? busy : false, stopping })
+  }, [busy, stopping, canStop])
+
+  /**
+   * 工程任务运行中（busy 为真但停不了）时，锁住整个输入框。
+   *
+   * <p>为什么用官方的 `disabled` 而不是自己改按钮：官方把它映射成宿主元素的
+   * `inert`，是整体不可交互的语义 —— 既阻止重复提交，也不会画出一个
+   * 看着能停、实际停不了的停止键。取消入口在下方任务面板。</p>
+   */
+  useEffect(() => {
+    const locked = Boolean(busy) && !canStop
+    instanceRef.current?.update?.({ disabled: locked })
+    const host = hostRef.current
+    if (host) {
+      if (locked) {
+        host.title = '工程任务进行中，取消入口在下方任务面板'
+        host.setAttribute('data-locked-by-task', '')
+      } else {
+        host.removeAttribute('title')
+        host.removeAttribute('data-locked-by-task')
+      }
+    }
+  }, [busy, canStop, remountTick])
+
+  /**
+   * onStop 从无到有（或反之）时，必须重新挂载官方组件才能切换「发送/停止」键：
+   * mount 时没传 onStop 的话，update() 也无法补上这个回调。
+   * 只在布尔状态翻转时重挂，避免每次渲染都重建输入框。
+   */
+  const prevCanStopRef = useRef(canStop)
+  useEffect(() => {
+    if (prevCanStopRef.current === canStop) return
+    prevCanStopRef.current = canStop
+    /* 官方实例没有暴露「重新绑定回调」的入口，只能重建。
+       重建前把当前文本留住，重建后由草稿回填 effect 写回去。 */
+    const text = textareaRef.current?.value ?? draftRef.current ?? ''
+    instanceRef.current?.destroy?.()
+    instanceRef.current = null
+    textareaRef.current = null
+    setTextareaReady(false)
+    latestTextRef.current = text
+    draftRef.current = text
+    /* 触发挂载 effect 重跑：用一个递增 key 无法在这里做到，
+       改为直接调用内部的挂载函数 —— 见下方 remount 状态。 */
+    setRemountTick((n) => n + 1)
+  }, [canStop])
 
   /* 模型目录是异步到的（/api/harnesses/{id}/models），到了就推给官方胶囊。
      官方 update 会合并 props 并重渲染，胶囊里的清单随之更新。 */
@@ -419,9 +897,13 @@ export function LeiBoxComposer({
     instanceRef.current?.update?.({
       harnesses: harnesses ?? [],
       harness: harness ?? '',
+      selectedHarnessId: harness ?? null,
+      selectedEffort: effectiveEffort,
+      modelTrigger,
+      showContextRing,
       modelsByHarness: modelsByHarness ?? {},
     })
-  }, [harnesses, harness, modelsByHarness])
+  }, [harnesses, harness, modelsByHarness, effectiveEffort, modelTrigger, showContextRing])
 
   /* 上下文数据后到（一轮跑完才有），所以单独一个 effect 推给官方组件。
      官方 update() 内部会整包合并并重渲染，圆圈与它自己的分档面板一起刷新。 */

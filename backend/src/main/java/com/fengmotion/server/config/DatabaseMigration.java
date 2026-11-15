@@ -486,5 +486,42 @@ public class DatabaseMigration {
                 """);
         jdbc.execute("CREATE INDEX IF NOT EXISTS idx_semantic_ref "
                 + "ON semantic_index(ref_kind, ref_id)");
+
+        /* 创作任务关系与幂等记录（任务幂等、防重复执行与跨端离线持久化）。 */
+        jdbc.execute("""
+                CREATE TABLE IF NOT EXISTS workflow_creation_tasks (
+                    request_id TEXT PRIMARY KEY,
+                    project_id TEXT NOT NULL,
+                    session_id TEXT,
+                    user_message_id TEXT,
+                    request_hash TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    phase TEXT,
+                    intent TEXT,
+                    reply TEXT,
+                    artifact_path TEXT,
+                    version INTEGER,
+                    error_message TEXT,
+                    session_saved INTEGER NOT NULL DEFAULT 0,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                )
+                """);
+        Set<String> creationColumns = new HashSet<>(jdbc.query("PRAGMA table_info(workflow_creation_tasks)",
+                (rs, row) -> rs.getString("name")));
+        if (!creationColumns.contains("session_saved")) {
+            jdbc.execute("ALTER TABLE workflow_creation_tasks ADD COLUMN session_saved INTEGER NOT NULL DEFAULT 0");
+        }
+        jdbc.execute("CREATE INDEX IF NOT EXISTS idx_workflow_creation_tasks_project "
+                + "ON workflow_creation_tasks(project_id)");
+
+        // 服务启动时，将历史进程遗留的 running 孤儿任务批量收敛为中断失败终态，防止重启后任务永远卡在运行中
+        jdbc.update("""
+                UPDATE workflow_creation_tasks
+                SET status = 'failed', phase = 'interrupted',
+                    error_message = '服务已重启，前次创作已中断',
+                    updated_at = ?
+                WHERE status = 'running'
+                """, java.time.Instant.now().toString());
     }
 }

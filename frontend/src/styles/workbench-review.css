@@ -6,7 +6,7 @@
 .wb-preflight-actions { display:flex; flex-wrap:wrap; align-items:center; gap:16px; margin-top:22px; }.wb-preflight-actions button { display:inline-flex; align-items:center; gap:7px; font-size:11px; color:var(--tx2); }.wb-preflight-actions button:first-child { background:var(--acc); color:var(--acc-ink); padding:10px 13px; border-radius:7px; }.wb-preflight-actions button:hover { filter:brightness(1.12); }.wb-preflight-demo { margin:20px 0 0; font-size:10px; line-height:1.7; color:var(--tx3); max-width:440px; }
 .wb-a2 .fw-mon-visual:has(.wb-preflight) { display:flex; align-items:center; justify-content:center; min-height:0; overflow-y:auto; }
 .wb-a2 .fw-mon-thumbs { padding-top:12px; padding-bottom:10px; border-top:1px solid var(--line); }.wb-a2 .fw-mon-thumb-name { display:flex; flex-direction:column; gap:3px; line-height:1.4; }.wb-a2 .fw-mon-thumb-name small { font-size:9px; font-weight:400; color:var(--tx3); }.wb-a2 .fw-mon-thumb { min-width:82px; }.wb-a2 .fw-mon-thumb-img { height:44px; }
-.wb-a2 .wb-feedback-context { background:transparent; padding:0 0 15px; border:0; border-bottom:1px solid var(--line); border-radius:0; gap:10px; }.wb-feedback-context-icon { display:grid; place-items:center; width:30px; height:30px; border-radius:8px; background:var(--sel); color:var(--acc-tx); flex:none; }.wb-feedback-context small { display:block; color:var(--tx3); font-size:10px; margin-top:4px; }.wb-a2 .fw-ref-empty { color:var(--tx3); }.wb-a2 .wb-compose-scope { font-size:10px; line-height:1.6; }.wb-a2 .wb-compose-scope b { color:var(--tx2); }.wb-a2 .wb-compose-constraints { align-items:flex-start; font-size:9px; }.wb-a2 .wb-compose-constraints span { line-height:1.7; }.wb-a2 .wb-demo-line { font-size:9px; color:var(--tx3); }
+.wb-a2 .wb-feedback-context { background:transparent; padding:0 0 15px; border:0; border-bottom:1px solid var(--line); border-radius:0; gap:10px; }.wb-feedback-context-icon { display:grid; place-items:center; width:30px; height:30px; border-radius:8px; background:var(--sel); color:var(--acc-tx); flex:none; }.wb-feedback-context small { display:block; color:var(--tx3); font-size:10px; margin-top:4px; }
 .wb-request-snapshot { margin:7px 0 12px; border:1px solid var(--line); border-radius:7px; overflow:hidden; background:var(--panel2); font-size:10px; }.wb-request-snapshot>summary { list-style:none; display:flex; align-items:center; gap:6px; padding:9px; cursor:pointer; color:var(--tx2); }.wb-request-snapshot>summary>span { min-width:0; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }.wb-request-snapshot small { font-size:9px; color:var(--tx3); white-space:nowrap; }.wb-request-snapshot dl { display:grid; grid-template-columns:64px 1fr; gap:7px 8px; padding:10px; margin:0; border-top:1px solid var(--line); line-height:1.7; }.wb-request-snapshot dt { color:var(--tx3); }.wb-request-snapshot dd { color:var(--tx2); overflow-wrap:anywhere; margin:0; }
 .wb-target-facts { padding:22px 18px; }.wb-target-kicker { font-size:10px; color:var(--tx3); }.wb-target-facts h3 { font-size:16px; line-height:1.6; margin:8px 0; font-weight:500; color:var(--tx); }.wb-target-facts p { font-size:12px; color:var(--tx2); line-height:1.9; margin:0 0 22px; }.wb-target-facts dl { display:grid; grid-template-columns:75px 1fr; gap:10px; font-size:11px; border-top:1px solid var(--line); padding-top:18px; margin-bottom:24px; }.wb-target-facts dt { color:var(--tx3); }.wb-target-facts dd { color:var(--tx2); margin:0; }
 .wb-workflow-log { margin-bottom:14px; }.wb-workflow-log-title { display:flex; align-items:center; gap:7px; font-size:11px; color:var(--tx2); margin:4px 0 10px; }.wb-workflow-running { display:flex; align-items:center; gap:8px; padding:8px; font-size:11px; color:var(--acc-tx); }.wb-workflow-run { border:1px solid var(--line); border-radius:7px; margin-bottom:6px; }.wb-workflow-run>summary { display:flex; align-items:center; gap:14px; padding:10px; cursor:pointer; font-size:10px; color:var(--tx2); }.wb-workflow-run>summary>b { flex:1; font-weight:500; }.wb-workflow-run>summary>span { color:var(--tx3); }.wb-workflow-run-content { padding:8px 12px; border-top:1px solid var(--line); }.wb-workflow-run-content p { font-size:10px; color:var(--tx2); line-height:1.7; margin:5px 0; }.wb-workflow-run-content details { font-size:11px; color:var(--tx); margin-top:12px; }.wb-workflow-run-content pre { background:var(--panel2); padding:12px; font-size:10px; color:var(--tx2); white-space:pre-wrap; overflow-wrap:anywhere; max-height:200px; overflow:auto; border-radius:6px; }
@@ -16,7 +16,7 @@
 @media(max-width:1000px) { .wb-a2 .wb-preflight { padding:22px; }.wb-preflight h2 { font-size:20px; } }
 @media(min-width:1280px) { #pane-flow .wb-a2 .fw { grid-template-columns:220px minmax(480px,1fr) 320px; } #pane-flow .wb-a2 .fw[data-panel='closed'] { grid-template-columns:220px minmax(480px,1fr) 36px; } }
 .wb-current-preview-meta { font-size:10px; color:var(--tx3); white-space:nowrap; }
-.wb-a2 .wb-compose-constraints>span { flex:1; }
+
 .wb-a2 .fw-panel-seg { max-width:170px; }
 #pane-flow .wb-a2 .fw-mon-thumb { width:92px; height:auto; padding:5px; border:1px solid transparent; border-radius:7px; display:flex; flex-direction:column; gap:6px; align-items:stretch; background:transparent; }
 #pane-flow .wb-a2 .fw-mon-thumb:hover { background:var(--hover); border-color:var(--line); }
@@ -42,7 +42,6 @@
 .wb-a2 .wb-compose-error button { color:inherit; opacity:.7; flex:none; line-height:1; }
 .wb-a2 .wb-compose-error button:hover { opacity:1; }
 /* 能力边界写在提交按钮旁：用户会默认「能对话就能随便改」 */
-.wb-a2 .wb-compose-capability { font-size:9px; color:var(--tx3); white-space:nowrap; }
 
 /* 不生效的保留条件：整行压暗并禁用，旁边给一句说明。
    让用户看清楚「这个开关现在不起作用」，而不是勾上后以为受保护。 */
@@ -52,13 +51,9 @@
 /* 作用范围旁的场景版本：次级信息，但不能比作用范围本身更显眼 */
 /* 版本号是「查看历史」的入口，所以做成按钮样式而不是死文本：
    静态文字可点性看不出来，用户不会去点。悬停给一点下划线提示。 */
-.wb-a2 .wb-compose-version { margin-left:8px; font-size:9px; color:var(--hint); border-bottom:1px dotted transparent; }
-.wb-a2 button.wb-compose-version:hover { color:var(--acc-tx); border-bottom-color:color-mix(in srgb, var(--acc) 55%, transparent); }
-.wb-a2 button.wb-compose-version:focus-visible { outline:2px solid var(--acc); outline-offset:2px; border-radius:3px; }
 
 /* 输入区底部按钮在 350px 宽的右栏里会被压到换行：
    「生成视频」断成两行、「演示」也断，看起来像排版坏了。
    这里让按钮不吃掉剩余空间、文字不换行；能力说明单独一行、可收缩。 */
-.wb-a2 .fw-sheet .wb-compose-capability { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .wb-a2 .fw-sheet .mini,
 .wb-a2 .fw-sheet .mini-strong { flex: 0 0 auto; white-space: nowrap; }

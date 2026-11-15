@@ -62,7 +62,8 @@ public class HarnessService {
             String label,
             boolean isDefault,
             Long contextWindow,
-            Long maxTokens) {
+            Long maxTokens,
+            List<String> reasoningEfforts) {
     }
 
     /**
@@ -154,10 +155,12 @@ public class HarnessService {
         List<DshModelCatalog.Entry> discovered = catalog.read(properties.getProvider());
         List<ModelEntry> models;
         if (discovered.isEmpty()) {
-            // 读不到目录时如实只给「当前正在用的那一个」，并标记为默认；
-            // 不编造一整份清单，也不假装「该引擎没有模型」。
-            models = List.of(new ModelEntry(
-                    properties.getModel(), properties.getModel(), true, null, null));
+            // 暂时读不到时保留上次目录中的模型，但不能把过期的推理能力当作当前事实。
+            Probe previous = cached;
+            models = previous != null && !previous.models().isEmpty()
+                    ? previous.models().stream().map(m -> new ModelEntry(m.id(), m.label(), m.isDefault(),
+                            m.contextWindow(), m.maxTokens(), null)).toList()
+                    : List.of(new ModelEntry(properties.getModel(), properties.getModel(), true, null, null, null));
         } else {
             String active = properties.getModel();
             models = discovered.stream()
@@ -166,7 +169,8 @@ public class HarnessService {
                             e.label(),
                             e.id().equals(active),
                             e.contextWindow(),
-                            e.maxTokens()))
+                            e.maxTokens(),
+                            e.reasoningEfforts()))
                     .toList();
         }
 

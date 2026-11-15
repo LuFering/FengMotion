@@ -1,57 +1,66 @@
-import { ArrowUpRight, FileText, ListChecks, LoaderCircle, Film, ArrowRight } from 'lucide-react'
 import type { StageState } from '@/data/stageVisual'
-import { useHarnesses, availabilityOf } from '@/shell/useHarnesses'
 
-export function MonitorStageEmpty({ stage, brief, correctionCount = 0, onDiscuss, onOpenExecution, onEdit, onRealRender, realRenderBusy, realRunning, renderTargetLabel }: {
-  stage: StageState; brief: string; correctionCount?: number; onDiscuss: () => void; onOpenExecution: () => void; onEdit: () => void
+/**
+ * 监看画面区的空状态。
+ *
+ * <p>保留原来的画幅边界与外层结构（没有画面时仍是一块有边界的空场），
+ * 只把「红框圈出的那几块」内容去掉：</p>
+ * <ul>
+ *   <li>左上角「尚未开始制作」状态角标</li>
+ *   <li>标题下方那句引导说明</li>
+ *   <li>「打开场景编辑器 / 制作记录 / 开始制作」按钮排</li>
+ *   <li>右下角「画面预览」角标</li>
+ *   <li>底部整块「创作简报」（含「查看要求」与「Agent 已连接」行）</li>
+ * </ul>
+ *
+ * <p>为什么不删这些：写要求与发起制作在左侧对话栏已有完整路径，
+ * 这里再给一份入口，用户反而不知道该点哪个；一份空简报也只重复了
+ * 「还没有制作要求」这句已经说过的话。</p>
+ *
+ * <p>标题与图标保留 —— 它回答的是「这块区域是什么、现在处于什么状态」，
+ * 不是又一个动作入口。</p>
+ */
+export function MonitorStageEmpty({ stage, realRunning }: {
+  stage: StageState
+  /** 真实任务在跑（与演示执行区分）：只影响标题文案 */
   realRunning?: boolean
-  /** 提交一次真实渲染（会在项目目录里产出可播放的 mp4）；不传则不显示该入口 */
+  /* 以下参数保留在签名里，调用方继续按原形状传参（内容已不再渲染） */
+  brief?: string
+  correctionCount?: number
+  onDiscuss?: () => void
+  onOpenExecution?: () => void
+  onEdit?: () => void
   onRealRender?: () => void
   realRenderBusy?: boolean
-  /** 按钮文案：有项目工程时是「渲染项目工程」，否则是占位的「真实渲染预览」 */
   renderTargetLabel?: string
 }) {
-  /* 引擎可用性读真实探测，不写死。
-     原来这里固定显示「Agent 尚未连接」——在 Agent 已经接入之后，
-     那句话会让人以为做不了任何事（真机截图确认过）。 */
-  const probe = useHarnesses()
-  const agentReady = availabilityOf(probe, 'deepseek').state === 'available'
   const running = stage.lastRunStatus === 'running'
+  /* 真实任务在跑时用「正在制作」，演示执行时说明是演示 —— 两句话不能混成一句。 */
+  const runningTitle = realRunning ? '正在制作第一份画面' : '正在制作第一份画面（演示）'
   const waiting = stage.lastRunStatus === 'awaiting_info'
-  const title = running ? '正在制作第一份画面' : waiting ? '等待你补充制作要求' : stage.lastRunStatus === 'failed' ? '制作遇到了问题' : stage.lastRunStatus === 'cancelled' ? '已暂停这次制作' : '等待第一份画面'
-  const status = running ? (realRunning ? '正在制作' : '演示执行中') : waiting ? '等待补充 · 尚未出片' : stage.lastRunStatus === 'failed' ? '运行未完成' : stage.lastRunStatus === 'cancelled' ? '运行已停止' : stage.hasRun ? '本轮尚无画面' : '尚未开始制作'
-  return <div className="wb-preflight wb-studio-preflight" aria-live="polite">
-    <div className="wb-waiting-stage">
-      <div className="wb-waiting-state"><span className={running ? 'is-running' : ''}/>{status}</div>
-      <div className="wb-waiting-content">
-        <div className="wb-waiting-symbol" aria-hidden="true">{running ? <LoaderCircle size={30} className="animate-spin"/> : <Film size={30} strokeWidth={1.3}/>}</div>
-        <h2>{title}</h2>
-        <p>{running ? (realRunning ? '正在处理制作任务。' : '演示正在记录制作过程，你可以继续补充要求。') : waiting ? '在右侧对话中回答 Agent 的问题后继续。' : '写下制作要求，让 Agent 开始创作。'}</p>
-        <div className="wb-waiting-actions">
-          <button type="button" className="wb-start-editor" onClick={onEdit}>打开场景编辑器<ArrowRight size={15}/></button>
-          <button type="button" className="wb-view-execution" onClick={onOpenExecution}><ListChecks size={14}/>制作记录</button>
-          {/* 真实渲染：与「制作记录」里的演示任务区分开，文案直说「真实」。
-              这是目前唯一能真的产出一个 mp4 的入口。 */}
-          {onRealRender && (
-            <button type="button" className="wb-view-execution" onClick={onRealRender}
-                    disabled={realRenderBusy}>
-              {realRenderBusy ? <LoaderCircle size={14} className="animate-spin"/> : <Film size={14}/>}
-              {realRenderBusy ? '正在渲染…' : (renderTargetLabel ?? '真实渲染预览')}
-            </button>
-          )}
+  const title = running ? runningTitle
+    : waiting ? '等待你补充制作要求'
+      : stage.lastRunStatus === 'failed' ? '制作遇到了问题'
+        : stage.lastRunStatus === 'cancelled' ? '已暂停这次制作'
+          : '等待第一份画面'
+  return (
+    <div className="wb-preflight wb-studio-preflight" aria-live="polite">
+      <div className="wb-waiting-stage">
+        <div className="wb-waiting-content flex flex-col items-center justify-center">
+          <h2 className="text-base font-medium text-[var(--tx2)]">{title}</h2>
+          <p className="text-xs text-[var(--tx3)] mt-2 leading-relaxed">
+            {waiting
+              ? '在左侧控制台补充要求或提问，AI 将据此继续完善画面。'
+              : running
+              ? '画面生成完毕后将在此处自动播放并生成第一版工程。'
+              : stage.lastRunStatus === 'failed'
+              ? '可在左侧查看失败原因，调整要求后重试。'
+              : stage.lastRunStatus === 'cancelled'
+              ? '可在左侧查看制作记录，再决定如何继续。'
+              : '在左侧提出制作要求，生成的成片或预览画面将在此播放。'}
+          </p>
         </div>
       </div>
-      <span className="wb-waiting-caption">画面预览</span>
     </div>
-    <section className="wb-studio-brief">
-      <div className="wb-studio-brief-head"><span><FileText size={14}/>创作简报</span><button type="button" onClick={onDiscuss}>查看要求<ArrowUpRight size={13}/></button></div>
-      <p>{brief.trim() || '还没有制作要求。写下你想做什么，以及希望观众看到什么。'}</p>
-      {correctionCount > 0 && <button type="button" className="wb-studio-corrections" onClick={onDiscuss}>{correctionCount} 条后续纠正<ArrowUpRight size={12}/></button>}
-    </section>
-    <div className="wb-studio-availability" data-ready={agentReady || undefined}>
-      <span/>{agentReady
-        ? 'Agent 已连接，可以让它开始制作。'
-        : 'Agent 尚未连接，当前可使用本机场景编辑与导出。'}
-    </div>
-  </div>
+  )
 }

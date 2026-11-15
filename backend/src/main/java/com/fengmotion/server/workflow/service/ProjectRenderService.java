@@ -40,7 +40,6 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class ProjectRenderService {
 
     private final ProjectRepository projects;
@@ -51,9 +50,57 @@ public class ProjectRenderService {
     private final ResourceContextBuilder resourceContexts;
     private final ObjectMapper json;
     private final CreationStateStore creationStates;
+    private final CreationTaskStore creationTasks;
+    private final com.fengmotion.server.chat.service.ChatMessageService chatMessages;
 
     private final ProjectOperationLock operations;
     private final ProjectSourceSnapshots sourceSnapshots;
+    private final WorkflowProjectService workflowProject;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public ProjectRenderService(
+            ProjectRepository projects,
+            ProjectSceneRepository scenes,
+            ProjectFilmConfig configs,
+            ProjectFilmRenderer renderer,
+            CreateAgentRunner agent,
+            ResourceContextBuilder resourceContexts,
+            ObjectMapper json,
+            CreationStateStore creationStates,
+            CreationTaskStore creationTasks,
+            com.fengmotion.server.chat.service.ChatMessageService chatMessages,
+            ProjectOperationLock operations,
+            ProjectSourceSnapshots sourceSnapshots,
+            WorkflowProjectService workflowProject) {
+        this.projects = projects;
+        this.scenes = scenes;
+        this.configs = configs;
+        this.renderer = renderer;
+        this.agent = agent;
+        this.resourceContexts = resourceContexts;
+        this.json = json;
+        this.creationStates = creationStates;
+        this.creationTasks = creationTasks;
+        this.chatMessages = chatMessages;
+        this.operations = operations;
+        this.sourceSnapshots = sourceSnapshots;
+        this.workflowProject = workflowProject;
+    }
+
+    public ProjectRenderService(
+            com.fengmotion.server.project.store.ProjectRepository projects,
+            com.fengmotion.server.project.store.ProjectSceneRepository scenes,
+            ProjectFilmConfig configs,
+            ProjectFilmRenderer filmRenderer,
+            CreateAgentRunner agent,
+            ResourceContextBuilder resourceContexts,
+            ObjectMapper json,
+            CreationStateStore creationStates,
+            ProjectOperationLock operations,
+            ProjectSourceSnapshots sourceSnapshots,
+            WorkflowProjectService workflowProject) {
+        this(projects, scenes, configs, filmRenderer, agent, resourceContexts, json, creationStates, null, null, operations, sourceSnapshots, workflowProject);
+    }
 
     /** 源码目录：只扫这些，避免把 renders/ 与依赖缓存算进指纹。 */
     private static final List<String> SOURCE_DIRS = List.of("src");
@@ -158,11 +205,155 @@ public class ProjectRenderService {
      * @return 结果
      */
     public CreateOutcome createThenRender(String projectId, String intent, JsonNode references) {
+        return createThenRender(projectId, intent, references, null);
+    }
+
+    public CreateOutcome createThenRender(String projectId, String intent, JsonNode references, String previewImage) {
+        return createThenRender(projectId, intent, references, previewImage, null);
+    }
+
+    public CreateOutcome createThenRender(String projectId, String intent, JsonNode references, String previewImage, Long expectedVersion) {
+        return createThenRender(projectId, intent, references, previewImage, expectedVersion, null);
+    }
+
+    public CreateOutcome createThenRender(String projectId, String intent, JsonNode references, String previewImage, Long expectedVersion, String correction) {
+        return createThenRender(projectId, intent, references, previewImage, expectedVersion, correction, null);
+    }
+
+    public CreateOutcome createThenRender(String projectId, String intent, JsonNode references, String previewImage, Long expectedVersion, String correction, String requestId) {
+        return createThenRender(projectId, intent, references, previewImage, expectedVersion, correction, requestId, null, null);
+    }
+
+    public CreateOutcome createThenRender(String projectId, String intent, JsonNode references, String previewImage, Long expectedVersion, String correction, String requestId, String sessionId, String userMessageId) {
         operations.acquire(projectId);
         try {
-            return createUnlocked(projectId, intent, references);
+            if (requestId != null && !requestId.isBlank()) {
+                String requestHash = computeFingerprint(projectId, intent, references, previewImage, expectedVersion, correction);
+                var existingTask = creationTasks.findByRequestId(requestId);
+                if (existingTask.isPresent()) {
+                    var task = existingTask.get();
+                    if (!requestHash.equals(task.requestHash())) {
+                        throw new ApiException(HttpStatus.CONFLICT, "task_idempotency_conflict",
+                                "请求 ID 已用于不同创作任务");
+                    }
+                    if (CreateOutcome.RENDERED.equals(task.status()) || CreateOutcome.AWAITING_INFO.equals(task.status())) {
+                        log.info("创作请求 requestId={} 此前已完成，命中服务端任务幂等，直接返回已有结果", requestId);
+                        return new CreateOutcome(task.status(), task.reply(), 0L,
+                                task.artifactPath(), task.version(), null, List.of());
+                    }
+                    if ("running".equalsIgnoreCase(task.status())) {
+                        log.warn("创作请求 requestId={} 仍处于 running 状态但此前执行未正常收尾，重置为中断失败状态", requestId);
+                        creationTasks.updateFailed(requestId, "任务执行异常中断，请重新提交");
+                        return new CreateOutcome("failed", "任务执行异常中断，请重新提交", 0L,
+                                task.artifactPath(), task.version(), null, List.of());
+                    }
+                    if ("failed".equalsIgnoreCase(task.status())) {
+                        log.warn("创作请求 requestId={} 此前已执行失败，直接返回失败状态", requestId);
+                        return new CreateOutcome("failed", task.errorMessage() != null ? task.errorMessage() : task.reply(), 0L,
+                                task.artifactPath(), task.version(), null, List.of());
+                    }
+                } else {
+                    try {
+                        creationTasks.insert(requestId, projectId, sessionId, userMessageId, requestHash,
+                                "running", "analyzing", intent);
+                    } catch (Exception ex) {
+                        var raceCheck = creationTasks.findByRequestId(requestId);
+                        if (raceCheck.isPresent()) {
+                            var raceTask = raceCheck.get();
+                            if (!requestHash.equals(raceTask.requestHash())) {
+                                throw new ApiException(HttpStatus.CONFLICT, "task_idempotency_conflict",
+                                        "请求 ID 已用于不同创作任务");
+                            }
+                            if ("running".equalsIgnoreCase(raceTask.status())) {
+                                throw new ApiException(HttpStatus.CONFLICT, "task_already_running",
+                                        "该创作任务正在执行中，请勿重复提交");
+                            }
+                            if (CreateOutcome.RENDERED.equals(raceTask.status()) || CreateOutcome.AWAITING_INFO.equals(raceTask.status())) {
+                                return new CreateOutcome(raceTask.status(), raceTask.reply(), 0L,
+                                        raceTask.artifactPath(), raceTask.version(), null, List.of());
+                            }
+                        }
+                        log.error("无法登记创作任务，中止执行以防止幂等失效：requestId={} ex={}", requestId, ex.getMessage());
+                        throw new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "task_registration_failed",
+                                "无法登记创作任务，中止执行以确保幂等保护: " + ex.getMessage());
+                    }
+                }
+            }
+            try {
+                if (expectedVersion != null) {
+                    long actualVersion = scenes.find(projectId).filter(ProjectScene::present).map(ProjectScene::version).orElse(0L);
+                    if (actualVersion != expectedVersion) {
+                        throw new ApiException(HttpStatus.CONFLICT, "version_conflict", "项目版本已变化，请刷新预览并重新选择修改目标。");
+                    }
+                }
+                if (previewImage != null) CreateAgentRunner.previewImages(previewImage);
+                if (correction != null && !correction.isBlank()) workflowProject.recordCorrection(projectId, correction, requestId);
+                return createUnlocked(projectId, intent, references, previewImage, requestId, sessionId, userMessageId);
+            } catch (RuntimeException failure) {
+                if (requestId != null && !requestId.isBlank()) {
+                    creationTasks.updateFailed(requestId, failure.getMessage());
+                }
+                throw failure;
+            }
         } finally {
             operations.release(projectId);
+        }
+    }
+
+    public static String computeFingerprint(String projectId, String intent, JsonNode references,
+                                            String previewImage, Long baseVersion, String correction) {
+        try {
+            java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256");
+            digest.update(projectId.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            digest.update((byte) 0);
+            if (intent != null) digest.update(intent.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            digest.update((byte) 0);
+            if (references != null) digest.update(references.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            digest.update((byte) 0);
+            if (previewImage != null) digest.update(previewImage.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            digest.update((byte) 0);
+            if (baseVersion != null) digest.update(baseVersion.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            digest.update((byte) 0);
+            if (correction != null) digest.update(correction.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            return java.util.HexFormat.of().formatHex(digest.digest());
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    public boolean syncTaskReplyToSession(CreationTaskStore.Record task) {
+        if (task == null || task.sessionId() == null || task.reply() == null || task.reply().isBlank()) {
+            return false;
+        }
+        if ("failed".equals(task.status())) {
+            // 失败任务的错误信息仅作为报错提示，严禁作为 AI 助手创作回复写入会话历史
+            return false;
+        }
+        boolean ok = recordAssistantReplyToSession(task.sessionId(), task.userMessageId(), task.requestId(), task.reply());
+        if (ok) {
+            creationTasks.updateSessionSaved(task.requestId(), true);
+        }
+        return ok;
+    }
+
+    private boolean recordAssistantReplyToSession(String sessionId, String userMessageId, String requestId, String reply) {
+        if (sessionId == null || sessionId.isBlank() || reply == null || reply.isBlank()) {
+            return false;
+        }
+        try {
+            String idemKey = "idem-reply-" + (userMessageId != null && !userMessageId.isBlank() ? userMessageId : requestId);
+            chatMessages.send(
+                    sessionId,
+                    new com.fengmotion.server.chat.api.dto.CreateChatMessageRequest(
+                            reply, null, null, com.fengmotion.server.chat.domain.ChatMessage.ROLE_ASSISTANT, userMessageId
+                    ),
+                    idemKey
+            );
+            log.info("已自动将创作助手回复持久化到服务端会话：sessionId={}, taskId={}", sessionId, userMessageId);
+            return true;
+        } catch (Exception ex) {
+            log.warn("自动落盘创作助手回复到会话失败（非致命）：{}", ex.getMessage());
+            return false;
         }
     }
 
@@ -174,12 +365,20 @@ public class ProjectRenderService {
         var state = creationStates.read(Path.of(project.rootPath()).toAbsolutePath().normalize());
         if (state != null && "running".equals(state.state()) && !operations.isBusy(projectId)) {
             return creationStates.state("interrupted", state.intent(), state.reply(), state.references(),
-                    state.artifactPath(), state.version(), "上次创作已中断，请检查工程后继续或重新渲染");
+                    state.artifactPath(), state.version(), "上次创作已中断，请检查工程后继续或重新渲染", state.requestId(), "interrupted");
         }
         return state;
     }
 
-    private CreateOutcome createUnlocked(String projectId, String intent, JsonNode references) {
+    private CreateOutcome createUnlocked(String projectId, String intent, JsonNode references, String previewImage) {
+        return createUnlocked(projectId, intent, references, previewImage, null, null, null);
+    }
+
+    private CreateOutcome createUnlocked(String projectId, String intent, JsonNode references, String previewImage, String requestId) {
+        return createUnlocked(projectId, intent, references, previewImage, requestId, null, null);
+    }
+
+    private CreateOutcome createUnlocked(String projectId, String intent, JsonNode references, String previewImage, String requestId, String sessionId, String userMessageId) {
         Project project = projects.findById(projectId)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "not_found", "项目不存在"));
         String rootPath = project.rootPath();
@@ -202,33 +401,54 @@ public class ProjectRenderService {
                     + "\nAgent 上一轮的说明/问题：\n" + previous.reply()
                     + "\n用户本轮补充：\n" + (intent == null ? "按已有要求继续" : intent);
         }
-        creationStates.write(root, creationStates.state("running", intent, null, effectiveRefs, null, null, null));
+        creationStates.write(root, creationStates.state("running", intent, null, effectiveRefs, null, null, null, requestId, "analyzing"));
+        if (requestId != null && !requestId.isBlank()) {
+            creationTasks.updatePhase(requestId, "analyzing");
+        }
         String reply = null;
         try {
-            var agentResult = agent.run(root, instruction, resources);
+            var agentResult = agent.run(root, instruction, resources, previewImage, projectId, sessionId, requestId);
             reply = agentResult.reply();
             // 新项目尚无入口也能正常追问；先判断是否改动，再校验可渲染性。
             if (!agentResult.changed()) {
+                boolean saved = recordAssistantReplyToSession(sessionId, userMessageId, requestId, reply);
                 creationStates.write(root, creationStates.state(CreateOutcome.AWAITING_INFO,
-                        intent, reply, effectiveRefs, null, null, null));
+                        intent, reply, effectiveRefs, null, null, null, requestId, "awaiting_info", saved));
+                if (requestId != null && !requestId.isBlank()) {
+                    creationTasks.updateCompleted(requestId, CreateOutcome.AWAITING_INFO, "awaiting_info", reply, null, null, saved);
+                }
                 return CreateOutcome.awaitingInfo(reply, agentResult.elapsedMs(), resources.resolved());
             }
+
+            creationStates.write(root, creationStates.state("running", intent, reply, effectiveRefs, null, null, null, requestId, "rendering"));
+            if (requestId != null && !requestId.isBlank()) {
+                creationTasks.updatePhase(requestId, "rendering");
+            }
+
             configs.read(root);
             RenderOutcome rendered = renderUnlocked(projectId, intent);
+            boolean saved = recordAssistantReplyToSession(sessionId, userMessageId, requestId, reply);
             try {
                 creationStates.write(root, creationStates.state(CreateOutcome.RENDERED, intent, reply,
-                        effectiveRefs, rendered.artifactPath(), rendered.version(), null));
+                        effectiveRefs, rendered.artifactPath(), rendered.version(), null, requestId, "completed", saved));
             } catch (RuntimeException statusFailure) {
                 log.warn("视频版本已提交，但创作状态保存失败：{}", projectId, statusFailure);
             }
+            if (requestId != null && !requestId.isBlank()) {
+                creationTasks.updateCompleted(requestId, CreateOutcome.RENDERED, "completed", reply, rendered.artifactPath(), rendered.version(), saved);
+            }
+
             return new CreateOutcome(CreateOutcome.RENDERED, reply, agentResult.elapsedMs(),
                     rendered.artifactPath(), rendered.version(), rendered.result(), resources.resolved());
         } catch (RuntimeException failure) {
             try {
                 creationStates.write(root, creationStates.state("failed", intent, reply, effectiveRefs,
-                        null, null, failure.getMessage()));
+                        null, null, failure.getMessage(), requestId, "failed"));
             } catch (RuntimeException statusFailure) {
                 failure.addSuppressed(statusFailure);
+            }
+            if (requestId != null && !requestId.isBlank()) {
+                creationTasks.updateFailed(requestId, failure.getMessage());
             }
             throw failure;
         }

@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
-import { ArrowDown, ArrowUp, Copy, Eye, EyeOff, Lock, Trash2, Unlock } from 'lucide-react'
+import { ArrowDown, ArrowUp, Copy, Eye, EyeOff, Lock, Plus, Trash2, Unlock } from 'lucide-react'
+import { KEYFRAME_PROPERTIES, makeKeyframe, type KeyframeProperty } from './keyframes'
 import type { EditorLayer, ElementPatch, HtmlElementInfo, SceneDocument } from './types'
 function NumberField({
   label,
@@ -54,6 +55,7 @@ export function SceneInspector({
   onDelete,
   onDuplicate,
   onReorder,
+  playhead,
 }: {
   document: SceneDocument
   layer?: EditorLayer
@@ -66,6 +68,8 @@ export function SceneInspector({
   onDelete: () => void
   onDuplicate: () => void
   onReorder: (direction: number) => void
+  /** 当前播放头（秒）：在这一点上打关键帧，用户看到的就是这一帧。 */
+  playhead: number
 }) {
   const patch = selected ? (document.patches[selected] ?? {}) : {}
   const native = document.engine === 'remotion'
@@ -254,6 +258,24 @@ export function SceneInspector({
                     onChange={(opacity) => onLayer({ opacity })}
                   />
                 </div>
+                {/* 变换原点：旋转和缩放围绕这一点发生。官方把它列为时间轴上的核心样式项，
+                    以前只能在中心旋转，做「从左上角推入」这类动作就做不到。 */}
+                <div className="se-field-row">
+                  <NumberField
+                    label="变换原点 X%"
+                    min={0}
+                    max={100}
+                    value={layer.transformOriginX ?? 50}
+                    onChange={(transformOriginX) => onLayer({ transformOriginX })}
+                  />
+                  <NumberField
+                    label="变换原点 Y%"
+                    min={0}
+                    max={100}
+                    value={layer.transformOriginY ?? 50}
+                    onChange={(transformOriginY) => onLayer({ transformOriginY })}
+                  />
+                </div>
                 <NumberField
                   label="圆角"
                   min={0}
@@ -349,6 +371,55 @@ export function SceneInspector({
                 </>
               )}
             </Group>
+            {layer && (
+              <Group title="属性关键帧">
+                <p className="se-caption">
+                  在播放头 {playhead.toFixed(2)}s 记录当前值；两个关键帧之间线性过渡。
+                </p>
+                {(layer.keyframes ?? []).length > 0 && (
+                  <div className="se-keyframe-list">
+                    {[...(layer.keyframes ?? [])]
+                      .sort((a, b) => a.time - b.time)
+                      .map((frame) => (
+                        <div className="se-keyframe-row" key={frame.id}>
+                          <span>{KEYFRAME_PROPERTIES.find(([id]) => id === frame.property)?.[1] ?? frame.property}</span>
+                          <small>
+                            {frame.time.toFixed(2)}s · {Number(frame.value.toFixed(2))}
+                          </small>
+                          <button
+                            type="button"
+                            aria-label={`删除关键帧 ${frame.time.toFixed(2)} 秒`}
+                            onClick={() =>
+                              onLayer({
+                                keyframes: (layer.keyframes ?? []).filter((k) => k.id !== frame.id),
+                              })
+                            }
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
+                      ))}
+                  </div>
+                )}
+                <div className="se-keyframe-add">
+                  {KEYFRAME_PROPERTIES.map(([property, label]) => (
+                    <button
+                      type="button"
+                      key={property}
+                      title={`在 ${playhead.toFixed(2)}s 记录「${label}」当前值`}
+                      onClick={() => {
+                        const current = property === 'scale' ? layer.zoom : (layer[property as keyof EditorLayer] as number)
+                        const next = [...(layer.keyframes ?? []).filter((k) => !(k.property === property && Math.abs(k.time - (playhead - layer.start)) < 0.02)), makeKeyframe(property as KeyframeProperty, playhead - layer.start, current)]
+                        onLayer({ keyframes: next })
+                      }}
+                    >
+                      <Plus size={11} />
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </Group>
+            )}
           </fieldset>
         </>
       ) : !native && element ? (

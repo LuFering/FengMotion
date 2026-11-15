@@ -51,6 +51,7 @@ public class CreateAgentRunner {
     private final DshLauncher launcher;
     private final HarnessProperties properties;
     private final ObjectMapper json;
+    private final CreationProgressStore progressStore;
 
     /**
      * 还没有任何源码时的指纹。
@@ -81,6 +82,26 @@ public class CreateAgentRunner {
      * @return 结果摘要
      */
     public AgentOutcome run(Path projectRoot, String intent, ResourceContextBuilder.ResourceContext resources) {
+        return run(projectRoot, intent, resources, null);
+    }
+
+    public AgentOutcome run(Path projectRoot, String intent, ResourceContextBuilder.ResourceContext resources, String previewImage) {
+        return run(projectRoot, intent, resources, previewImage, ignored -> { });
+    }
+
+    public AgentOutcome run(Path projectRoot, String intent, ResourceContextBuilder.ResourceContext resources, String previewImage,
+                            String projectId, String sessionId, String requestId) {
+        progressStore.begin(projectId, sessionId, requestId);
+        try {
+            return run(projectRoot, intent, resources, previewImage, text -> progressStore.append(projectId, requestId, text));
+        } finally {
+            progressStore.finish(projectId, requestId);
+        }
+    }
+
+    public AgentOutcome run(Path projectRoot, String intent, ResourceContextBuilder.ResourceContext resources, String previewImage,
+                            java.util.function.Consumer<String> onProgress) {
+        var images = previewImages(previewImage);
         if (!Files.isDirectory(projectRoot)) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "validation_error", "项目目录不存在");
         }
@@ -102,7 +123,7 @@ public class CreateAgentRunner {
 
         String instruction = buildInstruction(intent, resources, retrieveCandidates(projectRoot, intent));
         Instant startedAt = Instant.now();
-        String reply = ask(projectRoot, instruction);
+        String reply = ask(projectRoot, instruction, images, onProgress);
         long elapsedMs = Duration.between(startedAt, Instant.now()).toMillis();
 
         /* 判断 agent 到底动没动工程：没改动就如实说，不要假装完成。
@@ -221,6 +242,9 @@ public class CreateAgentRunner {
                 这一轮要做的事：%s
                 %s
                 %s
+
+                在开始工作以及切换主要工作方向之前，先向用户用一两句话说明接下来要做什么；
+                只报告重要阶段，不必逐次播报工具调用。区分计划与已完成的结果，不要暴露内部推理。
 
                 请在这个项目目录里工作：
                 1. 先读 prompt.original.md（用户原文，逐字，不要改写）和 corrections.md（后续纠正，较新的优先）。
@@ -463,14 +487,31 @@ public class CreateAgentRunner {
      * @param instruction 指令
      * @return agent 的最后一段回复
      */
-    private String ask(Path workdir, String instruction) {
+    static java.util.List<DshSdkSession.InlineImage> previewImages(String image) {
+        if (image == null) return java.util.List.of();
+        if (image.length() > 5_000_000 || !image.startsWith("data:image/jpeg;base64,")) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "validation_error", "画面图片格式无效或超过大小限制");
+        }
+        String data = image.substring("data:image/jpeg;base64,".length());
+        try {
+            byte[] bytes = java.util.Base64.getDecoder().decode(data);
+            if (bytes.length < 3 || (bytes[0] & 255) != 255 || (bytes[1] & 255) != 216 || (bytes[2] & 255) != 255)
+                throw new IllegalArgumentException();
+        } catch (IllegalArgumentException failure) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "validation_error", "画面图片数据无效");
+        }
+        return java.util.List.of(new DshSdkSession.InlineImage(data, "image/jpeg"));
+    }
+
+    private String ask(Path workdir, String instruction, java.util.List<DshSdkSession.InlineImage> images,
+                       java.util.function.Consumer<String> onProgress) {
         DshProcess process = null;
         try {
             process = launcher.startSdk();
             DshSdkSession driver = new DshSdkSession(
                     process, json, properties.getProvider(), properties.getModel());
             // stderr 必须排空，否则管道写满会阻塞子进程
-            process.drainStderr(50, frame -> { });
+            process.drainStderr(200, driver::acceptStreamFrame);
 
             String sessionId = "fm-create-" + java.util.UUID.randomUUID();
             /* cwd 指向项目目录：agent 看到的是真实文件，
@@ -478,7 +519,7 @@ public class CreateAgentRunner {
             driver.initialize(workdir.toString(), Duration.ofSeconds(20));
 
             DshSdkSession.Outcome outcome = driver.prompt(
-                    sessionId, instruction, QuietListener.INSTANCE,
+                    sessionId, instruction, images, new ProgressListener(onProgress),
                     Duration.ofSeconds(timeoutSeconds));
 
             if (outcome.failed()) {
@@ -519,17 +560,23 @@ public class CreateAgentRunner {
                                boolean changed, String beforeHash, String afterHash) {
     }
 
-    /** 什么都不做的监听器：这一轮不需要流式回调。 */
-    private enum QuietListener implements DshSdkSession.Listener {
-        INSTANCE;
+    /** 只传递 Agent 的公开文字；内部推理与工具参数不作为进度。 */
+    static final class ProgressListener implements DshSdkSession.Listener {
+        private final java.util.function.Consumer<String> progress;
+        private boolean streamed;
+        ProgressListener(java.util.function.Consumer<String> progress) { this.progress = progress; }
 
         @Override public void onTurnStarted(int turn) { }
         @Override public void onStepStarted(int turn, int step) { }
-        @Override public void onToolCall(String callId, String name, String arguments) { }
+        @Override public void onToolCall(String callId, String name, String arguments) { if (streamed) progress.accept("\n"); }
         @Override public void onToolResult(String callId, String text, boolean isError) { }
-        @Override public void onTextDelta(String text) { }
+        @Override public void onTextDelta(String text) { streamed = true; progress.accept(text); }
         @Override public void onThinkingDelta(String text) { }
-        @Override public void onAssistantMessage(String text, String reasoning) { }
+        @Override public void onAssistantMessage(String text, String reasoning) {
+            if (streamed) progress.accept("\n");
+            else if (text != null && !text.isBlank()) progress.accept(text + "\n");
+            streamed = false;
+        }
         @Override public void onTurnEnded(boolean failed, String reason) { }
         @Override public void onIdle() { }
     }

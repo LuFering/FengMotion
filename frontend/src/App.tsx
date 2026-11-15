@@ -1,6 +1,6 @@
 import '@/styles/interface-polish.css'
 import '@/styles/card-details.css'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useChat } from '@/shell/useChat'
 import { initDesktopApiBase } from '@/services/api'
 import { useSessions } from '@/shell/useSessions'
@@ -98,7 +98,47 @@ export default function App() {
   }, [conversationVisible, openProject])
   /* 「返回项目目录」：项目列表页已移除，回「我的创作」（对话视图）。
      保留当前选中项目，便于从对话视图一键回工作台。 */
-  const openList = () => { setView('conversation') }
+  /** 工作台与对话区共享的当前项目激活会话：
+   *  1. 优先读取 threads.activeId（若属于当前 openProject）；
+   *  2. 其次恢复该项目上次在工作台明确选择的会话；
+   *  3. 再次回退到当前 openProject 下最新活跃的一条会话；
+   *  4. 若该项目暂无任何会话，则为 null。
+   */
+  const activeWorkbenchSessionId = useMemo(() => {
+    if (!openProject) return null
+    if (threads.activeId) {
+      const s = threads.sessions.find((x) => x.id === threads.activeId)
+      if (s && s.projectId === openProject) return threads.activeId
+    }
+    try {
+      const saved = localStorage.getItem(`fengmotion:workbench-session:${openProject}`)
+      if (saved) {
+        const matched = threads.sessions.find((x) => x.id === saved && x.projectId === openProject)
+        if (matched) return saved
+      }
+    } catch { /* 忽略存储不可用 */ }
+
+    const projectSessions = threads.sessions
+      .filter((s) => s.projectId === openProject)
+      .sort((a, b) => b.updatedAt - a.updatedAt)
+    return projectSessions[0]?.id ?? null
+  }, [openProject, threads.activeId, threads.sessions])
+
+  const handleSelectWorkbenchSession = useCallback((sessionId: string) => {
+    threads.setActiveId(sessionId)
+    if (openProject) {
+      try {
+        localStorage.setItem(`fengmotion:workbench-session:${openProject}`, sessionId)
+      } catch { /* 忽略存储不可用 */ }
+    }
+  }, [openProject, threads])
+
+  /* 「返回项目目录」：项目列表页已移除，回「我的创作」（对话视图）。
+     精准切回工作台当前绑定的同一会话，保留当前选中项目。 */
+  const openList = () => {
+    if (activeWorkbenchSessionId) threads.setActiveId(activeWorkbenchSessionId)
+    setView('conversation')
+  }
   // 复刻页（项目指挥中心）通过 postMessage 请求跨页导航
   useEffect(() => {
     const onMsg = (e: MessageEvent) => {
@@ -333,7 +373,11 @@ export default function App() {
                             await projects.purge(id)
                             if (openProject === id) setOpenProject(null)
                           }}
-                          onOpenWorkbench={() => { if (openProject) setView('production') }} />
+                          onOpenWorkbench={(sid) => {
+                            if (sid) handleSelectWorkbenchSession(sid)
+                            else if (activeWorkbenchSessionId) handleSelectWorkbenchSession(activeWorkbenchSessionId)
+                            if (openProject) setView('production')
+                          }} />
           </div>
         )}
 
@@ -344,7 +388,16 @@ export default function App() {
             工作台本身是完整的（Workbench.tsx），不该由项目 id 决定能不能进。 */}
         {isFlow && current && (
           <div id="pane-flow">
-            <Workbench key={openProject!} chat={chat} tasks={tasks} onNavigate={(next) => setView(next)}
+            <Workbench key={openProject!} chat={chat} tasks={tasks}
+                       threads={threads}
+                       sessionId={activeWorkbenchSessionId}
+                       onSelectSession={handleSelectWorkbenchSession}
+                       onNavigate={(next) => {
+                         if (next === 'conversation' && activeWorkbenchSessionId) {
+                           threads.setActiveId(activeWorkbenchSessionId)
+                         }
+                         setView(next)
+                       }}
                        projectId={openProject!}
                        projects={projects.list}
                        onBack={openList}
@@ -362,8 +415,11 @@ export default function App() {
           </div>
         )}
 
-        {/* 其余视图（对话视图已在上面单独分发） */}
-        {!isFlow && !isCatalog && view !== 'conversation' && (
+        {/* 其余视图（对话视图已在上面单独分发）
+            home 必须排除：它上面已有专门的一屏（#pane-home + 首页动效），
+            这里再进来一次会生成一个空的 .hm-main，顶着同一个 id，
+            把 #app 撑高一整个视口 —— 页面多出一屏空白、滚动条乱跳。 */}
+        {!isFlow && !isCatalog && view !== 'conversation' && view !== 'home' && (
           <div id={`pane-${view}`} className="hm-main">
             <div className="hm-content" data-view={view}>
               {/* 项目管理组的视图都挂在当前项目上：顶上先给一条项目条

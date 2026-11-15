@@ -55,7 +55,7 @@ public class HarnessController {
         }
         List<ModelEntryResponse> items = service.listModels(harnessId).stream()
                 .map(m -> new ModelEntryResponse(
-                        m.id(), m.label(), m.isDefault(), m.contextWindow(), m.maxTokens()))
+                        m.id(), m.label(), m.isDefault(), m.contextWindow(), m.maxTokens(), m.reasoningEfforts()))
                 .toList();
         return new ModelListResponse(items);
     }
@@ -146,6 +146,7 @@ public class HarnessController {
             String label,
             boolean isDefault,
             Long contextWindow,
-            Long maxTokens) {
+            Long maxTokens,
+            List<String> reasoningEfforts) {
     }
 }

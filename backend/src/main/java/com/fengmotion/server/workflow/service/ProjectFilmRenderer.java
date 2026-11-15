@@ -107,7 +107,7 @@ public class ProjectFilmRenderer {
                     .redirectOutput(stdoutFile.toFile())
                     .redirectError(stderrFile.toFile());
             if (nodeModules != null && !nodeModules.isBlank()) {
-                builder.environment().put("FENGMOTION_NODE_MODULES", nodeModules);
+                builder.environment().put("FENGMOTION_NODE_MODULES", Path.of(nodeModules).toAbsolutePath().normalize().toString());
             }
 
             process = builder.start();
@@ -199,7 +199,7 @@ public class ProjectFilmRenderer {
     private Path resolveScript() {
         List<Path> candidates = new ArrayList<>();
         if (remotionDir != null && !remotionDir.isBlank()) {
-            candidates.add(Path.of(remotionDir).resolve("render-project.mjs"));
+            candidates.add(Path.of(remotionDir).toAbsolutePath().normalize().resolve("render-project.mjs"));
         }
         Path cwd = Path.of(System.getProperty("user.dir")).toAbsolutePath().normalize();
         candidates.add(cwd.resolve("remotion").resolve("render-project.mjs"));

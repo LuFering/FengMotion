@@ -127,6 +127,70 @@ public class ChatStreamService {
     }
 
     /**
+     * 界面固定的五档推理强度，从低到高。
+     *
+     * <p>这五档是**界面约定**，不是 DSH 的档位表：各家模型实际能接受的值不一样
+     * （有的只有 off/low/high，有的还多 max），所以由 {@link #resolveEffort} 负责
+     * 把用户选的这一档翻译成该模型真正支持的档位。</p>
+     */
+    static final List<String> EFFORT_LEVELS = List.of("low", "medium", "high", "max", "ultra");
+
+    /** 模型必须在目录里，强度必须是五档之一；具体落到哪个档位由 {@link #resolveEffort} 决定。 */
+    public void validateSelection(String model, String reasoningEffort) {
+        if (model != null && (model.isBlank() || model.length() > 256
+                || harness.listModels(HarnessService.DSH_ID).stream().noneMatch(entry -> entry.id().equals(model)))) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "validation_error", "模型不在当前引擎的可选目录中");
+        }
+        if (reasoningEffort != null && !EFFORT_LEVELS.contains(reasoningEffort)) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "validation_error", "推理强度无效");
+        }
+    }
+
+    /**
+     * 把界面的五档翻译成当前模型真正支持的档位。
+     *
+     * <p>降级规则：目标档位不支持时**逐级向下**找最近的可用档位
+     * （ultra → max → high → medium → low）。之所以向下而不是向上，是因为
+     * 用户选高强度是想要更充分的推理，但绝不能因此改用模型不认识的参数值 ——
+     * 那会被 DSH 直接拒绝，整轮对话就发不出去了。</p>
+     *
+     * <p>两种"不知道"要分开：目录没给出该模型的能力（null）= 无法判断，原样透传，
+     * 由 DSH 在初始化时自己校验并报错；目录明确给了空列表 = 该模型没有可调档位，
+     * 返回 null 让引擎用它自己的默认值。</p>
+     *
+     * @param model     本轮模型；null 表示用配置里的默认模型
+     * @param requested 界面选中的档位；不在五档内时返回 null
+     * @return 实际要发送的档位；null 表示用引擎默认
+     */
+    String resolveEffort(String model, String requested) {
+        if (requested == null || !EFFORT_LEVELS.contains(requested)) {
+            return null;
+        }
+        String effectiveModel = model == null || model.isBlank() ? properties.getModel() : model;
+        List<String> supported = harness.listModels(HarnessService.DSH_ID).stream()
+                .filter(entry -> entry.id().equals(effectiveModel))
+                .findFirst()
+                .map(HarnessService.ModelEntry::reasoningEfforts)
+                .orElse(null);
+        if (supported == null) {
+            return requested;
+        }
+        for (int level = EFFORT_LEVELS.indexOf(requested); level >= 0; level--) {
+            if (supported.contains(EFFORT_LEVELS.get(level))) {
+                return EFFORT_LEVELS.get(level);
+            }
+        }
+        // 连比它更低的档位都没有（例如模型只支持 high）：用它最低的那一档，
+        // 而不是丢掉选择让引擎自己猜 —— 那样界面显示与实际生效会对不上。
+        for (String level : EFFORT_LEVELS) {
+            if (supported.contains(level)) {
+                return level;
+            }
+        }
+        return null;
+    }
+
+    /**
      * 单轮的执行预算（超时上限）。
      *
      * <p><strong>为什么不是直接用配置的 180 秒</strong>：180 秒对视频制作这类
@@ -233,29 +297,11 @@ public class ChatStreamService {
         stream(sessionId, writer, userText, attachments, null, null, flush);
     }
 
-    /**
-     * 指定模型的一轮对话。
-     *
-     * @param model 本轮使用的模型 id；null 或空串表示用配置里的默认模型
-     */
     public void stream(String sessionId, PrintWriter writer, String userText,
-                       com.fasterxml.jackson.databind.JsonNode attachments, String model,
-                       Runnable flush) {
-        stream(sessionId, writer, userText, attachments, model, null, flush);
-    }
-
-    /**
-     * 指定模型与推理强度的一轮对话。
-     *
-     * @param model    模型 id；null 表示用配置默认
-     * @param thinking 推理强度 simple/medium/deep；null 表示用引擎默认
-     */
-    public void stream(String sessionId, PrintWriter writer, String userText,
-                       com.fasterxml.jackson.databind.JsonNode attachments, String model,
-                       String thinking, Runnable flush) {
+                       JsonNode attachments, String model, String reasoningEffort, Runnable flush) {
         currentFlush.set(flush);
         try {
-            doStream(sessionId, writer, userText, attachments, model, thinking);
+            doStream(sessionId, writer, userText, attachments, model, reasoningEffort);
         } finally {
             currentFlush.remove();
         }
@@ -326,8 +372,7 @@ public class ChatStreamService {
     }
 
     private void doStream(String sessionId, PrintWriter writer, String userText,
-                          com.fasterxml.jackson.databind.JsonNode attachments, String model,
-                          String thinking) {
+                          JsonNode attachments, String model, String reasoningEffort) {
         // 先做前置校验：引擎不可用或会话不存在时直接抛错，由 Controller 返回错误信封，
         // 而不是先建一条永远不会有内容的连接。
         if (!harness.isAvailable()) {
@@ -370,13 +415,9 @@ public class ChatStreamService {
             // 新一轮开始即清掉上一轮的停止标记，避免旧的「已停止」污染本轮的失败判断。
             cleanupStopMark(sessionId);
 
-            /* 模型优先用本轮指定的那个（前端 harness 抽屉里选的），
-               没指定才回落到配置默认值 —— 这样「选了什么就用什么」是真的生效，
-               而不是只在界面上换个名字。 */
-            String effectiveModel =
-                    (model == null || model.isBlank()) ? properties.getModel() : model;
             DshSdkSession driver = new DshSdkSession(
-                    process, json, properties.getProvider(), effectiveModel, thinking);
+                    process, json, properties.getProvider(),
+                    model == null ? properties.getModel() : model, resolveEffort(model, reasoningEffort));
             // stderr 必须在 driver 之后开始排空：插件把 token 级帧写在这里，
             // 需要直接灌进 driver 的队列，读到的帧才不会被当成诊断日志丢掉。
             process.drainStderr(200, frame -> {
@@ -411,7 +452,7 @@ public class ChatStreamService {
                所以 finally 不能关进程 —— 关了就是把还在跑的任务杀掉。 */
             DshSdkSession.Outcome outcome = driver.prompt(
                     harnessSessionId,
-                    userText,
+                    userText + "\n\n【交流方式】开始处理或切换主要工作方向前，先向用户简短说明接下来做什么；只在重要阶段更新，不必逐次播报工具。明确区分计划和已完成的结果，不要暴露内部推理。",
                     images,
                     listener,
                     turnBudget(),

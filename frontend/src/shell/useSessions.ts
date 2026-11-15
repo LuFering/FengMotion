@@ -65,6 +65,33 @@ export const UNGROUPED = '__ungrouped__'
 let seq = 0
 const makeId = () => `s-${Date.now().toString(36)}-${seq++}`
 
+/**
+ * 记住用户最后打开的那条会话。
+ *
+ * <p>为什么需要：activeId 只存在内存里，刷新后必然是 null —— 于是左栏没有
+ * 任何会话被选中，输入框空白，草稿虽然还在 localStorage 里却无处显示。
+ * 用户看到的是「我的草稿丢了」。记住 id 才能在启动时把它接回来。</p>
+ */
+const ACTIVE_SESSION_KEY = 'fengmotion:active-session:v1'
+
+function readLastActiveId(): string | null {
+  try {
+    const value = localStorage.getItem(ACTIVE_SESSION_KEY)
+    return value && value.trim() ? value : null
+  } catch {
+    return null
+  }
+}
+
+function writeLastActiveId(id: string | null) {
+  try {
+    if (id) localStorage.setItem(ACTIVE_SESSION_KEY, id)
+    else localStorage.removeItem(ACTIVE_SESSION_KEY)
+  } catch {
+    /* 存储不可用只影响「下次自动接回」，不影响本次使用。 */
+  }
+}
+
 /** 首条需求 → 会话标题：取第一行、去掉只有标点/数字的情况、截断 */
 export function sessionTitle(text: string): string {
   const first = text.trim().split('\n')[0] ?? ''
@@ -73,6 +100,32 @@ export function sessionTitle(text: string): string {
 }
 
 const now = () => Date.now()
+
+/** 读取本地持久化的会话附加消息（如工作台完成的 AI 创作答复） */
+function loadSessionExtras(sessionId: string): ChatMessage[] {
+  try {
+    const raw = localStorage.getItem(`fm-session-extras:${sessionId}`)
+    if (!raw) return []
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
+
+/** 持久化保存一条会话附加消息，确保在服务端历史重新读取或刷新后不丢失 */
+export function saveSessionExtra(sessionId: string, message: ChatMessage) {
+  try {
+    const list = loadSessionExtras(sessionId)
+    if (!list.some((m) => m.id === message.id)) {
+      list.push(message)
+      localStorage.setItem(`fm-session-extras:${sessionId}`, JSON.stringify(list.slice(-500)))
+    }
+  } catch (err) {
+    console.warn('[useSessions] 附加消息本地缓存暂不可用:', err)
+  }
+}
+
 /** 服务端 ISO 时间 → 本地毫秒；解析失败退回当前时间，避免 NaN 排序 */
 const toMs = (iso: string) => {
   const v = Date.parse(iso)
@@ -89,11 +142,12 @@ const toMs = (iso: string) => {
  * system 消息不下发展示（契约 agent.md §3：系统角色只进上下文，不进对话记录）。
  * `demo` 一律为 false：服务端读回来的就是真实持久消息，不能带演示标记。
  */
-export function toViewMessage(m: ContractMessage): ChatMessage {
+export function toViewMessage(m: ContractMessage, sessionId?: string): ChatMessage {
   return {
     id: m.id,
     role: m.role === 'user' ? 'user' : 'ai',
     text: m.text,
+    ...(sessionId ? { sessionId } : {}),
     ...(m.attachments?.length ? { attachments: m.attachments } : {}),
     ...(m.references?.length ? { references: m.references } : {}),
     taskId: m.taskId,
@@ -249,13 +303,23 @@ export interface SessionsState {
   /** 读服务端消息历史（GET /chat-sessions/{id}/messages，翻页取全），装进会话。
       `force` 用于重试；已有内容且已读成功时不重复读。 */
   loadMessages: (sessionId: string, options?: { force?: boolean }) => Promise<void>
-  /** 发一条用户消息（POST /chat-sessions/{id}/messages）。只有服务端返回 202 才写进会话；
+  /** 发一条消息（POST /chat-sessions/{id}/messages）。只有服务端返回 202 才写进会话；
       失败时抛错，由调用方显示「没有发出去」。返回服务端确认的那条消息。 */
   sendMessage: (
     sessionId: string,
     text: string,
-    options?: { idempotencyKey?: string; attachments?: ContractMessage['attachments']; references?: ContractMessage['references'] },
+    options?: {
+      idempotencyKey?: string
+      role?: 'user' | 'assistant'
+      taskId?: string
+      attachments?: ContractMessage['attachments']
+      references?: ContractMessage['references']
+    },
   ) => Promise<ChatMessage>
+  /** 保存一条属于该会话的本地附加消息（如工作台完成的 AI 创作答复），使其在 reload 或刷新后依然完整恢复 */
+  appendExtraMessage: (sessionId: string, message: ChatMessage) => void
+  /** 查询某会话是否正在读取消息 */
+  isSessionLoadingMessages: (sessionId: string) => boolean
   /** 是否有会话请求在途 */
   loading: boolean
   /** 最近一次**列表读取**失败的原因；读成功会清空。只装列表错误：
@@ -270,7 +334,9 @@ export interface SessionsState {
 
 export function useSessions() {
   const [sessions, setSessions] = useState<Session[]>([])
-  const [activeId, setActiveId] = useState<string | null>(null)
+  /* 初值先读上次打开的那条：刷新后能回到同一会话，草稿才显示得出来。
+     真正可用性在会话列表加载完后由下面的恢复逻辑校验（可能已被删除）。 */
+  const [activeId, setActiveId] = useState<string | null>(() => readLastActiveId())
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [createError, setCreateError] = useState<string | null>(null)
@@ -619,7 +685,18 @@ export function useSessions() {
       } while (cursor)
       if (!mountedRef.current) return
       // system 消息不下发展示（契约 §3）；其余按契约顺序原样保留
-      const mapped = items.filter((m) => m.role !== 'system').map(toViewMessage)
+      const mapped = items.filter((m) => m.role !== 'system').map((m) => toViewMessage(m, sessionId))
+      // 按会话严格隔离读取附加回复：只读明确属于当前 sessionId 的记录，杜绝跨会话串味
+      const extras = loadSessionExtras(sessionId).filter((m) => m.sessionId === sessionId)
+      const combined = [...mapped]
+      for (const ex of extras) {
+        if (!combined.some((m) => m.id === ex.id)) {
+          combined.push(ex)
+        }
+      }
+
+      combined.sort((a, b) => (a.at ?? 0) - (b.at ?? 0))
+
       commitSessions((list) => list.map((s) => {
         if (s.id !== sessionId) return s
         /* 没存进服务端的那条首条需求：历史读回来之后仍然要显示，否则它会随着
@@ -627,7 +704,7 @@ export function useSessions() {
         const missing = s.unsavedFirst
           ? [{ id: `unsaved-${sessionId}`, role: 'user' as const, text: s.unsavedFirst.text, at: s.updatedAt }]
           : []
-        return { ...s, messages: [...missing, ...mapped], messagesLoaded: true, messagesError: undefined }
+        return { ...s, messages: [...missing, ...combined], messagesLoaded: true, messagesError: undefined }
       }))
     } catch (cause) {
       if (cause instanceof ApiError && cause.code === 'aborted') return
@@ -643,7 +720,7 @@ export function useSessions() {
   }, [commitSessions])
 
   /**
-   * 发一条用户消息。
+   * 发一条消息（支持 user 用户消息或 assistant 助手创作答复）。
    *
    * 顺序是「先让服务端保存，再写进本页」：契约要求不得把没落库的消息显示成已发送。
    * 因此这里不做乐观插入 —— 失败时抛错，调用方显示「没有发出去」，草稿留在输入框里。
@@ -654,12 +731,20 @@ export function useSessions() {
   const sendMessage = useCallback(async (
     sessionId: string,
     text: string,
-    options: { idempotencyKey?: string; attachments?: ContractMessage['attachments']; references?: ContractMessage['references'] } = {},
+    options: {
+      idempotencyKey?: string
+      role?: 'user' | 'assistant'
+      taskId?: string
+      attachments?: ContractMessage['attachments']
+      references?: ContractMessage['references']
+    } = {},
   ): Promise<ChatMessage> => {
     /* 附件只带 fileId 等元信息，不带路径与字节 —— 契约要求消息只引用已上传的附件。
        空数组不传：让请求体保持「没有附件」的形状，而不是一个空列表。 */
     const body = {
       text,
+      ...(options.role ? { role: options.role } : {}),
+      ...(options.taskId ? { taskId: options.taskId } : {}),
       ...(options.references?.length ? { references: options.references } : {}),
       ...(options.attachments && options.attachments.length > 0
         ? { attachments: options.attachments }
@@ -668,7 +753,7 @@ export function useSessions() {
     const saved = await studioHttpApi().chat.sendMessage(sessionId, body, {
       idempotencyKey: options.idempotencyKey,
     })
-    const view = toViewMessage(saved)
+    const view = toViewMessage(saved, sessionId)
     if (mountedRef.current) {
       commitSessions((list) => list.map((s) => {
         if (s.id !== sessionId) return s
@@ -795,10 +880,41 @@ export function useSessions() {
   const clearCreateError = useCallback(() => setCreateError(null), [])
   const clearRemoveError = useCallback(() => setRemoveError(null), [])
 
+  const appendExtraMessage = useCallback((sessionId: string, message: ChatMessage) => {
+    saveSessionExtra(sessionId, message)
+    commitSessions((list) => list.map((s) => {
+      if (s.id !== sessionId) return s
+      if (s.messages.some((m) => m.id === message.id)) return s
+      return {
+        ...s,
+        messages: [...s.messages, message],
+        updatedAt: message.at ?? Date.now(),
+      }
+    }))
+  }, [commitSessions])
+
+  const isSessionLoadingMessages = useCallback((sessionId: string) => {
+    return loadingMessages.current.has(sessionId)
+  }, [])
+
+  /* 选中变化时记下来：刷新后靠它把用户带回同一条会话。
+     包一层而不是在十几处 setActiveId 调用点各写一次，避免漏改。 */
+  const selectActiveId = useCallback((id: string | null) => {
+    setActiveId(id)
+    writeLastActiveId(id)
+  }, [])
+
+  /* 这里刻意不做「列表里找不到就清空」的校验：
+     会话是按项目懒加载的，某个时刻 sessions 里可能只有别的项目的会话，
+     此时清空会把有效的记录误删（实测踩到：刷新后 id 立刻被清掉，
+     草稿因此再也接不回来）。找不到就只是 activeThread 为 null，
+     界面照常显示「未选中」，不会误导；用户点一下就能选回来。 */
+
   return {
-    sessions, activeId, setActiveId, create, update, remove, removeError, clearRemoveError,
+    sessions, activeId, setActiveId: selectActiveId, create, update, remove, removeError, clearRemoveError,
     moveTo, rename, adoptServerTitle, setPinned, setArchived,
     refresh, reload, retryCreate, syncSession, loadMessages, sendMessage,
+    appendExtraMessage, isSessionLoadingMessages,
     loading, error, createError, clearCreateError, loadedProjects,
   }
 }

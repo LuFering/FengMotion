@@ -18,6 +18,8 @@ export function makeLayer(kind: EditorLayer['kind'], duration: number, index = 0
     width: kind === 'text' ? 1200 : 640,
     height: kind === 'text' ? 200 : 360,
     rotation: 0,
+    transformOriginX: 50,
+    transformOriginY: 50,
     opacity: 1,
     start: 0,
     end: duration,

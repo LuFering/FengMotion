@@ -1,12 +1,16 @@
 package com.fengmotion.server.workflow.api;
 
 import java.util.List;
+import java.util.Map;
 
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.fengmotion.server.workflow.service.ProjectFilmConfig;
@@ -30,6 +34,15 @@ public class WorkflowProjectController {
     private final WorkflowProjectService service;
     private final ProjectRenderService projectRender;
     private final ProjectFilmConfig filmConfig;
+    private final com.fengmotion.server.workflow.service.CreationTaskStore creationTasks;
+    private final com.fengmotion.server.workflow.service.CreationProgressStore creationProgress;
+
+    @GetMapping("/creation-progress")
+    public com.fengmotion.server.workflow.service.CreationProgressStore.Snapshot creationProgress(
+            @PathVariable String projectId, @RequestParam String sessionId) {
+        var progress = creationProgress.get(projectId, sessionId);
+        return progress == null ? new com.fengmotion.server.workflow.service.CreationProgressStore.Snapshot(null, "") : progress;
+    }
 
     /**
      * 读取项目的 workflow 创作上下文状态。
@@ -94,8 +107,129 @@ public class WorkflowProjectController {
      * @return 结果
      */
     @GetMapping("/creation")
-    public com.fengmotion.server.workflow.service.CreationStateStore.State creation(@PathVariable String projectId) {
-        return projectRender.creationState(projectId);
+    public com.fengmotion.server.workflow.service.CreationStateStore.State creation(
+            @PathVariable String projectId,
+            @RequestParam(required = false) String requestId) {
+        var state = projectRender.creationState(projectId);
+        if (requestId != null && !requestId.isBlank()) {
+            if (state != null && requestId.equals(state.requestId())) {
+                /* 主路径也补上 userMessageId：状态文件里没有这个字段，
+                   但任务表有 —— 刷新恢复要靠它把结论挂回正确的消息。 */
+                return withUserMessageId(state, requestId);
+            }
+            var task = creationTasks.findByRequestId(requestId);
+            if (task.isPresent()) {
+                var t = task.get();
+                if (!projectId.equals(t.projectId())) {
+                    throw new ResponseStatusException(HttpStatus.NOT_FOUND, "创作任务不属于该项目: " + requestId);
+                }
+                return new com.fengmotion.server.workflow.service.CreationStateStore.State(
+                        t.status(), t.intent(), t.reply(), null, t.artifactPath(),
+                        t.version(), t.errorMessage(), t.updatedAt().toString(),
+                        t.requestId(), t.phase(), t.sessionSaved(), t.userMessageId(), t.sessionId()
+                );
+            }
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "未找到指定创作任务: " + requestId);
+        }
+        /* 无 requestId 参数：返回最近一次状态，同样补 userMessageId */
+        return state == null ? null : withUserMessageId(state, state.requestId());
+    }
+
+    /**
+     * 按 <strong>项目 + 会话</strong> 列出该会话真实发生过的创作轮次。
+     *
+     * <p>刷新恢复不能只读「项目最近一次状态」：那个查询不带会话，
+     * 最近一次任务可能属于会话 B，却被写进当时打开的会话 A 的作用域。
+     * 恢复必须按会话查、并且带着任务自己的 <code>sessionId</code> 回来，
+     * 由前端核对「项目、会话、消息」三者都对得上才写。</p>
+     *
+     * <p>只返回能确定归属的记录：<code>user_message_id</code> 为空的旧任务
+     * 一律不返回 —— 没有身份就没有归属，前端也就该降级不显示。</p>
+     *
+     * @param projectId 项目 ID
+     * @param sessionId 会话 ID
+     * @return 该会话的创作轮次（按时间正序，便于逐条回填）
+     */
+    @GetMapping("/creation-rounds")
+    public List<CreationRoundDto> creationRounds(@PathVariable String projectId,
+                                                 @RequestParam String sessionId) {
+        if (sessionId == null || sessionId.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "缺少会话 ID");
+        }
+        return creationTasks.findByProjectAndSession(projectId, sessionId).stream()
+                .filter(t -> t.userMessageId() != null && !t.userMessageId().isBlank())
+                .map(t -> new CreationRoundDto(t.requestId(), t.projectId(), t.sessionId(),
+                        t.userMessageId(), t.status(), t.reply(), t.version(),
+                        t.errorMessage(), t.createdAt().toString(), t.updatedAt().toString()))
+                .toList();
+    }
+
+    /**
+     * 一条创作轮次。
+     *
+     * @param requestId     创作请求 ID
+     * @param projectId     所属项目 —— 前端要与当前项目核对
+     * @param sessionId     所属会话 —— 前端要与当前会话核对，绝不拿当前界面会话顶替
+     * @param userMessageId 触发这一轮的用户消息 ID —— 唯一可靠的归属依据
+     * @param status        轮次状态（rendered / awaiting_info / failed ...）
+     * @param reply         agent 说明
+     * @param version       产出版本；未渲染为 null
+     * @param error         失败原因
+     * @param createdAt     创建时间
+     * @param updatedAt     更新时间
+     */
+    public record CreationRoundDto(String requestId, String projectId, String sessionId,
+                                   String userMessageId, String status, String reply,
+                                   Long version, String error, String createdAt, String updatedAt) {
+    }
+
+    /**
+     * 给状态快照补上触发它的用户消息 ID。
+     *
+     * <p>状态文件（creation.json）不记这个字段，但任务表记了。
+     * 刷新后前端需要它把「本轮未改动工程」挂回正确的消息 ——
+     * 没有就只能降级不显示。查不到就原样返回（不猜）。</p>
+     */
+    private com.fengmotion.server.workflow.service.CreationStateStore.State withUserMessageId(
+            com.fengmotion.server.workflow.service.CreationStateStore.State state, String requestId) {
+        if (state == null || state.userMessageId() != null) return state;
+        if (requestId == null || requestId.isBlank()) return state;
+        return creationTasks.findByRequestId(requestId)
+                .map(t -> new com.fengmotion.server.workflow.service.CreationStateStore.State(
+                        state.state(), state.intent(), state.reply(), state.references(),
+                        state.artifactPath(), state.version(), state.error(), state.updatedAt(),
+                        state.requestId(), state.phase(), state.sessionSaved(), t.userMessageId(), t.sessionId()))
+                .orElse(state);
+    }
+
+    @GetMapping("/unsaved-replies")
+    public List<UnsavedReplyDto> unsavedReplies(
+            @PathVariable String projectId,
+            @RequestParam(required = false) String sessionId) {
+        return creationTasks.findUnsavedByProjectId(projectId, sessionId).stream()
+                .map(t -> new UnsavedReplyDto(t.requestId(), t.sessionId(), t.userMessageId(), t.reply(), t.createdAt().toString()))
+                .toList();
+    }
+
+    public record UnsavedReplyDto(String requestId, String sessionId, String userMessageId, String reply, String createdAt) {}
+
+    @PostMapping("/creation/{requestId}/sync-reply")
+    public Map<String, Object> syncReplyToSession(
+            @PathVariable String projectId,
+            @PathVariable String requestId) {
+        var taskOpt = creationTasks.findByRequestId(requestId);
+        if (taskOpt.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "未找到指定创作任务: " + requestId);
+        }
+        var task = taskOpt.get();
+        if (!projectId.equals(task.projectId())) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "创作任务不属于该项目: " + requestId);
+        }
+        if (task.sessionId() == null || task.sessionId().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "该创作任务未关联会话");
+        }
+        boolean ok = projectRender.syncTaskReplyToSession(task);
+        return Map.of("success", ok, "sessionSaved", ok);
     }
 
     @PostMapping("/create")
@@ -103,7 +237,15 @@ public class WorkflowProjectController {
                                  @RequestBody(required = false) CreateRequest request) {
         String intent = request == null ? null : request.intent();
         var references = request == null ? null : request.references();
-        var outcome = projectRender.createThenRender(projectId, intent, references);
+        var outcome = projectRender.createThenRender(
+                projectId, intent, references,
+                request == null ? null : request.previewImage(),
+                request == null ? null : request.baseVersion(),
+                request == null ? null : request.correction(),
+                request == null ? null : request.requestId(),
+                request == null ? null : request.sessionId(),
+                request == null ? null : request.userMessageId()
+        );
         /* 未渲染时没有 render 结果，尺寸/帧数一律给 0，而不是编一个默认规格 ——
            前端看 state 就知道该显示「等待补充信息」还是播放器。 */
         var render = outcome.render();
@@ -116,7 +258,16 @@ public class WorkflowProjectController {
                 outcome.resources().stream()
                         .map(r -> new UsedResource(r.kind(), r.id(), r.label(), r.usage(),
                                 r.path(), r.startMs(), r.endMs()))
-                        .toList());
+                        .toList(),
+                /* 回显本次请求身份：前端据此把结果挂到「实际发起修改的那条消息」上，
+                   而不是靠「最后一条 AI 回复」推断归属。 */
+                request == null ? null : request.requestId(),
+                request == null ? null : request.userMessageId());
+    }
+
+    @GetMapping("/preview-image-capability")
+    public java.util.Map<String, Boolean> previewImageCapability() {
+        return java.util.Map.of("supported", true, "baseVersionCheck", true, "atomicCorrection", true, "correctionRetryId", true);
     }
 
     /**
@@ -125,7 +276,13 @@ public class WorkflowProjectController {
      * @param intent 这一轮要做什么；省略则按现有需求与纠正推进
      */
     public record CreateRequest(String intent,
-                                com.fasterxml.jackson.databind.JsonNode references) {
+                                com.fasterxml.jackson.databind.JsonNode references,
+                                String previewImage,
+                                Long baseVersion,
+                                String correction,
+                                String requestId,
+                                String sessionId,
+                                String userMessageId) {
     }
 
     /**
@@ -159,11 +316,17 @@ public class WorkflowProjectController {
      * @param height           高；未渲染时为 0
      * @param fps              帧率；未渲染时为 0
      * @param resources        本轮用到的三库资源
+     * @param requestId        本次创作请求 ID（前端据此核对结果归属）
+     * @param userMessageId    触发本次创作的用户消息 ID。
+     *                         <p>「未改动工程」这类结论必须能挂到**具体某条消息**上，
+     *                         而不是靠「最后一条 AI 回复」推断 —— 否则会把上一轮的结果
+     *                         贴到错误的轮次上。前端拿它做归属校验。</p>
      */
     public record CreateResponse(String state, String reply, long agentMs, String artifactPath,
                                  Long version, int durationInFrames,
                                  int width, int height, int fps,
-                                 List<UsedResource> resources) {
+                                 List<UsedResource> resources,
+                                 String requestId, String userMessageId) {
     }
 
     /**

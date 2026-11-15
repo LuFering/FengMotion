@@ -46,9 +46,57 @@ public class CreationStateStore {
 
     public State state(String status, String intent, String reply, JsonNode references,
                        String artifactPath, Long version, String error) {
-        return new State(status, intent, reply, references, artifactPath, version, error, Instant.now().toString());
+        return state(status, intent, reply, references, artifactPath, version, error, null);
     }
 
+    public State state(String status, String intent, String reply, JsonNode references,
+                       String artifactPath, Long version, String error, String requestId) {
+        return state(status, intent, reply, references, artifactPath, version, error, requestId, null);
+    }
+
+    public State state(String status, String intent, String reply, JsonNode references,
+                       String artifactPath, Long version, String error, String requestId, String phase) {
+        return state(status, intent, reply, references, artifactPath, version, error, requestId, phase, null);
+    }
+
+    public State state(String status, String intent, String reply, JsonNode references,
+                       String artifactPath, Long version, String error, String requestId, String phase, Boolean sessionSaved) {
+        return new State(status, intent, reply, references, artifactPath, version, error, Instant.now().toString(), requestId, phase, sessionSaved);
+    }
+
+    /**
+     * 创作状态快照。
+     *
+     * @param userMessageId 触发这次创作的用户消息 ID。
+     *                      <p>刷新恢复时前端要靠它把「本轮未改动工程」这类结论
+     *                      挂回正确的消息；没有它就只能降级不显示。</p>
+     */
     public record State(String state, String intent, String reply, JsonNode references,
-                        String artifactPath, Long version, String error, String updatedAt) { }
+                        String artifactPath, Long version, String error, String updatedAt,
+                        String requestId, String phase, Boolean sessionSaved,
+                        String userMessageId,
+                        String sessionId) {
+        public State(String state, String intent, String reply, JsonNode references,
+                     String artifactPath, Long version, String error, String updatedAt) {
+            this(state, intent, reply, references, artifactPath, version, error, updatedAt, null, null, null, null, null);
+        }
+
+        public State(String state, String intent, String reply, JsonNode references,
+                     String artifactPath, Long version, String error, String updatedAt,
+                     String requestId) {
+            this(state, intent, reply, references, artifactPath, version, error, updatedAt, requestId, null, null, null, null);
+        }
+
+        public State(String state, String intent, String reply, JsonNode references,
+                     String artifactPath, Long version, String error, String updatedAt,
+                     String requestId, String phase) {
+            this(state, intent, reply, references, artifactPath, version, error, updatedAt, requestId, phase, null, null, null);
+        }
+
+        public State(String state, String intent, String reply, JsonNode references,
+                     String artifactPath, Long version, String error, String updatedAt,
+                     String requestId, String phase, Boolean sessionSaved) {
+            this(state, intent, reply, references, artifactPath, version, error, updatedAt, requestId, phase, sessionSaved, null, null);
+        }
+    }
 }

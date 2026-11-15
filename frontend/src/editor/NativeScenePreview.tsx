@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Player, type PlayerRef } from '@remotion/player'
 import { SceneComposition } from './SceneComposition'
+import { valueAt } from './keyframes'
 import type { SceneDocument } from './types'
 import { resolveDocument } from './service'
 export function NativeScenePreview({
@@ -123,11 +124,13 @@ export function NativeScenePreview({
                     aria-label={`选择图层：${layer.name}`}
                     data-selected={selected === layer.id}
                     style={{
-                      left: layer.x * scale,
-                      top: layer.y * scale,
+                      left: valueAt(layer, 'x', time) * scale,
+                      top: valueAt(layer, 'y', time) * scale,
                       width: layer.width * scale,
                       height: layer.height * scale,
-                      transform: `rotate(${layer.rotation}deg)`,
+                      transform: `rotate(${valueAt(layer, 'rotation', time)}deg) scale(${valueAt(layer, 'scale', time)})`,
+                      opacity: valueAt(layer, 'opacity', time),
+                      transformOrigin: `${layer.transformOriginX}% ${layer.transformOriginY}%`,
                     }}
                     onClick={() => onSelect(layer.id)}
                     onPointerDown={(e) => {

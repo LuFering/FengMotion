@@ -1,0 +1,969 @@
+/* ═══════════════════════════════════════════════════════════════════
+   FengMotion Workbench Timeline
+   面向 AI 修改的时间与内容指认区
+   设计基准：
+   - 保留现有主题令牌、项目字体及品牌蓝；
+   - 贴合外层工作台边界，无嵌套卡片；
+   - 默认简洁，选中后在固定位置展开操作；
+   - 结构严谨对齐：工具栏(44) + 标尺(28) + 缩略帧(36) + 轨道行(44×n) + 平移条(14)。
+   ═══════════════════════════════════════════════════════════════════ */
+
+.wb-tl {
+  --wb-tl-gutter: 144px;
+  --wb-tl-head-h: 44px;
+  --wb-tl-ruler-h: 28px;
+  --wb-tl-film-h: 28px;
+  --wb-tl-row-h: 44px;
+
+  flex: 0 1 auto;
+  min-height: 0;
+  max-height: min(340px, 46vh);
+  min-width: 0;
+  position: relative;
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--line);
+  background: var(--panel2);
+  color: var(--tx2);
+  font-family: var(--sans);
+  font-size: 11px;
+  user-select: none;
+  overflow: hidden;
+}
+
+/* ── 1. 工具栏（高 44px，降低装饰，稳定位置） ── */
+.wb-tl-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex: none;
+  height: var(--wb-tl-head-h);
+  padding: 0 14px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+  gap: 12px;
+}
+
+.wb-tl-head-left {
+  display: flex;
+  align-items: center;
+  gap: 14px; /* 时间读数、逐帧、选区组间 14px 呼吸间距，不加多余卡片框 */
+  flex: none;
+}
+
+.wb-tl-head-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+}
+
+.wb-tl-head-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.wb-tl-title {
+  color: var(--tx);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+/* 时码读数：现有无衬线字体，等宽数字，去除明显输入框底色与厚边框 */
+.wb-tl-readout {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  color: var(--tx);
+  font-family: var(--sans);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.wb-tl-time-current {
+  color: var(--tx);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.wb-tl-sep {
+  color: var(--tx3);
+  font-size: 11px;
+}
+
+.wb-tl-total {
+  color: var(--tx3);
+  font-size: 11px;
+  font-weight: 400;
+}
+
+/* 工具栏图标与按钮：提高可用图标对比度，禁用明显淡化，悬停统一轻底色 */
+.wb-tl-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--tx);
+  cursor: pointer;
+  transition: background-color 120ms ease, color 120ms ease, opacity 120ms ease;
+}
+
+.wb-tl-icon.sm {
+  width: 22px;
+  height: 22px;
+}
+
+.wb-tl-icon:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--tx) 8%, transparent);
+  color: var(--tx);
+}
+
+.wb-tl-icon[data-active] {
+  background: var(--sel);
+  color: var(--acc-tx);
+}
+
+.wb-tl-icon:disabled {
+  opacity: 0.28;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.wb-tl-frame-step,
+.wb-tl-range-markers {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/* 选中反馈胶囊：位于工具栏固定位置，减淡外框，突出名称，时间与参考标签保持次要 */
+.wb-tl-focus-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  padding: 2.5px 6px 2.5px 10px;
+  border: 1px solid color-mix(in srgb, var(--tx) 9%, var(--line));
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--tx) 3.5%, var(--panel));
+  color: var(--tx);
+  font-size: 11px;
+  white-space: nowrap;
+  flex-wrap: nowrap;
+}
+
+.wb-tl-focus-label {
+  color: var(--tx3);
+  font-size: 10px;
+  font-weight: 400;
+  opacity: 0.75;
+  flex: none;
+}
+
+.wb-tl-focus-name {
+  max-width: min(220px, 28vw);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--tx);
+  flex: 0 1 auto;
+}
+
+.wb-tl-focus-range {
+  color: var(--tx3);
+  font-variant-numeric: tabular-nums;
+  font-size: 10px;
+  opacity: 0.9;
+  flex: none;
+}
+
+.wb-tl-action-btn {
+  padding: 2.5px 8px;
+  border: 0;
+  border-radius: 4px;
+  font-size: 10.5px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  flex: none;
+  transition: background-color 120ms ease, opacity 120ms ease;
+}
+
+.wb-tl-action-btn.primary {
+  background: var(--acc);
+  color: var(--acc-ink);
+}
+
+.wb-tl-action-btn.primary:hover:not(:disabled) {
+  opacity: 0.92;
+}
+
+.wb-tl-ref-tag {
+  padding: 1px 4.5px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--tx) 4%, transparent);
+  border: 1px solid color-mix(in srgb, var(--tx) 8%, transparent);
+  color: var(--tx3);
+  font-size: 9px;
+  cursor: help;
+  white-space: nowrap;
+  flex: none;
+}
+
+/* 缩放控制器 */
+.wb-tl-zoom {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.wb-tl-zoom-slider {
+  appearance: none;
+  width: 64px;
+  height: 3px;
+  margin: 0 4px;
+  border-radius: 999px;
+  background: var(--line2);
+  cursor: pointer;
+}
+
+.wb-tl-zoom-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 10px;
+  height: 10px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--tx2);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  transition: transform 120ms ease, background-color 120ms ease;
+}
+
+.wb-tl-zoom-slider:hover::-webkit-slider-thumb {
+  background: var(--tx);
+  transform: scale(1.15);
+}
+
+.wb-tl-zoom-slider:disabled {
+  opacity: 0.25;
+  cursor: not-allowed;
+}
+
+/* 待确认修改浮动条 */
+.wb-tl-pending {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  background: color-mix(in srgb, var(--acc) 10%, var(--panel));
+  border-bottom: 1px solid color-mix(in srgb, var(--acc) 30%, var(--line));
+}
+
+.wb-tl-pending-copy {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+  font-size: 11px;
+}
+
+.wb-tl-pending-copy strong {
+  color: var(--acc-tx);
+  font-weight: 600;
+  flex: none;
+}
+
+.wb-tl-pending-copy span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--tx2);
+}
+
+.wb-tl-pending-go,
+.wb-tl-pending-drop {
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.wb-tl-pending-drop {
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--tx2);
+}
+
+.wb-tl-pending-go {
+  border: 0;
+  background: var(--acc);
+  color: var(--acc-ink);
+  font-weight: 500;
+}
+
+/* ── 2. 主工作区布局网格（左固定轨道头列 + 右侧时间画布） ── */
+.wb-tl-workspace {
+  position: relative;
+  min-height: 0;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.wb-tl-workspace[data-disabled] {
+  opacity: 0.5;
+}
+
+.wb-tl-grid {
+  display: grid;
+  grid-template-columns: var(--wb-tl-gutter) minmax(0, 1fr);
+}
+
+/* 左右分栏拖拽线 */
+.wb-tl-gutter-resize {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 12;
+  width: 8px;
+  cursor: col-resize;
+  touch-action: none;
+  background: transparent;
+}
+
+.wb-tl-gutter-resize::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 3px;
+  width: 2px;
+  background: var(--acc);
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.wb-tl-gutter-resize:hover::after,
+.wb-tl-gutter-resize:focus-visible::after {
+  opacity: 0.8;
+}
+
+/* ── 3. 标尺行（高 28px）：左侧“内容 参考 ⓘ”，右侧主次刻度标尺 ── */
+.wb-tl-ruler-row {
+  flex: none;
+  height: var(--wb-tl-ruler-h);
+  border-bottom: 1px solid var(--line);
+  background: var(--stage-bg);
+}
+
+.wb-tl-ruler-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px 0 12px;
+  border-right: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--tx2);
+  font-size: 11px;
+}
+
+.wb-tl-meta-title {
+  color: var(--tx2);
+  font-weight: 500;
+  font-size: 11px;
+  line-height: 1;
+}
+
+.wb-tl-ref-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 4.5px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--tx) 4%, transparent);
+  border: 1px solid color-mix(in srgb, var(--tx) 8%, transparent);
+  color: var(--tx3);
+  font-size: 9px;
+  line-height: 1;
+  cursor: help;
+}
+
+.wb-tl-fps-label {
+  margin-left: auto;
+  color: var(--tx3);
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.8;
+  line-height: 1;
+}
+
+.wb-tl-ruler {
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+  background: var(--stage-bg);
+  cursor: pointer;
+  touch-action: none;
+}
+
+/* 主刻度：长刻度线 8px + 顶部时码文字 */
+.wb-tl-tick {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  padding-left: 5px;
+  padding-top: 3px;
+  color: var(--tx2);
+  font-size: 9.5px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* 标尺零点主刻度：离左边界留出清晰空间 */
+.wb-tl-tick[data-first] {
+  padding-left: 8px;
+}
+
+.wb-tl-tick::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 1px;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.24);
+}
+
+.wb-tl-tick[data-last] {
+  transform: translateX(-100%);
+  padding-left: 0;
+  padding-right: 4px;
+}
+
+.wb-tl-tick[data-last]::after {
+  left: auto;
+  right: 0;
+}
+
+/* 次刻度：短线 4px（中点 6px） */
+.wb-tl-tick-minor {
+  position: absolute;
+  bottom: 0;
+  width: 1px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.10);
+  pointer-events: none;
+}
+
+.wb-tl-tick-minor[data-mid] {
+  height: 6px;
+  background: rgba(255, 255, 255, 0.18);
+}
+
+/* 播放头顶部实心倒三角微型标记 */
+.wb-tl-playhead-cap {
+  position: absolute;
+  bottom: 0;
+  z-index: 8;
+  width: 9px;
+  height: 8px;
+  transform: translateX(-50%);
+  background: var(--acc);
+  clip-path: polygon(0 0, 100% 0, 100% 45%, 50% 100%, 0 45%);
+  pointer-events: none;
+}
+
+/* 贯穿全部轨道的内容区 1px 品牌蓝竖线 */
+.wb-tl-playhead {
+  position: absolute;
+  z-index: 6;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  transform: translateX(-50%);
+  background: var(--acc);
+  box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+}
+
+/* ── 4. 真实缩略帧带（高 28px，去亮色帧缝，去左侧独立标签） ── */
+.wb-tl-ruler-film {
+  flex: none;
+  height: var(--wb-tl-film-h);
+  border-bottom: 1px solid var(--line);
+  background: var(--stage-bg);
+}
+
+.wb-tl-film-meta {
+  border-right: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.wb-tl-ruler-film .wb-tl-lane,
+.wb-tl-track {
+  height: var(--wb-tl-film-h);
+}
+
+.wb-tl-track {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  background: var(--stage-bg);
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.wb-tl-film-window {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 0.88;
+}
+
+.wb-tl-film-position {
+  position: absolute;
+  top: 0;
+  height: 100%;
+}
+
+.wb-tl-filmstrip {
+  display: flex;
+  width: 100%;
+  height: 100%;
+}
+
+.wb-tl-filmstrip canvas {
+  display: block;
+  flex: 1 1 0;
+  width: 0;
+  height: 100%;
+  object-fit: cover;
+  border-right: none;
+}
+
+/* ── 5. 轨道列表（行高 44px） ── */
+.wb-tl-rows {
+  position: relative;
+  min-height: 0;
+  overflow-y: auto;
+  flex: 1 1 auto;
+  overscroll-behavior-y: contain;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--tx3) 50%, transparent) transparent;
+}
+
+.wb-tl-rows::-webkit-scrollbar {
+  width: 5px;
+}
+
+.wb-tl-rows::-webkit-scrollbar-thumb {
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--tx3) 50%, transparent);
+}
+
+.wb-tl-row-track {
+  height: var(--wb-tl-row-h);
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+  transition: background-color 100ms ease;
+}
+
+.wb-tl-row-track[data-active] {
+  background: color-mix(in srgb, var(--acc) 1.5%, var(--panel));
+}
+
+/* 轨道头：折叠箭头 → 类型图标 → 轨道名称 → 次要代号 */
+.wb-tl-gutter {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  padding: 0 10px 0 12px;
+  border-right: 1px solid var(--line);
+  background: var(--panel);
+  overflow: hidden;
+}
+
+.wb-tl-row-track[data-active] .wb-tl-gutter {
+  background: color-mix(in srgb, var(--acc) 2.5%, var(--panel));
+  box-shadow: inset 2px 0 0 var(--acc);
+}
+
+/* 折叠箭头：展开朝下、折叠朝右 */
+.wb-tl-track-fold {
+  display: grid;
+  place-items: center;
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--tx3);
+  cursor: pointer;
+  transition: color 120ms ease;
+}
+
+.wb-tl-track-fold:hover {
+  color: var(--tx);
+}
+
+.wb-tl-fold-arrow {
+  transform: rotate(0deg);
+  transition: transform 120ms ease;
+}
+
+.wb-tl-fold-arrow.is-expanded {
+  transform: rotate(90deg);
+}
+
+/* 类型图标（去掉方盒底座，直接呈现语义图标） */
+.wb-tl-track-type-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
+  color: var(--tx2);
+}
+
+.wb-tl-row-track[data-visual='text'] .wb-tl-track-type-icon {
+  color: color-mix(in srgb, var(--mark) 80%, var(--tx2));
+}
+
+.wb-tl-row-track[data-visual='video'] .wb-tl-track-type-icon {
+  color: color-mix(in srgb, var(--acc) 80%, var(--tx2));
+}
+
+.wb-tl-row-track[data-visual='background'] .wb-tl-track-type-icon {
+  color: var(--tx2);
+}
+
+/* 轨道名称：12px、中等字重、主要识别信息，统一基线 */
+.wb-tl-track-name {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--tx);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* 次要代号（如 V1、V2、T1）：10px、低对比度、无徽章边框与底色 */
+.wb-tl-track-code {
+  flex: 0 0 auto;
+  color: var(--tx3);
+  font-size: 10px;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  opacity: 0.8;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* 单片段时不显示；多片段紧凑数字 */
+.wb-tl-track-count {
+  margin-left: auto;
+  flex: 0 0 auto;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--tx3);
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 折叠态 */
+.wb-tl-row-track[data-collapsed],
+.wb-tl-row-track[data-collapsed] .wb-tl-lane {
+  height: 24px;
+}
+
+.wb-tl-row-track[data-collapsed] .wb-tl-track-name,
+.wb-tl-row-track[data-collapsed] .wb-tl-track-code {
+  display: none;
+}
+
+/* 右侧轨道槽 */
+.wb-tl-lane {
+  position: relative;
+  min-width: 0;
+}
+
+.wb-tl-row-track .wb-tl-lane {
+  height: var(--wb-tl-row-h);
+  background: var(--panel2);
+}
+
+/* ── 6. 片段（内容条质感：降低边框对比、增加背景明度；选中浅蓝底＋1px蓝边） ── */
+.wb-tl-clip {
+  position: absolute;
+  top: 7px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+  padding: 0 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  box-sizing: border-box;
+  transition: background-color 100ms ease, border-color 100ms ease;
+  min-width: 8px;
+
+  /* 统一浅中性底：增加背景明度，边框融入背景，呈现内容实体感 */
+  background: color-mix(in srgb, var(--tx) 10%, var(--panel2));
+  border: 1px solid color-mix(in srgb, var(--tx) 7%, transparent);
+  border-left: 2.5px solid color-mix(in srgb, var(--tx) 25%, var(--line));
+  color: var(--tx);
+}
+
+/* 语义轻微类型色线 */
+.wb-tl-row-track[data-visual='video'] .wb-tl-clip,
+.wb-tl-clip[data-kind='video'] {
+  border-left-color: var(--acc);
+}
+
+.wb-tl-row-track[data-visual='text'] .wb-tl-clip,
+.wb-tl-clip[data-kind='text'] {
+  border-left-color: color-mix(in srgb, var(--mark) 80%, var(--tx));
+}
+
+.wb-tl-row-track[data-visual='background'] .wb-tl-clip,
+.wb-tl-clip[data-kind='background'] {
+  border-left-color: color-mix(in srgb, var(--tx) 28%, var(--line));
+}
+
+/* 悬停微加深，不叠加任何多余阴影 */
+.wb-tl-clip:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--tx) 14%, var(--panel2));
+  border-color: color-mix(in srgb, var(--tx) 14%, transparent);
+}
+
+/* 选中态：减轻视觉重量，浅蓝底 ＋ 1px 清晰蓝边，保留深色文字，去除外侧发光 */
+.wb-tl-clip[data-picked] {
+  background: color-mix(in srgb, var(--acc) 14%, var(--panel2)) !important;
+  border: 1px solid var(--acc) !important;
+  border-left: 1px solid var(--acc) !important;
+  box-shadow: none !important;
+  color: var(--tx) !important;
+  z-index: 3;
+}
+
+.wb-tl-clip[data-picked]:focus-visible {
+  outline: 2px solid var(--acc);
+  outline-offset: 1px;
+}
+
+.wb-tl-clip-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 14px;
+  height: 14px;
+  color: var(--tx2);
+}
+
+.wb-tl-clip[data-picked] .wb-tl-clip-icon {
+  color: var(--acc);
+}
+
+.wb-tl-clip-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 500;
+  color: inherit;
+  letter-spacing: 0.01em;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* ── 7. 选区指示 ── */
+.wb-tl-span-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  background: var(--sel);
+  border-inline: 1px solid color-mix(in srgb, var(--acc) 60%, transparent);
+}
+
+.wb-tl-range {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 2;
+  background: rgba(59, 140, 248, 0.22);
+  box-shadow: inset 0 -1.5px 0 var(--acc);
+  pointer-events: none;
+}
+
+.wb-tl-range[data-looping] {
+  background: rgba(59, 140, 248, 0.32);
+}
+
+.wb-tl-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 12px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: ew-resize;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+.wb-tl-handle[data-edge='start'] {
+  left: -6px;
+}
+
+.wb-tl-handle[data-edge='end'] {
+  right: -6px;
+}
+
+.wb-tl-handle::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 4px;
+  width: 3px;
+  border-radius: 1.5px;
+  background: var(--acc);
+}
+
+/* ── 8. 底部平移导航条（高 14px） ── */
+.wb-tl-pan {
+  position: relative;
+  flex: none;
+  height: 14px;
+  margin: 0 10px 0 calc(var(--wb-tl-gutter) + 10px);
+  background: transparent;
+  cursor: pointer;
+  touch-action: none;
+}
+
+.wb-tl-pan::before {
+  content: '';
+  position: absolute;
+  top: 5px;
+  bottom: 5px;
+  left: 0;
+  right: 0;
+  border-radius: 2px;
+  background: var(--line);
+}
+
+.wb-tl-pan-thumb {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  min-width: 16px;
+  border-radius: 3px;
+  background: var(--tx3);
+  opacity: 0.6;
+  cursor: grab;
+}
+
+.wb-tl-pan:hover .wb-tl-pan-thumb,
+.wb-tl-pan:focus-visible .wb-tl-pan-thumb {
+  opacity: 1;
+}
+
+.wb-tl-pan:active .wb-tl-pan-thumb {
+  cursor: grabbing;
+}
+
+.wb-tl-pan[data-disabled] {
+  display: none;
+}
+
+.wb-tl-empty {
+  padding: 14px;
+  color: var(--tx3);
+  font-size: 11px;
+}
+
+/* 焦点可见轮廓 */
+.wb-tl-icon:focus-visible,
+.wb-tl-ruler:focus-visible,
+.wb-tl-zoom-slider:focus-visible,
+.wb-tl-clip:focus-visible {
+  outline: 2px solid var(--acc);
+  outline-offset: 1px;
+}
+
+/* 响应式收拢 */
+@container (max-width: 700px) {
+  .wb-tl-head {
+    gap: 8px;
+    padding: 0 10px;
+  }
+  .wb-tl-head-left {
+    gap: 8px;
+  }
+  .wb-tl-focus-label {
+    display: none;
+  }
+}
+
+@container (max-width: 620px) {
+  .wb-tl {
+    --wb-tl-gutter: 118px;
+  }
+  .wb-tl-title,
+  .wb-tl-fps-label,
+  .wb-tl-focus-range {
+    display: none;
+  }
+}
+
+@container (max-width: 460px) {
+  .wb-tl {
+    --wb-tl-gutter: 96px;
+  }
+  .wb-tl-track-code {
+    display: none;
+  }
+  .wb-tl-zoom-slider {
+    width: 40px;
+  }
+}

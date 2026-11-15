@@ -9,6 +9,8 @@ export interface ChatMessage {
   references?: import('@/types/contracts').AgentReference[]
   taskId?: string
   projectId?: string
+  /** 归属会话 id；严格隔离不同会话的消息，防止跨会话串味 */
+  sessionId?: string
   /** 消息时间（工作台对话 tab 只渲染 text，本字段对它无影响） */
   at?: number
   /** 对话视图的演示附加块（工作台对话 tab 只渲染 text，本字段对它无影响） */
@@ -87,9 +89,9 @@ export function useChat() {
   const [messages, setMessages] = useState(INITIAL_MESSAGES)
   const [draft, setDraft] = useState('')
   /* 返回新消息 id：排队中的消息先占位，任务真正启动时再把 taskId 补上去。 */
-  const addUserMessage = (text: string, taskId?: string, projectId?: string) => {
+  const addUserMessage = (text: string, taskId?: string, projectId?: string, sessionId?: string) => {
     const id = makeId()
-    setMessages((items) => [...items, { id, role: 'user', text, taskId, projectId, at: Date.now() }])
+    setMessages((items) => [...items, { id, role: 'user', text, taskId, projectId, sessionId, at: Date.now() }])
     return id
   }
   const setMessageTaskId = (messageId: string, taskId: string) => {
@@ -113,12 +115,21 @@ export function useChat() {
      契约要求不得用半截文本冒充完成。
      `demo` 只给演示适配器产的回复：服务端真回复传 `{ demo: false }`，
      否则界面会给真实回复挂上「未连接 Agent」的假标签。 */
-  const startAiMessage = (options: { demo?: boolean } = {}) => {
+  const startAiMessage = (options: { demo?: boolean; projectId?: string; sessionId?: string } = {}) => {
     const id = makeId()
     const demo = options.demo ?? true
     setMessages((items) => [
       ...items,
-      { id, role: 'ai', text: '', at: Date.now(), streaming: true, demo },
+      {
+        id,
+        role: 'ai',
+        text: '',
+        at: Date.now(),
+        streaming: true,
+        demo,
+        projectId: options.projectId,
+        sessionId: options.sessionId,
+      },
     ])
     return id
   }
@@ -140,6 +151,55 @@ export function useChat() {
     todos: { content: string; status: 'pending' | 'in_progress' | 'completed' }[],
   ) => {
     setMessages((items) => items.map((m) => (m.id === messageId ? { ...m, todos } : m)))
+  }
+
+  /**
+   * 记录一次工具调用（实时）。
+   *
+   * <p>侧栏原先只在 `onCompleted` 时收到工具列表，且那里传的是 `undefined` ——
+   * 于是执行过程中看不到任何步骤，只有事后重读历史才有。现在流式期间
+   * 就按同一套规则维护记录，与对话区一致：</p>
+   * <ul>
+   *   <li>带 `arguments` → 这是一次新调用的开始帧，追加条目（`done` 不写）；</li>
+   *   <li>带 `callId` 但没 `arguments` → 结果帧，回填 `done: true`（及 `isError`）。</li>
+   * </ul>
+   *
+   * <p><strong>开始帧不写 `done: false`</strong>：后端落库时也不写，
+   * 只有收到结果才回填。前端若在这里塞 `false`，重读历史后会变成
+   * 「没有完成标记」，与实时态不一致。</p>
+   */
+  const recordToolCall = (
+    messageId: string,
+    call: { callId?: string; name: string; arguments?: string; isError?: boolean; finished?: boolean },
+  ) => {
+    setMessages((items) => items.map((m) => {
+      if (m.id !== messageId) return m
+      const list = m.executedTools ?? []
+      if (call.finished) {
+        /* 结果帧：只翻转状态，不清空 name/arguments
+           （后端结果帧不带 name，整个覆盖会让名字在结束瞬间消失）。 */
+        if (!call.callId) return m
+        return {
+          ...m,
+          executedTools: list.map((c) => (
+            c.callId === call.callId
+              ? { ...c, done: true, ...(call.isError ? { isError: true } : {}) }
+              : c
+          )),
+        }
+      }
+      return {
+        ...m,
+        executedTools: [
+          ...list,
+          {
+            callId: call.callId ?? `anon-${list.length}`,
+            name: call.name,
+            ...(call.arguments ? { arguments: call.arguments } : {}),
+          },
+        ],
+      }
+    }))
   }
 
   /** 追加一条过程诊断；同 kind 只保留最后一条，避免重试刷屏。 */
@@ -207,7 +267,7 @@ export function useChat() {
   }
   return {
     messages, draft, setDraft, addUserMessage, setMessageTaskId, addAiMessage, appendMessage, clearChat,
-    replaceMessages, startAiMessage, appendAiText, appendAiReasoning, setAiTodos, addAiDiagnostic, finishAiMessage, failAiMessage, removeMessage,
+    replaceMessages, startAiMessage, appendAiText, appendAiReasoning, setAiTodos, recordToolCall, addAiDiagnostic, finishAiMessage, failAiMessage, removeMessage,
   }
 }
 

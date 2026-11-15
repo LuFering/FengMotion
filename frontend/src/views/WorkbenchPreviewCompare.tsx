@@ -1,80 +1,385 @@
 import { useEffect, useRef, useState } from 'react'
-import { GitCompareArrows, Maximize2, Pause, Play, X } from 'lucide-react'
+import { ArrowLeftRight, GitCompareArrows, Maximize2, Pause, Play, SlidersHorizontal, X } from 'lucide-react'
 import type { StageVisual } from '@/data/stageVisual'
 import { containedMediaRect, formatMediaTime } from '@/data/previewGeometry'
 
-/** Compare actual files at a shared time; never synthesize a before/after result. */
+/**
+ * 真实预览对比组件：
+ * 严格使用双侧真实视频/图片文件；
+ * 支持联动同步（默认定位到修改目标时间）与分别定位（应对两版时长或剪辑变动导致时间偏移的场景）；
+ * 左右交换时保留各自独立播放时间；切回联动时先统一对齐两侧时间再恢复同步；
+ * 旧框选区域默认标为基准目标，新版本仅作为原位置参考且提意见时绝不自动绑定旧框。
+ */
 export function WorkbenchPreviewCompare({ left, right, initialTime, bbox, onClose, onDiscuss, onFocus, focused }: {
   left: StageVisual
   right: StageVisual
   /** 打开时对齐到的秒数：从「用户指的那一帧」打开，而不是从 0 开始 */
   initialTime?: number
-  /** 用户框选的区域（归一化 0–1，相对媒体画面）：两侧画同一个框，保证看的是同一处 */
+  /** 用户框选的区域（归一化 0–1，相对媒体画面） */
   bbox?: { x: number; y: number; w: number; h: number } | null
   onClose: () => void
   onFocus: () => void
   focused: boolean
-  onDiscuss: (visual: StageVisual, seconds?: number) => void
+  onDiscuss: (visual: StageVisual, seconds: number | undefined, image: string, bbox?: { x: number; y: number; w: number; h: number } | null) => void
 }) {
   const videos = useRef<(HTMLVideoElement | null)[]>([null, null])
   const stills = useRef<(HTMLImageElement | null)[]>([null, null])
-  const [durations, setDurations] = useState([0, 0])
-  /* 缺省或 NaN 都退回原来的「从 0 开始」，调用方不必保证一定传值；
-     秒数只对视频有意义 —— 图片没有可对齐的时间轴。 */
+
   const startAt = left.media === 'video' && typeof initialTime === 'number' && Number.isFinite(initialTime) ? Math.max(0, initialTime) : 0
+
+  // 严格按版本 ID 维护每个视频自身的播放进度与时长，不受左右交换重挂载影响
+  const visualTimes = useRef<Record<string, number>>({
+    [left.id]: startAt,
+    [right.id]: startAt,
+  })
+  const visualDurations = useRef<Record<string, number>>({})
+
+  const [durations, setDurations] = useState<Record<string, number>>({})
+  const [displayTimes, setDisplayTimes] = useState<Record<string, number>>({
+    [left.id]: startAt,
+    [right.id]: startAt,
+  })
+  const [sidePlaying, setSidePlaying] = useState<[boolean, boolean]>([false, false])
   const [time, setTime] = useState(startAt)
+  const [mode, setMode] = useState<'linked' | 'independent'>('linked')
   const [playing, setPlaying] = useState(false)
   const [failed, setFailed] = useState(false)
-  const duration = Math.min(...durations)
-  /* 共享时长要等两侧元数据都到齐才算得出来，所以对齐值可能先大于可播范围；
-     到齐后钳一次，否则滑杆和「继续提意见」带上的秒数会指到素材之外。 */
-  useEffect(() => { if (duration > 0) setTime((current) => Math.min(current, duration)) }, [duration])
-  const pause = () => { videos.current.forEach((v) => v?.pause()); setPlaying(false) }
-  const seek = (seconds: number) => { pause(); videos.current.forEach((v) => { if (v && v.readyState >= 1) v.currentTime = seconds }); setTime(seconds) }
-  const play = async () => {
-    if (playing) { pause(); return }
-    if (time >= duration) seek(0)
-    try { await Promise.all(videos.current.map((v) => v?.play())); setPlaying(true) } catch { pause(); setFailed(true) }
+  const [captureError, setCaptureError] = useState('')
+
+  // 左右交换功能：只改显示槽位，各版本自身保留独立进度
+  const [swapped, setSwapped] = useState(false)
+  const swap = () => {
+    pauseAll()
+    setSwapped((value) => !value)
   }
-  const tick = (media: HTMLVideoElement) => {
-    if (media.currentTime >= duration) { pause(); setTime(duration); return }
-    setTime(media.currentTime)
-    const other = videos.current[1]
-    if (other && Math.abs(other.currentTime - media.currentTime) > 0.12) other.currentTime = media.currentTime
+  const sides: [StageVisual, StageVisual] = swapped ? [right, left] : [left, right]
+
+  const leftDuration = durations[left.id] ?? 0
+  const rightDuration = durations[right.id] ?? 0
+  const duration = (leftDuration > 0 && rightDuration > 0)
+    ? Math.min(leftDuration, rightDuration)
+    : Math.max(leftDuration, rightDuration)
+
+  useEffect(() => {
+    if (duration > 0 && mode === 'linked') {
+      setTime((current) => Math.min(current, duration))
+    }
+  }, [duration, mode])
+
+  const pauseAll = () => {
+    videos.current.forEach((v) => v?.pause())
+    setPlaying(false)
+    setSidePlaying([false, false])
   }
-  /* 先说清「看的是哪一处」：区域框两侧画同一个，对齐值说明从哪一帧打开。
-     只陈述已经发生的事，不写「已优化 / 已渲染」这类还没执行就宣称完成的话。 */
-  const regionNote = bbox ? '两侧画的是同一个框选区域，用来确认比较的是同一处。' : ''
-  const alignNote = startAt > 0 ? `已对齐到你指的那一帧（${formatMediaTime(startAt)}）。` : ''
-  return <section className="wb-preview-compare" aria-label="真实预览同步对比">
-    <header><div><GitCompareArrows size={16}/><span>同步对比</span><small>同一播放时间 · 原始文件</small></div><button type="button" className="wb-compare-focus" onClick={onFocus}><Maximize2 size={13}/>{focused ? '展开审阅' : '专注画面'}</button><button type="button" onClick={onClose} aria-label="关闭预览对比"><X size={17}/></button></header>
-    <div className="wb-compare-pair">{[left, right].map((visual, index) => <figure key={`${index}:${visual.id}`}>
-      <figcaption><span>{index === 0 ? 'A / 对照画面' : 'B / 本轮画面'}</span><b>{visual.name}</b><small>{visual.tierLabel} · {visual.origin==='editor'?'编辑版本':'工作流'} v{visual.revision}</small></figcaption>
-      <div className="wb-compare-media">
-        {visual.media === 'video' ? <video muted playsInline preload="metadata" src={visual.file} ref={(v) => { videos.current[index] = v }} onLoadedMetadata={(e) => {
-          /* 打开时对齐到用户指的那一帧：readyState>=1 才设得进去（元数据没到就没有 duration）；
-             initialTime 可能超过这一侧时长，按本侧自己的 duration 钳制 —— 共享时长仍取两侧较短值。 */
-          const media = e.currentTarget
-          const own = media.duration
-          setDurations((old) => old.map((d, i) => (i === index ? (Number.isFinite(own) ? own : 0) : d)))
-          if (startAt > 0 && media.readyState >= 1 && Number.isFinite(own)) media.currentTime = Math.min(startAt, own)
-        }} onTimeUpdate={index === 0 ? (e) => tick(e.currentTarget) : undefined} onEnded={pause} onError={() => { pause(); setFailed(true) }}/> : <img src={visual.file} alt={`${index === 0 ? '对照' : '本轮'}：${visual.name}`} ref={(el) => { stills.current[index] = el }} onError={() => setFailed(true)}/>}
-        {/* 两侧同一个 bbox 各画一次；tickSeconds 让播放/拖动时重算，框跟着真实媒体矩形走 */}
-        {bbox && <CompareRegionBox media={visual.media === 'video' ? videos : stills} index={index} bbox={bbox} tickSeconds={time}/>}
+
+  // 联动 Seek：同时更新两侧与共享时间
+  const seekLinked = (seconds: number) => {
+    pauseAll()
+    videos.current.forEach((v) => {
+      if (v && v.readyState >= 1) v.currentTime = seconds
+    })
+    visualTimes.current[left.id] = seconds
+    visualTimes.current[right.id] = seconds
+    setTime(seconds)
+    setDisplayTimes({ [left.id]: seconds, [right.id]: seconds })
+  }
+
+  // 独立 Seek：只更新该槽位对应版本的进度
+  const seekSide = (index: number, visualId: string, seconds: number) => {
+    const v = videos.current[index]
+    if (v && v.readyState >= 1) {
+      v.pause()
+      v.currentTime = seconds
+    }
+    visualTimes.current[visualId] = seconds
+    setSidePlaying((old) => [index === 0 ? false : old[0], index === 1 ? false : old[1]])
+    setDisplayTimes((old) => ({ ...old, [visualId]: seconds }))
+  }
+
+  // 分别定位切回联动：明确以基准画面（或当前左侧画面）为时间基准，先对齐两侧时间再同步
+  const switchToLinked = () => {
+    pauseAll()
+    const anchorId = sides[0].id
+    const anchorTime = visualTimes.current[anchorId] ?? time
+    const clamped = duration > 0 ? Math.min(anchorTime, duration) : anchorTime
+
+    videos.current.forEach((v) => {
+      if (v && v.readyState >= 1) {
+        v.currentTime = clamped
+      }
+    })
+    visualTimes.current[left.id] = clamped
+    visualTimes.current[right.id] = clamped
+    setDisplayTimes({ [left.id]: clamped, [right.id]: clamped })
+    setTime(clamped)
+    setMode('linked')
+  }
+
+  const playLinked = async () => {
+    if (playing) {
+      pauseAll()
+      return
+    }
+    if (time >= duration) seekLinked(0)
+    try {
+      await Promise.all(videos.current.map((v) => v?.play()))
+      setPlaying(true)
+      setSidePlaying([true, true])
+    } catch {
+      pauseAll()
+      setFailed(true)
+    }
+  }
+
+  const playSide = async (index: number, visualId: string) => {
+    const isThisPlaying = sidePlaying[index]
+    const v = videos.current[index]
+    if (!v) return
+    if (isThisPlaying) {
+      v.pause()
+      setSidePlaying((old) => [index === 0 ? false : old[0], index === 1 ? false : old[1]])
+      return
+    }
+    const ownDuration = durations[visualId] ?? 0
+    if (v.currentTime >= ownDuration) {
+      v.currentTime = 0
+    }
+    try {
+      await v.play()
+      setSidePlaying((old) => [index === 0 ? true : old[0], index === 1 ? true : old[1]])
+    } catch {
+      setFailed(true)
+    }
+  }
+
+  const tick = (index: number, visualId: string, media: HTMLVideoElement) => {
+    const own = media.currentTime
+    visualTimes.current[visualId] = own
+    setDisplayTimes((old) => ({ ...old, [visualId]: own }))
+
+    if (mode === 'linked') {
+      if (own >= duration) {
+        pauseAll()
+        setTime(duration)
+        return
+      }
+      setTime(own)
+      const otherIdx = index === 0 ? 1 : 0
+      const other = videos.current[otherIdx]
+      if (other && Math.abs(other.currentTime - own) > 0.12) {
+        other.currentTime = own
+      }
+    }
+  }
+
+  const discuss = (index: number) => {
+    pauseAll()
+    const visual = sides[index]
+    const isBaseline = visual.id === left.id
+    const media = visual.media === 'video' ? videos.current[index] : stills.current[index]
+    try {
+      if (!media) throw new Error('画面未加载')
+      const width = media instanceof HTMLVideoElement ? media.videoWidth : media.naturalWidth
+      const height = media instanceof HTMLVideoElement ? media.videoHeight : media.naturalHeight
+      if (!width || !height) throw new Error('画面未加载')
+      const scale = Math.min(1, 1600 / Math.max(width, height))
+      const canvas = document.createElement('canvas')
+      canvas.width = Math.max(1, Math.round(width * scale))
+      canvas.height = Math.max(1, Math.round(height * scale))
+      const context = canvas.getContext('2d')
+      if (!context) throw new Error('无法创建画布')
+      context.drawImage(media, 0, 0, canvas.width, canvas.height)
+      const seconds = visual.media === 'video' ? (media as HTMLVideoElement).currentTime : undefined
+
+      // 关键防错：基准画面可带上原框；新版本画面绝不自动套用旧框（传 null，由用户重新框定新目标）
+      const regionToAttach = isBaseline ? bbox : null
+      onDiscuss(visual, seconds, canvas.toDataURL('image/jpeg', 0.85), regionToAttach)
+    } catch {
+      setCaptureError('无法提取当前画面，请返回预览后重试。')
+    }
+  }
+
+  const alignLabel = startAt > 0 ? `对齐到 ${formatMediaTime(startAt)}` : ''
+
+  return (
+    <section className="wb-preview-compare" aria-label="真实预览对比">
+      <header>
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <GitCompareArrows size={16} />
+          <span>{mode === 'linked' ? '联动同步对比' : '分别定位对比'}</span>
+          {alignLabel && <small>{alignLabel}</small>}
+        </div>
+
+        {/* 模式切换：联动同步 vs 分别定位 */}
+        <div className="flex items-center gap-1 bg-[var(--hole)] p-0.5 rounded-md border border-[var(--line)] text-xs">
+          <button
+            type="button"
+            className={`px-2 py-0.5 rounded transition-colors ${mode === 'linked' ? 'bg-[var(--surf)] font-medium text-[var(--tx)]' : 'text-[var(--tx3)] hover:text-[var(--tx)]'}`}
+            onClick={switchToLinked}
+            title="以当前画面时间为基准，对齐两侧并恢复联动同步"
+          >
+            联动同步
+          </button>
+          <button
+            type="button"
+            className={`px-2 py-0.5 rounded transition-colors flex items-center gap-1 ${mode === 'independent' ? 'bg-[var(--surf)] font-medium text-[var(--tx)]' : 'text-[var(--tx3)] hover:text-[var(--tx)]'}`}
+            onClick={() => {
+              pauseAll()
+              setMode('independent')
+            }}
+            title="当两版时长或剪辑变动导致时间偏移时，允许分别定位左右两侧画面"
+          >
+            <SlidersHorizontal size={11} />
+            分别定位
+          </button>
+        </div>
+
+        <button type="button" className="wb-compare-swap" onClick={swap} title="交换左右两侧">
+          <ArrowLeftRight size={13} />交换
+        </button>
+        <button type="button" className="wb-compare-focus" onClick={onFocus}>
+          <Maximize2 size={13} />{focused ? '展开审阅' : '专注画面'}
+        </button>
+        <button type="button" onClick={onClose} aria-label="关闭预览对比">
+          <X size={17} />
+        </button>
+      </header>
+
+      <div className="wb-compare-pair">
+        {[0, 1].map((index) => {
+          const visual = sides[index]
+          const isBaseline = visual.id === left.id
+          const ownDuration = durations[visual.id] ?? 0
+          const currentVisualTime = displayTimes[visual.id] ?? startAt
+          const isSidePlaying = sidePlaying[index]
+
+          return (
+            <figure key={`${index}:${visual.id}`} className="flex flex-col">
+              <figcaption>
+                <span>{isBaseline ? '基准对照画面' : '本轮生成画面'}</span>
+                <b>{visual.name}</b>
+                <small>{visual.tierLabel} · {visual.origin === 'scene' ? '场景版本' : visual.origin === 'editor' ? '编辑版本' : '工作流'} v{visual.revision}</small>
+              </figcaption>
+
+              <div className="wb-compare-media">
+                {visual.media === 'video' ? (
+                  <video
+                    muted
+                    playsInline
+                    crossOrigin="anonymous"
+                    preload="metadata"
+                    src={visual.file}
+                    ref={(v) => { videos.current[index] = v }}
+                    onLoadedMetadata={(e) => {
+                      const media = e.currentTarget
+                      const own = media.duration
+                      if (Number.isFinite(own)) {
+                        visualDurations.current[visual.id] = own
+                        setDurations((old) => ({ ...old, [visual.id]: own }))
+                      }
+                      // 关键修复：从 visualTimes 中读取该版本自己之前停留的时间，绝不重置回 startAt
+                      const savedTime = visualTimes.current[visual.id] ?? startAt
+                      if (media.readyState >= 1 && Number.isFinite(own)) {
+                        media.currentTime = Math.min(savedTime, own)
+                      }
+                    }}
+                    onTimeUpdate={(e) => tick(index, visual.id, e.currentTarget)}
+                    onEnded={pauseAll}
+                    onError={() => { pauseAll(); setFailed(true) }}
+                  />
+                ) : (
+                  <img
+                    crossOrigin="anonymous"
+                    src={visual.file}
+                    alt={`${isBaseline ? '对照' : '本轮'}：${visual.name}`}
+                    ref={(el) => { stills.current[index] = el }}
+                    onError={() => setFailed(true)}
+                  />
+                )}
+
+                {/* 框选区域：基准画面绘制原目标区域；新版本画面若展示则明确标为原位置参考虚线 */}
+                {bbox && (
+                  <CompareRegionBox
+                    media={visual.media === 'video' ? videos : stills}
+                    index={index}
+                    bbox={bbox}
+                    tickSeconds={currentVisualTime}
+                    isBaseline={isBaseline}
+                  />
+                )}
+              </div>
+
+              {/* 分别定位模式下的独立时间轴调节器 */}
+              {mode === 'independent' && visual.media === 'video' && (
+                <div className="flex items-center gap-1.5 px-2 py-1.5 bg-[var(--hole)] border-t border-[var(--line)] text-xs">
+                  <button
+                    type="button"
+                    className="p-1 text-[var(--tx)] hover:text-blue-500"
+                    onClick={() => void playSide(index, visual.id)}
+                    aria-label={isSidePlaying ? '暂停' : '播放'}
+                  >
+                    {isSidePlaying ? <Pause size={13} /> : <Play size={13} />}
+                  </button>
+                  <time className="font-mono text-[11px] shrink-0 text-[var(--tx2)]">{formatMediaTime(currentVisualTime)}</time>
+                  <input
+                    type="range"
+                    aria-label={`单独调整${isBaseline ? '基准' : '本轮'}画面时间`}
+                    className="flex-1 accent-blue-500 h-1"
+                    min={0}
+                    max={ownDuration || 0}
+                    step={0.001}
+                    value={Math.min(currentVisualTime, ownDuration || 0)}
+                    disabled={!ownDuration}
+                    onChange={(e) => seekSide(index, visual.id, Number(e.target.value))}
+                  />
+                  <time className="font-mono text-[11px] shrink-0 text-[var(--tx3)]">{formatMediaTime(ownDuration)}</time>
+                </div>
+              )}
+
+              <button type="button" onClick={() => discuss(index)}>
+                针对{isBaseline ? '基准对照' : '本轮生成'}画面继续提意见
+              </button>
+            </figure>
+          )
+        })}
       </div>
-      <button type="button" onClick={() => { pause(); onDiscuss(visual, visual.media === 'video' ? time : undefined) }}>针对{index === 0 ? '对照' : '本轮'}画面继续提意见</button>
-    </figure>)}</div>
-    {failed ? <div className="wb-compare-error" role="alert">有画面加载或播放失败，请返回预览检查文件后重试。<button type="button" onClick={onClose}>返回预览</button></div> : left.media === 'video' && <div className="wb-compare-transport"><button type="button" onClick={() => void play()} disabled={!duration} aria-label={playing ? '暂停同步对比' : '播放同步对比'}>{playing ? <Pause size={17}/> : <Play size={17}/>}</button><time>{formatMediaTime(time)}</time><input type="range" aria-label="同步对比时间" min={0} max={duration || 0} step={0.001} value={Math.min(time, duration)} disabled={!duration} onChange={(e) => seek(Number(e.target.value))}/><time>{formatMediaTime(duration)}</time></div>}
-    <p className="wb-compare-caption">{left.media === 'video' ? `同步到相同秒数，播放范围取两段视频的较短时长。${regionNote}${alignNote}不同剪辑的内容位置可能不同。` : `两张原始图片并排展示，保留各自画幅。${regionNote}`} <span>你的审阅结论与自动检查结果分别记录。</span></p>
-  </section>
+
+      {captureError && <div className="wb-compare-error" role="alert">{captureError}</div>}
+
+      {failed ? (
+        <div className="wb-compare-error" role="alert">
+          有画面加载或播放失败，请返回预览检查文件后重试。
+          <button type="button" onClick={onClose}>返回预览</button>
+        </div>
+      ) : mode === 'linked' && left.media === 'video' && (
+        <div className="wb-compare-transport">
+          <button type="button" onClick={() => void playLinked()} disabled={!duration} aria-label={playing ? '暂停同步对比' : '播放同步对比'}>
+            {playing ? <Pause size={17} /> : <Play size={17} />}
+          </button>
+          <time>{formatMediaTime(time)}</time>
+          <input
+            type="range"
+            aria-label="同步对比时间"
+            min={0}
+            max={duration || 0}
+            step={0.001}
+            value={Math.min(time, duration)}
+            disabled={!duration}
+            onChange={(e) => seekLinked(Number(e.target.value))}
+          />
+          <time>{formatMediaTime(duration)}</time>
+        </div>
+      )}
+    </section>
+  )
 }
 
-/* 两侧的区域框必须用同一套换算：先取真实媒体矩形（containedMediaRect 已排除 letterbox，
-   用的是跟工作台意见引用框同一个 scale = Math.min(...) 居中裁边逻辑），再把归一化坐标乘进去。
-   直接按容器百分比画，画面有黑边时框就会偏 —— 而这里要确认的正是「是不是同一处」。
-   依赖 tickSeconds 是为了播放/拖动时重算位置。 */
-function CompareRegionBox({ media, index, bbox: { x, y, w, h }, tickSeconds }: {
-  media: React.RefObject<(HTMLVideoElement | HTMLImageElement | null)[]>; index: number; bbox: { x: number; y: number; w: number; h: number }; tickSeconds: number
+function CompareRegionBox({ media, index, bbox: { x, y, w, h }, tickSeconds, isBaseline }: {
+  media: React.RefObject<(HTMLVideoElement | HTMLImageElement | null)[]>
+  index: number
+  bbox: { x: number; y: number; w: number; h: number }
+  tickSeconds: number
+  isBaseline: boolean
 }) {
   const [rect, setRect] = useState<{ left: number; top: number; width: number; height: number } | null>(null)
   useEffect(() => {
@@ -87,12 +392,36 @@ function CompareRegionBox({ media, index, bbox: { x, y, w, h }, tickSeconds }: {
       const visible = containedMediaRect(element.getBoundingClientRect(), naturalWidth, naturalHeight)
       if (!visible) return
       const box = host.getBoundingClientRect()
-      setRect({ left: visible.left - box.left + visible.width * x, top: visible.top - box.top + visible.height * y, width: visible.width * w, height: visible.height * h })
+      setRect({
+        left: visible.left - box.left + visible.width * x,
+        top: visible.top - box.top + visible.height * y,
+        width: visible.width * w,
+        height: visible.height * h,
+      })
     }
     const observer = new ResizeObserver(measure)
-    observer.observe(element); element.addEventListener('loadedmetadata', measure); element.addEventListener('load', measure); measure()
-    return () => { observer.disconnect(); element.removeEventListener('loadedmetadata', measure); element.removeEventListener('load', measure) }
+    observer.observe(element)
+    element.addEventListener('loadedmetadata', measure)
+    element.addEventListener('load', measure)
+    measure()
+    return () => {
+      observer.disconnect()
+      element.removeEventListener('loadedmetadata', measure)
+      element.removeEventListener('load', measure)
+    }
   }, [media, index, x, y, w, h, tickSeconds])
-  /* 纯视觉：读屏由 caption 说明「两侧是同一个框选区域」，这里不重复念一遍坐标。 */
-  return rect ? <div className="wb-compare-region" aria-hidden="true" style={rect}/> : null
+
+  if (!rect) return null
+
+  return (
+    <div
+      className={isBaseline ? 'wb-compare-region' : 'wb-compare-region border-dashed opacity-60'}
+      aria-label={isBaseline ? '原目标区域' : '原位置参考（新画面可能已变动）'}
+      style={rect}
+    >
+      <span className="text-[10px] absolute -top-5 left-0 px-1 py-0.5 rounded bg-black/75 text-white font-mono whitespace-nowrap pointer-events-none">
+        {isBaseline ? '原目标区域' : '原位置参考'}
+      </span>
+    </div>
+  )
 }

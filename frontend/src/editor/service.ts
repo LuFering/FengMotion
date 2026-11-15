@@ -1,30 +1,14 @@
 import { getFileURL, importFiles } from '@/services/assetApiService'
 import type { EditorManifest, SceneDocument } from './types'
 import { validateDocument, documentFromSource } from './document'
-const key = (projectId: string) => `fengmotion:scene-documents:v1:${projectId}`
+/* 文档存储本身没有重依赖，放在 documentStore 里，好让工作台的判定逻辑
+   能在纯 Node 环境下被测试；这里只是转出，调用方不用改 import 路径。 */
+export { readDocuments, readDocumentsVersion, saveDocument } from './documentStore'
 export async function loadManifest(projectId: string): Promise<EditorManifest> {
   if (projectId !== 'token') return { projectId, scenes: [], assets: [] }
   const response = await fetch('./editor-sources/token/manifest.json')
   if (!response.ok) throw new Error('源工程清单加载失败。')
   return response.json()
-}
-export function readDocuments(projectId: string): SceneDocument[] {
-  try {
-    const docs = JSON.parse(localStorage.getItem(key(projectId)) ?? '[]')
-    return Array.isArray(docs)
-      ? docs.filter((d) => d?.schemaVersion === 1 && d.projectId === projectId && Array.isArray(d.layers))
-      : []
-  } catch {
-    return []
-  }
-}
-export function saveDocument(doc: SceneDocument) {
-  const docs = readDocuments(doc.projectId)
-  localStorage.setItem(
-    key(doc.projectId),
-    JSON.stringify([structuredClone(doc), ...docs.filter((d) => d.id !== doc.id)]),
-  )
-  localStorage.setItem(`fengmotion:editor-last:${doc.projectId}`, doc.id)
 }
 export async function resolveDocument(doc: SceneDocument): Promise<SceneDocument> {
   const result = structuredClone(doc)

@@ -17,5 +17,15 @@ public record CreateChatMessageRequest(
         String text,
         JsonNode references,
         JsonNode attachments,
-        JsonNode constraints) {
+        JsonNode constraints,
+        String role,
+        String taskId) {
+
+    public CreateChatMessageRequest(String text, JsonNode references, JsonNode attachments, JsonNode constraints) {
+        this(text, references, attachments, constraints, null, null);
+    }
+
+    public CreateChatMessageRequest(String text, JsonNode references, JsonNode attachments, String role, String taskId) {
+        this(text, references, attachments, null, role, taskId);
+    }
 }

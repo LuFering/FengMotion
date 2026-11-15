@@ -22,10 +22,14 @@ import {
   Trash2,
 } from 'lucide-react'
 import { LeiBoxComposer } from '@/components/chat/LeiBoxComposer'
+import { CreationProgress } from '@/components/chat/CreationProgress'
 import type { ContextUsageSnapshot } from '@/components/chat/LeiBoxComposer'
+import { TargetSummaryPill } from '@/components/chat/TargetSummaryPill'
+import { useSessionDraft } from '@/shell/useDraftStore'
 import { registerComposer, type DeliverableAsset, type AssetPurpose } from '@/shell/usePendingAssets'
 import { deliveredReferences } from '@/services/creationResources'
 import { studioHttpApi } from '@/services/api'
+import { chatStreamManager, useSessionStream } from '@/services/chatStreamManager'
 import { newIdempotencyKey } from '@/services/api/config'
 import { ApiError, userMessageForError } from '@/services/api/errors'
 
@@ -45,6 +49,14 @@ import { Button } from '@/components/ui/button'
 import { ViewSwitch } from '../components/ViewSwitch'
 import type { ProjectSummary } from '../data/projects'
 import type { ContextBreakdown } from '../types/contracts'
+import { resolveSendPlan } from '@/services/sendPlan'
+import { isSameRequest, messageFingerprint, creationFingerprint } from '@/services/sendFingerprint'
+import { markDraftSent, noteDraftInput, clearSentPartsOnly, currentFieldVersions } from '@/shell/useDraftStore'
+import { sessionDisplayTitle, sessionTimeLabel, sessionTimeFull } from '@/shell/sessionDisplay'
+import { useRoundOutcomes, clearRoundOutcome, recordRoundOutcome } from '@/shell/roundOutcomes'
+import { backfillRoundOutcomes, invalidateBackfill } from '@/shell/roundOutcomeBackfill'
+import { resolveReplySaveState, replySaveNotice, type ReplyLookup } from '@/shell/roundRestoreRules'
+import { lastRoundThinking, shouldShowMessageMeter } from './conversationRound'
 import '../styles/conversation.css'
 
 /**
@@ -479,19 +491,14 @@ function truncate(t: string): string {
 }
 
 /* 相对时间（对齐 dsh time.ago：刚刚 / N分钟 / N小时 / N天 / N个月 / N年） */
-function fmtAgo(t: number): string {
-  const d = Date.now() - t
-  const m = Math.floor(d / 60000)
-  if (m < 1) return '刚刚'
-  if (m < 60) return `${m}分钟前`
-  const h = Math.floor(m / 60)
-  if (h < 24) return `${h}小时前`
-  const day = Math.floor(h / 24)
-  if (day < 30) return `${day}天前`
-  const mo = Math.floor(day / 30)
-  if (mo < 12) return `${mo}个月前`
-  return `${Math.floor(mo / 12)}年前`
-}
+/**
+ * 会话列表的时间 —— 与工作台侧栏**共用同一套规则**（`sessionTimeLabel`）。
+ *
+ * <p>原先这里自己算相对时间（「6天前」），侧栏用 `toLocaleTimeString`（「17:29」），
+ * 同一个时间在两处长得不一样；更糟的是侧栏那种写法让六天前和今天无法区分。
+ * 现在两处都调共享实现，今天给相对时间、跨天给「昨天 / 9月3日」。</p>
+ */
+const fmtAgo = (t: number): string => sessionTimeLabel(t)
 
 /* 绝对时间（对齐 dsh date.ymd / hover.created 的「创建于」） */
 function fmtWhen(t: number): string {
@@ -516,7 +523,7 @@ export function Conversation(props: {
   /** 会话列表读取失败的原因（左栏区分「没有会话」与「没读到」） */
   sessionsError: string | null
   onRetrySessions: () => void
-  onOpenWorkbench: () => void
+  onOpenWorkbench: (sessionId?: string | null) => void
   /** 会话树（项目 + 对话两级）：左栏用它，拖拽改归属也走它 */
   threads: SessionsState
   /** 当前会话 id；null = 还没有会话（从空白进入） */
@@ -539,8 +546,30 @@ export function Conversation(props: {
   /** 服务端回复的如实说明（Agent 未接入等）：显示在最后一条用户消息下方。
       与 `failed` 分开：能力缺口不是「回复失败」，重试也不会好。 */
   const [replyNote, setReplyNote] = useState<string | null>(null)
+  /**
+   * 「创作回复确认没存进会话」的待补存信息。
+   *
+   * <p>保存失败时不能只写控制台：后端可能已自动落库、也可能没有，
+   * 单凭异常无法断言。核对服务端后确认没有，才记在这里 ——
+   * 界面据此显示可见状态并提供重试，与回复落库的既有恢复机制一致。</p>
+   */
+  const [replySaveRetry, setReplySaveRetry] = useState<{
+    sessionId: string
+    userMessageId: string
+    reply: string
+    localId: string
+  } | null>(null)
   /* 同一次发送重试复用同一个幂等键（README §2.7）；发送成功后清空 */
   const idemKeyRef = useRef<string | null>(null)
+  /**
+   * 幂等键绑定的正文。
+   *
+   * <p>为什么要记：幂等键的契约是「同一份内容重复提交复用同一个键」。
+   * 但用户改了字再发，内容已经不是同一份了 —— 继续复用旧键，
+   * 后端会以「幂等键已用于不同请求」拒绝（实测复现）。
+   * 所以键必须与内容绑定：内容一变就换新键。</p>
+   */
+  const idemTextRef = useRef<string | null>(null)
   /* 卸载后不再回写状态：发送/回复的异步回调可能晚于卸载到达 */
   const mountedRef = useRef(true)
   useEffect(() => {
@@ -551,6 +580,80 @@ export function Conversation(props: {
   /** 本轮开始时间：给 ThinkingIndicator 的计时器用。
       记在 state 里而不是渲染时 Date.now()，否则每帧都会变、计时器会抖。 */
   const [pendingStartedAt, setPendingStartedAt] = useState<number | null>(null)
+
+  /**
+   * 停止请求是否还在等后端答复。
+   *
+   * <p>轮次核对能防止「迟到的停止响应误伤新流」，但更省事的是不给这个机会：
+   * 结果没确定之前输入框继续保持忙碌，用户就无法在这一瞬发出下一轮。
+   * 管理器对在途请求做了去重，连点只会打一次 /stop。</p>
+   */
+  const [stopping, setStopping] = useState(false)
+
+  const loadMessages = props.threads.loadMessages
+  const handledStreamPhaseRef = useRef<{ phase: string; sessionId?: string | null }>({ phase: 'idle' })
+
+  /**
+   * 清空「本轮」的过程痕迹：工具调用、token 用量、上下文分档、当前阶段。
+   *
+   * <p>停止生成时这一轮的 AI 消息会被撤掉，但这些是**独立 state**，
+   * 不随消息一起消失。真机验收发现：点了停止，正文没了，
+   * 「思考 / bash · 1 次 / 11.5K 上下文条」还留在界面上 ——
+   * 用户看到的就是「停了但没停干净」。所以凡是撤销本轮回复的地方，
+   * 都要连同这些痕迹一起清掉。</p>
+   */
+  const clearRoundTrace = () => {
+    setToolCalls([])
+    toolCallsRef.current = []
+    setUsage(null)
+    setAgentPhase(null)
+    /* 上下文分档与实测 prompt 大小也是**这一轮**的读数：
+       不清掉的话，停止后界面会留着一根「11.5K / 1M」的占用条，
+       指向一条已经被撤销的回复。窗口大小（分母）保留 —— 它来自模型目录，
+       与本轮无关。 */
+    setBreakdown(null)
+    setContextUsed(null)
+  }
+
+  // 响应式订阅全局会话回复流状态（支持工作台与对话区无缝跨页状态同步）
+  const streamInfo = useSessionStream(props.activeSessionId)
+  useEffect(() => {
+    const isNewEvent = handledStreamPhaseRef.current.phase !== streamInfo.phase ||
+      handledStreamPhaseRef.current.sessionId !== props.activeSessionId
+    handledStreamPhaseRef.current = { phase: streamInfo.phase, sessionId: props.activeSessionId }
+
+    if (streamInfo.phase === 'streaming') {
+      setPending(true)
+      if (streamInfo.startedAt) setPendingStartedAt(streamInfo.startedAt)
+    } else if (streamInfo.phase === 'completed' || streamInfo.phase === 'stopped') {
+      setPending(false)
+      setPendingStartedAt(null)
+      setAgentPhase(null)
+      /* 确认停止的清理放在这里，而不是只挂在 SSE 的 onStopped 上：
+         后端一确认，管理器就会断开连接，onStopped 事件很可能不再到达，
+         半截回复会留在界面上。管理器登记了「哪一轮被确认停止」，
+         这里读一次即删（takeConfirmedStop），保证与事件路径不重复清理。 */
+      if (streamInfo.phase === 'stopped' && props.activeSessionId) {
+        const confirmed = chatStreamManager.takeConfirmedStop(props.activeSessionId)
+        if (confirmed) {
+          if (confirmed.aiMessageId) chat.removeMessage(confirmed.aiMessageId)
+          clearRoundTrace()
+          setReplyNote('已停止生成。你的消息已保存，这条回复没有保存。')
+        }
+      }
+      // 严格保证：每次完成只在首次进入 completed 阶段时触发一次同步，绝不反复重读
+      if (isNewEvent && props.activeSessionId && streamInfo.phase === 'completed') {
+        void loadMessages(props.activeSessionId, { force: true })
+      }
+    } else if (streamInfo.phase === 'error') {
+      setPending(false)
+      setPendingStartedAt(null)
+      setAgentPhase(null)
+      if (streamInfo.error) {
+        setReplyNote(`没有拿到回复：${streamInfo.error}`)
+      }
+    }
+  }, [streamInfo.phase, streamInfo.startedAt, streamInfo.error, props.activeSessionId, loadMessages])
   /**
    * 每秒自增一次，只为驱动思考态计时器的重渲染。
    *
@@ -808,11 +911,8 @@ export function Conversation(props: {
     previewUrl?: string
   }[]>([])
   const [harnessId, setHarnessId] = useState(HARNESSES[0].id)
-  void setHarnessId
   const [model, setModel] = useState(HARNESSES[0].models[0])
-  /* 推理强度：三档，随请求一起发给引擎。
-     取值与官方胶囊的 thinkingOptions 一致（simple / medium / deep）。 */
-  const [thinking, setThinking] = useState<'simple' | 'medium' | 'deep'>('medium')
+  const [thinking, setThinking] = useState<string | null>('medium')
   const [prefs, setPrefs] = useState<Record<string, ModelPrefs>>(loadPrefs)
   const fileRef = useRef<HTMLInputElement>(null)
   const imageRef = useRef<HTMLInputElement>(null)
@@ -876,6 +976,96 @@ export function Conversation(props: {
       所以这类会话不发演示回复 —— 演示回复只能属于「仅本页」的草稿会话。 */
   const activeThread = props.threads.sessions.find((t) => t.id === props.activeSessionId) ?? null
   const activeIsServer = activeThread?.origin === 'server'
+  const sessionDraft = useSessionDraft(activeThread?.projectId, props.activeSessionId)
+  /* 「本轮未改动工程」按轮次读共享 store —— 与工作台侧栏同一份数据 */
+  const getRoundOutcome = useRoundOutcomes(activeThread?.projectId, props.activeSessionId)
+
+  /* 历史轮次回填：对话区自己也要能恢复历史结论。
+     只读共享 store 而不回填的话，直接打开对话区（没经过工作台）时，
+     刷新前的轮次结论一条都不会出现。按「项目 + 会话」拉，逐条核对身份后写入。
+
+     还有一件事：**只补结论不补消息是不够的**。结论要挂到「那条回复」上，
+     而外部（另一个窗口 / 后台恢复中的任务）产生的轮次，本页消息列表里
+     根本没有 —— 界面会因为找不到可挂载的回复而什么都不显示。
+     所以发现服务端有本页没有的轮次时，强制重拉一次消息。 */
+  /* 最新消息列表的引用：回调是异步到达的，闭包里直接读 `messages` 会拿到
+     挂载那一刻的旧值（此时甚至还没定义），判断「本页有没有这条」就会永远为否。 */
+  const messagesLiveRef = useRef<ChatMessage[]>([])
+  useEffect(() => {
+    messagesLiveRef.current = chat.messages
+  }, [chat.messages])
+
+  useEffect(() => {
+    const pid = activeThread?.projectId
+    const sid = props.activeSessionId
+    if (!pid || !sid || !activeIsServer) return
+    void backfillRoundOutcomes(pid, sid, {
+      onRoundsFound: (userMessageIds) => {
+        /* 只认「本页确实没有」的：已存在的轮次不该触发重拉，
+           否则每次进入都会白打一次接口。 */
+        const known = new Set(
+          messagesLiveRef.current.map((m) => m.taskId).filter(Boolean) as string[],
+        )
+        const missing = userMessageIds.filter((id) => !known.has(id))
+        if (missing.length > 0) void loadMessages(sid, { force: true })
+      },
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeThread?.projectId, props.activeSessionId, activeIsServer])
+
+  // 维护当前会话 key 与切换保护锁，严格防止切换会话时旧会话附件被异步写入新草稿
+  const prevSessionKeyRef = useRef(sessionDraft.key)
+  const isSwitchingSessionRef = useRef(false)
+
+  // 切换会话时，从 sessionDraft 恢复未发送附件
+  useEffect(() => {
+    isSwitchingSessionRef.current = true
+    prevSessionKeyRef.current = sessionDraft.key
+    setAttachments(sessionDraft.draft.attachments || [])
+    const timer = setTimeout(() => {
+      isSwitchingSessionRef.current = false
+    }, 0)
+    return () => clearTimeout(timer)
+  }, [sessionDraft.key])
+
+  // 附件变化时同步回 sessionDraft 内存库（保留原生 File 对象）
+  // 严格隔离：仅在非切换会话期间，且当前 key 匹配时允许写回当前草稿，依赖项精简杜绝多余刷新
+  const { updateDraft, key: draftSessionKey } = sessionDraft
+  useEffect(() => {
+    if (isSwitchingSessionRef.current) return
+    if (prevSessionKeyRef.current !== draftSessionKey) return
+    updateDraft({ attachments })
+  }, [attachments, draftSessionKey, updateDraft])
+
+  // 实时获取当前会话所属项目的最新工程版本，用于过期警示核验（支持会话切换与窗口激活实时校准）
+  const [stageLeadVersion, setStageLeadVersion] = useState<number | null>(null)
+  /* 当前工程版本号 —— 取**场景版本**（后端权威），不是创作状态里的 version。
+     两者含义不同：creation.version 是那轮创作产出的版本，工程可能又往前走了。
+     读不到就保持 null，界面据此降级（不拿别的数字顶替）。 */
+  const refreshProjectVersion = useCallback(() => {
+    const pid = activeThread?.projectId
+    if (!pid) {
+      setStageLeadVersion(null)
+      return
+    }
+    studioHttpApi().task.currentScene(pid)
+      .then((state) => {
+        /* initialized 为 false 时后端也会给 version: 0 —— 0 不是版本号，
+           不能当成「当前工程版本 v0」传给胶囊。 */
+        if (state?.initialized && typeof state.version === 'number') {
+          setStageLeadVersion(state.version)
+        } else {
+          setStageLeadVersion(null)
+        }
+      })
+      .catch(() => setStageLeadVersion(null))
+  }, [activeThread?.projectId])
+
+  useEffect(() => {
+    refreshProjectVersion()
+    window.addEventListener('focus', refreshProjectVersion)
+    return () => window.removeEventListener('focus', refreshProjectVersion)
+  }, [refreshProjectVersion, activeThread?.id])
   /* 进服务端会话时读一次详情（GET /chat-sessions/{id}），用服务端的最新标题/更新时间/
      消息计数校准列表里的那份。只补读一次：这是补充刷新，不是数据来源 —— 失败时列表
      里的元数据照常显示，只是标出「不是最新」，由用户决定要不要重试。 */
@@ -897,7 +1087,6 @@ export function Conversation(props: {
   /* 进服务端会话时读历史消息（GET /chat-sessions/{id}/messages）。
      与详情分开读：详情只补元数据，历史失败不能拖累标题/时间的刷新，反之亦然。
      已读过的不重复读（hook 内部也判断 messagesLoaded，这里先判断是为了少发一次 effect）。 */
-  const loadMessages = props.threads.loadMessages
   const activeMessagesLoaded = activeThread?.messagesLoaded === true
   useEffect(() => {
     if (!activeThreadId || activeThread?.origin !== 'server') return
@@ -948,16 +1137,26 @@ export function Conversation(props: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeThread?.id, activeThread?.origin, activeThread?.messages, pending])
 
-  /* 切会话 / 卸载：断掉服务端回复流。
-     不断的话，上一条会话的 delta 会追加进新会话的 chat（回复插错地方），
-     而且重挂载会留下一条半截回复。断线不当作完成 —— 与服务端流的口径一致。 */
-  useEffect(() => () => {
-    streamStopRef.current?.()
-    streamStopRef.current = null
-    setPending(false)
-    setReplyNote(null)
-    setSendError(null)
-    idemKeyRef.current = null
+  /* 仅在会话真正改变（从 session A 切换至 session B）时断掉旧会话的回复流；
+     切视图（如切至工作台）属于同一个会话，流由 chatStreamManager 全局托管，绝不断流！ */
+  const activeSessionIdRef = useRef(props.activeSessionId)
+  useEffect(() => {
+    const prevSid = activeSessionIdRef.current
+    if (prevSid && prevSid !== props.activeSessionId) {
+      /* 切走会话只做本地清理，**不**再请求后端停止。
+         理由：切换会话不等于放弃那条回复 —— 它由 chatStreamManager 全局托管，
+         切回来还能看到结果；贸然停掉会让用户切个页就丢掉正在生成的回答。
+         真正的停止只由用户显式点击触发（那里会打 /stop）。
+         另外这里原先同时调用 stop(prevSid) 与 streamStopRef.current（内部也调 stop），
+         一次切换会发出两次停止请求 —— 现已去掉。 */
+      streamStopRef.current = null
+      setPending(false)
+      setReplyNote(null)
+      setSendError(null)
+      idemKeyRef.current = null
+      idemTextRef.current = null
+    }
+    activeSessionIdRef.current = props.activeSessionId
   }, [props.activeSessionId])
   useEffect(() => {
     if (!props.activeSessionId) return
@@ -1002,13 +1201,7 @@ export function Conversation(props: {
    * 这一轮想过什么。这里取本轮所有 AI 消息的 thinking 中最后一段非空的，
    * 让结束后仍可回看（与历史路径的呈现一致）。
    */
-  const lastThinking = useMemo(() => {
-    for (let i = messages.length - 1; i >= 0; i--) {
-      const m = messages[i]
-      if (m.role === 'ai' && m.thinking) return m.thinking
-    }
-    return ''
-  }, [messages])
+  const lastThinking = useMemo(() => lastRoundThinking(messages), [messages])
   const userMessages = useMemo(() => messages.filter((m) => m.role === 'user'), [messages])
 
   /* 最新的用户消息 id：回复 effect 只依赖它（见下方说明，不能依赖整个数组） */
@@ -1048,10 +1241,6 @@ export function Conversation(props: {
           if (!produced) chat.removeMessage(aiId)
           break
       }
-    }, {
-      /* 把胶囊里选中的真实模型与推理强度透传给后端 —— 选了什么就用什么。 */
-      model: effectiveModel,
-      thinking,
     })
     streamStopRef.current = stop
     return () => {
@@ -1107,19 +1296,60 @@ export function Conversation(props: {
       })
   }, [props.threads.sessions, archiveFilter, query, orderMode])
 
+  /**
+   * 按项目归组的会话列表。
+   *
+   * <p>排序不是装饰：左栏混排所有项目的 150 条会话时，用户在「制作能力验证」
+   * 里要先在「草稿核验A/B」「tool-persist2」之间找出自己项目的两条。
+   * 所以当前项目永远置顶，其余项目按「有没有会话、最近活跃」排，
+   * 没有会话的项目沉到后面 —— 但不删除，用户仍能发现并点进去。</p>
+   */
   const grouped = useMemo(() => {
     if (groupMode === 'flat') {
       return [{ key: 'flat', projectId: UNGROUPED, sessions: visibleSessions }]
     }
-    const groups = props.projects.map((p) => ({
-      key: p.id,
-      projectId: p.id,
-      sessions: visibleSessions.filter((t) => t.projectId === p.id),
-    }))
+    const groups = props.projects.map((p) => {
+      const sessions = visibleSessions.filter((t) => t.projectId === p.id)
+      return {
+        key: p.id,
+        projectId: p.id,
+        sessions,
+        /* 最近活跃时间：用于把「刚聊过的项目」排在前面。没有会话时为 0。 */
+        latest: sessions.reduce<number>((max, t) => {
+          /* updatedAt 在本地线程是毫秒数，服务端会话是 ISO 字符串：两种都要认。 */
+          const raw = t.updatedAt ?? t.createdAt
+          const at = typeof raw === 'number' ? raw : Date.parse(String(raw ?? ''))
+          return Number.isFinite(at) && at > max ? at : max
+        }, 0),
+      }
+    })
     const orphans = visibleSessions.filter((t) => !t.projectId || !props.projects.some((p) => p.id === t.projectId))
-    if (orphans.length > 0) groups.push({ key: UNGROUPED, projectId: UNGROUPED, sessions: orphans })
-    return groups
-  }, [props.projects, visibleSessions, groupMode])
+    if (orphans.length > 0) {
+      groups.push({
+        key: UNGROUPED,
+        projectId: UNGROUPED,
+        sessions: orphans,
+        latest: orphans.reduce<number>((max, t) => {
+          /* updatedAt 在本地线程是毫秒数，服务端会话是 ISO 字符串：两种都要认。 */
+          const raw = t.updatedAt ?? t.createdAt
+          const at = typeof raw === 'number' ? raw : Date.parse(String(raw ?? ''))
+          return Number.isFinite(at) && at > max ? at : max
+        }, 0),
+      })
+    }
+    /* 当前项目第一；其余有会话的按最近活跃排；没有会话的垫底。
+       同为空项目时保持原顺序（稳定排序），避免列表在刷新后跳动。 */
+    const currentId = props.openProject
+    return [...groups].sort((a, b) => {
+      const aCur = a.projectId === currentId
+      const bCur = b.projectId === currentId
+      if (aCur !== bCur) return aCur ? -1 : 1
+      const aHas = a.sessions.length > 0
+      const bHas = b.sessions.length > 0
+      if (aHas !== bHas) return aHas ? -1 : 1
+      return b.latest - a.latest
+    })
+  }, [props.projects, props.openProject, visibleSessions, groupMode])
 
   const noMatches = visibleSessions.length === 0
 
@@ -1146,8 +1376,21 @@ export function Conversation(props: {
     /* 最后一轮已经有 AI 回复：这轮结束了，不用再起流 */
     const at = messages.findIndex((m) => m.id === lastUserId)
     if (at >= 0 && messages.slice(at + 1).some((m) => m.role === 'ai')) return
-    /* 同一条已经在跑（首次挂载刚起的流）：不要重复 */
-    if (servedRef.has(lastUserId) && pending) return
+    const lastUserMsg = at >= 0 ? messages[at] : null
+    /* 明确区分工作台创作任务与普通对话：只有携带任务 taskId 或明确标记为创作修改（action === 'workflow_modify'）的消息才由工作台处理，普通带目标引用的对话正常恢复起流 */
+    const isCreationTask = Boolean(
+      lastUserMsg?.taskId ||
+      lastUserMsg?.references?.some((r) => (r as unknown as { action?: string }).action === 'workflow_modify')
+    )
+    if (isCreationTask) return
+    /* 同一条已经在跑（首次挂载刚起的流或全局其他视图正在跑的流）：不要重复起流 */
+    if (chatStreamManager.has(props.activeSessionId)) {
+      setPending(true)
+      return
+    }
+    /* 不依赖 pending：它是 React state，发送后要等一次渲染才更新，
+       而 effect 可能先跑。只看 servedRef —— 登记过的就说明已经起过流。 */
+    if (servedRef.has(lastUserId)) return
     /* 失败过的不要再自动重起：会变成无限重试（见 MODULE_FAILED_IDS 注释） */
     if (MODULE_FAILED_IDS.has(lastUserId)) return
     servedRef.add(lastUserId)
@@ -1165,6 +1408,12 @@ export function Conversation(props: {
        在末尾留下一个空的「正在回复…」。 */
     const at = messages.findIndex((m) => m.id === lastUserId)
     if (at >= 0 && messages.slice(at + 1).some((m) => m.role === 'ai')) return
+    const lastUserMsg = at >= 0 ? messages[at] : null
+    const isCreationTask = Boolean(
+      lastUserMsg?.taskId ||
+      lastUserMsg?.references?.some((r) => (r as unknown as { action?: string }).action === 'workflow_modify')
+    )
+    if (isCreationTask) return
     if (MODULE_FAILED_IDS.has(lastUserId)) return
     servedRef.add(lastUserId)
     setPendingStartedAt(Date.now())
@@ -1213,8 +1462,11 @@ export function Conversation(props: {
   const startServerReply = () => {
     const sessionId = props.activeSessionId
     if (!sessionId) return
-    streamStopRef.current?.()
-    const aiId = chat.startAiMessage({ demo: false })
+    /* 开新一轮前只需断掉本地旧流，**不能**调 streamStopRef ——
+       它内部会请求后端 /stop，等于每次发送都先给上一轮发一次停止请求。
+       这里清 ref 即可：旧连接由 chatStreamManager 在 register 新流时接管。 */
+    streamStopRef.current = null
+    const aiId = chat.startAiMessage({ demo: false, projectId: activeThread?.projectId ?? undefined, sessionId })
     let produced = false
     setPendingStartedAt(Date.now())
     setPending(true)
@@ -1243,6 +1495,7 @@ export function Conversation(props: {
         chat.addAiDiagnostic(aiId, kind, detail)
       },
       onCompleted: (message) => {
+        chatStreamManager.notifyCompleted(sessionId)
         produced = true
         // 带上本轮工具记录：completed 到服务端消息读回之间有个异步空档，
         // 不先挂上去，列表会在这一瞬间闪空。
@@ -1258,6 +1511,7 @@ export function Conversation(props: {
         }
       },
       onError: (error) => {
+        chatStreamManager.notifyError(sessionId, error.message || '回复流中断')
         // 能力缺口：删掉占位，改用「Agent 未接入」说明，不当作回复失败
         chat.removeMessage(aiId)
         /* 记下这条失败，自动路径不再重试 —— 否则删掉占位后
@@ -1399,16 +1653,28 @@ export function Conversation(props: {
         })
       },
       onStopped: () => {
-        /* 用户自己按的停止。撤掉占位并回到可输入状态；
-           已吐出的半截正文不留 —— 那一轮没有落库，留着会让人以为
-           「这条回复就说到这儿」，下次读历史时它又消失。 */
-        chat.removeMessage(aiId)
+        /* 服务端确认了这一轮已停止（收到 stopped 事件）。
+           注意：这里**不再**调用 chatStreamManager.stop —— 那会再发一次 /stop 请求，
+           且会把已是 stopped 的状态重新广播一遍。清理只做本地。
+           注意保存边界：**用户那条消息在启动回复流之前就已经写入服务端了**
+           （见发送流程里 sendMessage 先于 stream），停止后不保存的是这条
+           未完成的 AI 回复 —— 半截正文撤掉，避免下次读历史时它又消失。
+           文案不能说成「这一轮没有保存」，那会让人以为自己的话也没了。 */
+        /* 只清本地，且与 phase effect 去重：若管理器登记的「确认停止」标记
+           已被 takeConfirmedStop 取走，说明那条路径已经清理过，这里不重复。
+           反之（服务端主动推 stopped 事件、非用户点击）则在这里清理。 */
+        const confirmed = chatStreamManager.takeConfirmedStop(sessionId)
+        if (!confirmed) {
+          chat.removeMessage(aiId)
+          clearRoundTrace()
+          setReplyNote('已停止生成。你的消息已保存，这条回复没有保存。')
+        }
         setPending(false)
         setPendingStartedAt(null)
         setAgentPhase(null)
-        setReplyNote('已停止生成。这一轮没有保存到会话里。')
       },
       onBackground: (info) => {
+        chatStreamManager.release(sessionId)
         /* 超时转后台 ≠ 失败。任务还在跑，完成时会落库。
            这里必须放在 replyNote（中性说明）而不是失败提示里，
            否则用户会以为挂了而重发一遍 —— 那才是真的重复消耗。 */
@@ -1427,8 +1693,42 @@ export function Conversation(props: {
            不是累计值 —— 累加会把压缩掉的内容也算进去。 */
         if (c.breakdown !== undefined) setBreakdown(c.breakdown)
       },
+    }, { model: backendModels.length ? effectiveModel : undefined, reasoningEffort: effectiveEffort ?? undefined })
+    chatStreamManager.register({
+      sessionId,
+      userMessageId: lastUserId ?? undefined,
+      aiMessageId: aiId,
+      stop: () => handle.close(),
+      startedAt: Date.now(),
     })
-    streamStopRef.current = () => handle.close()
+    streamStopRef.current = () => {
+      /* 停止必须打到后端，而且**不能在这里顺手 close()**：
+         管理器会在后端确认后自行断开本地流。这里若提前 close，
+         就变成「先断 SSE、再等后端」—— 与设计相反：
+         · 停止失败时，用户再也收不到仍在生成的那条回复；
+         · 后端确认时，stopped 事件也可能因为连接已断而收不到，半截回复留在界面上。
+         所以这里只发起停止请求，本地收尾交给管理器与事件流。 */
+      setStopping(true)
+      void chatStreamManager.stop(sessionId).then((outcome) => {
+        setStopping(false)
+        /* 按后端真实答复分开说，不把 stopped:false 当成「已停止」：
+           · stopped：管理器已断流并广播，这里不必再做什么；
+           · supersededRound：后端停掉了，但那条回复已经不在了（刚跑完或
+             已换新一轮），本地没有需要收尾的东西，如实说明；
+           · not_running：后端没找到在跑的进程（可能刚好跑完，也可能是停止
+             早于进程登记）—— 保持连接，让真实终态自己到达，并重新读一次历史；
+           · failed：请求没送达，后端状态未知，同样保持连接。 */
+        if (outcome.supersededRound) {
+          setReplyNote('这次停止针对的回复已经结束了；如果还有新的回复在生成，请再点一次停止。')
+          void props.threads.loadMessages(sessionId, { force: true })
+        } else if (outcome.status === 'not_running') {
+          setReplyNote('这次没有停止到正在运行的回复；回复可能继续，也可能已经结束。已重新读取会话，请以最新回复为准。')
+          void props.threads.loadMessages(sessionId, { force: true })
+        } else if (outcome.status === 'failed') {
+          setReplyNote(`停止请求没有送达（${(outcome.error ?? '').slice(0, 60)}）。回复可能继续，请再点一次停止或稍后重新读取会话确认。`)
+        }
+      })
+    }
   }
 
 
@@ -1454,6 +1754,31 @@ export function Conversation(props: {
     if (attachments.length && !activeIsServer) {
       setSendError('当前对话未保存到项目，附件无法随消息发送。请先创建或选择项目会话。')
       return
+    }
+    /* 拦截必须在**两条路径分叉之前**。
+       之前只在 sendToServer（服务端会话）里拦，而未归属项目的会话是 origin='local'，
+       在下面 `if (activeIsServer)` 处就分流走了本地路径 —— 于是界面显示
+       「请先关联项目」，消息却照样发出去、还起了普通对话回复。实测复现。
+       所以这里按同一份判定先拦一次，两条路径都绕不过去。 */
+    {
+      const gate = resolveSendPlan({
+        targetSnapshot: sessionDraft.draft.targetSnapshot,
+        draftIntent: sessionDraft.draft.intentAction,
+        continuationScopeMode: sessionDraft.draft.continuationScopeMode,
+        hasProject: Boolean(activeThread?.projectId),
+        /* 本地草稿（含服务端创建失败后的降级会话）即使有 projectId，
+           也走不了修改分支 —— 它在这一行下面就被分流到本地路径了。 */
+        isServerSession: Boolean(activeIsServer),
+      })
+      if (gate.kind === 'blocked') {
+        setSendError(
+          gate.reason === 'missing_target'
+            ? '当前草稿处于继续调整流程，尚未选定修改目标。请先在工作台圈定时间段或画面，或选择【确认整片修改】后再提交。'
+            : gate.reason === 'unsaved_session'
+              ? '这条会话还没有保存到项目，无法发起工程修改。请先在左栏重试保存这条对话，或新建一个已保存的项目会话。'
+              : '这条会话还没有归属项目，无法发起工程修改。请先在「我的创作」里打开或新建一个项目会话，再提交修改意见。')
+        return
+      }
     }
     /* 上传状态只对**真实文件素材**有意义。
        参考片段与技法没有文件可上传，它们的价值是「借鉴什么」，
@@ -1503,8 +1828,6 @@ export function Conversation(props: {
   const sendToServer = async (text: string) => {
     const sessionId = props.activeSessionId
     if (!sessionId || !activeIsServer) return
-    const key = idemKeyRef.current ?? newIdempotencyKey()
-    idemKeyRef.current = key
     setSendError(null)
     try {
       /* 只把「上传成功」的附件带上。上传中或失败的跳过 ——
@@ -1526,23 +1849,437 @@ export function Conversation(props: {
       const refs = deliveredReferences(attachments
         .filter((item) => item.assetId)
         .map((item) => ({ ...item, assetId: item.assetId!, purpose: (item.purpose ?? 'unspecified') as AssetPurpose })))
+
+      const targetSnapshot = sessionDraft.draft.targetSnapshot
+      const continuationMode = sessionDraft.draft.continuationScopeMode
+
+      /* 发送去向由唯一判定函数决定（显示端调的是同一个函数）。
+         这里不再自己写一套顺序 —— 两套一旦分叉，界面就会说谎。 */
+      const plan = resolveSendPlan({
+        targetSnapshot,
+        draftIntent: sessionDraft.draft.intentAction,
+        continuationScopeMode: continuationMode,
+        /* 项目归属与会话来源都必须传真实值：
+           没有项目、或仍是本地草稿，都发不出创作任务。
+           不传的话判定会说「修改」，实际却落回普通回复 —— 界面在说谎。 */
+        hasProject: Boolean(activeThread?.projectId),
+        isServerSession: Boolean(activeIsServer),
+      })
+
+      // 1. 拦截态：缺目标、缺项目、或会话未保存，都不能当作普通聊天吞掉
+      if (plan.kind === 'blocked') {
+        setSendError(
+          plan.reason === 'missing_target'
+            ? '当前草稿处于继续调整流程，尚未选定修改目标。请先在工作台圈定时间段或画面，或选择【确认整片修改】后再提交。'
+            : plan.reason === 'unsaved_session'
+              ? '这条会话还没有保存到项目，无法发起工程修改。请先在左栏重试保存这条对话，或新建一个已保存的项目会话。'
+              : '这条会话还没有归属项目，无法发起工程修改。请先在「我的创作」里打开或新建一个项目会话，再提交修改意见。')
+        return
+      }
+
+      /* 2. 意图直接取判定结果：
+         · 显式 query 优先（用户最后一次主动选择，范围确认不能推翻）；
+         · 显式 modify **没有目标也算修改**（旧注释写成「只有确认整片才修改」不准确）；
+         · 无目标、无意图、未确认整片 → 普通对话。 */
+      const isModifyIntent = plan.kind === 'modify'
+      const isWholeConfirmedContinuation = continuationMode === 'whole_confirmed'
+
+      const creationReferences: NonNullable<Parameters<typeof props.threads.sendMessage>[2]>['references'] = [...refs]
+      if (activeThread?.projectId) {
+        if (targetSnapshot) {
+          creationReferences.push({
+            id: `ref-target-${activeThread.projectId}`,
+            role: isModifyIntent ? 'target' : 'context',
+            kind: 'project',
+            projectId: activeThread.projectId,
+            label: targetSnapshot.label || (targetSnapshot.rangeSpan ? `时间段（${targetSnapshot.rangeSpan.start}–${targetSnapshot.rangeSpan.end}）` : '工作台引用目标'),
+            action: isModifyIntent ? 'workflow_modify' : 'workflow_query',
+          })
+        } else if (isWholeConfirmedContinuation && isModifyIntent) {
+          /* 只有确定是修改时才推「整片工程修改」目标。
+             用户已改成「关于此提问」时不能推这个 action —— 那会让后端按改工程处理。 */
+          creationReferences.push({
+            id: `ref-target-${activeThread.projectId}`,
+            role: 'target',
+            kind: 'project',
+            projectId: activeThread.projectId,
+            label: '整片工程修改',
+            action: 'workflow_modify',
+          })
+        } else if (isWholeConfirmedContinuation) {
+          /* 确认整片过、但用户改成了提问：仍把整片作为上下文带上，action 是查询。 */
+          creationReferences.push({
+            id: `ref-target-${activeThread.projectId}`,
+            role: 'context',
+            kind: 'project',
+            projectId: activeThread.projectId,
+            label: '整片工程（仅提问，不修改）',
+            action: 'workflow_query',
+          })
+        } else if (isModifyIntent) {
+          /* 明确选了「修改此目标」但没有局部目标、也没点过「确认整片」：
+             这是一次整片工程修改，**必须推 workflow_modify 引用**。
+             不推的话消息里没有任何修改标记，自动续流守卫
+             （按 action === 'workflow_modify' 判断是否创作任务）识别不出来，
+             于是修改提交完又额外起了一条普通对话回复 —— 实测复现：
+             一次修改同时出现 AI 思考回复 + 创作任务两条线。
+             同时这也让「这条消息触发的是哪种动作」在服务端历史里可查。 */
+          creationReferences.push({
+            id: `ref-target-${activeThread.projectId}`,
+            role: 'target',
+            kind: 'project',
+            projectId: activeThread.projectId,
+            label: '整片工程修改',
+            action: 'workflow_modify',
+          })
+        }
+      }
+
+      /* ── 发送身份：在**请求组装完成之后**计算 ──
+         不再手写「等价标识」：直接用即将发出去的真实字段算身份。
+         早期版本漏掉了素材引用（refs）和目标图片，导致「文字不变、只换参考素材」
+         仍被认成旧请求 —— 现在入参就是真正要发送的那份对象。 */
+      const messageIdFp = messageFingerprint({
+        sessionId,
+        text: text.trim(),
+        references: creationReferences.length > 0 ? creationReferences : null,
+        attachments: ready.length > 0 ? ready : null,
+      })
+      /* 消息幂等键：同一份消息请求才复用。刷新后靠 pendingSubmission 恢复，
+         否则「消息已保存、创作结果不确定」时刷新再发会重复落一条用户消息。 */
+      const pending = sessionDraft.draft.pendingSubmission
+      const recoveredKey = (pending && pending.requestId && pending.idempotencyKey
+        && isSameRequest(messageIdFp, pending))
+        ? pending.idempotencyKey
+        : null
+      const key = recoveredKey
+        ?? ((idemKeyRef.current && idemTextRef.current === messageIdFp) ? idemKeyRef.current : newIdempotencyKey())
+      idemKeyRef.current = key
+      idemTextRef.current = messageIdFp
+      /* 是不是上一轮的重试 —— 创作 requestId 能否复用的唯一判据。 */
+      const isRetryOfPending = isSameRequest(messageIdFp, pending)
+      /* 提交快照：记录「这次到底发了什么」。
+         成功后只清与这份快照相同的部分 —— 用户在等待期间改过的
+         目标/附件/意图会被保留（见 clearSentPartsOnly）。 */
+      const sentSnapshot = {
+        text: sessionDraft.draft.text,
+        attachments: [...attachments],
+        targetSnapshot: sessionDraft.draft.targetSnapshot,
+        continuationScopeMode: sessionDraft.draft.continuationScopeMode ?? null,
+        intentAction: sessionDraft.draft.intentAction,
+        /* 逐字段版本在「即将发请求」处取：
+           之后流程内部写 pendingSubmission 不属于任何用户可编辑字段，不会推进版本。 */
+        versions: currentFieldVersions(activeThread?.projectId, sessionId),
+        idempotencyKey: key,
+      }
+
+      // 1. 若是修改意图且带有明确基准版本，必须在保存用户消息之前严格核对工程当前最新版本！
+      // 绝不先存消息再报错，杜绝在会话历史中留下未执行修改的孤立消息
+      if (isModifyIntent && targetSnapshot && activeThread?.projectId) {
+        if (targetSnapshot.version !== null && targetSnapshot.version !== undefined) {
+          const targetVer = Number(targetSnapshot.version)
+          try {
+            /* 【基准必须与显示同源】提交前的「工程当前版本」以**当前场景版本**为准。
+               原实现先用 creation().version —— 那是「上一轮创作产出的版本」，
+               工程可能又往前走了；它甚至可能落后于场景版本，导致
+               「界面显示 v18、校验按 v17 比」，两边结论不一致。
+
+               顺序：当前场景版本（权威）→ 场景版本历史最大值（兜底）→ 不猜。 */
+            let confirmedVer: number | null = null
+            try {
+              const scene = await studioHttpApi().task.currentScene(activeThread.projectId)
+              if (scene?.initialized && typeof scene.version === 'number') {
+                confirmedVer = Number(scene.version)
+              }
+            } catch { /* 读不到就走下一步 */ }
+
+            /* 【不得用历史最大值完成确认】场景版本列表里最高的一版**不等于**
+               当前工程版本：工程可能已经改到 v17，而这一版还没渲出片，
+               列表最高仍是 v16。拿它当「当前工程版本」会让提交前校验
+               放行一个其实已过期的基准。
+               所以这里**只**认 currentScene 的权威值；读不到就保持 null，
+               由下面分支明确阻止并说明原因。 */
+            if (confirmedVer !== null) {
+              setStageLeadVersion(confirmedVer)
+              if (targetVer < confirmedVer) {
+                setSendError(`目标引用的基准版本（v${targetVer}）已过期，工程当前最新版本为 v${confirmedVer}。新版画面与时间轴可能已变动，请点击输入框上方胶囊核对后再提交。`)
+                return
+              }
+            } else {
+              setSendError(`未能确认工程当前版本（目标引用基准版本为 v${targetVer}）。为防止基于错误基准进行修改，请检查网络或重新选择画面目标后再提交。`)
+              return
+            }
+          } catch (verErr: unknown) {
+            const msg = verErr instanceof Error ? verErr.message : String(verErr)
+            setSendError(`未能确认工程当前版本（${msg}）。为防止基于错误基准进行修改，请稍后重试。`)
+            return
+          }
+        }
+      }
+
+      // 2. 版本核对通过后，将用户消息正式写入服务端会话
       const saved = await props.threads.sendMessage(sessionId, text, {
         idempotencyKey: key,
         ...(ready.length > 0 ? { attachments: ready } : {}),
-        ...(refs.length > 0 ? { references: refs } : {}),
+        ...(creationReferences.length > 0 ? { references: creationReferences } : {}),
       })
       if (!mountedRef.current) return
+
+      // 3. 若用户明确选择修改视频（含带目标快照修改或已确认的整片续改），真实触发后端创作修改任务；若仅为提问，则走普通对话回复
+      if (isModifyIntent && activeThread?.projectId) {
+        const span = targetSnapshot?.rangeSpan
+        const spanText = span ? `${Math.floor(span.start / 60)}:${String(Math.floor(span.start % 60)).padStart(2, '0')}–${Math.floor(span.end / 60)}:${String(Math.floor(span.end % 60)).padStart(2, '0')}` : ''
+        const correctionText = spanText ? `【指定时间段 ${spanText}】\n\n用户原话：${text.trim()}` : text.trim()
+
+        // 严格合规校验：必须是合法的图片数据（JPEG Data URL 或图片路径），绝不传递 mp4 视频文件
+        const rawImg = targetSnapshot?.previewImage
+        const validPreviewImg = (rawImg && (rawImg.startsWith('data:image/') || rawImg.endsWith('.jpg') || rawImg.endsWith('.jpeg') || rawImg.endsWith('.png')))
+          ? rawImg
+          : undefined
+        
+        /* 【关键】只有「同一份内容的原样重试」才能复用 requestId。
+           用户改了要求再发，那是一个**新的创作请求**，必须用新的 requestId ——
+           否则会把新要求提交成上一轮的任务，或复用到旧任务状态上、
+           把用户刚写的新内容丢掉。判据是完整发送快照（isRetryOfPending）。 */
+        /* 创作请求身份：入参就是下面真正要 POST 的那几个字段。 */
+        const creationIdFp = creationFingerprint({
+          projectId: activeThread.projectId,
+          intent: text.trim(),
+          references: creationReferences,
+          previewImage: validPreviewImg ?? null,
+          baseVersion: targetSnapshot?.version ?? null,
+          correction: correctionText,
+        })
+        /* 【连接层核对】只有当这次创作字段与上次记录**完全一致**时才复用旧任务。
+           isRetryOfPending 保证「是同一条消息」；creationIdFp 保证「是同一份创作请求」。
+           两者都成立才允许把旧任务状态当成这次的结果 ——
+           否则会出现「新要求提交后却显示旧任务已完成」。 */
+        const recordedCreationFp = sessionDraft.draft.pendingSubmission?.creationFingerprint
+        /* 必须**确认**创作字段一致才复用旧任务。
+           旧记录没有 creationFingerprint 时无法确认 —— 不能默认放行
+           （那等于把「不知道」当成「一致」，会把新要求接到旧任务上）。 */
+        const oldReqId = (isRetryOfPending && recordedCreationFp !== undefined
+          && recordedCreationFp === creationIdFp)
+          ? sessionDraft.draft.pendingSubmission?.requestId
+          : null
+        const reqId = (oldReqId && oldReqId.trim())
+          ? oldReqId.trim()
+          : (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+              ? crypto.randomUUID()
+              : '00000000-0000-4000-8000-' + String(Date.now()).padStart(12, '0'))
+
+        /* 【发起前先落盘恢复信息】。
+           原先 pendingSubmission 只在 create() 失败或抛错后才写 ——
+           若请求仍在等待时用户刷新页面，身份全丢，重发会多落一条用户消息、
+           并新建一个创作任务。所以这里在**发请求之前**先把恢复所需的三项
+           写进草稿（消息 id、消息幂等键、创作 requestId）。
+           失败分支随后会用更完整的内容覆盖它，二者不冲突。 */
+        sessionDraft.updateDraft({
+          pendingSubmission: {
+            requestId: reqId,
+            promptKey: messageIdFp,
+            messageFingerprint: messageIdFp,
+            creationFingerprint: creationIdFp,
+            idempotencyKey: key,
+            sessionId,
+            userMessageId: saved.id,
+            createdAt: Date.now(),
+            targetSnapshot,
+          },
+        })
+
+        // 重试前置幂等检查：若服务端已有该请求且正在运行或已完成，直接复用状态，不重复调用 create
+        if (oldReqId) {
+          try {
+            const existing = await studioHttpApi().workflowContext.creation(activeThread.projectId, reqId)
+            if (existing && (existing.state === 'running' || existing.state === 'rendered')) {
+              idemKeyRef.current = null
+              idemTextRef.current = null
+              chat.setDraft('')
+              /* 这条分支同样要登记「这段文字已发出」再清草稿 ——
+                 它清草稿后直接 return，不走下面的成功路径；
+                 漏登记的话输入框的迟来 flush 会把原文写回草稿
+                 （探针实测：markDraftSent 从未被调用，草稿却已被清空）。 */
+              markDraftSent(activeThread.projectId, sessionId, text)
+              /* 只清「这次发出去的那份」：用户若已输入新内容则保留。
+                 附件也交给同一个函数判断 —— 无条件 setAttachments([]) 会把
+                 用户在等待期间新加的附件一起清掉。 */
+              clearSentPartsOnly(activeThread.projectId, sessionId, sentSnapshot)
+              chat.appendMessage(saved)
+              return
+            }
+          } catch {
+            // 未找到历史任务，继续执行发起
+          }
+        }
+
+        try {
+          const outcome = await studioHttpApi().workflowContext.create(
+            activeThread.projectId,
+            text.trim(),
+            creationReferences as any,
+            validPreviewImg,
+            targetSnapshot?.version ?? undefined,
+            correctionText,
+            reqId,
+            sessionId,
+            saved.id,
+          )
+          /* 从**对话区**发起的创作：结果要落两处，缺一处界面就会说谎。
+             1. AI 回复写进会话 —— 工作台一直是显式 sendMessage 落库的，
+                对话区此前没有这一步，于是「发起后当场看不到回复，
+                刷新一次才出现」。实测确认。
+             2. 轮次结论写进共享 store —— 此前只有工作台写、对话区只读。
+
+             身份核对与工作台同一口径：
+             · 会话：用**这次请求自己带的 sessionId**（发起这轮创作的就是它），
+               不拿别的会话顶替；
+             · 消息：后端回显的 userMessageId 必须等于这次落库的用户消息 id，
+               不等就说明不是这一轮，宁可不写。 */
+          if (outcome.reply && outcome.state !== 'failed') {
+            try {
+              const savedAi = await props.threads.sendMessage(sessionId, outcome.reply, {
+                role: 'assistant',
+                taskId: saved.id,
+                idempotencyKey: `idem-reply-${saved.id}`,
+              })
+              /* 用服务端返回的真实消息 id 追加，别自造一个本地 id ——
+                 刷新后同一条会以另一个 id 再出现一次。 */
+              chat.appendMessage({
+                id: savedAi.id,
+                role: 'ai',
+                text: outcome.reply,
+                projectId: activeThread.projectId,
+                sessionId,
+                /* 带上触发这条回复的用户消息 id：两处界面都按它查轮次结论 */
+                taskId: saved.id,
+                at: Date.now(),
+              })
+            } catch (replyErr) {
+              /* 【保存失败 ≠ 一定没保存】后端可能在返回前就已自动落库
+                 （或这次请求其实成功、只是响应没回来）。所以不能凭这一个异常
+                 断言结果，必须回头核对服务端**实际**有没有这条回复。
+                 未确认落库时，界面要明确标出「没存进会话」并给重试入口 ——
+                 像正常回复一样显示，用户就无从判断，也无从补救。 */
+              const cause = replyErr instanceof Error ? replyErr.message : String(replyErr)
+              const lookup = await findStoredReply(sessionId, saved.id, outcome.reply)
+              const saveState = resolveReplySaveState(lookup)
+              if (saveState === 'saved' && lookup.kind === 'found') {
+                /* 服务端确实有：用真实 id 显示，不标失败 */
+                chat.appendMessage({
+                  id: lookup.messageId,
+                  role: 'ai',
+                  text: lookup.text,
+                  projectId: activeThread.projectId,
+                  sessionId,
+                  taskId: saved.id,
+                  at: Date.now(),
+                })
+              } else {
+                /* 未保存(absent) 或 结果未知(unknown)：都要显示可见状态 + 重试，
+                   但文案必须不同 —— unknown 时不能说「没有存进会话」。 */
+                const localId = `m-ai-${saved.id}`
+                console.warn(`[Conversation] 创作回复保存状态=${saveState}:`, cause)
+                chat.appendMessage({
+                  id: localId,
+                  role: 'ai',
+                  text: outcome.reply,
+                  projectId: activeThread.projectId,
+                  sessionId,
+                  taskId: saved.id,
+                  at: Date.now(),
+                  failed: replySaveNotice(saveState, cause.slice(0, 80)) ?? undefined,
+                })
+                setReplySaveRetry({
+                  sessionId,
+                  userMessageId: saved.id,
+                  reply: outcome.reply,
+                  localId,
+                })
+              }
+            }
+          }
+          if (outcome.state === 'awaiting_info' && outcome.userMessageId
+              && outcome.userMessageId === saved.id) {
+            recordRoundOutcome(activeThread.projectId, sessionId, {
+              reply: outcome.reply ?? '',
+              userMessageId: outcome.userMessageId,
+              ...(outcome.requestId ? { requestId: outcome.requestId } : {}),
+            })
+            /* 本页刚产生了新轮次：缓存里的时间点已经旧了，主动失效。
+               不失效的话，切走再切回来会因为「缓存没过期」而不再拉取，
+               别的窗口/后台刚写入的结果也就一直看不到。 */
+            invalidateBackfill(activeThread.projectId, sessionId)
+          }
+          if (outcome.state === 'failed') {
+            const errText = outcome.reply || '视频修改任务未能成功执行'
+            setSendError(errText)
+            sessionDraft.updateDraft({
+              pendingSubmission: {
+                requestId: reqId,
+                /* 存真实消息请求身份；创作身份单独记一份，便于核对
+                   「新消息是否错配到旧任务」。 */
+                promptKey: messageIdFp,
+                messageFingerprint: messageIdFp,
+                creationFingerprint: creationIdFp,
+                idempotencyKey: key,
+                sessionId,
+                userMessageId: saved.id,
+                createdAt: Date.now(),
+                error: errText,
+                targetSnapshot,
+              }
+            })
+            return
+          }
+        } catch (taskErr: unknown) {
+          const msg = taskErr instanceof Error ? taskErr.message : String(taskErr)
+          setSendError(`消息已送达会话，但视频修改启动失败：${msg}`)
+          sessionDraft.updateDraft({
+            pendingSubmission: {
+              requestId: reqId,
+              /* 存完整指纹而不是「会话+项目+文字」：
+                   重试身份要按整份请求判定，只记文字会让
+                   「改了目标/附件但文字没变」被误认成同一请求。 */
+                promptKey: messageIdFp,
+              messageFingerprint: messageIdFp,
+              creationFingerprint: creationIdFp,
+              idempotencyKey: key,
+              sessionId,
+              userMessageId: saved.id,
+              createdAt: Date.now(),
+              error: msg,
+              targetSnapshot,
+            }
+          })
+          return
+        }
+      }
+
+      /* 【一次发送尝试到此结束】清空幂等键。
+         幂等键保护的是「同一次尚未确认的发送」，不是「同一段文字」：
+         用户上一轮成功后**主动再发同一句话**，那是两次发送，必须产生两条消息。
+         若像早先那样「内容相同就永远复用同一把键」，这两次会被服务端当成一次，
+         用户第二次的话就静默丢失了。
+         失败/结果未知的路径不会走到这里（那之前就 return 了），
+         所以「原样重试复用旧键」由 pendingSubmission 负责，与这里互不冲突。 */
       idemKeyRef.current = null
+      idemTextRef.current = null
       chat.setDraft('')
-      setAttachments([])
-      /* 刚发出去的这条不在「服务端历史镜像」里（mirror 只跟着会话对象走），
-         先写进 chat，下面起回复流时它才在对话里。会话对象里已经有一条同样内容的
-         记录，切走再回来会以那一份为准，不会重复。 */
+      /* 先登记「这段文字已发出」，再清草稿：
+         输入框的 blur 回调稍后还会 flush 一次原文，不拦就会被写回草稿。 */
+      markDraftSent(activeThread?.projectId, sessionId, text)
+      /* 只清「这次发出去的那份」：用户若已输入新内容则保留（含附件）。 */
+      clearSentPartsOnly(activeThread?.projectId, sessionId, sentSnapshot)
       chat.appendMessage(saved)
-      /* 消息已保存，但回复要等 Agent：后端 SSE 端点已就绪，当前如实返回
-         agent_unavailable。起一次回复流 —— 接上 Agent 就是正常流式，
-         接不上就在回复位置写明「Agent 未接入」，而不是让用户以为回复还在路上。 */
-      startServerReply()
+      if (!isModifyIntent) {
+        /* 先登记再起流：下面的自动起流 effect 也会因为「最后一条是用户消息」
+           尝试 startServerReply。若这里不先登记，effect 会在 stream 注册完成前
+           看到 has()===false，于是起第二条流 —— 实测表现为早停时出现两条 stream
+           和两次 /stop。登记后 effect 的 servedRef 守卫能立刻生效。 */
+        servedRef.add(saved.id)
+        startServerReply()
+      }
     } catch (cause) {
       if (!mountedRef.current) return
       // 没有发出去：消息不显示、草稿保留、给出原因；幂等键保留以便原样重试
@@ -1557,6 +2294,80 @@ export function Conversation(props: {
    * 后端不支持断点续读（Last-Event-ID 只校验格式），所以「接着刚才那条继续」
    * 做不到。能做的是把同一句话再发一遍 —— 幂等键保证服务端不会重复落库。
    */
+  /**
+   * 核对服务端是否**真的**存下了这一轮的回复 —— 返回三态。
+   *
+   * <p>判据是「会话里存在一条 taskId 等于这条用户消息 id 的助手消息」——
+   * 这正是保存时写入的归属字段，比比对文本可靠（文本可能被截断/改写）。</p>
+   *
+   * <p>三态缺一不可：把「查完了确实没有」和「没查成」都返回 null，
+   * 界面就会在断网时断言「回复没有存进会话」—— 而那时后端很可能已经
+   * 自动保存好了。翻页上限被触及也算「没查完」，同样不能当作确实没有。</p>
+   */
+  const findStoredReply = async (
+    sid: string,
+    userMessageId: string,
+    fallbackText: string,
+  ): Promise<ReplyLookup> => {
+    try {
+      /* 跟游标翻页：只读第一页会在长会话里漏掉刚存的那条，
+         从而把「其实存好了」误判成「没存」。 */
+      let cursor: string | undefined
+      for (let page = 0; page < 20; page += 1) {
+        const res = await studioHttpApi().chat.listMessages(sid, {
+          limit: 80,
+          ...(cursor ? { cursor } : {}),
+        })
+        for (const m of res.items ?? []) {
+          if (m.role === 'assistant' && m.taskId === userMessageId) {
+            return { kind: 'found', messageId: m.id, text: m.text ?? fallbackText }
+          }
+        }
+        cursor = res.nextCursor ?? undefined
+        if (!cursor) return { kind: 'absent' }
+      }
+      /* 翻到上限还没到末页：**没有查完**，不能断言不存在 */
+      return { kind: 'unknown', reason: '会话消息过多，未能查完' }
+    } catch (err) {
+      /* 核对本身失败：结果未知，绝不当作「没有保存」 */
+      return {
+        kind: 'unknown',
+        reason: err instanceof Error ? err.message : String(err),
+      }
+    }
+  }
+
+  /** 补存这条创作回复：失败标记清掉，重新写一次会话。 */
+  const retrySaveReply = useCallback(async () => {
+    const target = replySaveRetry
+    if (!target) return
+    setReplySaveRetry(null)
+    try {
+      const savedAi = await props.threads.sendMessage(target.sessionId, target.reply, {
+        role: 'assistant',
+        taskId: target.userMessageId,
+        idempotencyKey: `idem-reply-${target.userMessageId}`,
+      })
+      /* 换成服务端 id 并清掉失败标记：重试用的是同一把幂等键，
+         服务端不会因为补存而多出一条。
+         没有 replaceMessage，用「先移除本地占位、再追加服务端那条」实现 ——
+         顺序不能反，否则 appendMessage 的去重会按 id 判定，两条都在。 */
+      chat.removeMessage(target.localId)
+      chat.appendMessage({
+        id: savedAi.id,
+        role: 'ai',
+        text: target.reply,
+        taskId: target.userMessageId,
+        sessionId: target.sessionId,
+        at: Date.now(),
+      })
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      setSendError(`回复仍未存进会话（${msg.slice(0, 80)}）。刷新后这条会消失，请再试一次。`)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [replySaveRetry, chat, props.threads])
+
   const retryLastRound = useCallback(() => {
     const lastUser = [...messages].reverse().find((m) => m.role === 'user')
     if (!lastUser || pending) return
@@ -1617,11 +2428,26 @@ export function Conversation(props: {
    * 用**派生值**而不是 effect 里 setState：effect 里改状态会触发级联渲染
    * （react 规则 set-state-in-effect），而且派生更符合 React 的数据流方向。
    */
-  const backendModels = modelsOfHarness(harnessId).models
+  const selectedHarness = probe.harnesses.find((h) => h.id === harnessId)
+    ?? probe.harnesses.find((h) => h.name.toLowerCase() === harnessId.toLowerCase())
+    ?? probe.harnesses.find((h) => h.status === 'available')
+  const composerHarnesses = useMemo(() => probe.harnesses.map((h) => ({
+    id: h.id,
+    name: h.name,
+    iconUrl: h.name.toLowerCase().includes('deepseek') ? './assets/brand/deepseek.svg' : undefined,
+    available: h.status === 'available' && probe.access === 'available',
+    models: (probe.modelsByHarness[h.id] ?? []).map((m) => ({ id: m.id, name: m.label || m.id, reasoningEfforts: m.reasoningEfforts })),
+  })), [probe.harnesses, probe.modelsByHarness, probe.access])
+  const backendModels = modelsOfHarness(selectedHarness?.id ?? harnessId).models
   const effectiveModel =
     backendModels.length === 0 || backendModels.some((m) => m.id === model)
       ? model
       : (backendModels.find((m) => m.default) ?? backendModels[0]).id
+  /**
+   * 五档强度始终可选，后端负责映射到模型真正支持的档位（不支持就逐级降级）。
+   * 所以这里不做「模型是否支持该档」的拦截 —— 那会让用户以为选不了。
+   */
+  const effectiveEffort = thinking
   /**
    * 当前模型的上下文窗口（分母），来自后端模型目录。
    *
@@ -1646,6 +2472,29 @@ export function Conversation(props: {
   const composerWindow =
     lastUsageMsg?.contextWindow ?? contextWindow ?? modelContextWindow ?? 0
   const composerBreakdown = lastUsageMsg?.breakdown ?? breakdown ?? null
+  /*
+   * 上下文构成分档 —— 消息区那张卡片（.cv3-ctxmeter）的数据源。
+   *
+   * 原先它挂在输入框圆环上：圆环点开才看得到；现在圆环撤掉，
+   * 卡片直接贴在每轮回复末尾，和 token 用量同一档辅助信息。
+   *
+   * 原版语义：k 是千 token，窗口也是千 token，一个点 = 1K。
+   * resultsTokens（bash 回显等工具输出）并进 Tools —— 两者都是工具开销，
+   * 且组件的 React key 与配色都要求 id 唯一。
+   *
+   * 没有真实数据（一次对话都没开始）时不渲染：画一个 0% 的空卡
+   * 比不画更容易让人以为读数坏了。
+   */
+  const messageMeterKinds: Kind[] = composerBreakdown
+    ? [
+        { id: 'sys', name: 'System', k: composerBreakdown.systemTokens / 1000 },
+        { id: 'tools', name: 'Tools', k: ((toolsTokens ?? 0) + composerBreakdown.resultsTokens) / 1000 },
+        { id: 'files', name: 'Files', k: composerBreakdown.filesTokens / 1000 },
+        { id: 'chat', name: 'Chat', k: composerBreakdown.chatTokens / 1000 },
+        { id: 'mem', name: 'Memory', k: composerBreakdown.memoryTokens / 1000 },
+      ]
+    : []
+
   /* ⚠️ 必须等到**真的有实测 token 数**才给快照。
      只看窗口大小是不够的：窗口来自模型目录，任何状态下都有值，
      于是「一次对话都没开始」也会传出一个 projected_request_tokens: 0 的快照，
@@ -1655,7 +2504,7 @@ export function Conversation(props: {
     composerWindow > 0 && composerPromptTokens !== null && composerPromptTokens > 0
       ? {
           context_window: composerWindow,
-          /* 官方自己会排序、算「其他/未归类」、渲染成列表，
+          /* 官方自己会排序、算「其他/未归类」，渲染成列表，
              所以我们只按它的 kind/source/name/tokens 约定给原始分档。 */
           blocks: composerBreakdown
             ? [
@@ -1670,37 +2519,32 @@ export function Conversation(props: {
         }
       : null
 
-  /*
-   * 输入框圆圈点开的内容：Bencho 的 ContextMeter（点阵 + 分段条）。
-   *
-   * 原生「运行官方代码」那版点开是一张「预计下一次请求 N%」的小卡 ——
-   * 那是官方的表述，回答不了「上下文被什么吃掉」。这里换成点阵版：
-   * 200 个格子、一格一个窗口比例，五档各占自己的颜色带。
-   *
-   * 没有真实数据（一次对话都没开始）时**不渲染**，官方弹层也保持空白 ——
-   * 画一个 0% 的空卡比不画更容易让人以为读数坏了。
-   */
-  /* 原版语义：k 是千 token，窗口也是千 token，一个点 = 1K。
-     resultsTokens（bash 回显等工具输出）并进 Tools —— 两者都是工具开销，
-     且组件的 React key 与配色都要求 id 唯一。 */
-  const composerMeterKinds: Kind[] = composerBreakdown
-    ? [
-        { id: 'sys', name: 'System', k: composerBreakdown.systemTokens / 1000 },
-        { id: 'tools', name: 'Tools', k: ((toolsTokens ?? 0) + composerBreakdown.resultsTokens) / 1000 },
-        { id: 'files', name: 'Files', k: composerBreakdown.filesTokens / 1000 },
-        { id: 'chat', name: 'Chat', k: composerBreakdown.chatTokens / 1000 },
-        { id: 'mem', name: 'Memory', k: composerBreakdown.memoryTokens / 1000 },
-      ]
-    : []
+  /* 圆环点开的内容：Bencho 的 ContextMeter（点阵 + 分段条）。 */
   const composerMeterPanel =
-    composerMeterKinds.length > 0 && composerWindow > 0 ? (
+    messageMeterKinds.length > 0 && composerWindow > 0 ? (
       <ContextMeter
-        kinds={composerMeterKinds}
+        kinds={messageMeterKinds}
         windowK={Math.round(composerWindow / 1000)}
         style="Bar"
       />
     ) : null
 
+  /**
+   * 消息区卡片要不要画：必须**两个数都有**。
+   *
+   * 分子优先读落库的 promptTokens（刷新后仍在）；刚发完、消息还没落库那一瞬
+   * 落库值为空，退回流里的实时水位 contextUsed —— 否则卡片会「发完就消失一帧」。
+   * 分母同理：优先落库，其次流，最后模型目录（续接老会话时 DSH 不发那一帧）。
+   */
+  const messagePromptTokens = lastUsageMsg?.promptTokens ?? contextUsed ?? null
+  /* 卡片画在列表末尾、每条回复的收尾处，属于当前这条回复。
+     末尾不是 AI 回复时不画 —— 详见 shouldShowMessageMeter 的说明。 */
+  const showMessageMeter = shouldShowMessageMeter({
+    messages,
+    hasBreakdown: messageMeterKinds.length > 0,
+    window: composerWindow,
+    promptTokens: messagePromptTokens,
+  })
   const addFiles = (files: File[], forced?: 'file' | 'image' | 'video', done?: () => void) => {
     if (files.length > 0) {
       const picked = files.slice(0, 6).map((f) => {
@@ -1777,14 +2621,15 @@ export function Conversation(props: {
      不传时沿用当前打开的项目（旧行为）。
      有项目 = 真实创建（失败时左栏显示错误，不伪造会话）；没有项目 = 本页草稿。 */
   const newSession = (intoProject?: string | null) => {
-    /* 开新会话时必须把上一段的回复流断掉：退订 = 断线（不当作完成），
-       否则旧对话的回复会插进新会话里 */
-    streamStopRef.current?.()
+    /* 开新会话时把上一段的引用清掉即可：退订由 chatStreamManager 负责，
+       这里若调 streamStopRef 会额外给后端发一次 /stop（它内部含请求），
+       把「开新会话」误变成「停止上一轮」。 */
     streamStopRef.current = null
     setPending(false)
     setReplyNote(null)
     setSendError(null)
     idemKeyRef.current = null
+    idemTextRef.current = null
     chat.clearChat()
     /* 左栏也要真的多一条会话，否则新建只清空了内容、树上什么都没变。
        归属：行内按钮给了就用它，否则沿用当前项目（在项目里开新对话，
@@ -1831,6 +2676,7 @@ export function Conversation(props: {
       {!rail && <aside className="cv3-side" data-drawer={drawer || undefined} aria-label="项目与对话">
         {/* 左栏标题与项目/对话操作同层，视图选项靠近下面的列表。 */}
         <div className="cv3-side-top">
+          <span className="cv3-side-title">项目与对话</span>
           {/* 搜索并进这一排：收起时和旁边的图标按钮同款，点开时占满整条，
               同排其他按钮随即隐去，收起后再回来（见 conversation.css）。 */}
           <SeekSearch value={query} onChange={setQuery} width={248} size={28}
@@ -1930,7 +2776,13 @@ export function Conversation(props: {
             const isUng = g.projectId === UNGROUPED
             const flat = g.key === 'flat'
             const proj = isUng || flat ? null : props.projects.find((p) => p.id === g.projectId) ?? null
+            /* 当前项目默认展开，其他项目默认收起：
+               左栏挂着所有项目的会话，全展开时用户要滚过几十个别人的项目才能看到自己的。
+               用户手动展开过的项目按用户的选择来（collapsedGroups 里记的是显式切换）。 */
+            const isCurrentGroup = !isUng && !flat && g.projectId === props.openProject
             const collapsed = collapsedGroups.has(g.key)
+              ? true
+              : (collapsedGroups.has(`__open:${g.key}`) ? false : !isCurrentGroup && g.sessions.length > 0)
             return (
               <div key={g.key} className="cv3-group" data-ungrouped={isUng && !flat || undefined}
                    onDragOver={(e) => {
@@ -1978,17 +2830,25 @@ export function Conversation(props: {
                                收起时不改选中态：收起只是视觉折叠，不该顺手切走当前项目。 */
                             data-current={!isUng && proj && props.openProject === proj.id || undefined}
                             onClick={() => {
-                              /* 选中先行、折叠随后：`collapsed` 是渲染时捕获的值，
-                                 但在同一批事件里被更新前读取并不可靠 —— 之前用
-                                 `willExpand &&` 守卫导致点了没反应（真机验证为 disabled
-                                 的工作台按钮始终不亮）。现在不管展开还是收起，点项目头
-                                 都把它设为当前项目：这是「我要在这个项目里工作」的明确意图，
-                                 收起只是视觉动作，不该因此丢掉选中。 */
+                              /* 点项目头 = 选中并展开该项目。
+                                 为什么选中时强制展开：用户切到某个项目，就是要看它的会话；
+                                 若这个项目上次被手动折叠过，切过去只看到一行项目名，
+                                 会以为会话没了。折叠只在「已经在这个项目里」时生效。 */
+                              const switchingIn = !isUng && proj && props.openProject !== proj.id
                               if (!isUng && proj) props.onSelectProject(proj.id)
                               setCollapsedGroups((prev) => {
                                 const next = new Set(prev)
-                                if (next.has(g.key)) next.delete(g.key)
-                                else next.add(g.key)
+                                if (switchingIn) {
+                                  /* 切进来：一律展开，并记下显式展开，覆盖之前的折叠。 */
+                                  next.delete(g.key)
+                                  next.add(`__open:${g.key}`)
+                                } else if (collapsed) {
+                                  next.delete(g.key)
+                                  next.add(`__open:${g.key}`)
+                                } else {
+                                  next.delete(`__open:${g.key}`)
+                                  next.add(g.key)
+                                }
                                 return next
                               })
                             }}
@@ -2079,12 +2939,20 @@ export function Conversation(props: {
                         ) : (
                           <>
                             {t.pinned && <Pin size={11} className="cv3-session-pin" aria-label="已置顶" />}
-                            <span className="cv3-session-name">{t.title}</span>
+                            {/* 标题走共享规则：空白标题的兜底必须与侧栏一致，
+                                否则同一个会话在两处可能显示成不同的名字。 */}
+                            <span className="cv3-session-name">{sessionDisplayTitle(t)}</span>
                             {t.archived
                               ? <span className="cv3-session-flag">已归档</span>
                               : t.origin === 'local'
                                 ? <span className="cv3-session-flag" title={t.localNote ?? '未保存到服务端'}>仅本页</span>
-                                : <span className="cv3-session-time num">{fmtAgo(t.updatedAt)}</span>}
+                                : (
+                                  /* 悬停给完整时间：列表里为紧凑用了相对时间，
+                                     但用户要能核对准确时刻。 */
+                                  <span className="cv3-session-time num" title={sessionTimeFull(t.updatedAt)}>
+                                    {fmtAgo(t.updatedAt)}
+                                  </span>
+                                )}
                           </>
                         )}
                         <div className="cv3-rowmenu-wrap">
@@ -2177,7 +3045,7 @@ export function Conversation(props: {
               <JobPanel jobs={jobs} onDismiss={(id) => setJobs((prev) => prev.filter((x) => x.jobId !== id))} />
             )}
             <ViewSwitch current="conversation" workbenchDisabled={props.openProject === null}
-                        onSwitch={(target) => { if (target === 'workbench') props.onOpenWorkbench() }} />
+                        onSwitch={(target) => { if (target === 'workbench') props.onOpenWorkbench(props.activeSessionId) }} />
           </div>
         </header>
 
@@ -2247,7 +3115,27 @@ export function Conversation(props: {
                   }))}
                 />
               ) : (
-                <div key={m.id} className="cv3-ai-block">
+                <div key={m.id} className="cv3-ai-block" data-streaming={m.streaming || undefined}>
+                  {/* 「本轮未改动工程」按**轮次**显示：用这条回复的 taskId
+                      （= 触发它的用户消息 id）查共享 store。
+                      与工作台侧栏读同一份数据，取不到就不显示。 */}
+                  {(() => {
+                    const outcome = getRoundOutcome(m.taskId)
+                    if (!outcome) return null
+                    return (
+                      <p className="cv3-demo-note" role="status" data-round-outcome="">
+                        本轮未改动工程 · 没有新版本
+                        <button
+                          type="button"
+                          onClick={() => clearRoundOutcome(activeThread?.projectId, props.activeSessionId, outcome.userMessageId)}
+                          aria-label="关闭"
+                          style={{ marginLeft: 6, opacity: 0.7 }}
+                        >
+                          ×
+                        </button>
+                      </p>
+                    )
+                  })()}
                   {/* ══ 过程区（turn-process）═══════════════════════════
                       顺序照 dsh 的 ChatView：思考 → 工具调用 → 运行指示。
                       这三块回答的是「它怎么做到的」，正文回答「结论是什么」，
@@ -2330,7 +3218,19 @@ export function Conversation(props: {
 
                   {/* 失败 / 演示标记：必须可见，不能只靠别处说明 */}
                   {m.failed ? (
-                    <p className="cm-failed" role="alert">这条回复没有完成：{m.failed}</p>
+                    <p className="cm-failed" role="alert">
+                      这条回复没有完成：{m.failed}
+                      {replySaveRetry && replySaveRetry.localId === m.id ? (
+                        <button
+                          type="button"
+                          className="cm-failed-retry"
+                          data-reply-save-retry=""
+                          onClick={() => void retrySaveReply()}
+                        >
+                          重试补存
+                        </button>
+                      ) : null}
+                    </p>
                   ) : null}
                   {m.demo && !m.streaming && !m.failed ? (
                     <p className="cm-note">演示回复 · 未连接 Agent</p>
@@ -2372,6 +3272,8 @@ export function Conversation(props: {
                   )}
                 </div>
               ))}
+
+              <CreationProgress projectId={activeThread?.projectId} sessionId={props.activeSessionId} />
 
               {/* ⚠️ 这里原来写的是「pending 且最后一条是 user」。
                   但真实流程一发送就会插入一条 streaming 的 AI 消息（useChat.startAiMessage），
@@ -2474,52 +3376,16 @@ export function Conversation(props: {
                   </p>
                 )
               })()}
-              {/* 上下文占用：只有拿到真实分子和分母才画。
-                  分母（窗口）取决于适配器是否上报，没报就整块不出现 —— 画一个
-                  没有分母的进度条不如不画，那只是个装饰。
-                  分档口径：system / tools 是启发式估算（DSH 用 chars/4），
-                  messages 由「实测总量 − 前两档」得出，所以三者相加正好等于
-                  实测 prompt 大小，不会出现「分档加起来和总数对不上」。 */}
-              {(() => {
-                /* 优先读**这条回复落库的用量**：它是持久事实，刷新后仍在。
-                   流式状态（contextUsed 等）只在「刚发完这一轮」存在，单独用会让
-                   占用条一刷新就消失。两者取值相同，落库那份是同一轮记下来的。 */
-                const stored = [...messages].reverse().find((m) => m.role === 'ai' && m.usage)?.usage
-                const used = stored?.promptTokens ?? contextUsed
-                const tools = stored?.toolsTokens ?? toolsTokens
-                /* 分母优先用流/落库里的实测值；续接老会话时那一帧不会来
-                   （DSH 只在 provider/model/窗口变化时才发），退回模型目录里的同名字段。 */
-                const win = contextWindow ?? stored?.contextWindow ?? modelContextWindow ?? null
-                if (win === null || used === null || used === undefined) return null
-                /* 分档：后端按 magpie 的 prompt.parts 口径拆成五类。
-                   没有分档（老消息）时才退回「工具 + 其余」的粗分。 */
-                const bd = stored?.breakdown ?? breakdown
-                const parts: Kind[] = []
-                if (bd) {
-                  /* 五档：System / Tools / Files / Chat / Memory。
-                     后端的 resultsTokens（bash 回显、浏览器快照）并进 Tools ——
-                     两者都是「工具带来的开销」，且 id 必须唯一（React key 与配色都靠它）。 */
-                  const toolsTotal = (tools ?? 0) + bd.resultsTokens
-                  parts.push(
-                    { id: 'sys', name: 'System', k: bd.systemTokens / 1000 },
-                    { id: 'tools', name: 'Tools', k: toolsTotal / 1000 },
-                    { id: 'files', name: 'Files', k: bd.filesTokens / 1000 },
-                    { id: 'chat', name: 'Chat', k: bd.chatTokens / 1000 },
-                    { id: 'mem', name: 'Memory', k: bd.memoryTokens / 1000 },
-                  )
-                } else {
-                  parts.push(
-                    { id: 'tools', name: 'Tools', k: (tools ?? 0) / 1000 },
-                    { id: 'chat', name: 'Messages', k: Math.max(0, used - (tools ?? 0)) / 1000 },
-                  )
-                }
-                if (parts.length === 0) return null
-                return (
-                  <div className="cv3-ctxmeter">
-                    <ContextMeter kinds={parts} windowK={Math.round(win / 1000)} style="Bar" />
-                  </div>
-                )
-              })()}
+              {/* 上下文占用：这是**唯一**的入口（输入框里的圆环已撤掉）。
+                  只有拿到真实分子和分母才画 —— 画一个没有分母的进度条不如不画。
+                  数据取「最后一条带 usage 的 AI 消息」的落库值（composerPromptTokens /
+                  composerWindow），与输入框同源；分档口径见 composerMeterKinds：
+                  system / tools / files / chat / memory 五档相加正好等于实测 prompt 大小。 */}
+              {showMessageMeter && (
+                <div className="cv3-ctxmeter">
+                  <ContextMeter kinds={messageMeterKinds} windowK={Math.round(composerWindow / 1000)} style="Bar" />
+                </div>
+              )}
               {usage && (usage.inputTokens !== undefined || usage.outputTokens !== undefined) && (
                 <p className="cv3-usage num">
                   {usage.inputTokens !== undefined && <>输入 {usage.inputTokens}</>}
@@ -2570,31 +3436,100 @@ export function Conversation(props: {
             {/* 居中盒：宽度约束与正文列 .cv3-col 同源（见 conversation.css 的 --cv-compose-w），
                 否则输入框会比正文宽出一截，看上去被「拉长」且左右对不齐。 */}
             <div className="lbx-compose-box">
+            {/* 始终显示：用户在看到输入框时就该知道这句话发出去会走哪条路。
+                显示内容由 resolveSendPlan 决定，与真实发送是同一个判定 ——
+                不再「有目标才显示」，也不再让组件默认值把普通对话画成修改工程。 */}
+            {(
+              <TargetSummaryPill
+                layoutMode="normal"
+                targetSnapshot={sessionDraft.draft.targetSnapshot}
+                draftIntent={sessionDraft.draft.intentAction}
+                continuationScopeMode={sessionDraft.draft.continuationScopeMode}
+                hasProject={Boolean(activeThread?.projectId)}
+                isServerSession={Boolean(activeIsServer)}
+                /* 目标版本来源：胶囊据此决定是否可与工程版本比较 */
+                versionSeries={
+                  sessionDraft.draft.targetSnapshot?.version !== undefined
+                    && sessionDraft.draft.targetSnapshot?.version !== null
+                    ? 'scene'
+                    : null
+                }
+                /* 工程版本读不到时传 null + unconfirmed，让胶囊降级措辞 */
+                stageLeadVersion={stageLeadVersion}
+                versionUnconfirmed={stageLeadVersion === null}
+                onIntentChange={(intent) => {
+                  /* 与工作台同一套写入：意图既进目标快照，也独立存一份，
+                     免得某天这里的目标被清空后意图跟着丢失。 */
+                  sessionDraft.updateDraft({
+                    intentAction: intent,
+                    ...(sessionDraft.draft.targetSnapshot
+                      ? { targetSnapshot: { ...sessionDraft.draft.targetSnapshot, intentAction: intent } }
+                      : {}),
+                  })
+                }}
+                onRemoveTarget={() => sessionDraft.updateDraft({ targetSnapshot: null })}
+                onViewLead={() => {
+                  if (activeThread?.projectId) {
+                    props.onOpenWorkbench(props.activeSessionId)
+                  }
+                }}
+              />
+            )}
+            {sessionDraft.draft.continuationScopeMode === 'target_required' && !sessionDraft.draft.targetSnapshot && (
+              <div className="flex items-center justify-between gap-2 px-3 py-2 mb-2 rounded-lg bg-amber-500/10 border border-amber-500/25 text-xs text-amber-500">
+                <span className="flex-1">继续调整尚未选定修改目标。可在工作台圈定画面/时间，或直接整片提交：</span>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    type="button"
+                    className="px-2 py-0.5 rounded bg-blue-500/15 hover:bg-blue-500/25 text-blue-500 font-medium transition-colors"
+                    onClick={() => {
+                      if (activeThread?.projectId) {
+                        props.onOpenWorkbench(props.activeSessionId)
+                      }
+                    }}
+                  >
+                    返回工作台选目标
+                  </button>
+                  <button
+                    type="button"
+                    className="px-2 py-0.5 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-500 font-medium transition-colors"
+                    onClick={() => {
+                      sessionDraft.updateDraft({ continuationScopeMode: 'whole_confirmed' })
+                      setSendError(null)
+                    }}
+                  >
+                    确认整片修改
+                  </button>
+                </div>
+              </div>
+            )}
             {/* 输入框整体使用 LeiBox 官方「Agent 对话输入框」原版实现：
                 内部是官方打包产物（自带 React / GSAP / 图标与全部动效），
                 不再保留任何自研元素。
                 contextUsage 是官方圆圈（以及它自带的「上下文组成」面板）的数据源：
                 传进去圆圈才显示真实百分比，而不是恒定的 0%。 */}
             <LeiBoxComposer
-              busy={pending}
+              harnesses={composerHarnesses}
+              harness={selectedHarness?.id}
+              onHarnessChange={setHarnessId}
+              selectedModel={backendModels.length ? effectiveModel : undefined}
+              onModelChange={setModel}
+              onThinkingChange={setThinking}
+              busy={pending || stopping}
+              /* 对话区的 busy 只表示回复流，能停就是能停。
+                 停止结果未回时仍保留停止键：用户可以再点一次重试。 */
+              canStop={pending}
+              stopping={stopping}
+              onStop={() => streamStopRef.current?.()}
               contextUsage={composerContextUsage}
               contextUsageFallbackTokens={composerPromptTokens ?? undefined}
               contextPanel={composerMeterPanel}
-              models={backendModels.map((m) => ({ id: m.id, label: m.label }))}
-              selectedModel={effectiveModel}
-              /* 官方胶囊两级抽屉：第一级列已接入的引擎，第二级是它的真实模型 */
-              harnesses={probe.harnesses
-                .filter((h) => availabilityOf(probe, h.id).state === 'available')
-                .map((h) => ({ id: h.id, name: h.name }))}
-              harness={probe.harnesses.find((h) => availabilityOf(probe, h.id).state === 'available')?.id ?? ''}
-              modelsByHarness={Object.fromEntries(
-                Object.entries(probe.modelsByHarness).map(([k, v]) => [
-                  k,
-                  v.map((m) => ({ id: m.id, label: m.label })),
-                ]),
-              )}
-              onModelChange={setModel}
-              onThinkingChange={(lv) => setThinking(lv as 'simple' | 'medium' | 'deep')}
+              draft={sessionDraft.draft.text}
+              onDraftChange={(text) => sessionDraft.updateDraft({ text })}
+              onFlush={(text) => sessionDraft.flushText(text)}
+              /* 用户真实输入时作废「刚发送」标记：
+                 否则他主动重新输入同一句话会被当成迟来回调而存不进草稿。 */
+              onUserInput={() => noteDraftInput(activeThread?.projectId, props.activeSessionId)}
               onSubmit={(payload) => {
                 if (payload.text.trim()) submit(payload.text)
               }}

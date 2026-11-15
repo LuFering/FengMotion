@@ -9,7 +9,40 @@
   padding: 0;
   transition: none;
 }
-#pane-flow .wb-a2.wb-studio .open-workbench-layout[data-panel='closed'] { grid-template-columns: 40px minmax(0, 1fr); }
+#pane-flow .wb-a2.wb-studio .open-workbench-layout[data-panel='closed'] {
+  grid-template-columns: minmax(0, 1fr) !important;
+  width: 100% !important;
+}
+#pane-flow .wb-a2.wb-studio .open-workbench-layout[data-panel='closed'] .open-workbench-conversation,
+#pane-flow .wb-a2.wb-studio .open-workbench-layout[data-panel='closed'] .open-workbench-resize,
+#pane-flow .wb-a2.wb-studio .open-workbench-layout[data-panel='closed'] .fw-panel-reopen,
+#pane-flow .wb-a2.wb-studio .open-workbench-layout[data-panel='closed'] .fw-panel-reopen-float,
+#pane-flow .wb-a2.wb-studio:has(.open-workbench-layout[data-panel='closed']) .wb-projectbar,
+#pane-flow .wb-a2.wb-studio:has(.open-workbench-layout[data-panel='closed']) .wb-crumb,
+#pane-flow .wb-a2.wb-studio .wb-projectbar[data-panel='closed'],
+body.wb-fullscreen-active .hm-sidebar-restore,
+body.wb-fullscreen-active .wb-projectbar,
+body.wb-fullscreen-active .wb-crumb,
+body.wb-fullscreen-active .open-workbench-conversation,
+body.wb-fullscreen-active .open-workbench-resize,
+body.wb-fullscreen-active .fw-panel-reopen,
+body.wb-fullscreen-active .fw-panel-reopen-float {
+  display: none !important;
+  width: 0 !important;
+  min-width: 0 !important;
+  max-width: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: 0 !important;
+  pointer-events: none !important;
+}
+#pane-flow .wb-a2.wb-studio .open-workbench-layout[data-panel='closed'] .fw-canvas {
+  margin: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  border: 0 !important;
+  width: 100% !important;
+}
 #pane-flow .wb-a2.wb-studio .open-workbench-layout[data-editor='true'] { grid-template-columns: minmax(0, 1fr); }
 #pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-ing {
   position: absolute; inset: 0 auto 0 0; z-index: 31;
@@ -22,7 +55,7 @@
 }
 #pane-flow .wb-a2.wb-studio .wb-projectbar .fw-mobile,
 #pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-ing .fw-mobile { display: grid; }
-#pane-flow .wb-a2.wb-studio .open-workbench-conversation { min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+#pane-flow .wb-a2.wb-studio .open-workbench-conversation { position: relative; z-index: 9; min-width: 0; min-height: 0; margin-top: -12px; display: flex; flex-direction: column; }
 /* 对话列是平铺的一列，不是一张卡片。参考架构里两侧都是同一个工作区的两块，
    给对话再套一层边框+圆角，看起来就像两个并排的独立应用。 */
 #pane-flow .wb-a2.wb-studio .open-workbench-conversation > .fw-panel,
@@ -32,6 +65,8 @@
   border: 0; border-radius: 0; background: transparent;
   animation: none; transition: none;
 }
+/* 输入框的权限与模型菜单会略微超出窄栏；消息本身仍由线程容器滚动裁切。 */
+#pane-flow .wb-a2.wb-studio .open-workbench-conversation > .fw-panel { overflow: visible; }
 /* 两列同属一个工作区，共用整页背景；只有画面框单独成色、浮在上面。 */
 /* 这里必须是透明，不能写实色 --bg：整页背景是挂在 .wb-a2 上的一张
    radial-gradient（顶部中心偏亮，向下渐暗）。布局层铺实色会把下半截的渐变
@@ -51,32 +86,97 @@
 #pane-flow .wb-a2.wb-studio .open-workbench-conversation > .wb-scene-versions { box-shadow: none; }
 /* 对话区不设边框：它是背景上的一块文字与输入，不是并排的第二张卡片。 */
 #pane-flow .wb-a2.wb-studio .open-workbench-conversation { background: transparent; }
-#pane-flow .wb-a2.wb-studio .open-workbench-resize { cursor: col-resize; touch-action: none; position: relative; z-index: 2; border-left: 0; }
-#pane-flow .wb-a2.wb-studio .open-workbench-resize:hover,
-#pane-flow .wb-a2.wb-studio .open-workbench-resize:focus-visible,
-#pane-flow .wb-a2.wb-studio .open-workbench-layout[data-resizing] .open-workbench-resize { background: var(--acc); outline: none; }
+#pane-flow .wb-a2.wb-studio .open-workbench-resize {
+  cursor: col-resize; touch-action: none; position: relative; z-index: 8;
+  width: 32px; margin-left: -14px; border: 0; outline: none;
+}
+#pane-flow .wb-a2.wb-studio .open-workbench-resize-handle {
+  position: absolute; width: 80px; height: 160px; left: -24px; top: 50%;
+  transform: translateY(-50%); overflow: visible; pointer-events: none; opacity: 0;
+  transition: opacity 160ms ease;
+}
+#pane-flow .wb-a2.wb-studio .open-workbench-resize-handle path {
+  fill: none; stroke: var(--tx3); stroke-width: 5; stroke-linecap: round;
+  transition: d 180ms ease;
+}
+#pane-flow .wb-a2.wb-studio .open-workbench-resize:hover .open-workbench-resize-handle,
+#pane-flow .wb-a2.wb-studio .open-workbench-resize:focus-visible .open-workbench-resize-handle,
+#pane-flow .wb-a2.wb-studio .open-workbench-layout[data-resizing] .open-workbench-resize-handle { opacity: .8; }
 #pane-flow .wb-a2.wb-studio .open-workbench-layout[data-resizing] { user-select: none; }
 #pane-flow .wb-a2.wb-studio .open-workbench-conversation .fw-panel-reopen { display: flex; width: 100%; height: 100%; }
 #pane-flow .wb-a2.wb-studio .open-workbench-conversation .fw-panel-reopen-float { display: none; }
-/* 标题只留一个词，所以不需要 72px 那套「标题 + 副标题」的高度。
-   压到 40px 并去掉下边框：这一列没有面板感，标题只是给眼睛一个落点。 */
+/* 收紧标题区，为下面的对话留出更多可用高度。 */
 #pane-flow .wb-a2.wb-studio .wb-assistant-heading {
-  height: 40px; min-height: 40px; padding: 0 20px;
+  height: 42px; min-height: 42px; padding: 0 20px;
   border-bottom: 0;
 }
 #pane-flow .wb-a2.wb-studio .wb-assistant-heading strong { font-size: 15px; font-weight: 600; }
 #pane-flow .wb-a2.wb-studio .wb-assistant-heading span { font-size: 11px; color: var(--tx3); }
+#pane-flow .wb-a2.wb-studio .wb-console-session { display: flex; align-items: center; gap: 8px; min-width: 0; margin-left: 14px; }
+#pane-flow .wb-a2.wb-studio .wb-console-session-label { flex: none; font-size: 11px; }
+#pane-flow .wb-a2.wb-studio .wb-console-session-select,
+#pane-flow .wb-a2.wb-studio .wb-console-session-single { min-width: 0; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--tx); font-size: 11px; }
+#pane-flow .wb-a2.wb-studio .wb-console-session-select { height: 30px; padding: 0 7px; border: 1px solid var(--line); border-radius: 7px; background: var(--surf); cursor: pointer; }
+#pane-flow .wb-a2.wb-studio .wb-console-session-select:hover { border-color: var(--line2); background: var(--hole); }
+#pane-flow .wb-a2.wb-studio .wb-console-session-select:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
 /* 页签行跟着上移，省下的一段高度全给消息流和输入框。 */
-#pane-flow .wb-a2.wb-studio .fw-panel .fw-panel-hd { padding: 4px 16px 8px; border-bottom: 0; }
+#pane-flow .wb-a2.wb-studio .fw-panel .fw-panel-hd { padding: 0 16px 4px; border-bottom: 0; }
 #pane-flow .wb-a2.wb-studio .open-workbench-thread { flex: 1; min-height: 0; overflow-y: auto; }
-#pane-flow .wb-a2.wb-studio .open-workbench-messages { display: flex; flex-direction: column; gap: 16px; padding: 20px; }
-#pane-flow .wb-a2.wb-studio .open-workbench-thread-label { color: var(--tx3); font-size: 11px; text-align: center; }
+#pane-flow .wb-a2.wb-studio .open-workbench-messages { display: flex; flex-direction: column; gap: 16px; padding: 16px 20px 24px; }
 #pane-flow .wb-a2.wb-studio .open-workbench-empty { padding: 20px 0 8px; }
 #pane-flow .wb-a2.wb-studio .open-workbench-empty b { color: var(--tx); font-size: 14px; font-weight: 600; }
 #pane-flow .wb-a2.wb-studio .open-workbench-empty p { color: var(--tx2); font-size: 12px; line-height: 1.6; margin: 8px 0 0; }
 #pane-flow .wb-a2.wb-studio .wb-feedback-starters { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-#pane-flow .wb-a2.wb-studio .fw-compose { flex: none; padding: 12px 16px 16px; }
-#pane-flow .wb-a2.wb-studio .fw-compose > .fw-ref-chips { margin-bottom: 8px; max-height: 88px; overflow-y: auto; }
+/* 抽屉与浮动抽屉彻底移除：控制台直接平铺展示，全屏与非全屏均不需要侧边竖排抽屉条 */
+.fw-panel-reopen,
+.fw-panel-reopen-float,
+#pane-flow .wb-a2.wb-studio .fw-panel-reopen,
+#pane-flow .wb-a2.wb-studio .fw-panel-reopen-float,
+#pane-flow .wb-a2.wb-studio .open-workbench-conversation .fw-panel-reopen,
+#pane-flow .wb-a2.wb-studio .open-workbench-conversation .fw-panel-reopen-float {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  opacity: 0 !important;
+}
+
+#pane-flow .wb-a2.wb-studio .fw-compose { flex: none; padding: 4px 14px 10px; border-top: 0; }
+#pane-flow .wb-a2.wb-studio .wb-compose-context {
+  margin-bottom: 8px; padding: 10px 11px 8px;
+  border: 1px solid var(--line); border-radius: 12px;
+  background: color-mix(in srgb, var(--surf) 60%, transparent);
+}
+#pane-flow .wb-a2.wb-studio .wb-compose-context .wb-target-pill-wrap { margin-bottom: 6px; }
+#pane-flow .wb-a2.wb-studio .wb-compose-context .fw-ref-chips { max-height: 72px; overflow-y: auto; }
+#pane-flow .wb-a2.wb-studio .wb-compose-context [role='radio'] { min-height: 27px; padding-inline: 8px; }
+#pane-flow .wb-a2.wb-studio .wb-compose-context .wb-target-pill {
+  min-height: 30px; padding: 3px 9px; border-color: var(--line2);
+  background: var(--surf); color: var(--tx2);
+}
+#pane-flow .wb-a2.wb-studio .wb-compose-context .wb-target-pill:hover { border-color: var(--acc); }
+#pane-flow .wb-a2.wb-studio .wb-compose-context [role='radiogroup'] {
+  gap: 2px; padding: 3px; border-color: var(--line); background: var(--hole);
+}
+#pane-flow .wb-a2.wb-studio .wb-compose-context [role='radio'] {
+  min-height: 26px; gap: 5px; padding: 4px 8px; font-size: 11px;
+  color: var(--tx2); border-radius: 999px;
+}
+#pane-flow .wb-a2.wb-studio .wb-compose-context [role='radio'] svg { width: 12px; height: 12px; }
+#pane-flow .wb-a2.wb-studio .wb-compose-context [role='radio']:hover { background: var(--surf); color: var(--tx); }
+#pane-flow .wb-a2.wb-studio .wb-compose-context [role='radio'][aria-checked='true'] {
+  background: var(--surf); color: var(--acc); box-shadow: 0 1px 3px rgb(20 22 40 / .12);
+}
+#pane-flow .wb-a2.wb-studio .wb-compose-context button:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
+#pane-flow .wb-a2.wb-studio .wb-compose-context .fw-ref-chips { align-items: center; gap: 6px; }
+#pane-flow .wb-a2.wb-studio .wb-compose-context .fw-ref-add {
+  display: inline-flex; align-items: center; gap: 4px; min-height: 26px; padding: 3px 7px;
+  border: 1px dashed var(--line2); border-radius: 7px; color: var(--tx2); font-size: 11px;
+}
+#pane-flow .wb-a2.wb-studio .wb-compose-context .fw-ref-add:hover { color: var(--acc); border-color: var(--acc); background: var(--surf); }
+#pane-flow .wb-a2.wb-studio .wb-compose-context .fw-ref-chip { min-height: 26px; padding: 3px 8px; }
+#pane-flow .wb-a2.wb-studio .fw-compose > .fw-ref-chips { margin-bottom: 6px; max-height: 80px; overflow-y: auto; }
 #pane-flow .wb-a2.wb-studio .fw-sheet { padding: 12px; }
 #pane-flow .wb-a2.wb-studio .fw-sheet .wb-input { min-height: 76px; }
 #pane-flow .wb-a2.wb-studio .fw-sheet:focus-within { box-shadow: none; }
@@ -85,6 +185,28 @@
 #pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-canvas > .fw-scroll,
 #pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-canvas > div { min-height: 0; }
 #pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-monitor { flex: 1 1 auto; min-height: 0; }
+#pane-flow .wb-a2.wb-studio .fw-mon-agent-result {
+  display: flex; align-items: flex-start; gap: 10px; padding: 10px 16px;
+  color: var(--tx2); font-size: 12px; line-height: 1.6;
+  border-top: 1px solid var(--line); background: transparent;
+}
+#pane-flow .wb-a2.wb-studio .wb-result-details { min-width: 0; flex: 1; }
+#pane-flow .wb-a2.wb-studio .wb-result-details summary { display: flex; align-items: center; gap: 10px; cursor: pointer; list-style: none; }
+#pane-flow .wb-a2.wb-studio .wb-result-details summary:hover .wb-result-toggle { color: var(--acc); background: var(--hole); }
+#pane-flow .wb-a2.wb-studio .wb-result-details summary::-webkit-details-marker { display: none; }
+#pane-flow .wb-a2.wb-studio .wb-result-heading { color: var(--tx); font-size: 11px; font-weight: 600; white-space: nowrap; }
+#pane-flow .wb-a2.wb-studio .wb-result-preview { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+#pane-flow .wb-a2.wb-studio .wb-result-details summary svg { flex: none; transition: transform 150ms ease; }
+#pane-flow .wb-a2.wb-studio .wb-result-toggle { display: inline-flex; align-items: center; gap: 3px; flex: none; min-height: 28px; padding: 0 7px; border-radius: 6px; color: var(--tx2); font-size: 11px; }
+#pane-flow .wb-a2.wb-studio .wb-result-close, #pane-flow .wb-a2.wb-studio .wb-result-details[open] .wb-result-open { display: none; }
+#pane-flow .wb-a2.wb-studio .wb-result-details[open] .wb-result-close { display: inline; }
+#pane-flow .wb-a2.wb-studio .wb-result-details[open] summary svg { transform: rotate(180deg); }
+#pane-flow .wb-a2.wb-studio .wb-result-details p { max-height: 96px; overflow-y: auto; margin: 8px 0 0; padding-right: 8px; white-space: pre-wrap; overflow-wrap: anywhere; }
+#pane-flow .wb-a2.wb-studio .wb-result-details[open] .wb-result-preview { visibility: hidden; }
+#pane-flow .wb-a2.wb-studio .wb-result-details summary:focus-visible { outline: 2px solid var(--acc); outline-offset: 3px; }
+#pane-flow .wb-a2.wb-studio .fw-mon-agent-result button { display: grid; place-items: center; width: 28px; height: 28px; flex: none; border-radius: 6px; color: var(--tx2); }
+#pane-flow .wb-a2.wb-studio .fw-mon-agent-result button:hover { background: var(--hole); color: var(--tx); }
+#pane-flow .wb-a2.wb-studio .fw-mon-agent-result button:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
 /* 整个画面列（监看顶栏 + 画面 + 秒数行 + 缩略条 + 交付信息）是这一页唯一的「纸片」：
    白色纸面 + 大圆角 + 柔和投影，四边留白浮在背景上。
    纸片的边界要落在这一列的容器上，而不是只落在视频那一块 ——
@@ -92,10 +214,12 @@
    形状对齐参考里那张输入卡片：白色纸面、20px 圆角、四周都有空气。 */
 #pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-canvas {
   background: var(--surf);
-  border-radius: 20px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
   overflow: hidden;
-  box-shadow: 0 12px 40px rgb(20 22 40 / .12), 0 2px 8px rgb(20 22 40 / .06);
-  margin: 12px 16px;
+  box-shadow: 0 6px 24px rgb(20 22 40 / .06);
+  /* 卡片向上覆盖原顶栏占用的高度，和左侧项目栏从同一高度开始。 */
+  margin: -72px 6px 6px;
 }
 /* 卡片内部各条横带不再各自铺色（原本是 --panel / --panel2 / --hole 三种底色），
    白色纸面成为唯一一层底，条与条之间靠留白和字号分层。 */
@@ -115,8 +239,8 @@
   border-radius: 0;
   box-shadow: none;
   margin: 0;
-  padding: 16px;
-  overflow: visible;
+  padding: 8px 12px;
+  overflow: hidden;
 }
 /* 视频保留自己的黑底，圆角比外卡小一档 —— 外 20px、内嵌画面 14px，
    两个圆角同尺寸时看起来像两张等大的卡片贴在一起。 */
@@ -126,8 +250,86 @@
 /* 舞台自己有 --stage-bg 灰底，会盖住白纸面 —— 退回透明，
    让白色卡片成为承托画面的一层。 */
 #pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-mon-visual > .fw-stage {
-  background-color: transparent;
-  padding: 14px;
+  container-type: size;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  box-shadow: none;
+}
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .wb-videojs-skin {
+  width: min(100cqw, calc(100cqh * var(--wb-video-ratio, 1.7778)));
+  height: auto; aspect-ratio: var(--wb-video-ratio, 1.7778);
+  flex: none; min-height: 0; overflow: hidden; border-radius: 10px;
+  background: #101216;
+}
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .wb-videojs-skin:fullscreen {
+  width: 100vw; height: 100vh; aspect-ratio: auto; border-radius: 0;
+}
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .wb-stage-label {
+  position: absolute; top: 20px; left: 20px; z-index: 4;
+  padding: 6px 10px; border-radius: 6px;
+  background: rgb(20 22 27 / .78); color: #fff;
+  font-size: 11px; font-weight: 600; pointer-events: none;
+}
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-toolbar {
+  position: relative; z-index: 5; flex: 0 0 auto; height: auto; min-height: 0;
+  display: flex; flex-direction: column; align-items: stretch;
+  padding: 8px 16px 4px; gap: 2px;
+}
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .wb-preview-toolbar-primary,
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .wb-preview-toolbar-secondary {
+  display: flex; align-items: center; min-width: 0; min-height: 36px; gap: 8px;
+}
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .wb-preview-toolbar-primary {
+  justify-content: space-between;
+}
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .wb-preview-toolbar-secondary {
+  flex-wrap: wrap;
+}
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .wb-preview-current-version {
+  margin-left: auto; padding: 4px 8px; border: 1px solid var(--line);
+  border-radius: 6px; color: var(--tx2); background: var(--panel2);
+  font-size: 11px; line-height: 18px; white-space: nowrap;
+}
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-toolbar .wb-preview-tools {
+  position: relative; padding: 0; min-width: 0;
+}
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-toolbar .wb-preview-tools-main {
+  gap: 2px; padding: 3px; border: 1px solid var(--line); border-radius: 10px;
+  background: var(--panel);
+}
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-toolbar .wb-preview-tools-main button {
+  min-height: 32px; padding: 0 10px; border: 0; border-radius: 7px;
+  background: transparent; font-size: 11px;
+  transition: background-color 140ms ease, border-color 140ms ease, transform 140ms ease;
+}
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-toolbar .wb-preview-tools-main button:active:not(:disabled) {
+  transform: translateY(1px);
+}
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .wb-preview-review-actions {
+  display: flex; align-items: center; gap: 4px; flex: none; margin-left: auto;
+  padding-left: 16px; border-left: 1px solid var(--line);
+}
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .wb-preview-review-button {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 32px;
+  padding: 0 10px; border: 0; border-radius: 8px; background: transparent;
+  color: var(--tx2); font-size: 11px; white-space: nowrap; cursor: pointer;
+}
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .wb-preview-review-button:hover:not(:disabled) {
+  background: var(--hover); color: var(--tx);
+}
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .wb-preview-review-button:disabled {
+  opacity: .45; cursor: not-allowed;
+}
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .wb-preview-review-button:focus-visible {
+  outline: 2px solid var(--acc); outline-offset: 2px;
+}
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-toolbar .wb-preview-range {
+  position: absolute; top: 100%; left: 0; z-index: 10; width: 360px;
+  padding: 12px; margin-top: 8px; border: 1px solid var(--line);
+  border-radius: 8px; background: var(--surf); box-shadow: 0 8px 24px rgb(20 22 40 / .12);
 }
 /* 缩略条原本被压到 96px 高（想给画面多留空间），但缩略卡本身就有 110px，
    结果卡片下半截压到了交付信息行上。让它按内容自然高，重叠消失。 */
@@ -168,7 +370,29 @@
 /* 顶栏自己有入场动画 wbRiseIn（animation-fill-mode: both），这会让它形成一个
    独立层叠上下文：菜单上的 z-index 只在这一层内比较，比不过后面的 .fw 布局，
    于是菜单被下面的对话区文字盖住。给顶栏自己一个层级，整层（含菜单）才会浮上去。 */
-#pane-flow .wb-a2.wb-studio .wb-projectbar { position: relative; z-index: 40; }
+#pane-flow .wb-a2.wb-studio .wb-projectbar {
+  position: relative; z-index: 40;
+  pointer-events: none;
+  display: grid;
+  grid-template-columns: minmax(0, var(--open-chat-width, 460px)) 4px minmax(0, 1fr);
+  gap: 0; padding: 0; border-bottom: 0;
+}
+#pane-flow .wb-a2.wb-studio .wb-projectbar .wb-crumb {
+  grid-column: 1; padding: 0 16px; pointer-events: auto; transform: translateY(-5px);
+}
+#pane-flow .wb-a2.wb-studio .wb-projectbar-actions {
+  grid-column: 3; display: flex; align-items: center; justify-content: flex-end;
+  min-width: 0; padding: 0 16px; pointer-events: auto;
+}
+#pane-flow .wb-a2.wb-studio .wb-preview-actions {
+  display: flex; align-items: center; gap: 10px; flex: none; margin-left: auto;
+}
+#pane-flow .wb-a2.wb-studio .wb-projectbar[data-panel='closed'],
+#pane-flow .wb-a2.wb-studio .wb-projectbar[data-editor='true'] {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+#pane-flow .wb-a2.wb-studio .wb-projectbar[data-panel='closed'] .wb-projectbar-actions,
+#pane-flow .wb-a2.wb-studio .wb-projectbar[data-editor='true'] .wb-projectbar-actions { grid-column: 2; }
 #pane-flow .wb-a2.wb-studio .wb-switch-menu { top: 40px; }
 /* 项目多的时候（这台机器上有 24 个）菜单会被撑到比视口还高，
    底部项点不到、还会盖住整个页面。给它一个视口内的高度上限并允许滚动。 */
@@ -197,7 +421,10 @@
     position: absolute; inset: 0 auto 0 0; z-index: 25; width: min(400px, 92%);
     background: var(--bg); border-right: 1px solid var(--line);
   }
-  #pane-flow .wb-a2.wb-studio .open-workbench-layout[data-panel='closed'] .open-workbench-conversation { width: 40px; height: 100%; }
+  #pane-flow .wb-a2.wb-studio .open-workbench-layout[data-panel='closed'] .open-workbench-conversation {
+    display: none !important;
+    width: 0 !important;
+  }
   #pane-flow .wb-a2.wb-studio .open-workbench-conversation > .fw-panel { box-shadow: var(--shadow-float); }
 }
 
@@ -206,9 +433,9 @@
    看不出是同层级的视图切换。统一成图标按钮后，一行就能扫完，
    文字放进 Tooltip，鼠标靠近才出现 —— 图标本身足够表达含义。 */
 #pane-flow .wb-a2.wb-studio .wb-console-tabs {
-  display: flex; align-items: center; gap: 6px;
-  padding: 0 16px 8px;
-  border-bottom: 0;
+  display: flex; align-items: center; gap: 12px;
+  padding: 0 16px 10px;
+  border-bottom: 1px solid var(--line);
 }
 #pane-flow .wb-a2.wb-studio .wb-console-tablist {
   display: flex; align-items: center; gap: 2px;
@@ -224,6 +451,12 @@
   transition: background-color 140ms var(--eo), color 140ms var(--eo), border-color 140ms var(--eo);
 }
 #pane-flow .wb-a2.wb-studio .wb-console-tab:hover { background: var(--hole); color: var(--tx2); }
+#pane-flow .wb-a2.wb-studio .wb-console-tab:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
+#pane-flow .wb-a2.wb-studio .wb-console-current {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  padding-left: 12px; border-left: 1px solid var(--line);
+  color: var(--tx2); font-size: 11px; font-weight: 500;
+}
 /* 选中态靠「实底 + 主色」表达，不靠一条下划线 ——
    图标按钮没有文字宽度可以挂下划线，实底是唯一一眼可辨的选中形态。 */
 #pane-flow .wb-a2.wb-studio .wb-console-tab[data-active] {
@@ -313,4 +546,96 @@
 #pane-flow .wb-a2.wb-studio .open-workbench-layout .wb-player-fill {
   display: block; height: 100%;
   border-radius: 999px; background: var(--acc);
+}
+
+/* ── 编辑态：和普通工作台同一套骨架 ──────────────────────────
+   普通工作台是「左栏控制台 + 右侧白卡片」。编辑态以前把整页换成一个卡片，
+   于是左栏消失、页签也回不去。这里让编辑器沿用同一骨架：
+   左列是控制台（标题与页签由工作台传入），右列是白卡片，卡内上方画面、下方轨道。 */
+/* 编辑态容器必须自己收敛高度：布局层是 grid，子项默认会被内容撑高，
+   编辑器内部又有「画面 + 轨道」两段，撑高后整块被窗口裁掉，底部就看不见了。
+   这里把它压回布局层高度，滚动交给左栏与轨道列表各自处理。 */
+#pane-flow .wb-a2.wb-studio .open-workbench-layout[data-editor='true'] .se-workspace {
+  grid-column: 1 / -1;
+  min-height: 0;
+  max-height: 100%;
+  overflow: hidden;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+}
+#pane-flow .wb-a2.wb-studio .open-workbench-layout[data-editor='true'] .se-body {
+  grid-template-columns: minmax(0, var(--open-chat-width, 460px)) minmax(0, 1fr);
+  gap: 0;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+}
+#pane-flow .wb-a2.wb-studio .open-workbench-layout[data-editor='true'] .se-console {
+  background: transparent;
+  border-right: 0;
+  padding: 0 16px 16px;
+  min-height: 0;
+  overflow-y: auto;
+}
+/* 右列就是那张白卡片：和普通工作台一致的圆角、留白与投影。 */
+#pane-flow .wb-a2.wb-studio .open-workbench-layout[data-editor='true'] .se-main {
+  margin: 0 16px 12px 0;
+  min-height: 0;
+  height: calc(100% - 12px);
+  border-radius: 20px;
+  overflow: hidden;
+  background: var(--surf);
+  box-shadow: 0 12px 40px rgb(20 22 40 / .12), 0 2px 8px rgb(20 22 40 / .06);
+}
+#pane-flow .wb-a2.wb-studio .open-workbench-layout[data-editor='true'] .se-header {
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+}
+
+/* The workbench card sits close to the window edge, leaving room for its shadow. */
+#pane-flow .wb-a2.wb-studio {
+  padding-right: 0;
+  padding-bottom: 0;
+}
+
+/* Video.js places three icons in the same button. Explicit, exclusive states
+   avoid the imported skin's layered cascade leaving the wrong icon visible. */
+#pane-flow .wb-videojs-skin .media-play-button .media-button-icon { opacity: 0; scale: 1; transition: none; }
+#pane-flow .wb-videojs-skin .media-play-button[data-ended] .media-play-button-restart-icon,
+#pane-flow .wb-videojs-skin .media-play-button[data-paused]:not([data-ended]) .media-play-button-play-icon,
+#pane-flow .wb-videojs-skin .media-play-button:not([data-paused]):not([data-ended]) .media-play-button-pause-icon { opacity: 1; }
+
+/* Icon-only review controls share the same target and rhythm as the player. */
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .wb-preview-review-button { justify-content: center; width: 36px; height: 36px; padding: 0; }
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-toolbar .wb-preview-tools-main button svg { width: 18px; height: 18px; stroke-width: 1.8; }
+
+/* Use the same Vidstack icon family inside the Video.js skin. The skin still
+   controls which state is shown; only the artwork is replaced. */
+.wb-videojs-skin :is(.media-play-button-play-icon, .media-play-button-pause-icon, .media-play-button-restart-icon, .media-mute-button-high-icon, .media-mute-button-low-icon, .media-mute-button-off-icon, .media-settings-menu-trigger-icon, .media-cast-button-enter-icon, .media-cast-button-exit-icon, .media-pip-button-enter-icon, .media-pip-button-exit-icon, .media-fullscreen-button-enter-icon, .media-fullscreen-button-exit-icon, .media-airplay-button-enter-icon, .media-airplay-button-exit-icon, .media-captions-button-on-icon, .media-captions-button-off-icon) {
+  background: currentColor;
+  mask-position: center; mask-size: contain; mask-repeat: no-repeat;
+  -webkit-mask-position: center; -webkit-mask-size: contain; -webkit-mask-repeat: no-repeat;
+}
+.wb-videojs-skin :is(.media-play-button-play-icon, .media-play-button-pause-icon, .media-play-button-restart-icon, .media-mute-button-high-icon, .media-mute-button-low-icon, .media-mute-button-off-icon, .media-settings-menu-trigger-icon, .media-cast-button-enter-icon, .media-cast-button-exit-icon, .media-pip-button-enter-icon, .media-pip-button-exit-icon, .media-fullscreen-button-enter-icon, .media-fullscreen-button-exit-icon, .media-airplay-button-enter-icon, .media-airplay-button-exit-icon, .media-captions-button-on-icon, .media-captions-button-off-icon) > * { opacity: 0; }
+.wb-videojs-skin .media-play-button-play-icon { mask-image: url('media-icons/raw/play.svg'); }
+.wb-videojs-skin .media-play-button-pause-icon { mask-image: url('media-icons/raw/pause.svg'); }
+.wb-videojs-skin .media-play-button-restart-icon { mask-image: url('media-icons/raw/replay.svg'); }
+.wb-videojs-skin .media-mute-button-high-icon { mask-image: url('media-icons/raw/volume-high.svg'); }
+.wb-videojs-skin .media-mute-button-low-icon { mask-image: url('media-icons/raw/volume-low.svg'); }
+.wb-videojs-skin .media-mute-button-off-icon { mask-image: url('media-icons/raw/mute.svg'); }
+.wb-videojs-skin .media-settings-menu-trigger-icon { mask-image: url('media-icons/raw/settings.svg'); }
+.wb-videojs-skin :is(.media-cast-button-enter-icon, .media-cast-button-exit-icon) { mask-image: url('media-icons/raw/chromecast.svg'); }
+.wb-videojs-skin .media-pip-button-enter-icon { mask-image: url('media-icons/raw/picture-in-picture.svg'); }
+.wb-videojs-skin .media-pip-button-exit-icon { mask-image: url('media-icons/raw/picture-in-picture-exit.svg'); }
+.wb-videojs-skin .media-fullscreen-button-enter-icon { mask-image: url('media-icons/raw/fullscreen.svg'); }
+.wb-videojs-skin .media-fullscreen-button-exit-icon { mask-image: url('media-icons/raw/fullscreen-exit.svg'); }
+.wb-videojs-skin :is(.media-airplay-button-enter-icon, .media-airplay-button-exit-icon) { mask-image: url('media-icons/raw/airplay.svg'); }
+.wb-videojs-skin .media-captions-button-on-icon { mask-image: url('media-icons/raw/closed-captions-on.svg'); }
+.wb-videojs-skin .media-captions-button-off-icon { mask-image: url('media-icons/raw/closed-captions.svg'); }
+
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .wb-player-time,
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .wb-videojs-skin {
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
 }

@@ -21,3 +21,16 @@ target/
 *.db-journal
 *.db-wal
 *.db-shm
+
+# 临时与备份文件
+*.bak
+*.bak-*
+*.bak.*
+.write-probe
+__pycache__/
+*.pyc
+.docx-work/
+.impeccable/
+.claude/
+backend/_wip/
+

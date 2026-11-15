@@ -4,6 +4,13 @@
    · 不设高度、不设背景 —— 写死高度会把官方那圈内边距裁掉，
      露出宿主自己的底色，看起来像输入框外面多了一个白框 */
 
+/* 注册在主文档中，供 Shadow DOM 内的胶囊边缘动画插值使用。 */
+@property --lbx-model-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
 .lbx-host {
   /* 圆钮用绝对定位贴到工具条那一格，宿主必须成为它的定位基准 */
   position: relative;
@@ -30,15 +37,16 @@
    定位方式：宿主是 position:relative 的整行，工具条固定在底部右侧，
    所以圆钮用「右下角 + 固定偏移」贴到官方那一格的位置上。 */
 .lbx-ctxwrap {
-  /* 精确盖在官方圆钮那一格上：实测距右 238、距底 10、32×32。
-     官方圆钮改成 visibility:hidden 后仍占位，所以位置不会漂。 */
+  /* 跟随 Shadow DOM 中真实的占位按钮，模型名称或容器宽度变化也能对齐。 */
   position: absolute;
-  right: 238px;
-  bottom: 10px;
+  left: var(--lbx-context-left, 0px);
+  top: var(--lbx-context-top, 0px);
   width: 32px;
   height: 32px;
   z-index: 20;
+  visibility: hidden;
 }
+.lbx-host[data-context-anchored] .lbx-ctxwrap { visibility: visible; }
 
 .lbx-ctxring {
   display: grid;

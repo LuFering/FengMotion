@@ -163,6 +163,7 @@ export function modelsOf(
         default: m.default,
         ...(m.contextWindow !== undefined ? { contextWindow: m.contextWindow } : {}),
         ...(m.maxTokens !== undefined ? { maxTokens: m.maxTokens } : {}),
+        ...(m.reasoningEfforts !== undefined ? { reasoningEfforts: m.reasoningEfforts } : {}),
       })),
       source: 'server',
     }

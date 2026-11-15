@@ -1,6 +1,6 @@
 /* ═══════════════════════════════════════════════════════════════
    FengMotion Workbench · A2 云端岛屿 V3
-   唯一视觉基准：/home/lufering/Documents/FengMotion-工作台设计规范-云端岛屿V3.md
+   唯一视觉基准：~/Documents/FengMotion-工作台设计规范-云端岛屿V3.md
    以及 ui-v3-themes.html 的 #d-a（升级版 V3 / dark）。
 
    本文件只覆盖制作工作台（#pane-flow）。组件规则引用 token，
@@ -845,14 +845,6 @@
 }
 #pane-flow .wb-a2 .wb-btn-ghost:hover { background: var(--raised); color: var(--tx); border-color: var(--tx3); }
 #pane-flow .wb-a2 .wb-btn-ghost svg { width: 13px; height: 13px; }
-#pane-flow .wb-a2 .wb-demo-line { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--tx3); }
-#pane-flow .wb-a2 .wb-demo-dot { width: 5px; height: 5px; flex: 0 0 5px; border-radius: 50%; background: var(--mark); }
-#pane-flow .wb-a2 .wb-insp-back { align-self: flex-start; margin-bottom: 2px; }
-#pane-flow .wb-a2 .fw-constraint-row {
-  min-height: 34px; padding: 8px 11px;
-  background: var(--panel2); border: 1px solid var(--line); border-radius: var(--r-card);
-  font-size: 12.5px; color: var(--tx2);
-}
 #pane-flow .wb-a2 .wb-insp-section .fw-constraint-row + .fw-constraint-row { margin-top: 0; }
 /* 修改约束默认收起：右栏首屏先给镜头/参数/引用，需要时再展开 */
 #pane-flow .wb-a2 .wb-insp-details {
@@ -933,16 +925,6 @@
   font-size: 10.5px; padding: 3px 8px;
 }
 #pane-flow .wb-a2 .fw-ref-chip[data-role="target"] { border-color: color-mix(in srgb, var(--acc) 45%, transparent); background: var(--sel); }
-#pane-flow .wb-a2 .fw-ref-empty { font-size: 11px; color: var(--tx3); }
-#pane-flow .wb-a2 .fw-ref-role { color: var(--acc-tx); font-size: 9.5px; }
-#pane-flow .wb-a2 .fw-ref-clear { color: var(--tx3); font-size: 10px; }
-#pane-flow .wb-a2 .fw-msg-avatar { width: 20px; height: 20px; flex: 0 0 20px; background: var(--panel2); color: var(--tx3); font-size: 9px; }
-#pane-flow .wb-a2 .fw-panel .fm-msg-ai { font-size: 13px; line-height: 1.7; color: var(--tx2); }
-#pane-flow .wb-a2 .fw-panel .fm-msg-user {
-  padding: 7px 0 7px 9px; margin-left: 0;
-  border-left: 2px solid var(--acc); border-radius: 0; background: transparent;
-  font-size: 13px; color: var(--tx2);
-}
 #pane-flow .wb-a2 .wb-chat-block {
   margin-left: 0; padding: 8px 10px;
   background: var(--panel2); border: 1px solid var(--line); border-left: 1px solid var(--line);
@@ -956,7 +938,55 @@
 #pane-flow .wb-a2 .wb-chat-event { font-size: 11px; color: var(--tx3); }
 #pane-flow .wb-a2 .wb-chat-task { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--tx2); }
 #pane-flow .wb-a2 .wb-chat-task .animate-spin { color: var(--acc); }
-#pane-flow .wb-a2 .fw-compose { padding: 10px 14px 12px; border-top: 1px solid var(--line); }
+/* 上下文构成卡：左栏只有 300 多像素，卡片要按栏宽收窄并压小字号，
+   否则 320px 的固定宽度会顶出面板、被 .fw-panel 的 overflow:hidden 截掉。 */
+#pane-flow .wb-a2 .wb-ctxmeter { max-width: 100%; margin: 10px 0 2px; }
+#pane-flow .wb-a2 .wb-ctxmeter .ctx-num { font-size: 12px; line-height: 15px; }
+#pane-flow .wb-a2 .wb-ctxmeter .ctx-of { font-size: 10px; }
+#pane-flow .wb-a2 .wb-ctxmeter .ctx-chips { gap: 4px; }
+#pane-flow .wb-a2 .wb-ctxmeter .ctx-chip { font-size: 10px; padding: 0 3px; gap: 3px; }
+
+/* ── 侧栏「本轮过程」折叠摘要 ──────────────────────────────────
+   侧栏只有 300 多像素，不能照搬对话区那套完整任务列表：
+   一行摘要 + 展开看每步。默认收起。
+   状态一律用文字（执行了 N 步 / 正在执行 / N 步失败），不靠颜色判断。 */
+#pane-flow .wb-a2 .wb-process { margin: 2px 0 6px; }
+#pane-flow .wb-a2 .wb-process-head {
+  display: flex; align-items: center; gap: 6px; width: 100%;
+  padding: 3px 6px; border-radius: 7px; border: 1px solid var(--line);
+  background: var(--hole); color: var(--tx3);
+  font-size: 10.5px; text-align: left; cursor: pointer;
+  transition: border-color .14s ease, color .14s ease;
+}
+#pane-flow .wb-a2 .wb-process-head:hover { border-color: var(--line2); color: var(--tx2); }
+#pane-flow .wb-a2 .wb-process-head:focus-visible { outline: 2px solid var(--acc); outline-offset: 1px; }
+#pane-flow .wb-a2 .wb-process-state { color: var(--tx2); flex: none; }
+#pane-flow .wb-a2 .wb-process[data-running] .wb-process-state { color: var(--acc); }
+#pane-flow .wb-a2 .wb-process-detail { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#pane-flow .wb-a2 .wb-process-failed { display: inline-flex; align-items: center; gap: 3px; color: var(--danger); flex: none; }
+#pane-flow .wb-a2 .wb-process-caret { flex: none; transition: transform .16s ease; }
+#pane-flow .wb-a2 .wb-process-caret.is-open { transform: rotate(180deg); }
+#pane-flow .wb-a2 .wb-process-steps { margin: 4px 0 0; padding: 0 0 0 2px; list-style: none; display: flex; flex-direction: column; gap: 2px; }
+#pane-flow .wb-a2 .wb-process-steps li {
+  display: flex; align-items: baseline; gap: 5px;
+  font-size: 10.5px; color: var(--tx3); padding: 1px 4px;
+  border-left: 1px solid var(--line);
+}
+#pane-flow .wb-a2 .wb-process-steps li[data-error] { border-left-color: var(--danger); }
+#pane-flow .wb-a2 .wb-process-tool { color: var(--tx2); flex: none; }
+#pane-flow .wb-a2 .wb-process-args { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; opacity: .8; }
+#pane-flow .wb-a2 .wb-process-step-state { flex: none; opacity: .75; }
+#pane-flow .wb-a2 .wb-process-steps li[data-error] .wb-process-step-state { color: var(--danger); opacity: 1; }
+
+#pane-flow .wb-a2 .fw-compose { padding: 4px 12px 6px; border-top: 1px solid var(--line); }
+/* 输入框换成对话界面同一个官方组件（LeiBoxComposer）后，这一栏只有 300 多像素：
+   官方输入框自带 600px 画布的残留高度与较宽的内边距都在 Shadow DOM 里，
+   外面只能用宿主容器兜住宽度，避免横向溢出把整列顶出滚动条。 */
+#pane-flow .wb-a2 .fw-compose .lbx-host { width: 100%; max-width: 100%; }
+#pane-flow .wb-a2 .fw-compose .lbx-host:empty { min-height: 60px; border-radius: 24px; }
+/* 排队/说明行：原来挂在 ChatComposer 的 statusLeft 上，官方组件没有这一格，
+   换成输入框下方一行 11px 的次级文字。 */
+#pane-flow .wb-a2 .fw-compose-note { margin-top: 6px; font-size: 11px; color: var(--tx3); }
 #pane-flow .wb-a2 .fw-sheet {
   padding: 8px 10px 8px;
   border: 1px solid var(--line); border-radius: var(--r-card);
@@ -970,36 +1000,9 @@
 #pane-flow .wb-a2 .fw-sheet .wb-input::placeholder { color: var(--tx3); }
 /* 作用范围：输入框上方一行。整行独占，名字不会被按钮挤到换行或截断；
    真名（整片 / 场景 · 03 S03 / 帧 · 00:12）用次级文字色，前两字更淡。 */
-#pane-flow .wb-a2 .wb-compose-scope {
-  margin: 0 0 4px; padding: 0 2px;
-  font-size: 10.5px; color: var(--tx3);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-#pane-flow .wb-a2 .wb-compose-scope > b { color: var(--tx2); font-weight: 500; }
-/* 次级视图标题：段控在任务/设置视图不选中时，标题补上当前视图名。 */
-#pane-flow .wb-a2 .fw-panel-title { font-size: 12px; font-weight: 650; color: var(--tx); white-space: nowrap; }
-/* 排队注记：贴在用户消息下方，不另开卡片。 */
-#pane-flow .wb-a2 .wb-queue-note {
-  display: flex; align-items: center; gap: 8px; padding-top: 3px;
-  font-size: 11px; color: var(--tx3);
-}
 #pane-flow .wb-a2 .wb-queue-note button { background: none; border: 0; padding: 0; color: var(--acc); cursor: pointer; }
 #pane-flow .wb-a2 .wb-queue-note button:disabled { color: var(--tx3); cursor: default; }
 /* 保留条件摘要：只列已启用的，改约束走次级视图，不在输入框旁铺开关。 */
-#pane-flow .wb-a2 .wb-compose-constraints {
-  display: flex; align-items: center; justify-content: space-between; gap: 8px;
-  padding-top: 2px; font-size: 11px; color: var(--tx3);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-#pane-flow .wb-a2 .wb-compose-constraints button { background: none; border: 0; padding: 0; color: var(--acc); cursor: pointer; flex: 0 0 auto; }
-/* 右栏收起：宽屏留一条对话入口窄列，窄屏留一个浮层入口。 */
-#pane-flow .wb-a2 .fw[data-panel="closed"] { grid-template-columns: 232px minmax(0, 1fr) 36px; }
-#pane-flow .wb-a2 .fw-panel-reopen {
-  display: flex; flex-direction: column; align-items: center; gap: 6px;
-  padding: 10px 0; min-height: 0;
-  background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-panel);
-  color: var(--tx2); cursor: pointer;
-}
 #pane-flow .wb-a2 .fw-panel-reopen span { writing-mode: vertical-rl; font-size: 11px; }
 #pane-flow .wb-a2 .fw-panel-reopen-float { display: none; }
 #pane-flow .wb-a2 .fw-sheet .mini-strong {

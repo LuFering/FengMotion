@@ -393,8 +393,8 @@ export interface ModificationConstraints {
  * 位置一律用稳定 ID / 精确帧 / 归一化区域 / 产物版本表示，不让模型从「这里/这段」猜。
  */
 export type AgentReference =
-  | { id: string; role: 'target' | 'context'; kind: 'project'; projectId: Id; label: string }
-  | { id: string; role: 'target' | 'context'; kind: 'scene'; sceneId: Id; label: string }
+  | { id: string; role: 'target' | 'context'; kind: 'project'; projectId: Id; label: string; action?: string }
+  | { id: string; role: 'target' | 'context'; kind: 'scene'; sceneId: Id; label: string; action?: string }
   | { id: string; role: 'target' | 'context'; kind: 'frame'; sceneId: Id; frame: number; timecode: string; label: string; snapshotId?: Id }
   | { id: string; role: 'target' | 'context'; kind: 'range'; sceneId: Id; startFrame: number; endFrame: number; timecode: string; label: string }
   | { id: string; role: 'target' | 'context'; kind: 'region'; sceneId: Id; frame: number; bbox: { x: number; y: number; w: number; h: number }; label: string }

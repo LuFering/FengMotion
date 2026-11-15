@@ -148,3 +148,5 @@ export function useSceneVersions(projectId: string, onRestored?: (scene: Project
 
   return { versions, loading, loadError, restoring, failure, lastRestored, refresh, restore, clearFailure }
 }
+
+export type SceneVersionsHook = ReturnType<typeof useSceneVersions>

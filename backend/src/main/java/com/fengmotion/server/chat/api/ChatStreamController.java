@@ -66,11 +66,8 @@ public class ChatStreamController {
             @PathVariable String sessionId,
             @RequestHeader(value = "Last-Event-ID", required = false) String lastEventId,
             @RequestParam(value = "prompt", required = false) String prompt,
-            /* 本轮使用的模型。不传则用配置里的默认模型 ——
-               前端的 harness 抽屉选的是后端真实目录里的 id，直接透传即可。 */
             @RequestParam(value = "model", required = false) String model,
-            /* 推理强度：simple / medium / deep。透传给引擎，不传则用它自己的默认。 */
-            @RequestParam(value = "thinking", required = false) String thinking,
+            @RequestParam(value = "reasoningEffort", required = false) String reasoningEffort,
             HttpServletResponse response) throws IOException {
         try {
             // 会话不存在时先返回 404，避免把「会话被删」显示成「Agent 不可用」。
@@ -87,6 +84,7 @@ public class ChatStreamController {
                         "Agent 未接入或不可用");
             }
 
+            stream.validateSelection(model, reasoningEffort);
             Resolution resolved = resolvePrompt(sessionId, prompt);
             if (resolved == null) {
                 throw new ApiException(HttpStatus.BAD_REQUEST, "validation_error",
@@ -104,7 +102,7 @@ public class ChatStreamController {
             PrintWriter writer = response.getWriter();
             // 把 flushBuffer 交给服务层：Tomcat 的 Writer.flush() 只刷 Writer 缓冲，
             // 响应本身还有一层；不显式 flushBuffer，delta 帧会攒到最后一起到。
-            stream.stream(sessionId, writer, resolved.text(), resolved.attachments(), model, thinking, () -> {
+            stream.stream(sessionId, writer, resolved.text(), resolved.attachments(), model, reasoningEffort, () -> {
                 try {
                     response.flushBuffer();
                 } catch (IOException ignored) {

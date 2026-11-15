@@ -3,29 +3,11 @@ import { resolveDocument } from './service'
 import { importFiles, updateAsset, getFileURL } from '@/services/assetApiService'
 import type { SceneDocument } from './types'
 import { studioHttpApi } from '@/services/api'
-export interface EditorRenderRecord {
-  id: string
-  projectId: string
-  sceneId: string
-  sceneName: string
-  createdAt: string
-  assetId: string
-  revision: number
-  document?: SceneDocument
-}
-export function readEditorRenders(projectId: string): EditorRenderRecord[] {
-  try {
-    const rows = JSON.parse(localStorage.getItem(`fengmotion:editor-renders:${projectId}`) ?? '[]')
-    return Array.isArray(rows)
-      ? rows.filter(
-          (r) =>
-            r?.projectId === projectId && typeof r.assetId === 'string' && typeof r.createdAt === 'string',
-        )
-      : []
-  } catch {
-    return []
-  }
-}
+/* 试片记录的读写在 documentStore 里（无渲染依赖），这里转出并复用写入，
+   好让工作台的判定逻辑能在纯 Node 环境下被测试。 */
+import { readEditorRenders, writeEditorRender, type EditorRenderRecord } from './documentStore'
+export type { EditorRenderRecord }
+export { readEditorRenders }
 export async function renderScene(
   document: SceneDocument,
   kind: 'still' | 'video',
@@ -109,7 +91,7 @@ export async function renderScene(
     revision: old.filter((r) => r.sceneId === doc.id).length + 1,
     document: structuredClone(document),
   }
-  localStorage.setItem(`fengmotion:editor-renders:${doc.projectId}`, JSON.stringify([record, ...old]))
+  writeEditorRender(record)
   return { blob, name, record }
 }
 export async function editorRenderVisuals(projectId: string) {

@@ -1,62 +1,341 @@
 import { useState } from 'react'
-import { ArrowLeft, ArrowUpRight, Check, CheckCheck, ClipboardList, Download, FileText, GitCompareArrows, History, LocateFixed, MessageSquarePlus, Plus, RotateCcw, Search } from 'lucide-react'
+import {
+  Check, ClipboardList,
+  GitCompareArrows, MessageSquarePlus,
+  RotateCcw, Search, Target, X
+} from 'lucide-react'
 import type { WorkbenchReview } from '@/hooks/useWorkbenchReview'
 import type { StageVisual } from '@/data/stageVisual'
 import type { ReviewOpinion } from '@/services/workbenchReviewService'
-import { RequestSnapshot } from './WorkbenchReview'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
-export type ReviewDeskTab = 'opinions' | 'brief' | 'versions'
-const date = (value: string) => new Date(value).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
-export function WorkbenchReviewDesk({ projectId, review, tab, onTab, visuals, viewedId, onView, onCompare, onLocate, onContinue, onClose, onDiscuss }: {
-  projectId: string; review: WorkbenchReview; tab: ReviewDeskTab; onTab: (tab: ReviewDeskTab) => void
-  visuals: StageVisual[]; viewedId?: string; onView: (visual: StageVisual) => void
-  onCompare: (left: StageVisual, right: StageVisual) => void
-  onLocate: (opinion: ReviewOpinion) => void; onContinue: (opinion: ReviewOpinion) => void
-  onClose: () => void; onDiscuss: () => void
+const date = (value: string) =>
+  new Date(value).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+
+function findMatchingVisual(
+  visuals: StageVisual[],
+  revision?: number,
+  visualId?: string,
+  origin?: 'scene' | 'workflow' | 'editor'
+): StageVisual | undefined {
+  // 1. 若有明确记录的画面 ID，严格按 ID 查；找不到时说明该特定画面已不可用，绝不回退按版本号盲目匹配其他画面
+  if (visualId) {
+    return visuals.find((v) => v.id === visualId)
+  }
+  // 2. 只有在历史记录本身未保存画面 ID 时，才按来源和版本号谨慎兼容
+  if (typeof revision === 'number') {
+    const expectedOrigin = origin ?? 'scene'
+    const byVerAndOrigin = visuals.find((v) => v.revision === revision && v.origin === expectedOrigin)
+    if (byVerAndOrigin) return byVerAndOrigin
+    // 仅在整个列表中该版本号唯一且为场景版本时匹配，绝不串配 workflow / editor 画面
+    const matches = visuals.filter((v) => v.revision === revision)
+    if (matches.length === 1 && matches[0].origin === 'scene') {
+      return matches[0]
+    }
+  }
+  return undefined
+}
+
+export function WorkbenchReviewDesk({
+  review,
+  visuals,
+  viewedId,
+  onCompare,
+  onLocate,
+  onContinue,
+  onDiscuss,
+  onView: _onView,
+}: {
+  review: WorkbenchReview
+  visuals: StageVisual[]
+  viewedId?: string
+  onCompare: (left: StageVisual, right: StageVisual, opinion?: ReviewOpinion) => void
+  onLocate?: (opinion: ReviewOpinion) => void
+  onContinue?: (opinion: ReviewOpinion) => void
+  onDiscuss: () => void
+  projectId?: string
+  onView?: (visual: StageVisual) => void
+  onClose?: () => void
 }) {
   const [filter, setFilter] = useState<'open' | 'resolved' | 'all'>('open')
   const [search, setSearch] = useState('')
-  const [correction, setCorrection] = useState('')
-  const [keep, setKeep] = useState(review.keepNotes)
-  const [baseId, setBaseId] = useState('')
-  const [compareId, setCompareId] = useState('')
-  const open = review.opinions.filter((o) => o.status === 'open').length
-  const visible = review.opinions.filter((o) => (filter === 'all' || o.status === filter) && `${o.request.prompt} ${o.request.references?.find((r) => r.role === 'target')?.label ?? ''}`.toLowerCase().includes(search.toLowerCase()))
-  const newer = visuals.find((v) => v.id === compareId) ?? visuals[0]
-  const older = visuals.find((v) => v.id === baseId) ?? visuals.find((v) => v.id !== newer?.id && v.file !== newer?.file && v.media === newer?.media)
-  const comparable = Boolean(older && newer && older.id !== newer.id && older.file !== newer.file && older.media === newer.media)
-  const exportReview = () => {
-    const file = new Blob([JSON.stringify({ schema: 'fengmotion-local-review-v1', projectId, exportedAt: new Date().toISOString(), brief: review.brief, opinions: review.opinions }, null, 2)], { type: 'application/json' })
-    const url = URL.createObjectURL(file)
-    const anchor = document.createElement('a'); anchor.href = url; anchor.download = 'fengmotion-review.json'; anchor.click()
-    window.setTimeout(() => URL.revokeObjectURL(url), 1000)
-  }
-  return <aside className="fw-panel wb-review-desk" aria-label="制作审阅">
-    <header className="wb-desk-header"><div><span className="wb-desk-eyebrow">PROJECT REVIEW</span><h2>制作审阅 <span>{open ? `${open} 待处理` : '持续记录'}</span></h2></div><button type="button" onClick={onClose} aria-label="返回工作台对话" title="返回对话"><ArrowLeft size={16}/></button></header>
-    <div className="wb-desk-tabs" role="tablist" aria-label="制作审阅分类">{([['opinions', '修改意见', ClipboardList], ['brief', '制作要求', FileText], ['versions', '预览版本', History]] as const).map(([value, label, Icon]) => <button key={value} type="button" role="tab" aria-selected={tab === value} tabIndex={tab === value ? 0 : -1} onKeyDown={(event) => {
-      const order: ReviewDeskTab[] = ['opinions', 'brief', 'versions']
-      const index = order.indexOf(value)
-      const next = event.key === 'ArrowRight' ? (index + 1) % 3 : event.key === 'ArrowLeft' ? (index + 2) % 3 : event.key === 'Home' ? 0 : event.key === 'End' ? 2 : -1
-      if (next < 0) return
-      event.preventDefault(); onTab(order[next]); (event.currentTarget.parentElement?.children[next] as HTMLButtonElement | undefined)?.focus()
-    }} onClick={() => onTab(value)}><Icon size={13}/>{label}</button>)}</div>
-    <div key={tab} className="wb-desk-scroll" role="tabpanel" aria-label={tab === 'opinions' ? '修改意见记录' : tab === 'brief' ? '制作要求记录' : '预览版本记录'}>
-      {tab === 'opinions' ? <>
-        <div className="wb-desk-section-heading"><div><h3>把每个问题跟进到底</h3><p>你标记的“已处理”独立于执行和检查结果。</p></div><button type="button" onClick={onDiscuss} aria-label="提出新的修改意见"><Plus size={16}/></button></div>
-        {review.opinions.length > 0 && <><div className="wb-desk-filters">{([['open', `待处理 ${open}`], ['resolved', `已处理 ${review.opinions.length - open}`], ['all', '全部']] as const).map(([value, label]) => <button type="button" key={value} aria-pressed={filter === value} onClick={() => setFilter(value)}>{label}</button>)}</div><label className="wb-desk-search"><Search size={13}/><input aria-label="搜索修改意见" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="搜索意见或画面名称"/></label></>}
-        {!visible.length && <div className="wb-desk-empty"><ClipboardList size={28} strokeWidth={1.2}/><h3>{review.opinions.length ? '没有符合条件的意见' : '从一个具体问题开始'}</h3><p>{review.opinions.length ? '切换筛选或试试其他关键词。' : '在画面上引用时间或框选区域，再到对话里写下希望修改的内容。意见会保存在这里。'}</p>{!review.opinions.length && <button type="button" className="wb-desk-primary" onClick={onDiscuss}><MessageSquarePlus size={13}/>提出修改意见</button>}</div>}
-        {visible.map((opinion, i) => { const target = opinion.request.references?.find((r) => r.role === 'target'); return <article className="wb-opinion" key={opinion.id} data-resolved={opinion.status === 'resolved'}><div className="wb-opinion-meta"><span>{opinion.status === 'resolved' ? <CheckCheck size={12}/> : <span className="wb-opinion-dot"/>}{opinion.status === 'resolved' ? '已处理 · 用户标记' : '待处理'}</span><time dateTime={opinion.createdAt}>{date(opinion.createdAt)}</time></div><p className="wb-opinion-text">{opinion.request.prompt}</p><button type="button" className="wb-opinion-target" onClick={() => onLocate(opinion)}><LocateFixed size={12}/><span>{target?.label ?? '整个项目'}</span><ArrowUpRight size={11}/></button><details open={i === 0 && filter !== 'all'} className="wb-opinion-detail"><summary>原始意见与保留条件</summary><RequestSnapshot request={opinion.request}/>{opinion.request.creativeBrief?.keepNotes && <p>特别保留：{opinion.request.creativeBrief.keepNotes}</p>}</details>{opinion.status === 'resolved' && <p className="wb-opinion-resolved">{opinion.reviewedVisualId ? `处理时查看：${visuals.find((v) => v.id === opinion.reviewedVisualId)?.name ?? '历史预览'}` : '未绑定检查结果'} · {opinion.resolvedAt ? date(opinion.resolvedAt) : ''}</p>}<div className="wb-opinion-actions"><button type="button" onClick={() => onContinue(opinion)}><MessageSquarePlus size={12}/>继续调整</button>{opinion.status === 'open' ? <button type="button" onClick={() => review.resolve(opinion.id, viewedId)}><Check size={12}/>标记已处理</button> : <button type="button" onClick={() => review.reopen(opinion.id)}><RotateCcw size={12}/>重新打开</button>}</div></article> })}
-      </> : tab === 'brief' ? <>
-        <div className="wb-desk-section-heading"><div><h3>制作要求</h3><p>原始需求与后续纠正保存在此浏览器，不会自动发送到真实修改任务。</p></div></div>
-        <details className="wb-original-brief" open><summary>原始需求 <span>原文保留</span></summary><p>{review.brief.original || '还没有原始需求，可以先补充这次创作的目标。'}</p></details>
-        <section className="wb-desk-section"><div className="wb-desk-label"><h3>后续纠正</h3><span>{review.corrections.length} 条</span></div>{review.corrections.length ? <ol className="wb-correction-list">{review.corrections.map((item, index) => <li key={item.id}><span>{String(index + 1).padStart(2, '0')}</span><div><p>{item.text}</p><time>{date(item.createdAt)}</time>{index === review.corrections.length - 1 && <small>最新补充</small>}</div></li>)}</ol> : <p className="wb-desk-caption">例如：地址改放中间，结尾只留店名。后来的纠正按时间保留，不覆盖原话。</p>}
-        <form onSubmit={(e) => { e.preventDefault(); if (!correction.trim()) return; review.addCorrection(correction); setCorrection('') }}><label className="wb-desk-input-label" htmlFor="wb-correction">补充或纠正制作要求</label><textarea id="wb-correction" rows={3} maxLength={8000} value={correction} onChange={(e) => setCorrection(e.target.value)} placeholder="这次需要纠正或明确什么？"/><button className="wb-desk-primary" type="submit" disabled={!correction.trim()}><Plus size={13}/>保存补充</button></form></section>
-        <section className="wb-desk-section"><div className="wb-desk-label"><h3>保留要求</h3><span>真实修改暂不支持</span></div><label className="wb-desk-input-label" htmlFor="wb-keep">满意的部分与不可改动的内容</label><textarea id="wb-keep" rows={3} maxLength={8000} value={keep} onChange={(e) => setKeep(e.target.value)} placeholder="例如：背景不要动，店名和 Logo 保持原样。"/><button type="button" className="wb-desk-secondary" onClick={() => { const value = keep.trim(); setKeep(value); review.setKeepNotes(value) }} disabled={keep === review.keepNotes}><Check size={13}/>{keep === review.keepNotes ? keep ? '已保存保留要求' : '暂无特别保留要求' : '保存保留要求'}</button></section>
-      </> : <>
-        <div className="wb-desk-section-heading"><div><h3>看实际画面，再作判断</h3><p>只显示本次项目的真实产物，不生成替代版本。</p></div></div>
-        {visuals.length > 0 ? <><section className="wb-compare-picker"><div className="wb-desk-label"><h3><GitCompareArrows size={14}/>同步对比</h3></div><label>对照画面<select aria-label="对照预览" value={older?.id ?? ''} onChange={(e) => setBaseId(e.target.value)}>{!older && <option value="">暂无另一份同类预览</option>}{visuals.map((v) => <option value={v.id} key={v.id}>{v.name} · {date(v.createdAt)}</option>)}</select></label><label>本轮画面<select aria-label="本轮预览" value={newer?.id ?? ''} onChange={(e) => setCompareId(e.target.value)}>{visuals.map((v) => <option value={v.id} key={v.id}>{v.name} · {date(v.createdAt)}</option>)}</select></label><button type="button" className="wb-desk-primary" disabled={!comparable} onClick={() => older && newer && onCompare(older, newer)}><GitCompareArrows size={13}/>打开同步对比</button>{!comparable && <p className="wb-desk-caption">需要两份不同文件的同类画面，才能保留真实的对照。</p>}</section><div className="wb-version-list">{visuals.map((v, i) => <button type="button" className="wb-version" key={v.id} aria-pressed={v.id === viewedId} onClick={() => onView(v)}><span className="wb-version-number">{String(visuals.length - i).padStart(2, '0')}</span><span><b>{v.tierLabel}{i === 0 && <small>最新产出</small>}</b><strong>{v.name}</strong><time>{date(v.createdAt)} · {v.origin==='editor'?'编辑版本':'工作流'} v{v.revision}{v.stale ? ' · 已过期' : ''}</time></span><ArrowUpRight size={14}/></button>)}</div></> : <div className="wb-desk-empty"><History size={28} strokeWidth={1.2}/><h3>还没有预览版本</h3><p>真实测试帧、试片或整片返回后会出现在这里。演示日志不会被当作视频版本。</p></div>}
-      </>}
+  const [searchExpanded, setSearchExpanded] = useState(false)
+
+  const openCount = review.opinions.filter((o) => o.status === 'open').length
+  const totalCount = review.opinions.length
+  const visible = review.opinions.filter((o) => {
+    const matchesFilter = filter === 'all' || o.status === filter
+    const searchTarget = `${o.request.prompt} ${o.request.references?.find((r) => r.role === 'target')?.label ?? ''}`.toLowerCase()
+    return matchesFilter && (!search.trim() || searchTarget.includes(search.toLowerCase()))
+  })
+
+  return (
+    <div className="fw-scroll flex flex-col h-full bg-transparent p-3">
+      {/* 顶部标题与轻量工具组（图标 + 悬浮提示，不挂多余关闭钮） */}
+      <div className="flex items-center justify-between pb-2 border-b border-[var(--line)]">
+        <div className="flex items-center gap-1.5">
+          <span className="font-medium text-sm text-[var(--tx)]">修改审阅</span>
+          {totalCount > 0 && (
+            <span className="text-xs text-[var(--tx3)]">
+              ({openCount > 0 ? `${openCount} 条待核对` : '全部已处理'})
+            </span>
+          )}
+        </div>
+
+        <div className="flex items-center gap-1">
+          {totalCount > 0 && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  className={`p-1 rounded transition-colors ${
+                    searchExpanded ? 'text-blue-500 bg-blue-500/10' : 'text-[var(--tx3)] hover:text-[var(--tx)]'
+                  }`}
+                  onClick={() => {
+                    setSearchExpanded((v) => !v)
+                    if (searchExpanded) setSearch('')
+                  }}
+                  aria-label="搜索意见"
+                >
+                  <Search size={14} />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top">搜索意见描述与画面目标</TooltipContent>
+            </Tooltip>
+          )}
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                className="p-1 rounded text-blue-500 hover:bg-blue-500/10 transition-colors"
+                onClick={onDiscuss}
+                aria-label="提新意见"
+              >
+                <MessageSquarePlus size={14} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="top">在对话中提出新修改意见</TooltipContent>
+          </Tooltip>
+        </div>
+      </div>
+
+      {/* 搜索展开框 */}
+      {searchExpanded && (
+        <div className="relative mt-2">
+          <input
+            type="text"
+            autoFocus
+            aria-label="搜索意见或画面"
+            className="w-full text-xs py-1.5 pl-6 pr-6 rounded-lg bg-[var(--hole)] border border-blue-500/40 text-[var(--tx)] placeholder:text-[var(--tx3)] focus:outline-none"
+            placeholder="搜索意见描述、引用目标…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          <Search size={11} className="absolute left-2 top-2.5 text-[var(--tx3)] pointer-events-none" />
+          {search && (
+            <button
+              type="button"
+              className="absolute right-2 top-2 text-[var(--tx3)] hover:text-[var(--tx)]"
+              onClick={() => setSearch('')}
+            >
+              <X size={11} />
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* 仅在有历史意见时才展示筛选分段器，避免 0 条时重复说明无内容 */}
+      {totalCount > 0 && (
+        <div className="grid grid-cols-3 p-0.5 rounded-lg bg-[var(--hole)] border border-[var(--line)] text-xs text-center mt-2">
+          <button
+            type="button"
+            className={`py-1 rounded-md transition-colors ${filter === 'open' ? 'bg-[var(--surf)] font-medium text-[var(--tx)] shadow-xs' : 'text-[var(--tx3)] hover:text-[var(--tx)]'}`}
+            onClick={() => setFilter('open')}
+          >
+            待核对 ({openCount})
+          </button>
+          <button
+            type="button"
+            className={`py-1 rounded-md transition-colors ${filter === 'resolved' ? 'bg-[var(--surf)] font-medium text-[var(--tx)] shadow-xs' : 'text-[var(--tx3)] hover:text-[var(--tx)]'}`}
+            onClick={() => setFilter('resolved')}
+          >
+            已处理 ({totalCount - openCount})
+          </button>
+          <button
+            type="button"
+            className={`py-1 rounded-md transition-colors ${filter === 'all' ? 'bg-[var(--surf)] font-medium text-[var(--tx)] shadow-xs' : 'text-[var(--tx3)] hover:text-[var(--tx)]'}`}
+            onClick={() => setFilter('all')}
+          >
+            全部 ({totalCount})
+          </button>
+        </div>
+      )}
+
+      {/* 克制的空状态：一句事实 + 一个动作 */}
+      {visible.length === 0 && (
+        <div className="py-12 text-center text-xs text-[var(--tx3)] flex flex-col items-center justify-center">
+          <ClipboardList size={24} className="mb-2 opacity-30 text-[var(--tx)]" />
+          <p className="text-[var(--tx2)] text-[13px]">
+            {totalCount ? '没有匹配的修改意见' : '暂无修改意见'}
+          </p>
+          <p className="mt-1 text-xs text-[var(--tx3)]">
+            {totalCount ? '可切换过滤选项或清空搜索关键词' : '在右侧选定画面或时间段后，可在对话中提出意见。'}
+          </p>
+          <button
+            type="button"
+            className="mt-3 text-xs text-blue-500 hover:underline"
+            onClick={onDiscuss}
+          >
+            去对话提意见 →
+          </button>
+        </div>
+      )}
+
+      {/* 意见列表 */}
+      <div className="flex flex-col gap-2 mt-2">
+        {visible.map((opinion) => {
+          const target = opinion.request.references?.find((r) => r.role === 'target')
+          // 前后对比只使用真实存在、明确归属且来源一致的双版本，杜绝不同来源同版本号混淆
+          const before = findMatchingVisual(visuals, opinion.baseVersion, opinion.baseVisualId, opinion.baseOrigin)
+          const after = findMatchingVisual(visuals, opinion.resultVersion, opinion.resultVisualId, opinion.resultOrigin)
+          const canCompare = Boolean(
+            before &&
+            after &&
+            before.id !== after.id &&
+            before.file &&
+            after.file &&
+            before.file !== after.file &&
+            before.media === after.media
+          )
+
+          // 版本推进文案（如实反映事实，绝不猜测伪造）
+          const hasBase = typeof opinion.baseVersion === 'number'
+          const hasResult = typeof opinion.resultVersion === 'number'
+          const versionLabel = (hasBase && hasResult)
+            ? `v${opinion.baseVersion} → v${opinion.resultVersion}`
+            : hasBase
+              ? `基准 v${opinion.baseVersion} · 未生成新版本`
+              : hasResult
+                ? `生成版本 v${opinion.resultVersion}`
+                : '未关联版本'
+
+          return (
+            <article
+              key={opinion.id}
+              className={`p-2.5 rounded-lg border transition-colors ${
+                opinion.status === 'resolved'
+                  ? 'border-[var(--line)] bg-[var(--hole)]/50 opacity-80'
+                  : 'border-[var(--line)] bg-[var(--hole)] hover:border-[var(--line2)]'
+              }`}
+            >
+              {/* 顶栏：用户审阅结论标签 + AI 执行版本标签 + 时间 */}
+              <div className="flex items-center justify-between gap-2 text-xs">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className={`text-[11px] px-1.5 py-0.2 rounded font-medium ${
+                    opinion.status === 'resolved' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-blue-500/10 text-blue-500'
+                  }`}>
+                    {opinion.status === 'resolved' ? '已处理' : '待核对'}
+                  </span>
+                  <span className="text-[11px] px-1.5 py-0.2 rounded bg-[var(--surf)] border border-[var(--line)] text-[var(--tx2)] font-mono">
+                    {versionLabel}
+                  </span>
+                </div>
+                <time className="text-[11px] text-[var(--tx3)] shrink-0">{date(opinion.createdAt)}</time>
+              </div>
+
+              {/* 用户原修改要求 */}
+              <p className="text-[13px] text-[var(--tx)] leading-relaxed mt-2 whitespace-pre-wrap">
+                {opinion.request.prompt}
+              </p>
+
+              {/* 当时的修改目标位置 */}
+              {target && (
+                <div className="flex items-center gap-1.5 mt-2 text-xs text-[var(--tx3)] bg-[var(--surf)]/60 px-2 py-1 rounded border border-[var(--line)]/40">
+                  <Target size={12} className="shrink-0 text-blue-500" />
+                  <span className="truncate flex-1 font-mono text-[11px]">{target.label}</span>
+                  {onLocate && (
+                    <button
+                      type="button"
+                      className="text-blue-500 hover:underline text-[11px] shrink-0"
+                      onClick={() => onLocate(opinion)}
+                      title="打开该目标所属版本并定位"
+                    >
+                      定位
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {/* AI 实际回复与改动说明 */}
+              {opinion.resultSummary && (
+                <div className="mt-2 p-2 rounded bg-[var(--surf)] border border-[var(--line)] text-xs text-[var(--tx2)]">
+                  <div className="text-[11px] font-medium text-[var(--tx3)] mb-0.5 flex items-center gap-1">
+                    <span>AI 执行说明</span>
+                  </div>
+                  <p className="whitespace-pre-wrap leading-relaxed text-[12px] text-[var(--tx)]">
+                    {opinion.resultSummary}
+                  </p>
+                </div>
+              )}
+
+              {/* 动作组 */}
+              <div className="flex items-center justify-between pt-2.5 mt-2.5 border-t border-[var(--line)]/50 text-xs flex-wrap gap-2">
+                <div className="flex items-center gap-2.5 flex-wrap">
+                  {canCompare ? (
+                    <button
+                      type="button"
+                      className="text-blue-500 hover:underline flex items-center gap-1 font-medium"
+                      onClick={() => onCompare(before!, after!, opinion)}
+                    >
+                      <GitCompareArrows size={12} />
+                      <span>对比前后</span>
+                    </button>
+                  ) : hasBase && hasResult ? (
+                    <span className="text-[11px] text-[var(--tx3)]">
+                      {!before || !after ? '版本画面已不可用' : before.file === after.file ? '前后画面一致' : '类型不匹配'}
+                    </span>
+                  ) : null}
+
+                  {onContinue && (
+                    <button
+                      type="button"
+                      className="text-[var(--tx)] hover:text-blue-500 hover:underline flex items-center gap-1 font-medium"
+                      onClick={() => onContinue(opinion)}
+                      title="基于上一轮意见继续调整（将打开最新版本由你确认新目标）"
+                    >
+                      <MessageSquarePlus size={12} />
+                      <span>继续调整</span>
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {opinion.status === 'open' ? (
+                    <button
+                      type="button"
+                      className="text-emerald-500 hover:underline flex items-center gap-1 font-medium"
+                      onClick={() => review.resolve(opinion.id, viewedId)}
+                    >
+                      <Check size={12} />
+                      <span>标记已处理</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="text-[var(--tx3)] hover:text-[var(--tx)] flex items-center gap-1"
+                      onClick={() => review.reopen(opinion.id)}
+                    >
+                      <RotateCcw size={12} />
+                      <span>重新打开</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+            </article>
+          )
+        })}
+      </div>
     </div>
-    <footer className="wb-desk-footer"><span role="status">{review.saved ? '保存在此浏览器 · 未同步云端' : '保存失败 · 仅本次页面有效，请导出备份'}</span><button type="button" onClick={exportReview} aria-label="导出审阅记录" title="导出审阅记录"><Download size={14}/></button></footer>
-  </aside>
+  )
 }

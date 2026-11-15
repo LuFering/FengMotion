@@ -55,4 +55,18 @@ public record ChatMessage(
     public static final String ROLE_USER = "user";
     public static final String ROLE_ASSISTANT = "assistant";
     public static final String ROLE_SYSTEM = "system";
+
+    public ChatMessage(
+            String id,
+            String sessionId,
+            long seq,
+            String role,
+            String text,
+            String taskId,
+            JsonNode references,
+            JsonNode attachments,
+            JsonNode toolCalls,
+            Instant createdAt) {
+        this(id, sessionId, seq, role, text, taskId, references, attachments, toolCalls, null, null, null, null, createdAt);
+    }
 }

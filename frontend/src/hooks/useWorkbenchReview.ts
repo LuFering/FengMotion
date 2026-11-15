@@ -19,11 +19,39 @@ export function useWorkbenchReview(projectId: string, original: string) {
       if (!text.trim()) return
       commit((s) => ({ ...s, corrections: [...s.corrections, { id: newReviewId(), text: text.trim(), createdAt: new Date().toISOString() }] }))
     },
+    setOriginal(original: string) { commit((s) => ({ ...s, original: original.trim() })) },
     setKeepNotes(keepNotes: string) { commit((s) => ({ ...s, keepNotes: keepNotes.trim() })) },
-    record(request: TaskRequest, options?: { includeBrief?: boolean }) {
+    record(request: TaskRequest, options?: {
+      includeBrief?: boolean
+      baseVersion?: number
+      baseVisualId?: string
+      baseOrigin?: 'scene' | 'workflow' | 'editor'
+      resultVersion?: number
+      resultVisualId?: string
+      resultOrigin?: 'scene' | 'workflow' | 'editor'
+      resultSummary?: string
+    }) {
       const id = newReviewId()
       const snapshot = structuredClone({ ...request, feedbackId: id, ...(options?.includeBrief === false ? {} : { creativeBrief: brief }) })
-      commit((s) => ({ ...s, opinions: [{ id, createdAt: new Date().toISOString(), request: snapshot, status: 'open' }, ...s.opinions] }))
+      commit((s) => ({
+        ...s,
+        opinions: [
+          {
+            id,
+            createdAt: new Date().toISOString(),
+            request: snapshot,
+            status: 'open',
+            ...(options?.baseVersion !== undefined ? { baseVersion: options.baseVersion } : {}),
+            ...(options?.baseVisualId ? { baseVisualId: options.baseVisualId } : {}),
+            ...(options?.baseOrigin ? { baseOrigin: options.baseOrigin } : {}),
+            ...(options?.resultVersion !== undefined ? { resultVersion: options.resultVersion } : {}),
+            ...(options?.resultVisualId ? { resultVisualId: options.resultVisualId } : {}),
+            ...(options?.resultOrigin ? { resultOrigin: options.resultOrigin } : {}),
+            ...(options?.resultSummary ? { resultSummary: options.resultSummary } : {}),
+          },
+          ...s.opinions,
+        ],
+      }))
       return snapshot
     },
     resolve(id: string, reviewedVisualId?: string) {

@@ -113,7 +113,7 @@
 }
 .se-body {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 300px;
+  grid-template-columns: minmax(0, 430px) minmax(0, 1fr);
   flex: 1;
   min-height: 0;
 }
@@ -127,7 +127,8 @@
 .se-tools {
   display: flex;
   align-items: center;
-  gap: 14px;
+  flex-wrap: wrap;
+  gap: 6px 10px;
   padding: 9px 13px;
   border-bottom: 1px solid var(--line);
   flex: none;
@@ -707,7 +708,7 @@
 }
 @media (max-height: 800px) {
   .se-tracks {
-    height: 135px;
+    height: 200px;
   }
   .se-header {
     padding: 10px 14px;
@@ -776,4 +777,126 @@
   .se-body {
     grid-template-columns: minmax(0, 1fr) 240px;
   }
+}
+
+/* 编辑态左栏窄：工具按钮保持单行文字，不出现「图\n片」这种竖排。 */
+#pane-flow .wb-a2 .open-workbench-layout[data-editor='true'] .se-tools button {
+  white-space: nowrap;
+  flex: none;
+}
+#pane-flow .wb-a2 .open-workbench-layout[data-editor='true'] .se-add-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+/* 轨道手柄：平时只露一条细边，指向轨道时才显形。
+   手柄必须盖在轨道条上、可聚焦，键盘也能用左右方向键微调。 */
+.se-track-range { overflow: visible; }
+.se-track-handle {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 8px;
+  z-index: 2;
+  cursor: ew-resize;
+  border-radius: 2px;
+  background: transparent;
+  transition: background-color 140ms ease;
+}
+.se-track-handle[data-edge='start'] { left: -4px; }
+.se-track-handle[data-edge='end'] { right: -4px; }
+.se-track-range:hover .se-track-handle,
+.se-track-handle:focus-visible { background: var(--acc); }
+.se-track-handle:focus-visible { outline: 2px solid var(--acc); outline-offset: 1px; }
+
+/* ── JSON 就地编辑 ──────────────────────────────────────────── */
+.se-json-toggle {
+  margin-left: 4px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--tx2);
+  padding: 3px 7px;
+  border-radius: 5px;
+  border: 1px solid var(--line);
+}
+.se-json-toggle[aria-expanded='true'] {
+  color: var(--acc-tx);
+  border-color: var(--acc);
+}
+.se-json-editor {
+  padding: 10px 16px 12px;
+  border-bottom: 1px solid var(--line);
+}
+.se-json-editor textarea {
+  width: 100%;
+  min-height: 220px;
+  resize: vertical;
+  padding: 10px;
+  border-radius: 6px;
+  border: 1px solid var(--line2);
+  background: var(--stage-bg);
+  color: var(--tx);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.6;
+}
+.se-json-error {
+  margin: 8px 0 0;
+  color: var(--warn);
+  font-size: 10.5px;
+}
+.se-json-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+/* ── 属性关键帧 ─────────────────────────────────────────────── */
+.se-keyframe-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin: 8px 0;
+}
+.se-keyframe-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--tx2);
+}
+.se-keyframe-row > span { flex: 1; }
+.se-keyframe-row small {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--tx3);
+}
+.se-keyframe-row button {
+  color: var(--tx3);
+  padding: 2px;
+  border-radius: 3px;
+}
+.se-keyframe-row button:hover { color: var(--bad); }
+.se-keyframe-add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 8px;
+}
+.se-keyframe-add button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  padding: 4px 7px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  color: var(--tx2);
+  white-space: nowrap;
+}
+.se-keyframe-add button:hover {
+  color: var(--acc-tx);
+  border-color: var(--acc);
 }

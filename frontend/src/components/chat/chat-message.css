@@ -128,6 +128,28 @@
   color: var(--bad);
 }
 
+/* 补存重试：保存失败时唯一能自救的入口，必须显眼且可键盘到达 */
+.cm-failed-retry {
+  margin-left: 6px;
+  padding: 0 6px;
+  font-size: 12px;
+  line-height: 17px;
+  color: var(--bad);
+  background: transparent;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.cm-failed-retry:hover {
+  background: var(--hover);
+}
+
+.cm-failed-retry:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 1px;
+}
+
 /* ── 操作条 ────────────────────────────────────────────────────
    常驻挂载、悬停或聚焦时显现（上游的做法）。
    只在 hover 时渲染的话，键盘用户永远够不到，而且指针扫过会推动布局。 */

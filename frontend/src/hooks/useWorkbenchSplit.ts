@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react'
+import { elasticPanelFeedback } from '@/components/leibox/elastic-panel-resize/ElasticPanelResizeEngine.js'
 
 const STORAGE_KEY = 'fengmotion:workbench:chat-width'
 const MIN_CHAT = 345
@@ -9,7 +10,8 @@ const HANDLE = 4
 export function useWorkbenchSplit() {
   const containerRef = useRef<HTMLDivElement>(null)
   const preferredRef = useRef<number | null>(null)
-  const drag = useRef<{ pointer: number; startX: number; startWidth: number } | null>(null)
+  const drag = useRef<{ pointer: number; startX: number; startWidth: number; lastX: number; lastTime: number } | null>(null)
+  const [feedback, setFeedback] = useState({ offset: 0, bend: 0, stretch: 0 })
   const [width, setWidth] = useState(460)
   const [bounds, setBounds] = useState({ min: MIN_CHAT, max: 720 })
   const [dragging, setDragging] = useState(false)
@@ -51,26 +53,39 @@ export function useWorkbenchSplit() {
   }, [])
   const onPointerDown = useCallback((event: PointerEvent<HTMLElement>) => {
     if (event.button !== 0) return
-    drag.current = { pointer: event.pointerId, startX: event.clientX, startWidth: width }
+    drag.current = { pointer: event.pointerId, startX: event.clientX, startWidth: width, lastX: event.clientX, lastTime: performance.now() }
     event.currentTarget.setPointerCapture(event.pointerId)
     setDragging(true)
     event.preventDefault()
   }, [width])
   const onPointerMove = useCallback((event: PointerEvent<HTMLElement>) => {
     const state = drag.current
-    if (state && state.pointer === event.pointerId) setWidth(clamp(state.startWidth + event.clientX - state.startX))
+    if (state && state.pointer === event.pointerId) {
+      const raw = state.startWidth + event.clientX - state.startX
+      const bounded = clamp(raw)
+      const now = performance.now()
+      const speed = (event.clientX - state.lastX) / Math.max((now - state.lastTime) / 1000, .008)
+      state.lastX = event.clientX
+      state.lastTime = now
+      setWidth(bounded)
+      setFeedback(window.matchMedia('(prefers-reduced-motion: reduce)').matches
+        ? { offset: 0, bend: 0, stretch: 0 }
+        : elasticPanelFeedback(raw, bounded, speed))
+    }
   }, [clamp])
   const onPointerUp = useCallback((event: PointerEvent<HTMLElement>) => {
     const state = drag.current
     if (!state || state.pointer !== event.pointerId) return
     drag.current = null
     setDragging(false)
+    setFeedback({ offset: 0, bend: 0, stretch: 0 })
     persist(clamp(state.startWidth + event.clientX - state.startX))
   }, [clamp, persist])
   const onPointerCancel = useCallback(() => {
     if (drag.current) setWidth(clamp(drag.current.startWidth))
     drag.current = null
     setDragging(false)
+    setFeedback({ offset: 0, bend: 0, stretch: 0 })
   }, [clamp])
   const onKeyDown = useCallback((event: KeyboardEvent<HTMLElement>) => {
     let next: number
@@ -78,10 +93,17 @@ export function useWorkbenchSplit() {
     else if (event.key === 'ArrowRight') next = width + 16
     else if (event.key === 'Home') next = bounds.min
     else if (event.key === 'End') next = bounds.max
+    else if (event.key === 'Escape') next = drag.current?.startWidth ?? 460
     else return
     event.preventDefault()
+    if (event.key === 'Escape' && drag.current) {
+      drag.current = null
+      setDragging(false)
+      setFeedback({ offset: 0, bend: 0, stretch: 0 })
+    }
     persist(clamp(next))
   }, [bounds, clamp, persist, width])
+  const onDoubleClick = useCallback(() => persist(clamp(460)), [clamp, persist])
 
-  return { containerRef, width, bounds, dragging, onPointerDown, onPointerMove, onPointerUp, onPointerCancel, onKeyDown }
+  return { containerRef, width, bounds, dragging, feedback, onPointerDown, onPointerMove, onPointerUp, onPointerCancel, onKeyDown, onDoubleClick, reset: onDoubleClick }
 }

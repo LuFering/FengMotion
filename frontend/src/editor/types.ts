@@ -11,6 +11,9 @@ export interface EditorLayer {
   width: number
   height: number
   rotation: number
+  /** 变换原点，百分比：50/50 是中心。旋转和缩放围绕这一点发生。 */
+  transformOriginX: number
+  transformOriginY: number
   opacity: number
   start: number
   end: number
@@ -31,6 +34,16 @@ export interface EditorLayer {
   exit: number
   travel: number
   zoom: number
+  /** 该图层的关键帧。为空时图层按静态属性渲染。 */
+  keyframes?: LayerKeyframe[]
+}
+/** 一个属性关键帧：在某个秒数上把某个数值属性设成某个值。 */
+export interface LayerKeyframe {
+  id: string
+  /** 相对图层入点的秒数，避免整体移动图层时关键帧跟着错位。 */
+  time: number
+  property: 'x' | 'y' | 'rotation' | 'opacity' | 'scale'
+  value: number
 }
 export interface ElementPatch {
   assetId?: string

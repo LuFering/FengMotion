@@ -1,0 +1,424 @@
+/* ═══════════════════════════════════════════════════════════════════
+   FengMotion Workbench Topbar
+   两行式紧凑画面控制与版本管理工具栏（Vidstack 图标体系 ＋ Portal 主题保障）
+   - 上行(36px)：版本号下拉、对比图标 ───── 渲染任务、导出图标 │ 切换器
+   - 下行(36px)：引用此帧、框选区域、保存当前帧 │ 辅助查看、专注预览 ── 项目信息、更多操作
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── Portal 弹出层全局主题作用域保障（彻底消除透明背景问题） ── */
+:root {
+  --portal-menu-bg: #14171e;
+  --portal-menu-line: #282d38;
+  --portal-menu-tx: #f0f2f5;
+  --portal-menu-tx2: #9ba3b0;
+  --portal-menu-tx3: #687082;
+  --portal-menu-hover: rgba(255, 255, 255, 0.08);
+  --portal-menu-active: rgba(59, 140, 248, 0.16);
+  --portal-menu-shadow: 0 16px 36px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.07);
+}
+
+.wb-topbar {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 16px;
+  background: var(--panel, #14171d);
+  border-bottom: 1px solid var(--line, #272c35);
+  user-select: none;
+  min-height: 76px;
+}
+
+.wb-topbar-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 34px;
+  min-height: 34px;
+  gap: 12px;
+}
+
+.wb-topbar-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.wb-topbar-left {
+  flex: 1 1 auto;
+  justify-content: flex-start;
+}
+
+.wb-topbar-right {
+  flex: 0 0 auto;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+/* 统一纯图标按钮规范：32×32px 点击区域、18px 居中图标、1.75 细描边 */
+.wb-topbar-icon-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--tx2, #9ba3b0);
+  cursor: pointer;
+  flex: none;
+  transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease, opacity 120ms ease;
+}
+
+.wb-topbar-icon-btn svg,
+.wb-topbar-icon-btn span[aria-hidden="true"] {
+  flex: none;
+  color: inherit;
+}
+
+.wb-topbar-icon-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--tx, #f0f2f5) 7%, transparent);
+  color: var(--tx, #f0f2f5);
+}
+
+/* 激活态：浅蓝底 ＋ 品牌蓝图标 */
+.wb-topbar-icon-btn[data-active],
+.wb-topbar-icon-btn-active {
+  background: color-mix(in srgb, var(--acc, #3b8cf8) 12%, var(--panel, #14171d)) !important;
+  border-color: color-mix(in srgb, var(--acc, #3b8cf8) 30%, transparent) !important;
+  color: var(--acc, #3b8cf8) !important;
+}
+
+.wb-topbar-icon-btn:focus-visible {
+  outline: 2px solid var(--acc, #3b8cf8);
+  outline-offset: 1px;
+}
+
+.wb-topbar-icon-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* 任务执行中脉冲动画 */
+@keyframes wbTaskPulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.3); opacity: 0.6; }
+}
+
+.wb-topbar-task-running-dot {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: #3b8cf8;
+  box-shadow: 0 0 6px rgba(59, 140, 248, 0.8);
+  animation: wbTaskPulse 1.6s ease-in-out infinite;
+}
+
+/* 版本选择器：保留版本号文字与箭头，无版本时不虚构 v1 */
+.wb-topbar-version-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 30px;
+  padding: 0 8px;
+  border: 1px solid color-mix(in srgb, var(--tx, #f0f2f5) 10%, var(--line, #272c35));
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--tx, #f0f2f5) 3%, var(--panel, #14171d));
+  color: var(--tx, #f0f2f5);
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease;
+  user-select: none;
+}
+
+.wb-topbar-version-pill:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--tx, #f0f2f5) 7%, var(--panel, #14171d));
+  border-color: color-mix(in srgb, var(--tx, #f0f2f5) 20%, var(--line, #272c35));
+}
+
+.wb-topbar-version-pill:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.wb-topbar-version-pill[data-historical] {
+  border-color: color-mix(in srgb, var(--warn, #e0a64b) 35%, var(--line, #272c35));
+  background: color-mix(in srgb, var(--warn, #e0a64b) 8%, var(--panel, #14171d));
+}
+
+.wb-topbar-version-hist-tag {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--warn, #e0a64b);
+  background: color-mix(in srgb, var(--warn, #e0a64b) 16%, transparent);
+  padding: 1px 4px;
+  border-radius: 3px;
+  line-height: 1.2;
+}
+
+.wb-topbar-version-name {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.wb-topbar-chevron {
+  color: var(--tx3, #687082);
+}
+
+/* 辅助查看开启指示微小圆点（5px，位于右下方，降低噪音） */
+.wb-topbar-guides-btn {
+  position: relative;
+}
+
+.wb-topbar-active-dot {
+  position: absolute;
+  right: 5px;
+  bottom: 5px;
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--acc, #3b8cf8);
+  box-shadow: 0 0 0 1.5px var(--panel, #14171d);
+}
+
+/* 视图切换器插槽：固定在最右上角 */
+.wb-topbar-switch-slot {
+  flex: none;
+  display: flex;
+  align-items: center;
+}
+
+/* 下行工具排布 */
+.wb-topbar-row-secondary {
+  border-top: 1px solid color-mix(in srgb, var(--line, #272c35) 40%, transparent);
+  padding-top: 1px;
+}
+
+.wb-topbar-tools {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+}
+
+.wb-topbar-divider {
+  width: 1px;
+  height: 16px;
+  background: color-mix(in srgb, var(--line, #272c35) 80%, transparent);
+  margin: 0 5px;
+  flex: none;
+}
+
+/* 对比模式下行横幅：精炼事实陈述，无多余冗余按钮 */
+.wb-topbar-comparison-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  font-size: 11.5px;
+}
+
+.wb-topbar-comparison-tag {
+  padding: 1.5px 6px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--acc, #3b8cf8) 18%, var(--panel, #14171d));
+  color: var(--acc, #3b8cf8);
+  font-weight: 600;
+  font-size: 10.5px;
+}
+
+.wb-topbar-comparison-desc {
+  color: var(--tx2, #9ba3b0);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   下拉菜单样式（解决 Portal 透明问题，保证不透明与清晰层级）
+   ═══════════════════════════════════════════════════════════════════ */
+.wb-topbar-menu,
+[data-slot="dropdown-menu-content"].wb-topbar-menu {
+  min-width: 240px;
+  background-color: var(--portal-menu-bg) !important;
+  border: 1px solid var(--portal-menu-line) !important;
+  color: var(--portal-menu-tx) !important;
+  border-radius: 8px;
+  padding: 5px;
+  box-shadow: var(--portal-menu-shadow) !important;
+  z-index: 9999;
+  backdrop-filter: blur(16px);
+}
+
+.wb-topbar-menu-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--portal-menu-tx2);
+}
+
+.wb-topbar-menu-latest {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--acc, #3b8cf8);
+  background: color-mix(in srgb, var(--acc, #3b8cf8) 14%, transparent);
+  padding: 1px 6px;
+  border-radius: 999px;
+}
+
+.wb-topbar-version-list {
+  max-height: 240px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.wb-topbar-menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 8px;
+  font-size: 12px;
+  color: var(--portal-menu-tx);
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 100ms ease;
+}
+
+.wb-topbar-menu-item:hover,
+.wb-topbar-menu-item:focus {
+  background: var(--portal-menu-hover);
+  color: var(--portal-menu-tx);
+}
+
+.wb-topbar-menu-item[data-current] {
+  background: var(--portal-menu-active);
+  font-weight: 600;
+}
+
+.wb-topbar-menu-item-jump {
+  color: var(--acc, #3b8cf8) !important;
+  font-weight: 600;
+}
+
+.wb-topbar-item-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.wb-topbar-item-version {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--portal-menu-tx);
+}
+
+.wb-topbar-item-name {
+  color: var(--portal-menu-tx2);
+  font-size: 11.5px;
+  max-width: 130px;
+}
+
+.wb-topbar-lead-pill {
+  font-size: 9.5px;
+  font-weight: 600;
+  color: var(--acc, #3b8cf8);
+  border: 1px solid color-mix(in srgb, var(--acc, #3b8cf8) 30%, transparent);
+  padding: 0 4px;
+  border-radius: 4px;
+  line-height: 14px;
+}
+
+.wb-topbar-item-time {
+  font-size: 10.5px;
+  color: var(--portal-menu-tx3);
+  font-variant-numeric: tabular-nums;
+}
+
+.wb-topbar-menu-check-item {
+  font-size: 12px;
+  padding: 6px 8px 6px 26px;
+  cursor: pointer;
+  border-radius: 5px;
+  color: var(--portal-menu-tx);
+}
+
+.wb-topbar-menu-check-item:hover,
+.wb-topbar-menu-check-item:focus {
+  background: var(--portal-menu-hover);
+}
+
+/* 规格与信息菜单样式 */
+.wb-topbar-info-section {
+  padding: 6px 8px;
+}
+
+.wb-topbar-info-title {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--portal-menu-tx3);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 4px;
+}
+
+.wb-topbar-info-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11.5px;
+  padding: 2px 0;
+}
+
+.wb-topbar-info-key {
+  color: var(--portal-menu-tx2);
+}
+
+.wb-topbar-info-val {
+  color: var(--portal-menu-tx);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── 当前工程版本行（与「最新可下载」分开表达）───────────────
+   两件事必须能分辨：工程改到第几版（可能还没渲出片），
+   与哪一版能下载（可能落后于工程版本）。 */
+.wb-topbar-version-project {
+  padding: 4px 10px 6px;
+  font-size: 11px;
+  line-height: 15px;
+  color: var(--portal-menu-tx2);
+}
+
+/* 未能确认权威版本时用警示色：这句话是在说「别把它当准」，
+   与正常状态混在一起用户会忽略。 */
+.wb-topbar-version-project[data-authoritative='no'] {
+  color: var(--warn, #d97706);
+}
+
+/* 无可跳转版本时的说明行：不是可点项，不能有 hover 反馈 */
+.wb-topbar-menu-item-note {
+  display: block;
+  padding: 6px 8px;
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--portal-menu-tx2);
+  cursor: default;
+}
+
+.wb-topbar-menu-item-note:hover {
+  background: transparent;
+}

@@ -53,9 +53,9 @@ fengmotion:
     plan-timeout-seconds: ${FENGMOTION_MODIFY_PLAN_TIMEOUT:90}
   remotion:
     # 工程目录：含 render.mjs 与 src/。留空时按 user.dir/remotion 推断（开发态）
-    project-dir: ${FENGMOTION_REMOTION_DIR:}
+    project-dir: ${FENGMOTION_REMOTION_DIR:FengMotion-desktop/backend/remotion}
     # 依赖目录：复用桌面端已装的 node_modules，不再单独装几百 MB
-    node-modules: ${FENGMOTION_NODE_MODULES:}
+    node-modules: ${FENGMOTION_NODE_MODULES:FengMotion-desktop/frontend/node_modules}
     # Chromium 路径：留空则由 Remotion 自行下载 chrome-headless-shell
     # 浏览器路径。留空则交给 Remotion 自己下载 chrome-headless-shell（跨机器最稳）。
     # 写死本机路径会在别人的电脑上失败，所以默认不再指向 /opt/google/chrome。
@@ -79,6 +79,8 @@ fengmotion:
       timeout-seconds: 30
 
   workflow:
+    # workflow-v0.1.0 目录
+    dir: ${FENGMOTION_WORKFLOW_DIR:FengMotion-desktop/frontend/workflow-v0.1.0}
     # agent 改工程单轮超时（秒）。实测含自查 2–15 分钟，留足余量。
     agent-timeout-seconds: ${FENGMOTION_AGENT_TIMEOUT:1200}
 
@@ -90,7 +92,7 @@ fengmotion:
     # 使用的 dsh profile：sdk 是官方面向进程外集成的正式入口。
     profile: sdk
     # 让 SDK 子进程带上第三方提供商的 provider 配置（路径按本机实际情况填写）。
-    patch: ${FENGMOTION_DSH_PATCH:/home/lufering/.dsh/profiles/desktop/cordis.patch.yml}
+    patch: ${FENGMOTION_DSH_PATCH:${user.home}/.dsh/profiles/desktop/cordis.patch.yml}
     # 流式桥接插件目录：订阅 DSH 内部的 token 级帧并转写到 stderr，
     # 后端据此产出 SSE delta 帧。留空则退回「整段到达」。
     # ⚠️ 不能用 ${user.dir}：安装态后端的工作目录是启动它的目录（例如仓库根），

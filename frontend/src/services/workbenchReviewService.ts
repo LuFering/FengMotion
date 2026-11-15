@@ -9,6 +9,13 @@ export interface ReviewOpinion {
   status: 'open' | 'resolved'
   resolvedAt?: string
   reviewedVisualId?: string
+  resultVersion?: number
+  baseVersion?: number
+  baseVisualId?: string
+  baseOrigin?: 'scene' | 'workflow' | 'editor'
+  resultVisualId?: string
+  resultOrigin?: 'scene' | 'workflow' | 'editor'
+  resultSummary?: string
 }
 export interface WorkbenchReviewState extends CreativeBriefSnapshot { opinions: ReviewOpinion[] }
 const key = (projectId: string) => `fengmotion:review:v1:${projectId}`

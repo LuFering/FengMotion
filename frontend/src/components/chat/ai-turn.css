@@ -39,6 +39,35 @@
   margin-left: -6px;
 }
 
+/* ── 操作条在对话区的可见性 ──────────────────────────────────
+   `chat-message.css` 里 `.cm-actions` 默认 opacity:0，靠
+   `.cm-ai:hover / :focus-within` 才显现。但对话区的结构是
+   `.cv3-ai-block > .ai-actions > .cm-actions` —— 根本没有 `.cm-ai`，
+   那两条规则永远匹配不到，操作条**在对话区一直不可见**
+   （实测：聚焦按钮后 opacity 仍为 0，键盘用户完全够不到）。
+
+   这里按对话区自己的结构补上显隐规则：悬停整条回复或聚焦其中任一项时显现，
+   并保证键盘 Tab 进入时也能看见。 */
+/* 用 `.cv3-ai-block .ai-actions .cm-actions`（三个类选择器）压过
+   chat-message.css 里 `.cm-actions { opacity: 0 }`（一个类）——
+   两者加载顺序不受控，靠顺序会时好时坏。 */
+.cv3-ai-block .ai-actions .cm-actions {
+  opacity: 0;
+  transition: opacity 150ms ease;
+}
+
+.cv3-ai-block:hover .ai-actions .cm-actions,
+.cv3-ai-block:focus-within .ai-actions .cm-actions {
+  opacity: 1;
+}
+
+/* 触屏/无悬停设备没有 hover，常显更稳 —— 否则这些按钮等于不存在 */
+@media (hover: none) {
+  .cv3-ai-block .ai-actions .cm-actions {
+    opacity: 1;
+  }
+}
+
 /* ── 思考折叠（.NpTkMG_*）──────────────────────────────────────
    收起态固定 24px：dsh 用 contain:size + height 定死。
    不这么做的话，「思考中 → 完成」切换会把下面的正文顶一下。 */

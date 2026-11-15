@@ -381,13 +381,6 @@ public class DshSdkSession {
     private final ObjectMapper json;
     private final String provider;
     private final String model;
-
-    /**
-     * 推理强度（simple / medium / deep）。
-     *
-     * <p>DSH 的 {@code initialize} 接受 {@code reasoningEffort}；
-     * 传 null 时它用自己的默认档，不要补一个猜测值。</p>
-     */
     private final String reasoningEffort;
 
     /**
@@ -445,11 +438,6 @@ public class DshSdkSession {
         this(channel, json, provider, model, null);
     }
 
-    /**
-     * 带推理强度的一轮会话。
-     *
-     * @param reasoningEffort simple / medium / deep；null 表示用引擎自己的默认
-     */
     public DshSdkSession(DshProcess channel, ObjectMapper json, String provider, String model,
                          String reasoningEffort) {
         this.channel = channel;
@@ -488,7 +476,7 @@ public class DshSdkSession {
         params.put("cwd", cwd);
         params.put("provider", provider);
         params.put("model", model);
-        if (reasoningEffort != null && !reasoningEffort.isBlank()) {
+        if (reasoningEffort != null) {
             params.put("reasoningEffort", reasoningEffort);
         }
         channel.sendRequest(id, "initialize", params);

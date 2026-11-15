@@ -178,16 +178,16 @@ html[data-theme="tactile"] #pane-conversation {
      因为左栏外还有 68px 导航轨）。原来写 10px 0 10px 10px —— 右边没边距，
      左栏就贴着主区、贴着导航轨，看起来像浮在界面上的卡片。 */
   margin: 16px 0 16px 16px;
-  padding: 6px 12px;
+  padding: 12px;
   box-sizing: border-box;
   /* 左栏 = 一张纸片，配方同首页（.hf-menu / .hf-panel 系列）：
      面 + 1px 边线 + 圆角 + 投影。首页所有浮起元素都带边线与投影，
      只有这样才能和首页是同一套设计语言。 */
   border: 1px solid var(--cv-line);
-  border-radius: 18px;
+  border-radius: 16px;
   /* 面与输入卡同一档（--hf-panel），首页菜单/浮层也是这个面 */
   background: var(--cv-elev);
-  box-shadow: var(--cv-shadow);
+  box-shadow: 0 6px 24px rgb(20 22 40 / .06);
   color: var(--tx1);
   font-size: 13px;
 }
@@ -201,9 +201,10 @@ html[data-theme="tactile"] #pane-conversation {
   flex: none;
   align-items: center;
   gap: 4px;
-  height: 36px;
-  margin: -6px -4px 0;
-  padding: 0 4px;
+  height: 44px;
+  margin: -4px -4px 8px;
+  padding: 0 4px 8px;
+  border-bottom: 1px solid var(--cv-line);
   box-sizing: border-box;
 }
 
@@ -211,6 +212,11 @@ html[data-theme="tactile"] #pane-conversation {
 .cv3-side-top .cv3-viewwrap {
   margin-left: auto;
 }
+.cv3-side-title {
+  flex: 1; min-width: 0; overflow: hidden; white-space: nowrap;
+  color: var(--tx1); font-size: 14px; font-weight: 650;
+}
+.cv3-side-top:has(.sek[data-open='true']) .cv3-side-title { display: none; }
 
 .cv3-viewwrap,
 .cv3-rowmenu-wrap {
@@ -255,9 +261,9 @@ html[data-theme="tactile"] #pane-conversation {
 /* 展开时同排按钮淡出并退出点击（:has 读的是组件自己的状态，
    组件不必为宿主多开一个回调） */
 .cv3-side-top:has(.sek[data-open='true']) .cv3-top-actions {
-  opacity: 0;
-  pointer-events: none;
+  display: none;
 }
+.cv3-side-top .sek[data-open='true'] { max-width: 100%; }
 
 /* ── 搜索框（对齐 dsh search.placeholder：搜索会话名称）── */
 .cv3-search {
@@ -740,6 +746,12 @@ html[data-theme="tactile"] #pane-conversation {
   /* 与左栏同一套边距（16px 四边）：原来只有左栏有 margin，主区贴到右边缘，
      两边不对称，看着像左栏浮在界面上。 */
   margin: 16px 16px 16px 16px;
+  --cv-page: var(--surf);
+  overflow: hidden;
+  border: 1px solid var(--cv-line);
+  border-radius: 16px;
+  background: var(--cv-page);
+  box-shadow: 0 6px 24px rgb(20 22 40 / .06);
 }
 
 /* ---- 顶栏（dsh ConversationRoot header） ----
@@ -751,9 +763,10 @@ html[data-theme="tactile"] #pane-conversation {
   grid-template-columns: auto minmax(0, 1fr);
   align-items: start;
   flex: none;
-  min-height: 56px;
-  padding: 10px 28px 0 20px;
+  min-height: 60px;
+  padding: 12px 24px;
   box-sizing: border-box;
+  border-bottom: 1px solid var(--cv-line);
   /* 不画贯穿全宽的底边线：靠留白与内容分层，线只在需要的地方出现 */
 }
 
@@ -768,12 +781,12 @@ html[data-theme="tactile"] #pane-conversation {
 
 .cv3-crumb {
   min-width: 0;
-  max-width: 220px;
+  max-width: 420px;
   overflow: hidden;
   padding: 4px 8px;
   color: var(--tx1);
-  font-size: 13px;
-  font-weight: 500;
+  font-size: 14px;
+  font-weight: 600;
   line-height: 20px;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -880,7 +893,7 @@ html[data-theme="tactile"] #pane-conversation {
 .cv3-view {
   flex: 1 0 auto;
   min-width: 0;
-  padding: 16px 32px;
+  padding: 24px 32px 32px;
 }
 
 .cv3-col {
@@ -903,7 +916,7 @@ html[data-theme="tactile"] #pane-conversation {
 .cv3-col > .cv3-user,
 .cv3-col > .cv3-ai-block,
 .cv3-col > .cv3-pending {
-  margin-top: 12px;
+  margin-top: 24px;
 }
 
 .cv3-col > .cv3-user:first-child,
@@ -948,6 +961,7 @@ html[data-theme="tactile"] #pane-conversation {
   gap: 10px;
   min-width: 0;
 }
+.cv3-ai-block[data-streaming] > .ai-answer { order: -1; }
 
 /* 状态文字：正文字号 13 / 行高 19.5，状态比它弱一档才不抢内容 */
 .cv3-streaming {
@@ -1360,8 +1374,15 @@ html[data-theme="tactile"] #pane-conversation {
   position: sticky;
   bottom: 0;
   z-index: 7;
-  padding-top: 36px;
-  background: linear-gradient(180deg, rgb(0 0 0 / 0) 0, var(--cv-page) 36px);
+  padding: 24px 0 12px;
+  /* 上缘 36px 渐隐到页面底色，**下缘必须完全不透明**。
+     只写一条 linear-gradient 时，整块区域的底色其实都是渐变色 ——
+     消息区滚到下面会从渐隐段透出来：实测出现「消息里的圆形图标
+     压在目标详情框上」，看着像层级错乱，实际是背景没盖住。
+     两层叠加：上层渐隐负责柔化上缘，下层实色负责遮住内容。 */
+  background:
+    linear-gradient(180deg, rgb(0 0 0 / 0) 0, var(--cv-page) 36px),
+    var(--cv-page);
 }
 
 /* 输入框必须与正文列（.cv3-col）同宽对齐 —— 两者各用一套宽度，
@@ -2648,9 +2669,12 @@ html[data-theme="tactile"] .cv3-ddm {
    原版是独立大卡片（标题+大数字+条+chips），放进消息末尾会喧宾夺主。
    这里压成三行：读数、条、分档 —— 去掉它自己的标题行（「Context」），
    因为旁边就是用量行，语境已经很清楚。 */
+/* 这张卡现在是消息区**唯一**的上下文读数（输入框圆环已撤掉），
+   所以它比原先「圆环弹层里的那份」要更正式一点：给足上边距，
+   与下面的 token 用量行拉开距离，读作「这一轮的收尾信息」而不是正文的一部分。 */
 .cv3-ctxmeter {
-  margin: 10px 0 0 0;
-  max-width: 280px;
+  margin: 12px 0 0 0;
+  max-width: 320px;
 }
 .cv3-ctxmeter .ctx {
   padding: 0;
@@ -2668,8 +2692,14 @@ html[data-theme="tactile"] .cv3-ddm {
 .cv3-ctxmeter .ctx-chip {
   font-size: 10.5px;
   line-height: 14px;
+  /* 高度与底色必须显式归零：Bencho 原版把 chip 画成 32px 高、6% 灰底的胶囊，
+     那个尺寸在独立卡片里合适，贴到消息末尾就变成五颗大药丸压过正文。 */
+  height: auto;
+  min-height: 0;
   padding: 1px 5px;
   border-radius: 4px;
+  background: none;
+  gap: 4px;
 }
 .cv3-ctxmeter .ctx-swatch { width: 6px; height: 6px; border-radius: 2px; }
 /* 顶部那行「N% · 估算」被隐藏后，百分比改由这里承担：

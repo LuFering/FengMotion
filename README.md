@@ -30,17 +30,17 @@
 
 ## 当前进展
 
-项目版本为 **0.1.0**，仍处于早期开发和测试阶段。自然语言创作、资源引用和渲染已有真实实现，但新近整合的功能仍需更多端到端测试。生成质量取决于模型、资源、需求和运行环境。
+项目版本为 **0.1.1**，处于持续迭代开发和测试阶段。自然语言创作、资源引用和渲染已有真实实现，但新近整合的功能仍需更多端到端测试。生成质量取决于模型、资源、需求和运行环境。
 
 工作流中的部分节点目前仅展示界面快照；自动分析参考视频、完整的自动审片与返工尚未完成。当前提供 Linux x86_64 试用包，其他平台尚未完成适配。
 
 ## 下载试用
 
-从 [GitHub Releases](https://github.com/LuFering/FengMotion/releases) 下载 `FengMotion-0.1.0-x86_64.AppImage`。赋予执行权限后运行：
+从 [GitHub Releases](https://github.com/LuFering/FengMotion/releases) 下载 `FengMotion-0.1.1-x86_64.AppImage`。赋予执行权限后运行：
 
 ```bash
-chmod +x FengMotion-0.1.0-x86_64.AppImage
-./FengMotion-0.1.0-x86_64.AppImage
+chmod +x FengMotion-0.1.1-x86_64.AppImage
+./FengMotion-0.1.1-x86_64.AppImage
 ```
 
 应用包含后端和 Java 运行时；AI 创作仍需要本机安装并配置 DSH、可用模型及 Node.js。不同 Linux 环境的兼容性尚需验证。

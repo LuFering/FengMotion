@@ -54,11 +54,7 @@ export interface ChatApi {
   /** 发消息。只是聊天时 taskId 不出现；本适配器永远不建任务。 */
   sendMessage(sessionId: Id, request: ChatMessageCreateRequest): Promise<{ message: ChatMessage; taskId?: Id }>
   /** 订阅回复流。返回退订函数：退订 = 断线，**不得当作完成**。 */
-  stream(
-    sessionId: Id,
-    onMessage: (message: ChatStreamMessage) => void,
-    options?: { model?: string; thinking?: string },
-  ): () => void
+  stream(sessionId: Id, onMessage: (message: ChatStreamMessage) => void): () => void
 }
 
 /* ── 需求读文：只认原文里真的出现过的字 ──────────────────────
@@ -365,13 +361,7 @@ export class DemoChatApi implements ChatApi {
 
   /* ── 回复流 ── */
 
-  stream(
-    sessionId: Id,
-    onMessage: (message: ChatStreamMessage) => void,
-    /* 演示适配器不连后端，模型参数在这里不起作用；
-       保留签名只为与真实 API 同形，调用方不必分叉。 */
-    _options?: { model?: string; thinking?: string },
-  ): () => void {
+  stream(sessionId: Id, onMessage: (message: ChatStreamMessage) => void): () => void {
     const list = this.list(sessionId)
     /* 找出「还没被回过的最后一条用户消息」 */
     let targetIndex = -1

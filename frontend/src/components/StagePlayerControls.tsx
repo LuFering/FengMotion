@@ -10,6 +10,7 @@
  */
 import { useEffect, useState } from 'react'
 import { Maximize, Pause, Play, Volume2, VolumeX } from 'lucide-react'
+import { containedMediaRect } from '@/data/previewGeometry'
 
 export function StagePlayerControls({ mediaRef, duration, playing, onToggle, onTime, currentTime }: {
   mediaRef: React.RefObject<HTMLVideoElement | HTMLImageElement | null>
@@ -20,6 +21,32 @@ export function StagePlayerControls({ mediaRef, duration, playing, onToggle, onT
   currentTime: number
 }) {
   const [muted, setMuted] = useState(false)
+  /* 视频是 object-fit: contain，实际画面比容器窄或矮，上下会留黑边。
+     控制条若按容器底边定位，就会落到黑边甚至卡片白底上 —— 实测偏出 10px。
+     这里量出画面真实边界，把控制条贴到「画面」的底边内侧。 */
+  const [bottomInset, setBottomInset] = useState(10)
+  useEffect(() => {
+    const media = mediaRef.current
+    const host = media?.parentElement
+    if (!media || !host) return
+    const measure = () => {
+      const box = media.getBoundingClientRect()
+      const hostBox = host.getBoundingClientRect()
+      const naturalWidth = media instanceof HTMLVideoElement ? media.videoWidth : media.naturalWidth
+      const naturalHeight = media instanceof HTMLVideoElement ? media.videoHeight : media.naturalHeight
+      if (!naturalWidth || !naturalHeight) return
+      const visible = containedMediaRect(box, naturalWidth, naturalHeight)
+      if (!visible) return
+      setBottomInset(Math.max(6, Math.round(hostBox.bottom - (visible.top + visible.height) + 8)))
+    }
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(media)
+    observer.observe(host)
+    return () => observer.disconnect()
+    /* duration 变化时重新量：第一次执行时视频元数据往往还没到，
+       videoWidth 为 0 会直接 return，之后也不会再量一次。 */
+  }, [mediaRef, duration])
   const video = () => (mediaRef.current instanceof HTMLVideoElement ? mediaRef.current : null)
   const total = duration || 0
   const progress = total > 0 ? Math.min(100, (currentTime / total) * 100) : 0
@@ -41,7 +68,7 @@ export function StagePlayerControls({ mediaRef, duration, playing, onToggle, onT
   }
 
   return (
-    <div className="wb-player" role="group" aria-label="画面播放控制">
+    <div className="wb-player" role="group" aria-label="画面播放控制" style={{ bottom: bottomInset }}>
       <button type="button" className="wb-player-btn" onClick={onToggle}
               aria-label={playing ? '暂停' : '播放'}>
         {playing ? <Pause size={14} /> : <Play size={14} />}

@@ -1,0 +1,303 @@
+/* ── 按时间段修改 ─────────────────────────────────────────────
+   这个功能**在画面上直接操作**，不再是一次弹出表单：
+   在画面里横向拖出一条选区 → 选区下方就地浮出输入气泡 → 回车提交。
+
+   为什么不做成弹层：这张卡回答的是「改哪几秒」，而「这几秒」只有看着画面
+   才指得准。弹层一盖，用户先失去参照，再在一个和画面无关的输入框里凭空写数字,
+   那是在填表，不是在改片。
+
+   样式全部用 .wb-sel-* / .wb-tr-* 前缀，不挂 #pane-flow 限定 ——
+   这部分控件要能在画面框（.fw-stage-frame，position: relative）里绝对定位，
+   限定到某个容器后，一旦画面框结构变化就会整段失效。 */
+
+/* ── 工具栏入口：单图标 + 悬浮注释 ─────────────────────────── */
+.wb-time-range {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex: none;
+}
+
+.wb-tr-trigger {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex: none;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--dim, #9a9a9a);
+  cursor: pointer;
+  transition: background-color 140ms ease, color 140ms ease;
+}
+
+.wb-tr-trigger:hover:not(:disabled) {
+  background: rgba(127, 127, 140, .14);
+  color: var(--fg, #ededed);
+}
+
+/* 选段模式开着时图标持续点亮：否则用户不知道画面为什么突然响应拖动。 */
+.wb-tr-trigger[data-active] {
+  background: color-mix(in srgb, var(--acc) 16%, transparent);
+  color: var(--acc, #3b8cf8);
+}
+
+.wb-tr-trigger:disabled {
+  opacity: .4;
+  cursor: not-allowed;
+}
+
+.wb-tr-trigger:focus-visible {
+  outline: 2px solid var(--acc, #3b8cf8);
+  outline-offset: 2px;
+}
+
+/* ── 画面上的选段层 ────────────────────────────────────────────
+   盖住画面矩形本身（父级 .fw-stage-frame 已是 relative）。
+   半透明黑 + 十字光标：既要让人看出「现在是在画面上操作」，
+   又不能把自己的选区盖得看不清 —— 这里的重点是画面，不是这层。 */
+.wb-sel-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  cursor: crosshair;
+  touch-action: none;
+  background: rgb(0 0 0 / .18);
+  /* 拖动中允许选中文字没有意义，还会拖出一片蓝色高亮干扰选区显示。 */
+  user-select: none;
+}
+
+.wb-sel-layer[data-dragging] {
+  background: rgb(0 0 0 / .28);
+}
+
+/* 播放头参考线：给出「我现在看到第几秒」的参照，选区边界才不是凭空猜的。 */
+.wb-sel-playhead {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: rgb(255 255 255 / .55);
+  pointer-events: none;
+}
+
+/* 选区：浅蓝半透明，左右两端各一枚把手。
+   不用整块高亮 —— 高亮会把选区里的画面压暗，而这正是用户要看清的部分。 */
+.wb-sel-range {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: color-mix(in srgb, var(--acc, #3b8cf8) 18%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--acc, #3b8cf8) 72%, transparent);
+  /* 选区本体不吃指针事件：它只是在「显示」选到了哪里。
+     指针事件全部留给下面的层，拖动才不会被自己画出来的框打断。 */
+  pointer-events: none;
+}
+
+.wb-sel-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  /* 命中区比可见宽度宽一档：把手只有 10px 时很难按住，
+     单独放宽又会让选区看起来变胖，所以用 padding 撑命中区、背景只铺内层。 */
+  width: 14px;
+  cursor: ew-resize;
+  background: var(--acc, #3b8cf8);
+  pointer-events: auto;
+  touch-action: none;
+}
+
+.wb-sel-handle[data-handle='start'] { left: -5px; border-radius: 2px 0 0 2px; }
+.wb-sel-handle[data-handle='end'] { right: -5px; border-radius: 0 2px 2px 0; }
+
+/* 把手中间一道细线：整块纯色看起来像色条，加一道缝才读得出「可以拖」。 */
+.wb-sel-handle::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 2px;
+  height: 14px;
+  transform: translate(-50%, -50%);
+  border-radius: 1px;
+  background: rgb(255 255 255 / .85);
+}
+
+.wb-sel-hint {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgb(0 0 0 / .62);
+  color: #fff;
+  font-size: 11.5px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* ── 选区上的就地输入气泡 ──────────────────────────────────────
+   贴在画面底部居中：它紧挨着选区，眼睛不用在画面和侧栏之间来回跳。
+   深色底是刻意的 —— 画面底色不可预期（可能是白底动画），
+   浅色气泡在白画面上会消失。 */
+.wb-sel-bubble {
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
+  z-index: 8;
+  width: min(420px, calc(100% - 24px));
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 12px;
+  border: 1px solid rgb(255 255 255 / .12);
+  background: rgb(18 19 24 / .96);
+  color: #ededed;
+  box-shadow: 0 14px 36px rgb(0 0 0 / .5);
+  backdrop-filter: blur(12px);
+}
+
+.wb-sel-bubble * { color: inherit; }
+
+.wb-sel-bubble-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #ededed;
+}
+
+.wb-sel-bubble-head b {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.wb-sel-bubble-head small {
+  font-size: 10.5px;
+  color: #9a9a9a;
+}
+
+.wb-sel-close {
+  margin-left: auto;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #9a9a9a;
+  cursor: pointer;
+}
+
+.wb-sel-close:hover { background: rgb(255 255 255 / .1); color: #fff; }
+
+.wb-sel-input {
+  width: 100%;
+  padding: 7px 9px;
+  border: 1px solid rgb(255 255 255 / .12);
+  border-radius: 8px;
+  background: rgb(0 0 0 / .45);
+  color: #ededed;
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 1.65;
+  resize: vertical;
+}
+
+.wb-sel-input::placeholder,
+.wb-sel-code::placeholder { color: #6e6e73; }
+
+.wb-sel-input:focus-visible,
+.wb-sel-code:focus-visible {
+  outline: 2px solid var(--acc, #3b8cf8);
+  outline-offset: 1px;
+}
+
+.wb-sel-fine {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.wb-sel-code {
+  flex: 1;
+  min-width: 0;
+  padding: 5px 8px;
+  border: 1px solid rgb(255 255 255 / .1);
+  border-radius: 7px;
+  background: rgb(0 0 0 / .35);
+  color: #ededed;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.wb-sel-apply {
+  flex: none;
+  min-height: 26px;
+  padding: 0 8px;
+  border: 1px solid rgb(255 255 255 / .12);
+  border-radius: 7px;
+  background: transparent;
+  color: #c9c9cf;
+  font-size: 10.5px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.wb-sel-apply:hover:not(:disabled) { background: rgb(255 255 255 / .08); color: #fff; }
+.wb-sel-apply:disabled { opacity: .4; cursor: not-allowed; }
+
+.wb-sel-problem {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.7;
+  color: #f0708c;
+}
+
+.wb-sel-bubble-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.wb-sel-base {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10.5px;
+  color: #7d7d80;
+}
+
+.wb-sel-base em {
+  font-style: normal;
+  color: #e0a64b;
+}
+
+.wb-sel-submit {
+  margin-left: auto;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 30px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--acc, #3b8cf8);
+  color: #fff;
+  font-size: 11.5px;
+  font-weight: 550;
+  cursor: pointer;
+}
+
+.wb-sel-submit:hover:not(:disabled) { filter: brightness(1.08); }
+.wb-sel-submit:disabled { opacity: .45; cursor: not-allowed; }

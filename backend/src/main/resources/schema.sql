@@ -106,6 +106,28 @@ CREATE TABLE IF NOT EXISTS tasks (
 
 CREATE INDEX IF NOT EXISTS idx_tasks_project_created ON tasks(project_id, created_at DESC);
 
+-- 创作任务与请求关系（任务幂等、防重复执行与结果落盘关联）
+CREATE TABLE IF NOT EXISTS workflow_creation_tasks (
+    request_id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL,
+    session_id TEXT,
+    user_message_id TEXT,
+    request_hash TEXT NOT NULL,
+    status TEXT NOT NULL,
+    phase TEXT,
+    intent TEXT,
+    reply TEXT,
+    artifact_path TEXT,
+    version INTEGER,
+    error_message TEXT,
+    session_saved INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY (project_id) REFERENCES projects(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_workflow_creation_tasks_project ON workflow_creation_tasks(project_id);
+
 -- 项目当前场景：修改任务的权威基线。
 -- 单行一项目（project_id 主键），版本号只在条件更新成功时 +1。
 -- 场景整份存 JSON：读写粒度永远是整份，结构演进快于查询需求。

@@ -13,8 +13,34 @@
 import type { HttpClient } from './http'
 import type { AgentReference } from '../studioApi'
 
+export interface UnsavedReplyItem {
+  requestId: string
+  sessionId: string
+  userMessageId: string
+  reply: string
+  createdAt: string
+}
+
+/** 一条创作轮次（`GET /workflow/creation-rounds` 返回项）。 */
+export interface CreationRoundItem {
+  requestId: string
+  /** 所属项目 —— 前端要与当前项目核对 */
+  projectId: string
+  /** 所属会话 —— 前端要与当前会话核对，绝不用当前界面会话顶替 */
+  sessionId: string
+  /** 触发这一轮的用户消息 ID —— 唯一可靠的归属依据 */
+  userMessageId: string
+  status: string
+  reply: string | null
+  version: number | null
+  error: string | null
+  createdAt: string
+  updatedAt: string
+}
+
 export interface CreationState {
   state: 'running' | 'rendered' | 'awaiting_info' | 'failed' | 'interrupted'
+  phase?: 'analyzing' | 'rendering' | 'completed' | 'awaiting_info' | 'failed' | 'interrupted' | string | null
   intent: string | null
   reply: string | null
   references: AgentReference[] | null
@@ -22,6 +48,22 @@ export interface CreationState {
   version: number | null
   error: string | null
   updatedAt: string
+  requestId?: string | null
+  sessionSaved?: boolean | null
+  /**
+   * 触发这次创作的用户消息 ID（后端回显）。
+   *
+   * <p>刷新恢复要靠它把「本轮未改动工程」这类结论挂回正确的消息；
+   * 没有就只能降级不显示。</p>
+   */
+  userMessageId?: string | null
+  /**
+   * 这条状态所属的会话 ID（后端回显）。
+   *
+   * <p>恢复时必须核对：状态可能属于另一个会话，拿当前界面会话顶替
+   * 就会把 B 的结论写进 A 的作用域。</p>
+   */
+  sessionId?: string | null
 }
 
 /** 一个项目的 workflow 创作上下文状态。 */
@@ -108,7 +150,7 @@ export interface FilmCreateResult {
    * `awaiting_info` = agent 只提问、没有改动工程，此时没有产物也没有新版本 ——
    * 界面必须显示「等待补充信息」，不能把旧工程重渲出来的片子当成修改成功。</p>
    */
-  state: 'rendered' | 'awaiting_info'
+  state: 'rendered' | 'awaiting_info' | 'failed'
   /** agent 对这次改动的说明 */
   reply: string
   /** agent 耗时 */
@@ -131,6 +173,19 @@ export interface FilmCreateResult {
     startMs: number | null
     endMs: number | null
   }[]
+  /**
+   * 本次创作请求 ID（后端回显）。
+   *
+   * <p>用于把结果挂到「实际发起这次修改的请求」上，而不是靠时间或顺序猜。</p>
+   */
+  requestId?: string | null
+  /**
+   * 触发本次创作的用户消息 ID（后端回显）。
+   *
+   * <p>「未改动工程」这类结论必须能精确挂到某条消息；
+   * 拿不到就明确降级，不贴到「最后一条回复」上。</p>
+   */
+  userMessageId?: string | null
 }
 
 /** 项目工程渲染结果。 */
@@ -218,8 +273,19 @@ export interface WorkflowContextResource {
    * @param intent 这一轮要做什么；省略则按现有需求与纠正推进
    * @returns agent 说明与渲染结果
    */
-  creation(projectId: string): Promise<CreationState | null>
-  create(projectId: string, intent?: string, references?: AgentReference[]): Promise<FilmCreateResult>
+  creation(projectId: string, requestId?: string): Promise<CreationState | null>
+  creationProgress(projectId: string, sessionId: string): Promise<{ requestId: string | null; text: string }>
+  /**
+   * 按「项目 + 会话」列出该会话真实发生过的创作轮次。
+   *
+   * <p>刷新恢复用它逐条回填，而不是读「项目最近一次状态」——
+   * 后者不带会话，会把别的会话的结果写进当前会话。</p>
+   */
+  creationRounds(projectId: string, sessionId: string): Promise<CreationRoundItem[]>
+  unsavedReplies(projectId: string, sessionId?: string): Promise<UnsavedReplyItem[]>
+  syncReply(projectId: string, requestId: string): Promise<{ success: boolean; sessionSaved: boolean }>
+  previewImageCapability(projectId: string): Promise<{ supported: boolean; baseVersionCheck?: boolean; atomicCorrection?: boolean; correctionRetryId?: boolean }>
+  create(projectId: string, intent?: string, references?: AgentReference[], previewImage?: string, baseVersion?: number, correction?: string, requestId?: string, sessionId?: string, userMessageId?: string): Promise<FilmCreateResult>
 }
 
 /**
@@ -233,6 +299,9 @@ export function createWorkflowContextResource(http: HttpClient): WorkflowContext
     `/projects/${encodeURIComponent(projectId)}/workflow`
 
   return {
+    previewImageCapability(projectId) {
+      return http.get<{ supported: boolean; baseVersionCheck?: boolean; atomicCorrection?: boolean; correctionRetryId?: boolean }>(`${base(projectId)}/preview-image-capability`)
+    },
     state(projectId) {
       return http.get<WorkflowContextState>(base(projectId))
     },
@@ -260,18 +329,46 @@ export function createWorkflowContextResource(http: HttpClient): WorkflowContext
       return http.post<WorkflowContextState>(`${base(projectId)}/corrections`, { text })
     },
 
-    creation(projectId) {
-      return http.get<CreationState | null>(`${base(projectId)}/creation`)
+    creation(projectId, requestId) {
+      const q = requestId ? `?requestId=${encodeURIComponent(requestId)}` : ''
+      return http.get<CreationState | null>(`${base(projectId)}/creation${q}`)
     },
 
-    create(projectId, intent, references) {
+    creationProgress(projectId, sessionId) {
+      return http.get<{ requestId: string | null; text: string }>(`${base(projectId)}/creation-progress?sessionId=${encodeURIComponent(sessionId)}`)
+    },
+
+    creationRounds(projectId, sessionId) {
+      return http.get<CreationRoundItem[]>(
+        `${base(projectId)}/creation-rounds?sessionId=${encodeURIComponent(sessionId)}`)
+    },
+
+    unsavedReplies(projectId, sessionId) {
+      const q = sessionId ? `?sessionId=${encodeURIComponent(sessionId)}` : ''
+      return http.get<UnsavedReplyItem[]>(`${base(projectId)}/unsaved-replies${q}`)
+    },
+
+    syncReply(projectId, requestId) {
+      return http.post<{ success: boolean; sessionSaved: boolean }>(`${base(projectId)}/creation/${encodeURIComponent(requestId)}/sync-reply`)
+    },
+
+    create(projectId, intent, references, previewImage, baseVersion, correction, requestId, sessionId, userMessageId) {
       /* agent 改工程要读需求、写代码、可能自查，实测 100~200 秒。
          给足时间，别让默认 15 秒把一次正常创作当成失败。
 
          references 必须一起发：用户选了三库资源却只发需求的话，
          agent 根本不知道有这些资源，用户会以为已经用上了。 */
       return http.post<FilmCreateResult>(`${base(projectId)}/create`,
-        { intent: intent ?? '', ...(references !== undefined ? { references } : {}) },
+        {
+          intent: intent ?? '',
+          ...(references !== undefined ? { references } : {}),
+          ...(previewImage ? { previewImage } : {}),
+          ...(baseVersion !== undefined ? { baseVersion } : {}),
+          ...(correction ? { correction } : {}),
+          ...(requestId ? { requestId } : {}),
+          ...(sessionId ? { sessionId } : {}),
+          ...(userMessageId ? { userMessageId } : {}),
+        },
         { timeoutMs: CREATE_TIMEOUT_MS })
     },
   }

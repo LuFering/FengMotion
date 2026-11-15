@@ -100,6 +100,10 @@ public class WorkflowProjectService {
      * @return 记录后的状态
      */
     public WorkflowProjectState recordCorrection(String projectId, String text) {
+        return recordCorrection(projectId, text, null);
+    }
+
+    public WorkflowProjectState recordCorrection(String projectId, String text, String requestId) {
         Project project = requireProject(projectId);
         Path root = requireRoot(project);
         if (text == null || text.isBlank()) {
@@ -111,7 +115,29 @@ public class WorkflowProjectService {
             throw new ApiException(HttpStatus.BAD_REQUEST, "workflow_not_initialized",
                     "项目还没有 prompt.original.md：请先写下原始创作需求，再提修改意见。");
         }
-        appendCorrection(root, text);
+        if (requestId != null) {
+            if (!requestId.matches("[0-9a-fA-F-]{36}")) throw new ApiException(HttpStatus.BAD_REQUEST, "validation_error", "修改请求标识无效");
+            String digest;
+            try {
+                digest = java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(text.trim().getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+            } catch (java.security.NoSuchAlgorithmException impossible) {
+                throw new IllegalStateException(impossible);
+            }
+            String prefix = "<!-- fengmotion-request:" + requestId + ":";
+            String marker = prefix + digest + " -->";
+            Path file = root.resolve("corrections.md");
+            try {
+                if (Files.isRegularFile(file)) {
+                    String existing = Files.readString(file);
+                    if (existing.contains(marker)) return state(projectId);
+                    if (existing.contains("<!-- fengmotion-request:" + requestId + " -->")) return state(projectId);
+                    if (existing.contains(prefix)) throw new ApiException(HttpStatus.CONFLICT, "correction_request_conflict", "该请求标识对应其他修改意见，请重新提交。");
+                }
+            } catch (IOException failure) {
+                throw new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "workflow_correction_failed", "无法检查已有修改意见");
+            }
+            appendCorrection(root, text, marker);
+        } else appendCorrection(root, text);
         return state(projectId);
     }
 
@@ -125,9 +151,13 @@ public class WorkflowProjectService {
      * @param prompt 用户新要求
      */
     private void appendCorrection(Path root, String prompt) {
+        appendCorrection(root, prompt, null);
+    }
+
+    private void appendCorrection(Path root, String prompt, String marker) {
         Path file = root.resolve("corrections.md");
         String entry = "\n## " + java.time.OffsetDateTime.now()
-                .withNano(0) + "\n\n- 用户原话：" + prompt.trim() + "\n";
+                .withNano(0) + "\n\n" + (marker == null ? "" : marker + "\n") + "- 用户原话：" + prompt.trim() + "\n";
         try {
             if (!Files.isRegularFile(file)) {
                 Files.writeString(file, "# 用户纠正（追加）\n" + entry);

@@ -123,13 +123,18 @@ public class ChatMessageService {
         }
 
         Instant now = Instant.now();
+        String role = (request.role() != null && "assistant".equalsIgnoreCase(request.role()))
+                ? ChatMessage.ROLE_ASSISTANT
+                : ChatMessage.ROLE_USER;
+        String taskId = request.taskId();
+
         ChatMessage saved = messages.append(new ChatMessage(
                 UUID.randomUUID().toString(),
                 sessionId,
                 0, // 序号由存储层分配
-                ChatMessage.ROLE_USER,
+                role,
                 validated.text(),
-                null,
+                taskId,
                 validated.references(),
                 validated.attachments(),
                 null, // 用户消息不产生工具调用
