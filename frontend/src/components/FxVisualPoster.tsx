@@ -115,7 +115,7 @@ function CameraMotionVisual({
     let alive = true
     const loop = () => {
       if (!alive) return
-      p = (p + 0.015) % 1
+      p = (p + 0.016) % 1
       setPhase(p)
       animRef.current = requestAnimationFrame(loop)
     }
@@ -126,11 +126,32 @@ function CameraMotionVisual({
     }
   }, [])
 
-  const name = technique.name.toLowerCase()
+  const name = (technique.name + ' ' + technique.id + ' ' + (technique.intent || '')).toLowerCase()
   const isZoom = name.includes('zoom') || name.includes('punch') || name.includes('crash')
   const isOrbit = name.includes('orbit') || name.includes('circle') || name.includes('rotate') || name.includes('tour')
-  const isFlyover = name.includes('fly') || name.includes('over') || name.includes('overhead')
-  const focal = isZoom ? `${Math.round(24 + phase * 65)}mm` : isOrbit ? '50mm Cine' : '35mm Cine'
+  const isFlyover = name.includes('fly') || name.includes('over') || name.includes('overhead') || name.includes('tilt') || name.includes('glide')
+  const isDepth = name.includes('depth') || name.includes('layer') || name.includes('parallax')
+  const is3D = name.includes('3d') || name.includes('scene') || name.includes('space') || name.includes('terminal') || (!isZoom && !isOrbit && !isFlyover && !isDepth)
+
+  const focal = isZoom
+    ? `${Math.round(24 + phase * 65)}mm`
+    : isOrbit
+    ? '50mm Cine'
+    : isDepth
+    ? '85mm Prime'
+    : isFlyover
+    ? '28mm Ultra'
+    : '35mm Cine'
+
+  const motionLabel = isZoom
+    ? '急推撞屏变焦'
+    : isOrbit
+    ? '空间环绕运镜'
+    : isDepth
+    ? '分层视差滑轨'
+    : isFlyover
+    ? '俯冲掠过特写'
+    : '3D 空间轨迹演示'
 
   return (
     <div className={`fx-visual-poster is-camera-view ${className}`}>
@@ -144,49 +165,88 @@ function CameraMotionVisual({
       <div
         className="fx-vf-grid"
         style={{
-          transform: `perspective(240px) rotateX(62deg) translateY(${(phase * 35) % 35}px)`,
+          transform: `perspective(240px) rotateX(64deg) translateY(${(phase * 32) % 32}px)`,
         }}
       />
 
-      {/* 运镜运动轨迹光环 */}
+      {/* 1. 急推变焦：多重动态收缩光环与冲击波 */}
       {isZoom && (
         <div className="fx-vf-zoom-rings">
-          <div className="fx-zoom-ring r1" style={{ transform: `scale(${0.4 + phase * 1.2})`, opacity: 1 - phase }} />
-          <div className="fx-zoom-ring r2" style={{ transform: `scale(${0.1 + phase * 1.2})`, opacity: 1 - phase }} />
+          <div className="fx-zoom-ring r1" style={{ transform: `scale(${0.3 + phase * 1.4})`, opacity: 1 - phase }} />
+          <div className="fx-zoom-ring r2" style={{ transform: `scale(${0.08 + phase * 1.3})`, opacity: 1 - phase }} />
+          <div className="fx-zoom-punch-box" style={{ transform: `scale(${0.85 + Math.sin(phase * Math.PI) * 0.3})` }} />
         </div>
       )}
 
+      {/* 2. 环绕运镜：360° 旋转光球与环状轨道 */}
       {isOrbit && (
         <div className="fx-vf-orbit-track">
           <div
             className="fx-orbit-cam-dot"
             style={{
-              transform: `rotate(${phase * 360}deg) translate(45px) rotate(-${phase * 360}deg)`,
+              transform: `rotate(${phase * 360}deg) translate(50px) rotate(-${phase * 360}deg)`,
+            }}
+          />
+          <div
+            className="fx-orbit-cam-dot inner"
+            style={{
+              transform: `rotate(${-phase * 360}deg) translate(28px) rotate(${phase * 360}deg)`,
             }}
           />
         </div>
       )}
 
+      {/* 3. 俯冲掠过：高速景深划线与倾角光束 */}
       {isFlyover && (
         <div className="fx-vf-flyover-lines">
-          <div className="fx-flyover-streak s1" style={{ transform: `translateY(${(phase * 120) % 100}px)` }} />
-          <div className="fx-flyover-streak s2" style={{ transform: `translateY(${((phase + 0.5) * 120) % 100}px)` }} />
+          <div className="fx-flyover-streak s1" style={{ transform: `translateY(${(phase * 140) % 110}px)` }} />
+          <div className="fx-flyover-streak s2" style={{ transform: `translateY(${((phase + 0.5) * 140) % 110}px)` }} />
+          <div className="fx-flyover-streak s3" style={{ transform: `translateY(${((phase + 0.25) * 140) % 110}px)` }} />
         </div>
       )}
 
-      {/* 中心十字瞄准器 */}
+      {/* 4. 分层视差滑轨：前、中、后景三层不同速度相对位移 */}
+      {isDepth && (
+        <div className="fx-vf-depth-layers">
+          <div className="fx-depth-card bg" style={{ transform: `translateX(${Math.sin(phase * Math.PI * 2) * 12}px) scale(0.75)` }} />
+          <div className="fx-depth-card mid" style={{ transform: `translateX(${Math.sin(phase * Math.PI * 2) * 28}px) scale(0.9)` }} />
+          <div className="fx-depth-card fg" style={{ transform: `translateX(${Math.sin(phase * Math.PI * 2) * 45}px) scale(1.05)` }} />
+        </div>
+      )}
+
+      {/* 5. 3D 空间演示：悬浮卡片姿态飞行 */}
+      {is3D && (
+        <div className="fx-vf-3d-cards">
+          <div
+            className="fx-3d-node n1"
+            style={{
+              transform: `perspective(300px) rotateY(${Math.sin(phase * Math.PI * 2) * 25}deg) rotateX(${Math.cos(phase * Math.PI * 2) * 15}deg) translateZ(${Math.sin(phase * Math.PI * 2) * 20}px)`,
+            }}
+          />
+          <div
+            className="fx-3d-node n2"
+            style={{
+              transform: `perspective(300px) rotateY(${-Math.sin(phase * Math.PI * 2) * 30}deg) rotateZ(${Math.sin(phase * Math.PI * 2) * 12}deg) translateZ(10px)`,
+            }}
+          />
+        </div>
+      )}
+
+      {/* 中心十字准星 */}
       <div className="fx-vf-crosshair" />
 
-      {/* 摄影机与焦距指示（无多余标题，绝不遮挡底部文字） */}
-      <div className="fx-vf-hud-top">
-        <div className="fx-vf-badge">
-          <Film size={10} className="text-amber-400" />
-          <span>{isZoom ? '急推变焦' : isOrbit ? '空间环绕' : isFlyover ? '俯冲掠过' : '镜头运镜'}</span>
-        </div>
-        <div className="fx-vf-focal">
-          <Camera size={11} className="text-blue-400" />
-          <span>{focal}</span>
-        </div>
+      {/* 左上角：运镜类型徽章（安全区域，绝不遮挡右上角收藏按钮） */}
+      <div className="fx-vf-hud-left">
+        <Film size={10} className="text-amber-400" />
+        <span>{motionLabel}</span>
+      </div>
+
+      {/* 左下角：摄影机机位与焦距 HUD（完全避开任何操作热区） */}
+      <div className="fx-vf-hud-bottom">
+        <Camera size={11} className="text-blue-400" />
+        <span>{focal}</span>
+        <span className="fx-vf-sep">/</span>
+        <span className="fx-vf-angle">Tilt {Math.round(15 + Math.sin(phase * Math.PI * 2) * 18)}°</span>
       </div>
 
       {interactive && (
