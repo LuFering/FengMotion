@@ -111,6 +111,7 @@ public class TsxComponentSource implements CapabilitySource {
         if (!apis.isEmpty()) {
             steps.add("使用 API：" + String.join("、", apis));
         }
+        steps.add("__SOURCE_CODE__:\n" + source);
 
         return List.of(new ParsedItem(
                 /* ID 用「来源-组件名」：组件名在库内唯一，加上来源前缀避免跨库撞名。

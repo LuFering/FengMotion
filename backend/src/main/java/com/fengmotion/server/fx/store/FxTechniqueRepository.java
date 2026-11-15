@@ -68,7 +68,23 @@ public interface FxTechniqueRepository {
             String q,
             String sort,
             int limit,
-            int offset) {
+            int offset,
+            String sourceProject) {
+
+        public FxQuery(
+                FxStates.Category category,
+                FxStates.ExecType execType,
+                FxStates.Impl impl,
+                FxStates.InputKind inputKind,
+                Integer maxComplexity,
+                boolean featured,
+                boolean onlyFavorited,
+                String q,
+                String sort,
+                int limit,
+                int offset) {
+            this(category, execType, impl, inputKind, maxComplexity, featured, onlyFavorited, q, sort, limit, offset, null);
+        }
 
         /** LIKE 模式串；转义用户输入里的 % 与 _，避免被当通配符。 */
         public String qLike() {

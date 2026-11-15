@@ -5,6 +5,7 @@ import {
   ChevronDown,
   ChevronRight,
   Clock,
+  Code2,
   Copy,
   Info,
   Pause,
@@ -161,6 +162,8 @@ export function FxLibrary() {
   const [impl, setImpl] = useState<FxImpl | 'all'>('all')
   const [maxComplexity, setMaxComplexity] = useState(5)
   const [previewKind, setPreviewKind] = useState<'all' | 'motion' | 'still'>('all')
+  const [sourceProject, setSourceProject] = useState<string>('all')
+  const [sourcesList, setSourcesList] = useState<Array<{ sourceProject: string; count: number }>>([])
   const [sort, setSort] = useState<SortKey>('cat')
   const [filtersOpen, setFiltersOpen] = useState(false)
   /* 「从 GitHub 导入技能」弹窗。入口是页头的一个按钮，不常驻任何内容。 */
@@ -221,14 +224,29 @@ export function FxLibrary() {
   const copyTimer = useRef<number | null>(null)
   const toastTimer = useRef<number | null>(null)
 
-  /* 首次加载：拉技法目录与用户状态。
+  const fetchSources = async () => {
+    try {
+      const res = await fetch('/api/fx-techniques/sources')
+      if (res.ok) {
+        const data = await res.json() as Array<{ sourceProject: string; count: number }>
+        setSourcesList(data)
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  /* 首次加载：拉技法目录、用户状态与来源仓库列表。
      旧版收藏存在 localStorage，先批量推到服务端再清空本地标记 ——
      用户收藏过的技法不该因为换存储而消失。 */
   useEffect(() => {
     let alive = true
     void (async () => {
       try {
-        const list = await listTechniques()
+        const [list] = await Promise.all([
+          listTechniques(),
+          fetchSources(),
+        ])
         if (!alive) return
         setTechniques(list)
         setCatalogError(null)
@@ -365,6 +383,7 @@ export function FxLibrary() {
     () =>
       scoped.filter(
         (t) =>
+          (sourceProject === 'all' || (t.sourceProject || 'builtin') === sourceProject) &&
           (cat === 'all' || t.category === cat) &&
           (exec === 'all' || t.execType === exec) &&
           (inputKind === 'all' || t.inputKinds.includes(inputKind)) &&
@@ -372,7 +391,7 @@ export function FxLibrary() {
           t.complexity <= maxComplexity &&
           (previewKind === 'all' || (previewKind === 'motion' ? !!t.previewVideo : !t.previewVideo)),
       ),
-    [scoped, cat, exec, inputKind, impl, maxComplexity, previewKind],
+    [scoped, sourceProject, cat, exec, inputKind, impl, maxComplexity, previewKind],
   )
 
   const current = selectedId ? techniques.find((t) => t.id === selectedId) ?? null : null
@@ -398,12 +417,24 @@ export function FxLibrary() {
     }
   }, [searched, lib])
 
+  const sourceCode = useMemo(() => {
+    if (!current?.steps) return null
+    const hit = current.steps.find((s) => s.startsWith('__SOURCE_CODE__:\n'))
+    return hit ? hit.substring('__SOURCE_CODE__:\n'.length) : null
+  }, [current])
+
+  const cleanSteps = useMemo(() => {
+    if (!current?.steps) return []
+    return current.steps.filter((s) => !s.startsWith('__SOURCE_CODE__:\n'))
+  }, [current])
+
   const techActiveCount =
     (exec !== 'all' ? 1 : 0) +
     (inputKind !== 'all' ? 1 : 0) +
     (impl !== 'all' ? 1 : 0) +
     (maxComplexity < 5 ? 1 : 0) +
-    (previewKind !== 'all' ? 1 : 0)
+    (previewKind !== 'all' ? 1 : 0) +
+    (sourceProject !== 'all' ? 1 : 0)
   const activeCount = techActiveCount + (cat !== 'all' ? 1 : 0)
 
   const playing = current !== null && playingId === current.id
@@ -413,6 +444,7 @@ export function FxLibrary() {
     setImpl('all')
     setMaxComplexity(5)
     setPreviewKind('all')
+    setSourceProject('all')
   }
 
   /** 清空全部筛选（含分类），不清搜索词与范围 */
@@ -551,10 +583,20 @@ export function FxLibrary() {
 
   return (
     <div className="fxlib">
-      <CapabilityImportDialog open={importOpen} onOpenChange={setImportOpen} onImported={() => {
-        void listTechniques().then((list) => { setTechniques(list); setCatalogError(null) })
-          .catch(() => setCatalogError('刷新技法库失败'))
-      }} />
+      <CapabilityImportDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        onImported={(importedProject) => {
+          void listTechniques().then((list) => {
+            setTechniques(list)
+            setCatalogError(null)
+            if (importedProject) {
+              setSourceProject(importedProject)
+            }
+            void fetchSources()
+          }).catch(() => setCatalogError('刷新技法库失败'))
+        }}
+      />
       <section className="fx-panel" aria-label="特效技法库" inert={drawerOpen || workflowFor ? true : undefined}>
         <div className="fx-cmd">
           <div className="fx-heading-group"><h1 className="fx-cmd-title">特效技法库</h1></div>
@@ -718,6 +760,12 @@ export function FxLibrary() {
               <button type="button" aria-label="移除复杂度筛选" onClick={() => setMaxComplexity(5)}><X size={11} strokeWidth={2.4} /></button>
             </span>
           )}
+          {sourceProject !== 'all' && (
+            <span className="fx-activechip">
+              仓库 · {sourceProject}
+              <button type="button" aria-label="移除仓库筛选" onClick={() => setSourceProject('all')}><X size={11} strokeWidth={2.4} /></button>
+            </span>
+          )}
           <span className="fx-spacer" />
           {(query.trim() || activeCount > 0) && <span className="fx-result-summary" role="status">找到 {visible.length} 项技法</span>}
 
@@ -731,6 +779,46 @@ export function FxLibrary() {
             </select>
           </label>
         </div>
+
+        {/* 来源仓库筛选标签栏 */}
+        {sourcesList.length > 0 && (
+          <div className="fx-source-bar">
+            <span className="fx-source-bar-label">来源仓库：</span>
+            <div className="fx-source-chips">
+              <button
+                type="button"
+                className="fx-source-chip"
+                data-on={sourceProject === 'all' ? '' : undefined}
+                onClick={() => setSourceProject('all')}
+              >
+                全部仓库 <em className="num">{techniques.length}</em>
+              </button>
+              {sourcesList.map((src) => {
+                const label =
+                  src.sourceProject === 'builtin'
+                    ? '内置精选'
+                    : src.sourceProject === 'remotion-scenes'
+                    ? 'remotion-scenes (画面代码)'
+                    : src.sourceProject === 'video-shotcraft'
+                    ? 'video-shotcraft (运镜)'
+                    : src.sourceProject === 'lemo-opuscar'
+                    ? 'lemo-opuscar (风格)'
+                    : src.sourceProject
+                return (
+                  <button
+                    key={src.sourceProject}
+                    type="button"
+                    className="fx-source-chip"
+                    data-on={sourceProject === src.sourceProject ? '' : undefined}
+                    onClick={() => setSourceProject(sourceProject === src.sourceProject ? 'all' : src.sourceProject)}
+                  >
+                    {label} <em className="num">{src.count}</em>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )}
 
         <div className="fx-content">
           {catalogLoading ? (
@@ -836,9 +924,16 @@ export function FxLibrary() {
                             aria-label={pick.active ? `${pick.has(t.id) ? '取消选择' : '选择'} ${t.name}` : `查看技法：${t.name}`}
                             onClick={() => { if (pick.active) pick.toggle(t.id); else openDrawer(t.id) }} />
                     <div className="fxc-body">
-                      <span className="fxc-category">{categoryLabel(t.category)}</span>
+                      <div className="fxc-category-row">
+                        <span className="fxc-category">{categoryLabel(t.category)}</span>
+                        {t.sourceProject && t.sourceProject !== 'builtin' && (
+                          <span className="fxc-source-badge" title={`来源仓库：${t.sourceProject}`}>
+                            {t.sourceProject}
+                          </span>
+                        )}
+                      </div>
                       <h3 className="fxc-title">{t.name}</h3>
-                      <p className="fxc-intent">{t.intent}</p>
+                      <p className="fxc-intent">{t.intent || (t.sourcePath ? `路径：${t.sourcePath}` : '')}</p>
                       <div className="fxc-meta">
                         <span>{execLabel(t.execType)}</span>
                         <span className="fxc-inputs">{t.inputLabels.join(' / ')}</span>
@@ -965,26 +1060,59 @@ export function FxLibrary() {
                   <p className="fx-use-line"><b>不适用</b>{current.antiScenes.join('、')}</p>
                 </section>
 
-                <section className="fx-dsec">
-                  <h3 className="fx-label">实现方法</h3>
-                  <ol className="fx-steps">
-                    {current.steps.map((s, i) => (
-                      <li key={i}>
-                        <span>{s}</span>
-                      </li>
-                    ))}
-                  </ol>
-                  <dl className="fx-io">
-                    <div><dt>实现方式</dt><dd>{current.implLabel}</dd></div>
-                    <div><dt>复杂度</dt><dd className="num">{current.complexity} / 5</dd></div>
-                    {current.dependencies.length > 0 && (
-                      <div><dt>依赖</dt><dd>{current.dependencies.join('；')}</dd></div>
-                    )}
-                    {current.compatibility.length > 0 && (
-                      <div><dt>兼容</dt><dd>{current.compatibility.join('；')}</dd></div>
-                    )}
-                  </dl>
-                </section>
+                {/* 如果包含画面源码（如 Remotion TSX），渲染代码高亮查看器 */}
+                {sourceCode && (
+                  <section className="fx-dsec">
+                    <div className="fx-dsec-header-row">
+                      <h3 className="fx-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <Code2 size={13} />
+                        画面实现源码 (Remotion TSX)
+                      </h3>
+                      <button
+                        type="button"
+                        className="fx-copy-code-btn"
+                        onClick={async () => {
+                          try {
+                            await navigator.clipboard.writeText(sourceCode)
+                            showToast('已复制画面 TSX 源代码到剪贴板')
+                          } catch {
+                            // ignore
+                          }
+                        }}
+                      >
+                        <Copy size={11} /> 复制代码
+                      </button>
+                    </div>
+                    <div className="fx-drawer-code-wrap">
+                      <pre className="fx-drawer-code-pre">
+                        <code>{sourceCode}</code>
+                      </pre>
+                    </div>
+                  </section>
+                )}
+
+                {cleanSteps.length > 0 && (
+                  <section className="fx-dsec">
+                    <h3 className="fx-label">实现方法与说明</h3>
+                    <ol className="fx-steps">
+                      {cleanSteps.map((s, i) => (
+                        <li key={i}>
+                          <span>{s}</span>
+                        </li>
+                      ))}
+                    </ol>
+                    <dl className="fx-io">
+                      <div><dt>实现方式</dt><dd>{current.implLabel}</dd></div>
+                      <div><dt>复杂度</dt><dd className="num">{current.complexity} / 5</dd></div>
+                      {current.dependencies.length > 0 && (
+                        <div><dt>依赖</dt><dd>{current.dependencies.join('；')}</dd></div>
+                      )}
+                      {current.compatibility.length > 0 && (
+                        <div><dt>兼容</dt><dd>{current.compatibility.join('；')}</dd></div>
+                      )}
+                    </dl>
+                  </section>
+                )}
 
                 {current.limitations.length > 0 && (
                   <section className="fx-dsec">

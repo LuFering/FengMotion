@@ -64,6 +64,7 @@ public interface FxTechniqueMapper {
               <if test="impl != null">AND impl = #{impl}</if>
               <if test="inputKind != null">AND input_kinds_json LIKE #{inputKindLike}</if>
               <if test="maxComplexity != null">AND complexity &lt;= #{maxComplexity}</if>
+              <if test="sourceProject != null and sourceProject != ''">AND source_project = #{sourceProject}</if>
               <if test="featured">AND featured = 1</if>
               <if test="onlyFavorited">AND EXISTS (SELECT 1 FROM fx_user_state s
                    WHERE s.technique_id = fx_techniques.id AND s.favorited = 1)</if>
@@ -86,6 +87,7 @@ public interface FxTechniqueMapper {
             @Param("inputKind") String inputKind,
             @Param("inputKindLike") String inputKindLike,
             @Param("maxComplexity") Integer maxComplexity,
+            @Param("sourceProject") String sourceProject,
             @Param("featured") boolean featured,
             @Param("onlyFavorited") boolean onlyFavorited,
             @Param("q") String q,
@@ -104,6 +106,7 @@ public interface FxTechniqueMapper {
               <if test="impl != null">AND impl = #{impl}</if>
               <if test="inputKind != null">AND input_kinds_json LIKE #{inputKindLike}</if>
               <if test="maxComplexity != null">AND complexity &lt;= #{maxComplexity}</if>
+              <if test="sourceProject != null and sourceProject != ''">AND source_project = #{sourceProject}</if>
               <if test="featured">AND featured = 1</if>
               <if test="onlyFavorited">AND EXISTS (SELECT 1 FROM fx_user_state s
                    WHERE s.technique_id = fx_techniques.id AND s.favorited = 1)</if>
@@ -119,6 +122,7 @@ public interface FxTechniqueMapper {
             @Param("inputKind") String inputKind,
             @Param("inputKindLike") String inputKindLike,
             @Param("maxComplexity") Integer maxComplexity,
+            @Param("sourceProject") String sourceProject,
             @Param("featured") boolean featured,
             @Param("onlyFavorited") boolean onlyFavorited,
             @Param("q") String q,
@@ -137,4 +141,7 @@ public interface FxTechniqueMapper {
 
     @Select("SELECT complexity AS k, COUNT(*) AS c FROM fx_techniques GROUP BY complexity")
     List<java.util.Map<String, Object>> countByComplexity();
+
+    @Select("SELECT COALESCE(NULLIF(source_project, ''), 'builtin') AS k, COUNT(*) AS c FROM fx_techniques GROUP BY COALESCE(NULLIF(source_project, ''), 'builtin')")
+    List<java.util.Map<String, Object>> countBySourceProject();
 }

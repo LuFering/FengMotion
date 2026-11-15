@@ -755,3 +755,119 @@ button.fx-mini:hover { background: var(--hover); color: var(--tx); }
     transparent 1px 9px
   );
 }
+
+/* ── 来源仓库筛选条与代码查看器 ───────────────────────────────── */
+.fx-source-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 16px;
+  background: color-mix(in srgb, var(--surface) 60%, transparent);
+  border-bottom: 1px solid var(--line);
+  font-size: 11.5px;
+  overflow-x: auto;
+}
+.fx-source-bar-label {
+  flex: none;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--tx3);
+}
+.fx-source-chips {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: nowrap;
+}
+.fx-source-chip {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: 6px;
+  border: 1px solid var(--line2);
+  background: var(--surface);
+  color: var(--tx2);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all .15s;
+}
+.fx-source-chip:hover {
+  border-color: var(--primary);
+  color: var(--tx);
+}
+.fx-source-chip[data-on] {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+  font-weight: 600;
+}
+.fx-source-chip em.num {
+  font-size: 10px;
+  opacity: .85;
+}
+
+.fxc-category-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  width: 100%;
+}
+.fxc-source-badge {
+  font-size: 9.5px;
+  font-weight: 600;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+  color: var(--primary);
+  white-space: nowrap;
+  max-width: 130px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fx-dsec-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.fx-copy-code-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  padding: 0 8px;
+  border: 1px solid var(--line2);
+  border-radius: 5px;
+  background: var(--surface);
+  color: var(--tx2);
+  font-size: 10.5px;
+  cursor: pointer;
+}
+.fx-copy-code-btn:hover {
+  background: var(--hover);
+  color: var(--tx);
+}
+
+.fx-drawer-code-wrap {
+  position: relative;
+  max-height: 360px;
+  overflow: auto;
+  border-radius: 8px;
+  border: 1px solid var(--line2);
+  background: #090a10;
+  padding: 12px 14px;
+}
+.fx-drawer-code-pre {
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: #e2e8f0;
+  white-space: pre-wrap;
+  word-break: break-all;
+}

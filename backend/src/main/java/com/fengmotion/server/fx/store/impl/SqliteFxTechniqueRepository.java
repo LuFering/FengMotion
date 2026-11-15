@@ -108,7 +108,7 @@ public class SqliteFxTechniqueRepository implements FxTechniqueRepository {
         List<FxTechniqueRow> rows = techniques.search(
                 wire(q.category()), wire(q.execType()), wire(q.impl()),
                 q.inputKind() == null ? null : q.inputKind().wire(), q.inputKindLike(),
-                q.maxComplexity(), q.featured(), q.onlyFavorited(), q.q(), q.qLike(), q.sort(),
+                q.maxComplexity(), q.sourceProject(), q.featured(), q.onlyFavorited(), q.q(), q.qLike(), q.sort(),
                 q.limit(), q.offset());
         List<FxTechnique> result = new ArrayList<>(rows.size());
         for (FxTechniqueRow row : rows) {
@@ -122,7 +122,7 @@ public class SqliteFxTechniqueRepository implements FxTechniqueRepository {
         return techniques.count(
                 wire(q.category()), wire(q.execType()), wire(q.impl()),
                 q.inputKind() == null ? null : q.inputKind().wire(), q.inputKindLike(),
-                q.maxComplexity(), q.featured(), q.onlyFavorited(), q.q(), q.qLike());
+                q.maxComplexity(), q.sourceProject(), q.featured(), q.onlyFavorited(), q.q(), q.qLike());
     }
 
     @Override
@@ -141,6 +141,14 @@ public class SqliteFxTechniqueRepository implements FxTechniqueRepository {
             }
         }
         result.put("complexities", complexity);
+
+        Map<String, Integer> sourceProjects = new LinkedHashMap<>();
+        for (Map<String, Object> row : techniques.countBySourceProject()) {
+            if (row.get("k") != null && row.get("c") instanceof Number c) {
+                sourceProjects.put(String.valueOf(row.get("k")), c.intValue());
+            }
+        }
+        result.put("sourceProjects", sourceProjects);
         return result;
     }
 
