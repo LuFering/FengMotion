@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import {
   Camera,
-  Code2,
   Film,
   Pause,
   Play,
   Sparkles,
 } from 'lucide-react'
 import type { FxTechnique } from '@/data/fxTechniques'
+import { LiveSceneRenderer } from '@/remotion/LiveSceneRenderer'
 
 interface FxVisualPosterProps {
   technique: FxTechnique
@@ -18,11 +18,9 @@ interface FxVisualPosterProps {
 }
 
 /**
- * 特效技法多维度视觉预览组件：
- * 1. 真实静态图/视频：优先展示高清素材；
- * 2. remotion-scenes（画面代码库）：生成基于组件特性的动态流光、粒子、网格与打字机视效舞台；
- * 3. video-shotcraft（镜头运镜库）：生成 3D 摄影机视锥体空间轨迹动态模拟器；
- * 4. 其它代码/参考：生成富有电影感的美学光场。
+ * 特效技法视觉海报渲染引擎：
+ * 绝不在海报内部渲染名称或描述（避免与卡片下方的标题产生文字重叠穿透）。
+ * 纯粹专注文态、色彩、空间运动与电影质感的呈现。
  */
 export function FxVisualPoster({
   technique,
@@ -35,17 +33,7 @@ export function FxVisualPoster({
   const isPlaying = extPlaying !== undefined ? extPlaying : internalPlaying
   const togglePlay = onTogglePlay || (() => setInternalPlaying((p) => !p))
 
-  const isRemotionScene =
-    technique.sourceProject === 'remotion-scenes' ||
-    (technique.steps && technique.steps.some((s) => s.startsWith('__SOURCE_CODE__:')))
-
-  const isCameraShot =
-    technique.sourceProject === 'video-shotcraft' ||
-    technique.category === 'camera' ||
-    technique.id.includes('zoom') ||
-    technique.id.includes('camera')
-
-  // 如果有真实可用海报或视频
+  // 1. 如果有真实图片（如 lemo-opuscar 风格库的 poster.jpg）
   if (technique.previewImage && !technique.previewImage.includes('broken')) {
     return (
       <div className={`fx-visual-poster is-real-image ${className}`}>
@@ -53,22 +41,45 @@ export function FxVisualPoster({
           src={technique.previewImage}
           alt={technique.name}
           className="fx-visual-img"
+          loading="lazy"
           onError={(e) => {
             e.currentTarget.style.display = 'none'
             e.currentTarget.parentElement?.classList.add('has-fallback')
           }}
         />
-        {technique.sourceProject && technique.sourceProject !== 'builtin' && (
-          <span className="fx-visual-badge">{technique.sourceProject}</span>
-        )}
+        <div className="fx-visual-overlay" />
       </div>
     )
   }
 
-  // 1. Remotion TSX 画面代码组件视效舞台
-  if (isRemotionScene) {
+  const isRemotion =
+    technique.sourceProject === 'remotion-scenes' ||
+    (technique.steps && technique.steps.some((s) => s.startsWith('__SOURCE_CODE__:')))
+
+  const isCamera =
+    technique.sourceProject === 'video-shotcraft' ||
+    technique.category === 'camera' ||
+    technique.id.includes('zoom') ||
+    technique.id.includes('camera')
+
+  // 2. Remotion TSX 画面代码组件真实代码渲染
+  if (isRemotion) {
     return (
-      <RemotionSceneVisual
+      <LiveSceneRenderer
+        componentName={technique.name}
+        sourcePath={technique.sourcePath}
+        playing={isPlaying}
+        interactive={interactive}
+        className={className}
+        onTogglePlay={togglePlay}
+      />
+    )
+  }
+
+  // 3. 电影镜头与运镜配方 3D 轨迹视口
+  if (isCamera) {
+    return (
+      <CameraMotionVisual
         technique={technique}
         interactive={interactive}
         className={className}
@@ -78,30 +89,12 @@ export function FxVisualPoster({
     )
   }
 
-  // 2. 电影运镜与分镜 3D 摄影机轨迹模拟器
-  if (isCameraShot) {
-    return (
-      <CameraShotVisual
-        technique={technique}
-        interactive={interactive}
-        className={className}
-        playing={isPlaying}
-        onToggle={togglePlay}
-      />
-    )
-  }
-
-  // 3. 通用质感光场
-  return (
-    <GenericVisual
-      technique={technique}
-      className={className}
-    />
-  )
+  // 4. 通用美学光场
+  return <GenericAestheticVisual technique={technique} className={className} />
 }
 
-/** Remotion 画面代码组件动态视效渲染舞台 */
-function RemotionSceneVisual({
+/** 电影运镜与分镜 3D 摄像机运动模拟器 */
+function CameraMotionVisual({
   technique,
   interactive,
   className = '',
@@ -114,179 +107,86 @@ function RemotionSceneVisual({
   playing: boolean
   onToggle: () => void
 }) {
-  const [frame, setFrame] = useState(0)
+  const [phase, setPhase] = useState(0)
   const animRef = useRef<number | null>(null)
 
   useEffect(() => {
-    if (!playing) {
-      if (animRef.current) cancelAnimationFrame(animRef.current)
-      return
-    }
-    const start = performance.now()
-    const loop = (time: number) => {
-      const elapsed = (time - start) / 1000
-      setFrame(Math.floor((elapsed * 30) % 150)) // 5 秒循环 150 帧
+    let p = 0
+    let alive = true
+    const loop = () => {
+      if (!alive) return
+      p = (p + 0.015) % 1
+      setPhase(p)
       animRef.current = requestAnimationFrame(loop)
     }
     animRef.current = requestAnimationFrame(loop)
     return () => {
+      alive = false
       if (animRef.current) cancelAnimationFrame(animRef.current)
     }
-  }, [playing])
-
-  const name = technique.name.toLowerCase()
-  const isAurora = name.includes('aurora') || name.includes('glow') || name.includes('light')
-  const isParticle = name.includes('particle') || name.includes('star') || name.includes('fire')
-  const isLiquid = name.includes('liquid') || name.includes('wave') || name.includes('blob')
-
-  // 根据分类或组件名称计算色彩与动效基调
-  const themeColor = isAurora
-    ? 'rgba(56, 189, 248, 0.7)'
-    : isParticle
-    ? 'rgba(245, 158, 11, 0.7)'
-    : isLiquid
-    ? 'rgba(236, 72, 153, 0.7)'
-    : 'rgba(99, 102, 241, 0.7)'
-
-  return (
-    <div
-      className={`fx-visual-poster is-remotion-scene ${className} ${playing ? 'is-animating' : ''}`}
-      style={{
-        background: 'radial-gradient(ellipse at center, #121424 0%, #080911 100%)',
-      }}
-    >
-      {/* 动态光晕与背景网格 */}
-      <div
-        className="fx-scene-glow"
-        style={{
-          background: `radial-gradient(circle, ${themeColor} 0%, transparent 65%)`,
-          transform: `translate(${Math.sin(frame * 0.05) * 20}px, ${Math.cos(frame * 0.04) * 15}px) scale(${1 + Math.sin(frame * 0.03) * 0.15})`,
-        }}
-      />
-      <div className="fx-scene-grid" />
-
-      {/* 画面核心内容 */}
-      <div className="fx-scene-content">
-        <div className="fx-scene-badge">
-          <Code2 size={11} className="text-blue-400" /> Remotion Scene · 30 FPS
-        </div>
-        <div className="fx-scene-title">{technique.name}</div>
-        <div className="fx-scene-meta">
-          <span>{technique.categoryLabel || '画面组件'}</span>
-          {technique.sourcePath && <span className="fx-scene-path">{technique.sourcePath.split('/').pop()}</span>}
-        </div>
-
-        {/* 动态时间指示器 */}
-        <div className="fx-scene-timeline">
-          <div
-            className="fx-scene-progress"
-            style={{ width: `${(frame / 150) * 100}%` }}
-          />
-        </div>
-      </div>
-
-      {interactive && (
-        <button
-          type="button"
-          className="fx-visual-play-btn"
-          onClick={(e) => {
-            e.stopPropagation()
-            onToggle()
-          }}
-          title={playing ? '暂停动画' : '播放实时画面渲染'}
-        >
-          {playing ? <Pause size={14} /> : <Play size={14} />}
-        </button>
-      )}
-    </div>
-  )
-}
-
-/** 3D 摄影机运镜与分镜运动轨迹模拟器 */
-function CameraShotVisual({
-  technique,
-  interactive,
-  className = '',
-  playing,
-  onToggle,
-}: {
-  technique: FxTechnique
-  interactive: boolean
-  className?: string
-  playing: boolean
-  onToggle: () => void
-}) {
-  const [progress, setProgress] = useState(0)
-  const animRef = useRef<number | null>(null)
-
-  useEffect(() => {
-    if (!playing) {
-      if (animRef.current) cancelAnimationFrame(animRef.current)
-      return
-    }
-    const start = performance.now()
-    const loop = (time: number) => {
-      const p = ((time - start) % 3000) / 3000 // 3秒一个运镜周期
-      setProgress(p)
-      animRef.current = requestAnimationFrame(loop)
-    }
-    animRef.current = requestAnimationFrame(loop)
-    return () => {
-      if (animRef.current) cancelAnimationFrame(animRef.current)
-    }
-  }, [playing])
+  }, [])
 
   const name = technique.name.toLowerCase()
   const isZoom = name.includes('zoom') || name.includes('punch') || name.includes('crash')
-  const isOrbit = name.includes('orbit') || name.includes('circle') || name.includes('rotate')
-  const isFlyover = name.includes('fly') || name.includes('over') || name.includes('pass')
-
-  const motionType = isZoom ? '推拉急变焦' : isOrbit ? '环绕运镜' : isFlyover ? '俯冲掠过' : '多维运镜'
+  const isOrbit = name.includes('orbit') || name.includes('circle') || name.includes('rotate') || name.includes('tour')
+  const isFlyover = name.includes('fly') || name.includes('over') || name.includes('overhead')
+  const focal = isZoom ? `${Math.round(24 + phase * 65)}mm` : isOrbit ? '50mm Cine' : '35mm Cine'
 
   return (
-    <div
-      className={`fx-visual-poster is-camera-shot ${className} ${playing ? 'is-animating' : ''}`}
-      style={{
-        background: 'radial-gradient(circle at 50% 120%, #151e2e 0%, #090d14 100%)',
-      }}
-    >
-      {/* 3D 透视参考地平面网格 */}
+    <div className={`fx-visual-poster is-camera-view ${className}`}>
+      {/* 电影取景框：四角准星角标 */}
+      <div className="fx-vf-corner tl" />
+      <div className="fx-vf-corner tr" />
+      <div className="fx-vf-corner bl" />
+      <div className="fx-vf-corner br" />
+
+      {/* 3D 空间动态透视网格地平面 */}
       <div
-        className="fx-camera-grid"
+        className="fx-vf-grid"
         style={{
-          transform: `perspective(300px) rotateX(60deg) translateY(${progress * 40}px)`,
+          transform: `perspective(240px) rotateX(62deg) translateY(${(phase * 35) % 35}px)`,
         }}
       />
 
-      {/* 摄影机与视锥体动态示意 */}
-      <div className="fx-camera-frustum-wrap">
-        <div
-          className="fx-camera-cone"
-          style={{
-            transform: isZoom
-              ? `scale(${0.8 + progress * 0.8})`
-              : isOrbit
-              ? `rotate(${(progress - 0.5) * 50}deg)`
-              : `translateY(${(progress - 0.5) * 30}px) scale(${1 + progress * 0.3})`,
-          }}
-        />
-
-        <div className="fx-camera-marker">
-          <Camera size={18} className="text-blue-400 animate-pulse" />
-          <span className="fx-camera-focal">
-            {isZoom ? `${Math.round(24 + progress * 60)}mm` : '35mm Cine'}
-          </span>
+      {/* 运镜运动轨迹光环 */}
+      {isZoom && (
+        <div className="fx-vf-zoom-rings">
+          <div className="fx-zoom-ring r1" style={{ transform: `scale(${0.4 + phase * 1.2})`, opacity: 1 - phase }} />
+          <div className="fx-zoom-ring r2" style={{ transform: `scale(${0.1 + phase * 1.2})`, opacity: 1 - phase }} />
         </div>
-      </div>
+      )}
 
-      {/* 运镜元信息与轨迹标签 */}
-      <div className="fx-camera-info">
-        <div className="fx-camera-badge">
-          <Film size={11} className="text-amber-400" />
-          <span>{motionType}</span>
+      {isOrbit && (
+        <div className="fx-vf-orbit-track">
+          <div
+            className="fx-orbit-cam-dot"
+            style={{
+              transform: `rotate(${phase * 360}deg) translate(45px) rotate(-${phase * 360}deg)`,
+            }}
+          />
         </div>
-        <div className="fx-camera-title">{technique.name}</div>
-        <div className="fx-camera-intent">{technique.intent || '摄影机运动轨迹与分镜配方'}</div>
+      )}
+
+      {isFlyover && (
+        <div className="fx-vf-flyover-lines">
+          <div className="fx-flyover-streak s1" style={{ transform: `translateY(${(phase * 120) % 100}px)` }} />
+          <div className="fx-flyover-streak s2" style={{ transform: `translateY(${((phase + 0.5) * 120) % 100}px)` }} />
+        </div>
+      )}
+
+      {/* 中心十字瞄准器 */}
+      <div className="fx-vf-crosshair" />
+
+      {/* 摄影机与焦距指示（无多余标题，绝不遮挡底部文字） */}
+      <div className="fx-vf-hud-top">
+        <div className="fx-vf-badge">
+          <Film size={10} className="text-amber-400" />
+          <span>{isZoom ? '急推变焦' : isOrbit ? '空间环绕' : isFlyover ? '俯冲掠过' : '镜头运镜'}</span>
+        </div>
+        <div className="fx-vf-focal">
+          <Camera size={11} className="text-blue-400" />
+          <span>{focal}</span>
+        </div>
       </div>
 
       {interactive && (
@@ -297,17 +197,16 @@ function CameraShotVisual({
             e.stopPropagation()
             onToggle()
           }}
-          title={playing ? '暂停运镜' : '播放运镜模拟'}
         >
-          {playing ? <Pause size={14} /> : <Play size={14} />}
+          {playing ? <Pause size={13} /> : <Play size={13} />}
         </button>
       )}
     </div>
   )
 }
 
-/** 通用优雅光场占位 */
-function GenericVisual({
+/** 通用优雅流光 */
+function GenericAestheticVisual({
   technique,
   className = '',
 }: {
@@ -315,19 +214,11 @@ function GenericVisual({
   className?: string
 }) {
   return (
-    <div
-      className={`fx-visual-poster is-generic ${className}`}
-      style={{
-        background: 'linear-gradient(135deg, #131722 0%, #0a0d14 100%)',
-      }}
-    >
-      <div className="fx-generic-glow" />
-      <div className="fx-generic-content">
-        <div className="fx-generic-icon">
-          <Sparkles size={16} className="text-blue-400" />
-        </div>
-        <div className="fx-generic-name">{technique.name}</div>
-        <div className="fx-generic-cat">{technique.categoryLabel || '视觉技法'}</div>
+    <div className={`fx-visual-poster is-generic ${className}`}>
+      <div className="fx-generic-aurora" />
+      <div className="fx-visual-top-badge">
+        <Sparkles size={11} className="text-indigo-400" />
+        <span>{technique.categoryLabel || '视觉技法'}</span>
       </div>
     </div>
   )

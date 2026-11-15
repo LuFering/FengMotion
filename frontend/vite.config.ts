@@ -26,7 +26,21 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react(), tailwindcss()],
     resolve: {
-      alias: { '@': path.resolve(import.meta.dirname, './src') },
+      preserveSymlinks: false,
+      alias: {
+        '@': path.resolve(import.meta.dirname, './src'),
+        react: path.resolve(import.meta.dirname, './node_modules/react'),
+        'react/jsx-runtime': path.resolve(import.meta.dirname, './node_modules/react/jsx-runtime'),
+        'react/jsx-dev-runtime': path.resolve(import.meta.dirname, './node_modules/react/jsx-dev-runtime'),
+        'react-dom': path.resolve(import.meta.dirname, './node_modules/react-dom'),
+        remotion: path.resolve(import.meta.dirname, './node_modules/remotion'),
+        '@remotion/player': path.resolve(import.meta.dirname, './node_modules/@remotion/player'),
+        '@remotion/google-fonts/Inter': path.resolve(import.meta.dirname, './src/remotion/shims/google-fonts-inter.ts'),
+        '@remotion/three': path.resolve(import.meta.dirname, './src/remotion/shims/three-mock.tsx'),
+        '@react-three/fiber': path.resolve(import.meta.dirname, './src/remotion/shims/three-mock.tsx'),
+        '@react-three/drei': path.resolve(import.meta.dirname, './src/remotion/shims/three-mock.tsx'),
+        three: path.resolve(import.meta.dirname, './src/remotion/shims/three-mock.tsx'),
+      },
     },
     define: apiBase
       ? { 'import.meta.env.VITE_FENGMOTION_API_BASE': JSON.stringify(apiBase) }

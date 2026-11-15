@@ -164,7 +164,6 @@ export function FxLibrary() {
   const [maxComplexity, setMaxComplexity] = useState(5)
   const [previewKind, setPreviewKind] = useState<'all' | 'motion' | 'still'>('all')
   const [sourceProject, setSourceProject] = useState<string>('all')
-  const [sourcesList, setSourcesList] = useState<Array<{ sourceProject: string; count: number }>>([])
   const [sort, setSort] = useState<SortKey>('cat')
   const [filtersOpen, setFiltersOpen] = useState(false)
   /* 「从 GitHub 导入技能」弹窗。入口是页头的一个按钮，不常驻任何内容。 */
@@ -225,29 +224,14 @@ export function FxLibrary() {
   const copyTimer = useRef<number | null>(null)
   const toastTimer = useRef<number | null>(null)
 
-  const fetchSources = async () => {
-    try {
-      const res = await fetch('/api/fx-techniques/sources')
-      if (res.ok) {
-        const data = await res.json() as Array<{ sourceProject: string; count: number }>
-        setSourcesList(data)
-      }
-    } catch {
-      // ignore
-    }
-  }
-
-  /* 首次加载：拉技法目录、用户状态与来源仓库列表。
+  /* 首次加载：拉技法目录与用户状态。
      旧版收藏存在 localStorage，先批量推到服务端再清空本地标记 ——
      用户收藏过的技法不该因为换存储而消失。 */
   useEffect(() => {
     let alive = true
     void (async () => {
       try {
-        const [list] = await Promise.all([
-          listTechniques(),
-          fetchSources(),
-        ])
+        const list = await listTechniques()
         if (!alive) return
         setTechniques(list)
         setCatalogError(null)
@@ -417,6 +401,18 @@ export function FxLibrary() {
       recent: searched.filter((t) => lib.recent.includes(t.id)).length,
     }
   }, [searched, lib])
+
+  const sourcesList = useMemo(() => {
+    const map = new Map<string, number>()
+    for (const t of searched) {
+      const p = t.sourceProject || 'builtin'
+      map.set(p, (map.get(p) ?? 0) + 1)
+    }
+    return Array.from(map.entries()).map(([sourceProject, count]) => ({
+      sourceProject,
+      count,
+    }))
+  }, [searched])
 
   const sourceCode = useMemo(() => {
     if (!current?.steps) return null
@@ -594,7 +590,6 @@ export function FxLibrary() {
             if (importedProject) {
               setSourceProject(importedProject)
             }
-            void fetchSources()
           }).catch(() => setCatalogError('刷新技法库失败'))
         }}
       />
@@ -604,6 +599,41 @@ export function FxLibrary() {
           {!pick.active && <PickButton onClick={pick.enter} label="特效" />}
           {/* 入口：粘贴 GitHub 仓库地址，识别其中的技能后导入。 */}
           <button type="button" className="fx-toolbtn" onClick={() => setImportOpen(true)}>导入来源</button>
+        </div>
+
+        {/* 来源仓库顶级分类标签条：按仓库清晰区分开来 */}
+        <div className="fx-source-bar-top">
+          <button
+            type="button"
+            className="fx-source-tab"
+            data-active={sourceProject === 'all' ? '' : undefined}
+            onClick={() => setSourceProject('all')}
+          >
+            全部技法 <em className="num">{searched.length}</em>
+          </button>
+          {sourcesList.map((src) => {
+            const label =
+              src.sourceProject === 'builtin'
+                ? '内置精选'
+                : src.sourceProject === 'remotion-scenes'
+                ? 'Remotion 画面代码库'
+                : src.sourceProject === 'video-shotcraft'
+                ? '电影运镜配方库'
+                : src.sourceProject === 'lemo-opuscar'
+                ? '视觉风格调色库'
+                : src.sourceProject
+            return (
+              <button
+                key={src.sourceProject}
+                type="button"
+                className="fx-source-tab"
+                data-active={sourceProject === src.sourceProject ? '' : undefined}
+                onClick={() => setSourceProject(src.sourceProject)}
+              >
+                {label} <em className="num">{src.count}</em>
+              </button>
+            )
+          })}
         </div>
 
         {/* 去 AI 味：整行图例删除——组件不再解释自己；能力与复杂度直接写进卡片元信息行 */}
@@ -781,46 +811,6 @@ export function FxLibrary() {
           </label>
         </div>
 
-        {/* 来源仓库筛选标签栏 */}
-        {sourcesList.length > 0 && (
-          <div className="fx-source-bar">
-            <span className="fx-source-bar-label">来源仓库：</span>
-            <div className="fx-source-chips">
-              <button
-                type="button"
-                className="fx-source-chip"
-                data-on={sourceProject === 'all' ? '' : undefined}
-                onClick={() => setSourceProject('all')}
-              >
-                全部仓库 <em className="num">{techniques.length}</em>
-              </button>
-              {sourcesList.map((src) => {
-                const label =
-                  src.sourceProject === 'builtin'
-                    ? '内置精选'
-                    : src.sourceProject === 'remotion-scenes'
-                    ? 'remotion-scenes (画面代码)'
-                    : src.sourceProject === 'video-shotcraft'
-                    ? 'video-shotcraft (运镜)'
-                    : src.sourceProject === 'lemo-opuscar'
-                    ? 'lemo-opuscar (风格)'
-                    : src.sourceProject
-                return (
-                  <button
-                    key={src.sourceProject}
-                    type="button"
-                    className="fx-source-chip"
-                    data-on={sourceProject === src.sourceProject ? '' : undefined}
-                    onClick={() => setSourceProject(sourceProject === src.sourceProject ? 'all' : src.sourceProject)}
-                  >
-                    {label} <em className="num">{src.count}</em>
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-        )}
-
         <div className="fx-content">
           {catalogLoading ? (
             /* 加载中与「没有技法」必须分开：技法目录来自服务端，
@@ -862,7 +852,7 @@ export function FxLibrary() {
                 return (
                   <article
                     key={t.id}
-                    className="fxc fxc-poster"
+                    className="fxc"
                     data-fx-id={t.id}
                     data-added={fxInPending(t.id) || undefined}
                     data-pickmode={pick.active || undefined}
