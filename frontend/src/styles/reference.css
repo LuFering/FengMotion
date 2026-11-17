@@ -85,7 +85,7 @@ body:has(#pane-reference .rfc) {
   overflow: hidden;
   background: #000;
   color: var(--tx);
-  font-family: Inter, -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  font-family: var(--font-sans);
   font-size: 13px;
   line-height: 1.5;
   font-variant-numeric: tabular-nums;

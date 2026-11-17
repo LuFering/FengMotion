@@ -7,7 +7,7 @@
   --danger: var(--bad); --canvas: color-mix(in srgb, var(--surf) 70%, var(--hole));
   --editor-border: color-mix(in srgb, var(--fg) 12%, transparent);
   background: var(--canvas); color: var(--fg);
-  font-family: 'Geist Variable', -apple-system, 'PingFang SC', sans-serif;
+  font-family: var(--font-sans);
 }
 .wfe *, .wfe *::before, .wfe *::after { box-sizing: border-box; }
 #pane-methods:has(.wfe) { height:100dvh; min-height:0 !important; max-height:100dvh; overflow:hidden; }

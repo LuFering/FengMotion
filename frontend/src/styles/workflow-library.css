@@ -1,5 +1,5 @@
 /* Workflow library and creation: inherit the application palette, show actual graphs. */
-.wfl { --wf-bg:var(--bg); --panel:var(--surf); --panel2:var(--hole); --raised:var(--surf); --tx:var(--fg); --tx2:var(--dim); --tx3:var(--dim); --line2:var(--line); --acc-ink:var(--on-accent,#fff); --acc-tx:var(--acc); --sel:var(--soft); background:var(--bg); font-family:'Geist Variable',-apple-system,'PingFang SC',sans-serif; height:100dvh; }
+.wfl { --wf-bg:var(--bg); --panel:var(--surf); --panel2:var(--hole); --raised:var(--surf); --tx:var(--fg); --tx2:var(--dim); --tx3:var(--dim); --line2:var(--line); --acc-ink:var(--on-accent,#fff); --acc-tx:var(--acc); --sel:var(--soft); background:var(--bg); font-family:var(--font-sans); height:100dvh; }
 #pane-methods:has(.wfl),#pane-methods .hm-content:has(.wfl) { height:100dvh; min-height:0!important; overflow:hidden; }
 .wfl .wf-primary,.wfl .wf-secondary,.wfl .wf-danger { display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:36px; padding:8px 14px; border:1px solid var(--line); border-radius:6px; font-size:12px; font-weight:550; white-space:nowrap; transition:background .15s,border-color .15s; }
 .wfl .wf-primary { background:var(--acc); color:var(--on-accent,#fff); border-color:transparent; }

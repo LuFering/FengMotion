@@ -127,7 +127,7 @@ html[data-theme='tactile'] .fxlib {
   overflow: hidden;
   background: var(--fx-bg-glow), var(--fx-bg);
   color: var(--tx);
-  font-family: Inter, -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  font-family: var(--font-sans);
   font-size: 13px;
   line-height: 1.5;
   font-variant-numeric: tabular-nums;

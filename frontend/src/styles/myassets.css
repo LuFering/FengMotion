@@ -125,7 +125,7 @@ html[data-theme="tactile"] .mya .mya-org-row[data-on] em { color: #6b4a14; }
   overflow: hidden;
   background: var(--bg-glow);
   color: var(--tx);
-  font-family: Inter, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-family: var(--font-sans);
   font-size: 13px;
   font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;

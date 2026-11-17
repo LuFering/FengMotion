@@ -4,7 +4,7 @@
   --hf-paper: #F4F1EA;
   --hf-blue: #3B8CF8;
   --hf-serif: "Noto Serif CJK SC", "思源宋体", "Songti SC", serif;
-  --hf-sans: "Noto Sans CJK SC", "思源黑体", system-ui, sans-serif;
+  --hf-sans: var(--font-sans);
   --hf-mono: "Noto Sans Mono CJK SC", ui-monospace, monospace;
   position: relative;
   height: 100dvh;

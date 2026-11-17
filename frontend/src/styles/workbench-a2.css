@@ -91,7 +91,7 @@
   --fg: var(--tx);
   --dim: var(--tx2);
   --hint: var(--tx2);
-  --sans: "Inter", -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  --sans: var(--font-sans);
   --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 
   background: radial-gradient(1100px 520px at 50% 18%, var(--bg-glow) 0%, var(--bg) 62%);
