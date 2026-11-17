@@ -354,8 +354,9 @@ export function TargetSummaryPill({
           </div>
         )}
         {/* 未显式选择时两个按钮都不高亮 —— 光看按钮不知道「现在会怎样」。
-            用一句话把当前真实去向补上，避免用户以为默认就是改工程。 */}
-        {onIntentChange && selectedIntent === null && (
+            用一句话把当前真实去向补上，避免用户以为默认就是改工程。
+            左侧胶囊已经写着同一个去向（例如「普通对话」）时不再重复。 */}
+        {onIntentChange && selectedIntent === null && summary !== planCopy.label && (
           <span className="text-[10px] text-[var(--tx3,#8f9b95)] shrink-0">
             未选择：{planCopy.label === '普通对话' ? '按普通对话发送' : planCopy.label}
           </span>

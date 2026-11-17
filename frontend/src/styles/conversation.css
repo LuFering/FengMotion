@@ -59,6 +59,9 @@
      而不是全局 --line 的实色 #2A2A2E —— 实色在暗底上偏重，看起来像框死。 */
   --line: rgba(255, 255, 255, 0.06);
   --hover: rgba(255, 255, 255, .08);
+  /* --tx：输入框目标胶囊等共享组件读的是 --tx（工作台作用域里有定义），
+     这里不补的话它们会落到写死的浅色兜底 #242a28，暗色下几乎看不见。 */
+  --tx: var(--fg);
   --tx1: var(--fg);
   --tx2: var(--dim);
   --tx3: var(--ph);
@@ -89,6 +92,7 @@ html[data-theme="light"] #pane-conversation {
   --line: rgba(25, 25, 50, .06);
   --line2: #cdcdd6;
   --hover: rgba(38, 49, 72, .06);
+  --tx: var(--fg);
   --tx1: var(--fg);
   --tx2: var(--dim);
   --tx3: var(--ph);
@@ -109,6 +113,7 @@ html[data-theme="tactile"] #pane-conversation {
   --line2: var(--line);
   --line: rgba(34, 35, 31, .16);
   --hover: rgba(34, 35, 31, .08);
+  --tx: var(--fg);
   --tx1: var(--fg);
   --tx2: var(--dim);
   --tx3: var(--ph);
@@ -2891,9 +2896,13 @@ html[data-theme="tactile"] .cv3-ddm {
 
 html[data-theme="tactile"] .cv3-compose > .lbx-compose-box { --lbx-composer-radius: 26px; }
 
-.cv3-start-empty { padding:clamp(36px,10vh,88px) 0 24px; max-width:540px; }
+/* 空态在消息区垂直居中、与下方输入框同一条中轴，不再贴在左上角留出整片空白。 */
+.cv3-view:has(> .cv3-col > .cv3-start-empty) { display:flex; flex-direction:column; }
+.cv3-col:has(> .cv3-start-empty) { flex:1 0 auto; }
+/* 选择器带上 .cv3-col：前面的 `.cv3-col > :first-child { margin-top:0 }` 同为 0,2,0，会把 auto 压掉。 */
+.cv3-col > .cv3-start-empty { margin:auto; padding:0 0 8vh; max-width:540px; text-align:center; }
 .cv3-start-empty h2 { margin:0 0 10px; color:var(--fg); font-size:22px; font-weight:600; letter-spacing:-.025em; }
 .cv3-start-empty p { color:var(--dim); font-size:13px; line-height:1.7; margin:0 0 22px; }
-.cv3-start-empty>div { display:flex; flex-wrap:wrap; gap:8px; }
+.cv3-start-empty>div { display:flex; flex-wrap:wrap; justify-content:center; gap:8px; }
 .cv3-entry-note { color:var(--dim); font-size:12px; line-height:1.6; margin:16px 0; }
 .project-resource-evidence{margin:14px 0;font-size:12px;line-height:1.7;color:var(--dim)}.project-resource-evidence summary{cursor:pointer;color:var(--fg);width:fit-content}.project-resource-evidence p{margin:8px 0}.project-resource-evidence>div{padding:10px 0;border-bottom:1px solid var(--line)}.project-resource-evidence ul{padding-left:18px}
