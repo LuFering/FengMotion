@@ -247,3 +247,19 @@
 .fm-local-gate h1 { font-size:20px;font-weight:600; }
 .fm-local-gate p { font-size:13px;max-width:560px;line-height:1.7;color:var(--dim); }
 .fm-save-status { position:fixed;right:18px;bottom:14px;z-index:80;display:flex;align-items:center;gap:10px;max-width:calc(100vw - 36px);padding:9px 13px;border:1px solid var(--line);border-radius:8px;background:var(--surf);color:var(--fg);font-size:12px;box-shadow:0 6px 20px #0001; }
+
+/* ── 库级页面页头统一（第二轮精修）────────────────────────────
+   特效库、我的素材、工作流三页的标题放在同一位置：离顶 16px 的 56px 标题行，
+   标题左缘距导航栏 32px，字阶 25/550。
+   特效库原先把页头也装进整页的圆角面板里，和我的素材「页头在面板外、内容在面板里」
+   不一致，面板里又套海报卡片。现在面板只包内容区，页头与范围/搜索行直接落在页面底色上。
+   面板（--r-panel 圆角 + --shadow-base）保留：它是库页与工作台共用的岛屿语言。 */
+.fxlib { background:var(--fx-bg); }
+.fxlib .fx-panel { background:transparent; border:0; border-radius:0; box-shadow:none; overflow:visible; }
+.fxlib .fx-cmd { min-height:56px; padding:6px 16px 10px; }
+.fxlib .fx-meta { padding:0 16px 14px; border-bottom:0; }
+.fxlib .fx-content { background:var(--panel2); border:1px solid var(--line); border-radius:var(--r-panel); box-shadow:var(--shadow-base); padding:18px 16px 22px; }
+.mya > .fm-page-head { padding:6px 16px 10px; }
+@media(max-width:600px) {
+  .fxlib .fx-cmd { min-height:52px; padding-top:4px; padding-bottom:8px; }
+}

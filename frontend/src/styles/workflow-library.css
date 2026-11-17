@@ -8,9 +8,11 @@
 .wfl .wf-secondary:hover { background:var(--hole); }
 .wfl .wf-danger { background:var(--bad,#c53b4d); color:#fff; border-color:transparent; }
 .wfl button:disabled { cursor:not-allowed; opacity:.5; transform:none; }
-.wf-library { width:100%; height:100%; padding:36px clamp(24px,4vw,64px) 22px; overflow-y:auto; }
+/* 页头位置与特效库、我的素材对齐：内容区左缘 32px、标题行 56px 高、离顶 16px。
+   三个库级页面切换时标题不再上下左右跳。 */
+.wf-library { width:100%; height:100%; padding:16px 32px 22px; overflow-y:auto; }
 .wf-library-header,.wf-library-tools,.wf-library-grid,.wf-library-footnote,.wf-inline-notice { width:100%; max-width:1440px; margin-inline:auto; }
-.wf-library-header { display:flex; align-items:center; justify-content:space-between; gap:24px; margin-bottom:24px; }
+.wf-library-header { display:flex; align-items:center; justify-content:space-between; gap:24px; min-height:56px; padding:6px 0 10px; margin-bottom:14px; }
 /* 与特效库、我的素材页头同一字阶（25/550），三个库级页面标题不再各自一档。 */
 .wf-library h1,.wf-new h1 { margin:0; font-size:25px; font-weight:550; letter-spacing:-.035em; line-height:1.3; }
 .wf-library-tools { display:flex; align-items:center; gap:12px; border-bottom:1px solid var(--line); padding-bottom:16px; margin-bottom:24px; }

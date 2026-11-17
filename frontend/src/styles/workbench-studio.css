@@ -88,7 +88,8 @@
 #pane-flow .wb-a2.wb-studio .fw-mon-thumb-name small { font-size: 9px; color: var(--tx3); }
 /* 空监看保持画幅边界，简报与实际可用操作各有一个主要位置。 */
 #pane-flow .wb-a2.wb-studio .wb-studio-preflight { display: flex; flex-direction: column; width: 100%; max-width: none; flex: 1; min-height: 0; padding: 0; margin: 0; background: transparent; border: 0; border-radius: 0; box-shadow: none; overflow-y: auto; }
-#pane-flow .wb-a2.wb-studio .wb-waiting-stage { position: relative; display: flex; flex-direction: column; justify-content: center; flex: 1 0 270px; min-height: 270px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel2); padding: 42px 26px; }
+/* 画面区已经在右侧面板里，空舞台只用底色区分，不再画第二层描边（面板套面板）。 */
+#pane-flow .wb-a2.wb-studio .wb-waiting-stage { position: relative; display: flex; flex-direction: column; justify-content: center; flex: 1 0 270px; min-height: 270px; border: 0; border-radius: 8px; background: var(--panel2); padding: 42px 26px; }
 #pane-flow .wb-a2.wb-studio .wb-waiting-state { position: absolute; top: 17px; left: 18px; display: flex; align-items: center; gap: 7px; font-size: 10px; color: var(--tx3); }
 #pane-flow .wb-a2.wb-studio .wb-waiting-state > span { width: 5px; height: 5px; border-radius: 50%; background: var(--tx3); }
 #pane-flow .wb-a2.wb-studio .wb-waiting-state > .is-running { background: var(--acc); }

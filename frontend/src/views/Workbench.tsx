@@ -4866,7 +4866,7 @@ function RightPanel({ projectId, target, preview, projectVersionNumber, projectV
               ) : messages.length === 0 ? (
                 /* 真实空会话引导 */
                 <div className="wb-chat-empty flex flex-col items-center justify-center text-center py-12 px-4 select-none">
-                  <div className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-[var(--hole)] text-[var(--tx3)] mb-3 border border-[var(--line)]">
+                  <div className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-[var(--hole)] text-[var(--tx3)] mb-3">
                     <MessagesSquare size={18} />
                   </div>
                   <div className="text-sm font-medium text-[var(--tx)] mb-1">

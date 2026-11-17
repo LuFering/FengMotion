@@ -172,7 +172,8 @@ body.wb-fullscreen-active .fw-panel-reopen-float {
 #pane-flow .wb-a2.wb-studio .wb-compose-context .fw-ref-chips { align-items: center; gap: 6px; }
 #pane-flow .wb-a2.wb-studio .wb-compose-context .fw-ref-add {
   display: inline-flex; align-items: center; gap: 4px; min-height: 26px; padding: 3px 7px;
-  border: 1px dashed var(--line2); border-radius: 7px; color: var(--tx2); font-size: 11px;
+  /* 实线细边：虚线是「拖放区」的语言，这里只是一个普通按钮（设计原则：不用虚线装饰）。 */
+  border: 1px solid var(--line2); border-radius: 7px; color: var(--tx2); font-size: 11px;
 }
 #pane-flow .wb-a2.wb-studio .wb-compose-context .fw-ref-add:hover { color: var(--acc); border-color: var(--acc); background: var(--surf); }
 #pane-flow .wb-a2.wb-studio .wb-compose-context .fw-ref-chip { min-height: 26px; padding: 3px 8px; }

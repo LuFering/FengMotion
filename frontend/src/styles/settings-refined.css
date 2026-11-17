@@ -31,15 +31,16 @@
 .set-refined .set-group { display: flex; flex-direction: column; gap: 0; margin: 0; padding: 0; border-radius: 0; background: transparent; }
 /* 功能块之间、以及同一块内的相邻行之间，只留一条浅横线。放在 .set-group 之后，
    否则会被上面那条 border 归零的声明盖掉。 */
-.set-refined .set-sec > * + * { margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--set-rule); }
+.set-refined .set-sec > * + * { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--set-rule); }
 /* 块内也一样：标题下面的第一件东西不画线，之后每件东西（一行设置、
    一个壁纸网格、一张快捷键表）都用同一条横线起头。 */
-.set-refined .set-group > * + * { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--set-rule); }
+/* 行与行之间 6+6px：配合 44px 行高，单行设置（无说明）不再显得松散，两行的也不挤。 */
+.set-refined .set-group > * + * { margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--set-rule); }
 .set-refined .set-group > .set-subhead + * { margin-top: 0; padding-top: 0; border-top: 0; }
 .set-refined .set-sec > .set-hint:first-of-type { margin: -6px 0 17px; font-size: 11px; line-height: 1.8; }
 .set-refined .set-subhead { font-size: 13px; margin-top: 0; margin-bottom: 10px; font-weight: 550; }
 .set-refined .set-hint { font-size: 11px; line-height: 1.8; color: var(--dim); }
-.set-refined .set-row { min-height: 54px; gap: 20px; padding: 10px 0; }
+.set-refined .set-row { min-height: 44px; gap: 20px; padding: 6px 0; }
 .set-refined .set-row-label b { font-size: 12px; font-weight: 500; line-height: 1.6; }
 .set-refined .set-row-label em { font-size: 11px; line-height: 1.7; max-width: 310px; }
 .set-refined .set-row-control { font-size: 11px; text-align: right; }
@@ -70,7 +71,8 @@
 .set-refined .set-wall { width: auto; border-radius: 7px; border: 1px solid var(--line); padding: 0; overflow: hidden; }
 .set-refined .set-wall-prev,.set-refined .set-wall-add { height: 76px; }
 .set-refined .set-wall-name { font-size: 10px; padding: 8px 9px; }
-.set-refined .set-row-control > [role='radiogroup'][aria-label='壁纸显示范围'] { max-width: 330px; justify-content: flex-end; }
+/* 五个范围选项一行放得下（约 400px）；原来 330px 上限把最后一项挤到第二行，成了一个半空的框。 */
+.set-refined .set-row-control > [role='radiogroup'][aria-label='壁纸显示范围'] { max-width: 440px; justify-content: flex-end; }
 .set-refined .set-hcards { grid-template-columns: repeat(3,minmax(0,1fr)); gap: 10px; margin: 0; }
 .set-refined .set-hcard { border-radius: 10px; box-shadow: none; border: 1px solid var(--line); background: var(--hole); }
 .set-refined .set-hcard-side { width: 58px; background: transparent; padding: 16px; }
@@ -83,9 +85,10 @@
 .set-refined .set-agent-pick .v { font-size: 11px; }
 .set-refined .set-endpoint { font-family: var(--font-mono,monospace); font-size: 11px; width: 245px; border-radius: 6px; }
 .set-refined .set-notice { border-radius: 6px; padding: 10px 12px; color: var(--fg); background: color-mix(in srgb,var(--acc) 10%,var(--hole)); font-size: 11px; }
-.set-refined .set-unavailable { color: var(--dim); padding: 28px 24px; border: 1px solid var(--line); border-radius: 10px; background: var(--hole); }
-.set-refined .set-unavailable > svg { color: var(--ph); margin-bottom: 16px; }
-.set-refined .set-unavailable h3 { font-size: 16px; font-weight: 500; color: var(--fg); margin: 0 0 10px; }
+/* 未接入分区：一个图标 + 一句状态，不再用描边底色卡片把一句话圈起来。 */
+.set-refined .set-unavailable { color: var(--dim); padding: 8px 0 4px; border: 0; border-radius: 0; background: transparent; }
+.set-refined .set-unavailable > svg { color: var(--ph); margin-bottom: 12px; }
+.set-refined .set-unavailable h3 { font-size: 14px; font-weight: 550; color: var(--fg); margin: 0 0 6px; }
 .set-refined .set-unavailable p { font-size: 12px; line-height: 1.8; margin: 0; max-width: 430px; }
 .set-refined .set-unavailable > span { display: inline-block; font-size: 10px; color: var(--ph); margin-top: 17px; border: 1px solid var(--line); border-radius: 4px; padding: 4px 7px; }
 .set-refined button:focus-visible { outline: 2px solid var(--acc); outline-offset: 3px; }
