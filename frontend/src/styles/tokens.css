@@ -60,14 +60,18 @@
   --fm-c-warn: var(--warn);
   --fm-c-danger: var(--bad);
 
-  /* ── 圆角 ─────────────────────────────────────────────────── */
-  --fm-radius-thumb: 5px;
-  --fm-radius-mark: 6px;
-  --fm-radius-ctl: 10px;
-  --fm-radius-card: 12px;
-  --fm-radius-float: 14px;
-  --fm-radius-panel: 18px;   /* 触感主题覆盖为 20 */
+  /* ── 圆角：四档（第三轮统一）────────────────────────────────
+     mark 4 标签/徽标/kbd · control 6 按钮/输入/下拉/分段 · card 10 卡片/缩略图/浮层菜单
+     · panel 14 页面面板/对话框。胶囊 999 保留。旧名（thumb/ctl/float）作为别名保留，
+     指向同一档，避免散落各处的引用失效。 */
+  --fm-radius-mark: 4px;
+  --fm-radius-ctl: 6px;
+  --fm-radius-card: 10px;
+  --fm-radius-panel: 14px;   /* 触感主题覆盖为 20 */
   --fm-radius-pill: 999px;
+  --fm-radius-thumb: var(--fm-radius-card);
+  --fm-radius-float: var(--fm-radius-card);
+  --fm-radius-sm: var(--fm-radius-mark);
 
   /* ── 控件高度 / 页面骨架 ──────────────────────────────────── */
   --fm-control-sm: 32px;

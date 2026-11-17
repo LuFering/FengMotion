@@ -157,7 +157,7 @@ body:not(.hm-nav-expanded) .hm-pending-rings { left: 50%; top: 16px; }
   position: fixed;
   transform: translateY(-50%);
   padding: 5px 10px;
-  border-radius: 8px;
+  border-radius: 10px;
   background: var(--acc);
   color: #fff;
   font-size: 11px;
@@ -175,7 +175,7 @@ body:not(.hm-nav-expanded) .hm-pending {
   gap: 2px;
   height: 52px;
   padding: 4px 0;
-  border-radius: 12px;
+  border-radius: 10px;
 }
 /* 收起成图标轨时按钮是竖排（图标在上、文字在下）：
    角标贴图标右上外侧，同样不能压在购物车上。 */
@@ -210,7 +210,7 @@ body.studio-shell:not(.hm-nav-expanded) .hm-pending .hm-nav-text {
   flex-direction: column;
   background: var(--surf);
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: 14px;
   color: var(--fg);
   font-size: 12.5px;
   overflow: hidden;
@@ -275,7 +275,7 @@ body.studio-shell:not(.hm-nav-expanded) .hm-pending .hm-nav-text {
   gap: 10px;
   padding: 10px;
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: 10px;
   background: var(--hole);
 }
 /* 素材已被删除：整条降饱和 + 虚线边，让人一眼看出这条发不出去 */
@@ -292,7 +292,7 @@ body.studio-shell:not(.hm-nav-expanded) .hm-pending .hm-nav-text {
   place-items: center;
   width: 46px;
   height: 46px;
-  border-radius: 8px;
+  border-radius: 10px;
   overflow: hidden;
   background: color-mix(in srgb, var(--surf) 70%, transparent);
   border: 1px solid var(--line);
@@ -363,7 +363,7 @@ body.studio-shell:not(.hm-nav-expanded) .hm-pending .hm-nav-text {
 .fmp-clear, .fmp-send {
   display: inline-flex; align-items: center; gap: 6px;
   height: 30px; padding: 0 12px;
-  border-radius: 8px;
+  border-radius: 6px;
   font: inherit; font-size: 12px; font-weight: 600;
   cursor: pointer;
 }
@@ -496,7 +496,7 @@ html[data-theme="tactile"] .hm-pending[data-over] { border-color: #22231f; backg
   padding: 0 4px;
   display: grid;
   place-items: center;
-  border-radius: 7px;
+  border-radius: 6px;
   background: var(--acc);
   color: #fff;
   font-size: 10px;
@@ -527,7 +527,7 @@ body.studio-shell:not(.hm-nav-expanded) .hm-sidebar-bottom > .nav-parent {
   margin: 0;
   padding: 6px 0 5px;
   border: 1px solid transparent;
-  border-radius: 10px;
+  border-radius: 6px;
   background: 0 0;
 }
 /* 两个按钮的图标尺寸对齐（各写各的盒子，尺寸必须一致） */

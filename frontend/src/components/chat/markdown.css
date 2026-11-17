@@ -81,7 +81,7 @@
 
 .md-inline-code {
   padding: 1px 5px;
-  border-radius: 5px;
+  border-radius: 4px;
   background: var(--hole);
   border: 1px solid color-mix(in srgb, var(--line) 60%, transparent);
   font-family: ui-monospace, Consolas, monospace;

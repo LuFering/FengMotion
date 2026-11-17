@@ -1,7 +1,7 @@
 /* Workflow library and creation: inherit the application palette, show actual graphs. */
 .wfl { --wf-bg:var(--bg); --panel:var(--surf); --panel2:var(--hole); --raised:var(--surf); --tx:var(--fg); --tx2:var(--dim); --tx3:var(--dim); --line2:var(--line); --acc-ink:var(--on-accent,#fff); --acc-tx:var(--acc); --sel:var(--soft); background:var(--bg); font-family:'Geist Variable',-apple-system,'PingFang SC',sans-serif; height:100dvh; }
 #pane-methods:has(.wfl),#pane-methods .hm-content:has(.wfl) { height:100dvh; min-height:0!important; overflow:hidden; }
-.wfl .wf-primary,.wfl .wf-secondary,.wfl .wf-danger { display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:36px; padding:8px 14px; border:1px solid var(--line); border-radius:8px; font-size:12px; font-weight:550; white-space:nowrap; transition:background .15s,border-color .15s; }
+.wfl .wf-primary,.wfl .wf-secondary,.wfl .wf-danger { display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:36px; padding:8px 14px; border:1px solid var(--line); border-radius:6px; font-size:12px; font-weight:550; white-space:nowrap; transition:background .15s,border-color .15s; }
 .wfl .wf-primary { background:var(--acc); color:var(--on-accent,#fff); border-color:transparent; }
 .wfl .wf-primary:hover { background:var(--brand-deep,#2e6fd9); }
 .wfl .wf-secondary { background:var(--surf); color:var(--fg); }
@@ -17,17 +17,17 @@
 .wf-library h1,.wf-new h1 { margin:0; font-size:25px; font-weight:550; letter-spacing:-.035em; line-height:1.3; }
 .wf-library-tools { display:flex; align-items:center; gap:12px; border-bottom:1px solid var(--line); padding-bottom:16px; margin-bottom:24px; }
 .wf-view-tabs { display:flex; align-items:center; gap:6px; }
-.wfl .wf-view-tabs button { padding:8px 12px; border-radius:7px; font-size:12px; color:var(--dim); white-space:nowrap; }
+.wfl .wf-view-tabs button { padding:8px 12px; border-radius:6px; font-size:12px; color:var(--dim); white-space:nowrap; }
 .wfl .wf-view-tabs button[aria-pressed='true'] { background:var(--surf); color:var(--fg); box-shadow:0 1px 3px #0000000a; font-weight:600; }
 .wf-view-tabs button span { margin-left:5px; font-size:11px; color:var(--dim); }
 .wf-library-search { width:232px; min-width:120px; margin-left:auto; }
 .wf-library-search .ui-search { width:100%; }
-.wf-sort select { max-width:125px; height:34px; border:1px solid var(--line); border-radius:7px; padding:0 8px; background:var(--surf); font-size:12px; }
+.wf-sort select { max-width:125px; height:34px; border:1px solid var(--line); border-radius:6px; padding:0 8px; background:var(--surf); font-size:12px; }
 /* Poster cards: full-bleed saved canvas with a readable bottom overlay. */
 .wf-library-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:18px; align-content:start; }
 /* 文字层改为普通流：标题从固定位置起排，同一行卡片的标题对齐；缺了某一行（未关联项目、没有需求摘要）
    时空白留在页脚上方，不再像固定 bottom 值那样在标题与摘要之间留出空洞。 */
-.wf-library-card { position:relative; display:flex; flex-direction:column; min-width:0; height:268px; border:1px solid var(--line); border-radius:12px; background:var(--surf); isolation:isolate; overflow:hidden; transition:border-color .18s,box-shadow .18s; }
+.wf-library-card { position:relative; display:flex; flex-direction:column; min-width:0; height:268px; border:1px solid var(--line); border-radius:10px; background:var(--surf); isolation:isolate; overflow:hidden; transition:border-color .18s,box-shadow .18s; }
 .wf-library-card:hover { border-color:var(--acc); box-shadow:0 6px 18px #00000018; }
 .wf-library-card:focus-within { border-color:var(--acc); }
 .wfl .wf-card-preview { position:absolute; inset:0; z-index:0; display:block; width:100%; height:100%; padding:18px 16px 132px; overflow:hidden; border:0; border-radius:inherit; background-color:color-mix(in srgb,var(--surf) 70%,var(--hole)); background-image:radial-gradient(circle,color-mix(in srgb,var(--fg) 13%,transparent) .7px,transparent .9px); background-size:18px 18px; }
@@ -73,7 +73,7 @@
 .wf-icon { display:grid; place-items:center; height:30px; width:30px; border-radius:6px; color:var(--dim); }
 .wf-icon:hover { background:var(--hole); color:var(--fg); }
 .wf-card-footer .wf-icon:last-child:hover { color:var(--bad,#c53b4d); }
-.wf-library-card button:focus-visible { outline:2px solid var(--acc); outline-offset:3px; border-radius:5px; }
+.wf-library-card button:focus-visible { outline:2px solid var(--acc); outline-offset:3px; border-radius:4px; }
 .wf-library-card .wf-card-preview:focus-visible { outline-offset:-3px; border-radius:inherit; }
 .wf-library-footnote { display:flex; align-items:flex-start; gap:7px; font-size:11px; color:var(--dim); padding-top:24px; line-height:1.7; }
 .wf-library-footnote svg { flex:none; margin-top:3px; }
@@ -83,7 +83,7 @@
 .wf-delete-confirm { position:absolute; z-index:3; inset:auto 0 0; background:var(--surf); padding:16px; border-top:1px solid var(--line); box-shadow:0 -6px 20px #0000000c; }
 .wf-delete-confirm p { font-size:12px; overflow-wrap:anywhere; margin:0 0 12px; }
 .wf-delete-confirm>div { display:flex; justify-content:flex-end; gap:8px; }
-.wf-inline-notice { display:flex; justify-content:space-between; align-items:center; gap:12px; background:var(--soft); color:var(--fg); font-size:12px; border-radius:7px; padding:10px 12px; margin-bottom:16px; }
+.wf-inline-notice { display:flex; justify-content:space-between; align-items:center; gap:12px; background:var(--soft); color:var(--fg); font-size:12px; border-radius:6px; padding:10px 12px; margin-bottom:16px; }
 .wf-inline-notice button { display:grid; place-items:center; }
 .wf-sr-only { position:absolute; width:1px; height:1px; margin:-1px; overflow:hidden; clip-path:inset(50%); }
 .wf-new { width:100%; height:100%; overflow-y:auto; }
@@ -91,7 +91,7 @@
 .wf-new-body { max-width:980px; margin:0 auto; padding:42px 32px 32px; }
 .wf-new-heading { margin-bottom:30px; }
 .wf-new-name { display:block; font-size:12px; font-weight:550; margin-bottom:24px; }
-.wf-new-name input { display:block; width:100%; max-width:420px; padding:10px 12px; margin-top:9px; background:var(--surf); border:1px solid var(--line); border-radius:8px; font-size:13px; }
+.wf-new-name input { display:block; width:100%; max-width:420px; padding:10px 12px; margin-top:9px; background:var(--surf); border:1px solid var(--line); border-radius:6px; font-size:13px; }
 .wfl .wf-blank-start { display:flex; align-items:center; text-align:left; width:100%; gap:18px; background:var(--surf); border:1px solid var(--line); border-radius:10px; padding:22px; margin-bottom:36px; }
 .wf-blank-start:hover { border-color:var(--acc); }
 .wf-blank-icon { display:grid; place-items:center; width:48px; height:48px; flex:none; border:1px solid var(--line); border-radius:10px; color:var(--acc); background:var(--soft); }

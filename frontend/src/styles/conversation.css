@@ -184,7 +184,7 @@ html[data-theme="tactile"] #pane-conversation {
      面 + 1px 边线 + 圆角 + 投影。首页所有浮起元素都带边线与投影，
      只有这样才能和首页是同一套设计语言。 */
   border: 1px solid var(--cv-line);
-  border-radius: 16px;
+  border-radius: 14px;
   /* 面与输入卡同一档（--hf-panel），首页菜单/浮层也是这个面 */
   background: var(--cv-elev);
   box-shadow: 0 6px 24px rgb(20 22 40 / .06);
@@ -275,7 +275,7 @@ html[data-theme="tactile"] #pane-conversation {
   margin: 2px 0 8px;
   padding: 0 9px;
   box-sizing: border-box;
-  border-radius: var(--fm-radius-mark);
+  border-radius: var(--fm-radius-ctl);
   background: var(--hole);
   color: var(--tx3);
   /* 正文档 13px：搜索框下面管的就是 13px 的项目名/会话名，
@@ -361,7 +361,7 @@ html[data-theme="tactile"] #pane-conversation {
   width: 100%;
   padding: 6px 9px;
   border: 0;
-  border-radius: var(--fm-radius-mark);
+  border-radius: var(--fm-radius-ctl);
   background: transparent;
   color: var(--tx1);
   font: inherit;
@@ -395,7 +395,7 @@ html[data-theme="tactile"] #pane-conversation {
   height: 22px;
   padding: 0;
   border: 0;
-  border-radius: var(--fm-radius-mark);
+  border-radius: var(--fm-radius-ctl);
   background: transparent;
   color: var(--tx3);
   cursor: pointer;
@@ -477,7 +477,7 @@ html[data-theme="tactile"] #pane-conversation {
   height: 28px;
   padding: 0;
   border: 0;
-  border-radius: var(--fm-radius-mark);
+  border-radius: var(--fm-radius-ctl);
   background: transparent;
   color: var(--tx2);
   cursor: pointer;
@@ -504,7 +504,7 @@ html[data-theme="tactile"] #pane-conversation {
   height: 22px;
   padding: 0;
   border: 0;
-  border-radius: var(--fm-radius-mark);
+  border-radius: var(--fm-radius-ctl);
   background: transparent;
   color: var(--tx3);
   cursor: pointer;
@@ -927,7 +927,7 @@ html[data-theme="tactile"] #pane-conversation {
   max-width: 70.2%;
   margin: 0;
   padding: 10px 16px;
-  border-radius: 20px;
+  border-radius: 14px;
   background: var(--cv-bubble, var(--soft));
   color: var(--tx1);
   font-size: 13px;
@@ -975,7 +975,7 @@ html[data-theme="tactile"] #pane-conversation {
   gap: 6px;
   margin: 0;
   padding: 6px 10px;
-  border-radius: 8px;
+  border-radius: 10px;
   background: color-mix(in srgb, var(--bad) 12%, transparent);
   color: var(--bad);
   font-size: 12px;
@@ -1880,7 +1880,7 @@ html[data-theme="tactile"] .cv3-hpop {
   gap: 3px;
   padding: 3px 8px;
   border: 0;
-  border-radius: 8px;
+  border-radius: 6px;
   background: transparent;
   color: var(--tx2);
   font: inherit;
@@ -2049,7 +2049,7 @@ html[data-theme="tactile"] .cv3-hp-seg button.on {
   gap: 2px;
   padding: 2px;
   border: 1px solid var(--cv-line);
-  border-radius: 8px;
+  border-radius: 6px;
   background: var(--hole);
 }
 
@@ -2078,7 +2078,7 @@ html[data-theme="tactile"] .cv3-hp-seg button.on {
 .cv3-hp-note {
   margin: 6px 8px 2px;
   padding: 7px 9px;
-  border-radius: 8px;
+  border-radius: 10px;
   background: color-mix(in srgb, var(--warn) 10%, transparent);
   color: var(--tx2);
   font-size: 11px;
@@ -2159,7 +2159,7 @@ html[data-theme="tactile"] .cv3-ddm {
 .cv3-ddm [data-slot="dropdown-menu-radio-item"] {
   gap: 8px;
   padding: 6px 8px;
-  border-radius: var(--fm-radius-mark);
+  border-radius: var(--fm-radius-ctl);
   color: var(--tx2);
   font-size: 12.5px;
   line-height: 18px;
@@ -2272,7 +2272,7 @@ html[data-theme="tactile"] .cv3-ddm {
   gap: 2px;
   padding: 9px;
   border: 0;
-  border-radius: var(--fm-radius-mark);
+  border-radius: var(--fm-radius-ctl);
   background: var(--hole);
   color: var(--tx2);
   font: inherit;
@@ -2292,7 +2292,7 @@ html[data-theme="tactile"] .cv3-ddm {
   width: 28px;
   height: 28px;
   margin-bottom: 3px;
-  border-radius: 7px;
+  border-radius: 6px;
   background: var(--cv-elev);
   color: var(--acc);
 }
@@ -2530,7 +2530,7 @@ html[data-theme="tactile"] .cv3-ddm {
   gap: 6px;
   margin: 0;
   padding: 6px 8px;
-  border-radius: 8px;
+  border-radius: 10px;
   background: color-mix(in srgb, var(--bad) 10%, transparent);
   color: var(--bad);
   font-size: 11px;
@@ -2624,7 +2624,7 @@ html[data-theme="tactile"] .cv3-ddm {
   margin: -4px 0 0;
   padding: 8px 12px;
   border-left: 2px solid var(--warn);
-  border-radius: 8px;
+  border-radius: 10px;
   background: var(--hole, var(--soft));
   color: var(--tx2);
   font-size: 11px;

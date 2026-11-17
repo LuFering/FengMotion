@@ -11,8 +11,8 @@
 .fxlib .fxc-poster .fxc-intent { font-size:12px; line-height:1.6; color:rgba(255,255,255,.7); -webkit-line-clamp:1; }
 .fxlib .fxc-poster .fxc-meta { margin-top:5px; gap:10px; flex-wrap:nowrap; justify-content:space-between; font-size:10px; color:rgba(255,255,255,.5); }
 .fxlib .fxc-inputs { white-space:nowrap; flex:none; }
-.fxlib .fxc-preview-label { position:absolute; left:13px; top:13px; display:flex; align-items:center; gap:5px; color:rgba(255,255,255,.88); background:rgba(8,10,13,.48); padding:4px 7px; border-radius:5px; font-size:10px; pointer-events:none; }
-.fxlib .fxc .fxc-fav,.fxlib .fxc .fxc-add { top:12px; width:28px; height:28px; border-radius:7px; background:rgba(12,14,18,.66); backdrop-filter:blur(8px); color:rgba(255,255,255,.85); opacity:0; transition:opacity .15s,background .15s; }
+.fxlib .fxc-preview-label { position:absolute; left:13px; top:13px; display:flex; align-items:center; gap:5px; color:rgba(255,255,255,.88); background:rgba(8,10,13,.48); padding:4px 7px; border-radius:4px; font-size:10px; pointer-events:none; }
+.fxlib .fxc .fxc-fav,.fxlib .fxc .fxc-add { top:12px; width:28px; height:28px; border-radius:6px; background:rgba(12,14,18,.66); backdrop-filter:blur(8px); color:rgba(255,255,255,.85); opacity:0; transition:opacity .15s,background .15s; }
 .fxlib .fxc .fxc-fav { right:12px; }
 .fxlib .fxc .fxc-add { right:46px; }
 .fxlib .fxc:hover .fxc-fav,.fxlib .fxc:focus-within .fxc-fav,.fxlib .fxc .fxc-fav[data-on],
@@ -34,13 +34,13 @@
 .mya .mya-card-meta { gap:8px; font-size:10px; color:rgba(255,255,255,.55); }
 .mya .mya-refs-badge { margin-left:auto; flex:none; background:none; padding:0; gap:4px; font-size:10px; color:rgba(255,255,255,.65); }
 .mya .mya-refs-badge .ui-icon { width:11px; height:11px; opacity:.7; }
-.mya .mya-card .mya-star,.mya .mya-card .mya-pending-btn { width:26px; height:26px; top:8px; border-radius:7px; background:rgba(12,14,18,.66); color:rgba(255,255,255,.85); }
+.mya .mya-card .mya-star,.mya .mya-card .mya-pending-btn { width:26px; height:26px; top:8px; border-radius:6px; background:rgba(12,14,18,.66); color:rgba(255,255,255,.85); }
 .mya .mya-card .mya-star { right:8px; }
 .mya .mya-card .mya-pending-btn { right:40px; }
 .mya .mya-card .mya-star[data-on] { color:var(--warn); }
 
 /* 参考片：片段序号、名称、可借鉴的运镜和时间范围各有固定位置。 */
-.rfc .rfc-card-marker { position:absolute; top:10px; left:11px; display:inline-flex; align-items:center; gap:9px; color:rgba(255,255,255,.88); font-size:10px; background:rgba(8,10,13,.45); border-radius:5px; padding:3px 6px; }
+.rfc .rfc-card-marker { position:absolute; top:10px; left:11px; display:inline-flex; align-items:center; gap:9px; color:rgba(255,255,255,.88); font-size:10px; background:rgba(8,10,13,.45); border-radius:4px; padding:3px 6px; }
 .rfc .rfc-card-marker > span { color:rgba(255,255,255,.55); font-variant-numeric:tabular-nums; }
 .rfc .rfc-card-body { padding:32px 13px 11px; background:linear-gradient(0deg,rgba(6,8,11,.93),rgba(6,8,11,.62) 48%,transparent); }
 .rfc .rfc-card-t { font-size:14px; line-height:1.35; font-weight:550; letter-spacing:-.01em; }
@@ -51,7 +51,7 @@
 .rfc .rfc-card-status i { width:4px; height:4px; border-radius:50%; background:#74bfa3; }
 .rfc .rfc-card-status[data-s="partial"] i { background:#dbb66e; }
 .rfc .rfc-card-status[data-s="pending"] i { background:#a0a5b0; }
-.rfc .rfc-card .rfc-card-add { top:9px; right:9px; width:26px; height:26px; border-radius:7px; background:rgba(12,14,18,.66); }
+.rfc .rfc-card .rfc-card-add { top:9px; right:9px; width:26px; height:26px; border-radius:6px; background:rgba(12,14,18,.66); }
 .rfc .rfc-video { animation:none; }
 .rfc .rfc-play:disabled { opacity:.4; cursor:default; }
 @media(prefers-reduced-motion:reduce) { .fxlib .fxc .fxc-fav,.fxlib .fxc .fxc-add,.mya .mya-card-head { transition:none; } }

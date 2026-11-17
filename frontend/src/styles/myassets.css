@@ -40,13 +40,13 @@
   --warn: #f5b83d;
   --danger: #e06c75;
   /* 圆角（同心：12 = 5 + 7；14 = 9 + 5；999 嵌 999） */
-  --r-panel: 18px;
-  --r-ctl: 10px;
-  --r-card: 12px;
-  --r-thumb: 5px;
-  --r-float: 14px;
-  --r-pill: 999px;
-  --r-mark: 6px;
+  --r-panel: var(--fm-radius-panel);
+  --r-ctl: var(--fm-radius-ctl);
+  --r-card: var(--fm-radius-card);
+  --r-thumb: var(--fm-radius-card);
+  --r-float: var(--fm-radius-card);
+  --r-pill: var(--fm-radius-pill);
+  --r-mark: var(--fm-radius-mark);
   --r-scroll: 4px;
   /* 阴影层级 */
   --shadow-base: 0 3px 10px rgba(0, 0, 0, .18);
@@ -283,7 +283,7 @@ html[data-theme="tactile"] .mya .mya-org-row[data-on] em { color: #6b4a14; }
   width: 24px;
   height: 24px;
   border: 0;
-  border-radius: var(--r-mark);
+  border-radius: var(--fm-radius-ctl);
   background: none;
   color: var(--tx3);
   cursor: pointer;
@@ -570,7 +570,7 @@ html[data-theme="tactile"] .mya .mya-org-row[data-on] em { color: #6b4a14; }
 .mya-link {
   padding: 2px 4px;
   border: 0;
-  border-radius: var(--r-mark);
+  border-radius: var(--fm-radius-ctl);
   background: none;
   color: var(--tx3);
   font: inherit;
@@ -1525,7 +1525,7 @@ html[data-theme="tactile"] .mya-pickbtn { border-color: #22231f; }
   flex: 0 0 auto;
   white-space: nowrap;
   padding: 7px 14px;
-  border-radius: var(--fm-radius-mark);
+  border-radius: var(--fm-radius-ctl);
   border: 0;
   background: var(--fm-c-warn);
   color: var(--void);

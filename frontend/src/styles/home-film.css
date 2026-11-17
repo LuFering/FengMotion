@@ -389,7 +389,7 @@ html[data-theme="tactile"] .hf-page {
 }
 .hf-menu button {
   display: flex; align-items: center; gap: 9px; width: 100%; min-height: 36px; padding: 7px 10px;
-  border: 0; border-radius: 9px; background: transparent; color: var(--hf-tx);
+  border: 0; border-radius: 6px; background: transparent; color: var(--hf-tx);
   font: 13.5px var(--hf-sans); text-align: left; cursor: pointer;
 }
 .hf-menu button:hover { background: var(--hf-panel2); }
@@ -474,7 +474,7 @@ html[data-theme="tactile"] .hf-page {
 }
 .hf-hp-back {
   display: inline-flex; align-items: center; gap: 3px; padding: 3px 8px;
-  border: 0; border-radius: 8px; background: transparent; color: var(--hf-tx2);
+  border: 0; border-radius: 6px; background: transparent; color: var(--hf-tx2);
   font: 600 11px var(--hf-sans); cursor: pointer;
 }
 .hf-hp-back:hover { background: var(--hf-panel2); color: var(--hf-tx); }
@@ -491,7 +491,7 @@ html[data-theme="tactile"] .hf-page {
 @keyframes hf-drawer-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
 .hf-hp-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .hf-hp-label { font: 11.5px var(--hf-sans); color: var(--hf-tx2); white-space: nowrap; }
-.hf-hp-seg { display: flex; padding: 2px; gap: 2px; border-radius: 8px; background: var(--hf-panel); border: 1px solid var(--hf-line); }
+.hf-hp-seg { display: flex; padding: 2px; gap: 2px; border-radius: 6px; background: var(--hf-panel); border: 1px solid var(--hf-line); }
 .hf-hp-seg button {
   padding: 3px 9px; border: 0; border-radius: 6px; background: transparent;
   color: var(--hf-tx3); font: 11px var(--hf-sans); cursor: pointer; white-space: nowrap;
@@ -865,7 +865,7 @@ html[data-theme="tactile"] .hf-brandsep { color: #8a8676; }
 .hf-chips { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 14px 0; }
 .hf-chip {
   display: inline-flex; align-items: center; gap: 7px; max-width: 260px;
-  padding: 5px 7px 5px 9px; border: 1px solid var(--hf-line); border-radius: 10px;
+  padding: 5px 7px 5px 9px; border: 1px solid var(--hf-line); border-radius: 6px;
   background: var(--hf-panel2); color: var(--hf-tx2); font: 12px var(--hf-sans);
 }
 .hf-chip-icon {

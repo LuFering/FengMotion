@@ -54,7 +54,7 @@
   width: 32px;
   height: 32px;
   border: 1px solid var(--line2);
-  border-radius: 8px;
+  border-radius: 10px;
   color: var(--acc-tx);
   background: var(--panel2);
 }
@@ -91,7 +91,7 @@
   place-items: center;
   width: 28px;
   height: 28px;
-  border-radius: 5px;
+  border-radius: 4px;
   color: var(--tx2);
   flex: none;
 }
@@ -287,7 +287,7 @@
   gap: 9px;
   padding: 8px;
   width: 100%;
-  border-radius: 5px;
+  border-radius: 4px;
   text-align: left;
   color: var(--tx2);
   font-size: 11px;
@@ -553,7 +553,7 @@
   padding: 12px;
   background: var(--panel);
   border: 1px solid var(--line2);
-  border-radius: 8px;
+  border-radius: 10px;
   z-index: 10;
 }
 .se-render-result > summary {
@@ -657,7 +657,7 @@
   align-items: center;
   gap: 8px;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 6px;
   padding: 10px;
   color: var(--tx2);
   background: var(--panel2);
@@ -817,7 +817,7 @@
   font-size: 10px;
   color: var(--tx2);
   padding: 3px 7px;
-  border-radius: 5px;
+  border-radius: 4px;
   border: 1px solid var(--line);
 }
 .se-json-toggle[aria-expanded='true'] {
@@ -892,7 +892,7 @@
   font-size: 10px;
   padding: 4px 7px;
   border: 1px solid var(--line);
-  border-radius: 5px;
+  border-radius: 4px;
   color: var(--tx2);
   white-space: nowrap;
 }

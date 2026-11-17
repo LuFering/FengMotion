@@ -22,7 +22,7 @@
   max-width: 100%;
   overflow: hidden;
   /* 圆角 16：原组件 rounded-2xl */
-  border-radius: 16px;
+  border-radius: 14px;
   border: 1px solid var(--line);
   background: var(--surf);
   /* 极浅的投影：卡片要浮在对话里，但不能抢画面 */

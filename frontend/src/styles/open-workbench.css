@@ -116,7 +116,7 @@ body.wb-fullscreen-active .fw-panel-reopen-float {
 #pane-flow .wb-a2.wb-studio .wb-console-session-label { flex: none; font-size: 11px; }
 #pane-flow .wb-a2.wb-studio .wb-console-session-select,
 #pane-flow .wb-a2.wb-studio .wb-console-session-single { min-width: 0; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--tx); font-size: 11px; }
-#pane-flow .wb-a2.wb-studio .wb-console-session-select { height: 30px; padding: 0 7px; border: 1px solid var(--line); border-radius: 7px; background: var(--surf); cursor: pointer; }
+#pane-flow .wb-a2.wb-studio .wb-console-session-select { height: 30px; padding: 0 7px; border: 1px solid var(--line); border-radius: 6px; background: var(--surf); cursor: pointer; }
 #pane-flow .wb-a2.wb-studio .wb-console-session-select:hover { border-color: var(--line2); background: var(--hole); }
 #pane-flow .wb-a2.wb-studio .wb-console-session-select:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
 /* 页签行跟着上移，省下的一段高度全给消息流和输入框。 */
@@ -145,7 +145,7 @@ body.wb-fullscreen-active .fw-panel-reopen-float {
 #pane-flow .wb-a2.wb-studio .fw-compose { flex: none; padding: 4px 14px 10px; border-top: 0; }
 #pane-flow .wb-a2.wb-studio .wb-compose-context {
   margin-bottom: 8px; padding: 10px 11px 8px;
-  border: 1px solid var(--line); border-radius: 12px;
+  border: 1px solid var(--line); border-radius: 10px;
   background: color-mix(in srgb, var(--surf) 60%, transparent);
 }
 #pane-flow .wb-a2.wb-studio .wb-compose-context .wb-target-pill-wrap { margin-bottom: 6px; }
@@ -173,7 +173,7 @@ body.wb-fullscreen-active .fw-panel-reopen-float {
 #pane-flow .wb-a2.wb-studio .wb-compose-context .fw-ref-add {
   display: inline-flex; align-items: center; gap: 4px; min-height: 26px; padding: 3px 7px;
   /* 实线细边：虚线是「拖放区」的语言，这里只是一个普通按钮（设计原则：不用虚线装饰）。 */
-  border: 1px solid var(--line2); border-radius: 7px; color: var(--tx2); font-size: 11px;
+  border: 1px solid var(--line2); border-radius: 6px; color: var(--tx2); font-size: 11px;
 }
 #pane-flow .wb-a2.wb-studio .wb-compose-context .fw-ref-add:hover { color: var(--acc); border-color: var(--acc); background: var(--surf); }
 #pane-flow .wb-a2.wb-studio .wb-compose-context .fw-ref-chip { min-height: 26px; padding: 3px 8px; }
@@ -216,7 +216,7 @@ body.wb-fullscreen-active .fw-panel-reopen-float {
 #pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-canvas {
   background: var(--surf);
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: 14px;
   overflow: hidden;
   box-shadow: 0 6px 24px rgb(20 22 40 / .06);
   /* 卡片向上覆盖原顶栏占用的高度，和左侧项目栏从同一高度开始。 */
@@ -302,7 +302,7 @@ body.wb-fullscreen-active .fw-panel-reopen-float {
   background: var(--panel);
 }
 #pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-toolbar .wb-preview-tools-main button {
-  min-height: 32px; padding: 0 10px; border: 0; border-radius: 7px;
+  min-height: 32px; padding: 0 10px; border: 0; border-radius: 6px;
   background: transparent; font-size: 11px;
   transition: background-color 140ms ease, border-color 140ms ease, transform 140ms ease;
 }
@@ -315,7 +315,7 @@ body.wb-fullscreen-active .fw-panel-reopen-float {
 }
 #pane-flow .wb-a2.wb-studio .open-workbench-layout .wb-preview-review-button {
   display: inline-flex; align-items: center; gap: 6px; min-height: 32px;
-  padding: 0 10px; border: 0; border-radius: 8px; background: transparent;
+  padding: 0 10px; border: 0; border-radius: 6px; background: transparent;
   color: var(--tx2); font-size: 11px; white-space: nowrap; cursor: pointer;
 }
 #pane-flow .wb-a2.wb-studio .open-workbench-layout .wb-preview-review-button:hover:not(:disabled) {
@@ -330,7 +330,7 @@ body.wb-fullscreen-active .fw-panel-reopen-float {
 #pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-toolbar .wb-preview-range {
   position: absolute; top: 100%; left: 0; z-index: 10; width: 360px;
   padding: 12px; margin-top: 8px; border: 1px solid var(--line);
-  border-radius: 8px; background: var(--surf); box-shadow: 0 8px 24px rgb(20 22 40 / .12);
+  border-radius: 6px; background: var(--surf); box-shadow: 0 8px 24px rgb(20 22 40 / .12);
 }
 /* 缩略条原本被压到 96px 高（想给画面多留空间），但缩略卡本身就有 110px，
    结果卡片下半截压到了交付信息行上。让它按内容自然高，重叠消失。 */
@@ -446,7 +446,7 @@ body.wb-fullscreen-active .fw-panel-reopen-float {
   position: relative;
   display: grid; place-items: center;
   width: 32px; height: 32px; flex: 0 0 32px;
-  padding: 0; border: 1px solid transparent; border-radius: 9px;
+  padding: 0; border: 1px solid transparent; border-radius: 6px;
   background: transparent; color: var(--tx3);
   cursor: pointer;
   transition: background-color 140ms var(--eo), color 140ms var(--eo), border-color 140ms var(--eo);
@@ -468,7 +468,7 @@ body.wb-fullscreen-active .fw-panel-reopen-float {
 #pane-flow .wb-a2.wb-studio .wb-console-more {
   display: grid; place-items: center;
   width: 26px; height: 32px; flex: 0 0 26px;
-  padding: 0; border: 1px solid transparent; border-radius: 8px;
+  padding: 0; border: 1px solid transparent; border-radius: 6px;
   background: transparent; color: var(--tx3); cursor: pointer;
   transition: background-color 140ms var(--eo), color 140ms var(--eo);
 }
@@ -584,7 +584,7 @@ body.wb-fullscreen-active .fw-panel-reopen-float {
   margin: 0 16px 12px 0;
   min-height: 0;
   height: calc(100% - 12px);
-  border-radius: 20px;
+  border-radius: 14px;
   overflow: hidden;
   background: var(--surf);
   box-shadow: 0 12px 40px rgb(20 22 40 / .12), 0 2px 8px rgb(20 22 40 / .06);

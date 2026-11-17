@@ -9,7 +9,7 @@
 .fxlib .fx-cmd-search .fm-searchfield,
 .mya .fm-page-head-actions .fm-searchfield,
 .wfl .wfshop-search .fm-searchfield {
-  height:34px; border-radius:7px; background:var(--panel2,var(--hole));
+  height:34px; border-radius:6px; background:var(--panel2,var(--hole));
   border-color:var(--line); transition:border-color .15s,box-shadow .15s;
 }
 .fxlib .fx-cmd-search .fm-searchfield-input,
@@ -20,7 +20,7 @@
 .wfl .wfshop-search .fm-searchfield:focus-within { outline:none; border-color:color-mix(in srgb,var(--fg) 26%,var(--line)); background:var(--surf); box-shadow:none; }
 .fxlib .fx-toolbtn,
 .mya .fm-page-head-actions .mya-pickbtn,
-.mya .fm-page-head-actions .mya-primary { min-height:34px; border-radius:7px; font-size:11px; font-weight:500; gap:7px; }
+.mya .fm-page-head-actions .mya-primary { min-height:34px; border-radius:6px; font-size:11px; font-weight:500; gap:7px; }
 .fxlib .fx-meta { gap:12px; align-items:center; }
 .fxlib .fx-meta-count,
 .mya .mya-result-count { font-size:11px; font-variant-numeric:tabular-nums; }
@@ -30,7 +30,7 @@
 .fxlib .fx-meta-scope button em { font-size:10px; font-variant-numeric:tabular-nums; }
 .fxlib .fx-sort-select { font-size:11px; }
 /* 筛选浮层靠分组和行距组织，不影响下面的海报墙。 */
-.fxlib .fx-pop { padding:18px; border-radius:11px; }
+.fxlib .fx-pop { padding:18px; border-radius:10px; }
 .fxlib .fx-pop .fx-filtergroup + .fx-filtergroup { margin-top:18px; }
 .fxlib .fx-filterlabel { font-size:11px; font-weight:550; letter-spacing:.02em; line-height:1.7; }
 .fxlib .fx-chips { gap:7px; }
@@ -47,16 +47,16 @@
 .mya .mya-org-foot { font-size:10px; line-height:1.7; }
 .mya .mya-toolbar { box-shadow:none; }
 .mya .mya-crumb { font-size:12px; letter-spacing:-.01em; }
-.mya .mya-toolbtn { border-radius:7px; font-size:11px; font-weight:500; }
-.mya .mya-seg { border-radius:7px; }
-.mya .mya-seg button { border-radius:5px; font-size:11px; font-weight:500; }
+.mya .mya-toolbtn { border-radius:6px; font-size:11px; font-weight:500; }
+.mya .mya-seg { border-radius:6px; }
+.mya .mya-seg button { border-radius:4px; font-size:11px; font-weight:500; }
 .mya .mya-pop { border-radius:10px; padding:6px; }
 .mya .mya-poprow { border-radius:6px; font-size:12px; }
 /* 工作流保留横幅、货架及全部卡片，仅调整周围文字和控件。 */
 .wfl .wfshop-header h1 { font-weight:550; letter-spacing:-.035em; }
 .wfl .wfshop-eyebrow { font-size:9px; font-weight:500; letter-spacing:.14em; }
 .wfl .wfshop-header p { line-height:1.8; color:var(--tx2); }
-.wfl .wfshop-create { font-size:12px; font-weight:550; border-radius:8px; gap:8px; }
+.wfl .wfshop-create { font-size:12px; font-weight:550; border-radius:6px; gap:8px; }
 .wfl .wfshop-tabs button { font-size:12px; font-weight:500; letter-spacing:0; }
 .wfl .wfshop-tabs button span { font-size:11px; font-variant-numeric:tabular-nums; }
 .wfl .wfshop-tabs small { font-size:9px; font-weight:400; }
@@ -73,20 +73,20 @@
 .rfc .rfc-desc { font-size:12px; line-height:1.8; }
 .rfc .rfc-meta-line { font-size:11px; line-height:1.7; }
 .rfc .rfc-actions { align-items:center; gap:7px; }
-.rfc .rfc-gbtn { min-height:34px; border-radius:7px; font-size:11px; font-weight:500; gap:7px; }
+.rfc .rfc-gbtn { min-height:34px; border-radius:6px; font-size:11px; font-weight:500; gap:7px; }
 .rfc .rfc-panel-head h2 { font-size:16px; font-weight:550; letter-spacing:-.02em; }
 .rfc .rfc-panel-tc { font-size:10px; line-height:1.8; }
 .rfc .rfc-panel-acts { margin-top:16px; margin-bottom:9px; }
-.rfc .rfc-btn { border-radius:7px; font-size:12px; font-weight:500; }
+.rfc .rfc-btn { border-radius:6px; font-size:12px; font-weight:500; }
 .rfc .rfc-field-k { font-size:11px; line-height:1.6; }
 .rfc .rfc-field-hint { font-size:9px; line-height:1.6; }
 .rfc .rfc-field-v { font-size:12px; line-height:1.8; font-weight:500; }
 .rfc .rfc-time { font-size:11px; letter-spacing:.01em; }
 .rfc .rfc-transport-hint { font-size:10px; }
 .rfc .rfc-browse-head { align-items:center; }
-.rfc .rfc-tabs { border-radius:8px; }
-.rfc .rfc-tab { font-size:11px; font-weight:500; border-radius:5px; }
-.rfc .rfc-search { height:34px; border-radius:7px; font-size:12px; }
+.rfc .rfc-tabs { border-radius:6px; }
+.rfc .rfc-tab { font-size:11px; font-weight:500; border-radius:4px; }
+.rfc .rfc-search { height:34px; border-radius:6px; font-size:12px; }
 .rfc .rfc-selfield { font-size:10px; gap:7px; }
 .rfc .rfc-selfield select { border-radius:6px; font-size:11px; }
 .rfc .rfc-browse-count { font-size:10px; }
@@ -94,7 +94,7 @@
 .cv3 .cv3-head { align-items:center; padding-top:0; }
 .cv3 .cv3-title-row { gap:10px; }
 .cv3 .cv3-crumb { font-size:14px; font-weight:550; line-height:22px; letter-spacing:-.02em; }
-.cv3 .cv3-search { height:34px; border:1px solid transparent; border-radius:7px; }
+.cv3 .cv3-search { height:34px; border:1px solid transparent; border-radius:6px; }
 .cv3 .cv3-search input { font-size:12px; }
 .cv3 .cv3-search:focus-within { border-color:var(--acc); box-shadow:0 0 0 2px color-mix(in srgb,var(--acc) 12%,transparent); }
 .cv3 .cv3-menu { border-radius:10px; }
@@ -158,7 +158,7 @@
 .mya .fm-page-head-actions .mya-clearbtn-sm,
 .mya .fm-page-head-actions .mya-toolbtn { flex:0 0 auto; }
 .mya .fm-page-head-actions .mya-spacer { display:block; flex:1 1 auto; min-width:0; }
-.mya .mya-content-search .fm-searchfield { width:100%; max-width:none; height:34px; border-radius:7px; }
+.mya .mya-content-search .fm-searchfield { width:100%; max-width:none; height:34px; border-radius:6px; }
 .mya .mya-content-search .fm-searchfield-input { font-size:12px; }
 .mya .mya-content-search .fm-searchfield:focus-within { border-color:color-mix(in srgb,var(--fg) 26%,var(--line)); background:var(--surf); box-shadow:none; }
 .mya .mya-crumb[hidden] { display:none; }
@@ -246,7 +246,7 @@
 .fm-local-gate { min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:32px;color:var(--fg);background:var(--bg);text-align:center; }
 .fm-local-gate h1 { font-size:20px;font-weight:600; }
 .fm-local-gate p { font-size:13px;max-width:560px;line-height:1.7;color:var(--dim); }
-.fm-save-status { position:fixed;right:18px;bottom:14px;z-index:80;display:flex;align-items:center;gap:10px;max-width:calc(100vw - 36px);padding:9px 13px;border:1px solid var(--line);border-radius:8px;background:var(--surf);color:var(--fg);font-size:12px;box-shadow:0 6px 20px #0001; }
+.fm-save-status { position:fixed;right:18px;bottom:14px;z-index:80;display:flex;align-items:center;gap:10px;max-width:calc(100vw - 36px);padding:9px 13px;border:1px solid var(--line);border-radius:10px;background:var(--surf);color:var(--fg);font-size:12px;box-shadow:0 6px 20px #0001; }
 
 /* ── 库级页面页头统一（第二轮精修）────────────────────────────
    特效库、我的素材、工作流三页的标题放在同一位置：离顶 16px 的 56px 标题行，

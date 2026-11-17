@@ -94,7 +94,7 @@
   max-width: 220px;
   height: 56px;
   padding: 0 8px;
-  border-radius: 16px;
+  border-radius: 14px;
   background: color-mix(in srgb, var(--fg) 5%, transparent);
 }
 
@@ -105,7 +105,7 @@
   place-items: center;
   width: 40px;
   height: 40px;
-  border-radius: 12px;
+  border-radius: 10px;
   background: var(--surf);
   color: var(--tx2);
 }

@@ -36,7 +36,7 @@
 
 .cs-line {
   height: 12px;
-  border-radius: 5px;
+  border-radius: 4px;
   background: linear-gradient(
     90deg,
     var(--hole) 25%,
@@ -58,7 +58,7 @@
 
 .cs-list-row {
   height: 14px;
-  border-radius: 5px;
+  border-radius: 4px;
   background: linear-gradient(
     90deg,
     var(--hole) 25%,
