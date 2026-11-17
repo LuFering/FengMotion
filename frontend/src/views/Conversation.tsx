@@ -3161,7 +3161,6 @@ export function Conversation(props: {
               {userMessages.length === 0 && !activeIsServer && sessionDraft.draft.intentAction !== 'query' && (
                 <div className="cv3-start-empty">
                   <h2>把想法做成视频</h2>
-                  <p>从一句需求开始，也可以带上素材或参考片。</p>
                   <div>
                     <Button disabled={projectPending || props.projectsLoading} onClick={() => void startCreationFromEmpty()}>{projectPending ? '正在准备项目…' : props.openProject ? '在当前项目开始制作' : '新建项目开始制作'}</Button>
                     <Button variant="ghost" disabled={projectPending} onClick={() => { sessionDraft.updateDraft({ intentAction: 'query' }); setEntryNote({ sessionId: props.activeSessionId, text: '先在本页梳理想法，不制作视频；对话刷新后不保留。' }) }}>先聊想法</Button>

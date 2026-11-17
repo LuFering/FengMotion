@@ -405,6 +405,10 @@ export function FxLibrary() {
     [scoped, sourceFilter, cat, exec, inputKind, impl, maxComplexity, previewKind],
   )
 
+  /* 可见技法的能力标签全部相同时（目前 379 项都是「知识参考」），每张卡都写一遍只是噪声；
+     能力仍在详情抽屉和筛选里。出现不同能力时卡片上的标签自动回来，用来区分。 */
+  const uniformExec = useMemo(() => visible.length > 0 && visible.every((t) => t.execType === visible[0].execType), [visible])
+
   const current = selectedId ? techniques.find((t) => t.id === selectedId) ?? null : null
 
   const sorted = useMemo(() => {
@@ -894,8 +898,8 @@ export function FxLibrary() {
                       <h3 className="fxc-title">{t.name}</h3>
                       <p className="fxc-intent">{t.intent}</p>
                       <div className="fxc-meta">
-                        <span>{execLabel(t.execType)}</span>
-                        <span className="fxc-inputs">{t.inputLabels.join(' / ')}</span>
+                        {!uniformExec && <span>{execLabel(t.execType)}</span>}
+                        {t.inputLabels.length > 0 && <span className="fxc-inputs">{t.inputLabels.join(' / ')}</span>}
                       </div>
                     </div>
                   </article>

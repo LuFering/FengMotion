@@ -52,12 +52,12 @@ export function MonitorStageEmpty({ stage, realRunning }: {
             {waiting
               ? '在左侧控制台补充要求或提问，AI 将据此继续完善画面。'
               : running
-              ? '画面生成完毕后将在此处自动播放并生成第一版工程。'
+              ? '画面生成后在这里播放。'
               : stage.lastRunStatus === 'failed'
               ? '可在左侧查看失败原因，调整要求后重试。'
               : stage.lastRunStatus === 'cancelled'
               ? '可在左侧查看制作记录，再决定如何继续。'
-              : '在左侧提出制作要求，生成的成片或预览画面将在此播放。'}
+              : '在左侧提出制作要求。'}
           </p>
         </div>
       </div>

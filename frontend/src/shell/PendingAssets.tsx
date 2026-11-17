@@ -286,7 +286,7 @@ export function PendingAssetsDrawer({
         <header className="fmp-head">
           <div>
             <h2>待发送</h2>
-            <p>先攒起来，再一起交给 AI。加入这里还没有发送，也没有算作已使用。</p>
+            <p>加入后尚未发送，也不算已使用。</p>
           </div>
           <button type="button" className="fmp-x" aria-label="关闭" onClick={onClose}><X size={16} /></button>
         </header>
@@ -296,7 +296,7 @@ export function PendingAssetsDrawer({
           <div className="fmp-empty">
             <PackagePlus size={26} />
             <b>还没有待发送的素材</b>
-            <p>在「我的素材」里点卡片上的 ＋，或把卡片拖到左侧导航的「待发送」。</p>
+            <p>在素材、参考片或特效卡片上点 ＋，或拖到左侧「待发送」。</p>
           </div>
         ) : (
           <ul className="fmp-list">
@@ -395,7 +395,7 @@ export function PendingAssetsDrawer({
           <span className="fmp-foot-note">
             {resolved.length > 0 && sendable.length < resolved.length
               ? `${resolved.length - sendable.length} 个素材已失效，不会被发送`
-              : '清空只清这份清单，不会删除素材库里的文件'}
+              : '清空不会删除素材库里的文件'}
           </span>
           <button type="button" className="fmp-send" disabled={sendable.length === 0 || sending}
                   onClick={() => {

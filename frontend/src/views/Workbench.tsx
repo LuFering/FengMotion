@@ -4874,8 +4874,8 @@ function RightPanel({ projectId, target, preview, projectVersionNumber, projectV
                   </div>
                   <div className="text-xs text-[var(--tx2)] max-w-[220px] mx-auto leading-relaxed">
                     {currentSession
-                      ? '在下方输入框中写下修改意见或问题，AI 将为您调整工程。'
-                      : '输入制作要求或对画面的具体意见，将自动为本工程开启创作对话。'}
+                      ? '写下修改意见或问题。'
+                      : '发送第一条要求后会为本工程开启对话。'}
                   </div>
                 </div>
               ) : (
