@@ -69,6 +69,7 @@ export type HarnessAvailability = 'available' | 'not_connected' | 'misconfigured
 export function matchHarness(list: HarnessDescriptor[], localId: string) {
   const byId = list.find((h) => h.id === localId)
   if (byId) return byId
+  if (localId === 'deepseek') return list.find((h) => h.id === 'dsh-sdk' || h.name.toLowerCase().includes('deepseek'))
   const byName = list.find((h) => h.name === localId)
   if (byName) return byName
   const lower = localId.toLowerCase()
@@ -81,44 +82,16 @@ export function matchHarness(list: HarnessDescriptor[], localId: string) {
   )
 }
 
-/**
- * 合成单个引擎的可用性。
- *
- * 关键：**DSH 未接入时，所有引擎一律是「未接入」**，不管 `/api/harnesses` 有没有返回它 ——
- * 一个还没接上的 Agent 谈不上「可用」。反过来，DSH 已接入但该引擎自身 unavailable，
- * 才是「该引擎不可用」。
- *
- * `unknown` 只留给「确实无法判断」的情形（能力声明读不到），不是用来兜住「未接入」的。
- */
+/** 按每个引擎自身的探测结果判断可用性，彼此独立。 */
 export function availabilityOf(
   probe: HarnessProbe,
   harnessId: string,
 ): { state: HarnessAvailability; note: string | null } {
   // 0) 还在探测 → 不下结论。首屏这段大约 1~3 秒，说「检测中」比说「未接入」诚实。
-  if (probe.access === 'probing' || (probe.access === 'unknown' && probe.listState === 'loading')) {
+  if (probe.listState === 'loading') {
     return { state: 'checking', note: null }
   }
-  // 1) DSH 层面没接上 → 一律未接入（这是当前真实状态）
-  if (probe.access === 'unavailable') {
-    return { state: 'not_connected', note: 'DSH 尚未接入，引擎不能执行。' }
-  }
-  if (probe.access === 'demo') {
-    return { state: 'not_connected', note: 'DSH 目前只有演示数据，不能执行真实任务。' }
-  }
-  // 2) 能力声明读不到 → 只能如实说未知
-  if (probe.access === 'unknown') {
-    return { state: 'unknown', note: probe.note ?? '读不到能力声明，无法判断是否已接入。' }
-  }
-  // 3) DSH 已接入，再看该引擎自身状态
-  if (probe.listState !== 'ready') {
-    return {
-      state: 'unknown',
-      note:
-        probe.listState === 'not_implemented'
-          ? '后端还没有引擎清单接口。'
-          : probe.note ?? '读不到引擎清单。',
-    }
-  }
+  if (probe.listState !== 'ready') return { state: 'unknown', note: probe.note ?? '读不到本机引擎清单。' }
   const found = matchHarness(probe.harnesses, harnessId)
   /**
    * 后端清单里没有这个引擎 → **未接入**（不是「状态未知」）。
@@ -128,7 +101,7 @@ export function availabilityOf(
    * 只有「能力声明读不到」才是真的无法判断。
    */
   if (!found) return { state: 'not_connected', note: '本机未接入这个引擎。' }
-  if (found.status === 'available') return { state: 'available', note: null }
+  if (found.status === 'available') return { state: 'available', note: found.note ?? null }
   if (found.status === 'misconfigured') {
     return { state: 'misconfigured', note: found.note ?? '引擎配置有误。' }
   }
@@ -216,13 +189,13 @@ export function useHarnesses() {
     modelsByHarness: {},
   })
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (force = false) => {
     setProbe((prev) => ({ ...prev, access: 'probing', listState: 'loading', note: null }))
 
     // 两个请求互不阻塞，也不互相拖垮
     const [accessResult, listResult] = await Promise.allSettled([
       studioHttpApi().system.capabilities(),
-      studioHttpApi().harnesses.list(),
+      studioHttpApi().harnesses.list({ refresh: force }),
     ])
 
     let access: DshAccess = 'unknown'

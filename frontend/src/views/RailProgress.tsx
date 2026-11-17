@@ -7,6 +7,7 @@ import { WF_NODE_DEFS } from '@/data/workflowTemplates'
 import { fmtDay, TASK_STATUS_LABEL } from '@/shell/status'
 import type { AgentReference, TaskEvent } from '@/services/studioApi'
 import type { FilmCreateResult } from '@/services/api/workflowContext'
+import { runMatchesDefinition } from '@/services/workflowPresentation'
 import { Progress } from '@/components/ui/progress'
 
 /**
@@ -69,7 +70,7 @@ export function RailProgressPanel({ workflow, projectId, prompt, references, dis
   const [finished, setFinished] = useState<WorkflowRun | null>(null)
   const startedRef = useRef(false)
   const execution = useRef<{ cancel: () => void } | null>(null)
-  useEffect(() => () => execution.current?.cancel(), [])
+  useEffect(() => () => { if(!realCreation)execution.current?.cancel() }, [realCreation])
   /* 进来先看上次跑成什么样；自己再跑一次就换成本次的结果 */
   const run = finished ?? (workflow ? (workflowService.listRuns(workflow.id)[0] ?? null) : null)
 
@@ -109,7 +110,7 @@ export function RailProgressPanel({ workflow, projectId, prompt, references, dis
 
   if (!workflow || stages.length === 0) return null
 
-  const statusOfNode = (id: string): WfNodeStatus => statuses[id] ?? run?.nodeStatus?.[id] ?? 'pending'
+  const statusOfNode = (id: string): WfNodeStatus => statuses[id] ?? (runMatchesDefinition(run,workflow,false)?run?.nodeStatus?.[id]:undefined) ?? 'pending'
   /* 双条件才算做完：运行标了 completed，并且这一步留下了结论 */
   const stageDone = (n: (typeof stages)[number]) => {
     const st = statusOfNode(n.id)
@@ -158,8 +159,8 @@ export function RailProgressPanel({ workflow, projectId, prompt, references, dis
           <span className="fw-prog-demo">{realCreation ? 'Agent 创作与渲染' : '演示执行器'}</span>
         </span>
         <div className="fw-prog-acts">
-          <button type="button" className="fw-prog-run" disabled={disabled || (running && realCreation)} onClick={() => running ? execution.current?.cancel() : doRun()}>
-            {realCreation ? (running ? '正在制作' : run ? '继续制作' : '开始制作') : running ? '停止演示' : run ? '再次演示' : '运行演示'}
+          <button type="button" className="fw-prog-run" disabled={disabled} onClick={() => running ? execution.current?.cancel() : doRun()}>
+            {realCreation ? (running ? '取消制作' : run ? '继续制作' : '开始制作') : running ? '停止演示' : run ? '再次演示' : '运行演示'}
           </button>
           <button type="button" className="fw-prog-mini" onClick={onOpenExecution}>查看执行</button>
           <button type="button" className="fw-prog-mini" onClick={onOpenEditor}>工作流</button>

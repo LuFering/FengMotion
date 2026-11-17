@@ -65,6 +65,14 @@ public class FxCapabilityImporter {
     public record ImportResult(int imported, int skipped, String note) {
     }
 
+    /** 单批事务写入，失败时交由调用方报告，不将部分失败称为成功。 */
+    @Transactional
+    public int importItems(List<CapabilitySource.ParsedItem> items) {
+        Instant now = Instant.now();
+        for (var item : dedupe(items)) repository.upsert(toTechnique(item, now));
+        return dedupe(items).size();
+    }
+
     /** 导入配置目录下的全部技能库。 */
     @Transactional
     public ImportResult importAll() {
@@ -140,29 +148,6 @@ public class FxCapabilityImporter {
         log.info("能力库导入：{} 个来源配置，解析 {} 条，去重后 {} 条，跳过 {}",
                 profiles.size(), collected.size(), unique.size(), skipped);
         return new ImportResult(imported, skipped, null);
-    }
-
-    /**
-     * 只读解析扫描指定仓库（不写数据库，供前端导入弹窗预览）。
-     */
-    public List<CapabilitySource.ParsedItem> scanOnly(Path root, String repoFilter) {
-        List<CapabilitySource.ParsedItem> collected = new ArrayList<>();
-        List<SourceProfile> profiles = profileLoader.load();
-        for (SourceProfile profile : profiles) {
-            if (repoFilter != null && !repoFilter.isBlank() && !repoFilter.equalsIgnoreCase("all")) {
-                if (!profile.name().equalsIgnoreCase(repoFilter) && !profile.name().contains(repoFilter)) {
-                    continue;
-                }
-            }
-            Path libraryRoot = profile.resolveRoot(root);
-            if (!Files.isDirectory(libraryRoot)) {
-                continue;
-            }
-            for (CapabilitySource source : sourcesFor(profile)) {
-                scanWithProfile(source, libraryRoot, profile, collected);
-            }
-        }
-        return dedupe(collected);
     }
 
     private static List<CapabilitySource.ParsedItem> dedupe(List<CapabilitySource.ParsedItem> items) {
@@ -334,7 +319,7 @@ public class FxCapabilityImporter {
      * <p>匹配不到时归到「合成」。不挑一个看起来接近的：
      * 分类错了用户会按错误的入口去找，而「合成」是一个可解释的兜底。</p>
      */
-    public static FxStates.Category mapCategory(String hint) {
+    static FxStates.Category mapCategory(String hint) {
         if (hint == null || hint.isBlank()) {
             return FxStates.Category.COMPOSITING;
         }

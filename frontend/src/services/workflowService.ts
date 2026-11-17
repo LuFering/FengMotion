@@ -1,3 +1,8 @@
+import { readHarnessSelection } from '../shell/useHarnessSelection'
+import { persistLocalDocument, flushLocalDocuments } from './localDocuments'
+import { executeWorkflow, type NodeIO } from './workflowExecution'
+import { submitCreation, cancelCreationJob } from './creationClient'
+import { ensureCreationContext } from './creationEntry'
 /**
  * 工作流服务层（v5 重构 · Mock 适配器）
  *
@@ -72,6 +77,10 @@ export interface WorkflowRun {
   workflowId: string
   workflowName: string
   revision: number
+  /** Immutable run identity; absent on legacy records. */
+  projectId?: string | null
+  executionMode?: 'project' | 'demo' | 'evaluation' | 'single-demo'
+  nodeLabels?: Record<string, string>
   status: TaskStatus
   task: AgentTask
   events: TaskEvent[]
@@ -80,7 +89,11 @@ export interface WorkflowRun {
   nodeStatus: Record<string, WfNodeStatus>
   startedAt: string
   finishedAt: string | null
-  demo: true
+  demo: boolean
+  nodeIO?: Record<string,NodeIO>
+  definition?: WorkflowDef
+  engineSelection?: ReturnType<typeof readHarnessSelection>
+  nodeAttempts?: Record<string,number>
 }
 
 const WF_KEY = 'fm-workflows-v2'
@@ -101,12 +114,19 @@ function readJson<T>(key: string, fallback: T): T {
   }
 }
 
-function writeJson(key: string, value: unknown) {
-  try {
-    localStorage.setItem(key, JSON.stringify(value))
-  } catch {
-    /* 存储不可用时仅内存生效 */
+function writeJson(key: string, value: unknown): boolean {
+  try { localStorage.setItem(key, JSON.stringify(value)); persistLocalDocument(key, value); return true }
+  catch { return false }
+}
+
+function writeWorkflows(list: WorkflowDef[]) {
+  const versions=readJson<Array<WorkflowDef & {definitionId:string}>>('fm-workflow-versions-v1',[])
+  for(const wf of list) {
+    const id=`${wf.id}@${wf.revision}`
+    if(!versions.some(v=>v.id===id))versions.push({...structuredClone(wf),definitionId:wf.id,id})
   }
+  if(!writeJson('fm-workflow-versions-v1',versions))throw new Error('工作流版本快照未能保存')
+  if (!writeJson(WF_KEY, list)) throw new Error('工作流未能保存。浏览器存储可能已满或被禁用，请释放空间后重试。')
 }
 
 function seedWorkflows(): WorkflowDef[] {
@@ -154,6 +174,10 @@ function seedWorkflows(): WorkflowDef[] {
 }
 
 function loadWorkflows(): WorkflowDef[] {
+  // An intentionally empty library must stay empty after deleting its last item.
+  try {
+    if (localStorage.getItem(WF_KEY) !== null) return readJson<WorkflowDef[]>(WF_KEY, [])
+  } catch { return [] }
   const list = readJson<WorkflowDef[]>(WF_KEY, [])
   if (list.length === 0) {
     const seeded = seedWorkflows()
@@ -168,7 +192,7 @@ function loadRuns(): WorkflowRun[] {
 }
 
 function saveRuns(runs: WorkflowRun[]) {
-  writeJson(RUN_KEY, runs.slice(0, 60))
+  if(!writeJson(RUN_KEY, runs.slice(0,60)))throw new Error('运行记录未能保存，请释放存储空间后重试。')
 }
 
 export const workflowService = {
@@ -178,6 +202,15 @@ export const workflowService = {
 
   getWorkflow(id: string): WorkflowDef | null {
     return loadWorkflows().find((w) => w.id === id) ?? null
+  },
+
+  createEmpty(name = '未命名工作流'): WorkflowDef {
+    const now = new Date().toISOString()
+    const wf: WorkflowDef = { id: uid('wf'), name, description: '', path: 'prompt-first', presetId: 'general', projectId: null, revision: 1, createdAt: now, updatedAt: now, nodes: [], edges: [] }
+    const list = loadWorkflows()
+    list.push(wf)
+    writeWorkflows(list)
+    return wf
   },
 
   createFromPath(
@@ -202,7 +235,7 @@ export const workflowService = {
       resourceReferences: opts?.resourceReferences ? structuredClone(opts.resourceReferences) : undefined,
       path,
       presetId,
-      projectId: opts?.projectId !== undefined ? opts.projectId : presetId === 'talking' ? 'token' : null,
+      projectId: opts?.projectId ?? null,
       revision: 1,
       createdAt: now,
       updatedAt: now,
@@ -211,11 +244,11 @@ export const workflowService = {
     }
     const list = loadWorkflows()
     list.push(wf)
-    writeJson(WF_KEY, list)
+    writeWorkflows(list)
     return wf
   },
 
-  saveWorkflow(id: string, patch: { name?: string; description?: string; nodes: WfNodeInstance[]; edges: WfEdgeInstance[] }): WorkflowDef | null {
+  saveWorkflow(id: string, patch: { name?: string; description?: string; projectId?: string | null; nodes: WfNodeInstance[]; edges: WfEdgeInstance[] }): WorkflowDef | null {
     const list = loadWorkflows()
     const at = list.findIndex((w) => w.id === id)
     if (at < 0) return null
@@ -223,13 +256,14 @@ export const workflowService = {
       ...list[at],
       name: patch.name ?? list[at].name,
       description: patch.description ?? list[at].description,
+      projectId: patch.projectId === undefined ? list[at].projectId : patch.projectId,
       nodes: patch.nodes,
       edges: patch.edges,
       revision: list[at].revision + 1,
       updatedAt: new Date().toISOString(),
     }
     list[at] = next
-    writeJson(WF_KEY, list)
+    writeWorkflows(list)
     return next
   },
 
@@ -247,12 +281,12 @@ export const workflowService = {
     }
     const list = loadWorkflows()
     list.push(copy)
-    writeJson(WF_KEY, list)
+    writeWorkflows(list)
     return copy
   },
 
   deleteWorkflow(id: string) {
-    writeJson(WF_KEY, loadWorkflows().filter((w) => w.id !== id))
+    writeWorkflows(loadWorkflows().filter((w) => w.id !== id))
   },
 
   listRuns(workflowId?: string): WorkflowRun[] {
@@ -337,8 +371,10 @@ export const QUALITY_QUESTIONS = [
   '结尾是否有余像',
 ]
 
-function topoOrder(wf: WorkflowDef): WfNodeInstance[] {
+function topoOrder(wf: WorkflowDef): WfNodeInstance[] | null {
   const nodes = wf.nodes.filter((n) => n.type !== 'lane')
+  const ids = new Set(nodes.map((n) => n.id))
+  if (ids.size !== nodes.length || wf.edges.some((e) => !ids.has(e.source) || !ids.has(e.target))) return null
   const indegree = new Map<string, number>(nodes.map((n) => [n.id, 0]))
   for (const e of wf.edges) indegree.set(e.target, (indegree.get(e.target) ?? 0) + 1)
   const queue = nodes.filter((n) => (indegree.get(n.id) ?? 0) === 0)
@@ -357,7 +393,7 @@ function topoOrder(wf: WorkflowDef): WfNodeInstance[] {
       }
     }
   }
-  return order.length === nodes.length ? order : nodes
+  return order.length === nodes.length ? order : null
 }
 
 function incoming(wf: WorkflowDef, nodeId: string, port: string): WfEdgeInstance | undefined {
@@ -498,6 +534,7 @@ export function startDemoRun(
     onCreateResult?: (result: FilmCreateResult) => void
   },
 ): DemoRunHandle {
+  if (callbacks.projectId && wf.path !== 'structured') return startProjectGraph(wf,callbacks)
   const runId = uid('run')
   const taskId = uid('task')
   const startedAt = new Date().toISOString()
@@ -585,12 +622,19 @@ export function startDemoRun(
       }
     } else {
       emit('accepted', 'queued', `已接收运行请求（${wf.name} · 修订 ${wf.revision}）。Prompt-first 路径无强制门。`)
+      const order = topoOrder(wf)
+      if (!order) {
+        status = 'failed'
+        emit('error', 'failed', '工作流连线存在循环或无效节点，请修正后再运行。')
+      }
 
       /* 唯一真实的一步：把用户原文落进项目目录，建立 workflow-v0.1.0 认的创作上下文。
          没有这一步，后面所有「产物快照」都建在空地基上 —— 那套流程要读
          prompt.original.md 才有创作依据。失败要如实说失败，并继续把
          其余演示节点跑完会让用户以为上下文建好了。 */
-      if (callbacks.projectId && (callbacks.prompt ?? '').trim()) {
+      if (status === 'failed') {
+        // Validate before initializing or changing the project.
+      } else if (callbacks.projectId && (callbacks.prompt ?? '').trim()) {
         emit('progress', 'running', '正在建立 workflow-v0.1.0 创作上下文（写入 prompt.original.md）…')
         try {
           const outcome = await studioHttpApi().workflowContext.init(callbacks.projectId, callbacks.prompt)
@@ -625,8 +669,8 @@ export function startDemoRun(
           + 'workflow-v0.1.0 需要 prompt.original.md 保存你的原文，而不是模板占位。')
       }
 
-      const order = status === 'failed' ? [] : topoOrder(wf)
-      for (const node of order) {
+      const runnable = status === 'failed' ? [] : (order ?? [])
+      for (const node of runnable) {
         if (cancelled) {
           status = 'cancelled'
           setStatus(node.id, 'skipped')
@@ -639,7 +683,7 @@ export function startDemoRun(
           setStatus(node.id, 'failed')
           emit('error', 'failed', problem)
           status = 'failed'
-          for (const rest of order.slice(order.indexOf(node) + 1)) setStatus(rest.id, 'skipped')
+          for (const rest of runnable.slice(runnable.indexOf(node) + 1)) setStatus(rest.id, 'skipped')
           break
         }
         setStatus(node.id, 'running')
@@ -668,7 +712,7 @@ export function startDemoRun(
               emit('progress', 'awaiting_info',
                 `${label}：等待补充信息，本轮没有渲染新片。${rendered.reply}`)
               status = 'awaiting_info'
-              for (const rest of order.slice(order.indexOf(node) + 1)) setStatus(rest.id, 'skipped')
+              for (const rest of runnable.slice(runnable.indexOf(node) + 1)) setStatus(rest.id, 'skipped')
               break
             }
             createdArtifact = rendered
@@ -702,7 +746,7 @@ export function startDemoRun(
             setStatus(node.id, 'failed')
             emit('error', 'failed', `${label}失败：${message.slice(0, 300)}`)
             status = 'failed'
-            for (const rest of order.slice(order.indexOf(node) + 1)) setStatus(rest.id, 'skipped')
+            for (const rest of runnable.slice(runnable.indexOf(node) + 1)) setStatus(rest.id, 'skipped')
             break
           }
           continue
@@ -747,6 +791,9 @@ export function startDemoRun(
       workflowId: wf.id,
       workflowName: wf.name,
       revision: wf.revision,
+      projectId: callbacks.projectId ?? null,
+      nodeLabels: Object.fromEntries(wf.nodes.filter((n) => n.type !== 'lane').map((n) => [n.id, defForNode(n)?.label ?? n.type])),
+      executionMode: wf.path === 'structured' ? 'evaluation' : callbacks.projectId ? 'project' : 'demo',
       status,
       task,
       events,
@@ -899,6 +946,9 @@ export function startSingleNodeRun(
       workflowId: wf.id,
       workflowName: wf.name,
       revision: wf.revision,
+      projectId: wf.projectId,
+      nodeLabels: Object.fromEntries(wf.nodes.filter((n) => n.type !== 'lane').map((n) => [n.id, defForNode(n)?.label ?? n.type])),
+      executionMode: wf.path === 'structured' ? 'evaluation' : 'single-demo',
       status,
       task,
       events,
@@ -916,4 +966,65 @@ export function startSingleNodeRun(
   })()
 
   return { runId, done, cancel: () => { cancelled = true } }
+}
+
+
+export function resumeProjectRun(run:WorkflowRun,callbacks:Parameters<typeof startDemoRun>[1]) {
+  if(!run.definition || !run.projectId || !['running','awaiting_info'].includes(run.status))throw new Error('此记录没有可继续的执行快照')
+  return startProjectGraph(run.definition,{...callbacks,projectId:run.projectId},run)
+}
+
+export function retryFailedProjectRun(previous:WorkflowRun,callbacks:Parameters<typeof startDemoRun>[1]){
+  if(!previous.definition||!previous.projectId||previous.status!=='failed')throw new Error('此运行没有可重试的失败节点')
+  const copy=structuredClone(previous)
+  copy.nodeAttempts={...copy.nodeAttempts}
+  for(const [id,io] of Object.entries(copy.nodeIO??{}))if(io.error){copy.nodeAttempts[id]=(copy.nodeAttempts[id]??0)+1;io.outputs={};delete io.error;}
+  copy.status='running'
+  return startProjectGraph(copy.definition!,{...callbacks,projectId:copy.projectId!},copy)
+}
+
+const activeGraphRuns=new Map<string,DemoRunHandle>()
+function startProjectGraph(wf:WorkflowDef,callbacks:Parameters<typeof startDemoRun>[1],resume?:WorkflowRun):DemoRunHandle {
+  if(resume&&activeGraphRuns.has(resume.id))return activeGraphRuns.get(resume.id)!
+  const runId=resume?.id??uid('run'),at=resume?.startedAt??new Date().toISOString()
+  const fixed=structuredClone(wf)
+  if(callbacks.prompt){const n=fixed.nodes.find(n=>n.type==='prompt');if(n)n.params.text=callbacks.prompt}
+  if(callbacks.references){const refs=fixed.nodes.find(n=>n.type==='refs');if(refs)fixed.resourceReferences=callbacks.references}
+  const run:WorkflowRun=resume?structuredClone(resume):{id:runId,workflowId:wf.id,workflowName:wf.name,revision:wf.revision,projectId:callbacks.projectId??null,
+    executionMode:'project',nodeLabels:Object.fromEntries(wf.nodes.map(n=>[n.id,defForNode(n)?.label??n.type])),
+    definition:fixed,engineSelection:readHarnessSelection(),nodeIO:{},status:'running',task:{id:runId,kind:'modify',status:'running',mock:false,title:wf.name,createdAt:at},events:[],artifacts:[],changes:null,nodeStatus:{},startedAt:at,finishedAt:null,demo:false}
+  let cancelled=false
+  let activeRequest:string|null=null
+  const save=async()=>{const list=loadRuns();saveRuns([run,...list.filter(r=>r.id!==runId)]);await flushLocalDocuments()}
+  const done=(async()=>{
+    try{
+      run.status='running';run.task.status='running';run.finishedAt=null
+      await save()
+      const result=await executeWorkflow(fixed,{
+        cancelled:()=>cancelled,
+        completedIO:run.nodeIO,
+        resourceReferences:(id)=>workflowResourceReferences({...fixed,nodes:fixed.nodes.filter(n=>n.id===id)}),
+        onStatus:(id,status)=>{run.nodeStatus[id]=status;callbacks.onNodeStatus(id,status)},
+        saveIO:async io=>{run.nodeIO=structuredClone(io);await save()},
+        create:async(nodeId,input)=>{
+          await ensureCreationContext(callbacks.projectId!,input.intent,studioHttpApi().workflowContext)
+          activeRequest=`${runId}-${nodeId}${run.nodeAttempts?.[nodeId]?`-retry${run.nodeAttempts[nodeId]}`:''}`
+          const result=await submitCreation({projectId:callbacks.projectId!,requestId:activeRequest,intent:input.intent,references:input.references as AgentReference[],selection:run.engineSelection??readHarnessSelection(),workflow:{id:fixed.id,revision:fixed.revision,nodeId,runId}},job=>{
+            const event:TaskEvent={id:uid('evt'),taskId:runId,kind:'progress',status:'running',mock:false,message:`制作阶段：${job.phase}`,at:new Date().toISOString()}
+            if(run.events.at(-1)?.message!==event.message){run.events.push(event);callbacks.onEvent(event)}
+          })
+          activeRequest=null
+          callbacks.onCreateResult?.(result)
+          if(result.state==='rendered'&&result.artifactPath)run.artifacts.push({id:uid('art'),nodeId,nodeType:'create',kind:'render',title:'制作与渲染',filename:result.artifactPath.split('/').pop()??'film.mp4',summary:`版本 v${result.version}`,content:JSON.stringify({...result,file:studioHttpApi().artifacts.contentUrl(callbacks.projectId!,result.artifactPath)}),demo:false})
+          return result
+        },
+      })
+      run.nodeIO=result.nodeIO;run.status=result.status;run.task.status=result.status
+      if(result.error){const e:TaskEvent={id:uid('evt'),taskId:runId,kind:'error',status:'failed',mock:false,message:result.error,at:new Date().toISOString()};run.events.push(e);callbacks.onEvent(e)}
+    }catch(error){run.status='failed';run.task.status='failed';const e:TaskEvent={id:uid('evt'),taskId:runId,kind:'error',status:'failed',mock:false,message:error instanceof Error?error.message:'运行失败',at:new Date().toISOString()};run.events.push(e);callbacks.onEvent(e)}
+    run.finishedAt=run.status==='running'?null:new Date().toISOString();activeGraphRuns.delete(runId);try{await save()}catch(e){callbacks.onEvent({id:uid('evt'),taskId:runId,kind:'error',status:'failed',mock:false,message:e instanceof Error?e.message:'运行记录保存未完成',at:new Date().toISOString()})}return run
+  })()
+  const handle={runId,done,cancel:()=>{cancelled=true;if(activeRequest)void cancelCreationJob(callbacks.projectId!,activeRequest).catch(e=>{cancelled=false;callbacks.onEvent({id:uid('evt'),taskId:runId,kind:'error',status:'failed',mock:false,message:e instanceof Error?e.message:'取消未送达，任务仍可能执行',at:new Date().toISOString()})})}}
+  activeGraphRuns.set(runId,handle)
+  return handle
 }

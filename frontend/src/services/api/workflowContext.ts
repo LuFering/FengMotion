@@ -285,7 +285,7 @@ export interface WorkflowContextResource {
   unsavedReplies(projectId: string, sessionId?: string): Promise<UnsavedReplyItem[]>
   syncReply(projectId: string, requestId: string): Promise<{ success: boolean; sessionSaved: boolean }>
   previewImageCapability(projectId: string): Promise<{ supported: boolean; baseVersionCheck?: boolean; atomicCorrection?: boolean; correctionRetryId?: boolean }>
-  create(projectId: string, intent?: string, references?: AgentReference[], previewImage?: string, baseVersion?: number, correction?: string, requestId?: string, sessionId?: string, userMessageId?: string): Promise<FilmCreateResult>
+  create(projectId: string, intent?: string, references?: AgentReference[], previewImage?: string, baseVersion?: number, correction?: string, requestId?: string, sessionId?: string, userMessageId?: string, selection?: { harness: string; model?: string; reasoningEffort?: string }): Promise<FilmCreateResult>
 }
 
 /**
@@ -352,7 +352,7 @@ export function createWorkflowContextResource(http: HttpClient): WorkflowContext
       return http.post<{ success: boolean; sessionSaved: boolean }>(`${base(projectId)}/creation/${encodeURIComponent(requestId)}/sync-reply`)
     },
 
-    create(projectId, intent, references, previewImage, baseVersion, correction, requestId, sessionId, userMessageId) {
+    create(projectId, intent, references, previewImage, baseVersion, correction, requestId, sessionId, userMessageId, selection) {
       /* agent 改工程要读需求、写代码、可能自查，实测 100~200 秒。
          给足时间，别让默认 15 秒把一次正常创作当成失败。
 
@@ -361,6 +361,7 @@ export function createWorkflowContextResource(http: HttpClient): WorkflowContext
       return http.post<FilmCreateResult>(`${base(projectId)}/create`,
         {
           intent: intent ?? '',
+          ...selection,
           ...(references !== undefined ? { references } : {}),
           ...(previewImage ? { previewImage } : {}),
           ...(baseVersion !== undefined ? { baseVersion } : {}),

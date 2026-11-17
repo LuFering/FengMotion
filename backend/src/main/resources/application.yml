@@ -66,13 +66,13 @@ fengmotion:
   cors:
     # Electron 壳以 fengmotion://app 为 origin，必须显式列入白名单；
     # 否则壳内所有 fetch 都会被 CORS 拦成 403。
-    allowed-origins: http://localhost:5173,http://localhost:4173,fengmotion://app
+    allowed-origins: http://localhost:5173,http://localhost:4173,http://127.0.0.1:5173,http://127.0.0.1:4173,fengmotion://app
 
   # 语义检索：三库 + capabilities 共用一个索引。
   # key 从环境变量读，不要写进仓库。
   retrieval:
     enabled: ${FENGMOTION_RETRIEVAL_ENABLED:true}
-    capabilities-dir: ${FENGMOTION_CAPABILITIES_DIR:}
+    capabilities-dir: ${FENGMOTION_CAPABILITIES_DIR:capabilities}
     embedding:
       api-key: ${DASHSCOPE_API_KEY:}
       endpoint: ${FENGMOTION_EMBEDDING_ENDPOINT:https://dashscope.aliyuncs.com/compatible-mode/v1/embeddings}

@@ -242,3 +242,8 @@
 }
 .fxlib .fx-io a { color:var(--tx2); text-decoration:underline; text-underline-offset:2px; word-break:break-all; }
 .fxlib .fx-io a:hover { color:var(--tx1); }
+
+.fm-local-gate { min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:32px;color:var(--fg);background:var(--bg);text-align:center; }
+.fm-local-gate h1 { font-size:20px;font-weight:600; }
+.fm-local-gate p { font-size:13px;max-width:560px;line-height:1.7;color:var(--dim); }
+.fm-save-status { position:fixed;right:18px;bottom:14px;z-index:80;display:flex;align-items:center;gap:10px;max-width:calc(100vw - 36px);padding:9px 13px;border:1px solid var(--line);border-radius:8px;background:var(--surf);color:var(--fg);font-size:12px;box-shadow:0 6px 20px #0001; }

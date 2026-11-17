@@ -1,0 +1,621 @@
+{
+  "references/shots/camera/space-camera-moves.md": {
+    "module": "demos/camera/space-camera-moves/ExplodedView.tsx",
+    "export": "ExplodedView",
+    "durationExport": "EXPLODED_VIEW_DURATION"
+  },
+  "references/shots/camera/tension-camera-moves.md": {
+    "module": "demos/camera/tension-camera-moves/BulletTimeFreezeOrbit.tsx",
+    "export": "BulletTimeFreezeOrbit",
+    "durationExport": "BULLET_TIME_FREEZE_ORBIT_DURATION"
+  },
+  "references/shots/camera/crash-zoom-punch.md": {
+    "module": "demos/camera/crash-zoom-punch/CrashZoomReal.tsx",
+    "export": "CrashZoomReal",
+    "durationExport": "CRASHZOOM_DUR"
+  },
+  "references/shots/camera/depth-layer-moves.md": {
+    "module": "demos/camera/depth-layer-moves/MultiplaneReal.tsx",
+    "export": "MultiplaneReal",
+    "durationExport": "MULTIPLANE_DUR"
+  },
+  "references/shots/camera/overhead-camera-moves.md": {
+    "module": "demos/camera/overhead-camera-moves/TiltReveal.tsx",
+    "export": "TiltReveal",
+    "durationExport": "TILT_REVEAL_DURATION"
+  },
+  "references/shots/camera/basic-3d-scene.md": {
+    "module": "demos/camera/basic-3d-scene/Basic3DScene.tsx",
+    "export": "Basic3DScene",
+    "durationExport": "BASIC_3D_SCENE_DURATION"
+  },
+  "references/shots/camera/cursor-flyover.md": {
+    "module": "demos/camera/cursor-flyover/CursorFlyover.tsx",
+    "export": "CursorFlyover",
+    "durationExport": "CURSOR_FLYOVER_DURATION"
+  },
+  "references/shots/camera/graze-face-tour.md": {
+    "module": "demos/camera/graze-face-tour/GrazeFaceTour.tsx",
+    "export": "GrazeFaceTour",
+    "durationExport": "GRAZE_FACE_TOUR_DURATION"
+  },
+  "references/shots/camera/steep-tilt-glide.md": {
+    "module": "demos/camera/steep-tilt-glide/SteepTiltGlide.tsx",
+    "export": "SteepTiltGlide",
+    "durationExport": "STEEP_TILT_GLIDE_DURATION"
+  },
+  "references/shots/camera/terminal-3d.md": {
+    "module": "demos/camera/terminal-3d/Terminal3D.tsx",
+    "export": "Terminal3D",
+    "durationExport": "TERMINAL_3D_DURATION"
+  },
+  "references/shots/data/before-after-slider-scrub.md": {
+    "module": "demos/data/before-after-slider-scrub/BeforeAfterSliderScrub.tsx",
+    "export": "BeforeAfterSliderScrub",
+    "durationExport": "BEFORE_AFTER_SLIDER_SCRUB_DURATION"
+  },
+  "references/shots/data/timeline-travel.md": {
+    "module": "demos/data/timeline-travel/TimelineTravel.tsx",
+    "export": "TimelineTravel",
+    "durationExport": "TIMELINE_TRAVEL_DURATION"
+  },
+  "references/shots/effects/assemble-then-type-flyin.md": {
+    "module": "demos/effects/assemble-then-type-flyin/AssembleThenTypeFlyin.tsx",
+    "export": "AssembleThenTypeFlyin",
+    "durationExport": "ASSEMBLE_THEN_TYPE_FLYIN_DURATION"
+  },
+  "references/shots/effects/aurora-bloom-bg-flip.md": {
+    "module": "demos/effects/aurora-bloom-bg-flip/AuroraBloomBgFlip.tsx",
+    "export": "AuroraBloomBgFlip",
+    "durationExport": "AURORA_BLOOM_BG_FLIP_DURATION"
+  },
+  "references/shots/effects/brand-frame-snap.md": {
+    "module": "demos/effects/brand-frame-snap/BrandFrameSnap.tsx",
+    "export": "BrandFrameSnap",
+    "durationExport": "BRAND_FRAME_SNAP_DURATION"
+  },
+  "references/shots/effects/fui-hud-moves.md": {
+    "module": "demos/effects/fui-hud-moves/ReticleLockOn.tsx",
+    "export": "ReticleLockOn",
+    "durationExport": "RETICLE_LOCK_ON_DURATION"
+  },
+  "references/shots/effects/icon-performance-moves.md": {
+    "module": "demos/effects/icon-performance-moves/AttentionBounce.tsx",
+    "export": "AttentionBounce",
+    "durationExport": "ATTENTION_BOUNCE_DURATION"
+  },
+  "references/shots/effects/radial-ripple-phone-chips.md": {
+    "module": "demos/effects/radial-ripple-phone-chips/RadialRipplePhoneChips.tsx",
+    "export": "RadialRipplePhoneChips",
+    "durationExport": "RADIAL_RIPPLE_PHONE_CHIPS_DURATION"
+  },
+  "references/shots/effects/riso-print-hits.md": {
+    "module": "demos/effects/riso-print-hits/RisoMisregistrationHit.tsx",
+    "export": "RisoMisregistrationHit",
+    "durationExport": "RISO_MISREGISTRATION_HIT_DURATION"
+  },
+  "references/shots/effects/scan-bracket-sweep.md": {
+    "module": "demos/effects/scan-bracket-sweep/ScanBracketSweep.tsx",
+    "export": "ScanBracketSweep",
+    "durationExport": "SCAN_BRACKET_SWEEP_DURATION"
+  },
+  "references/shots/effects/scanline-annotate-focus.md": {
+    "module": "demos/effects/scanline-annotate-focus/ScanlineAnnotateFocus.tsx",
+    "export": "ScanlineAnnotateFocus",
+    "durationExport": "SCANLINE_ANNOTATE_FOCUS_DURATION"
+  },
+  "references/shots/effects/scanline-assemble-flyin.md": {
+    "module": "demos/effects/scanline-assemble-flyin/ScanlineAssembleFlyin.tsx",
+    "export": "ScanlineAssembleFlyin",
+    "durationExport": "SCANLINE_ASSEMBLE_FLYIN_DURATION"
+  },
+  "references/shots/interaction/autolayout-gap-dial.md": {
+    "module": "demos/interaction/autolayout-gap-dial/AutolayoutGapDial.tsx",
+    "export": "AutolayoutGapDial",
+    "durationExport": "AUTOLAYOUT_GAP_DIAL_DURATION"
+  },
+  "references/shots/interaction/chip-grid-single-select-blackout.md": {
+    "module": "demos/interaction/chip-grid-single-select-blackout/ChipGridSingleSelectBlackout.tsx",
+    "export": "ChipGridSingleSelectBlackout",
+    "durationExport": "CHIP_GRID_SINGLE_SELECT_BLACKOUT_DURATION"
+  },
+  "references/shots/interaction/collab-cursor-moves.md": {
+    "module": "demos/interaction/collab-cursor-moves/CursorCastEnsemble.tsx",
+    "export": "CursorCastEnsemble",
+    "durationExport": "CURSOR_CAST_ENSEMBLE_DURATION"
+  },
+  "references/shots/interaction/glass-pill-dictation-typing.md": {
+    "module": "demos/interaction/glass-pill-dictation-typing/GlassPillDictationTyping.tsx",
+    "export": "GlassPillDictationTyping",
+    "durationExport": "GLASS_PILL_DICTATION_TYPING_DURATION"
+  },
+  "references/shots/interaction/hashtag-to-pill-materialize.md": {
+    "module": "demos/interaction/hashtag-to-pill-materialize/HashtagToPillMaterialize.tsx",
+    "export": "HashtagToPillMaterialize",
+    "durationExport": "HASHTAG_TO_PILL_MATERIALIZE_DURATION"
+  },
+  "references/shots/interaction/picker-carousel-feature-cycle.md": {
+    "module": "demos/interaction/picker-carousel-feature-cycle/PickerCarouselFeatureCycle.tsx",
+    "export": "PickerCarouselFeatureCycle",
+    "durationExport": "PICKER_CAROUSEL_FEATURE_CYCLE_DURATION"
+  },
+  "references/shots/interaction/segmented-thumb-hero.md": {
+    "module": "demos/interaction/segmented-thumb-hero/SegmentedThumbHero.tsx",
+    "export": "SegmentedThumbHero",
+    "durationExport": "SEGMENTED_THUMB_HERO_DURATION"
+  },
+  "references/shots/interaction/voice-waveform-live.md": {
+    "module": "demos/interaction/voice-waveform-live/VoiceWaveformLive.tsx",
+    "export": "VoiceWaveformLive",
+    "durationExport": "VOICE_WAVEFORM_LIVE_DURATION"
+  },
+  "references/shots/opening/dataviz-landscape-open.md": {
+    "module": "demos/opening/dataviz-landscape-open/DatavizLandscapeOpen.tsx",
+    "export": "DatavizLandscapeOpen",
+    "durationExport": "DATAVIZ_LANDSCAPE_OPEN_DURATION"
+  },
+  "references/shots/opening/icon-field-colorize.md": {
+    "module": "demos/opening/icon-field-colorize/IconFieldColorize.tsx",
+    "export": "IconFieldColorize",
+    "durationExport": "ICON_FIELD_COLORIZE_DURATION"
+  },
+  "references/shots/opening/letterspace-materialize.md": {
+    "module": "demos/opening/letterspace-materialize/LetterspaceMaterialize.tsx",
+    "export": "LetterspaceMaterialize",
+    "durationExport": "LETTERSPACE_MATERIALIZE_DURATION"
+  },
+  "references/shots/opening/orbit-ring-title-open.md": {
+    "module": "demos/opening/orbit-ring-title-open/OrbitRingTitleOpen.tsx",
+    "export": "OrbitRingTitleOpen",
+    "durationExport": "ORBIT_RING_TITLE_OPEN_DURATION"
+  },
+  "references/shots/opening/stroke-segment-build.md": {
+    "module": "demos/opening/stroke-segment-build/StrokeSegmentBuild.tsx",
+    "export": "StrokeSegmentBuild",
+    "durationExport": "STROKE_SEGMENT_BUILD_DURATION"
+  },
+  "references/shots/opening/text-as-mask.md": {
+    "module": "demos/opening/text-as-mask/TextAsMask.tsx",
+    "export": "TextAsMask",
+    "durationExport": "TEXT_AS_MASK_DURATION"
+  },
+  "references/shots/outro/grain-dissolve.md": {
+    "module": "demos/outro/grain-dissolve/GrainDissolve.tsx",
+    "export": "GrainDissolve",
+    "durationExport": "GRAIN_DISSOLVE_DURATION"
+  },
+  "references/shots/outro/logo-shrink-wordmark-lockup.md": {
+    "module": "demos/outro/logo-shrink-wordmark-lockup/LogoShrinkWordmarkLockup.tsx",
+    "export": "LogoShrinkWordmarkLockup",
+    "durationExport": "LOGO_SHRINK_WORDMARK_LOCKUP_DURATION"
+  },
+  "references/shots/outro/neon-triple-marquee.md": {
+    "module": "demos/outro/neon-triple-marquee/NeonTripleMarquee.tsx",
+    "export": "NeonTripleMarquee",
+    "durationExport": "NEON_TRIPLE_MARQUEE_DURATION"
+  },
+  "references/shots/outro/ui-strip-away-outro.md": {
+    "module": "demos/outro/ui-strip-away-outro/UiStripAwayOutro.tsx",
+    "export": "UiStripAwayOutro",
+    "durationExport": "UI_STRIP_AWAY_OUTRO_DURATION"
+  },
+  "references/shots/rhythm/beat-cut-moves.md": {
+    "module": "demos/rhythm/beat-cut-moves/PaparazziFlash.tsx",
+    "export": "PaparazziFlash",
+    "durationExport": "PAPARAZZI_FLASH_DURATION"
+  },
+  "references/shots/rhythm/beat-step-list-theme-cycle.md": {
+    "module": "demos/rhythm/beat-step-list-theme-cycle/BeatStepListThemeCycle.tsx",
+    "export": "BeatStepListThemeCycle",
+    "durationExport": "BEAT_STEP_LIST_THEME_CYCLE_DURATION"
+  },
+  "references/shots/rhythm/panel-grid-moves.md": {
+    "module": "demos/rhythm/panel-grid-moves/ComicPanelSplit.tsx",
+    "export": "ComicPanelSplit",
+    "durationExport": "COMIC_PANEL_SPLIT_DURATION"
+  },
+  "references/shots/rhythm/quad-split-parallel-scenes.md": {
+    "module": "demos/rhythm/quad-split-parallel-scenes/QuadSplitParallelScenes.tsx",
+    "export": "QuadSplitParallelScenes",
+    "durationExport": "QUAD_SPLIT_PARALLEL_SCENES_DURATION"
+  },
+  "references/shots/rhythm/rhythm-interrupt-moves.md": {
+    "module": "demos/rhythm/rhythm-interrupt-moves/JumpCutPunchIn.tsx",
+    "export": "JumpCutPunchIn",
+    "durationExport": "JUMP_CUT_PUNCH_IN_DURATION"
+  },
+  "references/shots/rhythm/sakuga-timing-shift.md": {
+    "module": "demos/rhythm/sakuga-timing-shift/SakugaTimingShift.tsx",
+    "export": "SakugaTimingShift",
+    "durationExport": "SAKUGA_TIMING_SHIFT_DURATION"
+  },
+  "references/shots/rhythm/trailer-grammar-moves.md": {
+    "module": "demos/rhythm/trailer-grammar-moves/TrailerBumper.tsx",
+    "export": "TrailerBumper",
+    "durationExport": "TRAILER_BUMPER_DURATION"
+  },
+  "references/shots/transition/bottom-push-stack-wipe.md": {
+    "module": "demos/transition/bottom-push-stack-wipe/BottomPushStackWipe.tsx",
+    "export": "BottomPushStackWipe",
+    "durationExport": "BOTTOM_PUSH_STACK_WIPE_DURATION"
+  },
+  "references/shots/transition/card-flip-reveal.md": {
+    "module": "demos/transition/card-flip-reveal/CardFlipReveal.tsx",
+    "export": "CardFlipReveal",
+    "durationExport": "CARD_FLIP_REVEAL_DURATION"
+  },
+  "references/shots/transition/card-flock-tumble.md": {
+    "module": "demos/transition/card-flock-tumble/CardFlockTumble.tsx",
+    "export": "CardFlockTumble",
+    "durationExport": "CARD_FLOCK_TUMBLE_DURATION"
+  },
+  "references/shots/transition/circle-match-iris.md": {
+    "module": "demos/transition/circle-match-iris/CircleMatchIris.tsx",
+    "export": "CircleMatchIris",
+    "durationExport": "CIRCLE_MATCH_IRIS_DURATION"
+  },
+  "references/shots/transition/gradient-transition.md": {
+    "module": "demos/transition/gradient-transition/GradientTransition.tsx",
+    "export": "GradientTransition",
+    "durationExport": "GRADIENT_TRANSITION_DURATION"
+  },
+  "references/shots/transition/line-carry-transition.md": {
+    "module": "demos/transition/line-carry-transition/LineCarryTransition.tsx",
+    "export": "LineCarryTransition",
+    "durationExport": "LINE_CARRY_TRANSITION_DURATION"
+  },
+  "references/shots/transition/mosaic-reframe.md": {
+    "module": "demos/transition/mosaic-reframe/MosaicReframe.tsx",
+    "export": "MosaicReframe",
+    "durationExport": "MOSAIC_REFRAME_DURATION"
+  },
+  "references/shots/transition/page-turn-transitions.md": {
+    "module": "demos/transition/page-turn-transitions/BarnDoorSplit.tsx",
+    "export": "BarnDoorSplit",
+    "durationExport": "BARN_DOOR_SPLIT_DURATION"
+  },
+  "references/shots/transition/print-texture-transitions.md": {
+    "module": "demos/transition/print-texture-transitions/InkBleedReveal.tsx",
+    "export": "InkBleedReveal",
+    "durationExport": "INK_BLEED_REVEAL_DURATION"
+  },
+  "references/shots/transition/tear-streak-transitions.md": {
+    "module": "demos/transition/tear-streak-transitions/GlitchDisplace.tsx",
+    "export": "GlitchDisplace",
+    "durationExport": "GLITCH_DISPLACE_DURATION"
+  },
+  "references/shots/transition/transition-travel.md": {
+    "module": "demos/transition/transition-travel/LetterformZoom.tsx",
+    "export": "LetterformZoom",
+    "durationExport": "LETTERFORM_ZOOM_DURATION"
+  },
+  "references/shots/transition/white-flash-logo-simplify-cut.md": {
+    "module": "demos/transition/white-flash-logo-simplify-cut/WhiteFlashLogoSimplifyCut.tsx",
+    "export": "WhiteFlashLogoSimplifyCut",
+    "durationExport": "WHITE_FLASH_LOGO_SIMPLIFY_CUT_DURATION"
+  },
+  "references/shots/transition/wipe-transitions.md": {
+    "module": "demos/transition/wipe-transitions/BlindsSlice.tsx",
+    "export": "BlindsSlice",
+    "durationExport": "BLINDS_SLICE_DURATION"
+  },
+  "references/shots/typography/blur-slide.md": {
+    "module": "demos/typography/blur-slide/BlurSlide.tsx",
+    "export": "BlurSlide",
+    "durationExport": "BLUR_SLIDE_DURATION"
+  },
+  "references/shots/typography/brace-expand.md": {
+    "module": "demos/typography/brace-expand/BraceExpand.tsx",
+    "export": "BraceExpand",
+    "durationExport": "BRACE_EXPAND_DURATION"
+  },
+  "references/shots/typography/countdown-arc-scatter.md": {
+    "module": "demos/typography/countdown-arc-scatter/CountdownArcScatter.tsx",
+    "export": "CountdownArcScatter",
+    "durationExport": "COUNTDOWN_ARC_SCATTER_DURATION"
+  },
+  "references/shots/typography/glitch-cycle.md": {
+    "module": "demos/typography/glitch-cycle/GlitchCycle.tsx",
+    "export": "GlitchCycle",
+    "durationExport": "GLITCH_CYCLE_DURATION"
+  },
+  "references/shots/typography/gradient-word-sweep.md": {
+    "module": "demos/typography/gradient-word-sweep/GradientWordSweep.tsx",
+    "export": "GradientWordSweep",
+    "durationExport": "GRADIENT_WORD_SWEEP_DURATION"
+  },
+  "references/shots/typography/lead-word-zoom-assemble.md": {
+    "module": "demos/typography/lead-word-zoom-assemble/LeadWordZoomAssemble.tsx",
+    "export": "LeadWordZoomAssemble",
+    "durationExport": "LEAD_WORD_ZOOM_ASSEMBLE_DURATION"
+  },
+  "references/shots/typography/marker-underline-title.md": {
+    "module": "demos/typography/marker-underline-title/MarkerUnderlineTitle.tsx",
+    "export": "MarkerUnderlineTitle",
+    "durationExport": "MARKER_UNDERLINE_TITLE_DURATION"
+  },
+  "references/shots/typography/outline-word-fill.md": {
+    "module": "demos/typography/outline-word-fill/OutlineWordFill.tsx",
+    "export": "OutlineWordFill",
+    "durationExport": "OUTLINE_WORD_FILL_DURATION"
+  },
+  "references/shots/typography/pill-chip-slot-cycle-handled.md": {
+    "module": "demos/typography/pill-chip-slot-cycle-handled/PillChipSlotCycleHandled.tsx",
+    "export": "PillChipSlotCycleHandled",
+    "durationExport": "PILL_CHIP_SLOT_CYCLE_HANDLED_DURATION"
+  },
+  "references/shots/typography/pill-slot-cycle.md": {
+    "module": "demos/typography/pill-slot-cycle/PillSlotCycle.tsx",
+    "export": "PillSlotCycle",
+    "durationExport": "PILL_SLOT_CYCLE_DURATION"
+  },
+  "references/shots/typography/text-column-converge.md": {
+    "module": "demos/typography/text-column-converge/TextColumnConverge.tsx",
+    "export": "TextColumnConverge",
+    "durationExport": "TEXT_COLUMN_CONVERGE_DURATION"
+  },
+  "references/shots/typography/title-demote-to-label.md": {
+    "module": "demos/typography/title-demote-to-label/TitleDemoteToLabel.tsx",
+    "export": "TitleDemoteToLabel",
+    "durationExport": "TITLE_DEMOTE_TO_LABEL_DURATION"
+  },
+  "references/shots/typography/type-entrance-moves.md": {
+    "module": "demos/typography/type-entrance-moves/LetterDropPhysics.tsx",
+    "export": "LetterDropPhysics",
+    "durationExport": "LETTER_DROP_PHYSICS_DURATION"
+  },
+  "references/shots/typography/typewriter-moves.md": {
+    "module": "demos/typography/typewriter-moves/TypewriterErrorRetype.tsx",
+    "export": "TypewriterErrorRetype",
+    "durationExport": "TYPEWRITER_ERROR_RETYPE_DURATION"
+  },
+  "references/shots/typography/vertical-word-roll-blur-cycle.md": {
+    "module": "demos/typography/vertical-word-roll-blur-cycle/VerticalWordRollBlurCycle.tsx",
+    "export": "VerticalWordRollBlurCycle",
+    "durationExport": "VERTICAL_WORD_ROLL_BLUR_CYCLE_DURATION"
+  },
+  "references/shots/typography/word-relay-geometry.md": {
+    "module": "demos/typography/word-relay-geometry/WordRelayGeometry.tsx",
+    "export": "WordRelayGeometry",
+    "durationExport": "WORD_RELAY_GEOMETRY_DURATION"
+  },
+  "references/shots/ui-entrance/avatar-bracket-carousel.md": {
+    "module": "demos/ui-entrance/avatar-bracket-carousel/AvatarBracketCarousel.tsx",
+    "export": "AvatarBracketCarousel",
+    "durationExport": "AVATAR_BRACKET_CAROUSEL_DURATION"
+  },
+  "references/shots/ui-entrance/bezier-source-converge-merge.md": {
+    "module": "demos/ui-entrance/bezier-source-converge-merge/BezierSourceConvergeMerge.tsx",
+    "export": "BezierSourceConvergeMerge",
+    "durationExport": "BEZIER_SOURCE_CONVERGE_MERGE_DURATION"
+  },
+  "references/shots/ui-entrance/card-stack.md": {
+    "module": "demos/ui-entrance/card-stack/CardStack.tsx",
+    "export": "CardStack",
+    "durationExport": "CARD_STACK_DURATION"
+  },
+  "references/shots/ui-entrance/carousel-3d.md": {
+    "module": "demos/ui-entrance/carousel-3d/Carousel3D.tsx",
+    "export": "Carousel3D",
+    "durationExport": "CAROUSEL_3D_DURATION"
+  },
+  "references/shots/ui-entrance/cloner-depth-echo.md": {
+    "module": "demos/ui-entrance/cloner-depth-echo/ClonerDepthEcho.tsx",
+    "export": "ClonerDepthEcho",
+    "durationExport": "CLONER_DEPTH_ECHO_DURATION"
+  },
+  "references/shots/ui-entrance/doc-park-left-pill-deal.md": {
+    "module": "demos/ui-entrance/doc-park-left-pill-deal/DocParkLeftPillDeal.tsx",
+    "export": "DocParkLeftPillDeal",
+    "durationExport": "DOC_PARK_LEFT_PILL_DEAL_DURATION"
+  },
+  "references/shots/ui-entrance/draw-svg-trace.md": {
+    "module": "demos/ui-entrance/draw-svg-trace/DrawSvgTrace.tsx",
+    "export": "DrawSvgTrace",
+    "durationExport": "DRAW_SVG_TRACE_DURATION"
+  },
+  "references/shots/ui-entrance/neon-frame-forerun.md": {
+    "module": "demos/ui-entrance/neon-frame-forerun/NeonFrameForerun.tsx",
+    "export": "NeonFrameForerun",
+    "durationExport": "NEON_FRAME_FORERUN_DURATION"
+  },
+  "references/shots/ui-entrance/neon-frame-orbit-drop.md": {
+    "module": "demos/ui-entrance/neon-frame-orbit-drop/NeonFrameForerunOrbit.tsx",
+    "export": "NeonFrameForerunOrbit",
+    "durationExport": "NEON_FRAME_FORERUN_ORBIT_DURATION"
+  },
+  "references/shots/ui-entrance/product-card-progressive-assemble.md": {
+    "module": "demos/ui-entrance/product-card-progressive-assemble/ProductCardProgressiveAssemble.tsx",
+    "export": "ProductCardProgressiveAssemble",
+    "durationExport": "PRODUCT_CARD_PROGRESSIVE_ASSEMBLE_DURATION"
+  },
+  "references/shots/ui-entrance/radial-wave.md": {
+    "module": "demos/ui-entrance/radial-wave/RadialWave.tsx",
+    "export": "RadialWave",
+    "durationExport": "RADIAL_WAVE_DURATION"
+  },
+  "references/shots/ui-entrance/research-card-stack-scroll.md": {
+    "module": "demos/ui-entrance/research-card-stack-scroll/ResearchCardStackScroll.tsx",
+    "export": "ResearchCardStackScroll",
+    "durationExport": "RESEARCH_CARD_STACK_SCROLL_DURATION"
+  },
+  "references/shots/ui-entrance/value-stagger-gradient.md": {
+    "module": "demos/ui-entrance/value-stagger-gradient/ValueStaggerGradient.tsx",
+    "export": "ValueStaggerGradient",
+    "durationExport": "VALUE_STAGGER_GRADIENT_DURATION"
+  },
+  "references/shots/outro/outro-group-photo-launch.md": {
+    "module": "demos/outro/outro-group-photo-launch/OutroGroupPhotoLaunch.tsx",
+    "export": "OutroGroupPhotoLaunch",
+    "durationExport": "OUTRO_GROUP_PHOTO_LAUNCH_DURATION"
+  },
+  "references/shots/outro/ui-to-brand-morph.md": {
+    "module": "demos/outro/ui-to-brand-morph/IconFlipBloomLogo.tsx",
+    "export": "IconFlipBloomLogo",
+    "durationExport": "ICON_FLIP_BLOOM_LOGO_DURATION"
+  },
+  "references/shots/transition/shot-transitions.md": {
+    "module": "demos/transition/shot-transitions/PortalWipeV2.tsx",
+    "export": "PortalWipeV2",
+    "durationExport": "PORTAL_WIPE_V2_DURATION"
+  },
+  "references/shots/transition/transition-hidden-cut.md": {
+    "module": "demos/transition/transition-hidden-cut/InvisibleCut.tsx",
+    "export": "InvisibleCut",
+    "durationExport": "INVISIBLE_CUT_DURATION"
+  },
+  "references/shots/ui-entrance/element-body-moves.md": {
+    "module": "demos/ui-entrance/element-body-moves/ContactShadowLift.tsx",
+    "export": "ContactShadowLift",
+    "durationExport": "CONTACT_SHADOW_LIFT_DURATION"
+  },
+  "references/shots/ui-entrance/integration-hub-map.md": {
+    "module": "demos/ui-entrance/integration-hub-map/IntegrationHubMap.tsx",
+    "export": "IntegrationHubMap",
+    "durationExport": "INTEGRATION_HUB_MAP_DURATION"
+  },
+  "references/shots/ui-entrance/list-stack-press.md": {
+    "module": "demos/ui-entrance/list-stack-press/ListStackPress.tsx",
+    "export": "ListStackPress",
+    "durationExport": "LIST_STACK_PRESS_DURATION"
+  },
+  "references/shots/ui-entrance/row-embed.md": {
+    "module": "demos/ui-entrance/row-embed/RowEmbed.tsx",
+    "export": "RowEmbed",
+    "durationExport": "ROW_EMBED_DURATION"
+  },
+  "references/shots/ui-entrance/deck-deal-flyin.md": {
+    "module": "demos/ui-entrance/deck-deal-flyin/DeckDealFlyin.tsx",
+    "export": "DeckDealFlyin",
+    "durationExport": "DECK_DEAL_FLYIN_DURATION"
+  },
+  "references/shots/ui-entrance/wall-reveal-moves.md": {
+    "module": "demos/ui-entrance/wall-reveal-moves/BentoLightUp.tsx",
+    "export": "BentoLightUp",
+    "durationExport": "BENTO_LIGHT_UP_DURATION"
+  },
+  "references/shots/ui-entrance/list-reveal.md": {
+    "module": "demos/ui-entrance/list-reveal/ListReveal.tsx",
+    "export": "ListReveal",
+    "durationExport": "LIST_REVEAL_DURATION"
+  },
+  "references/shots/ui-entrance/page-waterfall-wall.md": {
+    "module": "demos/ui-entrance/page-waterfall-wall/PageWaterfallWall.tsx",
+    "export": "PageWaterfallWall",
+    "durationExport": "PAGE_WATERFALL_WALL_DURATION"
+  },
+  "references/shots/data/chart-live-moves.md": {
+    "module": "demos/data/chart-live-moves/AxisRescaleShockV2.tsx",
+    "export": "AxisRescaleShockV2",
+    "durationExport": "AXIS_RESCALE_SHOCK_V2_DURATION"
+  },
+  "references/shots/data/gauge-readout-moves.md": {
+    "module": "demos/data/gauge-readout-moves/NeedleSweepSelftest.tsx",
+    "export": "NeedleSweepSelftest",
+    "durationExport": "NEEDLE_SWEEP_SELFTEST_DURATION"
+  },
+  "references/shots/data/scroll-brake-moves.md": {
+    "module": "demos/data/scroll-brake-moves/BrakeReticleLock.tsx",
+    "export": "BrakeReticleLock"
+  },
+  "references/shots/effects/spotlight-sweep-moves.md": {
+    "module": "demos/effects/spotlight-sweep-moves/CornerSpotlightReveal.tsx",
+    "export": "CornerSpotlightReveal",
+    "durationExport": "CORNER_SPOTLIGHT_REVEAL_DURATION"
+  },
+  "references/shots/effects/slam-entrance-moves.md": {
+    "module": "demos/effects/slam-entrance-moves/ImpactBurstKit.tsx",
+    "export": "ImpactBurstKit",
+    "durationExport": "IMPACT_BURST_KIT_DURATION"
+  },
+  "references/shots/effects/impact-feedback.md": {
+    "module": "demos/effects/impact-feedback/AnimeImpact.tsx",
+    "export": "AnimeImpact",
+    "durationExport": "ANIME_IMPACT_DURATION"
+  },
+  "references/shots/effects/glow-flyline-moves.md": {
+    "module": "demos/effects/glow-flyline-moves/FlylineArc.tsx",
+    "export": "FlylineArc",
+    "durationExport": "FLYLINE_ARC_DURATION"
+  },
+  "references/shots/effects/light-play-moves.md": {
+    "module": "demos/effects/light-play-moves/SheenSweepRetry.tsx",
+    "export": "SheenSweepRetry",
+    "durationExport": "SHEEN_SWEEP_RETRY_DURATION"
+  },
+  "references/shots/rhythm/speed-ramp-freeze.md": {
+    "module": "demos/rhythm/speed-ramp-freeze/FreezeAnnotateReal.tsx",
+    "export": "FreezeAnnotateReal",
+    "durationExport": "FREEZEANNOTATE_DUR"
+  },
+  "references/shots/typography/flying-words.md": {
+    "module": "demos/typography/flying-words/FlyingWords.tsx",
+    "export": "FlyingWords",
+    "durationExport": "FLYING_WORDS_DURATION"
+  },
+  "references/shots/typography/document-typewriter-reveal.md": {
+    "module": "demos/ui-entrance/document-typewriter-reveal/DocumentTypewriterReveal.tsx",
+    "export": "DocumentTypewriterReveal",
+    "durationExport": "DOCUMENT_TYPEWRITER_REVEAL_DURATION"
+  },
+  "references/shots/typography/word-relay-filmstrip.md": {
+    "module": "demos/typography/word-relay-filmstrip/WordRelayFilmstrip.tsx",
+    "export": "WordRelayFilmstrip",
+    "durationExport": "WORD_RELAY_FILMSTRIP_DURATION"
+  },
+  "references/shots/typography/paper-title-card.md": {
+    "module": "demos/typography/paper-title-card/PaperTitleCard.tsx",
+    "export": "PaperTitleCard",
+    "durationExport": "PAPER_TITLE_CARD_DURATION"
+  },
+  "references/shots/typography/type-rhythm-sync.md": {
+    "module": "demos/typography/type-rhythm-sync/FontWeightPump.tsx",
+    "export": "FontWeightPump",
+    "durationExport": "FONT_WEIGHT_PUMP_DURATION"
+  },
+  "references/shots/typography/type-assembly-moves.md": {
+    "module": "demos/typography/type-assembly-moves/LetterformDriftAssembly.tsx",
+    "export": "LetterformDriftAssembly",
+    "durationExport": "LETTERFORM_DRIFT_ASSEMBLY_DURATION"
+  },
+  "references/shots/interaction/canvas-materialize-moves.md": {
+    "module": "demos/interaction/canvas-materialize-moves/DiagramCascadeBuild.tsx",
+    "export": "DiagramCascadeBuild",
+    "durationExport": "DIAGRAM_CASCADE_BUILD_DURATION"
+  },
+  "references/shots/interaction/theme-switch-moves.md": {
+    "module": "demos/interaction/theme-switch-moves/PaletteThemeRipple.tsx",
+    "export": "PaletteThemeRipple",
+    "durationExport": "PALETTE_THEME_RIPPLE_DURATION"
+  },
+  "references/shots/interaction/type-and-filter.md": {
+    "module": "demos/interaction/type-and-filter/TypeAndFilter.tsx",
+    "export": "TypeAndFilter",
+    "durationExport": "TYPE_AND_FILTER_DURATION"
+  },
+  "references/shots/opening/spotlight-hero-card.md": {
+    "module": "demos/opening/spotlight-hero-card/SpotlightHeroCard.tsx",
+    "export": "SpotlightHeroCard",
+    "durationExport": "SPOTLIGHT_HERO_CARD_DURATION"
+  },
+  "references/shots/opening/brand-ink-open.md": {
+    "module": "demos/typography/brand-ink-open/BrandInkOpen.tsx",
+    "export": "BrandInkOpen",
+    "durationExport": "BRAND_INK_OPEN_DURATION"
+  },
+  "references/shots/opening/crane-rise-reveal.md": {
+    "module": "demos/opening/crane-rise-reveal/CraneRiseReveal.tsx",
+    "export": "CraneRiseReveal",
+    "durationExport": "CRANE_RISE_REVEAL_DURATION"
+  },
+  "references/shots/opening/fracture.md": {
+    "module": "demos/opening/fracture/Fracture.tsx",
+    "export": "Fracture",
+    "durationExport": "FRACTURE_DURATION"
+  },
+  "references/shots/opening/magician-card-flourish.md": {
+    "module": "demos/opening/magician-card-flourish/MagicianCardFlourish.tsx",
+    "export": "MagicianCardFlourish",
+    "durationExport": "MAGICIAN_CARD_FLOURISH_DURATION"
+  }
+}

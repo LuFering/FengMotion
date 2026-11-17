@@ -726,6 +726,17 @@ html[data-theme="tactile"] .hf-seal circle { stroke: currentColor; }
 }
 .hf-brandstart:hover { opacity: .75; transform: translateY(-1px); }
 .hf-brandstart:focus-visible { outline: 2px solid var(--hf-accent); outline-offset: 3px; border-radius: 3px; }
+
+/* Reuse the existing brand-line action instead of adding a second toolbar. */
+.hf-entry-choice { position:relative; }
+.hf-entry-choice .hf-brandstart { display:inline-flex; align-items:center; gap:5px; }
+.hf-entry-choice .hf-brandstart>svg { width:12px; height:12px; fill:none; stroke:currentColor; stroke-width:1.5; }
+.hf-entry-choice .hf-entry-menu { top:calc(100% + 10px); bottom:auto; left:0; width:210px; z-index:30; }
+.hf-entry-menu button { flex-direction:column; align-items:flex-start; gap:3px; }
+.hf-entry-menu button[aria-checked='true'] { background:var(--hf-panel2); }
+.hf-entry-menu small { font-size:11px; color:var(--hf-tx3); }
+.hf-entry-status,.hf-entry-error { margin:10px 0 0; font-size:12px; line-height:1.6; color:var(--hf-tx2); }
+.hf-entry-error { color:var(--bad,#ba3b4b); }
 html[data-theme="tactile"] .hf-brandstart { color: #7A5B00; }
 @media (max-width: 1400px) {
   .hf-left-module { width: min(600px, 92%); }

@@ -82,6 +82,7 @@ export interface Resolved extends PendingAsset {
  *  取 150：素材卡在左栏，购物车也在左侧，用户拖到附近就该有反应；
  *  太小要靠得很准才有反馈，太大又会在还没打算放的时候就亮起来。 */
 const NEAR_RADIUS = 150
+const PENDING_ITEM_DRAG = 'application/x-fm-pending-item'
 
 /** 秒 → "00:12 – 00:19"；参考片段靠它表达"带过去的是哪一段" */
 function fmtRange(startSec: number, endSec: number): string {
@@ -208,7 +209,7 @@ export function PendingAssetsDrawer({
   /** 交给对话输入框；返回 true 表示已放入，可以据此清理本次发送项 */
   onSend: (list: DeliverableAsset[]) => boolean
 }) {
-  const { items, remove, removeMany, clear, patch } = usePendingAssets()
+  const { items, remove, removeMany, clear, patch, saveFailed, retrySave } = usePendingAssets()
   const [assets, setAssets] = useState<MyAsset[]>([])
   const [thumbs, setThumbs] = useState<Record<string, string | null>>({})
   const [sending, setSending] = useState(false)
@@ -259,7 +260,27 @@ export function PendingAssetsDrawer({
   if (!open) return null
 
   return (
-    <div className="fmp-backdrop" onClick={onClose}>
+    <div className="fmp-backdrop" onClick={onClose}
+      onDragOver={(e) => {
+        if (!Array.from(e.dataTransfer.types).includes(PENDING_ITEM_DRAG)) return
+        const target = Array.from(document.querySelectorAll('.cv3-compose, .fw-compose')).find((el) => {
+          const rect = el.getBoundingClientRect()
+          return rect.width > 0 && rect.height > 0 && e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom
+        })
+        if (target) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy' }
+      }}
+      onDrop={(e) => {
+        const id = e.dataTransfer.getData(PENDING_ITEM_DRAG)
+        if (!id) return
+        const target = Array.from(document.querySelectorAll('.cv3-compose, .fw-compose')).find((el) => {
+          const rect = el.getBoundingClientRect()
+          return rect.width > 0 && rect.height > 0 && e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom
+        })
+        const item = sendable.find((entry) => entry.assetId === id)
+        if (!target || !item) return
+        e.preventDefault()
+        if (onSend([toDeliverable(item)])) { removeMany([id]); onClose() }
+      }}>
       <aside className="fmp" role="dialog" aria-modal="true" aria-label="待发送素材"
              onClick={(e) => e.stopPropagation()}>
         <header className="fmp-head">
@@ -269,6 +290,7 @@ export function PendingAssetsDrawer({
           </div>
           <button type="button" className="fmp-x" aria-label="关闭" onClick={onClose}><X size={16} /></button>
         </header>
+        {saveFailed && <p className="fmp-save-warning" role="alert">仅当前页面保留，保存尚未完成。<button type="button" onClick={retrySave}>重试保存</button></p>}
 
         {resolved.length === 0 ? (
           <div className="fmp-empty">
@@ -281,8 +303,14 @@ export function PendingAssetsDrawer({
             {resolved.map((r) => (
               <li key={r.assetId} className="fmp-item" data-missing={r.missing || undefined}
                   data-kind={r.kind === 'ref' ? 'ref' : r.kind === 'fx' ? 'fx' : undefined}>
-                <span className="fmp-thumb">
-                  {r.thumb ? <img src={r.thumb} alt="" />
+                <span className="fmp-thumb" draggable={!r.missing}
+                      title={r.missing ? undefined : '拖到对话输入框'}
+                      onDragStart={(e) => {
+                        if (r.missing) { e.preventDefault(); return }
+                        e.dataTransfer.setData(PENDING_ITEM_DRAG, r.assetId)
+                        e.dataTransfer.effectAllowed = 'copy'
+                      }}>
+                  {r.thumb ? <img src={r.thumb} alt="" draggable={false} />
                     : r.asset
                       ? (() => { const I = MEDIA_ICON[r.asset.mediaType]; return <I size={18} /> })()
                       : <AlertTriangle size={18} />}

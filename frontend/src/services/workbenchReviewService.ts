@@ -1,3 +1,4 @@
+import { persistLocalDocument } from './localDocuments'
 import type { TaskRequest } from './studioApi'
 
 export interface BriefCorrection { id: string; text: string; createdAt: string }
@@ -33,7 +34,7 @@ export function readWorkbenchReview(projectId: string): WorkbenchReviewState {
   } catch { return empty() }
 }
 export function saveWorkbenchReview(projectId: string, state: WorkbenchReviewState): boolean {
-  try { localStorage.setItem(key(projectId), JSON.stringify(state)); return true } catch { return false }
+  try { localStorage.setItem(key(projectId), JSON.stringify(state)); persistLocalDocument(key(projectId),state); return true } catch { return false }
 }
 export function newReviewId() { return crypto.randomUUID() }
 

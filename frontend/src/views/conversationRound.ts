@@ -12,6 +12,13 @@
  */
 import type { ChatMessage } from '@/shell/useChat'
 
+/** Background replies may finish after navigation. Only show this session's
+ * messages; legacy unscoped messages are accepted solely for local chats. */
+export function messagesForSession(messages: ChatMessage[], sessionId: string | null, isServer: boolean): ChatMessage[] {
+  return messages.filter((message) => message.id !== 'intro'
+    && (message.sessionId ? message.sessionId === sessionId : !isServer))
+}
+
 /** 一轮的边界：最后一条用户消息之后，到列表末尾。 */
 export function currentRoundMessages(messages: ChatMessage[]): ChatMessage[] {
   let lastUserIndex = -1

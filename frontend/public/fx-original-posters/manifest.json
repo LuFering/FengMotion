@@ -1,0 +1,2298 @@
+{
+  "src/scenes/BackgroundAnimations/BackgroundAurora.tsx": {
+    "file": "f32adbde8986d537e52c.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "e816c4ef658d965d3097d2833c15f9dadf16ccdf6c26400dccace30a890d065e",
+    "checksum": "29518a566e1043c6e1b50fdb9d35ee5fea173104d01b63a17ff6beb3f3f9686a"
+  },
+  "src/scenes/BackgroundAnimations/BackgroundBokeh.tsx": {
+    "file": "23f3c644c04177ef5a6b.jpg",
+    "frame": 60,
+    "frameSource": "automatic",
+    "fingerprint": "05ef439e0eba15f09220ad26cdc4766fe77a9574cd3eee7d82a3a311cc4ff298",
+    "checksum": "131f56d57b3f37a118356cb0ee5c4f3c5b95656584b12213153bf094a33a8762"
+  },
+  "src/scenes/BackgroundAnimations/BackgroundFlowingGradient.tsx": {
+    "file": "1302a580a7939351ad5c.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "fe57c0574d263992d13ab4cfb474f4bbfc60b633cb6a7f4a92cf2cf575e18ca9",
+    "checksum": "76d85cf23692d12187b0920b4d3d78715ce67f089c5a1d4f337f7de3831e9326"
+  },
+  "src/scenes/BackgroundAnimations/BackgroundGeometric.tsx": {
+    "file": "04017715a3e4c26cd343.jpg",
+    "frame": 60,
+    "frameSource": "automatic",
+    "fingerprint": "972c09db12a74a40b2227dc548d233904e82db48366615b1453bba542c393b04",
+    "checksum": "15a054194733a2d438e6a2e2090ead705c2e5da8a1241fab3406c83eed7c1981"
+  },
+  "src/scenes/BackgroundAnimations/BackgroundGrid.tsx": {
+    "file": "d49dad98bf11fe84dad2.jpg",
+    "frame": 30,
+    "frameSource": "automatic",
+    "fingerprint": "46577476aae49acf40227da4bf4d71186509feb3f2fe56622e684c531a80a701",
+    "checksum": "0ea5b47ecae80349c2db23b34dc4588694682b1ede85d6e8639f5178f1774d1a"
+  },
+  "src/scenes/BackgroundAnimations/BackgroundMeshGradient.tsx": {
+    "file": "b351c6df64d0ffe7f188.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "61ca6e1177039fd2b569d76bc28c66b16ea37e99c78f3953ba63a56b690bbd57",
+    "checksum": "cb7d3ce7c17d1abf443a347f43bc28bdb4f81374ee6a8eddb98c345acb26ca9c"
+  },
+  "src/scenes/BackgroundAnimations/BackgroundNoiseTexture.tsx": {
+    "file": "97aeeaedb80c34920d72.jpg",
+    "frame": 30,
+    "frameSource": "automatic",
+    "fingerprint": "baac0868377b0ea3dd51ed39e05bc8f025fcf39b78a220ec35ccd9a21b1b3e24",
+    "checksum": "1d06dca9e616a6d20d1ed7d79d00380e088a4e0de198d0045368c8a90fec2536"
+  },
+  "src/scenes/BackgroundAnimations/BackgroundPerspectiveGrid.tsx": {
+    "file": "9bf7117f233bc935460a.jpg",
+    "frame": 30,
+    "frameSource": "automatic",
+    "fingerprint": "1854b55a016f94794dbcdbbe72ca4e7f05cd9c90a7171614d32dc3c99dd5bb95",
+    "checksum": "a5782b4d01142df4878e2de05d143ffda63513fdbfbc0d5a5621a4616e976063"
+  },
+  "src/scenes/BackgroundAnimations/BackgroundRadial.tsx": {
+    "file": "0633cbeb94d7f587ab04.jpg",
+    "frame": 60,
+    "frameSource": "automatic",
+    "fingerprint": "4ca3dd3dcc36d954202925ed95dcd7fda4826603c069027a010b40257425739a",
+    "checksum": "836cfb6b550b266ca7136332d7e319856942413deb9323013af855511d97b0e5"
+  },
+  "src/scenes/BackgroundAnimations/BackgroundWaves.tsx": {
+    "file": "e0154e76524301f0a01d.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "46f5d98e248b6525ed6424228bb825d46b1c7f9f4653afac06b9e71cd3ccd5c6",
+    "checksum": "523f57244c903b30e978b1665040e5b8284644b783ebf918d5a53f53c485fc8a"
+  },
+  "src/scenes/CinematicAnimations/CinematicAction.tsx": {
+    "file": "fe639a1ed92c1c65c52e.jpg",
+    "frame": 30,
+    "frameSource": "automatic",
+    "fingerprint": "b58a59570bdc11b68fec431b25ce61740705a3ce595ac6b14ce5f4fd647b3202",
+    "checksum": "a617d9773b5a45566a93606a2bc54a0e88f2833aa83a999fd715ad534474ad2c"
+  },
+  "src/scenes/CinematicAnimations/CinematicAnime.tsx": {
+    "file": "69f6d3772beac4585aad.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "9d7ace3ea6dae5358e7528adeea818ec3b2c2fefba13d3f64f2879d34a97a7ca",
+    "checksum": "1077a946d24ee6c193c9d9faa231b8b18ccda0081535c532faabb99b2d51d089"
+  },
+  "src/scenes/CinematicAnimations/CinematicDocumentary.tsx": {
+    "file": "57c48d74e1ba03c6f488.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "5df57b01a0b59f9e4836bc87e5cb11630ff1512ad35530f385114f8fdd2ac479",
+    "checksum": "406c2c2f3bfddc277e5a6d3697a8994c195745c443413d24a945e814c02bd01a"
+  },
+  "src/scenes/CinematicAnimations/CinematicEpic.tsx": {
+    "file": "060dfb95828a66adf6fa.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "7362fcf349028ad5d012255ba4200c8643d840463ea70ffdecb097d980e90cc3",
+    "checksum": "dcc6aaae47277f0dc38c344e795848a4e4a04402881eeba77594e003af2359cb"
+  },
+  "src/scenes/CinematicAnimations/CinematicHorror.tsx": {
+    "file": "aae15bcc89075f73028a.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "60032a1ec84c8922bfd1fb7967ed707a8beccd19e33d4dcd6a6620e8844b9658",
+    "checksum": "8d7339805c97afb6454febfb1d9669df9978116b0b81e6ba3be28d2d00a685e0"
+  },
+  "src/scenes/CinematicAnimations/CinematicMinimalEnd.tsx": {
+    "file": "10c264196b2ad8bc7845.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "89ddc5a2850ecce91129af524fad83d5f482030a9a552e7ca00f2b59c2c651ce",
+    "checksum": "8770ee69ef8060a663b2f5a7f64af5ab466bc0d5310bac17c85adcae31333837"
+  },
+  "src/scenes/CinematicAnimations/CinematicNoir.tsx": {
+    "file": "ebc5b73045fa98bd7818.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "081a5fb1c9c6d9d9b412bbf897b8816dadacfc60aec4c3d0e565f3ba79f526c7",
+    "checksum": "85bc5fec66a5b21a3e89cad9138c8776cea12eae03bd20fbecdae2aeeb1a39f5"
+  },
+  "src/scenes/CinematicAnimations/CinematicRomance.tsx": {
+    "file": "248349f1dcfec3988bee.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "b66d284c53558b87fe9f096033799a4e7ee8ae945f34127c9c3116023deea52e",
+    "checksum": "335df7fc171a91bf50137fcf1be561dd864cbd5b2b221498ba403f26cd52d6b6"
+  },
+  "src/scenes/CinematicAnimations/CinematicSciFi.tsx": {
+    "file": "83eec16a61f6936f4d74.jpg",
+    "frame": 60,
+    "frameSource": "automatic",
+    "fingerprint": "115117a1e12e994a15df25a805a015f3b240dc80d7bca1d0e065708919637d48",
+    "checksum": "898fa4a86f37bd9785e47eed3114df740d16bf5eb7f08cbe06e06388c2e98dae"
+  },
+  "src/scenes/CinematicAnimations/CinematicVintage.tsx": {
+    "file": "0130196478b340437eda.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "90e3fcccb27a2d3b4e4e32267395b3eed225b9d67cedd3e2365fa2343c34f751",
+    "checksum": "2bf58fb4cb93aea6732a1894bbd613d18976015940dffd012c2e25ed31386c02"
+  },
+  "src/scenes/DataAnimations/DataBarChart.tsx": {
+    "file": "75a8550674b29aa4e05f.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "71a3c5b4647e40c0f5a14a401957b959240a0532cb776ce1335c847e85ccce82",
+    "checksum": "177fa278aa295535d410278babc305c8d049fa61c8dcda48cca999dad83bbeb0"
+  },
+  "src/scenes/DataAnimations/DataGauge.tsx": {
+    "file": "ceb6a5ae82491973ed0e.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "14a6417d591361c73dc3695d6f5cebc3098c1cf161e0127677ad640268e02061",
+    "checksum": "8e2bcbe8d3599c464ad52d1d812f062586f71aa5c4ce4892eb419e0fa22fe457"
+  },
+  "src/scenes/DataAnimations/DataLineChart.tsx": {
+    "file": "8014e3083a410751d9b5.jpg",
+    "frame": 30,
+    "frameSource": "automatic",
+    "fingerprint": "54b0a633d45a928eab68549731439c1626c96d1965ed0b496bd162603260491b",
+    "checksum": "054884be84f1ed8b30759a8c818d440fcbda61f84784292f53815b571142f518"
+  },
+  "src/scenes/DataAnimations/DataPieChart.tsx": {
+    "file": "ba727837d6f436501c41.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "0846a9fd46b85e590e20eca61e5015f14c6f2fc889a20c2ac38bf86ec8531095",
+    "checksum": "c39147a995eddb414e0d031c53432e7e429236d23b7bdd5b79480b935881588f"
+  },
+  "src/scenes/DataAnimations/DataProgressBars.tsx": {
+    "file": "5a2359cedf02e1468366.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "140aadc35bf18e857ebffd13f2cd63aa93731733a2cbc5ae753a73253bd66d50",
+    "checksum": "32e1e6728f8af7ba0f090ca9e5da5974f155757e1d6facf755ddcdacd64c26ad"
+  },
+  "src/scenes/DataAnimations/DataRanking.tsx": {
+    "file": "dfa11db848160f3efb7e.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "790c9a82dc1394029295b719ed93a9eec9e43b741b3b8ec8957b020f86581ebf",
+    "checksum": "d9e1c110977a7687aa62285fd3cc576162924741341d715a7f2c9ba8bcd818a2"
+  },
+  "src/scenes/DataAnimations/DataStatsCards.tsx": {
+    "file": "d032861ee6b7938e7e95.jpg",
+    "frame": 30,
+    "frameSource": "automatic",
+    "fingerprint": "cadb2779a4efd451cf9dcc330a5277236c831382d39ed6fd1ece1b0206b89ab3",
+    "checksum": "59b93f9cdaca892b3a07c7dad2e2c170c56e7820668d792811378d23e8cd4e7c"
+  },
+  "src/scenes/DemoAnimations/DemoAddressBar.tsx": {
+    "file": "a51c44564bb6fa4927aa.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "6d4a972aa882a2ec6fb6bd6edcbc519c009c091c7a56e178c86807da2cc47e6d",
+    "checksum": "dbefc22e6f5a83fc40b12ca5dd5ac63bc9416f1cddcae53303db34d79457e132"
+  },
+  "src/scenes/DemoAnimations/DemoScroll.tsx": {
+    "file": "2ca911a748d7e97906cf.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "ad921ac79e1184087a6f79220a4f48dcd9a103130b71582d4bb9346a5599cc7f",
+    "checksum": "a5f9b7c74931ee7acf97b78ee1f1b2e476279674f517dbf358c8a236112551e2"
+  },
+  "src/scenes/DemoAnimations/DemoTextInput.tsx": {
+    "file": "4df0f42e1e84a4389657.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "7c02590d82fb19b01f206e5a379b58016946e799c6cc287ebe8790084cee9b11",
+    "checksum": "375fda36b241f3d2bf05053e2a974aa2f942f34d5e970c7437390ad25b13cc33"
+  },
+  "src/scenes/EffectAnimations/EffectChromaticAberration.tsx": {
+    "file": "3eb9c8512ab0dcc1cb70.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "a8964985a69a6205d4ce97536be77480c7e362a2dd493b067f0d563017bd136a",
+    "checksum": "d5b3edbe2760e17dc35977dde6355a1afd2113171c118dd887e67d6ea25d5744"
+  },
+  "src/scenes/EffectAnimations/EffectDepthOfField.tsx": {
+    "file": "d852bf635b265d3e0cb7.jpg",
+    "frame": 30,
+    "frameSource": "automatic",
+    "fingerprint": "11ff7a1c720c63121a95c0eddb7a66cf7fb529e2d848b29f962dfd325e99e3b2",
+    "checksum": "6edd288d23494830a9ab7e5ed1ba41391b883c48ab3c71ff3f588977820b9d4e"
+  },
+  "src/scenes/EffectAnimations/EffectDuotone.tsx": {
+    "file": "db384087ff7d8b55325d.jpg",
+    "frame": 60,
+    "frameSource": "automatic",
+    "fingerprint": "16f92b7d41fe61c99cdb4542a6880f62100d8d8823b0d3fc2e2438525a58c994",
+    "checksum": "bbc30824935f4eff46224d4182955e1863121b9606e2a72c4a85d64b38969a1e"
+  },
+  "src/scenes/EffectAnimations/EffectFilmGrain.tsx": {
+    "file": "55dfad7dd460792cfa4d.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "3456d99d329e16a773b22896a7a481bddce27704e6756a67907e6f0d902562ed",
+    "checksum": "02e30a658ed5658669f07eab264628c4da4d6da6151e4ca339e861b0da326f60"
+  },
+  "src/scenes/EffectAnimations/EffectGlow.tsx": {
+    "file": "9358965a4e4af1cd3d84.jpg",
+    "frame": 60,
+    "frameSource": "automatic",
+    "fingerprint": "d41945325394358850019c974f959b637cdb60adcec70b0358ecba174f32d5c4",
+    "checksum": "c1e8848fe49f6f134928251bd371d1fbbca0ddf27eecc128044229d085f0aae8"
+  },
+  "src/scenes/EffectAnimations/EffectKaleidoscope.tsx": {
+    "file": "401cfab012b92c6fd3a2.jpg",
+    "frame": 30,
+    "frameSource": "automatic",
+    "fingerprint": "00d3f68fde8643cb9052b57858ad62ecb285a0c33fa984a26f9ff38fd90b8630",
+    "checksum": "cd7134ee6faae6dd884b1e68f969f1bce08954f0b268718cf50a8b87cd3c72a9"
+  },
+  "src/scenes/EffectAnimations/EffectLightLeak.tsx": {
+    "file": "75f42f618aa263043282.jpg",
+    "frame": 60,
+    "frameSource": "automatic",
+    "fingerprint": "1f7d9d321d298b109c671163d7b9ec1f7875a49be444af4196e5eb031caceade",
+    "checksum": "515389c3dad933c389b5b08435f27c7b58cc5b730a5df7120facc23f269a4c6b"
+  },
+  "src/scenes/EffectAnimations/EffectMatrix.tsx": {
+    "file": "efc4df8bc29f70b2e56e.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "e3e0316017d66f0b2d3c1fdda8c9a6bf3d6890f029314d5cbd773b7393d84506",
+    "checksum": "6acb18563642160dc60469762d53d5d8fe79d0b3adbeb4e6a9c211fec677a75c"
+  },
+  "src/scenes/EffectAnimations/EffectNoise.tsx": {
+    "file": "68d10873356e042e9262.jpg",
+    "frame": 60,
+    "frameSource": "automatic",
+    "fingerprint": "64b5d2c8e5ded5b63514fa0c7498dd81b9a660553b144a575944d7d178e9c8d2",
+    "checksum": "07747141c7a041a575c981864fdb982058465aa8dd73c00bad78f01d50d1e37e"
+  },
+  "src/scenes/EffectAnimations/EffectVHS.tsx": {
+    "file": "acb98dfdfc2c72808062.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "5a1409a7ff55d04628463de9fac4cad3c4ad84c79c8aa1a4a1ba8df5593bd805",
+    "checksum": "86c3b7e93018b91ef150e00785aa01dafde94b157dca4856e17a2862c4405f00"
+  },
+  "src/scenes/LayoutAnimations/LayoutAsymmetric.tsx": {
+    "file": "e0615765451d29387144.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "9154b483aa0d7765bfebf8b2be0d7ab3b8f954946449107c6d11bf31ac6e8703",
+    "checksum": "b09420272a7cb18ef35f8b5a5dbb9ce88f459e4108a2bca603f038a0198082af"
+  },
+  "src/scenes/LayoutAnimations/LayoutDiagonal.tsx": {
+    "file": "e5f7cee4fcee4ea9ac0e.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "666cf51007474f4fd34cc1ca740dc60ddb05de66fd8a34aceb6a521e37f276f6",
+    "checksum": "bddbe9f789e178d07a82c5d0653db4920fcf28639eca246d4c146298e9336620"
+  },
+  "src/scenes/LayoutAnimations/LayoutFrameInFrame.tsx": {
+    "file": "5cb5d9a2ee39513b5c25.jpg",
+    "frame": 30,
+    "frameSource": "automatic",
+    "fingerprint": "8f50475d2e3e37f083d346b20e59aae78d54a7b4854708f9e5976828c32035ea",
+    "checksum": "ad673fc42a911695b1f3ca047c1dff6321e0c5c1bd713c06ce4c47f0e0a75c2c"
+  },
+  "src/scenes/LayoutAnimations/LayoutFullscreenType.tsx": {
+    "file": "b4b537c81c36ec312199.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "a25e43aee96278c21acd3bc11efd7ab45ea8d5b50de9aa0f918caaebf8515dd9",
+    "checksum": "eb924947731db4dc3c365a41792abea264608eee7f84b57c34db0919704d5b42"
+  },
+  "src/scenes/LayoutAnimations/LayoutGiantNumber.tsx": {
+    "file": "c57817053a462ab6a810.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "2ab66ce17082f965883e5b5c0182c43977cd6b0c4563cfd746d744842b852c07",
+    "checksum": "eb9dc700d50848a7e74310457721ac68fd32017c8fcc046828bc17175306576c"
+  },
+  "src/scenes/LayoutAnimations/LayoutGridBreak.tsx": {
+    "file": "9f2a2d37bf34671861a1.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "0722536216eb4d824bc0aeb49e45bd714a05a3b101e4ba6ab938109179ac0176",
+    "checksum": "8bb70c562fadbdbdedfb2b01c213ee580683a5ec27f65f5949af11cd179270ff"
+  },
+  "src/scenes/LayoutAnimations/LayoutLayered.tsx": {
+    "file": "175ceb2d2b18b532c6aa.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "f437a65b8333d2cb653a936c3b3f6b9cf81e23679ef0d7ecbbc1bc2f393b2d0e",
+    "checksum": "278431c2a3a4149a13785d3a3afd2381abc951a2729656b24ab738fa3d6e98ff"
+  },
+  "src/scenes/LayoutAnimations/LayoutMultiColumn.tsx": {
+    "file": "539995dba494c171adb0.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "3705eba42308d9c7eaccac600d49025bb5e71897fff46ff826d0cab4ce8ac998",
+    "checksum": "621e3c17b7fe5fec7fc6b0525a97af1caa34e07c3327f9b9675a813c61aad86b"
+  },
+  "src/scenes/LayoutAnimations/LayoutOffGrid.tsx": {
+    "file": "84e0416cfa2ab6b34984.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "e9f8b2b3f047de99a7060dd0b0e14567b20ae2f8aec7974cbaa4544a69ddc1ee",
+    "checksum": "59be554c69839b6fa0736a34d52212ba9ed3408b0154f689ba9e03e2364e5e6c"
+  },
+  "src/scenes/LayoutAnimations/LayoutSplitContrast.tsx": {
+    "file": "813a8bb67a0b0aa04359.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "742e48624b8df63ec8a044c948190e6055d05f763b32e46f2e0f8d9b7f0ab079",
+    "checksum": "88c9a9c5c15f8d23c07b0ac663a04b85632298824c214dbb03dde4da03613700"
+  },
+  "src/scenes/LayoutAnimations/LayoutVerticalMix.tsx": {
+    "file": "4c6caf88967c3d22f39a.jpg",
+    "frame": 30,
+    "frameSource": "automatic",
+    "fingerprint": "9bf12ea76cda5b9ea234f2d47db493d27ebe4c1f307efbef4764c59a9de9e0b4",
+    "checksum": "2a099c11596c058c0c32d28ceed0cfa8a2b80247914fe752c733286b43468066"
+  },
+  "src/scenes/LayoutAnimations/LayoutWhitespace.tsx": {
+    "file": "89ae1cac50469b9a4ca0.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "db23ce8c6cb1067b744d5b5759d8d7d5d3e3036ffd5d68f0fd12174d6a6830af",
+    "checksum": "f0e8b78f0d3653c991a88039474d2ba1481065144559c90efd4e9a2db6463f26"
+  },
+  "src/scenes/LiquidAnimations/LiquidBlob.tsx": {
+    "file": "90f97792ec26711e6f23.jpg",
+    "frame": 60,
+    "frameSource": "automatic",
+    "fingerprint": "cb96d56a9021a4dd83668f2c6023b42dde132d8cf4666401d98aa91cca4e653a",
+    "checksum": "71cbc84e48da478b561a0a286cbc221d22e7786612dd6c13931bfea1da5703e2"
+  },
+  "src/scenes/LiquidAnimations/LiquidFluidWave.tsx": {
+    "file": "8ff8b4644b91fadb5d83.jpg",
+    "frame": 60,
+    "frameSource": "automatic",
+    "fingerprint": "65398871e0e08c4f64ee7624f40a018a7bd0d28d3ec4af69e498792707b498aa",
+    "checksum": "4f83e1be9283610ab2899ef17bbe796b4e389b7fde4170ad1b60fa69457e4e8b"
+  },
+  "src/scenes/LiquidAnimations/LiquidMorphBlob.tsx": {
+    "file": "1b27d836146c44f75295.jpg",
+    "frame": 60,
+    "frameSource": "automatic",
+    "fingerprint": "b6b006ebd3e875e2b39ba2eada3e0f2d089d3895b7265fe04528285fd7bb85db",
+    "checksum": "133c71b057ed07678d97da58c22e991aa470761c0f386cac9c1c0a9003835b10"
+  },
+  "src/scenes/LiquidAnimations/LiquidOilSpill.tsx": {
+    "file": "27be83bcaebc88306bed.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "8cd7f0d8f7fce5d3e9df54aa7f86563d768857e6c8a2e7660e8d1d5db2b14324",
+    "checksum": "6b4aba6258dd154113ef719bda7c013faf18a0f1f9c5aba04ba5aff528851a76"
+  },
+  "src/scenes/LiquidAnimations/LiquidPaintDrip.tsx": {
+    "file": "a4d715faf42c86e4290d.jpg",
+    "frame": 60,
+    "frameSource": "automatic",
+    "fingerprint": "4c40a8ee6ba73337d9f906c6e1ea841f87fcea43b9d51134a5b65f5984bc3cda",
+    "checksum": "4fb7b7d3df20747fbd955332249d1ec3a4df801a994949c789a1a8cbf8d96bb4"
+  },
+  "src/scenes/LiquidAnimations/LiquidSwirl.tsx": {
+    "file": "2e363c9ec72cd78caf04.jpg",
+    "frame": 30,
+    "frameSource": "automatic",
+    "fingerprint": "d7730d7d8edf8cbc7ea51b008603633040616d181ed1906280cc7f86f0fb8942",
+    "checksum": "e4e9c9b58aeefb93c2f96733926bf3822a5947ac48fc2f5caaa429bc97e572e5"
+  },
+  "src/scenes/LiquidAnimations/LiquidWaterDrop.tsx": {
+    "file": "9c41036fece441081977.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "eae18240f158a4b0a5e6f73dc5544c41f10130cddbb421330e791a6c98342b67",
+    "checksum": "8b58ebe104629b1e25bbb5bcc3c4c937e2b6048da0b674bae4d19c200aa14b21"
+  },
+  "src/scenes/ListAnimations/ListAsymmetric3.tsx": {
+    "file": "97b466ad1746e2fe074b.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "492ec5c428657650536aa3da0278e1bc5f2564889f0b5cef0a5b5f581d25bb56",
+    "checksum": "2cf1bb2c5522f304f6d50712726af52e8faa5b240ce0989176c3121eda6af117"
+  },
+  "src/scenes/ListAnimations/ListFullscreenSequence.tsx": {
+    "file": "7e8efd967bd2ec5dd3ce.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "75503832c21e9dbe6fcdb8454bab8d498f44dc2e06af440be0bae33834fb24a7",
+    "checksum": "07f8a5ded92f5ada9a4a06bc8d869884e6e635aa956093b6744c94b69e4d772e"
+  },
+  "src/scenes/ListAnimations/ListHeroWithList.tsx": {
+    "file": "02f6aacaf9c29abbb57c.jpg",
+    "frame": 60,
+    "frameSource": "automatic",
+    "fingerprint": "5374ae42b0c9b04023b6d02a41fa8c82e2614d7103691e6d625083a9c84bab4b",
+    "checksum": "cedbe5c6b65b0afd90fa0efbba23cfbc09d5cb558e6706154237a7f6d0c2dbd2"
+  },
+  "src/scenes/ListAnimations/ListHorizontalPeek.tsx": {
+    "file": "5df1b6b438b4a2e9c32a.jpg",
+    "frame": 30,
+    "frameSource": "automatic",
+    "fingerprint": "4e09e4f99ae11879517ec1b202d96df42c33767c7ac63c80f869504d8bdcc4a6",
+    "checksum": "7b272a0696a22ccf15bf9ff9873f0badff5fd8fb33a53d6dc06fcff82904f7b0"
+  },
+  "src/scenes/ListAnimations/ListMinimalLeft.tsx": {
+    "file": "c3c1be1ae0374d64e12f.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "5bfac4f8e483295a0b09922b588c88431299de73575e47cff3db4566f8c88e74",
+    "checksum": "963f03ab81fc46922f1cdd5ed5c011bdbda7023863d7b2b8def638ba3fea2902"
+  },
+  "src/scenes/ListAnimations/ListNumberedVertical.tsx": {
+    "file": "419355834ed6ed7edc15.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "d80cfb9ae6aec41a5681997d3a5dac63774f3837b656be20581db8c1531c264e",
+    "checksum": "033526ea3e334b9e6a9c7552527e6af889b0ec7e9c29b185bf26d57956182a4e"
+  },
+  "src/scenes/ListAnimations/ListSimpleText.tsx": {
+    "file": "8b7e388662bda2df9ae2.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "98a1ae5356e939badcc55ef6771d83a15fb23fd1f4f9a9d3b57d5c588215de55",
+    "checksum": "891983d336384bfa53b6683c0ac5c84515b31a1e23d0df07ffe406124d669fcb"
+  },
+  "src/scenes/ListAnimations/ListStaggered.tsx": {
+    "file": "35e5e2e03ee08d7c472f.jpg",
+    "frame": 60,
+    "frameSource": "automatic",
+    "fingerprint": "245de22b3bbc9224210ab08d7dccb0087efec2d97a06b3da4028c27b7f7ccb06",
+    "checksum": "090882142885863996d2037ea5be2b92fc9cac3954d6e10d5f8f8e7b6a90bd98"
+  },
+  "src/scenes/ListAnimations/ListStatsFocused.tsx": {
+    "file": "9bc73c916512a2a41c2e.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "fcca7bbb1e9fa5fe05458a35630df7c56814744d6b16e94ed5c2ce72362cf751",
+    "checksum": "a7fa639e9c2718a5d5b9345f4114266a92d7b377815b8285a634f2b0730c5372"
+  },
+  "src/scenes/ListAnimations/ListTwoColumnCompare.tsx": {
+    "file": "59a1b239975b6afa20a9.jpg",
+    "frame": 60,
+    "frameSource": "automatic",
+    "fingerprint": "8cb847ec3c69a99c74030909f6579e0a08c35644b720d25d0441934bffe1109e",
+    "checksum": "c69c9ad691ca6ae28249e8fb78dde86b39f41e9a174d491295e0c1f90c71f76e"
+  },
+  "src/scenes/ListAnimations/ListUnevenGrid.tsx": {
+    "file": "0aaabd0c6c498d38546c.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "d1a258a4938785cb99768e41d97d4171f1f985e68e2b40cd9a3d5efc57503e2f",
+    "checksum": "e2d244353e5ac7b494f82ac66029dd51da675f9fce44a093290a2eef2a5d34d3"
+  },
+  "src/scenes/LogoAnimations/Logo3DRotate.tsx": {
+    "file": "9b7aec5ee0c7e1f53dc1.jpg",
+    "frame": 30,
+    "frameSource": "automatic",
+    "fingerprint": "72affe2a2b788e9eeb548b28b04cc5b471bdb1c781c1de3386b2787c3b40a954",
+    "checksum": "9e21f7fabbe3ea1a26e8ab106fd2a38f86ed15a40be0b385032eff6a5a17519d"
+  },
+  "src/scenes/LogoAnimations/LogoGlitch.tsx": {
+    "file": "835ffd45d60b1fb150a5.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "62046e17ef1cd627068920e1f70c1a88d78848ec408f6c5a0e25635f98b4b3a5",
+    "checksum": "f347ce3405b2be806771d16dc4e05e5dd61df3154073b61f9fc5e7c374086008"
+  },
+  "src/scenes/LogoAnimations/LogoLightTrail.tsx": {
+    "file": "0156e7b954cd3da009ef.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "e648921101cbab2147e60f10d112b2537fa0a0c48f743bf7330f190c1a15bd5b",
+    "checksum": "bd5367badb06f5b1ca9aa45deff28b6b6388349db850aaccec6ddb184b52d1a6"
+  },
+  "src/scenes/LogoAnimations/LogoMaskReveal.tsx": {
+    "file": "96cff3619e9a8e658f21.jpg",
+    "frame": 30,
+    "frameSource": "automatic",
+    "fingerprint": "22c234542d7eda068e3cd13578f1e2f6409fd5cb59997877a7e21d70186187b0",
+    "checksum": "6d12dbf9c72402407b41a3b971fb3ddc97d23bf3c59c69285220c16af8951665"
+  },
+  "src/scenes/LogoAnimations/LogoMorph.tsx": {
+    "file": "1028ba6e8c0e552ac0d8.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "6401224bfe71aa64d609f39e3767e0631bde673903f0e7758bd53b7b59833da1",
+    "checksum": "de8caf57856d1b87d2f6d1c7e002a94505ccb21a0764225f7d40d718cf51f206"
+  },
+  "src/scenes/LogoAnimations/LogoNeonSign.tsx": {
+    "file": "b58e0a7eda5eb3ab6812.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "7984f712982d11af700848349e3f46162ce75b3ce9c2dc9af419387c28847cd0",
+    "checksum": "2cc216e737a8bc022a3daa8fb82213bf0f4d96c271695d44762834cf0058c8c3"
+  },
+  "src/scenes/LogoAnimations/LogoParticles.tsx": {
+    "file": "0c8c4df904c1f8a33d29.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "51d9eab977c54419cfd81f41c53fe9480a48331826ef6ec881e1ceaaa6e2ad64",
+    "checksum": "60d1c55af0849de49442dc4feb7c8b46664f26bc49f8b27a414bd25a6b0e358d"
+  },
+  "src/scenes/LogoAnimations/LogoSplitScreen.tsx": {
+    "file": "482b5a79c26d8428f749.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "ae23ec18b699db3ac4f8c36856a1d199bf49afec4bbf9d2557e38e62000e8128",
+    "checksum": "7f041be35c0299297379b64b771d619a062ce298ed4f7351c820e54d6b035c36"
+  },
+  "src/scenes/LogoAnimations/LogoStamp.tsx": {
+    "file": "6def7a49626d3d124d39.jpg",
+    "frame": 30,
+    "frameSource": "automatic",
+    "fingerprint": "8983396ffb9a0920b7fffee5c0ef1ca1c41c2f8b8b9eec5d97ff4eaef96bb3bc",
+    "checksum": "6da522060c0e524d5fa2d115a98abf4813e50897f36ea881829ef92af0571a42"
+  },
+  "src/scenes/LogoAnimations/LogoStroke.tsx": {
+    "file": "6fd03bb460b81b147666.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "aa4e9d11799e41d6a85ca841e005501dbca369c29ceb52ebbb9b8ba86bad403f",
+    "checksum": "33308cf40ba8ba0fc3a978d1c6d11a75e1aabbae18a7266ed6c0046231817737"
+  },
+  "src/scenes/ParticleAnimations/ParticleBubbles.tsx": {
+    "file": "2b41890154ef2c97ec6a.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "2ca11ce2766218fe4549c3f0dec0715d2956d0bb9ff1f05cd225df7164989219",
+    "checksum": "05585c4cfa1a05132a8d2d98a7e397060f70afa306f563090d8ad4d5af8fe556"
+  },
+  "src/scenes/ParticleAnimations/ParticleConfetti.tsx": {
+    "file": "dcf239838288d6b63cf8.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "df68ca1f4de5c1996a09a73c4df4a9dbca0f4538bb19bee4be4af0324e0838f1",
+    "checksum": "83f63c469f09199d0dad8df8b89d393ad955bd025f61c3d681d47fac9e026a59"
+  },
+  "src/scenes/ParticleAnimations/ParticleFireworks.tsx": {
+    "file": "6e8df02632131a4f9301.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "de5510ae3c67753bc95ecfff1b589ca47bcb9adf14a9e39038905e468f09dcf4",
+    "checksum": "8e669f104ebe9cecc14f94cdeee6144413a95d3a1ca2a3d226bcc7d1c554a0fd"
+  },
+  "src/scenes/ParticleAnimations/ParticleLightning.tsx": {
+    "file": "606c8898e4ee704e6b94.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "22c1384907d6d1c60dcb3475097ec139c5c27c231b01abb948a9a399a191da4a",
+    "checksum": "c99fc4dbb8627edc443f458dc494387da982ff824460a4fb6c632befef9887ee"
+  },
+  "src/scenes/ParticleAnimations/ParticleMagneticField.tsx": {
+    "file": "8a7fefd4be473b28320a.jpg",
+    "frame": 60,
+    "frameSource": "automatic",
+    "fingerprint": "db6e90f89dce667c010503f4e7dd591cc234cd8ceb0dfadd529a19fe89dd3314",
+    "checksum": "e335320fa4ef9cb0cf59d2ee37603324f6cfb24fc25b4f1cd35726aec02cdd17"
+  },
+  "src/scenes/ParticleAnimations/ParticleSakura.tsx": {
+    "file": "7ace8a31282211023e71.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "f9b38ffc5bdd2981adcb10e75bb4c85c6e77d644cd075bd15316b3f6e97b2beb",
+    "checksum": "82883074792bea75526ec50fc50567b4f51f5dd930a7fc2e9335f9186ea4fc93"
+  },
+  "src/scenes/ParticleAnimations/ParticleShootingStars.tsx": {
+    "file": "7f59a57e8ba6e63ad471.jpg",
+    "frame": 30,
+    "frameSource": "automatic",
+    "fingerprint": "c6ebb669873bbc2cabe1c66084ae0fb7041ad3d438dc36a7f1c8a7a18de3ac0c",
+    "checksum": "d96aa30c9ce0ade8c9c7b1e84a410c53613f70ab215f37d3dbc60451a5ce4b9d"
+  },
+  "src/scenes/ParticleAnimations/ParticleSmoke.tsx": {
+    "file": "6828f29f870396a679ad.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "a3fee54ff0cdd847780ffd7a97747fcbfdb39b99ba9b22248b3f45269c8c02ca",
+    "checksum": "6499c6b20542ea9563024e709049a2cc4b7867f19c015f9b924889e37cb9b008"
+  },
+  "src/scenes/ParticleAnimations/ParticleSnow.tsx": {
+    "file": "3b77102208eb1d8e9a19.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "0ff1fb986c281e27baed033926d4247fdf1c2c885a28d84eec1e62b7fb5f577e",
+    "checksum": "7cdf5416cdf961fbe325c8d2dcb9a009aa6e2f28358a6c8e0fb18f1fa0b78fe3"
+  },
+  "src/scenes/ParticleAnimations/ParticleSparks.tsx": {
+    "file": "93681a4924175643f68b.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "b72076c3218fcbce0f4087a383d1389fce356a97fe87a8afc6e387ddac552ddf",
+    "checksum": "e8936a4b1b5f398f9a85b931e239e23f94a5ea0eb18de37c1895e05819537c37"
+  },
+  "src/scenes/RollerAnimations/Roller3DCarousel.tsx": {
+    "file": "5718f82439978f8b7d7a.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "95440c1588c9650e93040d71d98b225cefc77c37f3b52027f11049dab4bb98c6",
+    "checksum": "f06f41f1f6cbb3dee3e0d16628a20a8b298a3d39c75eb4e55e144b7dcb82a3ac"
+  },
+  "src/scenes/RollerAnimations/RollerBlur.tsx": {
+    "file": "57502c3f5c2533b2a384.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "b35398c96bc40e5e15be0939fad3c3ed948adfcfa19eb014a32b9ae1bb372312",
+    "checksum": "9449b9151ad35d56ea33ec712fee5e875c60b0a93c1bc830d103c332301a79b0"
+  },
+  "src/scenes/RollerAnimations/RollerCountdown.tsx": {
+    "file": "71a3d5593211d6c10483.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "106fdfdaf0d04d86c2cfc4b94099341ddc1a390b91acc23a4b996e4165ba44a3",
+    "checksum": "dcdaedc0312a2426dab45c78102b30beb87a8ff5b1ae49879501618a3a45ac95"
+  },
+  "src/scenes/RollerAnimations/RollerDramaticStop.tsx": {
+    "file": "6d6ea19ccea0390eab90.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "4c93564a2ddfb2f79ae98a07a2b07253c7b986f1fd332ee0b28f4d4280fa0eb4",
+    "checksum": "218ccacb010fa2b0ed647535537073f4a6370b99eae113fa04e39d82dc7e5a57"
+  },
+  "src/scenes/RollerAnimations/RollerDrum.tsx": {
+    "file": "76978d2965e49e3350ce.jpg",
+    "frame": 30,
+    "frameSource": "automatic",
+    "fingerprint": "492d25154d619d8183aaafaad4760c4bf0e829ea843ecb4ad59c0b8c8f8c89f1",
+    "checksum": "d12288972faf7963cde1c22af631bd3f874711f2a97f4cd162ce1c9c1700394b"
+  },
+  "src/scenes/RollerAnimations/RollerFadeSlide.tsx": {
+    "file": "8fe125559ee62768e577.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "3a4b4d3d630f97c5cfef31f5494ffaa6e0c4dee02221d2f892d08441a2d79863",
+    "checksum": "5b38d6cb9c2b187d6aeb810e9567411ee98dd587751abb5f0cdb63ab524c4729"
+  },
+  "src/scenes/RollerAnimations/RollerFlip.tsx": {
+    "file": "8327e411f827fd618402.jpg",
+    "frame": 30,
+    "frameSource": "automatic",
+    "fingerprint": "6cf98895e21b07e3f97a378831f5a059cc559a9e97fb19cb65333c2047a626d3",
+    "checksum": "e3714d4fdee9ca437bb41fa5d5faea4ddab24281dc1004edf991df7bd9cb386d"
+  },
+  "src/scenes/RollerAnimations/RollerGlitch.tsx": {
+    "file": "744c2d93212a77cc4ac0.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "d89de75253c310cead58e48b1e7792eca60bc2616c1b0c70d066c4d434ddaaa8",
+    "checksum": "133b4dba6ba9e812dac5045c868efab0c394db00fcc3faf38c70500395afb365"
+  },
+  "src/scenes/RollerAnimations/RollerGradientWave.tsx": {
+    "file": "383614a7d903385de439.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "55d4edf2ed91c16f30d18f35dc48cd16629bb0b466402ed4c748733be2b63b66",
+    "checksum": "bfe1b8e834fc7d5d78ef9811cf1a3c3685ea1bdac4c8f5a6972563bd2f841bf9"
+  },
+  "src/scenes/RollerAnimations/RollerLiquid.tsx": {
+    "file": "fdfce2adf5baf24316f0.jpg",
+    "frame": 30,
+    "frameSource": "automatic",
+    "fingerprint": "60a327a7c130d4b0f2ffd22488a229a5a03eeca12d51a4c55bdb908c18ca5367",
+    "checksum": "bc6f330a51cb85f0b15ca0a2f2f1151b0fca73110e699e992c1a678158069934"
+  },
+  "src/scenes/RollerAnimations/RollerMaskSlide.tsx": {
+    "file": "73ce9c34027a4b47ddc2.jpg",
+    "frame": 60,
+    "frameSource": "automatic",
+    "fingerprint": "17d0bd12cdd054c9785b3aa26754e90561286d72d425f67b1e49588b239d0756",
+    "checksum": "a1d6826fa9b8abb1987d063967f1fb99a36244e5703c2295b21b791a8a10eba6"
+  },
+  "src/scenes/RollerAnimations/RollerMultiSlot.tsx": {
+    "file": "6136dba001811e647e17.jpg",
+    "frame": 60,
+    "frameSource": "automatic",
+    "fingerprint": "4d8f1cb5c4a0670d1e791030c2b27931393005f192573c28ad35c1cdf939fcd0",
+    "checksum": "c6431b046d55c3570a56eb4290d5363d7fd15496c1f73c384d34641a86d7016a"
+  },
+  "src/scenes/RollerAnimations/RollerOutlineHighlight.tsx": {
+    "file": "f388cc866bf6719acaf1.jpg",
+    "frame": 30,
+    "frameSource": "automatic",
+    "fingerprint": "25174118e3347efeabdfb5cce83c0113a852f58be7ea610046da0364945efac5",
+    "checksum": "5596bef3ca17c08ae9c400eb88b882a22496cdadb5c79ee7e84b95ad431a3bda"
+  },
+  "src/scenes/RollerAnimations/RollerPerspectiveStripes.tsx": {
+    "file": "46d3083117576726381d.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "c7316395f132cb02440c1b25b23991cd3d3a09aa926c98b97e53943617990c79",
+    "checksum": "bc8dab82495e74ec6e41951c536c5becb2c4ab0491b0317413379c831bdc3b1d"
+  },
+  "src/scenes/RollerAnimations/RollerScaleBounce.tsx": {
+    "file": "29b1ee516a9730b0bcd3.jpg",
+    "frame": 30,
+    "frameSource": "automatic",
+    "fingerprint": "04dd74f619889be6173eb0498fb918d194e5cb172a9f64b128ee63bced54fd02",
+    "checksum": "a6b4e67aa20e06c58a3b139270ebe0dc8a9db46b848e6ef8f4365cc092dbc419"
+  },
+  "src/scenes/RollerAnimations/RollerShuffle.tsx": {
+    "file": "9ec7148fd12d4ffae1a3.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "a8a37394c3cc6857cc4ee99d1620b0303a45bf0fc5e00b82d047967e98c81997",
+    "checksum": "7cee67c0a997fa9cf63a1508ecfd8d6b8e0659dda4c8c8e0b42ed85a87f1a44f"
+  },
+  "src/scenes/RollerAnimations/RollerSlotMachine.tsx": {
+    "file": "3738a965b1630a2e29b5.jpg",
+    "frame": 30,
+    "frameSource": "automatic",
+    "fingerprint": "0858471df534ac1cb25783fd10ec1cc3a50ab9955a0efd8954a3fa87a67b03aa",
+    "checksum": "2e1eb82aa80466e2472678f990995e505d09c75740769b39d1623274db9e4757"
+  },
+  "src/scenes/RollerAnimations/RollerSlotReveal.tsx": {
+    "file": "ed1d885867784ac0ad06.jpg",
+    "frame": 30,
+    "frameSource": "automatic",
+    "fingerprint": "5380ef996cbf74ef753c31871a6eedf92babcdf779a67dd42887448434e30512",
+    "checksum": "da9f6bdbbd49dd6e5a7960f2d803a535d83506a4f2a2468f89c4100378d4cabf"
+  },
+  "src/scenes/RollerAnimations/RollerSplitFlap.tsx": {
+    "file": "c875765e6644309eb8c0.jpg",
+    "frame": 60,
+    "frameSource": "automatic",
+    "fingerprint": "9dc0bc2c6d38b5c194db6a6cec5be85ef625fd68000bcbadc96cbcff9532f38b",
+    "checksum": "8c191909a207062f516ac7ecfa7f57102ef4665db2ca3efd67d1af0de6bd9778"
+  },
+  "src/scenes/RollerAnimations/RollerTypewriter.tsx": {
+    "file": "61b02078979d21c09fad.jpg",
+    "frame": 30,
+    "frameSource": "automatic",
+    "fingerprint": "64ed743ecb916122c22524c8e966b4d6983310a2992577003d35723a3e012d16",
+    "checksum": "e529f28b9a10c88844f785544f23c1fa0a8fe11b58315feb313fa99ca4cfb01e"
+  },
+  "src/scenes/RollerAnimations/RollerVerticalList.tsx": {
+    "file": "8e31b58375260fe17827.jpg",
+    "frame": 30,
+    "frameSource": "automatic",
+    "fingerprint": "be3707761ea71df01e6da08fadf691958e4112edc89b9d172cc405876199def7",
+    "checksum": "78b1b16ce365d5b90e524a1eb70525c2d104e8e058734897df53053635e5418a"
+  },
+  "src/scenes/RollerAnimations/RollerWave.tsx": {
+    "file": "43c37ae550cb7659798a.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "5b29a7a665f4b0d54f410712fde5519e51e4cd9a6794433d6834651f5de1fde5",
+    "checksum": "05f85da63a1cbc28e4711c9f0c2546d76fb13285bc39ef98c02880d5f50a0943"
+  },
+  "src/scenes/ShapeAnimations/Shape3DCube.tsx": {
+    "file": "70b8540a6855709926ee.jpg",
+    "frame": 30,
+    "frameSource": "automatic",
+    "fingerprint": "0b00e81c9661b6cb39df236a227bc56f436d25ea0d3e1880c97468860ac8037b",
+    "checksum": "a7bea0611cee4916d0c32653b7c6ac41c306055561ec08895a761b5f27a58ad8"
+  },
+  "src/scenes/ShapeAnimations/ShapeCircularProgress.tsx": {
+    "file": "7d78c527e3e19210d01d.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "4d4c02a7788833a321793335764176d02533b0e4925f0949a284715dc9f469e7",
+    "checksum": "5431ad072bc77554877ebed65cd202eafd1b95d365eabe566be9f7c83c653f25"
+  },
+  "src/scenes/ShapeAnimations/ShapeExplosion.tsx": {
+    "file": "d2437fc69887735386ec.jpg",
+    "frame": 60,
+    "frameSource": "automatic",
+    "fingerprint": "e74241a87550a05d332a19bafd817f4c465261c832b7fa9e3f64e530fab7453f",
+    "checksum": "92403412930fa657c6c36cdb04ecc97c6bbf5efe3059a7f6b812da7d37cb8d93"
+  },
+  "src/scenes/ShapeAnimations/ShapeHelix.tsx": {
+    "file": "85713848ada5cd5ffea1.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "eb39ea07023d1b9942f6b7d9c908c234c41b43ead0601b42da8e878730f488be",
+    "checksum": "ac11e3a42cf7e2371001062f7b1350ab78ebf6f8f64ce9a6582675335e2c3f1d"
+  },
+  "src/scenes/ShapeAnimations/ShapeHexGrid.tsx": {
+    "file": "48439d3fc791e7f5c7a4.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "56400a65ccf6298d06fad417ea6f4ead087786a9270b0d47a4c8ae918890ce5a",
+    "checksum": "777a7a02a5bcb7a9178d59233be15d0004f131b9bb11b819ccd322b5603cf2ea"
+  },
+  "src/scenes/ShapeAnimations/ShapeMandala.tsx": {
+    "file": "0b270d3ba5b1e8052980.jpg",
+    "frame": 60,
+    "frameSource": "automatic",
+    "fingerprint": "bf976ca5f6f80fd2d2889655b1fcf0d4effdc52b0e2c1f88d2259fe282c702f4",
+    "checksum": "a1f3da4000e99341699b077a10f96b3be09f6932b50f8ab0f887ca5cdc2ffd9b"
+  },
+  "src/scenes/ShapeAnimations/ShapeMorphing.tsx": {
+    "file": "2c3f94340bcf66f95914.jpg",
+    "frame": 30,
+    "frameSource": "automatic",
+    "fingerprint": "f9f7e23e935cdf5f97421b5f432fa0d3c00bd5bfc42e3823df504a32c0e412af",
+    "checksum": "d55cb44706e92a89e5888d1aa5f8781efb3b702be1d411b8b1cc873365694b1a"
+  },
+  "src/scenes/ShapeAnimations/ShapeParticleField.tsx": {
+    "file": "41e1ce24b549f185926b.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "aa14fb6ba81b3133fd5f6ab8fc61e9efd6602cfc96b6f9619c9fd5093d03a97e",
+    "checksum": "849ef3cda7563dce10b01a0b4500b32c7358a65a92807ab9675e2c5863bd24c4"
+  },
+  "src/scenes/ShapeAnimations/ShapeRipples.tsx": {
+    "file": "a310c22c8a1041699e34.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "8d3b486cf394c4787624b523ac219676afab54d63d3d02371ea5296fe6735dce",
+    "checksum": "438b8df3899005d9318291d9a386f35011452cf77f4ff355b067f965004f6834"
+  },
+  "src/scenes/ShapeAnimations/ShapeSpinningRings.tsx": {
+    "file": "62dcfe0a24d65a13a1e9.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "a0de77aa05991be06889dc4f5c2ae6cfc292bfee16f774158e49f5b8c9865706",
+    "checksum": "a4d7591f4dd17a742cd94734ee570529e1888b17c6197806a3ee9839085367d2"
+  },
+  "src/scenes/TextAnimations/Text3DFlip.tsx": {
+    "file": "519a5c43c1b23f6b0928.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "cb50c6954c9298672e0e08923d27d33a7f4a6c86f2e99790fe028c4e86377a7a",
+    "checksum": "5d1a84874993509863aae03925aaeca2ec21a74f3438c3e2b37775a6c64cb1f4"
+  },
+  "src/scenes/TextAnimations/TextCounter.tsx": {
+    "file": "5f1d6c0e7399be54a422.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "ac95cb442232d31e50bbcdaf97bd68b40bd91de659f9871ee2097a63c4e3d702",
+    "checksum": "c58756c13b3d5bb880f143dc51ec0eb51e3147db918214ed46c6058979d4b0f6"
+  },
+  "src/scenes/TextAnimations/TextExplode.tsx": {
+    "file": "45112cbe85fe7b7abfe8.jpg",
+    "frame": 60,
+    "frameSource": "automatic",
+    "fingerprint": "28a8ed74d54b1e98cf448754b0aa4afafc35bb4c6bfc6d4fb0c42bc3dbdba2e7",
+    "checksum": "c98594a151fab3593a92bf095f087f3c75696b8e092085e157c1a062a405b789"
+  },
+  "src/scenes/TextAnimations/TextGlitch.tsx": {
+    "file": "890e578ff0eca37bc406.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "e5729b156f81b6eb575810f7d925faf733ac725decec56a844727e90c62651c9",
+    "checksum": "062007d52dfa6d9880925de8dca60e239ea446d190f5c9891db6c4032d4c6279"
+  },
+  "src/scenes/TextAnimations/TextGradient.tsx": {
+    "file": "6e83d8b5b14dabbb2f83.jpg",
+    "frame": 30,
+    "frameSource": "automatic",
+    "fingerprint": "224ebd6facb4ae1c26ae130307bbe5e5c77f45e084c4aa8e86ee335ee3aaa78b",
+    "checksum": "bbbd9fcbf0667f06f45d2ecb8029d41f42842e6280fc419aa9718db3b881a7f9"
+  },
+  "src/scenes/TextAnimations/TextKinetic.tsx": {
+    "file": "8b76af23130c3dbfebfc.jpg",
+    "frame": 60,
+    "frameSource": "automatic",
+    "fingerprint": "6e52d623f5301ffec1e27a36e8c1fabc9d2947cd45cbe34561711917887be1c0",
+    "checksum": "fa705d12e0ad59dc2487ab223be8d57b6feb8d7a63cd60d91b2e3ccb727d8846"
+  },
+  "src/scenes/TextAnimations/TextMaskReveal.tsx": {
+    "file": "7179beee5071c052f4ca.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "32da2adb997910a9925aef2cd5615980cd99279b6615871c53c6a9b9a5e4a78c",
+    "checksum": "d4d5502a5da8021185480b9c01769f0760f238eee035767f07d3db8433164e70"
+  },
+  "src/scenes/TextAnimations/TextNeon.tsx": {
+    "file": "7e2608cee2970e6c2ebb.jpg",
+    "frame": 60,
+    "frameSource": "automatic",
+    "fingerprint": "49e2758268dddcb82f96357344bf421561e19406ec7481aa2c10ef9e05dd7d95",
+    "checksum": "5abdd22a16e700beb848cf6a8a9eab3701d75f2a35fe50e1508de37fe5b4d4a0"
+  },
+  "src/scenes/TextAnimations/TextScramble.tsx": {
+    "file": "9b587ee43132a0a43643.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "6a07d962c821c3c01076f5bebfc9b9307ba7a36c0c377889bd56d0c972411218",
+    "checksum": "44f145ff2eb39365b0579c8263a7946da889330e13b9b10ea5216c4b48e0e6a9"
+  },
+  "src/scenes/TextAnimations/TextSplit.tsx": {
+    "file": "7126a4d39b2dffdec62e.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "c723b503dba0b0cde026810895767d51c1b010e15d97b65034204599a4743d89",
+    "checksum": "3ba3b30c042ade68d5f179aa8570c249d983f45ade683cb681b1361aea476ded"
+  },
+  "src/scenes/TextAnimations/TextTypewriter.tsx": {
+    "file": "4a162fc529ecbf8f9d33.jpg",
+    "frame": 60,
+    "frameSource": "automatic",
+    "fingerprint": "7a11232af286770aae95591fd07a34b4a40201dbab240ca3d51a76276c1413e7",
+    "checksum": "6ffc3dd3e1ce3e5f25a29badb6f7c3fb850ec24adb9ee4e6adf23f7ac42b88f2"
+  },
+  "src/scenes/TextAnimations/TextWave.tsx": {
+    "file": "56a4b170098aea633660.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "0c1f4f1aa9e0f603fdbd50c5bbb36baa4418344ad758b1491f39de9202fc9dff",
+    "checksum": "f1087f18e0c5f93fee73d690a18b6f548f4fe594a8c61fc26fae7a8e8886a2ab"
+  },
+  "src/scenes/ThemeAnimations/Theme3DGlass.tsx": {
+    "file": "87f42843345565b3ecd6.jpg",
+    "frame": 30,
+    "frameSource": "automatic",
+    "fingerprint": "831d7d639d89a614834d2bc9ac13574bb8350db56dd6524d8167c2d0dcd8dec4",
+    "checksum": "3518c49f2396a7b5cb3d06c6750a6aa28225461dc4234e2327316d54a3c164ef"
+  },
+  "src/scenes/ThemeAnimations/ThemeArtDeco.tsx": {
+    "file": "fca3670f4a26091d889f.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "c3997bd7f4f5954fe72a999d4ab26653085557733c497e0fed1c7b616947a8bb",
+    "checksum": "f64ebda0caf8dd514ed5b69d137564659573e92106ca535fcd497a903aea373d"
+  },
+  "src/scenes/ThemeAnimations/ThemeBauhaus.tsx": {
+    "file": "732c6895e93b5a5c8c3c.jpg",
+    "frame": 60,
+    "frameSource": "automatic",
+    "fingerprint": "9966517cd3b7f2e7283736f973a0664d9b5d054d6ef01388d031c21b00d2c969",
+    "checksum": "6254826fb6f60a4ba0bf967fc8f65d48c3a3f4b45bd89f205db728af5c7a68f9"
+  },
+  "src/scenes/ThemeAnimations/ThemeBoho.tsx": {
+    "file": "5c84a147b4d438ea2a38.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "11adb380f6663a785b51111e4c4d011621da6c64be78a5056ebc77be7f5f90ac",
+    "checksum": "a1450beb38b3e791dbad1c191485252918a9ee87c714eb8ea70bf98b1e27a249"
+  },
+  "src/scenes/ThemeAnimations/ThemeBrutalistWeb.tsx": {
+    "file": "18b59938fc6c0c13d61d.jpg",
+    "frame": 60,
+    "frameSource": "automatic",
+    "fingerprint": "87f71bf9a07bf8d500ccebfec90c3ee8e824c4c2bfc4e1dd644c681cf9390770",
+    "checksum": "431276d3dceb30ebfa901607ecdd22ad5f0151e3490ffb89bcbc6956690f17f6"
+  },
+  "src/scenes/ThemeAnimations/ThemeCosmic.tsx": {
+    "file": "51f265438455014cdf29.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "a83cc8fa58a5bf780e763452bd2659e9ccf4ccdc3f6484d7f937d49041f6fd02",
+    "checksum": "b9554b73458a151eecd53604bc0984c86f0a221bb889f8ffbb982660953623ee"
+  },
+  "src/scenes/ThemeAnimations/ThemeCyberpunk.tsx": {
+    "file": "d689c880efbe2b8cf915.jpg",
+    "frame": 30,
+    "frameSource": "automatic",
+    "fingerprint": "088de402f17f79a6ed1fd9961db6142ba376da431f5e20c02ec42c8720f707a6",
+    "checksum": "c5c36af6854146af69b8666d5f92073594ab6673e0f51cee13e4c9fca7c9c2eb"
+  },
+  "src/scenes/ThemeAnimations/ThemeDarkMode.tsx": {
+    "file": "ef9beb7fe8d95561856b.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "b81c454bd582750d2ea14b5777a85028ac96226b8e50f6abac658e9dc39a8acc",
+    "checksum": "4ae0b38bcfd8d0d9b4509ea893a2b20f8714a04755cfd79ae038f6b96eb1ac36"
+  },
+  "src/scenes/ThemeAnimations/ThemeDuotone.tsx": {
+    "file": "7007c761e6f4c9d93469.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "42d3a40ea2f84f5c3fb72bc0adf5e1f92494d93d78f30970e5ed41f7610128b5",
+    "checksum": "a34113bd7fb47449ca6fefce9ebba7a6535560a1ea5be4037822aedc379cc38f"
+  },
+  "src/scenes/ThemeAnimations/ThemeGeometricAbstract.tsx": {
+    "file": "8a77c3af5d5963de55ca.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "13a0a6ab9bc61b0849fd54d880cf0bc1bf8331a182f87a9ba28551fe60425169",
+    "checksum": "6e4669cdb7e726724309a1713dd91f42ab9792bc46a69400e0467323126a9a8f"
+  },
+  "src/scenes/ThemeAnimations/ThemeGlassmorphism.tsx": {
+    "file": "4e9a037b04d7fae0a0c4.jpg",
+    "frame": 60,
+    "frameSource": "automatic",
+    "fingerprint": "453e2085a44f8141b311175f9a7e62f251d50d146b3a24f4e29b8730c6e3ef16",
+    "checksum": "d3347841e7073fadbe661d1a62aab7319584ab7f993d43fe011f6dac6b5db8d5"
+  },
+  "src/scenes/ThemeAnimations/ThemeGradient.tsx": {
+    "file": "a4af0add6e892af7dfcc.jpg",
+    "frame": 30,
+    "frameSource": "automatic",
+    "fingerprint": "fcd47563ad5b77a1bdbc34784ab8ccabc31bd7672c0d03b1d41c26e7c8a8b1c1",
+    "checksum": "1d08db2398fc60efb23ae122d370db5f2204bde60ba639fa167eeda5d865c397"
+  },
+  "src/scenes/ThemeAnimations/ThemeHolographic.tsx": {
+    "file": "e00d7fad80b58357b872.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "48897fd0de8517f72a7b6b566a95dc62939e9aeae06b4da00225893278d24530",
+    "checksum": "4f02ab536db0928bc786315a2cec22e5147db73174acf618586708b5d48368d4"
+  },
+  "src/scenes/ThemeAnimations/ThemeIndustrial.tsx": {
+    "file": "39f14e3fbeb1db2d3c66.jpg",
+    "frame": 60,
+    "frameSource": "automatic",
+    "fingerprint": "52d85ed903e3ff572ed3249a9e75d51e524a00f30e1447cbcc9183e160b74740",
+    "checksum": "c88276609d5ed2a13892ee1d9876044f63095b29eaee314b6b0d64d71b6ed463"
+  },
+  "src/scenes/ThemeAnimations/ThemeIsometric.tsx": {
+    "file": "6ac807b7a733a43cc8a3.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "c757b8968ecfc4babe7f858453be03ae8ca6217103eccc0a724df3bf0b94b5ef",
+    "checksum": "b7c3f2d3e50b60651f8d2f63f663b760aee5fec7a7c48b5044c1705ea1da868a"
+  },
+  "src/scenes/ThemeAnimations/ThemeJapanese.tsx": {
+    "file": "fc2034a1764b8ace925d.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "2f18ae0841f9afc6921d97c1f62d4cb13b5d39127c2842f2a7828b65947c4b6a",
+    "checksum": "67616b5cf9e586c5f5b3023f082c51a59759b30c36785213c354ad631f690c95"
+  },
+  "src/scenes/ThemeAnimations/ThemeLuxury.tsx": {
+    "file": "ce39dea6239f1ab2663c.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "1d442e6cd5819fa163d5637c16162e22f01ec7b614510660b4380eb014de2c5a",
+    "checksum": "ee6f46ee150a63be552047045318ea318c23e7b92f9aa916a453c04bc0ae7afe"
+  },
+  "src/scenes/ThemeAnimations/ThemeMemphis.tsx": {
+    "file": "f3dc68eff1f1f6b807b2.jpg",
+    "frame": 30,
+    "frameSource": "automatic",
+    "fingerprint": "5aa4de35d48b1b66ade88b18f5f5666746a3ab5bb53fb429d0f0238da4c70c68",
+    "checksum": "5abb1168aa06b109459e4e4069df9947d9c2c48f01f3a84eee35cf0ddfb63435"
+  },
+  "src/scenes/ThemeAnimations/ThemeMinimalist.tsx": {
+    "file": "38a7692479d2a73da05d.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "f51db7c1387a6e6319c8614958e022286a47680fa057df06c9dde5008e6e6a6b",
+    "checksum": "29fceb72d3f90b188fe921ed10f135f3733c4f677b270e3fc38ddf26323445cc"
+  },
+  "src/scenes/ThemeAnimations/ThemeMonochrome.tsx": {
+    "file": "b61a846612dbf78c5a6c.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "265583bc9a1f7e2f56883be9c154430992bdd36ead90e8f6a66a9aaeda5e0a45",
+    "checksum": "4aed6043f1ddd4371d796c33104e1f5cdc6681801e533dc3b87355ea406ada64"
+  },
+  "src/scenes/ThemeAnimations/ThemeNatural.tsx": {
+    "file": "fb9b8ea2ea5015ada134.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "6dccf5fdcb2136a3b86d417aff856f460e4d7ac8aec3a9ceb28c0a21e0f32794",
+    "checksum": "8e70de9ebe0ed50ebc4050995453ffeed95856e19c8c1ddb70ca05d023844e5f"
+  },
+  "src/scenes/ThemeAnimations/ThemeNeobrutalism.tsx": {
+    "file": "f1f140ab7478f6bf5cb1.jpg",
+    "frame": 30,
+    "frameSource": "automatic",
+    "fingerprint": "ec112689ff62b25a92d3d6833020765044c68068f12a6219c6be2584c5aea364",
+    "checksum": "825c51bf755983c79d8d73e386b844bb696d9af0042fb391a90f44f8e9b3ba19"
+  },
+  "src/scenes/ThemeAnimations/ThemeNeon.tsx": {
+    "file": "bcc4a481be8219072504.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "468c829cf7e3723c95264b4e2d72fdf555d00f00146e8fa854e4480f168d46ea",
+    "checksum": "dd7a48340a886656622412a49706445871cd2a5665f18ea077b78803f567a305"
+  },
+  "src/scenes/ThemeAnimations/ThemeNeumorphism.tsx": {
+    "file": "31d014dbdfd9584294c0.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "d1123c206bce55a3efa9662f08d4ef5a88813ddc6a6c3f03be500c942b61403b",
+    "checksum": "627dd1e77c261dd25f99ed0ee517cd44fea46b405615d8821ba3dbec92085e53"
+  },
+  "src/scenes/ThemeAnimations/ThemeOrganic.tsx": {
+    "file": "3fc9fdeabd3c705352fa.jpg",
+    "frame": 60,
+    "frameSource": "automatic",
+    "fingerprint": "731256d499a7458ab966a11215decd38c3548a57322a171ca92933598b603607",
+    "checksum": "5c06f65c4afbf03d1f577e12e8807a28cab02a132413524904e2eb22bad61b82"
+  },
+  "src/scenes/ThemeAnimations/ThemePaperCut.tsx": {
+    "file": "be5346600c6c2873a1f0.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "8e7bdc98247f0f0251469fc3df38d79b6dfd0d56e26c8373fe1e3dba38b5085d",
+    "checksum": "d10c510e65c5fc1fe34d1bbcbb9fbfd105318839a8d349300ada3975b3e13ecb"
+  },
+  "src/scenes/ThemeAnimations/ThemePop.tsx": {
+    "file": "6abf2dfebf00223695c3.jpg",
+    "frame": 60,
+    "frameSource": "automatic",
+    "fingerprint": "3dc8d07e37db9379dd9c75437f4300b50f9f1d28232d6b55b22a1a15c23ee574",
+    "checksum": "ee2d692380e7fc69b6ee55e9893fa5ca98ac15d827ccd16048ff228fe534b778"
+  },
+  "src/scenes/ThemeAnimations/ThemeRetro.tsx": {
+    "file": "8c3657868c9431a47bce.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "6939e4d6abac6c6753bb88eddc6e4e0030907ac64b6950b49d8ce561d47a5813",
+    "checksum": "8b61a49845f5556eb2acfb229e1ec46fb657f427c641fb031f20b000c6e2f122"
+  },
+  "src/scenes/ThemeAnimations/ThemeSwiss.tsx": {
+    "file": "661cfe86d25a4be9d21a.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "a2f23730363979a9016fd8cc515ece1c12ce903cfa2263de1152b8ed18efeca8",
+    "checksum": "8397673640c656f5dacee45618de590a4be598d59e2d195517d0f5eeed5d00c4"
+  },
+  "src/scenes/ThemeAnimations/ThemeTech.tsx": {
+    "file": "0dbf967a19ee61c6c628.jpg",
+    "frame": 60,
+    "frameSource": "automatic",
+    "fingerprint": "48269a645d2a6858e7c08e22318e1ecdaf45b17c0366dc64e6f78e0bbafab3f5",
+    "checksum": "db77cfaefa50f470528b1b50b081cac20a1287e3c306dad90a0344c3b8c11d1b"
+  },
+  "src/scenes/ThemeAnimations/ThemeWatercolor.tsx": {
+    "file": "49a9fc438d4ab08549f3.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "0959ff4918c0b00a0a9f05768db76b050dca86a6c8195a243f64bc4d9e5fe4c0",
+    "checksum": "c30114f0a9b03409d5dac00e8fe7b97db6924d898e1562b4c600050058853d2b"
+  },
+  "src/scenes/ThemeAnimations/ThemeY2K.tsx": {
+    "file": "194e6789139e9140ddaf.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "aed726b93021308b6794d8734081df19967be9d8d52ae3d6c23844c4d5044e79",
+    "checksum": "ee626c3d7106da06da30a280c519af40997aee6f18f190ceaf227b122a2f9dee"
+  },
+  "src/scenes/TransitionAnimations/TransitionBlinds.tsx": {
+    "file": "74397fbae90f0d39893f.jpg",
+    "frame": 30,
+    "frameSource": "automatic",
+    "fingerprint": "fa7289b6e06f8743379ad8ec3be0c04396b7ed17be56d2fe86b317faaae5ebf9",
+    "checksum": "827611d8620356faf1df12bb765ae45a7d4641e363d1260950da6990649dbe32"
+  },
+  "src/scenes/TransitionAnimations/TransitionBoxReveal.tsx": {
+    "file": "f533472842490b0d9103.jpg",
+    "frame": 30,
+    "frameSource": "automatic",
+    "fingerprint": "8f752fcd3836b307d7f0777e014a1384e8b9b49ad040d51dd8d075e2fafa53bd",
+    "checksum": "bad32ada327f845d5019dc16c8bc93cb6f2d2d9d0c0d751589902c3a7366fbb0"
+  },
+  "src/scenes/TransitionAnimations/TransitionCircleWipe.tsx": {
+    "file": "a1f0daf46d8dd255cbe9.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "17a3a779cd176542e36d13375733b62141fbc6c2554198a475ef63b11fe6083c",
+    "checksum": "457920134b58dbbda4fabf3d0db722d310893bf26eed4cceaa66bf9d51071833"
+  },
+  "src/scenes/TransitionAnimations/TransitionDiagonalSlice.tsx": {
+    "file": "fca046728ffc702fc8ba.jpg",
+    "frame": 30,
+    "frameSource": "automatic",
+    "fingerprint": "f88c52d073a36780bea9dd9f94f17128f5041f8cc011fb90aa880550a81fad2e",
+    "checksum": "7ca36b187f53ce078720c4a4cd6763e2322b604398080bb0517a5da9091bcd4f"
+  },
+  "src/scenes/TransitionAnimations/TransitionFlash.tsx": {
+    "file": "a597b1b963d9ccd50e4e.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "908c1da7e5fa3893420a4cdede3ffe6418b22d3e681311a6f3c56c5a7ce01a3c",
+    "checksum": "82fd4c998ac9450109d170e2eac024fe812154d4a188252a58002cdc8d3dec7b"
+  },
+  "src/scenes/TransitionAnimations/TransitionGlitch.tsx": {
+    "file": "70c6acfbce39e7a84eda.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "3796de946469fd65007b4a09f066698f6a41aa57f6faeb9b893c46c4b78c5f9f",
+    "checksum": "3375913215d929188ebabc2d85a1d0a3bbe6d19ca6a4aa888ad5a40262db3260"
+  },
+  "src/scenes/TransitionAnimations/TransitionLineSweep.tsx": {
+    "file": "cd3e961ef946370de210.jpg",
+    "frame": 30,
+    "frameSource": "automatic",
+    "fingerprint": "f2eb33fb0b2aac2a4c48848977c5a5c41b3c5e84afb4cd671cfc41f1bd9f1cd0",
+    "checksum": "b3ef922acbbb30c4072c20e49a3a5b092cf3ee0d73a9be9d1b5a79918c9b3690"
+  },
+  "src/scenes/TransitionAnimations/TransitionLiquidMorph.tsx": {
+    "file": "6f7b1d744cd156844e9b.jpg",
+    "frame": 30,
+    "frameSource": "automatic",
+    "fingerprint": "7e196e9f86fb79e52030129d2b5c2cbd0e12c79953fae26c7e97f11142888eb8",
+    "checksum": "ace3000b1fb94bda0da19cb26e0621cea4cf25408f6fd475b55892b72216d914"
+  },
+  "src/scenes/TransitionAnimations/TransitionShutter.tsx": {
+    "file": "0892aa4592917e53f757.jpg",
+    "frame": 30,
+    "frameSource": "automatic",
+    "fingerprint": "4a470ce3e4abcbf4634e2b97b5398fc523d6f9425576b90402c065b6f27280f9",
+    "checksum": "8bb01111215b059302382a4db770a98a1eadbd780ad16045e6867559f795909c"
+  },
+  "src/scenes/TransitionAnimations/TransitionZoomBlur.tsx": {
+    "file": "f39ddc15861f0a492e02.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "ff205c998c61aff51fd2042c7e80ad2e402daba072b52fdce871a956dcd8bf1f",
+    "checksum": "513bfbaba6dd5f79a1816ee40589a4ab970b92bd79c98ab4090f9badb5cf2815"
+  },
+  "src/scenes/UIAnimations/UIButton.tsx": {
+    "file": "dc58d6ef8264da2b759e.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "d07e5edd3e2a11d2740dd2ecfe45cd252686c70fae7bdfab4613c11b8aee9f9e",
+    "checksum": "d08969d4bedda55dcddd4f1bccda1ed9edb9934eb28a9b2aff1de826a20dc20c"
+  },
+  "src/scenes/UIAnimations/UICard.tsx": {
+    "file": "2e6f5a60c20aa809d298.jpg",
+    "frame": 30,
+    "frameSource": "automatic",
+    "fingerprint": "9c6789c85f39b49f806ca932a55840b0116db00367a971624064467357c2082d",
+    "checksum": "6915d2846f853a6111ced54877db0e072a07bda7eea641327643e019985c20f7"
+  },
+  "src/scenes/UIAnimations/UIDropdown.tsx": {
+    "file": "f2a0720a8876db336668.jpg",
+    "frame": 60,
+    "frameSource": "automatic",
+    "fingerprint": "9faa8897f94b8536821822618c625dac2d40838587f5e0e7b9dc864237f379cf",
+    "checksum": "18a309bd3a948c3e1d6a57c8dc55b24beeaca664821ce9aa78b007ae2e8d3ea7"
+  },
+  "src/scenes/UIAnimations/UIForm.tsx": {
+    "file": "9a62fc8323e074de1702.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "dce302e4c080b818a8f87ddb74fc6aa0f2235e9a83835667df283da6342288d8",
+    "checksum": "b86bf07c22078b48f00a4055b8cdc1f5dc77b73a7bc1a9380c7a1a7934ae3b3d"
+  },
+  "src/scenes/UIAnimations/UILoading.tsx": {
+    "file": "647ddc2102fae7d69c7b.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "ac27bc307332d023db0bc27853ff1386470f31730cdb62b0883993844545ff72",
+    "checksum": "3ed73a1e5be2048a300ed063c591c8ac7d50a797aa10a88214d67ead305037af"
+  },
+  "src/scenes/UIAnimations/UIModal.tsx": {
+    "file": "c8d62343773794d71719.jpg",
+    "frame": 30,
+    "frameSource": "automatic",
+    "fingerprint": "1e323333fcc677d5b3a314f0bbd356eec5a0a2fa28e1f6e217742656af353936",
+    "checksum": "645aeeab8aa11117091b31c87985219b2438c7acddce73c532db869b9e66bd06"
+  },
+  "src/scenes/UIAnimations/UINavigation.tsx": {
+    "file": "e47d21ce19f9233024d7.jpg",
+    "frame": 30,
+    "frameSource": "automatic",
+    "fingerprint": "eb9579a096d7174e6f17e3d1a9ef881d0b5604880bc04d816510671174292358",
+    "checksum": "34c6e77a6ffa4dc695295f7364098c95357710d4284ca0b4295e786c4f219f59"
+  },
+  "src/scenes/UIAnimations/UITabs.tsx": {
+    "file": "08e6f9ac34a69dcca4fd.jpg",
+    "frame": 30,
+    "frameSource": "automatic",
+    "fingerprint": "f34698e640413b7c1c756102c5edbd790142f48eac9dddfd373d222b08dab806",
+    "checksum": "f4cfcfc04d88261a76a131f5b4174e137495b52a34ac1a4fea0704a16f95a5be"
+  },
+  "src/scenes/UIAnimations/UIToast.tsx": {
+    "file": "f1b93c199fdaba756480.jpg",
+    "frame": 60,
+    "frameSource": "automatic",
+    "fingerprint": "805fae1cdf132e9ec39b3c42875a6b2ccc9d2dc9be3724c25b48d76eee454e56",
+    "checksum": "0ae573d940f1cb9e7483a18c6552c95c990791f2330db6352a8be80ed1166cb1"
+  },
+  "src/scenes/UIAnimations/UIToggle.tsx": {
+    "file": "9ee62e26d37d2481a732.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "578da1ad0e7136f0f4fcda6614bd3df82a62d8e2786d0808b43513305917d231",
+    "checksum": "59234f641fe2bb00ee855db293572007c6aa61a35af47dddded8b87098361f17"
+  },
+  "references/shots/camera/basic-3d-scene.md": {
+    "file": "a30c6e4f056643c67c1e.jpg",
+    "frame": 67,
+    "frameSource": "automatic",
+    "fingerprint": "5287c4b42659eb85ff1ffae4c1d2e3527c212607655b0a53976d9ff39c97bcc3",
+    "checksum": "f20cb719d1c6ef4ccf5dc9b104b33c67622d38080c114f025642b2aae9228207"
+  },
+  "references/shots/camera/cursor-flyover.md": {
+    "file": "8f0c21589aa65cb92bcc.jpg",
+    "frame": 71,
+    "frameSource": "automatic",
+    "fingerprint": "945f7baf47816624a57434644e4445334eaebf21853fca8fbd2bf41314b7f606",
+    "checksum": "9703e13dc01e3b893ffba8586f25557392e1ad9381c11b71c825fd8088ce402d"
+  },
+  "references/shots/camera/graze-face-tour.md": {
+    "file": "aa893950f34ea2e88d4e.jpg",
+    "frame": 134,
+    "frameSource": "automatic",
+    "fingerprint": "8469bbedb46aadbe69b1ee56451823b5e830c4fe2b392ebe049df127ab5b29a6",
+    "checksum": "b48a18a5ebe0e8f15cacf2784d3c014b077776158dfd98eb804d37dc46ea2f7e"
+  },
+  "references/shots/camera/steep-tilt-glide.md": {
+    "file": "7e3029849240bf472a9b.jpg",
+    "frame": 107,
+    "frameSource": "automatic",
+    "fingerprint": "429bb9ae44fd216a6675bfdc193b50ed2ac4c432b42d237b036d7c89993823fb",
+    "checksum": "1517bb1d56a40d4ff5e5fd746b84cd1b30ff68c377b7b7e8ae31acccd6c149b9"
+  },
+  "references/shots/camera/terminal-3d.md": {
+    "file": "a8fdcc1942c5fc0cfc37.jpg",
+    "frame": 147,
+    "frameSource": "automatic",
+    "fingerprint": "a414306388b60e1bf9d81b708c58dc287c89e45008c510614395edc8477b495e",
+    "checksum": "8c65e6f19a9fdcda58f722eed71a32643e6e2b32f53f19892e157236781c1ad7"
+  },
+  "references/shots/data/before-after-slider-scrub.md": {
+    "file": "61dfa455d7f329b308d5.jpg",
+    "frame": 44,
+    "frameSource": "automatic",
+    "fingerprint": "c77fcf6568260d57bbfe4731835f04f1760945689e7cac108b4d282dd515858e",
+    "checksum": "b34885fa71fa8e6df7d833c816ab54fb36b79519f5612698e701ec33e759f802"
+  },
+  "references/shots/data/timeline-travel.md": {
+    "file": "a8204cb3606475986262.jpg",
+    "frame": 143,
+    "frameSource": "automatic",
+    "fingerprint": "7416c7bc73996e41cfa21ac1f1e585618d0f0e3a9232517e15d60e1276e7aed3",
+    "checksum": "8c04827c2d0e1e3b520a825324871985e029e95ff5835838436d5fcee1357074"
+  },
+  "references/shots/effects/assemble-then-type-flyin.md": {
+    "file": "93ab80f4d08fb826c362.jpg",
+    "frame": 150,
+    "frameSource": "automatic",
+    "fingerprint": "75fd8ea729b87df19a10a85b7a0ff68db4f9b52cf4417cb8bc382160a7c9e813",
+    "checksum": "cf8b818b00fae8d43ef71b4e24ad4a0a3d6db98be88299e1139e8a1c67d08fe3"
+  },
+  "references/shots/effects/aurora-bloom-bg-flip.md": {
+    "file": "7e366a11c47399a6a960.jpg",
+    "frame": 139,
+    "frameSource": "automatic",
+    "fingerprint": "7c77a554432409408639a72366a3f9938d554d5866ae00fb78a980ab70ce0717",
+    "checksum": "44436b003e5b46b2aec68ab25e184fff985ea2ba1b882e5aa47e83f503b9f28d"
+  },
+  "references/shots/effects/brand-frame-snap.md": {
+    "file": "27b324d106b611926446.jpg",
+    "frame": 125,
+    "frameSource": "automatic",
+    "fingerprint": "f4f6eacb15224dcdc9744cf6d1bab4e9f5ebf7996ab92eb88a18620ffcd9b44d",
+    "checksum": "3b9d68d79a861e827a07ad52d3a581fc783b5fe89389805e1c56ffa112994852"
+  },
+  "references/shots/effects/fui-hud-moves.md": {
+    "file": "7e0661f07f90cc97a76a.jpg",
+    "frame": 80,
+    "frameSource": "automatic",
+    "fingerprint": "6df1d35155708d30da18323b0f5aebcefbeeb89e5f4e095db5f33c023c4e4fbc",
+    "checksum": "47872bcaa4a259f7ce0ee1faeedc5984c4cbd087545c4ebfb529043a15d08992"
+  },
+  "references/shots/effects/icon-performance-moves.md": {
+    "file": "5e87831e92bb0782530f.jpg",
+    "frame": 139,
+    "frameSource": "automatic",
+    "fingerprint": "e15e769dece187d1472e70f080dc659a8f2ffa52f4a64a5f4bffbce860c5f7eb",
+    "checksum": "bbd1d86c2ae2c68f8b118823eacd5e3786b623b1a97a16ed0d9328fd43d8cb6c"
+  },
+  "references/shots/effects/radial-ripple-phone-chips.md": {
+    "file": "f4206406e3387ba9ae08.jpg",
+    "frame": 150,
+    "frameSource": "automatic",
+    "fingerprint": "eac3cc0685e0373840d993fbb0a410ee7ae70c6004bca9db80df57740cb18323",
+    "checksum": "83a9a2568fa80b0ec32c40c082ab2dd2b91fd9e52ab47552a3bfc1e97cb4f941"
+  },
+  "references/shots/effects/riso-print-hits.md": {
+    "file": "0094c5737657e6c9ddf2.jpg",
+    "frame": 107,
+    "frameSource": "automatic",
+    "fingerprint": "071820ef7ac791082f6e2e9ad8e6da1ccf30b98ec733ace46ae25871b4a60797",
+    "checksum": "7e60964a31a60eab73247657b0bdda74d202044185011fa077a09240b5fe5b70"
+  },
+  "references/shots/effects/scan-bracket-sweep.md": {
+    "file": "498712a7d24b3f5e8370.jpg",
+    "frame": 134,
+    "frameSource": "automatic",
+    "fingerprint": "8b6e9bbdab7b6269e2065726153630f73f0f9651a3128bf2199dc21dbf2c8098",
+    "checksum": "7d1f2f8f5490839436d63411ead0fbfbdfc553e3f67a1be8163cc8214f65a9f9"
+  },
+  "references/shots/effects/scanline-annotate-focus.md": {
+    "file": "ad6c6388df5bcf32b1e5.jpg",
+    "frame": 134,
+    "frameSource": "automatic",
+    "fingerprint": "026163f6a21073b8334aac46523a8e06e4c94f22ad2fe104595415f2e9382c48",
+    "checksum": "f341163d45f54388ff04275ac7426a40dd234da62b7b2cc270659f0ed79c1990"
+  },
+  "references/shots/effects/scanline-assemble-flyin.md": {
+    "file": "7b94262041c6f0b3cec2.jpg",
+    "frame": 139,
+    "frameSource": "automatic",
+    "fingerprint": "6d9f73116b5a5029f238f85c576d6115d1d04ce21f3a16dfec61a03e7da6e7c5",
+    "checksum": "0556bb70aed2475d07db096709e84f3990ed226c14ce1b91654c8d4c22deffdf"
+  },
+  "references/shots/interaction/autolayout-gap-dial.md": {
+    "file": "3439e21164fe41775f37.jpg",
+    "frame": 134,
+    "frameSource": "automatic",
+    "fingerprint": "816717c56969a707350712b3cde3aa6c308eb3e90268d0824588cdcb7d3aeb16",
+    "checksum": "35bb3220e256a9f4c8569ae1c1181e5d396d6d0602332cee18f359e3a8497b60"
+  },
+  "references/shots/interaction/chip-grid-single-select-blackout.md": {
+    "file": "944b686e86c9778cecc1.jpg",
+    "frame": 98,
+    "frameSource": "automatic",
+    "fingerprint": "41830271aa83e2a75f7fa5123add5eb491b2d56f54f613d5e6629ceba94e5fda",
+    "checksum": "66b0af635d970b81c60687f9a5d7f04970819117941799719b40d1ca386f9c55"
+  },
+  "references/shots/interaction/collab-cursor-moves.md": {
+    "file": "9041b8aace1c296b8c3e.jpg",
+    "frame": 139,
+    "frameSource": "automatic",
+    "fingerprint": "5e69227fcf14cff235e0b1139fcf0b903fc16eea1661a8570312db601a6568d3",
+    "checksum": "8cc7b6e916ac0d4fba4919d22b4b713d3dec9e9282e66729142b0e96e3f7b55d"
+  },
+  "references/shots/interaction/glass-pill-dictation-typing.md": {
+    "file": "f3f7c837f782c6974e91.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "a4dce4bb2b990645a8bcbbf559b1ced71031f13c962366a94d7b824e87dd162b",
+    "checksum": "ea68f02056d80780cb40369486414f1a70eeea875356e21dee5e63794ac1019e"
+  },
+  "references/shots/interaction/hashtag-to-pill-materialize.md": {
+    "file": "a23e44a5ea80888814d9.jpg",
+    "frame": 107,
+    "frameSource": "automatic",
+    "fingerprint": "b27fcdbc2eb6c9a92178e3cc61b11d1d9097d2dc735365e2b91d0b3b125651d8",
+    "checksum": "4f75a02b4c24cab84bee3811e5283acfd277d77c4357680bbca7e82370d4a0da"
+  },
+  "references/shots/interaction/picker-carousel-feature-cycle.md": {
+    "file": "9a1e69984bdde851558d.jpg",
+    "frame": 96,
+    "frameSource": "automatic",
+    "fingerprint": "65e80e4dd4128962b44e8e41e6cbf57d79e1606be8095ed10ccd3f92da89bb45",
+    "checksum": "771dade252dac3294e7b4d2d507803b6848be9365ffc9308598433b8e2b468fb"
+  },
+  "references/shots/interaction/segmented-thumb-hero.md": {
+    "file": "b09c6208fc6648beef92.jpg",
+    "frame": 32,
+    "frameSource": "automatic",
+    "fingerprint": "2f74bc41ac7abc8dcb830856be3829fb8c22f165a8e88cdf707f8b1475174c9c",
+    "checksum": "5ee5cafddb75c7b966f2c09056cdb0f0bf87d339662a13713ef01fab91c0a27e"
+  },
+  "references/shots/interaction/voice-waveform-live.md": {
+    "file": "495362040856bed8c1ac.jpg",
+    "frame": 102,
+    "frameSource": "automatic",
+    "fingerprint": "730d93b12b30ef88f5cd5fbf019633dc95e366b54316144eb2da1ec141c805a9",
+    "checksum": "8422da64712eb4df693654f4745cfefb1b0fc59a782c5b10355e86ef5b23a858"
+  },
+  "references/shots/opening/dataviz-landscape-open.md": {
+    "file": "af9cb0b2d9df6207bc07.jpg",
+    "frame": 161,
+    "frameSource": "automatic",
+    "fingerprint": "9696947e494efdbc55f87f4daf4e1fd356d0e090bf64e35dbb384c979bdff32b",
+    "checksum": "4ef15e407e4e738dc9372a8ece2780998d0112b67aed833499b9fedbcde997f2"
+  },
+  "references/shots/opening/icon-field-colorize.md": {
+    "file": "f53fb9cd4debbf81ff44.jpg",
+    "frame": 101,
+    "frameSource": "automatic",
+    "fingerprint": "5f18abc15f1ab5f1ef1f2bb736d8d27cfe95c33276074bacb0b5acc58ca448a1",
+    "checksum": "63fe967b004078b363ad2f7629d52ec6fa4021a2d8636b2e89841610d9f052cb"
+  },
+  "references/shots/opening/letterspace-materialize.md": {
+    "file": "9fde9240dc36032a9755.jpg",
+    "frame": 93,
+    "frameSource": "automatic",
+    "fingerprint": "452344433b3b71e86c2a7f49d84b983a9d6d03843ceb7ebb1f7ec5a15a779fd1",
+    "checksum": "7a312973130155de15624098470ba28b11e230e2bca79607057c9c9192f7fab4"
+  },
+  "references/shots/opening/orbit-ring-title-open.md": {
+    "file": "87cad1241c5cd3434856.jpg",
+    "frame": 134,
+    "frameSource": "automatic",
+    "fingerprint": "da5f359cf90727be50f2162b0b3eb9fc4af51dce8d8d1d58089a8ef1f9a187ff",
+    "checksum": "01be90a281c8a1bcac49d1955bf802c9fdedbda2b55c2b8aa95f959d723f6808"
+  },
+  "references/shots/opening/stroke-segment-build.md": {
+    "file": "39c54b2e55a543ef2702.jpg",
+    "frame": 147,
+    "frameSource": "automatic",
+    "fingerprint": "f74e041fb86e3e2ceeccc9ddd67598949a796c550e983700aa5eb90a671757fc",
+    "checksum": "64e3070c2f86c71b57006bf5b648713ed468e442b710939bbcb9eb431442e541"
+  },
+  "references/shots/opening/text-as-mask.md": {
+    "file": "1505dfb1f35b1c517771.jpg",
+    "frame": 98,
+    "frameSource": "automatic",
+    "fingerprint": "f7e712f6a95725e0b2e9555e39dc526514dc8c911f295cada4152974402e2427",
+    "checksum": "7e58ae4a4f19af0075b01392ef389d36238e49671ce9cf111743be7807c7b1cf"
+  },
+  "references/shots/outro/grain-dissolve.md": {
+    "file": "4bd8df7d43db6ef2d501.jpg",
+    "frame": 53,
+    "frameSource": "automatic",
+    "fingerprint": "b75e30f5b345d7e07b7ff5a33678e0daa8d05c87081a1a3664f4ed1d5467110e",
+    "checksum": "99976931ac397314f9cff9343a527c5d8bfff5ac546b22c08a7829c51e416864"
+  },
+  "references/shots/outro/logo-shrink-wordmark-lockup.md": {
+    "file": "48cab39c880070c2cb23.jpg",
+    "frame": 117,
+    "frameSource": "automatic",
+    "fingerprint": "e70a5c62751df4810e5b692c8a510a72391135c3bffe643e1c59c9a7c31e8454",
+    "checksum": "14ab25ad5b78dfbcc5d1d9d84fe4ee4a18061e3c87087729ad226d4105c68587"
+  },
+  "references/shots/outro/neon-triple-marquee.md": {
+    "file": "45662344db61ffe9394f.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "0e41c1efcc568b76a1e008abeee43979c5f868dca6cc8b42fbe2c2882e68b584",
+    "checksum": "c8f07a0a7a1b7b79ad047be43d1508ba63eda54a576349c5749f5c7993606aea"
+  },
+  "references/shots/outro/ui-strip-away-outro.md": {
+    "file": "8961809decc3bc095380.jpg",
+    "frame": 42,
+    "frameSource": "automatic",
+    "fingerprint": "73c856824fcf518d94ec19b56565e9df2ae159f100434ad5e6b85180aa6392fa",
+    "checksum": "4cb9dff5bebd29bad62c7709c9ae203c26b581331c5912c83a733e75f5785d67"
+  },
+  "references/shots/rhythm/beat-cut-moves.md": {
+    "file": "bbed4ba8750aceded5cc.jpg",
+    "frame": 125,
+    "frameSource": "automatic",
+    "fingerprint": "145d874ea48ad370641364609071fbee0964fc1e5d35059ba766d2b5335a3d8b",
+    "checksum": "1cc1c1a993c482a97e8faeea8bbf813645bcdef011af2c00bc0ccd112a558c0a"
+  },
+  "references/shots/rhythm/beat-step-list-theme-cycle.md": {
+    "file": "1205bd489b2e4f7c3bda.jpg",
+    "frame": 125,
+    "frameSource": "automatic",
+    "fingerprint": "52c4634826823505c01b54f4193ec0fd4f959479155f669c409eaf060297fac3",
+    "checksum": "8c76cb4a3d6b0a8365ff05c48e25ebd18e8ee1b8a0fc107c727ee3cd04e74f78"
+  },
+  "references/shots/rhythm/panel-grid-moves.md": {
+    "file": "49195e998d17fd133c75.jpg",
+    "frame": 46,
+    "frameSource": "automatic",
+    "fingerprint": "07da02ebd02f081c6c145686d3ca6b27a0eb4845a23af0d3d6611affd7b174de",
+    "checksum": "6ff6c168045dc24730be2aa46364c6f80899c77a1bc1af8ad31f524f3c952508"
+  },
+  "references/shots/rhythm/quad-split-parallel-scenes.md": {
+    "file": "5b85ffecf199a75769fb.jpg",
+    "frame": 80,
+    "frameSource": "automatic",
+    "fingerprint": "859f002af730090c65ea03a759cc4d27c42b0cb023f098f93f7a1e8c26732244",
+    "checksum": "f9d6b7caef7b55c80710004dc9aaed9cea1bbac51732adcfbf26d910093d1219"
+  },
+  "references/shots/rhythm/rhythm-interrupt-moves.md": {
+    "file": "45e77232e1ea29f80370.jpg",
+    "frame": 80,
+    "frameSource": "automatic",
+    "fingerprint": "4c2cedbb45acf9b3df397bd3260fcc1575f58c5b21f6fb2eb68c5ba34b229be9",
+    "checksum": "94564473f6d639d9f412908c7d27d290f7663712e4046804f04c5a8a669071ee"
+  },
+  "references/shots/rhythm/trailer-grammar-moves.md": {
+    "file": "63a1c9637fdd8d4a4b9f.jpg",
+    "frame": 125,
+    "frameSource": "automatic",
+    "fingerprint": "61673e263004f5ca6d9c9087c233bc0d86a4b47d739cc569ae3d82acfc498819",
+    "checksum": "9def2790a22b6bac599d4fbc0f8ffbb86cc816c83b0714040bcec630cb0c4f11"
+  },
+  "references/shots/transition/bottom-push-stack-wipe.md": {
+    "file": "b4f4a38d8e4dc2a349e5.jpg",
+    "frame": 152,
+    "frameSource": "automatic",
+    "fingerprint": "98661471f0a14cdf72a39d4a16d859594601b41f0bfaae44c640812582c89430",
+    "checksum": "cd23736268e6a7b2878887e3d5df115c0dbbf37d0c58638522128f6aac1254cd"
+  },
+  "references/shots/transition/card-flip-reveal.md": {
+    "file": "d16d42c488ef4f373e58.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "a3d40e2b7a84db4aeb96ea4e6f3df1d47b8de855b9321daf2c5d075926c0f7d0",
+    "checksum": "483c329b5e82379c3392cae0b71ef80c93c20ee742b8d6ad93f6673f3faafd8a"
+  },
+  "references/shots/transition/card-flock-tumble.md": {
+    "file": "dc67ff0333b35ca9a0d4.jpg",
+    "frame": 120,
+    "frameSource": "automatic",
+    "fingerprint": "fb80512f40f903a959ac13838cfc4c014048b475670817b4899b16062957471b",
+    "checksum": "b6f7eaa977fd0dae557649537eb924077b9277eec891302085b40d21e076d321"
+  },
+  "references/shots/transition/circle-match-iris.md": {
+    "file": "5205a17dc3242888b136.jpg",
+    "frame": 147,
+    "frameSource": "automatic",
+    "fingerprint": "f481e52dccbbae962eb01899ce721bc9dc0c3fab88b78f46423de3041b93714f",
+    "checksum": "cdd4cf7fdca5405df0530cff5fd1c061d43d9de56f5b3603761e846b74e2dc0d"
+  },
+  "references/shots/transition/gradient-transition.md": {
+    "file": "edc0f86d460b4297c569.jpg",
+    "frame": 179,
+    "frameSource": "automatic",
+    "fingerprint": "d7199fe134f0c59185f4dac993865e38ce76b0b621c0641770528102517e81f6",
+    "checksum": "a35a60e762bfed321fb821c427e96e3656a40b8b65261245bb0251273fd0d81f"
+  },
+  "references/shots/transition/line-carry-transition.md": {
+    "file": "f6da7fa33b5a022d8040.jpg",
+    "frame": 170,
+    "frameSource": "automatic",
+    "fingerprint": "b8cc4929be799e3c2809350b42bb834ff34497a6cdf4762466239be01f023ac3",
+    "checksum": "d26a768263bf60432915aff67032357a87b899beef91f2bd4111b8da854578e1"
+  },
+  "references/shots/transition/mosaic-reframe.md": {
+    "file": "01444afe17951c3e010e.jpg",
+    "frame": 191,
+    "frameSource": "automatic",
+    "fingerprint": "942fed7bb0293839ea11e429583622e7d00681cb02099ea1500f9d845302ecd4",
+    "checksum": "46235f227a7ce919f474afb867049f1326995bd15f00a3dcb1d4d9415fdc7af2"
+  },
+  "references/shots/transition/page-turn-transitions.md": {
+    "file": "8f1b9d213d0d66a92fbb.jpg",
+    "frame": 134,
+    "frameSource": "automatic",
+    "fingerprint": "97cef6cd99cd6f40459fcb43b1827ddba53ea82df697a424cca570666bffd38b",
+    "checksum": "bc596c37fa659a5eca701d56ea118f91e9fa42f8c6fa3e93f19a12b8d3aedead"
+  },
+  "references/shots/transition/print-texture-transitions.md": {
+    "file": "86c326d9ecfd96e5696c.jpg",
+    "frame": 38,
+    "frameSource": "automatic",
+    "fingerprint": "5d65c268a0b0eae2ba2d33f3b17b451a5079fa9abfd66b5602aaf05e8654090b",
+    "checksum": "c48e2b29587aaf1729ee5c083180d001b0c46cc9b08b7a3dbd4211997bda20ef"
+  },
+  "references/shots/transition/tear-streak-transitions.md": {
+    "file": "ed0e03229d6af4f6cf23.jpg",
+    "frame": 120,
+    "frameSource": "automatic",
+    "fingerprint": "18a3573851c4f90fc2eea6f60ee47d2ac004dce05a9625494db5c3ea6a9565fb",
+    "checksum": "81b1e1801b8346f6eb2f6031a672527431db8b905b040378a956c3c30611f2a1"
+  },
+  "references/shots/transition/transition-travel.md": {
+    "file": "030d27a69fc8ff1a4d46.jpg",
+    "frame": 134,
+    "frameSource": "automatic",
+    "fingerprint": "56b2cc3a0843ce60851f611b659d3173b6952f896c739bdbe47d467bd2d3468d",
+    "checksum": "06c5eaada5b33935ee84d9d2b5491ae2d554b6e9dcce1931474510951ac62d0f"
+  },
+  "references/shots/transition/white-flash-logo-simplify-cut.md": {
+    "file": "167e5bc508ca2309eaa1.jpg",
+    "frame": 107,
+    "frameSource": "automatic",
+    "fingerprint": "37779b2974514c12d14907a395015e0aba78a487f5fd69ec1eb63594f682ff00",
+    "checksum": "4d7734f9bfb929d5eed0cdfc7232bb21eee83d174e8a0d26b36226b78c58ec1b"
+  },
+  "references/shots/transition/wipe-transitions.md": {
+    "file": "e33fc2c03d29f3bc4b0d.jpg",
+    "frame": 39,
+    "frameSource": "automatic",
+    "fingerprint": "0cc709e9d5a445211448a7fb3205500542f648a2bd09a9d1d694bc933f88d609",
+    "checksum": "afa8426163b12ed042a374be55056dcbae18eefcdecfad985204c074c795b8df"
+  },
+  "references/shots/typography/blur-slide.md": {
+    "file": "97105d85e21d8b7e6eaa.jpg",
+    "frame": 107,
+    "frameSource": "automatic",
+    "fingerprint": "c1ed51503be310a5e773e95e24acf95d31455633f1db6fd5447602d15893bad1",
+    "checksum": "56d9853eb1c350cdeecbe0149bff614a5ec799f54af4fc92ae312001bae00c21"
+  },
+  "references/shots/typography/brace-expand.md": {
+    "file": "b9bfcdae99b8331d849f.jpg",
+    "frame": 107,
+    "frameSource": "automatic",
+    "fingerprint": "171de3dab9f5885a8c8ec6b83f232a3ac24dda1b85ac5ab791928f58b91348e0",
+    "checksum": "30384178c087f4d66810f949efcf9defdc5814c70e59cff064a1f157c79b05bf"
+  },
+  "references/shots/typography/countdown-arc-scatter.md": {
+    "file": "014313ab6e1ef903b32f.jpg",
+    "frame": 59,
+    "frameSource": "automatic",
+    "fingerprint": "9276aba1ff09e973bc3f91ac35daf88aad741bc71936ac3b8561f01307ba2a13",
+    "checksum": "371708906c9689be41e2c4237476d867d6c0c69dd84346370eb0be3ea6c68bea"
+  },
+  "references/shots/typography/glitch-cycle.md": {
+    "file": "f25590ac964043a82def.jpg",
+    "frame": 100,
+    "frameSource": "automatic",
+    "fingerprint": "0527eff395ffb9e93e362af6c375e97f032060f7c3ece877cbde6e7de3526f82",
+    "checksum": "ae62f35540a3c8da1b9b9257ad7afd7f4126e5bf660b2fee46a5109e06320dc8"
+  },
+  "references/shots/typography/gradient-word-sweep.md": {
+    "file": "925be5a7fc4ff00a529d.jpg",
+    "frame": 62,
+    "frameSource": "automatic",
+    "fingerprint": "eb57db88873b38a2479d95be5fd3700d603b85e711f557eb18fdae0a47825256",
+    "checksum": "449403c56d08f92563874dcede1f67074208033189e0a762f0f309153d78b000"
+  },
+  "references/shots/typography/lead-word-zoom-assemble.md": {
+    "file": "e0bf39e9a34edd3281b9.jpg",
+    "frame": 74,
+    "frameSource": "automatic",
+    "fingerprint": "53a9221087b13acb72c4a2ae36617679224d9a56ff82ea99ebcb340c0f09e481",
+    "checksum": "2ef4d690c96e3c1faa4107a1ec316d143c5f203e4bbb4ab69cf72592c5f3fe4c"
+  },
+  "references/shots/typography/marker-underline-title.md": {
+    "file": "ffa7e75fd6e9177945b1.jpg",
+    "frame": 44,
+    "frameSource": "automatic",
+    "fingerprint": "79af88f685f571b0d9e4a07c7decf283f57a1711692755f21f9f56e63db8fb33",
+    "checksum": "590b47844a07d1d5147bd8f3de8b7729a03e036ce0c534f4fdddbe7500a68132"
+  },
+  "references/shots/typography/outline-word-fill.md": {
+    "file": "758719e13be4a84fa538.jpg",
+    "frame": 80,
+    "frameSource": "automatic",
+    "fingerprint": "53a30fd27d5dce874a705d35d33a2e39d27c8dab885c8dd56130055d25478ed4",
+    "checksum": "f6cd5cd0925eb2e087619466b54df8b67faf6e8b430cd8e21b2c3a6f90a38c8e"
+  },
+  "references/shots/typography/pill-chip-slot-cycle-handled.md": {
+    "file": "6218f5fad9eed33d6323.jpg",
+    "frame": 134,
+    "frameSource": "automatic",
+    "fingerprint": "a6b2f58896556b51d81b6e966919e1fc8149eedf7e61c89b2e0028004eeba0aa",
+    "checksum": "fd6c5310fcdd4d31e7d33a63720431fd9038385a87c64a60636339203baf4bbe"
+  },
+  "references/shots/typography/pill-slot-cycle.md": {
+    "file": "dbb4f8e7e77bf191e2bc.jpg",
+    "frame": 59,
+    "frameSource": "automatic",
+    "fingerprint": "53528da952bb6becda9dd393732da057ec7e4c5d17fdfea85255537aaf39c5cf",
+    "checksum": "077d440c62bbb6137a29143e7dd5d2cedad6df02cf7c4087a7988187d0367b19"
+  },
+  "references/shots/typography/text-column-converge.md": {
+    "file": "de47dd7d9164265445b0.jpg",
+    "frame": 161,
+    "frameSource": "automatic",
+    "fingerprint": "6b8a7e903b3479cf57d46a46bd4276c085e4abad81f64c6d0aaaf1da85d1eb5b",
+    "checksum": "f75b325d7b9231d3ff4e6bf01fe36979d97fcf266e5a330362afd5805beafdd1"
+  },
+  "references/shots/typography/title-demote-to-label.md": {
+    "file": "7217c6a31aa90a310de2.jpg",
+    "frame": 220,
+    "frameSource": "automatic",
+    "fingerprint": "60a26223be1e043928df6ede3d19de63db3bc9330a2f369b4aa6908c95b76653",
+    "checksum": "ea7078eb59d0c602d57f843d39c1d07565a3d7c6a997388273a16d2a8195c952"
+  },
+  "references/shots/typography/type-entrance-moves.md": {
+    "file": "6a2e7ddab13622e4e5cb.jpg",
+    "frame": 134,
+    "frameSource": "automatic",
+    "fingerprint": "cbfa3786994859b7039a9cb576a21585e840a9eb6cca59d28bc151870ddbe18b",
+    "checksum": "e9b33dc15c347e18bb9374a6f6fcafe867d85cc62d9e2ef36ee9e953dcb19554"
+  },
+  "references/shots/typography/typewriter-moves.md": {
+    "file": "9d49778ccbc96b25ad44.jpg",
+    "frame": 95,
+    "frameSource": "automatic",
+    "fingerprint": "9afbe1718199b8631d411ed805a874a2e3618a84c911428b519ce32a584e8e40",
+    "checksum": "4efdf284cdd4aba23f345002caa16d9b4cc10d73b14350de87981b2792ecc0bd"
+  },
+  "references/shots/typography/vertical-word-roll-blur-cycle.md": {
+    "file": "6e2b6dd15aa77ff93ed7.jpg",
+    "frame": 134,
+    "frameSource": "automatic",
+    "fingerprint": "bb7befde5027efbdbed05b337621e565bf3401306ff8938240f2841930780b8e",
+    "checksum": "275bb24947a907bc80e5539a9cacb421c9951f57c482cff349ae3f17238656dd"
+  },
+  "references/shots/typography/word-relay-geometry.md": {
+    "file": "dd3984a365135c39651d.jpg",
+    "frame": 107,
+    "frameSource": "automatic",
+    "fingerprint": "1d39aab5561a7e11d41a135512aec943d7257860a3d224eed65eb22f22466cc7",
+    "checksum": "c7851fa362cf0e7a2c435cb6b2794e47a83b410a93cf6cf5c7725092d4ad7372"
+  },
+  "references/shots/ui-entrance/avatar-bracket-carousel.md": {
+    "file": "c7981c3b7b80c409462f.jpg",
+    "frame": 46,
+    "frameSource": "automatic",
+    "fingerprint": "bda6b1686362a864e2c1bc5368e4639dc716b51adc1f6d7a2b0845682b6b42c2",
+    "checksum": "6a8ec3a6af68aea534e33205f09f0df7ce996d28d4498849c8bad55eb9507e16"
+  },
+  "references/shots/ui-entrance/bezier-source-converge-merge.md": {
+    "file": "f9389ea7d151c0c252a9.jpg",
+    "frame": 50,
+    "frameSource": "automatic",
+    "fingerprint": "77d2139209e745b75e474c22f7a993b260cb5994de488898b564fc70c27fd6d7",
+    "checksum": "3134804f4aae87d3cd1bffeba35cb0e75bd2b219aa9e81628b39dd722bbdb46c"
+  },
+  "references/shots/ui-entrance/card-stack.md": {
+    "file": "905d0a85a15008c4a7c4.jpg",
+    "frame": 134,
+    "frameSource": "automatic",
+    "fingerprint": "f0435e4a6e645e16bed25554178bd1e630bc93f62cf5c5404c05f0fb7d675775",
+    "checksum": "34b503e2a91b16208ff0fe78925b86d42ed0285b340f913ae27554bf08e62055"
+  },
+  "references/shots/ui-entrance/carousel-3d.md": {
+    "file": "333a03552499ddc58955.jpg",
+    "frame": 50,
+    "frameSource": "automatic",
+    "fingerprint": "33e49312ddaf6c7b70ddd986f5fb9a2dbdbb62ebd115d2494171f86de17bd228",
+    "checksum": "3ac9e9e385138e7e229ad49babbcbc0dfdf6500ac8377c9c7f0281af80a19b9f"
+  },
+  "references/shots/ui-entrance/cloner-depth-echo.md": {
+    "file": "3fbd2ab06b47df8b0b8c.jpg",
+    "frame": 123,
+    "frameSource": "automatic",
+    "fingerprint": "a4f239f62af1b88f71166356d4d6f32bb8daab5fc589306057d434b042ccb1d6",
+    "checksum": "1ede76f3eab8a7e29bb9291edb9d3dc75dee6c439f827fbef8fca6e09dd88463"
+  },
+  "references/shots/ui-entrance/doc-park-left-pill-deal.md": {
+    "file": "4bbef56f2f1b8662d523.jpg",
+    "frame": 155,
+    "frameSource": "automatic",
+    "fingerprint": "56023d57937cf1f6ad9521fc8d7083ad88266fd914793a9b919fd93d7208dda1",
+    "checksum": "f5d56b67312f10aade681b3d43b536fd77ba76ff07a9c95da8958d8a581e3eac"
+  },
+  "references/shots/ui-entrance/draw-svg-trace.md": {
+    "file": "9fce3007c2077472857f.jpg",
+    "frame": 117,
+    "frameSource": "automatic",
+    "fingerprint": "e2400194573423c6f74d2aa2c96bc1b20991653c532f14bf598c39af8acfd873",
+    "checksum": "86ea1618f69aa057211de12fe1743b88d8d0eb13bc74af06c2ca7f379f9fe4fb"
+  },
+  "references/shots/ui-entrance/neon-frame-forerun.md": {
+    "file": "7d80bf61451aefc5821d.jpg",
+    "frame": 83,
+    "frameSource": "automatic",
+    "fingerprint": "b91a56af7f485bbf6610ff3f0f4f549a0092888ce4d04ac798183e35fef11018",
+    "checksum": "4e09d5d88c3904cee9b9182a0e923bb7e3602de22a0c0b34fd849f844f680add"
+  },
+  "references/shots/ui-entrance/neon-frame-orbit-drop.md": {
+    "file": "7992f66b12fc7c4ada06.jpg",
+    "frame": 83,
+    "frameSource": "automatic",
+    "fingerprint": "e26549bcd8c9a6076eea13ea8607847338e58dc01a32593425777229eddcfb38",
+    "checksum": "90b6fc20fd0fc43e64682e766ef90d1a3c457f173fe0de804fec0db97137ad24"
+  },
+  "references/shots/ui-entrance/product-card-progressive-assemble.md": {
+    "file": "adf36242921f4c2a8a37.jpg",
+    "frame": 153,
+    "frameSource": "automatic",
+    "fingerprint": "cfc7e642e5b6215467e8049d6d71ce0722f7cc3b4367d14d9d983fa734cf09c2",
+    "checksum": "1907dc54d30938e82357fadb5d4286c5898150f0ded481f7efec4d7f5f791f04"
+  },
+  "references/shots/ui-entrance/radial-wave.md": {
+    "file": "f0c101acd735a31e907b.jpg",
+    "frame": 101,
+    "frameSource": "automatic",
+    "fingerprint": "73fe303e683c6f462e220142b6bbc78f9b8ffb6ba9fe086469cc545aa9313346",
+    "checksum": "2f8d631bae331de223c75cb0cae0900872cc0f2a9f149157f9a6914864125dd5"
+  },
+  "references/shots/ui-entrance/research-card-stack-scroll.md": {
+    "file": "83ccb4cba7026723b05a.jpg",
+    "frame": 85,
+    "frameSource": "automatic",
+    "fingerprint": "735555ec019b1f72107839d17ce3271b6bdce684af4ff6690103a7ac7a1ae542",
+    "checksum": "7bad389a6fe3666c4c85980701fbd75749bb31a928ebff7555e3ae991f84ce13"
+  },
+  "references/shots/ui-entrance/value-stagger-gradient.md": {
+    "file": "db48263e51cd3007186b.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "3c9551df86ee0efe8e5e0ddff016e8fe42bae5f4834411e5b393d9fa7c4b283b",
+    "checksum": "47c072ecd175dce1a222dd22d0cd7b6edbf77f7a7bed60508a2aa7a3355a5e2e"
+  },
+  "references/shots/camera/crash-zoom-punch.md": {
+    "file": "41742c51e7e034f1b76f.jpg",
+    "frame": 117,
+    "frameSource": "configured",
+    "fingerprint": "c9124b95b6a4f1cf10d9b10e7dd40cb8121ff13b19f3ea702892c3e61cfda6f6",
+    "checksum": "7020eaf6a8ec3f1fb9c26903f17564e294c019492b7a5acd30515f8630d96d76"
+  },
+  "references/shots/camera/depth-layer-moves.md": {
+    "file": "f87812ca4d01f6c94e08.jpg",
+    "frame": 147,
+    "frameSource": "configured",
+    "fingerprint": "180fb390f2466aa8b08ff95cb34aac0b17330cb06e8a9207e20afd23d3bae8c8",
+    "checksum": "e190677e0f2676caf57570c3140e8ec0830e33d6b87a4e159d3ff0352e2f53a1"
+  },
+  "references/shots/camera/overhead-camera-moves.md": {
+    "file": "81b22e616a120d4d4349.jpg",
+    "frame": 107,
+    "frameSource": "configured",
+    "fingerprint": "6f51cebf9a8dec1190627015c4186cccb6ce28c0bfe3742bd218e393b22f348e",
+    "checksum": "ae44457cba1911f9a8592a2d0782ee5ecf85dff8800782a22177c8b2f75fe011"
+  },
+  "references/shots/rhythm/sakuga-timing-shift.md": {
+    "file": "4332c9b0ee3dde56f948.jpg",
+    "frame": 44,
+    "frameSource": "automatic",
+    "fingerprint": "2611bd5e2b9ddc2af5780c64b9576a860fedc0407b43da6a176b312aead0c714",
+    "checksum": "eea58be419b05a16062447d0e3d2d880d72c40047f3ac706b04f90cb4d6ae9d7"
+  },
+  "references/shots/camera/space-camera-moves.md": {
+    "file": "47725084a84b6bb75220.jpg",
+    "frame": 88,
+    "frameSource": "configured",
+    "fingerprint": "d3c91ece8ea2271a1a6b8922235c8fd446fefe90a4f9fa16f0f3dd9d76d48b32",
+    "checksum": "5f7462298eb836424e2ff4ef593c27605eaa4d2f857284fe43234332a456595e"
+  },
+  "references/shots/camera/tension-camera-moves.md": {
+    "file": "3f61a24132183141c494.jpg",
+    "frame": 76,
+    "frameSource": "configured",
+    "fingerprint": "357f7fccd9c4fd75c0512ba2f452282f0a6aed97ce0b2203f55defed8e971258",
+    "checksum": "1b18625671bc0c3fee4ac0970a38934c4f958e49b2e7cba779bfe2a1aa78b372"
+  },
+  "src/scenes/DataAnimations/DataTimeline.tsx": {
+    "file": "4ad940bcd0548ded299e.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "ea43dbb664a5b85c8d48375a9383d93e51d1e5ad9636b84533b2e8aa33cec6be",
+    "checksum": "06adcb90f1a2924a37531ee9dd7d9cfe0b534105b9c329feda4dc9ad0e2cd7b5"
+  },
+  "src/scenes/DemoAnimations/DemoCursorClick.tsx": {
+    "file": "ca588cedce1e873dd99d.jpg",
+    "frame": 60,
+    "frameSource": "automatic",
+    "fingerprint": "f2d789283c4b2441c39dc70dac1d73aac1f673aafb0d42e669b78bcc63977002",
+    "checksum": "b57f37cae4ef66f2b0c8c78f7f9e3ef5a527755ba457426249c0ef3eb9fbe4ed"
+  },
+  "src/scenes/DemoAnimations/DemoDragDrop.tsx": {
+    "file": "6014a080bc6be037f9b4.jpg",
+    "frame": 60,
+    "frameSource": "automatic",
+    "fingerprint": "5faf59be912df4effb33cc7bb2dab5a2d1389aed7128b67773e0b7832e4b3d38",
+    "checksum": "53a0db4274c8d2b82eb8a932feeb10e03a967ecc7a6229f1c73dc75dc110ad70"
+  },
+  "src/scenes/DemoAnimations/DemoMenuExpand.tsx": {
+    "file": "0756fe2956607e9b77fc.jpg",
+    "frame": 60,
+    "frameSource": "automatic",
+    "fingerprint": "708c9c184539f8edf698dcf114fa69d4533a5638a2c844daaa97c9cf26cec0b0",
+    "checksum": "326fd917ac9bd75d5485d39c9618e3d9e48856a72461282176a6e1a595a23beb"
+  },
+  "src/scenes/DemoAnimations/DemoModal.tsx": {
+    "file": "193db06cd8568a27fbfa.jpg",
+    "frame": 30,
+    "frameSource": "automatic",
+    "fingerprint": "2e5e9ed77790f0a5f3edbc00038f0419b8e9b76a5c3bfa0400b1f4a9a73488fc",
+    "checksum": "fdeba21d8811f5b28e71f4d4bc09a3011b983f8c5cfdcc9c1d64de48e70167de"
+  },
+  "src/scenes/DemoAnimations/DemoPageTransition.tsx": {
+    "file": "35042c2fb50d76f7e163.jpg",
+    "frame": 60,
+    "frameSource": "automatic",
+    "fingerprint": "ad6899afc5074cb420556d7cfaf42d10a42885c69813985ba6bf4131147cfd7d",
+    "checksum": "0c3d08f84080ab59d8b07535c74d4c20114a47641798f4275473879a6e35f8d4"
+  },
+  "src/scenes/DemoAnimations/DemoSearchFilter.tsx": {
+    "file": "f0d57bc548c502e4efb3.jpg",
+    "frame": 60,
+    "frameSource": "automatic",
+    "fingerprint": "51c630361eb54b13d07c63a9d5d93bc6d6da8b227834ab1bd4a43a16f320b977",
+    "checksum": "b9b7de47327f23ad076bb69fcc75b46d95b8bc0a138f43dc9b2eba12304d351d"
+  },
+  "src/scenes/DemoAnimations/DemoTooltip.tsx": {
+    "file": "a35cb6d471d9263164f7.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "30f9c76984887ee2de5d5134aa22ba9d4ac6a9da44347b6c8f4cced120fa91f9",
+    "checksum": "30820ef6f2064882ad2e01127199bc0bae88b9ac46d7a7e728d607af9f96c4d7"
+  },
+  "src/scenes/DemoAnimations/DemoWizard.tsx": {
+    "file": "09eebe86ea66d9cfdc26.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "673f058bb46635b194b4dd3939659345fb7ba8a0448ac063f6d6e4f779b91a20",
+    "checksum": "dbe791d21c4b9dd35ddf319f7f673b7cd6f25715630ce8d029bc42e8ae797119"
+  },
+  "src/scenes/DemoAnimations/DemoZoomFocus.tsx": {
+    "file": "84fe64b3c5f8b2f79e94.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "ee7b56c2e56375d3e7f8efca805d7b7d4396b11d0988a21912f274bc6cd00190",
+    "checksum": "e2b34afc7792a78b17ba2618fd1e01e65450853833ae352f9792d043d27baaa5"
+  },
+  "src/scenes/DemoAnimations/shared/ClickRipple.tsx": {
+    "file": "493260cdbad75329f35d.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "213a23f87d2f176b0b8d78dfbb0346527f761ff6de73e01ed49dace24692a7ab",
+    "checksum": "ad688b75e8e83071a69444e6ed49a5de6dcd43506d51f2c9fd16c42c0e537a0f"
+  },
+  "src/scenes/DemoAnimations/shared/Cursor.tsx": {
+    "file": "46149fd7a547c0abd119.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "3f2015ff8fca8fa23c8330ba946298da8a84e4f6df00c7e363f69741305037dd",
+    "checksum": "0f098a6cab374defb45e05491fc2bb3fbe0076587a33d19ed5dce094065e749e"
+  },
+  "src/scenes/DemoAnimations/shared/Highlight.tsx": {
+    "file": "dbeb6a2711dc6ae7a627.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "4e8260154ad68e300fc4d5b626db9c84d5b18d270e5f69272e788b71c798bb37",
+    "checksum": "a2ee9fb739130faf1b166d51fd179ee4856ca251241ced1ec4aa6466bb876a36"
+  },
+  "src/scenes/LiquidAnimations/LiquidCalligraphyInk.tsx": {
+    "file": "f23291768ab63926f65b.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "c37ce3815ff55607561d3bad5efb2fddf18d85f5e4bac5460ec9eed472acd897",
+    "checksum": "1e080f029a323df249fffaf45600823983c954e80bea2bf59f80af7238ed901f"
+  },
+  "src/scenes/LiquidAnimations/LiquidInkSplash.tsx": {
+    "file": "74c815e1c705c7fef1c1.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "9986703c8d53cbad55caff10f74f42c0ac995d663e2db9a07b78679fe585d37b",
+    "checksum": "3b441eb25b2b8cdc7785424d932a56013983bcb8bf6d5626eeec3a9c8c66342d"
+  },
+  "src/scenes/LiquidAnimations/LiquidSplatter.tsx": {
+    "file": "7c588b52d457e9f5b5b8.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "fe6b75cc25f92a32c686906ddfad7aa7d474be1e21a99d7cbc7abaf6b1108d0b",
+    "checksum": "7c1947c0dab53819a2ee9434989b0c0d9c8169bc159c6857a99613868cda4167"
+  },
+  "src/scenes/ListAnimations/ListTimeline.tsx": {
+    "file": "f77a6d31cf9db0fc147d.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "542ac07bf763ee47628180f45be21e42491884c39961f46e0919f2c7809460fb",
+    "checksum": "4c4ef9b4a55bbf2c9683d58717ecca9c116aa06066514acde9de5d0e9141adcf"
+  },
+  "src/scenes/ThemeAnimations/Theme3DGlassThreeJS.tsx": {
+    "file": "aea39eec0570d31dc890.jpg",
+    "frame": 89,
+    "frameSource": "automatic",
+    "fingerprint": "c5a955ec9cf4d344c6cb8d4d4a7a1ec2f03c00046e9b5cc06e6673082d3dba16",
+    "checksum": "4ce61b7e9cc155e993ee640a7ce7e3ee406c12c2af11321eda1fc6223bca969b"
+  },
+  "references/shots/data/chart-live-moves.md": {
+    "file": "f0634ddd2bb0e9bec491.jpg",
+    "frame": 150,
+    "frameSource": "automatic",
+    "fingerprint": "8610c71824758caf8b118b15f9626136b6be9ded97d2d2ac4ef2be686dfc79a9",
+    "checksum": "086720d90e04f0eb8322abad06401b9fe57ed76348cc4897e9d60a8eeabec72c"
+  },
+  "references/shots/data/gauge-readout-moves.md": {
+    "file": "0386fd4f4b9e559c6cd4.jpg",
+    "frame": 83,
+    "frameSource": "automatic",
+    "fingerprint": "a05cead3dc5d2f571d6d200693e58023aad8beec7098da141d77c9fa3c7caa23",
+    "checksum": "d7548536f578138a7ed403787c7a3075fef907a44c9442ca8f3bf7250aa8412f"
+  },
+  "references/shots/data/scroll-brake-moves.md": {
+    "file": "d77c36f44ed7864ce1ae.jpg",
+    "frame": 80,
+    "frameSource": "automatic",
+    "fingerprint": "adc022a27ddb1f359997c9f85c23f659674fe1745c2c9e51c475b203c8719ce3",
+    "checksum": "0582fb182c37a4a356705469e1f790cdbf45ca9efbdcac2724f3cae52d88c811"
+  },
+  "references/shots/effects/glow-flyline-moves.md": {
+    "file": "118e0147d02143f70399.jpg",
+    "frame": 83,
+    "frameSource": "automatic",
+    "fingerprint": "6b34b07f79a5337aec8439f7ef2777e26728c7b72435fade823fe4b093d06ad7",
+    "checksum": "c95c4888ff68913d31e5eb9ccbd8188aa8e9f01de73fb65dc6d2776e0b175592"
+  },
+  "references/shots/effects/impact-feedback.md": {
+    "file": "e10206c7724cb87d57aa.jpg",
+    "frame": 35,
+    "frameSource": "automatic",
+    "fingerprint": "732ff862dd519d101ccbc5a73cd1a539923a9d1d9bc3287254b42da475950d66",
+    "checksum": "ba94aa672067d9886d79fa52d911063385f36e0ee1bb239c57fd59723b79b251"
+  },
+  "references/shots/effects/light-play-moves.md": {
+    "file": "828900d54ab2dfa601b4.jpg",
+    "frame": 134,
+    "frameSource": "automatic",
+    "fingerprint": "0d13cc6993b564cc509cac913861d693175ee4e2a9af2460774a792e8364a6e0",
+    "checksum": "13d175e77ef331ae1f82d097d1493995bd37abba7125ccf51b3629e5d1d21f57"
+  },
+  "references/shots/effects/slam-entrance-moves.md": {
+    "file": "c13eef1c78b88c38039d.jpg",
+    "frame": 83,
+    "frameSource": "automatic",
+    "fingerprint": "911059700e6fb42128ca2d7b5f4462f69120aaf1f63df795a3167295d81d5aa5",
+    "checksum": "939ba1eaf9a38c72af3304c1d19d8009d162d59fea90a5db04de194cd5d18fe1"
+  },
+  "references/shots/effects/spotlight-sweep-moves.md": {
+    "file": "5836f8e6dd4d49df4885.jpg",
+    "frame": 38,
+    "frameSource": "automatic",
+    "fingerprint": "c773d85559a7bfafa4d63135a24627740d4d763709b138d0c9ae8fd94d3b8cdb",
+    "checksum": "04325c654d1fc55d2a93610d9bbcc38ff8d0582f7568faf064c3877c6a226c32"
+  },
+  "references/shots/interaction/canvas-materialize-moves.md": {
+    "file": "f81f2536751d22d37e17.jpg",
+    "frame": 161,
+    "frameSource": "automatic",
+    "fingerprint": "6902f9679e7198494422c3e49d5d5dd3eb0c813b5449cc1573da44ea297bb43c",
+    "checksum": "511133854149b48bfd4ff3bf8dab63cf3371b180651275c7b85d94c221f7c16f"
+  },
+  "references/shots/interaction/theme-switch-moves.md": {
+    "file": "12a97ea07d113331075a.jpg",
+    "frame": 139,
+    "frameSource": "automatic",
+    "fingerprint": "b2178b04654c12284becdf76facd1cc88bcb0675e14572321645bbee3e9256a9",
+    "checksum": "633c751f874389c497798fe2b395dda5897454b491a6f0a5af9760cf349ccf7e"
+  },
+  "references/shots/interaction/type-and-filter.md": {
+    "file": "317d90323d8a18e589bc.jpg",
+    "frame": 21,
+    "frameSource": "automatic",
+    "fingerprint": "9d4edc66ec28e191f263cdaffac5c2475300bf7f78c450534cc2b4cb134c5ee0",
+    "checksum": "81520cd50e6b47a6660928f79f89193fee8ed848a9ada019275259383ad4658c"
+  },
+  "references/shots/opening/brand-ink-open.md": {
+    "file": "42b88b7bd68abf893b54.jpg",
+    "frame": 61,
+    "frameSource": "automatic",
+    "fingerprint": "e96e9834227dd472e6e5beb532692b5b5ad3b974329187764ca689aac84a57bb",
+    "checksum": "20febc657556e9f9a52128256ac0c3ea8165575e67c7ee1a7ac5f3a995abab6a"
+  },
+  "references/shots/opening/crane-rise-reveal.md": {
+    "file": "961e8d7f8d3647099de6.jpg",
+    "frame": 49,
+    "frameSource": "automatic",
+    "fingerprint": "433f81e83b482d575fefb485ff963014079342a17da960ed390a47650291c272",
+    "checksum": "84718965de809eeb64ffea364281bd939b041014afb5b5a4d94fe5921de11b0a"
+  },
+  "references/shots/opening/fracture.md": {
+    "file": "256673dee5028133ed6a.jpg",
+    "frame": 93,
+    "frameSource": "automatic",
+    "fingerprint": "5ab1f11ad03b2ca9b673c0ee4483d6521aa705337e154712e26e87dc8f65d49f",
+    "checksum": "428784fe8b11d3a1c1b8d10d7aea3103f5cd9e6820e2e360b4cf7b2c387d1920"
+  },
+  "references/shots/opening/magician-card-flourish.md": {
+    "file": "bf717346b5719fbc44d4.jpg",
+    "frame": 139,
+    "frameSource": "automatic",
+    "fingerprint": "9b130decc0604433f83bcf02be5f6e8c4e1636e7f2a5e3b68451d784d6d817fc",
+    "checksum": "584430d4d7f46d8ea98a3c4947e9c7bac771b8238912e66b48dd13ccfad25cf1"
+  },
+  "references/shots/opening/spotlight-hero-card.md": {
+    "file": "2783e632396841f8b9fc.jpg",
+    "frame": 102,
+    "frameSource": "automatic",
+    "fingerprint": "d7b2db1efc68e012cf02dfe2d5b834468bd1d8f9cb48b60bb845baf59f2925d5",
+    "checksum": "4b563e2706c18877060f5e5395e3b4343a7ca3e7b67314b9e167614ebcde6b04"
+  },
+  "references/shots/outro/outro-group-photo-launch.md": {
+    "file": "7417d1782cd49c0c6fab.jpg",
+    "frame": 86,
+    "frameSource": "automatic",
+    "fingerprint": "49c009df04808abd444332b605feecc92bbb216e4de3d461926f3744379b55e8",
+    "checksum": "53b23451d63b8a4870de524fe9c8879e70484c658bc6ee834595871bf1325298"
+  },
+  "references/shots/outro/ui-to-brand-morph.md": {
+    "file": "073772dac81eb1194eab.jpg",
+    "frame": 116,
+    "frameSource": "automatic",
+    "fingerprint": "b6e26a2ef1f3a7d2a822ab9989171dcfa7ef94a88dc3e4b04f9e5259015f3997",
+    "checksum": "b26b496efa51a44b823cd5c284f23f27d2831a9494c4b78813f7e7d7b11717bf"
+  },
+  "references/shots/rhythm/speed-ramp-freeze.md": {
+    "file": "7190a25db194e4fca005.jpg",
+    "frame": 94,
+    "frameSource": "automatic",
+    "fingerprint": "1698a8daeef74f426d96f2ab587c3fd45b1ce81371cd89ea0175c38e78cb3f54",
+    "checksum": "0576a59c5b901d3fddf35ca71d28745b9f7a8a17946fd97f1d23fbdcc4ddbf28"
+  },
+  "references/shots/transition/shot-transitions.md": {
+    "file": "d479a0230189f901e1ab.jpg",
+    "frame": 41,
+    "frameSource": "automatic",
+    "fingerprint": "ac8f978f47c6315f9e615a84b5b572f5e9130b82a7aa789aba7d97b0eebbdf35",
+    "checksum": "17d897921f5e60e08bad4a5e9036efe9609b4e70b93b0b9274027476130d0b33"
+  },
+  "references/shots/transition/transition-hidden-cut.md": {
+    "file": "f95ee691e213b666e464.jpg",
+    "frame": 32,
+    "frameSource": "automatic",
+    "fingerprint": "463084ffbbf97a722d1f3eefa90b14f89d6e05efb5bed147d6affdad96f0a10e",
+    "checksum": "39a7a07a4ab49de3c075cef04a5f9f1c8d039bdc0e5503fdcab382b34fed83fe"
+  },
+  "references/shots/typography/document-typewriter-reveal.md": {
+    "file": "df49715676ace4dd81d1.jpg",
+    "frame": 134,
+    "frameSource": "automatic",
+    "fingerprint": "910e3ca6574923c01ecc035f3862b2a4cb97e12b7183396da7ce0453334b9755",
+    "checksum": "7700952bba20a6a31e253179a7ad855ca2c8e342ca24d24c5af70559b57e098c"
+  },
+  "references/shots/typography/flying-words.md": {
+    "file": "b994f094f2d1d34c055b.jpg",
+    "frame": 161,
+    "frameSource": "automatic",
+    "fingerprint": "d9238be8b6357c610af2e494bf97622eeb88231e5dede0ef60abd3d11c5a9eec",
+    "checksum": "bd3ac2b019cc865dc85b25ea199fec794fa7ed2070a09b47a925398ea166a8d5"
+  },
+  "references/shots/typography/paper-title-card.md": {
+    "file": "111da6dda0caaed92c13.jpg",
+    "frame": 32,
+    "frameSource": "automatic",
+    "fingerprint": "02cc819099ab4aa59ce29bc5a265ce25b5476653eeb7d7e0b6066e0825a83c55",
+    "checksum": "4cd8a858c2f0447fb4244404a0d49f60dae6cbd4d87378f76f2145d78570deca"
+  },
+  "references/shots/typography/type-assembly-moves.md": {
+    "file": "0338546df841d1daa1a2.jpg",
+    "frame": 134,
+    "frameSource": "automatic",
+    "fingerprint": "d1353e3e69b1cb2b33ab4fd54d0a2de76b3db0407779bacd036b84b119ddadb9",
+    "checksum": "18429353a8d313a3daaa09643a0614ff33c0346836f97149f91a9455fe961f72"
+  },
+  "references/shots/typography/type-rhythm-sync.md": {
+    "file": "e6cd059beb5ae9def23d.jpg",
+    "frame": 98,
+    "frameSource": "automatic",
+    "fingerprint": "301bafcf6c2eba8600d34ec73ce9dcc8c70f799b6b95e586072435b78277fb9f",
+    "checksum": "b34877ac4a10c67f235ebca9de9084896c2515a2fe8c3ec5de9be80bf6578420"
+  },
+  "references/shots/typography/word-relay-filmstrip.md": {
+    "file": "65ae8abea66c97b6428b.jpg",
+    "frame": 53,
+    "frameSource": "automatic",
+    "fingerprint": "086bc9d5a125ca64f39ca1a5023fe87d879a84270f9919c9232c66601e38956c",
+    "checksum": "85d53ad82fac4f0344a100968c95ca7269e3866b0fa7a89634637909d3e4e74d"
+  },
+  "references/shots/ui-entrance/deck-deal-flyin.md": {
+    "file": "afa86bb5ad7d26cfc905.jpg",
+    "frame": 134,
+    "frameSource": "automatic",
+    "fingerprint": "05f31193ec25ad771e0278676315811d485de3dac60c3b3f852ac61145f00ab5",
+    "checksum": "508bbde59a509c12d6684ace56983f976f1144c1e845ba06704d2b42354d1e78"
+  },
+  "references/shots/ui-entrance/element-body-moves.md": {
+    "file": "0cd1047afbe1c9b778ea.jpg",
+    "frame": 134,
+    "frameSource": "automatic",
+    "fingerprint": "75f9cc9fe0936aa5b3e752a3623909e95ad62a44cb17ce63eb1081961ef630ca",
+    "checksum": "5a2c0292d3973eff42a37baf715d0e0a13533a3c0cf67d00327b9e4daa355677"
+  },
+  "references/shots/ui-entrance/integration-hub-map.md": {
+    "file": "d286fc1f0a56f137e70a.jpg",
+    "frame": 134,
+    "frameSource": "automatic",
+    "fingerprint": "c50b17b9b7d65ca1f67390741da06bf0defb9ce5c039be3f25f308abca11ffcc",
+    "checksum": "bc3b497af7f297a3587c8afc6b16c9b91bf52acfd31b7f3b0696671752347756"
+  },
+  "references/shots/ui-entrance/list-reveal.md": {
+    "file": "dde4dbb125fd57025fc5.jpg",
+    "frame": 107,
+    "frameSource": "automatic",
+    "fingerprint": "69bdbecd6552a0169d03e5ca15ae0bb6e6b077f8315a9272f2d5364ec093182a",
+    "checksum": "3dd77b71adee74d3a66304af9b8201bd0bacef82388098cacf2aa54dba262b53"
+  },
+  "references/shots/ui-entrance/list-stack-press.md": {
+    "file": "aec35beea3df95f26858.jpg",
+    "frame": 78,
+    "frameSource": "automatic",
+    "fingerprint": "420ee460591e9e2d1a8d0b0bcddaa19a49b8699d5f6738bca2411a7df18c1920",
+    "checksum": "4c72599ee2e328c9d8bd9b97d60072acbef4ffe1e57f0e25f1b8ed0cd21ac11b"
+  },
+  "references/shots/ui-entrance/page-waterfall-wall.md": {
+    "file": "07690482273d4269076a.jpg",
+    "frame": 134,
+    "frameSource": "automatic",
+    "fingerprint": "e8fe561f660444d8eb904f16bb591171116d5eb2e50cf892ba994c5e982b2c4f",
+    "checksum": "22a0fe030f79b0df582b832e9b2fab1b05d8f46a64acaeb632594f4011716cb6"
+  },
+  "references/shots/ui-entrance/row-embed.md": {
+    "file": "9b0251cac4760a02ddc1.jpg",
+    "frame": 60,
+    "frameSource": "automatic",
+    "fingerprint": "a1e2ce6b14e51882057a9b645f918664c650fe8d120364112fdbb1e51d3647a6",
+    "checksum": "a8c2122a230ab97e7325c60f840ee4274b8d8eeaa2a89c26b0039918764026eb"
+  },
+  "references/shots/ui-entrance/wall-reveal-moves.md": {
+    "file": "d97e0d3a4fb6f7571b44.jpg",
+    "frame": 134,
+    "frameSource": "automatic",
+    "fingerprint": "5353f5da25721ca2d21023094612f373952df15bdff0e56dd89323a2130f0b87",
+    "checksum": "dec4688fb141d5797a1b2f526dfb7975f28c7d97b567986d2fa1900b073ecd94"
+  }
+}

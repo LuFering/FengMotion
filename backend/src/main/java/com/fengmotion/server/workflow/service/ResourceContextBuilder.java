@@ -111,9 +111,10 @@ public class ResourceContextBuilder {
                     String id = required(ref, "techniqueId", kind);
                     FxTechnique technique = techniques.require(id);
                     String intent = ref.path("intent").asText("reference");
+                    if(ref.hasNonNull("techniqueVersion") && !ref.path("techniqueVersion").asText().equals(technique.version()))throw new ApiException(HttpStatus.CONFLICT,"resource_version_conflict","技法版本已更新，请重新确认引用");
                     lines.add(describeTechnique(technique, intent));
                     resolved.add(new ResolvedResource("technique", id, technique.name(),
-                            intent, null, null, null));
+                            intent, technique.sourcePath(), null, null, technique.version(), technique.sourceUrl(),technique.sourceVersion(),technique.licenseCode()));
                 }
                 default -> {
                     /* 其它 kind（project/scene/frame 等）不属于三库，
@@ -342,7 +343,8 @@ public class ResourceContextBuilder {
      * @param endMs     结束毫秒（参考片）
      */
     public record ResolvedResource(String kind, String id, String label, String usage,
-                                   String path, Long startMs, Long endMs) {
+                                   String path, Long startMs, Long endMs, String version,String sourceUrl,String sourceVersion,String license) {
+        public ResolvedResource(String kind,String id,String label,String usage,String path,Long startMs,Long endMs){this(kind,id,label,usage,path,startMs,endMs,null,null,null,null);}
     }
 
     /**

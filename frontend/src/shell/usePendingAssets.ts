@@ -103,24 +103,31 @@ export interface PendingAsset {
 const KEY = 'fm-pending-assets-v1'
 const MAX = 24
 
+let memoryPending:PendingAsset[]|null=null
+let pendingSaveFailed=false
 function read(): PendingAsset[] {
+  if(memoryPending)return memoryPending
   try {
     const raw = localStorage.getItem(KEY)
     if (!raw) return []
     const list = JSON.parse(raw)
     if (!Array.isArray(list)) return []
-    return list.filter((x): x is PendingAsset =>
+    memoryPending=list.filter((x): x is PendingAsset =>
       !!x && typeof x.assetId === 'string' && typeof x.addedAt === 'number')
+    return memoryPending
   } catch {
     return []
   }
 }
 
 function write(list: PendingAsset[]) {
+  memoryPending=list
   try {
     localStorage.setItem(KEY, JSON.stringify(list))
+    pendingSaveFailed=false
   } catch {
-    /* 存储不可用时只在内存生效 */
+    pendingSaveFailed=true
+    window.dispatchEvent(new CustomEvent('fm-toast',{detail:'待发送清单仅在当前页面保留，保存失败，请勿刷新。可稍后重试保存。'}))
   }
 }
 
@@ -130,11 +137,15 @@ export function usePendingAssets() {
      靠一个自定义事件把它们连起来，免得为了一个数组上全局状态库。 */
   useEffect(() => {
     const sync = () => setItems(read())
+    const storageSync=(e:StorageEvent)=>{if(e.key===KEY&&!pendingSaveFailed){memoryPending=null;sync()}}
+    const warn=(e:BeforeUnloadEvent)=>{if(pendingSaveFailed){e.preventDefault();e.returnValue=''}}
     window.addEventListener('fm-pending-changed', sync)
-    window.addEventListener('storage', sync)
+    window.addEventListener('storage', storageSync)
+    window.addEventListener('beforeunload',warn)
     return () => {
       window.removeEventListener('fm-pending-changed', sync)
-      window.removeEventListener('storage', sync)
+      window.removeEventListener('storage', storageSync)
+      window.removeEventListener('beforeunload',warn)
     }
   }, [])
 
@@ -207,7 +218,8 @@ export function usePendingAssets() {
 
   const has = useCallback((assetId: string) => items.some((x) => x.assetId === assetId), [items])
 
-  return { items, add, addRef, addFx, remove, removeMany, clear, patch, has }
+  const retrySave=()=>{write(read());window.dispatchEvent(new CustomEvent('fm-pending-changed'))}
+  return { items, add, addRef, addFx, remove, removeMany, clear, patch, has, saveFailed:pendingSaveFailed, retrySave }
 }
 
 /** 素材库/详情面板里做拖拽时写进 dataTransfer 的自定义类型。

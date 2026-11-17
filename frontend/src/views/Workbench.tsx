@@ -1,3 +1,5 @@
+import { submitCreation } from '../services/creationClient'
+import { useHarnessSelection, setHarnessSelection } from '@/shell/useHarnessSelection'
 import { MediaIcon } from '@/components/icons/MediaIcon'
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
@@ -22,7 +24,7 @@ import { registerComposer } from '@/shell/usePendingAssets'
 import { creationIntent, deliveredReferences, libraryReferences } from '@/services/creationResources'
 import { RailProgressPanel } from './RailProgress'
 import { ProjectArtifacts } from './ProjectArtifacts'
-import { useHarnesses, availabilityOf, modelsOf } from '@/shell/useHarnesses'
+import { useHarnesses, availabilityOf, modelsOf, matchHarness } from '@/shell/useHarnesses'
 import { ACTIVE_SCENES } from '@/data/projectModel'
 import { PROJECTS, type ProjectSummary } from '@/data/projects'
 import { ARTIFACT_STATUS_LABEL, ARTIFACT_TYPE_LABEL, WORKBENCH_ARTIFACTS, type WorkbenchArtifact } from '@/data/workbenchArtifacts'
@@ -880,6 +882,13 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
   const [unsavedReplies, setUnsavedReplies] = useState<Array<{ userMessageId: string; reply: string; sessionId: string; requestId?: string }>>([])
   const [executionPhase, setExecutionPhase] = useState<string>('')
   const sessionDraft = useSessionDraft(projectId, boundSessionId)
+  const engineSelection = useHarnessSelection()
+  const engineProbe = useHarnesses()
+  const engineModels = modelsOf(engineProbe, engineSelection.harness).models
+  const submissionEngine = { ...engineSelection,
+    model: engineModels.find((m) => m.id === engineSelection.model)?.id
+      ?? engineModels.find((m) => m.default)?.id ?? engineModels[0]?.id,
+  }
 
   // 统一程序化草稿写入：同时更新 React 状态与 sessionDraft 统一草稿库
   const setWorkbenchDraftText = useCallback((text: string) => {
@@ -2474,10 +2483,10 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
             label: span ? `时间段修改（${formatMediaTime(span.start)}–${formatMediaTime(span.end)}）` : '工作台创作修改',
             action: 'workflow_modify',
           }
-          const creationReferences: NonNullable<ContractMessage['references']> = [targetRef]
+          const creationReferences: NonNullable<ContractMessage['references']> = [targetRef,...libraryReferences(request.references ?? [])] as NonNullable<ContractMessage['references']>
 
           // 核心点 1 & 2：真实持久化写入服务端会话，解耦幂等键与任务状态，重试时复用已落库消息
-          const promptKey = `${effectiveSid}:${projectId}:${userPromptText}`
+          const promptKey = JSON.stringify([effectiveSid,projectId,userPromptText,request.references,request.constraints,previewImage,baseline.scene?.version,submissionEngine])
           const isRetrySamePrompt = pendingSubmissionRef.current?.promptKey === promptKey
           let userMessageId = isRetrySamePrompt && pendingSubmissionRef.current?.userMessageId ? pendingSubmissionRef.current.userMessageId : null
           const idempotencyKey = isRetrySamePrompt && pendingSubmissionRef.current?.idempotencyKey ? pendingSubmissionRef.current.idempotencyKey : crypto.randomUUID()
@@ -2544,7 +2553,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
           const intent = span ? `${baseIntent}\n\n${timeSpanBrief(span, prompt, { version: viewedPreview?.origin === 'scene' ? viewedPreview.revision : currentSceneState?.version ?? null, file: previewPath?.split('/').pop() ?? null })}` : previewImage
             ? `${baseIntent}\n\n随本次请求附带的是用户选择时的完整画面；如目标包含 bbox，请按归一化坐标定位该区域，无法识别时先询问。`
             : baseIntent
-          const attemptKey = JSON.stringify([projectId, baseline.scene?.version, intent, capturedPreview.current?.id, request.references, constraints])
+          const attemptKey = JSON.stringify([projectId, baseline.scene?.version, intent, capturedPreview.current?.id, request.references, constraints, submissionEngine])
           if (targetedCorrection && correctionAttempt.current?.key !== attemptKey) {
             correctionAttempt.current = { key: attemptKey, id: crypto.randomUUID() }
             try { sessionStorage.setItem(`fm-correction-attempt:${projectId}`, JSON.stringify(correctionAttempt.current)) } catch { /* 保留本页的重试标识 */ }
@@ -2573,17 +2582,13 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
           }, 2000)
           let result
           try {
-            result = await studioHttpApi().workflowContext.create(
-              projectId,
-              intent,
-              libraryReferences(request.references ?? []),
-              previewImage,
-              targetedCorrection ? baseline.scene?.version : undefined,
-              targetedCorrection ? correctionText : undefined,
-              currentTaskId,
-              effectiveSid,
-              userMessageId
-            )
+            result = await submitCreation({
+              projectId, intent, references:libraryReferences(request.references ?? []), previewImage,
+              baseVersion:targetedCorrection ? baseline.scene?.version : undefined,
+              correction:targetedCorrection ? correctionText : undefined,
+              requestId:currentTaskId!, sessionId:effectiveSid, userMessageId,
+              selection:submissionEngine,
+            }, (job)=>setExecutionPhase(job.phase))
           } finally {
             window.clearInterval(phasePollTimer)
             setExecutionPhase('')
@@ -3019,7 +3024,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
               chat.removeMessage(aiId)
               setNotice('已停止生成。你的消息已保存，这条回复没有保存。')
             },
-          })
+          }, submissionEngine)
           chatStreamManager.register({
             sessionId: effectiveSid,
             userMessageId: savedMsgId,
@@ -4689,16 +4694,19 @@ function RightPanel({ projectId, target, preview, projectVersionNumber, projectV
      （`/api/harnesses/{id}/models`），本地 harness.models 只是产品侧写的名字，
      与 DSH 实际路由的模型对不上。 */
   const probe = useHarnesses()
-  const [harnessId, setHarnessId] = useState(HARNESSES[0].id)
-  const [model, setModel] = useState(HARNESSES[0].models[0] ?? '')
-  const [workbenchEffort, setWorkbenchEffort] = useState<string | null>('medium')
-  const selectedHarness = probe.harnesses.find((h) => h.id === harnessId)
-    ?? probe.harnesses.find((h) => h.name.toLowerCase() === harnessId.toLowerCase())
+  const engineSelection = useHarnessSelection()
+  const harnessId = engineSelection.harness
+  const setHarnessId = (harness: string) => setHarnessSelection({ harness, model: undefined, reasoningEffort: undefined })
+  const model = engineSelection.model ?? ''
+  const setModel = (model: string) => setHarnessSelection({ model })
+  const workbenchEffort = engineSelection.reasoningEffort ?? null
+  const setWorkbenchEffort = (level: string) => setHarnessSelection({ reasoningEffort: level })
+  const selectedHarness = matchHarness(probe.harnesses, harnessId)
   const composerHarnesses = useMemo(() => probe.harnesses.map((h) => ({
     id: h.id,
-    name: h.name,
-    iconUrl: h.name.toLowerCase().includes('deepseek') ? './assets/brand/deepseek.svg' : undefined,
-    available: h.status === 'available' && probe.access === 'available',
+    name: HARNESSES.find((item) => item.id === (h.id === 'dsh-sdk' ? 'deepseek' : h.id))?.name ?? h.name,
+    iconUrl: HARNESSES.find((item) => item.id === (h.id === 'dsh-sdk' ? 'deepseek' : h.id))?.icon ?? './assets/brand/deepseek.svg',
+    available: h.status === 'available',
     models: (probe.modelsByHarness[h.id] ?? []).map((m) => ({ id: m.id, name: m.label || m.id, reasoningEfforts: m.reasoningEfforts })),
   })), [probe.harnesses, probe.modelsByHarness, probe.access])
   const backendModels = modelsOf(probe, selectedHarness?.id ?? harnessId).models

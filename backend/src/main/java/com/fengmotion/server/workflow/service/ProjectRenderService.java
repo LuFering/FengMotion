@@ -225,10 +225,18 @@ public class ProjectRenderService {
     }
 
     public CreateOutcome createThenRender(String projectId, String intent, JsonNode references, String previewImage, Long expectedVersion, String correction, String requestId, String sessionId, String userMessageId) {
+        return createThenRender(projectId, intent, references, previewImage, expectedVersion, correction, requestId, sessionId, userMessageId, null);
+    }
+
+    public CreateOutcome createThenRender(String projectId, String intent, JsonNode references, String previewImage, Long expectedVersion,
+            String correction, String requestId, String sessionId, String userMessageId,
+            com.fengmotion.server.harness.client.NativeHarnesses.Selection selection) {
+        if (selection != null) agent.validateSelection(selection);
         operations.acquire(projectId);
         try {
             if (requestId != null && !requestId.isBlank()) {
                 String requestHash = computeFingerprint(projectId, intent, references, previewImage, expectedVersion, correction);
+                if (selection != null) requestHash += "|engine=" + selection.harness() + "|model=" + selection.model() + "|effort=" + selection.reasoningEffort();
                 var existingTask = creationTasks.findByRequestId(requestId);
                 if (existingTask.isPresent()) {
                     var task = existingTask.get();
@@ -288,7 +296,7 @@ public class ProjectRenderService {
                 }
                 if (previewImage != null) CreateAgentRunner.previewImages(previewImage);
                 if (correction != null && !correction.isBlank()) workflowProject.recordCorrection(projectId, correction, requestId);
-                return createUnlocked(projectId, intent, references, previewImage, requestId, sessionId, userMessageId);
+                return createUnlocked(projectId, intent, references, previewImage, requestId, sessionId, userMessageId, selection);
             } catch (RuntimeException failure) {
                 if (requestId != null && !requestId.isBlank()) {
                     creationTasks.updateFailed(requestId, failure.getMessage());
@@ -379,6 +387,10 @@ public class ProjectRenderService {
     }
 
     private CreateOutcome createUnlocked(String projectId, String intent, JsonNode references, String previewImage, String requestId, String sessionId, String userMessageId) {
+        return createUnlocked(projectId, intent, references, previewImage, requestId, sessionId, userMessageId, null);
+    }
+    private CreateOutcome createUnlocked(String projectId, String intent, JsonNode references, String previewImage, String requestId,
+            String sessionId, String userMessageId, com.fengmotion.server.harness.client.NativeHarnesses.Selection selection) {
         Project project = projects.findById(projectId)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "not_found", "项目不存在"));
         String rootPath = project.rootPath();
@@ -391,12 +403,14 @@ public class ProjectRenderService {
            直接把 ID 列表丢给 agent，它无从知道用户到底想「用进画面」还是「只借鉴」；
            查不到也要在这里报错，不能跳过 —— 用户会以为资源已经用上了。 */
         var previous = creationStates.read(root);
-        // 省略资源表示继续上轮选择；显式 [] 才表示清空，避免回答追问时丢掉素材。
+        // Continuation is scoped to its originating session, never the last job of another conversation.
+        var previousTask=previous==null||previous.requestId()==null?null:creationTasks.findByRequestId(previous.requestId()).orElse(null);
+        boolean sameSession=previousTask!=null && java.util.Objects.equals(sessionId,previousTask.sessionId());
         JsonNode effectiveRefs = references == null || references.isNull()
-                ? previous == null ? null : previous.references() : references;
+                ? previous == null || !sameSession ? null : previous.references() : references;
         var resources = resourceContexts.build(effectiveRefs);
         String instruction = intent;
-        if (previous != null && CreateOutcome.AWAITING_INFO.equals(previous.state())) {
+        if (previous != null && sameSession && CreateOutcome.AWAITING_INFO.equals(previous.state())) {
             instruction = "上一轮用户要求：\n" + previous.intent()
                     + "\nAgent 上一轮的说明/问题：\n" + previous.reply()
                     + "\n用户本轮补充：\n" + (intent == null ? "按已有要求继续" : intent);
@@ -407,7 +421,7 @@ public class ProjectRenderService {
         }
         String reply = null;
         try {
-            var agentResult = agent.run(root, instruction, resources, previewImage, projectId, sessionId, requestId);
+            var agentResult = agent.run(root, instruction, resources, previewImage, projectId, sessionId, requestId, selection);
             reply = agentResult.reply();
             // 新项目尚无入口也能正常追问；先判断是否改动，再校验可渲染性。
             if (!agentResult.changed()) {

@@ -64,6 +64,7 @@ public class ChatStreamService {
     private static final int MAX_ARGUMENT_CHARS = 4000;
 
     private final HarnessService harness;
+    private final com.fengmotion.server.harness.client.NativeHarnesses nativeHarnesses;
     private final com.fengmotion.server.upload.service.UploadService uploads;
     private final com.fengmotion.server.project.store.ProjectRepository projects;
     private final HarnessProperties properties;
@@ -122,6 +123,8 @@ public class ChatStreamService {
      *
      * @return 可用时返回 true
      */
+    public boolean isAvailable(String id) { return harness.isAvailable(id); }
+
     public boolean isAvailable() {
         return harness.isAvailable();
     }
@@ -136,6 +139,14 @@ public class ChatStreamService {
     static final List<String> EFFORT_LEVELS = List.of("low", "medium", "high", "max", "ultra");
 
     /** 模型必须在目录里，强度必须是五档之一；具体落到哪个档位由 {@link #resolveEffort} 决定。 */
+    public void validateSelection(String id, String model, String reasoningEffort) {
+        if (com.fengmotion.server.harness.client.NativeHarnesses.supports(id)) {
+            try { nativeHarnesses.validate(new com.fengmotion.server.harness.client.NativeHarnesses.Selection(id, model, reasoningEffort)); }
+            catch (IllegalArgumentException ex) { throw new ApiException(HttpStatus.BAD_REQUEST, "validation_error", ex.getMessage()); }
+        } else if (id == null || id.isBlank() || id.equals("deepseek") || id.equals(HarnessService.DSH_ID)) validateSelection(model, reasoningEffort);
+        else throw new ApiException(HttpStatus.BAD_REQUEST, "validation_error", "未知引擎");
+    }
+
     public void validateSelection(String model, String reasoningEffort) {
         if (model != null && (model.isBlank() || model.length() > 256
                 || harness.listModels(HarnessService.DSH_ID).stream().noneMatch(entry -> entry.id().equals(model)))) {
@@ -307,6 +318,53 @@ public class ChatStreamService {
         }
     }
 
+    public void stream(String sessionId, PrintWriter writer, String text, JsonNode attachments,
+                       String engine, String model, String effort, Runnable flush) {
+        if (!com.fengmotion.server.harness.client.NativeHarnesses.supports(engine)) {
+            stream(sessionId, writer, text, attachments, model, effort, flush); return;
+        }
+        currentFlush.set(flush);
+        DshProcess[] active = {null};
+        try {
+            ChatSession session = sessions.findById(sessionId).orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "not_found", "会话不存在"));
+            StringBuilder history = new StringBuilder(conversationHistory(sessionId));
+            history.append("本轮要求：\n").append(text).append("\n开始或切换主要方向前先简短说明接下来做什么，不要披露内部推理。");
+            SseListener listener = new SseListener(writer, sessionId);
+            String reply = nativeHarnesses.run(new com.fengmotion.server.harness.client.NativeHarnesses.Selection(engine, model, effort),
+                    java.nio.file.Path.of(workingDirectoryFor(session)), history.toString(), inlineImages(attachments), listener, turnBudget(), process -> {
+                        active[0] = process;
+                        if (runningTurns.putIfAbsent(sessionId, process) != null) throw new IllegalStateException("该会话已有正在执行的回复");
+                        cleanupStopMark(sessionId);
+                    });
+            if (wasStopped(sessionId)) writeStopped(writer);
+            else {
+                var saved = appendAssistantMessage(sessionId, reply, null, listener.collectedToolCalls(), listener.collectedTodos(), listener.collectedUsage(), listener.collectedDeliverables());
+                sessions.bindHarnessSession(sessionId, "external:" + engine);
+                listener.emitPhase("done", null, null); writeCompleted(writer, saved);
+            }
+        } catch (Exception ex) {
+            if (wasStopped(sessionId)) writeStopped(writer);
+            else writeError(writer, "agent_error", ex.getMessage() == null ? "引擎执行失败" : ex.getMessage());
+        } finally {
+            if (active[0] != null) runningTurns.remove(sessionId, active[0]);
+            writeEnd(writer); currentFlush.remove();
+        }
+    }
+
+    private String conversationHistory(String sessionId) {
+        StringBuilder history = new StringBuilder("以下是此会话历史，仅作上下文；请回答最后的本轮要求。\n");
+        long cursor = 0;
+        while (true) {
+            var page = messages.findAfterSeq(sessionId, cursor, 200);
+            if (page.isEmpty()) break;
+            for (ChatMessage m : page) {
+                cursor = m.seq();
+                history.append(m.role()).append(": ").append(m.text()).append("\n\n");
+            }
+        }
+        return history.toString();
+    }
+
     /**
      * 实际执行对话并把事件写成 SSE。
      *
@@ -385,11 +443,12 @@ public class ChatStreamService {
         // 会话标识与「是否已在本引擎上创建过」是两件事：DSH 的会话是持久化的，
         // 子进程却是每次请求新起的。已存在的会话必须用 session/resume 续接，
         // 否则直接 prompt 会被 DSH 以「already exists」拒绝（实测）。
+        boolean importHistory = session.harnessSessionId() != null && session.harnessSessionId().startsWith("external:");
         boolean continuation = session.harnessSessionId() != null
-                && !session.harnessSessionId().isBlank();
+                && !session.harnessSessionId().isBlank() && !importHistory;
         String harnessSessionId = continuation
                 ? session.harnessSessionId()
-                : "fm-" + sessionId;
+                : "fm-" + sessionId + (importHistory ? "-" + UUID.randomUUID() : "");
 
         DshProcess process = null;
         AtomicBoolean finished = new AtomicBoolean(false);
@@ -452,7 +511,7 @@ public class ChatStreamService {
                所以 finally 不能关进程 —— 关了就是把还在跑的任务杀掉。 */
             DshSdkSession.Outcome outcome = driver.prompt(
                     harnessSessionId,
-                    userText + "\n\n【交流方式】开始处理或切换主要工作方向前，先向用户简短说明接下来做什么；只在重要阶段更新，不必逐次播报工具。明确区分计划和已完成的结果，不要暴露内部推理。",
+                    (importHistory ? conversationHistory(sessionId) + "\n本轮要求：\n" : "") + userText + "\n\n【交流方式】开始处理或切换主要工作方向前，先向用户简短说明接下来做什么；只在重要阶段更新，不必逐次播报工具。明确区分计划和已完成的结果，不要暴露内部推理。",
                     images,
                     listener,
                     turnBudget(),
@@ -911,6 +970,7 @@ public class ChatStreamService {
 
     /** 把 SDK 事件回调翻译成 SSE 帧。 */
     private final class SseListener implements DshSdkSession.Listener {
+        @Override public void onHeartbeat() { writeFrame(out, "heartbeat", json.createObjectNode().put("type", "heartbeat")); }
         private final PrintWriter out;
         /** 上一次发出的 phase，用于抑制重复帧。 */
         private String lastPhase;

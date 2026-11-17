@@ -49,6 +49,9 @@ public class CreateAgentRunner {
 
     private final com.fengmotion.server.retrieval.SemanticIndex semanticIndex;
     private final DshLauncher launcher;
+    private final com.fengmotion.server.harness.client.NativeHarnesses nativeHarnesses;
+    private final com.fengmotion.server.harness.service.HarnessService harnesses;
+    private final ThreadLocal<com.fengmotion.server.harness.client.NativeHarnesses.Selection> selection = new ThreadLocal<>();
     private final HarnessProperties properties;
     private final ObjectMapper json;
     private final CreationProgressStore progressStore;
@@ -81,12 +84,34 @@ public class CreateAgentRunner {
      * @param intent      这一轮要做什么；null 表示按现有需求与纠正自主推进
      * @return 结果摘要
      */
+    public void validateSelection(com.fengmotion.server.harness.client.NativeHarnesses.Selection selected) {
+        if (selected == null) return;
+        try {
+            if (selected.nativeEngine()) nativeHarnesses.validate(selected);
+            else {
+                if (selected.harness() != null && !selected.harness().equals("deepseek") && !selected.harness().equals("dsh-sdk")) throw new IllegalArgumentException("未知引擎");
+                if (!harnesses.isAvailable()) throw new IllegalArgumentException("DeepSeek Harness 不可用");
+                if (selected.model() != null && harnesses.listModels("dsh-sdk").stream().noneMatch(m -> m.id().equals(selected.model()))) throw new IllegalArgumentException("模型不在 DeepSeek Harness 目录中");
+            }
+        } catch (IllegalArgumentException failure) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "validation_error", failure.getMessage());
+        }
+    }
+
     public AgentOutcome run(Path projectRoot, String intent, ResourceContextBuilder.ResourceContext resources) {
         return run(projectRoot, intent, resources, null);
     }
 
     public AgentOutcome run(Path projectRoot, String intent, ResourceContextBuilder.ResourceContext resources, String previewImage) {
         return run(projectRoot, intent, resources, previewImage, ignored -> { });
+    }
+
+    public AgentOutcome run(Path root, String intent, ResourceContextBuilder.ResourceContext resources, String image,
+                            String projectId, String sessionId, String requestId,
+                            com.fengmotion.server.harness.client.NativeHarnesses.Selection selected) {
+        selection.set(selected);
+        try { return run(root, intent, resources, image, projectId, sessionId, requestId); }
+        finally { selection.remove(); }
     }
 
     public AgentOutcome run(Path projectRoot, String intent, ResourceContextBuilder.ResourceContext resources, String previewImage,
@@ -505,11 +530,20 @@ public class CreateAgentRunner {
 
     private String ask(Path workdir, String instruction, java.util.List<DshSdkSession.InlineImage> images,
                        java.util.function.Consumer<String> onProgress) {
+        var selected = selection.get();
+        if (selected != null && selected.nativeEngine()) {
+            try {
+                return nativeHarnesses.run(selected, workdir, instruction, images, new ProgressListener(onProgress),
+                        Duration.ofSeconds(timeoutSeconds), ignored -> { });
+            } catch (IOException | IllegalArgumentException failure) {
+                throw new ApiException(HttpStatus.BAD_GATEWAY, "create_agent_failed", "创作引擎执行失败：" + failure.getMessage());
+            }
+        }
         DshProcess process = null;
         try {
             process = launcher.startSdk();
             DshSdkSession driver = new DshSdkSession(
-                    process, json, properties.getProvider(), properties.getModel());
+                    process, json, properties.getProvider(), selected == null || selected.model() == null ? properties.getModel() : selected.model(), selected == null ? null : com.fengmotion.server.harness.client.NativeHarnesses.effort(selected, harnesses.listModels("dsh-sdk")));
             // stderr 必须排空，否则管道写满会阻塞子进程
             process.drainStderr(200, driver::acceptStreamFrame);
 

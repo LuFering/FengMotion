@@ -10,7 +10,9 @@ import { VIEW_META, type ViewId } from '@/shell/views'
 import { AppShell } from '@/shell/AppShell'
 import { SettingsScreen } from '@/shell/SettingsScreen'
 import { loadSettings, saveSettings, type Settings } from '@/shell/settings-model'
-import { Home } from '@/views/Home'
+import { Home, type StartPayload } from '@/views/Home'
+import { prepareCreationEntry } from '@/services/creationEntry'
+import { setSessionDraft } from '@/shell/useDraftStore'
 import { Workbench } from '@/views/Workbench'
 import { Assets } from '@/views/Assets'
 import { ProjectBar, PickProject } from '@/views/ProjectBar'
@@ -19,8 +21,12 @@ import { FxLibrary } from '@/views/FxLibrary'
 import { RefLibrary } from '@/views/RefLibrary'
 import { Workflow } from '@/views/Workflow'
 import { StartCreation } from '@/views/StartCreation'
+import { ProjectsHome } from '@/views/ProjectsHome'
 import { Conversation } from '@/views/Conversation'
 import { TooltipProvider } from '@/components/ui/tooltip'
+import { NavigationGuardProvider } from '@/shell/NavigationGuardProvider'
+import { useNavigationGuard } from '@/shell/navigationGuardContext'
+import { LocalDocumentsBoundary } from '@/shell/LocalDocumentsBoundary'
 
 /**
  * 应用外壳 —— 结构对应 paba.tv 的 #app：
@@ -39,6 +45,12 @@ import { TooltipProvider } from '@/components/ui/tooltip'
 type View = ViewId
 
 export default function App() {
+  return <LocalDocumentsBoundary><NavigationGuardProvider><AppContent /></NavigationGuardProvider></LocalDocumentsBoundary>
+}
+
+function AppContent() {
+  const navigation = useNavigationGuard()
+  const [projectHome,setProjectHome]=useState(false)
   /** 开发调试入口：?view=production&project=token 直接进工作台；普通访问不变。 */
   const initialQuery = new URLSearchParams(window.location.search)
   const initialView = initialQuery.get('view') as View | null
@@ -135,30 +147,35 @@ export default function App() {
 
   /* 「返回项目目录」：项目列表页已移除，回「我的创作」（对话视图）。
      精准切回工作台当前绑定的同一会话，保留当前选中项目。 */
-  const openList = () => {
+  const openList = useCallback(() => {
     if (activeWorkbenchSessionId) threads.setActiveId(activeWorkbenchSessionId)
+    setProjectHome(false)
     setView('conversation')
-  }
+  }, [activeWorkbenchSessionId, threads.setActiveId])
   // 复刻页（项目指挥中心）通过 postMessage 请求跨页导航
   useEffect(() => {
     const onMsg = (e: MessageEvent) => {
       const d = e.data as { type?: string; id?: string; projectId?: string } | null
       if (!d) return
       if (d.type !== 'fm-nav' || !d.id) return
-      if (d.id === '__list') { openList(); return }
-      if (d.id === '__home') { setView('home'); return }
-      if (d.projectId) setOpenProject(d.projectId)
-      setView(d.id as Parameters<typeof setView>[0])
+      navigation.request(() => {
+        if (d.id === '__list') { openList(); return }
+        if (d.id === '__home') { setView('home'); return }
+        if (d.projectId) setOpenProject(d.projectId)
+        if (d.id === 'conversation') setProjectHome(false)
+        setView(d.id as Parameters<typeof setView>[0])
+      })
     }
     window.addEventListener('message', onMsg)
     return () => window.removeEventListener('message', onMsg)
-  }, [])
+  }, [navigation, openList])
   /** 创作启动层（M1）：首页发送后带着草稿打开，null = 关闭
       原型分支：首页发送改走项目对话视图（见 Home 的 onStart），启动层本体保留未删，
       目前没有入口触发它；M1 去留待定案后再统一收口。 */
   const [startDraft, setStartDraft] = useState<string | null>(null)
-  const [homeTransfer, setHomeTransfer] = useState<{ sessionId: string; draft: string; files: { file: File; kind: 'file' | 'image' | 'video' }[] } | null>(null)
+  const [homeTransfer, setHomeTransfer] = useState<{ sessionId: string; draft: string; files: { file: File; kind: 'file' | 'image' | 'video' }[]; intent: 'create' | 'chat' } | null>(null)
   const homeStarting = useRef(false)
+  const homePreparedProject = useRef<string | null>(null)
   /** 启动层刚建好的「本次制作」：双路径都落工作台，由工作台的任务面执行与呈现 */
   const [pendingLaunch, setPendingLaunch] = useState<{ workflowId: string; projectId: string | null; autoRun: boolean } | null>(null)
   /** 落工作台的统一入口：启动层与对话视图共用。
@@ -185,7 +202,7 @@ export default function App() {
 
   /** 切视图**不清**项目上下文：项目管理组的子视图（素材/交付）都挂在
       当前项目上；要回列表就走 openList()（项目条上的「全部项目」或总览的返回）。 */
-  const go = (v: string) => setView(v as View)
+  const go = (v: string) => { if (v !== view || v === 'conversation') navigation.request(() => {if(v==='conversation')setProjectHome(false);setView(v as View)}) }
   /* 侧栏现在是「隐藏 / 显示」，不再做 68 ↔ 216 的展开切换：
      作者要求 logo 当开关 —— 工具型界面要的是"把导航让出来给画布"，
      半展开的图标轨既不省空间也没多给信息。
@@ -292,46 +309,40 @@ export default function App() {
           </div>
         )}
 
-        {/* 首页 · 首屏 from home-film-v3
-            原型分支：发送后不再开启动层，需求直接作为首条消息进项目对话视图 */}
+        {/* 首页先准备真实项目/会话和带意图的草稿，不预先保存消息或起流。 */}
         {view === 'home' && (
           <div id="pane-home">
             <Home projects={projects.list}
-                  onStart={(payload) => {
-              /* 发送 → 建一条会话：选了工作目录的会话挂在该目录对应的项目下，
-                 没选的落进未分组（之后可拖到项目里）。
-                 项目会话走真实创建；未分组只留本页草稿。创建失败时仍进入对话视图，
-                 在那里显示错误与重试，不假装已建好。 */
-              const project = payload.workdir
-                ? projects.list.find((p) => p.path === payload.workdir!.path) ?? null
-                : null
-              if (payload.attachments.length) {
-                if (homeStarting.current) return
-                homeStarting.current = true
-                // 附件需要先上传，先创建空会话，再把完整草稿交给对话输入框。
-                void threads.create({ firstText: payload.draft, projectId: project?.id ?? null, workdir: payload.workdir })
-                  .then(({ session }) => {
-                    if (!session) return
-                    setHomeTransfer({ sessionId: session.id, draft: payload.draft, files: payload.attachments })
-                    setOpenProject(project?.id ?? null)
-                    setView('conversation')
-                  }).finally(() => { homeStarting.current = false })
-                return
-              }
-              /* 只建会话，不往 chat 里再塞一份：会话是唯一来源，
-                 对话视图装载时会把它的消息装进 chat。
-                 两边都塞会出现两个不同 id 的同一条需求 → 演示回复各排一次 → 回两条。
-                 有项目时 create 会等服务端返回 id（可能失败）；失败时对话视图
-                 显示错误与重试，输入内容不丢。 */
-              void threads.create({
-                firstText: payload.draft,
-                projectId: project?.id ?? null,
-                workdir: payload.workdir,
-                messages: [{ id: `m-${Date.now().toString(36)}`, role: 'user', text: payload.draft, at: Date.now() }],
-              }).then(() => { if (!project) setOpenProject(null) })
-              if (project) setOpenProject(project.id)
-              else setOpenProject(null)
-              setView('conversation')
+                  onStart={async (payload: StartPayload) => {
+              if (homeStarting.current) return
+              homeStarting.current = true
+              try {
+                const project = payload.workdir ? projects.list.find((p) => p.path === payload.workdir!.path) : null
+                let projectId: string | null = project?.id ?? null
+                let sessionId: string
+                if (payload.intent === 'create') {
+                  const prepared = await prepareCreationEntry({
+                    projectId: projectId ?? homePreparedProject.current, title: payload.draft,
+                  }, {
+                    createProject: () => projects.createBlank(payload.draft.trim().split('\n')[0]?.slice(0, 32) || undefined),
+                    createSession: threads.create,
+                    onProjectReady: (id) => { if (!projectId) homePreparedProject.current = id },
+                  })
+                  projectId = prepared.projectId
+                  sessionId = prepared.sessionId
+                } else {
+                  const result = await threads.create({ projectId, firstText: payload.draft, workdir: payload.workdir })
+                  if (result.error || !result.session) throw new Error(result.error || '对话尚未准备好，请重试。')
+                  sessionId = result.session.id
+                }
+                // Only prepare the draft. Sending always remains an explicit composer action.
+                setSessionDraft(projectId, sessionId, { text: payload.draft, intentAction: payload.intent === 'create' ? 'modify' : 'query' })
+                setHomeTransfer({ sessionId, draft: payload.draft, files: payload.attachments, intent: payload.intent })
+                setOpenProject(projectId)
+                setProjectHome(false)
+                setView('conversation')
+                homePreparedProject.current = null
+              } finally { homeStarting.current = false }
             }} />
           </div>
         )}
@@ -341,6 +352,12 @@ export default function App() {
         {view === 'conversation' && (
           <div id="pane-conversation">
             <Conversation chat={chat}
+                          overviewOpen={projectHome}
+                          onOverviewChange={setProjectHome}
+                          projectOverview={projectHome ? <ProjectsHome embedded projects={projects.list} loading={projects.loading} error={projects.error} onRefresh={()=>void projects.refresh()}
+                            onChat={()=>setProjectHome(false)}
+                            onCreate={async()=>{const p=await projects.createBlank();const result=await threads.create({projectId:p.id});if(!result.session||result.error)throw new Error(result.error??'会话创建失败');setSessionDraft(p.id,result.session.id,{intentAction:'modify'});setOpenProject(p.id);setProjectHome(false)}}
+                            onOpen={(id,mode)=>{setOpenProject(id);const sid=threads.sessions.filter(s=>s.projectId===id).sort((a,b)=>b.updatedAt-a.updatedAt)[0]?.id;threads.setActiveId(sid??null);setProjectHome(false);setView(mode)}}/> : null}
                           homeTransfer={homeTransfer}
                           onHomeTransferConsumed={() => setHomeTransfer(null)}
                           threads={threads}
@@ -396,6 +413,7 @@ export default function App() {
                          if (next === 'conversation' && activeWorkbenchSessionId) {
                            threads.setActiveId(activeWorkbenchSessionId)
                          }
+                         setProjectHome(false)
                          setView(next)
                        }}
                        projectId={openProject!}

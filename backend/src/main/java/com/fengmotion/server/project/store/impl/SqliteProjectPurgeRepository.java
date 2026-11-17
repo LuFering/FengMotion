@@ -87,6 +87,10 @@ public class SqliteProjectPurgeRepository implements ProjectPurgeRepository {
            与项目删不删无关。被引用的素材本身也留在三库里，别的项目还能用。 */
         jdbc.update("DELETE FROM resource_refs WHERE ref_kind = 'project' AND ref_id = ?", projectId);
 
+        jdbc.update("DELETE FROM workflow_creation_tasks WHERE project_id = ?",projectId);
+        // Older installations can run tests before optional local-document bootstrap.
+        Integer localTables=jdbc.queryForObject("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='local_documents'",Integer.class);
+        if(localTables!=null && localTables>0)jdbc.update("DELETE FROM local_documents WHERE project_id = ?",projectId);
         return jdbc.update("DELETE FROM projects WHERE id = ?", projectId);
     }
 }

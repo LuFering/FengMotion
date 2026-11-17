@@ -58,7 +58,7 @@ export const WF_PORT_COLORS: Record<WfPortType, string> = {
 export const PF_NODE_DEFS: WfNodeDef[] = [
   {
     type: 'prompt',
-    label: '提示词输入',
+    label: '创作需求',
     group: '输入',
     description: '原始创作需求，直接进入创作，不要求先转成结构化文档',
     inputs: [],
@@ -66,7 +66,7 @@ export const PF_NODE_DEFS: WfNodeDef[] = [
   },
   {
     type: 'refs',
-    label: '参考与素材',
+    label: '素材与参考',
     group: '输入',
     description: '参考片段、素材库素材、既有项目引用（可选，可为空）',
     inputs: [],
@@ -74,54 +74,54 @@ export const PF_NODE_DEFS: WfNodeDef[] = [
   },
   {
     type: 'lookdev',
-    label: 'Lookdev · 视觉转译',
+    label: '视觉构想',
     group: '工作稿',
     description: '视觉基调/材质/光线/动势的工作稿，可迭代，不是审批门',
     inputs: [
       { id: 'prompt', type: 'PromptDoc', label: '提示词', required: true },
       { id: 'refs', type: 'RefSet', label: '引用集' },
     ],
-    outputs: [{ id: 'doc', type: 'LookDoc', label: 'Lookdev' }],
+    outputs: [{ id: 'doc', type: 'LookDoc', label: '视觉构想' }],
   },
   {
     type: 'filmplan',
-    label: 'Film-plan · 导演处理',
+    label: '导演处理',
     group: '工作稿',
     description: '一页导演处理：叙事推进、镜头节奏、视听策略',
     inputs: [
       { id: 'prompt', type: 'PromptDoc', label: '提示词', required: true },
-      { id: 'look', type: 'LookDoc', label: 'Lookdev' },
+      { id: 'look', type: 'LookDoc', label: '视觉构想' },
     ],
-    outputs: [{ id: 'doc', type: 'PlanDoc', label: 'Film-plan' }],
+    outputs: [{ id: 'doc', type: 'PlanDoc', label: '导演处理' }],
   },
   {
     type: 'capability',
-    label: '能力检索',
+    label: '创作能力',
     group: '按需',
     description: '按需检索 capability registry 的能力候选（原「技法引用」）',
     inputs: [
-      { id: 'look', type: 'LookDoc', label: 'Lookdev' },
-      { id: 'plan', type: 'PlanDoc', label: 'Film-plan' },
+      { id: 'look', type: 'LookDoc', label: '视觉构想' },
+      { id: 'plan', type: 'PlanDoc', label: '导演处理' },
     ],
-    outputs: [{ id: 'caps', type: 'CapSet', label: '能力集' }],
+    outputs: [{ id: 'caps', type: 'CapSet', label: '技法集' }],
   },
   {
     type: 'create',
-    label: '创作与渲染',
+    label: '制作与渲染',
     group: '核心',
     description: 'Remotion 创作与渲染；中间规格未完成不阻断（工作流规则）',
     inputs: [
       { id: 'prompt', type: 'PromptDoc', label: '提示词', required: true },
       { id: 'refs', type: 'RefSet', label: '引用集' },
-      { id: 'look', type: 'LookDoc', label: 'Lookdev' },
-      { id: 'plan', type: 'PlanDoc', label: 'Film-plan' },
-      { id: 'caps', type: 'CapSet', label: '能力集' },
+      { id: 'look', type: 'LookDoc', label: '视觉构想' },
+      { id: 'plan', type: 'PlanDoc', label: '导演处理' },
+      { id: 'caps', type: 'CapSet', label: '技法集' },
     ],
     outputs: [{ id: 'render', type: 'RenderRef', label: '渲染记录' }],
   },
   {
     type: 'review',
-    label: '看片与修改',
+    label: '审片与修改',
     group: '核心',
     description: '对着真实预览记问题与修改意图；quality-bar 问题清单挂在此节点',
     inputs: [{ id: 'render', type: 'RenderRef', label: '渲染记录', required: true }],
@@ -129,7 +129,7 @@ export const PF_NODE_DEFS: WfNodeDef[] = [
   },
   {
     type: 'finishing',
-    label: 'Finishing · 完成度打磨',
+    label: '完成度打磨',
     group: '按需',
     description: '观众优先的收束：节奏、音画关系、细节与 QC',
     inputs: [
@@ -325,9 +325,9 @@ export function promptFirstGraph(presetId: string): WfGraph {
 export function structuredGraph(): WfGraph {
   const nodes: WfNodeInstance[] = []
   const edges: WfEdgeInstance[] = []
-  const laneW = 1020
-  const laneH = 148
-  const gap = 18
+  const laneW = 1240
+  const laneH = 300
+  const gap = 50
   const kindsByStage = new Map<number, ArtifactKindDef[]>()
   for (const k of ARTIFACT_KINDS) {
     const arr = kindsByStage.get(k.stage) ?? []
@@ -359,7 +359,7 @@ export function structuredGraph(): WfGraph {
         id,
         type: 'artifact',
         parentId: `lane-${stage.index}`,
-        position: { x: 24 + i * 252, y: 44 },
+        position: { x: 24 + i * 276, y: 56 },
         params: { kind: k.kind, status: 'missing', version: '', summary: '', fixture: false },
       })
       if (prevOut) {
@@ -370,11 +370,11 @@ export function structuredGraph(): WfGraph {
     const gate = gateAfter.get(stage.index)
     if (gate && prevOut) {
       const gid = `gate-${gate}`
-      const gy = y + laneH + gap / 2 - 26
+      const gy = y + 56
       nodes.push({
         id: gid,
         type: 'gate',
-        position: { x: 816, y: gy },
+        position: { x: 920, y: gy },
         params: {
           gate,
           decision: 'not-started',

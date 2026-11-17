@@ -1,11 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { Component, lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
   ArrowUpDown,
   Check,
   ChevronDown,
   ChevronRight,
   Clock,
-  Code2,
   Copy,
   Info,
   Pause,
@@ -31,7 +30,6 @@ import {
   importLegacyFavorites, listTechniques, loadUserState, markViewed, searchTechniqueIds, setFavorite,
 } from '@/services/fxApiService'
 import { SilentVideoPreview } from '@/components/SilentVideoPreview'
-import { FxVisualPoster } from '@/components/FxVisualPoster'
 import { PROJECTS, STAGE_LABEL } from '@/data/projects'
 import { EmptyState } from '@/components/fm/EmptyState'
 import { setAssetDragData, usePendingAssets, type PendingFxCard } from '@/shell/usePendingAssets'
@@ -41,6 +39,14 @@ import { PickBar, PickButton, PickCheck } from '@/shell/PickModeUI'
 import { toast as emitToast } from '@/shell/toast'
 import { SearchField } from '@/components/SearchField'
 import { CapabilityImportDialog } from './CapabilityImportDialog'
+import { originalSceneLoader } from '@/components/fxOriginalRegistry'
+
+const FxOriginalWavesPreview = lazy(() => import('@/components/FxOriginalWavesPreview'))
+class FxPreviewBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+  state = { failed: false }
+  static getDerivedStateFromError() { return { failed: true } }
+  render() { return this.state.failed ? <span className="fxc-media-empty">原始画面加载失败</span> : this.props.children }
+}
 
 /**
  * 特效技法库 —— 按《前端下一步开发计划》§4.4（04-B）落地：
@@ -156,6 +162,7 @@ function copyText(t: FxTechnique) {
 
 export function FxLibrary() {
   const [query, setQuery] = useState('')
+  const [sourceFilter, setSourceFilter] = useState('')
   const [scope, setScope] = useState<Scope>('all')
   const [cat, setCat] = useState<FxCategory | 'all'>('all')
   const [exec, setExec] = useState<FxExecType | 'all'>('all')
@@ -163,7 +170,6 @@ export function FxLibrary() {
   const [impl, setImpl] = useState<FxImpl | 'all'>('all')
   const [maxComplexity, setMaxComplexity] = useState(5)
   const [previewKind, setPreviewKind] = useState<'all' | 'motion' | 'still'>('all')
-  const [sourceProject, setSourceProject] = useState<string>('all')
   const [sort, setSort] = useState<SortKey>('cat')
   const [filtersOpen, setFiltersOpen] = useState(false)
   /* 「从 GitHub 导入技能」弹窗。入口是页头的一个按钮，不常驻任何内容。 */
@@ -171,6 +177,17 @@ export function FxLibrary() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [playingId, setPlayingId] = useState<string | null>(null)
+  const [hoveredPreviewId, setHoveredPreviewId] = useState<string | null>(null)
+  const [focusedPreviewId, setFocusedPreviewId] = useState<string | null>(null)
+  const [originalPosters, setOriginalPosters] = useState<Record<string, { file: string; frame: number; frameSource: string; checksum: string }>>({})
+  useEffect(() => {
+    const abort = new AbortController()
+    void fetch(`${import.meta.env.BASE_URL}fx-original-posters/manifest.json?t=${Date.now()}`, { signal: abort.signal })
+      .then((response) => response.ok ? response.json() : {})
+      .then((data) => { if (!abort.signal.aborted) setOriginalPosters(data) })
+      .catch(() => { /* 尚未生成静态预览时保留原状态 */ })
+    return () => abort.abort()
+  }, [])
   const pick = usePickMode()
   const pendingStore = usePendingAssets()
   const fxInPending = (id: string) => pendingStore.has(id)
@@ -364,11 +381,20 @@ export function FxLibrary() {
     return searched
   }, [searched, scope, lib])
 
+  const sources = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const item of techniques) {
+      const name = item.sourceProject?.trim() || (item.sourceKind === 'builtin' ? '内置技法' : '来源未记录')
+      counts.set(name, (counts.get(name) ?? 0) + 1)
+    }
+    return [...counts].sort(([a], [b]) => a.localeCompare(b, 'zh-Hans-CN'))
+  }, [techniques])
+
   const visible = useMemo(
     () =>
       scoped.filter(
         (t) =>
-          (sourceProject === 'all' || (t.sourceProject || 'builtin') === sourceProject) &&
+          (!sourceFilter || (t.sourceProject?.trim() || (t.sourceKind === 'builtin' ? '内置技法' : '来源未记录')) === sourceFilter) &&
           (cat === 'all' || t.category === cat) &&
           (exec === 'all' || t.execType === exec) &&
           (inputKind === 'all' || t.inputKinds.includes(inputKind)) &&
@@ -376,7 +402,7 @@ export function FxLibrary() {
           t.complexity <= maxComplexity &&
           (previewKind === 'all' || (previewKind === 'motion' ? !!t.previewVideo : !t.previewVideo)),
       ),
-    [scoped, sourceProject, cat, exec, inputKind, impl, maxComplexity, previewKind],
+    [scoped, sourceFilter, cat, exec, inputKind, impl, maxComplexity, previewKind],
   )
 
   const current = selectedId ? techniques.find((t) => t.id === selectedId) ?? null : null
@@ -402,37 +428,13 @@ export function FxLibrary() {
     }
   }, [searched, lib])
 
-  const sourcesList = useMemo(() => {
-    const map = new Map<string, number>()
-    for (const t of searched) {
-      const p = t.sourceProject || 'builtin'
-      map.set(p, (map.get(p) ?? 0) + 1)
-    }
-    return Array.from(map.entries()).map(([sourceProject, count]) => ({
-      sourceProject,
-      count,
-    }))
-  }, [searched])
-
-  const sourceCode = useMemo(() => {
-    if (!current?.steps) return null
-    const hit = current.steps.find((s) => s.startsWith('__SOURCE_CODE__:\n'))
-    return hit ? hit.substring('__SOURCE_CODE__:\n'.length) : null
-  }, [current])
-
-  const cleanSteps = useMemo(() => {
-    if (!current?.steps) return []
-    return current.steps.filter((s) => !s.startsWith('__SOURCE_CODE__:\n'))
-  }, [current])
-
   const techActiveCount =
     (exec !== 'all' ? 1 : 0) +
     (inputKind !== 'all' ? 1 : 0) +
     (impl !== 'all' ? 1 : 0) +
     (maxComplexity < 5 ? 1 : 0) +
-    (previewKind !== 'all' ? 1 : 0) +
-    (sourceProject !== 'all' ? 1 : 0)
-  const activeCount = techActiveCount + (cat !== 'all' ? 1 : 0)
+    (previewKind !== 'all' ? 1 : 0)
+  const activeCount = techActiveCount + (cat !== 'all' ? 1 : 0) + (sourceFilter ? 1 : 0)
 
   const playing = current !== null && playingId === current.id
   function resetTechFilters() {
@@ -441,18 +443,19 @@ export function FxLibrary() {
     setImpl('all')
     setMaxComplexity(5)
     setPreviewKind('all')
-    setSourceProject('all')
   }
 
   /** 清空全部筛选（含分类），不清搜索词与范围 */
   function clearFilters() {
     resetTechFilters()
     setCat('all')
+    setSourceFilter('')
   }
 
   function resetAll() {
     resetTechFilters()
     setCat('all')
+    setSourceFilter('')
     setScope('all')
     setQuery('')
   }
@@ -580,60 +583,16 @@ export function FxLibrary() {
 
   return (
     <div className="fxlib">
-      <CapabilityImportDialog
-        open={importOpen}
-        onOpenChange={setImportOpen}
-        onImported={(importedProject) => {
-          void listTechniques().then((list) => {
-            setTechniques(list)
-            setCatalogError(null)
-            if (importedProject) {
-              setSourceProject(importedProject)
-            }
-          }).catch(() => setCatalogError('刷新技法库失败'))
-        }}
-      />
+      <CapabilityImportDialog open={importOpen} onOpenChange={setImportOpen} onImported={() => {
+        void listTechniques().then((list) => { setTechniques(list); setCatalogError(null) })
+          .catch(() => setCatalogError('刷新技法库失败'))
+      }} />
       <section className="fx-panel" aria-label="特效技法库" inert={drawerOpen || workflowFor ? true : undefined}>
         <div className="fx-cmd">
           <div className="fx-heading-group"><h1 className="fx-cmd-title">特效技法库</h1></div>
           {!pick.active && <PickButton onClick={pick.enter} label="特效" />}
           {/* 入口：粘贴 GitHub 仓库地址，识别其中的技能后导入。 */}
           <button type="button" className="fx-toolbtn" onClick={() => setImportOpen(true)}>导入来源</button>
-        </div>
-
-        {/* 来源仓库顶级分类标签条：按仓库清晰区分开来 */}
-        <div className="fx-source-bar-top">
-          <button
-            type="button"
-            className="fx-source-tab"
-            data-active={sourceProject === 'all' ? '' : undefined}
-            onClick={() => setSourceProject('all')}
-          >
-            全部技法 <em className="num">{searched.length}</em>
-          </button>
-          {sourcesList.map((src) => {
-            const label =
-              src.sourceProject === 'builtin'
-                ? '内置精选'
-                : src.sourceProject === 'remotion-scenes'
-                ? 'Remotion 画面代码库'
-                : src.sourceProject === 'video-shotcraft'
-                ? '电影运镜配方库'
-                : src.sourceProject === 'lemo-opuscar'
-                ? '视觉风格调色库'
-                : src.sourceProject
-            return (
-              <button
-                key={src.sourceProject}
-                type="button"
-                className="fx-source-tab"
-                data-active={sourceProject === src.sourceProject ? '' : undefined}
-                onClick={() => setSourceProject(src.sourceProject)}
-              >
-                {label} <em className="num">{src.count}</em>
-              </button>
-            )
-          })}
         </div>
 
         {/* 去 AI 味：整行图例删除——组件不再解释自己；能力与复杂度直接写进卡片元信息行 */}
@@ -645,6 +604,13 @@ export function FxLibrary() {
               </button>
             ))}
           </nav>
+          <label className="fx-source-select">
+              <span>来源</span>
+              <select aria-label="按来源筛选技法" value={sourceFilter} onChange={(event) => setSourceFilter(event.target.value)}>
+                <option value="">全部来源</option>
+                {sources.map(([name, count]) => <option key={name} value={name}>{name}（{count}）</option>)}
+              </select>
+          </label>
           <div className="fx-cmd-search">
             <SearchField
               inputRef={searchRef}
@@ -791,12 +757,6 @@ export function FxLibrary() {
               <button type="button" aria-label="移除复杂度筛选" onClick={() => setMaxComplexity(5)}><X size={11} strokeWidth={2.4} /></button>
             </span>
           )}
-          {sourceProject !== 'all' && (
-            <span className="fx-activechip">
-              仓库 · {sourceProject}
-              <button type="button" aria-label="移除仓库筛选" onClick={() => setSourceProject('all')}><X size={11} strokeWidth={2.4} /></button>
-            </span>
-          )}
           <span className="fx-spacer" />
           {(query.trim() || activeCount > 0) && <span className="fx-result-summary" role="status">找到 {visible.length} 项技法</span>}
 
@@ -849,14 +809,25 @@ export function FxLibrary() {
             <div className="fx-grid">
               {sorted.map((t) => {
                 const fav = lib.favorites.includes(t.id)
+                const hasOriginal = Boolean(originalSceneLoader(t.sourceProject, t.sourcePath))
+                const previewActive = !drawerOpen && !workflowFor && (focusedPreviewId ?? hoveredPreviewId) === t.id
+                const originalPoster = hasOriginal && t.sourcePath ? originalPosters[t.sourcePath] : undefined
+                const poster = originalPoster && /^[a-f0-9]{20}\.jpg$/.test(originalPoster.file)
+                  ? `${import.meta.env.BASE_URL}fx-original-posters/${originalPoster.file}?v=${encodeURIComponent(originalPoster.checksum || '')}` : t.previewImage
                 return (
                   <article
                     key={t.id}
-                    className="fxc"
+                    className="fxc fxc-poster"
                     data-fx-id={t.id}
+                    data-original={hasOriginal || undefined}
+                    data-preview-active={(previewActive && (hasOriginal || Boolean(t.previewVideo))) || undefined}
                     data-added={fxInPending(t.id) || undefined}
                     data-pickmode={pick.active || undefined}
                     data-picked={(pick.active && pick.has(t.id)) || undefined}
+                    onPointerEnter={(event) => { if (event.pointerType === 'mouse') setHoveredPreviewId(t.id) }}
+                    onPointerLeave={() => setHoveredPreviewId((id) => id === t.id ? null : id)}
+                    onFocusCapture={() => setFocusedPreviewId(t.id)}
+                    onBlurCapture={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setFocusedPreviewId((id) => id === t.id ? null : id) }}
                     draggable={!pick.active}
                     onDragStart={(e) => {
                       /* 与素材库/参考片库同一套：同一个 DataTransfer 类型，
@@ -873,19 +844,19 @@ export function FxLibrary() {
                     }}
                     onDragEnd={clearDragGhost}
                   >
-                    <div className="fxc-media">
-                      {t.previewVideo ? (
-                        <SilentVideoPreview
-                          src={t.previewVideo}
-                          poster={t.previewImage}
-                          active={!drawerOpen && !workflowFor}
-                          label={`${t.name} 动态预览`}
-                        />
-                      ) : (
-                        <FxVisualPoster
-                          technique={t}
-                          className="fxc-media-poster"
-                        />
+                    <div className="fxc-media" data-original-preview={hasOriginal || undefined}>
+                      <SilentVideoPreview src={t.previewVideo} poster={poster}
+                        active={previewActive}
+                        mountOnlyWhenActive showFailure label={`${t.name} 动态预览`} />
+                      {hasOriginal && previewActive && t.sourcePath && t.sourceProject && (
+                        <FxPreviewBoundary>
+                          <Suspense fallback={<span className="fxc-media-empty">正在加载…</span>}>
+                            <FxOriginalWavesPreview sourceProject={t.sourceProject} sourcePath={t.sourcePath} playing={previewActive} />
+                          </Suspense>
+                        </FxPreviewBoundary>
+                      )}
+                      {!poster && !t.previewVideo && !previewActive && (
+                        <span className="fxc-media-empty"><span>暂无预览</span></span>
                       )}
                       {pick.active && <PickCheck checked={pick.has(t.id)} />}
                       {t.previewVideo && <span className="fxc-preview-label"><Play size={10} aria-hidden="true" />动态预览</span>}
@@ -919,16 +890,9 @@ export function FxLibrary() {
                             aria-label={pick.active ? `${pick.has(t.id) ? '取消选择' : '选择'} ${t.name}` : `查看技法：${t.name}`}
                             onClick={() => { if (pick.active) pick.toggle(t.id); else openDrawer(t.id) }} />
                     <div className="fxc-body">
-                      <div className="fxc-category-row">
-                        <span className="fxc-category">{categoryLabel(t.category)}</span>
-                        {t.sourceProject && t.sourceProject !== 'builtin' && (
-                          <span className="fxc-source-badge" title={`来源仓库：${t.sourceProject}`}>
-                            {t.sourceProject}
-                          </span>
-                        )}
-                      </div>
+                      <span className="fxc-category">{categoryLabel(t.category)}</span>
                       <h3 className="fxc-title">{t.name}</h3>
-                      <p className="fxc-intent">{t.intent || (t.sourcePath ? `路径：${t.sourcePath}` : '')}</p>
+                      <p className="fxc-intent">{t.intent}</p>
                       <div className="fxc-meta">
                         <span>{execLabel(t.execType)}</span>
                         <span className="fxc-inputs">{t.inputLabels.join(' / ')}</span>
@@ -973,7 +937,12 @@ export function FxLibrary() {
           >
             <div className="fx-drawer-scroll">
               <div className="fx-preview">
-                {current.previewVideo && playing ? (
+                <img
+                  src={current.previewImage}
+                  alt=""
+                  onError={(e) => e.currentTarget.classList.add('is-broken')}
+                />
+                {playing && current.previewVideo && (
                   <video
                     key={current.id}
                     className="fx-preview-video"
@@ -984,14 +953,6 @@ export function FxLibrary() {
                     playsInline
                     autoPlay
                     onError={() => setPlayingId(null)}
-                  />
-                ) : (
-                  <FxVisualPoster
-                    technique={current}
-                    interactive
-                    playing={playing}
-                    onTogglePlay={() => setPlayingId((p) => (p === current.id ? null : current.id))}
-                    className="fx-drawer-visual"
                   />
                 )}
                 {current.previewVideo && (
@@ -1058,59 +1019,26 @@ export function FxLibrary() {
                   <p className="fx-use-line"><b>不适用</b>{current.antiScenes.join('、')}</p>
                 </section>
 
-                {/* 如果包含画面源码（如 Remotion TSX），渲染代码高亮查看器 */}
-                {sourceCode && (
-                  <section className="fx-dsec">
-                    <div className="fx-dsec-header-row">
-                      <h3 className="fx-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <Code2 size={13} />
-                        画面实现源码 (Remotion TSX)
-                      </h3>
-                      <button
-                        type="button"
-                        className="fx-copy-code-btn"
-                        onClick={async () => {
-                          try {
-                            await navigator.clipboard.writeText(sourceCode)
-                            showToast('已复制画面 TSX 源代码到剪贴板')
-                          } catch {
-                            // ignore
-                          }
-                        }}
-                      >
-                        <Copy size={11} /> 复制代码
-                      </button>
-                    </div>
-                    <div className="fx-drawer-code-wrap">
-                      <pre className="fx-drawer-code-pre">
-                        <code>{sourceCode}</code>
-                      </pre>
-                    </div>
-                  </section>
-                )}
-
-                {cleanSteps.length > 0 && (
-                  <section className="fx-dsec">
-                    <h3 className="fx-label">实现方法与说明</h3>
-                    <ol className="fx-steps">
-                      {cleanSteps.map((s, i) => (
-                        <li key={i}>
-                          <span>{s}</span>
-                        </li>
-                      ))}
-                    </ol>
-                    <dl className="fx-io">
-                      <div><dt>实现方式</dt><dd>{current.implLabel}</dd></div>
-                      <div><dt>复杂度</dt><dd className="num">{current.complexity} / 5</dd></div>
-                      {current.dependencies.length > 0 && (
-                        <div><dt>依赖</dt><dd>{current.dependencies.join('；')}</dd></div>
-                      )}
-                      {current.compatibility.length > 0 && (
-                        <div><dt>兼容</dt><dd>{current.compatibility.join('；')}</dd></div>
-                      )}
-                    </dl>
-                  </section>
-                )}
+                <section className="fx-dsec">
+                  <h3 className="fx-label">实现方法</h3>
+                  <ol className="fx-steps">
+                    {current.steps.map((s, i) => (
+                      <li key={i}>
+                        <span>{s}</span>
+                      </li>
+                    ))}
+                  </ol>
+                  <dl className="fx-io">
+                    <div><dt>实现方式</dt><dd>{current.implLabel}</dd></div>
+                    <div><dt>复杂度</dt><dd className="num">{current.complexity} / 5</dd></div>
+                    {current.dependencies.length > 0 && (
+                      <div><dt>依赖</dt><dd>{current.dependencies.join('；')}</dd></div>
+                    )}
+                    {current.compatibility.length > 0 && (
+                      <div><dt>兼容</dt><dd>{current.compatibility.join('；')}</dd></div>
+                    )}
+                  </dl>
+                </section>
 
                 {current.limitations.length > 0 && (
                   <section className="fx-dsec">

@@ -2,7 +2,6 @@ package com.fengmotion.server.config;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,7 +42,7 @@ public class WebConfig implements WebMvcConfigurer {
 
     public WebConfig(
             @Value("${fengmotion.cors.allowed-origins:http://localhost:5173}") String origins,
-            @Value("${fengmotion.retrieval.capabilities-dir:}") String capabilitiesDir) {
+            @Value("${fengmotion.fx.assets-dir:${fengmotion.retrieval.capabilities-dir:}}") String capabilitiesDir) {
         this.allowedOrigins = origins.split(",");
         this.capabilitiesDir = capabilitiesDir;
     }
@@ -63,24 +62,15 @@ public class WebConfig implements WebMvcConfigurer {
 
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
-        Path root = null;
-        if (capabilitiesDir != null && !capabilitiesDir.isBlank()) {
-            Path p = Path.of(capabilitiesDir).toAbsolutePath().normalize();
-            if (Files.isDirectory(p)) {
-                root = p;
-            }
+        if (capabilitiesDir == null || capabilitiesDir.isBlank()) {
+            /* 未配置时什么都不挂：不存在的路径返回 404，界面按「没有预览图」降级，
+               比挂一个不存在的目录更不容易误导。 */
+            log.debug("未配置 capabilities 目录，跳过静态资源映射");
+            return;
         }
-        if (root == null) {
-            for (String candidate : List.of("capabilities", "../capabilities", "../../capabilities")) {
-                Path p = Path.of(candidate).toAbsolutePath().normalize();
-                if (Files.isDirectory(p)) {
-                    root = p;
-                    break;
-                }
-            }
-        }
-        if (root == null) {
-            log.debug("未找到 capabilities 目录，跳过静态资源映射");
+        Path root = Path.of(capabilitiesDir).toAbsolutePath().normalize();
+        if (!Files.isDirectory(root)) {
+            log.warn("capabilities 目录不存在，能力库海报将无法显示：{}", root);
             return;
         }
         /* file: 前缀 + 结尾斜杠是 Spring 的硬要求：少了结尾斜杠会被当成

@@ -1,3 +1,4 @@
+import { setHarnessSelection } from './useHarnessSelection'
 import { useEffect, useRef, useState } from 'react'
 import { Search, Settings2, Check, CircleHelp, Sparkles, Plug, Clapperboard, Database, Cpu, Palette, SlidersHorizontal } from 'lucide-react'
 import '@/styles/settings-refined.css'
@@ -267,7 +268,11 @@ export function SettingsScreen({
   const pickHarness = (id: string) => {
     const h = HARNESSES.find((x) => x.id === id)
     if (!h) return
-    onChange({ ...settings, harness: id, model: h.models.includes(settings.model) ? settings.model : h.models[0] })
+    const models = modelsFor(id).models
+    const chosen = models.find((m) => m.id === settings.model) ?? models.find((m) => m.default) ?? models[0]
+    if (!chosen) return
+    setHarnessSelection({ harness: id, model: chosen.id, reasoningEffort: undefined })
+    onChange({ ...settings, harness: id, model: chosen.id })
   }
 
   const prefKey = prefsKey(harness.id, settings.model)
@@ -471,7 +476,7 @@ export function SettingsScreen({
                   {connectedHarnesses.map((h) => {
                     const on = h.id === settings.harness
                     return (
-                      <div key={h.id} className="set-hcard" data-on={on || undefined}>
+                      <div key={h.id} className="set-hcard" data-on={on || undefined} title={stateOf(h.id).note ?? undefined}>
                         {/* logo 占满卡片左侧整列（不再是一行里的小方块） */}
                         <span className="set-hcard-side" style={{ '--h-color': h.color } as React.CSSProperties}>
                           <i style={{ maskImage: `url(${h.icon})`, WebkitMaskImage: `url(${h.icon})` }} />
@@ -481,10 +486,10 @@ export function SettingsScreen({
                             <div className="set-agent-who">
                               <b>{h.name}</b>
                               <small>
-                                <em data-ready />对话适配器
+                                <em data-ready />本机引擎已载入
                               </small>
                             </div>
-                            <Popover open={pickOpen === h.id}
+                            <Popover modal open={pickOpen === h.id}
                                      onOpenChange={(o) => setPickOpen(o ? h.id : null)}>
                               <PopoverTrigger asChild>
                                 <button type="button" className="set-agent-pick"
@@ -492,7 +497,7 @@ export function SettingsScreen({
                                   <span className="set-agent-pick-ic" style={{ '--h-color': h.color } as React.CSSProperties}>
                                     <i style={{ maskImage: `url(${h.icon})`, WebkitMaskImage: `url(${h.icon})` }} />
                                   </span>
-                                  <span className="v">{on ? settings.model : '选择模型'}</span>
+                                  <span className="v">{on ? (modelsFor(h.id).models.find((m) => m.id === settings.model)?.label ?? '选择模型') : '选择模型'}</span>
                                   <Icon name="chevron-down" className="ui-icon set-agent-pick-chev" />
                                 </button>
                               </PopoverTrigger>
@@ -505,6 +510,7 @@ export function SettingsScreen({
                                       <button key={m.id} type="button" role="option" aria-selected={cur}
                                               className="set-pick-item" data-on={cur || undefined}
                                               onClick={() => {
+                                                setHarnessSelection({ harness: h.id, model: m.id, reasoningEffort: undefined })
                                                 onChange({ ...settings, harness: h.id, model: m.id })
                                                 setPickOpen(null)
                                               }}>
@@ -552,9 +558,7 @@ export function SettingsScreen({
                             <div className="set-agent-who">
                               <b>{h.name}</b>
                               <small>
-                                {modelsFor(h.id).source === 'server'
-                                  ? `接入后可使用 ${modelsFor(h.id).models.length} 个模型`
-                                  : '模型目录未知'}
+                                {stateOf(h.id).note ?? '未检测到可用引擎，请检查本机安装与配置。'}
                               </small>
                             </div>
                             <span className="set-agent-tag">待接入</span>
@@ -567,6 +571,7 @@ export function SettingsScreen({
 
                 <div className="set-group">
                 <h4 className="set-subhead">连接</h4>
+                <button type="button" className="set-agent-more-head" onClick={() => void probe.refresh(true)}>重新检测本机引擎与模型</button>
                 <Row label="服务端点" hint="连接地址保存在本机，尚未验证连通性">
                   <Input aria-label="服务端点" className="set-endpoint" value={settings.harnessEndpoint} spellCheck={false}
                          onChange={(e) => set('harnessEndpoint', e.target.value)}

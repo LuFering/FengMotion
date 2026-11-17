@@ -34,6 +34,7 @@ public class HarnessService {
     private final HarnessProperties properties;
     private final DshLauncher launcher;
     private final DshModelCatalog catalog;
+    private final com.fengmotion.server.harness.client.NativeHarnesses nativeHarnesses;
 
     /** 上次探测结果。 */
     private volatile Probe cached;
@@ -89,7 +90,7 @@ public class HarnessService {
      * @return 只有一个元素的列表（当前只接 DSH）
      */
     public List<HarnessDescriptor> listDescriptors() {
-        return List.of(probe().descriptor());
+        return List.of(probe().descriptor(), nativeHarnesses.probe("codex").descriptor(), nativeHarnesses.probe("claude").descriptor());
     }
 
     /**
@@ -99,6 +100,7 @@ public class HarnessService {
      * @return 模型列表；引擎不存在时为空
      */
     public List<ModelEntry> listModels(String harnessId) {
+        if (com.fengmotion.server.harness.client.NativeHarnesses.supports(harnessId)) return nativeHarnesses.probe(harnessId).models();
         if (!DSH_ID.equals(harnessId)) {
             return List.of();
         }
@@ -113,6 +115,14 @@ public class HarnessService {
     public boolean isAvailable() {
         return probe().descriptor().status() == HarnessDescriptor.Status.AVAILABLE;
     }
+
+    public boolean isAvailable(String id) {
+        if (id == null || id.isBlank() || id.equals("deepseek") || id.equals(DSH_ID)) return isAvailable();
+        return com.fengmotion.server.harness.client.NativeHarnesses.supports(id)
+                && nativeHarnesses.probe(id).descriptor().status() == HarnessDescriptor.Status.AVAILABLE;
+    }
+
+    public void refresh() { cached = null; nativeHarnesses.refresh(); }
 
     /** 真正执行一次探测。 */
     private Probe doProbe() {

@@ -6,7 +6,7 @@
  * 阶段泳道 + 产物节点 + Gate 检查点。Gate 的确认只能由用户在检查器里对
  * 具体产物版本做出；演示运行永不代确认。
  */
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -53,6 +53,9 @@ import {
   Play,
   Plus,
   Save,
+  GripVertical,
+  Circle,
+  FolderOpen,
   Search,
 } from 'lucide-react'
 import {
@@ -68,6 +71,8 @@ import {
   type WfNodeDef,
   type WfPortType,
 } from '../data/workflowTemplates'
+import { listAssets } from '../services/assetApiService'
+import type { MyAsset } from '../data/myAssets'
 import { BUILTIN_ASSETS, MEDIA_LABEL } from '../data/myAssets'
 import { FX_TECHNIQUES } from '../data/fxTechniques'
 
@@ -76,6 +81,8 @@ import {
   workflowService,
   startDemoRun,
   startSingleNodeRun,
+  resumeProjectRun,
+  retryFailedProjectRun,
   evaluateGate,
   QUALITY_QUESTIONS,
   type GateEval,
@@ -85,7 +92,12 @@ import {
   type WfNodeStatus,
 } from '../services/workflowService'
 import type { TaskEvent } from '../services/studioApi'
+import { WorkflowProjectPicker } from '../components/WorkflowProjectPicker'
+import { workflowGraphProblems, workflowArtifactMedia, workflowLayoutPositions, upgradeLegacyStructuredLayout } from '../services/workflowGraph'
 import { statusOf } from '../shell/status'
+import { useNavigationGuard, useUnsavedEditor } from '../shell/navigationGuardContext'
+import { documentsStatus, flushLocalDocuments } from '../services/localDocuments'
+import { runMatchesDefinition, workflowRunLabel } from '../services/workflowPresentation'
 
 type FmNodeData = {
   defType: string
@@ -94,6 +106,8 @@ type FmNodeData = {
   gateEval?: GateEval | null
   laneSummary?: string
   onToggleLane?: () => void
+  renderMode?: 'real' | 'demo'
+  renderFile?: string
 }
 type FmNode = Node<FmNodeData, 'fm' | 'lane'>
 
@@ -201,10 +215,10 @@ const NODE_COPY: Record<string, { title: string; description: string }> = {
 
 function NodeState({ status }: { status: FmNodeData['status'] }) {
   const state = statusOf(status === 'completed' ? 'done' : status === 'running' ? 'running' : status === 'failed' ? 'failed' : 'idle')
-  return <span className="wfn-state"><i className="fm-dot" data-s={state.s}/>{status === 'idle' ? '未运行' : status === 'completed' ? '已完成' : status === 'skipped' ? '已跳过' : state.label}</span>
+  return <span className="wfn-state"><i className="fm-dot" data-s={state.s}/>{status === 'idle' ? '未运行' : status === 'pending' ? '待运行' : status === 'awaiting_info' ? '未生成新版本' : status === 'completed' ? '已完成' : status === 'skipped' ? '已跳过' : state.label}</span>
 }
 
-function FmNodeView({ data, selected }: { data: FmNodeData; selected?: boolean }) {
+const FmNodeView = memo(function FmNodeView({ data, selected }: { data: FmNodeData; selected?: boolean }) {
   const pseudoNode = { type: data.defType, params: data.params }
   const def = defForNode(pseudoNode)
   if (!def) return null
@@ -219,11 +233,11 @@ function FmNodeView({ data, selected }: { data: FmNodeData; selected?: boolean }
   const reviewDone = QUALITY_QUESTIONS.filter((q) => checks[q]).length
   return (
     <div className={`wfn wfn-${data.defType}${data.defType === 'artifact' ? ' is-doc' : ''}${data.defType === 'gate' ? ' is-gate' : ''}`} data-selected={selected || undefined} data-status={data.status} data-d={decision}>
-      <div className="wfn-head"><NodeMark type={data.defType}/><div className="wfn-heading"><small>{data.defType === 'gate' ? '人工确认' : kind ? '阶段产物' : def.group}</small><b>{title}</b></div><NodeState status={data.status}/></div>
+      <div className="wfn-head"><NodeMark type={data.defType}/><div className="wfn-heading"><b>{title}</b></div><NodeState status={data.status}/></div>
       <div className="wfn-content">
         {data.defType === 'prompt' ? <><p className="wfn-prompt-text">{String(p.text ?? '').trim() || '还没有创作需求'}</p><div className="wfn-specs">{[p.ratio, p.duration, p.audience].filter(Boolean).map((item, i) => <span key={i}>{String(item)}</span>)}</div></> :
         data.defType === 'refs' ? <><div className="wfn-media-strip">{assets.length ? assets.map((asset) => <img key={asset!.id} src={asset!.thumbnailPath} alt={asset!.name}/>) : <span className="wfn-no-media"><Image size={22}/><span>尚未选择素材</span></span>}</div><p className="wfn-caption">{pfSummary(data.defType, p)}</p></> :
-        data.defType === 'create' ? <><div className="wfn-render-slot"><Clapperboard size={25} strokeWidth={1.3}/><span>渲染服务待接入</span><small>演示仅生成请求记录</small></div><div className="wfn-specs"><span>{String(p.resolution ?? '1080p')}</span><span>{p.mode === 'sketch' ? '草稿制作' : p.mode === 'prototype' ? '原型制作' : '正式制作'}</span></div></> :
+        data.defType === 'create' ? <>{data.renderFile ? <video className="wfn-output-video nodrag nowheel" src={data.renderFile} controls preload="metadata" aria-label="该节点最近一次真实渲染产物"/> : <div className="wfn-render-slot"><Clapperboard size={25} strokeWidth={1.3}/><span>{data.status === 'running' ? '正在制作与渲染' : data.renderMode === 'real' ? '可制作与渲染' : '流程演示'}</span><small>{data.renderMode === 'real' ? '使用关联项目工程' : '关联项目后可制作视频'}</small></div>}<div className="wfn-specs"><span>{String(p.resolution ?? '1080p')}</span><span>{p.mode === 'sketch' ? '草稿制作' : p.mode === 'prototype' ? '原型制作' : '正式制作'}</span></div></> :
         data.defType === 'review' ? <><div className="wfn-review-count"><ScanEye size={24} strokeWidth={1.3}/><span><b>{reviewDone} / {QUALITY_QUESTIONS.length}</b><small>审片检查已确认</small></span></div><p className="wfn-caption">{String(p.issues ?? '').trim() || '等待预览与修改意见'}</p></> :
         data.defType === 'artifact' ? <><p className="wfn-document-text">{String(p.summary ?? '').trim() || '尚未添加阶段产物'}</p><div className="wfn-specs"><span>{ARTIFACT_STATUS_LABEL[String(p.status ?? 'missing')] ?? String(p.status)}</span>{!!p.version && <span>{String(p.version)}</span>}</div></> :
         data.defType === 'gate' ? <><p className="wfn-document-text">{def.description}</p><span className="wfn-gate-chip" data-d={decision}>{decision === 'confirmed' ? '已确认' : decision === 'confirmed-stale' ? '版本已变更' : decision === 'pending' ? '待确认' : '未开始'}</span>{!!ev?.blocked.length && <p className="wfn-blocked">{ev.blocked[0]}</p>}</> :
@@ -232,14 +246,14 @@ function FmNodeView({ data, selected }: { data: FmNodeData; selected?: boolean }
       <Ports node={pseudoNode}/>
     </div>
   )
-}
+})
 
 function LaneView({ data }: { data: FmNodeData }) {
   const collapsed = !!data.params.collapsed
   return (
     <div className="wflane" data-collapsed={collapsed || undefined}>
       <div className="wflane-head">
-        <b><span className="wflane-no">阶段 {String(data.params.stage)}</span> {String(data.params.label ?? '')}</b>
+        <b><span className="wflane-no">阶段 {Number(data.params.stage) + 1}</span> {String(data.params.label ?? '')}</b>
         <span className="wflane-q">{String(data.params.question ?? '')}</span>
         {data.laneSummary && <span className="wflane-sum">{data.laneSummary}</span>}
         <button
@@ -332,6 +346,7 @@ function toRfEdge(e: WfEdgeInstance, nodes: Array<{ id: string; type: string; pa
 }
 
 function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBack: () => void; autoRun?: boolean }) {
+  const navigation = useNavigationGuard()
   const initial = useMemo(() => workflowService.getWorkflow(workflowId), [workflowId])
   const [workflow, setWorkflow] = useState<WorkflowDef | null>(initial)
   const [name, setName] = useState(initial?.name ?? '')
@@ -340,6 +355,7 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
     (initial?.edges ?? []).map((e) => toRfEdge(e, initial?.nodes ?? [])),
   )
   const [dirty, setDirty] = useState(false)
+  const [runNotice, setRunNotice] = useState('')
   const [leftTab, setLeftTab] = useState<'outline' | 'stages' | 'nodes' | 'pending'>(initial?.path === 'structured' ? 'stages' : 'outline')
   const [panelOpen, setPanelOpen] = useState(() => window.innerWidth >= 760)
   const [activeStage, setActiveStage] = useState<number | null>(initial?.path === 'structured' ? 0 : null)
@@ -352,6 +368,7 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
   const [running, setRunning] = useState(false)
   const [liveEvents, setLiveEvents] = useState<TaskEvent[]>([])
   const [lastRun, setLastRun] = useState<WorkflowRun | null>(() => workflowService.listRuns(workflowId)[0] ?? null)
+  const [activeRunLabel, setActiveRunLabel] = useState('')
   const [viewing, setViewing] = useState<WfArtifact | null>(null)
   const [compact, setCompact] = useState(false)
   const [, setPendingTick] = useState(0)
@@ -360,10 +377,11 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
   const nodesInitialized = useNodesInitialized()
   const initialFramed = useRef(false)
   const wrapRef = useRef<HTMLDivElement>(null)
+  const focusRequest = useRef<string | null>(null)
 
   function mapNodes(wf: WorkflowDef | null): FmNode[] {
     if (!wf) return []
-    return wf.nodes.map((n) => ({
+    return (wf.path === 'structured' ? upgradeLegacyStructuredLayout(wf.nodes) : wf.nodes).map((n) => ({
       id: n.id,
       type: n.type === 'lane' ? 'lane' : 'fm',
       position: n.position,
@@ -379,15 +397,26 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
   const selectionId = selectedNode?.id
   useEffect(() => {
     setInspectorTab('params')
-    if (!selectionId || (wrapRef.current?.clientWidth ?? 0) < 650) return
+    if (selectionId && window.innerWidth < 1100) setPanelOpen(false)
+  }, [selectionId])
+  useEffect(() => {
+    if (window.innerWidth < 1100 && panelOpen) return
+    if (!selectionId || focusRequest.current !== selectionId) return
     const frame = requestAnimationFrame(() => {
       const node = flow.getInternalNode(selectionId)
       if (!node) return
-      const zoom = Math.min(1, Math.max(0.85, flow.getZoom()))
-      void flow.setCenter(node.internals.positionAbsolute.x + (node.measured.width ?? 300) / 2 + 190 / zoom, node.internals.positionAbsolute.y + (node.measured.height ?? 200) / 2, { zoom, duration: 180 })
+      focusRequest.current = null
+      const zoom = Math.min(1, Math.max(.8, flow.getZoom()))
+      const rect = wrapRef.current?.getBoundingClientRect()
+      if (!rect) return
+      const available = rect.width - (window.innerWidth <= 1180 ? 340 : 0)
+      const centerX = node.internals.positionAbsolute.x + (node.measured.width ?? 292) / 2
+      const centerY = node.internals.positionAbsolute.y + (node.measured.height ?? 220) / 2
+      void flow.setViewport({ x: Math.max(160, available / 2) - centerX * zoom, y: rect.height / 2 - centerY * zoom, zoom }, { duration: 180 })
     })
     return () => cancelAnimationFrame(frame)
-  }, [selectionId, flow])
+  }, [selectionId, panelOpen, flow])
+
 
   const fxIntents = readJson<FxIntent[]>(FX_OUTBOX_KEY, [])
   const refIds = readJson<string[]>(REF_OUTBOX_KEY, [])
@@ -436,6 +465,7 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
     setDirty(true)
   }, [snapshot])
   const restoreSnapshot = useCallback((value: WorkflowDef) => {
+    setWorkflow((prev) => prev ? { ...prev, projectId: value.projectId } : prev)
     setName(value.name)
     setNodes(mapNodes(value))
     setEdges(value.edges.map((edge) => toRfEdge(edge, value.nodes)))
@@ -536,7 +566,7 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
             return {
               ...n,
               data: { ...n.data, params: { ...n.data.params, collapsed } },
-              style: { ...n.style, height: collapsed ? 44 : 148 },
+              style: { ...n.style, height: collapsed ? 44 : 300 },
             }
           }
           if (n.parentId === laneId) return { ...n, hidden: collapsed }
@@ -551,13 +581,18 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
   useEffect(() => {
     if (!nodesInitialized || initialFramed.current) return
     initialFramed.current = true
-    void flow.fitView({ nodes: flow.getNodes().filter((n) => n.type !== 'lane').map((n) => ({ id: n.id })), padding: 0.16, minZoom: 0.55, maxZoom: 1 })
-  }, [nodesInitialized, flow])
+    const shown = flow.getNodes().filter((n) => n.type !== 'lane' && (!initial || initial.path !== 'structured' || n.parentId === 'lane-0'))
+    void flow.fitView({ nodes: shown.map((n) => ({ id: n.id })), padding: 0.22, minZoom: 0.2, maxZoom: 1 })
+  }, [nodesInitialized, flow, initial])
 
   useEffect(() => {
     if (!nodesInitialized || !wrapRef.current) return
     let frame = 0
+    let viewport = `${window.innerWidth}:${window.innerHeight}`
     const observer = new ResizeObserver(() => {
+      const next = `${window.innerWidth}:${window.innerHeight}`
+      if (next === viewport) return
+      viewport = next
       cancelAnimationFrame(frame)
       frame = requestAnimationFrame(() => {
         void flow.fitView({ nodes: flow.getNodes().filter((n) => n.type !== 'lane').map((n) => ({ id: n.id })), padding: 0.16, minZoom: 0.2, maxZoom: 1 })
@@ -637,20 +672,29 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
       const center = rect
         ? flow.screenToFlowPosition({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 })
         : { x: 240, y: 200 }
-      const jitter = (nodes.length % 5) * 26
+      const jitter = (nodes.length % 5) * 16
+      const placement = { x: center.x - 146 + jitter, y: center.y - 70 + jitter }
+      if (!at) {
+        const roots = nodes.filter((n) => !n.parentId && n.type !== 'lane')
+        for (let attempt = 0; attempt <= roots.length; attempt++) {
+          if (!roots.some((n) => placement.x < n.position.x + (n.measured?.width ?? 292) + 30 && placement.x + 322 > n.position.x && placement.y < n.position.y + (n.measured?.height ?? 260) + 30 && placement.y + 290 > n.position.y)) break
+          placement.x += 370
+        }
+      }
       const node: FmNode = {
         id,
         type: 'fm',
-        position: at ?? { x: center.x - 110 + jitter, y: center.y - 40 + jitter },
+        position: at ?? placement,
         data: { defType, params, status: 'idle' },
         selected: true,
       } as FmNode
+      if (!at) focusRequest.current = id
       setNodes((prev) => [...prev.map((n) => ({ ...n, selected: false })), node])
       if (workflow?.path === 'structured') setActiveStage(null)
       markDirty()
       return id
     },
-    [flow, nodes.length, markDirty, workflow?.path],
+    [flow, nodes, markDirty, workflow?.path],
   )
 
   /* ── 释放连线推荐菜单（P0-4）：拖线到空白处松手 → 按端口类型推荐下一节点 ── */
@@ -784,19 +828,45 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
   )
 
   const doSave = useCallback(() => {
+    if(documentsStatus().error){setRunNotice('本机记录尚有保存冲突，请先导出副本并重新核对。');return false}
     const snap = snapshot()
-    if (!snap) return
-    const saved = workflowService.saveWorkflow(snap.id, { name: snap.name, nodes: snap.nodes, edges: snap.edges })
-    if (saved) {
+    if (!snap) return false
+    try {
+      const saved = workflowService.saveWorkflow(snap.id, { name: snap.name, projectId: snap.projectId, nodes: snap.nodes, edges: snap.edges })
+      if (!saved) { setRunNotice('工作流已不存在，无法保存。请返回工作流首页核对。'); return false }
       setWorkflow(saved)
       setDirty(false)
-    }
+      setRunNotice('')
+      return true
+    } catch (error) { setRunNotice(error instanceof Error ? error.message : '保存失败，请重试。'); return false }
   }, [snapshot])
+
+  useUnsavedEditor({ name, dirty, canSave: !running, save:async()=>{if(!doSave())return false;try{await flushLocalDocuments();return true}catch(error){setDirty(true);throw error}} })
+
+  useEffect(() => {
+    const key = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
+        event.preventDefault()
+        if (dirty && !running) doSave()
+      }
+    }
+    window.addEventListener('keydown', key)
+    return () => window.removeEventListener('keydown', key)
+  }, [doSave, dirty, running])
 
   const doRun = useCallback(() => {
     const snap = snapshot()
     if (!snap || running) return
+    if (dirty) { setRunNotice('请先保存工作流，再运行当前版本。'); return }
+    const problems = workflowGraphProblems(snap.nodes, snap.edges, { validateInputs: snap.path !== 'structured' })
+    if (problems.length) {
+      setRunNotice(problems[0].message)
+      if (problems[0].nodeId) setNodes((prev) => prev.map((n) => ({ ...n, selected: n.id === problems[0].nodeId })))
+      return
+    }
+    setRunNotice('')
     setRunning(true)
+    setActiveRunLabel(`${snap.path === 'structured' ? '状态评估' : snap.projectId ? '项目运行' : '演示运行'} · 工作流 v${snap.revision}`)
     setLiveEvents([])
     setViewing(null)
     setDrawerOpen(true)
@@ -820,7 +890,7 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
       runHandle.current = null
       if (run.status === 'completed') setDrawerTab('artifacts')
     })
-  }, [snapshot, running])
+  }, [snapshot, running, dirty])
 
   /* 创作启动层快速路径：带 autoRun 进来时，工作流载入后自动跑一次（仅一次） */
   const autoRanRef = useRef(false)
@@ -835,11 +905,15 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
     (nodeId: string) => {
       const snap = snapshot()
       if (!snap || running) return
+      if (dirty) { setRunNotice('请先保存工作流，再运行当前版本。'); return }
+      setRunNotice('')
       setRunning(true)
+      setActiveRunLabel(`${snap.path === 'structured' ? '状态评估' : '单节点演示'} · 工作流 v${snap.revision}`)
       setLiveEvents([])
       setDrawerOpen(true)
       setDrawerTab('events')
       setViewing(null)
+      setNodes((prev) => prev.map((n) => ({ ...n, data: { ...n.data, status: 'idle' as const } })))
       const handle = startSingleNodeRun(snap, nodeId, {
         onEvent: (e) => setLiveEvents((prev) => [...prev, e]),
         onNodeStatus: (id, status) =>
@@ -852,7 +926,7 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
         runHandle.current = null
       })
     },
-    [snapshot, running],
+    [snapshot, running, dirty],
   )
 
   /* 待处理资源 */
@@ -898,19 +972,58 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
     setPendingTick((t) => t + 1)
   }
 
-  const downloadArtifact = (a: WfArtifact) => {
-    const blob = new Blob([a.content], { type: 'application/json;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = a.filename
-    link.click()
-    URL.revokeObjectURL(url)
+  const [downloading, setDownloading] = useState(false)
+  const downloadArtifact = async (a: WfArtifact) => {
+    if (downloading) return
+    setDownloading(true)
+    try {
+      const media = workflowArtifactMedia(a)
+      if (!a.demo && !media) throw new Error('产物没有可读取的文件地址。')
+      let blob: Blob
+      if (media) {
+        const response = await fetch(media)
+        if (!response.ok) throw new Error(`文件读取失败（HTTP ${response.status}）`)
+        blob = await response.blob()
+        if (!blob.size || !blob.type.startsWith('video/')) throw new Error('文件为空或不是有效视频。')
+      } else blob = new Blob([a.content], { type: 'application/json;charset=utf-8' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = a.demo ? (a.filename.endsWith('.json') ? a.filename : `${a.filename}.json`) : a.filename
+      link.click()
+      window.setTimeout(() => URL.revokeObjectURL(url), 30000)
+      setRunNotice(media ? '已获取产物，已发起下载。' : '已发起记录下载。')
+    } catch (error) { setRunNotice(error instanceof Error ? error.message : '下载失败，请重试。') }
+    finally { setDownloading(false) }
   }
 
   const goReview = () => {
-    window.postMessage({ type: 'fm-nav', id: 'production', projectId: workflow?.projectId ?? 'token' }, '*')
+    if (workflow?.projectId) window.postMessage({ type: 'fm-nav', id: 'production', projectId: workflow.projectId }, '*')
   }
+  const resumeSavedRun = (retry=false) => {
+    if(!lastRun || running || dirty)return
+    setRunning(true);setActiveRunLabel(`继续项目运行 · 工作流 v${lastRun.revision}`);setLiveEvents([]);setDrawerOpen(true)
+    const handle=(retry?retryFailedProjectRun:resumeProjectRun)(lastRun,{onEvent:e=>setLiveEvents(prev=>[...prev,e]),onNodeStatus:(id,status)=>setNodes(prev=>prev.map(n=>n.id===id?{...n,data:{...n.data,status}}:n))})
+    runHandle.current=handle
+    void handle.done.then(run=>{setLastRun(run);setRunning(false);runHandle.current=null;setDrawerTab('artifacts')})
+  }
+
+  const runMatches = runMatchesDefinition(lastRun, workflow, dirty)
+
+  const { displayedNodes, visibleEdges } = useMemo(() => {
+    const structured = workflow?.path === 'structured'
+    const lane = activeStage === null ? undefined : nodes.find((n) => n.type === 'lane' && Number(n.data.params.stage) === activeStage)
+    const gate = activeStage === null ? undefined : Object.entries(GATE_DEFS).find(([, value]) => value.afterStage === activeStage)?.[0]
+    const shown = structured && activeStage !== null ? nodes.filter((n) => n.id === lane?.id || n.parentId === lane?.id || (n.data.defType === 'gate' && n.data.params.gate === gate)) : nodes
+    const ids = new Set(shown.filter((n) => !n.hidden).map((n) => n.id))
+    return { displayedNodes: shown.map((n) => {
+      const status = running ? n.data.status : runMatches ? lastRun?.nodeStatus[n.id] ?? 'idle' : 'idle'
+      const data = n.data.status === status ? n.data : { ...n.data, status: status as FmNodeData['status'] }
+      if (n.data.defType !== 'create') return data === n.data ? n : { ...n, data }
+      const renderFile = !running && runMatches ? workflowArtifactMedia(lastRun?.artifacts.find((a) => a.nodeId === n.id && !a.demo)) ?? undefined : undefined
+      return { ...n, data: { ...data, renderMode: workflow?.projectId ? 'real' as const : 'demo' as const, renderFile } }
+    }), visibleEdges: edges.filter((e) => ids.has(e.source) && ids.has(e.target)) }
+  }, [nodes, edges, activeStage, workflow?.path, workflow?.projectId, lastRun, runMatches, running])
 
   if (!workflow) {
     return (
@@ -925,14 +1038,8 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
 
   const isStructured = workflow.path === 'structured'
   const eventsToShow = running || liveEvents.length > 0 ? liveEvents : (lastRun?.events ?? [])
-  const artifactsToShow = lastRun?.artifacts ?? []
-  const stageLane = activeStage === null ? undefined : nodes.find((n) => n.type === 'lane' && Number(n.data.params.stage) === activeStage)
-  const stageGateKey = activeStage === null ? undefined : Object.entries(GATE_DEFS).find(([, gate]) => gate.afterStage === activeStage)?.[0]
-  const displayedNodes = isStructured && activeStage !== null
-    ? nodes.filter((n) => n.id === stageLane?.id || n.parentId === stageLane?.id || (n.data.defType === 'gate' && n.data.params.gate === stageGateKey))
-    : nodes
-  const displayIds = new Set(displayedNodes.map((n) => n.id))
-  const visibleEdges = edges.filter((e) => displayIds.has(e.source) && displayIds.has(e.target) && !nodes.find((n) => n.id === e.source)?.hidden && !nodes.find((n) => n.id === e.target)?.hidden)
+  const artifactsToShow = running ? [] : lastRun?.artifacts ?? []
+  const selectedRunCaption = running ? activeRunLabel : lastRun ? `${workflowRunLabel(lastRun)} · 工作流 v${lastRun.revision} · ${RUN_STATUS_TXT[lastRun.status] ?? lastRun.status}` : ''
   const focusStage = (index: number | null) => {
     setActiveStage(index)
     setNodes((prev) => prev.map((n) => ({ ...n, selected: false })))
@@ -945,21 +1052,25 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
   return (
     <section className="wfe" aria-label="工作流编辑器" data-structured={workflow.path === 'structured' || undefined} data-stage-focused={isStructured && activeStage !== null || undefined} data-panel-open={panelOpen || undefined} data-inspecting={!!(selectedNode || selectedEdge) || undefined}>
       <div className="wfe-cmd">
-        <button type="button" className="wfe-iconbtn" onClick={() => { if (!dirty || window.confirm('有未保存的更改，确定返回吗？')) onBack() }} aria-label="返回工作流首页">
+        <button type="button" className="wfe-iconbtn" onClick={() => navigation.request(onBack)} aria-label="返回工作流首页">
           <ArrowLeft size={16} strokeWidth={2.2} />
         </button>
-        <div className="wfe-titleblock"><span>{isStructured ? '结构化制作' : '自由创作'}</span><input className="wfe-name" value={name} onChange={(e) => { setName(e.target.value); markDirty() }} aria-label="工作流名称" /></div>
-        
+        <div className="wfe-titleblock"><input className="wfe-name" value={name} onChange={(e) => { setName(e.target.value); markDirty() }} aria-label="工作流名称" maxLength={120} /></div>
+
         <span className="wfe-revision">v{workflow.revision}</span>
-        <span className="wfe-savestate"><CheckCircle2 size={12}/>{dirty ? '未保存' : '已保存'}</span>
-        <span className="wfe-demo">{!isStructured && workflow.projectId ? '创作与渲染已连接' : '演示模式'}</span>
-        <span className="wfe-spacer" /><button type="button" className="wfe-btn wfe-history-toggle" onClick={() => { setDrawerOpen(true); setDrawerTab('history') }}><History size={14}/> 运行记录</button>
-        {running && (isStructured || !workflow.projectId) && (
+        <span className="wfe-savestate">{dirty ? <Circle size={10}/> : <CheckCircle2 size={12}/>}{dirty ? '未保存' : documentsStatus().error ? '本机保存失败' : documentsStatus().pending ? '正在保存到本机…' : '已保存'}</span>
+
+        <span className="wfe-spacer" />
+        <WorkflowProjectPicker projectId={workflow.projectId} disabled={running} onChange={(projectId) => { markDirty(); setWorkflow((prev) => prev ? { ...prev, projectId } : prev) }}/>
+        <button type="button" className="wfe-btn wfe-history-toggle" onClick={() => { setDrawerOpen(true); setDrawerTab('history') }}><History size={14}/> 运行记录</button>
+        {!running && lastRun?.definition && lastRun.projectId && lastRun.status === 'running' && <button type="button" className="wfe-btn" disabled={dirty} onClick={()=>resumeSavedRun()}>接回上次运行</button>}
+        {!running && lastRun?.definition && lastRun.projectId && lastRun.status === 'failed' && <button type="button" className="wfe-btn" disabled={dirty} onClick={()=>resumeSavedRun(true)}>重试失败节点</button>}
+        {running && (
           <button type="button" className="wfe-btn" onClick={() => runHandle.current?.cancel()}>
             <Ban size={13} strokeWidth={2.2} /> 取消
           </button>
         )}
-        <button type="button" className="wfe-btn" onClick={doSave} disabled={!dirty}>
+        <button type="button" className="wfe-btn" title="保存（Ctrl / ⌘ + S）" onClick={doSave} disabled={!dirty || running}>
           <Save size={13} strokeWidth={2.2} /> 保存
         </button>
         <button type="button" className="wfe-btn is-primary" onClick={doRun} disabled={running}>
@@ -967,9 +1078,11 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
         </button>
       </div>
 
+      <div className="wfe-context-bar"><span><WorkflowIcon size={13}/>{isStructured ? '分阶段评估' : '自由创作'}<i/> {nodes.filter((n) => n.type !== 'lane').length} 个节点 · {edges.length} 条连接</span><span>{isStructured ? '仅评估产物与检查点，不自动制作视频' : workflow.projectId ? '制作节点可真实渲染 · 其余节点记录快照' : '未关联项目 · 运行仅演示'}</span>{workflow.projectId && <button type="button" onClick={goReview}><FolderOpen size={13}/>进入工作台</button>}</div>
+      {runNotice && <div className="wfe-run-alert" role="alert"><span>{runNotice}</span><button type="button" aria-label="关闭运行提示" onClick={() => setRunNotice('')}><X size={14}/></button></div>}
       <div className="wfe-body">
         <aside className="wfe-left" aria-label="构建栏" hidden={!panelOpen}>
-          <div className="wfe-panel-title"><span><WorkflowIcon size={16}/> 工作流结构</span><button type="button" aria-label="收起侧栏" onClick={() => setPanelOpen(false)}><PanelLeftClose size={16}/></button></div>
+          <div className="wfe-panel-title"><span><WorkflowIcon size={16}/> 构建工作流</span><button type="button" aria-label="收起侧栏" onClick={() => setPanelOpen(false)}><PanelLeftClose size={16}/></button></div>
           <div className="wfe-tabs" role="tablist" aria-label="构建栏页签">
             {!isStructured && <button type="button" role="tab" aria-selected={leftTab === 'outline'} data-on={leftTab === 'outline' ? '' : undefined} onClick={() => setLeftTab('outline')}>流程</button>}
             {isStructured && <button type="button" role="tab" aria-selected={leftTab === 'stages'} data-on={leftTab === 'stages' ? '' : undefined} onClick={() => setLeftTab('stages')}>阶段</button>}
@@ -982,8 +1095,8 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
             </button>
           </div>
           {leftTab === 'outline' ? <div className="wfe-outline">
-            <div className="wfe-outline-label">创作流程 <span>{nodes.filter((n) => n.type === 'fm').length}</span></div>
-            {nodes.filter((n) => n.type === 'fm').sort((a, b) => ['prompt', 'refs', 'lookdev', 'filmplan', 'capability', 'create', 'review', 'finishing'].indexOf(a.data.defType) - ['prompt', 'refs', 'lookdev', 'filmplan', 'capability', 'create', 'review', 'finishing'].indexOf(b.data.defType)).map((n) => <button type="button" className="wfe-outline-item" key={n.id} data-selected={n.selected || undefined} onClick={() => { setNodes((prev) => prev.map((item) => ({ ...item, selected: item.id === n.id }))) }}><NodeMark type={n.data.defType}/><span><b>{NODE_COPY[n.data.defType]?.title ?? defForNode({ type: n.data.defType, params: n.data.params })?.label}</b><small>{NODE_COPY[n.data.defType]?.description}</small></span><ChevronRight size={13}/></button>)}
+            <div className="wfe-outline-label">画布节点 <span>{nodes.filter((n) => n.type === 'fm').length}</span></div>
+            {nodes.filter((n) => n.type === 'fm').map((n) => <button type="button" className="wfe-outline-item" key={n.id} data-selected={n.selected || undefined} onClick={() => { focusRequest.current = n.id; setNodes((prev) => prev.map((item) => ({ ...item, selected: item.id === n.id }))) }}><NodeMark type={n.data.defType}/><span><b>{NODE_COPY[n.data.defType]?.title ?? defForNode({ type: n.data.defType, params: n.data.params })?.label}</b><small>{NODE_COPY[n.data.defType]?.description}</small></span><ChevronRight size={13}/></button>)}
             <button type="button" className="wfe-outline-add" onClick={() => setLeftTab('nodes')}><Plus size={15}/> 添加创作环节</button>
             <div className="wfe-outline-note"><span>工作流说明</span><p>{workflow.description || '从创作需求到制作、审片与修改。按需要添加参考、视觉构想和创作能力。'}</p></div>
           </div> : leftTab === 'stages' ? (
@@ -997,17 +1110,17 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
                 const gateNode = gateEntry ? nodes.find((n) => n.data.defType === 'gate' && n.data.params.gate === gateEntry[0]) : undefined
                 return <button type="button" key={stage.index} className="wfe-stage-nav-item" data-active={activeStage === stage.index || undefined} onClick={() => focusStage(stage.index)}><span className="wfe-stage-index">{String(stage.index + 1).padStart(2, '0')}</span><span className="wfe-stage-copy"><b>{stage.label}</b><small>{present}/{children.length} 项产物{gateNode ? ` · ${gateNode.data.gateEval?.decision === 'confirmed' && !gateNode.data.gateEval?.stale ? '已确认' : '待确认'}` : ''}</small></span><span aria-hidden="true">↗</span></button>
               })}
-              
+
             </div>
           ) : leftTab === 'nodes' ? (
             <div className="wfe-nodelist">
-              
+
               <label className="wfe-library-search"><Search size={14}/><input value={nodeQuery} onChange={(e) => setNodeQuery(e.target.value)} placeholder="搜索节点" aria-label="搜索节点库" /></label>
               {!isStructured && nodeQuery.trim() && !PF_NODE_DEFS.some((d) => `${d.label} ${d.description} ${NODE_COPY[d.type]?.title ?? ''}`.toLowerCase().includes(nodeQuery.trim().toLowerCase())) && <p className="wfe-search-empty">没有匹配节点，试试其他关键词。</p>}
               {!isStructured &&
                 PF_NODE_DEFS.filter((d) => `${d.label} ${d.description} ${NODE_COPY[d.type]?.title ?? ''}`.toLowerCase().includes(nodeQuery.trim().toLowerCase())).map((d) => (
-                  <button key={d.type} type="button" className="wfe-nodeitem" onClick={() => addNode(d.type, pfDefaultParams(d.type))} title="点击添加到画布">
-                    <NodeMark type={d.type}/><span className="wfe-nodeitem-copy"><b>{NODE_COPY[d.type]?.title ?? d.label}</b><small>{NODE_COPY[d.type]?.description ?? d.description}</small></span><Plus size={13}/>
+                  <button key={d.type} type="button" className="wfe-nodeitem" draggable onDragStart={(e) => { e.dataTransfer.setData('application/fengmotion-node', JSON.stringify({ type: d.type, params: pfDefaultParams(d.type) })); e.dataTransfer.effectAllowed = 'copy' }} onClick={() => addNode(d.type, pfDefaultParams(d.type))} title="拖到画布，或点击添加">
+                    <NodeMark type={d.type}/><span className="wfe-nodeitem-copy"><b>{NODE_COPY[d.type]?.title ?? d.label}</b><small>{NODE_COPY[d.type]?.description ?? d.description}</small></span><GripVertical size={14}/>
                   </button>
                 ))}
               {isStructured && (
@@ -1019,9 +1132,10 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
                         <button
                           key={k.kind}
                           type="button"
-                          className="wfe-nodeitem"
+                          className="wfe-nodeitem" draggable
+                          onDragStart={(e) => { e.dataTransfer.setData('application/fengmotion-node', JSON.stringify({ type: 'artifact', params: { kind: k.kind, status: 'missing', version: '', summary: '', fixture: false } })); e.dataTransfer.effectAllowed = 'copy' }}
                           onClick={() => addNode('artifact', { kind: k.kind, status: 'missing', version: '', summary: '', fixture: false })}
-                          title="点击添加为自由节点"
+                          title="拖到画布，或点击添加为自由节点"
                         >
                           <span className="wfe-nodeitem-top"><b>{k.label}</b><Plus size={12} strokeWidth={2.4} /></span>
                           <span>{k.filename}</span>
@@ -1034,7 +1148,8 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
                     <button
                       key={g}
                       type="button"
-                      className="wfe-nodeitem"
+                      className="wfe-nodeitem" draggable
+                      onDragStart={(e) => { e.dataTransfer.setData('application/fengmotion-node', JSON.stringify({ type: 'gate', params: { gate: g, decision: 'not-started', recommendation: '', validFor: [], notApproved: [], source: 'live' } })); e.dataTransfer.effectAllowed = 'copy' }}
                       onClick={() => addNode('gate', { gate: g, decision: 'not-started', recommendation: '', validFor: [], notApproved: [], source: 'live' })}
                       title="点击添加到画布"
                     >
@@ -1049,6 +1164,7 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
             </div>
           ) : (
             <div className="wfe-pending">
+              <div className="wfe-resource-links">{([['knowledge', '特效库'], ['reference', '参考片库']] as const).map(([id, label]) => <button type="button" className="wfe-btn sm" key={id} onClick={() => window.postMessage({ type: 'fm-nav', id }, '*')}><FolderOpen size={13}/>{label}</button>)}</div>
               <h3>技法意向 <em className="num">{fxIntents.length}</em></h3>
               {fxIntents.length === 0 && <p className="wfe-hint">暂无。在特效库点「用于工作流」后，意向会出现在这里。</p>}
               {fxIntents.map((it, i) => {
@@ -1087,7 +1203,19 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
           )}
         </aside>
 
-        <div className="wfe-canvas" ref={wrapRef} data-compact={compact || undefined}>
+        <div className="wfe-canvas" ref={wrapRef} data-compact={compact || undefined}
+          onDragOver={(e) => { if (Array.from(e.dataTransfer.types).includes('application/fengmotion-node')) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy' } }}
+          onDrop={(e) => {
+            const raw = e.dataTransfer.getData('application/fengmotion-node')
+            if (!raw) return
+            e.preventDefault()
+            try {
+              const value = JSON.parse(raw) as { type?: string; params?: Record<string, unknown> }
+              if (!value.type || !defForNode({ type: value.type, params: value.params ?? {} })) return
+              addNode(value.type!, value.params ?? pfDefaultParams(value.type!), flow.screenToFlowPosition({ x: e.clientX - 25, y: e.clientY - 25 }))
+              if (window.innerWidth < 1000) setPanelOpen(false)
+            } catch { setRunNotice('无法添加该节点，请从节点库重试。') }
+          }}>
           <div className="wfe-canvas-toolbar" aria-label="画布工具">
             {!panelOpen && <button type="button" onClick={() => setPanelOpen(true)} title="展开侧栏" aria-label="展开工作流侧栏"><PanelLeftOpen size={16}/></button>}
             <button type="button" className="wfe-add-trigger" onClick={() => { setPanelOpen(true); setLeftTab('nodes') }}><Plus size={15}/> 添加节点</button>
@@ -1105,9 +1233,10 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
                   return n
                 }))
               } else {
-                const levels = new Map<string, number>(); const visited = new Set<string>()
-                const level = (id: string): number => { if (levels.has(id)) return levels.get(id)!; if (visited.has(id)) return 0; visited.add(id); const incoming = edges.filter((e) => e.target === id); const depth = incoming.length ? Math.max(...incoming.map((e) => level(e.source))) + 1 : 0; levels.set(id, depth); return depth }
-                const rows = new Map<number, number>(); setNodes((prev) => prev.map((n) => { const col = level(n.id); const row = rows.get(col) ?? 0; rows.set(col, row + 1); return { ...n, position: { x: col * 390, y: row * 300 } } }))
+                setNodes((prev) => {
+                  const positions = workflowLayoutPositions(prev.map((n) => ({ id: n.id, height: n.measured?.height })), edges)
+                  return prev.map((n) => ({ ...n, position: positions[n.id] }))
+                })
               }
               window.setTimeout(() => { void flow.fitView({ padding: 0.16, minZoom: 0.2, maxZoom: 1 }) }, 80)
             }}><LayoutGrid size={15}/> 整理</button>
@@ -1115,12 +1244,13 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
           {isStructured && activeStage !== null && <div className="wfe-stage-context"><span>阶段 {String(activeStage + 1).padStart(2, '0')} / 08</span><h2>{STRUCTURED_STAGES[activeStage].label}</h2><p>{STRUCTURED_STAGES[activeStage].question}</p><div><button type="button" aria-label="上个阶段" disabled={activeStage === 0} onClick={() => focusStage(activeStage - 1)}><ChevronLeft size={15}/></button><button type="button" aria-label="下个阶段" disabled={activeStage === 7} onClick={() => focusStage(activeStage + 1)}><ChevronRight size={15}/></button></div></div>}
           <div className="wfe-viewport-controls"><button type="button" onClick={() => { void flow.zoomOut({ duration: 150 }) }} aria-label="缩小"><Minus size={15}/></button><button type="button" onClick={() => { void flow.zoomTo(1,{duration:150}) }} title="恢复 100%">{Math.round(zoom * 100)}%</button><button type="button" onClick={() => { void flow.zoomIn({ duration: 150 }) }} aria-label="放大"><Plus size={15}/></button><i/><button type="button" onClick={() => { void flow.fitView({ padding: 0.16, minZoom: 0.2, maxZoom: 1, duration: 200 }) }} title="适应画布" aria-label="适应画布"><Maximize2 size={15}/></button></div>
           <div className="wfe-canvas-help">拖动画布平移 <span>·</span> 滚轮缩放 <span>·</span> Delete 删除</div>
+          {nodes.length === 0 && <div className="wfe-empty-canvas"><WorkflowIcon size={36} strokeWidth={1.2}/><h2>从第一个节点开始</h2><p>从左侧拖入节点，再连接输入与输出。</p><button type="button" className="wfe-btn" onClick={() => { setPanelOpen(true); setLeftTab('nodes') }}><Plus size={14}/>添加节点</button></div>}
           <ReactFlow
-            nodes={displayedNodes.map((n) => n.type === 'lane' && activeStage !== null ? { ...n, style: { ...n.style, height: n.data.params.collapsed ? 44 : 300 } } : n)}
-            edges={running ? visibleEdges.map((e) => ({ ...e, animated: true })) : visibleEdges}
+            nodes={displayedNodes}
+            edges={visibleEdges}
             nodeTypes={nodeTypes}
             onNodeDragStart={() => markDirty()}
-            onMove={(_, vp) => { setCompact(vp.zoom < 0.55); setZoom(vp.zoom) }}
+            onMove={(_, vp) => { setCompact(vp.zoom < 0.55); setZoom(Math.round(vp.zoom * 100) / 100) }}
             onNodesChange={(changes) => {
               setNodes((prev) => {
                 let next = [...prev]
@@ -1164,7 +1294,8 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
             maxZoom={1.6}
             onPaneClick={() => setNodes((prev) => prev.map((n) => ({ ...n, selected: false })))}
             proOptions={{ hideAttribution: true }}
-            colorMode="dark"
+            colorMode="system"
+            ariaLabelConfig={{ "node.a11yDescription.default": '拖动节点调整位置，按 Delete 删除。', "edge.a11yDescription.default": '连接节点的输入与输出。' }}
           >
             <Background variant={BackgroundVariant.Dots} gap={24} size={1} bgColor="var(--canvas)" />
 
@@ -1188,7 +1319,7 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
             <div className="wfe-inspector-tabs" role="tablist" aria-label="节点详情">{([['params', '设置'], ['inputs', '输入'], ['outputs', '输出']] as const).map(([id, label]) => <button type="button" key={id} role="tab" aria-selected={inspectorTab === id} onClick={() => setInspectorTab(id)}>{label}</button>)}</div>
             <Inspector
               tab={inspectorTab}
-              node={selectedNode}
+              node={{ ...selectedNode, data: { ...selectedNode.data, status: running ? selectedNode.data.status : runMatches ? lastRun?.nodeStatus[selectedNode.id] ?? 'idle' : 'idle' } }}
               workflow={snapshot()}
               onParams={(patch) => updateParams(selectedNode.id, patch)}
               inputs={edges
@@ -1197,7 +1328,7 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
                   const src = nodes.find((n) => n.id === e.source)
                   if (!src) return null
                   const sdef = defForNode({ type: src.data.defType, params: src.data.params })
-                  const art = lastRun?.artifacts.find((a) => a.nodeId === src.id)
+                  const art = !running && runMatches ? lastRun?.artifacts.find((a) => a.nodeId === src.id) : null
                   const detail = art
                     ? art.summary
                     : src.data.defType === 'artifact'
@@ -1210,7 +1341,7 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
                   return { nodeId: src.id, label: sdef?.label ?? src.data.defType, detail }
                 })
                 .filter((x): x is { nodeId: string; label: string; detail: string } => !!x)}
-              output={lastRun?.artifacts.find((a) => a.nodeId === selectedNode.id) ?? null}
+              output={!running && runMatches ? lastRun?.artifacts.find((a) => a.nodeId === selectedNode.id) ?? null : null}
               busy={running}
               onRunNode={() => doRunNode(selectedNode.id)}
               onSelectNode={(id) => {
@@ -1233,11 +1364,15 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
         <button type="button" className="wfe-drawer-head" onClick={() => setDrawerOpen((v) => !v)} aria-expanded={drawerOpen}>
           <ChevronDown size={14} className={drawerOpen ? 'wfe-chev is-open' : 'wfe-chev'} />
           {isStructured ? '评估日志' : '执行日志'}
-          {lastRun && <span className="wfe-drawer-meta">最近：{lastRun.status === 'completed' ? '已完成' : lastRun.status} · {lastRun.artifacts.length} 项产物 · {new Date(lastRun.startedAt).toLocaleTimeString('zh-CN')}</span>}
-          {running && <span className="wfe-drawer-meta">进行中…</span>}
+          {selectedRunCaption && <span className="wfe-drawer-meta" title={selectedRunCaption}>{selectedRunCaption}{running ? ' · 进行中' : ` · ${lastRun?.artifacts.length ?? 0} 项产物`}</span>}
         </button>
         {drawerOpen && (
           <div className="wfe-drawer-body">
+            {selectedRunCaption && <p className="wfe-run-identity">{selectedRunCaption}
+              {!running && lastRun && <time dateTime={lastRun.startedAt}> · {new Date(lastRun.startedAt).toLocaleString('zh-CN')}</time>}
+              {!running && lastRun && !runMatches && <span> · {dirty ? '画布有未保存的更改' : lastRun.projectId === undefined ? '旧记录未保存项目身份' : '与当前版本或项目不同'}，结果仅供历史查看。</span>}
+            </p>}
+            {!running && lastRun?.nodeIO && <details className="wfe-node-io"><summary>实际节点输入与输出</summary><pre>{JSON.stringify(lastRun.nodeIO,null,2)}</pre></details>}
             <div className="wfe-tabs sm" role="tablist" aria-label="日志视图">
               {([['events', '事件'], ['outputs', '节点状态'], ['artifacts', '产物'], ['history', '运行记录']] as const).map(([id, label]) => (
                 <button key={id} type="button" role="tab" aria-selected={drawerTab === id} data-on={drawerTab === id ? '' : undefined} onClick={() => setDrawerTab(id)}>
@@ -1245,7 +1380,7 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
                 </button>
               ))}
             </div>
-            {drawerTab === 'history' && <div className="wfe-runhistory">{workflowService.listRuns(workflowId).length === 0 ? <p className="wfe-hint">尚无演示运行记录。</p> : workflowService.listRuns(workflowId).map((run) => <button type="button" key={run.id} data-selected={lastRun?.id === run.id || undefined} onClick={() => { setLastRun(run); setLiveEvents([]); setViewing(null); setDrawerTab('events') }}><b>{new Date(run.startedAt).toLocaleString('zh-CN')}</b><span>{RUN_STATUS_TXT[run.status] ?? run.status} · v{run.revision} · {run.artifacts.length} 项产物 · {run.artifacts.some((a) => !a.demo) ? '含真实产物' : '演示'}</span></button>)}</div>}
+            {drawerTab === 'history' && <div className="wfe-runhistory">{workflowService.listRuns(workflowId).length === 0 ? <p className="wfe-hint">尚无运行记录。</p> : workflowService.listRuns(workflowId).map((run) => <button type="button" key={run.id} disabled={running} data-selected={lastRun?.id === run.id || undefined} onClick={() => { setLastRun(run); setLiveEvents([]); setViewing(null); setDrawerTab('events') }}><b>{new Date(run.startedAt).toLocaleString('zh-CN')}</b><span>{workflowRunLabel(run)} · 工作流 v{run.revision} · {RUN_STATUS_TXT[run.status] ?? run.status} · {run.artifacts.length} 项产物</span></button>)}</div>}
             {drawerTab === 'events' && (
               <ul className="wfe-events">
                 {eventsToShow.length === 0 && <li className="wfe-hint">暂无事件。点击顶部「{isStructured ? '评估状态' : '运行'}」开始。</li>}
@@ -1258,17 +1393,17 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
             )}
             {drawerTab === 'outputs' && (
               <ul className="wfe-events">
-                {nodes.filter((n) => n.type === 'fm').map((n) => {
-                  const st = lastRun?.nodeStatus[n.id] ?? n.data.status
-                  const def = defForNode({ type: n.data.defType, params: n.data.params })
+                {(running ? nodes.filter((n) => n.type === 'fm').map((n) => [n.id, n.data.status] as const) : Object.entries(lastRun?.nodeStatus ?? {})).map(([id, st], index) => {
+                  const n = nodes.find((n) => n.id === id)
+                  const label = !running ? lastRun?.nodeLabels?.[id] ?? `历史节点 ${index + 1}` : n ? defForNode({ type: n.data.defType, params: n.data.params })?.label : `节点 ${index + 1}`
                   return (
-                    <li key={n.id}>
-                      {def?.label}：
-                      {st === 'completed' ? '已完成' : st === 'running' ? '进行中' : st === 'failed' ? '失败' : st === 'skipped' ? (isStructured ? '尚无产物/已跳过' : '已跳过') : '待处理'}
+                    <li key={id}>
+                      {label}：
+                      {RUN_STATUS_TXT[st] ?? '未运行'}
                     </li>
                   )
                 })}
-                {nodes.filter((n) => n.type === 'fm').length === 0 && <li className="wfe-hint">画布上还没有节点。</li>}
+                {!running && !lastRun && <li className="wfe-hint">尚未选择运行记录。</li>}
               </ul>
             )}
             {drawerTab === 'artifacts' && (
@@ -1280,7 +1415,7 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
                       <span>{viewing.filename}</span>
                       <button type="button" className="wfe-btn sm" onClick={() => setViewing(null)}>返回产物列表</button>
                     </div>
-                    <pre>{viewing.content}</pre>
+                    {workflowArtifactMedia(viewing) && <video className="wfe-artifact-video" src={workflowArtifactMedia(viewing)!} controls preload="metadata" aria-label="真实渲染产物预览"/>}<pre>{viewing.content}</pre>
                   </div>
                 ) : (
                   <>
@@ -1297,14 +1432,14 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
                           </span>
                         </div>
                         <button type="button" className="wfe-btn sm" onClick={() => setViewing(a)}><Eye size={12} /> 查看</button>
-                        <button type="button" className="wfe-btn sm" onClick={() => downloadArtifact(a)}><Download size={12} /> 下载</button>
-                        {(a.kind === 'create' || a.kind === 'evaluation') && (
-                          <button type="button" className="wfe-btn sm" onClick={goReview}>去工作台</button>
+                        <button type="button" className="wfe-btn sm" disabled={downloading} onClick={() => { void downloadArtifact(a) }}><Download size={12} /> 下载</button>
+                        {(a.kind === 'render' || a.kind === 'create' || a.kind === 'evaluation') && (
+                          <button type="button" className="wfe-btn sm" onClick={() => { if (lastRun?.projectId) window.postMessage({ type:'fm-nav', id:'production', projectId:lastRun.projectId }, '*') }} disabled={!lastRun?.projectId} title={!lastRun?.projectId ? '此记录没有可确认的关联项目' : '打开这次运行所属项目'}>查看所属项目</button>
                         )}
                       </div>
                     ))}
                     {artifactsToShow.some((a) => a.kind === 'create') && (
-                      <p className="wfe-hint">渲染节点只产出请求记录，真实渲染未接入；「去工作台」打开对应项目的制作工作台。</p>
+                      <p className="wfe-hint">演示产物仅为请求记录；真实视频会单独标注。「查看所属项目」打开这次运行的项目。</p>
                     )}
                   </>
                 )}
@@ -1326,6 +1461,7 @@ const RUN_STATUS_TXT: Record<string, string> = {
   failed: '失败',
   skipped: '已跳过',
   awaiting_info: '等待补充',
+  cancelled: '已取消',
 }
 
 function InspHead(props: { kicker: string; title: string; chip?: ReactNode }) {
@@ -1416,7 +1552,7 @@ function InspOutput({ output, emptyText }: { output: WfArtifact | null; emptyTex
         <div className="wfe-out3">
           <b>{output.title}</b>
           <span>{output.summary}</span>
-          <span className="num">{output.filename} · DEMO 快照</span>
+          <span className="num">{output.filename} · {output.demo ? '界面快照' : '真实产物'}</span>
         </div>
       ) : (
         <p className="wfe-hint">{emptyText}</p>
@@ -1436,12 +1572,15 @@ function Inspector(props: {
   onRunNode: () => void
   onSelectNode: (id: string) => void
 }) {
+  const [liveAssets,setLiveAssets]=useState<MyAsset[]>([])
+  const [assetError,setAssetError]=useState('')
+  useEffect(()=>{if(props.node.data.defType!=='refs')return;let alive=true;void listAssets().then(items=>{if(alive)setLiveAssets(items)}).catch(e=>{if(alive)setAssetError(e instanceof Error?e.message:'素材未能读取')});return()=>{alive=false}},[props.node.data.defType])
   const { node, onParams } = props
   const def = defForNode({ type: node.data.defType, params: node.data.params })
   const p = node.data.params
   if (!def) return null
-  const tokenAssets = BUILTIN_ASSETS.filter((a) => a.refs.some((r) => r.kind === 'project' && r.id === 'token'))
-  if (props.tab !== 'params') return <div className="wfe-insp"><InspHead kicker={def.group} title={NODE_COPY[node.data.defType]?.title ?? def.label}/>{props.tab === 'inputs' ? <InspInputs items={props.inputs} onSelectNode={props.onSelectNode}/> : <InspOutput output={props.output} emptyText="还没有此节点的演示输出。运行节点后可在这里查看。"/>}<TechDetails node={node}/></div>
+  const tokenAssets=liveAssets
+  if (props.tab !== 'params') return <div className="wfe-insp"><InspHead kicker={def.group} title={NODE_COPY[node.data.defType]?.title ?? def.label}/>{props.tab === 'inputs' ? <InspInputs items={props.inputs} onSelectNode={props.onSelectNode}/> : <InspOutput output={props.output} emptyText="还没有此节点的输出。运行后可在这里查看。"/>}<TechDetails node={node}/></div>
 
 
   if (node.data.defType === 'gate') {
@@ -1584,7 +1723,9 @@ function Inspector(props: {
 
       {node.data.defType === 'refs' && (
         <>
-          <p className="wfe-hint">项目：Token 科普视频。只引用真实素材与参考结论，不复制文件。</p>
+          <p className="wfe-hint">从本机素材库引用真实文件；用途和参考片区间会随本次请求传递。</p>
+          {assetError&&<p className="wfe-hint" role="alert">{assetError}</p>}
+          {!assetError&&!tokenAssets.length&&<p className="wfe-hint">当前没有可选素材，可先在「我的素材」导入。</p>}
           <div className="wfe-checks">
             {tokenAssets.map((a) => {
               const ids = (p.assetIds as string[] | undefined) ?? []
@@ -1597,6 +1738,7 @@ function Inspector(props: {
               )
             })}
           </div>
+          {((p.assetIds as string[]|undefined)??[]).filter(id=>!tokenAssets.some(a=>a.id===id)).map(id=><p className="wfe-hint" key={id}>已选素材未在列表中找到：{id}<button type="button" className="wfe-textbtn" onClick={()=>onParams({assetIds:((p.assetIds as string[])??[]).filter(x=>x!==id)})}>移除</button></p>)}
           {((p.refSegmentIds as string[] | undefined) ?? []).length > 0 && (
             <div className="wfe-field"><span>已接入的参考结论</span>
               <ul className="wfe-reflist">
@@ -1659,13 +1801,13 @@ function Inspector(props: {
               <option value="4k">4k · 3840×2160</option>
             </select>
           </label>
-          <p className="wfe-hint">运行只生成渲染请求记录；真实渲染未接入，不会产生视频文件。</p>
+          <p className="wfe-hint">{props.workflow?.projectId ? '完整运行会在关联项目中调用 Agent 制作与渲染；单节点测试仅生成请求记录。' : '未关联项目，当前运行只生成演示记录，不会制作视频。'}</p>
         </>
       )}
 
       {node.data.defType === 'review' && (
         <>
-          <div className="wfe-field"><span>quality-bar · 看片问题（由你看片后勾选）</span>
+          <div className="wfe-field"><span>审片检查（查看画面后确认）</span>
             <div className="wfe-checks">
               {QUALITY_QUESTIONS.map((q) => {
                 const checks = (p.checks as Record<string, boolean> | undefined) ?? {}

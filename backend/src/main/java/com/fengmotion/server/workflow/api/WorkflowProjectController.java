@@ -34,6 +34,7 @@ public class WorkflowProjectController {
     private final WorkflowProjectService service;
     private final ProjectRenderService projectRender;
     private final ProjectFilmConfig filmConfig;
+    private final com.fengmotion.server.workflow.service.CreationJobs jobs;
     private final com.fengmotion.server.workflow.service.CreationTaskStore creationTasks;
     private final com.fengmotion.server.workflow.service.CreationProgressStore creationProgress;
 
@@ -129,7 +130,14 @@ public class WorkflowProjectController {
                         t.requestId(), t.phase(), t.sessionSaved(), t.userMessageId(), t.sessionId()
                 );
             }
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "未找到指定创作任务: " + requestId);
+            try {
+                var job=jobs.get(projectId,requestId);
+                String phase=job.phase();String status="accepted".equals(job.state())?"running":job.state();
+                var result=job.result();
+                return new com.fengmotion.server.workflow.service.CreationStateStore.State(status,null,result==null?null:result.path("reply").asText(null),null,result==null?null:result.path("artifactPath").asText(null),result==null||!result.hasNonNull("version")?null:result.path("version").asLong(),job.error(),java.time.Instant.now().toString(),requestId,phase,null,job.userMessageId(),job.sessionId());
+            } catch(com.fengmotion.server.common.ApiException e) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND,"未找到指定创作任务");
+            }
         }
         /* 无 requestId 参数：返回最近一次状态，同样补 userMessageId */
         return state == null ? null : withUserMessageId(state, state.requestId());
@@ -218,9 +226,7 @@ public class WorkflowProjectController {
             @PathVariable String projectId,
             @PathVariable String requestId) {
         var taskOpt = creationTasks.findByRequestId(requestId);
-        if (taskOpt.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "未找到指定创作任务: " + requestId);
-        }
+        if(taskOpt.isEmpty())throw new ResponseStatusException(HttpStatus.NOT_FOUND,"未找到指定创作任务");
         var task = taskOpt.get();
         if (!projectId.equals(task.projectId())) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "创作任务不属于该项目: " + requestId);
@@ -244,7 +250,8 @@ public class WorkflowProjectController {
                 request == null ? null : request.correction(),
                 request == null ? null : request.requestId(),
                 request == null ? null : request.sessionId(),
-                request == null ? null : request.userMessageId()
+                request == null ? null : request.userMessageId(),
+                request == null ? null : request.engineSelection()
         );
         /* 未渲染时没有 render 结果，尺寸/帧数一律给 0，而不是编一个默认规格 ——
            前端看 state 就知道该显示「等待补充信息」还是播放器。 */
@@ -282,7 +289,12 @@ public class WorkflowProjectController {
                                 String correction,
                                 String requestId,
                                 String sessionId,
-                                String userMessageId) {
+                                String userMessageId, String harness, String model, String reasoningEffort, com.fasterxml.jackson.databind.JsonNode workflow) {
+        public CreateRequest(String intent,com.fasterxml.jackson.databind.JsonNode references,String previewImage,Long baseVersion,String correction,String requestId,String sessionId,String userMessageId,String harness,String model,String reasoningEffort){this(intent,references,previewImage,baseVersion,correction,requestId,sessionId,userMessageId,harness,model,reasoningEffort,null);}
+        public com.fengmotion.server.harness.client.NativeHarnesses.Selection engineSelection() {
+            return harness == null && model == null && reasoningEffort == null ? null
+                : new com.fengmotion.server.harness.client.NativeHarnesses.Selection(harness, model, reasoningEffort);
+        }
     }
 
     /**

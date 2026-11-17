@@ -6,7 +6,11 @@ export const ThreeCanvas = ({ children }: { children?: React.ReactNode }) => (
   </div>
 )
 
-export const useThree = () => ({ camera: {}, scene: {}, gl: {} })
+export const useThree = () => ({
+  camera: { position: { set: () => {} }, lookAt: () => {} },
+  scene: {},
+  gl: { toneMapping: 0 },
+})
 
 export const MeshTransmissionMaterial = () => null
 export const Environment = () => null
@@ -16,10 +20,12 @@ export class Shape {
   moveTo() { return this }
   lineTo() { return this }
   bezierCurveTo() { return this }
+  quadraticCurveTo() { return this }
 }
 
 export class ExtrudeGeometry {
   constructor(_shape?: any, _options?: any) {}
+  center() { return this }
 }
 
 export const ACESFilmicToneMapping = 4

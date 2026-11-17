@@ -496,6 +496,7 @@ export interface ChatStreamHandlers {
 }
 
 export interface ChatStreamOptions {
+  harness?: string
   /** 当前 DSH provider 的模型 ID；省略使用服务端默认模型。 */
   model?: string
   /** DSH 适配器支持的推理强度 ID；省略使用适配器默认值。 */
@@ -781,7 +782,7 @@ export function openChatSessionStream(
       try {
         cycleStartedAt = Date.now()
         const response = await http.openEventStream(`/chat-sessions/${sessionId}/stream`, {
-          query: { model: options.model, reasoningEffort: options.reasoningEffort },
+          query: { harness: options.harness, model: options.model, reasoningEffort: options.reasoningEffort },
           lastEventId: lastEventId ?? undefined,
           signal,
         })

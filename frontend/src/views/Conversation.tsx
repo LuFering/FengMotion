@@ -1,4 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { ProjectResourceEvidence } from '../components/ProjectResourceEvidence'
+import { submitCreation } from '../services/creationClient'
+import { useHarnessSelection, setHarnessSelection } from '@/shell/useHarnessSelection'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Search as SeekSearch } from '@/components/Search'
 import { WebSearchTrace, isSearchTool, type SearchCall } from '@/components/WebSearchTrace'
 import { ChecklistDrawer } from '@/components/bencho/Checklist'
@@ -18,15 +21,16 @@ import {
 import {
   AlertCircle, AlertTriangle, Archive, ArchiveRestore, Check, ChevronDown, ChevronRight,
   CircleSlash, Ellipsis, FolderPlus, Minimize2, RotateCcw,
-  ListFilter, LoaderCircle, MessageSquarePlus, PanelLeft, Pencil, Pin, PinOff,
+  LayoutGrid, ListFilter, LoaderCircle, MessageSquarePlus, PanelLeft, Pencil, Pin, PinOff,
   Trash2,
 } from 'lucide-react'
 import { LeiBoxComposer } from '@/components/chat/LeiBoxComposer'
+import { ComposerAttachments } from '@/components/chat/ComposerAttachments'
 import { CreationProgress } from '@/components/chat/CreationProgress'
 import type { ContextUsageSnapshot } from '@/components/chat/LeiBoxComposer'
 import { TargetSummaryPill } from '@/components/chat/TargetSummaryPill'
 import { useSessionDraft } from '@/shell/useDraftStore'
-import { registerComposer, type DeliverableAsset, type AssetPurpose } from '@/shell/usePendingAssets'
+import { PURPOSE_LABEL, registerComposer, type DeliverableAsset, type AssetPurpose } from '@/shell/usePendingAssets'
 import { deliveredReferences } from '@/services/creationResources'
 import { studioHttpApi } from '@/services/api'
 import { chatStreamManager, useSessionStream } from '@/services/chatStreamManager'
@@ -37,7 +41,7 @@ import { ApiError, userMessageForError } from '@/services/api/errors'
  *  必须是每段对话各一个键：两条未落盘的对话共用一个键会在适配器里串消息。 */
 const DRAFT_SESSION = '__draft__'
 import { HARNESSES, DEFAULT_PREFS, prefsKey, loadPrefs, savePrefs, type ModelPrefs } from '../data/harnesses'
-import { useHarnesses, availabilityOf, modelsOf } from '../shell/useHarnesses'
+import { useHarnesses, availabilityOf, modelsOf, matchHarness } from '../shell/useHarnesses'
 import type { ChatState, ChatMessage } from '../shell/useChat'
 import { UNGROUPED, sessionTitle, type SessionsState } from '../shell/useSessions'
 import { chatApi, hydrateDemoChat } from '../services/chatService'
@@ -51,12 +55,13 @@ import type { ProjectSummary } from '../data/projects'
 import type { ContextBreakdown } from '../types/contracts'
 import { resolveSendPlan } from '@/services/sendPlan'
 import { isSameRequest, messageFingerprint, creationFingerprint } from '@/services/sendFingerprint'
-import { markDraftSent, noteDraftInput, clearSentPartsOnly, currentFieldVersions } from '@/shell/useDraftStore'
+import { markDraftSent, noteDraftInput, clearSentPartsOnly, currentFieldVersions, setSessionDraft } from '@/shell/useDraftStore'
+import { prepareCreationEntry, ensureCreationContext } from '@/services/creationEntry'
 import { sessionDisplayTitle, sessionTimeLabel, sessionTimeFull } from '@/shell/sessionDisplay'
 import { useRoundOutcomes, clearRoundOutcome, recordRoundOutcome } from '@/shell/roundOutcomes'
 import { backfillRoundOutcomes, invalidateBackfill } from '@/shell/roundOutcomeBackfill'
 import { resolveReplySaveState, replySaveNotice, type ReplyLookup } from '@/shell/roundRestoreRules'
-import { lastRoundThinking, shouldShowMessageMeter } from './conversationRound'
+import { lastRoundThinking, shouldShowMessageMeter, messagesForSession } from './conversationRound'
 import '../styles/conversation.css'
 
 /**
@@ -508,6 +513,9 @@ function fmtWhen(t: number): string {
 
 
 export function Conversation(props: {
+  overviewOpen?: boolean
+  onOverviewChange?: (open: boolean) => void
+  projectOverview?: ReactNode
   chat: ChatState
   projects: ProjectSummary[]
   openProject: string | null
@@ -528,7 +536,7 @@ export function Conversation(props: {
   threads: SessionsState
   /** 当前会话 id；null = 还没有会话（从空白进入） */
   activeSessionId: string | null
-  homeTransfer?: { sessionId: string; draft: string; files: { file: File; kind: 'file' | 'image' | 'video' }[] } | null
+  homeTransfer?: { sessionId: string; draft: string; files: { file: File; kind: 'file' | 'image' | 'video' }[]; intent: 'create' | 'chat' } | null
   onHomeTransferConsumed?: () => void
   /** 归档项目：移出列表，项目目录与成片保留在磁盘上。 */
   onArchiveProject?: (projectId: string) => Promise<void>
@@ -538,6 +546,10 @@ export function Conversation(props: {
 }) {
   const { chat } = props
   const [projectPending, setProjectPending] = useState(false)
+  const submissionInFlight = useRef(false)
+  const [submitting, setSubmitting] = useState(false)
+  const preparedEmptyProject = useRef<string | null>(null)
+  const [entryNote, setEntryNote] = useState<{ sessionId: string | null; text: string } | null>(null)
   /** 新建项目/开始制作失败（服务端拒绝/连不上）：明确的错误，不做乐观成功 */
   const [projectError, setProjectError] = useState<string | null>(null)
   const showProjectError = (error: unknown) => setProjectError(error instanceof Error ? error.message : '项目操作失败')
@@ -910,9 +922,17 @@ export function Conversation(props: {
        生命周期：随附件一起移除时回收，见 removeAttachment。 */
     previewUrl?: string
   }[]>([])
-  const [harnessId, setHarnessId] = useState(HARNESSES[0].id)
-  const [model, setModel] = useState(HARNESSES[0].models[0])
-  const [thinking, setThinking] = useState<string | null>('medium')
+  const attachmentsRef = useRef(attachments)
+  attachmentsRef.current = attachments
+  const activeSessionRef = useRef(props.activeSessionId)
+  activeSessionRef.current = props.activeSessionId
+  const engineSelection = useHarnessSelection()
+  const harnessId = engineSelection.harness
+  const setHarnessId = (harness: string) => setHarnessSelection({ harness, model: undefined, reasoningEffort: undefined })
+  const model = engineSelection.model ?? ''
+  const setModel = (model: string) => setHarnessSelection({ model })
+  const thinking = engineSelection.reasoningEffort ?? null
+  const setThinking = (reasoningEffort: string) => setHarnessSelection({ reasoningEffort })
   const [prefs, setPrefs] = useState<Record<string, ModelPrefs>>(loadPrefs)
   const fileRef = useRef<HTMLInputElement>(null)
   const imageRef = useRef<HTMLInputElement>(null)
@@ -928,6 +948,12 @@ export function Conversation(props: {
      免得在素材库里点「添加到对话」时被投到一个看不见的输入框里。 */
   useEffect(() => {
     registerComposer((list: DeliverableAsset[]) => {
+      const existing = new Set(attachmentsRef.current.map((a) => a.assetId).filter(Boolean))
+      const incoming = list.filter((item) => !existing.has(item.assetId))
+      if (attachmentsRef.current.length + incoming.length > 6) {
+        setSendError('输入框最多添加 6 个附件，请先移除部分附件再试。')
+        return false
+      }
       setAttachments((prev) => {
         const have = new Set(prev.map((a) => a.assetId).filter(Boolean))
         const add = list
@@ -950,7 +976,7 @@ export function Conversation(props: {
             fxId: x.fxId,
             fxVersion: x.fxVersion,
           }))
-        return [...prev, ...add].slice(0, 6)
+        return [...prev, ...add]
       })
       return true
     })
@@ -1112,7 +1138,7 @@ export function Conversation(props: {
       if (serverMirrorRef.current === activeThread.messages) return
       serverMirrorRef.current = activeThread.messages
       loadedRef.current = activeThread.id
-      const inFlight = chat.messages.filter((m) => m.streaming)
+      const inFlight = messagesForSession(chat.messages, activeThread.id, true).filter((m) => m.streaming)
       const next = [...activeThread.messages]
       for (const m of inFlight) if (!next.some((x) => x.id === m.id)) next.push(m)
       chat.replaceMessages(next)
@@ -1181,7 +1207,7 @@ export function Conversation(props: {
   }, [chat.messages, props.activeSessionId])
 
   /* 工作台对话 tab 的 intro 免责句不属于创作会话，对话视图里滤掉 */
-  const messages = useMemo(() => chat.messages.filter((m) => m.id !== 'intro'), [chat.messages])
+  const messages = useMemo(() => messagesForSession(chat.messages, props.activeSessionId, activeIsServer), [chat.messages, props.activeSessionId, activeIsServer])
   /**
    * 当前这轮实时推理的文本。
    *
@@ -1693,7 +1719,7 @@ export function Conversation(props: {
            不是累计值 —— 累加会把压缩掉的内容也算进去。 */
         if (c.breakdown !== undefined) setBreakdown(c.breakdown)
       },
-    }, { model: backendModels.length ? effectiveModel : undefined, reasoningEffort: effectiveEffort ?? undefined })
+    }, { harness: selectedHarness?.id ?? harnessId, model: backendModels.length ? effectiveModel : undefined, reasoningEffort: effectiveEffort ?? undefined })
     chatStreamManager.register({
       sessionId,
       userMessageId: lastUserId ?? undefined,
@@ -1746,7 +1772,7 @@ export function Conversation(props: {
 
   const send = (text: string) => {
     const v = text.trim()
-    if (pending) return
+    if (pending || submissionInFlight.current || projectPending) return
     if (!v) {
       if (attachments.length) setSendError('请填写一条消息后再发送附件。')
       return
@@ -1827,7 +1853,15 @@ export function Conversation(props: {
    */
   const sendToServer = async (text: string) => {
     const sessionId = props.activeSessionId
-    if (!sessionId || !activeIsServer) return
+    if (!sessionId || !activeIsServer || submissionInFlight.current) return
+    // Keep service/draft work bound to the submitted session after navigation.
+    // View-only state must never leak into the session now on screen.
+    const isSubmissionVisible = () => mountedRef.current && activeSessionRef.current === sessionId
+    const showSubmissionError = (message: string) => {
+      if (isSubmissionVisible()) setSendError(message)
+    }
+    submissionInFlight.current = true
+    setSubmitting(true)
     setSendError(null)
     try {
       /* 只把「上传成功」的附件带上。上传中或失败的跳过 ——
@@ -2000,30 +2034,35 @@ export function Conversation(props: {
                所以这里**只**认 currentScene 的权威值；读不到就保持 null，
                由下面分支明确阻止并说明原因。 */
             if (confirmedVer !== null) {
-              setStageLeadVersion(confirmedVer)
+              if (isSubmissionVisible()) setStageLeadVersion(confirmedVer)
               if (targetVer < confirmedVer) {
-                setSendError(`目标引用的基准版本（v${targetVer}）已过期，工程当前最新版本为 v${confirmedVer}。新版画面与时间轴可能已变动，请点击输入框上方胶囊核对后再提交。`)
+                showSubmissionError(`目标引用的基准版本（v${targetVer}）已过期，工程当前最新版本为 v${confirmedVer}。新版画面与时间轴可能已变动，请点击输入框上方胶囊核对后再提交。`)
                 return
               }
             } else {
-              setSendError(`未能确认工程当前版本（目标引用基准版本为 v${targetVer}）。为防止基于错误基准进行修改，请检查网络或重新选择画面目标后再提交。`)
+              showSubmissionError(`未能确认工程当前版本（目标引用基准版本为 v${targetVer}）。为防止基于错误基准进行修改，请检查网络或重新选择画面目标后再提交。`)
               return
             }
           } catch (verErr: unknown) {
             const msg = verErr instanceof Error ? verErr.message : String(verErr)
-            setSendError(`未能确认工程当前版本（${msg}）。为防止基于错误基准进行修改，请稍后重试。`)
+            showSubmissionError(`未能确认工程当前版本（${msg}）。为防止基于错误基准进行修改，请稍后重试。`)
             return
           }
         }
       }
 
       // 2. 版本核对通过后，将用户消息正式写入服务端会话
+      if (isModifyIntent && activeThread?.projectId) {
+        await ensureCreationContext(activeThread.projectId, text.trim(), studioHttpApi().workflowContext)
+      }
       const saved = await props.threads.sendMessage(sessionId, text, {
         idempotencyKey: key,
         ...(ready.length > 0 ? { attachments: ready } : {}),
         ...(creationReferences.length > 0 ? { references: creationReferences } : {}),
       })
-      if (!mountedRef.current) return
+      // A saved creation message must still register its durable job even when
+      // the user has left this view. Ordinary chat can resume when reopened.
+      if (!isSubmissionVisible() && !isModifyIntent) return
 
       // 3. 若用户明确选择修改视频（含带目标快照修改或已确认的整片续改），真实触发后端创作修改任务；若仅为提问，则走普通对话回复
       if (isModifyIntent && activeThread?.projectId) {
@@ -2049,6 +2088,7 @@ export function Conversation(props: {
           previewImage: validPreviewImg ?? null,
           baseVersion: targetSnapshot?.version ?? null,
           correction: correctionText,
+          selection: { harness: selectedHarness?.id ?? harnessId, model: effectiveModel, reasoningEffort: effectiveEffort ?? undefined },
         })
         /* 【连接层核对】只有当这次创作字段与上次记录**完全一致**时才复用旧任务。
            isRetryOfPending 保证「是同一条消息」；creationIdFp 保证「是同一份创作请求」。
@@ -2095,7 +2135,7 @@ export function Conversation(props: {
             if (existing && (existing.state === 'running' || existing.state === 'rendered')) {
               idemKeyRef.current = null
               idemTextRef.current = null
-              chat.setDraft('')
+              if (isSubmissionVisible()) chat.setDraft('')
               /* 这条分支同样要登记「这段文字已发出」再清草稿 ——
                  它清草稿后直接 return，不走下面的成功路径；
                  漏登记的话输入框的迟来 flush 会把原文写回草稿
@@ -2105,7 +2145,7 @@ export function Conversation(props: {
                  附件也交给同一个函数判断 —— 无条件 setAttachments([]) 会把
                  用户在等待期间新加的附件一起清掉。 */
               clearSentPartsOnly(activeThread.projectId, sessionId, sentSnapshot)
-              chat.appendMessage(saved)
+              if (isSubmissionVisible()) chat.appendMessage(saved)
               return
             }
           } catch {
@@ -2114,17 +2154,12 @@ export function Conversation(props: {
         }
 
         try {
-          const outcome = await studioHttpApi().workflowContext.create(
-            activeThread.projectId,
-            text.trim(),
-            creationReferences as any,
-            validPreviewImg,
-            targetSnapshot?.version ?? undefined,
-            correctionText,
-            reqId,
-            sessionId,
-            saved.id,
-          )
+          const outcome = await submitCreation({
+            projectId: activeThread.projectId, intent:text.trim(), references:creationReferences as any,
+            previewImage:validPreviewImg, baseVersion:targetSnapshot?.version ?? undefined,
+            correction:correctionText, requestId:reqId, sessionId, userMessageId:saved.id,
+            selection:{harness:selectedHarness?.id ?? harnessId,model:effectiveModel,reasoningEffort:effectiveEffort ?? undefined},
+          })
           /* 从**对话区**发起的创作：结果要落两处，缺一处界面就会说谎。
              1. AI 回复写进会话 —— 工作台一直是显式 sendMessage 落库的，
                 对话区此前没有这一步，于是「发起后当场看不到回复，
@@ -2145,7 +2180,7 @@ export function Conversation(props: {
               })
               /* 用服务端返回的真实消息 id 追加，别自造一个本地 id ——
                  刷新后同一条会以另一个 id 再出现一次。 */
-              chat.appendMessage({
+              if (isSubmissionVisible()) chat.appendMessage({
                 id: savedAi.id,
                 role: 'ai',
                 text: outcome.reply,
@@ -2166,7 +2201,7 @@ export function Conversation(props: {
               const saveState = resolveReplySaveState(lookup)
               if (saveState === 'saved' && lookup.kind === 'found') {
                 /* 服务端确实有：用真实 id 显示，不标失败 */
-                chat.appendMessage({
+                if (isSubmissionVisible()) chat.appendMessage({
                   id: lookup.messageId,
                   role: 'ai',
                   text: lookup.text,
@@ -2180,7 +2215,7 @@ export function Conversation(props: {
                    但文案必须不同 —— unknown 时不能说「没有存进会话」。 */
                 const localId = `m-ai-${saved.id}`
                 console.warn(`[Conversation] 创作回复保存状态=${saveState}:`, cause)
-                chat.appendMessage({
+                if (isSubmissionVisible()) chat.appendMessage({
                   id: localId,
                   role: 'ai',
                   text: outcome.reply,
@@ -2190,7 +2225,7 @@ export function Conversation(props: {
                   at: Date.now(),
                   failed: replySaveNotice(saveState, cause.slice(0, 80)) ?? undefined,
                 })
-                setReplySaveRetry({
+                if (isSubmissionVisible()) setReplySaveRetry({
                   sessionId,
                   userMessageId: saved.id,
                   reply: outcome.reply,
@@ -2213,7 +2248,7 @@ export function Conversation(props: {
           }
           if (outcome.state === 'failed') {
             const errText = outcome.reply || '视频修改任务未能成功执行'
-            setSendError(errText)
+            showSubmissionError(errText)
             sessionDraft.updateDraft({
               pendingSubmission: {
                 requestId: reqId,
@@ -2234,7 +2269,7 @@ export function Conversation(props: {
           }
         } catch (taskErr: unknown) {
           const msg = taskErr instanceof Error ? taskErr.message : String(taskErr)
-          setSendError(`消息已送达会话，但视频修改启动失败：${msg}`)
+          showSubmissionError(`消息已送达会话，制作结果尚未完成确认：${msg}`)
           sessionDraft.updateDraft({
             pendingSubmission: {
               requestId: reqId,
@@ -2265,14 +2300,14 @@ export function Conversation(props: {
          所以「原样重试复用旧键」由 pendingSubmission 负责，与这里互不冲突。 */
       idemKeyRef.current = null
       idemTextRef.current = null
-      chat.setDraft('')
+      if (isSubmissionVisible()) chat.setDraft('')
       /* 先登记「这段文字已发出」，再清草稿：
          输入框的 blur 回调稍后还会 flush 一次原文，不拦就会被写回草稿。 */
       markDraftSent(activeThread?.projectId, sessionId, text)
       /* 只清「这次发出去的那份」：用户若已输入新内容则保留（含附件）。 */
       clearSentPartsOnly(activeThread?.projectId, sessionId, sentSnapshot)
-      chat.appendMessage(saved)
-      if (!isModifyIntent) {
+      if (isSubmissionVisible()) chat.appendMessage(saved)
+      if (!isModifyIntent && isSubmissionVisible()) {
         /* 先登记再起流：下面的自动起流 effect 也会因为「最后一条是用户消息」
            尝试 startServerReply。若这里不先登记，effect 会在 stream 注册完成前
            看到 has()===false，于是起第二条流 —— 实测表现为早停时出现两条 stream
@@ -2281,9 +2316,11 @@ export function Conversation(props: {
         startServerReply()
       }
     } catch (cause) {
-      if (!mountedRef.current) return
       // 没有发出去：消息不显示、草稿保留、给出原因；幂等键保留以便原样重试
-      setSendError(sendErrorText(cause))
+      showSubmissionError(sendErrorText(cause))
+    } finally {
+      submissionInFlight.current = false
+      if (mountedRef.current) setSubmitting(false)
     }
   }
 
@@ -2428,14 +2465,13 @@ export function Conversation(props: {
    * 用**派生值**而不是 effect 里 setState：effect 里改状态会触发级联渲染
    * （react 规则 set-state-in-effect），而且派生更符合 React 的数据流方向。
    */
-  const selectedHarness = probe.harnesses.find((h) => h.id === harnessId)
-    ?? probe.harnesses.find((h) => h.name.toLowerCase() === harnessId.toLowerCase())
-    ?? probe.harnesses.find((h) => h.status === 'available')
+  const selectedHarness = matchHarness(probe.harnesses, harnessId)
+
   const composerHarnesses = useMemo(() => probe.harnesses.map((h) => ({
     id: h.id,
-    name: h.name,
-    iconUrl: h.name.toLowerCase().includes('deepseek') ? './assets/brand/deepseek.svg' : undefined,
-    available: h.status === 'available' && probe.access === 'available',
+    name: HARNESSES.find((item) => item.id === (h.id === 'dsh-sdk' ? 'deepseek' : h.id))?.name ?? h.name,
+    iconUrl: HARNESSES.find((item) => item.id === (h.id === 'dsh-sdk' ? 'deepseek' : h.id))?.icon ?? './assets/brand/deepseek.svg',
+    available: h.status === 'available',
     models: (probe.modelsByHarness[h.id] ?? []).map((m) => ({ id: m.id, name: m.label || m.id, reasoningEfforts: m.reasoningEfforts })),
   })), [probe.harnesses, probe.modelsByHarness, probe.access])
   const backendModels = modelsOfHarness(selectedHarness?.id ?? harnessId).models
@@ -2608,6 +2644,7 @@ export function Conversation(props: {
     if (!transfer || transfer.sessionId !== props.activeSessionId || transferredHomeSession.current === transfer.sessionId) return
     transferredHomeSession.current = transfer.sessionId
     chat.setDraft(transfer.draft)
+    setEntryNote({ sessionId: transfer.sessionId, text: transfer.intent === 'create' ? '项目已准备好，确认下方需求后发送，即可开始制作。' : '想法已带入，发送后进入讨论，不修改工程。' })
     for (const item of transfer.files) addFiles([item.file], item.kind)
     props.onHomeTransferConsumed?.()
     // 一次性交接，避免重渲染或 StrictMode 重复上传。
@@ -2621,6 +2658,7 @@ export function Conversation(props: {
      不传时沿用当前打开的项目（旧行为）。
      有项目 = 真实创建（失败时左栏显示错误，不伪造会话）；没有项目 = 本页草稿。 */
   const newSession = (intoProject?: string | null) => {
+    props.onOverviewChange?.(false)
     /* 开新会话时把上一段的引用清掉即可：退订由 chatStreamManager 负责，
        这里若调 streamStopRef 会额外给后端发一次 /stop（它内部含请求），
        把「开新会话」误变成「停止上一轮」。 */
@@ -2647,6 +2685,7 @@ export function Conversation(props: {
      紧接着进「行内改名」态 —— dsh 的 create 也只是接管一个目录，
      名字之后再 rename，不需要先填一张表）。 */
   const createProjectInline = async () => {
+    props.onOverviewChange?.(false)
     if (projectPending) return
     setProjectPending(true)
     setProjectError(null)
@@ -2663,6 +2702,32 @@ export function Conversation(props: {
     })
     } catch (error) { showProjectError(error) }
     finally { setProjectPending(false) }
+  }
+
+  const startCreationFromEmpty = async () => {
+    if (projectPending) return
+    setProjectPending(true)
+    setSendError(null)
+    // Snapshot the complete draft before changing sessions; never move an old target.
+    const text = sessionDraft.draft.text
+    const files = attachments
+    try {
+      const prepared = await prepareCreationEntry({ projectId: props.openProject ?? preparedEmptyProject.current }, {
+        createProject: props.onNewProject,
+        createSession: async (input) => {
+          const result = await props.threads.create(input)
+          if (result.session) setSessionDraft(result.session.projectId, result.session.id, { text, attachments: files, intentAction: 'modify' })
+          return result
+        },
+        onProjectReady: (id) => { preparedEmptyProject.current = id },
+      })
+      setSessionDraft(prepared.projectId, prepared.sessionId, { text, attachments: files, intentAction: 'modify' })
+      props.onSelectProject(prepared.projectId)
+      preparedEmptyProject.current = null
+      setEntryNote({ sessionId: prepared.sessionId, text: '项目已准备好，写下需求并发送，即可开始制作。' })
+    } catch (error) {
+      setSendError(error instanceof Error ? error.message : '项目尚未准备好，请重试。')
+    } finally { setProjectPending(false) }
   }
 
 
@@ -2682,6 +2747,7 @@ export function Conversation(props: {
           <SeekSearch value={query} onChange={setQuery} width={248} size={28}
                       placeholder="搜索对话名称" ariaLabel="搜索对话" />
           <div className="cv3-top-actions">
+          {props.onOverviewChange && <button type="button" className="cv3-icon-btn" aria-label="查看全部项目" title="查看全部项目" aria-pressed={props.overviewOpen ?? false} data-on={props.overviewOpen || undefined} onClick={() => props.onOverviewChange?.(true)}><LayoutGrid size={15}/></button>}
           <button type="button" className="cv3-icon-btn" aria-label="新建对话" title="新建对话"
                   onClick={() => newSession()}>
             <MessageSquarePlus size={15} />
@@ -2923,6 +2989,7 @@ export function Conversation(props: {
                            onDragEnd={() => { setDragId(null); setDropTarget(null) }}
                            onClick={() => {
                              if (editing === t.id) return
+                             props.onOverviewChange?.(false)
                              props.threads.setActiveId(t.id)
                              if (!isUng && !flat && proj) props.onSelectProject(proj.id)
                            }}
@@ -3027,7 +3094,8 @@ export function Conversation(props: {
             新建入口收到顶部图标条，项目行上另有「在此项目新建对话」。 */}
       </aside>}
 
-      <div className="cv3-main">
+      {props.overviewOpen && props.projectOverview}
+      <div className="cv3-main" style={props.overviewOpen ? { display: 'none' } : undefined}>
         <header className="cv3-head">
           <div className="cv3-title-row">
             <button type="button" className="cv3-icon-btn" aria-label={sideExpanded ? '收起项目栏' : '展开项目栏'} title={sideExpanded ? '收起项目栏' : '展开项目栏'} onClick={() => setSideExpanded((o) => !o)}>
@@ -3090,9 +3158,17 @@ export function Conversation(props: {
                   <button type="button" onClick={retrySync}>重试</button>
                 </p>
               )}
-              {userMessages.length === 0 && !activeIsServer && (
-                <p className="cv3-ai-intro">说说你想做的片子：讲给谁、多长、什么感觉。</p>
+              {userMessages.length === 0 && !activeIsServer && sessionDraft.draft.intentAction !== 'query' && (
+                <div className="cv3-start-empty">
+                  <h2>把想法做成视频</h2>
+                  <p>从一句需求开始，也可以带上素材或参考片。</p>
+                  <div>
+                    <Button disabled={projectPending || props.projectsLoading} onClick={() => void startCreationFromEmpty()}>{projectPending ? '正在准备项目…' : props.openProject ? '在当前项目开始制作' : '新建项目开始制作'}</Button>
+                    <Button variant="ghost" disabled={projectPending} onClick={() => { sessionDraft.updateDraft({ intentAction: 'query' }); setEntryNote({ sessionId: props.activeSessionId, text: '先在本页梳理想法，不制作视频；对话刷新后不保留。' }) }}>先聊想法</Button>
+                  </div>
+                </div>
               )}
+              {entryNote?.sessionId === props.activeSessionId && userMessages.length === 0 && <p className="cv3-entry-note" role="status">{entryNote.text}</p>}
               {/* 本页草稿：明确「不在服务端」。服务端会话已在上面说明，不重复。 */}
               {activeThread?.origin === 'local' && (
                 <p className="cv3-local-note" role="note">
@@ -3101,6 +3177,8 @@ export function Conversation(props: {
                     : '这条对话没有归属项目，仅保存在本页，刷新后不会保留。未接入 Agent 的回复仅用于梳理需求，不代表已经执行。'}
                 </p>
               )}
+
+              {activeThread?.projectId && <ProjectResourceEvidence key={`${activeThread.projectId}:${props.activeSessionId}:${messages.filter(m=>!m.streaming).length}`} projectId={activeThread.projectId}/>}
 
               {messages.map((m) => m.role === 'user' ? (
                 <ChatBubble
@@ -3508,6 +3586,22 @@ export function Conversation(props: {
                 不再保留任何自研元素。
                 contextUsage 是官方圆圈（以及它自带的「上下文组成」面板）的数据源：
                 传进去圆圈才显示真实百分比，而不是恒定的 0%。 */}
+            <ComposerAttachments
+              items={attachments.map((item) => ({
+                name: item.name,
+                kind: item.kind === 'image' ? 'image' : 'file',
+                src: item.previewUrl,
+                progress: item.progress,
+                error: item.uploadError,
+                note: item.note,
+                caption: item.purpose && item.purpose !== 'unspecified' ? PURPOSE_LABEL[item.purpose as AssetPurpose] : item.kind === 'video' ? '视频' : undefined,
+              }))}
+              onRemove={(index) => setAttachments((old) => {
+                const item = old[index]
+                if (item?.previewUrl?.startsWith('blob:')) URL.revokeObjectURL(item.previewUrl)
+                return old.filter((_, i) => i !== index)
+              })}
+            />
             <LeiBoxComposer
               harnesses={composerHarnesses}
               harness={selectedHarness?.id}
@@ -3515,7 +3609,7 @@ export function Conversation(props: {
               selectedModel={backendModels.length ? effectiveModel : undefined}
               onModelChange={setModel}
               onThinkingChange={setThinking}
-              busy={pending || stopping}
+              busy={pending || stopping || submitting || projectPending}
               /* 对话区的 busy 只表示回复流，能停就是能停。
                  停止结果未回时仍保留停止键：用户可以再点一次重试。 */
               canStop={pending}

@@ -199,6 +199,8 @@ body.studio-shell:not(.hm-nav-expanded) .hm-pending .hm-nav-text {
   padding: 24px;
   animation: fmp-fade .16s ease both;
 }
+.fmp-thumb[draggable="true"] { cursor: grab; }
+.fmp-thumb[draggable="true"]:active { cursor: grabbing; }
 @keyframes fmp-fade { from { opacity: 0 } to { opacity: 1 } }
 
 .fmp {
@@ -680,3 +682,4 @@ body.studio-shell:not(.hm-nav-expanded) .hm-sidebar-bottom { gap: 4px; padding-t
 .fxc[data-added] .fxc-media {
   box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--acc) 45%, transparent);
 }
+.fmp-save-warning{font-size:12px;line-height:1.7;margin:8px 18px;color:var(--warn)}.fmp-save-warning button{margin-left:10px;text-decoration:underline;text-underline-offset:3px}
