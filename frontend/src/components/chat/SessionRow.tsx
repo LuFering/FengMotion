@@ -98,7 +98,7 @@ export function SessionRow({
       onMouseLeave={() => setHovered(false)}
     >
       <button type="button" className="sr-main" onClick={onSelect} title={title} aria-current={active}>
-        {pinned ? <Pin size={11} className="sr-pin" aria-label="已置顶" /> : null}
+        {pinned ? <Pin size={12} className="sr-pin" aria-label="已置顶" /> : null}
         <span className="sr-title">{title}</span>
         {flag ? (
           <span className="sr-flag">{flag}</span>
@@ -119,7 +119,7 @@ export function SessionRow({
               onMenuToggle?.()
             }}
           >
-            <MoreHorizontal size={13} />
+            <MoreHorizontal size={14} />
           </button>
           {menuOpen ? <div className="sr-menu">{menu}</div> : null}
         </div>

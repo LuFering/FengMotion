@@ -1,6 +1,5 @@
 import { submitCreation } from '../services/creationClient'
 import { useHarnessSelection, setHarnessSelection } from '@/shell/useHarnessSelection'
-import { MediaIcon } from '@/components/icons/MediaIcon'
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
   AlertCircle,
@@ -9,6 +8,7 @@ import {
   Image as ImageIcon, ListChecks, LoaderCircle, MessagesSquare, Music2, Type as TypeIcon,
   Plus, RotateCcw, Settings2,
   Square, X,
+  Download,
 } from 'lucide-react'
 import { studioHttpApi } from '@/services/api'
 import { chatStreamManager, useSessionStream } from '@/services/chatStreamManager'
@@ -3244,7 +3244,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
           <TooltipTrigger asChild>
             <button className="wb-export" type="button" disabled={!stageDeliverable || exporting}
                     onClick={() => void exportDeliverable()}>
-              <MediaIcon name="download" size={18} />{exporting ? '导出中…' : '导出最新版本'}
+              <Download size={16} />{exporting ? '导出中…' : '导出最新版本'}
             </button>
           </TooltipTrigger>
           <TooltipContent side="bottom" sideOffset={6}>
@@ -3275,7 +3275,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
                     aria-expanded={switchOpen} aria-haspopup="menu"
                     title={`当前项目：${project.name}`}
                     onClick={() => setSwitchOpen((v) => !v)}>
-              <span className="wb-logo" aria-hidden="true"><Film size={15}/></span>
+              <span className="wb-logo" aria-hidden="true"><Film size={14}/></span>
               <span className="wb-project-name">{project.name}</span>
               <ChevronDown className="wb-caret" />
             </button>
@@ -4197,7 +4197,7 @@ function ProjectRail({ projectName, projectId, open, onClose, tab, onTab, onOpen
   }
   return (
     <aside className="fw-ing" data-open={open ? '' : undefined} aria-label="项目导航">
-      <div className="wb-space-heading"><FolderOpen size={15}/><span>项目空间</span></div>
+      <div className="wb-space-heading"><FolderOpen size={14}/><span>项目空间</span></div>
       {/* 四个页签就是这一栏的全部导航。原来那行「概览 1 项」标题只是把页签名和
           一个计数又写了一遍，还把首屏高度花在标题上，去掉。 */}
       <div className="fw-ing-hd">
@@ -4399,7 +4399,7 @@ function ProjectRail({ projectName, projectId, open, onClose, tab, onTab, onOpen
 
       <div className="wb-space-links">
         <span>项目工具</span>
-        <button type="button" onClick={onOpenBrief}><FileText size={14}/>制作要求<ArrowUpRight size={13}/></button>
+        <button type="button" onClick={onOpenBrief}><FileText size={14}/>制作要求<ArrowUpRight size={14}/></button>
         {directEditCapability && !directEditCapability.allowed ? (
           <Tooltip>
             <TooltipTrigger asChild>
@@ -4409,7 +4409,7 @@ function ProjectRail({ projectName, projectId, open, onClose, tab, onTab, onOpen
                 onClick={() => {}}
                 aria-disabled="true"
               >
-                <Film size={14}/>场景编辑器<ArrowUpRight size={13}/>
+                <Film size={14}/>场景编辑器<ArrowUpRight size={14}/>
               </button>
             </TooltipTrigger>
             <TooltipContent side="top" className="max-w-[220px] text-xs">
@@ -4417,7 +4417,7 @@ function ProjectRail({ projectName, projectId, open, onClose, tab, onTab, onOpen
             </TooltipContent>
           </Tooltip>
         ) : (
-          <button type="button" onClick={onEditScene}><Film size={14}/>场景编辑器<ArrowUpRight size={13}/></button>
+          <button type="button" onClick={onEditScene}><Film size={14}/>场景编辑器<ArrowUpRight size={14}/></button>
         )}
       </div>
     </aside>
@@ -5025,7 +5025,7 @@ function RightPanel({ projectId, target, preview, projectVersionNumber, projectV
                           onClick={() => onRetrySaveReply?.(item)}
                           className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 text-[11px] font-medium shrink-0 cursor-pointer"
                         >
-                          <RotateCcw size={10} /> 补存
+                          <RotateCcw size={12} /> 补存
                         </button>
                       </div>
                     ))}
@@ -5337,7 +5337,7 @@ function ReferenceChips({ references, onRemoveReference, onLocateReference,
   const libraryKinds = new Set(['asset', 'reference', 'technique'])
   return (
     <div className="fw-ref-chips">
-      <button className="fw-ref-clear fw-ref-add" type="button" onClick={onOpenResourcePicker} title="从素材库 / 参考片库 / 特效库选择"><Plus size={13} aria-hidden="true" />引用资源</button>
+      <button className="fw-ref-clear fw-ref-add" type="button" onClick={onOpenResourcePicker} title="从素材库 / 参考片库 / 特效库选择"><Plus size={14} aria-hidden="true" />引用资源</button>
       {/* 未引用时不铺「当前目标：整个项目」这类默认文字 —— 它只是在描述
           输入框占位符已经说过的同一件事，空着反而更清楚。
           「+ 引用资源」按钮保留：那是挂素材/参考片/特效的唯一入口。 */}
@@ -5527,7 +5527,7 @@ function BottomTray({ previews, onPreview, workflowLog, records, rounds, activeI
                 })}
             </div>
           )}
-          {tab === 'versions' && (previews.length === 0 ? <div className="fw-tray-empty">还没有预览版本。执行结束不代表生成了新画面。</div> : <div className="wb-preview-history">{previews.map((visual) => <button type="button" key={visual.id} onClick={() => onPreview(visual)}><Film size={15}/><span><b>{visual.name}</b><small>{visual.tierLabel} · {visual.origin === 'editor' ? '编辑版本' : '工作流'} v{visual.revision} · {new Date(visual.createdAt).toLocaleString('zh-CN')}</small></span><ChevronRight size={14}/></button>)}</div>)}
+          {tab === 'versions' && (previews.length === 0 ? <div className="fw-tray-empty">还没有预览版本。执行结束不代表生成了新画面。</div> : <div className="wb-preview-history">{previews.map((visual) => <button type="button" key={visual.id} onClick={() => onPreview(visual)}><Film size={14}/><span><b>{visual.name}</b><small>{visual.tierLabel} · {visual.origin === 'editor' ? '编辑版本' : '工作流'} v{visual.revision} · {new Date(visual.createdAt).toLocaleString('zh-CN')}</small></span><ChevronRight size={14}/></button>)}</div>)}
 
         </div>
       </div>

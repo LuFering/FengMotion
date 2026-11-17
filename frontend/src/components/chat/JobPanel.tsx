@@ -91,12 +91,12 @@ export function JobPanel({ jobs, onDismiss }: { jobs: JobView[]; onDismiss: (job
         return (
           <div key={j.jobId} className="jobp-row" data-status={j.status}>
             <span className="jobp-icon" aria-hidden="true">
-              {running ? <Loader2 size={11} className="jobp-spin" />
-                : j.status === 'completed' ? <Check size={11} />
-                : j.status === 'killed' ? <X size={11} />
-                : <X size={11} />}
+              {running ? <Loader2 size={12} className="jobp-spin" />
+                : j.status === 'completed' ? <Check size={12} />
+                : j.status === 'killed' ? <X size={12} />
+                : <X size={12} />}
             </span>
-            <SquareTerminal size={11} className="jobp-kind" aria-hidden="true" />
+            <SquareTerminal size={12} className="jobp-kind" aria-hidden="true" />
             <span className="jobp-label num" title={j.label}>{j.label || j.kind}</span>
             <span className="jobp-time num">
               {fmtElapsed(elapsed)}

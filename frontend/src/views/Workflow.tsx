@@ -138,7 +138,7 @@ function WorkflowHome(props: {
       <label className="wf-sort"><span className="wf-sr-only">排序</span><select value={sort} onChange={(e) => setSort(e.target.value)}><option value="updated">最近编辑</option><option value="name">名称排序</option></select></label>
     </div>
     {notice && <p className="wf-inline-notice" role="status">{notice}<button type="button" aria-label="关闭提示" onClick={() => setNotice('')}><X size={14}/></button></p>}
-    {!filtered.length ? <div className="wf-library-empty"><WorkflowIcon size={32} strokeWidth={1.2}/><h2>{q ? '没有找到相关工作流' : filter === 'used' ? '还没有运行记录' : '创建你的第一条工作流'}</h2><p>{q ? '试试其他名称或关键词。' : filter === 'used' ? '运行过的工作流会出现在这里。' : '从空白画布或现有预设开始，自由添加节点与连线。'}</p><button type="button" className="wf-secondary" onClick={() => { if(q) setQuery(''); else props.onCreate() }}>{q ? '清除搜索' : '新建工作流'}</button></div> :
+    {!filtered.length ? <div className="wf-library-empty"><WorkflowIcon size={32} strokeWidth={1.5}/><h2>{q ? '没有找到相关工作流' : filter === 'used' ? '还没有运行记录' : '创建你的第一条工作流'}</h2><p>{q ? '试试其他名称或关键词。' : filter === 'used' ? '运行过的工作流会出现在这里。' : '从空白画布或现有预设开始，自由添加节点与连线。'}</p><button type="button" className="wf-secondary" onClick={() => { if(q) setQuery(''); else props.onCreate() }}>{q ? '清除搜索' : '新建工作流'}</button></div> :
       <div className="wf-library-grid">{filtered.map((w) => {
         const last = recentById.get(w.id)
         const count = w.nodes.filter((n) => n.type !== 'lane').length
@@ -153,15 +153,15 @@ function WorkflowHome(props: {
             {workflowBrief(w) && <p title={workflowBrief(w)}>{workflowBrief(w)}</p>}
             {/* 未关联是多数卡片的默认状态，每张都写一遍只是噪声；演示限制在编辑器上下文栏里说明。
                 关联了项目（或关联读取异常）才需要在卡片上标出来。 */}
-            {w.projectId && <div className="wf-card-context"><Folder size={13}/><span title={workflowProjectLabel(w.projectId, projects.list, projects.loading, Boolean(projects.error))}>{workflowProjectLabel(w.projectId, projects.list, projects.loading, Boolean(projects.error))}</span></div>}
+            {w.projectId && <div className="wf-card-context"><Folder size={12}/><span title={workflowProjectLabel(w.projectId, projects.list, projects.loading, Boolean(projects.error))}>{workflowProjectLabel(w.projectId, projects.list, projects.loading, Boolean(projects.error))}</span></div>}
           </div>
           <footer className="wf-card-footer" data-confirming={deleting === w.id || undefined}><time dateTime={last?.startedAt ?? w.updatedAt} title={new Date(last?.startedAt ?? w.updatedAt).toLocaleString('zh-CN')}>{last ? '使用于' : '编辑于'} {fmtTime(last?.startedAt ?? w.updatedAt)}</time>
-            <div><button type="button" className="wf-icon" title="复制工作流" aria-label={`复制 ${w.name}`} onClick={() => { try { workflowService.duplicateWorkflow(w.id); props.onChanged(); setNotice('已复制工作流') } catch (e) { setNotice(e instanceof Error ? e.message : '复制失败，请重试。') } }}><Copy size={15}/></button><button type="button" className="wf-icon" title="删除工作流" aria-label={`删除 ${w.name}`} onClick={() => setDeleting(deleting === w.id ? null : w.id)}><Trash2 size={15}/></button></div>
+            <div><button type="button" className="wf-icon" title="复制工作流" aria-label={`复制 ${w.name}`} onClick={() => { try { workflowService.duplicateWorkflow(w.id); props.onChanged(); setNotice('已复制工作流') } catch (e) { setNotice(e instanceof Error ? e.message : '复制失败，请重试。') } }}><Copy size={14}/></button><button type="button" className="wf-icon" title="删除工作流" aria-label={`删除 ${w.name}`} onClick={() => setDeleting(deleting === w.id ? null : w.id)}><Trash2 size={14}/></button></div>
           </footer>
           {deleting === w.id && <div className="wf-delete-confirm"><p>删除「{displayWorkflowName(w.name)}」？此操作不可撤销。</p><div><button type="button" className="wf-secondary" onClick={() => setDeleting(null)}>取消</button><button type="button" className="wf-danger" onClick={() => { try { workflowService.deleteWorkflow(w.id); props.onChanged(); setDeleting(null); setNotice('已删除工作流') } catch (e) { setNotice(e instanceof Error ? e.message : '删除失败，请重试。') } }}>确认删除</button></div></div>}
         </article>
       })}</div>}
-    <footer className="wf-library-footnote"><HardDrive size={13}/><span>工作流与运行记录保存在本机</span></footer>
+    <footer className="wf-library-footnote"><HardDrive size={12}/><span>工作流与运行记录保存在本机</span></footer>
   </section>
 }
 
@@ -181,11 +181,11 @@ function CreatePage(props: { onBack: () => void; onCreated: (id: string) => void
     } catch (e) { setError(e instanceof Error ? e.message : '创建失败，请重试。'); setCreating(false) }
   }
   return <section className="wf-new" aria-label="新建工作流">
-    <header className="wf-new-header"><button type="button" className="wf-secondary" onClick={props.onBack}><ArrowLeft size={15}/>工作流</button><span>新建工作流</span></header>
+    <header className="wf-new-header"><button type="button" className="wf-secondary" onClick={props.onBack}><ArrowLeft size={14}/>工作流</button><span>新建工作流</span></header>
     <div className="wf-new-body">
       <div className="wf-new-heading"><h1>从你的制作方式开始</h1></div>
       <label className="wf-new-name">工作流名称<input value={name} onChange={(e) => setName(e.target.value)} placeholder="未命名工作流" maxLength={120}/></label>
-      <button type="button" className="wf-blank-start" disabled={creating} onClick={() => create(null)}><span className="wf-blank-icon"><Plus size={23}/></span><span><b>空白工作流</b></span><ArrowRight size={19}/></button>
+      <button type="button" className="wf-blank-start" disabled={creating} onClick={() => create(null)}><span className="wf-blank-icon"><Plus size={23}/></span><span><b>空白工作流</b></span><ArrowRight size={16}/></button>
       <div className="wf-preset-heading"><h2>从预设开始</h2><div className="wf-view-tabs" aria-label="预设类型"><button type="button" aria-pressed={path === 'prompt-first'} onClick={() => setPath('prompt-first')}>自由创作</button><button type="button" aria-pressed={path === 'structured'} onClick={() => setPath('structured')}>分阶段评估</button></div></div>
       {/* 只保留能力边界：分阶段预设不会制作视频，选之前必须知道。自由创作的节点已画在预览里，不再复述。 */}
       {path === 'structured' && <p className="wf-preset-note">仅评估阶段产物与检查点，不会自动制作视频。</p>}

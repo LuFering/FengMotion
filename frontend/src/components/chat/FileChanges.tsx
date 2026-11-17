@@ -54,7 +54,7 @@ function FileRow({ change }: { change: FileChange }) {
         disabled={!expandable}
         title={change.path}
       >
-        <ChevronRight size={11} className="fc-caret" aria-hidden="true" />
+        <ChevronRight size={12} className="fc-caret" aria-hidden="true" />
         <span className="fc-name num">{baseName(change.path)}</span>
         <span className="fc-kind">{change.kind === 'write' ? '写入' : '修改'}</span>
         <span className="fc-stat">

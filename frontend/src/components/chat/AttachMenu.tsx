@@ -87,7 +87,7 @@ export function AttachMenu({
         disabled={disabled}
         onClick={() => setOpen((v) => !v)}
       >
-        <Plus size={18} strokeWidth={2.4} />
+        <Plus size={16} />
       </button>
 
       <MorphPanel open={open && !disabled} width={361} align="left">

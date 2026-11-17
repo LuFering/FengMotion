@@ -132,14 +132,14 @@ export function WorkbenchReviewDesk({
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
-          <Search size={11} className="absolute left-2 top-2.5 text-[var(--tx3)] pointer-events-none" />
+          <Search size={12} className="absolute left-2 top-2.5 text-[var(--tx3)] pointer-events-none" />
           {search && (
             <button
               type="button"
               className="absolute right-2 top-2 text-[var(--tx3)] hover:text-[var(--tx)]"
               onClick={() => setSearch('')}
             >
-              <X size={11} />
+              <X size={12} />
             </button>
           )}
         </div>

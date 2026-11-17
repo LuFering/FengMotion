@@ -640,10 +640,10 @@ export function FxLibrary() {
               data-on={filtersOpen || activeCount > 0 ? '' : undefined}
               onClick={() => setFiltersOpen((v) => !v)}
             >
-              <SlidersHorizontal size={14} strokeWidth={2} />
+              <SlidersHorizontal size={14} />
               筛选
               {activeCount > 0 && <b className="fx-badge num">{activeCount}</b>}
-              <ChevronDown size={13} strokeWidth={2} className={filtersOpen ? 'fx-chev is-open' : 'fx-chev'} />
+              <ChevronDown size={12} className={filtersOpen ? 'fx-chev is-open' : 'fx-chev'} />
             </button>
             {filtersOpen && (
               <>
@@ -728,44 +728,44 @@ export function FxLibrary() {
           {cat !== 'all' && (
             <span className="fx-activechip">
               分类 · {categoryLabel(cat)}
-              <button type="button" aria-label="移除分类筛选" onClick={() => setCat('all')}><X size={11} strokeWidth={2.4} /></button>
+              <button type="button" aria-label="移除分类筛选" onClick={() => setCat('all')}><X size={12} strokeWidth={2.4} /></button>
             </span>
           )}
           {exec !== 'all' && (
             <span className="fx-activechip">
               能力 · {execLabel(exec)}
-              <button type="button" aria-label="移除能力筛选" onClick={() => setExec('all')}><X size={11} strokeWidth={2.4} /></button>
+              <button type="button" aria-label="移除能力筛选" onClick={() => setExec('all')}><X size={12} strokeWidth={2.4} /></button>
             </span>
           )}
           {previewKind !== 'all' && (
             <span className="fx-activechip">
               预览 · {previewKind === 'motion' ? '有动态预览' : '静态海报'}
-              <button type="button" aria-label="移除预览类型筛选" onClick={() => setPreviewKind('all')}><X size={11} strokeWidth={2.4} /></button>
+              <button type="button" aria-label="移除预览类型筛选" onClick={() => setPreviewKind('all')}><X size={12} strokeWidth={2.4} /></button>
             </span>
           )}
           {impl !== 'all' && (
             <span className="fx-activechip">
               实现 · {implLabel(impl)}
-              <button type="button" aria-label="移除实现方式筛选" onClick={() => setImpl('all')}><X size={11} strokeWidth={2.4} /></button>
+              <button type="button" aria-label="移除实现方式筛选" onClick={() => setImpl('all')}><X size={12} strokeWidth={2.4} /></button>
             </span>
           )}
           {inputKind !== 'all' && (
             <span className="fx-activechip">
               输入 · {inputLabel(inputKind)}
-              <button type="button" aria-label="移除输入素材筛选" onClick={() => setInputKind('all')}><X size={11} strokeWidth={2.4} /></button>
+              <button type="button" aria-label="移除输入素材筛选" onClick={() => setInputKind('all')}><X size={12} strokeWidth={2.4} /></button>
             </span>
           )}
           {maxComplexity < 5 && (
             <span className="fx-activechip">
               复杂度 ≤ {maxComplexity}
-              <button type="button" aria-label="移除复杂度筛选" onClick={() => setMaxComplexity(5)}><X size={11} strokeWidth={2.4} /></button>
+              <button type="button" aria-label="移除复杂度筛选" onClick={() => setMaxComplexity(5)}><X size={12} strokeWidth={2.4} /></button>
             </span>
           )}
           <span className="fx-spacer" />
           {(query.trim() || activeCount > 0) && <span className="fx-result-summary" role="status">找到 {visible.length} 项技法</span>}
 
           <label className="fx-sort">
-            <ArrowUpDown size={12} strokeWidth={2} aria-hidden="true" />
+            <ArrowUpDown size={12} aria-hidden="true" />
             <select value={sort} onChange={(e) => setSort(e.target.value as SortKey)} aria-label="排序方式">
               <option value="cat">按分类</option>
               <option value="name">名称</option>
@@ -863,7 +863,7 @@ export function FxLibrary() {
                         <span className="fxc-media-empty"><span>暂无预览</span></span>
                       )}
                       {pick.active && <PickCheck checked={pick.has(t.id)} />}
-                      {t.previewVideo && <span className="fxc-preview-label"><Play size={10} aria-hidden="true" />动态预览</span>}
+                      {t.previewVideo && <span className="fxc-preview-label"><Play size={12} aria-hidden="true" />动态预览</span>}
                       {/* 加入待发送：与素材库/参考片库同一位置、同一规格 */}
                       {!pick.active && <button
                         type="button"
@@ -883,7 +883,7 @@ export function FxLibrary() {
                         aria-label={fav ? `取消收藏 ${t.name}` : `收藏 ${t.name}`}
                         onClick={() => toggleFavorite(t.id)}
                       >
-                        <Star size={14} strokeWidth={2} fill={fav ? 'currentColor' : 'none'} />
+                        <Star size={14} fill={fav ? 'currentColor' : 'none'} />
                       </button>
                     </div>
                     {/* 覆盖层只负责"点开详情"。它是 <button> 且铺满整卡，
@@ -978,7 +978,7 @@ export function FxLibrary() {
                   aria-label="关闭技法详情"
                   title="关闭（Esc）"
                 >
-                  <X size={15} aria-hidden="true" />
+                  <X size={14} aria-hidden="true" />
                 </button>
                 <span className={`fx-cap fx-cap-${current.execType} fx-preview-cap`} title={FX_EXEC_TYPES[current.execType].hint}>
                   {current.execLabel}
@@ -1128,16 +1128,16 @@ export function FxLibrary() {
                   </dl>
                   <div className="fx-callacts">
                     <button type="button" className="fx-btn fx-btn-primary" onClick={copyRecipe}>
-                      {copied === 'ok' ? <Check size={13} aria-hidden="true" /> : <Copy size={13} aria-hidden="true" />}
+                      {copied === 'ok' ? <Check size={14} aria-hidden="true" /> : <Copy size={14} aria-hidden="true" />}
                       {copied === 'ok' ? '已复制配方' : copied === 'fail' ? '复制失败' : '复制配方'}
                     </button>
                     <button type="button" className="fx-btn" onClick={() => setWorkflowFor(current)}>
-                      <Workflow size={13} aria-hidden="true" />
+                      <Workflow size={14} aria-hidden="true" />
                       用于工作流
                     </button>
                   </div>
                   <p className="fx-actions-note">
-                    <Info size={11} aria-hidden="true" />
+                    <Info size={12} aria-hidden="true" />
                     复制的是配方文本（参数 + 制作步骤 + 调用配置）。执行与工作流插入尚未接入，选目标只记意向。
                   </p>
                 </section>
@@ -1157,7 +1157,7 @@ export function FxLibrary() {
                             onClick={() => openDrawer(id)}
                           >
                             {rel.name}
-                            <ChevronRight size={11} aria-hidden="true" />
+                            <ChevronRight size={12} aria-hidden="true" />
                           </button>
                         )
                       })}
@@ -1207,7 +1207,7 @@ export function FxLibrary() {
                     <b>{p.name}</b>
                     <em>{STAGE_LABEL[p.stage]}</em>
                   </span>
-                  <ChevronRight size={13} aria-hidden="true" />
+                  <ChevronRight size={12} aria-hidden="true" />
                 </button>
               ))}
             </div>

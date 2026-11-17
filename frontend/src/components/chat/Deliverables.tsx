@@ -62,7 +62,7 @@ export function Deliverables({ files }: { files: Deliverable[] }) {
         {files.map((f) => (
           <div key={f.path} className="dlv-item" title={f.path}>
             <span className="dlv-media" aria-hidden="true">
-              <FileText size={15} />
+              <FileText size={14} />
             </span>
             <span className="dlv-content">
               <span className="dlv-name">{baseName(f.path)}</span>

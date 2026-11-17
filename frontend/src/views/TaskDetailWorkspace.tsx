@@ -77,7 +77,7 @@ export function TaskDetailWorkspace({
                 : 'bg-[var(--line)] text-[var(--tx3)]'
             }`}
           >
-            {isLive && <Loader2 size={10} className="animate-spin" />}
+            {isLive && <Loader2 size={12} className="animate-spin" />}
             {TASK_STATUS_LABEL[task.status] ?? task.status}
           </span>
         </div>
@@ -88,7 +88,7 @@ export function TaskDetailWorkspace({
               className="text-xs px-2.5 py-1 rounded bg-red-500/15 text-red-500 hover:bg-red-500/25 transition-colors flex items-center gap-1"
               onClick={() => cancelTask(task.id)}
             >
-              <Square size={11} />
+              <Square size={12} />
               <span>停止任务</span>
             </button>
           )}
@@ -171,7 +171,7 @@ export function TaskDetailWorkspace({
                   className="text-xs text-blue-500 hover:underline flex items-center gap-1"
                   onClick={handleCopyLogs}
                 >
-                  {copied ? <Check size={11} /> : <Copy size={11} />}
+                  {copied ? <Check size={12} /> : <Copy size={12} />}
                   <span>{copied ? '已复制' : '复制日志'}</span>
                 </button>
               )}

@@ -22,8 +22,8 @@ export function RequestSnapshot({ request }: { request: TaskRequest | null | und
 /** Workflow runs and conversation requests share the execution drawer, not a fake unified progress. */
 export function WorkflowExecutionLog({ runs, liveEvents, running }: { runs: WorkflowRun[]; liveEvents: TaskEvent[]; running: boolean }) {
   if (!runs.length && !liveEvents.length) return null
-  return <section className="wb-workflow-log" aria-label="工作流执行记录"><div className="wb-workflow-log-title"><History size={13}/>工作流演示记录</div>
-    {running && <div className="wb-workflow-running" role="status"><LoaderCircle size={13} className="animate-spin"/>{liveEvents.at(-1)?.message ?? '演示执行已开始'}</div>}
+  return <section className="wb-workflow-log" aria-label="工作流执行记录"><div className="wb-workflow-log-title"><History size={12}/>工作流演示记录</div>
+    {running && <div className="wb-workflow-running" role="status"><LoaderCircle size={12} className="animate-spin"/>{liveEvents.at(-1)?.message ?? '演示执行已开始'}</div>}
     {runs.slice(0, 8).map((run) => <details key={run.id} className="wb-workflow-run"><summary><b>{run.workflowName}</b><span>v{run.revision} · {new Date(run.startedAt).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span><span>{TASK_STATUS_LABEL[run.status] ?? run.status} · {run.artifacts.length} 项记录</span></summary><div className="wb-workflow-run-content">{run.events.map((event) => <p key={event.id}>{event.message}</p>)}{run.artifacts.map((artifact) => <details key={artifact.id}><summary>{artifact.title}</summary><p>{artifact.summary}</p><pre>{artifact.content}</pre></details>)}</div></details>)}
   </section>
 }

@@ -237,8 +237,8 @@ const FmNodeView = memo(function FmNodeView({ data, selected }: { data: FmNodeDa
       <div className="wfn-content">
         {data.defType === 'prompt' ? <><p className="wfn-prompt-text">{String(p.text ?? '').trim() || '还没有创作需求'}</p><div className="wfn-specs">{[p.ratio, p.duration, p.audience].filter(Boolean).map((item, i) => <span key={i}>{String(item)}</span>)}</div></> :
         data.defType === 'refs' ? <><div className="wfn-media-strip">{assets.length ? assets.map((asset) => <img key={asset!.id} src={asset!.thumbnailPath} alt={asset!.name}/>) : <span className="wfn-no-media"><Image size={22}/><span>尚未选择素材</span></span>}</div><p className="wfn-caption">{pfSummary(data.defType, p)}</p></> :
-        data.defType === 'create' ? <>{data.renderFile ? <video className="wfn-output-video nodrag nowheel" src={data.renderFile} controls preload="metadata" aria-label="该节点最近一次真实渲染产物"/> : <div className="wfn-render-slot"><Clapperboard size={25} strokeWidth={1.3}/><span>{data.status === 'running' ? '正在制作与渲染' : data.renderMode === 'real' ? '可制作与渲染' : '流程演示'}</span><small>{data.renderMode === 'real' ? '使用关联项目工程' : '关联项目后可制作视频'}</small></div>}<div className="wfn-specs"><span>{String(p.resolution ?? '1080p')}</span><span>{p.mode === 'sketch' ? '草稿制作' : p.mode === 'prototype' ? '原型制作' : '正式制作'}</span></div></> :
-        data.defType === 'review' ? <><div className="wfn-review-count"><ScanEye size={24} strokeWidth={1.3}/><span><b>{reviewDone} / {QUALITY_QUESTIONS.length}</b><small>审片检查已确认</small></span></div><p className="wfn-caption">{String(p.issues ?? '').trim() || '等待预览与修改意见'}</p></> :
+        data.defType === 'create' ? <>{data.renderFile ? <video className="wfn-output-video nodrag nowheel" src={data.renderFile} controls preload="metadata" aria-label="该节点最近一次真实渲染产物"/> : <div className="wfn-render-slot"><Clapperboard size={25} strokeWidth={1.5}/><span>{data.status === 'running' ? '正在制作与渲染' : data.renderMode === 'real' ? '可制作与渲染' : '流程演示'}</span><small>{data.renderMode === 'real' ? '使用关联项目工程' : '关联项目后可制作视频'}</small></div>}<div className="wfn-specs"><span>{String(p.resolution ?? '1080p')}</span><span>{p.mode === 'sketch' ? '草稿制作' : p.mode === 'prototype' ? '原型制作' : '正式制作'}</span></div></> :
+        data.defType === 'review' ? <><div className="wfn-review-count"><ScanEye size={24} strokeWidth={1.5}/><span><b>{reviewDone} / {QUALITY_QUESTIONS.length}</b><small>审片检查已确认</small></span></div><p className="wfn-caption">{String(p.issues ?? '').trim() || '等待预览与修改意见'}</p></> :
         data.defType === 'artifact' ? <><p className="wfn-document-text">{String(p.summary ?? '').trim() || '尚未添加阶段产物'}</p><div className="wfn-specs"><span>{ARTIFACT_STATUS_LABEL[String(p.status ?? 'missing')] ?? String(p.status)}</span>{!!p.version && <span>{String(p.version)}</span>}</div></> :
         data.defType === 'gate' ? <><p className="wfn-document-text">{def.description}</p><span className="wfn-gate-chip" data-d={decision}>{decision === 'confirmed' ? '已确认' : decision === 'confirmed-stale' ? '版本已变更' : decision === 'pending' ? '待确认' : '未开始'}</span>{!!ev?.blocked.length && <p className="wfn-blocked">{ev.blocked[0]}</p>}</> :
         <p className="wfn-document-text">{String(p.summary ?? p.notes ?? '').trim() || copy?.description || def.description}</p>}
@@ -1053,12 +1053,12 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
     <section className="wfe" aria-label="工作流编辑器" data-structured={workflow.path === 'structured' || undefined} data-stage-focused={isStructured && activeStage !== null || undefined} data-panel-open={panelOpen || undefined} data-inspecting={!!(selectedNode || selectedEdge) || undefined}>
       <div className="wfe-cmd">
         <button type="button" className="wfe-iconbtn" onClick={() => navigation.request(onBack)} aria-label="返回工作流首页">
-          <ArrowLeft size={16} strokeWidth={2.2} />
+          <ArrowLeft size={16} />
         </button>
         <div className="wfe-titleblock"><input className="wfe-name" value={name} onChange={(e) => { setName(e.target.value); markDirty() }} aria-label="工作流名称" maxLength={120} /></div>
 
         <span className="wfe-revision">v{workflow.revision}</span>
-        <span className="wfe-savestate">{dirty ? <Circle size={10}/> : <CheckCircle2 size={12}/>}{dirty ? '未保存' : documentsStatus().error ? '本机保存失败' : documentsStatus().pending ? '正在保存到本机…' : '已保存'}</span>
+        <span className="wfe-savestate">{dirty ? <Circle size={12}/> : <CheckCircle2 size={12}/>}{dirty ? '未保存' : documentsStatus().error ? '本机保存失败' : documentsStatus().pending ? '正在保存到本机…' : '已保存'}</span>
 
         <span className="wfe-spacer" />
         <WorkflowProjectPicker projectId={workflow.projectId} disabled={running} onChange={(projectId) => { markDirty(); setWorkflow((prev) => prev ? { ...prev, projectId } : prev) }}/>
@@ -1067,18 +1067,18 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
         {!running && lastRun?.definition && lastRun.projectId && lastRun.status === 'failed' && <button type="button" className="wfe-btn" disabled={dirty} onClick={()=>resumeSavedRun(true)}>重试失败节点</button>}
         {running && (
           <button type="button" className="wfe-btn" onClick={() => runHandle.current?.cancel()}>
-            <Ban size={13} strokeWidth={2.2} /> 取消
+            <Ban size={14} /> 取消
           </button>
         )}
         <button type="button" className="wfe-btn" title="保存（Ctrl / ⌘ + S）" onClick={doSave} disabled={!dirty || running}>
-          <Save size={13} strokeWidth={2.2} /> 保存
+          <Save size={14} /> 保存
         </button>
         <button type="button" className="wfe-btn is-primary" onClick={doRun} disabled={running}>
-          <Play size={13} strokeWidth={2.2} /> {running ? '运行中…' : isStructured ? '演示评估' : workflow.projectId ? '开始制作' : '演示运行'}
+          <Play size={14} /> {running ? '运行中…' : isStructured ? '演示评估' : workflow.projectId ? '开始制作' : '演示运行'}
         </button>
       </div>
 
-      <div className="wfe-context-bar"><span><WorkflowIcon size={13}/>{isStructured ? '分阶段评估' : '自由创作'}<i/> {nodes.filter((n) => n.type !== 'lane').length} 个节点 · {edges.length} 条连接</span><span>{isStructured ? '仅评估产物与检查点，不自动制作视频' : workflow.projectId ? '制作节点可真实渲染 · 其余节点记录快照' : '未关联项目 · 运行仅演示'}</span>{workflow.projectId && <button type="button" onClick={goReview}><FolderOpen size={13}/>进入工作台</button>}</div>
+      <div className="wfe-context-bar"><span><WorkflowIcon size={12}/>{isStructured ? '分阶段评估' : '自由创作'}<i/> {nodes.filter((n) => n.type !== 'lane').length} 个节点 · {edges.length} 条连接</span><span>{isStructured ? '仅评估产物与检查点，不自动制作视频' : workflow.projectId ? '制作节点可真实渲染 · 其余节点记录快照' : '未关联项目 · 运行仅演示'}</span>{workflow.projectId && <button type="button" onClick={goReview}><FolderOpen size={14}/>进入工作台</button>}</div>
       {runNotice && <div className="wfe-run-alert" role="alert"><span>{runNotice}</span><button type="button" aria-label="关闭运行提示" onClick={() => setRunNotice('')}><X size={14}/></button></div>}
       <div className="wfe-body">
         <aside className="wfe-left" aria-label="构建栏" hidden={!panelOpen}>
@@ -1096,8 +1096,8 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
           </div>
           {leftTab === 'outline' ? <div className="wfe-outline">
             <div className="wfe-outline-label">画布节点 <span>{nodes.filter((n) => n.type === 'fm').length}</span></div>
-            {nodes.filter((n) => n.type === 'fm').map((n) => <button type="button" className="wfe-outline-item" key={n.id} data-selected={n.selected || undefined} onClick={() => { focusRequest.current = n.id; setNodes((prev) => prev.map((item) => ({ ...item, selected: item.id === n.id }))) }}><NodeMark type={n.data.defType}/><span><b>{NODE_COPY[n.data.defType]?.title ?? defForNode({ type: n.data.defType, params: n.data.params })?.label}</b><small>{NODE_COPY[n.data.defType]?.description}</small></span><ChevronRight size={13}/></button>)}
-            <button type="button" className="wfe-outline-add" onClick={() => setLeftTab('nodes')}><Plus size={15}/> 添加创作环节</button>
+            {nodes.filter((n) => n.type === 'fm').map((n) => <button type="button" className="wfe-outline-item" key={n.id} data-selected={n.selected || undefined} onClick={() => { focusRequest.current = n.id; setNodes((prev) => prev.map((item) => ({ ...item, selected: item.id === n.id }))) }}><NodeMark type={n.data.defType}/><span><b>{NODE_COPY[n.data.defType]?.title ?? defForNode({ type: n.data.defType, params: n.data.params })?.label}</b><small>{NODE_COPY[n.data.defType]?.description}</small></span><ChevronRight size={12}/></button>)}
+            <button type="button" className="wfe-outline-add" onClick={() => setLeftTab('nodes')}><Plus size={14}/> 添加创作环节</button>
             <div className="wfe-outline-note"><span>工作流说明</span><p>{workflow.description || '从创作需求到制作、审片与修改。按需要添加参考、视觉构想和创作能力。'}</p></div>
           </div> : leftTab === 'stages' ? (
             <div className="wfe-stage-nav">
@@ -1164,7 +1164,7 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
             </div>
           ) : (
             <div className="wfe-pending">
-              <div className="wfe-resource-links">{([['knowledge', '特效库'], ['reference', '参考片库']] as const).map(([id, label]) => <button type="button" className="wfe-btn sm" key={id} onClick={() => window.postMessage({ type: 'fm-nav', id }, '*')}><FolderOpen size={13}/>{label}</button>)}</div>
+              <div className="wfe-resource-links">{([['knowledge', '特效库'], ['reference', '参考片库']] as const).map(([id, label]) => <button type="button" className="wfe-btn sm" key={id} onClick={() => window.postMessage({ type: 'fm-nav', id }, '*')}><FolderOpen size={14}/>{label}</button>)}</div>
               <h3>技法意向 <em className="num">{fxIntents.length}</em></h3>
               {fxIntents.length === 0 && <p className="wfe-hint">暂无。在特效库点「用于工作流」后，意向会出现在这里。</p>}
               {fxIntents.map((it, i) => {
@@ -1218,10 +1218,10 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
           }}>
           <div className="wfe-canvas-toolbar" aria-label="画布工具">
             {!panelOpen && <button type="button" onClick={() => setPanelOpen(true)} title="展开侧栏" aria-label="展开工作流侧栏"><PanelLeftOpen size={16}/></button>}
-            <button type="button" className="wfe-add-trigger" onClick={() => { setPanelOpen(true); setLeftTab('nodes') }}><Plus size={15}/> 添加节点</button>
+            <button type="button" className="wfe-add-trigger" onClick={() => { setPanelOpen(true); setLeftTab('nodes') }}><Plus size={14}/> 添加节点</button>
             <i/>
-            <button type="button" onClick={undo} disabled={!undoStack.current.length} title="撤销（Ctrl+Z）" aria-label="撤销"><Undo2 size={15}/></button>
-            <button type="button" onClick={redo} disabled={!redoStack.current.length} title="重做（Ctrl+Shift+Z）" aria-label="重做"><Redo2 size={15}/></button>
+            <button type="button" onClick={undo} disabled={!undoStack.current.length} title="撤销（Ctrl+Z）" aria-label="撤销"><Undo2 size={14}/></button>
+            <button type="button" onClick={redo} disabled={!redoStack.current.length} title="重做（Ctrl+Shift+Z）" aria-label="重做"><Redo2 size={14}/></button>
             <i/>
             <button type="button" title="整理画布" onClick={() => {
               markDirty()
@@ -1239,12 +1239,12 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
                 })
               }
               window.setTimeout(() => { void flow.fitView({ padding: 0.16, minZoom: 0.2, maxZoom: 1 }) }, 80)
-            }}><LayoutGrid size={15}/> 整理</button>
+            }}><LayoutGrid size={14}/> 整理</button>
           </div>
-          {isStructured && activeStage !== null && <div className="wfe-stage-context"><span>阶段 {String(activeStage + 1).padStart(2, '0')} / 08</span><h2>{STRUCTURED_STAGES[activeStage].label}</h2><p>{STRUCTURED_STAGES[activeStage].question}</p><div><button type="button" aria-label="上个阶段" disabled={activeStage === 0} onClick={() => focusStage(activeStage - 1)}><ChevronLeft size={15}/></button><button type="button" aria-label="下个阶段" disabled={activeStage === 7} onClick={() => focusStage(activeStage + 1)}><ChevronRight size={15}/></button></div></div>}
-          <div className="wfe-viewport-controls"><button type="button" onClick={() => { void flow.zoomOut({ duration: 150 }) }} aria-label="缩小"><Minus size={15}/></button><button type="button" onClick={() => { void flow.zoomTo(1,{duration:150}) }} title="恢复 100%">{Math.round(zoom * 100)}%</button><button type="button" onClick={() => { void flow.zoomIn({ duration: 150 }) }} aria-label="放大"><Plus size={15}/></button><i/><button type="button" onClick={() => { void flow.fitView({ padding: 0.16, minZoom: 0.2, maxZoom: 1, duration: 200 }) }} title="适应画布" aria-label="适应画布"><Maximize2 size={15}/></button></div>
+          {isStructured && activeStage !== null && <div className="wfe-stage-context"><span>阶段 {String(activeStage + 1).padStart(2, '0')} / 08</span><h2>{STRUCTURED_STAGES[activeStage].label}</h2><p>{STRUCTURED_STAGES[activeStage].question}</p><div><button type="button" aria-label="上个阶段" disabled={activeStage === 0} onClick={() => focusStage(activeStage - 1)}><ChevronLeft size={14}/></button><button type="button" aria-label="下个阶段" disabled={activeStage === 7} onClick={() => focusStage(activeStage + 1)}><ChevronRight size={14}/></button></div></div>}
+          <div className="wfe-viewport-controls"><button type="button" onClick={() => { void flow.zoomOut({ duration: 150 }) }} aria-label="缩小"><Minus size={14}/></button><button type="button" onClick={() => { void flow.zoomTo(1,{duration:150}) }} title="恢复 100%">{Math.round(zoom * 100)}%</button><button type="button" onClick={() => { void flow.zoomIn({ duration: 150 }) }} aria-label="放大"><Plus size={14}/></button><i/><button type="button" onClick={() => { void flow.fitView({ padding: 0.16, minZoom: 0.2, maxZoom: 1, duration: 200 }) }} title="适应画布" aria-label="适应画布"><Maximize2 size={14}/></button></div>
           <div className="wfe-canvas-help">拖动画布平移 <span>·</span> 滚轮缩放 <span>·</span> Delete 删除</div>
-          {nodes.length === 0 && <div className="wfe-empty-canvas"><WorkflowIcon size={36} strokeWidth={1.2}/><h2>从第一个节点开始</h2><p>从左侧拖入节点，再连接输入与输出。</p><button type="button" className="wfe-btn" onClick={() => { setPanelOpen(true); setLeftTab('nodes') }}><Plus size={14}/>添加节点</button></div>}
+          {nodes.length === 0 && <div className="wfe-empty-canvas"><WorkflowIcon size={36} strokeWidth={1.5}/><h2>从第一个节点开始</h2><p>从左侧拖入节点，再连接输入与输出。</p><button type="button" className="wfe-btn" onClick={() => { setPanelOpen(true); setLeftTab('nodes') }}><Plus size={14}/>添加节点</button></div>}
           <ReactFlow
             nodes={displayedNodes}
             edges={visibleEdges}
@@ -1538,7 +1538,7 @@ function InspParamsHead({ runLabel, busy, onRunNode }: { runLabel: string; busy:
     <div className="wfe-sect3-head is-row">
       参数
       <button type="button" className="wfe-btn sm is-primary" disabled={busy} onClick={onRunNode}>
-        <Play size={11} strokeWidth={2.6} /> {runLabel}
+        <Play size={12} strokeWidth={2.4} /> {runLabel}
       </button>
     </div>
   )
@@ -1605,7 +1605,7 @@ function Inspector(props: {
         <p className="wfe-hint">检查点问题：{def.description}。确认绑定具体产物与版本；推荐不等于确认。</p>
         <div className="wfe-runrow">
           <button type="button" className="wfe-btn sm is-primary" disabled={props.busy} onClick={props.onRunNode}>
-            <Play size={11} strokeWidth={2.6} /> 评估此检查点
+            <Play size={12} strokeWidth={2.4} /> 评估此检查点
           </button>
           <span className="wfe-hint">只评估当前状态，不代替确认</span>
         </div>

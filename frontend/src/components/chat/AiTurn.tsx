@@ -197,7 +197,7 @@ export function TurnTrigger({
     <div className="ai-turn-card">
       <button type="button" className="ai-turn-head" aria-expanded={open} onClick={onToggle}>
         <span className="ai-turn-icon" aria-hidden>
-          <ChevronRight size={15} className={open ? 'ai-turn-caret is-open' : 'ai-turn-caret'} />
+          <ChevronRight size={14} className={open ? 'ai-turn-caret is-open' : 'ai-turn-caret'} />
         </span>
         <span className="ai-turn-title">{title}</span>
         {time ? <span className="ai-turn-time">{time}</span> : null}

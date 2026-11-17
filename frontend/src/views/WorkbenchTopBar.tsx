@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
-import { Check } from 'lucide-react'
+/* 通用图标（下载、信息）用 lucide；media-icons 只留给截帧、引用帧、对比这类媒体语义（第三轮统一）。 */
+import { Check, Download, Info } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -491,7 +492,7 @@ export function WorkbenchTopBar({
 
           {/* 导出最新版本：Vidstack download 图标 */}
           <TopBarIconButton
-            icon={<MediaIcon name="download" size={18} />}
+            icon={<Download size={16} />}
             label="导出最新版本"
             tooltip={
               deliverableLead
@@ -648,7 +649,7 @@ export function WorkbenchTopBar({
                         className="wb-topbar-icon-btn"
                         aria-label="项目信息与参数规格"
                       >
-                        <MediaIcon name="info" size={18} />
+                        <Info size={16} />
                       </button>
                     </DropdownMenuTrigger>
                   </TooltipTrigger>

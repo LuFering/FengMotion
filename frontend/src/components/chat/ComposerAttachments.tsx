@@ -184,8 +184,8 @@ export function ComposerAttachments({ items, onRemove }: ComposerAttachmentsProp
 /** 文件类型图标：文本类与普通文件区分（对齐原版 file-lines / file）。 */
 function FileIcon({ name }: { name: string }) {
   return /\.(txt|md|markdown|csv|json|ya?ml|log)$/i.test(name)
-    ? <FileText size={18} strokeWidth={1.9} />
-    : <File size={18} strokeWidth={1.9} />
+    ? <FileText size={18} />
+    : <File size={18} />
 }
 
 export default ComposerAttachments

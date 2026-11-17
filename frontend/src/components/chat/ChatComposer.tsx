@@ -200,7 +200,7 @@ export function ChatComposer({
           <div className="cc-bar-left">
             {attachMenu ?? (onAttach ? (
               <button type="button" className="cc-attach" aria-label="添加附件" title="添加附件" onClick={onAttach}>
-                <Plus size={18} strokeWidth={2.2} />
+                <Plus size={16} />
               </button>
             ) : null)}
             {leading}

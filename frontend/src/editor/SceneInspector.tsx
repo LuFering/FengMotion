@@ -413,7 +413,7 @@ export function SceneInspector({
                         onLayer({ keyframes: next })
                       }}
                     >
-                      <Plus size={11} />
+                      <Plus size={12} />
                       {label}
                     </button>
                   ))}

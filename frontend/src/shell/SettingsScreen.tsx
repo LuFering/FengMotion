@@ -603,17 +603,17 @@ export function SettingsScreen({
             {/* 默认值还没有消费方，保留已有数据，界面不把它当作已生效能力。 */}
             {section === 'creation' && (
               <section className="set-sec">
-                <div className="set-unavailable"><Clapperboard size={28} strokeWidth={1.4}/><h3>创作默认值尚未生效</h3><p>视频规格仍在场景编辑器中设置。</p></div>
+                <div className="set-unavailable"><Clapperboard size={28} strokeWidth={1.5}/><h3>创作默认值尚未生效</h3><p>视频规格仍在场景编辑器中设置。</p></div>
                 <div className="set-group"><h4 className="set-subhead">已保留的偏好</h4><Row label="画幅 / 帧率 / 分辨率"><span className="num">{settings.aspectRatio} · {settings.fps} fps · {settings.resolution}</span></Row><Row label="循环播放"><span>{settings.previewLoop ? '开启' : '关闭'}</span></Row><Row label="时间显示"><span>{{timecode: '时间码', seconds: '秒数', frames: '帧数'}[settings.timeDisplay]}</span></Row><Row label="渲染完成提醒"><span>{settings.notifyOnRender ? '开启' : '关闭'}</span></Row></div>
               </section>
             )}
 
             {section === 'plugins' && (
-              <section className="set-sec"><div className="set-unavailable"><Plug size={28} strokeWidth={1.4}/><h3>插件服务尚未接入</h3></div></section>
+              <section className="set-sec"><div className="set-unavailable"><Plug size={28} strokeWidth={1.5}/><h3>插件服务尚未接入</h3></div></section>
             )}
 
             {section === 'lab' && (
-              <section className="set-sec"><div className="set-unavailable"><Sparkles size={28} strokeWidth={1.4}/><h3>暂没有可启用的实验功能</h3></div></section>
+              <section className="set-sec"><div className="set-unavailable"><Sparkles size={28} strokeWidth={1.5}/><h3>暂没有可启用的实验功能</h3></div></section>
             )}
 
             {/* ── 数据与存储 ────────────────────────────────── */}

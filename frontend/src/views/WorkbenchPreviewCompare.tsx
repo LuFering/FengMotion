@@ -229,19 +229,19 @@ export function WorkbenchPreviewCompare({ left, right, initialTime, bbox, onClos
             }}
             title="当两版时长或剪辑变动导致时间偏移时，允许分别定位左右两侧画面"
           >
-            <SlidersHorizontal size={11} />
+            <SlidersHorizontal size={12} />
             分别定位
           </button>
         </div>
 
         <button type="button" className="wb-compare-swap" onClick={swap} title="交换左右两侧">
-          <ArrowLeftRight size={13} />交换
+          <ArrowLeftRight size={14} />交换
         </button>
         <button type="button" className="wb-compare-focus" onClick={onFocus}>
-          <Maximize2 size={13} />{focused ? '展开审阅' : '专注画面'}
+          <Maximize2 size={14} />{focused ? '展开审阅' : '专注画面'}
         </button>
         <button type="button" onClick={onClose} aria-label="关闭预览对比">
-          <X size={17} />
+          <X size={16} />
         </button>
       </header>
 
@@ -318,7 +318,7 @@ export function WorkbenchPreviewCompare({ left, right, initialTime, bbox, onClos
                     onClick={() => void playSide(index, visual.id)}
                     aria-label={isSidePlaying ? '暂停' : '播放'}
                   >
-                    {isSidePlaying ? <Pause size={13} /> : <Play size={13} />}
+                    {isSidePlaying ? <Pause size={12} /> : <Play size={12} />}
                   </button>
                   <time className="font-mono text-[11px] shrink-0 text-[var(--tx2)]">{formatMediaTime(currentVisualTime)}</time>
                   <input
@@ -354,7 +354,7 @@ export function WorkbenchPreviewCompare({ left, right, initialTime, bbox, onClos
       ) : mode === 'linked' && left.media === 'video' && (
         <div className="wb-compare-transport">
           <button type="button" onClick={() => void playLinked()} disabled={!duration} aria-label={playing ? '暂停同步对比' : '播放同步对比'}>
-            {playing ? <Pause size={17} /> : <Play size={17} />}
+            {playing ? <Pause size={16} /> : <Play size={16} />}
           </button>
           <time>{formatMediaTime(time)}</time>
           <input

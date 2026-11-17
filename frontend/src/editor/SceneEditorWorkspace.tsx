@@ -368,7 +368,7 @@ export function SceneEditorWorkspace({
                               <span>
                                 {savedAt ? (
                                   <>
-                                    <Check size={11} />
+                                    <Check size={12} />
                                     本机已保存 {savedAt}
                                   </>
                                 ) : (
@@ -381,7 +381,7 @@ export function SceneEditorWorkspace({
                                 onClick={() => persist(current.current)}
                                 disabled={busy}
                               >
-                                <Save size={13} />
+                                <Save size={14} />
                               </button>
                               <button
                                 type="button"
@@ -449,7 +449,7 @@ export function SceneEditorWorkspace({
                                   disabled={!historySizes.undo || busy}
                                   onClick={() => historyMove(true)}
                                 >
-                                  <Undo2 size={15} />
+                                  <Undo2 size={14} />
                                 </button>
                                 <button
                                   type="button"
@@ -458,7 +458,7 @@ export function SceneEditorWorkspace({
                                   disabled={!historySizes.redo || busy}
                                   onClick={() => historyMove(false)}
                                 >
-                                  <Redo2 size={15} />
+                                  <Redo2 size={14} />
                                 </button>
                               </div>
                               {document.engine === 'remotion' ? (
@@ -488,7 +488,7 @@ export function SceneEditorWorkspace({
                                 aria-label="场景设置"
                                 onClick={() => setSelected(null)}
                               >
-                                <Settings2 size={15} />
+                                <Settings2 size={14} />
                               </button>
                             </div>
               <fieldset className="se-properties" disabled={busy}>
@@ -544,7 +544,7 @@ export function SceneEditorWorkspace({
                                   )
                                 }}
                               >
-                                <Download size={13} />
+                                <Download size={12} />
                                 导出工程包
                               </button>
                               <button
@@ -568,7 +568,7 @@ export function SceneEditorWorkspace({
                                     disabled={busy}
                                     onClick={() => void exportMedia('still')}
                                   >
-                                    <FileImage size={13} />
+                                    <FileImage size={12} />
                                     导出当前帧
                                   </button>
                                   <button
@@ -577,7 +577,7 @@ export function SceneEditorWorkspace({
                                     disabled={busy}
                                     onClick={() => void exportMedia('video')}
                                   >
-                                    <Film size={13} />
+                                    <Film size={12} />
                                     导出场景视频
                                   </button>
                                 </>
@@ -586,7 +586,7 @@ export function SceneEditorWorkspace({
                               )}
                               {busy && (
                                 <div className="se-render-progress" role="status">
-                                  <LoaderCircle size={13} className="animate-spin" />
+                                  <LoaderCircle size={12} className="animate-spin" />
                                   <span>实际渲染中 {Math.round(progress * 100)}%</span>
                                   <button type="button" onClick={() => abort.current?.abort()}>
                                     取消
@@ -648,7 +648,7 @@ export function SceneEditorWorkspace({
                         disabled={busy}
                         onClick={() => load(createNativeDocument(projectId))}
                       >
-                        <Plus size={13} />
+                        <Plus size={14} />
                         新建 Remotion
                       </button>
                       <span className="se-header-spacer" />
@@ -660,7 +660,7 @@ export function SceneEditorWorkspace({
                         title="导入场景 JSON / ZIP"
                         onClick={() => importInput.current?.click()}
                       >
-                        <Upload size={15} />
+                        <Upload size={14} />
                       </button>
                       <button
                         type="button"
@@ -672,7 +672,7 @@ export function SceneEditorWorkspace({
                           onClose()
                         }}
                       >
-                        <ArrowLeft size={13} />
+                        <ArrowLeft size={12} />
                         返回工作台
                       </button>
                     </header>
@@ -875,7 +875,7 @@ export function SceneEditorWorkspace({
             <div className="se-notice" role="status">
               <span>{message}</span>
               <button type="button" aria-label="关闭编辑提示" onClick={() => setMessage('')}>
-                <X size={13} />
+                <X size={14} />
               </button>
             </div>
           )}
@@ -920,7 +920,7 @@ export function SceneEditorWorkspace({
                 aria-label="关闭素材选择"
                 onClick={() => setAssetPicker(false)}
               >
-                <X size={18} />
+                <X size={16} />
               </button>
             </header>
             <div className="se-asset-search">
@@ -931,7 +931,7 @@ export function SceneEditorWorkspace({
                 onChange={(e) => setAssetSearch(e.target.value)}
               />
               <button type="button" className="se-action" onClick={() => input.current?.click()}>
-                <Upload size={13} />
+                <Upload size={14} />
                 导入文件
               </button>
               <input

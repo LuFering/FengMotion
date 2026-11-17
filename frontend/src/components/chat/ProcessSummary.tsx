@@ -55,10 +55,10 @@ export function ProcessSummary({ tools, running = false }: ProcessSummaryProps) 
         <span className="wb-process-detail">{summary}</span>
         {failed > 0 && (
           <span className="wb-process-failed">
-            <CircleAlert size={10} /> {failed} 步失败
+            <CircleAlert size={12} /> {failed} 步失败
           </span>
         )}
-        <ChevronDown size={11} className={`wb-process-caret${open ? ' is-open' : ''}`} />
+        <ChevronDown size={12} className={`wb-process-caret${open ? ' is-open' : ''}`} />
       </button>
 
       {open && (

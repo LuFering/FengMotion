@@ -11,7 +11,6 @@
   },
   "dependencies": {
     "@fontsource-variable/geist": "^5.3.0",
-    "@phosphor-icons/react": "^2.1.10",
     "@remotion/google-fonts": "^4.0.519",
     "@remotion/media": "^4.0.519",
     "@remotion/player": "^4.0.519",

@@ -278,7 +278,7 @@ export function TargetSummaryPill({
             <span className="truncate font-medium text-[var(--tx,#242a28)] dark:text-[#ededed] text-[11px] max-w-[240px]">
               {summary}
             </span>
-            <ChevronDown size={10} className={`text-[var(--tx3,#8f9b95)] shrink-0 transition-transform ${expanded ? 'rotate-180' : ''}`} />
+            <ChevronDown size={12} className={`text-[var(--tx3,#8f9b95)] shrink-0 transition-transform ${expanded ? 'rotate-180' : ''}`} />
           </button>
 
           {isCustomized && (
@@ -308,7 +308,7 @@ export function TargetSummaryPill({
                   title={removeHint}
                   onClick={handleRemoveClick}
                 >
-                  <X size={11} />
+                  <X size={12} />
                 </button>
               )}
             </div>
@@ -333,7 +333,7 @@ export function TargetSummaryPill({
               onClick={() => onIntentChange('modify')}
               title="发送时会真实修改视频工程"
             >
-              <Sparkles size={10} />
+              <Sparkles size={12} />
               <span>修改此目标</span>
             </button>
             <button
@@ -348,7 +348,7 @@ export function TargetSummaryPill({
               onClick={() => onIntentChange('query')}
               title="只在对话里回答，不修改视频工程"
             >
-              <MessageCircleQuestion size={10} />
+              <MessageCircleQuestion size={12} />
               <span>关于此提问</span>
             </button>
           </div>
@@ -383,7 +383,7 @@ export function TargetSummaryPill({
                       setExpanded(false)
                     }}
                   >
-                    <ExternalLink size={11} /> 查看最新版画面重新选择
+                    <ExternalLink size={12} /> 查看最新版画面重新选择
                   </button>
                 )}
                 <button

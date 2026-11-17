@@ -2747,47 +2747,47 @@ export function Conversation(props: {
           <SeekSearch value={query} onChange={setQuery} width={248} size={28}
                       placeholder="搜索对话名称" ariaLabel="搜索对话" />
           <div className="cv3-top-actions">
-          {props.onOverviewChange && <button type="button" className="cv3-icon-btn" aria-label="查看全部项目" title="查看全部项目" aria-pressed={props.overviewOpen ?? false} data-on={props.overviewOpen || undefined} onClick={() => props.onOverviewChange?.(true)}><LayoutGrid size={15}/></button>}
+          {props.onOverviewChange && <button type="button" className="cv3-icon-btn" aria-label="查看全部项目" title="查看全部项目" aria-pressed={props.overviewOpen ?? false} data-on={props.overviewOpen || undefined} onClick={() => props.onOverviewChange?.(true)}><LayoutGrid size={14}/></button>}
           <button type="button" className="cv3-icon-btn" aria-label="新建对话" title="新建对话"
                   onClick={() => newSession()}>
-            <MessageSquarePlus size={15} />
+            <MessageSquarePlus size={14} />
           </button>
           <button type="button" className="cv3-icon-btn" aria-label="新建项目" title="新建项目"
                   disabled={projectPending} onClick={() => void createProjectInline()}>
-            <FolderPlus size={15} />
+            <FolderPlus size={14} />
           </button>
           {/* 视图选项（对齐 dsh viewOptions：分组方式 / 排序方式 / 归档筛选） */}
           <div className="cv3-viewwrap">
             <button type="button" className="cv3-icon-btn" aria-label="视图选项" title="视图选项"
                     aria-expanded={viewMenu} data-on={viewMenu || undefined}
                     onClick={() => { setViewMenu((o) => !o); setRowMenu(null) }}>
-              <ListFilter size={15} />
+              <ListFilter size={14} />
             </button>
             {viewMenu && (
               <div className="cv3-menu cv3-viewmenu" role="menu">
                 <div className="cv3-menu-sec">分组方式</div>
                 <button type="button" role="menuitemradio" aria-checked={groupMode === 'project'}
                         onClick={() => { setGroupMode('project'); setViewMenu(false) }}>
-                  <span>按项目</span>{groupMode === 'project' && <Check size={13} />}
+                  <span>按项目</span>{groupMode === 'project' && <Check size={14} />}
                 </button>
                 <button type="button" role="menuitemradio" aria-checked={groupMode === 'flat'}
                         onClick={() => { setGroupMode('flat'); setViewMenu(false) }}>
-                  <span>单列表</span>{groupMode === 'flat' && <Check size={13} />}
+                  <span>单列表</span>{groupMode === 'flat' && <Check size={14} />}
                 </button>
                 <div className="cv3-menu-sec">排序方式</div>
                 <button type="button" role="menuitemradio" aria-checked={orderMode === 'updated'}
                         onClick={() => { setOrderMode('updated'); setViewMenu(false) }}>
-                  <span>最近更新</span>{orderMode === 'updated' && <Check size={13} />}
+                  <span>最近更新</span>{orderMode === 'updated' && <Check size={14} />}
                 </button>
                 <button type="button" role="menuitemradio" aria-checked={orderMode === 'manual'}
                         onClick={() => { setOrderMode('manual'); setViewMenu(false) }}>
-                  <span>手动排序</span>{orderMode === 'manual' && <Check size={13} />}
+                  <span>手动排序</span>{orderMode === 'manual' && <Check size={14} />}
                 </button>
                 <div className="cv3-menu-sec">筛选会话</div>
                 {([['hide', '隐藏已归档'], ['show', '全部对话（显示已归档）'], ['only', '仅显示已归档']] as const).map(([v, label]) => (
                   <button key={v} type="button" role="menuitemradio" aria-checked={archiveFilter === v}
                           onClick={() => { setArchiveFilter(v); setViewMenu(false) }}>
-                    <span>{label}</span>{archiveFilter === v && <Check size={13} />}
+                    <span>{label}</span>{archiveFilter === v && <Check size={14} />}
                   </button>
                 ))}
               </div>
@@ -2872,7 +2872,7 @@ export function Conversation(props: {
                         不用先填弹窗里的表单再确认一遍） */}
                     {!isUng && proj && editing === proj.id ? (
                       <div className="cv3-group-head cv3-group-editrow">
-                        <ChevronRight size={13} className="cv3-group-caret" data-open={!collapsed || undefined} />
+                        <ChevronRight size={12} className="cv3-group-caret" data-open={!collapsed || undefined} />
                         <input className="cv3-group-edit" autoFocus value={editText}
                                aria-label="项目名称"
                                onChange={(e) => setEditText(e.target.value)}
@@ -2919,7 +2919,7 @@ export function Conversation(props: {
                               })
                             }}
                             title={isUng ? '没有归属项目的对话，可拖到项目下' : `${proj?.name ?? ''}（点击展开并切换到此项目）`}>
-                      <ChevronRight size={13} className="cv3-group-caret" data-open={!collapsed || undefined} />
+                      <ChevronRight size={12} className="cv3-group-caret" data-open={!collapsed || undefined} />
                       <span className="cv3-group-name">{isUng ? '未分组' : proj?.name ?? '未命名项目'}</span>
                       {/* 0 不显示：空项目挂一个「0」只是噪音，还会和下面的
                           「还没有对话。」重复表达同一件事。dsh 的行也没有计数。 */}
@@ -2940,15 +2940,15 @@ export function Conversation(props: {
                             <div className="cv3-menu cv3-rowmenu" role="menu">
                               <button type="button" role="menuitem"
                                       onClick={() => { props.onSelectProject(proj.id); setRowMenu(null) }}>
-                                <PanelLeft size={13} /><span>打开项目</span>
+                                <PanelLeft size={14} /><span>打开项目</span>
                               </button>
                               <button type="button" role="menuitem"
                                       onClick={() => { setEditing(proj.id); setEditText(proj.name); setRowMenu(null) }}>
-                                <Pencil size={13} /><span>重命名项目</span>
+                                <Pencil size={14} /><span>重命名项目</span>
                               </button>
                               <button type="button" role="menuitem"
                                       onClick={() => { setRowMenu(null); setArchivingProject(proj) }}>
-                                <Archive size={13} /><span>归档项目</span>
+                                <Archive size={14} /><span>归档项目</span>
                               </button>
                               <button type="button" role="menuitem" data-danger
                                       onClick={() => {
@@ -2959,7 +2959,7 @@ export function Conversation(props: {
                                         setDeleteConfirmText('')
                                         setDeletingProject(proj)
                                       }}>
-                                <Trash2 size={13} /><span>删除项目</span>
+                                <Trash2 size={12} /><span>删除项目</span>
                               </button>
                             </div>
                           )}
@@ -3005,7 +3005,7 @@ export function Conversation(props: {
                                  onClick={(e) => e.stopPropagation()} />
                         ) : (
                           <>
-                            {t.pinned && <Pin size={11} className="cv3-session-pin" aria-label="已置顶" />}
+                            {t.pinned && <Pin size={12} className="cv3-session-pin" aria-label="已置顶" />}
                             {/* 标题走共享规则：空白标题的兜底必须与侧栏一致，
                                 否则同一个会话在两处可能显示成不同的名字。 */}
                             <span className="cv3-session-name">{sessionDisplayTitle(t)}</span>
@@ -3026,7 +3026,7 @@ export function Conversation(props: {
                           <button type="button" className="cv3-row-more" aria-label={`${t.title} 的操作`}
                                   aria-expanded={rowMenu === t.id}
                                   onClick={(e) => { e.stopPropagation(); setRowMenu(rowMenu === t.id ? null : t.id); setViewMenu(false) }}>
-                            <Ellipsis size={13} />
+                            <Ellipsis size={12} />
                           </button>
                           {rowMenu === t.id && (
                             /* 菜单整体拦掉点击冒泡：菜单项在会话行内部，而整行点击=切换会话。
@@ -3039,12 +3039,12 @@ export function Conversation(props: {
                               {t.origin === 'local' ? (
                                 <button type="button" role="menuitem"
                                         onClick={() => { setEditing(t.id); setEditText(t.title); setRowMenu(null) }}>
-                                  <Pencil size={13} /><span>重命名</span>
+                                  <Pencil size={14} /><span>重命名</span>
                                 </button>
                               ) : (
                                 <button type="button" role="menuitem" disabled
                                         title="服务端尚未提供会话重命名">
-                                  <Pencil size={13} /><span>重命名（暂不可用）</span>
+                                  <Pencil size={14} /><span>重命名（暂不可用）</span>
                                 </button>
                               )}
                               {t.origin === 'local' && t.projectId && (
@@ -3054,17 +3054,17 @@ export function Conversation(props: {
                                           // 失败原因由 threads.createError 统一显示，这里不重复
                                           void props.threads.retryCreate(t.id)
                                         }}>
-                                  <Check size={13} /><span>重试保存到服务端</span>
+                                  <Check size={12} /><span>重试保存到服务端</span>
                                 </button>
                               )}
                               <button type="button" role="menuitem"
                                       onClick={() => { props.threads.setPinned(t.id, !t.pinned); setRowMenu(null) }}>
-                                {t.pinned ? <PinOff size={13} /> : <Pin size={13} />}
+                                {t.pinned ? <PinOff size={14} /> : <Pin size={14} />}
                                 <span>{t.pinned ? '取消置顶' : '置顶会话'}</span>
                               </button>
                               <button type="button" role="menuitem"
                                       onClick={() => { props.threads.setArchived(t.id, !t.archived); setRowMenu(null) }}>
-                                {t.archived ? <ArchiveRestore size={13} /> : <Archive size={13} />}
+                                {t.archived ? <ArchiveRestore size={14} /> : <Archive size={14} />}
                                 <span>{t.archived ? '取消归档' : '归档会话'}</span>
                               </button>
                               <button type="button" role="menuitem" data-danger
@@ -3076,7 +3076,7 @@ export function Conversation(props: {
                                             && !window.confirm(`删除对话「${t.title}」？服务端将不再返回这条对话。`)) return
                                         void props.threads.remove(t.id)
                                       }}>
-                                <Trash2 size={13} />
+                                <Trash2 size={12} />
                                 <span>{t.origin === 'local' ? '丢弃这条草稿' : '删除对话'}</span>
                               </button>
                             </div>
@@ -3129,12 +3129,12 @@ export function Conversation(props: {
                   但必须说明「不是完整历史」—— 空会话与没读到是两件事。 */}
               {activeIsServer && !activeMessagesLoaded && !activeThread?.messagesError && (
                 <p className="cv3-streaming" role="status">
-                  <LoaderCircle className="cv3-spin" size={13} /> 正在读取历史消息…
+                  <LoaderCircle className="cv3-spin" size={12} /> 正在读取历史消息…
                 </p>
               )}
               {activeIsServer && activeThread?.messagesError && (
                 <p className="cv3-sync-error" role="alert">
-                  <AlertCircle size={13} />
+                  <AlertCircle size={12} />
                   <span>历史消息没读全（{activeThread.messagesError}）当前显示的只是已读到的部分。</span>
                   <button type="button" onClick={retryMessages}>重试</button>
                 </p>
@@ -3143,7 +3143,7 @@ export function Conversation(props: {
                   不说的话，读回历史后这条会消失，看起来就像「刚写的话丢了」。 */}
               {activeIsServer && activeThread?.unsavedFirst && (
                 <p className="cv3-sync-error" role="alert">
-                  <AlertCircle size={13} />
+                  <AlertCircle size={12} />
                   <span>
                     下面第一条需求没有存进服务端（{activeThread.unsavedFirst.error}）
                     内容只保留在本页，可复制后重新发送。
@@ -3153,7 +3153,7 @@ export function Conversation(props: {
               {/* 详情读取失败：标题/时间/计数仍来自列表，只是可能不是最新 —— 明说，并给重试 */}
               {activeIsServer && activeThread?.syncError && (
                 <p className="cv3-sync-error" role="alert">
-                  <AlertCircle size={13} />
+                  <AlertCircle size={12} />
                   <span>最新详情没读到（{activeThread.syncError}）当前显示的是最近一次拿到的信息，可能不是最新。</span>
                   <button type="button" onClick={retrySync}>重试</button>
                 </p>

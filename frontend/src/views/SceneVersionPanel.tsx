@@ -227,7 +227,7 @@ export function SceneVersionPanel({
                           }}
                           aria-label={isSelectedForCompare ? '取消对比' : '勾选对比'}
                         >
-                          {isSelectedForCompare ? <CheckSquare size={13} /> : <Square size={13} />}
+                          {isSelectedForCompare ? <CheckSquare size={12} /> : <Square size={12} />}
                         </button>
                       </TooltipTrigger>
                       <TooltipContent side="top">
@@ -248,7 +248,7 @@ export function SceneVersionPanel({
                           }}
                           aria-label="与最新版对比"
                         >
-                          <GitCompareArrows size={13} />
+                          <GitCompareArrows size={12} />
                         </button>
                       </TooltipTrigger>
                       <TooltipContent side="top">
@@ -266,7 +266,7 @@ export function SceneVersionPanel({
                           aria-label="更多操作"
                           onClick={(e) => e.stopPropagation()}
                         >
-                          <MoreHorizontal size={13} />
+                          <MoreHorizontal size={12} />
                         </button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="text-xs">

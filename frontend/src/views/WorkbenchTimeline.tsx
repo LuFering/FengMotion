@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { CSSProperties, KeyboardEvent, PointerEvent } from 'react'
-import { CaretLineRight as BetweenHorizontalEnd, CaretLineLeft as BetweenHorizontalStart, FilmStrip as Film, Image as ImageGlyph, Minus, MusicNotes as Music2, Shapes as ShapeGlyph, TextT as Type } from '@phosphor-icons/react'
-import { Captions, ChevronRight, Clapperboard, HelpCircle, Layers, Repeat, Scan, Shapes, X as XMark } from 'lucide-react'
+/* 时间轨道图标全部用 lucide（第三轮统一）：选区起止用 |< >|，与原 phosphor CaretLine 语义一致。 */
+import { Captions, ChevronFirst, Plus, ChevronLast, ChevronRight, Clapperboard, Film, HelpCircle, Image as ImageGlyph, Layers, Minus, Music2, Repeat, Scan, Shapes, Type, X as XMark } from 'lucide-react'
 import { MediaIcon } from '@/components/icons/MediaIcon'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { formatTimecode } from '@/data/timeRange'
@@ -70,7 +70,7 @@ const tickLabel = (seconds: number, step: number) => {
   return `${m}:${s.toFixed(digits).padStart(digits + 3, '0')}`
 }
 
-const KIND_ICON = { text: Type, image: ImageGlyph, video: Film, audio: Music2, shape: ShapeGlyph } as const
+const KIND_ICON = { text: Type, image: ImageGlyph, video: Film, audio: Music2, shape: Shapes } as const
 const TRACK_ICON = {
   text: Captions,
   video: Clapperboard,
@@ -437,7 +437,7 @@ export function WorkbenchTimeline({
             <Tooltip>
               <TooltipTrigger asChild>
                 <button type="button" className="wb-tl-icon" aria-label="设为选区起点" disabled={unavailable || currentTime >= limit - 0.05} onClick={() => markBoundary('start')}>
-                  <BetweenHorizontalStart size={16} weight="regular" />
+                  <ChevronFirst size={16} />
                 </button>
               </TooltipTrigger>
               <TooltipContent>{unavailable ? opsDisabledReason : '设为选区起点 ['}</TooltipContent>
@@ -445,7 +445,7 @@ export function WorkbenchTimeline({
             <Tooltip>
               <TooltipTrigger asChild>
                 <button type="button" className="wb-tl-icon" aria-label="设为选区终点" disabled={unavailable || currentTime <= 0.05} onClick={() => markBoundary('end')}>
-                  <BetweenHorizontalEnd size={16} weight="regular" />
+                  <ChevronLast size={16} />
                 </button>
               </TooltipTrigger>
               <TooltipContent>{unavailable ? opsDisabledReason : '设为选区终点 ]'}</TooltipContent>
@@ -528,7 +528,7 @@ export function WorkbenchTimeline({
             <Tooltip>
               <TooltipTrigger asChild>
                 <button type="button" className="wb-tl-icon" aria-label="缩小时间线" disabled={unavailable || zoom <= 1.001} onClick={() => setZoomTo(zoom / 1.8)}>
-                  <Minus size={15} weight="bold" />
+                  <Minus size={14} />
                 </button>
               </TooltipTrigger>
               <TooltipContent>{unavailable ? opsDisabledReason : '缩小'}</TooltipContent>
@@ -547,7 +547,7 @@ export function WorkbenchTimeline({
             <Tooltip>
               <TooltipTrigger asChild>
                 <button type="button" className="wb-tl-icon" aria-label="放大时间线" disabled={unavailable || zoom >= maxZoom - 0.001} onClick={() => setZoomTo(zoom * 1.8)}>
-                  <MediaIcon name="add" size={15} />
+                  <Plus size={14} />
                 </button>
               </TooltipTrigger>
               <TooltipContent>{unavailable ? opsDisabledReason : '放大'}</TooltipContent>
@@ -610,7 +610,7 @@ export function WorkbenchTimeline({
               <Tooltip>
                 <TooltipTrigger asChild>
                   <span className="wb-tl-ref-badge" tabIndex={0} role="status">
-                    参考 <HelpCircle size={11} className="inline ml-0.5 opacity-70" />
+                    参考 <HelpCircle size={12} className="inline ml-0.5 opacity-70" />
                   </span>
                 </TooltipTrigger>
                 <TooltipContent>这些轨道尚未确认与当前版本对应，可浏览和定位。</TooltipContent>
@@ -786,7 +786,7 @@ export function WorkbenchTimeline({
                       return next
                     })}
                   >
-                    <ChevronRight size={13} className={`wb-tl-fold-arrow ${collapsed ? '' : 'is-expanded'}`} />
+                    <ChevronRight size={12} className={`wb-tl-fold-arrow ${collapsed ? '' : 'is-expanded'}`} />
                   </button>
 
                   <span className="wb-tl-track-type-icon" aria-hidden="true">
@@ -837,7 +837,7 @@ export function WorkbenchTimeline({
                         {/* 优先突出 12px 内容名称，类型已在轨道头明确表达；仅在特殊素材且空间充裕时展示小图标 */}
                         {hasSpecialIcon && clipWidthPct >= 10 && (
                           <span className="wb-tl-clip-icon">
-                            <ClipIcon size={12} weight="regular" />
+                            <ClipIcon size={12} />
                           </span>
                         )}
                         <span className="wb-tl-clip-name">{clip.name}</span>

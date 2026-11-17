@@ -1,4 +1,4 @@
-import { Crop, ChatCenteredText } from '@phosphor-icons/react'
+import { Crop, MessageSquareText } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 export function PreviewReviewTools({ video, available, regionMode, onFrame, onRegion }: {
@@ -6,7 +6,7 @@ export function PreviewReviewTools({ video, available, regionMode, onFrame, onRe
   onFrame: () => void; onRegion: () => void
 }) {
   return <div className="wb-preview-tools"><div className="wb-preview-tools-main">
-    <Tooltip><TooltipTrigger asChild><button type="button" disabled={!available} aria-label={video ? '引用此帧' : '引用图片'} onClick={onFrame}><ChatCenteredText size={19} weight="fill"/></button></TooltipTrigger><TooltipContent>{video ? '引用此帧' : '引用图片'}</TooltipContent></Tooltip>
-    <Tooltip><TooltipTrigger asChild><button type="button" disabled={!available} aria-label="框选区域" aria-pressed={regionMode} onClick={onRegion}><Crop size={19} weight="bold"/></button></TooltipTrigger><TooltipContent>框选区域</TooltipContent></Tooltip>
+    <Tooltip><TooltipTrigger asChild><button type="button" disabled={!available} aria-label={video ? '引用此帧' : '引用图片'} onClick={onFrame}><MessageSquareText size={16}/></button></TooltipTrigger><TooltipContent>{video ? '引用此帧' : '引用图片'}</TooltipContent></Tooltip>
+    <Tooltip><TooltipTrigger asChild><button type="button" disabled={!available} aria-label="框选区域" aria-pressed={regionMode} onClick={onRegion}><Crop size={16}/></button></TooltipTrigger><TooltipContent>框选区域</TooltipContent></Tooltip>
   </div></div>
 }

@@ -226,10 +226,10 @@ export function StageRangeBubble({ span, duration, baseVersion, baseFile, busy, 
   return (
     <div className="wb-sel-bubble" role="dialog" aria-label="这几秒要改成什么">
       <header className="wb-sel-bubble-head">
-        <Scissors size={13} />
+        <Scissors size={12} />
         <b>{formatTimecode(span.start, true)} – {formatTimecode(span.end, true)}</b>
         <small>{spanLengthLabel(span)}</small>
-        <button type="button" className="wb-sel-close" onClick={onCancel} aria-label="取消这次选段"><X size={13} /></button>
+        <button type="button" className="wb-sel-close" onClick={onCancel} aria-label="取消这次选段"><X size={14} /></button>
       </header>
 
       <textarea ref={inputRef} className="wb-sel-input" rows={2}
