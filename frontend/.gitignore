@@ -27,3 +27,6 @@ dist-ssr
 demo-out
 demo-out-thinking
 demo-out-components
+
+# 本地外部能力库挂载目录（不在仓库内）
+public/capability-assets
