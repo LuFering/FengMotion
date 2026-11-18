@@ -51,17 +51,49 @@ const REMOTION_RUNTIME_PACKAGES = ['@remotion/bundler', '@remotion/renderer']
 /** 与 desktop 使用的 Remotion 版本保持一致；换版本时这里和 desktop 一起改。 */
 const REMOTION_VERSION = '4.0.519'
 
-/** 执行一个命令，失败时抛出可读错误。 */
+const IS_WIN = process.platform === 'win32'
+const IS_MAC = process.platform === 'darwin'
+
+/** 执行一个命令，失败时抛出可读错误。Windows 下对 .cmd/.bat 自动走 shell。 */
 function run(cmd, args, cwd) {
   console.log(`$ ${cmd} ${args.join(' ')}`)
-  execFileSync(cmd, args, { cwd, stdio: 'inherit' })
+  const useShell = IS_WIN && !cmd.toLowerCase().endsWith('.exe')
+  execFileSync(cmd, args, { cwd, stdio: 'inherit', shell: useShell })
+}
+
+/** 跨平台查找 PATH 中的可执行文件。 */
+function findOnPath(names) {
+  const probe = IS_WIN ? 'where' : 'which'
+  for (const name of names) {
+    try {
+      const out = execFileSync(probe, [name], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] })
+      const hit = out.split(/\r?\n/).map((s) => s.trim()).find((p) => p && existsSync(p))
+      if (hit) return hit
+    } catch {
+      // 未命中则继续下一个候选名
+    }
+  }
+  return null
+}
+
+/** 获取文件夹总字节数（跨平台替代 `du -sh`）。 */
+function dirSizeBytes(dir) {
+  let total = 0
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name)
+    if (entry.isDirectory()) total += dirSizeBytes(full)
+    else total += statSync(full).size
+  }
+  return total
 }
 
 /* ── 1. 构建后端 jar ─────────────────────────────────────── */
 function buildJar() {
-  const mvn = process.env.FENGMOTION_MVN
-    ?? path.join(process.env.HOME ?? '', '.local', 'opt', 'apache-maven-3.9.9', 'bin', 'mvn')
-  const mvnCmd = existsSync(mvn) ? mvn : 'mvn'
+  const localMvn = path.join(process.env.HOME ?? process.env.USERPROFILE ?? '', '.local', 'opt', 'apache-maven-3.9.9', 'bin', IS_WIN ? 'mvn.cmd' : 'mvn')
+  const mvnCmd = process.env.FENGMOTION_MVN
+    || (existsSync(localMvn) ? localMvn : null)
+    || findOnPath(IS_WIN ? ['mvn.cmd', 'mvn'] : ['mvn'])
+    || (IS_WIN ? 'mvn.cmd' : 'mvn')
 
   console.log('\n[1/5] 构建后端 jar')
   run(mvnCmd, ['-q', 'package', '-DskipTests'], backendDir)
@@ -84,12 +116,21 @@ function buildJar() {
 }
 
 /* ── 2. 裁剪 JRE ─────────────────────────────────────────── */
+function resolveJavaHome() {
+  if (process.env.JAVA_HOME && existsSync(process.env.JAVA_HOME)) return process.env.JAVA_HOME
+  if (!IS_WIN) {
+    return execFileSync('bash', ['-c', 'dirname $(dirname $(readlink -f $(which java)))'], { encoding: 'utf8' }).trim()
+  }
+  const javaBin = findOnPath(['java.exe', 'java'])
+  if (!javaBin) throw new Error('未设置 JAVA_HOME 且在 PATH 中找不到 java.exe')
+  return path.dirname(path.dirname(javaBin))
+}
+
 function buildJre() {
   console.log('\n[2/5] 裁剪 JRE (jlink)')
 
-  const javaHome = process.env.JAVA_HOME
-    ?? execFileSync('bash', ['-c', 'dirname $(dirname $(readlink -f $(which java)))'], { encoding: 'utf8' }).trim()
-  const jlink = path.join(javaHome, 'bin', 'jlink')
+  const javaHome = resolveJavaHome()
+  const jlink = path.join(javaHome, 'bin', IS_WIN ? 'jlink.exe' : 'jlink')
   if (!existsSync(jlink)) {
     throw new Error(`找不到 jlink：${jlink}。请设置 JAVA_HOME 指向 JDK 21（JRE 不含 jlink）`)
   }
@@ -172,7 +213,11 @@ function buildRemotion() {
   }
   writeFileSync(path.join(remotionOut, 'package.json'), JSON.stringify(pkgJson, null, 2) + '\n')
   console.log(`  安装运行依赖：${deps.join(', ')}`)
-  run('npm', ['install', '--omit=dev', '--no-audit', '--no-fund'], remotionOut)
+  if (process.env.npm_execpath && existsSync(process.env.npm_execpath)) {
+    run(process.execPath, [process.env.npm_execpath, 'install', '--omit=dev', '--no-audit', '--no-fund'], remotionOut)
+  } else {
+    run(IS_WIN ? 'npm.cmd' : 'npm', ['install', '--omit=dev', '--no-audit', '--no-fund'], remotionOut)
+  }
 
   const pkgCount = existsSync(remotionModulesOut) ? readdirSync(remotionModulesOut).length : 0
   if (pkgCount === 0) {
@@ -207,21 +252,55 @@ function buildWorkflowTools() {
 function buildFfmpeg() {
   console.log('\n[5/6] 打包 ffmpeg')
 
-  const candidates = ['/usr/bin/ffmpeg', '/usr/local/bin/ffmpeg']
-  const ffmpegBin = candidates.find((p) => existsSync(p))
+  const exe = IS_WIN ? '.exe' : ''
+  const envFfmpeg = process.env.FENGMOTION_FFMPEG_BIN
+  const candidates = IS_WIN
+    ? []
+    : IS_MAC
+      ? ['/opt/homebrew/bin/ffmpeg', '/usr/local/bin/ffmpeg']
+      : ['/usr/bin/ffmpeg', '/usr/local/bin/ffmpeg']
+  const ffmpegBin = (envFfmpeg && existsSync(envFfmpeg) ? envFfmpeg : null)
+    ?? candidates.find((p) => existsSync(p))
+    ?? findOnPath(IS_WIN ? ['ffmpeg.exe', 'ffmpeg'] : ['ffmpeg'])
   if (!ffmpegBin) {
     /* 缺 ffmpeg 不阻断打包：后端在找不到 ffmpeg 时仍能导入素材，
        只是没有缩略图、时长显示「未知」。这比让整个安装包打不出来要好。 */
     console.warn('  ⚠ 未找到 ffmpeg，打包应用将没有素材缩略图（导入仍可用）')
     return
   }
-  const ffprobeBin = ffmpegBin.replace(/ffmpeg$/, 'ffprobe')
+  const envFfprobe = process.env.FENGMOTION_FFPROBE_BIN
+  const siblingFfprobe = path.join(path.dirname(ffmpegBin), `ffprobe${exe}`)
+  const ffprobeBin = (envFfprobe && existsSync(envFfprobe) ? envFfprobe : null)
+    ?? (existsSync(siblingFfprobe) ? siblingFfprobe : null)
+    ?? findOnPath(IS_WIN ? ['ffprobe.exe', 'ffprobe'] : ['ffprobe'])
+
   rmSync(ffmpegOut, { recursive: true, force: true })
   mkdirSync(ffmpegOut, { recursive: true })
-  cpSync(ffmpegBin, path.join(ffmpegOut, 'ffmpeg'))
-  if (existsSync(ffprobeBin)) cpSync(ffprobeBin, path.join(ffmpegOut, 'ffprobe'))
+  copyFileSync(ffmpegBin, path.join(ffmpegOut, `ffmpeg${exe}`))
+  if (ffprobeBin && existsSync(ffprobeBin)) copyFileSync(ffprobeBin, path.join(ffmpegOut, `ffprobe${exe}`))
 
-  /* 动态库：把 ffmpeg 依赖的 libav / libsw 系列一起带上。
+  if (IS_WIN) {
+    // Windows 若使用 shared 构建，把同目录 .dll 一并放到 ffmpeg.exe 旁边
+    let dllCount = 0
+    for (const file of readdirSync(path.dirname(ffmpegBin))) {
+      if (file.toLowerCase().endsWith('.dll')) {
+        copyFileSync(path.join(path.dirname(ffmpegBin), file), path.join(ffmpegOut, file))
+        dllCount += 1
+      }
+    }
+    console.log(`  已复制 ffmpeg.exe${ffprobeBin ? ' + ffprobe.exe' : ''}${dllCount > 0 ? ` 与 ${dllCount} 个 DLL` : ''}`)
+    return
+  }
+
+  if (IS_MAC) {
+    // 确保可执行权限；CI 下优先通过 FENGMOTION_FFMPEG_BIN 传入静态二进制
+    execFileSync('chmod', ['+x', path.join(ffmpegOut, 'ffmpeg')])
+    if (ffprobeBin && existsSync(ffprobeBin)) execFileSync('chmod', ['+x', path.join(ffmpegOut, 'ffprobe')])
+    console.log(`  已复制 macOS ffmpeg${ffprobeBin ? ' + ffprobe' : ''}`)
+    return
+  }
+
+  /* Linux 动态库：把 ffmpeg 依赖的 libav / libsw 系列一起带上。
      用 ldd 列出真实依赖，只取解码/容器相关的那几个（其余的 libc、libz 等在目标机都有）。 */
   const libDir = path.join(ffmpegOut, 'lib')
   mkdirSync(libDir, { recursive: true })
@@ -233,16 +312,13 @@ function buildFfmpeg() {
       if (!m) continue
       /* 必须 copyFileSync 而不是 cpSync：系统里的 libavcodec.so.63 是符号链接，
          cpSync 会把**绝对路径的链接**拷进去，安装包里只剩一条指向 /usr/lib/... 的
-         死链 —— 目标机没有那个文件，等于没带库。
-         （cpSync 加 dereference 也不行：它会把符号链接目标当目录处理并报 EISDIR。
-         copyFileSync 默认跟随链接，复制的就是真实内容。） */
+         死链 —— 目标机没有那个文件，等于没带库。 */
       copyFileSync(m[2], path.join(libDir, m[1]))
       copied += 1
     }
   } catch (err) {
     console.warn('  ⚠ 读取 ffmpeg 动态依赖失败，缩略图在目标机可能不可用：' + err.message)
   }
-  // 校验：任何一个还是符号链接就说明打包产物在目标机不可用。
   const stillLinks = readdirSync(libDir).filter((f) => {
     try {
       return statSync(path.join(libDir, f)).size === 0
@@ -259,7 +335,8 @@ function buildFfmpeg() {
 /* ── 6. 校验 ─────────────────────────────────────────────── */
 function verify() {
   console.log('\n[6/6] 校验产物')
-  const java = path.join(jreDir, 'bin', process.platform === 'win32' ? 'java.exe' : 'java')
+  const exe = IS_WIN ? '.exe' : ''
+  const java = path.join(jreDir, 'bin', `java${exe}`)
   const jar = path.join(backendOut, 'fengmotion-server.jar')
   if (!existsSync(java)) throw new Error(`JRE 缺少 java 可执行文件：${java}`)
   if (!existsSync(jar)) throw new Error(`后端 jar 缺失：${jar}`)
@@ -268,8 +345,7 @@ function verify() {
   console.log('  JRE:', version.split('\n')[0])
   console.log('  jar:', (statSync(jar).size / 1024 / 1024).toFixed(1) + ' MB')
 
-  const jreSize = execFileSync('du', ['-sh', jreDir], { encoding: 'utf8' }).split('\t')[0]
-  console.log('  JRE 体积:', jreSize)
+  console.log('  JRE 体积:', (dirSizeBytes(jreDir) / 1024 / 1024).toFixed(1) + ' MB')
 
   for (const file of ['render.mjs', 'render-shared.mjs', 'render-project.mjs']) {
     if (!existsSync(path.join(remotionOut, file))) {
@@ -298,9 +374,8 @@ function verify() {
   if (!existsSync(initTool)) throw new Error(`缺少 workflow-v0.1.1 init-project：${initTool}`)
   console.log('  workflow-v0.1.1 工具: 就绪')
 
-  const ffmpegBin = path.join(ffmpegOut, 'ffmpeg')
+  const ffmpegBin = path.join(ffmpegOut, `ffmpeg${exe}`)
   if (existsSync(ffmpegBin)) {
-    // 实测跑一次，确认这个二进制在打包环境里真的能执行（动态库齐不齐）。
     try {
       const v = execFileSync(ffmpegBin, ['-version'], { encoding: 'utf8' })
       console.log('  ffmpeg:', v.split('\n')[0])

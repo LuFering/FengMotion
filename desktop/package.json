@@ -7,7 +7,10 @@
   "scripts": {
     "build:shell": "node scripts/build-electron.mjs",
     "resources": "node scripts/prepare-backend-resources.mjs",
-    "dist": "npm --prefix ../frontend run build && npm run build:shell && npm run resources && electron-builder --config electron-builder.config.mjs --linux",
+    "dist": "npm --prefix ../frontend run build && npm run build:shell && npm run resources && electron-builder --config electron-builder.config.mjs",
+    "dist:linux": "npm --prefix ../frontend run build && npm run build:shell && npm run resources && electron-builder --config electron-builder.config.mjs --linux",
+    "dist:win": "npm --prefix ../frontend run build && npm run build:shell && npm run resources && electron-builder --config electron-builder.config.mjs --win",
+    "dist:mac": "npm --prefix ../frontend run build && npm run build:shell && npm run resources && electron-builder --config electron-builder.config.mjs --mac",
     "release": "npm run dist -- --publish always"
   },
   "dependencies": {

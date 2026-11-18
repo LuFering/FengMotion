@@ -214,11 +214,19 @@ export async function startBackend(options: StartOptions): Promise<BackendHandle
      这里显式探测几个常见安装位置再传进去；都没有就不传，
      让后端按原逻辑报「未接入」—— 不编一个不存在的路径。 */
   const harnessArgs: string[] = []
-  const dshCandidates = [
-    path.join(process.env.HOME ?? '', '.local', 'bin', 'dsh'),
-    '/usr/local/bin/dsh',
-    '/usr/bin/dsh',
-  ]
+  const dshCandidates = process.platform === 'win32'
+    ? [
+        path.join(process.env.APPDATA ?? '', 'npm', 'dsh.cmd'),
+        path.join(process.env.APPDATA ?? '', 'npm', 'dsh.exe'),
+        path.join(process.env.USERPROFILE ?? '', '.local', 'bin', 'dsh.exe'),
+        path.join(process.env.USERPROFILE ?? '', '.local', 'bin', 'dsh.cmd'),
+      ]
+    : [
+        path.join(process.env.HOME ?? '', '.local', 'bin', 'dsh'),
+        '/opt/homebrew/bin/dsh',
+        '/usr/local/bin/dsh',
+        '/usr/bin/dsh',
+      ]
   const dshBin = dshCandidates.find((candidate) => candidate && existsSync(candidate))
   if (dshBin) {
     harnessArgs.push(`--fengmotion.harness.bin=${dshBin}`)

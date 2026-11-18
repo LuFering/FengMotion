@@ -1,0 +1,237 @@
+name: 构建与发布多平台安装包
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: '目标 Release 标签（留空则使用 v + desktop/package.json 版本号）'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+env:
+  CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+
+jobs:
+  linux-x64:
+    name: Linux x64 (AppImage)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            frontend/package-lock.json
+            desktop/package-lock.json
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: 安装 ffmpeg 与图标依赖并生成图标
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          python3 -m pip install --quiet pillow numpy
+          python3 desktop/scripts/make-icons.py
+
+      - name: 安装前端与桌面依赖
+        run: |
+          npm --prefix frontend ci
+          npm --prefix desktop ci
+
+      - name: 打包 Linux AppImage
+        run: npm --prefix desktop run dist:linux
+
+      - name: 校验 Linux 产物结构
+        run: |
+          test -f desktop/release/latest-linux.yml
+          ls -lh desktop/release/*.AppImage
+          test -f desktop/release/linux-unpacked/resources/backend/fengmotion-server.jar
+          test -f desktop/release/linux-unpacked/resources/jre/bin/java
+          test -f desktop/release/linux-unpacked/resources/workflow-v0.1.1/prompt-first/tools/init-project.mjs
+          test -d desktop/release/linux-unpacked/resources/remotion/node_modules/@remotion/bundler
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-linux-x64
+          path: |
+            desktop/release/*.AppImage
+            desktop/release/latest-linux.yml
+          if-no-files-found: error
+
+  windows-x64:
+    name: Windows x64 (.exe)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            frontend/package-lock.json
+            desktop/package-lock.json
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: 安装 Windows 静态 ffmpeg
+        shell: pwsh
+        run: |
+          npm install --prefix "$env:RUNNER_TEMP\ffmpeg-tools" --no-save ffmpeg-static ffprobe-static
+          $ffmpeg = node -e "console.log(require(process.env.RUNNER_TEMP + '/ffmpeg-tools/node_modules/ffmpeg-static'))"
+          $ffprobe = node -e "console.log(require(process.env.RUNNER_TEMP + '/ffmpeg-tools/node_modules/ffprobe-static').path)"
+          "FENGMOTION_FFMPEG_BIN=$ffmpeg" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "FENGMOTION_FFPROBE_BIN=$ffprobe" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: 生成应用图标（含 .ico）
+        shell: pwsh
+        run: |
+          python -m pip install --quiet pillow numpy
+          python desktop/scripts/make-icons.py
+          if (!(Test-Path desktop/build/icon.ico)) { throw "缺少 desktop/build/icon.ico" }
+
+      - name: 安装前端与桌面依赖
+        run: |
+          npm --prefix frontend ci
+          npm --prefix desktop ci
+
+      - name: 打包 Windows NSIS 与 Portable (.exe)
+        run: npm --prefix desktop run dist:win
+
+      - name: 校验 Windows 产物结构
+        shell: pwsh
+        run: |
+          Get-ChildItem desktop/release/*.exe | Format-Table Name, Length
+          if (!(Test-Path desktop/release/latest.yml)) { throw "缺少 latest.yml" }
+          if (!(Test-Path desktop/release/win-unpacked/resources/backend/fengmotion-server.jar)) { throw "缺少后端 jar" }
+          if (!(Test-Path desktop/release/win-unpacked/resources/jre/bin/java.exe)) { throw "缺少 java.exe" }
+          if (!(Test-Path desktop/release/win-unpacked/resources/workflow-v0.1.1/prompt-first/tools/init-project.mjs)) { throw "缺少 workflow-v0.1.1" }
+          if (!(Test-Path desktop/release/win-unpacked/resources/remotion/node_modules/@remotion/bundler/package.json)) { throw "缺少 remotion 依赖" }
+          if (!(Test-Path desktop/release/win-unpacked/resources/ffmpeg/ffmpeg.exe)) { throw "缺少 ffmpeg.exe" }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-windows-x64
+          path: |
+            desktop/release/*.exe
+            desktop/release/latest.yml
+          if-no-files-found: error
+
+  macos-arm64:
+    name: macOS arm64 (.dmg / .zip)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            frontend/package-lock.json
+            desktop/package-lock.json
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: 准备 Maven 与静态 ffmpeg / ffprobe
+        run: |
+          command -v mvn >/dev/null 2>&1 || brew install maven
+          npm install --prefix "$RUNNER_TEMP/ffmpeg-tools" --no-save ffmpeg-static ffprobe-static
+          echo "FENGMOTION_FFMPEG_BIN=$(node -e "console.log(require(process.env.RUNNER_TEMP + '/ffmpeg-tools/node_modules/ffmpeg-static'))")" >> "$GITHUB_ENV"
+          echo "FENGMOTION_FFPROBE_BIN=$(node -e "console.log(require(process.env.RUNNER_TEMP + '/ffmpeg-tools/node_modules/ffprobe-static').path)")" >> "$GITHUB_ENV"
+
+      - name: 生成 macOS 图标
+        run: |
+          python3 -m pip install --quiet pillow numpy
+          python3 desktop/scripts/make-icons.py
+
+      - name: 安装前端与桌面依赖
+        run: |
+          npm --prefix frontend ci
+          npm --prefix desktop ci
+
+      - name: 打包 macOS .dmg 与 .zip
+        run: npm --prefix desktop run dist:mac
+
+      - name: 校验 macOS .app 内部资源
+        run: |
+          ls -lh desktop/release/*.dmg desktop/release/*.zip desktop/release/latest-mac.yml
+          APP_RES="$(echo desktop/release/mac*/FengMotion.app/Contents/Resources)"
+          test -f "$APP_RES/backend/fengmotion-server.jar"
+          test -f "$APP_RES/jre/bin/java"
+          test -f "$APP_RES/workflow-v0.1.1/prompt-first/tools/init-project.mjs"
+          test -d "$APP_RES/remotion/node_modules/@remotion/bundler"
+          test -f "$APP_RES/ffmpeg/ffmpeg"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-macos-arm64
+          path: |
+            desktop/release/*.dmg
+            desktop/release/*.zip
+            desktop/release/latest-mac.yml
+          if-no-files-found: error
+
+  publish:
+    name: 上传多平台产物到 GitHub Release
+    needs: [linux-x64, windows-x64, macos-arm64]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+
+      - name: 确定 Release 标签并上传附件
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INPUT_TAG: ${{ github.event.inputs.tag }}
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            TAG="${{ github.ref_name }}"
+          elif [ -n "$INPUT_TAG" ]; then
+            TAG="$INPUT_TAG"
+          else
+            TAG="v$(node -p "require('./desktop/package.json').version")"
+          fi
+          echo "Publishing assets to tag: $TAG"
+          ls -lh release-assets/
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" release-assets/* --clobber
+          else
+            gh release create "$TAG" release-assets/* --title "FengMotion ${TAG#v}" --generate-notes
+          fi

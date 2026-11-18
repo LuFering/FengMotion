@@ -46,7 +46,10 @@ export default {
     const { cpSync, existsSync } = await import('node:fs')
     const path = await import('node:path')
     const from = path.resolve('electron', 'resources', 'remotion', 'node_modules')
-    const to = path.join(context.appOutDir, 'resources', 'remotion', 'node_modules')
+    const resourcesDir = context.electronPlatformName === 'darwin'
+      ? path.join(context.appOutDir, `${context.packager.appInfo.productFilename}.app`, 'Contents', 'Resources')
+      : path.join(context.appOutDir, 'resources')
+    const to = path.join(resourcesDir, 'remotion', 'node_modules')
     if (!existsSync(from)) {
       console.warn('[afterPack] 未找到 remotion 运行依赖，渲染可能不可用：' + from)
       return
@@ -60,6 +63,33 @@ export default {
     icon: 'build/icons',
     // AppImage 走 differential 更新需要固定的 artifact 命名
     artifactName: '${productName}-${version}-${arch}.${ext}',
+  },
+  win: {
+    target: [
+      { target: 'nsis', arch: ['x64'] },
+      { target: 'portable', arch: ['x64'] },
+    ],
+    icon: 'build/icon.ico',
+  },
+  nsis: {
+    oneClick: false,
+    allowToChangeInstallationDirectory: true,
+    perMachine: false,
+    artifactName: '${productName}-${version}-win-${arch}-setup.${ext}',
+  },
+  portable: {
+    artifactName: '${productName}-${version}-win-${arch}-portable.${ext}',
+  },
+  mac: {
+    // 不写死单一 arch，按当前 macOS Runner 原生架构打包，确保内嵌 JRE 与 Remotion 二进制架构一致
+    target: ['dmg', 'zip'],
+    category: 'public.app-category.video',
+    icon: 'build/icons/512x512.png',
+    identity: null,
+    artifactName: '${productName}-${version}-mac-${arch}.${ext}',
+  },
+  dmg: {
+    artifactName: '${productName}-${version}-mac-${arch}.${ext}',
   },
   // 更新源：GitHub Releases。
   // publish 只声明「更新从哪里取」，不上传 —— 上传由 npm run release 显式触发，

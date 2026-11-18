@@ -3,4 +3,7 @@ electron/build/
 electron/resources/
 build/icons/
 build/icons-variants/
+build/icon.ico
+build/icon.icns
+build/icon.iconset/
 release/

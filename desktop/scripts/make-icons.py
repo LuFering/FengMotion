@@ -16,6 +16,8 @@ ImageMagick 在合成带 alpha 的 PNG 时会把结果降成灰度（已实际�
 
 from PIL import Image, ImageDraw
 import os
+import shutil
+import subprocess
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -140,6 +142,39 @@ VARIANTS = {
 VARIANTS_DIR = os.path.join(ROOT, 'build', 'icons-variants')
 
 
+def _build_windows_ico() -> None:
+    ico_path = os.path.join(ROOT, 'build', 'icon.ico')
+    ico_sizes = [(16, 16), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)]
+    # 用最大尺寸源图交给 Pillow 写入多分辨率 ICO
+    build(256).save(ico_path, format='ICO', sizes=ico_sizes)
+    print(f'  {ico_path.replace(ROOT, ".")}')
+
+
+def _build_macos_icns() -> None:
+    if sys.platform != 'darwin' or not shutil.which('iconutil'):
+        return
+    iconset_dir = os.path.join(ROOT, 'build', 'icon.iconset')
+    os.makedirs(iconset_dir, exist_ok=True)
+    mapping = [
+        (16, 'icon_16x16.png'),
+        (32, 'icon_16x16@2x.png'),
+        (32, 'icon_32x32.png'),
+        (64, 'icon_32x32@2x.png'),
+        (128, 'icon_128x128.png'),
+        (256, 'icon_128x128@2x.png'),
+        (256, 'icon_256x256.png'),
+        (512, 'icon_256x256@2x.png'),
+        (512, 'icon_512x512.png'),
+        (1024, 'icon_512x512@2x.png'),
+    ]
+    for size, filename in mapping:
+        build(size).save(os.path.join(iconset_dir, filename))
+    icns_path = os.path.join(ROOT, 'build', 'icon.icns')
+    subprocess.run(['iconutil', '-c', 'icns', iconset_dir, '-o', icns_path], check=True)
+    shutil.rmtree(iconset_dir, ignore_errors=True)
+    print(f'  {icns_path.replace(ROOT, ".")}')
+
+
 def main() -> None:
     os.makedirs(OUT_DIR, exist_ok=True)
     for size in SIZES:
@@ -147,6 +182,9 @@ def main() -> None:
         path = os.path.join(OUT_DIR, f'{size}x{size}.png')
         img.save(path)
         print(f'  {path.replace(ROOT, ".")}')
+
+    _build_windows_ico()
+    _build_macos_icns()
 
     # 同时保留所有形态，供以后换图标/做物料时直接取用
     for name, factory in VARIANTS.items():
