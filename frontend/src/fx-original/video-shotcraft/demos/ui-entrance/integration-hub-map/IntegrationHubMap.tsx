@@ -44,12 +44,12 @@ const PW = 820, PH = 520;
 
 // ---------- 中枢面板（video-shotcraft 工作区：版式对照截图 1/7，内容换成镜头/渲染的世界） ----------
 const LIST: { icon: string; title: string; sub: string }[] = [
-  { icon: '#4a9fd8', title: 'Launch Film v3', sub: 'Storyboard · 12 shots · 0:45' },
+  { icon: '#4a9fd8', title: 'Launch Film01 v3', sub: 'Storyboard · 12 shots · 0:45' },
   { icon: '#4a9fd8', title: 'Shot 04 · Crash Zoom Punch', sub: 'Recipe card · Camera · 36f' },
   { icon: '#34a853', title: 'Pricing Page Captures', sub: 'Page capture · 2x' },
   { icon: '#a259ff', title: 'Hero Frame Design', sub: 'Design File · Last Edited' },
   { icon: '#f2c744', title: 'Beat Grid · Soundtrack', sub: 'Audio · 120 BPM' },
-  { icon: '#9a9a98', title: 'Render Archive', sub: 'Archived · In Launch Film' },
+  { icon: '#9a9a98', title: 'Render Archive', sub: 'Archived · In Launch Film01' },
   { icon: '#c8c8c6', title: 'Render launch film - 1080p', sub: 'In Progress · In Render Queue · Yesterday' },
 ];
 
@@ -136,7 +136,7 @@ const FrontPanel: React.FC<{ glow: number }> = ({ glow }) => (
   <div style={{ ...panelShell(glow), padding: '30px 34px' }}>
     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
       <div style={{ width: 26, height: 26, borderRadius: 7, background: 'linear-gradient(160deg, #5aaee6, #3d8fcc)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.35)' }} />
-      <div style={{ fontSize: 26, fontWeight: 650, color: INK, letterSpacing: '-0.02em' }}>Launch Film v3</div>
+      <div style={{ fontSize: 26, fontWeight: 650, color: INK, letterSpacing: '-0.02em' }}>Launch Film01 v3</div>
       <div style={{ marginLeft: 'auto', fontSize: 11.5, color: INK3 }}>Edited 2h ago</div>
     </div>
     <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>

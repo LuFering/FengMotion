@@ -12,13 +12,11 @@
  */
 
 import { useState } from 'react'
+import { UiIcon } from '@/components/icons/UiIcon'
+import { CheckSquare, Code01, File01, Folder, Plus, PresentationChart01, Table, Target01 } from '@untitledui/icons'
 import type { ComponentType } from 'react'
-import {
-  FileText, Folder, Presentation, Sheet, Target, ListChecks, Code2,
-} from 'lucide-react'
 import { MorphPanel } from './MorphPanel'
 import { useSpringPress } from './useSpringPress'
-import { Plus } from 'lucide-react'
 import './attach-menu.css'
 
 /** 一个菜单项。 */
@@ -62,18 +60,18 @@ export function AttachMenu({
   const actions: AttachMenuItem[] = [
     { id: 'files', label: '文件和文件夹', icon: Folder, onSelect: onPickFiles },
     ...(onGoal
-      ? [{ id: 'goal', label: '目标', hint: '设定目标以获得更快的结果', icon: Target, onSelect: onGoal }]
+      ? [{ id: 'goal', label: '目标', hint: '让结果更快收敛', icon: Target01, onSelect: onGoal }]
       : []),
     ...(onPlan
-      ? [{ id: 'plan', label: '计划模式', hint: '管理复杂的任务', icon: ListChecks, onSelect: onPlan }]
+      ? [{ id: 'plan', label: '计划模式', hint: '分步拆解复杂任务', icon: CheckSquare, onSelect: onPlan }]
       : []),
   ]
 
   const plugins: AttachMenuItem[] = [
-    { id: 'doc', label: '文件', hint: '创建和编辑文档', icon: FileText, tone: 'gray' },
-    { id: 'sheet', label: '电子表格', hint: '生成电子表格', icon: Sheet, tone: 'blue' },
-    { id: 'deck', label: '演讲', hint: '创建营销资产', icon: Presentation, tone: 'purple' },
-    { id: 'code', label: '代码块', hint: '编写和编辑现有代码', icon: Code2, tone: 'teal' },
+    { id: 'doc', label: '文件', icon: File01, tone: 'gray' },
+    { id: 'sheet', label: '电子表格', icon: Table, tone: 'blue' },
+    { id: 'deck', label: '演讲', icon: PresentationChart01, tone: 'purple' },
+    { id: 'code', label: '代码块', icon: Code01, tone: 'teal' },
   ].map((p) => ({ ...p, onSelect: () => onPluginHint?.(p.label) })) as AttachMenuItem[]
 
   return (
@@ -87,7 +85,7 @@ export function AttachMenu({
         disabled={disabled}
         onClick={() => setOpen((v) => !v)}
       >
-        <Plus size={16} />
+        <UiIcon icon={Plus} size="md" />
       </button>
 
       <MorphPanel open={open && !disabled} width={361} align="left">
@@ -97,7 +95,7 @@ export function AttachMenu({
             {actions.map((item) => (
               <li key={item.id}>
                 <button type="button" className="am-item" onClick={() => { setOpen(false); item.onSelect() }}>
-                  <item.icon size={18} strokeWidth={1.8} />
+                  <item.icon size={16} />
                   <span className="am-label">{item.label}</span>
                   {item.hint ? <span className="am-hint">{item.hint}</span> : null}
                 </button>
@@ -112,7 +110,7 @@ export function AttachMenu({
                 <button type="button" className="am-item" data-tone={item.tone}
                         onClick={() => { setOpen(false); item.onSelect() }}>
                   <span className="am-icon" aria-hidden>
-                    <item.icon size={16} strokeWidth={2} />
+                    <item.icon size={16} />
                   </span>
                   <span className="am-label">{item.label}</span>
                   <span className="am-hint">{item.hint}</span>

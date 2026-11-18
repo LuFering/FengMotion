@@ -23,8 +23,9 @@
  * 中间文件不是一回事。所以这里只显示 present 的结果，不去扫文件系统 ——
  * 扫出来的东西没法区分「产物」和「临时文件」。
  */
-import { FileText } from 'lucide-react'
 import './deliverables.css'
+import { UiIcon } from '@/components/icons/UiIcon'
+import { File01 } from '@untitledui/icons'
 
 /** 一个交付物。 */
 export interface Deliverable {
@@ -62,7 +63,7 @@ export function Deliverables({ files }: { files: Deliverable[] }) {
         {files.map((f) => (
           <div key={f.path} className="dlv-item" title={f.path}>
             <span className="dlv-media" aria-hidden="true">
-              <FileText size={14} />
+              <UiIcon icon={File01} size="sm" />
             </span>
             <span className="dlv-content">
               <span className="dlv-name">{baseName(f.path)}</span>

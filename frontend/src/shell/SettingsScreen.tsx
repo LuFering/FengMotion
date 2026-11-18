@@ -1,6 +1,7 @@
 import { setHarnessSelection } from './useHarnessSelection'
+import { UiIcon, SemIcons } from '@/components/icons/UiIcon'
+import { CpuChip01, Database01, Film01, HelpCircle, Palette, PuzzlePiece01, Sliders01, Star01 } from '@untitledui/icons'
 import { useEffect, useRef, useState } from 'react'
-import { Search, Settings2, Check, CircleHelp, Sparkles, Plug, Clapperboard, Database, Cpu, Palette, SlidersHorizontal } from 'lucide-react'
 import '@/styles/settings-refined.css'
 import { HARNESSES, REASONING_LABEL, DEFAULT_PREFS, prefsKey, loadPrefs, savePrefs,
          type ModelPrefs, type Reasoning } from '@/data/harnesses'
@@ -307,18 +308,18 @@ export function SettingsScreen({
 
   const activeSection = SECTIONS.find((s) => s.id === section)!
   const filteredSections = SECTIONS.filter((s) => s.label.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()))
-  const navIcons = { general: SlidersHorizontal, appearance: Palette, ai: Cpu, creation: Clapperboard, plugins: Plug, lab: Sparkles, data: Database, about: CircleHelp }
+  const navIcons = { general: Sliders01, appearance: Palette, ai: CpuChip01, creation: Film01, plugins: PuzzlePiece01, lab: Star01, data: Database01, about: HelpCircle }
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose() }}>
       <DialogContent className="set-dlg set-refined" showCloseButton aria-describedby={undefined}>
         <div className="set-dlg-head">
-          <Settings2 size={17}/><DialogTitle className="set-dlg-title">设置</DialogTitle>
+          <UiIcon icon={SemIcons.settings} size="md" /><DialogTitle className="set-dlg-title">设置</DialogTitle>
         </div>
 
         <div className="set-dlg-body">
           <nav className="set-nav" aria-label="设置分区">
-            <div className="set-nav-search"><Search size={14}/><input aria-label="查找设置分类" placeholder="查找设置分类" value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => { if (e.key === 'Escape' && query) { e.stopPropagation(); setQuery('') } if (e.key === 'Enter' && filteredSections[0]) { setSection(filteredSections[0].id); setQuery('') } }}/></div>
+            <div className="set-nav-search"><UiIcon icon={SemIcons.search} size="sm" /><input aria-label="查找设置分类" placeholder="查找设置分类" value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => { if (e.key === 'Escape' && query) { e.stopPropagation(); setQuery('') } if (e.key === 'Enter' && filteredSections[0]) { setSection(filteredSections[0].id); setQuery('') } }}/></div>
             {filteredSections.map((s) => {
               const NavIcon = navIcons[s.id]
               return <button key={s.id} type="button" className="set-nav-item"
@@ -375,7 +376,7 @@ export function SettingsScreen({
                         <b>{t.label}</b>
                         {t.desc && <small>{t.desc}</small>}
                       </span>
-                      {settings.theme === t.id && <Check size={14} className="set-ck" />}
+                      {settings.theme === t.id && <UiIcon icon={SemIcons.check} size="sm" className="set-ck" />}
                     </button>
                   ))}
                 </div>
@@ -525,7 +526,7 @@ export function SettingsScreen({
                                 </div>
                               </PopoverContent>
                             </Popover>
-                            {on ? <span className="set-default-engine"><Check size={12}/>默认</span> : <button type="button" className="set-default-engine" onClick={() => pickHarness(h.id)}>设为默认</button>}
+                            {on ? <span className="set-default-engine"><UiIcon icon={SemIcons.check} size="xs" />默认</span> : <button type="button" className="set-default-engine" onClick={() => pickHarness(h.id)}>设为默认</button>}
                           </div>
                         </div>
                       </div>
@@ -603,17 +604,17 @@ export function SettingsScreen({
             {/* 默认值还没有消费方，保留已有数据，界面不把它当作已生效能力。 */}
             {section === 'creation' && (
               <section className="set-sec">
-                <div className="set-unavailable"><Clapperboard size={28} strokeWidth={1.5}/><h3>创作默认值尚未生效</h3><p>视频规格仍在场景编辑器中设置。</p></div>
+                <div className="set-unavailable"><UiIcon icon={SemIcons.film} size="xl" /><h3>创作默认值尚未生效</h3><p>视频规格仍在场景编辑器中设置。</p></div>
                 <div className="set-group"><h4 className="set-subhead">已保留的偏好</h4><Row label="画幅 / 帧率 / 分辨率"><span className="num">{settings.aspectRatio} · {settings.fps} fps · {settings.resolution}</span></Row><Row label="循环播放"><span>{settings.previewLoop ? '开启' : '关闭'}</span></Row><Row label="时间显示"><span>{{timecode: '时间码', seconds: '秒数', frames: '帧数'}[settings.timeDisplay]}</span></Row><Row label="渲染完成提醒"><span>{settings.notifyOnRender ? '开启' : '关闭'}</span></Row></div>
               </section>
             )}
 
             {section === 'plugins' && (
-              <section className="set-sec"><div className="set-unavailable"><Plug size={28} strokeWidth={1.5}/><h3>插件服务尚未接入</h3></div></section>
+              <section className="set-sec"><div className="set-unavailable"><UiIcon icon={PuzzlePiece01} size="xl" /><h3>插件服务尚未接入</h3></div></section>
             )}
 
             {section === 'lab' && (
-              <section className="set-sec"><div className="set-unavailable"><Sparkles size={28} strokeWidth={1.5}/><h3>暂没有可启用的实验功能</h3></div></section>
+              <section className="set-sec"><div className="set-unavailable"><UiIcon icon={Star01} size="xl" /><h3>暂没有可启用的实验功能</h3></div></section>
             )}
 
             {/* ── 数据与存储 ────────────────────────────────── */}

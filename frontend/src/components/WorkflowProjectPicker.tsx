@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { ChevronDown, Folder, RefreshCw, X } from 'lucide-react'
+import { UiIcon, SemIcons } from '@/components/icons/UiIcon'
 import { studioHttpApi } from '../services/api'
 import type { ProjectSummary } from '../types/contracts'
 
@@ -42,9 +42,9 @@ export function WorkflowProjectPicker({ projectId, disabled, onChange }: {
   }, [open])
   const label = projects.find((p) => p.id === projectId)?.name ?? (projectId ? '已关联项目' : '关联项目')
   return <div className="wfe-project-picker" ref={root}>
-    <button type="button" className="wfe-btn" disabled={disabled} aria-expanded={open} aria-label="选择工作流关联项目" onClick={() => { if (!open) { setLoading(true); setError('') }; setOpen(!open) }} title={projectId ?? '未关联项目时仅能演示'}><Folder size={14}/><span>{label}</span><ChevronDown size={12}/></button>
-    {open && <div className="wfe-project-menu"><div className="wfe-project-menu-head"><b>关联项目</b><button type="button" className="wfe-iconbtn" aria-label="关闭项目选择" onClick={() => setOpen(false)}><X size={14}/></button></div><p>运行将使用该项目的工程。更改后须保存工作流。</p>
-      {loading ? <p role="status">正在读取项目…</p> : error ? <div role="alert"><p>{error}</p><button type="button" className="wfe-btn" onClick={() => { setLoading(true); setError(''); setAttempt((n) => n + 1) }}><RefreshCw size={14}/>重试</button></div> : <label>选择项目<select aria-label="关联项目" value={projectId ?? ''} onChange={(e) => { onChange(e.target.value || null); setOpen(false) }}><option value="">不关联 · 仅演示</option>{projectId && !projects.some((p) => p.id === projectId) && <option value={projectId}>当前关联（未在项目列表中找到）</option>}{projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>}
+    <button type="button" className="wfe-btn" disabled={disabled} aria-expanded={open} aria-label="选择工作流关联项目" onClick={() => { if (!open) { setLoading(true); setError('') }; setOpen(!open) }} title={projectId ?? '未关联项目时仅能演示'}><UiIcon icon={SemIcons.folder} size="sm" /><span>{label}</span><UiIcon icon={SemIcons.collapse} size="xs" /></button>
+    {open && <div className="wfe-project-menu"><div className="wfe-project-menu-head"><b>关联项目</b><button type="button" className="wfe-iconbtn" aria-label="关闭项目选择" onClick={() => setOpen(false)}><UiIcon icon={SemIcons.close} size="sm" /></button></div><p>运行将使用该项目的工程。更改后须保存工作流。</p>
+      {loading ? <p role="status">正在读取项目…</p> : error ? <div role="alert"><p>{error}</p><button type="button" className="wfe-btn" onClick={() => { setLoading(true); setError(''); setAttempt((n) => n + 1) }}><UiIcon icon={SemIcons.refresh} size="sm" />重试</button></div> : <label>选择项目<select aria-label="关联项目" value={projectId ?? ''} onChange={(e) => { onChange(e.target.value || null); setOpen(false) }}><option value="">不关联 · 仅演示</option>{projectId && !projects.some((p) => p.id === projectId) && <option value={projectId}>当前关联（未在项目列表中找到）</option>}{projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>}
       {!loading && !error && !projects.length && <p>没有可关联的项目。可先在「我的创作」中新建项目。</p>}
     </div>}
   </div>

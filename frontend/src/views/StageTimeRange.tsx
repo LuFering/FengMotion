@@ -1,6 +1,7 @@
 import { MediaIcon } from '@/components/icons/MediaIcon'
+import { UiIcon, SemIcons } from '@/components/icons/UiIcon'
+import { CornerDownLeft } from '@untitledui/icons'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { CornerDownLeft, Scissors, X } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
   clampSpan, formatTimecode, parseSpan, spanLengthLabel, type TimeSpan,
@@ -226,10 +227,10 @@ export function StageRangeBubble({ span, duration, baseVersion, baseFile, busy, 
   return (
     <div className="wb-sel-bubble" role="dialog" aria-label="这几秒要改成什么">
       <header className="wb-sel-bubble-head">
-        <Scissors size={12} />
+        <UiIcon icon={SemIcons.scissors} size="xs" />
         <b>{formatTimecode(span.start, true)} – {formatTimecode(span.end, true)}</b>
         <small>{spanLengthLabel(span)}</small>
-        <button type="button" className="wb-sel-close" onClick={onCancel} aria-label="取消这次选段"><X size={14} /></button>
+        <button type="button" className="wb-sel-close" onClick={onCancel} aria-label="取消这次选段"><UiIcon icon={SemIcons.close} size="sm" /></button>
       </header>
 
       <textarea ref={inputRef} className="wb-sel-input" rows={2}
@@ -261,7 +262,7 @@ export function StageRangeBubble({ span, duration, baseVersion, baseFile, busy, 
         <Tooltip>
           <TooltipTrigger asChild>
             <button type="button" className="wb-sel-submit" disabled={busy || !requirement.trim()} onClick={send}>
-              修改这段 <CornerDownLeft size={12} />
+              修改这段 <UiIcon icon={CornerDownLeft} size="xs" />
             </button>
           </TooltipTrigger>
           <TooltipContent side="top" sideOffset={6}>
@@ -290,7 +291,7 @@ export function StageRangeTrigger({ active, disabled, onToggle }: {
         <button type="button" className="wb-tr-trigger" aria-label="按时间段修改"
                 aria-pressed={active} data-active={active || undefined}
                 disabled={disabled} onClick={onToggle}>
-          <Scissors size={14} />
+          <UiIcon icon={SemIcons.scissors} size="sm" />
         </button>
       </TooltipTrigger>
       <TooltipContent side="bottom" sideOffset={6}>

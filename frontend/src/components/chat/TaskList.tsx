@@ -21,8 +21,8 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { UiIcon, SemIcons } from '@/components/icons/UiIcon'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
-import { ChevronDown } from 'lucide-react'
 import { AgentThinking } from '../AgentThinking'
 import {
   REVEAL_MASK_STYLE,
@@ -358,7 +358,7 @@ function TaskBlock({
         <span className="tl-task-title">
           <SwapTitle label={title} running={!done} />
         </span>
-        <ChevronDown aria-hidden className={`tl-task-caret${open ? ' is-open' : ''}`} />
+        <UiIcon icon={SemIcons.collapse} className={`tl-task-caret${open ? ' is-open' : ''} aria-hidden `} />
       </button>
 
       <motion.div

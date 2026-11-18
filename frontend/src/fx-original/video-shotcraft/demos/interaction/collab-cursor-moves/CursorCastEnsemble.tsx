@@ -247,7 +247,7 @@ export const CursorCastEnsemble: React.FC = () => {
         <span style={{ width: 48, height: 48, borderRadius: 14, background: L.ink, display: 'grid', placeItems: 'center' }}>
           <ShotcraftMark size={34} tone="dark" />
         </span>
-        <span style={{ ...type(32, 700), color: L.ink }}>Launch Film Kickoff</span>
+        <span style={{ ...type(32, 700), color: L.ink }}>Launch Film01 Kickoff</span>
         <span style={{ ...type(26, 500), color: L.ink3 }}>{BRAND.name}</span>
       </div>
       <div style={{ position: 'absolute', right: 64, top: 46, display: 'flex', alignItems: 'center', gap: 18 }}>

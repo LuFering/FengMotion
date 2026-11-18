@@ -24,9 +24,10 @@ import com.fengmotion.server.fx.store.FxTechniqueRepository;
 /**
  * 内置技法目录的导入。
  *
- * <p>数据来自前端源码 {@code src/data/fxTechniques.ts}（从 workflow-gallery 的 fx 注册表抽出），
- * 已转成 {@code resources/fx/techniques.json}。这里只负责**搬运**，不重新设计字段 ——
- * 源库的字段语义（尤其 {@code execType}）必须原样保留。</p>
+ * <p>数据文件是 {@code resources/fx/techniques.json}。原先的 16 条演示目录已清空，
+ * 产品里的技法改由能力库导入（{@link FxCapabilityImporter}），这里通常导入 0 条；
+ * 测试用 {@code src/test/resources/fx/techniques.json} 覆盖它。这里只负责**搬运**，
+ * 不重新设计字段 —— 源库的字段语义（尤其 {@code execType}）必须原样保留。</p>
  *
  * <p><strong>最重要的一条规则</strong>：{@code execType} 是源库声明的能力标签，
  * 导入时**不能**据此推断本机可执行。所有技法一律 {@code not-implemented}，

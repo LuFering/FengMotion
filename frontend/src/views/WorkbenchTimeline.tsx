@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { UiIcon, SemIcons } from '@/components/icons/UiIcon'
+import { Film01, Image01, TextInput, ChevronLeftDouble, ChevronRightDouble, HelpCircle, LayersThree01, Minus, MusicNote01, Scan, Square, Type01 } from '@untitledui/icons'
 import type { CSSProperties, KeyboardEvent, PointerEvent } from 'react'
 /* 时间轨道图标全部用 lucide（第三轮统一）：选区起止用 |< >|，与原 phosphor CaretLine 语义一致。 */
-import { Captions, ChevronFirst, Plus, ChevronLast, ChevronRight, Clapperboard, Film, HelpCircle, Image as ImageGlyph, Layers, Minus, Music2, Repeat, Scan, Shapes, Type, X as XMark } from 'lucide-react'
 import { MediaIcon } from '@/components/icons/MediaIcon'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { formatTimecode } from '@/data/timeRange'
@@ -70,14 +71,14 @@ const tickLabel = (seconds: number, step: number) => {
   return `${m}:${s.toFixed(digits).padStart(digits + 3, '0')}`
 }
 
-const KIND_ICON = { text: Type, image: ImageGlyph, video: Film, audio: Music2, shape: Shapes } as const
+const KIND_ICON = { text: Type01, image: Image01, video: Film01, audio: MusicNote01, shape: Square } as const
 const TRACK_ICON = {
-  text: Captions,
-  video: Clapperboard,
-  background: Layers,
-  image: ImageGlyph,
-  audio: Music2,
-  shape: Shapes,
+  text: TextInput,
+  video: Film01,
+  background: LayersThree01,
+  image: Image01,
+  audio: MusicNote01,
+  shape: Square,
 } as const
 type TrackVisualKind = keyof typeof TRACK_ICON
 
@@ -437,7 +438,7 @@ export function WorkbenchTimeline({
             <Tooltip>
               <TooltipTrigger asChild>
                 <button type="button" className="wb-tl-icon" aria-label="设为选区起点" disabled={unavailable || currentTime >= limit - 0.05} onClick={() => markBoundary('start')}>
-                  <ChevronFirst size={16} />
+                  <UiIcon icon={ChevronLeftDouble} size="md" />
                 </button>
               </TooltipTrigger>
               <TooltipContent>{unavailable ? opsDisabledReason : '设为选区起点 ['}</TooltipContent>
@@ -445,7 +446,7 @@ export function WorkbenchTimeline({
             <Tooltip>
               <TooltipTrigger asChild>
                 <button type="button" className="wb-tl-icon" aria-label="设为选区终点" disabled={unavailable || currentTime <= 0.05} onClick={() => markBoundary('end')}>
-                  <ChevronLast size={16} />
+                  <UiIcon icon={ChevronRightDouble} size="md" />
                 </button>
               </TooltipTrigger>
               <TooltipContent>{unavailable ? opsDisabledReason : '设为选区终点 ]'}</TooltipContent>
@@ -482,7 +483,7 @@ export function WorkbenchTimeline({
                 </Tooltip>
               )}
               <button type="button" className="wb-tl-icon sm" aria-label="取消选择" onClick={() => setPickedId(null)}>
-                <XMark size={14} />
+                <UiIcon icon={SemIcons.close} size="sm" />
               </button>
             </div>
           ) : span ? (
@@ -510,13 +511,13 @@ export function WorkbenchTimeline({
                     disabled={unavailable}
                     onClick={onToggleLoop}
                   >
-                    <Repeat size={14} />
+                    <UiIcon icon={SemIcons.refresh} size="sm" />
                   </button>
                 </TooltipTrigger>
                 <TooltipContent>{looping ? '停止循环' : '循环选区'}</TooltipContent>
               </Tooltip>
               <button type="button" className="wb-tl-icon sm" aria-label="清除选区" onClick={onClear}>
-                <XMark size={14} />
+                <UiIcon icon={SemIcons.close} size="sm" />
               </button>
             </div>
           ) : null}
@@ -528,7 +529,7 @@ export function WorkbenchTimeline({
             <Tooltip>
               <TooltipTrigger asChild>
                 <button type="button" className="wb-tl-icon" aria-label="缩小时间线" disabled={unavailable || zoom <= 1.001} onClick={() => setZoomTo(zoom / 1.8)}>
-                  <Minus size={14} />
+                  <UiIcon icon={Minus} size="sm" />
                 </button>
               </TooltipTrigger>
               <TooltipContent>{unavailable ? opsDisabledReason : '缩小'}</TooltipContent>
@@ -547,7 +548,7 @@ export function WorkbenchTimeline({
             <Tooltip>
               <TooltipTrigger asChild>
                 <button type="button" className="wb-tl-icon" aria-label="放大时间线" disabled={unavailable || zoom >= maxZoom - 0.001} onClick={() => setZoomTo(zoom * 1.8)}>
-                  <Plus size={14} />
+                  <UiIcon icon={SemIcons.plus} size="sm" />
                 </button>
               </TooltipTrigger>
               <TooltipContent>{unavailable ? opsDisabledReason : '放大'}</TooltipContent>
@@ -555,7 +556,7 @@ export function WorkbenchTimeline({
             <Tooltip>
               <TooltipTrigger asChild>
                 <button type="button" className="wb-tl-icon" aria-label="适应整片" disabled={unavailable || zoom <= 1.001} onClick={() => { setStart(0); setZoom(1) }}>
-                  <Scan size={14} />
+                  <UiIcon icon={Scan} size="sm" />
                 </button>
               </TooltipTrigger>
               <TooltipContent>{unavailable ? opsDisabledReason : '适应整片 (重置缩放)'}</TooltipContent>
@@ -610,7 +611,7 @@ export function WorkbenchTimeline({
               <Tooltip>
                 <TooltipTrigger asChild>
                   <span className="wb-tl-ref-badge" tabIndex={0} role="status">
-                    参考 <HelpCircle size={12} className="inline ml-0.5 opacity-70" />
+                    参考 <UiIcon icon={HelpCircle} size="xs" className="inline ml-0.5 opacity-70" />
                   </span>
                 </TooltipTrigger>
                 <TooltipContent>这些轨道尚未确认与当前版本对应，可浏览和定位。</TooltipContent>
@@ -786,7 +787,7 @@ export function WorkbenchTimeline({
                       return next
                     })}
                   >
-                    <ChevronRight size={12} className={`wb-tl-fold-arrow ${collapsed ? '' : 'is-expanded'}`} />
+                    <UiIcon icon={SemIcons.expand} size="xs" className={`wb-tl-fold-arrow ${collapsed ? '' : 'is-expanded'} `} />
                   </button>
 
                   <span className="wb-tl-track-type-icon" aria-hidden="true">

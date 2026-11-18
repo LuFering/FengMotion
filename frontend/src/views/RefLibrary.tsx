@@ -649,10 +649,7 @@ export function RefLibrary() {
         <div className="rfc-empty-card">
           <div className="rfc-empty-icon" aria-hidden="true"><Icon name="film" /></div>
           <h2 className="rfc-empty-title">把参考视频拖进来</h2>
-          <p className="rfc-empty-desc">
-            导入后可播放、可手动标记片段并写下你看到的画面；
-            <br />自动切分与视频分析尚未接入，分析项会显示「未解析」。
-          </p>
+          <p className="rfc-empty-desc">自动切分与分析尚未接入，标记需手动完成。</p>
           <button type="button" className="rfc-empty-btn" onClick={() => fileInputRef.current?.click()}>
             <Icon name="upload" /> 选择视频
           </button>

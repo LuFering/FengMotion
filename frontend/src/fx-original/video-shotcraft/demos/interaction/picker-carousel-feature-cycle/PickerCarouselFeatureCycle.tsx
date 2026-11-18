@@ -24,7 +24,7 @@ const ITEMS = [
   'Real page captures',
   '2.5D camera moves',
   'Beat-synced cuts',
-  'Film-grade SFX',
+  'Film01-grade SFX',
   'Motion workbench',
   'Remotion render',
 ];

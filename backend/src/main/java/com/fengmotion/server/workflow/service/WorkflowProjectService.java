@@ -17,12 +17,12 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * 项目与 workflow-v0.1.0 的衔接。
+ * 项目与 workflow-v0.1.1 的衔接。
  *
- * <p><strong>为什么需要这一层</strong>：workflow-v0.1.0 的创作上下文是
+ * <p><strong>为什么需要这一层</strong>：workflow-v0.1.1 的创作上下文是
  * <em>项目目录里的文件</em>（{@code prompt.original.md} 等），而应用里用户只看到
  * 「项目」。两者此前没有任何连接：应用从不让用户写下原始需求，
- * 项目目录里也就没有 workflow-v0.1.0 认的创作上下文，那套流程自然跑不起来。</p>
+ * 项目目录里也就没有 workflow-v0.1.1 认的创作上下文，那套流程自然跑不起来。</p>
  *
  * <p><strong>这一层只做「建立上下文」，不做创作</strong>：把用户原文逐字落盘、
  * 建好 {@code qa/passes/}，然后如实报告目录状态。它不会替你写 lookdev、
@@ -72,13 +72,24 @@ public class WorkflowProjectService {
                工具的语义是不覆盖原文（对的 —— 原文是创作依据），
                但它也不会把新需求记下来，于是用户第二次说的话会静默消失，
                界面还照样显示「上下文已就绪」。
-               按 workflow-v0.1.0 的约定，后续要求属于「纠正」，应追加到 corrections.md。 */
-            String existing = readIfPossible(original);
-            if (existing != null && existing.trim().equals(prompt.trim())) {
-                // 同一条需求重复提交（比如界面重复点击）：什么都不用做，也不能重复记一条纠正
+               按 workflow-v0.1.1 的约定，后续要求属于「纠正」，应追加到 corrections.md。 */
+            /* 和「当前有效的需求」比：改过需求就比最近一次需求修改，没改过才比原文。
+               只比原文的话，需求改成 B 之后每次运行都会把 B 再记一遍；
+               而从 B 改回原文 A 又会被当成「没变化」，agent 却还在按 B 做。 */
+            String digest = requirementDigest(prompt);
+            String latest = latestRequirementDigest(root);
+            boolean unchanged;
+            if (latest != null) {
+                unchanged = latest.equals(digest);
+            } else {
+                String existing = readIfPossible(original);
+                unchanged = existing != null && existing.trim().equals(prompt.trim());
+            }
+            if (unchanged) {
+                // 同一条需求重复提交（比如界面重复点击、工作流每次运行）：什么都不用做，也不能重复记一条纠正
                 return new InitOutcome(state(projectId), InitResult.UNCHANGED, null);
             }
-            appendCorrection(root, prompt);
+            appendCorrection(root, prompt, REQUIREMENT_MARKER_PREFIX + digest + " -->");
             return new InitOutcome(state(projectId), InitResult.RECORDED_AS_CORRECTION,
                     "已存在原始需求，这次的要求按「纠正」追加到 corrections.md（原需求未被覆盖）。");
         }
@@ -144,12 +155,38 @@ public class WorkflowProjectService {
     /**
      * 把后续需求作为纠正追加到 corrections.md。
      *
-     * <p>格式照 workflow-v0.1.0 的模板：时间 + 用户原话。这里只记原话，
+     * <p>格式照 workflow-v0.1.1 的模板：时间 + 用户原话。这里只记原话，
      * 「影响范围」「是否已落实到 decisions」由创作阶段判断后补，不代填。</p>
      *
      * @param root   项目目录
      * @param prompt 用户新要求
      */
+    /**
+     * 经 {@code init} 记下的需求修改带这个标记，后面跟原话 trim 后的 sha256。
+     * 审片意见、对话纠正走 {@link #recordCorrection}，不带它，所以不参与「需求有没有变」的判断。
+     */
+    private static final String REQUIREMENT_MARKER_PREFIX = "<!-- fengmotion-requirement:";
+
+    private static String requirementDigest(String prompt) {
+        try {
+            return java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256")
+                    .digest(prompt.trim().getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+        } catch (java.security.NoSuchAlgorithmException impossible) {
+            throw new IllegalStateException(impossible);
+        }
+    }
+
+    /** corrections.md 里最近一次需求修改的摘要；没有需求修改（或文件读不到）时为 null。 */
+    private String latestRequirementDigest(Path root) {
+        String text = readIfPossible(root.resolve("corrections.md"));
+        if (text == null) return null;
+        int at = text.lastIndexOf(REQUIREMENT_MARKER_PREFIX);
+        if (at < 0) return null;
+        int start = at + REQUIREMENT_MARKER_PREFIX.length();
+        int end = text.indexOf(" -->", start);
+        return end < 0 ? null : text.substring(start, end).trim();
+    }
+
     private void appendCorrection(Path root, String prompt) {
         appendCorrection(root, prompt, null);
     }
@@ -227,12 +264,17 @@ public class WorkflowProjectService {
         /* 原文长度用于判断「是不是只建了模板还没写内容」。
            模板本身有内容，所以这里只作为参考值展示，不据此判定完成。 */
         long promptLength = 0;
+        /* 原文完整性：未初始化时为 null；读不到为 unknown，不把读不到报成 ok。 */
+        OriginalPromptIntegrity.Result integrity = null;
         Path original = root.resolve("prompt.original.md");
         if (Files.isRegularFile(original)) {
             try {
-                promptLength = Files.readString(original).trim().length();
+                String content = Files.readString(original);
+                promptLength = content.trim().length();
+                integrity = OriginalPromptIntegrity.check(content);
             } catch (Exception unreadable) {
                 promptLength = -1;
+                integrity = new OriginalPromptIntegrity.Result("unknown", List.of("原文读取失败"));
             }
         }
 
@@ -269,7 +311,9 @@ public class WorkflowProjectService {
                 promptLength,
                 rendered,
                 failed,
-                inProgress);
+                inProgress,
+                integrity == null ? null : integrity.status(),
+                integrity == null ? List.of() : integrity.reasons());
     }
 
     /**
@@ -340,17 +384,20 @@ public class WorkflowProjectService {
      *
      * @param projectId    项目 ID
      * @param directory    项目目录
-     * @param initialized  是否已有 prompt.original.md（这是 workflow-v0.1.0 的入口条件）
-     * @param toolAvailable workflow-v0.1.0 工具目录是否可找到
+     * @param initialized  是否已有 prompt.original.md（这是 workflow-v0.1.1 的入口条件）
+     * @param toolAvailable workflow-v0.1.1 工具目录是否可找到
      * @param files        已存在的 Prompt-first 文件
      * @param promptLength 原文长度；读不到时为 -1
      * @param renderedPasses   真正有视频产物的轮次数；读不到时为 -1
      * @param failedPasses     留下失败记录、没有视频的轮次数
      * @param inProgressPasses 目录存在但还没有产物的轮次数
+     * @param originalIntegrity 原文完整性：ok / suspect / unknown；未初始化时为 null
+     * @param originalIntegrityReasons 可疑原因；ok 时为空
      */
     public record WorkflowProjectState(String projectId, String directory, boolean initialized,
                                        boolean toolAvailable, List<String> files,
                                        long promptLength, int renderedPasses,
-                                       int failedPasses, int inProgressPasses) {
+                                       int failedPasses, int inProgressPasses,
+                                       String originalIntegrity, List<String> originalIntegrityReasons) {
     }
 }

@@ -23,6 +23,8 @@ import com.fengmotion.server.fx.service.FxCatalogImporter;
  *
  * <p>重点验三件事：技法目录只读；{@code execType} 与 {@code executionStatus} 是两个字段；
  * 「用于工作流」没有端点。</p>
+ *
+ * <p>数据来自测试专用目录 {@code src/test/resources/fx/techniques.json}（5 条）。</p>
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -42,7 +44,7 @@ class FxTechniqueApiTest {
         importer.importBuiltin(false);
         mvc.perform(get("/api/fx-techniques").param("limit", "100"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.total").value(16))
+                .andExpect(jsonPath("$.total").value(5))
                 .andExpect(jsonPath("$.items").isArray());
     }
 
@@ -66,11 +68,12 @@ class FxTechniqueApiTest {
         importer.importBuiltin(false);
         mvc.perform(get("/api/fx-techniques/facets"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.total").value(16))
-                .andExpect(jsonPath("$.categories.camera").value(3))
-                .andExpect(jsonPath("$.categories.particles").value(2))
-                // 七个分类全部出现
-                .andExpect(jsonPath("$.categories.typography").value(2));
+                .andExpect(jsonPath("$.total").value(5))
+                .andExpect(jsonPath("$.categories.camera").value(2))
+                .andExpect(jsonPath("$.categories.particles").value(1))
+                .andExpect(jsonPath("$.categories.typography").value(1))
+                // 数据里没有的分类也要出现，计数为 0
+                .andExpect(jsonPath("$.categories.lighting").value(0));
     }
 
     @Test

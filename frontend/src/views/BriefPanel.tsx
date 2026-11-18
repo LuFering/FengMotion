@@ -1,5 +1,5 @@
-import { FileText, Layers, Plus, Tag } from 'lucide-react'
 import type { WorkbenchReview } from '@/hooks/useWorkbenchReview'
+import { File01, LayersThree01, Plus, Tag01 } from '@untitledui/icons'
 import type { BriefSection } from './BriefDetailWorkspace'
 
 /**
@@ -23,24 +23,24 @@ export function BriefPanel({
   const keepStatus = review.keepNotes ? '随每轮提交' : '未设定'
   const correctionsCount = review.corrections.length
 
-  const items: { id: BriefSection; title: string; hint: string; icon: typeof FileText }[] = [
+  const items: { id: BriefSection; title: string; hint: string; icon: typeof File01 }[] = [
     {
       id: 'all',
       title: '全部创作要求',
       hint: '完整视图',
-      icon: Layers,
+      icon: LayersThree01,
     },
     {
       id: 'original',
       title: '原始制作需求',
       hint: briefStatus,
-      icon: FileText,
+      icon: File01,
     },
     {
       id: 'keep',
       title: '文字保留要求',
       hint: keepStatus,
-      icon: Tag,
+      icon: Tag01,
     },
     {
       id: 'corrections',

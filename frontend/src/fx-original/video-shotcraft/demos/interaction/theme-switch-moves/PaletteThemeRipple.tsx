@@ -232,7 +232,7 @@ const App: React.FC<{ th: Theme; frame: number; artGlow: number }> = ({ th, fram
       }}>
         <div style={{ position: 'relative', width: 76, height: 76, borderRadius: 12, overflow: 'hidden', flex: 'none' }}><ArtGlassHarbor /></div>
         <div style={{ marginLeft: 22, width: 330 }}>
-          <div style={{ fontSize: 28, fontWeight: 650, letterSpacing: '-0.02em' }}>Launch Film</div>
+          <div style={{ fontSize: 28, fontWeight: 650, letterSpacing: '-0.02em' }}>Launch Film01</div>
           <div style={{ fontSize: 23, color: th.ink2, marginTop: 4 }}>Preview · Shot 04</div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 34, marginLeft: 120 }}>

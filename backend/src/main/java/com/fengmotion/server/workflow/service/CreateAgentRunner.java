@@ -146,7 +146,8 @@ public class CreateAgentRunner {
             throw new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "source_unreadable", "无法读取当前工程，创作尚未开始");
         }
 
-        String instruction = buildInstruction(intent, resources, retrieveCandidates(projectRoot, intent));
+        String instruction = buildInstruction(intent, resources, retrieveCandidates(projectRoot, intent),
+                Files.isRegularFile(projectRoot.resolve("skill-guide.md")));
         Instant startedAt = Instant.now();
         String reply = ask(projectRoot, instruction, images, onProgress);
         long elapsedMs = Duration.between(startedAt, Instant.now()).toMillis();
@@ -236,17 +237,26 @@ public class CreateAgentRunner {
         }
     }
 
+    /** 项目选用了从 skill 生成的视频类型时追加的一步。优先级规则在指引文件开头也写了一遍，这里再重申。 */
+    static final String SKILL_GUIDE_STEP = """
+               再读 skill-guide.md：这是本项目选用的视频类型的方法指引，按它的方法做。
+               与 prompt.original.md、corrections.md 冲突时，以原文和纠正为准。
+               指引里提到的脚本一律不要执行；需要检查时用本项目自己的渲染与检查。
+               .fengmotion/skill-sources/ 里的组件源码只读，要用时复制进 src/ 再按本项目的视觉系统改写。
+            """;
+
     /**
      * 组装给 agent 的指令。
      *
      * <p>不重复 {@code AGENTS.md} 里的创作方法 —— 那份文件会被自动加载。
      * 这里只说这一轮要做什么，以及交付判据（入口在哪、配置怎么写）。</p>
      *
-     * @param intent 这一轮的意图
+     * @param intent        这一轮的意图
+     * @param hasSkillGuide 项目里有 skill-guide.md（选用了从 skill 生成的视频类型）
      * @return 指令
      */
-    private String buildInstruction(String intent, ResourceContextBuilder.ResourceContext resources,
-                                    String candidates) {
+    static String buildInstruction(String intent, ResourceContextBuilder.ResourceContext resources,
+                                   String candidates, boolean hasSkillGuide) {
         String task = (intent == null || intent.isBlank())
                 ? "按 prompt.original.md 与 corrections.md 推进这部片子"
                 : intent;
@@ -273,7 +283,9 @@ public class CreateAgentRunner {
 
                 请在这个项目目录里工作：
                 1. 先读 prompt.original.md（用户原文，逐字，不要改写）和 corrections.md（后续纠正，较新的优先）。
-                2. 修改 src/ 里的 Remotion 源码，让画面符合要求。可以新增或调整组件。
+                   lookdev-brief.md、film-plan.md 如果已不是模板原样，里面是用户或上一轮定下的视觉构想与导演处理，
+                   按已确认的方向对待；要偏离时在 decisions.md 写明原因。
+                %s2. 修改 src/ 里的 Remotion 源码，让画面符合要求。可以新增或调整组件。
                 3. 确保 src/index.tsx 里 registerRoot 注册了一个 Composition，
                    并在 film.config.json 写清 entry 与 compositionId（两个名字必须与实际一致）。
                 4. 不要自己调用渲染接口，也不要伪造视频文件 —— 后端会负责渲染。
@@ -288,7 +300,7 @@ public class CreateAgentRunner {
                 - film.config.json 的 entry 指向真实文件，compositionId 与代码里的 id 一致
 
                 做完后用一两句话说明你改了什么、画面变成什么样。不要贴大段代码。
-                """.formatted(task, resourceBlock, candidates);
+                """.formatted(task, resourceBlock, candidates, hasSkillGuide ? SKILL_GUIDE_STEP : "");
     }
 
     /**

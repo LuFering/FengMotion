@@ -75,7 +75,7 @@ type Plan = { name: string; price: string; unit: string; blurb: string; feats: s
 // video-shotcraft 的三种成片规格：大数字是片长（演示值），主角是 Launch film
 const PLANS: Plan[] = [
   { name: 'Teaser', price: '15s', unit: '9:16 social', blurb: 'For a social drop.', feats: ['Crash-zoom open', 'Beat-synced cuts', 'Logo sting'], cta: 'Cut a teaser' },
-  { name: 'Launch film', price: '60s', unit: '16:9 · 1080p', blurb: 'Your product, in motion.', feats: ['Real page captures', '2.5D camera moves', 'Film-grade SFX'], cta: 'Render launch film', hero: true },
+  { name: 'Launch film', price: '60s', unit: '16:9 · 1080p', blurb: 'Your product, in motion.', feats: ['Real page captures', '2.5D camera moves', 'Film01-grade SFX'], cta: 'Render launch film', hero: true },
   { name: 'Walkthrough', price: '90s', unit: 'with voiceover', blurb: 'Every feature, shot by shot.', feats: ['Cursor flyovers', 'Callout zooms', 'JianYing export'], cta: 'Storyboard it' },
 ];
 

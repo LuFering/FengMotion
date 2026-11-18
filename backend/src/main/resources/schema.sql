@@ -459,3 +459,73 @@ CREATE TABLE IF NOT EXISTS semantic_index (
 );
 
 CREATE INDEX IF NOT EXISTS idx_semantic_ref ON semantic_index(ref_kind, ref_id);
+
+-- 特效源码的模型语义建议：只追加，同一组输入（源码哈希 + 解析器 + 模型 + 提示词版本）只留第一条。
+--
+-- 为什么不加外键：建议是「当时模型看到什么、说了什么」的证据，
+-- 技法条目被重新导入或删除后，这份记录仍要能查到。
+CREATE TABLE IF NOT EXISTS fx_semantic_suggestions (
+    id TEXT PRIMARY KEY,
+    technique_id TEXT NOT NULL,
+    component TEXT NOT NULL,
+    source_path TEXT NOT NULL,
+    source_text TEXT NOT NULL,
+    content_hash TEXT NOT NULL,
+    parser_version TEXT NOT NULL,
+    model_id TEXT NOT NULL,
+    prompt_version TEXT NOT NULL,
+    model_generated_json TEXT NOT NULL,
+    name TEXT NOT NULL,
+    purpose TEXT NOT NULL,
+    category TEXT NOT NULL,
+    tags_json TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    UNIQUE (technique_id, component, source_path, content_hash, parser_version, model_id, prompt_version)
+);
+
+CREATE INDEX IF NOT EXISTS idx_fx_semantic_suggestions_technique
+    ON fx_semantic_suggestions(technique_id, created_at);
+
+-- 从 GitHub 导入的 skill 包：按固定 commit 只读落盘，report_json 是静态清点结果。
+--
+-- owner / repo 统一存小写：GitHub 不区分大小写，大小写不同的同一仓库不能导入两份。
+-- sub_path 为空串表示整个仓库；用空串而不是 NULL，唯一约束才对它生效。
+CREATE TABLE IF NOT EXISTS skill_packages (
+    id TEXT PRIMARY KEY,
+    owner TEXT NOT NULL,
+    repo TEXT NOT NULL,
+    requested_ref TEXT,
+    commit_sha TEXT NOT NULL,
+    sub_path TEXT NOT NULL DEFAULT '',
+    root_dir TEXT NOT NULL,
+    file_count INTEGER NOT NULL,
+    total_bytes INTEGER NOT NULL,
+    report_json TEXT NOT NULL,
+    imported_at TEXT NOT NULL,
+    UNIQUE (owner, repo, commit_sha, sub_path)
+);
+
+CREATE INDEX IF NOT EXISTS idx_skill_packages_imported ON skill_packages(imported_at);
+
+-- 从 skill 生成的视频类型（工作流预设）。内置预设仍在前端，这里只存 skill 生成的。
+--
+-- status：draft（模型生成、待审阅，可修改）→ active（启用，只读）→ archived（归档）。
+-- 预设绑定 commit：skill 仓库更新不会悄悄改变已启用的预设。
+-- 不对 skill_package_id 加外键：删掉 skill 包后，已启用预设的映射仍是完整的，项目里的指引也还在。
+CREATE TABLE IF NOT EXISTS workflow_presets (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    description TEXT NOT NULL,
+    status TEXT NOT NULL,
+    skill_package_id TEXT NOT NULL,
+    source_repo TEXT NOT NULL,
+    skill_path TEXT NOT NULL,
+    commit_sha TEXT NOT NULL,
+    mapping_json TEXT NOT NULL,
+    mapping_version INTEGER NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    activated_at TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_workflow_presets_status ON workflow_presets(status);

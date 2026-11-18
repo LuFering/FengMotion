@@ -18,8 +18,9 @@
  *   环沿图块/卡片外缘描一圈，角落显示百分比，落地后一起消失。
  */
 
-import { CircleAlert, File, FileText, Image as ImageIcon, X } from 'lucide-react'
 import { SpringDisclosure } from './SpringDisclosure'
+import { UiIcon, SemIcons } from '@/components/icons/UiIcon'
+import { File01 } from '@untitledui/icons'
 import './composer-attachments.css'
 
 /** 附件分类，对应两种视觉形态。 */
@@ -113,14 +114,14 @@ export function ComposerAttachments({ items, onRemove }: ComposerAttachmentsProp
                   <img className="cat-thumb" src={item.src} alt="" />
                 ) : (
                   <span className="cat-thumb-empty" aria-hidden>
-                    <ImageIcon size={20} />
+                    <UiIcon icon={SemIcons.image} size="lg" />
                   </span>
                 )}
 
                 {/* 失败的图片：底部压一条错误提示（原版的 status 条位置） */}
                 {item.error ? (
                   <span className="cat-badge" role="alert">
-                    <CircleAlert size={12} />
+                    <UiIcon icon={SemIcons.error} size="xs" />
                     <span>{stem(item.name)}</span>
                   </span>
                 ) : null}
@@ -171,7 +172,7 @@ export function ComposerAttachments({ items, onRemove }: ComposerAttachmentsProp
                 : `移除附件 ${item.name}`}
               onClick={() => onRemove(i)}
             >
-              <X size={isImage ? 10 : 11} strokeWidth={2.6} />
+              <UiIcon icon={SemIcons.close} size="xs" />
             </button>
           </li>
         )
@@ -184,8 +185,8 @@ export function ComposerAttachments({ items, onRemove }: ComposerAttachmentsProp
 /** 文件类型图标：文本类与普通文件区分（对齐原版 file-lines / file）。 */
 function FileIcon({ name }: { name: string }) {
   return /\.(txt|md|markdown|csv|json|ya?ml|log)$/i.test(name)
-    ? <FileText size={18} />
-    : <File size={18} />
+    ? <UiIcon icon={File01} size="md" />
+    : <UiIcon icon={File01} size="md" />
 }
 
 export default ComposerAttachments

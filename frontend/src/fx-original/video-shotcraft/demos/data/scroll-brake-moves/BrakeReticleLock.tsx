@@ -54,7 +54,7 @@ const TITLES = [
   'Crash zoom shot card', 'Faster Remotion renders', 'Audio drift on long renders', 'Beat grid from any BGM',
   'Dolly zoom shot card', 'Real page captures', 'Caption timing at 60 fps', 'Gallery style filters', 'Whip pans',
   'Ink Press template', 'Improved SFX ducking', 'Blur seam on 4K export', 'Storyboard from a prompt', 'Inline shot previews',
-  'Poster frame picker', 'Parallax depth layers', 'Font fallback in titles', 'Beat-synced flash cuts', 'Film grain overlay',
+  'Poster frame picker', 'Parallax depth layers', 'Font fallback in titles', 'Beat-synced flash cuts', 'Film01 grain overlay',
   'Lower thirds', 'Faster cold render', 'Mask edge on Safari', 'Showcase gallery', 'Light leaks', 'Per-shot color looks',
   'Offline asset cache', 'Cursor path smoothing', 'Timeline markers', 'Typing code block card', 'JianYing export',
   'Motion workbench', 'Vertical 9:16 cuts', 'Brand kit import', 'Shot A/B compare', 'Multi-track SFX',

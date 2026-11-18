@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { WF_PRESETS, type WfPath } from '../data/workflowTemplates'
 import { GENOMES } from '../data/genomes'
 import { workflowService } from '../services/workflowService'
+import { studioHttpApi } from '../services/api'
+import type { WorkflowPreset } from '../services/api/skillPresets'
 import type { ProjectSummary } from '../data/projects'
 import type { NewProjectInput } from '../shell/useProjects'
 import '../styles/start.css'
@@ -31,11 +33,20 @@ export function StartCreation(props: {
 }) {
   const [text, setText] = useState(props.initialDraft)
   const [presetId, setPresetId] = useState('general')
+  const [skillPresets, setSkillPresets] = useState<WorkflowPreset[]>([])
   const [proOpen, setProOpen] = useState(false)
   const [proPath, setProPath] = useState<WfPath>('prompt-first')
   const [belong, setBelong] = useState<string>('auto')
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let alive = true
+    void studioHttpApi().skillPresets.listPresets('active')
+      .then((list) => { if (alive) setSkillPresets(list) })
+      .catch(() => { /* 后端未启或暂无接口时仅显示内置预设 */ })
+    return () => { alive = false }
+  }, [])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -67,10 +78,18 @@ export function StartCreation(props: {
     setError(null)
     try {
     const projectId = await resolveProjectId()
-    const wf = workflowService.createFromPath(quick ? 'prompt-first' : proPath, presetId, wfName, {
-      projectId,
-      seedPrompt: text,
-    })
+    const selectedSkill = (quick || proPath === 'prompt-first')
+      ? skillPresets.find((p) => p.id === presetId)
+      : undefined
+    const wf = selectedSkill
+      ? workflowService.createFromSkillPreset(selectedSkill, wfName, { projectId, seedPrompt: text })
+      : workflowService.createFromPath(quick ? 'prompt-first' : proPath, presetId, wfName, {
+          projectId,
+          seedPrompt: text,
+        })
+    if (selectedSkill && projectId && !quick) {
+      await studioHttpApi().skillPresets.applyPresetToProject(projectId, selectedSkill.id).catch(() => undefined)
+    }
     props.onLaunch({ workflowId: wf.id, projectId, autoRun: quick })
     } catch (cause) { setError(cause instanceof Error ? cause.message : '项目创建失败') }
     finally { setPending(false) }
@@ -108,6 +127,18 @@ export function StartCreation(props: {
               title={p.description}
             >
               {p.name}
+            </button>
+          ))}
+          {skillPresets.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              className="stc-chip"
+              data-on={presetId === p.id || undefined}
+              onClick={() => setPresetId(p.id)}
+              title={p.description || p.mapping.description}
+            >
+              {p.name || p.mapping.name}
             </button>
           ))}
           <span className="stc-chip-note">直接创作 · 用默认路径自动完成制作准备</span>

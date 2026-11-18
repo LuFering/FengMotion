@@ -63,7 +63,7 @@ export const LIBRARY_VIEWS: NavLeaf[] = [
 
 export const NAV: NavNode[] = [
   { id: 'home',       label: '首页',   icon: 'house' },
-  { id: 'conversation', label: '我的创作', icon: 'clapperboard' },
+  { id: 'conversation', label: '我的创作', icon: 'messages-square' },
   { id: 'methods',    label: '工作流',   icon: 'workflow' },
   /* 社区：尚未开发，占位。点它只提示，不跳转 ——
      放一个能点却没内容的页面比放个图标更让人困惑。 */

@@ -1,23 +1,21 @@
 import { readHarnessSelection } from '../shell/useHarnessSelection'
 import { persistLocalDocument, flushLocalDocuments } from './localDocuments'
-import { executeWorkflow, type NodeIO } from './workflowExecution'
+import { executeWorkflow, extractReworkCorrection, type NodeIO } from './workflowExecution'
+import { workflowGraphProblems } from './workflowGraph'
+import { migrateWorkflowDefinition } from './workflowMigration'
+import {
+  buildGraphFromSkillPreset,
+  extractPresetMeta,
+  formatApplyPresetSummary,
+} from './workflowPresetBinding'
+import { isPresetNotActiveError, type WorkflowPreset } from './api/skillPresets'
 import { submitCreation, cancelCreationJob } from './creationClient'
 import { ensureCreationContext } from './creationEntry'
 /**
- * 工作流服务层（v5 重构 · Mock 适配器）
+ * 工作流服务层（v5 重构 · schemaVersion 2）
  *
  * 页面只经此层读写。形状对齐冻结契约：运行的 task/events 复用 studioApi
  * 的 AgentTask / TaskEvent，产物变更摘要复用 ChangeSet。
- *
- * v5 语义：
- * · Prompt-first：初始化项目上下文，在 create 节点真实创作与渲染；其余节点保留快照。
- * · Structured 运行 = 状态评估：按阶段清点产物与 Gate，产出状态报告；
- *   Gate 的确认只能由用户在检查器里对具体产物版本做出，运行永不代确认。
- *
- * 有项目的 Prompt-first 路径会真实初始化上下文，并在 create 节点调用 agent 创作与渲染。
- * 其它节点仍只生成界面快照；Structured 只做状态评估，不自动批准 Gate。
- * 每项产物分别记录 demo 状态，运行记录仍保存在当前浏览器。
- * awaiting_info 是正常等待状态，不算渲染成功或执行失败。
  */
 import type { AgentReference, AgentTask, ChangeSet, TaskEvent, TaskStatus } from './studioApi'
 import { studioHttpApi } from './api'
@@ -25,12 +23,15 @@ import type { FilmCreateResult, WorkflowContextState } from './api/workflowConte
 import {
   ARTIFACT_KIND_MAP,
   GATE_DEFS,
+  WORKFLOW_SCHEMA_VERSION,
   defForNode,
   promptFirstGraph,
   structuredGraph,
   type WfEdgeInstance,
   type WfNodeInstance,
   type WfPath,
+  type WorkflowLegacyDrafts,
+  type WorkflowPresetMeta,
 } from '../data/workflowTemplates'
 import { BUILTIN_ASSETS } from '../data/myAssets'
 import { FX_TECHNIQUES } from '../data/fxTechniques'
@@ -44,6 +45,11 @@ export interface WorkflowDef {
   presetId: string
   projectId: string | null
   revision: number
+  schemaVersion?: number
+  legacyDrafts?: WorkflowLegacyDrafts
+  /** 若从后端启用的 skill 预设新建，保存其 presetId 与来源快照 */
+  skillPresetId?: string | null
+  skillPresetMeta?: WorkflowPresetMeta
   createdAt: string
   updatedAt: string
   nodes: WfNodeInstance[]
@@ -90,10 +96,14 @@ export interface WorkflowRun {
   startedAt: string
   finishedAt: string | null
   demo: boolean
-  nodeIO?: Record<string,NodeIO>
+  nodeIO?: Record<string, NodeIO>
   definition?: WorkflowDef
   engineSelection?: ReturnType<typeof readHarnessSelection>
-  nodeAttempts?: Record<string,number>
+  nodeAttempts?: Record<string, number>
+  /** 每个节点尝试的标准 UUID requestId，供后端 recordCorrection 幂等校验与断线重连复用 */
+  nodeRequestIds?: Record<string, string>
+  /** 本次运行提交过的审片返工签名，防止未再次审片时重复追加同一条 correction */
+  submittedReworkSignature?: string
 }
 
 const WF_KEY = 'fm-workflows-v2'
@@ -152,6 +162,7 @@ function seedWorkflows(): WorkflowDef[] {
       presetId: 'talking',
       projectId: 'token',
       revision: 1,
+      schemaVersion: WORKFLOW_SCHEMA_VERSION,
       createdAt: now,
       updatedAt: now,
       nodes: pf.nodes,
@@ -165,6 +176,7 @@ function seedWorkflows(): WorkflowDef[] {
       presetId: 'talking',
       projectId: 'token',
       revision: 1,
+      schemaVersion: WORKFLOW_SCHEMA_VERSION,
       createdAt: now,
       updatedAt: now,
       nodes: st.nodes,
@@ -173,7 +185,7 @@ function seedWorkflows(): WorkflowDef[] {
   ]
 }
 
-function loadWorkflows(): WorkflowDef[] {
+function loadRawWorkflows(): WorkflowDef[] {
   // An intentionally empty library must stay empty after deleting its last item.
   try {
     if (localStorage.getItem(WF_KEY) !== null) return readJson<WorkflowDef[]>(WF_KEY, [])
@@ -185,6 +197,11 @@ function loadWorkflows(): WorkflowDef[] {
     return seeded
   }
   return list
+}
+
+function loadWorkflows(): WorkflowDef[] {
+  // 读取时仅做纯函数内存迁移，不回写存储；下次保存时再写回。
+  return loadRawWorkflows().map((w) => migrateWorkflowDefinition(w))
 }
 
 function loadRuns(): WorkflowRun[] {
@@ -206,7 +223,7 @@ export const workflowService = {
 
   createEmpty(name = '未命名工作流'): WorkflowDef {
     const now = new Date().toISOString()
-    const wf: WorkflowDef = { id: uid('wf'), name, description: '', path: 'prompt-first', presetId: 'general', projectId: null, revision: 1, createdAt: now, updatedAt: now, nodes: [], edges: [] }
+    const wf: WorkflowDef = { id: uid('wf'), name, description: '', path: 'prompt-first', presetId: 'general', projectId: null, revision: 1, schemaVersion: WORKFLOW_SCHEMA_VERSION, createdAt: now, updatedAt: now, nodes: [], edges: [] }
     const list = loadWorkflows()
     list.push(wf)
     writeWorkflows(list)
@@ -237,6 +254,7 @@ export const workflowService = {
       presetId,
       projectId: opts?.projectId ?? null,
       revision: 1,
+      schemaVersion: WORKFLOW_SCHEMA_VERSION,
       createdAt: now,
       updatedAt: now,
       nodes: graph.nodes,
@@ -248,10 +266,58 @@ export const workflowService = {
     return wf
   },
 
-  saveWorkflow(id: string, patch: { name?: string; description?: string; projectId?: string | null; nodes: WfNodeInstance[]; edges: WfEdgeInstance[] }): WorkflowDef | null {
+  createFromSkillPreset(
+    preset: WorkflowPreset,
+    name?: string,
+    opts?: { projectId?: string | null; seedPrompt?: string; resourceReferences?: AgentReference[] },
+  ): WorkflowDef {
+    const graph = buildGraphFromSkillPreset(preset)
+    /* 只带入用户的原话，不拼接骨架：骨架里没填的项写进 prompt.original.md 就成了「用户原文」。 */
+    const seed = opts?.seedPrompt?.trim()
+    if (seed) {
+      const promptNode = graph.nodes.find((n) => n.type === 'prompt')
+      if (promptNode) promptNode.params = { ...promptNode.params, text: seed }
+    }
+    const meta = extractPresetMeta(preset)
+    const now = new Date().toISOString()
+    const wf: WorkflowDef = {
+      id: uid('wf'),
+      name: name?.trim() || `${meta.name}工作流`,
+      description: seed ?? (preset.description || preset.mapping.description || ''),
+      resourceReferences: opts?.resourceReferences ? structuredClone(opts.resourceReferences) : undefined,
+      path: 'prompt-first',
+      presetId: meta.slug || preset.id,
+      skillPresetId: preset.id,
+      skillPresetMeta: meta,
+      projectId: opts?.projectId ?? null,
+      revision: 1,
+      schemaVersion: WORKFLOW_SCHEMA_VERSION,
+      createdAt: now,
+      updatedAt: now,
+      nodes: graph.nodes,
+      edges: graph.edges,
+    }
+    const list = loadWorkflows()
+    list.push(wf)
+    writeWorkflows(list)
+    return wf
+  },
+
+  saveWorkflow(
+    id: string,
+    patch: {
+      name?: string
+      description?: string
+      projectId?: string | null
+      nodes: WfNodeInstance[]
+      edges: WfEdgeInstance[]
+      legacyDrafts?: WorkflowLegacyDrafts | null
+    },
+  ): WorkflowDef | null {
     const list = loadWorkflows()
     const at = list.findIndex((w) => w.id === id)
     if (at < 0) return null
+    const nextLegacy = patch.legacyDrafts === undefined ? list[at].legacyDrafts : patch.legacyDrafts
     const next: WorkflowDef = {
       ...list[at],
       name: patch.name ?? list[at].name,
@@ -259,8 +325,14 @@ export const workflowService = {
       projectId: patch.projectId === undefined ? list[at].projectId : patch.projectId,
       nodes: patch.nodes,
       edges: patch.edges,
+      schemaVersion: WORKFLOW_SCHEMA_VERSION,
       revision: list[at].revision + 1,
       updatedAt: new Date().toISOString(),
+    }
+    if (nextLegacy && (nextLegacy.lookdev?.trim() || nextLegacy.filmplan?.trim())) {
+      next.legacyDrafts = nextLegacy
+    } else {
+      delete next.legacyDrafts
     }
     list[at] = next
     writeWorkflows(list)
@@ -433,14 +505,6 @@ function pfArtifact(node: WfNodeInstance): WfArtifact {
       const data = { projectId: String(p.projectId ?? ''), assets, referenceSegments: segments }
       return { ...base, kind: 'refs', title: '参考与素材 · 引用清单', filename: 'refs.json', summary: `引用清单 · ${assets.length} 项素材 / ${segments.length} 条参考结论（只引用）`, content: json(data) }
     }
-    case 'lookdev': {
-      const data = { status: 'draft', summary: String(p.summary ?? ''), source: '用户工作稿快照；demo 不做 AI 视觉转译' }
-      return { ...base, kind: 'lookdev', title: 'Lookdev · 工作稿快照', filename: 'lookdev.md', summary: `Lookdev 工作稿（draft）· ${data.summary.length} 字`, content: json(data) }
-    }
-    case 'filmplan': {
-      const data = { status: 'draft', summary: String(p.summary ?? ''), source: '用户工作稿快照；demo 不生成导演方案' }
-      return { ...base, kind: 'filmplan', title: 'Film-plan · 工作稿快照', filename: 'film-plan.md', summary: `Film-plan 工作稿（draft）· ${data.summary.length} 字`, content: json(data) }
-    }
     case 'capability': {
       const ids = (p.techniqueIds as string[] | undefined) ?? []
       const items = ids
@@ -464,14 +528,16 @@ function pfArtifact(node: WfNodeInstance): WfArtifact {
       const data = {
         issues: String(p.issues ?? ''),
         qualityBar: QUALITY_QUESTIONS.map((q) => ({ question: q, checkedByUser: !!checks[q] })),
+        approved: !!checks.done && !checks.rework,
+        rework: !!checks.rework && !checks.done,
         note: '未勾选的问题视为尚未看片确认；demo 不生成「检查通过」。',
       }
       const done = data.qualityBar.filter((x) => x.checkedByUser).length
       return { ...base, kind: 'review', title: '看片与修改 · 记录快照', filename: 'review-notes.json', summary: `看片记录 · quality-bar 已确认 ${done}/${QUALITY_QUESTIONS.length}`, content: json(data) }
     }
-    case 'finishing': {
-      const data = { notes: String(p.notes ?? ''), source: '用户 Finishing 记录快照；demo 不做 QC 判定' }
-      return { ...base, kind: 'finishing', title: 'Finishing · 记录快照', filename: 'finishing-notes.json', summary: `Finishing 记录 · ${data.notes.length} 字`, content: json(data) }
+    case 'delivery': {
+      const data = { notes: String(p.notes ?? ''), source: '确定性交付节点（演示快照）' }
+      return { ...base, kind: 'delivery', title: '交付 · 记录快照', filename: 'delivery.json', summary: data.notes ? `交付记录 · ${data.notes.length} 字` : '交付 · 等待审片通过后输出', content: json(data) }
     }
     default:
       throw new Error(`未知节点类型 ${node.type}`)
@@ -480,13 +546,11 @@ function pfArtifact(node: WfNodeInstance): WfArtifact {
 
 function pfValidate(wf: WorkflowDef, node: WfNodeInstance): string | null {
   const def = defForNode(node)
-  if (!def) return `未知节点 ${node.type}`
+  if (!def) return `已停用或未知节点 ${node.type}`
   for (const port of def.inputs.filter((x) => x.required)) {
     if (!incoming(wf, node.id, port.id)) return `${def.label}：必填输入「${port.label}」未连接`
   }
   if (node.type === 'prompt' && !String(node.params.text ?? '').trim()) return '提示词输入：提示词为空'
-  if (node.type === 'lookdev' && !String(node.params.summary ?? '').trim()) return 'Lookdev：工作稿尚无内容'
-  if (node.type === 'filmplan' && !String(node.params.summary ?? '').trim()) return 'Film-plan：工作稿尚无内容'
   return null
 }
 
@@ -526,7 +590,7 @@ export function startDemoRun(
   callbacks: {
     onEvent: (event: TaskEvent) => void
     onNodeStatus: (nodeId: string, status: WfNodeStatus) => void
-    /** 当前项目；有值时 Prompt-first 运行会真实建立 workflow-v0.1.0 创作上下文 */
+    /** 当前项目；有值时 Prompt-first 运行会真实建立 workflow-v0.1.1 创作上下文 */
     projectId?: string
     /** 用户原始需求；会逐字写进 prompt.original.md */
     prompt?: string
@@ -628,14 +692,14 @@ export function startDemoRun(
         emit('error', 'failed', '工作流连线存在循环或无效节点，请修正后再运行。')
       }
 
-      /* 唯一真实的一步：把用户原文落进项目目录，建立 workflow-v0.1.0 认的创作上下文。
+      /* 唯一真实的一步：把用户原文落进项目目录，建立 workflow-v0.1.1 认的创作上下文。
          没有这一步，后面所有「产物快照」都建在空地基上 —— 那套流程要读
          prompt.original.md 才有创作依据。失败要如实说失败，并继续把
          其余演示节点跑完会让用户以为上下文建好了。 */
       if (status === 'failed') {
         // Validate before initializing or changing the project.
       } else if (callbacks.projectId && (callbacks.prompt ?? '').trim()) {
-        emit('progress', 'running', '正在建立 workflow-v0.1.0 创作上下文（写入 prompt.original.md）…')
+        emit('progress', 'running', '正在建立 workflow-v0.1.1 创作上下文（写入 prompt.original.md）…')
         try {
           const outcome = await studioHttpApi().workflowContext.init(callbacks.projectId, callbacks.prompt)
           const state = outcome.state
@@ -652,7 +716,7 @@ export function startDemoRun(
             emit('build', 'building', `需求与已有原文一致，上下文无变化：${state.files.length} 个文件，原文 ${state.promptLength} 字。`)
           } else {
             emit('build', 'building', `创作上下文已就绪：${state.files.length} 个文件，原文 ${state.promptLength} 字。`
-              + `workflow-v0.1.0 工具${state.toolAvailable ? '可用' : '未找到（请检查配置）'}。`)
+              + `workflow-v0.1.1 工具${state.toolAvailable ? '可用' : '未找到（请检查配置）'}。`)
           }
         } catch (error) {
           /* 上下文没建起来就不该继续假装在创作 —— 直接失败，并说明原因。 */
@@ -666,7 +730,7 @@ export function startDemoRun(
            以前这里会用模板占位建出一个「已就绪」，用户以为存好了原文。 */
         status = 'failed'
         emit('error', 'failed', '缺少创作需求：请先在「制作要求」里写下这次想做什么，'
-          + 'workflow-v0.1.0 需要 prompt.original.md 保存你的原文，而不是模板占位。')
+          + 'workflow-v0.1.1 需要 prompt.original.md 保存你的原文，而不是模板占位。')
       }
 
       const runnable = status === 'failed' ? [] : (order ?? [])
@@ -752,6 +816,19 @@ export function startDemoRun(
           continue
         }
 
+        if (node.type === 'delivery') {
+          const rev = wf.nodes.find((n) => n.type === 'review')
+          const checks = (rev?.params.checks as Record<string, unknown> | undefined) ?? {}
+          const approved = checks.done === true && checks.rework !== true
+          if (!approved) {
+            setStatus(node.id, 'awaiting_info')
+            emit('progress', 'awaiting_info', `${label}：等待审片通过后输出。`)
+            status = 'awaiting_info'
+            for (const rest of runnable.slice(runnable.indexOf(node) + 1)) setStatus(rest.id, 'skipped')
+            break
+          }
+        }
+
         emit('progress', 'running', `${label}：开始处理（界面快照，不产出文件）。`)
         await wait(380)
         if (cancelled) {
@@ -767,7 +844,7 @@ export function startDemoRun(
       if (status === 'completed') emit('complete', 'completed', createdArtifact
         ? `运行结束：已产出真实视频（版本 v${createdArtifact.version}，${createdArtifact.width}×${createdArtifact.height}）。其余节点的产物为界面快照，不代表已有对应文件。`
         : contextInfo
-          ? `运行结束：已建立 workflow-v0.1.0 创作上下文（${contextInfo.files.length} 个文件），但**没有真实渲染**——「制作与渲染」节点未连到项目或未执行。`
+          ? `运行结束：已建立 workflow-v0.1.1 创作上下文（${contextInfo.files.length} 个文件），但**没有真实渲染**——「制作与渲染」节点未连到项目或未执行。`
           : '运行结束：产物均为工作稿/引用/请求记录快照；未接入真实渲染，没有视频生成。')
       if (status === 'cancelled') emit('cancelled', 'cancelled', '演示运行已取消；已生成的产物保留在本次运行记录中。')
     }
@@ -974,6 +1051,51 @@ export function resumeProjectRun(run:WorkflowRun,callbacks:Parameters<typeof sta
   return startProjectGraph(run.definition,{...callbacks,projectId:run.projectId},run)
 }
 
+/** 只比结构（节点 ID、类型与连线），不比参数：审片结论改的是参数，保存时 revision 会变，不能用 revision 判断。 */
+function graphShape(wf: Pick<WorkflowDef, 'nodes' | 'edges'>): string {
+  const nodes = wf.nodes.map((n) => `${n.id}:${n.type}`).sort().join('|')
+  const edges = wf.edges.map((e) => `${e.source}.${e.sourcePort}>${e.target}.${e.targetPort}`).sort().join('|')
+  return `${nodes}#${edges}`
+}
+
+/**
+ * 按最新审片结论继续交付。
+ *
+ * <p>新运行一定会重新渲染，上一轮的审片结论永远对不上新版本；普通的继续运行读的是运行开始时的快照，
+ * 看不到之后的审片结论。这里只把当前工作流里审片节点的参数同步进快照，清掉审片与交付的旧结果让它们重新判断，
+ * 保留 create 的结果，不重新渲染。</p>
+ *
+ * <p>审片结论是「需要修改」时拒绝：继续运行会沿用原来的 requestId，带上修改意见后后端会按幂等冲突拒绝。
+ * 返工统一走新运行。</p>
+ */
+export function deliverProjectRun(run: WorkflowRun, current: WorkflowDef | null, callbacks: Parameters<typeof startDemoRun>[1]) {
+  if (!run.definition || !run.projectId || run.status !== 'awaiting_info'
+    || !Object.values(run.nodeIO ?? {}).some((io) => io.outputs?.status === 'awaiting_review')) {
+    throw new Error('这次运行没有停在「等待审片通过」，无法继续交付')
+  }
+  if (!current || current.id !== run.workflowId) throw new Error('找不到这次运行对应的工作流')
+  if (graphShape(current) !== graphShape(run.definition)) {
+    throw new Error('工作流结构在这次运行之后改过，请重新运行')
+  }
+  const definition = structuredClone(run.definition)
+  for (const node of definition.nodes) {
+    if (node.type !== 'review') continue
+    const fresh = current.nodes.find((n) => n.id === node.id)
+    if (fresh) node.params = structuredClone(fresh.params)
+  }
+  if (extractReworkCorrection(definition).rework) {
+    throw new Error('审片结论是「需要修改」，请点「运行」开始新一轮制作')
+  }
+  const copy = structuredClone(run)
+  copy.definition = definition
+  copy.nodeIO = { ...(copy.nodeIO ?? {}) }
+  for (const node of definition.nodes) {
+    if (node.type === 'review' || node.type === 'delivery') delete copy.nodeIO[node.id]
+  }
+  copy.status = 'running'
+  return startProjectGraph(definition, { ...callbacks, projectId: copy.projectId! }, copy)
+}
+
 export function retryFailedProjectRun(previous:WorkflowRun,callbacks:Parameters<typeof startDemoRun>[1]){
   if(!previous.definition||!previous.projectId||previous.status!=='failed')throw new Error('此运行没有可重试的失败节点')
   const copy=structuredClone(previous)
@@ -983,6 +1105,29 @@ export function retryFailedProjectRun(previous:WorkflowRun,callbacks:Parameters<
   return startProjectGraph(copy.definition!,{...callbacks,projectId:copy.projectId!},copy)
 }
 
+function newUuid(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID()
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0
+    const v = c === 'x' ? r : (r & 0x3) | 0x8
+    return v.toString(16)
+  })
+}
+
+function reworkSignatureOf(wf: WorkflowDef): string | null {
+  const parts = wf.nodes
+    .filter((n) => n.type === 'review')
+    .map((n) => {
+      const c = (n.params.checks as Record<string, unknown> | undefined) ?? {}
+      if (c.rework !== true || c.done === true) return null
+      return `${n.id}:${String(n.params.decidedAt ?? '')}:${String(n.params.issues ?? n.params.notes ?? '').trim()}`
+    })
+    .filter(Boolean)
+  return parts.length ? parts.join('|') : null
+}
+
 const activeGraphRuns=new Map<string,DemoRunHandle>()
 function startProjectGraph(wf:WorkflowDef,callbacks:Parameters<typeof startDemoRun>[1],resume?:WorkflowRun):DemoRunHandle {
   if(resume&&activeGraphRuns.has(resume.id))return activeGraphRuns.get(resume.id)!
@@ -990,9 +1135,16 @@ function startProjectGraph(wf:WorkflowDef,callbacks:Parameters<typeof startDemoR
   const fixed=structuredClone(wf)
   if(callbacks.prompt){const n=fixed.nodes.find(n=>n.type==='prompt');if(n)n.params.text=callbacks.prompt}
   if(callbacks.references){const refs=fixed.nodes.find(n=>n.type==='refs');if(refs)fixed.resourceReferences=callbacks.references}
+  const cycle=extractReworkCorrection(fixed)
+  const sig=reworkSignatureOf(fixed)
+  const lastSubmittedSig=resume?undefined:loadRuns().find(r=>r.workflowId===wf.id&&r.submittedReworkSignature&&r.artifacts.some(a=>!a.demo))?.submittedReworkSignature
+  const shouldSendCorrection=cycle.rework&&Boolean(cycle.correction)&&(resume?true:sig!==lastSubmittedSig)
   const run:WorkflowRun=resume?structuredClone(resume):{id:runId,workflowId:wf.id,workflowName:wf.name,revision:wf.revision,projectId:callbacks.projectId??null,
-    executionMode:'project',nodeLabels:Object.fromEntries(wf.nodes.map(n=>[n.id,defForNode(n)?.label??n.type])),
-    definition:fixed,engineSelection:readHarnessSelection(),nodeIO:{},status:'running',task:{id:runId,kind:'modify',status:'running',mock:false,title:wf.name,createdAt:at},events:[],artifacts:[],changes:null,nodeStatus:{},startedAt:at,finishedAt:null,demo:false}
+    executionMode:'project',nodeLabels:Object.fromEntries(wf.nodes.map(n=>[n.id,defForNode(n,{includeLegacy:true})?.label??n.type])),
+    definition:fixed,engineSelection:readHarnessSelection(),nodeIO:{},nodeRequestIds:{},
+    ...(shouldSendCorrection&&sig?{submittedReworkSignature:sig}:{}),
+    status:'running',task:{id:runId,kind:'modify',status:'running',mock:false,title:wf.name,createdAt:at},events:[],artifacts:[],changes:null,nodeStatus:{},startedAt:at,finishedAt:null,demo:false}
+  run.nodeRequestIds=run.nodeRequestIds??{}
   let cancelled=false
   let activeRequest:string|null=null
   const save=async()=>{const list=loadRuns();saveRuns([run,...list.filter(r=>r.id!==runId)]);await flushLocalDocuments()}
@@ -1000,26 +1152,67 @@ function startProjectGraph(wf:WorkflowDef,callbacks:Parameters<typeof startDemoR
     try{
       run.status='running';run.task.status='running';run.finishedAt=null
       await save()
+      /* 先校验再动项目：图不合法（比如创作需求还是骨架原样）时，不能先把它写进 prompt.original.md。
+         executeWorkflow 会再校验一次并给出失败原因。 */
+      if(fixed.skillPresetId&&callbacks.projectId&&workflowGraphProblems(fixed.nodes,fixed.edges).length===0){
+        const promptText=String(fixed.nodes.find(n=>n.type==='prompt')?.params.text??'').trim()
+        if(promptText){
+          await ensureCreationContext(callbacks.projectId,promptText,studioHttpApi().workflowContext)
+        }
+        const presetLabel=fixed.skillPresetMeta?.name||fixed.presetId
+        let presetMessage:string
+        try{
+          const applied=await studioHttpApi().skillPresets.applyPresetToProject(callbacks.projectId,fixed.skillPresetId)
+          presetMessage=formatApplyPresetSummary(presetLabel,applied)
+        }catch(error){
+          /* 视频类型归档后后端不再允许落地，但已经写进项目的指引仍然有效：给出警告、继续运行。
+             其他失败（项目正在制作、网络中断）照旧中止。 */
+          if(!isPresetNotActiveError(error))throw error
+          const current=await studioHttpApi().skillPresets.getProjectPreset(callbacks.projectId).catch(()=>null)
+          presetMessage=current?.presetId===fixed.skillPresetId
+            ?`注意：视频类型「${presetLabel}」已归档，沿用项目里已有的 skill 指引继续运行。`
+            :`注意：视频类型「${presetLabel}」已归档，这个项目还没有落地过它的指引，本次运行没有 skill 指引。`
+        }
+        const presetEvent:TaskEvent={id:uid('evt'),taskId:runId,kind:'progress',status:'running',mock:false,message:presetMessage,at:new Date().toISOString()}
+        run.events.push(presetEvent);callbacks.onEvent(presetEvent)
+      }
       const result=await executeWorkflow(fixed,{
         cancelled:()=>cancelled,
         completedIO:run.nodeIO,
+        correction:shouldSendCorrection?cycle.correction:'',
         resourceReferences:(id)=>workflowResourceReferences({...fixed,nodes:fixed.nodes.filter(n=>n.id===id)}),
         onStatus:(id,status)=>{run.nodeStatus[id]=status;callbacks.onNodeStatus(id,status)},
         saveIO:async io=>{run.nodeIO=structuredClone(io);await save()},
         create:async(nodeId,input)=>{
-          await ensureCreationContext(callbacks.projectId!,input.intent,studioHttpApi().workflowContext)
-          activeRequest=`${runId}-${nodeId}${run.nodeAttempts?.[nodeId]?`-retry${run.nodeAttempts[nodeId]}`:''}`
-          const result=await submitCreation({projectId:callbacks.projectId!,requestId:activeRequest,intent:input.intent,references:input.references as AgentReference[],selection:run.engineSelection??readHarnessSelection(),workflow:{id:fixed.id,revision:fixed.revision,nodeId,runId}},job=>{
+          /* 每次运行都提交当前需求：后端和最近一次需求修改比较，相同不记，不同才追加到 corrections.md。
+             只在未初始化时提交的话，首次运行后再改「创作需求」节点，agent 永远看不到。 */
+          const context=await studioHttpApi().workflowContext.init(callbacks.projectId!,input.prompt)
+          if(context.result==='RECORDED_AS_CORRECTION'){
+            const event:TaskEvent={id:uid('evt'),taskId:runId,kind:'progress',status:'running',mock:false,message:'创作需求已修改，已作为纠正记入 corrections.md（原文未被覆盖）。',at:new Date().toISOString()}
+            run.events.push(event);callbacks.onEvent(event)
+          }
+          const attemptKey=`${nodeId}:${run.nodeAttempts?.[nodeId]??0}`
+          if(!run.nodeRequestIds![attemptKey]){run.nodeRequestIds![attemptKey]=newUuid();await save()}
+          activeRequest=run.nodeRequestIds![attemptKey]
+          const result=await submitCreation({projectId:callbacks.projectId!,requestId:activeRequest,intent:'',correction:input.correction,references:input.references as AgentReference[],selection:run.engineSelection??readHarnessSelection(),workflow:{id:fixed.id,revision:fixed.revision,nodeId,runId}},job=>{
             const event:TaskEvent={id:uid('evt'),taskId:runId,kind:'progress',status:'running',mock:false,message:`制作阶段：${job.phase}`,at:new Date().toISOString()}
             if(run.events.at(-1)?.message!==event.message){run.events.push(event);callbacks.onEvent(event)}
           })
           activeRequest=null
           callbacks.onCreateResult?.(result)
-          if(result.state==='rendered'&&result.artifactPath)run.artifacts.push({id:uid('art'),nodeId,nodeType:'create',kind:'render',title:'制作与渲染',filename:result.artifactPath.split('/').pop()??'film.mp4',summary:`版本 v${result.version}`,content:JSON.stringify({...result,file:studioHttpApi().artifacts.contentUrl(callbacks.projectId!,result.artifactPath)}),demo:false})
-          return result
+          if(result.state==='rendered'&&result.artifactPath)run.artifacts.push({id:uid('art'),nodeId,nodeType:'create',kind:'render',title:'制作与渲染',filename:result.artifactPath.split('/').pop()??'film.mp4',summary:`版本 v${result.version}`,content:JSON.stringify({...result,runId,file:studioHttpApi().artifacts.contentUrl(callbacks.projectId!,result.artifactPath)}),demo:false})
+          return {...result,runId}
         },
       })
       run.nodeIO=result.nodeIO;run.status=result.status;run.task.status=result.status
+      if(result.status==='awaiting_info'){
+        const waitingDelivery=Object.values(result.nodeIO).find(io=>io.outputs?.status==='awaiting_review')
+        if(waitingDelivery){
+          const msg=String(waitingDelivery.outputs.reason||'等待审片通过')
+          const e:TaskEvent={id:uid('evt'),taskId:runId,kind:'progress',status:'awaiting_info',mock:false,message:`交付：${msg}`,at:new Date().toISOString()}
+          run.events.push(e);callbacks.onEvent(e)
+        }
+      }
       if(result.error){const e:TaskEvent={id:uid('evt'),taskId:runId,kind:'error',status:'failed',mock:false,message:result.error,at:new Date().toISOString()};run.events.push(e);callbacks.onEvent(e)}
     }catch(error){run.status='failed';run.task.status='failed';const e:TaskEvent={id:uid('evt'),taskId:runId,kind:'error',status:'failed',mock:false,message:error instanceof Error?error.message:'运行失败',at:new Date().toISOString()};run.events.push(e);callbacks.onEvent(e)}
     run.finishedAt=run.status==='running'?null:new Date().toISOString();activeGraphRuns.delete(runId);try{await save()}catch(e){callbacks.onEvent({id:uid('evt'),taskId:runId,kind:'error',status:'failed',mock:false,message:e instanceof Error?e.message:'运行记录保存未完成',at:new Date().toISOString()})}return run

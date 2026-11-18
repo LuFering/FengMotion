@@ -132,7 +132,7 @@ public class StyleDirectorySource implements CapabilitySource {
 
         /* 海报：同目录下的 poster/cover/cover.jpg 都认。
            返回相对扫描根的路径，导入器负责拼成可访问地址。 */
-        String poster = firstExisting(dir, "poster.jpg", "poster.png", "cover.jpg", "cover.png", "thumb.jpg");
+        String poster = firstExisting(dir, scanRoot, "poster.jpg", "poster.png", "cover.jpg", "cover.png", "thumb.jpg");
 
         return new ParsedItem(
                 "lemo-" + slug,
@@ -204,10 +204,22 @@ public class StyleDirectorySource implements CapabilitySource {
         return "";
     }
 
-    private static String firstExisting(Path dir, String... names) {
+    /**
+     * 在 {@code dir} 下找第一个存在的海报文件，返回**相对 {@code scanRoot}** 的路径。
+     *
+     * <p>为什么必须相对扫描根而不是 {@code dir.getFileName()}：
+     * 扫描根是能力库项目目录（如 {@code lemo-opuscar}），而海报所在的风格目录
+     * 通常还隔着一层（{@code lemo-opuscar/styles/pixel-rpg}）。只取目录名会得到
+     * {@code pixel-rpg/poster.jpg}，前端拼成 {@code lemo-opuscar/pixel-rpg/poster.jpg}
+     * —— 静态资源服务按项目根解析，这个地址 404，卡片预览全部显示「预览加载失败」。
+     * 已实测：6 个 lemo 风格的海报全部命中该问题。</p>
+     */
+    private static String firstExisting(Path dir, Path scanRoot, String... names) {
         for (String name : names) {
-            if (Files.isRegularFile(dir.resolve(name))) {
-                return dir.getFileName() + "/" + name;
+            Path candidate = dir.resolve(name);
+            if (Files.isRegularFile(candidate)) {
+                Path relative = scanRoot.relativize(candidate);
+                return relative.toString().replace('\\', '/');
             }
         }
         return "";

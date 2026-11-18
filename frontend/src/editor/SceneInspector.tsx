@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
-import { ArrowDown, ArrowUp, Copy, Eye, EyeOff, Lock, Plus, Trash2, Unlock } from 'lucide-react'
+import { UiIcon, SemIcons } from '@/components/icons/UiIcon'
+import { ArrowDown, ArrowUp, EyeOff, Lock01 } from '@untitledui/icons'
 import { KEYFRAME_PROPERTIES, makeKeyframe, type KeyframeProperty } from './keyframes'
 import type { EditorLayer, ElementPatch, HtmlElementInfo, SceneDocument } from './types'
 function NumberField({
@@ -88,7 +89,7 @@ export function SceneInspector({
               aria-label={layer.visible ? '隐藏图层' : '显示图层'}
               onClick={() => onLayer({ visible: !layer.visible })}
             >
-              {layer.visible ? <Eye size={14} /> : <EyeOff size={14} />}
+              {layer.visible ? <UiIcon icon={SemIcons.eye} size="sm" /> : <UiIcon icon={EyeOff} size="sm" />}
             </button>
             <button
               type="button"
@@ -96,19 +97,19 @@ export function SceneInspector({
               aria-label="切换图层锁定"
               onClick={() => onLayer({ locked: !layer.locked })}
             >
-              {layer.locked ? <Lock size={14} /> : <Unlock size={14} />}
+              {layer.locked ? <UiIcon icon={Lock01} size="sm" /> : <UiIcon icon={Lock01} size="sm" />}
             </button>
             <button type="button" title="复制图层" aria-label="复制图层" onClick={onDuplicate}>
-              <Copy size={14} />
+              <UiIcon icon={SemIcons.copy} size="sm" />
             </button>
             <button type="button" title="图层上移" aria-label="图层上移" onClick={() => onReorder(1)}>
-              <ArrowUp size={14} />
+              <UiIcon icon={ArrowUp} size="sm" />
             </button>
             <button type="button" title="图层下移" aria-label="图层下移" onClick={() => onReorder(-1)}>
-              <ArrowDown size={14} />
+              <UiIcon icon={ArrowDown} size="sm" />
             </button>
             <button type="button" title="删除图层（可撤销）" aria-label="删除图层" onClick={onDelete}>
-              <Trash2 size={14} />
+              <UiIcon icon={SemIcons.trash} size="sm" />
             </button>
           </div>
           <fieldset disabled={layer.locked}>
@@ -395,7 +396,7 @@ export function SceneInspector({
                               })
                             }
                           >
-                            <Trash2 size={12} />
+                            <UiIcon icon={SemIcons.trash} size="xs" />
                           </button>
                         </div>
                       ))}
@@ -413,7 +414,7 @@ export function SceneInspector({
                         onLayer({ keyframes: next })
                       }}
                     >
-                      <Plus size={12} />
+                      <UiIcon icon={SemIcons.plus} size="xs" />
                       {label}
                     </button>
                   ))}

@@ -71,7 +71,7 @@ export const CinematicDocumentary = ({ startDelay = 0 }: {
           opacity: lerp(frame, [startDelay + 30, startDelay + 50], [0, 1]),
         }}
       >
-        A Documentary Film
+        A Documentary Film01
       </div>
 
       {/* 年号 */}

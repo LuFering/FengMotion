@@ -96,6 +96,8 @@ public class CreationJobs {
         get(projectId,id);
         return documents.find("resource-evidence",id).filter(d->projectId.equals(d.projectId())).map(LocalStateStore.Document::data).orElse(json.createObjectNode().put("usageVerified",false).put("state","pending"));
     }
+    /** 项目是否有已受理、尚未结束的制作请求（含排队中、尚未拿到项目锁的）。 */
+    public boolean hasActive(String projectId){return activeProjects.containsKey(projectId);}
     public List<Job> list(String projectId){return documents.list().stream().filter(d->d.namespace().equals("creation-request")&&projectId.equals(d.projectId())).map(d->get(projectId,d.id())).toList();}
     public synchronized Job cancel(String projectId,String id) {
         var job=get(projectId,id);

@@ -1,4 +1,9 @@
-import { defForNode, type WfEdgeInstance, type WfNodeInstance } from '../data/workflowTemplates'
+import { LEGACY_NODE_TYPES, defForNode, type WfEdgeInstance, type WfNodeInstance } from '../data/workflowTemplates'
+
+/** 逐行去掉首尾空白再比较：多一个空格或换行不算「填写过」。 */
+function normalizeLines(text: string): string {
+  return text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean).join('\n')
+}
 
 /** Validate the same saved graph the editor will run; no writes or execution. */
 export function workflowGraphProblems(nodes: WfNodeInstance[], edges: WfEdgeInstance[], options = { validateInputs: true }): Array<{ nodeId?: string; message: string }> {
@@ -7,6 +12,27 @@ export function workflowGraphProblems(nodes: WfNodeInstance[], edges: WfEdgeInst
   const problems: Array<{ nodeId?: string; message: string }> = []
   const ids = new Map(items.map((n) => [n.id, n]))
   if (ids.size !== items.length) return [{ message: '节点标识重复，请复制为新的节点后重试。' }]
+  for (const node of items) {
+    const def = defForNode(node)
+    if (!def) {
+      problems.push({
+        nodeId: node.id,
+        message: LEGACY_NODE_TYPES.has(node.type)
+          ? '存在已停用的旧版节点，请先迁移工作流后再运行。'
+          : '存在无法识别的节点，请移除后重新添加。',
+      })
+      continue
+    }
+    for (const port of def.inputs.filter((p) => p.required && options.validateInputs)) {
+      if (!edges.some((e) => e.target === node.id && e.targetPort === port.id)) problems.push({ nodeId: node.id, message: `「${def.label}」缺少「${port.label}」输入，请连接上游节点。` })
+    }
+    if (node.type === 'prompt' && !String(node.params.text ?? '').trim()) problems.push({ nodeId: node.id, message: '请在「创作需求」节点填写原始提示词。' })
+    // 骨架原样不动就运行，没填的模板项会被当成用户原文写进 prompt.original.md
+    else if (node.type === 'prompt' && typeof node.params.promptScaffold === 'string' && node.params.promptScaffold.trim()
+      && normalizeLines(String(node.params.text)) === normalizeLines(node.params.promptScaffold)) {
+      problems.push({ nodeId: node.id, message: '「创作需求」还是视频类型的填写骨架，请先填写具体内容再运行。' })
+    }
+  }
   const occupied = new Set<string>()
   for (const edge of edges) {
     const source = ids.get(edge.source), target = ids.get(edge.target)
@@ -16,14 +42,6 @@ export function workflowGraphProblems(nodes: WfNodeInstance[], edges: WfEdgeInst
     const key = `${edge.target}:${edge.targetPort}`
     if (occupied.has(key)) problems.push({ nodeId: edge.target, message: '同一输入端口只能连接一个来源。' })
     occupied.add(key)
-  }
-  for (const node of items) {
-    const def = defForNode(node)
-    if (!def) { problems.push({ nodeId: node.id, message: '存在无法识别的节点，请移除后重新添加。' }); continue }
-    for (const port of def.inputs.filter((p) => p.required && options.validateInputs)) {
-      if (!edges.some((e) => e.target === node.id && e.targetPort === port.id)) problems.push({ nodeId: node.id, message: `「${def.label}」缺少「${port.label}」输入，请连接上游节点。` })
-    }
-    if (node.type === 'prompt' && !String(node.params.text ?? '').trim()) problems.push({ nodeId: node.id, message: '请在「创作需求」节点填写原始提示词。' })
   }
   const degrees = new Map(items.map((n) => [n.id, 0]))
   for (const edge of edges) if (ids.has(edge.source) && ids.has(edge.target)) degrees.set(edge.target, degrees.get(edge.target)! + 1)

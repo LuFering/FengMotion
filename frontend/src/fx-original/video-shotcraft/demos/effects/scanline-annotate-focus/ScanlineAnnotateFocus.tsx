@@ -212,7 +212,7 @@ const Bracket: React.FC<{ t: Target; frame: number }> = ({ t, frame }) => {
 
 const TAG_H = 50;
 const CHAR_W = 0.6 * 32; // 32px 等宽字步进
-const tagWidth = (t: Target) => Math.round((t.head.length + 3 + t.detail.length) * CHAR_W + 34);
+const tagWidth = (t: Target01) => Math.round((t.head.length + 3 + t.detail.length) * CHAR_W + 34);
 
 const Label: React.FC<{ t: Target; frame: number }> = ({ t, frame }) => {
   const s0 = t.ft + 5;

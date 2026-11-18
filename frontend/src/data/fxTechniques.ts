@@ -1,6 +1,6 @@
 /**
- * 特效技法库数据 —— 从既有 FX 源库（workflow-gallery 的 fx 注册表）抽出，16 条，
- * 字段保持源库语义：能力标签 execType 是**源库元数据**，不代表本页可以执行。
+ * 特效技法库的类型与枚举。原先从 workflow-gallery fx 注册表抽出的 16 条演示数据已清空，
+ * 技法改由后端从能力库导入；字段保持源库语义：能力标签 execType 是**源库元数据**，不代表本页可以执行。
  * 媒体已从 15.7MB 内嵌页抽出并压缩到 public/fx/（poster 960px webp / motion 640px mp4）。
  *
  * ⚠️ 不要在这里编造能力：runnable / composable / reference 的原值必须保留；

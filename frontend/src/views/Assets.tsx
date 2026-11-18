@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { InfoCircle } from '@untitledui/icons'
 import {
   LICENSE_LABEL, MEDIA_ICON, MEDIA_LABEL, REVIEW_LABEL, SOURCE_LABEL,
   type LicenseStatus, type MediaType, type MyAsset, type ReviewStatus,
@@ -45,7 +46,17 @@ import { SearchField } from '@/components/SearchField'
  * 本文件不写任何色值（标签色点除外：数据色点，取自文件内固定调色板）。
  */
 
+/**
+ * 雪碧图里没有的图标走 Untitled UI，避免 <use> 指向不存在的 id 时渲染成空白。
+ * 已知缺口：info（卡片警告角标曾因此完全不显示）。
+ */
+const SPRITE_FALLBACK: Record<string, typeof InfoCircle> = {
+  info: InfoCircle,
+}
+
 function Icon({ name, className = 'ui-icon' }: { name: string; className?: string }) {
+  const Fallback = SPRITE_FALLBACK[name]
+  if (Fallback) return <Fallback size={12} className={className} aria-hidden="true" />
   return (
     <svg className={className} aria-hidden="true">
       <use href={`./assets/paba-icons.svg#${name}`} />

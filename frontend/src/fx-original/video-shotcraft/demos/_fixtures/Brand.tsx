@@ -79,7 +79,7 @@ export const PITCH = {
     ],
     features: [
       'Shot recipe cards', 'Real page captures', '2.5D camera moves', 'Beat-synced cuts',
-      'Film-grade SFX', 'Motion workbench', 'Remotion render', 'JianYing export',
+      'Film01-grade SFX', 'Motion workbench', 'Remotion render', 'JianYing export',
     ],
     praise: [
       'Feels like a launch film from a real studio.',

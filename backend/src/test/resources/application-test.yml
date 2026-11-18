@@ -26,3 +26,7 @@ fengmotion:
   # 混进用户自己的素材库（真踩过：跑完测试后用户素材库里多出 8 个 x 文件）。
   asset:
     library-root: ./target/fengmotion-test-library
+
+  # skill 包同理：导入测试会真解压文件，不能落到真实数据目录。
+  skill-packages:
+    root: ./target/fengmotion-test-skill-packages

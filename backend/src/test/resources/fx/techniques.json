@@ -1,0 +1,59 @@
+[
+  {
+    "id": "fx-dolly-zoom",
+    "name": "多莉变焦",
+    "nameEn": "Dolly Zoom",
+    "aliases": ["眩晕镜头", "希区柯克变焦"],
+    "keywords": ["希区柯克", "眩晕", "背景拉伸"],
+    "intent": "主体大小不变、背景被拉开或压缩，制造眩晕感",
+    "category": "camera",
+    "execType": "runnable",
+    "impl": "ai",
+    "complexity": 3,
+    "inputKinds": ["image", "video"],
+    "steps": ["锁定主体位置", "相机后退同时推长焦距", "按需要收束到目标构图"],
+    "limitations": ["主体需要与背景有明显纵深"],
+    "params": [
+      { "key": "duration", "label": "时长", "value": "2s", "hint": "" },
+      { "key": "direction", "label": "方向", "value": "后退", "hint": "" },
+      { "key": "intensity", "label": "强度", "value": "70%", "hint": "" }
+    ],
+    "updatedAt": "2026-10-10"
+  },
+  {
+    "id": "fx-slow-push",
+    "name": "缓推",
+    "nameEn": "Slow Push In",
+    "category": "camera",
+    "execType": "composable",
+    "impl": "realtime",
+    "complexity": 1
+  },
+  {
+    "id": "fx-crossfade",
+    "name": "交叉淡化",
+    "nameEn": "Crossfade",
+    "category": "transition",
+    "execType": "reference",
+    "impl": "realtime",
+    "complexity": 1
+  },
+  {
+    "id": "fx-spark-burst",
+    "name": "火花迸发",
+    "nameEn": "Spark Burst",
+    "category": "particles",
+    "execType": "runnable",
+    "impl": "offline",
+    "complexity": 2
+  },
+  {
+    "id": "fx-kinetic-type",
+    "name": "动态排字",
+    "nameEn": "Kinetic Typography",
+    "category": "typography",
+    "execType": "composable",
+    "impl": "composite",
+    "complexity": 2
+  }
+]

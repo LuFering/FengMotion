@@ -14,7 +14,8 @@
  */
 
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { ArrowUp, Plus, Square } from 'lucide-react'
+import { UiIcon, SemIcons } from '@/components/icons/UiIcon'
+import { ArrowUp, Square } from '@untitledui/icons'
 import { useSpringPress } from './useSpringPress'
 import './chat-composer.css'
 
@@ -200,7 +201,7 @@ export function ChatComposer({
           <div className="cc-bar-left">
             {attachMenu ?? (onAttach ? (
               <button type="button" className="cc-attach" aria-label="添加附件" title="添加附件" onClick={onAttach}>
-                <Plus size={16} />
+                <UiIcon icon={SemIcons.plus} size="md" />
               </button>
             ) : null)}
             {leading}
@@ -211,7 +212,7 @@ export function ChatComposer({
             <div className="cc-send-wrap">
               {busy && onStop ? (
                 <button type="button" className="cc-stop" aria-label="停止生成" title="停止生成" onClick={onStop}>
-                  <Square size={14} />
+                  <UiIcon icon={Square} size="sm" />
                 </button>
               ) : (
                 <button
@@ -226,7 +227,7 @@ export function ChatComposer({
                     if (canSend) onSubmit()
                   }}
                 >
-                  <ArrowUp size={16} />
+                  <UiIcon icon={ArrowUp} size="md" />
                 </button>
               )}
             </div>

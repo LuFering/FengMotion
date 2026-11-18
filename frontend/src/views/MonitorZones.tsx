@@ -1,5 +1,6 @@
-import { FileWarning } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { UiIcon } from '@/components/icons/UiIcon'
+import { File01 } from '@untitledui/icons'
 import { getFileURL, getThumbURL } from '@/services/assetApiService'
 import { MEDIA_LABEL, type MediaType } from '@/data/myAssets'
 import type { AgentReference } from '@/services/studioApi'
@@ -143,7 +144,7 @@ export function MonitorMediaPreview({ item }:
   return (
     <div className="fw-mon-preview">
       {failed || (url === null && item.mediaType !== 'image' && !item.filePath && !item.assetId) ? (
-        <div className="wb-reference-error"><FileWarning size={24}/><span>素材暂时无法预览</span><button type="button" onClick={() => { setFailed(false); setRetry((value) => value + 1) }}>重新加载</button></div>
+        <div className="wb-reference-error"><UiIcon icon={File01} size="xl" /><span>素材暂时无法预览</span><button type="button" onClick={() => { setFailed(false); setRetry((value) => value + 1) }}>重新加载</button></div>
       ) : url === null ? (
         <div className="fw-mon-empty-sub">正在取文件…</div>
       ) : item.mediaType === 'video' ? (

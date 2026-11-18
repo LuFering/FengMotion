@@ -141,7 +141,7 @@ export const ScanBracketSweep: React.FC = () => {
                 <path d="M5.5.6v2.9h2.9" fill="none" stroke={`rgb(${SCAN})`} strokeWidth={0.6} />
               </svg>
               <div style={{ position: 'absolute', left: 27, top: 11, fontSize: 8.6, fontWeight: 650, letterSpacing: '-0.01em', lineHeight: 1 }}>
-                Launch Film — Shot List
+                Launch Film01 — Shot List
               </div>
               <div style={{ position: 'absolute', left: 27, top: 23, fontSize: 5.4, color: INK2, lineHeight: 1, letterSpacing: '-0.01em' }}>
                 {BRAND.name} · Storyboard v3 · 1080p · 30 fps

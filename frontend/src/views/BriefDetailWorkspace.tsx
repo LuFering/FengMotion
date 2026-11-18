@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
-import { Check, FileText, Monitor, Plus, Tag, ArrowLeft } from 'lucide-react'
+import { UiIcon, SemIcons } from '@/components/icons/UiIcon'
+import { File01, Monitor01, Tag01 } from '@untitledui/icons'
 import type { WorkbenchReview } from '@/hooks/useWorkbenchReview'
 
 export type BriefSection = 'all' | 'original' | 'keep' | 'corrections'
@@ -107,7 +108,7 @@ export function BriefDetailWorkspace({
         <div className="flex items-center gap-2">
           {savedNotice && (
             <span className="text-xs text-blue-500 flex items-center gap-1 font-medium animate-fade-in mr-2">
-              <Check size={12} />
+              <UiIcon icon={SemIcons.check} size="xs" />
               <span>{savedNotice}</span>
             </span>
           )}
@@ -117,7 +118,7 @@ export function BriefDetailWorkspace({
               className="text-xs px-2.5 py-1 rounded bg-[var(--hole)] hover:bg-[var(--line)] text-[var(--tx2)] hover:text-[var(--tx)] transition-colors flex items-center gap-1"
               onClick={onDiscuss}
             >
-              <ArrowLeft size={12} />
+              <UiIcon icon={SemIcons.back} size="xs" />
               <span>带回对话讨论</span>
             </button>
           )}
@@ -127,7 +128,7 @@ export function BriefDetailWorkspace({
             onClick={onClose}
             title="返回画面监看"
           >
-            <Monitor size={12} />
+            <UiIcon icon={Monitor01} size="xs" />
             <span>返回画面监看</span>
           </button>
         </div>
@@ -142,7 +143,7 @@ export function BriefDetailWorkspace({
             <section className="flex flex-col gap-2.5">
               <div className="flex items-center justify-between">
                 <h3 className="font-medium text-sm text-[var(--tx)] flex items-center gap-1.5">
-                  <FileText size={14} className="text-[var(--tx2)]" />
+                  <UiIcon icon={File01} size="sm" className="text-[var(--tx2)]" />
                   <span>原始制作需求</span>
                 </h3>
                 {!isEditingOriginal && review.brief.original && (
@@ -213,7 +214,7 @@ export function BriefDetailWorkspace({
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="font-medium text-sm text-[var(--tx)] flex items-center gap-1.5">
-                    <Tag size={14} className="text-[var(--tx2)]" />
+                    <UiIcon icon={Tag01} size="sm" className="text-[var(--tx2)]" />
                     <span>文字保留要求</span>
                   </h3>
                   <p className="text-xs text-[var(--tx3)] mt-0.5">
@@ -251,7 +252,7 @@ export function BriefDetailWorkspace({
             <section className="flex flex-col gap-3">
               <div>
                 <h3 className="font-medium text-sm text-[var(--tx)] flex items-center gap-1.5">
-                  <Plus size={14} className="text-[var(--tx2)]" />
+                  <UiIcon icon={SemIcons.plus} size="sm" className="text-[var(--tx2)]" />
                   <span>后续补充要求</span>
                 </h3>
                 <p className="text-xs text-[var(--tx3)] mt-0.5">

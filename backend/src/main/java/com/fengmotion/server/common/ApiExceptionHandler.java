@@ -30,6 +30,16 @@ public class ApiExceptionHandler {
         return error(ex.getStatus(), ex.getCode(), ex.getMessage());
     }
 
+    /** 预设映射未通过校验：在统一信封里多带一份逐项问题，前端据此标出哪里不对。 */
+    @ExceptionHandler(com.fengmotion.server.preset.service.MappingInvalidException.class)
+    public ResponseEntity<Map<String, Object>> mappingInvalid(com.fengmotion.server.preset.service.MappingInvalidException ex) {
+        return ResponseEntity.status(ex.getStatus()).body(Map.of("error", Map.of(
+                "code", ex.getCode(),
+                "message", ex.getMessage(),
+                "requestId", newRequestId(),
+                "problems", ex.getProblems())));
+    }
+
     /** 请求体不是合法 JSON，或字段类型对不上。 */
     @ExceptionHandler(org.springframework.http.converter.HttpMessageNotReadableException.class)
     public ResponseEntity<Map<String, Object>> malformedRequest(Exception ex) {

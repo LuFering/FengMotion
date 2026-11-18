@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
-import { Target, ChevronDown, X, AlertTriangle, ExternalLink, Sparkles, MessageCircleQuestion } from 'lucide-react'
+import { UiIcon, SemIcons } from '@/components/icons/UiIcon'
+import { Link04, HelpCircle, Star01, Target01 } from '@untitledui/icons'
 import type { TargetSnapshot } from '@/shell/useDraftStore'
 import { resolveSendPlan, describeSendPlan } from '@/services/sendPlan'
 
@@ -271,14 +272,14 @@ export function TargetSummaryPill({
             title="点击展开/收起修改目标详情与过期核对"
           >
             {isHistorical ? (
-              <AlertTriangle size={12} className="text-amber-400 shrink-0 animate-pulse" />
+              <UiIcon icon={SemIcons.warning} size="xs" className="text-amber-400 shrink-0 animate-pulse" />
             ) : (
-              <Target size={12} className="text-emerald-500 shrink-0" />
+              <UiIcon icon={Target01} size="xs" className="text-emerald-500 shrink-0" />
             )}
             <span className="truncate font-medium text-[var(--tx,#242a28)] dark:text-[#ededed] text-[11px] max-w-[240px]">
               {summary}
             </span>
-            <ChevronDown size={12} className={`text-[var(--tx3,#8f9b95)] shrink-0 transition-transform ${expanded ? 'rotate-180' : ''}`} />
+            <UiIcon icon={SemIcons.collapse} size="xs" className={`text-[var(--tx3,#8f9b95)] shrink-0 transition-transform ${expanded ? 'rotate-180' : ''} `} />
           </button>
 
           {isCustomized && (
@@ -308,7 +309,7 @@ export function TargetSummaryPill({
                   title={removeHint}
                   onClick={handleRemoveClick}
                 >
-                  <X size={12} />
+                  <UiIcon icon={SemIcons.close} size="xs" />
                 </button>
               )}
             </div>
@@ -333,7 +334,7 @@ export function TargetSummaryPill({
               onClick={() => onIntentChange('modify')}
               title="发送时会真实修改视频工程"
             >
-              <Sparkles size={12} />
+              <UiIcon icon={Star01} size="xs" />
               <span>修改此目标</span>
             </button>
             <button
@@ -348,7 +349,7 @@ export function TargetSummaryPill({
               onClick={() => onIntentChange('query')}
               title="只在对话里回答，不修改视频工程"
             >
-              <MessageCircleQuestion size={12} />
+              <UiIcon icon={HelpCircle} size="xs" />
               <span>关于此提问</span>
             </button>
           </div>
@@ -368,7 +369,7 @@ export function TargetSummaryPill({
           {isHistorical ? (
             <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/25 flex flex-col gap-1.5">
               <div className="flex items-center gap-1.5 text-amber-400 font-medium text-[11px]">
-                <AlertTriangle size={12} className="shrink-0" />
+                <UiIcon icon={SemIcons.warning} size="xs" className="shrink-0" />
                 目标引用的基准版本已过期
               </div>
               <p className="text-[11px] text-[var(--tx2,#66716c)] dark:text-[#a7abb5] leading-relaxed">
@@ -384,7 +385,7 @@ export function TargetSummaryPill({
                       setExpanded(false)
                     }}
                   >
-                    <ExternalLink size={12} /> 查看最新版画面重新选择
+                    <UiIcon icon={Link04} size="xs" /> 查看最新版画面重新选择
                   </button>
                 )}
                 <button

@@ -22,8 +22,12 @@ import com.fengmotion.server.fx.store.FxTechniqueRepository.FxQuery;
  * 特效库导入与检索。
  *
  * <p>最要紧的一条断言是「{@code execType=runnable} 不等于本机可执行」。
- * 源库标了 9 条 runnable，但 FengMotion 还没有对应执行器 ——
+ * 源库会把条目标成 runnable，但 FengMotion 还没有对应执行器 ——
  * 如果界面按 execType 显示「可执行」，用户点下去会发现什么都没有。</p>
+ *
+ * <p>数据来自测试专用目录 {@code src/test/resources/fx/techniques.json}（5 条），
+ * 它在测试 classpath 上覆盖产品资源。产品里的内置目录已清空，改由能力库导入，
+ * 测试不依赖产品数据的条数。</p>
  */
 @SpringBootTest
 @ActiveProfiles("test")
@@ -41,10 +45,10 @@ class FxTechniqueServiceTest {
     }
 
     @Test
-    @DisplayName("内置目录导入 16 条，字段与源库一致")
+    @DisplayName("目录导入全部条目，字段与源数据一致")
     void importsBuiltinCatalog() {
         importer.importBuiltin(false);
-        assertEquals(16, service.total());
+        assertEquals(5, service.total());
 
         FxTechnique dolly = service.require("fx-dolly-zoom");
         assertEquals("多莉变焦", dolly.name());
@@ -111,12 +115,12 @@ class FxTechniqueServiceTest {
     }
 
     @Test
-    @DisplayName("按分类筛选：运镜 3 条")
+    @DisplayName("按分类筛选：运镜 2 条")
     void filterByCategory() {
         importer.importBuiltin(false);
         List<FxTechnique> camera = service.search(new FxQuery(FxStates.Category.CAMERA, null, null, null,
                 null, false, false, null, "cat", 50, 0));
-        assertEquals(3, camera.size());
+        assertEquals(2, camera.size());
         assertTrue(camera.stream().allMatch(t -> t.category() == FxStates.Category.CAMERA));
     }
 
@@ -150,9 +154,10 @@ class FxTechniqueServiceTest {
         var categories = facets.get("categories");
         // 七个分类全部出现（即使某分类为 0），否则筛选面板会缺选项。
         assertEquals(7, categories.size());
-        assertEquals(3, categories.get("camera"));
-        assertEquals(2, categories.get("transition"));
-        assertEquals(16, service.total());
+        assertEquals(2, categories.get("camera"));
+        assertEquals(1, categories.get("transition"));
+        assertEquals(0, categories.get("lighting"), "数据里没有的分类也要补 0");
+        assertEquals(5, service.total());
     }
 
     @Test

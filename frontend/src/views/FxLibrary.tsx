@@ -1,20 +1,6 @@
 import { Component, lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import {
-  ArrowUpDown,
-  Check,
-  ChevronDown,
-  ChevronRight,
-  Clock,
-  Copy,
-  Info,
-  Pause,
-  Play,
-  Plus,
-  SlidersHorizontal,
-  Star,
-  Workflow,
-  X,
-} from 'lucide-react'
+import { UiIcon, SemIcons } from '@/components/icons/UiIcon'
+import { Clock, Dataflow04, Star01, SwitchVertical01 } from '@untitledui/icons'
 import {
   FX_CATEGORIES,
   FX_EXEC_TYPES,
@@ -38,6 +24,7 @@ import { usePickMode } from '@/shell/usePickMode'
 import { PickBar, PickButton, PickCheck } from '@/shell/PickModeUI'
 import { toast as emitToast } from '@/shell/toast'
 import { SearchField } from '@/components/SearchField'
+import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { CapabilityImportDialog } from './CapabilityImportDialog'
 import { originalSceneLoader } from '@/components/fxOriginalRegistry'
 
@@ -236,7 +223,7 @@ export function FxLibrary() {
   const [semanticNote, setSemanticNote] = useState<{ degraded: boolean; reason?: string } | null>(null)
 
   const searchRef = useRef<HTMLInputElement>(null)
-  const drawerRef = useRef<HTMLElement>(null)
+  const modalRef = useRef<HTMLDivElement>(null)
   const closeRef = useRef<HTMLButtonElement>(null)
   const copyTimer = useRef<number | null>(null)
   const toastTimer = useRef<number | null>(null)
@@ -478,36 +465,14 @@ export function FxLibrary() {
     })
   }
 
-  /** 抽屉：Esc 关闭 + 焦点圈在抽屉内；打开时焦点落在关闭键 */
+  /**
+   * 弹窗打开时把焦点放到关闭键。
+   * Esc 关闭、Tab 焦点圈、滚动锁定都交给 radix Dialog 自己处理 ——
+   * 之前抽屉是自绘的才需要手写这套，现在再写一遍会变成双重响应。
+   */
   useEffect(() => {
     if (!drawerOpen) return
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault()
-        closeDrawer()
-        return
-      }
-      if (e.key !== 'Tab') return
-      const el = drawerRef.current
-      if (!el) return
-      const nodes = [...el.querySelectorAll<HTMLElement>(
-        'button:not(:disabled), a[href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
-      )]
-      if (nodes.length === 0) return
-      const first = nodes[0]
-      const last = nodes[nodes.length - 1]
-      if (e.shiftKey && document.activeElement === first) {
-        e.preventDefault()
-        last.focus()
-      } else if (!e.shiftKey && document.activeElement === last) {
-        e.preventDefault()
-        first.focus()
-      }
-    }
-    document.addEventListener('keydown', onKey)
     window.requestAnimationFrame(() => closeRef.current?.focus())
-    return () => document.removeEventListener('keydown', onKey)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [drawerOpen])
 
   useEffect(() => {
@@ -581,8 +546,8 @@ export function FxLibrary() {
   const SCOPES: Array<{ id: Scope; label: string; count: number; icon: React.ReactNode }> = [
     { id: 'all', label: '全部', count: searched.length, icon: null },
     { id: 'featured', label: '精选', count: counts.featured, icon: null },
-    { id: 'favorites', label: '收藏', count: counts.favorites, icon: <Star size={12} aria-hidden="true" /> },
-    { id: 'recent', label: '最近使用', count: counts.recent, icon: <Clock size={12} aria-hidden="true" /> },
+    { id: 'favorites', label: '收藏', count: counts.favorites, icon: <UiIcon icon={Star01} size="xs" aria-hidden="true" /> },
+    { id: 'recent', label: '最近使用', count: counts.recent, icon: <UiIcon icon={Clock} size="xs" aria-hidden="true" /> },
   ]
 
   return (
@@ -640,10 +605,10 @@ export function FxLibrary() {
               data-on={filtersOpen || activeCount > 0 ? '' : undefined}
               onClick={() => setFiltersOpen((v) => !v)}
             >
-              <SlidersHorizontal size={14} />
+              <UiIcon icon={SemIcons.sliders} size="sm" />
               筛选
               {activeCount > 0 && <b className="fx-badge num">{activeCount}</b>}
-              <ChevronDown size={12} className={filtersOpen ? 'fx-chev is-open' : 'fx-chev'} />
+              <UiIcon icon={SemIcons.collapse} size="xs" className={filtersOpen ? 'fx-chev is-open' : 'fx-chev'} />
             </button>
             {filtersOpen && (
               <>
@@ -728,44 +693,44 @@ export function FxLibrary() {
           {cat !== 'all' && (
             <span className="fx-activechip">
               分类 · {categoryLabel(cat)}
-              <button type="button" aria-label="移除分类筛选" onClick={() => setCat('all')}><X size={12} strokeWidth={2.4} /></button>
+              <button type="button" aria-label="移除分类筛选" onClick={() => setCat('all')}><UiIcon icon={SemIcons.close} size="xs" /></button>
             </span>
           )}
           {exec !== 'all' && (
             <span className="fx-activechip">
               能力 · {execLabel(exec)}
-              <button type="button" aria-label="移除能力筛选" onClick={() => setExec('all')}><X size={12} strokeWidth={2.4} /></button>
+              <button type="button" aria-label="移除能力筛选" onClick={() => setExec('all')}><UiIcon icon={SemIcons.close} size="xs" /></button>
             </span>
           )}
           {previewKind !== 'all' && (
             <span className="fx-activechip">
               预览 · {previewKind === 'motion' ? '有动态预览' : '静态海报'}
-              <button type="button" aria-label="移除预览类型筛选" onClick={() => setPreviewKind('all')}><X size={12} strokeWidth={2.4} /></button>
+              <button type="button" aria-label="移除预览类型筛选" onClick={() => setPreviewKind('all')}><UiIcon icon={SemIcons.close} size="xs" /></button>
             </span>
           )}
           {impl !== 'all' && (
             <span className="fx-activechip">
               实现 · {implLabel(impl)}
-              <button type="button" aria-label="移除实现方式筛选" onClick={() => setImpl('all')}><X size={12} strokeWidth={2.4} /></button>
+              <button type="button" aria-label="移除实现方式筛选" onClick={() => setImpl('all')}><UiIcon icon={SemIcons.close} size="xs" /></button>
             </span>
           )}
           {inputKind !== 'all' && (
             <span className="fx-activechip">
               输入 · {inputLabel(inputKind)}
-              <button type="button" aria-label="移除输入素材筛选" onClick={() => setInputKind('all')}><X size={12} strokeWidth={2.4} /></button>
+              <button type="button" aria-label="移除输入素材筛选" onClick={() => setInputKind('all')}><UiIcon icon={SemIcons.close} size="xs" /></button>
             </span>
           )}
           {maxComplexity < 5 && (
             <span className="fx-activechip">
               复杂度 ≤ {maxComplexity}
-              <button type="button" aria-label="移除复杂度筛选" onClick={() => setMaxComplexity(5)}><X size={12} strokeWidth={2.4} /></button>
+              <button type="button" aria-label="移除复杂度筛选" onClick={() => setMaxComplexity(5)}><UiIcon icon={SemIcons.close} size="xs" /></button>
             </span>
           )}
           <span className="fx-spacer" />
           {(query.trim() || activeCount > 0) && <span className="fx-result-summary" role="status">找到 {visible.length} 项技法</span>}
 
           <label className="fx-sort">
-            <ArrowUpDown size={12} aria-hidden="true" />
+            <UiIcon icon={SwitchVertical01} size="xs" aria-hidden="true" />
             <select value={sort} onChange={(e) => setSort(e.target.value as SortKey)} aria-label="排序方式">
               <option value="cat">按分类</option>
               <option value="name">名称</option>
@@ -863,7 +828,7 @@ export function FxLibrary() {
                         <span className="fxc-media-empty"><span>暂无预览</span></span>
                       )}
                       {pick.active && <PickCheck checked={pick.has(t.id)} />}
-                      {t.previewVideo && <span className="fxc-preview-label"><Play size={12} aria-hidden="true" />动态预览</span>}
+                      {t.previewVideo && <span className="fxc-preview-label"><UiIcon icon={SemIcons.play} size="xs" aria-hidden="true" />动态预览</span>}
                       {/* 加入待发送：与素材库/参考片库同一位置、同一规格 */}
                       {!pick.active && <button
                         type="button"
@@ -873,7 +838,7 @@ export function FxLibrary() {
                         title={fxInPending(t.id) ? '已在待发送' : '加入待发送'}
                         onClick={(e) => { e.stopPropagation(); addFxToPending([t]) }}
                       >
-                        {fxInPending(t.id) ? <Check size={14} strokeWidth={2.4} /> : <Plus size={14} strokeWidth={2.4} />}
+                        {fxInPending(t.id) ? <UiIcon icon={SemIcons.check} size="sm" /> : <UiIcon icon={SemIcons.plus} size="sm" />}
                       </button>}
                       <button
                         type="button"
@@ -883,7 +848,7 @@ export function FxLibrary() {
                         aria-label={fav ? `取消收藏 ${t.name}` : `收藏 ${t.name}`}
                         onClick={() => toggleFavorite(t.id)}
                       >
-                        <Star size={14} fill={fav ? 'currentColor' : 'none'} />
+                        <UiIcon icon={Star01} size="sm" fill={fav ? 'currentColor' : 'none'} />
                       </button>
                     </div>
                     {/* 覆盖层只负责"点开详情"。它是 <button> 且铺满整卡，
@@ -924,23 +889,26 @@ export function FxLibrary() {
         )}
       </section>
 
-      {/* ── 详情抽屉：预览 → 用途 → 实现方法 → 参数 → 调用方式 ── */}
-      {drawerOpen && current && (
-        <div
-          className="fx-scrim"
-          onMouseDown={(e) => {
-            if (e.target === e.currentTarget) closeDrawer()
-          }}
-        >
-          <aside
-            ref={drawerRef}
-            className="fx-drawer"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="fx-drawer-title"
+      {/* ── 详情弹窗：预览 → 用途 → 实现方法 → 参数 → 调用方式 ──
+          用项目统一的 Dialog（radix）而不是自绘抽屉：遮罩、焦点陷阱、
+          Esc 关闭、滚动锁定都由组件负责，样式与「导入来源」等弹窗一致。 */}
+      <Dialog open={drawerOpen && !!current} onOpenChange={(o) => { if (!o) closeDrawer() }}>
+        <DialogContent className="fx-modal" showCloseButton={false}>
+          {/* 关闭键挂在弹窗根部而不是预览图里：条目没有预览图时，
+              放在预览里的按钮会跟着一起消失，用户就只能靠 Esc 关闭。 */}
+          <button
+            ref={closeRef}
+            type="button"
+            className="fx-modal-close"
+            onClick={closeDrawer}
+            aria-label="关闭技法详情"
+            title="关闭（Esc）"
           >
-            <div className="fx-drawer-scroll">
-              <div className="fx-preview">
+            <UiIcon icon={SemIcons.close} size="sm" aria-hidden="true" />
+          </button>
+          {current && (
+            <div ref={modalRef} className="fx-modal-scroll">
+              {current.previewImage ? <div className="fx-preview">
                 <img
                   src={current.previewImage}
                   alt=""
@@ -967,34 +935,25 @@ export function FxLibrary() {
                     aria-label={playing ? '暂停动作预览' : '播放动作预览'}
                     title={playing ? '暂停动作预览' : '播放动作预览'}
                   >
-                    {playing ? <Pause size={14} aria-hidden="true" /> : <Play size={14} aria-hidden="true" />}
+                    {playing ? <UiIcon icon={SemIcons.pause} size="sm" aria-hidden="true" /> : <UiIcon icon={SemIcons.play} size="sm" aria-hidden="true" />}
                   </button>
                 )}
-                <button
-                  ref={closeRef}
-                  type="button"
-                  className="fx-drawer-close"
-                  onClick={closeDrawer}
-                  aria-label="关闭技法详情"
-                  title="关闭（Esc）"
-                >
-                  <X size={14} aria-hidden="true" />
-                </button>
                 <span className={`fx-cap fx-cap-${current.execType} fx-preview-cap`} title={FX_EXEC_TYPES[current.execType].hint}>
                   {current.execLabel}
                 </span>
                 {current.previewCaption && <span className="fx-preview-caption">{current.previewCaption}</span>}
-              </div>
+              </div> : null}
 
               <div className="fx-drawer-body">
-                <div className="fx-drawer-title">
-                  <h2 id="fx-drawer-title">{current.name}</h2>
-                  <span>{current.nameEn}</span>
-                  {current.featured && (
-                    <em className="fx-featured">
-                      源库精选
-                    </em>
-                  )}
+                {/* 打开卡片的意图：先认清「这是什么效果」，再决定「用不用得上」，
+                    最后才是「怎么拿走」。所以顺序是 名称 → 一句话说明 → 操作 → 用处 → 细节，
+                    技术元数据（复杂度/依赖/来源/版本）收进折叠区，不跟主信息抢位置。 */}
+
+                <header className="fxm-head">
+                  <div className="fxm-head-main">
+                    <h2 id="fx-drawer-title">{current.name}</h2>
+                    {current.nameEn && <span className="fxm-nameen">{current.nameEn}</span>}
+                  </div>
                   <button
                     type="button"
                     className="fx-favbtn"
@@ -1002,162 +961,98 @@ export function FxLibrary() {
                     aria-pressed={lib.favorites.includes(current.id)}
                     onClick={() => toggleFavorite(current.id)}
                   >
-                    <Star
-                      size={12}
-                      fill={lib.favorites.includes(current.id) ? 'currentColor' : 'none'}
-                      aria-hidden="true"
-                    />
+                    <UiIcon icon={Star01} size="xs" fill={lib.favorites.includes(current.id) ? 'currentColor' : 'none'} aria-hidden="true" />
                     {lib.favorites.includes(current.id) ? '已收藏' : '收藏'}
                   </button>
+                </header>
+
+                <p className="fxm-intent">{current.intent}</p>
+
+                {/* 主操作紧跟说明：读懂了就能立刻拿走，不用滚到底部去找。
+                    状态标签（能否一键运行）就放在按钮旁边，避免读完正文才发现用不了。 */}
+                <div className="fxm-actions">
+                  <button type="button" className="fx-btn fx-btn-primary" onClick={copyRecipe}>
+                    {copied === 'ok' ? <UiIcon icon={SemIcons.check} size="sm" aria-hidden="true" /> : <UiIcon icon={SemIcons.copy} size="sm" aria-hidden="true" />}
+                    {copied === 'ok' ? '已复制' : copied === 'fail' ? '复制失败' : '复制配方'}
+                  </button>
+                  <button type="button" className="fx-btn" onClick={() => setWorkflowFor(current)}>
+                    <UiIcon icon={Dataflow04} size="sm" aria-hidden="true" />
+                    用于工作流
+                  </button>
+                  <span className={`fxm-mode fx-cap-${current.execType}`} title={FX_EXEC_TYPES[current.execType].hint}>
+                    {current.execLabel}
+                  </span>
                 </div>
-                <p className="fx-detail-intent">{current.intent}</p>
 
-                {/* 去 AI 味：能力 pill 与说明句重复，合成一行普通文字；分类放进这行，不再与英文名用“·”拼标题 */}
-                <p className="fx-detail-capline">
-                  {current.categoryLabel} · {current.execLabel}：{FX_EXEC_TYPES[current.execType].hint}
-                </p>
-
-                <section className="fx-dsec">
-                  <h3 className="fx-label">用途</h3>
-                  <p className="fx-use-line"><b>适用</b>{current.scenes.join('、')}</p>
-                  <p className="fx-use-line"><b>不适用</b>{current.antiScenes.join('、')}</p>
-                </section>
-
-                <section className="fx-dsec">
-                  <h3 className="fx-label">实现方法</h3>
-                  <ol className="fx-steps">
-                    {current.steps.map((s, i) => (
-                      <li key={i}>
-                        <span>{s}</span>
-                      </li>
-                    ))}
-                  </ol>
-                  <dl className="fx-io">
-                    <div><dt>实现方式</dt><dd>{current.implLabel}</dd></div>
-                    <div><dt>复杂度</dt><dd className="num">{current.complexity} / 5</dd></div>
-                    {current.dependencies.length > 0 && (
-                      <div><dt>依赖</dt><dd>{current.dependencies.join('；')}</dd></div>
+                {/* 用处：只有真填了才显示。外部导入的条目往往没有 antiScenes，
+                    以前会留一个空的「不适用」标题，看起来像内容加载失败。 */}
+                {(current.scenes.length > 0 || current.antiScenes.length > 0) && (
+                  <section className="fxm-sec">
+                    <h3 className="fxm-label">用在哪</h3>
+                    {current.scenes.length > 0 && (
+                      <p className="fxm-useline"><span className="fxm-useok">适合</span>{current.scenes.join('、')}</p>
                     )}
-                    {current.compatibility.length > 0 && (
-                      <div><dt>兼容</dt><dd>{current.compatibility.join('；')}</dd></div>
+                    {current.antiScenes.length > 0 && (
+                      <p className="fxm-useline"><span className="fxm-useno">不适合</span>{current.antiScenes.join('、')}</p>
                     )}
-                  </dl>
-                </section>
+                  </section>
+                )}
 
-                {current.limitations.length > 0 && (
-                  <section className="fx-dsec">
-                    <h3 className="fx-label">已知限制</h3>
-                    <ul className="fx-bullets fx-bullets-warn">
-                      {current.limitations.map((s) => (
-                        <li key={s}>{s}</li>
+                {/* 制作步骤：只有真写了步骤才成节。
+                    没有步骤时「实现方式：AI 生成」这种一行信息并入技术细节，
+                    不在正文里单独立一个只有五个字的标题。 */}
+                {current.steps.length > 0 && (
+                  <section className="fxm-sec">
+                    <h3 className="fxm-label">怎么做</h3>
+                    <ol className="fxm-steps">
+                      {current.steps.map((step, i) => (
+                        <li key={i}><span className="fxm-stepno num">{i + 1}</span><span>{step}</span></li>
+                      ))}
+                    </ol>
+                  </section>
+                )}
+
+                {/* 参数：空数组时整节不出现（以前会留一个空标题） */}
+                {current.params.length > 0 && (
+                  <section className="fxm-sec">
+                    <h3 className="fxm-label">参数</h3>
+                    <ul className="fxm-params">
+                      {current.params.map((param) => (
+                        <li key={param.key}>
+                          <span className="fxm-param-label">{param.label}</span>
+                          <b className="num">{param.value}</b>
+                          {param.hint && <em title={param.hint}>{param.hint}</em>}
+                        </li>
                       ))}
                     </ul>
+                  </section>
+                )}
+
+                {/* 限制与失败：这是「用了会踩坑」的预警，属于主信息，不折叠 */}
+                {current.limitations.length > 0 && (
+                  <section className="fxm-sec">
+                    <h3 className="fxm-label">注意</h3>
+                    <ul className="fxm-warns">
+                      {current.limitations.map((item) => <li key={item}>{item}</li>)}
+                    </ul>
                     {current.failures.length > 0 && (
-                      <>
-                        <p className="fx-subhead">常见失败</p>
-                        <ul className="fx-bullets">
-                          {current.failures.map((s) => (
-                            <li key={s}>{s}</li>
-                          ))}
-                        </ul>
-                      </>
+                      <ul className="fxm-warns fxm-warns-sub">
+                        {current.failures.map((item) => <li key={item}>{item}</li>)}
+                      </ul>
                     )}
                   </section>
                 )}
 
-                {/* 来源与许可：外部导入的条目必须写清出处。
-                    内置条目不是 external，不显示这一段 —— 给自带的 16 条也挂一句
-                    「来源：本项目」，只会让面板变长而没有信息量。 */}
-                {current.sourceKind && current.sourceKind !== 'builtin' && (
-                  <section className="fx-dsec">
-                    <h3 className="fx-label">来源与许可</h3>
-                    <dl className="fx-io">
-                      {current.sourceProject && (
-                        <div><dt>项目</dt><dd>{current.sourceProject}</dd></div>
-                      )}
-                      {current.sourceUrl && (
-                        <div>
-                          <dt>链接</dt>
-                          <dd>
-                            <a href={current.sourceUrl} target="_blank" rel="noreferrer">
-                              {current.sourceUrl}
-                            </a>
-                          </dd>
-                        </div>
-                      )}
-                      {current.sourceVersion && (
-                        <div><dt>版本</dt><dd className="num">{current.sourceVersion}</dd></div>
-                      )}
-                      {/* 代码与样片许可分开显示：两者常常不同（lemo 就是 MIT + CC BY 4.0），
-                          合成一行会让人误判能不能商用。 */}
-                      {current.licenseCode && (
-                        <div><dt>代码许可</dt><dd>{current.licenseCode}</dd></div>
-                      )}
-                      {current.licensePreview && (
-                        <div><dt>预览素材</dt><dd>{current.licensePreview}</dd></div>
-                      )}
-                    </dl>
-                    {current.attribution && (
-                      <p className="fx-attribution">{current.attribution}</p>
-                    )}
-                    {/* 有源码不等于能一键跑：这里明说，避免用户以为点了就会生成。 */}
-                    <p className="fx-attribution">
-                      该条目仅提供说明与源码参考，FengMotion 尚未接入执行适配器，不能一键运行。
-                    </p>
-                  </section>
-                )}
-
-                <section className="fx-dsec">
-                  <h3 className="fx-label">参数</h3>
-                  <ul className="fx-params">
-                    {current.params.map((p) => (
-                      <li key={p.key}>
-                        <span>{p.label}</span>
-                        <b className="num">{p.value}</b>
-                        {p.hint && <em title={p.hint}>{p.hint}</em>}
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-
-                <section className="fx-dsec">
-                  <h3 className="fx-label">调用方式</h3>
-                  <dl className="fx-io">
-                    <div><dt>输入</dt><dd>{current.inputRequirement || '—'}</dd></div>
-                    <div><dt>输出</dt><dd>{current.output || '—'}</dd></div>
-                  </dl>
-                  <div className="fx-callacts">
-                    <button type="button" className="fx-btn fx-btn-primary" onClick={copyRecipe}>
-                      {copied === 'ok' ? <Check size={14} aria-hidden="true" /> : <Copy size={14} aria-hidden="true" />}
-                      {copied === 'ok' ? '已复制配方' : copied === 'fail' ? '复制失败' : '复制配方'}
-                    </button>
-                    <button type="button" className="fx-btn" onClick={() => setWorkflowFor(current)}>
-                      <Workflow size={14} aria-hidden="true" />
-                      用于工作流
-                    </button>
-                  </div>
-                  <p className="fx-actions-note">
-                    <Info size={12} aria-hidden="true" />
-                    复制的是配方文本（参数 + 制作步骤 + 调用配置）。执行与工作流插入尚未接入，选目标只记意向。
-                  </p>
-                </section>
-
-                {(current.related.length > 0 || current.alternatives.length > 0) && (
-                  <section className="fx-dsec">
-                    <h3 className="fx-label">相关技法</h3>
-                    <div className="fx-related">
+                {current.related.length > 0 && (
+                  <section className="fxm-sec">
+                    <h3 className="fxm-label">同类技法</h3>
+                    <div className="fxm-related">
                       {[...current.related, ...current.alternatives].map((id) => {
                         const rel = techniques.find((t) => t.id === id)
                         if (!rel) return null
                         return (
-                          <button
-                            key={id}
-                            type="button"
-                            className="fx-relchip"
-                            onClick={() => openDrawer(id)}
-                          >
+                          <button key={id} type="button" className="fx-relchip" onClick={() => openDrawer(id)}>
                             {rel.name}
-                            <ChevronRight size={12} aria-hidden="true" />
                           </button>
                         )
                       })}
@@ -1165,16 +1060,38 @@ export function FxLibrary() {
                   </section>
                 )}
 
-                <div className="fx-source">
-                  <span className="num">v{current.version}</span>
-                  <span>更新 {current.updatedAt}</span>
-                  <span className="num">{current.id}</span>
-                </div>
+                {/* 技术细节：复杂度、依赖、兼容、输入输出、来源许可、版本。
+                    这些是「要不要用/出了事查」的信息，不是打开卡片就想看的，
+                    折起来让主内容一屏能读完。 */}
+                <details className="fxm-details">
+                  <summary>技术细节</summary>
+                  <dl className="fx-io">
+                    <div><dt>分类</dt><dd>{current.categoryLabel}</dd></div>
+                    <div><dt>实现</dt><dd>{current.implLabel}</dd></div>
+                    <div><dt>复杂度</dt><dd className="num">{current.complexity} / 5</dd></div>
+                    {current.inputRequirement && <div><dt>输入</dt><dd>{current.inputRequirement}</dd></div>}
+                    {current.output && <div><dt>输出</dt><dd>{current.output}</dd></div>}
+                    {current.dependencies.length > 0 && <div><dt>依赖</dt><dd>{current.dependencies.join('；')}</dd></div>}
+                    {current.compatibility.length > 0 && <div><dt>兼容</dt><dd>{current.compatibility.join('；')}</dd></div>}
+                    {current.sourceProject && <div><dt>来源</dt><dd>{current.sourceProject}</dd></div>}
+                    {current.sourceUrl && (
+                      <div><dt>链接</dt><dd><a href={current.sourceUrl} target="_blank" rel="noreferrer">{current.sourceUrl}</a></dd></div>
+                    )}
+                    {current.licenseCode && <div><dt>代码许可</dt><dd>{current.licenseCode}</dd></div>}
+                    {current.licensePreview && <div><dt>预览许可</dt><dd>{current.licensePreview}</dd></div>}
+                    <div><dt>版本</dt><dd className="num">v{current.version}</dd></div>
+                  </dl>
+                  {current.attribution && <p className="fxm-note">{current.attribution}</p>}
+                  {/* 有源码不等于能一键跑 —— 这句必须留，否则用户会以为点了就生成 */}
+                  {current.sourceKind && current.sourceKind !== 'builtin' && (
+                    <p className="fxm-note">该条目仅提供说明与源码参考，尚未接入执行适配器，不能一键运行。</p>
+                  )}
+                </details>
               </div>
             </div>
-          </aside>
-        </div>
-      )}
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* ── 用于工作流：目标选择（调用链未接入，只记意向） ── */}
       {workflowFor && (
@@ -1188,11 +1105,11 @@ export function FxLibrary() {
             <div className="fx-dialog-head">
               <h3 id="fx-dialog-title">将「{workflowFor.name}」用于项目</h3>
               <button type="button" className="fx-dialog-close" onClick={() => setWorkflowFor(null)} aria-label="关闭">
-                <X size={14} aria-hidden="true" />
+                <UiIcon icon={SemIcons.close} size="sm" aria-hidden="true" />
               </button>
             </div>
             <p className="fx-dialog-note">
-              <Info size={12} aria-hidden="true" />
+              <UiIcon icon={SemIcons.info} size="xs" aria-hidden="true" />
               工作流调用链尚未接入。选择目标后只会把意向记入本地清单，不会真正插入或执行。
             </p>
             <div className="fx-dialog-list">
@@ -1207,7 +1124,7 @@ export function FxLibrary() {
                     <b>{p.name}</b>
                     <em>{STAGE_LABEL[p.stage]}</em>
                   </span>
-                  <ChevronRight size={12} aria-hidden="true" />
+                  <UiIcon icon={SemIcons.expand} size="xs" aria-hidden="true" />
                 </button>
               ))}
             </div>

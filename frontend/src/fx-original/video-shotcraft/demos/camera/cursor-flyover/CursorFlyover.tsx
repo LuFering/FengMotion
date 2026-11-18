@@ -229,7 +229,7 @@ const Users: React.FC<{ f: number }> = ({ f }) => {
 // ③ Release flags
 const FLAGS = [
   { n: 'Beat-synced cuts', d: 'Snap every cut to the music grid' },
-  { n: 'Film-grade SFX', d: 'Layer whooshes and hits per shot' },
+  { n: 'Film01-grade SFX', d: 'Layer whooshes and hits per shot' },
   { n: 'JianYing export', d: 'Open the edit as a JianYing draft' },
 ];
 const Toggle: React.FC<{ on: number }> = ({ on }) => (

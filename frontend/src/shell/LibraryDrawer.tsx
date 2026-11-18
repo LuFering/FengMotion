@@ -12,14 +12,7 @@
  */
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { LIBRARY_VIEWS, type ViewId } from '@/shell/views'
-
-function NavIcon({ name, className = 'ui-icon' }: { name: string; className?: string }) {
-  return (
-    <svg className={className} aria-hidden="true">
-      <use href={`./assets/paba-icons.svg#${name}`} />
-    </svg>
-  )
-}
+import { NavGlyph } from '@/components/icons/NavGlyph'
 
 /* 「更多」按钮的选择器：弹出层要对齐到它，而不是对齐到屏幕中点 */
 const ANCHOR_SEL = '.nav-leaf.nav-library'
@@ -96,7 +89,7 @@ export function LibraryDrawer({
                 data-on={current === v.id || undefined}
                 onClick={() => onPick(v.id)}
               >
-                <span className="libd-item-ico"><NavIcon name={v.icon} /></span>
+                  <span className="libd-item-ico"><NavGlyph name={v.icon} /></span>
                 <span className="libd-item-main">
                   <b>{v.label}</b>
                   <small>{v.hint}</small>

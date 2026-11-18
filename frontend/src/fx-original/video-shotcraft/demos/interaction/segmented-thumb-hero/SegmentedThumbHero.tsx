@@ -6,7 +6,7 @@
 // （顶沿高光 + 近实远虚两层影）；thumb 8f 内前缘先走、后缘跟随的橡皮筋拉伸 + 速度拖影，
 // 到位后 1.5% 过冲回弹；段标签颜色随 thumb 位置连续过渡；新图标带强调色笑脸；
 // 光标起点挪到真正画外，两层投影；涟漪换强调色细环。时间轴不变。
-// 品牌轮：两段从 Perplexity 的 Ask / Computer 换成 video-shotcraft 的 Prompt → Film
+// 品牌轮：两段从 Perplexity 的 Ask / Computer 换成 video-shotcraft 的 Prompt → Film01
 // （"一句话出一支片"），图标换成对话气泡 / 带笑脸的场记板，几何与时间轴不动。
 import React from 'react';
 import { AbsoluteFill, useCurrentFrame, interpolate, Easing, spring, useVideoConfig } from 'remotion';
@@ -95,7 +95,7 @@ export const SegmentedThumbHero: React.FC = () => {
   const SEGW = (CW - PAD * 2) / 2;
   const TH = CH - PAD * 2; // thumb 高
 
-  // 光标滑入：ease-out 从右下画外（整只光标在画框外）飘到 Film 段上
+  // 光标滑入：ease-out 从右下画外（整只光标在画框外）飘到 Film01 段上
   const curT = interpolate(frame, [CURSOR_IN, CURSOR_IN + 24], [0, 1], {
     extrapolateLeft: 'clamp',
     extrapolateRight: 'clamp',
@@ -124,7 +124,7 @@ export const SegmentedThumbHero: React.FC = () => {
   const thumbR = PAD + SEGW + leadAt(frame) * SEGW; // 前缘（右）
   const thumbV = velocity((f) => PAD + slide(f, Easing.out(Easing.cubic)) * SEGW, frame);
 
-  // 到位瞬间：Film 图标弹出（过冲），Prompt 图标收起
+  // 到位瞬间：Film01 图标弹出（过冲），Prompt 图标收起
   const iconIn = spring({ frame: frame - SLIDE_END, fps, config: { damping: 10, stiffness: 220, mass: 0.6 } });
   const filmScale = frame >= SLIDE_END ? iconIn : 0;
   const askScale = interpolate(frame, [SLIDE, SLIDE + 6], [1, 0], {
@@ -244,7 +244,7 @@ export const SegmentedThumbHero: React.FC = () => {
           </span>
           Prompt
         </div>
-        {/* Film 段 */}
+        {/* Film01 段 */}
         <div style={labelStyle(compAmt)}>
           <span
             style={{
@@ -256,7 +256,7 @@ export const SegmentedThumbHero: React.FC = () => {
           >
             <SmileClapper size={78} />
           </span>
-          Film
+          Film01
         </div>
       </div>
       <ArrowCursor x={curX} y={curY} press={press} />

@@ -257,7 +257,7 @@ public class NativeHarnesses {
             while (true) { JsonNode f = next(until); if (f.path("id").asLong(-1) == id) { if (f.has("error")) throw new IOException(f.path("error").path("message").asText()); return f; } }
         }
         void codexInit(long until) throws IOException {
-            rpc("initialize", json.createObjectNode().set("clientInfo", json.createObjectNode().put("name", "fengmotion").put("version", "0.1.1")), until);
+            rpc("initialize", json.createObjectNode().set("clientInfo", json.createObjectNode().put("name", "fengmotion").put("version", "0.1.2")), until);
             send(json.createObjectNode().put("method", "initialized"));
         }
         void control(String subtype, ObjectNode data) throws IOException {

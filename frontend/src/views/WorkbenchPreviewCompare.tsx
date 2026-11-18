@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { ArrowLeftRight, GitCompareArrows, Maximize2, Pause, Play, SlidersHorizontal, X } from 'lucide-react'
+import { UiIcon, SemIcons } from '@/components/icons/UiIcon'
+import { Maximize01, SwitchHorizontal01 } from '@untitledui/icons'
 import type { StageVisual } from '@/data/stageVisual'
 import { containedMediaRect, formatMediaTime } from '@/data/previewGeometry'
 
@@ -205,7 +206,7 @@ export function WorkbenchPreviewCompare({ left, right, initialTime, bbox, onClos
     <section className="wb-preview-compare" aria-label="真实预览对比">
       <header>
         <div className="flex items-center gap-1.5 flex-wrap">
-          <GitCompareArrows size={16} />
+          <UiIcon icon={SwitchHorizontal01} size="md" />
           <span>{mode === 'linked' ? '联动同步对比' : '分别定位对比'}</span>
           {alignLabel && <small>{alignLabel}</small>}
         </div>
@@ -229,19 +230,19 @@ export function WorkbenchPreviewCompare({ left, right, initialTime, bbox, onClos
             }}
             title="当两版时长或剪辑变动导致时间偏移时，允许分别定位左右两侧画面"
           >
-            <SlidersHorizontal size={12} />
+            <UiIcon icon={SemIcons.sliders} size="xs" />
             分别定位
           </button>
         </div>
 
         <button type="button" className="wb-compare-swap" onClick={swap} title="交换左右两侧">
-          <ArrowLeftRight size={14} />交换
+          <UiIcon icon={SwitchHorizontal01} size="sm" />交换
         </button>
         <button type="button" className="wb-compare-focus" onClick={onFocus}>
-          <Maximize2 size={14} />{focused ? '展开审阅' : '专注画面'}
+          <UiIcon icon={Maximize01} size="sm" />{focused ? '展开审阅' : '专注画面'}
         </button>
         <button type="button" onClick={onClose} aria-label="关闭预览对比">
-          <X size={16} />
+          <UiIcon icon={SemIcons.close} size="md" />
         </button>
       </header>
 
@@ -318,7 +319,7 @@ export function WorkbenchPreviewCompare({ left, right, initialTime, bbox, onClos
                     onClick={() => void playSide(index, visual.id)}
                     aria-label={isSidePlaying ? '暂停' : '播放'}
                   >
-                    {isSidePlaying ? <Pause size={12} /> : <Play size={12} />}
+                    {isSidePlaying ? <UiIcon icon={SemIcons.pause} size="xs" /> : <UiIcon icon={SemIcons.play} size="xs" />}
                   </button>
                   <time className="font-mono text-[11px] shrink-0 text-[var(--tx2)]">{formatMediaTime(currentVisualTime)}</time>
                   <input
@@ -354,7 +355,7 @@ export function WorkbenchPreviewCompare({ left, right, initialTime, bbox, onClos
       ) : mode === 'linked' && left.media === 'video' && (
         <div className="wb-compare-transport">
           <button type="button" onClick={() => void playLinked()} disabled={!duration} aria-label={playing ? '暂停同步对比' : '播放同步对比'}>
-            {playing ? <Pause size={16} /> : <Play size={16} />}
+            {playing ? <UiIcon icon={SemIcons.pause} size="md" /> : <UiIcon icon={SemIcons.play} size="md" />}
           </button>
           <time>{formatMediaTime(time)}</time>
           <input

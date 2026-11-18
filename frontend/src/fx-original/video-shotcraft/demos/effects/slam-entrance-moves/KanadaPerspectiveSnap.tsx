@@ -3,7 +3,7 @@
 //
 // 第二轮重设计（极光夜 · 发布片首映卡）：
 // - look = aurora（紫黑 · 紫 · 粉）。主角是一支用 video-shotcraft 拍的发布片首映卡（1000×580）：左半是程序化插画
-//   （霓虹黄昏天空 + 条纹落日 + 城市剪影 + 水面倒影），右半是 92px 片名「Launch Film」、片子信息与 Watch now 按钮。
+//   （霓虹黄昏天空 + 条纹落日 + 城市剪影 + 水面倒影），右半是 92px 片名「Launch Film01」、片子信息与 Watch now 按钮。
 //   顶部一条 168px 低透明大字带「FRAME MOTION ✦ CRAFT THE SHOT」（品牌短句）做海报底，缓慢反向漂移（视差）。
 // - 甩入 18f（2→20f）：translateX −1350→0 + 轻微下弧、rotate3d(0.5,1,0.1) 62°→0、scale 1.8→1、
 //   perspective 260→1800px，全部 EASE.snappy（先猛后缓的急停）；按 x 速度给水平 SpeedBlur + 身后 7 条粉白速度线。
@@ -223,7 +223,7 @@ export const KanadaPerspectiveSnap: React.FC = () => {
                   <div style={{ position: 'absolute', top: 150, left: -4, font: `880 92px ${FONT.sans}`, letterSpacing: '-0.05em', lineHeight: 0.92, transform: `skewX(${skew.toFixed(2)}deg)`, transformOrigin: '0 100%' }}>
                     Launch
                     <br />
-                    Film
+                    Film01
                   </div>
                   <div style={{ position: 'absolute', top: 338, left: 0, font: `600 30px ${FONT.sans}`, color: L.ink2, letterSpacing: '-0.01em', whiteSpace: 'nowrap' }}>
                     Your product, in motion.

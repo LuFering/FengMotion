@@ -1,26 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import {
-  ArrowLeft,
-  Check,
-  ChevronDown,
-  Download,
-  FileImage,
-  Film,
-  ImagePlus,
-  LoaderCircle,
-  Music2,
-  Pause,
-  Play,
-  Plus,
-  Redo2,
-  Save,
-  Settings2,
-  Square,
-  Type,
-  Undo2,
-  Upload,
-  X,
-} from 'lucide-react'
+import { UiIcon, SemIcons } from '@/components/icons/UiIcon'
+import { Film01, Image01, ImagePlus, MusicNote01, RefreshCcw01, RefreshCw01, Save01, Square, Type01 } from '@untitledui/icons'
 import { createNativeDocument, documentFromSource, makeLayer } from './document'
 import { download, exportProject, importDocument, loadManifest, readDocuments, saveDocument } from './service'
 import { SceneInspector } from './SceneInspector'
@@ -368,7 +348,7 @@ export function SceneEditorWorkspace({
                               <span>
                                 {savedAt ? (
                                   <>
-                                    <Check size={12} />
+                                    <UiIcon icon={SemIcons.check} size="xs" />
                                     本机已保存 {savedAt}
                                   </>
                                 ) : (
@@ -381,7 +361,7 @@ export function SceneEditorWorkspace({
                                 onClick={() => persist(current.current)}
                                 disabled={busy}
                               >
-                                <Save size={14} />
+                                <UiIcon icon={Save01} size="sm" />
                               </button>
                               <button
                                 type="button"
@@ -449,7 +429,7 @@ export function SceneEditorWorkspace({
                                   disabled={!historySizes.undo || busy}
                                   onClick={() => historyMove(true)}
                                 >
-                                  <Undo2 size={14} />
+                                  <UiIcon icon={RefreshCw01} size="sm" />
                                 </button>
                                 <button
                                   type="button"
@@ -458,17 +438,17 @@ export function SceneEditorWorkspace({
                                   disabled={!historySizes.redo || busy}
                                   onClick={() => historyMove(false)}
                                 >
-                                  <Redo2 size={14} />
+                                  <UiIcon icon={RefreshCcw01} size="sm" />
                                 </button>
                               </div>
                               {document.engine === 'remotion' ? (
                                 <div className="se-add-tools">
                                   {(
                                     [
-                                      ['text', '文字', Type],
+                                      ['text', '文字', Type01],
                                       ['image', '图片', ImagePlus],
-                                      ['video', '视频', Film],
-                                      ['audio', '声音', Music2],
+                                      ['video', '视频', Film01],
+                                      ['audio', '声音', MusicNote01],
                                       ['shape', '形状', Square],
                                     ] as const
                                   ).map(([kind, label, Icon]) => (
@@ -488,7 +468,7 @@ export function SceneEditorWorkspace({
                                 aria-label="场景设置"
                                 onClick={() => setSelected(null)}
                               >
-                                <Settings2 size={14} />
+                                <UiIcon icon={SemIcons.settings} size="sm" />
                               </button>
                             </div>
               <fieldset className="se-properties" disabled={busy}>
@@ -544,7 +524,7 @@ export function SceneEditorWorkspace({
                                   )
                                 }}
                               >
-                                <Download size={12} />
+                                <UiIcon icon={SemIcons.download} size="xs" />
                                 导出工程包
                               </button>
                               <button
@@ -568,7 +548,7 @@ export function SceneEditorWorkspace({
                                     disabled={busy}
                                     onClick={() => void exportMedia('still')}
                                   >
-                                    <FileImage size={12} />
+                                    <UiIcon icon={Image01} size="xs" />
                                     导出当前帧
                                   </button>
                                   <button
@@ -577,7 +557,7 @@ export function SceneEditorWorkspace({
                                     disabled={busy}
                                     onClick={() => void exportMedia('video')}
                                   >
-                                    <Film size={12} />
+                                    <UiIcon icon={SemIcons.film} size="xs" />
                                     导出场景视频
                                   </button>
                                 </>
@@ -586,7 +566,7 @@ export function SceneEditorWorkspace({
                               )}
                               {busy && (
                                 <div className="se-render-progress" role="status">
-                                  <LoaderCircle size={12} className="animate-spin" />
+                                  <UiIcon icon={SemIcons.loading} size="xs" className="animate-spin" />
                                   <span>实际渲染中 {Math.round(progress * 100)}%</span>
                                   <button type="button" onClick={() => abort.current?.abort()}>
                                     取消
@@ -599,7 +579,7 @@ export function SceneEditorWorkspace({
                     <header className="se-header">
                       <div className="se-title">
                         <span className="se-editor-symbol">
-                          <Film size={16} />
+                          <UiIcon icon={SemIcons.film} size="md" />
                         </span>
                         <div>
                           <strong>场景编辑器</strong>
@@ -648,7 +628,7 @@ export function SceneEditorWorkspace({
                         disabled={busy}
                         onClick={() => load(createNativeDocument(projectId))}
                       >
-                        <Plus size={14} />
+                        <UiIcon icon={SemIcons.plus} size="sm" />
                         新建 Remotion
                       </button>
                       <span className="se-header-spacer" />
@@ -660,7 +640,7 @@ export function SceneEditorWorkspace({
                         title="导入场景 JSON / ZIP"
                         onClick={() => importInput.current?.click()}
                       >
-                        <Upload size={14} />
+                        <UiIcon icon={SemIcons.upload} size="sm" />
                       </button>
                       <button
                         type="button"
@@ -672,7 +652,7 @@ export function SceneEditorWorkspace({
                           onClose()
                         }}
                       >
-                        <ArrowLeft size={12} />
+                        <UiIcon icon={SemIcons.back} size="xs" />
                         返回工作台
                       </button>
                     </header>
@@ -718,7 +698,7 @@ export function SceneEditorWorkspace({
                                   setPlaying(!playing)
                                 }}
                               >
-                                {playing ? <Pause size={16} /> : <Play size={16} />}
+                                {playing ? <UiIcon icon={SemIcons.pause} size="md" /> : <UiIcon icon={SemIcons.play} size="md" />}
                               </button>
                               <span>{time.toFixed(2)}s</span>
                               <input
@@ -875,7 +855,7 @@ export function SceneEditorWorkspace({
             <div className="se-notice" role="status">
               <span>{message}</span>
               <button type="button" aria-label="关闭编辑提示" onClick={() => setMessage('')}>
-                <X size={14} />
+                <UiIcon icon={SemIcons.close} size="sm" />
               </button>
             </div>
           )}
@@ -883,7 +863,7 @@ export function SceneEditorWorkspace({
             <details className="se-render-result">
               <summary>
                 查看刚导出的视频 · {rendered.name}
-                <ChevronDown size={12} />
+                <UiIcon icon={SemIcons.collapse} size="xs" />
               </summary>
               <video src={rendered.url} controls playsInline />
               <a href={rendered.url} download={rendered.name}>
@@ -894,7 +874,7 @@ export function SceneEditorWorkspace({
         </>
       ) : (
         <div className="se-empty">
-          <Film size={32} />
+          <UiIcon icon={SemIcons.film} size="xl" />
           <h2>{loading ? '正在读取源工程…' : '这个项目还没有可编辑场景'}</h2>
           <p>
             {message || '可以新建 Remotion 场景，或导入已保存的场景 JSON。已渲染的 MP4 无法还原成原始图层。'}
@@ -920,7 +900,7 @@ export function SceneEditorWorkspace({
                 aria-label="关闭素材选择"
                 onClick={() => setAssetPicker(false)}
               >
-                <X size={16} />
+                <UiIcon icon={SemIcons.close} size="md" />
               </button>
             </header>
             <div className="se-asset-search">
@@ -931,7 +911,7 @@ export function SceneEditorWorkspace({
                 onChange={(e) => setAssetSearch(e.target.value)}
               />
               <button type="button" className="se-action" onClick={() => input.current?.click()}>
-                <Upload size={14} />
+                <UiIcon icon={SemIcons.upload} size="sm" />
                 导入文件
               </button>
               <input
@@ -960,11 +940,11 @@ export function SceneEditorWorkspace({
                     {asset.mediaType === 'image' && asset.sourceType === 'builtin' ? (
                       <img src={asset.filePath} alt="" />
                     ) : asset.mediaType === 'video' ? (
-                      <Film size={25} />
+                      <UiIcon icon={SemIcons.film} size="xl" />
                     ) : asset.mediaType === 'audio' ? (
-                      <Music2 size={25} />
+                      <UiIcon icon={MusicNote01} size="xl" />
                     ) : (
-                      <ImagePlus size={25} />
+                      <UiIcon icon={ImagePlus} size="xl" />
                     )}
                     <span>{asset.name}</span>
                     <small>

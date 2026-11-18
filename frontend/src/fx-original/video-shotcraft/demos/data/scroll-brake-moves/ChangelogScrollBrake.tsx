@@ -56,7 +56,7 @@ const TITLES = [
   'Beat grid from any BGM', 'Dolly zoom shot card', 'Real page captures', 'Fix: caption timing at 60 fps',
   'Gallery style filters', 'Whip pans', 'Ink Press template', 'Improved SFX ducking', 'Fix: blur seam on 4K export',
   'Storyboard from a prompt', 'Inline shot previews', 'Poster frame picker', 'Parallax depth layers', 'Fix: font fallback in titles',
-  'Beat-synced flash cuts', 'Film grain overlay', 'Lower thirds', 'Faster cold render', 'Fix: mask edge on Safari',
+  'Beat-synced flash cuts', 'Film01 grain overlay', 'Lower thirds', 'Faster cold render', 'Fix: mask edge on Safari',
   'Showcase gallery', 'Light leaks', 'Per-shot color looks', 'Offline asset cache', 'Fix: cursor path smoothing', 'JianYing export',
 ];
 const KINDS = ['Feature', 'Improved', 'Fix'] as const;

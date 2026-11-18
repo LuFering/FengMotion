@@ -2,8 +2,8 @@
 // 极速自旋弧线飞向镜头，到位瞬间硬定格，定格后一次 sheen 扫光。
 //
 // 第二轮重设计（午夜蓝 · 发布会邀请函）：
-// - look = midnight。卡片不再是白底小字海报，而是一张深海军蓝的 video-shotcraft「Launch Film」首映票：
-//   中心徽记 = video-shotcraft 标志，托在开场星芒"留在卡上"的同心细环 + 交叉针线上，大字 Launch / Film +
+// - look = midnight。卡片不再是白底小字海报，而是一张深海军蓝的 video-shotcraft「Launch Film01」首映票：
+//   中心徽记 = video-shotcraft 标志，托在开场星芒"留在卡上"的同心细环 + 交叉针线上，大字 Launch / Film01 +
 //   场次编号；卡面有一层随自旋角变色的全息箔（飞行中流光、定格即冻结）。卡背是纹章 + 标志。
 // - 构图：卡片落在画面左 1/3（cx=700，卡高 ≈ 86% 画高），右侧留给一组 video-shotcraft 宣传文案——
 //   定格后才逐行揭示，hold 段有内容在走、画面像一张完整的邀请海报。
@@ -104,7 +104,7 @@ const CardFace: React.FC<{ theta: number }> = ({ theta }) => {
       <div style={{ position: 'relative' }}>
         <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.24em', color: L.accent, marginBottom: 8 }}>PREMIERE · REEL 01</div>
         <div style={{ fontSize: 58, fontWeight: 760, letterSpacing: '-0.045em', lineHeight: 0.92 }}>Launch</div>
-        <div style={{ fontSize: 58, fontWeight: 300, letterSpacing: '-0.04em', lineHeight: 0.98, color: '#c9d6f5' }}>Film</div>
+        <div style={{ fontSize: 58, fontWeight: 300, letterSpacing: '-0.04em', lineHeight: 0.98, color: '#c9d6f5' }}>Film01</div>
       </div>
       {/* 底部票根行 */}
       <div style={{

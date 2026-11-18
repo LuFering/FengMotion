@@ -33,7 +33,7 @@ export const WorkflowGraphPreview = memo(function WorkflowGraphPreview({ nodes, 
     {items.map(({ node, x, y }) => <g key={node.id} transform={`translate(${x},${y})`}>
       <rect className="wf-mini-node" width="110" height="52" rx="6"/>
       <rect className="wf-mini-mark" x="10" y="11" width="8" height="8" rx="2"/>
-      <text x="25" y="20">{(defForNode(node)?.label ?? node.type).slice(0, 8)}</text>
+      <text x="25" y="20">{(defForNode(node, { includeLegacy: true })?.label ?? node.type).slice(0, 8)}</text>
       <path className="wf-mini-line" d="M11 32h64m-64 8h43"/>
       {edges.some((e) => e.target === node.id) && <circle cx="0" cy="26" r="2.5"/>}
       {edges.some((e) => e.source === node.id) && <circle cx="110" cy="26" r="2.5"/>}

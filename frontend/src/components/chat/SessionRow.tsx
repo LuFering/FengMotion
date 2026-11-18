@@ -12,7 +12,8 @@
  */
 
 import { useState, type ReactNode } from 'react'
-import { MoreHorizontal, Pin } from 'lucide-react'
+import { UiIcon, SemIcons } from '@/components/icons/UiIcon'
+import { Pin01 } from '@untitledui/icons'
 import './session-row.css'
 
 export interface SessionRowProps {
@@ -98,7 +99,7 @@ export function SessionRow({
       onMouseLeave={() => setHovered(false)}
     >
       <button type="button" className="sr-main" onClick={onSelect} title={title} aria-current={active}>
-        {pinned ? <Pin size={12} className="sr-pin" aria-label="已置顶" /> : null}
+        {pinned ? <UiIcon icon={Pin01} size="xs" className="sr-pin" aria-label="已置顶" /> : null}
         <span className="sr-title">{title}</span>
         {flag ? (
           <span className="sr-flag">{flag}</span>
@@ -119,7 +120,7 @@ export function SessionRow({
               onMenuToggle?.()
             }}
           >
-            <MoreHorizontal size={14} />
+            <UiIcon icon={SemIcons.more} size="sm" />
           </button>
           {menuOpen ? <div className="sr-menu">{menu}</div> : null}
         </div>
