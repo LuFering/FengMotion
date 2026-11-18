@@ -1,0 +1,5 @@
+# 静态副本、预览页面与生成文档不计入 GitHub 语言统计
+frontend/public/replica/** linguist-vendored
+frontend/public/editor-sources/** linguist-vendored
+frontend/design/preview/** linguist-documentation
+docs/** linguist-documentation
