@@ -16,6 +16,7 @@ permissions:
 
 env:
   CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+  PYTHONUTF8: '1'
 
 jobs:
   linux-x64:

@@ -16,7 +16,7 @@
  */
 import { useState } from 'react'
 import { UiIcon, SemIcons } from '@/components/icons/UiIcon'
-import { summarizeTools, toolLabel, firstLine, toolStepState, TOOL_STATE_LABEL, type ProcessToolCall } from './processSummary'
+import { summarizeTools, toolLabel, firstLine, toolStepState, TOOL_STATE_LABEL, type ProcessToolCall } from './processSummaryModel'
 
 export type { ProcessToolCall }
 

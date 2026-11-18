@@ -20,7 +20,7 @@
 import { useState } from 'react'
 import { UiIcon, SemIcons } from '@/components/icons/UiIcon'
 import { File01 } from '@untitledui/icons'
-import type { FileChange } from './fileChanges'
+import type { FileChange } from './fileChangesModel'
 import './file-changes.css'
 
 /** 取文件名：列表里显示短的，完整路径进展开区。 */

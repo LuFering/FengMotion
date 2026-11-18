@@ -20,6 +20,11 @@ import shutil
 import subprocess
 import sys
 
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8')
+if hasattr(sys.stderr, 'reconfigure'):
+    sys.stderr.reconfigure(encoding='utf-8')
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = os.path.join(ROOT, '..', 'frontend', 'public', 'assets', 'brand', 'fengmotion-mark.png')
 OUT_DIR = os.path.join(ROOT, 'build', 'icons')
