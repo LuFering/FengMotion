@@ -8,8 +8,8 @@
  * <p>数据直接来自文件系统，所以没有编辑、没有版本 —— 用户想改就改文件本身。</p>
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { FolderOpen } from 'lucide-react'
-
+import { UiIcon } from '@/components/icons/UiIcon'
+import { Folder } from '@untitledui/icons'
 import { studioHttpApi } from '@/services/api'
 import type { ProjectArtifact } from '@/services/api/artifacts'
 
@@ -106,7 +106,7 @@ export function ProjectArtifacts({ projectId, refreshKey = 0 }: ProjectArtifacts
   return (
     <div className="fw-artifacts-files">
       <p className="fw-files-head">
-        <FolderOpen size={12} /> 项目文件 · {items.length} 个
+        <UiIcon icon={Folder} size="xs" /> 项目文件 · {items.length} 个
       </p>
       <ul className="fw-files-list">
         {items.map((item) => (

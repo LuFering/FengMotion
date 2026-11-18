@@ -28,6 +28,10 @@ public class HarnessProperties {
     /** {@code dsh} 可执行文件；可写绝对路径或裸命令名。 */
     private String bin = "dsh";
 
+    /** Optional absolute executable paths; empty means auto-discovery. */
+    private String codexBin;
+    private String claudeBin;
+
     /** 使用的 dsh profile。 */
     private String profile = "sdk";
 

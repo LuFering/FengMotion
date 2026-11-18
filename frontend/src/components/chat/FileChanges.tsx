@@ -18,7 +18,8 @@
  * 界面明确标注这一点，不让人误以为是完整 diff。
  */
 import { useState } from 'react'
-import { ChevronRight, FileDiff } from 'lucide-react'
+import { UiIcon, SemIcons } from '@/components/icons/UiIcon'
+import { File01 } from '@untitledui/icons'
 import type { FileChange } from './fileChanges'
 import './file-changes.css'
 
@@ -54,7 +55,7 @@ function FileRow({ change }: { change: FileChange }) {
         disabled={!expandable}
         title={change.path}
       >
-        <ChevronRight size={11} className="fc-caret" aria-hidden="true" />
+        <UiIcon icon={SemIcons.expand} size="xs" className="fc-caret" aria-hidden="true" />
         <span className="fc-name num">{baseName(change.path)}</span>
         <span className="fc-kind">{change.kind === 'write' ? '写入' : '修改'}</span>
         <span className="fc-stat">
@@ -112,8 +113,8 @@ export function FileChanges({ changes }: { changes: FileChange[] }) {
         onClick={() => setCollapsed((v) => !v)}
         aria-expanded={!collapsed}
       >
-        <ChevronRight size={12} className="fc-caret" aria-hidden="true" />
-        <FileDiff size={12} aria-hidden="true" />
+        <UiIcon icon={SemIcons.expand} size="xs" className="fc-caret" aria-hidden="true" />
+        <UiIcon icon={File01} size="xs" aria-hidden="true" />
         <span className="fc-title">改动 {changes.length} 个文件</span>
         {totalAdded > 0 && <span className="fc-add num">+{totalAdded}</span>}
         {totalDeleted > 0 && <span className="fc-del num">−{totalDeleted}</span>}

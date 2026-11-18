@@ -36,6 +36,9 @@ class DatabaseMigrationTest {
         assertTrue(tables.contains("project_idempotency"));
         assertTrue(tables.contains("chat_messages"));
         assertTrue(tables.contains("chat_message_idempotency"));
+        assertTrue(tables.contains("fx_semantic_suggestions"), "旧库要能补出语义建议表");
+        assertTrue(tables.contains("skill_packages"), "旧库要能补出 skill 包表");
+        assertTrue(tables.contains("workflow_presets"), "旧库要能补出预设表");
     }
 
     /** 旧库没有场景历史表；升级后自动补建，且不伪造历史数据。 */

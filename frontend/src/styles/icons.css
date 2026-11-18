@@ -1,0 +1,72 @@
+/* ═══════════════════════════════════════════════════════════════
+   图标规范 · ico
+
+   改造前的问题：图标宽高写死在 56 个文件里（14/12/13/15/16…混杂），
+   颜色靠各组件自己继承，导致同一行的图标粗细、大小、灰度都不一致。
+
+   这里收口成两类：
+     `.ico`      尺寸档（ico-xs / sm / md / lg / xl）
+     `.ico-*`    色调（fg / dim / acc / ok / warn / bad）
+
+   规格：Phosphor 24 栅格、圆角端点。颜色一律走 currentColor，
+   所以父级 hover/active 变色时图标自动跟随，不需要额外覆盖。
+   ═══════════════════════════════════════════════════════════════ */
+
+.ico {
+  flex: 0 0 auto;
+  display: inline-block;
+  vertical-align: middle;
+  /* Phosphor 内部已处理线宽，这里只保证色与形不被子级误改 */
+  color: inherit;
+  shape-rendering: geometricPrecision;
+}
+
+/* ── 尺寸五档（对应 ICON_SIZE） ─────────────────────────────── */
+.ico-xs { width: 12px; height: 12px }
+.ico-sm { width: 14px; height: 14px }
+.ico-md { width: 16px; height: 16px }
+.ico-lg { width: 20px; height: 20px }
+.ico-xl { width: 24px; height: 24px }
+
+/* ── 色调 ─────────────────────────────────────────────────────
+   用项目既有 token，不新增颜色，避免与主题切换脱节。 */
+.ico-fg { color: var(--fg) }
+.ico-dim { color: var(--dim) }
+.ico-acc { color: var(--acc) }
+.ico-ok { color: var(--ok) }
+.ico-warn { color: var(--warn) }
+.ico-bad { color: var(--bad) }
+
+/* ── 与文字并排时的基线微调 ───────────────────────────────────
+   Phosphor 的视觉中心比 lucide 略高，和中文混排时下压 0.5px 才齐。 */
+.ico + .hm-nav-text,
+.ico + span,
+button > .ico,
+a > .ico {
+  vertical-align: -0.125em;
+}
+
+/* ── 可点击区域内的图标：不让它被 flex 压缩 ────────────────── */
+button .ico,
+a .ico,
+[role="button"] .ico {
+  flex-shrink: 0;
+}
+
+/* ── 状态色不单靠颜色表达（可访问性） ───────────────────────
+   图标语义已由形状承载，这里只确保禁用态足够可辨。 */
+.ico[aria-disabled="true"],
+button:disabled .ico {
+  opacity: .45;
+}
+
+/* ── 旋转类动画：仅用于 loading，且尊重减少动效偏好 ───────── */
+@keyframes ico-spin {
+  to { transform: rotate(360deg) }
+}
+.ico-spin {
+  animation: ico-spin 1s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ico-spin { animation-duration: 2.4s }
+}

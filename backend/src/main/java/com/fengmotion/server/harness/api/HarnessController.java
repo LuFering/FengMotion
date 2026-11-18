@@ -34,10 +34,11 @@ public class HarnessController {
      * @return 引擎列表与探测时间
      */
     @GetMapping
-    public HarnessListResponse list() {
+    public HarnessListResponse list(@org.springframework.web.bind.annotation.RequestParam(defaultValue = "false") boolean refresh) {
+        if (refresh) service.refresh();
         HarnessService.Probe probe = service.probe();
         return new HarnessListResponse(
-                probe.descriptor() == null ? List.of() : List.of(toResponse(probe.descriptor())),
+                service.listDescriptors().stream().map(this::toResponse).toList(),
                 probe.cachedAt());
     }
 
@@ -50,7 +51,7 @@ public class HarnessController {
      */
     @GetMapping("/{harnessId}/models")
     public ModelListResponse models(@PathVariable String harnessId) {
-        if (!HarnessService.DSH_ID.equals(harnessId)) {
+        if (!HarnessService.DSH_ID.equals(harnessId) && !com.fengmotion.server.harness.client.NativeHarnesses.supports(harnessId)) {
             throw new ApiException(HttpStatus.NOT_FOUND, "not_found", "引擎不存在");
         }
         List<ModelEntryResponse> items = service.listModels(harnessId).stream()

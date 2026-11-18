@@ -44,10 +44,10 @@
   --shadow-raised: 0 8px 20px rgba(0, 0, 0, 0.28);
   --shadow-overlay: 0 32px 80px rgba(0, 0, 0, 0.5);
   --shadow-ctl: 0 1px 3px rgba(0, 0, 0, 0.18);
-  --r-panel: 18px;
-  --r-ctl: 10px;
-  --r-card: 12px;
-  --r-thumb: 5px;
+  --r-panel: var(--fm-radius-panel);
+  --r-ctl: var(--fm-radius-ctl);
+  --r-card: var(--fm-radius-card);
+  --r-thumb: var(--fm-radius-card);
   --eo: cubic-bezier(0.23, 1, 0.32, 1);
   --eio: cubic-bezier(0.77, 0, 0.175, 1);
 }
@@ -127,7 +127,7 @@ html[data-theme='tactile'] .fxlib {
   overflow: hidden;
   background: var(--fx-bg-glow), var(--fx-bg);
   color: var(--tx);
-  font-family: Inter, -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  font-family: var(--font-sans);
   font-size: 13px;
   line-height: 1.5;
   font-variant-numeric: tabular-nums;
@@ -186,7 +186,7 @@ html[data-theme='tactile'] .fxlib {
   height: 32px;
   padding: 0 11px;
   border: 1px solid var(--line2);
-  border-radius: 9px;
+  border-radius: 6px;
   font-weight: 600;
   font-size: 12.5px;
   color: var(--tx2);
@@ -194,6 +194,8 @@ html[data-theme='tactile'] .fxlib {
   background: var(--panel);
 }
 .fx-toolbtn:hover { background: var(--hover); color: var(--tx); }
+.fx-source-select { display: inline-flex; align-items: center; gap: 6px; color: var(--tx2); font-size: 12px; white-space: nowrap; }
+.fx-source-select select { max-width: 175px; min-height: 34px; padding: 0 8px; border: 1px solid var(--line2); border-radius: 6px; background: var(--surface); color: var(--tx); font: inherit; }
 .fx-toolbtn[data-on] { color: var(--acc-tx); border-color: var(--acc); background: var(--sel); }
 .fx-badge {
   min-width: 16px;
@@ -324,7 +326,7 @@ html[data-theme='tactile'] .fxlib {
   align-items: center;
   gap: 5px;
   padding: 4px 8px;
-  border-radius: 7px;
+  border-radius: 6px;
   font-size: 12px;
   font-weight: 600;
   color: var(--tx3);
@@ -340,7 +342,7 @@ html[data-theme='tactile'] .fxlib {
   gap: 5px;
   height: 26px;
   padding: 0 4px 0 7px;
-  border-radius: 8px;
+  border-radius: 6px;
   color: var(--tx3);
   flex: none;
 }
@@ -374,12 +376,20 @@ html[data-theme='tactile'] .fxlib {
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: var(--r-card);
-  overflow: hidden;
+  overflow: hidden !important;
+  clip-path: inset(0 round var(--r-card));
   text-align: left;
 }
 .fxc:hover { border-color: var(--line2); }
 
-.fxc-media { position: relative; aspect-ratio: 16 / 10; background: var(--stage-bg); flex: none; }
+.fxc-media {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  background: var(--stage-bg);
+  flex: none;
+  overflow: hidden !important;
+  clip-path: inset(0 round var(--r-card) var(--r-card) 0 0);
+}
 .fxc-media img, .fxc-media video {
   position: absolute;
   inset: 0;
@@ -401,7 +411,7 @@ html[data-theme='tactile'] .fxlib {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 8px;
+  border-radius: 6px;
   background: var(--media-scrim);
   color: var(--media-ink);
   backdrop-filter: blur(6px);
@@ -508,25 +518,71 @@ html[data-theme='tactile'] .fxlib {
 .fx-empty h3 { margin: 4px 0 0; font-size: 14px; color: var(--tx); }
 .fx-empty p { margin: 0; font-size: 12.5px; line-height: 1.6; max-width: 420px; }
 
-/* ── 详情抽屉（预览→用途→实现方法→参数→调用方式） ──────────────── */
+/* ── 详情弹窗（预览→用途→实现方法→参数→调用方式） ────────────────
+   居中弹窗而不是右侧抽屉：技法是「查一条、看完关掉」的一次性阅读，
+   抽屉贴边会让人以为可以和列表并存操作，实际打开时列表已被 inert。
+   尺寸与 .fxi-dlg（导入弹窗）保持同一套：宽度上限、圆角、边框、阴影一致，
+   换弹窗时视觉不跳。 */
 
-.fx-scrim { position: fixed; inset: 0; z-index: 70; background: var(--scrim); }
-.fx-drawer {
-  position: fixed;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 71;
-  width: 420px;
-  max-width: 94vw;
-  background: var(--panel);
-  border-left: 1px solid var(--line2);
-  box-shadow: var(--shadow-overlay);
+.fx-modal {
+  /* 不写 position：Dialog 用 fixed + translate 居中，覆盖成 relative 会让弹窗掉到右下 */
   display: flex;
   flex-direction: column;
-  animation: fx-drawer-in 0.2s var(--eo);
+  gap: 0;
+  width: min(720px, calc(100vw - 64px));
+  max-width: none;
+  max-height: min(84vh, calc(100dvh - 80px));
+  padding: 0;
+  overflow: hidden;
+  background: var(--surf);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: 0 24px 70px rgb(0 0 0 / .26);
 }
-@keyframes fx-drawer-in { from { transform: translateX(24px); opacity: 0.4; } to { transform: none; opacity: 1; } }
+
+/* 滚动交给内部的 .fx-drawer-body（它本来就有 overflow-y:auto）。
+   这里只负责把高度传下去：min-height:0 是 column flex 里允许子项收缩的前提，
+   少了它子项会被内容撑开、滚动条永远不出现。 */
+.fx-modal-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+/* 预览图不参与滚动收缩，固定在上方 */
+.fx-modal-scroll > .fx-preview { flex: 0 0 auto; }
+
+/* 关闭键固定在弹窗右上角，不随内容滚动。
+   深色底 + 细描边是为同时压住预览图和纯文字两种背景。 */
+.fx-modal-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid rgb(255 255 255 / .16);
+  border-radius: 8px;
+  background: rgb(0 0 0 / .5);
+  color: #fff;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  transition: background .15s var(--eo);
+}
+.fx-modal-close:hover { background: rgb(0 0 0 / .72) }
+.fx-modal-close:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px }
+
+@media (max-width: 640px) {
+  .fx-modal {
+    width: calc(100vw - 24px);
+    max-height: calc(100dvh - 32px);
+  }
+}
 .fx-drawer-head {
   flex: none;
   display: flex;
@@ -545,13 +601,16 @@ html[data-theme='tactile'] .fxlib {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 8px;
+  border-radius: 6px;
   color: var(--tx2);
 }
 .fx-iconbtn:hover { background: var(--hover); color: var(--tx); }
 .fx-iconbtn[data-on] { color: var(--warn); }
 .fx-drawer-body { flex: 1 1 auto; overflow-y: auto; padding: 14px 16px 18px; display: flex; flex-direction: column; gap: 18px; }
 .fx-preview { position: relative; border-radius: 10px; overflow: hidden; background: var(--stage-bg); aspect-ratio: 16 / 9; flex: none; }
+/* 预览图缺失时不要留一个 16:9 的空洞 —— 弹窗里那会占掉近半屏，
+   把真正的说明挤到下面。直接收起，让内容从标题开始。 */
+.fx-preview:has(img.is-broken) { display: none; }
 .fx-preview img, .fx-preview video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
 .fx-preview-note { font-size: 11px; color: var(--tx3); margin-top: 6px; }
 .fx-sect { display: flex; flex-direction: column; gap: 8px; }
@@ -607,7 +666,7 @@ button.fx-mini:hover { background: var(--hover); color: var(--tx); }
   gap: 6px;
   height: 34px;
   padding: 0 14px;
-  border-radius: 9px;
+  border-radius: 6px;
   border: 1px solid var(--line2);
   font-weight: 600;
   font-size: 12.5px;
@@ -667,7 +726,7 @@ button.fx-mini:hover { background: var(--hover); color: var(--tx); }
   align-items: flex-start;
   margin-top: 14px;
   padding: 9px 11px;
-  border-radius: 9px;
+  border-radius: 10px;
   background: var(--sel);
   color: var(--tx2);
   font-size: 12px;
@@ -718,6 +777,8 @@ button.fx-mini:hover { background: var(--hover); color: var(--tx); }
 /* ── 去 AI 味：详情抽屉正文（此前 fx-dsec / fx-label / fx-io 等类无样式，
    全靠浏览器默认排版，才显得像教程文档）──────────────────────── */
 .fx-drawer-title h2 { font-size: 17px; font-weight: 700; line-height: 1.35; margin: 0; }
+/* 弹窗内标题区上下留白：原来贴边，副标题像是挤在标题里 */
+.fx-modal .fx-drawer-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 18px 22px 22px; }
 .fx-drawer-title > span { display: block; margin-top: 3px; font-size: 12px; color: var(--tx3); }
 .fx-featured { font-style: normal; font-size: 11px; color: var(--tx2); }
 .fx-detail-intent { margin: 0; font-size: 13px; line-height: 1.7; color: var(--tx2); }
@@ -748,6 +809,11 @@ button.fx-mini:hover { background: var(--hover); color: var(--tx); }
 .fxc-media-empty {
   position: absolute; inset: 0;
   z-index: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--tx2);
+  font-size: 12px;
   background-color: var(--inset);
   background-image: repeating-linear-gradient(
     135deg,
@@ -755,597 +821,248 @@ button.fx-mini:hover { background: var(--hover); color: var(--tx); }
     transparent 1px 9px
   );
 }
-
-/* ── 来源仓库筛选条与代码查看器 ───────────────────────────────── */
-.fx-source-bar {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 6px 16px;
-  background: color-mix(in srgb, var(--surface) 60%, transparent);
-  border-bottom: 1px solid var(--line);
-  font-size: 11.5px;
-  overflow-x: auto;
+/* 预览失败只是附加信息：贴在左上角的小标签，不再铺满整卡居中，压住卡片底部的分类与标题。 */
+.fxc-media .silent-media-error { position: absolute; left: 12px; top: 12px; padding: 3px 7px; border-radius: 4px; background: rgba(8, 10, 13, .56); color: rgba(255, 255, 255, .78); font-size: 10px; line-height: 1.4; pointer-events: none; }
+.fx-original-preview {
+  position: absolute;
+  inset: 0;
+  overflow: hidden !important;
+  pointer-events: none;
+  background: #08090b;
+  contain: strict;
+  transform: translateZ(0);
+  will-change: transform;
+  backface-visibility: hidden;
+  isolation: isolate;
+  clip-path: inset(0) !important;
+  transform-style: flat !important;
 }
-.fx-source-bar-label {
-  flex: none;
+.fx-original-preview > div {
+  width: 100% !important;
+  height: 100% !important;
+}
+.fxc-media[data-original-preview] .silent-media-preview > img { object-fit: contain; background: #08090b; }
+/* 播放时让出完整画面；信息仍保留在无障碍树中。 */
+.fxlib .fxc-poster[data-preview-active] .fxc-body { opacity: 0; }
+
+/* 弹窗底部的版本/更新时间/条目 ID。
+   原来完全没有样式，三段内容挤成一行，时间戳和 id 连在一起读不出边界。 */
+.fx-source {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+  margin-top: 4px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line2);
   font-size: 11px;
-  font-weight: 600;
   color: var(--tx3);
 }
-.fx-source-chips {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: nowrap;
-}
-.fx-source-chip {
-  flex: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  height: 24px;
-  padding: 0 10px;
-  border-radius: 6px;
-  border: 1px solid var(--line2);
-  background: var(--surface);
-  color: var(--tx2);
-  font-size: 11px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all .15s;
-}
-.fx-source-chip:hover {
-  border-color: var(--primary);
-  color: var(--tx);
-}
-.fx-source-chip[data-on] {
-  background: var(--primary);
-  border-color: var(--primary);
-  color: #fff;
-  font-weight: 600;
-}
-.fx-source-chip em.num {
-  font-size: 10px;
-  opacity: .85;
-}
+.fx-source .num { font-variant-numeric: tabular-nums; }
 
-.fxc-category-row {
+/* 弹窗里标签列比抽屉宽一点：'video-shotcraft' 这种长值在 64px 下会被拆成两行 */
+.fx-modal .fx-io { grid-template-columns: 96px minmax(0, 1fr); }
+/* URL 可以在任意处折行（否则会撑破弹窗），
+   但 'video-shotcraft' 这种项目名是单个词，拆成两行读起来像两个值。 */
+.fx-modal .fx-io dd { overflow-wrap: anywhere; word-break: normal; }
+.fx-modal .fx-io dd:not(:has(a)) { white-space: nowrap; }
+
+/* ═══════════════════════════════════════════════════════════════
+   技法详情弹窗 · 排版
+
+   认知顺序：这是什么 → 能拿走什么 → 用在哪 → 怎么做 → 细节。
+   做法是把「技术元数据」折叠起来，让主内容一屏之内读完；
+   而不是把所有字段平铺成等权重的长列表。
+   ═══════════════════════════════════════════════════════════════ */
+
+.fxm-head {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 6px;
-  width: 100%;
+  gap: 12px;
+  /* 右上角是关闭键，标题区整体让出 32px，避免收藏键被压到它下面 */
+  padding-right: 34px;
 }
-.fxc-source-badge {
-  font-size: 9.5px;
-  font-weight: 600;
-  padding: 1px 5px;
-  border-radius: 4px;
-  background: color-mix(in srgb, var(--primary) 12%, transparent);
-  color: var(--primary);
-  white-space: nowrap;
-  max-width: 130px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.fx-dsec-header-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.fx-copy-code-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  height: 22px;
-  padding: 0 8px;
-  border: 1px solid var(--line2);
-  border-radius: 5px;
-  background: var(--surface);
-  color: var(--tx2);
-  font-size: 10.5px;
-  cursor: pointer;
-}
-.fx-copy-code-btn:hover {
-  background: var(--hover);
-  color: var(--tx);
-}
-
-.fx-drawer-code-wrap {
-  position: relative;
-  max-height: 360px;
-  overflow: auto;
-  border-radius: 8px;
-  border: 1px solid var(--line2);
-  background: #090a10;
-  padding: 12px 14px;
-}
-.fx-drawer-code-pre {
+.fxm-head-main { min-width: 0 }
+.fxm-head h2 {
   margin: 0;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-  font-size: 11.5px;
-  line-height: 1.6;
-  color: #e2e8f0;
-  white-space: pre-wrap;
-  word-break: break-all;
-}
-
-/* ── 顶部来源仓库导航标签条 ─────────────────────────────────────── */
-.fx-source-bar-top {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 16px;
-  background: color-mix(in srgb, var(--surface) 60%, transparent);
-  border-bottom: 1px solid var(--line);
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-.fx-source-tab {
-  flex: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 28px;
-  padding: 0 12px;
-  border-radius: 6px;
-  border: 1px solid transparent;
-  background: transparent;
-  color: var(--tx2);
-  font-size: 12px;
-  font-weight: 550;
-  cursor: pointer;
-  transition: all .15s;
-}
-.fx-source-tab:hover {
-  background: var(--hover);
+  font-size: 18px;
+  font-weight: 650;
+  line-height: 1.35;
+  letter-spacing: -0.01em;
   color: var(--tx);
 }
-.fx-source-tab[data-active] {
-  background: var(--surface);
-  color: var(--primary, #2563eb);
-  border-color: color-mix(in srgb, var(--primary, #2563eb) 35%, var(--line));
-  font-weight: 600;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+.fxm-nameen {
+  display: block;
+  margin-top: 3px;
+  font-size: 11.5px;
+  color: var(--tx3);
+  font-variant-numeric: tabular-nums;
 }
-.fx-source-tab em.num {
-  font-size: 11px;
-  font-style: normal;
-  padding: 1px 5px;
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--tx) 8%, transparent);
+
+/* 一句话说明：这是用户判断「用不用得上」的主要依据，给它正文级的字重与行高 */
+.fxm-intent {
+  margin: 12px 0 0;
+  font-size: 13px;
+  line-height: 1.7;
   color: var(--tx2);
 }
-.fx-source-tab[data-active] em.num {
-  background: color-mix(in srgb, var(--primary, #2563eb) 12%, transparent);
-  color: var(--primary, #2563eb);
-}
 
-/* ── 动态视觉海报 (FxVisualPoster) ─────────────────────────────── */
-.fx-visual-poster {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-  border-radius: inherit;
-  user-select: none;
-}
-
-.fx-visual-poster.is-real-image {
-  background: #090a10;
-}
-.fx-visual-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-.fx-visual-overlay {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(180deg, rgba(0, 0, 0, 0.2) 0%, transparent 40%, rgba(7, 9, 12, 0.85) 100%);
-  pointer-events: none;
-}
-
-/* 顶部统一样式小角标 */
-.fx-visual-top-badge {
-  position: absolute;
-  top: 8px;
-  left: 8px;
-  z-index: 3;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 9.5px;
-  font-weight: 600;
-  padding: 2px 7px;
-  border-radius: 4px;
-  background: rgba(0, 0, 0, 0.6);
-  color: #e2e8f0;
-  backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-}
-
-/* 底部进度渲染线 */
-.fx-render-bar {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: rgba(255, 255, 255, 0.1);
-  z-index: 3;
-}
-.fx-render-fill {
-  height: 100%;
-  background: #38bdf8;
-  box-shadow: 0 0 6px #38bdf8;
-  transition: width 0.08s linear;
-}
-
-/* ── Remotion 画面代码组件视效 ── */
-.is-remotion {
-  background: radial-gradient(ellipse at 50% 30%, #161b33 0%, #080911 100%);
-}
-.fx-aurora-wrap {
-  position: absolute;
-  inset: -20px;
-  filter: blur(24px);
-  opacity: 0.85;
-}
-.fx-aurora-layer {
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  mix-blend-mode: screen;
-}
-.fx-aurora-layer.l1 {
-  background: radial-gradient(circle, rgba(56, 189, 248, 0.6) 0%, transparent 60%);
-  top: -20%;
-  left: 10%;
-}
-.fx-aurora-layer.l2 {
-  background: radial-gradient(circle, rgba(168, 85, 247, 0.55) 0%, transparent 60%);
-  bottom: -10%;
-  right: 15%;
-}
-.fx-aurora-layer.l3 {
-  background: radial-gradient(circle, rgba(236, 72, 153, 0.5) 0%, transparent 65%);
-  top: 30%;
-  left: 40%;
-}
-
-.fx-particles-wrap {
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
-  background: radial-gradient(circle at center, #1e1b4b 0%, #09090b 100%);
-}
-.fx-particle-orb {
-  position: absolute;
-  border-radius: 50%;
-  background: radial-gradient(circle, #fbbf24 0%, rgba(251, 191, 36, 0.2) 60%, transparent 100%);
-  box-shadow: 0 0 12px #fbbf24;
-}
-.fx-particle-orb.p1 { width: 18px; height: 18px; left: 25%; bottom: 15%; }
-.fx-particle-orb.p2 { width: 12px; height: 12px; left: 65%; bottom: 25%; }
-.fx-particle-orb.p3 { width: 14px; height: 14px; left: 45%; bottom: 35%; }
-.fx-particle-nebula {
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(ellipse at 50% 40%, rgba(245, 158, 11, 0.25) 0%, transparent 70%);
-}
-
-.fx-liquid-wrap {
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(circle at center, #2e1065 0%, #080911 100%);
-  filter: blur(14px);
-}
-.fx-liquid-blob {
-  position: absolute;
-  border-radius: 40% 60% 70% 30% / 40% 50% 60% 50%;
-}
-.fx-liquid-blob.b1 { width: 110px; height: 90px; top: 15%; left: 20%; background: #ec4899; opacity: 0.6; }
-.fx-liquid-blob.b2 { width: 130px; height: 100px; bottom: 15%; right: 15%; background: #8b5cf6; opacity: 0.5; }
-
-.fx-default-motion {
-  position: absolute;
-  inset: 0;
+/* 主操作：紧跟说明下方，一眼就能看到 */
+.fxm-actions {
   display: flex;
   align-items: center;
-  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
 }
-.fx-motion-shape {
-  width: 90px;
-  height: 90px;
-  border-radius: 20px;
-  border: 1px solid rgba(56, 189, 248, 0.4);
-  background: radial-gradient(circle, rgba(56, 189, 248, 0.2) 0%, transparent 70%);
-  box-shadow: 0 0 24px rgba(56, 189, 248, 0.3);
-}
-
-/* ── 电影运镜与分镜 3D 轨迹视口 ── */
-.is-camera-view {
-  background: radial-gradient(circle at 50% 60%, #152238 0%, #070b12 100%);
-}
-/* 四角电影取景准星 */
-.fx-vf-corner {
-  position: absolute;
-  width: 10px;
-  height: 10px;
-  border-color: rgba(255, 255, 255, 0.45);
-  border-style: solid;
-  z-index: 2;
-  pointer-events: none;
-}
-.fx-vf-corner.tl { top: 8px; left: 8px; border-width: 1.5px 0 0 1.5px; }
-.fx-vf-corner.tr { top: 8px; right: 8px; border-width: 1.5px 1.5px 0 0; }
-.fx-vf-corner.bl { bottom: 8px; left: 8px; border-width: 0 0 1.5px 1.5px; }
-.fx-vf-corner.br { bottom: 8px; right: 8px; border-width: 0 1.5px 1.5px 0; }
-
-/* 3D 空间动态透视网格 */
-.fx-vf-grid {
-  position: absolute;
-  inset: -30px 0 0 0;
-  height: 130%;
-  background-image: linear-gradient(rgba(56, 189, 248, 0.16) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(56, 189, 248, 0.16) 1px, transparent 1px);
-  background-size: 22px 22px;
-  pointer-events: none;
+/* 运行方式标签贴在最右，用弱色 —— 它是状态提示，不是操作 */
+.fxm-mode {
+  margin-left: auto;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--hole);
+  color: var(--tx3);
+  font-size: 11px;
+  white-space: nowrap;
 }
 
-/* 中心十字瞄准器 */
-.fx-vf-crosshair {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 18px;
-  height: 18px;
-  transform: translate(-50%, -50%);
-  pointer-events: none;
+/* ── 内容分节 ───────────────────────────────────────────────── */
+.fxm-sec { margin-top: 20px }
+.fxm-label {
+  margin: 0 0 8px;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: .06em;
+  color: var(--tx3);
 }
-.fx-vf-crosshair::before,
-.fx-vf-crosshair::after {
-  content: '';
-  position: absolute;
-  background: rgba(255, 255, 255, 0.35);
-}
-.fx-vf-crosshair::before { top: 8px; left: 0; width: 18px; height: 1px; }
-.fx-vf-crosshair::after { top: 0; left: 8px; width: 1px; height: 18px; }
 
-/* 急推变焦同心光环 */
-.fx-vf-zoom-rings {
-  position: absolute;
-  inset: 0;
+.fxm-useline {
   display: flex;
-  align-items: center;
-  justify-content: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--tx2);
 }
-.fx-zoom-ring {
-  position: absolute;
-  width: 90px;
-  height: 90px;
-  border-radius: 50%;
-  border: 1.5px solid rgba(251, 191, 36, 0.7);
-  box-shadow: 0 0 14px rgba(251, 191, 36, 0.4);
-  transition: transform 0.1s linear, opacity 0.1s linear;
+.fxm-useline + .fxm-useline { margin-top: 5px }
+.fxm-useok, .fxm-useno {
+  flex: none;
+  min-width: 34px;
+  font-size: 11px;
+  line-height: 1.9;
 }
-.fx-zoom-ring.r1 { animation: fxRingPulse 1.8s ease-out infinite; }
-.fx-zoom-ring.r2 { animation: fxRingPulse 1.8s ease-out infinite 0.9s; }
-@keyframes fxRingPulse {
-  0% { transform: scale(0.2); opacity: 1; }
-  100% { transform: scale(1.4); opacity: 0; }
-}
+.fxm-useok { color: var(--ok) }
+.fxm-useno { color: var(--bad) }
 
-/* 环绕轨迹圆环 */
-.fx-vf-orbit-track {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 90px;
-  height: 90px;
-  margin: -45px 0 0 -45px;
-  border: 1px dashed rgba(56, 189, 248, 0.35);
-  border-radius: 50%;
-}
-.fx-orbit-cam-dot {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 10px;
-  height: 10px;
-  margin: -5px 0 0 -5px;
-  border-radius: 50%;
-  background: #38bdf8;
-  box-shadow: 0 0 10px #38bdf8;
-}
-
-/* 左上角与左下角安全 HUD 指示器（避开右上角收藏/添加操作按钮） */
-.fx-vf-hud-left {
-  position: absolute;
-  top: 8px;
-  left: 8px;
-  z-index: 3;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 9.5px;
-  font-weight: 600;
-  padding: 2.5px 7px;
-  border-radius: 4px;
-  background: rgba(10, 12, 16, 0.78);
-  color: #fde68a;
-  backdrop-filter: blur(8px);
-  border: 1px solid rgba(253, 230, 138, 0.25);
-  pointer-events: none;
-}
-
-.fx-vf-hud-bottom {
-  position: absolute;
-  bottom: 8px;
-  left: 8px;
-  z-index: 3;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 9.5px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  padding: 2px 7px;
-  border-radius: 4px;
-  background: rgba(10, 12, 16, 0.78);
-  color: #93c5fd;
-  backdrop-filter: blur(8px);
-  border: 1px solid rgba(147, 197, 253, 0.22);
-  pointer-events: none;
-}
-
-.fx-vf-sep { opacity: 0.4; }
-.fx-vf-angle { color: #cbd5e1; }
-
-/* 3D 悬浮空间展示动效 */
-.fx-vf-3d-cards {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  pointer-events: none;
-}
-.fx-3d-node {
-  position: absolute;
-  border-radius: 6px;
-  border: 1px solid rgba(56, 189, 248, 0.4);
-  background: linear-gradient(135deg, rgba(56, 189, 248, 0.15), rgba(129, 140, 248, 0.08));
-  backdrop-filter: blur(2px);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5), inset 0 0 12px rgba(56, 189, 248, 0.2);
-}
-.fx-3d-node.n1 { width: 90px; height: 56px; }
-.fx-3d-node.n2 { width: 70px; height: 44px; }
-
-/* 分层深度视差滑轨 */
-.fx-vf-depth-layers {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  pointer-events: none;
-}
-.fx-depth-card {
-  position: absolute;
-  border-radius: 6px;
-  backdrop-filter: blur(2px);
-}
-.fx-depth-card.bg {
-  width: 140px;
-  height: 80px;
-  border: 1px solid rgba(148, 163, 184, 0.2);
-  background: rgba(30, 41, 59, 0.3);
-  opacity: 0.5;
-}
-.fx-depth-card.mid {
-  width: 100px;
-  height: 60px;
-  border: 1px solid rgba(56, 189, 248, 0.35);
-  background: rgba(14, 116, 144, 0.25);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
-}
-.fx-depth-card.fg {
-  width: 60px;
-  height: 38px;
-  border: 1px solid rgba(99, 102, 241, 0.6);
-  background: rgba(99, 102, 241, 0.3);
-  box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
-}
-
-/* 急推变焦撞屏边框 */
-.fx-zoom-punch-box {
-  position: absolute;
-  width: 70px;
-  height: 44px;
-  border: 1px dashed rgba(245, 158, 11, 0.65);
-  border-radius: 4px;
-  box-shadow: 0 0 20px rgba(245, 158, 11, 0.2);
-}
-
-/* 通用美学 */
-.is-generic {
-  background: radial-gradient(circle at center, #1e1b4b 0%, #090a12 100%);
-}
-.fx-generic-aurora {
-  position: absolute;
-  inset: -15px;
-  background: radial-gradient(ellipse at 50% 50%, rgba(99, 102, 241, 0.45) 0%, transparent 65%);
-  filter: blur(20px);
-}
-
-/* 播放按钮 */
-.fx-visual-play-btn {
-  position: absolute;
-  bottom: 8px;
-  right: 8px;
-  z-index: 5;
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  background: rgba(0, 0, 0, 0.65);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: #ffffff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  backdrop-filter: blur(6px);
-  transition: all 0.15s;
-}
-.fx-visual-play-btn:hover {
-  background: var(--primary);
-  border-color: var(--primary);
-  transform: scale(1.08);
-}
-
-/* ── Remotion TSX 真实代码渲染组件样式 ── */
-.fx-live-container {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-  background: #080911;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.fx-live-fallback {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #0b0c14;
-}
-
-.fx-live-fallback-inner {
+/* 步骤：编号做视觉锚点，正文对齐，避免「1. 2. 3.」挤在一起 */
+.fxm-steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  padding: 12px;
+  gap: 7px;
+  counter-reset: fxm-step;
+}
+.fxm-steps li {
+  display: flex;
+  gap: 9px;
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--tx2);
+}
+.fxm-stepno {
+  flex: none;
+  width: 17px;
+  height: 17px;
+  margin-top: 2px;
+  border-radius: 5px;
+  background: var(--hole);
+  color: var(--tx3);
+  font-size: 10px;
+  line-height: 17px;
   text-align: center;
 }
+.fxm-plain { margin: 0; font-size: 12.5px; color: var(--tx2) }
 
-.fx-live-fallback-name {
+/* 参数：label 在左、值等宽在右，hint 另起一行弱色 */
+.fxm-params {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.fxm-params li {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--tx2);
+}
+.fxm-param-label { min-width: 84px; color: var(--tx3) }
+.fxm-params b { color: var(--tx) }
+.fxm-params em {
+  font-style: normal;
   font-size: 11px;
-  font-weight: 600;
-  color: #e2e8f0;
+  color: var(--tx3);
 }
 
-.fx-live-fallback-hint {
-  font-size: 9.5px;
-  color: #64748b;
+/* 预警：用左侧细线区分，不用整块底色（弹窗里再套色块会显脏） */
+.fxm-warns {
+  margin: 0;
+  padding: 0 0 0 12px;
+  list-style: none;
+  border-left: 2px solid var(--warn);
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 12.5px;
+  line-height: 1.65;
+  color: var(--tx2);
 }
+.fxm-warns-sub { margin-top: 7px; border-left-color: var(--line2) }
+
+.fxm-related { display: flex; flex-wrap: wrap; gap: 6px }
+
+/* ── 技术细节：默认收起 ─────────────────────────────────────── */
+.fxm-details {
+  margin-top: 22px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line2);
+}
+.fxm-details > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-size: 11.5px;
+  color: var(--tx3);
+  list-style: none;
+  user-select: none;
+}
+.fxm-details > summary::-webkit-details-marker { display: none }
+.fxm-details > summary::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform .15s var(--eo);
+}
+.fxm-details[open] > summary::before { transform: rotate(45deg) }
+.fxm-details > summary:hover { color: var(--tx2) }
+.fxm-details .fx-io { margin-top: 12px }
+.fxm-note {
+  margin: 10px 0 0;
+  font-size: 11.5px;
+  line-height: 1.65;
+  color: var(--tx3);
+}
+
+/* .fx-io 是「dt/dd 包在 div 里」的结构，而 div 默认 block 会把 dt 和 dd
+   上下堆叠，网格的两列形同虚设。display:contents 让 dt/dd 直接落到网格列上。 */
+.fx-io > div { display: contents; }

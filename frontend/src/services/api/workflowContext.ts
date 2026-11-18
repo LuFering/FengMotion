@@ -1,13 +1,13 @@
 /**
- * 项目 × workflow-v0.1.0 创作上下文。
+ * 项目 × workflow-v0.1.1 创作上下文。
  *
  * <p><strong>与 `workflows.ts` 不是一回事</strong>：那边对接的是后端 workflow 域
  * （定义/版本/运行状态机，`docs/contracts/workflow.md`）。这里是真正把
- * `frontend/workflow-v0.1.0` 那套 Prompt-first 流程接进来的入口 ——
+ * `frontend/workflow-v0.1.1` 那套 Prompt-first 流程接进来的入口 ——
  * 它管的是项目目录里的创作上下文文件（`prompt.original.md` 等），
- * 由后端调用 workflow-v0.1.0 的零依赖 Node 工具写入。</p>
+ * 由后端调用 workflow-v0.1.1 的零依赖 Node 工具写入。</p>
  *
- * <p><strong>为什么要有它</strong>：workflow-v0.1.0 的创作依据是「用户原文 + 纠正 + 决定」，
+ * <p><strong>为什么要有它</strong>：workflow-v0.1.1 的创作依据是「用户原文 + 纠正 + 决定」，
  * 而这些此前从来没有落到项目目录里 —— 那套流程因此无法真正启动。</p>
  */
 import type { HttpClient } from './http'
@@ -66,13 +66,37 @@ export interface CreationState {
   sessionId?: string | null
 }
 
+/** 原文完整性检测状态（B2） */
+export type OriginalIntegrity = 'ok' | 'suspect' | 'unknown'
+
+/** 工作稿文件允许的名称（B1） */
+export type WorkflowDraftName = 'lookdev-brief' | 'film-plan'
+
+/** 工作稿（GET /workflow/drafts、GET/PUT /workflow/drafts/{name}） */
+export interface WorkflowDraft {
+  name: WorkflowDraftName
+  file: string
+  exists: boolean
+  /** 列表接口为 null */
+  content: string | null
+  sha256: string | null
+  /** 是否仍是 init 时模板原样；模板目录不可用时为 null */
+  template: boolean | null
+  size: number
+  updatedAt: string | null
+}
+
+/** 兼容旧引用别名 */
+export type WorkflowDraftSummary = WorkflowDraft
+export type WorkflowDraftDetail = WorkflowDraft
+
 /** 一个项目的 workflow 创作上下文状态。 */
 export interface WorkflowContextState {
   projectId: string
   directory: string
   /** 是否已有 prompt.original.md —— 这是 Prompt-first 的入口条件 */
   initialized: boolean
-  /** workflow-v0.1.0 工具目录是否可被后端找到 */
+  /** workflow-v0.1.1 工具目录是否可被后端找到 */
   toolAvailable: boolean
   /** 已存在的 Prompt-first 文件 */
   files: string[]
@@ -84,6 +108,10 @@ export interface WorkflowContextState {
   failedPasses: number
   /** 目录存在但还没有产物的轮次数 */
   inProgressPasses: number
+  /** B2：原文污染检测（ok | suspect | unknown），未初始化时为 null；只报告不自动修改 */
+  originalIntegrity?: OriginalIntegrity | null
+  /** B2：疑似污染的原因列表 */
+  originalIntegrityReasons?: string[] | null
 }
 
 /** 一次初始化的结果。 */
@@ -285,7 +313,15 @@ export interface WorkflowContextResource {
   unsavedReplies(projectId: string, sessionId?: string): Promise<UnsavedReplyItem[]>
   syncReply(projectId: string, requestId: string): Promise<{ success: boolean; sessionSaved: boolean }>
   previewImageCapability(projectId: string): Promise<{ supported: boolean; baseVersionCheck?: boolean; atomicCorrection?: boolean; correctionRetryId?: boolean }>
-  create(projectId: string, intent?: string, references?: AgentReference[], previewImage?: string, baseVersion?: number, correction?: string, requestId?: string, sessionId?: string, userMessageId?: string): Promise<FilmCreateResult>
+  create(projectId: string, intent?: string, references?: AgentReference[], previewImage?: string, baseVersion?: number, correction?: string, requestId?: string, sessionId?: string, userMessageId?: string, selection?: { harness: string; model?: string; reasoningEffort?: string }): Promise<FilmCreateResult>
+  /** B1：列出两份工作稿文件状态 */
+  listDrafts(projectId: string): Promise<WorkflowDraft[]>
+  /** B1：读取单份工作稿内容与 sha256 */
+  getDraft(projectId: string, name: WorkflowDraftName): Promise<WorkflowDraft>
+  /** B1：原子保存工作稿（并发冲突或任务运行中时后端返回 409） */
+  saveDraft(projectId: string, name: WorkflowDraftName, body: { content: string; baseSha256: string | null }): Promise<WorkflowDraft>
+  /** B2 可选：当 originalIntegrity 为 suspect 时由用户确认修复原文 */
+  repairOriginal(projectId: string, body: { content: string; baseSha256: string }): Promise<WorkflowContextState>
 }
 
 /**
@@ -352,7 +388,7 @@ export function createWorkflowContextResource(http: HttpClient): WorkflowContext
       return http.post<{ success: boolean; sessionSaved: boolean }>(`${base(projectId)}/creation/${encodeURIComponent(requestId)}/sync-reply`)
     },
 
-    create(projectId, intent, references, previewImage, baseVersion, correction, requestId, sessionId, userMessageId) {
+    create(projectId, intent, references, previewImage, baseVersion, correction, requestId, sessionId, userMessageId, selection) {
       /* agent 改工程要读需求、写代码、可能自查，实测 100~200 秒。
          给足时间，别让默认 15 秒把一次正常创作当成失败。
 
@@ -361,6 +397,7 @@ export function createWorkflowContextResource(http: HttpClient): WorkflowContext
       return http.post<FilmCreateResult>(`${base(projectId)}/create`,
         {
           intent: intent ?? '',
+          ...selection,
           ...(references !== undefined ? { references } : {}),
           ...(previewImage ? { previewImage } : {}),
           ...(baseVersion !== undefined ? { baseVersion } : {}),
@@ -370,6 +407,25 @@ export function createWorkflowContextResource(http: HttpClient): WorkflowContext
           ...(userMessageId ? { userMessageId } : {}),
         },
         { timeoutMs: CREATE_TIMEOUT_MS })
+    },
+
+    async listDrafts(projectId) {
+      const payload = await http.get<WorkflowDraft[] | { drafts?: WorkflowDraft[] }>(`${base(projectId)}/drafts`)
+      if (Array.isArray(payload)) return payload
+      if (payload && Array.isArray(payload.drafts)) return payload.drafts
+      return []
+    },
+
+    getDraft(projectId, name) {
+      return http.get<WorkflowDraft>(`${base(projectId)}/drafts/${encodeURIComponent(name)}`)
+    },
+
+    saveDraft(projectId, name, body) {
+      return http.put<WorkflowDraft>(`${base(projectId)}/drafts/${encodeURIComponent(name)}`, body)
+    },
+
+    repairOriginal(projectId, body) {
+      return http.post<WorkflowContextState>(`${base(projectId)}/original/repair`, body)
     },
   }
 }

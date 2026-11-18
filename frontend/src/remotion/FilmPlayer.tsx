@@ -1,5 +1,5 @@
-import { AlertCircle, LoaderCircle } from 'lucide-react'
 import { ACTIVE_DURATION } from '@/data/timeline'
+import { UiIcon, SemIcons } from '@/components/icons/UiIcon'
 import { FilmPlayback } from '@/remotion/FilmPlayback'
 import { Player, type PlayerRef } from '@remotion/player'
 import { useRef, useState } from 'react'
@@ -40,7 +40,7 @@ export function FilmPlayer({
     return (
       <div className="grid size-full place-items-center bg-bg text-center">
         <div className="max-w-sm px-6">
-          <AlertCircle className="mx-auto size-5 text-bad" />
+          <UiIcon icon={SemIcons.error} className="mx-auto size-5 text-bad" />
           <p className="mt-2 text-sm">预览视频加载失败</p>
           <p className="mt-1 text-xs text-dim">{SOURCE}</p>
         </div>
@@ -53,7 +53,7 @@ export function FilmPlayer({
       {!loaded && (
         <div className="absolute inset-0 z-10 grid place-items-center bg-bg">
           <div className="flex items-center gap-2 text-xs text-dim">
-            <LoaderCircle className="size-4 animate-spin text-acc" />
+            <UiIcon icon={SemIcons.loading} className="size-4 animate-spin text-acc" />
             正在加载真实影片 · {ACTIVE_DURATION.toFixed(1)} 秒
           </div>
         </div>

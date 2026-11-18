@@ -21,7 +21,7 @@
  * 否则界面上永远显示 0 秒 —— 而「已经等了 40 秒」正是用户唯一需要的信息。
  */
 import { useEffect, useRef, useState } from 'react'
-import { Check, Loader2, SquareTerminal, X } from 'lucide-react'
+import { UiIcon, SemIcons } from '@/components/icons/UiIcon'
 import './job-panel.css'
 
 /** 一条任务在前端的形态（由流式帧维护）。 */
@@ -91,12 +91,12 @@ export function JobPanel({ jobs, onDismiss }: { jobs: JobView[]; onDismiss: (job
         return (
           <div key={j.jobId} className="jobp-row" data-status={j.status}>
             <span className="jobp-icon" aria-hidden="true">
-              {running ? <Loader2 size={11} className="jobp-spin" />
-                : j.status === 'completed' ? <Check size={11} />
-                : j.status === 'killed' ? <X size={11} />
-                : <X size={11} />}
+              {running ? <UiIcon icon={SemIcons.loading} size="xs" className="jobp-spin" />
+                : j.status === 'completed' ? <UiIcon icon={SemIcons.check} size="xs" />
+                : j.status === 'killed' ? <UiIcon icon={SemIcons.close} size="xs" />
+                : <UiIcon icon={SemIcons.close} size="xs" />}
             </span>
-            <SquareTerminal size={11} className="jobp-kind" aria-hidden="true" />
+            <UiIcon icon={SemIcons.terminal} size="xs" className="jobp-kind" aria-hidden="true" />
             <span className="jobp-label num" title={j.label}>{j.label || j.kind}</span>
             <span className="jobp-time num">
               {fmtElapsed(elapsed)}

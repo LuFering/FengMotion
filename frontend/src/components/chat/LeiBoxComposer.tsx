@@ -14,7 +14,8 @@
  * （见下方 fitStyle），让它以输入框的自然高度嵌进对话页。
  */
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
+import { HARNESSES } from '../../data/harnesses'
 import './leibox-composer.css'
 
 /** 官方暴露的挂载工厂。 */
@@ -181,6 +182,8 @@ export interface LeiBoxComposerProps {
  * 裁成 2px 描边 + drop-shadow 发光），不用 box-shadow 是因为渐变要跑起来。
  */
 const PILL_CSS = `
+/* External SVG images keep brand colors; monochrome Codex follows dark mode. */
+[data-theme="dark"] img.fm-model-logo[src*="/openai.svg"] { filter:invert(1); }
 @property --lbx-hz-spin { syntax: '<angle>'; initial-value: 0deg; inherits: false; }
 .lbx-hz-glow { position: relative; display: inline-flex; }
 .lbx-hz-glow-ring {
@@ -188,26 +191,33 @@ const PILL_CSS = `
   pointer-events: none;
   background: conic-gradient(from var(--lbx-hz-spin),
     transparent 0deg, transparent 130deg,
-    color-mix(in srgb, var(--theme-accent, #3B8CF8) 45%, transparent) 200deg,
-    var(--theme-accent, #3B8CF8) 265deg,
+    color-mix(in srgb, var(--lbx-engine-color, #4D6BFE) 45%, transparent) 200deg,
+    var(--lbx-engine-color, #4D6BFE) 265deg,
     #fff 292deg,
-    var(--theme-accent, #3B8CF8) 315deg,
-    color-mix(in srgb, var(--theme-accent, #3B8CF8) 45%, transparent) 350deg,
+    var(--lbx-engine-color, #4D6BFE) 315deg,
+    color-mix(in srgb, var(--lbx-engine-color, #4D6BFE) 45%, transparent) 350deg,
     transparent 360deg);
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
   mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   mask-composite: exclude;
-  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--theme-accent, #3B8CF8) 90%, transparent))
-          drop-shadow(0 0 11px color-mix(in srgb, var(--theme-accent, #3B8CF8) 60%, transparent));
+  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--lbx-engine-color, #4D6BFE) 90%, transparent))
+          drop-shadow(0 0 11px color-mix(in srgb, var(--lbx-engine-color, #4D6BFE) 60%, transparent));
   animation: lbx-hz-spin-cw 2.8s linear infinite;
 }
 @keyframes lbx-hz-spin-cw { to { --lbx-hz-spin: 360deg; } }
 @media (prefers-reduced-motion: reduce) { .lbx-hz-glow-ring { animation: none; } }
 
+/* One engine token colors the whole pill; the clockwise orbit is unchanged. */
+.fm-model-trigger:not(.fm-model-square) {
+  background:color-mix(in srgb,var(--lbx-engine-color) 5%,var(--theme-bg,#fff)) !important;
+  border-color:color-mix(in srgb,var(--lbx-engine-color) 28%,var(--theme-border,#e5e7eb)) !important;
+  box-shadow:0 0 8px color-mix(in srgb,var(--lbx-engine-color) 18%,transparent) !important;
+}
+.fm-model-trigger:focus-visible { outline-color:var(--lbx-engine-color) !important; }
 /* 角度在主文档注册，光沿胶囊边缘顺时针绕行。 */
 .fm-model-trigger::after {
-  background: conic-gradient(from var(--lbx-model-angle), transparent 0deg, transparent 145deg, #8bd4ff 235deg, #339cff 300deg, #fff 330deg, #339cff 348deg, transparent 360deg) !important;
+  background: conic-gradient(from var(--lbx-model-angle), transparent 0deg, transparent 145deg, color-mix(in srgb,var(--lbx-engine-color) 45%,#fff) 235deg, var(--lbx-engine-color) 300deg, #fff 330deg, var(--lbx-engine-color) 348deg, transparent 360deg) !important;
   animation: lbx-model-flow 3.4s linear infinite !important;
 }
 @keyframes lbx-model-flow { from { --lbx-model-angle: 0deg; } to { --lbx-model-angle: 360deg; } }
@@ -224,7 +234,7 @@ const PILL_CSS = `
   text-align: left; cursor: pointer; transition: background-color 140ms ease;
 }
 .lbx-hz-row:hover { background: color-mix(in srgb, currentColor 7%, transparent); }
-.lbx-hz-row--on { background: color-mix(in srgb, var(--theme-accent, #3B8CF8) 14%, transparent); }
+.lbx-hz-row--on { background: color-mix(in srgb, var(--lbx-engine-color, #4D6BFE) 14%, transparent); }
 .lbx-hz-back {
   display: inline-flex; align-items: center; gap: 3px;
   margin: 2px 0 4px; padding: 3px 6px; border: 0; border-radius: 6px;
@@ -515,7 +525,7 @@ export function LeiBoxComposer({
         themeStyle.textContent = `
           /* ── 紧凑型外框与圆角恢复：由方形改回优雅流线型大圆角卡片，大幅压缩上下高度 ── */
           [data-message-composer-surface] {
-            border-radius: 20px !important;
+            border-radius: var(--lbx-composer-radius, 20px) !important;
             transition: background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease !important;
           }
           [data-message-composer-surface] > div {
@@ -1109,7 +1119,8 @@ export function LeiBoxComposer({
     /* 圆钮必须放在 .lbx-host **内部** —— 那个容器是 position:relative，
        放外面的话 offsetParent 会一路找到 .cv3-seat，right 的参照系就错了
        （实测偏了 182px，正好压在模型胶囊上）。 */
-    <div ref={hostRef} className="lbx-host" data-ready={undefined}>
+    <div ref={hostRef} className="lbx-host" data-ready={undefined}
+      style={{ '--lbx-engine-color': HARNESSES.find((h) => h.id === (harness === 'dsh-sdk' ? 'deepseek' : harness))?.color ?? 'var(--fg)' } as CSSProperties}>
       {/* 自己画的上下文圆钮：盖在官方圆钮被隐藏的那个位置上。
           官方那枚点开是「预计下一次请求 N%」的小卡，换成本组件的点阵面板。 */}
       {ratio !== null && contextPanel ? (

@@ -53,12 +53,12 @@ body:has(#pane-reference .rfc) {
   /* 画面底：与素材库 --stage-bg 同值。参考片库原本没有这个 token，
      缩略图 var(--stage-bg) 取不到值 → 透明，图片未加载时会露出卡片底色。 */
   --stage-bg: #0a0b0e;
-  --r-pill: 999px;
+  --r-pill: var(--fm-radius-pill);
   --shadow-mid: 0 12px 32px rgba(0, 0, 0, 0.3);
   --shadow-float: 0 32px 80px rgba(0, 0, 0, 0.5);
-  --r-panel: 18px;
-  --r-ctl: 10px;
-  --r-card: 12px;
+  --r-panel: var(--fm-radius-panel);
+  --r-ctl: var(--fm-radius-ctl);
+  --r-card: var(--fm-radius-card);
   --eo: cubic-bezier(0.23, 1, 0.32, 1);
 
   /* 画面之上的走带层恒为影院深色玻璃（片名/片单/片段段/走带，在照片上不随主题） */
@@ -85,7 +85,7 @@ body:has(#pane-reference .rfc) {
   overflow: hidden;
   background: #000;
   color: var(--tx);
-  font-family: Inter, -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  font-family: var(--font-sans);
   font-size: 13px;
   line-height: 1.5;
   font-variant-numeric: tabular-nums;
@@ -276,11 +276,11 @@ html[data-theme='tactile'] .rfc {
 }
 .rfc-collitem {
   display: flex; align-items: center; gap: 9px; width: 100%;
-  padding: 7px 9px; border-radius: 8px; text-align: left; color: var(--tx);
+  padding: 7px 9px; border-radius: 10px; text-align: left; color: var(--tx);
 }
 .rfc-collitem:hover { background: var(--hover); }
 .rfc-checkbox {
-  width: 16px; height: 16px; flex: none; border-radius: 5px;
+  width: 16px; height: 16px; flex: none; border-radius: 4px;
   border: 1px solid var(--line2); display: inline-flex; align-items: center; justify-content: center;
   color: #fff;
 }
@@ -328,7 +328,7 @@ html[data-theme='tactile'] .rfc {
    此处用 .rfc-segbar 后代选择器（0,2,0）压回去——此前条带隐形就是这个原因。 */
 .rfc-segbar .rfc-seg {
   position: relative; height: 38px; flex-basis: 0; min-width: 0;
-  border-radius: 9px; overflow: hidden; text-align: left;
+  border-radius: 6px; overflow: hidden; text-align: left;
   background: rgba(9, 11, 15, 0.62); border: 1px solid rgba(255, 255, 255, 0.14);
   backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
   transition: border-color 0.15s var(--eo);
@@ -508,7 +508,7 @@ html[data-theme='tactile'] .rfc {
   position: absolute; left: 50%; bottom: 196px; transform: translateX(-50%); z-index: 9;
   background: var(--panel-glass); border: 1px solid var(--panel-line);
   backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-  color: var(--tx); padding: 9px 17px; border-radius: 12px; font-size: 13px;
+  color: var(--tx); padding: 9px 17px; border-radius: 10px; font-size: 13px;
   box-shadow: var(--shadow-mid);
   animation: rfc-panel-in 0.25s var(--eo);
   white-space: nowrap;
@@ -694,7 +694,7 @@ html[data-theme='tactile'] .rfc {
   width: min(440px, 100%);
   padding: 38px 32px 30px;
   border: 1px dashed var(--line2);
-  border-radius: 16px;
+  border-radius: 14px;
   text-align: center;
   background: color-mix(in srgb, var(--panel2) 55%, transparent);
 }
@@ -704,7 +704,7 @@ html[data-theme='tactile'] .rfc {
   width: 46px;
   height: 46px;
   margin: 0 auto 16px;
-  border-radius: 12px;
+  border-radius: 10px;
   background: color-mix(in srgb, var(--acc) 14%, transparent);
   color: var(--acc);
 }
@@ -727,7 +727,7 @@ html[data-theme='tactile'] .rfc {
   gap: 7px;
   padding: 9px 18px;
   border: 1px solid var(--acc);
-  border-radius: 9px;
+  border-radius: 6px;
   background: var(--acc);
   color: var(--on-accent, #fff);
   font: inherit;
@@ -776,7 +776,7 @@ html[data-theme='tactile'] .rfc {
   resize: vertical;
   min-height: 40px;
   padding: 6px 8px;
-  border-radius: var(--fm-radius-mark);
+  border-radius: var(--fm-radius-ctl);
   border: 1px solid var(--line2);
   background: var(--inset);
   color: var(--text);
@@ -788,7 +788,7 @@ html[data-theme='tactile'] .rfc {
 .rfc-manual-infer {
   margin: 0;
   padding: 6px 8px;
-  border-radius: var(--fm-radius-mark);
+  border-radius: var(--fm-radius-ctl);
   background: var(--panel-alt);
   color: var(--text-dim);
   font-size: var(--fm-text-meta);
@@ -812,7 +812,7 @@ html[data-theme='tactile'] .rfc {
 .rfc-range-edit input {
   width: 68px;
   padding: 4px 6px;
-  border-radius: var(--fm-radius-mark);
+  border-radius: var(--fm-radius-ctl);
   border: 1px solid var(--line2);
   background: var(--inset);
   color: var(--text);
@@ -822,7 +822,7 @@ html[data-theme='tactile'] .rfc {
 .rfc-manual-del {
   margin-left: auto;
   padding: 4px 10px;
-  border-radius: var(--fm-radius-mark);
+  border-radius: var(--fm-radius-ctl);
   border: 1px solid var(--line2);
   background: transparent;
   color: var(--fm-c-danger);

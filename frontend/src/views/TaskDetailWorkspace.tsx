@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { AlertTriangle, Check, Copy, Loader2, Monitor, RotateCcw, Square, Terminal } from 'lucide-react'
+import { UiIcon, SemIcons } from '@/components/icons/UiIcon'
+import { Monitor01, Square } from '@untitledui/icons'
 import type { AgentTask, TaskRequest } from '@/services/studioApi'
 import type { TaskRecord } from '@/hooks/useAgentTasks'
 import { TASK_STATUS_LABEL } from '@/shell/status'
@@ -77,7 +78,7 @@ export function TaskDetailWorkspace({
                 : 'bg-[var(--line)] text-[var(--tx3)]'
             }`}
           >
-            {isLive && <Loader2 size={10} className="animate-spin" />}
+            {isLive && <UiIcon icon={SemIcons.loading} size="xs" className="animate-spin" />}
             {TASK_STATUS_LABEL[task.status] ?? task.status}
           </span>
         </div>
@@ -88,7 +89,7 @@ export function TaskDetailWorkspace({
               className="text-xs px-2.5 py-1 rounded bg-red-500/15 text-red-500 hover:bg-red-500/25 transition-colors flex items-center gap-1"
               onClick={() => cancelTask(task.id)}
             >
-              <Square size={11} />
+              <UiIcon icon={Square} size="xs" />
               <span>停止任务</span>
             </button>
           )}
@@ -98,7 +99,7 @@ export function TaskDetailWorkspace({
             onClick={onClose}
             title="返回画面监看"
           >
-            <Monitor size={12} />
+            <UiIcon icon={Monitor01} size="xs" />
             <span>返回画面监看</span>
           </button>
         </div>
@@ -111,7 +112,7 @@ export function TaskDetailWorkspace({
           {isFail && (
             <div className="p-3.5 rounded-lg bg-red-500/10 border border-red-500/25 text-xs text-red-600 flex flex-col gap-2">
               <div className="flex items-center gap-1.5 font-medium text-sm">
-                <AlertTriangle size={14} />
+                <UiIcon icon={SemIcons.warning} size="sm" />
                 <span>任务执行未完成</span>
               </div>
               <p className="text-xs leading-relaxed font-mono whitespace-pre-wrap">
@@ -127,7 +128,7 @@ export function TaskDetailWorkspace({
                       onClose()
                     }}
                   >
-                    <RotateCcw size={12} />
+                    <UiIcon icon={SemIcons.refresh} size="xs" />
                     <span>带回对话重新发起</span>
                   </button>
                 </div>
@@ -162,7 +163,7 @@ export function TaskDetailWorkspace({
           <section className="flex flex-col gap-1.5">
             <div className="flex items-center justify-between">
               <h3 className="font-medium text-sm text-[var(--tx)] flex items-center gap-1.5">
-                <Terminal size={14} className="text-[var(--tx3)]" />
+                <UiIcon icon={SemIcons.terminal} size="sm" className="text-[var(--tx3)]" />
                 <span>执行日志流</span>
               </h3>
               {record?.events && record.events.length > 0 && (
@@ -171,7 +172,7 @@ export function TaskDetailWorkspace({
                   className="text-xs text-blue-500 hover:underline flex items-center gap-1"
                   onClick={handleCopyLogs}
                 >
-                  {copied ? <Check size={11} /> : <Copy size={11} />}
+                  {copied ? <UiIcon icon={SemIcons.check} size="xs" /> : <UiIcon icon={SemIcons.copy} size="xs" />}
                   <span>{copied ? '已复制' : '复制日志'}</span>
                 </button>
               )}

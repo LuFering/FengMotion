@@ -22,7 +22,7 @@
  */
 
 import { useState, type ReactNode } from 'react'
-import { ChevronRight } from 'lucide-react'
+import { UiIcon, SemIcons } from '@/components/icons/UiIcon'
 import './ai-turn.css'
 
 /* ── 思考折叠块 ────────────────────────────────────────────── */
@@ -51,7 +51,7 @@ export function ReasoningBlock({
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
       >
-        <ChevronRight size={14} className="ai-reason-caret" aria-hidden />
+        <UiIcon icon={SemIcons.expand} size="sm" className="ai-reason-caret" aria-hidden />
         <span className="ai-reason-title">{streaming ? '正在思考' : '思考过程'}</span>
         {seconds !== undefined ? <span className="ai-reason-sep" aria-hidden /> : null}
         {seconds !== undefined ? <span className="ai-reason-time">{Math.round(seconds)}s</span> : null}
@@ -197,7 +197,7 @@ export function TurnTrigger({
     <div className="ai-turn-card">
       <button type="button" className="ai-turn-head" aria-expanded={open} onClick={onToggle}>
         <span className="ai-turn-icon" aria-hidden>
-          <ChevronRight size={15} className={open ? 'ai-turn-caret is-open' : 'ai-turn-caret'} />
+          <UiIcon icon={SemIcons.expand} size="sm" className={open ? 'ai-turn-caret is-open' : 'ai-turn-caret'} />
         </span>
         <span className="ai-turn-title">{title}</span>
         {time ? <span className="ai-turn-time">{time}</span> : null}

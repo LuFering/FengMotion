@@ -1,5 +1,7 @@
+import { setHarnessSelection } from './useHarnessSelection'
+import { UiIcon, SemIcons } from '@/components/icons/UiIcon'
+import { CpuChip01, Database01, Film01, HelpCircle, Palette, PuzzlePiece01, Sliders01, Star01 } from '@untitledui/icons'
 import { useEffect, useRef, useState } from 'react'
-import { Search, Settings2, Check, CircleHelp, Sparkles, Plug, Clapperboard, Database, Cpu, Palette, SlidersHorizontal } from 'lucide-react'
 import '@/styles/settings-refined.css'
 import { HARNESSES, REASONING_LABEL, DEFAULT_PREFS, prefsKey, loadPrefs, savePrefs,
          type ModelPrefs, type Reasoning } from '@/data/harnesses'
@@ -56,9 +58,9 @@ const SECTIONS: Array<{ id: SectionId; label: string; icon: string }> = [
 
 /** 主题样片的三条色带 = 各主题的 bg / surf / acc（设计常量，与 brand.css 一致） */
 const THEMES: Array<{ id: ThemeId; label: string; desc: string }> = [
-  { id: 'dark', label: '深色', desc: '默认 · 纯黑工作台' },
-  { id: 'light', label: '浅色', desc: '亮色界面' },
-  { id: 'tactile', label: '纸感', desc: 'A2 触感 · 纸面' },
+  { id: 'dark', label: '深色', desc: '默认' },
+  { id: 'light', label: '浅色', desc: '' },
+  { id: 'tactile', label: '纸感', desc: '' },
 ]
 
 /** 壁纸候选：id 与 wallpaper.css 的 data-wall 一一对应 */
@@ -267,7 +269,11 @@ export function SettingsScreen({
   const pickHarness = (id: string) => {
     const h = HARNESSES.find((x) => x.id === id)
     if (!h) return
-    onChange({ ...settings, harness: id, model: h.models.includes(settings.model) ? settings.model : h.models[0] })
+    const models = modelsFor(id).models
+    const chosen = models.find((m) => m.id === settings.model) ?? models.find((m) => m.default) ?? models[0]
+    if (!chosen) return
+    setHarnessSelection({ harness: id, model: chosen.id, reasoningEffort: undefined })
+    onChange({ ...settings, harness: id, model: chosen.id })
   }
 
   const prefKey = prefsKey(harness.id, settings.model)
@@ -302,18 +308,18 @@ export function SettingsScreen({
 
   const activeSection = SECTIONS.find((s) => s.id === section)!
   const filteredSections = SECTIONS.filter((s) => s.label.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()))
-  const navIcons = { general: SlidersHorizontal, appearance: Palette, ai: Cpu, creation: Clapperboard, plugins: Plug, lab: Sparkles, data: Database, about: CircleHelp }
+  const navIcons = { general: Sliders01, appearance: Palette, ai: CpuChip01, creation: Film01, plugins: PuzzlePiece01, lab: Star01, data: Database01, about: HelpCircle }
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose() }}>
       <DialogContent className="set-dlg set-refined" showCloseButton aria-describedby={undefined}>
         <div className="set-dlg-head">
-          <Settings2 size={17}/><DialogTitle className="set-dlg-title">设置</DialogTitle>
+          <UiIcon icon={SemIcons.settings} size="md" /><DialogTitle className="set-dlg-title">设置</DialogTitle>
         </div>
 
         <div className="set-dlg-body">
           <nav className="set-nav" aria-label="设置分区">
-            <div className="set-nav-search"><Search size={14}/><input aria-label="查找设置分类" placeholder="查找设置分类" value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => { if (e.key === 'Escape' && query) { e.stopPropagation(); setQuery('') } if (e.key === 'Enter' && filteredSections[0]) { setSection(filteredSections[0].id); setQuery('') } }}/></div>
+            <div className="set-nav-search"><UiIcon icon={SemIcons.search} size="sm" /><input aria-label="查找设置分类" placeholder="查找设置分类" value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => { if (e.key === 'Escape' && query) { e.stopPropagation(); setQuery('') } if (e.key === 'Enter' && filteredSections[0]) { setSection(filteredSections[0].id); setQuery('') } }}/></div>
             {filteredSections.map((s) => {
               const NavIcon = navIcons[s.id]
               return <button key={s.id} type="button" className="set-nav-item"
@@ -368,9 +374,9 @@ export function SettingsScreen({
                       <span className="set-theme-preview" data-theme={t.id} aria-hidden="true"><i className="set-preview-bar"/><i className="set-preview-nav"/><i className="set-preview-stage"/><i className="set-preview-side"/></span>
                       <span className="set-rowtxt">
                         <b>{t.label}</b>
-                        <small>{t.desc}</small>
+                        {t.desc && <small>{t.desc}</small>}
                       </span>
-                      {settings.theme === t.id && <Check size={14} className="set-ck" />}
+                      {settings.theme === t.id && <UiIcon icon={SemIcons.check} size="sm" className="set-ck" />}
                     </button>
                   ))}
                 </div>
@@ -430,7 +436,7 @@ export function SettingsScreen({
                   </Row>
                 )}
 
-                <Row label="显示范围" hint="壁纸出现在哪些界面">
+                <Row label="显示范围">
                   <Seg ariaLabel="壁纸显示范围" value={settings.wallpaperScope}
                        options={SCOPES.map((s) => ({ value: s.value, label: s.label }))}
                        onChange={(v) => set('wallpaperScope', v as WallpaperScope)} />
@@ -471,7 +477,7 @@ export function SettingsScreen({
                   {connectedHarnesses.map((h) => {
                     const on = h.id === settings.harness
                     return (
-                      <div key={h.id} className="set-hcard" data-on={on || undefined}>
+                      <div key={h.id} className="set-hcard" data-on={on || undefined} title={stateOf(h.id).note ?? undefined}>
                         {/* logo 占满卡片左侧整列（不再是一行里的小方块） */}
                         <span className="set-hcard-side" style={{ '--h-color': h.color } as React.CSSProperties}>
                           <i style={{ maskImage: `url(${h.icon})`, WebkitMaskImage: `url(${h.icon})` }} />
@@ -481,10 +487,10 @@ export function SettingsScreen({
                             <div className="set-agent-who">
                               <b>{h.name}</b>
                               <small>
-                                <em data-ready />对话适配器
+                                <em data-ready />本机引擎已载入
                               </small>
                             </div>
-                            <Popover open={pickOpen === h.id}
+                            <Popover modal open={pickOpen === h.id}
                                      onOpenChange={(o) => setPickOpen(o ? h.id : null)}>
                               <PopoverTrigger asChild>
                                 <button type="button" className="set-agent-pick"
@@ -492,7 +498,7 @@ export function SettingsScreen({
                                   <span className="set-agent-pick-ic" style={{ '--h-color': h.color } as React.CSSProperties}>
                                     <i style={{ maskImage: `url(${h.icon})`, WebkitMaskImage: `url(${h.icon})` }} />
                                   </span>
-                                  <span className="v">{on ? settings.model : '选择模型'}</span>
+                                  <span className="v">{on ? (modelsFor(h.id).models.find((m) => m.id === settings.model)?.label ?? '选择模型') : '选择模型'}</span>
                                   <Icon name="chevron-down" className="ui-icon set-agent-pick-chev" />
                                 </button>
                               </PopoverTrigger>
@@ -505,6 +511,7 @@ export function SettingsScreen({
                                       <button key={m.id} type="button" role="option" aria-selected={cur}
                                               className="set-pick-item" data-on={cur || undefined}
                                               onClick={() => {
+                                                setHarnessSelection({ harness: h.id, model: m.id, reasoningEffort: undefined })
                                                 onChange({ ...settings, harness: h.id, model: m.id })
                                                 setPickOpen(null)
                                               }}>
@@ -519,7 +526,7 @@ export function SettingsScreen({
                                 </div>
                               </PopoverContent>
                             </Popover>
-                            {on ? <span className="set-default-engine"><Check size={12}/>默认</span> : <button type="button" className="set-default-engine" onClick={() => pickHarness(h.id)}>设为默认</button>}
+                            {on ? <span className="set-default-engine"><UiIcon icon={SemIcons.check} size="xs" />默认</span> : <button type="button" className="set-default-engine" onClick={() => pickHarness(h.id)}>设为默认</button>}
                           </div>
                         </div>
                       </div>
@@ -528,8 +535,9 @@ export function SettingsScreen({
                 </div>
 
                 {/* 待安装：未接入的引擎收在这里，展开看它需要什么。
-                    不是可有可无的装饰 —— 用户要知道「为什么它不在上面」。 */}
-                <div className="set-agent-more">
+                    不是可有可无的装饰 —— 用户要知道「为什么它不在上面」。
+                    没有待接入引擎时整行不渲染：一个计数为 0 的折叠入口展开后什么也没有。 */}
+                {pendingHarnesses.length > 0 && <div className="set-agent-more">
                   <button type="button" className="set-agent-more-head"
                           aria-expanded={showInstall || undefined}
                           onClick={() => setShowInstall((v) => !v)}>
@@ -552,9 +560,7 @@ export function SettingsScreen({
                             <div className="set-agent-who">
                               <b>{h.name}</b>
                               <small>
-                                {modelsFor(h.id).source === 'server'
-                                  ? `接入后可使用 ${modelsFor(h.id).models.length} 个模型`
-                                  : '模型目录未知'}
+                                {stateOf(h.id).note ?? '未检测到可用引擎，请检查本机安装与配置。'}
                               </small>
                             </div>
                             <span className="set-agent-tag">待接入</span>
@@ -563,11 +569,16 @@ export function SettingsScreen({
                       </div>
                     </div>
                   )}
-                </div>
+                </div>}
 
                 <div className="set-group">
                 <h4 className="set-subhead">连接</h4>
-                <Row label="服务端点" hint="连接地址保存在本机，尚未验证连通性">
+                {/* 原来是一行灰字按钮夹在小标题和输入框之间，看起来像说明文字。
+                    改为一行正式设置：标签说明它做什么，右侧是按钮。 */}
+                <Row label="本机引擎与模型">
+                  <Button variant="outline" size="sm" onClick={() => void probe.refresh(true)}>重新检测</Button>
+                </Row>
+                <Row label="服务端点" hint="尚未验证连通性">
                   <Input aria-label="服务端点" className="set-endpoint" value={settings.harnessEndpoint} spellCheck={false}
                          onChange={(e) => set('harnessEndpoint', e.target.value)}
                          placeholder="http://127.0.0.1:8788/v1" />
@@ -593,17 +604,17 @@ export function SettingsScreen({
             {/* 默认值还没有消费方，保留已有数据，界面不把它当作已生效能力。 */}
             {section === 'creation' && (
               <section className="set-sec">
-                <div className="set-unavailable"><Clapperboard size={28} strokeWidth={1.4}/><h3>创作默认值正在接入</h3><p>现有项目和编辑器暂未读取这里的偏好。视频规格仍在场景编辑器中设置。</p><span>尚未生效</span></div>
+                <div className="set-unavailable"><UiIcon icon={SemIcons.film} size="xl" /><h3>创作默认值尚未生效</h3><p>视频规格仍在场景编辑器中设置。</p></div>
                 <div className="set-group"><h4 className="set-subhead">已保留的偏好</h4><Row label="画幅 / 帧率 / 分辨率"><span className="num">{settings.aspectRatio} · {settings.fps} fps · {settings.resolution}</span></Row><Row label="循环播放"><span>{settings.previewLoop ? '开启' : '关闭'}</span></Row><Row label="时间显示"><span>{{timecode: '时间码', seconds: '秒数', frames: '帧数'}[settings.timeDisplay]}</span></Row><Row label="渲染完成提醒"><span>{settings.notifyOnRender ? '开启' : '关闭'}</span></Row></div>
               </section>
             )}
 
             {section === 'plugins' && (
-              <section className="set-sec"><div className="set-unavailable"><Plug size={28} strokeWidth={1.4}/><h3>插件服务尚未接入</h3><p>扩展加载与管理能力接入后，可以在这里查看、配置和停用插件。</p><span>暂无可管理的插件</span></div></section>
+              <section className="set-sec"><div className="set-unavailable"><UiIcon icon={PuzzlePiece01} size="xl" /><h3>插件服务尚未接入</h3></div></section>
             )}
 
             {section === 'lab' && (
-              <section className="set-sec"><div className="set-unavailable"><Sparkles size={28} strokeWidth={1.4}/><h3>暂没有可启用的实验功能</h3><p>参考片库当前展示已有片段，参考视频分析开关尚未接入实际执行。</p><span>等待接入</span></div></section>
+              <section className="set-sec"><div className="set-unavailable"><UiIcon icon={Star01} size="xl" /><h3>暂没有可启用的实验功能</h3></div></section>
             )}
 
             {/* ── 数据与存储 ────────────────────────────────── */}
@@ -612,17 +623,17 @@ export function SettingsScreen({
 
                 <div className="set-group">
                 <h4 className="set-subhead">本机占用</h4>
-                <Row label="素材" hint="素材本体存在本机 IndexedDB，刷新与重启都在">
+                <Row label="素材">
                   <span className="num">{stats ? `${stats.count} 项 · ${formatBytes(stats.bytes)}` : '读取中…'}</span>
                 </Row>
-                <Row label="设置与偏好" hint="存在本机 localStorage，不上传">
+                <Row label="设置与偏好" hint="仅存本机，不上传">
                   <span className="num">JSON · 约 {settingsBytes()} KB</span>
                 </Row>
 
                 </div>
                 <div className="set-group">
                 <h4 className="set-subhead">备份与恢复</h4>
-                <Row label="导出设置" hint="下载 JSON：主题、壁纸（含自定义图）、偏好与对话默认（不含素材文件）">
+                <Row label="导出设置" hint="不含素材文件">
                   <Button variant="outline" size="sm"
                           onClick={() => {
                             const name = downloadBackup(settings)
@@ -631,7 +642,7 @@ export function SettingsScreen({
                     导出…
                   </Button>
                 </Row>
-                <Row label="导入设置" hint="从备份文件恢复；不合格的文件会被拒绝并说明原因">
+                <Row label="导入设置">
                   <Button variant="outline" size="sm" onClick={() => backupInputRef.current?.click()}>
                     导入…
                   </Button>
@@ -673,7 +684,7 @@ export function SettingsScreen({
                     </Button>
                   </div>
                 )}
-                <Row label="恢复默认设置" hint="主题、壁纸、通用、引擎与模型、创作偏好全部回到默认值">
+                <Row label="恢复默认设置" hint="壁纸与自定义图片也会清除">
                   <Button variant="outline" size="sm"
                           onClick={() => {
                             if (!window.confirm('把所有设置恢复为默认值？壁纸与自定义图片也会被清掉。')) return
@@ -696,10 +707,7 @@ export function SettingsScreen({
                 <Row label="产品"><span>FengMotion Desktop</span></Row>
                 <Row label="版本"><span className="num">v{APP_VERSION}</span></Row>
                 <Row label="数据存放">
-                  <span>素材存本机 IndexedDB；设置与会话偏好存 localStorage，不上传。</span>
-                </Row>
-                <Row label="引擎接入">
-                  <span>DeepSeek 对话适配器可配置；视频 Agent 与渲染连接状态以工作台为准。</span>
+                  <span>本机，不上传</span>
                 </Row>
 
                 <div className="set-group">

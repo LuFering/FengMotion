@@ -115,7 +115,7 @@
   flex: 0 0 18px;
   padding: 0;
   border: 0;
-  border-radius: var(--fm-radius-mark);
+  border-radius: var(--fm-radius-ctl);
   background: 0 0;
   color: var(--ph);
   cursor: pointer;

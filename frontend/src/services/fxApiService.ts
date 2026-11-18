@@ -84,13 +84,17 @@ export interface FxListPage {
  * 再拼一次 base 会得到 `http://host/http://...` 这种坏地址。</p>
  */
 function toAbsolute(url: string, sourceProject?: string): string {
-  if (!url) return ''
   if (/^(https?:|data:|blob:)/i.test(url)) return url
-  let clean = url.replace(/^\//, '')
-  if (sourceProject && sourceProject !== 'builtin' && !clean.startsWith(sourceProject + '/')) {
-    clean = `${sourceProject}/${clean}`
+  // 内置静态资源由前端提供，不能重写到后端能力库目录。
+  if (url.startsWith('./fx/')) return url
+  // 旧版能力库的相对素材路径以仓库为根，而静态服务以所有仓库的父目录为根。
+  if (sourceProject && !url.startsWith('/') && !url.startsWith(`${sourceProject}/`)) {
+    url = `${sourceProject}/${url}`
   }
-  const path = `/capability-assets/${clean}`
+  /* 能力库里的预览图存的是「相对业务路径」（如 lemo-opuscar/styles/x/poster.jpg），
+     需要挂到后端的静态前缀下；http.url() 已经自动带上 API base，
+     所以这里只补前缀，不再加 /api。 */
+  const path = url.startsWith('/') ? url : `/capability-assets/${url}`
   return studioHttpApi().http.url(path)
 }
 
@@ -127,7 +131,7 @@ function toLocal(item: ServerFxTechnique): FxTechnique & { executionStatus?: str
        已实测：图片全部 ok=false，卡片仍是一片黑。
        走 http.url() 与素材缩略图的处理保持一致。 */
     previewImage: item.previewImageUrl ? toAbsolute(item.previewImageUrl, item.sourceProject) : '',
-    previewVideo: item.previewVideoUrl,
+    previewVideo: item.previewVideoUrl ? toAbsolute(item.previewVideoUrl, item.sourceProject) : null,
     previewCaption: item.previewCaption,
     related: item.related ?? [],
     alternatives: item.alternatives ?? [],

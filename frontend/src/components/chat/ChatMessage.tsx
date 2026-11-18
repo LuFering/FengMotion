@@ -16,8 +16,9 @@
  */
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { UiIcon, SemIcons } from '@/components/icons/UiIcon'
+import { File01, ThumbsDown, ThumbsUp, VolumeMax, VolumeMin } from '@untitledui/icons'
 import { motion, useReducedMotion } from 'motion/react'
-import { Check, Copy, FileText, RotateCcw, ThumbsDown, ThumbsUp, Volume2, VolumeX } from 'lucide-react'
 import { MarkdownText } from './MarkdownText'
 import './chat-message.css'
 
@@ -248,11 +249,11 @@ export function MessageActions({
   return (
     <div className={`cm-actions${hidden ? ' is-hidden' : ''}`}>
       <ActionButton label={copied ? '已复制' : '复制这条回复'} onClick={copy}>
-        {copied ? <Check size={14} /> : <Copy size={14} />}
+        {copied ? <UiIcon icon={SemIcons.check} size="sm" /> : <UiIcon icon={SemIcons.copy} size="sm" />}
       </ActionButton>
 
       <ActionButton label={speaking ? '停止朗读' : '朗读这条回复'} onClick={toggleSpeech}>
-        {speaking ? <VolumeX size={14} /> : <Volume2 size={14} />}
+        {speaking ? <UiIcon icon={VolumeMin} size="sm" /> : <UiIcon icon={VolumeMax} size="sm" />}
       </ActionButton>
 
       {/* 反馈：dsh 有独立的 message-feedback 面板，这里先给两个按钮。
@@ -263,20 +264,20 @@ export function MessageActions({
             label={voted === 'up' ? '已标记为好' : '这条回复有用'}
             onClick={() => { setVoted('up'); onFeedback('up') }}
           >
-            <ThumbsUp size={14} className={voted === 'up' ? 'cm-voted' : undefined} />
+            <UiIcon icon={ThumbsUp} size="sm" className={voted === 'up' ? 'cm-voted' : undefined} />
           </ActionButton>
           <ActionButton
             label={voted === 'down' ? '已标记为差' : '这条回复没用'}
             onClick={() => { setVoted('down'); onFeedback('down') }}
           >
-            <ThumbsDown size={14} className={voted === 'down' ? 'cm-voted' : undefined} />
+            <UiIcon icon={ThumbsDown} size="sm" className={voted === 'down' ? 'cm-voted' : undefined} />
           </ActionButton>
         </>
       ) : null}
 
       {onRetry ? (
         <ActionButton label="重试这一轮" onClick={onRetry}>
-          <RotateCcw size={14} />
+          <UiIcon icon={SemIcons.refresh} size="sm" />
         </ActionButton>
       ) : null}
 
@@ -323,7 +324,7 @@ export function ChatMessage({
               ) : (
                 <span key={`${a.name}-${i}`} className="cm-file">
                   <span className="cm-file-icon" aria-hidden>
-                    <FileText size={20} />
+                    <UiIcon icon={File01} size="lg" />
                   </span>
                   <span className="cm-file-content">
                     <span className="cm-file-name">{a.name}</span>
@@ -345,7 +346,7 @@ export function ChatMessage({
         {onEditResend && !streaming ? (
           <div className="cm-user-actions">
             <ActionButton label="编辑并重发" onClick={() => onEditResend(text)}>
-              <RotateCcw size={12} />
+              <UiIcon icon={SemIcons.refresh} size="xs" />
             </ActionButton>
           </div>
         ) : null}

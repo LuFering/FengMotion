@@ -55,7 +55,7 @@
   width: 309px;
   box-sizing: border-box;
   padding: 16px;
-  border-radius: 20px;
+  border-radius: 14px;
   background: var(--fill-slab, var(--card));
   color: var(--fill-on, var(--ink));
   font-family: var(--font-ui);

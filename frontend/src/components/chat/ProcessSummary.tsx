@@ -15,7 +15,7 @@
  * 所以刷新、切页、切换会话后仍在。</p>
  */
 import { useState } from 'react'
-import { ChevronDown, CircleAlert } from 'lucide-react'
+import { UiIcon, SemIcons } from '@/components/icons/UiIcon'
 import { summarizeTools, toolLabel, firstLine, toolStepState, TOOL_STATE_LABEL, type ProcessToolCall } from './processSummary'
 
 export type { ProcessToolCall }
@@ -55,10 +55,10 @@ export function ProcessSummary({ tools, running = false }: ProcessSummaryProps) 
         <span className="wb-process-detail">{summary}</span>
         {failed > 0 && (
           <span className="wb-process-failed">
-            <CircleAlert size={10} /> {failed} 步失败
+            <UiIcon icon={SemIcons.error} size="xs" /> {failed} 步失败
           </span>
         )}
-        <ChevronDown size={11} className={`wb-process-caret${open ? ' is-open' : ''}`} />
+        <UiIcon icon={SemIcons.collapse} size="xs" className={`wb-process-caret${open ? ' is-open' : ''} `} />
       </button>
 
       {open && (

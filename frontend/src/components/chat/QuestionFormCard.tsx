@@ -17,7 +17,8 @@
  * 看不出「单选还是多选」。整行 + 选择框把这三件事一起解决。
  */
 import { useMemo, useState } from 'react'
-import { Send } from 'lucide-react'
+import { UiIcon } from '@/components/icons/UiIcon'
+import { Send01 } from '@untitledui/icons'
 import { formatFormAnswers as formatAnswersFor, type QuestionForm } from './questionForm'
 import './question-form.css'
 
@@ -150,7 +151,7 @@ export function QuestionFormCard({
           title={missing.length > 0 ? `还差 ${missing.length} 项必填` : undefined}
         >
           {submitLabel ? submitLabel(form) : (form.submitLabel ?? '提交')}
-          <Send size={12} aria-hidden="true" />
+          <UiIcon icon={Send01} size="xs" aria-hidden="true" />
         </button>
         {/* 提示说清「为什么不能提交」。只在真挡路时出现，不占常驻位置。 */}
         {!interactive ? (

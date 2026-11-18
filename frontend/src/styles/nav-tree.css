@@ -20,7 +20,7 @@
   margin: 0;
   padding: 0 10px;
   border: 1px solid transparent;
-  border-radius: 10px;
+  border-radius: 6px;
   background: 0 0;
   color: var(--dim);
   font-size: 13px;
@@ -75,7 +75,7 @@ body:not(.hm-nav-expanded) .nav-parent {
   gap: 5px;
   height: 56px;
   padding: 6px 0 5px;
-  border-radius: 10px;
+  border-radius: 6px;
 }
 /* 注意：studio-shell 底样式有同名规则 opacity:0（后加载、同特异性），
    此处用 body.studio-shell 提升特异性，否则标签只占位不显形。 */
@@ -273,7 +273,7 @@ body.studio-shell .hm-sidebar-head .hm-brand-toggle {
   height: 40px;
   padding: 0 4px 0 7px;
   border: 0;
-  border-radius: 10px;
+  border-radius: 6px;
   background: 0 0;
   color: var(--fg);
   cursor: pointer;

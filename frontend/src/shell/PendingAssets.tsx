@@ -9,7 +9,8 @@
  * isAssetDrag() 只认 PENDING_DRAG_TYPE，其余一律不接管、不 preventDefault。
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { X, Trash2, Send, PackagePlus, AlertTriangle, FileText, Image as ImageIcon, Film, Music2, Type, ShoppingCart } from 'lucide-react'
+import { UiIcon, SemIcons } from '@/components/icons/UiIcon'
+import { File01, Film01, Image01, MusicNote01, Package, Send01, ShoppingBag01, Type01 } from '@untitledui/icons'
 import { MEDIA_LABEL, type MyAsset } from '@/data/myAssets'
 import { formatBytes, formatDur, getThumbURL, listAssets } from '@/services/assetApiService'
 import {
@@ -67,7 +68,7 @@ export function toDeliverable(r: Resolved): DeliverableAsset {
   }
 }
 
-const MEDIA_ICON = { image: ImageIcon, video: Film, audio: Music2, font: Type, doc: FileText }
+const MEDIA_ICON = { image: Image01, video: Film01, audio: MusicNote01, font: Type01, doc: File01 }
 const PURPOSES: AssetPurpose[] = ['unspecified', 'visual', 'reference', 'audio', 'information']
 
 /** 抽屉里一条素材需要的展示信息：从素材服务按 ID 重新解析，
@@ -82,6 +83,7 @@ export interface Resolved extends PendingAsset {
  *  取 150：素材卡在左栏，购物车也在左侧，用户拖到附近就该有反应；
  *  太小要靠得很准才有反馈，太大又会在还没打算放的时候就亮起来。 */
 const NEAR_RADIUS = 150
+const PENDING_ITEM_DRAG = 'application/x-fm-pending-item'
 
 /** 秒 → "00:12 – 00:19"；参考片段靠它表达"带过去的是哪一段" */
 function fmtRange(startSec: number, endSec: number): string {
@@ -189,7 +191,7 @@ export function PendingAssetsButton({
         <i /><i /><i />
       </span>
       <span className="hm-pending-ico">
-        <ShoppingCart className="ui-icon" size={20} aria-hidden="true" />
+        <UiIcon icon={ShoppingBag01} size="lg" className="ui-icon" aria-hidden="true" />
       </span>
       <span className="hm-nav-text">待发送</span>
       {items.length > 0 && <span className="hm-pending-badge" aria-hidden="true">{items.length}</span>}
@@ -208,7 +210,7 @@ export function PendingAssetsDrawer({
   /** 交给对话输入框；返回 true 表示已放入，可以据此清理本次发送项 */
   onSend: (list: DeliverableAsset[]) => boolean
 }) {
-  const { items, remove, removeMany, clear, patch } = usePendingAssets()
+  const { items, remove, removeMany, clear, patch, saveFailed, retrySave } = usePendingAssets()
   const [assets, setAssets] = useState<MyAsset[]>([])
   const [thumbs, setThumbs] = useState<Record<string, string | null>>({})
   const [sending, setSending] = useState(false)
@@ -259,33 +261,60 @@ export function PendingAssetsDrawer({
   if (!open) return null
 
   return (
-    <div className="fmp-backdrop" onClick={onClose}>
+    <div className="fmp-backdrop" onClick={onClose}
+      onDragOver={(e) => {
+        if (!Array.from(e.dataTransfer.types).includes(PENDING_ITEM_DRAG)) return
+        const target = Array.from(document.querySelectorAll('.cv3-compose, .fw-compose')).find((el) => {
+          const rect = el.getBoundingClientRect()
+          return rect.width > 0 && rect.height > 0 && e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom
+        })
+        if (target) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy' }
+      }}
+      onDrop={(e) => {
+        const id = e.dataTransfer.getData(PENDING_ITEM_DRAG)
+        if (!id) return
+        const target = Array.from(document.querySelectorAll('.cv3-compose, .fw-compose')).find((el) => {
+          const rect = el.getBoundingClientRect()
+          return rect.width > 0 && rect.height > 0 && e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom
+        })
+        const item = sendable.find((entry) => entry.assetId === id)
+        if (!target || !item) return
+        e.preventDefault()
+        if (onSend([toDeliverable(item)])) { removeMany([id]); onClose() }
+      }}>
       <aside className="fmp" role="dialog" aria-modal="true" aria-label="待发送素材"
              onClick={(e) => e.stopPropagation()}>
         <header className="fmp-head">
           <div>
             <h2>待发送</h2>
-            <p>先攒起来，再一起交给 AI。加入这里还没有发送，也没有算作已使用。</p>
+            <p>加入后尚未发送，也不算已使用。</p>
           </div>
-          <button type="button" className="fmp-x" aria-label="关闭" onClick={onClose}><X size={16} /></button>
+          <button type="button" className="fmp-x" aria-label="关闭" onClick={onClose}><UiIcon icon={SemIcons.close} size="md" /></button>
         </header>
+        {saveFailed && <p className="fmp-save-warning" role="alert">仅当前页面保留，保存尚未完成。<button type="button" onClick={retrySave}>重试保存</button></p>}
 
         {resolved.length === 0 ? (
           <div className="fmp-empty">
-            <PackagePlus size={26} />
+            <UiIcon icon={Package} size="xl" />
             <b>还没有待发送的素材</b>
-            <p>在「我的素材」里点卡片上的 ＋，或把卡片拖到左侧导航的「待发送」。</p>
+            <p>在素材、参考片或特效卡片上点 ＋，或拖到左侧「待发送」。</p>
           </div>
         ) : (
           <ul className="fmp-list">
             {resolved.map((r) => (
               <li key={r.assetId} className="fmp-item" data-missing={r.missing || undefined}
                   data-kind={r.kind === 'ref' ? 'ref' : r.kind === 'fx' ? 'fx' : undefined}>
-                <span className="fmp-thumb">
-                  {r.thumb ? <img src={r.thumb} alt="" />
+                <span className="fmp-thumb" draggable={!r.missing}
+                      title={r.missing ? undefined : '拖到对话输入框'}
+                      onDragStart={(e) => {
+                        if (r.missing) { e.preventDefault(); return }
+                        e.dataTransfer.setData(PENDING_ITEM_DRAG, r.assetId)
+                        e.dataTransfer.effectAllowed = 'copy'
+                      }}>
+                  {r.thumb ? <img src={r.thumb} alt="" draggable={false} />
                     : r.asset
-                      ? (() => { const I = MEDIA_ICON[r.asset.mediaType]; return <I size={18} /> })()
-                      : <AlertTriangle size={18} />}
+                      ? (() => { const I = MEDIA_ICON[r.asset.mediaType]; return <I size={16} /> })()
+                      : <UiIcon icon={SemIcons.warning} size="md" />}
                 </span>
 
                 {/* 参考片段：标题 + 时间段 + 可借鉴参数。
@@ -353,7 +382,7 @@ export function PendingAssetsDrawer({
                 )}
 
                 <button type="button" className="fmp-rm" aria-label={`从待发送移除 ${r.ref?.title ?? r.asset?.name ?? r.assetId}`}
-                        onClick={() => remove(r.assetId)}><X size={14} /></button>
+                        onClick={() => remove(r.assetId)}><UiIcon icon={SemIcons.close} size="sm" /></button>
               </li>
             ))}
           </ul>
@@ -362,12 +391,12 @@ export function PendingAssetsDrawer({
         <footer className="fmp-foot">
           <button type="button" className="fmp-clear" disabled={resolved.length === 0}
                   onClick={() => clear()}>
-            <Trash2 size={14} /> 清空
+            <UiIcon icon={SemIcons.trash} size="sm" /> 清空
           </button>
           <span className="fmp-foot-note">
             {resolved.length > 0 && sendable.length < resolved.length
               ? `${resolved.length - sendable.length} 个素材已失效，不会被发送`
-              : '清空只清这份清单，不会删除素材库里的文件'}
+              : '清空不会删除素材库里的文件'}
           </span>
           <button type="button" className="fmp-send" disabled={sendable.length === 0 || sending}
                   onClick={() => {
@@ -381,7 +410,7 @@ export function PendingAssetsDrawer({
                     setSending(false)
                     if (ok) onClose()
                   }}>
-            <Send size={14} /> 添加到对话
+            <UiIcon icon={Send01} size="sm" /> 添加到对话
           </button>
         </footer>
       </aside>

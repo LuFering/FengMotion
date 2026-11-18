@@ -2,17 +2,20 @@
  * 工作流编辑器（v5 重构）
  *
  * 骨架沿用第一期（命令条/左构建栏/画布/Inspector/执行抽屉，React Flow 仅作引擎），
- * 内容模型换成 workflow-v0.1.0：Prompt-first 自由节点图（无 Gate）、Structured
+ * 内容模型换成 workflow-v0.1.1：Prompt-first 自由节点图（无 Gate）、Structured
  * 阶段泳道 + 产物节点 + Gate 检查点。Gate 的确认只能由用户在检查器里对
  * 具体产物版本做出；演示运行永不代确认。
  */
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { UiIcon, SemIcons } from '@/components/icons/UiIcon'
+import { CheckCircle, ChevronLeft, Circle, Dataflow04, DotsGrid, File01, Film01, Image01, Flag01, Folder, Grid01, Clock, Maximize01, Minus, Package, Save01, Scan, Menu01, SlashCircle01, Star01 , ReverseLeft, ReverseRight } from '@untitledui/icons'
 import {
   ReactFlow,
   ReactFlowProvider,
   Background,
   BackgroundVariant,
   Handle,
+  MarkerType,
   Position,
   useReactFlow,
   useNodesInitialized,
@@ -22,39 +25,7 @@ import {
   type OnConnectStartParams,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
-import {
-  ArrowLeft,
-  Ban,
-  CheckCircle2,
-  ChevronDown,
-  Copy,
-  Trash2,
-  Undo2,
-  Redo2,
-  LayoutGrid,
-  FileText,
-  Image,
-  Sparkles,
-  Clapperboard,
-  ScanEye,
-  Boxes,
-  PanelLeftClose,
-  PanelLeftOpen,
-  X,
-  History,
-  Maximize2,
-  Minus,
-  ChevronRight,
-  ChevronLeft,
-  Workflow as WorkflowIcon,
-  Download,
-  Eye,
-  Flag,
-  Play,
-  Plus,
-  Save,
-  Search,
-} from 'lucide-react'
+import '@/styles/skill-presets.css'
 import {
   ARTIFACT_KINDS,
   ARTIFACT_KIND_MAP,
@@ -67,7 +38,10 @@ import {
   type WfEdgeInstance,
   type WfNodeDef,
   type WfPortType,
+  type WorkflowLegacyDrafts,
 } from '../data/workflowTemplates'
+import { listAssets } from '../services/assetApiService'
+import type { MyAsset } from '../data/myAssets'
 import { BUILTIN_ASSETS, MEDIA_LABEL } from '../data/myAssets'
 import { FX_TECHNIQUES } from '../data/fxTechniques'
 
@@ -76,6 +50,9 @@ import {
   workflowService,
   startDemoRun,
   startSingleNodeRun,
+  resumeProjectRun,
+  retryFailedProjectRun,
+  deliverProjectRun,
   evaluateGate,
   QUALITY_QUESTIONS,
   type GateEval,
@@ -85,7 +62,16 @@ import {
   type WfNodeStatus,
 } from '../services/workflowService'
 import type { TaskEvent } from '../services/studioApi'
+import { WorkflowProjectPicker } from '../components/WorkflowProjectPicker'
+import { WorkflowDraftsPanel } from '../components/WorkflowDraftsPanel'
+import { hasLegacyDrafts } from '../services/workflowMigration'
+import { formatApplyPresetSummary } from '../services/workflowPresetBinding'
+import { studioHttpApi } from '../services/api'
+import { workflowGraphProblems, workflowArtifactMedia, workflowLayoutPositions, upgradeLegacyStructuredLayout } from '../services/workflowGraph'
 import { statusOf } from '../shell/status'
+import { useNavigationGuard, useUnsavedEditor } from '../shell/navigationGuardContext'
+import { documentsStatus, flushLocalDocuments } from '../services/localDocuments'
+import { runMatchesDefinition, workflowRunLabel } from '../services/workflowPresentation'
 
 type FmNodeData = {
   defType: string
@@ -94,6 +80,8 @@ type FmNodeData = {
   gateEval?: GateEval | null
   laneSummary?: string
   onToggleLane?: () => void
+  renderMode?: 'real' | 'demo'
+  renderFile?: string
 }
 type FmNode = Node<FmNodeData, 'fm' | 'lane'>
 
@@ -136,29 +124,28 @@ function pfSummary(defType: string, p: Record<string, unknown>): string {
       const nr = ((p.refSegmentIds as string[] | undefined) ?? []).length
       return na + nr === 0 ? '未添加参考 · 可直接创作' : `${na} 项素材 · ${nr} 条参考`
     }
-    case 'lookdev':
-    case 'filmplan':
-      return String(p.summary ?? '').trim() ? String(p.summary).trim().slice(0, 46) : '尚无内容'
     case 'capability': {
       const n = ((p.techniqueIds as string[] | undefined) ?? []).length
       return n ? `${n} 项能力候选（只检索）` : '未选择能力'
     }
     case 'create':
-      return `${String(p.mode ?? 'sketch')} · ${String(p.resolution ?? '1080p')} · 未实际渲染`
+      return `${String(p.mode ?? 'sketch')} · ${String(p.resolution ?? '1080p')}`
     case 'review': {
       const checks = (p.checks as Record<string, boolean> | undefined) ?? {}
+      if (checks.done && !checks.rework) return '审片通过'
+      if (checks.rework && !checks.done) return '需要修改 · 待返工'
       const done = QUALITY_QUESTIONS.filter((q) => checks[q]).length
       return `quality-bar 已确认 ${done}/${QUALITY_QUESTIONS.length}`
     }
-    case 'finishing':
-      return String(p.notes ?? '').trim() ? `${String(p.notes).length} 字记录` : '尚无记录'
+    case 'delivery':
+      return String(p.notes ?? '').trim() ? String(p.notes).trim().slice(0, 42) : '等待审片通过后输出'
     default:
       return ''
   }
 }
 
 function Ports({ node }: { node: { type: string; params: Record<string, unknown> } }) {
-  const def = defForNode(node)
+  const def = defForNode(node, { includeLegacy: true })
   if (!def) return null
   return (
     <div className="wfn-ports">
@@ -184,29 +171,27 @@ function Ports({ node }: { node: { type: string; params: Record<string, unknown>
 }
 
 function NodeMark({ type }: { type: string }) {
-  const Icon = type === 'prompt' || type === 'artifact' ? FileText : type === 'refs' ? Image : type === 'create' ? Clapperboard : type === 'review' ? ScanEye : type === 'capability' ? Boxes : type === 'gate' ? Flag : Sparkles
-  return <span className="wfn-mark" data-kind={type}><Icon size={15} strokeWidth={1.8} /></span>
+  const Icon = type === 'prompt' || type === 'artifact' ? File01 : type === 'refs' ? Image01 : type === 'create' ? Film01 : type === 'review' ? Scan : type === 'capability' ? Package : type === 'delivery' ? CheckCircle : type === 'gate' ? Flag01 : Star01
+  return <span className="wfn-mark" data-kind={type}><Icon size={16} /></span>
 }
 
 const NODE_COPY: Record<string, { title: string; description: string }> = {
   prompt: { title: '创作需求', description: '写下目标、要求与必须保留的细节' },
   refs: { title: '素材与参考', description: '添加素材，确定参考的使用边界' },
-  lookdev: { title: '视觉构想', description: '确定画面主体、风格与核心变化' },
-  filmplan: { title: '导演处理', description: '安排叙事、镜头与视听节奏' },
   capability: { title: '创作能力', description: '选取适合当前画面的技法与组件' },
   create: { title: '制作与渲染', description: '配置制作方式与输出规格' },
-  review: { title: '审片与修改', description: '查看结果，记录问题与修改要求' },
-  finishing: { title: '完成度打磨', description: '调整节奏、音画和交付细节' },
+  review: { title: '审片与修改', description: '查看结果，选择通过或记录修改要求' },
+  delivery: { title: '交付', description: '确定性交付：审片通过且通过最新渲染时输出成片' },
 }
 
 function NodeState({ status }: { status: FmNodeData['status'] }) {
   const state = statusOf(status === 'completed' ? 'done' : status === 'running' ? 'running' : status === 'failed' ? 'failed' : 'idle')
-  return <span className="wfn-state"><i className="fm-dot" data-s={state.s}/>{status === 'idle' ? '未运行' : status === 'completed' ? '已完成' : status === 'skipped' ? '已跳过' : state.label}</span>
+  return <span className="wfn-state"><i className="fm-dot" data-s={state.s}/>{status === 'idle' ? '未运行' : status === 'pending' ? '待运行' : status === 'awaiting_info' ? '未生成新版本' : status === 'completed' ? '已完成' : status === 'skipped' ? '已跳过' : state.label}</span>
 }
 
-function FmNodeView({ data, selected }: { data: FmNodeData; selected?: boolean }) {
+const FmNodeView = memo(function FmNodeView({ data, selected }: { data: FmNodeData; selected?: boolean }) {
   const pseudoNode = { type: data.defType, params: data.params }
-  const def = defForNode(pseudoNode)
+  const def = defForNode(pseudoNode, { includeLegacy: true })
   if (!def) return null
   const p = data.params
   const kind = data.defType === 'artifact' ? ARTIFACT_KIND_MAP[String(p.kind ?? '')] : undefined
@@ -216,15 +201,32 @@ function FmNodeView({ data, selected }: { data: FmNodeData; selected?: boolean }
   const decision = ev?.stale ? 'confirmed-stale' : (ev?.decision ?? 'not-started')
   const assets = data.defType === 'refs' ? ((p.assetIds as string[] | undefined) ?? []).map((id) => BUILTIN_ASSETS.find((a) => a.id === id)).filter((a) => a?.thumbnailPath).slice(0, 3) : []
   const checks = (p.checks as Record<string, boolean> | undefined) ?? {}
-  const reviewDone = QUALITY_QUESTIONS.filter((q) => checks[q]).length
+  const customChecklist = Array.isArray(p.customChecklist) ? p.customChecklist.map(String).filter(Boolean) : []
+  const allReviewQuestions = Array.from(new Set([...customChecklist, ...QUALITY_QUESTIONS]))
+  const reviewDone = allReviewQuestions.filter((q) => checks[q]).length
+  const reviewApproved = !!checks.done && !checks.rework
+  const reviewRework = !!checks.rework && !checks.done
+  const requiredInputs = data.defType === 'refs' && Array.isArray(p.requiredInputs)
+    ? (p.requiredInputs as Array<{ label?: unknown; required?: unknown } | string>)
+        .map((x) => (typeof x === 'string' ? x : String(x?.label ?? '')))
+        .filter(Boolean)
+    : []
   return (
     <div className={`wfn wfn-${data.defType}${data.defType === 'artifact' ? ' is-doc' : ''}${data.defType === 'gate' ? ' is-gate' : ''}`} data-selected={selected || undefined} data-status={data.status} data-d={decision}>
-      <div className="wfn-head"><NodeMark type={data.defType}/><div className="wfn-heading"><small>{data.defType === 'gate' ? '人工确认' : kind ? '阶段产物' : def.group}</small><b>{title}</b></div><NodeState status={data.status}/></div>
+      <div className="wfn-head"><NodeMark type={data.defType}/><div className="wfn-heading"><b>{title}</b></div><NodeState status={data.status}/></div>
       <div className="wfn-content">
         {data.defType === 'prompt' ? <><p className="wfn-prompt-text">{String(p.text ?? '').trim() || '还没有创作需求'}</p><div className="wfn-specs">{[p.ratio, p.duration, p.audience].filter(Boolean).map((item, i) => <span key={i}>{String(item)}</span>)}</div></> :
-        data.defType === 'refs' ? <><div className="wfn-media-strip">{assets.length ? assets.map((asset) => <img key={asset!.id} src={asset!.thumbnailPath} alt={asset!.name}/>) : <span className="wfn-no-media"><Image size={22}/><span>尚未选择素材</span></span>}</div><p className="wfn-caption">{pfSummary(data.defType, p)}</p></> :
-        data.defType === 'create' ? <><div className="wfn-render-slot"><Clapperboard size={25} strokeWidth={1.3}/><span>渲染服务待接入</span><small>演示仅生成请求记录</small></div><div className="wfn-specs"><span>{String(p.resolution ?? '1080p')}</span><span>{p.mode === 'sketch' ? '草稿制作' : p.mode === 'prototype' ? '原型制作' : '正式制作'}</span></div></> :
-        data.defType === 'review' ? <><div className="wfn-review-count"><ScanEye size={24} strokeWidth={1.3}/><span><b>{reviewDone} / {QUALITY_QUESTIONS.length}</b><small>审片检查已确认</small></span></div><p className="wfn-caption">{String(p.issues ?? '').trim() || '等待预览与修改意见'}</p></> :
+        data.defType === 'refs' ? <><div className="wfn-media-strip">{assets.length ? assets.map((asset) => <img key={asset!.id} src={asset!.thumbnailPath} alt={asset!.name}/>) : <span className="wfn-no-media"><UiIcon icon={SemIcons.image} size="lg" /><span>{requiredInputs.length ? `需：${requiredInputs[0]}` : '尚未选择素材'}</span></span>}</div><p className="wfn-caption">{pfSummary(data.defType, p)}</p></> :
+        data.defType === 'create' ? <>{data.renderFile ? <video className="wfn-output-video nodrag nowheel" src={data.renderFile} controls preload="metadata" aria-label="该节点最近一次真实渲染产物"/> : <div className="wfn-render-slot"><UiIcon icon={SemIcons.film} size="xl" /><span>{data.status === 'running' ? '正在制作与渲染' : data.renderMode === 'real' ? '可制作与渲染' : '流程演示'}</span></div>}<div className="wfn-specs"><span>{String(p.resolution ?? '1080p')}</span><span>{p.mode === 'sketch' ? '草稿制作' : p.mode === 'prototype' ? '原型制作' : '正式制作'}</span></div></> :
+        data.defType === 'review' ? <>
+          <div className="wfn-review-count"><UiIcon icon={Scan} size="xl" /><span><b>{reviewDone} / {allReviewQuestions.length}</b><small>{reviewApproved ? '审片通过' : reviewRework ? '需要修改 · 待返工' : '审片检查已确认'}</small></span></div>
+          <div className="wfn-specs"><span data-review={reviewApproved ? 'ok' : reviewRework ? 'rework' : 'pending'}>{reviewApproved ? '审片通过' : reviewRework ? '需要修改' : '待审片'}</span>{p.reviewedVersion != null && <span>针对 v{String(p.reviewedVersion)}</span>}</div>
+          <p className="wfn-caption">{String(p.issues ?? '').trim() || '等待预览与修改意见'}</p>
+        </> :
+        data.defType === 'delivery' ? <>
+          <p className="wfn-document-text">{data.status === 'completed' ? '审片已通过最新渲染，已输出本次成片' : data.status === 'awaiting_info' ? '等待审片通过最新渲染' : '确定性交付：需审片通过最新渲染'}</p>
+          <div className="wfn-specs"><span>{data.status === 'completed' ? '可交付成片' : '等待审片通过'}</span></div>
+        </> :
         data.defType === 'artifact' ? <><p className="wfn-document-text">{String(p.summary ?? '').trim() || '尚未添加阶段产物'}</p><div className="wfn-specs"><span>{ARTIFACT_STATUS_LABEL[String(p.status ?? 'missing')] ?? String(p.status)}</span>{!!p.version && <span>{String(p.version)}</span>}</div></> :
         data.defType === 'gate' ? <><p className="wfn-document-text">{def.description}</p><span className="wfn-gate-chip" data-d={decision}>{decision === 'confirmed' ? '已确认' : decision === 'confirmed-stale' ? '版本已变更' : decision === 'pending' ? '待确认' : '未开始'}</span>{!!ev?.blocked.length && <p className="wfn-blocked">{ev.blocked[0]}</p>}</> :
         <p className="wfn-document-text">{String(p.summary ?? p.notes ?? '').trim() || copy?.description || def.description}</p>}
@@ -232,14 +234,14 @@ function FmNodeView({ data, selected }: { data: FmNodeData; selected?: boolean }
       <Ports node={pseudoNode}/>
     </div>
   )
-}
+})
 
 function LaneView({ data }: { data: FmNodeData }) {
   const collapsed = !!data.params.collapsed
   return (
     <div className="wflane" data-collapsed={collapsed || undefined}>
       <div className="wflane-head">
-        <b><span className="wflane-no">阶段 {String(data.params.stage)}</span> {String(data.params.label ?? '')}</b>
+        <b><span className="wflane-no">阶段 {Number(data.params.stage) + 1}</span> {String(data.params.label ?? '')}</b>
         <span className="wflane-q">{String(data.params.question ?? '')}</span>
         {data.laneSummary && <span className="wflane-sum">{data.laneSummary}</span>}
         <button
@@ -288,7 +290,7 @@ function ConnectMenuView(props: {
           <span className="wfe-connectmenu-type">{props.portType}</span>
         </div>
         <label className="wfe-connectmenu-search">
-          <Search size={12} />
+          <UiIcon icon={SemIcons.search} size="xs" />
           <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="搜索节点" aria-label="搜索节点" />
         </label>
         <div className="wfe-connectmenu-list">
@@ -332,6 +334,7 @@ function toRfEdge(e: WfEdgeInstance, nodes: Array<{ id: string; type: string; pa
 }
 
 function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBack: () => void; autoRun?: boolean }) {
+  const navigation = useNavigationGuard()
   const initial = useMemo(() => workflowService.getWorkflow(workflowId), [workflowId])
   const [workflow, setWorkflow] = useState<WorkflowDef | null>(initial)
   const [name, setName] = useState(initial?.name ?? '')
@@ -340,6 +343,7 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
     (initial?.edges ?? []).map((e) => toRfEdge(e, initial?.nodes ?? [])),
   )
   const [dirty, setDirty] = useState(false)
+  const [runNotice, setRunNotice] = useState('')
   const [leftTab, setLeftTab] = useState<'outline' | 'stages' | 'nodes' | 'pending'>(initial?.path === 'structured' ? 'stages' : 'outline')
   const [panelOpen, setPanelOpen] = useState(() => window.innerWidth >= 760)
   const [activeStage, setActiveStage] = useState<number | null>(initial?.path === 'structured' ? 0 : null)
@@ -352,18 +356,23 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
   const [running, setRunning] = useState(false)
   const [liveEvents, setLiveEvents] = useState<TaskEvent[]>([])
   const [lastRun, setLastRun] = useState<WorkflowRun | null>(() => workflowService.listRuns(workflowId)[0] ?? null)
+  const [activeRunLabel, setActiveRunLabel] = useState('')
   const [viewing, setViewing] = useState<WfArtifact | null>(null)
   const [compact, setCompact] = useState(false)
+  const [draftsOpen, setDraftsOpen] = useState(false)
+  const [legacyDrafts, setLegacyDrafts] = useState<WorkflowLegacyDrafts | undefined>(() => initial?.legacyDrafts)
+  const [integrityWarn, setIntegrityWarn] = useState<string | null>(null)
   const [, setPendingTick] = useState(0)
   const runHandle = useRef<{ cancel: () => void } | null>(null)
   const flow = useReactFlow()
   const nodesInitialized = useNodesInitialized()
   const initialFramed = useRef(false)
   const wrapRef = useRef<HTMLDivElement>(null)
+  const focusRequest = useRef<string | null>(null)
 
   function mapNodes(wf: WorkflowDef | null): FmNode[] {
     if (!wf) return []
-    return wf.nodes.map((n) => ({
+    return (wf.path === 'structured' ? upgradeLegacyStructuredLayout(wf.nodes) : wf.nodes).map((n) => ({
       id: n.id,
       type: n.type === 'lane' ? 'lane' : 'fm',
       position: n.position,
@@ -379,15 +388,26 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
   const selectionId = selectedNode?.id
   useEffect(() => {
     setInspectorTab('params')
-    if (!selectionId || (wrapRef.current?.clientWidth ?? 0) < 650) return
+    if (selectionId && window.innerWidth < 1100) setPanelOpen(false)
+  }, [selectionId])
+  useEffect(() => {
+    if (window.innerWidth < 1100 && panelOpen) return
+    if (!selectionId || focusRequest.current !== selectionId) return
     const frame = requestAnimationFrame(() => {
       const node = flow.getInternalNode(selectionId)
       if (!node) return
-      const zoom = Math.min(1, Math.max(0.85, flow.getZoom()))
-      void flow.setCenter(node.internals.positionAbsolute.x + (node.measured.width ?? 300) / 2 + 190 / zoom, node.internals.positionAbsolute.y + (node.measured.height ?? 200) / 2, { zoom, duration: 180 })
+      focusRequest.current = null
+      const zoom = Math.min(1, Math.max(.8, flow.getZoom()))
+      const rect = wrapRef.current?.getBoundingClientRect()
+      if (!rect) return
+      const available = rect.width - (window.innerWidth <= 1180 ? 340 : 0)
+      const centerX = node.internals.positionAbsolute.x + (node.measured.width ?? 292) / 2
+      const centerY = node.internals.positionAbsolute.y + (node.measured.height ?? 220) / 2
+      void flow.setViewport({ x: Math.max(160, available / 2) - centerX * zoom, y: rect.height / 2 - centerY * zoom, zoom }, { duration: 180 })
     })
     return () => cancelAnimationFrame(frame)
-  }, [selectionId, flow])
+  }, [selectionId, panelOpen, flow])
+
 
   const fxIntents = readJson<FxIntent[]>(FX_OUTBOX_KEY, [])
   const refIds = readJson<string[]>(REF_OUTBOX_KEY, [])
@@ -398,6 +418,7 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
     return {
       ...workflow,
       name,
+      legacyDrafts,
       nodes: nodes.map((n) => ({
         id: n.id,
         type: n.data.defType,
@@ -416,7 +437,7 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
         targetPort: e.targetHandle ?? '',
       })),
     }
-  }, [workflow, name, nodes, edges])
+  }, [workflow, name, nodes, edges, legacyDrafts])
 
   const undoStack = useRef<WorkflowDef[]>([])
   const redoStack = useRef<WorkflowDef[]>([])
@@ -436,6 +457,7 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
     setDirty(true)
   }, [snapshot])
   const restoreSnapshot = useCallback((value: WorkflowDef) => {
+    setWorkflow((prev) => prev ? { ...prev, projectId: value.projectId } : prev)
     setName(value.name)
     setNodes(mapNodes(value))
     setEdges(value.edges.map((edge) => toRfEdge(edge, value.nodes)))
@@ -536,7 +558,7 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
             return {
               ...n,
               data: { ...n.data, params: { ...n.data.params, collapsed } },
-              style: { ...n.style, height: collapsed ? 44 : 148 },
+              style: { ...n.style, height: collapsed ? 44 : 300 },
             }
           }
           if (n.parentId === laneId) return { ...n, hidden: collapsed }
@@ -551,13 +573,18 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
   useEffect(() => {
     if (!nodesInitialized || initialFramed.current) return
     initialFramed.current = true
-    void flow.fitView({ nodes: flow.getNodes().filter((n) => n.type !== 'lane').map((n) => ({ id: n.id })), padding: 0.16, minZoom: 0.55, maxZoom: 1 })
-  }, [nodesInitialized, flow])
+    const shown = flow.getNodes().filter((n) => n.type !== 'lane' && (!initial || initial.path !== 'structured' || n.parentId === 'lane-0'))
+    void flow.fitView({ nodes: shown.map((n) => ({ id: n.id })), padding: 0.22, minZoom: 0.2, maxZoom: 1 })
+  }, [nodesInitialized, flow, initial])
 
   useEffect(() => {
     if (!nodesInitialized || !wrapRef.current) return
     let frame = 0
+    let viewport = `${window.innerWidth}:${window.innerHeight}`
     const observer = new ResizeObserver(() => {
+      const next = `${window.innerWidth}:${window.innerHeight}`
+      if (next === viewport) return
+      viewport = next
       cancelAnimationFrame(frame)
       frame = requestAnimationFrame(() => {
         void flow.fitView({ nodes: flow.getNodes().filter((n) => n.type !== 'lane').map((n) => ({ id: n.id })), padding: 0.16, minZoom: 0.2, maxZoom: 1 })
@@ -637,20 +664,29 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
       const center = rect
         ? flow.screenToFlowPosition({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 })
         : { x: 240, y: 200 }
-      const jitter = (nodes.length % 5) * 26
+      const jitter = (nodes.length % 5) * 16
+      const placement = { x: center.x - 146 + jitter, y: center.y - 70 + jitter }
+      if (!at) {
+        const roots = nodes.filter((n) => !n.parentId && n.type !== 'lane')
+        for (let attempt = 0; attempt <= roots.length; attempt++) {
+          if (!roots.some((n) => placement.x < n.position.x + (n.measured?.width ?? 292) + 30 && placement.x + 322 > n.position.x && placement.y < n.position.y + (n.measured?.height ?? 260) + 30 && placement.y + 290 > n.position.y)) break
+          placement.x += 370
+        }
+      }
       const node: FmNode = {
         id,
         type: 'fm',
-        position: at ?? { x: center.x - 110 + jitter, y: center.y - 40 + jitter },
+        position: at ?? placement,
         data: { defType, params, status: 'idle' },
         selected: true,
       } as FmNode
+      if (!at) focusRequest.current = id
       setNodes((prev) => [...prev.map((n) => ({ ...n, selected: false })), node])
       if (workflow?.path === 'structured') setActiveStage(null)
       markDirty()
       return id
     },
-    [flow, nodes.length, markDirty, workflow?.path],
+    [flow, nodes, markDirty, workflow?.path],
   )
 
   /* ── 释放连线推荐菜单（P0-4）：拖线到空白处松手 → 按端口类型推荐下一节点 ── */
@@ -784,19 +820,96 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
   )
 
   const doSave = useCallback(() => {
+    if(documentsStatus().error){setRunNotice('本机记录尚有保存冲突，请先导出副本并重新核对。');return false}
     const snap = snapshot()
-    if (!snap) return
-    const saved = workflowService.saveWorkflow(snap.id, { name: snap.name, nodes: snap.nodes, edges: snap.edges })
-    if (saved) {
+    if (!snap) return false
+    try {
+      const saved = workflowService.saveWorkflow(snap.id, {
+        name: snap.name,
+        projectId: snap.projectId,
+        nodes: snap.nodes,
+        edges: snap.edges,
+        legacyDrafts: legacyDrafts ?? null,
+      })
+      if (!saved) { setRunNotice('工作流已不存在，无法保存。请返回工作流首页核对。'); return false }
       setWorkflow(saved)
+      setLegacyDrafts(saved.legacyDrafts)
       setDirty(false)
+      setRunNotice('')
+      return true
+    } catch (error) { setRunNotice(error instanceof Error ? error.message : '保存失败，请重试。'); return false }
+  }, [snapshot, legacyDrafts])
+
+  useEffect(() => {
+    const pid = workflow?.projectId
+    if (!pid) { setIntegrityWarn(null); return }
+    let alive = true
+    void studioHttpApi().workflowContext.state(pid)
+      .then((st) => {
+        if (!alive) return
+        if (st.originalIntegrity === 'suspect') {
+          setIntegrityWarn(st.originalIntegrityReasons?.length ? st.originalIntegrityReasons.join('；') : '检测到 prompt.original.md 疑似存在重复段落或模板标题混入（只报告不自动修改）。')
+        } else {
+          setIntegrityWarn(null)
+        }
+      })
+      .catch(() => { if (alive) setIntegrityWarn(null) })
+    return () => { alive = false }
+  }, [workflow?.projectId])
+
+  const clearLegacyDraftKey = useCallback((key: keyof WorkflowLegacyDrafts) => {
+    setLegacyDrafts((prev) => {
+      if (!prev) return undefined
+      const next: WorkflowLegacyDrafts = { ...prev }
+      delete next[key]
+      const normalized = next.lookdev?.trim() || next.filmplan?.trim() ? next : undefined
+      if (!dirty && workflow) {
+        const snap = snapshot()
+        if (snap) {
+          try {
+            const saved = workflowService.saveWorkflow(snap.id, {
+              name: snap.name,
+              projectId: snap.projectId,
+              nodes: snap.nodes,
+              edges: snap.edges,
+              legacyDrafts: normalized ?? null,
+            })
+            if (saved) setWorkflow(saved)
+          } catch { /* ignore */ }
+        }
+      } else {
+        markDirty()
+      }
+      return normalized
+    })
+  }, [dirty, workflow, snapshot, markDirty])
+
+  useUnsavedEditor({ name, dirty, canSave: !running, save:async()=>{if(!doSave())return false;try{await flushLocalDocuments();return true}catch(error){setDirty(true);throw error}} })
+
+  useEffect(() => {
+    const key = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
+        event.preventDefault()
+        if (dirty && !running) doSave()
+      }
     }
-  }, [snapshot])
+    window.addEventListener('keydown', key)
+    return () => window.removeEventListener('keydown', key)
+  }, [doSave, dirty, running])
 
   const doRun = useCallback(() => {
     const snap = snapshot()
     if (!snap || running) return
+    if (dirty) { setRunNotice('请先保存工作流，再运行当前版本。'); return }
+    const problems = workflowGraphProblems(snap.nodes, snap.edges, { validateInputs: snap.path !== 'structured' })
+    if (problems.length) {
+      setRunNotice(problems[0].message)
+      if (problems[0].nodeId) setNodes((prev) => prev.map((n) => ({ ...n, selected: n.id === problems[0].nodeId })))
+      return
+    }
+    setRunNotice('')
     setRunning(true)
+    setActiveRunLabel(`${snap.path === 'structured' ? '状态评估' : snap.projectId ? '项目运行' : '演示运行'} · 工作流 v${snap.revision}`)
     setLiveEvents([])
     setViewing(null)
     setDrawerOpen(true)
@@ -820,7 +933,7 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
       runHandle.current = null
       if (run.status === 'completed') setDrawerTab('artifacts')
     })
-  }, [snapshot, running])
+  }, [snapshot, running, dirty])
 
   /* 创作启动层快速路径：带 autoRun 进来时，工作流载入后自动跑一次（仅一次） */
   const autoRanRef = useRef(false)
@@ -835,11 +948,15 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
     (nodeId: string) => {
       const snap = snapshot()
       if (!snap || running) return
+      if (dirty) { setRunNotice('请先保存工作流，再运行当前版本。'); return }
+      setRunNotice('')
       setRunning(true)
+      setActiveRunLabel(`${snap.path === 'structured' ? '状态评估' : '单节点演示'} · 工作流 v${snap.revision}`)
       setLiveEvents([])
       setDrawerOpen(true)
       setDrawerTab('events')
       setViewing(null)
+      setNodes((prev) => prev.map((n) => ({ ...n, data: { ...n.data, status: 'idle' as const } })))
       const handle = startSingleNodeRun(snap, nodeId, {
         onEvent: (e) => setLiveEvents((prev) => [...prev, e]),
         onNodeStatus: (id, status) =>
@@ -852,7 +969,7 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
         runHandle.current = null
       })
     },
-    [snapshot, running],
+    [snapshot, running, dirty],
   )
 
   /* 待处理资源 */
@@ -898,25 +1015,126 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
     setPendingTick((t) => t + 1)
   }
 
-  const downloadArtifact = (a: WfArtifact) => {
-    const blob = new Blob([a.content], { type: 'application/json;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = a.filename
-    link.click()
-    URL.revokeObjectURL(url)
+  const [downloading, setDownloading] = useState(false)
+  const downloadArtifact = async (a: WfArtifact) => {
+    if (downloading) return
+    setDownloading(true)
+    try {
+      const media = workflowArtifactMedia(a)
+      if (!a.demo && !media) throw new Error('产物没有可读取的文件地址。')
+      let blob: Blob
+      if (media) {
+        const response = await fetch(media)
+        if (!response.ok) throw new Error(`文件读取失败（HTTP ${response.status}）`)
+        blob = await response.blob()
+        if (!blob.size || !blob.type.startsWith('video/')) throw new Error('文件为空或不是有效视频。')
+      } else blob = new Blob([a.content], { type: 'application/json;charset=utf-8' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = a.demo ? (a.filename.endsWith('.json') ? a.filename : `${a.filename}.json`) : a.filename
+      link.click()
+      window.setTimeout(() => URL.revokeObjectURL(url), 30000)
+      setRunNotice(media ? '已获取产物，已发起下载。' : '已发起记录下载。')
+    } catch (error) { setRunNotice(error instanceof Error ? error.message : '下载失败，请重试。') }
+    finally { setDownloading(false) }
   }
 
   const goReview = () => {
-    window.postMessage({ type: 'fm-nav', id: 'production', projectId: workflow?.projectId ?? 'token' }, '*')
+    if (workflow?.projectId) window.postMessage({ type: 'fm-nav', id: 'production', projectId: workflow.projectId }, '*')
   }
+  const resumeSavedRun = (retry=false) => {
+    if(!lastRun || running || dirty)return
+    setRunning(true);setActiveRunLabel(`继续项目运行 · 工作流 v${lastRun.revision}`);setLiveEvents([]);setDrawerOpen(true)
+    const handle=(retry?retryFailedProjectRun:resumeProjectRun)(lastRun,{onEvent:e=>setLiveEvents(prev=>[...prev,e]),onNodeStatus:(id,status)=>setNodes(prev=>prev.map(n=>n.id===id?{...n,data:{...n.data,status}}:n))})
+    runHandle.current=handle
+    void handle.done.then(run=>{setLastRun(run);setRunning(false);runHandle.current=null;setDrawerTab('artifacts')})
+  }
+
+  /* 审片通过后从这里交付：读当前保存的审片结论，不重新渲染。 */
+  const deliverSavedRun = () => {
+    if(!lastRun || running || dirty)return
+    let handle:ReturnType<typeof deliverProjectRun>
+    try{
+      handle=deliverProjectRun(lastRun,workflowService.getWorkflow(lastRun.workflowId),{onEvent:e=>setLiveEvents(prev=>[...prev,e]),onNodeStatus:(id,status)=>setNodes(prev=>prev.map(n=>n.id===id?{...n,data:{...n.data,status}}:n))})
+    }catch(error){setRunNotice(error instanceof Error?error.message:'无法继续交付');return}
+    setRunNotice('');setRunning(true);setActiveRunLabel(`按最新审片继续交付 · 工作流 v${lastRun.revision}`);setLiveEvents([]);setDrawerOpen(true)
+    runHandle.current=handle
+    void handle.done.then(run=>{setLastRun(run);setRunning(false);runHandle.current=null;setDrawerTab('events')})
+  }
+  const awaitingDelivery = lastRun?.status === 'awaiting_info' && Object.values(lastRun.nodeIO ?? {}).some((io) => io.outputs?.status === 'awaiting_review')
+
+  const runMatches = runMatchesDefinition(lastRun, workflow, dirty)
+
+  const latestRenderInfo = useMemo(() => {
+    if (!lastRun || !runMatches) return null
+    const renderArt = lastRun.artifacts.find((a) => a.kind === 'render' && !a.demo)
+    if (renderArt) {
+      try {
+        const parsed = JSON.parse(renderArt.content) as { version?: number; artifactPath?: string; runId?: string }
+        return {
+          version: parsed.version ?? null,
+          artifactPath: parsed.artifactPath ?? null,
+          runId: parsed.runId ?? lastRun.id,
+        }
+      } catch {
+        return { version: null, artifactPath: null, runId: lastRun.id }
+      }
+    }
+    const createNode = nodes.find((n) => n.data.defType === 'create')
+    if (createNode && lastRun.nodeStatus[createNode.id] === 'completed') {
+      return { version: null, artifactPath: null, runId: lastRun.id }
+    }
+    return null
+  }, [lastRun, runMatches, nodes])
+
+  const { displayedNodes, visibleEdges } = useMemo(() => {
+    const structured = workflow?.path === 'structured'
+    const lane = activeStage === null ? undefined : nodes.find((n) => n.type === 'lane' && Number(n.data.params.stage) === activeStage)
+    const gate = activeStage === null ? undefined : Object.entries(GATE_DEFS).find(([, value]) => value.afterStage === activeStage)?.[0]
+    const shown = structured && activeStage !== null ? nodes.filter((n) => n.id === lane?.id || n.parentId === lane?.id || (n.data.defType === 'gate' && n.data.params.gate === gate)) : nodes
+    const ids = new Set(shown.filter((n) => !n.hidden).map((n) => n.id))
+    const baseEdges = edges.filter((e) => ids.has(e.source) && ids.has(e.target))
+    const reviewNode = !structured ? shown.find((n) => n.data.defType === 'review' && ids.has(n.id)) : undefined
+    const createNode = !structured ? shown.find((n) => n.data.defType === 'create' && ids.has(n.id)) : undefined
+    if (reviewNode && createNode) {
+      const checks = (reviewNode.data.params.checks as Record<string, unknown> | undefined) ?? {}
+      const reworkActive = checks.rework === true && checks.done !== true
+      // 循环不存进 edges（图保持无环）：画布仅绘出虚线「返工」提示箭头
+      baseEdges.push({
+        id: '__rework-hint__',
+        source: reviewNode.id,
+        target: createNode.id,
+        type: 'smoothstep',
+        selectable: false,
+        deletable: false,
+        focusable: false,
+        label: reworkActive ? '返工（下次运行重跑）' : '返工',
+        style: {
+          strokeDasharray: '6 4',
+          stroke: reworkActive ? 'var(--warn)' : 'var(--dim)',
+          strokeWidth: reworkActive ? 2 : 1.3,
+          opacity: reworkActive ? 0.95 : 0.45,
+        },
+        labelStyle: { fill: reworkActive ? 'var(--warn)' : 'var(--dim)', fontSize: 10 },
+        labelBgStyle: { fill: 'var(--surf)', fillOpacity: 0.9 },
+        markerEnd: { type: MarkerType.ArrowClosed, color: reworkActive ? 'var(--warn)' : 'var(--dim)' },
+      })
+    }
+    return { displayedNodes: shown.map((n) => {
+      const status = running ? n.data.status : runMatches ? lastRun?.nodeStatus[n.id] ?? 'idle' : 'idle'
+      const data = n.data.status === status ? n.data : { ...n.data, status: status as FmNodeData['status'] }
+      if (n.data.defType !== 'create') return data === n.data ? n : { ...n, data }
+      const renderFile = !running && runMatches ? workflowArtifactMedia(lastRun?.artifacts.find((a) => a.nodeId === n.id && !a.demo)) ?? undefined : undefined
+      return { ...n, data: { ...data, renderMode: workflow?.projectId ? 'real' as const : 'demo' as const, renderFile } }
+    }), visibleEdges: baseEdges }
+  }, [nodes, edges, activeStage, workflow?.path, workflow?.projectId, lastRun, runMatches, running])
 
   if (!workflow) {
     return (
       <section className="wfe">
         <div className="wfe-cmd">
-          <button type="button" className="wfe-iconbtn" onClick={onBack} aria-label="返回工作流首页"><ArrowLeft size={16} /></button>
+          <button type="button" className="wfe-iconbtn" onClick={onBack} aria-label="返回工作流首页"><UiIcon icon={SemIcons.back} size="md" /></button>
           <b>工作流不存在或已被删除</b>
         </div>
       </section>
@@ -925,14 +1143,8 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
 
   const isStructured = workflow.path === 'structured'
   const eventsToShow = running || liveEvents.length > 0 ? liveEvents : (lastRun?.events ?? [])
-  const artifactsToShow = lastRun?.artifacts ?? []
-  const stageLane = activeStage === null ? undefined : nodes.find((n) => n.type === 'lane' && Number(n.data.params.stage) === activeStage)
-  const stageGateKey = activeStage === null ? undefined : Object.entries(GATE_DEFS).find(([, gate]) => gate.afterStage === activeStage)?.[0]
-  const displayedNodes = isStructured && activeStage !== null
-    ? nodes.filter((n) => n.id === stageLane?.id || n.parentId === stageLane?.id || (n.data.defType === 'gate' && n.data.params.gate === stageGateKey))
-    : nodes
-  const displayIds = new Set(displayedNodes.map((n) => n.id))
-  const visibleEdges = edges.filter((e) => displayIds.has(e.source) && displayIds.has(e.target) && !nodes.find((n) => n.id === e.source)?.hidden && !nodes.find((n) => n.id === e.target)?.hidden)
+  const artifactsToShow = running ? [] : lastRun?.artifacts ?? []
+  const selectedRunCaption = running ? activeRunLabel : lastRun ? `${workflowRunLabel(lastRun)} · 工作流 v${lastRun.revision} · ${RUN_STATUS_TXT[lastRun.status] ?? lastRun.status}` : ''
   const focusStage = (index: number | null) => {
     setActiveStage(index)
     setNodes((prev) => prev.map((n) => ({ ...n, selected: false })))
@@ -945,31 +1157,69 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
   return (
     <section className="wfe" aria-label="工作流编辑器" data-structured={workflow.path === 'structured' || undefined} data-stage-focused={isStructured && activeStage !== null || undefined} data-panel-open={panelOpen || undefined} data-inspecting={!!(selectedNode || selectedEdge) || undefined}>
       <div className="wfe-cmd">
-        <button type="button" className="wfe-iconbtn" onClick={() => { if (!dirty || window.confirm('有未保存的更改，确定返回吗？')) onBack() }} aria-label="返回工作流首页">
-          <ArrowLeft size={16} strokeWidth={2.2} />
+        <button type="button" className="wfe-iconbtn" onClick={() => navigation.request(onBack)} aria-label="返回工作流首页">
+          <UiIcon icon={SemIcons.back} size="md" />
         </button>
-        <div className="wfe-titleblock"><span>{isStructured ? '结构化制作' : '自由创作'}</span><input className="wfe-name" value={name} onChange={(e) => { setName(e.target.value); markDirty() }} aria-label="工作流名称" /></div>
-        
+        <div className="wfe-titleblock"><input className="wfe-name" value={name} onChange={(e) => { setName(e.target.value); markDirty() }} aria-label="工作流名称" maxLength={120} /></div>
+
         <span className="wfe-revision">v{workflow.revision}</span>
-        <span className="wfe-savestate"><CheckCircle2 size={12}/>{dirty ? '未保存' : '已保存'}</span>
-        <span className="wfe-demo">{!isStructured && workflow.projectId ? '创作与渲染已连接' : '演示模式'}</span>
-        <span className="wfe-spacer" /><button type="button" className="wfe-btn wfe-history-toggle" onClick={() => { setDrawerOpen(true); setDrawerTab('history') }}><History size={14}/> 运行记录</button>
-        {running && (isStructured || !workflow.projectId) && (
+        <span className="wfe-savestate">{dirty ? <UiIcon icon={Circle} size="xs" /> : <UiIcon icon={CheckCircle} size="xs" />}{dirty ? '未保存' : documentsStatus().error ? '本机保存失败' : documentsStatus().pending ? '正在保存到本机…' : '已保存'}</span>
+
+        <span className="wfe-spacer" />
+        <WorkflowProjectPicker
+          projectId={workflow.projectId}
+          disabled={running}
+          onChange={(projectId) => {
+            markDirty()
+            setWorkflow((prev) => prev ? { ...prev, projectId } : prev)
+            if (projectId && workflow.skillPresetId) {
+              const presetLabel = workflow.skillPresetMeta?.name || workflow.presetId
+              void studioHttpApi().skillPresets.applyPresetToProject(projectId, workflow.skillPresetId)
+                .then((res) => setRunNotice(formatApplyPresetSummary(presetLabel, res)))
+                .catch((err) => setRunNotice(`视频类型预设未能落地到项目：${err instanceof Error ? err.message : String(err)}`))
+            }
+          }}
+        />
+        <button type="button" className="wfe-btn wfe-history-toggle" onClick={() => { setDrawerOpen(true); setDrawerTab('history') }}><UiIcon icon={Clock} size="sm" /> 运行记录</button>
+        {!running && lastRun?.definition && lastRun.projectId && lastRun.status === 'running' && <button type="button" className="wfe-btn" disabled={dirty} onClick={()=>resumeSavedRun()}>接回上次运行</button>}
+        {!running && lastRun?.definition && lastRun.projectId && lastRun.status === 'failed' && <button type="button" className="wfe-btn" disabled={dirty} onClick={()=>resumeSavedRun(true)}>重试失败节点</button>}
+        {!running && lastRun?.definition && lastRun.projectId && awaitingDelivery && <button type="button" className="wfe-btn" disabled={dirty} title={dirty ? '请先保存工作流' : '读取最新审片结论，审片通过最新渲染时输出成片；不重新渲染'} onClick={deliverSavedRun}>按最新审片继续交付</button>}
+        {running && (
           <button type="button" className="wfe-btn" onClick={() => runHandle.current?.cancel()}>
-            <Ban size={13} strokeWidth={2.2} /> 取消
+            <UiIcon icon={SlashCircle01} size="sm" /> 取消
           </button>
         )}
-        <button type="button" className="wfe-btn" onClick={doSave} disabled={!dirty}>
-          <Save size={13} strokeWidth={2.2} /> 保存
+        <button type="button" className="wfe-btn" title="保存（Ctrl / ⌘ + S）" onClick={doSave} disabled={!dirty || running}>
+          <UiIcon icon={Save01} size="sm" /> 保存
         </button>
         <button type="button" className="wfe-btn is-primary" onClick={doRun} disabled={running}>
-          <Play size={13} strokeWidth={2.2} /> {running ? '运行中…' : isStructured ? '演示评估' : workflow.projectId ? '开始制作' : '演示运行'}
+          <UiIcon icon={SemIcons.play} size="sm" /> {running ? '运行中…' : isStructured ? '演示评估' : workflow.projectId ? '开始制作' : '演示运行'}
         </button>
       </div>
 
+      <div className="wfe-context-bar">
+        <span><UiIcon icon={Dataflow04} size="xs" />{isStructured ? '分阶段评估' : '自由创作'}<i/> {nodes.filter((n) => n.type !== 'lane').length} 个节点 · {edges.length} 条连接</span>
+        <span>{isStructured ? '仅评估产物与检查点，不自动制作视频' : workflow.projectId ? '制作节点可真实渲染 · 交付需审片通过最新渲染' : '未关联项目 · 运行仅演示'}</span>
+        {!isStructured && (
+          <button type="button" className="wfe-context-drafts" onClick={() => setDraftsOpen(true)}>
+            <UiIcon icon={File01} size="sm" />
+            工作稿
+            {hasLegacyDrafts({ legacyDrafts }) && <em className="wfe-context-badge">待迁移</em>}
+          </button>
+        )}
+        {workflow.projectId && <button type="button" onClick={goReview}><UiIcon icon={Folder} size="sm" />进入工作台</button>}
+      </div>
+      {integrityWarn && <div className="wfe-run-alert is-warn" role="alert"><span>原始需求（prompt.original.md）检测存疑：{integrityWarn}</span><button type="button" aria-label="关闭原文警告" onClick={() => setIntegrityWarn(null)}><UiIcon icon={SemIcons.close} size="sm" /></button></div>}
+      {hasLegacyDrafts({ legacyDrafts }) && !isStructured && (
+        <div className="wfe-legacy-banner" role="status">
+          <span>旧版画布中的工作稿（视觉构想 / 导演处理）已保留到迁移草稿中，尚未写入项目文件。</span>
+          <button type="button" className="wfe-btn sm is-primary" onClick={() => setDraftsOpen(true)}>查看并写入工作稿</button>
+        </div>
+      )}
+      {runNotice && <div className="wfe-run-alert" role="alert"><span>{runNotice}</span><button type="button" aria-label="关闭运行提示" onClick={() => setRunNotice('')}><UiIcon icon={SemIcons.close} size="sm" /></button></div>}
       <div className="wfe-body">
         <aside className="wfe-left" aria-label="构建栏" hidden={!panelOpen}>
-          <div className="wfe-panel-title"><span><WorkflowIcon size={16}/> 工作流结构</span><button type="button" aria-label="收起侧栏" onClick={() => setPanelOpen(false)}><PanelLeftClose size={16}/></button></div>
+          <div className="wfe-panel-title"><span><UiIcon icon={Dataflow04} size="md" /> 构建工作流</span><button type="button" aria-label="收起侧栏" onClick={() => setPanelOpen(false)}><UiIcon icon={Menu01} size="md" /></button></div>
           <div className="wfe-tabs" role="tablist" aria-label="构建栏页签">
             {!isStructured && <button type="button" role="tab" aria-selected={leftTab === 'outline'} data-on={leftTab === 'outline' ? '' : undefined} onClick={() => setLeftTab('outline')}>流程</button>}
             {isStructured && <button type="button" role="tab" aria-selected={leftTab === 'stages'} data-on={leftTab === 'stages' ? '' : undefined} onClick={() => setLeftTab('stages')}>阶段</button>}
@@ -982,13 +1232,14 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
             </button>
           </div>
           {leftTab === 'outline' ? <div className="wfe-outline">
-            <div className="wfe-outline-label">创作流程 <span>{nodes.filter((n) => n.type === 'fm').length}</span></div>
-            {nodes.filter((n) => n.type === 'fm').sort((a, b) => ['prompt', 'refs', 'lookdev', 'filmplan', 'capability', 'create', 'review', 'finishing'].indexOf(a.data.defType) - ['prompt', 'refs', 'lookdev', 'filmplan', 'capability', 'create', 'review', 'finishing'].indexOf(b.data.defType)).map((n) => <button type="button" className="wfe-outline-item" key={n.id} data-selected={n.selected || undefined} onClick={() => { setNodes((prev) => prev.map((item) => ({ ...item, selected: item.id === n.id }))) }}><NodeMark type={n.data.defType}/><span><b>{NODE_COPY[n.data.defType]?.title ?? defForNode({ type: n.data.defType, params: n.data.params })?.label}</b><small>{NODE_COPY[n.data.defType]?.description}</small></span><ChevronRight size={13}/></button>)}
-            <button type="button" className="wfe-outline-add" onClick={() => setLeftTab('nodes')}><Plus size={15}/> 添加创作环节</button>
-            <div className="wfe-outline-note"><span>工作流说明</span><p>{workflow.description || '从创作需求到制作、审片与修改。按需要添加参考、视觉构想和创作能力。'}</p></div>
+            <div className="wfe-outline-label">画布节点 <span>{nodes.filter((n) => n.type === 'fm').length}</span></div>
+            {nodes.filter((n) => n.type === 'fm').map((n) => <button type="button" className="wfe-outline-item" key={n.id} data-selected={n.selected || undefined} onClick={() => { focusRequest.current = n.id; setNodes((prev) => prev.map((item) => ({ ...item, selected: item.id === n.id }))) }}><NodeMark type={n.data.defType}/><span><b>{NODE_COPY[n.data.defType]?.title ?? defForNode({ type: n.data.defType, params: n.data.params })?.label}</b></span><UiIcon icon={SemIcons.expand} size="xs" /></button>)}
+            <button type="button" className="wfe-outline-add" onClick={() => setLeftTab('nodes')}><UiIcon icon={SemIcons.plus} size="sm" /> 添加创作环节</button>
+            {/* 只显示用户自己写的说明；没有时不再用一段通用介绍填空。节点用途在「添加节点」页签里有完整说明。 */}
+            {workflow.description && <div className="wfe-outline-note"><span>工作流说明</span><p>{workflow.description}</p></div>}
           </div> : leftTab === 'stages' ? (
             <div className="wfe-stage-nav">
-              <div className="wfe-outline-label">制作阶段 <span>8</span></div><button type="button" className="wfe-stage-overview" data-on={activeStage === null || undefined} onClick={() => focusStage(null)}><LayoutGrid size={14}/> 全流程概览</button>
+              <div className="wfe-outline-label">制作阶段 <span>8</span></div><button type="button" className="wfe-stage-overview" data-on={activeStage === null || undefined} onClick={() => focusStage(null)}><UiIcon icon={Grid01} size="sm" /> 全流程概览</button>
               {STRUCTURED_STAGES.map((stage) => {
                 const lane = nodes.find((n) => n.type === 'lane' && Number(n.data.params.stage) === stage.index)
                 const children = nodes.filter((n) => n.parentId === lane?.id && n.data.defType === 'artifact')
@@ -997,17 +1248,17 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
                 const gateNode = gateEntry ? nodes.find((n) => n.data.defType === 'gate' && n.data.params.gate === gateEntry[0]) : undefined
                 return <button type="button" key={stage.index} className="wfe-stage-nav-item" data-active={activeStage === stage.index || undefined} onClick={() => focusStage(stage.index)}><span className="wfe-stage-index">{String(stage.index + 1).padStart(2, '0')}</span><span className="wfe-stage-copy"><b>{stage.label}</b><small>{present}/{children.length} 项产物{gateNode ? ` · ${gateNode.data.gateEval?.decision === 'confirmed' && !gateNode.data.gateEval?.stale ? '已确认' : '待确认'}` : ''}</small></span><span aria-hidden="true">↗</span></button>
               })}
-              
+
             </div>
           ) : leftTab === 'nodes' ? (
             <div className="wfe-nodelist">
-              
-              <label className="wfe-library-search"><Search size={14}/><input value={nodeQuery} onChange={(e) => setNodeQuery(e.target.value)} placeholder="搜索节点" aria-label="搜索节点库" /></label>
+
+              <label className="wfe-library-search"><UiIcon icon={SemIcons.search} size="sm" /><input value={nodeQuery} onChange={(e) => setNodeQuery(e.target.value)} placeholder="搜索节点" aria-label="搜索节点库" /></label>
               {!isStructured && nodeQuery.trim() && !PF_NODE_DEFS.some((d) => `${d.label} ${d.description} ${NODE_COPY[d.type]?.title ?? ''}`.toLowerCase().includes(nodeQuery.trim().toLowerCase())) && <p className="wfe-search-empty">没有匹配节点，试试其他关键词。</p>}
               {!isStructured &&
                 PF_NODE_DEFS.filter((d) => `${d.label} ${d.description} ${NODE_COPY[d.type]?.title ?? ''}`.toLowerCase().includes(nodeQuery.trim().toLowerCase())).map((d) => (
-                  <button key={d.type} type="button" className="wfe-nodeitem" onClick={() => addNode(d.type, pfDefaultParams(d.type))} title="点击添加到画布">
-                    <NodeMark type={d.type}/><span className="wfe-nodeitem-copy"><b>{NODE_COPY[d.type]?.title ?? d.label}</b><small>{NODE_COPY[d.type]?.description ?? d.description}</small></span><Plus size={13}/>
+                  <button key={d.type} type="button" className="wfe-nodeitem" draggable onDragStart={(e) => { e.dataTransfer.setData('application/fengmotion-node', JSON.stringify({ type: d.type, params: pfDefaultParams(d.type) })); e.dataTransfer.effectAllowed = 'copy' }} onClick={() => addNode(d.type, pfDefaultParams(d.type))} title="拖到画布，或点击添加">
+                    <NodeMark type={d.type}/><span className="wfe-nodeitem-copy"><b>{NODE_COPY[d.type]?.title ?? d.label}</b><small>{NODE_COPY[d.type]?.description ?? d.description}</small></span><UiIcon icon={DotsGrid} size="sm" />
                   </button>
                 ))}
               {isStructured && (
@@ -1019,11 +1270,12 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
                         <button
                           key={k.kind}
                           type="button"
-                          className="wfe-nodeitem"
+                          className="wfe-nodeitem" draggable
+                          onDragStart={(e) => { e.dataTransfer.setData('application/fengmotion-node', JSON.stringify({ type: 'artifact', params: { kind: k.kind, status: 'missing', version: '', summary: '', fixture: false } })); e.dataTransfer.effectAllowed = 'copy' }}
                           onClick={() => addNode('artifact', { kind: k.kind, status: 'missing', version: '', summary: '', fixture: false })}
-                          title="点击添加为自由节点"
+                          title="拖到画布，或点击添加为自由节点"
                         >
-                          <span className="wfe-nodeitem-top"><b>{k.label}</b><Plus size={12} strokeWidth={2.4} /></span>
+                          <span className="wfe-nodeitem-top"><b>{k.label}</b><UiIcon icon={SemIcons.plus} size="xs" /></span>
                           <span>{k.filename}</span>
                         </button>
                       ))}
@@ -1034,11 +1286,12 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
                     <button
                       key={g}
                       type="button"
-                      className="wfe-nodeitem"
+                      className="wfe-nodeitem" draggable
+                      onDragStart={(e) => { e.dataTransfer.setData('application/fengmotion-node', JSON.stringify({ type: 'gate', params: { gate: g, decision: 'not-started', recommendation: '', validFor: [], notApproved: [], source: 'live' } })); e.dataTransfer.effectAllowed = 'copy' }}
                       onClick={() => addNode('gate', { gate: g, decision: 'not-started', recommendation: '', validFor: [], notApproved: [], source: 'live' })}
                       title="点击添加到画布"
                     >
-                      <span className="wfe-nodeitem-top"><b>{def.label}</b><Plus size={12} strokeWidth={2.4} /></span>
+                      <span className="wfe-nodeitem-top"><b>{def.label}</b><UiIcon icon={SemIcons.plus} size="xs" /></span>
                       <span>{def.question}</span>
                     </button>
                   ))}
@@ -1049,6 +1302,7 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
             </div>
           ) : (
             <div className="wfe-pending">
+              <div className="wfe-resource-links">{([['knowledge', '特效库'], ['reference', '参考片库']] as const).map(([id, label]) => <button type="button" className="wfe-btn sm" key={id} onClick={() => window.postMessage({ type: 'fm-nav', id }, '*')}><UiIcon icon={Folder} size="sm" />{label}</button>)}</div>
               <h3>技法意向 <em className="num">{fxIntents.length}</em></h3>
               {fxIntents.length === 0 && <p className="wfe-hint">暂无。在特效库点「用于工作流」后，意向会出现在这里。</p>}
               {fxIntents.map((it, i) => {
@@ -1087,13 +1341,25 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
           )}
         </aside>
 
-        <div className="wfe-canvas" ref={wrapRef} data-compact={compact || undefined}>
+        <div className="wfe-canvas" ref={wrapRef} data-compact={compact || undefined}
+          onDragOver={(e) => { if (Array.from(e.dataTransfer.types).includes('application/fengmotion-node')) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy' } }}
+          onDrop={(e) => {
+            const raw = e.dataTransfer.getData('application/fengmotion-node')
+            if (!raw) return
+            e.preventDefault()
+            try {
+              const value = JSON.parse(raw) as { type?: string; params?: Record<string, unknown> }
+              if (!value.type || !defForNode({ type: value.type, params: value.params ?? {} })) return
+              addNode(value.type!, value.params ?? pfDefaultParams(value.type!), flow.screenToFlowPosition({ x: e.clientX - 25, y: e.clientY - 25 }))
+              if (window.innerWidth < 1000) setPanelOpen(false)
+            } catch { setRunNotice('无法添加该节点，请从节点库重试。') }
+          }}>
           <div className="wfe-canvas-toolbar" aria-label="画布工具">
-            {!panelOpen && <button type="button" onClick={() => setPanelOpen(true)} title="展开侧栏" aria-label="展开工作流侧栏"><PanelLeftOpen size={16}/></button>}
-            <button type="button" className="wfe-add-trigger" onClick={() => { setPanelOpen(true); setLeftTab('nodes') }}><Plus size={15}/> 添加节点</button>
+            {!panelOpen && <button type="button" onClick={() => setPanelOpen(true)} title="展开侧栏" aria-label="展开工作流侧栏"><UiIcon icon={Menu01} size="md" /></button>}
+            <button type="button" className="wfe-add-trigger" onClick={() => { setPanelOpen(true); setLeftTab('nodes') }}><UiIcon icon={SemIcons.plus} size="sm" /> 添加节点</button>
             <i/>
-            <button type="button" onClick={undo} disabled={!undoStack.current.length} title="撤销（Ctrl+Z）" aria-label="撤销"><Undo2 size={15}/></button>
-            <button type="button" onClick={redo} disabled={!redoStack.current.length} title="重做（Ctrl+Shift+Z）" aria-label="重做"><Redo2 size={15}/></button>
+            <button type="button" onClick={undo} disabled={!undoStack.current.length} title="撤销（Ctrl+Z）" aria-label="撤销"><UiIcon icon={ReverseLeft} size="sm" /></button>
+            <button type="button" onClick={redo} disabled={!redoStack.current.length} title="重做（Ctrl+Shift+Z）" aria-label="重做"><UiIcon icon={ReverseRight} size="sm" /></button>
             <i/>
             <button type="button" title="整理画布" onClick={() => {
               markDirty()
@@ -1105,22 +1371,24 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
                   return n
                 }))
               } else {
-                const levels = new Map<string, number>(); const visited = new Set<string>()
-                const level = (id: string): number => { if (levels.has(id)) return levels.get(id)!; if (visited.has(id)) return 0; visited.add(id); const incoming = edges.filter((e) => e.target === id); const depth = incoming.length ? Math.max(...incoming.map((e) => level(e.source))) + 1 : 0; levels.set(id, depth); return depth }
-                const rows = new Map<number, number>(); setNodes((prev) => prev.map((n) => { const col = level(n.id); const row = rows.get(col) ?? 0; rows.set(col, row + 1); return { ...n, position: { x: col * 390, y: row * 300 } } }))
+                setNodes((prev) => {
+                  const positions = workflowLayoutPositions(prev.map((n) => ({ id: n.id, height: n.measured?.height })), edges)
+                  return prev.map((n) => ({ ...n, position: positions[n.id] }))
+                })
               }
               window.setTimeout(() => { void flow.fitView({ padding: 0.16, minZoom: 0.2, maxZoom: 1 }) }, 80)
-            }}><LayoutGrid size={15}/> 整理</button>
+            }}><UiIcon icon={Grid01} size="sm" /> 整理</button>
           </div>
-          {isStructured && activeStage !== null && <div className="wfe-stage-context"><span>阶段 {String(activeStage + 1).padStart(2, '0')} / 08</span><h2>{STRUCTURED_STAGES[activeStage].label}</h2><p>{STRUCTURED_STAGES[activeStage].question}</p><div><button type="button" aria-label="上个阶段" disabled={activeStage === 0} onClick={() => focusStage(activeStage - 1)}><ChevronLeft size={15}/></button><button type="button" aria-label="下个阶段" disabled={activeStage === 7} onClick={() => focusStage(activeStage + 1)}><ChevronRight size={15}/></button></div></div>}
-          <div className="wfe-viewport-controls"><button type="button" onClick={() => { void flow.zoomOut({ duration: 150 }) }} aria-label="缩小"><Minus size={15}/></button><button type="button" onClick={() => { void flow.zoomTo(1,{duration:150}) }} title="恢复 100%">{Math.round(zoom * 100)}%</button><button type="button" onClick={() => { void flow.zoomIn({ duration: 150 }) }} aria-label="放大"><Plus size={15}/></button><i/><button type="button" onClick={() => { void flow.fitView({ padding: 0.16, minZoom: 0.2, maxZoom: 1, duration: 200 }) }} title="适应画布" aria-label="适应画布"><Maximize2 size={15}/></button></div>
+          {isStructured && activeStage !== null && <div className="wfe-stage-context"><span>阶段 {String(activeStage + 1).padStart(2, '0')} / 08</span><h2>{STRUCTURED_STAGES[activeStage].label}</h2><p>{STRUCTURED_STAGES[activeStage].question}</p><div><button type="button" aria-label="上个阶段" disabled={activeStage === 0} onClick={() => focusStage(activeStage - 1)}><UiIcon icon={ChevronLeft} size="sm" /></button><button type="button" aria-label="下个阶段" disabled={activeStage === 7} onClick={() => focusStage(activeStage + 1)}><UiIcon icon={SemIcons.expand} size="sm" /></button></div></div>}
+          <div className="wfe-viewport-controls"><button type="button" onClick={() => { void flow.zoomOut({ duration: 150 }) }} aria-label="缩小"><UiIcon icon={Minus} size="sm" /></button><button type="button" onClick={() => { void flow.zoomTo(1,{duration:150}) }} title="恢复 100%">{Math.round(zoom * 100)}%</button><button type="button" onClick={() => { void flow.zoomIn({ duration: 150 }) }} aria-label="放大"><UiIcon icon={SemIcons.plus} size="sm" /></button><i/><button type="button" onClick={() => { void flow.fitView({ padding: 0.16, minZoom: 0.2, maxZoom: 1, duration: 200 }) }} title="适应画布" aria-label="适应画布"><UiIcon icon={Maximize01} size="sm" /></button></div>
           <div className="wfe-canvas-help">拖动画布平移 <span>·</span> 滚轮缩放 <span>·</span> Delete 删除</div>
+          {nodes.length === 0 && <div className="wfe-empty-canvas"><UiIcon icon={Dataflow04} size="xl" /><h2>从第一个节点开始</h2><p>从左侧拖入节点，再连接输入与输出。</p><button type="button" className="wfe-btn" onClick={() => { setPanelOpen(true); setLeftTab('nodes') }}><UiIcon icon={SemIcons.plus} size="sm" />添加节点</button></div>}
           <ReactFlow
-            nodes={displayedNodes.map((n) => n.type === 'lane' && activeStage !== null ? { ...n, style: { ...n.style, height: n.data.params.collapsed ? 44 : 300 } } : n)}
-            edges={running ? visibleEdges.map((e) => ({ ...e, animated: true })) : visibleEdges}
+            nodes={displayedNodes}
+            edges={visibleEdges}
             nodeTypes={nodeTypes}
             onNodeDragStart={() => markDirty()}
-            onMove={(_, vp) => { setCompact(vp.zoom < 0.55); setZoom(vp.zoom) }}
+            onMove={(_, vp) => { setCompact(vp.zoom < 0.55); setZoom(Math.round(vp.zoom * 100) / 100) }}
             onNodesChange={(changes) => {
               setNodes((prev) => {
                 let next = [...prev]
@@ -1164,7 +1432,8 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
             maxZoom={1.6}
             onPaneClick={() => setNodes((prev) => prev.map((n) => ({ ...n, selected: false })))}
             proOptions={{ hideAttribution: true }}
-            colorMode="dark"
+            colorMode="system"
+            ariaLabelConfig={{ "node.a11yDescription.default": '拖动节点调整位置，按 Delete 删除。', "edge.a11yDescription.default": '连接节点的输入与输出。' }}
           >
             <Background variant={BackgroundVariant.Dots} gap={24} size={1} bgColor="var(--canvas)" />
 
@@ -1184,11 +1453,11 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
 
         <aside className="wfe-inspector" aria-label="检查器" hidden={!selectedNode && !selectedEdge}>
           {selectedNode ? (<>
-            <div className="wfe-inspector-toolbar"><span>节点设置</span><div><button type="button" aria-label="关闭检查器" title="关闭检查器" onClick={() => setNodes((prev) => prev.map((n) => ({ ...n, selected: false })))}><X size={16}/></button><button type="button" title="复制节点" aria-label="复制节点" onClick={() => { markDirty(); const id = nid(); setNodes((prev) => [...prev.map((n) => ({ ...n, selected: false })), { ...selectedNode, id, selected: true, position: { x: selectedNode.position.x + 35, y: selectedNode.position.y + 35 }, data: { ...selectedNode.data, params: structuredClone(selectedNode.data.params), status: 'idle' } }]) }}><Copy size={14}/></button><button type="button" title="删除节点" aria-label="删除节点" onClick={() => { markDirty(); setNodes((prev) => prev.filter((n) => n.id !== selectedNode.id)); setEdges((prev) => prev.filter((e) => e.source !== selectedNode.id && e.target !== selectedNode.id)) }}><Trash2 size={14}/></button></div></div>
+            <div className="wfe-inspector-toolbar"><span>节点设置</span><div><button type="button" aria-label="关闭检查器" title="关闭检查器" onClick={() => setNodes((prev) => prev.map((n) => ({ ...n, selected: false })))}><UiIcon icon={SemIcons.close} size="md" /></button><button type="button" title="复制节点" aria-label="复制节点" onClick={() => { markDirty(); const id = nid(); setNodes((prev) => [...prev.map((n) => ({ ...n, selected: false })), { ...selectedNode, id, selected: true, position: { x: selectedNode.position.x + 35, y: selectedNode.position.y + 35 }, data: { ...selectedNode.data, params: structuredClone(selectedNode.data.params), status: 'idle' } }]) }}><UiIcon icon={SemIcons.copy} size="sm" /></button><button type="button" title="删除节点" aria-label="删除节点" onClick={() => { markDirty(); setNodes((prev) => prev.filter((n) => n.id !== selectedNode.id)); setEdges((prev) => prev.filter((e) => e.source !== selectedNode.id && e.target !== selectedNode.id)) }}><UiIcon icon={SemIcons.trash} size="sm" /></button></div></div>
             <div className="wfe-inspector-tabs" role="tablist" aria-label="节点详情">{([['params', '设置'], ['inputs', '输入'], ['outputs', '输出']] as const).map(([id, label]) => <button type="button" key={id} role="tab" aria-selected={inspectorTab === id} onClick={() => setInspectorTab(id)}>{label}</button>)}</div>
             <Inspector
               tab={inspectorTab}
-              node={selectedNode}
+              node={{ ...selectedNode, data: { ...selectedNode.data, status: running ? selectedNode.data.status : runMatches ? lastRun?.nodeStatus[selectedNode.id] ?? 'idle' : 'idle' } }}
               workflow={snapshot()}
               onParams={(patch) => updateParams(selectedNode.id, patch)}
               inputs={edges
@@ -1197,7 +1466,7 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
                   const src = nodes.find((n) => n.id === e.source)
                   if (!src) return null
                   const sdef = defForNode({ type: src.data.defType, params: src.data.params })
-                  const art = lastRun?.artifacts.find((a) => a.nodeId === src.id)
+                  const art = !running && runMatches ? lastRun?.artifacts.find((a) => a.nodeId === src.id) : null
                   const detail = art
                     ? art.summary
                     : src.data.defType === 'artifact'
@@ -1210,7 +1479,8 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
                   return { nodeId: src.id, label: sdef?.label ?? src.data.defType, detail }
                 })
                 .filter((x): x is { nodeId: string; label: string; detail: string } => !!x)}
-              output={lastRun?.artifacts.find((a) => a.nodeId === selectedNode.id) ?? null}
+              output={!running && runMatches ? lastRun?.artifacts.find((a) => a.nodeId === selectedNode.id) ?? null : null}
+              latestRender={latestRenderInfo}
               busy={running}
               onRunNode={() => doRunNode(selectedNode.id)}
               onSelectNode={(id) => {
@@ -1224,20 +1494,24 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
               }}
             />
           </>) : selectedEdge ? (
-            <div className="wfe-insp"><div className="wfe-inspector-toolbar"><span>连线设置</span><button type="button" aria-label="关闭连线检查器" onClick={() => setEdges((prev) => prev.map((e) => ({ ...e, selected: false })))}><X size={16}/></button></div><h3>数据连接</h3><p className="wfe-hint">将上游节点的输出传递到下游输入。</p><button type="button" className="wfe-btn" onClick={() => { markDirty(); setEdges((prev) => prev.filter((e) => e.id !== selectedEdge.id)) }}><Trash2 size={14}/> 删除连线</button></div>
+            <div className="wfe-insp"><div className="wfe-inspector-toolbar"><span>连线设置</span><button type="button" aria-label="关闭连线检查器" onClick={() => setEdges((prev) => prev.map((e) => ({ ...e, selected: false })))}><UiIcon icon={SemIcons.close} size="md" /></button></div><h3>数据连接</h3><p className="wfe-hint">将上游节点的输出传递到下游输入。</p><button type="button" className="wfe-btn" onClick={() => { markDirty(); setEdges((prev) => prev.filter((e) => e.id !== selectedEdge.id)) }}><UiIcon icon={SemIcons.trash} size="sm" /> 删除连线</button></div>
           ) : null}
         </aside>
       </div>
 
       <div className="wfe-drawer" data-open={drawerOpen || undefined}>
         <button type="button" className="wfe-drawer-head" onClick={() => setDrawerOpen((v) => !v)} aria-expanded={drawerOpen}>
-          <ChevronDown size={14} className={drawerOpen ? 'wfe-chev is-open' : 'wfe-chev'} />
+          <UiIcon icon={SemIcons.collapse} size="sm" className={drawerOpen ? 'wfe-chev is-open' : 'wfe-chev'} />
           {isStructured ? '评估日志' : '执行日志'}
-          {lastRun && <span className="wfe-drawer-meta">最近：{lastRun.status === 'completed' ? '已完成' : lastRun.status} · {lastRun.artifacts.length} 项产物 · {new Date(lastRun.startedAt).toLocaleTimeString('zh-CN')}</span>}
-          {running && <span className="wfe-drawer-meta">进行中…</span>}
+          {selectedRunCaption && <span className="wfe-drawer-meta" title={selectedRunCaption}>{selectedRunCaption}{running ? ' · 进行中' : ` · ${lastRun?.artifacts.length ?? 0} 项产物`}</span>}
         </button>
         {drawerOpen && (
           <div className="wfe-drawer-body">
+            {selectedRunCaption && <p className="wfe-run-identity">{selectedRunCaption}
+              {!running && lastRun && <time dateTime={lastRun.startedAt}> · {new Date(lastRun.startedAt).toLocaleString('zh-CN')}</time>}
+              {!running && lastRun && !runMatches && <span> · {dirty ? '画布有未保存的更改' : lastRun.projectId === undefined ? '旧记录未保存项目身份' : '与当前版本或项目不同'}，结果仅供历史查看。</span>}
+            </p>}
+            {!running && lastRun?.nodeIO && <details className="wfe-node-io"><summary>实际节点输入与输出</summary><pre>{JSON.stringify(lastRun.nodeIO,null,2)}</pre></details>}
             <div className="wfe-tabs sm" role="tablist" aria-label="日志视图">
               {([['events', '事件'], ['outputs', '节点状态'], ['artifacts', '产物'], ['history', '运行记录']] as const).map(([id, label]) => (
                 <button key={id} type="button" role="tab" aria-selected={drawerTab === id} data-on={drawerTab === id ? '' : undefined} onClick={() => setDrawerTab(id)}>
@@ -1245,7 +1519,7 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
                 </button>
               ))}
             </div>
-            {drawerTab === 'history' && <div className="wfe-runhistory">{workflowService.listRuns(workflowId).length === 0 ? <p className="wfe-hint">尚无演示运行记录。</p> : workflowService.listRuns(workflowId).map((run) => <button type="button" key={run.id} data-selected={lastRun?.id === run.id || undefined} onClick={() => { setLastRun(run); setLiveEvents([]); setViewing(null); setDrawerTab('events') }}><b>{new Date(run.startedAt).toLocaleString('zh-CN')}</b><span>{RUN_STATUS_TXT[run.status] ?? run.status} · v{run.revision} · {run.artifacts.length} 项产物 · {run.artifacts.some((a) => !a.demo) ? '含真实产物' : '演示'}</span></button>)}</div>}
+            {drawerTab === 'history' && <div className="wfe-runhistory">{workflowService.listRuns(workflowId).length === 0 ? <p className="wfe-hint">尚无运行记录。</p> : workflowService.listRuns(workflowId).map((run) => <button type="button" key={run.id} disabled={running} data-selected={lastRun?.id === run.id || undefined} onClick={() => { setLastRun(run); setLiveEvents([]); setViewing(null); setDrawerTab('events') }}><b>{new Date(run.startedAt).toLocaleString('zh-CN')}</b><span>{workflowRunLabel(run)} · 工作流 v{run.revision} · {RUN_STATUS_TXT[run.status] ?? run.status} · {run.artifacts.length} 项产物</span></button>)}</div>}
             {drawerTab === 'events' && (
               <ul className="wfe-events">
                 {eventsToShow.length === 0 && <li className="wfe-hint">暂无事件。点击顶部「{isStructured ? '评估状态' : '运行'}」开始。</li>}
@@ -1258,17 +1532,17 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
             )}
             {drawerTab === 'outputs' && (
               <ul className="wfe-events">
-                {nodes.filter((n) => n.type === 'fm').map((n) => {
-                  const st = lastRun?.nodeStatus[n.id] ?? n.data.status
-                  const def = defForNode({ type: n.data.defType, params: n.data.params })
+                {(running ? nodes.filter((n) => n.type === 'fm').map((n) => [n.id, n.data.status] as const) : Object.entries(lastRun?.nodeStatus ?? {})).map(([id, st], index) => {
+                  const n = nodes.find((n) => n.id === id)
+                  const label = !running ? lastRun?.nodeLabels?.[id] ?? `历史节点 ${index + 1}` : n ? defForNode({ type: n.data.defType, params: n.data.params })?.label : `节点 ${index + 1}`
                   return (
-                    <li key={n.id}>
-                      {def?.label}：
-                      {st === 'completed' ? '已完成' : st === 'running' ? '进行中' : st === 'failed' ? '失败' : st === 'skipped' ? (isStructured ? '尚无产物/已跳过' : '已跳过') : '待处理'}
+                    <li key={id}>
+                      {label}：
+                      {RUN_STATUS_TXT[st] ?? '未运行'}
                     </li>
                   )
                 })}
-                {nodes.filter((n) => n.type === 'fm').length === 0 && <li className="wfe-hint">画布上还没有节点。</li>}
+                {!running && !lastRun && <li className="wfe-hint">尚未选择运行记录。</li>}
               </ul>
             )}
             {drawerTab === 'artifacts' && (
@@ -1280,7 +1554,7 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
                       <span>{viewing.filename}</span>
                       <button type="button" className="wfe-btn sm" onClick={() => setViewing(null)}>返回产物列表</button>
                     </div>
-                    <pre>{viewing.content}</pre>
+                    {workflowArtifactMedia(viewing) && <video className="wfe-artifact-video" src={workflowArtifactMedia(viewing)!} controls preload="metadata" aria-label="真实渲染产物预览"/>}<pre>{viewing.content}</pre>
                   </div>
                 ) : (
                   <>
@@ -1296,15 +1570,15 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
                             {a.demo ? '界面快照 · 无对应文件' : '真实产物'} · {a.summary}
                           </span>
                         </div>
-                        <button type="button" className="wfe-btn sm" onClick={() => setViewing(a)}><Eye size={12} /> 查看</button>
-                        <button type="button" className="wfe-btn sm" onClick={() => downloadArtifact(a)}><Download size={12} /> 下载</button>
-                        {(a.kind === 'create' || a.kind === 'evaluation') && (
-                          <button type="button" className="wfe-btn sm" onClick={goReview}>去工作台</button>
+                        <button type="button" className="wfe-btn sm" onClick={() => setViewing(a)}><UiIcon icon={SemIcons.eye} size="xs" /> 查看</button>
+                        <button type="button" className="wfe-btn sm" disabled={downloading} onClick={() => { void downloadArtifact(a) }}><UiIcon icon={SemIcons.download} size="xs" /> 下载</button>
+                        {(a.kind === 'render' || a.kind === 'create' || a.kind === 'evaluation') && (
+                          <button type="button" className="wfe-btn sm" onClick={() => { if (lastRun?.projectId) window.postMessage({ type:'fm-nav', id:'production', projectId:lastRun.projectId }, '*') }} disabled={!lastRun?.projectId} title={!lastRun?.projectId ? '此记录没有可确认的关联项目' : '打开这次运行所属项目'}>查看所属项目</button>
                         )}
                       </div>
                     ))}
                     {artifactsToShow.some((a) => a.kind === 'create') && (
-                      <p className="wfe-hint">渲染节点只产出请求记录，真实渲染未接入；「去工作台」打开对应项目的制作工作台。</p>
+                      <p className="wfe-hint">演示产物仅为请求记录；真实视频会单独标注。「查看所属项目」打开这次运行的项目。</p>
                     )}
                   </>
                 )}
@@ -1313,6 +1587,13 @@ function EditorInner({ workflowId, onBack, autoRun }: { workflowId: string; onBa
           </div>
         )}
       </div>
+      <WorkflowDraftsPanel
+        open={draftsOpen}
+        onClose={() => setDraftsOpen(false)}
+        projectId={workflow.projectId}
+        legacyDrafts={legacyDrafts}
+        onClearLegacyDraft={clearLegacyDraftKey}
+      />
     </section>
   )
 }
@@ -1326,6 +1607,7 @@ const RUN_STATUS_TXT: Record<string, string> = {
   failed: '失败',
   skipped: '已跳过',
   awaiting_info: '等待补充',
+  cancelled: '已取消',
 }
 
 function InspHead(props: { kicker: string; title: string; chip?: ReactNode }) {
@@ -1341,7 +1623,7 @@ function InspHead(props: { kicker: string; title: string; chip?: ReactNode }) {
 }
 
 function TechDetails({ node }: { node: FmNode }) {
-  const def = defForNode({ type: node.data.defType, params: node.data.params })
+  const def = defForNode({ type: node.data.defType, params: node.data.params }, { includeLegacy: true })
   if (!def) return null
   const fmt = (ports: typeof def.inputs) =>
     ports.length ? ports.map((x) => `${x.label}（${x.type}）`).join('、') : '无'
@@ -1402,7 +1684,7 @@ function InspParamsHead({ runLabel, busy, onRunNode }: { runLabel: string; busy:
     <div className="wfe-sect3-head is-row">
       参数
       <button type="button" className="wfe-btn sm is-primary" disabled={busy} onClick={onRunNode}>
-        <Play size={11} strokeWidth={2.6} /> {runLabel}
+        <UiIcon icon={SemIcons.play} size="xs" /> {runLabel}
       </button>
     </div>
   )
@@ -1416,7 +1698,7 @@ function InspOutput({ output, emptyText }: { output: WfArtifact | null; emptyTex
         <div className="wfe-out3">
           <b>{output.title}</b>
           <span>{output.summary}</span>
-          <span className="num">{output.filename} · DEMO 快照</span>
+          <span className="num">{output.filename} · {output.demo ? '界面快照' : '真实产物'}</span>
         </div>
       ) : (
         <p className="wfe-hint">{emptyText}</p>
@@ -1432,16 +1714,20 @@ function Inspector(props: {
   onParams: (patch: Record<string, unknown>) => void
   inputs: InspInputItem[]
   output: WfArtifact | null
+  latestRender: { version: number | null; artifactPath: string | null; runId: string } | null
   busy: boolean
   onRunNode: () => void
   onSelectNode: (id: string) => void
 }) {
+  const [liveAssets,setLiveAssets]=useState<MyAsset[]>([])
+  const [assetError,setAssetError]=useState('')
+  useEffect(()=>{if(props.node.data.defType!=='refs')return;let alive=true;void listAssets().then(items=>{if(alive)setLiveAssets(items)}).catch(e=>{if(alive)setAssetError(e instanceof Error?e.message:'素材未能读取')});return()=>{alive=false}},[props.node.data.defType])
   const { node, onParams } = props
-  const def = defForNode({ type: node.data.defType, params: node.data.params })
+  const def = defForNode({ type: node.data.defType, params: node.data.params }, { includeLegacy: true })
   const p = node.data.params
   if (!def) return null
-  const tokenAssets = BUILTIN_ASSETS.filter((a) => a.refs.some((r) => r.kind === 'project' && r.id === 'token'))
-  if (props.tab !== 'params') return <div className="wfe-insp"><InspHead kicker={def.group} title={NODE_COPY[node.data.defType]?.title ?? def.label}/>{props.tab === 'inputs' ? <InspInputs items={props.inputs} onSelectNode={props.onSelectNode}/> : <InspOutput output={props.output} emptyText="还没有此节点的演示输出。运行节点后可在这里查看。"/>}<TechDetails node={node}/></div>
+  const tokenAssets=liveAssets
+  if (props.tab !== 'params') return <div className="wfe-insp"><InspHead kicker={def.group} title={NODE_COPY[node.data.defType]?.title ?? def.label}/>{props.tab === 'inputs' ? <InspInputs items={props.inputs} onSelectNode={props.onSelectNode}/> : <InspOutput output={props.output} emptyText="还没有此节点的输出。运行后可在这里查看。"/>}<TechDetails node={node}/></div>
 
 
   if (node.data.defType === 'gate') {
@@ -1466,7 +1752,7 @@ function Inspector(props: {
         <p className="wfe-hint">检查点问题：{def.description}。确认绑定具体产物与版本；推荐不等于确认。</p>
         <div className="wfe-runrow">
           <button type="button" className="wfe-btn sm is-primary" disabled={props.busy} onClick={props.onRunNode}>
-            <Play size={11} strokeWidth={2.6} /> 评估此检查点
+            <UiIcon icon={SemIcons.play} size="xs" /> 评估此检查点
           </button>
           <span className="wfe-hint">只评估当前状态，不代替确认</span>
         </div>
@@ -1566,8 +1852,18 @@ function Inspector(props: {
       {node.data.defType === 'prompt' && (
         <>
           <label className="wfe-field"><span>原始提示词</span>
-            <textarea rows={7} value={String(p.text ?? '')} onChange={(e) => onParams({ text: e.target.value })} placeholder="直接写创作需求，不必先整理成结构化文档" />
+            <textarea rows={7} value={String(p.text ?? '')} onChange={(e) => onParams({ text: e.target.value })} placeholder={typeof p.promptScaffold === 'string' && p.promptScaffold.trim() ? p.promptScaffold : '直接写创作需求，不必先整理成结构化文档'} />
           </label>
+          {/* 骨架只在用户主动点击时填入，并接在已写内容后面，不覆盖原话 */}
+          {typeof p.promptScaffold === 'string' && p.promptScaffold.trim() && !String(p.text ?? '').includes(p.promptScaffold.trim()) && (
+            <button type="button" className="wfe-textbtn" onClick={() => {
+              const current = String(p.text ?? '').trimEnd()
+              const scaffold = String(p.promptScaffold).trim()
+              onParams({ text: current ? `${current}\n\n${scaffold}` : scaffold })
+            }}>
+              填入视频类型需求骨架
+            </button>
+          )}
           <label className="wfe-field"><span>目标受众</span>
             <input value={String(p.audience ?? '')} onChange={(e) => onParams({ audience: e.target.value })} />
           </label>
@@ -1584,7 +1880,21 @@ function Inspector(props: {
 
       {node.data.defType === 'refs' && (
         <>
-          <p className="wfe-hint">项目：Token 科普视频。只引用真实素材与参考结论，不复制文件。</p>
+          {Array.isArray(p.requiredInputs) && p.requiredInputs.length > 0 && (
+            <div className="wfe-req-box">
+              <b>当前视频类型建议准备的素材</b>
+              <ul>
+                {(p.requiredInputs as Array<{ kind?: unknown; label?: unknown; required?: unknown } | string>).map((item, idx) => {
+                  const text = typeof item === 'string' ? item : String(item?.label ?? '')
+                  const req = typeof item === 'object' && item?.required ? '（必需）' : ''
+                  return text ? <li key={idx}>{text}{req}</li> : null
+                })}
+              </ul>
+            </div>
+          )}
+          <p className="wfe-hint">从本机素材库引用真实文件；用途和参考片区间会随本次请求传递。</p>
+          {assetError&&<p className="wfe-hint" role="alert">{assetError}</p>}
+          {!assetError&&!tokenAssets.length&&<p className="wfe-hint">当前没有可选素材，可先在「我的素材」导入。</p>}
           <div className="wfe-checks">
             {tokenAssets.map((a) => {
               const ids = (p.assetIds as string[] | undefined) ?? []
@@ -1597,6 +1907,7 @@ function Inspector(props: {
               )
             })}
           </div>
+          {((p.assetIds as string[]|undefined)??[]).filter(id=>!tokenAssets.some(a=>a.id===id)).map(id=><p className="wfe-hint" key={id}>已选素材未在列表中找到：{id}<button type="button" className="wfe-textbtn" onClick={()=>onParams({assetIds:((p.assetIds as string[])??[]).filter(x=>x!==id)})}>移除</button></p>)}
           {((p.refSegmentIds as string[] | undefined) ?? []).length > 0 && (
             <div className="wfe-field"><span>已接入的参考结论</span>
               <ul className="wfe-reflist">
@@ -1613,15 +1924,6 @@ function Inspector(props: {
               </ul>
             </div>
           )}
-        </>
-      )}
-
-      {(node.data.defType === 'lookdev' || node.data.defType === 'filmplan') && (
-        <>
-          <label className="wfe-field"><span>工作稿内容</span>
-            <textarea rows={10} value={String(p.summary ?? '')} onChange={(e) => onParams({ summary: e.target.value })} placeholder={node.data.defType === 'lookdev' ? '视觉基调、材质、色彩、光线、动势…' : '叙事推进、镜头节奏、视听策略…'} />
-          </label>
-          <p className="wfe-hint">工作稿可随时迭代，不是审批门；运行只保存你的内容快照。</p>
         </>
       )}
 
@@ -1659,36 +1961,104 @@ function Inspector(props: {
               <option value="4k">4k · 3840×2160</option>
             </select>
           </label>
-          <p className="wfe-hint">运行只生成渲染请求记录；真实渲染未接入，不会产生视频文件。</p>
+          <p className="wfe-hint">{props.workflow?.projectId ? '完整运行会在关联项目中调用 Agent 制作与渲染；单节点测试仅生成请求记录。' : '未关联项目，当前运行只生成演示记录，不会制作视频。'}</p>
         </>
       )}
 
-      {node.data.defType === 'review' && (
-        <>
-          <div className="wfe-field"><span>quality-bar · 看片问题（由你看片后勾选）</span>
-            <div className="wfe-checks">
-              {QUALITY_QUESTIONS.map((q) => {
-                const checks = (p.checks as Record<string, boolean> | undefined) ?? {}
-                return (
+      {node.data.defType === 'review' && (() => {
+        const checks = (p.checks as Record<string, boolean> | undefined) ?? {}
+        const verdict: 'pending' | 'done' | 'rework' = checks.done && !checks.rework ? 'done' : checks.rework && !checks.done ? 'rework' : 'pending'
+        const lr = props.latestRender
+        return (
+          <>
+            <div className="wfe-field"><span>审片结论</span>
+              <div className="wfe-seg" role="group" aria-label="审片结论">
+                <button
+                  type="button"
+                  data-on={verdict === 'pending' ? '' : undefined}
+                  aria-pressed={verdict === 'pending'}
+                  onClick={() => onParams({ checks: { ...checks, done: false, rework: false }, reviewedVersion: undefined, reviewedArtifactPath: undefined, reviewedRunId: undefined })}
+                >
+                  待审片
+                </button>
+                <button
+                  type="button"
+                  disabled={!lr}
+                  title={!lr ? '尚无本次运行的渲染结果' : undefined}
+                  data-on={verdict === 'done' ? '' : undefined}
+                  aria-pressed={verdict === 'done'}
+                  onClick={() => {
+                    if (!lr) return
+                    onParams({
+                      checks: { ...checks, done: true, rework: false },
+                      reviewedVersion: lr.version ?? undefined,
+                      reviewedArtifactPath: lr.artifactPath ?? undefined,
+                      reviewedRunId: lr.runId,
+                      decidedAt: new Date().toISOString(),
+                    })
+                  }}
+                >
+                  审片通过
+                </button>
+                <button
+                  type="button"
+                  data-on={verdict === 'rework' ? '' : undefined}
+                  aria-pressed={verdict === 'rework'}
+                  onClick={() => onParams({ checks: { ...checks, done: false, rework: true }, decidedAt: new Date().toISOString() })}
+                >
+                  需要修改
+                </button>
+              </div>
+              {!lr && <p className="wfe-hint">暂无匹配当前工作流版本的渲染产物；需先运行制作节点，才能标记「审片通过」。</p>}
+              {verdict === 'done' && p.reviewedVersion != null && (
+                <p className="wfe-hint">已通过渲染版本 v{String(p.reviewedVersion)}。</p>
+              )}
+              {verdict === 'rework' && (
+                <p className="wfe-hint">已标记需要修改：下次运行将清理制作循环旧结果，并把下方修改意见作为 correction 写入 corrections.md。</p>
+              )}
+            </div>
+            <div className="wfe-field"><span>审片检查（查看画面后确认）</span>
+              <div className="wfe-checks">
+                {Array.from(new Set([
+                  ...(Array.isArray(p.customChecklist) ? p.customChecklist.map(String).filter(Boolean) : []),
+                  ...QUALITY_QUESTIONS,
+                ])).map((q) => (
                   <label key={q} className="wfe-check">
                     <input type="checkbox" checked={!!checks[q]} onChange={() => onParams({ checks: { ...checks, [q]: !checks[q] } })} />
                     <span>{q}</span>
+                    {Array.isArray(p.customChecklist) && p.customChecklist.map(String).includes(q) && <em>Skill</em>}
                   </label>
-                )
-              })}
+                ))}
+              </div>
             </div>
-          </div>
-          <label className="wfe-field"><span>问题与修改意图</span>
-            <textarea rows={6} value={String(p.issues ?? '')} onChange={(e) => onParams({ issues: e.target.value })} placeholder="对着真实预览记录：哪里不对、想怎么改" />
-          </label>
-        </>
-      )}
+            <label className="wfe-field"><span>问题与修改意图</span>
+              <textarea rows={6} value={String(p.issues ?? '')} onChange={(e) => onParams({ issues: e.target.value })} placeholder="对着真实预览记录：哪里不对、想怎么改" />
+            </label>
+          </>
+        )
+      })()}
 
-      {node.data.defType === 'finishing' && (
-        <label className="wfe-field"><span>Finishing 记录</span>
-          <textarea rows={8} value={String(p.notes ?? '')} onChange={(e) => onParams({ notes: e.target.value })} placeholder="观众优先的收束：节奏、音画关系、细节、QC 观察" />
-        </label>
-      )}
+      {node.data.defType === 'delivery' && (() => {
+        const revNode = props.workflow?.nodes.find((n) => n.type === 'review')
+        const revChecks = (revNode?.params.checks as Record<string, boolean> | undefined) ?? {}
+        const lr = props.latestRender
+        const revDone = Boolean(revChecks.done && !revChecks.rework)
+        const versionMatches = !lr || lr.version == null || revNode?.params.reviewedVersion == null || Number(revNode.params.reviewedVersion) === Number(lr.version)
+        const readyToDeliver = Boolean(lr && revDone && versionMatches)
+        return (
+          <>
+            <p className="wfe-hint">确定性交付节点（不调用 Agent）：只有审片通过，且通过的就是最新那次渲染时，才会输出本次渲染；否则停在「等待审片通过」。</p>
+            <dl className="wfe-kv">
+              <dt>当前状态</dt>
+              <dd>{readyToDeliver ? '审片已通过最新渲染，可输出交付' : '等待审片通过'}</dd>
+              {lr?.version != null && <><dt>最新渲染</dt><dd>v{String(lr.version)}</dd></>}
+            </dl>
+            <label className="wfe-field"><span>交付备注</span>
+              <textarea rows={5} value={String(p.notes ?? '')} onChange={(e) => onParams({ notes: e.target.value })} placeholder="可选记录：交付说明或版本备注" />
+            </label>
+          </>
+        )
+      })()}
       </div>
 
       <TechDetails node={node} />

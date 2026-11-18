@@ -15,6 +15,9 @@
 | `project.md` | 项目、设置、时间线、场景、分镜、镜头参数、产物、版本 | `ProjectSummary`、`Scene`、`Timeline`、`WorkbenchArtifact` |
 | `task.md` | 任务请求、任务实体、事件流、变更集、取消/重试 | `TaskRequest`、`AgentTask`、`TaskEvent` |
 | `workflow.md` | 工作流定义与版本、运行、模板 | `WorkflowDefinition`、`WorkflowRun` |
+| `workflow-project.md` | 项目创作上下文：工作稿文件读写、原文完整性 | `Draft` |
+| `skill-package.md` | GitHub skill 包导入（固定 commit、只读落盘、不执行）与静态清点 | `SkillPackage`、`SkillInventory` |
+| `workflow-preset.md` | 从 skill 生成视频类型：映射生成与校验、审阅启用、落地到项目 | `WorkflowPreset`、`PresetMapping` |
 | `check.md` | 检查运行、问题项、证据、处理状态、结论派生 | `CheckRun`、`CheckFinding` |
 | `render.md` | 渲染作业、产物、交付状态、验收 | `RenderJob`、`DeliveryState`、`AcceptanceRecord` |
 | `asset.md` | 素材、五维状态、文件夹、分片上传 | `Asset`、`AssetFolder`、`UploadSession` |

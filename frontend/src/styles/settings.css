@@ -87,7 +87,7 @@
   min-height: 44px;
   padding: 6px 10px;
   border: 0;
-  border-radius: 19px;
+  border-radius: 14px;
   background: none;
   color: var(--dim);
   font: inherit;
@@ -463,7 +463,7 @@ html[data-motion="reduce"] *::after {
   height: 32px;
   padding: 0 10px;
   border: 0;
-  border-radius: 8px;
+  border-radius: 6px;
   background: color-mix(in srgb, var(--fg) 5%, transparent);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fg) 8%, transparent);
   color: var(--fg);
@@ -503,7 +503,7 @@ html[data-motion="reduce"] *::after {
   display: grid;
   place-items: center;
   align-self: stretch;
-  border-radius: 9px;
+  border-radius: 10px;
   background:
     radial-gradient(120% 120% at 50% 30%,
       color-mix(in srgb, var(--h-color) 22%, transparent) 0%,
@@ -547,7 +547,7 @@ html[data-motion="reduce"] *::after {
   padding: 0 7px;
   background: color-mix(in srgb, var(--fg) 5%, transparent);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fg) 8%, transparent);
-  border-radius: 7px;
+  border-radius: 6px;
   color: var(--fg);
 }
 .set-hcard .set-agent-pick:hover { background: color-mix(in srgb, var(--fg) 9%, transparent); }
@@ -603,7 +603,7 @@ html[data-motion="reduce"] *::after {
   gap: 12px;
   padding: 11px 12px;
   border: 1px solid color-mix(in srgb, var(--fg) 7%, transparent);
-  border-radius: 9px;
+  border-radius: 10px;
   margin-bottom: 6px;
   background: var(--hole);
 }
@@ -648,16 +648,25 @@ html[data-motion="reduce"] *::after {
   text-transform: uppercase;
   color: var(--ph);
 }
-.set-pick-list { display: flex; flex-direction: column; gap: 1px; }
+.set-pick-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  max-height: min(123px, calc(100dvh - 100px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
 .set-pick-item {
   display: flex;
   align-items: center;
   gap: 8px;
   width: 100%;
   height: 30px;
+  flex: 0 0 30px;
   padding: 0 8px;
   border: 0;
-  border-radius: 7px;
+  border-radius: 6px;
   background: transparent;
   color: var(--fg);
   font: inherit;

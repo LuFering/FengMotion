@@ -23,6 +23,7 @@ import com.fengmotion.server.harness.service.HarnessService;
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
+@org.springframework.test.context.TestPropertySource(properties = {"fengmotion.harness.codex-bin=/nonexistent/fm-codex", "fengmotion.harness.claude-bin=/nonexistent/fm-claude"})
 class HarnessApiTest {
 
     @Autowired
@@ -35,7 +36,7 @@ class HarnessApiTest {
                 .andExpect(status().isOk())
                 // 关键断言：不是空数组。返回空列表会让前端以为「本机没装引擎」，
                 // 而真实原因是配置里关掉了接入。
-                .andExpect(jsonPath("$.items.length()").value(1))
+                .andExpect(jsonPath("$.items.length()").value(3))
                 .andExpect(jsonPath("$.items[0].id").value(HarnessService.DSH_ID))
                 .andExpect(jsonPath("$.items[0].status").value("unavailable"))
                 // 必须给出原因，否则用户无从排查。

@@ -4,6 +4,7 @@
 @import "./styles/settings.css";
 @import "./styles/brand.css";
 @import "./styles/tokens.css";
+@import "./styles/icons.css";
 @import "./styles/fm-components.css";
 @import "./styles/view-switch.css";
 @import "./styles/fm-page.css";
@@ -52,7 +53,9 @@
    本文件不再自造变量 —— 上一版自造的那套与 paba 冲突，已删除。 */
 
 @theme inline {
-  --font-sans: -apple-system, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  /* 工具界面唯一字体栈（第三轮统一）：西文与数字用随包的 Geist，中文交给系统字体。
+     Inter 不随包，只在装了它的机器上生效，其他机器会静默回退，故不再使用。 */
+  --font-sans: "Geist Variable", -apple-system, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
   --font-mono: ui-monospace, Consolas, monospace;
   --font-serif: "Songti SC", SimSun, serif;
 
@@ -97,10 +100,11 @@
   --color-ring:               var(--acc);
   --color-destructive:        var(--bad);
 
+  /* 与 tokens.css 的四档圆角一致：sm=mark md=control lg=card xl=panel */
   --radius-sm: 4px;
   --radius-md: 6px;
-  --radius-lg: 8px;
-  --radius-xl: 12px;
+  --radius-lg: 10px;
+  --radius-xl: 14px;
 }
 
 /* ── 全局：禁止「拖拽图片」这种原生行为 ──────────────────────

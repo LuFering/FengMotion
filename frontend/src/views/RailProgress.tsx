@@ -7,6 +7,7 @@ import { WF_NODE_DEFS } from '@/data/workflowTemplates'
 import { fmtDay, TASK_STATUS_LABEL } from '@/shell/status'
 import type { AgentReference, TaskEvent } from '@/services/studioApi'
 import type { FilmCreateResult } from '@/services/api/workflowContext'
+import { runMatchesDefinition } from '@/services/workflowPresentation'
 import { Progress } from '@/components/ui/progress'
 
 /**
@@ -25,7 +26,7 @@ import { Progress } from '@/components/ui/progress'
  * 第几个镜头」这种刻度，那是渲染切片，不是内容。
  *
  * 运行仍是演示执行器推进节点（不调 AI、不出片），但 **Prompt-first 开跑时
- * 会真实写入 workflow-v0.1.0 创作上下文**（prompt.original.md 等），
+ * 会真实写入 workflow-v0.1.1 创作上下文**（prompt.original.md 等），
  * 所以不能再简单标成「纯演示」——界面要把这两件事分开说。
  */
 
@@ -35,7 +36,7 @@ export function RailProgressPanel({ workflow, projectId, prompt, references, dis
   onCreateResult?: (result: FilmCreateResult) => void
   /** 当前项目的工作流；节点参数由外面传进来（写回决定后外面会重取，这里才跟着更新） */
   workflow: WorkflowDef | null
-  /** 当前项目 ID：有值时运行会真实建立 workflow-v0.1.0 创作上下文 */
+  /** 当前项目 ID：有值时运行会真实建立 workflow-v0.1.1 创作上下文 */
   projectId?: string
   /** 用户原始需求：会被逐字写进 prompt.original.md */
   prompt?: string
@@ -69,7 +70,7 @@ export function RailProgressPanel({ workflow, projectId, prompt, references, dis
   const [finished, setFinished] = useState<WorkflowRun | null>(null)
   const startedRef = useRef(false)
   const execution = useRef<{ cancel: () => void } | null>(null)
-  useEffect(() => () => execution.current?.cancel(), [])
+  useEffect(() => () => { if(!realCreation)execution.current?.cancel() }, [realCreation])
   /* 进来先看上次跑成什么样；自己再跑一次就换成本次的结果 */
   const run = finished ?? (workflow ? (workflowService.listRuns(workflow.id)[0] ?? null) : null)
 
@@ -109,7 +110,7 @@ export function RailProgressPanel({ workflow, projectId, prompt, references, dis
 
   if (!workflow || stages.length === 0) return null
 
-  const statusOfNode = (id: string): WfNodeStatus => statuses[id] ?? run?.nodeStatus?.[id] ?? 'pending'
+  const statusOfNode = (id: string): WfNodeStatus => statuses[id] ?? (runMatchesDefinition(run,workflow,false)?run?.nodeStatus?.[id]:undefined) ?? 'pending'
   /* 双条件才算做完：运行标了 completed，并且这一步留下了结论 */
   const stageDone = (n: (typeof stages)[number]) => {
     const st = statusOfNode(n.id)
@@ -158,8 +159,8 @@ export function RailProgressPanel({ workflow, projectId, prompt, references, dis
           <span className="fw-prog-demo">{realCreation ? 'Agent 创作与渲染' : '演示执行器'}</span>
         </span>
         <div className="fw-prog-acts">
-          <button type="button" className="fw-prog-run" disabled={disabled || (running && realCreation)} onClick={() => running ? execution.current?.cancel() : doRun()}>
-            {realCreation ? (running ? '正在制作' : run ? '继续制作' : '开始制作') : running ? '停止演示' : run ? '再次演示' : '运行演示'}
+          <button type="button" className="fw-prog-run" disabled={disabled} onClick={() => running ? execution.current?.cancel() : doRun()}>
+            {realCreation ? (running ? '取消制作' : run ? '继续制作' : '开始制作') : running ? '停止演示' : run ? '再次演示' : '运行演示'}
           </button>
           <button type="button" className="fw-prog-mini" onClick={onOpenExecution}>查看执行</button>
           <button type="button" className="fw-prog-mini" onClick={onOpenEditor}>工作流</button>

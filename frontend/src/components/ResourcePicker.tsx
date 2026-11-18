@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Image as ImageIcon, Film, Sparkles, Plus } from 'lucide-react'
+import { UiIcon, SemIcons } from '@/components/icons/UiIcon'
+import { Star01 } from '@untitledui/icons'
 import {
   Dialog,
   DialogContent,
@@ -145,9 +146,9 @@ export function ResourcePicker({
 
         <Tabs value={kind} onValueChange={(v) => { setKind(v as typeof kind); setActiveVideo('') }}>
           <TabsList>
-            <TabsTrigger value="asset"><ImageIcon className="size-3.5" /> 素材</TabsTrigger>
-            <TabsTrigger value="reference"><Film className="size-3.5" /> 参考片</TabsTrigger>
-            <TabsTrigger value="technique"><Sparkles className="size-3.5" /> 特效</TabsTrigger>
+            <TabsTrigger value="asset"><UiIcon icon={SemIcons.image} className="size-3.5" /> 素材</TabsTrigger>
+            <TabsTrigger value="reference"><UiIcon icon={SemIcons.film} className="size-3.5" /> 参考片</TabsTrigger>
+            <TabsTrigger value="technique"><UiIcon icon={Star01} className="size-3.5" /> 特效</TabsTrigger>
           </TabsList>
 
           {/* 素材：先选用途，再选素材 */}
@@ -185,7 +186,7 @@ export function ResourcePicker({
                       <span className="t-body truncate">{a.name}</span>
                       <span className="t-dim text-muted-foreground">{a.mimeType ?? a.mediaType ?? ''}</span>
                     </span>
-                    <Plus className="size-3.5 shrink-0" />
+                    <UiIcon icon={SemIcons.plus} className="size-3.5 shrink-0" />
                   </Button>
                 ))}
               </div>
@@ -236,7 +237,7 @@ export function ResourcePicker({
                           <span className="t-body num">第 {s.index + 1} 段 · {seconds(s.startMs)}–{seconds(s.endMs)}</span>
                           {s.observation && <span className="t-dim truncate text-muted-foreground">{s.observation.slice(0, 40)}…</span>}
                         </span>
-                        <Plus className="size-3.5 shrink-0" />
+                        <UiIcon icon={SemIcons.plus} className="size-3.5 shrink-0" />
                       </Button>
                     ))}
                   </div>
@@ -289,7 +290,7 @@ export function ResourcePicker({
                       <span className="t-body truncate">{t.name}</span>
                       <span className="t-dim text-muted-foreground">{t.categoryLabel ?? ''}</span>
                     </span>
-                    <Plus className="size-3.5 shrink-0" />
+                    <UiIcon icon={SemIcons.plus} className="size-3.5 shrink-0" />
                   </Button>
                 ))}
               </div>

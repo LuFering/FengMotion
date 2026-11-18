@@ -143,9 +143,16 @@ public class ThumbnailService {
         }
         try {
             Files.createDirectories(target.getParent());
+            return extractVideoThumbnail(video,target,FRAME_AT_SECONDS) || extractVideoThumbnail(video,target,0);
+        } catch(Exception ex){return false;}
+    }
+
+    private boolean extractVideoThumbnail(Path video,Path target,double at) {
+        try {
+            Files.createDirectories(target.getParent());
             List<String> command = List.of(ffmpeg, "-y", "-v", "error",
                     // 先 -ss 再 -i：快速定位，不用解码整段
-                    "-ss", String.valueOf(FRAME_AT_SECONDS),
+                    "-ss", String.valueOf(at),
                     "-i", video.toString(),
                     "-frames:v", "1",
                     // scale=480:-2 保持宽高比，-2 保证高度是偶数（编码器要求）

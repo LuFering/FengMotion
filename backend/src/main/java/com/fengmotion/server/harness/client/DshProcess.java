@@ -34,6 +34,7 @@ public final class DshProcess {
 
     /** 子进程句柄。 */
     private final Process process;
+    private final boolean closeDescendants;
     /** 写 stdin 的缓冲流，用于发送请求帧。 */
     private final BufferedWriter stdin;
     /** 读 stdout 的缓冲流；由本类持有，{@link #close()} 时统一关闭。 */
@@ -53,7 +54,10 @@ public final class DshProcess {
      * @param process 已启动的 {@code dsh} 子进程
      * @throws IOException 无法获取子进程流时抛出
      */
-    public DshProcess(Process process) throws IOException {
+    public DshProcess(Process process) throws IOException { this(process, false); }
+
+    public DshProcess(Process process, boolean closeDescendants) throws IOException {
+        this.closeDescendants = closeDescendants;
         this.process = process;
         this.stdin = new BufferedWriter(
                 new OutputStreamWriter(process.getOutputStream(), StandardCharsets.UTF_8));
@@ -234,6 +238,8 @@ public final class DshProcess {
      * 靠 GC 回收会积压 FD。</p>
      */
     public void close() {
+        var children = closeDescendants ? process.descendants().toList() : java.util.List.<ProcessHandle>of();
+        children.forEach(ProcessHandle::destroy);
         try {
             stdin.close();
         } catch (IOException ignored) {
@@ -250,6 +256,7 @@ public final class DshProcess {
             Thread.currentThread().interrupt();
             process.destroyForcibly();
         }
+        children.stream().filter(ProcessHandle::isAlive).forEach(ProcessHandle::destroyForcibly);
         closeQuietly(stdout);
         closeQuietly(process.getErrorStream());
         closeQuietly(process.getInputStream());

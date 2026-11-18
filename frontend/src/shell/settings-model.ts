@@ -142,7 +142,7 @@ export function normalizeSettings(input: Partial<Settings>): Settings {
   s.labVideoAnalysis = s.labVideoAnalysis !== false
   s.reduceMotion = s.reduceMotion === true
   const h = HARNESSES.find((x) => x.id === s.harness) ?? HARNESSES[0]
-  return { ...s, harness: h.id, model: h.models.includes(s.model) ? s.model : h.models[0] }
+  return { ...s, harness: h.id, model: typeof s.model === "string" && s.model.trim() ? s.model : h.models[0] }
 }
 
 export function saveSettings(s: Settings) {

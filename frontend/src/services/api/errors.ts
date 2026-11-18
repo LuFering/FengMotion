@@ -94,6 +94,9 @@ export function parseErrorPayload(status: number, payload: unknown): ParsedError
       if (typeof nested.code === 'string' && nested.code !== '' && !isKnownApiCode(nested.code)) {
         details.rawCode = nested.code
       }
+      if (Array.isArray(nested.problems)) {
+        details.problems = nested.problems
+      }
       return {
         code,
         message,

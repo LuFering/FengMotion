@@ -1,19 +1,12 @@
 package com.fengmotion.server.fx.api;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -23,39 +16,46 @@ import com.fengmotion.server.common.Pagination;
 import com.fengmotion.server.fx.api.dto.FxTechniqueResponse;
 import com.fengmotion.server.fx.api.dto.FxTechniqueResponse.ParamResponse;
 import com.fengmotion.server.fx.api.dto.FxTechniqueResponse.UserStateResponse;
-import com.fengmotion.server.fx.domain.FxParam;
 import com.fengmotion.server.fx.domain.FxStates;
 import com.fengmotion.server.fx.domain.FxTechnique;
-import com.fengmotion.server.fx.service.FxCapabilityImporter;
 import com.fengmotion.server.fx.service.FxTechniqueService;
-import com.fengmotion.server.fx.service.capability.CapabilitySource;
-import com.fengmotion.server.fx.store.FxTechniqueRepository;
 import com.fengmotion.server.fx.store.FxTechniqueRepository.FxQuery;
 import com.fengmotion.server.fx.store.FxTechniqueRepository.UserState;
 
 /**
  * 特效库接口（契约 docs/contracts/library.md §2.2）。
  *
- * <p>技法目录只读：不提供新增/修改/删除技法本身。用户可改的只有收藏与最近浏览，
+ * <p>技法目录**只读**：不提供新增/修改/删除技法本身。用户可改的只有收藏与最近浏览，
  * 走 {@code PATCH /fx-techniques/{id}/state}。</p>
+ *
+ * <p>「用于工作流」在真实调用链可用前<strong>不提供端点</strong> —— 契约 §2.2 的要求。
+ * 现在只提供知识与状态查询，界面不得显示「已交给工作流」。</p>
  */
 @RestController
 @RequestMapping("/api/fx-techniques")
 public class FxTechniqueController {
 
     private final FxTechniqueService service;
-    private final FxCapabilityImporter importer;
-    private final FxTechniqueRepository repository;
 
-    public FxTechniqueController(FxTechniqueService service, FxCapabilityImporter importer,
-            FxTechniqueRepository repository) {
+    public FxTechniqueController(FxTechniqueService service) {
         this.service = service;
-        this.importer = importer;
-        this.repository = repository;
     }
 
     /**
      * 技法列表。
+     *
+     * @param category      按用途分类筛选
+     * @param execType      按源库声明的执行类型筛选
+     * @param impl          按实现方式筛选
+     * @param inputKind     按输入类型筛选
+     * @param maxComplexity 复杂度上限
+     * @param featured      只看精选
+     * @param favorited     只看收藏
+     * @param q             名称/英文名/用途/别名/检索词子串
+     * @param sort          cat（默认）/ complexity / updated
+     * @param cursor        游标
+     * @param limit         每页数量
+     * @return 分页结果
      */
     @GetMapping
     public PageResponse list(
@@ -64,7 +64,6 @@ public class FxTechniqueController {
             @RequestParam(required = false) String impl,
             @RequestParam(required = false) String inputKind,
             @RequestParam(required = false) Integer maxComplexity,
-            @RequestParam(required = false) String sourceProject,
             @RequestParam(required = false, defaultValue = "false") boolean featured,
             @RequestParam(required = false, defaultValue = "false") boolean favorited,
             @RequestParam(required = false) String q,
@@ -84,8 +83,7 @@ public class FxTechniqueController {
                 blankToNull(q),
                 sort,
                 limit,
-                offset,
-                blankToNull(sourceProject));
+                offset);
         List<FxTechnique> found = service.search(query);
         int total = service.count(query);
         List<FxTechniqueResponse> items = found.stream()
@@ -95,200 +93,6 @@ public class FxTechniqueController {
                 ? Pagination.encodeCursor(offset + found.size())
                 : null;
         return new PageResponse(items, next, total);
-    }
-
-    /** 来源仓库列表及数量统计。 */
-    @GetMapping("/sources")
-    public List<Map<String, Object>> listSources() {
-        Map<String, Map<String, Integer>> facets = service.facets();
-        Map<String, Integer> spMap = facets.getOrDefault("sourceProjects", Map.of());
-        return spMap.entrySet().stream()
-                .map(e -> Map.<String, Object>of("sourceProject", e.getKey(), "count", e.getValue()))
-                .toList();
-    }
-
-    /** 预览仓库中的能力（只读解析，用于导入弹窗在导入前查看组件与代码）。 */
-    @GetMapping("/scan-repo")
-    public ResponseEntity<Map<String, Object>> scanRepo(@RequestParam(defaultValue = "all") String repo) {
-        Path root = resolveCapabilitiesRoot();
-        if (root == null) {
-            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-                    .body(Map.of("success", false, "message", "未找到本地 capabilities 目录"));
-        }
-        List<CapabilitySource.ParsedItem> items = importer.scanOnly(root, repo);
-        List<Map<String, Object>> result = new ArrayList<>();
-        for (CapabilitySource.ParsedItem item : items) {
-            String code = "";
-            List<String> cleanSteps = new ArrayList<>();
-            List<String> props = new ArrayList<>();
-            List<String> apis = new ArrayList<>();
-            if (item.steps() != null) {
-                for (String step : item.steps()) {
-                    if (step.startsWith("__SOURCE_CODE__:\n")) {
-                        code = step.substring("__SOURCE_CODE__:\n".length());
-                    } else if (step.startsWith("可调参数：")) {
-                        String p = step.substring("可调参数：".length());
-                        props.addAll(List.of(p.split("、")));
-                        cleanSteps.add(step);
-                    } else if (step.startsWith("使用 API：")) {
-                        String a = step.substring("使用 API：".length());
-                        apis.addAll(List.of(a.split("、")));
-                        cleanSteps.add(step);
-                    } else {
-                        cleanSteps.add(step);
-                    }
-                }
-            }
-            boolean exists = repository.findById(item.id()).isPresent();
-            Map<String, Object> m = new java.util.LinkedHashMap<>();
-            m.put("id", item.id());
-            m.put("name", item.name());
-            m.put("nameEn", item.nameEn() == null ? "" : item.nameEn());
-            m.put("category", item.categoryHint() == null ? "compositing" : item.categoryHint());
-            m.put("intent", item.intent() == null ? "" : item.intent());
-            m.put("sourceProject", item.sourceProject() == null ? "" : item.sourceProject());
-            m.put("sourcePath", item.sourcePath() == null ? "" : item.sourcePath());
-            m.put("code", code);
-            m.put("props", props);
-            m.put("apis", apis);
-            m.put("steps", cleanSteps);
-            m.put("alreadyImported", exists);
-            result.add(m);
-        }
-        return ResponseEntity.ok(Map.of(
-                "success", true,
-                "repo", repo,
-                "total", result.size(),
-                "items", result
-        ));
-    }
-
-    /** 导入预置能力库（remotion-scenes、video-shotcraft、lemo-opuscar 或全部）。 */
-    @PostMapping("/import-preset")
-    public ResponseEntity<Map<String, Object>> importPreset(@RequestParam(defaultValue = "all") String repo) {
-        Path root = resolveCapabilitiesRoot();
-        if (root == null) {
-            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-                    .body(Map.of("success", false, "message", "未找到本地 capabilities 目录"));
-        }
-        FxCapabilityImporter.ImportResult result = importer.importFrom(root);
-        return ResponseEntity.ok(Map.of(
-                "success", true,
-                "imported", result.imported(),
-                "skipped", result.skipped(),
-                "note", result.note() == null ? "" : result.note()
-        ));
-    }
-
-    public record ImportCustomRequest(
-            String sourceProject,
-            String sourceUrl,
-            List<CustomTechniqueItem> items
-    ) {}
-
-    public record CustomTechniqueItem(
-            String id,
-            String name,
-            String nameEn,
-            String intent,
-            String category,
-            String impl,
-            String code,
-            List<String> keywords,
-            List<String> steps,
-            List<String> props,
-            String sourcePath
-    ) {}
-
-    /** 自定义导入 GitHub 解析条目。 */
-    @PostMapping("/import-custom")
-    public ResponseEntity<Map<String, Object>> importCustom(@RequestBody ImportCustomRequest req) {
-        if (req == null || req.items() == null || req.items().isEmpty()) {
-            return ResponseEntity.badRequest().body(Map.of("success", false, "message", "导入条目列表为空"));
-        }
-        int count = 0;
-        Instant now = Instant.now();
-        String project = (req.sourceProject() == null || req.sourceProject().isBlank()) ? "github" : req.sourceProject();
-        String url = req.sourceUrl() == null ? "" : req.sourceUrl();
-
-        for (CustomTechniqueItem item : req.items()) {
-            if (item.id() == null || item.id().isBlank() || item.name() == null || item.name().isBlank()) {
-                continue;
-            }
-            List<String> steps = new java.util.ArrayList<>(item.steps() == null ? List.of() : item.steps());
-            if (item.code() != null && !item.code().isBlank() && steps.stream().noneMatch(s -> s.startsWith("__SOURCE_CODE__:"))) {
-                steps.add("__SOURCE_CODE__:\n" + item.code());
-            }
-            if (item.props() != null && !item.props().isEmpty() && steps.stream().noneMatch(s -> s.startsWith("可调参数："))) {
-                steps.add("可调参数：" + String.join("、", item.props()));
-            }
-
-            FxStates.Category cat = FxCapabilityImporter.mapCategory(item.category() == null ? "" : item.category());
-            FxTechnique t = new FxTechnique(
-                    item.id(),
-                    item.name(),
-                    item.nameEn() == null ? "" : item.nameEn(),
-                    List.of(),
-                    item.keywords() == null ? List.of() : item.keywords(),
-                    item.intent() == null ? "" : item.intent(),
-                    cat,
-                    cat.label(),
-                    List.of(),
-                    List.of(),
-                    FxStates.ExecType.COMPOSABLE,
-                    FxStates.ExecType.COMPOSABLE.label(),
-                    FxStates.ExecutionStatus.NOT_IMPLEMENTED,
-                    FxStates.Impl.COMPOSITE,
-                    FxStates.Impl.COMPOSITE.label(),
-                    2,
-                    List.of(FxStates.InputKind.VIDEO),
-                    List.of("视频"),
-                    "",
-                    "",
-                    List.of(),
-                    steps,
-                    List.of(),
-                    List.of(),
-                    List.of(),
-                    List.of(),
-                    "",
-                    null,
-                    "",
-                    List.of(),
-                    List.of(),
-                    false,
-                    "1.0.0",
-                    now,
-                    false,
-                    "github",
-                    project,
-                    url,
-                    "",
-                    "MIT",
-                    "MIT",
-                    "",
-                    item.sourcePath() == null ? "" : item.sourcePath(),
-                    now
-            );
-            repository.upsert(t);
-            count++;
-        }
-
-        return ResponseEntity.ok(Map.of(
-                "success", true,
-                "imported", count,
-                "sourceProject", project
-        ));
-    }
-
-    private Path resolveCapabilitiesRoot() {
-        for (String candidate : List.of("capabilities", "../capabilities", "../../capabilities")) {
-            Path p = Path.of(candidate);
-            if (Files.isDirectory(p)) {
-                return p.toAbsolutePath().normalize();
-            }
-        }
-        return null;
     }
 
     /** 筛选面与全量计数（不受当前筛选影响）。 */

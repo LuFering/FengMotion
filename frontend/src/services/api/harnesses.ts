@@ -85,7 +85,7 @@ export interface HarnessResource {
    * 注意：后端未实现此端点时会抛 `not_found`（或 503）。
    * 调用方应把这种情况呈现为「引擎状态未知」，**不要**退回本地硬编码的引擎清单冒充真实探测结果。
    */
-  list(options?: { signal?: AbortSignal }): Promise<HarnessList>
+  list(options?: { signal?: AbortSignal; refresh?: boolean }): Promise<HarnessList>
   /** 某引擎的可用模型。数据来自 DSH 的 provider 配置，不在后端硬编码。 */
   models(harnessId: string, options?: { signal?: AbortSignal }): Promise<HarnessModel[]>
 }
@@ -93,7 +93,7 @@ export interface HarnessResource {
 export function createHarnessResource(http: HttpClient): HarnessResource {
   return {
     async list(options = {}) {
-      const payload = await http.get<unknown>('/harnesses', { signal: options.signal })
+      const payload = await http.get<unknown>(options.refresh ? '/harnesses?refresh=true' : '/harnesses', { signal: options.signal, timeoutMs: 65000 })
       const record = payload && typeof payload === 'object' ? (payload as Record<string, unknown>) : {}
       return {
         items: readItems<HarnessDescriptor>(payload, 'GET /harnesses'),

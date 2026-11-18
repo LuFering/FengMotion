@@ -179,9 +179,8 @@ function loadPersistedDraft(key: string): SessionDraft | null {
 /** 安全持久化到本地存储（排除 rawFile、临时 object URL 等不可序列化项） */
 function persistDraft(key: string, draft: SessionDraft) {
   try {
-    /* 只要用户显式选过「提问」，这份草稿就不是空的：
-       删掉它会让刷新后静默回到「修改」。 */
-    if (!draft.text.trim() && !draft.attachments.length && !draft.targetSnapshot && !draft.pendingSubmission && !draft.continuationScopeMode && draft.intentAction !== 'query') {
+    /* 显式选择本身也是草稿；只有文字为空不能丢掉用户的操作意图。 */
+    if (!draft.text.trim() && !draft.attachments.length && !draft.targetSnapshot && !draft.pendingSubmission && !draft.continuationScopeMode && !draft.intentAction) {
       localStorage.removeItem(`${STORAGE_PREFIX}${key}`)
       return
     }

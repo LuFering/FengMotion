@@ -9,7 +9,8 @@
  * 用户不用重新学；只是外观统一到工作台里。
  */
 import { useEffect, useState } from 'react'
-import { Maximize, Pause, Play, Volume2, VolumeX } from 'lucide-react'
+import { UiIcon, SemIcons } from '@/components/icons/UiIcon'
+import { Maximize01, VolumeMax, VolumeMin } from '@untitledui/icons'
 import { containedMediaRect } from '@/data/previewGeometry'
 
 export function StagePlayerControls({ mediaRef, duration, playing, onToggle, onTime, currentTime }: {
@@ -71,7 +72,7 @@ export function StagePlayerControls({ mediaRef, duration, playing, onToggle, onT
     <div className="wb-player" role="group" aria-label="画面播放控制" style={{ bottom: bottomInset }}>
       <button type="button" className="wb-player-btn" onClick={onToggle}
               aria-label={playing ? '暂停' : '播放'}>
-        {playing ? <Pause size={14} /> : <Play size={14} />}
+        {playing ? <UiIcon icon={SemIcons.pause} size="sm" /> : <UiIcon icon={SemIcons.play} size="sm" />}
       </button>
       <span className="wb-player-time">
         {formatClock(currentTime)} / {formatClock(total)}
@@ -91,11 +92,11 @@ export function StagePlayerControls({ mediaRef, duration, playing, onToggle, onT
       </div>
       <button type="button" className="wb-player-btn" onClick={() => setMuted((m) => !m)}
               aria-label={muted ? '取消静音' : '静音'}>
-        {muted ? <VolumeX size={14} /> : <Volume2 size={14} />}
+        {muted ? <UiIcon icon={VolumeMin} size="sm" /> : <UiIcon icon={VolumeMax} size="sm" />}
       </button>
       <button type="button" className="wb-player-btn" aria-label="全屏"
               onClick={() => { const v = video(); if (v) void v.requestFullscreen?.() }}>
-        <Maximize size={14} />
+        <UiIcon icon={Maximize01} size="sm" />
       </button>
     </div>
   )

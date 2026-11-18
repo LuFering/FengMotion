@@ -26,7 +26,7 @@
   flex: none;
   padding: 0;
   border: 0;
-  border-radius: 8px;
+  border-radius: 6px;
   background: transparent;
   color: var(--dim, #9a9a9a);
   cursor: pointer;
@@ -154,7 +154,7 @@
   flex-direction: column;
   gap: 8px;
   padding: 10px;
-  border-radius: 12px;
+  border-radius: 10px;
   border: 1px solid rgb(255 255 255 / .12);
   background: rgb(18 19 24 / .96);
   color: #ededed;
@@ -202,7 +202,7 @@
   width: 100%;
   padding: 7px 9px;
   border: 1px solid rgb(255 255 255 / .12);
-  border-radius: 8px;
+  border-radius: 6px;
   background: rgb(0 0 0 / .45);
   color: #ededed;
   font-family: inherit;
@@ -231,7 +231,7 @@
   min-width: 0;
   padding: 5px 8px;
   border: 1px solid rgb(255 255 255 / .1);
-  border-radius: 7px;
+  border-radius: 6px;
   background: rgb(0 0 0 / .35);
   color: #ededed;
   font-family: var(--font-mono, ui-monospace, monospace);
@@ -244,7 +244,7 @@
   min-height: 26px;
   padding: 0 8px;
   border: 1px solid rgb(255 255 255 / .12);
-  border-radius: 7px;
+  border-radius: 6px;
   background: transparent;
   color: #c9c9cf;
   font-size: 10.5px;
@@ -291,7 +291,7 @@
   min-height: 30px;
   padding: 0 12px;
   border: 0;
-  border-radius: 8px;
+  border-radius: 6px;
   background: var(--acc, #3b8cf8);
   color: #fff;
   font-size: 11.5px;

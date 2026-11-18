@@ -1,15 +1,36 @@
 /**
- * 工作流模板与节点定义（v5 重构）
+ * 工作流模板与节点定义（v5 重构 · schemaVersion 2）
  *
- * 定案（《工作流v5重构定案-对话结论》）：内容模型对齐 workflow-v0.1.0——
+ * ⚠️ 规则：节点类型和端口 ID 只增不改。
+ *   已发布的节点类型与端口 ID 不得改名或复用语义；废弃节点（如 lookdev / filmplan / finishing）
+ *   仅保留在 LEGACY_PF_NODE_DEFS 供历史记录只读显示，不再出现在默认面板与执行器中。
+ *
+ * 定案：
  * · 路径决定结构：Prompt-first（默认）/ Structured（按需）；题材只是预设，
  *   只给提示词结构与默认参数，不再每个题材复制一套节点图。
- * · 产物是节点，阶段是泳道，Gate 是阶段边界上的独立检查点。
- * · Prompt-first 不画 Gate；Structured 的确认绑 artifactId + version，
- *   推荐与确认分开表达。
+ * · Prompt-first 主干：输入（prompt · refs · capability）→ 制作循环（create ⇄ review）→ 交付（delivery）。
+ *   工作稿（lookdev-brief.md · film-plan.md）落盘为项目文件，不在画布连线里。
  */
 import { STORYBOARD } from './productionData'
 import { BUILTIN_ASSETS } from './myAssets'
+
+export const WORKFLOW_SCHEMA_VERSION = 2
+
+export interface WorkflowLegacyDrafts {
+  lookdev?: string
+  filmplan?: string
+}
+
+export interface WorkflowPresetMeta {
+  id: string
+  name: string
+  slug?: string
+  commitSha?: string
+  skillPath?: string
+  sourceRepo?: string
+  requiredInputs?: Array<{ kind?: string; label: string; required?: boolean } | string>
+  reviewChecklist?: string[]
+}
 
 export type WfPath = 'prompt-first' | 'structured'
 
@@ -58,7 +79,7 @@ export const WF_PORT_COLORS: Record<WfPortType, string> = {
 export const PF_NODE_DEFS: WfNodeDef[] = [
   {
     type: 'prompt',
-    label: '提示词输入',
+    label: '创作需求',
     group: '输入',
     description: '原始创作需求，直接进入创作，不要求先转成结构化文档',
     inputs: [],
@@ -66,72 +87,45 @@ export const PF_NODE_DEFS: WfNodeDef[] = [
   },
   {
     type: 'refs',
-    label: '参考与素材',
+    label: '素材与参考',
     group: '输入',
     description: '参考片段、素材库素材、既有项目引用（可选，可为空）',
     inputs: [],
     outputs: [{ id: 'refs', type: 'RefSet', label: '引用集' }],
   },
   {
-    type: 'lookdev',
-    label: 'Lookdev · 视觉转译',
-    group: '工作稿',
-    description: '视觉基调/材质/光线/动势的工作稿，可迭代，不是审批门',
-    inputs: [
-      { id: 'prompt', type: 'PromptDoc', label: '提示词', required: true },
-      { id: 'refs', type: 'RefSet', label: '引用集' },
-    ],
-    outputs: [{ id: 'doc', type: 'LookDoc', label: 'Lookdev' }],
-  },
-  {
-    type: 'filmplan',
-    label: 'Film-plan · 导演处理',
-    group: '工作稿',
-    description: '一页导演处理：叙事推进、镜头节奏、视听策略',
-    inputs: [
-      { id: 'prompt', type: 'PromptDoc', label: '提示词', required: true },
-      { id: 'look', type: 'LookDoc', label: 'Lookdev' },
-    ],
-    outputs: [{ id: 'doc', type: 'PlanDoc', label: 'Film-plan' }],
-  },
-  {
     type: 'capability',
-    label: '能力检索',
-    group: '按需',
+    label: '创作能力',
+    group: '输入',
     description: '按需检索 capability registry 的能力候选（原「技法引用」）',
-    inputs: [
-      { id: 'look', type: 'LookDoc', label: 'Lookdev' },
-      { id: 'plan', type: 'PlanDoc', label: 'Film-plan' },
-    ],
-    outputs: [{ id: 'caps', type: 'CapSet', label: '能力集' }],
+    inputs: [],
+    outputs: [{ id: 'caps', type: 'CapSet', label: '技法集' }],
   },
   {
     type: 'create',
-    label: '创作与渲染',
-    group: '核心',
-    description: 'Remotion 创作与渲染；中间规格未完成不阻断（工作流规则）',
+    label: '制作与渲染',
+    group: '制作循环',
+    description: 'Remotion 创作与渲染；读取 prompt.original.md、corrections.md 与工作稿文件',
     inputs: [
       { id: 'prompt', type: 'PromptDoc', label: '提示词', required: true },
       { id: 'refs', type: 'RefSet', label: '引用集' },
-      { id: 'look', type: 'LookDoc', label: 'Lookdev' },
-      { id: 'plan', type: 'PlanDoc', label: 'Film-plan' },
-      { id: 'caps', type: 'CapSet', label: '能力集' },
+      { id: 'caps', type: 'CapSet', label: '技法集' },
     ],
     outputs: [{ id: 'render', type: 'RenderRef', label: '渲染记录' }],
   },
   {
     type: 'review',
-    label: '看片与修改',
-    group: '核心',
-    description: '对着真实预览记问题与修改意图；quality-bar 问题清单挂在此节点',
+    label: '审片与修改',
+    group: '制作循环',
+    description: '对着真实预览记问题与修改意图；选「需要修改」后下次运行将触发制作循环返工',
     inputs: [{ id: 'render', type: 'RenderRef', label: '渲染记录', required: true }],
     outputs: [{ id: 'notes', type: 'ReviewDoc', label: '看片记录' }],
   },
   {
-    type: 'finishing',
-    label: 'Finishing · 完成度打磨',
-    group: '按需',
-    description: '观众优先的收束：节奏、音画关系、细节与 QC',
+    type: 'delivery',
+    label: '交付',
+    group: '交付',
+    description: '确定性交付节点（不调用 Agent）：仅当审片通过且通过的是最新那次渲染时输出成片',
     inputs: [
       { id: 'render', type: 'RenderRef', label: '渲染记录', required: true },
       { id: 'notes', type: 'ReviewDoc', label: '看片记录' },
@@ -139,6 +133,45 @@ export const PF_NODE_DEFS: WfNodeDef[] = [
     outputs: [{ id: 'render', type: 'RenderRef', label: '渲染记录' }],
   },
 ]
+
+/** 仅保留显示用的旧节点定义；执行器与画布校验不再接受这些节点。 */
+export const LEGACY_PF_NODE_DEFS: WfNodeDef[] = [
+  {
+    type: 'lookdev',
+    label: '视觉构想（已迁为工作稿）',
+    group: '已停用',
+    description: '已迁移为项目工作稿文件 lookdev-brief.md',
+    inputs: [
+      { id: 'prompt', type: 'PromptDoc', label: '提示词', required: true },
+      { id: 'refs', type: 'RefSet', label: '引用集' },
+    ],
+    outputs: [{ id: 'doc', type: 'LookDoc', label: '视觉构想' }],
+  },
+  {
+    type: 'filmplan',
+    label: '导演处理（已迁为工作稿）',
+    group: '已停用',
+    description: '已迁移为项目工作稿文件 film-plan.md',
+    inputs: [
+      { id: 'prompt', type: 'PromptDoc', label: '提示词', required: true },
+      { id: 'look', type: 'LookDoc', label: '视觉构想' },
+    ],
+    outputs: [{ id: 'doc', type: 'PlanDoc', label: '导演处理' }],
+  },
+  {
+    type: 'finishing',
+    label: '完成度打磨（已迁为交付）',
+    group: '已停用',
+    description: '已迁移为交付节点 delivery',
+    inputs: [
+      { id: 'render', type: 'RenderRef', label: '渲染记录', required: true },
+      { id: 'notes', type: 'ReviewDoc', label: '看片记录' },
+    ],
+    outputs: [{ id: 'render', type: 'RenderRef', label: '渲染记录' }],
+  },
+]
+
+export const LEGACY_NODE_TYPES = new Set(LEGACY_PF_NODE_DEFS.map((d) => d.type))
 
 /* ── Structured 阶段与产物 ─────────────────────────────────────── */
 
@@ -220,7 +253,10 @@ export const WF_NODE_DEFS: WfNodeDef[] = [
   ...Object.keys(GATE_DEFS).map(gateDef),
 ]
 
-export function defForNode(node: { type: string; params: Record<string, unknown> }): WfNodeDef | undefined {
+export function defForNode(
+  node: { type: string; params: Record<string, unknown> },
+  options?: { includeLegacy?: boolean },
+): WfNodeDef | undefined {
   if (node.type === 'artifact') {
     const k = ARTIFACT_KIND_MAP[String(node.params.kind ?? '')]
     return k ? artifactDef(k) : undefined
@@ -232,7 +268,9 @@ export function defForNode(node: { type: string; params: Record<string, unknown>
   if (node.type === 'lane') {
     return { type: 'lane', label: '阶段泳道', group: '泳道', description: '', inputs: [], outputs: [] }
   }
-  return WF_NODE_DEFS.find((d) => d.type === node.type && !d.artifactKind)
+  const active = WF_NODE_DEFS.find((d) => d.type === node.type && !d.artifactKind)
+  if (active) return active
+  return options?.includeLegacy ? LEGACY_PF_NODE_DEFS.find((d) => d.type === node.type) : undefined
 }
 
 export const WF_NODE_DEF_MAP: Record<string, WfNodeDef> = Object.fromEntries(
@@ -279,34 +317,33 @@ export function pfDefaultParams(type: string): Record<string, unknown> {
     case 'prompt':
       return { text: '', audience: '', duration: '', ratio: '16:9' }
     case 'refs':
-      return { projectId: 'token', assetIds: [] as string[], refSegmentIds: [] as string[] }
-    case 'lookdev':
-      return { summary: '', status: 'draft' }
-    case 'filmplan':
-      return { summary: '', status: 'draft' }
+      return { projectId: '', assetIds: [] as string[], refSegmentIds: [] as string[] }
     case 'capability':
       return { techniqueIds: [] as string[] }
     case 'create':
       return { mode: 'sketch', resolution: '1080p' }
     case 'review':
       return { issues: '', checks: {} as Record<string, boolean> }
-    case 'finishing':
+    case 'delivery':
       return { notes: '' }
     default:
       return {}
   }
 }
 
-/** Prompt-first 主干图：提示词 → 创作与渲染 → 看片与修改 */
+/** Prompt-first 主干图：创作需求 → 制作与渲染 → 审片与修改 → 交付（循环不存回边） */
 export function promptFirstGraph(presetId: string): WfGraph {
   const nodes: WfNodeInstance[] = [
     { id: 'n-prompt', type: 'prompt', position: { x: 60, y: 150 }, params: pfDefaultParams('prompt') },
     { id: 'n-create', type: 'create', position: { x: 430, y: 150 }, params: pfDefaultParams('create') },
     { id: 'n-review', type: 'review', position: { x: 800, y: 150 }, params: pfDefaultParams('review') },
+    { id: 'n-delivery', type: 'delivery', position: { x: 1170, y: 150 }, params: pfDefaultParams('delivery') },
   ]
   const edges: WfEdgeInstance[] = [
     { id: 'e1', source: 'n-prompt', sourcePort: 'doc', target: 'n-create', targetPort: 'prompt' },
     { id: 'e2', source: 'n-create', sourcePort: 'render', target: 'n-review', targetPort: 'render' },
+    { id: 'e3-delivery-render', source: 'n-create', sourcePort: 'render', target: 'n-delivery', targetPort: 'render' },
+    { id: 'e4-delivery-notes', source: 'n-review', sourcePort: 'notes', target: 'n-delivery', targetPort: 'notes' },
   ]
   if (presetId === 'talking') {
     nodes[0].params = { ...nodes[0].params, text: TOKEN_PROMPT_TEXT, audience: 'AI 初学者', duration: '约 3 分钟' }
@@ -325,9 +362,9 @@ export function promptFirstGraph(presetId: string): WfGraph {
 export function structuredGraph(): WfGraph {
   const nodes: WfNodeInstance[] = []
   const edges: WfEdgeInstance[] = []
-  const laneW = 1020
-  const laneH = 148
-  const gap = 18
+  const laneW = 1240
+  const laneH = 300
+  const gap = 50
   const kindsByStage = new Map<number, ArtifactKindDef[]>()
   for (const k of ARTIFACT_KINDS) {
     const arr = kindsByStage.get(k.stage) ?? []
@@ -359,7 +396,7 @@ export function structuredGraph(): WfGraph {
         id,
         type: 'artifact',
         parentId: `lane-${stage.index}`,
-        position: { x: 24 + i * 252, y: 44 },
+        position: { x: 24 + i * 276, y: 56 },
         params: { kind: k.kind, status: 'missing', version: '', summary: '', fixture: false },
       })
       if (prevOut) {
@@ -370,11 +407,11 @@ export function structuredGraph(): WfGraph {
     const gate = gateAfter.get(stage.index)
     if (gate && prevOut) {
       const gid = `gate-${gate}`
-      const gy = y + laneH + gap / 2 - 26
+      const gy = y + 56
       nodes.push({
         id: gid,
         type: 'gate',
-        position: { x: 816, y: gy },
+        position: { x: 920, y: gy },
         params: {
           gate,
           decision: 'not-started',

@@ -487,6 +487,72 @@ public class DatabaseMigration {
         jdbc.execute("CREATE INDEX IF NOT EXISTS idx_semantic_ref "
                 + "ON semantic_index(ref_kind, ref_id)");
 
+        /* 特效语义建议。之前只有读写代码、没有建表，查看建议历史会直接报 500。
+           唯一约束必须与 SemanticSuggestionRepository 的 ON CONFLICT 列一致。 */
+        jdbc.execute("""
+                CREATE TABLE IF NOT EXISTS fx_semantic_suggestions (
+                    id TEXT PRIMARY KEY,
+                    technique_id TEXT NOT NULL,
+                    component TEXT NOT NULL,
+                    source_path TEXT NOT NULL,
+                    source_text TEXT NOT NULL,
+                    content_hash TEXT NOT NULL,
+                    parser_version TEXT NOT NULL,
+                    model_id TEXT NOT NULL,
+                    prompt_version TEXT NOT NULL,
+                    model_generated_json TEXT NOT NULL,
+                    name TEXT NOT NULL,
+                    purpose TEXT NOT NULL,
+                    category TEXT NOT NULL,
+                    tags_json TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    UNIQUE (technique_id, component, source_path, content_hash, parser_version, model_id, prompt_version)
+                )
+                """);
+        jdbc.execute("CREATE INDEX IF NOT EXISTS idx_fx_semantic_suggestions_technique "
+                + "ON fx_semantic_suggestions(technique_id, created_at)");
+
+        /* GitHub skill 包：按固定 commit 只读落盘，报告存静态清点结果。 */
+        jdbc.execute("""
+                CREATE TABLE IF NOT EXISTS skill_packages (
+                    id TEXT PRIMARY KEY,
+                    owner TEXT NOT NULL,
+                    repo TEXT NOT NULL,
+                    requested_ref TEXT,
+                    commit_sha TEXT NOT NULL,
+                    sub_path TEXT NOT NULL DEFAULT '',
+                    root_dir TEXT NOT NULL,
+                    file_count INTEGER NOT NULL,
+                    total_bytes INTEGER NOT NULL,
+                    report_json TEXT NOT NULL,
+                    imported_at TEXT NOT NULL,
+                    UNIQUE (owner, repo, commit_sha, sub_path)
+                )
+                """);
+        jdbc.execute("CREATE INDEX IF NOT EXISTS idx_skill_packages_imported "
+                + "ON skill_packages(imported_at)");
+
+        /* 从 skill 生成的视频类型（工作流预设）。 */
+        jdbc.execute("""
+                CREATE TABLE IF NOT EXISTS workflow_presets (
+                    id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    description TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    skill_package_id TEXT NOT NULL,
+                    source_repo TEXT NOT NULL,
+                    skill_path TEXT NOT NULL,
+                    commit_sha TEXT NOT NULL,
+                    mapping_json TEXT NOT NULL,
+                    mapping_version INTEGER NOT NULL,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    activated_at TEXT
+                )
+                """);
+        jdbc.execute("CREATE INDEX IF NOT EXISTS idx_workflow_presets_status "
+                + "ON workflow_presets(status)");
+
         /* 创作任务关系与幂等记录（任务幂等、防重复执行与跨端离线持久化）。 */
         jdbc.execute("""
                 CREATE TABLE IF NOT EXISTS workflow_creation_tasks (

@@ -224,7 +224,7 @@
   align-self: flex-end;
   max-width: 86%;
   padding: 8px 12px;
-  border-radius: 12px;
+  border-radius: 10px;
   background: var(--soft);              /* [R2] */
   font-size: 12.5px;
   line-height: 1.6;
@@ -263,7 +263,7 @@
   width: 100%;
   padding: 0;
   border: 1px solid var(--line);
-  border-radius: 8px;                   /* [R3] 容器 */
+  border-radius: 10px;                   /* [R3] 容器 */
   background: var(--surf);              /* [R1] */
   color: var(--fg);
   font: inherit;
@@ -335,7 +335,7 @@
 .fm-project-actions {
   position: absolute; top: 9px; right: 9px;
   display: flex; gap: 2px; padding: 3px;
-  border: 1px solid var(--line); border-radius: 5px;
+  border: 1px solid var(--line); border-radius: 4px;
   background: var(--surf);
   opacity: 0; pointer-events: none;
   transition: opacity .12s;
@@ -357,7 +357,7 @@
   display: flex; align-items: center; gap: 8px;
   width: 190px; flex-shrink: 0;
   min-height: 34px; padding: 6px 10px;
-  border: 1px solid var(--line); border-radius: 5px;
+  border: 1px solid var(--line); border-radius: 4px;
   background: var(--surf); color: var(--dim);
   transition: border-color .14s;
 }

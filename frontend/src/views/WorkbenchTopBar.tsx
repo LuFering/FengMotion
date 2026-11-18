@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
-import { Check } from 'lucide-react'
+import { UiIcon, SemIcons } from '@/components/icons/UiIcon'
+/* 通用图标（下载、信息）用 lucide；media-icons 只留给截帧、引用帧、对比这类媒体语义（第三轮统一）。 */
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -380,7 +381,7 @@ export function WorkbenchTopBar({
                         )}
                       </div>
                       {isCurrent && (
-                        <Check size={14} className="ml-auto text-[var(--acc)]" />
+                        <UiIcon icon={SemIcons.check} size="sm" className="ml-auto text-[var(--acc)]" />
                       )}
                     </DropdownMenuItem>
                   )
@@ -491,7 +492,7 @@ export function WorkbenchTopBar({
 
           {/* 导出最新版本：Vidstack download 图标 */}
           <TopBarIconButton
-            icon={<MediaIcon name="download" size={18} />}
+            icon={<UiIcon icon={SemIcons.download} size="md" />}
             label="导出最新版本"
             tooltip={
               deliverableLead
@@ -648,7 +649,7 @@ export function WorkbenchTopBar({
                         className="wb-topbar-icon-btn"
                         aria-label="项目信息与参数规格"
                       >
-                        <MediaIcon name="info" size={18} />
+                        <UiIcon icon={SemIcons.info} size="md" />
                       </button>
                     </DropdownMenuTrigger>
                   </TooltipTrigger>

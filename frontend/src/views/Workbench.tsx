@@ -1,13 +1,9 @@
-import { MediaIcon } from '@/components/icons/MediaIcon'
+import { submitCreation } from '../services/creationClient'
+import { UiIcon, SemIcons } from '@/components/icons/UiIcon'
+import { ArrowUpRight, Check, CheckSquare, ChevronLeft, ClipboardCheck, Clock, File01, FileCode01, Folder, MessageSquare01, MusicNote01, Plus, RefreshCcw01, Settings01, Square, SwitchHorizontal01, Type01 } from '@untitledui/icons'
+import type { UntIcon } from '@/components/icons/UiIcon'
+import { useHarnessSelection, setHarnessSelection } from '@/shell/useHarnessSelection'
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import {
-  AlertCircle,
-  ArrowLeftRight, ArrowUpRight, Check,
-  ChevronDown, ChevronLeft, ChevronRight, ClipboardList, Clock3, FileCode2, FileText, Film, FolderOpen, History,
-  Image as ImageIcon, ListChecks, LoaderCircle, MessagesSquare, Music2, Type as TypeIcon,
-  Plus, RotateCcw, Settings2,
-  Square, X,
-} from 'lucide-react'
 import { studioHttpApi } from '@/services/api'
 import { chatStreamManager, useSessionStream } from '@/services/chatStreamManager'
 import { resolveSendPlanFromDraft } from '@/services/sendPlan'
@@ -22,7 +18,7 @@ import { registerComposer } from '@/shell/usePendingAssets'
 import { creationIntent, deliveredReferences, libraryReferences } from '@/services/creationResources'
 import { RailProgressPanel } from './RailProgress'
 import { ProjectArtifacts } from './ProjectArtifacts'
-import { useHarnesses, availabilityOf, modelsOf } from '@/shell/useHarnesses'
+import { useHarnesses, availabilityOf, modelsOf, matchHarness } from '@/shell/useHarnesses'
 import { ACTIVE_SCENES } from '@/data/projectModel'
 import { PROJECTS, type ProjectSummary } from '@/data/projects'
 import { ARTIFACT_STATUS_LABEL, ARTIFACT_TYPE_LABEL, WORKBENCH_ARTIFACTS, type WorkbenchArtifact } from '@/data/workbenchArtifacts'
@@ -131,12 +127,12 @@ const scenePreviewOffset = (durationFrames: number) =>
 type SideTab = 'chat' | 'brief' | 'task' | 'versions' | 'review' | 'scene' | 'settings' | 'edit'
 
 /* 控制台常驻五入口：图标 + 悬浮文字，全部直接平铺展示，无多余折叠箭头 */
-const CONSOLE_TABS: { id: 'chat' | 'brief' | 'task' | 'versions' | 'review'; label: string; icon: (props: { size?: number }) => ReactNode }[] = [
-  { id: 'chat', label: '对话', icon: MessagesSquare },
-  { id: 'brief', label: '创作要求', icon: FileText },
-  { id: 'task', label: '执行记录', icon: ListChecks },
-  { id: 'versions', label: '版本', icon: History },
-  { id: 'review', label: '修改审阅', icon: ClipboardList },
+const CONSOLE_TABS: { id: 'chat' | 'brief' | 'task' | 'versions' | 'review'; label: string; icon: UntIcon }[] = [
+  { id: 'chat', label: '对话', icon: MessageSquare01 },
+  { id: 'brief', label: '创作要求', icon: File01 },
+  { id: 'task', label: '执行记录', icon: CheckSquare },
+  { id: 'versions', label: '版本', icon: Clock },
+  { id: 'review', label: '修改审阅', icon: ClipboardCheck },
 ]
 
 /** 左栏的四个页签：概览（要你决定的事）/ 产物 / 内容（这部片有哪些画面）/ 资料。 */
@@ -175,14 +171,14 @@ const CONSTRAINT_LABEL_MAP = Object.fromEntries(CONSTRAINT_LABELS) as Record<str
 const REAL_MODIFY_SUPPORTED_CONSTRAINTS = new Set<ConstraintKey>(['limitToSelection'])
 
 const quickActions = [
-  { id: 'undo', label: '撤销', icon: RotateCcw, prompt: '撤销上一次修改。' },
-  { id: 'redo', label: '重做', icon: RotateCcw, prompt: '重做上一次修改。' },
-  { id: 'compare', label: '对比版本', icon: ArrowLeftRight, compare: true },
-  { id: 'camera', label: '锁定机位', icon: Settings2, constraint: 'preserveCamera' as const },
+  { id: 'undo', label: '撤销', icon: RefreshCcw01, prompt: '撤销上一次修改。' },
+  { id: 'redo', label: '重做', icon: RefreshCcw01, prompt: '重做上一次修改。' },
+  { id: 'compare', label: '对比版本', icon: SwitchHorizontal01, compare: true },
+  { id: 'camera', label: '锁定机位', icon: Settings01, constraint: 'preserveCamera' as const },
   { id: 'captions', label: '保留字幕', icon: Check, constraint: 'preserveCaptions' as const },
   { id: 'assets', label: '替换素材', icon: Plus, constraint: 'attachment' as const },
-  { id: 'duration', label: '调整时长', icon: Clock3, prompt: '调整当前场景时长。请先询问目标时长。' },
-  { id: 'resolution', label: '修改分辨率', icon: Settings2, prompt: '调整项目分辨率。请先询问目标分辨率。' },
+  { id: 'duration', label: '调整时长', icon: Clock, prompt: '调整当前场景时长。请先询问目标时长。' },
+  { id: 'resolution', label: '修改分辨率', icon: Settings01, prompt: '调整项目分辨率。请先询问目标分辨率。' },
   { id: 'regenerate', label: '重新制作预览', icon: ArrowUpRight, prompt: '请重新制作当前修改目标，保留已指定的内容和约束。' },
 ]
 
@@ -880,6 +876,13 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
   const [unsavedReplies, setUnsavedReplies] = useState<Array<{ userMessageId: string; reply: string; sessionId: string; requestId?: string }>>([])
   const [executionPhase, setExecutionPhase] = useState<string>('')
   const sessionDraft = useSessionDraft(projectId, boundSessionId)
+  const engineSelection = useHarnessSelection()
+  const engineProbe = useHarnesses()
+  const engineModels = modelsOf(engineProbe, engineSelection.harness).models
+  const submissionEngine = { ...engineSelection,
+    model: engineModels.find((m) => m.id === engineSelection.model)?.id
+      ?? engineModels.find((m) => m.default)?.id ?? engineModels[0]?.id,
+  }
 
   // 统一程序化草稿写入：同时更新 React 状态与 sessionDraft 统一草稿库
   const setWorkbenchDraftText = useCallback((text: string) => {
@@ -2474,10 +2477,10 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
             label: span ? `时间段修改（${formatMediaTime(span.start)}–${formatMediaTime(span.end)}）` : '工作台创作修改',
             action: 'workflow_modify',
           }
-          const creationReferences: NonNullable<ContractMessage['references']> = [targetRef]
+          const creationReferences: NonNullable<ContractMessage['references']> = [targetRef,...libraryReferences(request.references ?? [])] as NonNullable<ContractMessage['references']>
 
           // 核心点 1 & 2：真实持久化写入服务端会话，解耦幂等键与任务状态，重试时复用已落库消息
-          const promptKey = `${effectiveSid}:${projectId}:${userPromptText}`
+          const promptKey = JSON.stringify([effectiveSid,projectId,userPromptText,request.references,request.constraints,previewImage,baseline.scene?.version,submissionEngine])
           const isRetrySamePrompt = pendingSubmissionRef.current?.promptKey === promptKey
           let userMessageId = isRetrySamePrompt && pendingSubmissionRef.current?.userMessageId ? pendingSubmissionRef.current.userMessageId : null
           const idempotencyKey = isRetrySamePrompt && pendingSubmissionRef.current?.idempotencyKey ? pendingSubmissionRef.current.idempotencyKey : crypto.randomUUID()
@@ -2544,7 +2547,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
           const intent = span ? `${baseIntent}\n\n${timeSpanBrief(span, prompt, { version: viewedPreview?.origin === 'scene' ? viewedPreview.revision : currentSceneState?.version ?? null, file: previewPath?.split('/').pop() ?? null })}` : previewImage
             ? `${baseIntent}\n\n随本次请求附带的是用户选择时的完整画面；如目标包含 bbox，请按归一化坐标定位该区域，无法识别时先询问。`
             : baseIntent
-          const attemptKey = JSON.stringify([projectId, baseline.scene?.version, intent, capturedPreview.current?.id, request.references, constraints])
+          const attemptKey = JSON.stringify([projectId, baseline.scene?.version, intent, capturedPreview.current?.id, request.references, constraints, submissionEngine])
           if (targetedCorrection && correctionAttempt.current?.key !== attemptKey) {
             correctionAttempt.current = { key: attemptKey, id: crypto.randomUUID() }
             try { sessionStorage.setItem(`fm-correction-attempt:${projectId}`, JSON.stringify(correctionAttempt.current)) } catch { /* 保留本页的重试标识 */ }
@@ -2573,17 +2576,13 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
           }, 2000)
           let result
           try {
-            result = await studioHttpApi().workflowContext.create(
-              projectId,
-              intent,
-              libraryReferences(request.references ?? []),
-              previewImage,
-              targetedCorrection ? baseline.scene?.version : undefined,
-              targetedCorrection ? correctionText : undefined,
-              currentTaskId,
-              effectiveSid,
-              userMessageId
-            )
+            result = await submitCreation({
+              projectId, intent, references:libraryReferences(request.references ?? []), previewImage,
+              baseVersion:targetedCorrection ? baseline.scene?.version : undefined,
+              correction:targetedCorrection ? correctionText : undefined,
+              requestId:currentTaskId!, sessionId:effectiveSid, userMessageId,
+              selection:submissionEngine,
+            }, (job)=>setExecutionPhase(job.phase))
           } finally {
             window.clearInterval(phasePollTimer)
             setExecutionPhase('')
@@ -2737,7 +2736,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
       if (!probe.scene.initialized) {
         /* 修改需要已有场景做基线，没有就明确拒绝。
            这里刻意不再自己造一条「从一句话生成」的旁路：项目已有的
-           workflow-v0.1.0 才是创作路径，绕开它另做一条简化管线
+           workflow-v0.1.1 才是创作路径，绕开它另做一条简化管线
            （比如只生成文字卡片）会偏离产品方向，也让两套流程并存。
            真正的创作入口应走工作流，等它接通后替换这句提示。 */
         setRealModifyError('项目还没有场景。请先在工作流里创作一条片子，再对它提出修改。')
@@ -3019,7 +3018,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
               chat.removeMessage(aiId)
               setNotice('已停止生成。你的消息已保存，这条回复没有保存。')
             },
-          })
+          }, submissionEngine)
           chatStreamManager.register({
             sessionId: effectiveSid,
             userMessageId: savedMsgId,
@@ -3239,7 +3238,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
           <TooltipTrigger asChild>
             <button className="wb-export" type="button" disabled={!stageDeliverable || exporting}
                     onClick={() => void exportDeliverable()}>
-              <MediaIcon name="download" size={18} />{exporting ? '导出中…' : '导出最新版本'}
+              <UiIcon icon={SemIcons.download} size="md" />{exporting ? '导出中…' : '导出最新版本'}
             </button>
           </TooltipTrigger>
           <TooltipContent side="bottom" sideOffset={6}>
@@ -3270,9 +3269,9 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
                     aria-expanded={switchOpen} aria-haspopup="menu"
                     title={`当前项目：${project.name}`}
                     onClick={() => setSwitchOpen((v) => !v)}>
-              <span className="wb-logo" aria-hidden="true"><Film size={15}/></span>
+              <span className="wb-logo" aria-hidden="true"><UiIcon icon={SemIcons.film} size="sm" /></span>
               <span className="wb-project-name">{project.name}</span>
-              <ChevronDown className="wb-caret" />
+              <UiIcon icon={SemIcons.collapse} className="wb-caret" />
             </button>
             {switchOpen && (
               <div className="wb-switch-menu" role="menu">
@@ -3288,7 +3287,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
                       <b className="truncate">{p.name}</b>
                       <small>{p.doneClips}/{p.totalClips} 场</small>
                     </span>
-                    {p.id === project.id && <Check className="size-3.5 wb-menu-check" />}
+                    {p.id === project.id && <UiIcon icon={SemIcons.check} className="size-3.5 wb-menu-check" />}
                   </button>
                 ))}
                 {/* 「项目空间」那四个页签（概览/产物/内容/资料）已按作者要求移除：
@@ -3296,7 +3295,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
                     两类操作混在一个下拉里，用户点之前不知道会换项目还是换页。 */}
                 <button type="button" role="menuitem" className="wb-switch-all"
                         onClick={() => { setSwitchOpen(false); onBack() }}>
-                  <FolderOpen className="size-3.5" />全部项目
+                  <UiIcon icon={Folder} className="size-3.5" />全部项目
                 </button>
               </div>
             )}
@@ -3349,9 +3348,9 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
                          key={progressWorkflow?.id ?? 'none'}
                          workflow={progressWorkflow}
                          /* 传项目与原始需求：Prompt-first 开跑时要真实建立
-                            workflow-v0.1.0 创作上下文（写入 prompt.original.md）。
+                            workflow-v0.1.1 创作上下文（写入 prompt.original.md）。
                             用「制作要求原文」而不是输入框草稿 —— 后者是随时会变的一句话，
-                            原文才是 workflow-v0.1.0 要求的创作依据。 */
+                            原文才是 workflow-v0.1.1 要求的创作依据。 */
                          projectId={projectId}
                          prompt={review.brief.original || undefined}
                           references={libraryReferences(references)}
@@ -3652,7 +3651,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
                     }} onFailed={setPreviewFailed} onDuration={setPreviewDuration} loopSpan={loopSpan ? range.span : null} location={previewLocation}/>
                     {notice && (
                       <button type="button" className="fw-mon-notice-inline" onClick={() => setNotice('')}>
-                        {notice}<X className="ml-1 inline size-3" />
+                        {notice}<UiIcon icon={SemIcons.close} className="ml-1 inline size-3" />
                       </button>
                     )}
                     {regionMode && (
@@ -3684,7 +3683,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
                       : ''
                     return <span key={`${r.kind}:${r.id}`}>{r.label}（{r.usage}{where}） </span>
                   })}
-                  <button type="button" onClick={() => setUsedResources([])} aria-label="关闭"><X className="ml-1 inline size-3" /></button>
+                  <button type="button" onClick={() => setUsedResources([])} aria-label="关闭"><UiIcon icon={SemIcons.close} className="ml-1 inline size-3" /></button>
                 </div>
               )}
               {/* agent 这轮说了什么，左侧对话里已经有了（appendMessage / 恢复时写入）。
@@ -3693,16 +3692,16 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
               {agentReply && !chat.messages.some((m) => m.role === 'ai' && m.text === agentReply) && (
                 <div className="fw-mon-notice fw-mon-agent-result" role="status">
                   <details className="wb-result-details">
-                    <summary aria-label="本轮说明"><span className="wb-result-heading">本轮说明</span><span className="wb-result-preview">{agentReply}</span><span className="wb-result-toggle" aria-hidden="true"><span className="wb-result-open">展开</span><span className="wb-result-close">收起</span><ChevronDown size={14} /></span></summary>
+                    <summary aria-label="本轮说明"><span className="wb-result-heading">本轮说明</span><span className="wb-result-preview">{agentReply}</span><span className="wb-result-toggle" aria-hidden="true"><span className="wb-result-open">展开</span><span className="wb-result-close">收起</span><UiIcon icon={SemIcons.collapse} size="sm" /></span></summary>
                     <p>{agentReply}</p>
                   </details>
-                  <button type="button" onClick={() => setAgentReply('')} aria-label="关闭"><X className="ml-1 inline size-3" /></button>
+                  <button type="button" onClick={() => setAgentReply('')} aria-label="关闭"><UiIcon icon={SemIcons.close} className="ml-1 inline size-3" /></button>
                 </div>
               )}
               {filmRenderError && !stageLead && (
                 <div className="fw-mon-notice" role="alert">
                   项目工程渲染失败：{filmRenderError.slice(0, 300)}
-                  <button type="button" onClick={() => setFilmRenderError('')} aria-label="关闭"><X className="ml-1 inline size-3" /></button>
+                  <button type="button" onClick={() => setFilmRenderError('')} aria-label="关闭"><UiIcon icon={SemIcons.close} className="ml-1 inline size-3" /></button>
                 </div>
               )}
               {/* 后端能力探测失败：说清缺的是什么，并给一个重新检测的入口 ——
@@ -3836,7 +3835,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
                   也走这里，而那时画面上通常是有内容的。 */}
               {notice && (
                 <button type="button" className="fw-mon-notice" onClick={() => setNotice('')}>
-                  {notice}<X className="ml-1 inline size-3" />
+                  {notice}<UiIcon icon={SemIcons.close} className="ml-1 inline size-3" />
                 </button>
               )}
 
@@ -4192,7 +4191,7 @@ function ProjectRail({ projectName, projectId, open, onClose, tab, onTab, onOpen
   }
   return (
     <aside className="fw-ing" data-open={open ? '' : undefined} aria-label="项目导航">
-      <div className="wb-space-heading"><FolderOpen size={15}/><span>项目空间</span></div>
+      <div className="wb-space-heading"><UiIcon icon={Folder} size="sm" /><span>项目空间</span></div>
       {/* 四个页签就是这一栏的全部导航。原来那行「概览 1 项」标题只是把页签名和
           一个计数又写了一遍，还把首屏高度花在标题上，去掉。 */}
       <div className="fw-ing-hd">
@@ -4205,7 +4204,7 @@ function ProjectRail({ projectName, projectId, open, onClose, tab, onTab, onOpen
                             { value: 'materials', label: '资料' },
                           ]} />
         <button className="iconbtn fw-mobile" type="button" title="收起" onClick={onClose}>
-          <X className="size-4" />
+          <UiIcon icon={SemIcons.close} className="size-4" />
         </button>
       </div>
 
@@ -4394,7 +4393,7 @@ function ProjectRail({ projectName, projectId, open, onClose, tab, onTab, onOpen
 
       <div className="wb-space-links">
         <span>项目工具</span>
-        <button type="button" onClick={onOpenBrief}><FileText size={14}/>制作要求<ArrowUpRight size={13}/></button>
+        <button type="button" onClick={onOpenBrief}><UiIcon icon={File01} size="sm" />制作要求<UiIcon icon={ArrowUpRight} size="sm" /></button>
         {directEditCapability && !directEditCapability.allowed ? (
           <Tooltip>
             <TooltipTrigger asChild>
@@ -4404,7 +4403,7 @@ function ProjectRail({ projectName, projectId, open, onClose, tab, onTab, onOpen
                 onClick={() => {}}
                 aria-disabled="true"
               >
-                <Film size={14}/>场景编辑器<ArrowUpRight size={13}/>
+                <UiIcon icon={SemIcons.film} size="sm" />场景编辑器<UiIcon icon={ArrowUpRight} size="sm" />
               </button>
             </TooltipTrigger>
             <TooltipContent side="top" className="max-w-[220px] text-xs">
@@ -4412,7 +4411,7 @@ function ProjectRail({ projectName, projectId, open, onClose, tab, onTab, onOpen
             </TooltipContent>
           </Tooltip>
         ) : (
-          <button type="button" onClick={onEditScene}><Film size={14}/>场景编辑器<ArrowUpRight size={13}/></button>
+          <button type="button" onClick={onEditScene}><UiIcon icon={SemIcons.film} size="sm" />场景编辑器<UiIcon icon={ArrowUpRight} size="sm" /></button>
         )}
       </div>
     </aside>
@@ -4421,11 +4420,11 @@ function ProjectRail({ projectName, projectId, open, onClose, tab, onTab, onOpen
 
 /** 文件格式 → 占位图标（没有缩略图时用；不画空框） */
 const MEDIA_NODE: Record<MaterialFile['media'], ReactNode> = {
-  image: <ImageIcon className="size-5" />,
-  video: <Film className="size-5" />,
-  audio: <Music2 className="size-5" />,
-  font: <TypeIcon className="size-5" />,
-  doc: <FileText className="size-5" />,
+  image: <UiIcon icon={SemIcons.image} className="size-5" />,
+  video: <UiIcon icon={SemIcons.film} className="size-5" />,
+  audio: <UiIcon icon={MusicNote01} className="size-5" />,
+  font: <UiIcon icon={Type01} className="size-5" />,
+  doc: <UiIcon icon={File01} className="size-5" />,
 }
 
 /** 一个文件 → 牌堆里的一张卡。卡面就是文件本身，卡脚是名字与授权/审核。 */
@@ -4689,16 +4688,19 @@ function RightPanel({ projectId, target, preview, projectVersionNumber, projectV
      （`/api/harnesses/{id}/models`），本地 harness.models 只是产品侧写的名字，
      与 DSH 实际路由的模型对不上。 */
   const probe = useHarnesses()
-  const [harnessId, setHarnessId] = useState(HARNESSES[0].id)
-  const [model, setModel] = useState(HARNESSES[0].models[0] ?? '')
-  const [workbenchEffort, setWorkbenchEffort] = useState<string | null>('medium')
-  const selectedHarness = probe.harnesses.find((h) => h.id === harnessId)
-    ?? probe.harnesses.find((h) => h.name.toLowerCase() === harnessId.toLowerCase())
+  const engineSelection = useHarnessSelection()
+  const harnessId = engineSelection.harness
+  const setHarnessId = (harness: string) => setHarnessSelection({ harness, model: undefined, reasoningEffort: undefined })
+  const model = engineSelection.model ?? ''
+  const setModel = (model: string) => setHarnessSelection({ model })
+  const workbenchEffort = engineSelection.reasoningEffort ?? null
+  const setWorkbenchEffort = (level: string) => setHarnessSelection({ reasoningEffort: level })
+  const selectedHarness = matchHarness(probe.harnesses, harnessId)
   const composerHarnesses = useMemo(() => probe.harnesses.map((h) => ({
     id: h.id,
-    name: h.name,
-    iconUrl: h.name.toLowerCase().includes('deepseek') ? './assets/brand/deepseek.svg' : undefined,
-    available: h.status === 'available' && probe.access === 'available',
+    name: HARNESSES.find((item) => item.id === (h.id === 'dsh-sdk' ? 'deepseek' : h.id))?.name ?? h.name,
+    iconUrl: HARNESSES.find((item) => item.id === (h.id === 'dsh-sdk' ? 'deepseek' : h.id))?.icon ?? './assets/brand/deepseek.svg',
+    available: h.status === 'available',
     models: (probe.modelsByHarness[h.id] ?? []).map((m) => ({ id: m.id, name: m.label || m.id, reasoningEfforts: m.reasoningEfforts })),
   })), [probe.harnesses, probe.modelsByHarness, probe.access])
   const backendModels = modelsOf(probe, selectedHarness?.id ?? harnessId).models
@@ -4825,7 +4827,7 @@ function RightPanel({ projectId, target, preview, projectVersionNumber, projectV
       {/* 标题与页签栏已上移到底座（ConsoleChrome）：三个面板共用同一条页签，
           否则切到「场景版本」时整条页签会跟着旧面板一起消失。 */}
 
-      {sideTab === 'scene' ? (<div className="fw-scroll wb-target-facts"><span className="wb-target-kicker">修改目标</span><h3>{target.label}</h3><p>{target.kind === 'project' ? '本次意见作用于整个项目；选中具体预览或内容后，可以缩小修改范围。' : '意见会连同当前目标一起发送。查看发送记录可核对当时的范围。'}</p>{preview && <dl><dt>预览类型</dt><dd>{preview.tierLabel}</dd><dt>{preview.origin === 'editor' ? '编辑版本' : '工作流版本'}</dt><dd>v{preview.revision}</dd><dt>预览生成于</dt><dd>{new Date(preview.createdAt).toLocaleString('zh-CN')}</dd></dl>}<button type="button" className="wb-btn-ghost" onClick={() => setSideTab('chat')}><MessagesSquare size={14}/> 对这个目标提意见</button></div>
+      {sideTab === 'scene' ? (<div className="fw-scroll wb-target-facts"><span className="wb-target-kicker">修改目标</span><h3>{target.label}</h3><p>{target.kind === 'project' ? '本次意见作用于整个项目；选中具体预览或内容后，可以缩小修改范围。' : '意见会连同当前目标一起发送。查看发送记录可核对当时的范围。'}</p>{preview && <dl><dt>预览类型</dt><dd>{preview.tierLabel}</dd><dt>{preview.origin === 'editor' ? '编辑版本' : '工作流版本'}</dt><dd>v{preview.revision}</dd><dt>预览生成于</dt><dd>{new Date(preview.createdAt).toLocaleString('zh-CN')}</dd></dl>}<button type="button" className="wb-btn-ghost" onClick={() => setSideTab('chat')}><UiIcon icon={MessageSquare01} size="sm" /> 对这个目标提意见</button></div>
       ) : sideTab === 'chat' ? (
         <>
           <div className="fw-scroll open-workbench-thread">
@@ -4834,14 +4836,14 @@ function RightPanel({ projectId, target, preview, projectVersionNumber, projectV
               {/* 历史读取中状态 */}
               {currentSession && currentSession.origin === 'server' && (isSessionLoading || (!currentSession.messagesLoaded && !currentSession.messagesError)) ? (
                 <div className="wb-chat-status flex flex-col items-center justify-center text-center py-12 px-4 select-none">
-                  <LoaderCircle size={20} className="animate-spin text-[var(--tx3)] mb-2" />
+                  <UiIcon icon={SemIcons.loading} size="lg" className="animate-spin text-[var(--tx3)] mb-2" />
                   <div className="text-xs text-[var(--tx2)]">正在加载对话历史…</div>
                 </div>
               ) : currentSession && currentSession.origin === 'server' && currentSession.messagesError ? (
                 /* 历史读取失败状态（带重试按钮，区分于空会话） */
                 <div className="wb-chat-status flex flex-col items-center justify-center text-center py-10 px-4 select-none">
                   <div className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-red-500/10 text-red-400 mb-2 border border-red-500/20">
-                    <AlertCircle size={16} />
+                    <UiIcon icon={SemIcons.error} size="md" />
                   </div>
                   <div className="text-xs text-red-400 font-medium mb-1">历史消息读取失败</div>
                   <div className="text-[11px] text-[var(--tx3)] max-w-[220px] mb-3 leading-relaxed">
@@ -4852,22 +4854,22 @@ function RightPanel({ projectId, target, preview, projectVersionNumber, projectV
                     onClick={() => onRetryMessages?.(currentSession.id)}
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md bg-[var(--hole)] border border-[var(--line)] text-[var(--tx)] hover:bg-[var(--hover)] transition-colors cursor-pointer"
                   >
-                    <RotateCcw size={12} /> 重新加载
+                    <UiIcon icon={SemIcons.refresh} size="xs" /> 重新加载
                   </button>
                 </div>
               ) : messages.length === 0 ? (
                 /* 真实空会话引导 */
                 <div className="wb-chat-empty flex flex-col items-center justify-center text-center py-12 px-4 select-none">
-                  <div className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-[var(--hole)] text-[var(--tx3)] mb-3 border border-[var(--line)]">
-                    <MessagesSquare size={18} />
+                  <div className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-[var(--hole)] text-[var(--tx3)] mb-3">
+                    <UiIcon icon={MessageSquare01} size="md" />
                   </div>
                   <div className="text-sm font-medium text-[var(--tx)] mb-1">
                     {currentSession ? '当前对话暂无消息' : '本工程暂无对话记录'}
                   </div>
                   <div className="text-xs text-[var(--tx2)] max-w-[220px] mx-auto leading-relaxed">
                     {currentSession
-                      ? '在下方输入框中写下修改意见或问题，AI 将为您调整工程。'
-                      : '输入制作要求或对画面的具体意见，将自动为本工程开启创作对话。'}
+                      ? '写下修改意见或问题。'
+                      : '发送第一条要求后会为本工程开启对话。'}
                   </div>
                 </div>
               ) : (
@@ -4936,7 +4938,7 @@ function RightPanel({ projectId, target, preview, projectVersionNumber, projectV
                               aria-label="关闭"
                               className="shrink-0 p-1 rounded hover:bg-[var(--hover)] text-[var(--tx3)] hover:text-[var(--tx)] transition-colors"
                             >
-                              <X size={12} />
+                              <UiIcon icon={SemIcons.close} size="xs" />
                             </button>
                           </div>
                         )
@@ -4964,7 +4966,7 @@ function RightPanel({ projectId, target, preview, projectVersionNumber, projectV
                       aria-label="关闭"
                       className="shrink-0 p-1 rounded hover:bg-[var(--hover)] text-[var(--tx3)] hover:text-[var(--tx)] transition-colors"
                     >
-                      <X size={12} />
+                      <UiIcon icon={SemIcons.close} size="xs" />
                     </button>
                   </div>
                 )
@@ -4973,7 +4975,7 @@ function RightPanel({ projectId, target, preview, projectVersionNumber, projectV
               {/* 约束 3：真实执行状态展示，按后端真实阶段（analyzing / rendering）展示，不模拟虚构进度 */}
               {realModifyBusy && (
                 <div className="wb-real-execution-status flex items-center gap-2.5 px-3 py-2 mt-2 rounded-lg bg-[var(--hole)] border border-[var(--line)] text-xs text-[var(--tx2)] shadow-sm animate-pulse">
-                  <LoaderCircle size={14} className="animate-spin text-blue-400 shrink-0" />
+                  <UiIcon icon={SemIcons.loading} size="sm" className="animate-spin text-blue-400 shrink-0" />
                   <span>
                     {executionPhase === 'analyzing'
                       ? '正在由 AI 分析需求并修改工程源码…'
@@ -4989,7 +4991,7 @@ function RightPanel({ projectId, target, preview, projectVersionNumber, projectV
                 <div className="wb-unsaved-reply-alert mt-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300 flex flex-col gap-2 shadow-sm">
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-1.5">
-                      <AlertCircle size={14} className="text-amber-400 shrink-0" />
+                      <UiIcon icon={SemIcons.error} size="sm" className="text-amber-400 shrink-0" />
                       <span>
                         {unsavedReplies.length === 1
                           ? '创作已完成，但本轮回复尚未成功同步到服务端会话'
@@ -5017,7 +5019,7 @@ function RightPanel({ projectId, target, preview, projectVersionNumber, projectV
                           onClick={() => onRetrySaveReply?.(item)}
                           className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 text-[11px] font-medium shrink-0 cursor-pointer"
                         >
-                          <RotateCcw size={10} /> 补存
+                          <UiIcon icon={SemIcons.refresh} size="xs" /> 补存
                         </button>
                       </div>
                     ))}
@@ -5038,7 +5040,7 @@ function RightPanel({ projectId, target, preview, projectVersionNumber, projectV
               {activeTask && activeLive && (
                 <div className="wb-chat-block">
                   <div className="wb-chat-task">
-                    <LoaderCircle className="size-3 animate-spin" />
+                    <UiIcon icon={SemIcons.loading} className="size-3 animate-spin" />
                     <b className="truncate">{activeRecord?.request
                       ? `正在演示记录 ${activeRecord.request.references?.find((r) => r.role === 'target')?.label ?? '整片'}`
                       : activeTask.title}</b>
@@ -5049,7 +5051,7 @@ function RightPanel({ projectId, target, preview, projectVersionNumber, projectV
                   <div className="flex gap-1.5">
                     <button className="wb-btn-ghost" type="button" onClick={onOpenTask}>查看执行</button>
                     <button className="wb-btn-ghost" type="button" onClick={() => cancelTask(activeTask.id)}>
-                      <Square className="size-3" />停止
+                      <UiIcon icon={Square} className="size-3" />停止
                     </button>
                   </div>
                 </div>
@@ -5078,7 +5080,7 @@ function RightPanel({ projectId, target, preview, projectVersionNumber, projectV
                       : latestEvent?.message ?? '没有执行详情。'}
                   </div>
                   <button className="wb-btn-ghost" type="button" onClick={onOpenTask}>查看执行</button>
-                  {(activeTask.status === 'failed' || activeTask.status === 'cancelled') && activeRecord?.request && <button className="wb-btn-ghost" type="button" onClick={() => onResumeRequest(activeRecord.request!)}><RotateCcw size={12}/>带回对话继续编辑</button>}
+                  {(activeTask.status === 'failed' || activeTask.status === 'cancelled') && activeRecord?.request && <button className="wb-btn-ghost" type="button" onClick={() => onResumeRequest(activeRecord.request!)}><UiIcon icon={SemIcons.back} size="xs" />带回对话继续编辑</button>}
                 </div>
               )}
 
@@ -5100,7 +5102,7 @@ function RightPanel({ projectId, target, preview, projectVersionNumber, projectV
               && preview.revision < projectVersionNumber && (
               <div className="mb-1.5 px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/25 text-xs flex items-center justify-between text-amber-300">
                 <span className="flex items-center gap-1.5 text-[11px] truncate">
-                  <History size={12} className="text-amber-400 shrink-0" />
+                  <UiIcon icon={Clock} size="xs" className="text-amber-400 shrink-0" />
                   <span className="truncate">
                     {projectVersionAuthoritative
                       ? `正在查看历史 v${preview.revision}（修改将基于最新工程 v${projectVersionNumber}）`
@@ -5241,7 +5243,7 @@ function RightPanel({ projectId, target, preview, projectVersionNumber, projectV
                     确认整片修改
                   </button>
                 )}
-                <button type="button" onClick={onClearRealModifyError} title="关闭"><X className="size-3" /></button>
+                <button type="button" onClick={onClearRealModifyError} title="关闭"><UiIcon icon={SemIcons.close} className="size-3" /></button>
               </div>
             ) : null}
             {activeLive && <div className="fw-compose-note">排队记录</div>}
@@ -5256,7 +5258,7 @@ function RightPanel({ projectId, target, preview, projectVersionNumber, projectV
           <div className="flex flex-col gap-3 p-3.5">
             <div className="flex items-center gap-2">
               <button className="wb-btn-ghost wb-insp-back" type="button" onClick={() => setSideTab('chat')}>
-                <ChevronLeft className="size-3" />返回对话
+                <UiIcon icon={ChevronLeft} className="size-3" />返回对话
               </button>
               <span className="fw-panel-title">修改设置</span>
             </div>
@@ -5270,7 +5272,7 @@ function RightPanel({ projectId, target, preview, projectVersionNumber, projectV
                               ]} />
 
             <div className="wb-sep" />
-            <button type="button" className="wb-desk-secondary" onClick={() => onOpenReview('brief')}>编辑特别保留要求 <ArrowUpRight size={12}/></button><div className="fw-scene-hd">保留条件</div>
+            <button type="button" className="wb-desk-secondary" onClick={() => onOpenReview('brief')}>编辑特别保留要求 <UiIcon icon={ArrowUpRight} size="xs" /></button><div className="fw-scene-hd">保留条件</div>
             {CONSTRAINT_LABELS.map(([key, label]) => {
               /* 真实修改暂不执行这些约束：禁用而不是让人勾上然后静默忽略。
                  勾了却不生效，用户会以为改动受到了保护。 */
@@ -5306,7 +5308,7 @@ function RightPanel({ projectId, target, preview, projectVersionNumber, projectV
               {preview ? `${preview.tierLabel} · ${preview.name} · ${preview.origin === 'editor' ? '编辑版本' : '工作流'} v${preview.revision}` : '当前项目还没有生成可查看的预览。'}
             </div>
             <button className="mini h-7 justify-start text-[11px]" type="button" onClick={() => onNavigate('render')}>
-              <ArrowUpRight className="size-3" />打开渲染与交付
+              <UiIcon icon={ArrowUpRight} className="size-3" />打开渲染与交付
             </button>
           </div>
         </div>
@@ -5329,7 +5331,7 @@ function ReferenceChips({ references, onRemoveReference, onLocateReference,
   const libraryKinds = new Set(['asset', 'reference', 'technique'])
   return (
     <div className="fw-ref-chips">
-      <button className="fw-ref-clear fw-ref-add" type="button" onClick={onOpenResourcePicker} title="从素材库 / 参考片库 / 特效库选择"><Plus size={13} aria-hidden="true" />引用资源</button>
+      <button className="fw-ref-clear fw-ref-add" type="button" onClick={onOpenResourcePicker} title="从素材库 / 参考片库 / 特效库选择"><UiIcon icon={SemIcons.plus} size="sm" aria-hidden="true" />引用资源</button>
       {/* 未引用时不铺「当前目标：整个项目」这类默认文字 —— 它只是在描述
           输入框占位符已经说过的同一件事，空着反而更清楚。
           「+ 引用资源」按钮保留：那是挂素材/参考片/特效的唯一入口。 */}
@@ -5368,14 +5370,14 @@ function TaskPanel({ activeTask, records, cancelTask, scope, constraints, onBack
     <div className="fw-scroll">
       <div className="flex flex-col gap-3 p-3.5">
         <button className="wb-btn-ghost wb-insp-back" type="button" onClick={onBack}>
-          <ChevronLeft className="size-3" />返回
+          <UiIcon icon={ChevronLeft} className="size-3" />返回
         </button>
         <div className="fw-scene-hd">当前任务</div>
         {activeTask ? (
           <div className="fw-task-card">
             <div className="flex items-center gap-2">
               {(activeTask.status === 'queued' || activeTask.status === 'running' || activeTask.status === 'building')
-                ? <LoaderCircle className="size-3 animate-spin text-acc" />
+                ? <UiIcon icon={SemIcons.loading} className="size-3 animate-spin text-acc" />
                 : <span className="fm-dot" data-s={activeTask.status === 'completed' ? 'done' : activeTask.status === 'failed' ? 'failed' : 'idle'} />}
               <b>{activeTask.title}</b>
               <span className="fw-count ml-auto">{TASK_STATUS_LABEL[activeTask.status] ?? activeTask.status}</span>
@@ -5385,7 +5387,7 @@ function TaskPanel({ activeTask, records, cancelTask, scope, constraints, onBack
             ))}
             {(activeTask.status === 'queued' || activeTask.status === 'running' || activeTask.status === 'building') && (
               <button className="mini mt-2 h-6 px-2 text-[10.5px]" type="button" onClick={() => cancelTask(activeTask.id)}>
-                <Square className="size-2.5" />停止任务
+                <UiIcon icon={Square} className="size-2.5" />停止任务
               </button>
             )}
           </div>
@@ -5394,7 +5396,7 @@ function TaskPanel({ activeTask, records, cancelTask, scope, constraints, onBack
         )}
         <div className="wb-sep" />
         <RequestSnapshot request={record?.request}/>
-        {record?.request && activeTask && ['failed', 'cancelled'].includes(activeTask.status) && <button type="button" className="wb-btn-ghost" onClick={() => onResumeRequest(record.request!)}><RotateCcw size={12}/>带回对话继续编辑</button>}
+        {record?.request && activeTask && ['failed', 'cancelled'].includes(activeTask.status) && <button type="button" className="wb-btn-ghost" onClick={() => onResumeRequest(record.request!)}><UiIcon icon={SemIcons.back} size="xs" />带回对话继续编辑</button>}
         <div className="fw-scene-hd">发送时的作用范围</div>
         <div className="fw-chips"><span className="fw-chip">{scopeLabel}</span></div>
         <div className="fw-scene-hd">保留条件</div>
@@ -5467,7 +5469,7 @@ function BottomTray({ previews, onPreview, workflowLog, records, rounds, activeI
                     <span className="fw-count">{TASK_STATUS_LABEL[r.task.status] ?? r.task.status}</span>
                     {activeId === r.task.id && ['queued', 'running', 'building'].includes(r.task.status) && (
                       <button className="iconbtn" type="button" title="停止" onClick={() => onCancel(r.task.id)}>
-                        <Square className="size-3" />
+                        <UiIcon icon={Square} className="size-3" />
                       </button>
                     )}
                   </div>
@@ -5479,7 +5481,7 @@ function BottomTray({ previews, onPreview, workflowLog, records, rounds, activeI
               {/* 先如实说清「为什么没有文件变更」：不是功能坏了，是演示执行器不写文件。
                   这一栏能给的是每一轮真实提交了什么、与上一轮比改了什么。 */}
               <p className="wb-changes-note">
-                <FileCode2 className="size-3 shrink-0" />
+                <UiIcon icon={FileCode01} className="size-3 shrink-0" />
                 没有文件变更记录：演示执行器不写文件、不产成片。下面记的是每一轮的输入，以及它和上一轮的差异。
               </p>
               {rounds.length === 0
@@ -5519,7 +5521,7 @@ function BottomTray({ previews, onPreview, workflowLog, records, rounds, activeI
                 })}
             </div>
           )}
-          {tab === 'versions' && (previews.length === 0 ? <div className="fw-tray-empty">还没有预览版本。执行结束不代表生成了新画面。</div> : <div className="wb-preview-history">{previews.map((visual) => <button type="button" key={visual.id} onClick={() => onPreview(visual)}><Film size={15}/><span><b>{visual.name}</b><small>{visual.tierLabel} · {visual.origin === 'editor' ? '编辑版本' : '工作流'} v{visual.revision} · {new Date(visual.createdAt).toLocaleString('zh-CN')}</small></span><ChevronRight size={14}/></button>)}</div>)}
+          {tab === 'versions' && (previews.length === 0 ? <div className="fw-tray-empty">还没有预览版本。执行结束不代表生成了新画面。</div> : <div className="wb-preview-history">{previews.map((visual) => <button type="button" key={visual.id} onClick={() => onPreview(visual)}><UiIcon icon={SemIcons.film} size="sm" /><span><b>{visual.name}</b><small>{visual.tierLabel} · {visual.origin === 'editor' ? '编辑版本' : '工作流'} v{visual.revision} · {new Date(visual.createdAt).toLocaleString('zh-CN')}</small></span><UiIcon icon={SemIcons.expand} size="sm" /></button>)}</div>)}
 
         </div>
       </div>

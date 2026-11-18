@@ -59,6 +59,9 @@
      而不是全局 --line 的实色 #2A2A2E —— 实色在暗底上偏重，看起来像框死。 */
   --line: rgba(255, 255, 255, 0.06);
   --hover: rgba(255, 255, 255, .08);
+  /* --tx：输入框目标胶囊等共享组件读的是 --tx（工作台作用域里有定义），
+     这里不补的话它们会落到写死的浅色兜底 #242a28，暗色下几乎看不见。 */
+  --tx: var(--fg);
   --tx1: var(--fg);
   --tx2: var(--dim);
   --tx3: var(--ph);
@@ -89,6 +92,7 @@ html[data-theme="light"] #pane-conversation {
   --line: rgba(25, 25, 50, .06);
   --line2: #cdcdd6;
   --hover: rgba(38, 49, 72, .06);
+  --tx: var(--fg);
   --tx1: var(--fg);
   --tx2: var(--dim);
   --tx3: var(--ph);
@@ -109,6 +113,7 @@ html[data-theme="tactile"] #pane-conversation {
   --line2: var(--line);
   --line: rgba(34, 35, 31, .16);
   --hover: rgba(34, 35, 31, .08);
+  --tx: var(--fg);
   --tx1: var(--fg);
   --tx2: var(--dim);
   --tx3: var(--ph);
@@ -184,7 +189,7 @@ html[data-theme="tactile"] #pane-conversation {
      面 + 1px 边线 + 圆角 + 投影。首页所有浮起元素都带边线与投影，
      只有这样才能和首页是同一套设计语言。 */
   border: 1px solid var(--cv-line);
-  border-radius: 16px;
+  border-radius: 14px;
   /* 面与输入卡同一档（--hf-panel），首页菜单/浮层也是这个面 */
   background: var(--cv-elev);
   box-shadow: 0 6px 24px rgb(20 22 40 / .06);
@@ -275,7 +280,7 @@ html[data-theme="tactile"] #pane-conversation {
   margin: 2px 0 8px;
   padding: 0 9px;
   box-sizing: border-box;
-  border-radius: var(--fm-radius-mark);
+  border-radius: var(--fm-radius-ctl);
   background: var(--hole);
   color: var(--tx3);
   /* 正文档 13px：搜索框下面管的就是 13px 的项目名/会话名，
@@ -361,7 +366,7 @@ html[data-theme="tactile"] #pane-conversation {
   width: 100%;
   padding: 6px 9px;
   border: 0;
-  border-radius: var(--fm-radius-mark);
+  border-radius: var(--fm-radius-ctl);
   background: transparent;
   color: var(--tx1);
   font: inherit;
@@ -395,7 +400,7 @@ html[data-theme="tactile"] #pane-conversation {
   height: 22px;
   padding: 0;
   border: 0;
-  border-radius: var(--fm-radius-mark);
+  border-radius: var(--fm-radius-ctl);
   background: transparent;
   color: var(--tx3);
   cursor: pointer;
@@ -477,7 +482,7 @@ html[data-theme="tactile"] #pane-conversation {
   height: 28px;
   padding: 0;
   border: 0;
-  border-radius: var(--fm-radius-mark);
+  border-radius: var(--fm-radius-ctl);
   background: transparent;
   color: var(--tx2);
   cursor: pointer;
@@ -504,7 +509,7 @@ html[data-theme="tactile"] #pane-conversation {
   height: 22px;
   padding: 0;
   border: 0;
-  border-radius: var(--fm-radius-mark);
+  border-radius: var(--fm-radius-ctl);
   background: transparent;
   color: var(--tx3);
   cursor: pointer;
@@ -746,12 +751,9 @@ html[data-theme="tactile"] #pane-conversation {
   /* 与左栏同一套边距（16px 四边）：原来只有左栏有 margin，主区贴到右边缘，
      两边不对称，看着像左栏浮在界面上。 */
   margin: 16px 16px 16px 16px;
-  --cv-page: var(--surf);
+  --cv-page: var(--bg);
   overflow: hidden;
-  border: 1px solid var(--cv-line);
-  border-radius: 16px;
   background: var(--cv-page);
-  box-shadow: 0 6px 24px rgb(20 22 40 / .06);
 }
 
 /* ---- 顶栏（dsh ConversationRoot header） ----
@@ -930,7 +932,7 @@ html[data-theme="tactile"] #pane-conversation {
   max-width: 70.2%;
   margin: 0;
   padding: 10px 16px;
-  border-radius: 20px;
+  border-radius: 14px;
   background: var(--cv-bubble, var(--soft));
   color: var(--tx1);
   font-size: 13px;
@@ -978,7 +980,7 @@ html[data-theme="tactile"] #pane-conversation {
   gap: 6px;
   margin: 0;
   padding: 6px 10px;
-  border-radius: 8px;
+  border-radius: 10px;
   background: color-mix(in srgb, var(--bad) 12%, transparent);
   color: var(--bad);
   font-size: 12px;
@@ -1385,18 +1387,17 @@ html[data-theme="tactile"] #pane-conversation {
     var(--cv-page);
 }
 
-/* 输入框必须与正文列（.cv3-col）同宽对齐 —— 两者各用一套宽度，
-   输入框会比正文左右各宽出一大截，看起来「拉长了」对不齐。
-   这里复用 .cv3-col 的同一公式，只改由谁居中：正文列自己 margin:auto，
-   输入框外层撑满、由内层 .lbx-compose-box 居中。 */
+/* Keep the composer centered and slightly narrower than the reading column.
+   The available-width cap preserves gutters on narrow windows. */
 .cv3-compose {
   min-width: 0;
   padding: 0 32px 4px;
-  /* 公式与 .cv3-col 保持一致，改一处必须同步另一处 */
-  --cv-compose-w: min(920px, max(680px, 64%), calc(100% - 32px));
+  --cv-compose-w: min(840px, max(620px, 60%), calc(100% - 32px));
 }
 
 .cv3-compose > .lbx-compose-box {
+  /* Match the home composer outer curve, including its tactile theme variant. */
+  --lbx-composer-radius: 24px;
   width: 100%;
   max-width: var(--cv-compose-w);
   margin: 0 auto;
@@ -1884,7 +1885,7 @@ html[data-theme="tactile"] .cv3-hpop {
   gap: 3px;
   padding: 3px 8px;
   border: 0;
-  border-radius: 8px;
+  border-radius: 6px;
   background: transparent;
   color: var(--tx2);
   font: inherit;
@@ -2053,7 +2054,7 @@ html[data-theme="tactile"] .cv3-hp-seg button.on {
   gap: 2px;
   padding: 2px;
   border: 1px solid var(--cv-line);
-  border-radius: 8px;
+  border-radius: 6px;
   background: var(--hole);
 }
 
@@ -2082,7 +2083,7 @@ html[data-theme="tactile"] .cv3-hp-seg button.on {
 .cv3-hp-note {
   margin: 6px 8px 2px;
   padding: 7px 9px;
-  border-radius: 8px;
+  border-radius: 10px;
   background: color-mix(in srgb, var(--warn) 10%, transparent);
   color: var(--tx2);
   font-size: 11px;
@@ -2163,7 +2164,7 @@ html[data-theme="tactile"] .cv3-ddm {
 .cv3-ddm [data-slot="dropdown-menu-radio-item"] {
   gap: 8px;
   padding: 6px 8px;
-  border-radius: var(--fm-radius-mark);
+  border-radius: var(--fm-radius-ctl);
   color: var(--tx2);
   font-size: 12.5px;
   line-height: 18px;
@@ -2276,7 +2277,7 @@ html[data-theme="tactile"] .cv3-ddm {
   gap: 2px;
   padding: 9px;
   border: 0;
-  border-radius: var(--fm-radius-mark);
+  border-radius: var(--fm-radius-ctl);
   background: var(--hole);
   color: var(--tx2);
   font: inherit;
@@ -2296,7 +2297,7 @@ html[data-theme="tactile"] .cv3-ddm {
   width: 28px;
   height: 28px;
   margin-bottom: 3px;
-  border-radius: 7px;
+  border-radius: 6px;
   background: var(--cv-elev);
   color: var(--acc);
 }
@@ -2534,7 +2535,7 @@ html[data-theme="tactile"] .cv3-ddm {
   gap: 6px;
   margin: 0;
   padding: 6px 8px;
-  border-radius: 8px;
+  border-radius: 10px;
   background: color-mix(in srgb, var(--bad) 10%, transparent);
   color: var(--bad);
   font-size: 11px;
@@ -2628,7 +2629,7 @@ html[data-theme="tactile"] .cv3-ddm {
   margin: -4px 0 0;
   padding: 8px 12px;
   border-left: 2px solid var(--warn);
-  border-radius: 8px;
+  border-radius: 10px;
   background: var(--hole, var(--soft));
   color: var(--tx2);
   font-size: 11px;
@@ -2892,3 +2893,16 @@ html[data-theme="tactile"] .cv3-ddm {
   color: var(--warn);
 }
 .cv3-diagnostic svg { flex: none; opacity: .85; }
+
+html[data-theme="tactile"] .cv3-compose > .lbx-compose-box { --lbx-composer-radius: 26px; }
+
+/* 空态在消息区垂直居中、与下方输入框同一条中轴，不再贴在左上角留出整片空白。 */
+.cv3-view:has(> .cv3-col > .cv3-start-empty) { display:flex; flex-direction:column; }
+.cv3-col:has(> .cv3-start-empty) { flex:1 0 auto; }
+/* 选择器带上 .cv3-col：前面的 `.cv3-col > :first-child { margin-top:0 }` 同为 0,2,0，会把 auto 压掉。 */
+.cv3-col > .cv3-start-empty { margin:auto; padding:0 0 8vh; max-width:540px; text-align:center; }
+.cv3-start-empty h2 { margin:0 0 10px; color:var(--fg); font-size:22px; font-weight:600; letter-spacing:-.025em; }
+.cv3-start-empty p { color:var(--dim); font-size:13px; line-height:1.7; margin:0 0 22px; }
+.cv3-start-empty>div { display:flex; flex-wrap:wrap; justify-content:center; gap:8px; }
+.cv3-entry-note { color:var(--dim); font-size:12px; line-height:1.6; margin:16px 0; }
+.project-resource-evidence{margin:14px 0;font-size:12px;line-height:1.7;color:var(--dim)}.project-resource-evidence summary{cursor:pointer;color:var(--fg);width:fit-content}.project-resource-evidence p{margin:8px 0}.project-resource-evidence>div{padding:10px 0;border-bottom:1px solid var(--line)}.project-resource-evidence ul{padding-left:18px}

@@ -1,8 +1,6 @@
 import { useRef, useState } from 'react'
-import {
-  AlertTriangle, Check, CheckSquare, GitCompareArrows,
-  History as HistoryIcon, MoreHorizontal, Square,
-} from 'lucide-react'
+import { UiIcon, SemIcons } from '@/components/icons/UiIcon'
+import { CheckSquare, Clock, Square, SwitchHorizontal01 } from '@untitledui/icons'
 import type { ProjectSceneState } from '@/services/api/taskClient'
 import type { SceneVersionsHook } from '@/hooks/useSceneVersions'
 import type { StageVisual } from '@/data/stageVisual'
@@ -136,7 +134,7 @@ export function SceneVersionPanel({
             className="text-xs px-2.5 py-1 rounded bg-blue-600 text-white hover:bg-blue-500 font-medium flex items-center gap-1"
             onClick={handleStartCompare}
           >
-            <GitCompareArrows size={12} />
+            <UiIcon icon={SwitchHorizontal01} size="xs" />
             <span>对比 (v{compareSelection[0]} ↔ v{compareSelection[1]})</span>
           </button>
         )}
@@ -146,7 +144,7 @@ export function SceneVersionPanel({
 
       {lastRestored && (
         <div className="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-600 flex items-center gap-2 mt-2" role="status">
-          <Check size={14} className="shrink-0" />
+          <UiIcon icon={SemIcons.check} size="sm" className="shrink-0" />
           <span>已基于 v{lastRestored.fromVersion} 恢复，生成新版本 v{lastRestored.version}。</span>
         </div>
       )}
@@ -158,7 +156,7 @@ export function SceneVersionPanel({
 
       {!loading && !loadError && items.length === 0 && (
         <div className="py-12 text-center text-xs text-[var(--tx3)] flex flex-col items-center justify-center">
-          <HistoryIcon size={24} className="mb-2 opacity-30 text-[var(--tx)]" />
+          <UiIcon icon={Clock} size="xl" className="mb-2 opacity-30 text-[var(--tx)]" />
           <p className="text-[var(--tx2)] text-[13px]">暂无历史版本</p>
           <p className="mt-1 text-xs text-[var(--tx3)]">向 AI 发起修改后，每次迭代产出都将保存在此。</p>
         </div>
@@ -227,7 +225,7 @@ export function SceneVersionPanel({
                           }}
                           aria-label={isSelectedForCompare ? '取消对比' : '勾选对比'}
                         >
-                          {isSelectedForCompare ? <CheckSquare size={13} /> : <Square size={13} />}
+                          {isSelectedForCompare ? <UiIcon icon={CheckSquare} size="xs" /> : <UiIcon icon={Square} size="xs" />}
                         </button>
                       </TooltipTrigger>
                       <TooltipContent side="top">
@@ -248,7 +246,7 @@ export function SceneVersionPanel({
                           }}
                           aria-label="与最新版对比"
                         >
-                          <GitCompareArrows size={13} />
+                          <UiIcon icon={SwitchHorizontal01} size="xs" />
                         </button>
                       </TooltipTrigger>
                       <TooltipContent side="top">
@@ -266,7 +264,7 @@ export function SceneVersionPanel({
                           aria-label="更多操作"
                           onClick={(e) => e.stopPropagation()}
                         >
-                          <MoreHorizontal size={13} />
+                          <UiIcon icon={SemIcons.more} size="xs" />
                         </button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="text-xs">
@@ -324,7 +322,7 @@ export function SceneVersionPanel({
                   onClick={(e) => e.stopPropagation()}
                 >
                   <div className="flex items-center gap-1.5 text-amber-500 font-medium">
-                    <AlertTriangle size={12} />
+                    <UiIcon icon={SemIcons.warning} size="xs" />
                     <span>确认恢复到此版本？</span>
                   </div>
                   <p className="text-[11px] text-[var(--tx2)] leading-relaxed">

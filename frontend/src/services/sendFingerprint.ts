@@ -83,6 +83,7 @@ export function contentDigest(input: string): string {
 }
 
 export function creationFingerprint(input: {
+  selection?: unknown
   projectId: string
   intent: string
   references?: unknown
@@ -96,6 +97,7 @@ export function creationFingerprint(input: {
   const imgTag = img ? contentDigest(img) : null
   return stableStringify({
     projectId: input.projectId,
+    ...(input.selection ? { selection: input.selection } : {}),
     intent: input.intent,
     references: input.references ?? null,
     previewImage: imgTag,

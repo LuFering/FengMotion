@@ -24,7 +24,7 @@ import com.fengmotion.server.project.domain.Project;
 import com.fengmotion.server.project.store.ProjectRepository;
 
 /**
- * 项目与 workflow-v0.1.0 的衔接。
+ * 项目与 workflow-v0.1.1 的衔接。
  *
  * <p>要验的核心是<strong>「原文不被改写」</strong>：{@code prompt.original.md}
  * 是整条 Prompt-first 流程的创作依据，一旦被后来的摘要或模板覆盖，
@@ -166,7 +166,7 @@ class WorkflowProjectServiceTest {
         /* 曾经的缺陷：无需求时回落到模板，得到「initialized=true、原文 113 字」，
            而磁盘上存的是「（在这里粘贴用户原始高级提示词）」——
            用户以为创作依据已保存，实际是占位符。
-           workflow-v0.1.0 明确要求 prompt.original.md 是用户原文。 */
+           workflow-v0.1.1 明确要求 prompt.original.md 是用户原文。 */
         var e = assertThrows(com.fengmotion.server.common.ApiException.class,
                 () -> service.init(projectId, null));
         assertEquals("workflow_prompt_required", e.getCode());
@@ -230,10 +230,76 @@ class WorkflowProjectServiceTest {
     @DisplayName("工具目录可被解析到，否则整套流程无从运行")
     void workflowRootIsResolvable() {
         var runner = new WorkflowToolRunner();
-        // 开发态布局：backend/ 与 frontend/workflow-v0.1.0 同级
+        // 开发态布局：backend/ 与 frontend/workflow-v0.1.1 同级
         Path root = runner.resolveWorkflowRoot();
-        assertTrue(root != null, "测试环境下应能定位 workflow-v0.1.0；找不到说明路径推断错了");
-        assertEquals("workflow-v0.1.0", root.getFileName().toString());
+        assertTrue(root != null, "测试环境下应能定位 workflow-v0.1.1；找不到说明路径推断错了");
+        assertEquals("workflow-v0.1.1", root.getFileName().toString());
         assertTrue(Files.isRegularFile(root.resolve("prompt-first/tools/init-project.mjs")));
+    }
+
+    private static int occurrences(String text, String needle) {
+        int count = 0;
+        for (int at = text.indexOf(needle); at >= 0; at = text.indexOf(needle, at + needle.length())) count++;
+        return count;
+    }
+
+    @Test
+    @DisplayName("需求改成 B 后连续运行：B 只记一次")
+    void editedRequirementIsRecordedOnce() throws Exception {
+        String projectId = newProject();
+        Path root = Path.of(service.init(projectId, "原始需求 A").state().directory());
+
+        assertEquals("RECORDED_AS_CORRECTION", service.init(projectId, "修改后的需求 B").result().name());
+        assertEquals("UNCHANGED", service.init(projectId, "修改后的需求 B").result().name(),
+                "工作流每次运行都会提交当前需求，同一条修改不能重复记");
+        assertEquals("UNCHANGED", service.init(projectId, "  修改后的需求 B\n").result().name(),
+                "首尾空白不算修改");
+
+        String corrections = Files.readString(root.resolve("corrections.md"));
+        assertEquals(1, occurrences(corrections, "用户原话：修改后的需求 B"), corrections);
+    }
+
+    @Test
+    @DisplayName("需求 A → B → A：改回原文也要记下，agent 以最新的为准")
+    void revertingToOriginalIsRecorded() throws Exception {
+        String projectId = newProject();
+        Path root = Path.of(service.init(projectId, "原始需求 A").state().directory());
+        String originalBefore = Files.readString(root.resolve("prompt.original.md"));
+
+        service.init(projectId, "修改后的需求 B");
+        var outcome = service.init(projectId, "原始需求 A");
+
+        assertEquals("RECORDED_AS_CORRECTION", outcome.result().name(),
+                "只和原文比较会把改回 A 当成没变化，agent 却还在按 B 做");
+        String corrections = Files.readString(root.resolve("corrections.md"));
+        assertTrue(corrections.lastIndexOf("用户原话：原始需求 A") > corrections.lastIndexOf("用户原话：修改后的需求 B"),
+                "改回的 A 必须是最近一条需求修改：" + corrections);
+        assertEquals(originalBefore, Files.readString(root.resolve("prompt.original.md")), "原文不能被覆盖");
+    }
+
+    @Test
+    @DisplayName("审片意见不参与需求比较：不会让未改动的需求被重复记录")
+    void reviewCorrectionDoesNotAffectRequirementComparison() throws Exception {
+        String projectId = newProject();
+        Path root = Path.of(service.init(projectId, "原始需求 A").state().directory());
+        service.init(projectId, "修改后的需求 B");
+
+        service.recordCorrection(projectId, "第三镜太快，放慢一点", UUID.randomUUID().toString());
+        assertEquals("UNCHANGED", service.init(projectId, "修改后的需求 B").result().name());
+
+        String corrections = Files.readString(root.resolve("corrections.md"));
+        assertEquals(1, occurrences(corrections, "用户原话：修改后的需求 B"), corrections);
+        assertTrue(corrections.contains("第三镜太快，放慢一点"));
+    }
+
+    @Test
+    @DisplayName("没改过需求时仍和原文比较：重复提交原文不记纠正")
+    void originalStillComparedWhenNoRequirementEdits() throws Exception {
+        String projectId = newProject();
+        Path root = Path.of(service.init(projectId, "原始需求 A").state().directory());
+        service.recordCorrection(projectId, "结尾加店名");
+
+        assertEquals("UNCHANGED", service.init(projectId, "原始需求 A").result().name());
+        assertEquals(0, occurrences(Files.readString(root.resolve("corrections.md")), "用户原话：原始需求 A"));
     }
 }

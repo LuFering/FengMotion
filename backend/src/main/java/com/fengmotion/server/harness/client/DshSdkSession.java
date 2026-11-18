@@ -34,6 +34,9 @@ public class DshSdkSession {
 
     /** 事件回调接口。所有方法都在调用线程（即读取事件流的线程）上执行。 */
     public interface Listener {
+        /** Transport keepalive; no synthetic progress or generated content. */
+        default void onHeartbeat() { }
+
         /**
          * Agent 开始工作。
          *

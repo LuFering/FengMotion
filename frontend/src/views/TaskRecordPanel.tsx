@@ -1,5 +1,6 @@
-import { ListChecks, LoaderCircle, MessageSquarePlus } from 'lucide-react'
 import type { AgentTask, TaskRequest } from '@/services/studioApi'
+import { UiIcon, SemIcons } from '@/components/icons/UiIcon'
+import { CheckSquare, MessageSquare01 } from '@untitledui/icons'
 import type { TaskRecord } from '@/hooks/useAgentTasks'
 import { TASK_STATUS_LABEL } from '@/shell/status'
 
@@ -75,7 +76,7 @@ export function TaskRecordPanel({
             onClick={onDiscuss}
             title="在对话中提交新修改"
           >
-            <MessageSquarePlus size={12} />
+            <UiIcon icon={MessageSquare01} size="xs" />
             <span>提修改</span>
           </button>
         )}
@@ -84,7 +85,7 @@ export function TaskRecordPanel({
       {/* 任务列表 */}
       {allTasks.length === 0 ? (
         <div className="py-12 text-center text-xs text-[var(--tx3)] flex flex-col items-center justify-center">
-          <ListChecks size={24} className="mb-2 opacity-30 text-[var(--tx)]" />
+          <UiIcon icon={CheckSquare} size="xl" className="mb-2 opacity-30 text-[var(--tx)]" />
           <p className="text-[var(--tx2)] text-[13px]">暂无执行记录</p>
           <p className="mt-1 text-xs text-[var(--tx3)]">发起修改后，每次任务的进度与日志将保存在此。</p>
           {onDiscuss && (
@@ -118,7 +119,7 @@ export function TaskRecordPanel({
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-1.5 min-w-0">
                     {t.isLive && (
-                      <LoaderCircle size={12} className="animate-spin text-blue-500 shrink-0" />
+                      <UiIcon icon={SemIcons.loading} size="xs" className="animate-spin text-blue-500 shrink-0" />
                     )}
                     <span className={`text-[13px] font-medium truncate ${isSelected ? 'text-blue-500' : 'text-[var(--tx)]'}`}>
                       {t.title}

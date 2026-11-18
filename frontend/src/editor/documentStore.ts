@@ -1,3 +1,4 @@
+import { persistLocalDocument } from '../services/localDocuments'
 /**
  * 场景文档的本地存储读写。
  *
@@ -54,6 +55,7 @@ export function saveDocument(doc: SceneDocument) {
   )
   localStorage.setItem(`fengmotion:editor-last:${doc.projectId}`, doc.id)
   /* 内容可能变了：让工作台那份「文档与画面是否一致」的缓存作废。 */
+  persistLocalDocument(key(doc.projectId), readDocuments(doc.projectId))
   bumpDocumentsVersion(doc.projectId)
 }
 
@@ -87,4 +89,5 @@ export function readEditorRenders(projectId: string): EditorRenderRecord[] {
 export function writeEditorRender(record: EditorRenderRecord) {
   const rows = readEditorRenders(record.projectId)
   localStorage.setItem(rendersKey(record.projectId), JSON.stringify([record, ...rows]))
+  persistLocalDocument(rendersKey(record.projectId), [record,...rows])
 }

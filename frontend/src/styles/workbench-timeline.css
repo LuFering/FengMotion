@@ -158,7 +158,7 @@
   max-width: 100%;
   padding: 2.5px 6px 2.5px 10px;
   border: 1px solid color-mix(in srgb, var(--tx) 9%, var(--line));
-  border-radius: 5px;
+  border-radius: 4px;
   background: color-mix(in srgb, var(--tx) 3.5%, var(--panel));
   color: var(--tx);
   font-size: 11px;

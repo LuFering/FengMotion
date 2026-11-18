@@ -20,10 +20,10 @@ import com.fengmotion.server.workflow.service.WorkflowProjectService;
 import lombok.RequiredArgsConstructor;
 
 /**
- * 项目 × workflow-v0.1.0 的衔接端点。
+ * 项目 × workflow-v0.1.1 的衔接端点。
  *
  * <p>只暴露两件事：读上下文状态、建立上下文（把用户原文落盘）。
- * 创作本身仍由 workflow-v0.1.0 的创作指令驱动，这里不代劳 ——
+ * 创作本身仍由 workflow-v0.1.1 的创作指令驱动，这里不代劳 ——
  * 接口少是刻意的，避免又长出一条与工作流并行的简化管线。</p>
  */
 @RestController
@@ -34,6 +34,7 @@ public class WorkflowProjectController {
     private final WorkflowProjectService service;
     private final ProjectRenderService projectRender;
     private final ProjectFilmConfig filmConfig;
+    private final com.fengmotion.server.workflow.service.CreationJobs jobs;
     private final com.fengmotion.server.workflow.service.CreationTaskStore creationTasks;
     private final com.fengmotion.server.workflow.service.CreationProgressStore creationProgress;
 
@@ -53,9 +54,7 @@ public class WorkflowProjectController {
     @GetMapping
     public StateResponse state(@PathVariable String projectId) {
         var state = service.state(projectId);
-        return new StateResponse(state.projectId(), state.directory(), state.initialized(),
-                state.toolAvailable(), state.files(), state.promptLength(),
-                state.renderedPasses(), state.failedPasses(), state.inProgressPasses());
+        return StateResponse.of(state);
     }
 
     /**
@@ -75,9 +74,7 @@ public class WorkflowProjectController {
         var outcome = service.init(projectId, prompt);
         var state = outcome.state();
         return new InitResponse(
-                new StateResponse(state.projectId(), state.directory(), state.initialized(),
-                        state.toolAvailable(), state.files(), state.promptLength(),
-                        state.renderedPasses(), state.failedPasses(), state.inProgressPasses()),
+                StateResponse.of(state),
                 outcome.result().name(),
                 outcome.note());
     }
@@ -129,7 +126,14 @@ public class WorkflowProjectController {
                         t.requestId(), t.phase(), t.sessionSaved(), t.userMessageId(), t.sessionId()
                 );
             }
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "未找到指定创作任务: " + requestId);
+            try {
+                var job=jobs.get(projectId,requestId);
+                String phase=job.phase();String status="accepted".equals(job.state())?"running":job.state();
+                var result=job.result();
+                return new com.fengmotion.server.workflow.service.CreationStateStore.State(status,null,result==null?null:result.path("reply").asText(null),null,result==null?null:result.path("artifactPath").asText(null),result==null||!result.hasNonNull("version")?null:result.path("version").asLong(),job.error(),java.time.Instant.now().toString(),requestId,phase,null,job.userMessageId(),job.sessionId());
+            } catch(com.fengmotion.server.common.ApiException e) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND,"未找到指定创作任务");
+            }
         }
         /* 无 requestId 参数：返回最近一次状态，同样补 userMessageId */
         return state == null ? null : withUserMessageId(state, state.requestId());
@@ -218,9 +222,7 @@ public class WorkflowProjectController {
             @PathVariable String projectId,
             @PathVariable String requestId) {
         var taskOpt = creationTasks.findByRequestId(requestId);
-        if (taskOpt.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "未找到指定创作任务: " + requestId);
-        }
+        if(taskOpt.isEmpty())throw new ResponseStatusException(HttpStatus.NOT_FOUND,"未找到指定创作任务");
         var task = taskOpt.get();
         if (!projectId.equals(task.projectId())) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "创作任务不属于该项目: " + requestId);
@@ -244,7 +246,8 @@ public class WorkflowProjectController {
                 request == null ? null : request.correction(),
                 request == null ? null : request.requestId(),
                 request == null ? null : request.sessionId(),
-                request == null ? null : request.userMessageId()
+                request == null ? null : request.userMessageId(),
+                request == null ? null : request.engineSelection()
         );
         /* 未渲染时没有 render 结果，尺寸/帧数一律给 0，而不是编一个默认规格 ——
            前端看 state 就知道该显示「等待补充信息」还是播放器。 */
@@ -282,7 +285,12 @@ public class WorkflowProjectController {
                                 String correction,
                                 String requestId,
                                 String sessionId,
-                                String userMessageId) {
+                                String userMessageId, String harness, String model, String reasoningEffort, com.fasterxml.jackson.databind.JsonNode workflow) {
+        public CreateRequest(String intent,com.fasterxml.jackson.databind.JsonNode references,String previewImage,Long baseVersion,String correction,String requestId,String sessionId,String userMessageId,String harness,String model,String reasoningEffort){this(intent,references,previewImage,baseVersion,correction,requestId,sessionId,userMessageId,harness,model,reasoningEffort,null);}
+        public com.fengmotion.server.harness.client.NativeHarnesses.Selection engineSelection() {
+            return harness == null && model == null && reasoningEffort == null ? null
+                : new com.fengmotion.server.harness.client.NativeHarnesses.Selection(harness, model, reasoningEffort);
+        }
     }
 
     /**
@@ -343,9 +351,7 @@ public class WorkflowProjectController {
     public StateResponse correction(@PathVariable String projectId,
                                     @RequestBody CorrectionRequest request) {
         var state = service.recordCorrection(projectId, request.text());
-        return new StateResponse(state.projectId(), state.directory(), state.initialized(),
-                state.toolAvailable(), state.files(), state.promptLength(),
-                state.renderedPasses(), state.failedPasses(), state.inProgressPasses());
+        return StateResponse.of(state);
     }
 
     /**
@@ -453,16 +459,26 @@ public class WorkflowProjectController {
      * @param projectId    项目 ID
      * @param directory    项目目录
      * @param initialized  是否已有 prompt.original.md
-     * @param toolAvailable workflow-v0.1.0 工具是否可用
+     * @param toolAvailable workflow-v0.1.1 工具是否可用
      * @param files        已存在的 Prompt-first 文件
      * @param promptLength 原文长度；-1 表示读不到
      * @param renderedPasses   有视频产物的轮次；-1 表示读不到
      * @param failedPasses     有失败记录、无视频的轮次
      * @param inProgressPasses 目录在但没有产物的轮次
+     * @param originalIntegrity 原文完整性：ok / suspect / unknown；未初始化时为 null。
+     *                          suspect 表示原文像被旧版工作流拼进了工作稿，只提示、不修改
+     * @param originalIntegrityReasons 可疑原因
      */
     public record StateResponse(String projectId, String directory, boolean initialized,
                                 boolean toolAvailable, List<String> files,
                                 long promptLength, int renderedPasses,
-                                int failedPasses, int inProgressPasses) {
+                                int failedPasses, int inProgressPasses,
+                                String originalIntegrity, List<String> originalIntegrityReasons) {
+        static StateResponse of(WorkflowProjectService.WorkflowProjectState state) {
+            return new StateResponse(state.projectId(), state.directory(), state.initialized(),
+                    state.toolAvailable(), state.files(), state.promptLength(),
+                    state.renderedPasses(), state.failedPasses(), state.inProgressPasses(),
+                    state.originalIntegrity(), state.originalIntegrityReasons());
+        }
     }
 }

@@ -56,7 +56,8 @@ public class SystemController {
     private Capability agentCapability() {
         HarnessService.Probe probe = harness.probe();
         var descriptor = probe.descriptor();
-        if (descriptor.status() == com.fengmotion.server.harness.domain.HarnessDescriptor.Status.AVAILABLE) {
+        if (descriptor.status() == com.fengmotion.server.harness.domain.HarnessDescriptor.Status.AVAILABLE
+                || harness.listDescriptors().stream().anyMatch(item -> item.status() == com.fengmotion.server.harness.domain.HarnessDescriptor.Status.AVAILABLE)) {
             return new Capability("available", null);
         }
         String note = descriptor.note() == null ? "Agent 不可用" : descriptor.note();

@@ -1,6 +1,6 @@
 /* 工作台视觉重整。仅作用于制作空间，沿用主题与状态令牌。 */
 #pane-flow .wb-a2.wb-studio {
-  --r-panel: 14px;
+  --r-panel: var(--fm-radius-panel);
   --gap: 12px;
   /* 提高小字与次要文字可读性，避免过度淡化 */
   --tx3: color-mix(in srgb, var(--tx2) 88%, var(--tx));
@@ -14,7 +14,7 @@
 }
 #pane-flow .wb-a2.wb-studio .wb-logo {
   display: grid; place-items: center; width: 30px; height: 30px;
-  border-radius: 8px; background: var(--raised); color: var(--tx2); box-shadow: none;
+  border-radius: 10px; background: var(--raised); color: var(--tx2); box-shadow: none;
 }
 #pane-flow .wb-a2.wb-studio .wb-project-name { font-size: 14px; letter-spacing: -.02em; }
 #pane-flow .wb-a2.wb-studio .wb-crumb-scene { font-size: 11px; }
@@ -23,12 +23,12 @@
 #pane-flow .wb-a2.wb-studio .wb-review-entry,
 #pane-flow .wb-a2.wb-studio .wb-remotion-entry {
   height: 32px; padding: 0 10px; border: 1px solid var(--line);
-  border-radius: 7px; background: transparent; font-size: 11px; color: var(--tx2); box-shadow: none;
+  border-radius: 6px; background: transparent; font-size: 11px; color: var(--tx2); box-shadow: none;
 }
 #pane-flow .wb-a2.wb-studio .wb-remotion-entry { color: var(--tx); background: var(--raised); }
 #pane-flow .wb-a2.wb-studio .wb-top-actions button:hover { background: var(--hover); color: var(--tx); }
 #pane-flow .wb-a2.wb-studio .wb-top-actions button[aria-pressed='true'] { background: var(--sel); color: var(--acc-tx); border-color: var(--line2); }
-#pane-flow .wb-a2.wb-studio .wb-export { height: 32px; border-radius: 7px; padding: 0 12px; }
+#pane-flow .wb-a2.wb-studio .wb-export { height: 32px; border-radius: 6px; padding: 0 12px; }
 #pane-flow .wb-a2.wb-studio .wb-agent-status { background: transparent; border: 0; font-size: 10px; }
 #pane-flow .wb-a2.wb-studio .fw { grid-template-columns: 204px minmax(0,1fr) 322px; gap: 12px; }
 #pane-flow .wb-a2.wb-studio .fw-ing,
@@ -80,24 +80,25 @@
 #pane-flow .wb-a2.wb-studio .fw-stage-frame { border-radius: 6px; overflow: hidden; background: var(--stage-bg); }
 #pane-flow .wb-a2.wb-studio .fw-mon-rail { padding: 13px 16px 15px; background: var(--panel2); border-top: 1px solid var(--line); }
 #pane-flow .wb-a2.wb-studio .fw-mon-thumbs { gap: 10px; padding: 2px; }
-#pane-flow .wb-a2.wb-studio .fw-mon-thumb { width: 90px; border-radius: 5px; background: transparent; height: auto; box-shadow: none; }
-#pane-flow .wb-a2.wb-studio .fw-mon-thumb-img { height: 51px; border-radius: 5px; overflow: hidden; opacity: .8; transition: opacity .15s; }
+#pane-flow .wb-a2.wb-studio .fw-mon-thumb { width: 90px; border-radius: 4px; background: transparent; height: auto; box-shadow: none; }
+#pane-flow .wb-a2.wb-studio .fw-mon-thumb-img { height: 51px; border-radius: 4px; overflow: hidden; opacity: .8; transition: opacity .15s; }
 #pane-flow .wb-a2.wb-studio .fw-mon-thumb:hover .fw-mon-thumb-img,
 #pane-flow .wb-a2.wb-studio .fw-mon-thumb[aria-selected='true'] .fw-mon-thumb-img { opacity: 1; }
 #pane-flow .wb-a2.wb-studio .fw-mon-thumb-name { font-size: 10px; margin-top: 7px; color: var(--tx2); }
 #pane-flow .wb-a2.wb-studio .fw-mon-thumb-name small { font-size: 9px; color: var(--tx3); }
 /* 空监看保持画幅边界，简报与实际可用操作各有一个主要位置。 */
 #pane-flow .wb-a2.wb-studio .wb-studio-preflight { display: flex; flex-direction: column; width: 100%; max-width: none; flex: 1; min-height: 0; padding: 0; margin: 0; background: transparent; border: 0; border-radius: 0; box-shadow: none; overflow-y: auto; }
-#pane-flow .wb-a2.wb-studio .wb-waiting-stage { position: relative; display: flex; flex-direction: column; justify-content: center; flex: 1 0 270px; min-height: 270px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel2); padding: 42px 26px; }
+/* 画面区已经在右侧面板里，空舞台只用底色区分，不再画第二层描边（面板套面板）。 */
+#pane-flow .wb-a2.wb-studio .wb-waiting-stage { position: relative; display: flex; flex-direction: column; justify-content: center; flex: 1 0 270px; min-height: 270px; border: 0; border-radius: 10px; background: var(--panel2); padding: 42px 26px; }
 #pane-flow .wb-a2.wb-studio .wb-waiting-state { position: absolute; top: 17px; left: 18px; display: flex; align-items: center; gap: 7px; font-size: 10px; color: var(--tx3); }
 #pane-flow .wb-a2.wb-studio .wb-waiting-state > span { width: 5px; height: 5px; border-radius: 50%; background: var(--tx3); }
 #pane-flow .wb-a2.wb-studio .wb-waiting-state > .is-running { background: var(--acc); }
 #pane-flow .wb-a2.wb-studio .wb-waiting-content { text-align: center; padding: 8px 0; }
-#pane-flow .wb-a2.wb-studio .wb-waiting-symbol { margin: 0 auto 21px; display: grid; place-items: center; width: 58px; height: 58px; color: var(--tx2); border: 1px solid var(--line2); border-radius: 15px; background: var(--panel); transform: rotate(-6deg); }
+#pane-flow .wb-a2.wb-studio .wb-waiting-symbol { margin: 0 auto 21px; display: grid; place-items: center; width: 58px; height: 58px; color: var(--tx2); border: 1px solid var(--line2); border-radius: 14px; background: var(--panel); transform: rotate(-6deg); }
 #pane-flow .wb-a2.wb-studio .wb-waiting-content h2 { margin: 0; color: var(--tx); font-size: 18px; font-weight: 600; letter-spacing: -.015em; line-height: 1.4; }
 #pane-flow .wb-a2.wb-studio .wb-waiting-content p { max-width: 340px; color: var(--tx2); font-size: 12px; line-height: 1.7; margin: 8px auto 0; }
 #pane-flow .wb-a2.wb-studio .wb-waiting-actions { display: flex; justify-content: center; gap: 15px; align-items: center; }
-#pane-flow .wb-a2.wb-studio .wb-waiting-actions button { display: inline-flex; align-items: center; justify-content: center; gap: 9px; font-size: 11px; min-height: 35px; border-radius: 7px; white-space: nowrap; }
+#pane-flow .wb-a2.wb-studio .wb-waiting-actions button { display: inline-flex; align-items: center; justify-content: center; gap: 9px; font-size: 11px; min-height: 35px; border-radius: 6px; white-space: nowrap; }
 #pane-flow .wb-a2.wb-studio .wb-start-editor { padding: 0 14px; color: var(--acc-ink); background: var(--acc); box-shadow: var(--shadow-control); }
 #pane-flow .wb-a2.wb-studio .wb-start-editor:hover { filter: brightness(1.1); }
 #pane-flow .wb-a2.wb-studio .wb-view-execution { color: var(--tx2); }
@@ -124,7 +125,7 @@
 #pane-flow .wb-a2.wb-studio .wb-feedback-context-icon { display: none; }
 #pane-flow .wb-a2.wb-studio .wb-feedback-starters { display: flex; flex-direction: column; gap: 7px; padding-top: 0; }
 #pane-flow .wb-a2.wb-studio .wb-feedback-starters > span { margin-bottom: 5px; font-size: 10px; }
-#pane-flow .wb-a2.wb-studio .wb-feedback-starters button { padding: 10px 11px; border: 1px solid var(--line); background: transparent; border-radius: 7px; justify-content: space-between; font-size: 11px; }
+#pane-flow .wb-a2.wb-studio .wb-feedback-starters button { padding: 10px 11px; border: 1px solid var(--line); background: transparent; border-radius: 6px; justify-content: space-between; font-size: 11px; }
 #pane-flow .wb-a2.wb-studio .wb-feedback-starters button:hover { background: var(--hover); border-color: var(--line2); }
 #pane-flow .wb-a2.wb-studio .wb-demo-line { line-height: 1.8; font-size: 10px; }
 #pane-flow .wb-a2.wb-studio .fw-compose { padding: 12px; border-top: 0; }
@@ -139,7 +140,7 @@
 #pane-flow .wb-a2.wb-studio .fw-sheet .mini-strong:disabled { background: var(--raised); color: var(--tx3); opacity: 1; }
 #pane-flow .wb-a2.wb-studio .wb-statusbar { min-height: 21px; padding: 0 3px; gap: 12px; }
 #pane-flow .wb-a2.wb-studio .wb-status-chip { border: 0; background: transparent; padding: 0; box-shadow: none; color: var(--tx3); font-size: 10px; }
-#pane-flow .wb-a2.wb-studio .wb-status-chip.is-btn { padding: 3px 6px; border-radius: 5px; }
+#pane-flow .wb-a2.wb-studio .wb-status-chip.is-btn { padding: 3px 6px; border-radius: 4px; }
 #pane-flow .wb-a2.wb-studio .wb-status-chip.is-btn:hover { background: var(--hover); color: var(--tx); }
 #pane-flow .wb-a2.wb-studio button:focus-visible { outline: 2px solid var(--acc); outline-offset: 3px; }
 @media(min-width:1600px) { #pane-flow .wb-a2.wb-studio .fw { grid-template-columns: 220px minmax(0,1fr) 350px; } }
@@ -156,7 +157,7 @@
 }
 @media(max-height:760px) {
   #pane-flow .wb-a2.wb-studio .wb-waiting-stage { flex-basis: 240px; min-height: 240px; padding-top: 40px; padding-bottom: 30px; }
-  #pane-flow .wb-a2.wb-studio .wb-waiting-symbol { width: 44px; height: 44px; border-radius: 11px; margin-bottom: 14px; }
+  #pane-flow .wb-a2.wb-studio .wb-waiting-symbol { width: 44px; height: 44px; border-radius: 10px; margin-bottom: 14px; }
   #pane-flow .wb-a2.wb-studio .wb-waiting-symbol svg { width: 24px; }
   #pane-flow .wb-a2.wb-studio .wb-waiting-content h2 { font-size: 17px; }
   #pane-flow .wb-a2.wb-studio .wb-waiting-content p { margin: 8px auto 0; }
@@ -178,7 +179,7 @@
 #pane-flow .wb-a2.wb-studio .fw-sheet .wb-input { min-height: 65px; }
 #pane-flow .wb-a2.wb-studio .wb-focus-stage { display: grid; place-items: center; width: 28px; height: 28px; border: 1px solid var(--line); border-radius: 6px; color: var(--tx3); margin-left: 7px; flex: none; }
 #pane-flow .wb-a2.wb-studio .wb-focus-stage:hover { color: var(--tx); background: var(--hover); }
-#pane-flow .wb-a2.wb-studio .fw-panel-reopen { border-radius: 8px; box-shadow: none; background: var(--panel2); }
+#pane-flow .wb-a2.wb-studio .fw-panel-reopen { border-radius: 6px; box-shadow: none; background: var(--panel2); }
 @media(min-width:1201px) { #pane-flow .wb-a2.wb-studio .fw-ing { position: relative; inset: auto; width: auto; display: flex; } #pane-flow .wb-a2.wb-studio .fw-panel { position: relative; width: auto; } }
 #pane-flow .wb-a2.wb-studio .fw-mon-preview { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; overflow: hidden; border-radius: 6px; }
 #pane-flow .wb-a2.wb-studio .fw-mon-preview-media { display: block; width: 100%; height: 100%; max-height: 100%; object-fit: contain; }

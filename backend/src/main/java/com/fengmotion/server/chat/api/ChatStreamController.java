@@ -66,6 +66,7 @@ public class ChatStreamController {
             @PathVariable String sessionId,
             @RequestHeader(value = "Last-Event-ID", required = false) String lastEventId,
             @RequestParam(value = "prompt", required = false) String prompt,
+            @RequestParam(value = "harness", required = false) String engine,
             @RequestParam(value = "model", required = false) String model,
             @RequestParam(value = "reasoningEffort", required = false) String reasoningEffort,
             HttpServletResponse response) throws IOException {
@@ -79,12 +80,12 @@ public class ChatStreamController {
 
             // 引擎不可用是比「没有可发送的内容」更根本的阻塞：先给出 503，
             // 否则用户会收到「请先发一条消息」这种指向错误方向的提示。
-            if (!stream.isAvailable()) {
+            if (!stream.isAvailable(engine)) {
                 throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "agent_unavailable",
                         "Agent 未接入或不可用");
             }
 
-            stream.validateSelection(model, reasoningEffort);
+            stream.validateSelection(engine, model, reasoningEffort);
             Resolution resolved = resolvePrompt(sessionId, prompt);
             if (resolved == null) {
                 throw new ApiException(HttpStatus.BAD_REQUEST, "validation_error",
@@ -102,7 +103,7 @@ public class ChatStreamController {
             PrintWriter writer = response.getWriter();
             // 把 flushBuffer 交给服务层：Tomcat 的 Writer.flush() 只刷 Writer 缓冲，
             // 响应本身还有一层；不显式 flushBuffer，delta 帧会攒到最后一起到。
-            stream.stream(sessionId, writer, resolved.text(), resolved.attachments(), model, reasoningEffort, () -> {
+            stream.stream(sessionId, writer, resolved.text(), resolved.attachments(), engine, model, reasoningEffort, () -> {
                 try {
                     response.flushBuffer();
                 } catch (IOException ignored) {

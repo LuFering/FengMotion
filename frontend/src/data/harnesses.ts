@@ -4,8 +4,7 @@
  * 抽出来的原因：首页的引擎选择器与对话输入区的引擎/模型配置必须是同一套数据，
  * 否则两个入口选出来的引擎会不一致（同一个产品里出现两种「当前引擎」）。
  *
- * ⚠️ 演示态：只有 deepseek 标为已配置，其余如实标注「未接入」；
- *    模型列表与偏好只存内存 + localStorage，不假装调用了真实 API。
+ * 名称、图标与色彩是本地展示元数据；可用性和模型目录由后端实时探测。
  */
 
 export interface Harness {
@@ -36,11 +35,11 @@ export const REASONING_LABEL: Record<Reasoning, string> = {
   enhanced: '增强',
 }
 
-/** 执行引擎列表：只有 deepseek 标为已配置，其余如实标注「未接入」 */
+/** 已适配的执行引擎。ready 是旧界面兼容字段，不作为可用性依据。 */
 export const HARNESSES: Harness[] = [
   { id: 'deepseek', name: 'DeepSeek Harness', short: 'DeepSeek', mark: 'DS', icon: './assets/brand/deepseek.svg', color: '#4D6BFE', models: ['deepseek-chat', 'deepseek-reasoner', 'deepseek-v4.1-flash'], ready: true },
   { id: 'claude', name: 'Claude Code', short: 'Claude', mark: 'CC', icon: './assets/brand/claude.svg', color: '#D97757', models: ['claude-sonnet-4', 'claude-opus-4'], ready: false },
-  { id: 'codex', name: 'Codex', short: 'Codex', mark: 'CX', icon: './assets/brand/openai.svg', color: '#10A37F', models: ['gpt-5-codex'], ready: false },
+  { id: 'codex', name: 'Codex', short: 'Codex', mark: 'CX', icon: './assets/brand/openai.svg', color: 'var(--fg)', models: ['gpt-5-codex'], ready: false },
 ]
 
 export const DEFAULT_PREFS: ModelPrefs = { reasoning: 'standard', context: 64 }

@@ -80,7 +80,7 @@
 
 .sr-flag {
   padding: 0 5px;
-  border-radius: 5px;
+  border-radius: 4px;
   background: color-mix(in srgb, var(--ph) 18%, transparent);
   color: var(--dim);
 }
@@ -102,7 +102,7 @@
   align-items: center;
   justify-content: center;
   border: 0;
-  border-radius: 5px;
+  border-radius: 4px;
   background: none;
   color: var(--ph);
   cursor: pointer;
@@ -133,7 +133,7 @@
   margin: 4px 6px;
   padding: 3px 7px;
   border: 1px solid var(--acc);
-  border-radius: 7px;
+  border-radius: 6px;
   background: var(--surf);
   color: var(--fg);
   font: inherit;

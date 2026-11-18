@@ -1,34 +1,34 @@
 /**
  * 工作流（v5 重构）
  *
- * 内容模型对齐 workflow-v0.1.0：Prompt-first 是默认创作路径（首页主入口），
+ * 内容模型对齐 workflow-v0.1.1：Prompt-first 是默认创作路径（首页主入口），
  * Structured 是按需的阶段+Gate 协议（次级入口）；题材只是预设。
  * 首页工作流卡显示路径、最近产物与真实 Gate 进度（服务层同一评估口径）。
  * 数据只经 workflowService。
  */
 import { useEffect, useMemo, useState } from 'react'
-import {
-  ArrowLeft,
-  ArrowRight,
-  Copy,
-  Plus,
-  Trash2,
-} from 'lucide-react'
+import { UiIcon, SemIcons } from '@/components/icons/UiIcon'
+import { HardDrive } from '@untitledui/icons'
 import { SearchField } from '@/components/SearchField'
-import { WF_PRESETS, defForNode, type WfPath } from '../data/workflowTemplates'
+import { WF_PRESETS, promptFirstGraph, structuredGraph, type WfPath } from '../data/workflowTemplates'
 import { workflowService, type WorkflowDef, type WorkflowRun } from '../services/workflowService'
+import { buildGraphFromSkillPreset } from '../services/workflowPresetBinding'
+import { studioHttpApi } from '../services/api'
+import type { WorkflowPreset } from '../services/api/skillPresets'
+import { useProjects } from '../shell/useProjects'
+import { workflowBrief, workflowProjectLabel } from '../services/workflowPresentation'
+import { WorkflowGraphPreview } from '../components/WorkflowGraphPreview'
+import { SkillPresetStudio } from '../components/SkillPresetStudio'
 import { WorkflowEditor } from './WorkflowEditor'
 import '../styles/workflow.css'
 import '../styles/workflow-editor.css'
+import '../styles/workflow-library.css'
 
 type Page = { kind: 'home' } | { kind: 'create' } | { kind: 'editor'; id: string }
 
-/* 去 AI 味：工作流显示名——去掉名字里拼的路径后缀；纯数字 / 空 / 只有标点
-   的名字（多为测试输入直接当了名字，如“1”）一律显示“未命名创作” */
+/* Preserve user-entered names; only genuinely empty names need a fallback. */
 function displayWorkflowName(name: string): string {
-  const base = name.split(' · ')[0]?.trim() ?? ''
-  if (!base || /^[\d\s\p{P}]+$/u.test(base)) return '未命名创作'
-  return base
+  return name.trim() || '未命名工作流'
 }
 
 function fmtTime(iso: string): string {
@@ -57,11 +57,11 @@ export function Workflow() {
       }
     } catch { /* 交接数据损坏则忽略，停在首页 */ }
   }, [])
-  const [tick, setTick] = useState(0)
-  const refresh = () => setTick((t) => t + 1)
-
-  const workflows = useMemo(() => workflowService.listWorkflows(), [tick])
-  const runs = useMemo(() => workflowService.listRuns(), [tick])
+  const [library, setLibrary] = useState(() => ({ workflows: workflowService.listWorkflows(), runs: workflowService.listRuns() }))
+  const [presetStudioOpen, setPresetStudioOpen] = useState(false)
+  const [presetsTick, setPresetsTick] = useState(0)
+  const refresh = () => setLibrary({ workflows: workflowService.listWorkflows(), runs: workflowService.listRuns() })
+  const { workflows, runs } = library
 
   if (page.kind === 'editor') {
     return (
@@ -75,8 +75,15 @@ export function Workflow() {
     return (
       <div className="wfl">
         <CreatePage
+          presetsTick={presetsTick}
           onBack={() => setPage({ kind: 'home' })}
+          onOpenPresets={() => setPresetStudioOpen(true)}
           onCreated={(id) => setPage({ kind: 'editor', id })}
+        />
+        <SkillPresetStudio
+          open={presetStudioOpen}
+          onClose={() => setPresetStudioOpen(false)}
+          onPresetsChanged={() => setPresetsTick((n) => n + 1)}
         />
       </div>
     )
@@ -89,119 +96,160 @@ export function Workflow() {
         runs={runs}
         onOpen={(id) => setPage({ kind: 'editor', id })}
         onCreate={() => setPage({ kind: 'create' })}
+        onOpenPresets={() => setPresetStudioOpen(true)}
         onChanged={refresh}
+      />
+      <SkillPresetStudio
+        open={presetStudioOpen}
+        onClose={() => setPresetStudioOpen(false)}
+        onPresetsChanged={() => setPresetsTick((n) => n + 1)}
       />
     </div>
   )
 }
-
-/* ── 首页 ─────────────────────────────────────────────────────────── */
 
 function WorkflowHome(props: {
   workflows: WorkflowDef[]
   runs: WorkflowRun[]
   onOpen: (id: string) => void
   onCreate: () => void
+  onOpenPresets: () => void
   onChanged: () => void
 }) {
+  const projects = useProjects()
   const [query, setQuery] = useState('')
-  const [filter, setFilter] = useState<'all' | 'used' | 'community'>('all')
+  const [filter, setFilter] = useState<'all' | 'used'>('all')
+  const [sort, setSort] = useState('updated')
+  const [deleting, setDeleting] = useState<string | null>(null)
+  const [notice, setNotice] = useState('')
+  const recentById = useMemo(() => {
+    const map = new Map<string, WorkflowRun>()
+    for (const run of props.runs) if (!map.has(run.workflowId)) map.set(run.workflowId, run)
+    return map
+  }, [props.runs])
   const q = query.trim().toLocaleLowerCase()
-  const filtered = props.workflows.filter((w) => {
-    const matches = `${w.name} ${w.description}`.toLocaleLowerCase().includes(q)
-    return matches && (filter !== 'used' || props.runs.some((r) => r.workflowId === w.id))
-  })
-  return (
-    <section className="wfshop" aria-label="工作流首页">
-      <header className="wfshop-header">
-        <div className="wfshop-heading-line"><h1>工作流</h1></div>
-        <div className="wfshop-header-actions">
-          <div className="wfshop-search"><SearchField value={query} onChange={setQuery} placeholder="搜索工作流" ariaLabel="搜索工作流" /></div>
-          <button type="button" className="wfshop-create" onClick={props.onCreate}><Plus size={17} /> 新建工作流</button>
-        </div>
-      </header>
-      <div className="wfshop-intro">
-        <div className="wfshop-intro-copy"><span className="wfshop-label">CREATE YOUR WAY <span>✳</span></span><h2>让想法，<br />找到自己的路径。</h2><p>从一条适合自己的制作流程开始。查看、调整、复用，让每一次创作都有迹可循。</p><button type="button" onClick={props.onCreate}>探索创建方式 <ArrowRight size={16} /></button></div>
-        <div className="wfshop-intro-art" aria-hidden="true"><div className="wfshop-orbit orbit-one"/><div className="wfshop-orbit orbit-two"/><div className="wfshop-art-node node-one">灵感 <span>01</span></div><div className="wfshop-art-node node-two">画面 <span>02</span></div><div className="wfshop-art-node node-three">成片 <span>03</span></div><div className="wfshop-art-star">✳</div></div>
+  const filtered = props.workflows.filter((w) => `${w.name} ${workflowBrief(w)} ${projects.list.find((p) => p.id === w.projectId)?.name ?? ''}`.toLocaleLowerCase().includes(q)
+    && (filter !== 'used' || recentById.has(w.id))).sort((a, b) => sort === 'name'
+      ? a.name.localeCompare(b.name, 'zh-CN')
+      : filter === 'used'
+        ? (recentById.get(b.id)?.startedAt ?? '').localeCompare(recentById.get(a.id)?.startedAt ?? '')
+        : b.updatedAt.localeCompare(a.updatedAt))
+  return <section className="wf-library" aria-label="工作流首页">
+    <header className="wf-library-header">
+      <h1>工作流</h1>
+      <div style={{ display: 'flex', gap: 10 }}>
+        <button className="wf-secondary" type="button" onClick={props.onOpenPresets}><UiIcon icon={SemIcons.plus} size="sm" />视频类型 / Skill 预设</button>
+        <button className="wf-primary" type="button" onClick={props.onCreate}><UiIcon icon={SemIcons.plus} size="md" />新建工作流</button>
       </div>
-      <div className="wfshop-toolbar">
-        <div className="wfshop-tabs" aria-label="工作流分类">
-          <button type="button" className={filter === 'all' ? 'active' : ''} onClick={() => setFilter('all')}>我的工作流<span>{props.workflows.length}</span></button>
-          <button type="button" className={filter === 'used' ? 'active' : ''} onClick={() => setFilter('used')}>最近使用</button>
-          <button type="button" className={filter === 'community' ? 'active' : ''} onClick={() => setFilter('community')}>社区 <small>即将开放</small></button>
-        </div>
+    </header>
+    <div className="wf-library-tools">
+      <div className="wf-view-tabs" aria-label="工作流分类">
+        <button type="button" aria-pressed={filter === 'all'} onClick={() => setFilter('all')}>我的工作流 <span>{props.workflows.length}</span></button>
+        <button type="button" aria-pressed={filter === 'used'} onClick={() => setFilter('used')}>最近使用</button>
       </div>
-      {filter === 'community' ? <div className="wfshop-empty"><span>✳</span><h3>好灵感，值得分享</h3><p>工作流社区正在筹备中，未来你可以在这里发现和获取其他创作者的工作流。</p></div> : <>
-        {filtered.length === 0 ? <div className="wfshop-empty"><span>✳</span><h3>{q ? '没有找到相关工作流' : filter === 'used' ? '还没有使用记录' : '从第一条工作流开始'}</h3><p>{q ? '试试其他关键词。' : filter === 'used' ? '运行过的工作流会出现在这里。' : '创建一条工作流，保存你的创作方法。'}</p>{!q && filter === 'all' && <button type="button" onClick={props.onCreate}>新建工作流 <ArrowRight size={14}/></button>}</div> :
-          <div className="wfshop-grid">{filtered.map((w, index) => {
-            const last = props.runs.find((r) => r.workflowId === w.id)
-            const preset = WF_PRESETS.find((p) => p.id === w.presetId)
-            const steps = w.nodes.filter((n) => n.type !== 'lane').slice(0, 3)
-            return <article className="wfshop-card" key={w.id}>
-              <button type="button" className={`wfshop-card-art art-${index % 4}`} onClick={() => props.onOpen(w.id)} aria-label={`打开 ${w.name}`}><span className="wfshop-card-number">WORKFLOW / {String(index + 1).padStart(2, '0')}</span><span className="wfshop-card-symbol">{w.path === 'structured' ? '◈' : '✳'}</span><span className="wfshop-card-flow">{steps.map((n, i) => <span key={n.id}>{i > 0 && <i>→</i>}{defForNode(n)?.label || n.type}</span>)}</span><span className="wfshop-card-open">↗</span></button>
-              <div className="wfshop-card-body"><div className="wfshop-card-tags"><span>{w.path === 'structured' ? '结构化制作' : '自由创作'}</span><span>{preset?.name || '通用'}</span></div><button type="button" className="wfshop-card-title" onClick={() => props.onOpen(w.id)}>{displayWorkflowName(w.name)}{w.name.includes(' · 副本') ? ' · 副本' : ''}</button><p>{w.description || (w.path === 'structured' ? '适合需要分阶段规划与确认的创作。' : '从你的想法出发，逐步构思、制作和修改。')}</p><div className="wfshop-card-footer"><span>{last ? `最近使用 ${fmtTime(last.startedAt)}` : `更新于 ${fmtTime(w.updatedAt)}`}</span><div><button type="button" aria-label={`复制 ${w.name}`} title="复制" onClick={() => { workflowService.duplicateWorkflow(w.id); props.onChanged() }}><Copy size={15}/></button><button type="button" aria-label={`删除 ${w.name}`} title="删除" onClick={() => { if (window.confirm(`删除“${w.name}”？`)) { workflowService.deleteWorkflow(w.id); props.onChanged() } }}><Trash2 size={15}/></button></div></div></div>
-            </article>
-          })}</div>}
-      </>}
-      <p className="wfshop-footnote">工作流运行目前为演示，生成工作稿与请求记录，尚未接入真实视频生成。</p>
-    </section>
-  )
+      <div className="wf-library-search"><SearchField value={query} onChange={setQuery} placeholder="搜索工作流" ariaLabel="搜索工作流"/></div>
+      <label className="wf-sort"><span className="wf-sr-only">排序</span><select value={sort} onChange={(e) => setSort(e.target.value)}><option value="updated">最近编辑</option><option value="name">名称排序</option></select></label>
+    </div>
+    {notice && <p className="wf-inline-notice" role="status">{notice}<button type="button" aria-label="关闭提示" onClick={() => setNotice('')}><UiIcon icon={SemIcons.close} size="sm" /></button></p>}
+    {!filtered.length ? <div className="wf-library-empty"><UiIcon icon={SemIcons.workflow} size="xl" /><h2>{q ? '没有找到相关工作流' : filter === 'used' ? '还没有运行记录' : '创建你的第一条工作流'}</h2>{q && <p>换个名称或关键词试试。</p>}<button type="button" className="wf-secondary" onClick={() => { if(q) setQuery(''); else props.onCreate() }}>{q ? '清除搜索' : '新建工作流'}</button></div> :
+      <div className="wf-library-grid">{filtered.map((w) => {
+        const last = recentById.get(w.id)
+        const count = w.nodes.filter((n) => n.type !== 'lane').length
+        return <article className="wf-library-card" key={w.id}>
+          <div className="wf-card-heading">
+            <button type="button" className="wf-card-name" title={w.name} onClick={() => props.onOpen(w.id)}>{displayWorkflowName(w.name)}</button>
+            <UiIcon icon={SemIcons.forward} size="md" className="wf-card-enter" />
+            <div className="wf-card-type"><span>{w.path === 'structured' ? '分阶段评估' : '自由创作'}</span><span>{count} 个节点</span><span className="wf-card-version">v{w.revision}</span></div>
+          </div>
+          <button type="button" className="wf-card-preview" onClick={() => props.onOpen(w.id)} aria-label={`打开工作流：${w.name}`}><WorkflowGraphPreview nodes={w.nodes} edges={w.edges}/></button>
+          <div className="wf-card-content">
+            {workflowBrief(w) && <p title={workflowBrief(w)}>{workflowBrief(w)}</p>}
+            {/* 未关联是多数卡片的默认状态，每张都写一遍只是噪声；演示限制在编辑器上下文栏里说明。
+                关联了项目（或关联读取异常）才需要在卡片上标出来。 */}
+            {w.projectId && <div className="wf-card-context"><UiIcon icon={SemIcons.folder} size="xs" /><span title={workflowProjectLabel(w.projectId, projects.list, projects.loading, Boolean(projects.error))}>{workflowProjectLabel(w.projectId, projects.list, projects.loading, Boolean(projects.error))}</span></div>}
+          </div>
+          <footer className="wf-card-footer" data-confirming={deleting === w.id || undefined}><time dateTime={last?.startedAt ?? w.updatedAt} title={new Date(last?.startedAt ?? w.updatedAt).toLocaleString('zh-CN')}>{last ? '使用于' : '编辑于'} {fmtTime(last?.startedAt ?? w.updatedAt)}</time>
+            <div><button type="button" className="wf-icon" title="复制工作流" aria-label={`复制 ${w.name}`} onClick={() => { try { workflowService.duplicateWorkflow(w.id); props.onChanged(); setNotice('已复制工作流') } catch (e) { setNotice(e instanceof Error ? e.message : '复制失败，请重试。') } }}><UiIcon icon={SemIcons.copy} size="sm" /></button><button type="button" className="wf-icon" title="删除工作流" aria-label={`删除 ${w.name}`} onClick={() => setDeleting(deleting === w.id ? null : w.id)}><UiIcon icon={SemIcons.trash} size="sm" /></button></div>
+          </footer>
+          {deleting === w.id && <div className="wf-delete-confirm"><p>删除「{displayWorkflowName(w.name)}」？此操作不可撤销。</p><div><button type="button" className="wf-secondary" onClick={() => setDeleting(null)}>取消</button><button type="button" className="wf-danger" onClick={() => { try { workflowService.deleteWorkflow(w.id); props.onChanged(); setDeleting(null); setNotice('已删除工作流') } catch (e) { setNotice(e instanceof Error ? e.message : '删除失败，请重试。') } }}>确认删除</button></div></div>}
+        </article>
+      })}</div>}
+    <footer className="wf-library-footnote"><UiIcon icon={HardDrive} size="xs" /><span>工作流与运行记录保存在本机</span></footer>
+  </section>
 }
 
-/* ── 创建页：路径 × 预设 ─────────────────────────────────────────── */
+function CreatePage(props: { presetsTick: number; onBack: () => void; onOpenPresets: () => void; onCreated: (id: string) => void }) {
+  const [name, setName] = useState('')
+  const [path, setPath] = useState<WfPath>('prompt-first')
+  const [creating, setCreating] = useState(false)
+  const [error, setError] = useState('')
+  const [skillPresets, setSkillPresets] = useState<WorkflowPreset[]>([])
+  const [presetLoadWarn, setPresetLoadWarn] = useState('')
 
-function CreatePage(props: { onBack: () => void; onCreated: (id: string) => void }) {
-  const create = (path: WfPath, presetId: string) => {
-    const wf = workflowService.createFromPath(path, presetId)
-    props.onCreated(wf.id)
+  useEffect(() => {
+    let alive = true
+    setPresetLoadWarn('')
+    void studioHttpApi().skillPresets.listPresets('active')
+      .then((list) => { if (alive) setSkillPresets(list) })
+      .catch(() => { if (alive) setPresetLoadWarn('后端启用中的 Skill 视频类型暂未加载（仍可使用内置预设）') })
+    return () => { alive = false }
+  }, [props.presetsTick])
+
+  const ready = WF_PRESETS.filter((p) => p.status === 'ready')
+  const create = (presetId: string | null) => {
+    if (creating) return
+    setCreating(true)
+    try {
+      const wf = presetId === null ? workflowService.createEmpty(name.trim() || '未命名工作流')
+        : workflowService.createFromPath(path, presetId, name.trim() || (path === 'structured' ? '分阶段工作流' : `${WF_PRESETS.find((p) => p.id === presetId)?.name ?? '新建'}工作流`))
+      props.onCreated(wf.id)
+    } catch (e) { setError(e instanceof Error ? e.message : '创建失败，请重试。'); setCreating(false) }
   }
-  return (
-    <section className="wfh" aria-label="新建工作流">
-      <div className="wfh-cmd">
-        <button type="button" className="wfh-iconbtn" onClick={props.onBack} aria-label="返回工作流首页">
-          <ArrowLeft size={16} strokeWidth={2.2} />
-        </button>
-        <h1 className="wfh-cmd-title">新建工作流</h1>
+  const createFromSkill = (preset: WorkflowPreset) => {
+    if (creating) return
+    setCreating(true)
+    try {
+      const wf = workflowService.createFromSkillPreset(preset, name.trim() || `${preset.name || preset.mapping.name}工作流`)
+      props.onCreated(wf.id)
+    } catch (e) { setError(e instanceof Error ? e.message : '创建失败，请重试。'); setCreating(false) }
+  }
+  return <section className="wf-new" aria-label="新建工作流">
+    <header className="wf-new-header"><button type="button" className="wf-secondary" onClick={props.onBack}><UiIcon icon={SemIcons.back} size="sm" />工作流</button><span>新建工作流</span></header>
+    <div className="wf-new-body">
+      <div className="wf-new-heading"><h1>从你的制作方式开始</h1></div>
+      <label className="wf-new-name">工作流名称<input value={name} onChange={(e) => setName(e.target.value)} placeholder="未命名工作流" maxLength={120}/></label>
+      <button type="button" className="wf-blank-start" disabled={creating} onClick={() => create(null)}><span className="wf-blank-icon"><UiIcon icon={SemIcons.plus} size="xl" /></span><span><b>空白工作流</b></span><UiIcon icon={SemIcons.forward} size="md" /></button>
+      <div className="wf-preset-heading">
+        <h2>从预设开始</h2>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <button type="button" className="wf-secondary" onClick={props.onOpenPresets}><UiIcon icon={SemIcons.plus} size="xs" /> 导入 / 管理 Skill 预设</button>
+          <div className="wf-view-tabs" aria-label="预设类型"><button type="button" aria-pressed={path === 'prompt-first'} onClick={() => setPath('prompt-first')}>自由创作</button><button type="button" aria-pressed={path === 'structured'} onClick={() => setPath('structured')}>分阶段评估</button></div>
+        </div>
       </div>
-      <div className="wfh-meta">
-        <span>先选路径，再选题材预设；预设只提供提示词结构与默认参数，不复制独立节点图</span>
+      {/* 只保留能力边界：分阶段预设不会制作视频，选之前必须知道。自由创作的节点已画在预览里，不再复述。 */}
+      {path === 'structured' && <p className="wf-preset-note">仅评估阶段产物与检查点，不会自动制作视频。</p>}
+      {presetLoadWarn && path === 'prompt-first' && <p className="wf-preset-note">{presetLoadWarn}</p>}
+      <div className="wf-preset-grid">
+        {ready.map((preset) => {
+          const graph = path === 'prompt-first' ? promptFirstGraph(preset.id) : structuredGraph()
+          return <button type="button" className="wf-preset" key={preset.id} disabled={creating} onClick={() => create(preset.id)}><div className="wf-preset-preview"><WorkflowGraphPreview nodes={graph.nodes} edges={graph.edges}/></div><div className="wf-preset-copy"><h3>{preset.name}</h3><p>{preset.id === 'general' ? '不限定题材，直接填写你的创作需求。' : '带入已有口播科普的初始要求，所有节点均可继续修改。'}</p><span>使用预设 <UiIcon icon={SemIcons.forward} size="sm" /></span></div></button>
+        })}
+        {path === 'prompt-first' && skillPresets.map((preset) => {
+          const graph = buildGraphFromSkillPreset(preset)
+          const title = preset.name || preset.mapping.name
+          return (
+            <button type="button" className="wf-preset" key={preset.id} disabled={creating} onClick={() => createFromSkill(preset)}>
+              <div className="wf-preset-preview"><WorkflowGraphPreview nodes={graph.nodes} edges={graph.edges}/></div>
+              <div className="wf-preset-copy">
+                <h3>{title}<span className="wf-preset-tag">Skill 预设</span></h3>
+                <p>{preset.description || preset.mapping.description || `来自 ${preset.skillPath}`}</p>
+                <span>使用预设 <UiIcon icon={SemIcons.forward} size="sm" /></span>
+              </div>
+            </button>
+          )
+        })}
       </div>
-      <div className="wfh-create">
-        {([
-          { path: 'prompt-first' as WfPath, title: 'Prompt-first · 默认推荐', note: '从提示词直接创作；工作稿不是审批门。' },
-          { path: 'structured' as WfPath, title: 'Structured · 按需', note: '阶段泳道 + Gate 检查点；适合复杂、多人、客户项目。' },
-        ]).map((sec) => (
-          <section key={sec.path} aria-label={sec.title}>
-            <h2 className="wfh-sect">{sec.title}</h2>
-            <p className="wfh-create-note">{sec.note}</p>
-            <div className="wfh-tplgrid is-inline">
-              {WF_PRESETS.map((preset) => (
-                <article key={`${sec.path}-${preset.id}`} className="wfh-tpl">
-                  {preset.cover ? (
-                    <img className="wfh-tpl-cover" src={preset.cover} alt={`${preset.name}题材封面`} loading="lazy" />
-                  ) : (
-                    <div className="wfh-tpl-cover is-none">{preset.name.slice(0, 2)}</div>
-                  )}
-                  <span className="wfh-tpl-top">
-                    <span className="wfh-tpl-cat">{sec.path === 'structured' ? 'Structured 预设' : 'Prompt-first 预设'}</span>
-                    <span className="wfh-tpl-status" data-s={preset.status}>{preset.status === 'ready' ? '可创建' : '规划中'}</span>
-                  </span>
-                  <b>{preset.name}</b>
-                  <p>{preset.description}</p>
-                  <button
-                    type="button"
-                    className="wfh-btn"
-                    disabled={preset.status !== 'ready'}
-                    onClick={() => create(sec.path, preset.id)}
-                  >
-                    {preset.status === 'ready' ? '用此预设创建' : '尚未接入'}
-                  </button>
-                </article>
-              ))}
-            </div>
-          </section>
-        ))}
-      </div>
-    </section>
-  )
+      {error && <p className="wf-inline-notice" role="alert">{error}</p>}
+    </div>
+  </section>
 }

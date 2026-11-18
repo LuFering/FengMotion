@@ -25,8 +25,9 @@
  * 一个任务可能并发派多个（实测单个会话 50 次注册）。标题栏放不下名字，
  * 而用户只需要知道「派过几个」。具体是谁、干了什么，工具列表里能看到。
  */
-import { GitBranch } from 'lucide-react'
 import './subagent-badge.css'
+import { UiIcon } from '@/components/icons/UiIcon'
+import { GitBranch01 } from '@untitledui/icons'
 
 /** 从工具记录里挑出子代理调用。 */
 export function pickSubagents(
@@ -68,7 +69,7 @@ export function SubagentBadge({
 
   return (
     <span className="sub-badge" data-state={state} title={label}>
-      <GitBranch size={12} aria-hidden="true" />
+      <UiIcon icon={GitBranch01} size="xs" aria-hidden="true" />
       <span className="sub-badge-num num">{total}</span>
     </span>
   )

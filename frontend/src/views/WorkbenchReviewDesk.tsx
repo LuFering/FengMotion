@@ -1,9 +1,6 @@
 import { useState } from 'react'
-import {
-  Check, ClipboardList,
-  GitCompareArrows, MessageSquarePlus,
-  RotateCcw, Search, Target, X
-} from 'lucide-react'
+import { UiIcon, SemIcons } from '@/components/icons/UiIcon'
+import { ClipboardCheck, MessageSquare01, SwitchHorizontal01, Target01 } from '@untitledui/icons'
 import type { WorkbenchReview } from '@/hooks/useWorkbenchReview'
 import type { StageVisual } from '@/data/stageVisual'
 import type { ReviewOpinion } from '@/services/workbenchReviewService'
@@ -97,7 +94,7 @@ export function WorkbenchReviewDesk({
                   }}
                   aria-label="搜索意见"
                 >
-                  <Search size={14} />
+                  <UiIcon icon={SemIcons.search} size="sm" />
                 </button>
               </TooltipTrigger>
               <TooltipContent side="top">搜索意见描述与画面目标</TooltipContent>
@@ -112,7 +109,7 @@ export function WorkbenchReviewDesk({
                 onClick={onDiscuss}
                 aria-label="提新意见"
               >
-                <MessageSquarePlus size={14} />
+                <UiIcon icon={MessageSquare01} size="sm" />
               </button>
             </TooltipTrigger>
             <TooltipContent side="top">在对话中提出新修改意见</TooltipContent>
@@ -132,14 +129,14 @@ export function WorkbenchReviewDesk({
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
-          <Search size={11} className="absolute left-2 top-2.5 text-[var(--tx3)] pointer-events-none" />
+          <UiIcon icon={SemIcons.search} size="xs" className="absolute left-2 top-2.5 text-[var(--tx3)] pointer-events-none" />
           {search && (
             <button
               type="button"
               className="absolute right-2 top-2 text-[var(--tx3)] hover:text-[var(--tx)]"
               onClick={() => setSearch('')}
             >
-              <X size={11} />
+              <UiIcon icon={SemIcons.close} size="xs" />
             </button>
           )}
         </div>
@@ -175,7 +172,7 @@ export function WorkbenchReviewDesk({
       {/* 克制的空状态：一句事实 + 一个动作 */}
       {visible.length === 0 && (
         <div className="py-12 text-center text-xs text-[var(--tx3)] flex flex-col items-center justify-center">
-          <ClipboardList size={24} className="mb-2 opacity-30 text-[var(--tx)]" />
+          <UiIcon icon={ClipboardCheck} size="xl" className="mb-2 opacity-30 text-[var(--tx)]" />
           <p className="text-[var(--tx2)] text-[13px]">
             {totalCount ? '没有匹配的修改意见' : '暂无修改意见'}
           </p>
@@ -252,7 +249,7 @@ export function WorkbenchReviewDesk({
               {/* 当时的修改目标位置 */}
               {target && (
                 <div className="flex items-center gap-1.5 mt-2 text-xs text-[var(--tx3)] bg-[var(--surf)]/60 px-2 py-1 rounded border border-[var(--line)]/40">
-                  <Target size={12} className="shrink-0 text-blue-500" />
+                  <UiIcon icon={Target01} size="xs" className="shrink-0 text-blue-500" />
                   <span className="truncate flex-1 font-mono text-[11px]">{target.label}</span>
                   {onLocate && (
                     <button
@@ -288,7 +285,7 @@ export function WorkbenchReviewDesk({
                       className="text-blue-500 hover:underline flex items-center gap-1 font-medium"
                       onClick={() => onCompare(before!, after!, opinion)}
                     >
-                      <GitCompareArrows size={12} />
+                      <UiIcon icon={SwitchHorizontal01} size="xs" />
                       <span>对比前后</span>
                     </button>
                   ) : hasBase && hasResult ? (
@@ -304,7 +301,7 @@ export function WorkbenchReviewDesk({
                       onClick={() => onContinue(opinion)}
                       title="基于上一轮意见继续调整（将打开最新版本由你确认新目标）"
                     >
-                      <MessageSquarePlus size={12} />
+                      <UiIcon icon={MessageSquare01} size="xs" />
                       <span>继续调整</span>
                     </button>
                   )}
@@ -317,7 +314,7 @@ export function WorkbenchReviewDesk({
                       className="text-emerald-500 hover:underline flex items-center gap-1 font-medium"
                       onClick={() => review.resolve(opinion.id, viewedId)}
                     >
-                      <Check size={12} />
+                      <UiIcon icon={SemIcons.check} size="xs" />
                       <span>标记已处理</span>
                     </button>
                   ) : (
@@ -326,7 +323,7 @@ export function WorkbenchReviewDesk({
                       className="text-[var(--tx3)] hover:text-[var(--tx)] flex items-center gap-1"
                       onClick={() => review.reopen(opinion.id)}
                     >
-                      <RotateCcw size={12} />
+                      <UiIcon icon={SemIcons.refresh} size="xs" />
                       <span>重新打开</span>
                     </button>
                   )}

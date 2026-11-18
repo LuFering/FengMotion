@@ -24,22 +24,27 @@ export default defineConfig(({ mode }) => {
   const apiBase = env.VITE_FENGMOTION_API_BASE
 
   return {
-    plugins: [react(), tailwindcss()],
+    plugins: [
+      {
+        name: 'fx-waves-font-subset',
+        enforce: 'pre',
+        transform(code, id) {
+          // 保持原始场景文件不变；保留全部字重，加载英文和扩展拉丁字符。
+          if (!id.replace(/\\/g, '/').endsWith('/fx-original/remotion-scenes/src/common/fonts.ts')) return
+          if (!code.includes('loadInter()')) throw new Error('原始字体入口变化，请重新核对预览')
+          return code.replace('loadInter()', "loadInter('normal', { subsets: ['latin', 'latin-ext'] })")
+        },
+      },
+      react(), tailwindcss(),
+    ],
     resolve: {
-      preserveSymlinks: false,
       alias: {
         '@': path.resolve(import.meta.dirname, './src'),
-        react: path.resolve(import.meta.dirname, './node_modules/react'),
-        'react/jsx-runtime': path.resolve(import.meta.dirname, './node_modules/react/jsx-runtime'),
-        'react/jsx-dev-runtime': path.resolve(import.meta.dirname, './node_modules/react/jsx-dev-runtime'),
-        'react-dom': path.resolve(import.meta.dirname, './node_modules/react-dom'),
-        remotion: path.resolve(import.meta.dirname, './node_modules/remotion'),
-        '@remotion/player': path.resolve(import.meta.dirname, './node_modules/@remotion/player'),
-        '@remotion/google-fonts/Inter': path.resolve(import.meta.dirname, './src/remotion/shims/google-fonts-inter.ts'),
         '@remotion/three': path.resolve(import.meta.dirname, './src/remotion/shims/three-mock.tsx'),
         '@react-three/fiber': path.resolve(import.meta.dirname, './src/remotion/shims/three-mock.tsx'),
         '@react-three/drei': path.resolve(import.meta.dirname, './src/remotion/shims/three-mock.tsx'),
         three: path.resolve(import.meta.dirname, './src/remotion/shims/three-mock.tsx'),
+        '@remotion/motion-blur': path.resolve(import.meta.dirname, './src/remotion/shims/motion-blur-mock.tsx'),
       },
     },
     define: apiBase

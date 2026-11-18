@@ -172,7 +172,7 @@ export function AppShell({
         onSend={(list) => {
           /* 优先用外部注入的投递器（工作台对话），否则落到全局注册的当前输入框 */
           const ok = onDeliverPending ? onDeliverPending(list) : deliverToComposer(list)
-          if (!ok) emitToast('当前没有打开的对话，先进入「我的创作」再添加')
+          if (!ok) emitToast('当前没有打开输入框，请在「我的创作」打开项目，或选择「直接进入对话」后再添加。清单已保留。')
           return ok
         }} />
 

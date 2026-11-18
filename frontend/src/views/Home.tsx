@@ -1,3 +1,4 @@
+import { useHarnessSelection, setHarnessSelection } from '@/shell/useHarnessSelection'
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ChangeEvent } from 'react'
 import { HARNESSES, DEFAULT_PREFS, prefsKey, loadPrefs, savePrefs, type ModelPrefs } from '@/data/harnesses'
 import { useHarnesses, availabilityOf, AVAILABILITY_LABEL, modelsOf } from '@/shell/useHarnesses'
@@ -15,12 +16,12 @@ const L2_START = CURVE_START + CURVE_MS + 260
 const UNDER_START = L2_START + 5 * CHAR_STEP + 260
 const READY_AT = UNDER_START + 500
 const MIST_PHRASES = [
-  '做一个订单跟踪仪表盘原型',
-  '把这段口播稿拆成分镜脚本',
-  '分析这份销售数据并给出结论',
-  '给这个镜头换一种运镜方式',
-  '帮我写一份产品周报',
-  '复刻这个界面的布局和交互',
+  '做一条 15 秒香水广告，画面简洁、有质感',
+  '做一个雨夜重逢的故事短片，氛围温暖',
+  '把我的旅行素材剪成一条节奏轻快的短视频',
+  '参考这条片子的风格，做一段音乐视觉动画',
+  '做一条 30 秒科普视频，讲清什么是 Token',
+  '把这段字幕放大一点，其他画面保持不变',
 ]
 
 /**
@@ -160,6 +161,7 @@ function shortenDir(name: string): string {
 
 /** 发送时交给上层的上下文：草稿 + 这次用的工作目录 + 引擎 */
 export interface StartPayload {
+  intent: 'create' | 'chat'
   draft: string
   attachments: { file: File; kind: 'file' | 'image' | 'video' }[]
   workdir: { label: string; path: string } | null
@@ -167,13 +169,16 @@ export interface StartPayload {
 }
 
 export function Home(props: {
-  onStart?: (payload: StartPayload) => void
+  onStart?: (payload: StartPayload) => Promise<void>
   /** 真实项目列表 —— 工作目录下拉的目录来自它，路径与项目一一对应 */
   projects?: { id: string; name: string; path: string }[]
 }) {
   const [ready, setReady] = useState(false)
   const [draft, setDraft] = useState('')
-  const [menu, setMenu] = useState<null | 'workdir' | 'add' | 'harness'>(null)
+  const [startIntent, setStartIntent] = useState<'create' | 'chat'>('create')
+  const [starting, setStarting] = useState(false)
+  const [startError, setStartError] = useState('')
+  const [menu, setMenu] = useState<null | 'workdir' | 'add' | 'harness' | 'intent'>(null)
   /* 工作目录。真实链路按 docs/dev/前后端协议 与后端 workspace 包的规划走：
      Electron 主进程 dialog.showOpenDialog（DSH 的 dsh-desktop:directory-pick 同款），
      前端只经适配器拿「显示名 + 路径」。
@@ -215,22 +220,16 @@ export function Home(props: {
     setMenu(null)
   }
   const [attachments, setAttachments] = useState<Attachment[]>([])
-  const [harnessId, setHarnessId] = useState(HARNESSES[0].id)
-  const [model, setModel] = useState(HARNESSES[0].models[0])
+  const engineSelection = useHarnessSelection()
+  const harnessId = engineSelection.harness
+  const setHarnessId = (harness: string) => setHarnessSelection({ harness, model: undefined, reasoningEffort: undefined })
+  const model = engineSelection.model ?? ''
+  const setModel = (model: string) => setHarnessSelection({ model })
   /* 引擎弹窗两级导航：null=一级引擎列表，'deepseek'…=二级模型列表 */
   const [harnessPane, setHarnessPane] = useState<string | null>(null)
   /* 模型偏好：key = `${harnessId}:${model}`；持久化在 localStorage */
   const [prefs, setPrefs] = useState<Record<string, ModelPrefs>>(loadPrefs)
-  /**
-   * 引擎可用性以**后端探测**为准，本地 HARNESSES 只提供名字/图标/颜色这些展示信息。
-   *
-   * 判据分两层（见 useHarnesses 的说明）：
-   *   1. DSH 是否接入 —— 读 `/api/capabilities` 的 `agent.status`
-   *   2. 该引擎自身状态 —— 读 `/api/harnesses`（该端点后端尚未实现）
-   *
-   * 关键：DSH 未接入时所有引擎一律显示「未接入」，而不是「状态未知」——
-   * 前者是确定的结论，后者是「读不到」，把两者混为一谈就是在含糊其辞。
-   */
+  /** 引擎清单与模型目录来自本机后端；每个引擎独立判断。 */
   const probe = useHarnesses()
   const harnessStateOf = (id: string) => availabilityOf(probe, id)
   /**
@@ -360,25 +359,34 @@ export function Home(props: {
   const removeAttachment = (name: string, size: number) =>
     setAttachments((prev) => prev.filter((a) => !(a.name === name && a.size === size)))
 
-  const send = () => {
+  const send = async () => {
+    if (starting) return
     if (!draft.trim() && !attachments.length) return
     if (notReady) {
       setToast(`${harness.name} 未接入：不会创建任务，请切回已配置引擎。`)
       return
     }
-    if (attachments.length && !props.projects?.some((project) => project.path === currentWorkdir?.path)) {
+    if (startIntent === 'create' && currentWorkdir && !props.projects?.some((project) => project.path === currentWorkdir.path)) {
+      setStartError('这个目录尚未关联视频项目。请在目录菜单选择“新建视频项目”或一个已有项目。')
+      return
+    }
+    if (startIntent === 'chat' && attachments.length && !props.projects?.some((project) => project.path === currentWorkdir?.path)) {
       setToast('附件需要项目会话，请先选择已有项目的工作目录。')
       return
     }
-    /* 发送 → 进对话：把「这次用的工作目录与引擎」一并交出去，
-       由上层建一条会话；没选目录就发，会话落进未分组 */
+    /* 准备项目/会话与草稿；实际提交由创作区输入框显式完成。 */
     if (props.onStart && (draft.trim() || attachments.length)) {
-      props.onStart({
+      setStarting(true)
+      setStartError('')
+      try { await props.onStart({
+        intent: startIntent,
         draft,
         attachments: attachments.map(({ file, kind }) => ({ file, kind })),
         workdir: currentWorkdir,
         harness: { id: harness.id, name: harness.name, model: effectiveModel },
-      })
+      }) } catch (error) {
+        setStartError(error instanceof Error ? error.message : '准备失败，请重试。输入内容仍保留。')
+      } finally { setStarting(false) }
       return
     }
     setToast('演示输入框：发送未接入，未创建任务。')
@@ -398,19 +406,8 @@ export function Home(props: {
       {/* 右上角：平台入口与仓库链接（取自产品介绍页 nav，去掉「开始创作」） */}
       <div className="hf-social" aria-label="关注与源码">
         <span className="hf-soc-note">欢迎关注作者 <em>(๑•ᴗ•๑)</em></span>
-        <a className="hf-soc" href="#" title="小红书" aria-label="小红书">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4.5h9.5A2.5 2.5 0 0 1 17 7v12.5H7.5A2.5 2.5 0 0 1 5 17z" /><path d="M17 8.5h2v11h-2" /><path d="M8.5 8.5h5M8.5 11.5h5" /></svg>
-        </a>
-        <a className="hf-soc" href="#" title="抖音" aria-label="抖音">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3v11.2a3.4 3.4 0 1 1-3-3.4" /><path d="M14 3c.4 2.6 2.1 4.2 4.7 4.4" /></svg>
-        </a>
-        <a className="hf-soc" href="#" title="快手" aria-label="快手">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="4" /><path d="M9.5 8.5v7M9.5 12l4-3.5M9.5 12l4 3.5" /></svg>
-        </a>
-        <a className="hf-soc" href="#" title="B站" aria-label="B站">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6.5" width="18" height="12.5" rx="3" /><path d="M7.5 3.5 10 6M16.5 3.5 14 6" /><path d="M9 11.5v2.5M15 11.5v2.5" /></svg>
-        </a>
-        <span className="hf-soc-sep" aria-hidden="true" />
+        {/* 小红书 / 抖音 / 快手 / B站 四个入口还没有真实地址（原来都是 href="#"，点了原地不动）。
+            有链接再加回来；先只保留能用的 GitHub。下一轮体验优化审阅 · 小项 */}
         <a className="hf-gh" href="https://github.com/LuFering/FengMotion" target="_blank" rel="noopener">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 19c-4 1.2-4-2-5.5-2.5M15 21v-3.4a3 3 0 0 0-.9-2.4c3-.3 6.1-1.5 6.1-6.7a5.2 5.2 0 0 0-1.4-3.6 4.8 4.8 0 0 0-.1-3.6s-1.1-.3-3.6 1.4a12.4 12.4 0 0 0-6.4 0C6.2 1.2 5.1 1.5 5.1 1.5a4.8 4.8 0 0 0-.1 3.6A5.2 5.2 0 0 0 3.6 8.7c0 5.2 3.1 6.4 6.1 6.7a3 3 0 0 0-.9 2.3V21" /></svg>
           GitHub
@@ -440,12 +437,22 @@ export function Home(props: {
               <img src="./assets/brand/fengmotion-mark.png" alt="" />
               <span className="hf-brandname">FengMotion</span>
               <span className="hf-brandsep" aria-hidden="true">|</span>
-              <button type="button" className="hf-brandstart" onClick={() => taRef.current?.focus()}>开始创作</button>
+              <div className="hf-entry-choice">
+                <button type="button" className="hf-brandstart" disabled={starting} aria-haspopup="menu" aria-expanded={menu === 'intent'} onClick={() => setMenu(menu === 'intent' ? null : 'intent')}>
+                  {startIntent === 'create' ? '开始创作' : '先聊想法'}<svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg>
+                </button>
+                {menu === 'intent' && <div className="hf-menu hf-entry-menu" role="menu" aria-label="开始方式">
+                  <button type="button" role="menuitemradio" aria-checked={startIntent === 'create'} onClick={() => { setStartIntent('create'); setMenu(null); taRef.current?.focus() }}><span>制作视频</span><small>准备项目与需求</small></button>
+                  <button type="button" role="menuitemradio" aria-checked={startIntent === 'chat'} onClick={() => { setStartIntent('chat'); setMenu(null); taRef.current?.focus() }}><span>先聊想法</span><small>讨论，不修改工程</small></button>
+                </div>}
+              </div>
             </div>
             <div className="hf-sample">
             <div className="hf-composer" data-drag={dragging || undefined}
+                 inert={starting}
                  style={{ '--brand': harness.color } as React.CSSProperties}
                  onDragOver={(e) => {
+                   if (starting) return
                    if (!e.dataTransfer.types.includes('Files')) return
                    e.preventDefault()
                    setDragging(true)
@@ -457,6 +464,7 @@ export function Home(props: {
                  }}
                  onDrop={(e) => {
                    e.preventDefault()
+                   if (starting) return
                    setDragging(false)
                    const files = Array.from(e.dataTransfer.files ?? [])
                    if (!files.length) return
@@ -486,6 +494,7 @@ export function Home(props: {
               )}
               <div className="hf-ta">
                 <textarea ref={taRef} rows={1} value={draft}
+                          disabled={starting}
                           placeholder=""
                           onChange={(e) => setDraft(e.target.value)}
                           onPaste={(e) => {
@@ -499,7 +508,7 @@ export function Home(props: {
                             /* Enter 发送（与下方提示一致）；中文输入法组字中不触发，Shift+Enter 换行 */
                             if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
                               e.preventDefault()
-                              send()
+                              void send()
                             }
                           }}
                           aria-label="描述你想做的视频" />
@@ -540,17 +549,20 @@ export function Home(props: {
                 </div>
                 <div className="hf-modewrap" data-open={menu === 'workdir' || undefined}>
                   <button className="hf-modechip hf-workdir-chip" type="button" aria-expanded={menu === 'workdir'}
-                          onClick={() => setMenu(menu === 'workdir' ? null : 'workdir')}>
+                          disabled={starting} onClick={() => setMenu(menu === 'workdir' ? null : 'workdir')}>
                     <svg className="hf-folder" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></svg>
                     {/* 按钮显示当前目录名（超长截到 6 个字符加省略号），未选时才是「工作目录」 */}
                     <span title={currentWorkdir ? currentWorkdir.path : undefined}>
-                      {currentWorkdir ? shortenDir(currentWorkdir.label) : '工作目录'}
+                      {currentWorkdir ? shortenDir(currentWorkdir.label) : startIntent === 'create' ? '新建项目' : '本页对话'}
                     </span>
                     <svg className="hf-chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" /></svg>
                   </button>
                   {menu === 'workdir' && (
                     <div className="hf-menu hf-workdir-menu">
                       <div className="hf-wd-list">
+                        <button type="button" className={workdirPath === null ? 'is-sel' : undefined} onClick={() => { setWorkdirPath(null); setMenu(null) }}>
+                          <span>{startIntent === 'create' ? '新建视频项目' : '本页临时对话'}</span>
+                        </button>
                         {workdirs.map((d) => (
                           <button key={d.path} type="button" className={workdirPath === d.path ? 'is-sel' : undefined}
                                   title={d.path}
@@ -583,7 +595,7 @@ export function Home(props: {
                       <span className="hf-harness-mark" aria-hidden="true"
                             style={{ '--brand': harness.color, maskImage: `url(${harness.icon})`, WebkitMaskImage: `url(${harness.icon})` } as React.CSSProperties} />
                       {notReady ? <span className="hf-harness-off">未接入AI</span>
-                        : <><span className="hf-harness-div" aria-hidden="true" /><span className="hf-harness-model">{model}</span></>}
+                        : <><span className="hf-harness-div" aria-hidden="true" /><span className="hf-harness-model">{effectiveModel}</span></>}
                     </span>
                     <svg className="hf-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
                   </button>
@@ -595,15 +607,7 @@ export function Home(props: {
                           <div className="hf-hp-head">
                             <b>执行引擎</b>
                             <span>
-                              {probe.listState === 'loading' && probe.access === 'unknown'
-                                ? '正在探测…'
-                                : probe.access === 'unavailable'
-                                  ? 'DSH 未接入'
-                                  : probe.access === 'demo'
-                                    ? 'DSH 仅演示'
-                                    : probe.access === 'unknown'
-                                      ? '状态未知'
-                                      : `${readyCount} 个已接入`}
+                              {probe.listState === 'loading' ? '正在探测…' : `${readyCount} 个已载入`}
                             </span>
                           </div>
                           <div className="hf-hp-list" role="listbox" aria-label="引擎">
@@ -683,13 +687,15 @@ export function Home(props: {
                     </div>
                   )}
                 </div>
-                <button className="hf-send" type="button" disabled={notReady || (!draft.trim() && !attachments.length)}
-                        title={notReady ? `${harness.name} 未接入` : draft.trim() || attachments.length ? '开始制作' : '发送'}
-                        onClick={send} aria-label="发送">
+                <button className="hf-send" type="button" disabled={starting || notReady || (!draft.trim() && !attachments.length)}
+                        title={starting ? '正在准备…' : notReady ? `${harness.name} 未接入` : startIntent === 'create' ? '准备制作：带入需求后确认发送' : '准备对话：不修改工程'}
+                        onClick={() => void send()} aria-label={starting ? '正在准备' : startIntent === 'create' ? '准备制作' : '准备对话'}>
                   <svg viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7" /></svg>
                 </button>
               </div>
             </div>
+            {starting && <p className="hf-entry-status" role="status">正在准备项目与会话…</p>}
+            {startError && <p className="hf-entry-error" role="alert">{startError}</p>}
             <div className="hf-sample-hint" data-off={notReady || undefined}>
               {notReady
                 ? harnessState.state === 'misconfigured'
@@ -697,7 +703,7 @@ export function Home(props: {
                   : harnessState.state === 'unknown'
                     ? `${harness.name} 接入状态未知，暂时不能发送`
                     : `${harness.name} 未接入，暂时不能发送`
-                : 'Enter 发送 · Shift + Enter 换行 · 支持拖放 / 粘贴文件'}
+                : 'Enter 继续 · Shift + Enter 换行 · 支持拖放 / 粘贴文件'}
             </div>
             </div>
           </div>

@@ -72,7 +72,7 @@
   /* aspect-square + 固定宽 = 真正的正方形，不随行高变化 */
   width: 30px;
   height: 30px;
-  border-radius: 7px;
+  border-radius: 6px;
   background: var(--hole);
   color: var(--acc);
 }
