@@ -20,7 +20,8 @@ import path from 'node:path'
 
 const repoRoot = path.resolve(import.meta.dirname, '..')
 const outDir = path.join(repoRoot, 'electron', 'build')
-const tsc = path.join(repoRoot, 'node_modules', '.bin', 'tsc')
+// 用 node 直接跑 typescript/bin/tsc，避开 Windows 下 .bin/tsc 的 .cmd 壳差异
+const tscScript = path.join(repoRoot, 'node_modules', 'typescript', 'bin', 'tsc')
 
 /** tsc 的公共参数。--ignoreConfig 是 TS6 的要求：命令行给了文件就不加载 tsconfig。 */
 const commonArgs = [
@@ -39,7 +40,7 @@ mkdirSync(outDir, { recursive: true })
 
 /** 编译一个入口，并把它改名成目标扩展名。 */
 function compile(entry, moduleArgs, finalName) {
-  execFileSync(tsc, [entry, ...commonArgs, ...moduleArgs], {
+  execFileSync(process.execPath, [tscScript, entry, ...commonArgs, ...moduleArgs], {
     cwd: repoRoot,
     stdio: 'inherit',
   })

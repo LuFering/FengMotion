@@ -58,7 +58,8 @@ const IS_MAC = process.platform === 'darwin'
 function run(cmd, args, cwd) {
   console.log(`$ ${cmd} ${args.join(' ')}`)
   const useShell = IS_WIN && !cmd.toLowerCase().endsWith('.exe')
-  execFileSync(cmd, args, { cwd, stdio: 'inherit', shell: useShell })
+  const safeCmd = useShell && cmd.includes(' ') ? `"${cmd}"` : cmd
+  execFileSync(safeCmd, args, { cwd, stdio: 'inherit', shell: useShell })
 }
 
 /** 跨平台查找 PATH 中的可执行文件。 */
