@@ -1,0 +1,304 @@
+/* ── 三座岛 ───────────────────────────────────────────────── */
+#pane-flow .wb-a2 .fw {
+  flex: 1;
+  transition: grid-template-columns .28s var(--eio);
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 232px minmax(0, 1fr) 272px;
+  gap: var(--gap);
+  padding: 0;
+  background: transparent;
+}
+#pane-flow .wb-a2 .fw-ing,
+#pane-flow .wb-a2 .fw-canvas,
+#pane-flow .wb-a2 .fw-panel {
+  border: 1px solid var(--line);
+  border-radius: var(--r-panel);
+  background: var(--panel);
+  overflow: hidden;
+}
+#pane-flow .wb-a2 .fw-ing { display: flex; flex-direction: column; min-height: 0; padding: 0; gap: 0; box-shadow: var(--shadow-mid); }
+#pane-flow .wb-a2 .fw-canvas { display: flex; flex-direction: column; min-height: 0; box-shadow: var(--shadow-hero); }
+#pane-flow .wb-a2 .fw-panel { display: flex; flex-direction: column; min-height: 0; box-shadow: var(--shadow-mid); }
+
+/* 布局预设：排布真实变化 */
+
+/* ── 左岛：镜头库 ─────────────────────────────────────────── */
+#pane-flow .wb-a2 .fw-ing-hd {
+  min-height: 40px;
+  padding: 11px 13px 8px;
+  border: 0;
+  gap: 6px;
+}
+#pane-flow .wb-a2 .fw-ing-hd h2 { font-size: 12px; font-weight: 650; color: var(--tx); }
+#pane-flow .wb-a2 .fw-count { font-size: 11px; color: var(--tx3); background: transparent; padding: 0; font-variant-numeric: tabular-nums; }
+#pane-flow .wb-a2 .fw-rail-seg { margin: 0 10px 8px; }
+/* 四个页签直接坐在头部行里（原来那行「概览 1 项」标题已去掉）：段控占满剩余宽度，
+   并去掉它作为独立一行时用的外边距。右栏的段控不是 .fw-rail-seg，不受影响。 */
+#pane-flow .wb-a2 .fw-ing-hd .fw-rail-seg { flex: 1; min-width: 0; margin: 0; }
+#pane-flow .wb-a2 .fw-ing-list {
+  flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+  padding: 4px 10px 10px; gap: 6px;
+  display: flex; flex-direction: column;
+  mask-image: none;
+}
+/* 分区标题条（当前进度 / 待决定 / 最近已决定）
+   两次返工留下的结论：
+   1) 字号不能弱于正文 —— 原来 10.5px/--tx3 比它下面的正文还小还暗，层级是倒的；
+      现在用面板头字号 12px/650/--tx，底加深一层（--panel2 就是「岛内次级面」）。
+   2) 加深之后它和小卡同色号，又分不出主次了。**色阶只有这两档可用**
+      （再深就得引入岛下底色，那是「岛屿之下」，语义不对），所以主次靠形态分开：
+      标题条是通栏分隔条（抵消列表内边距、方角、上下各一条细线），
+      内容是退到内边距里的小卡（圆角 12px）。一眼就能看出哪行是标题。 */
+/* ── 分组标题：依附左边缘的标签页 ────────────────────────────
+   作者选定 T1（单角斜切）：标签贴在左栏左边缘，右端切一个短尖角，
+   蓝底白字，计数并在标签内部。取代原来那条横贯整栏的实色横条 ——
+   横条把标题拔成"一整行"，压过了卡片；标签只占左边一小段，
+   标题仍然是这一组的领头，卡片跟在后面，主次反而更清楚。
+   标签用 --acc 主题色，三套主题各自给出可读的底色（见下方各主题覆盖）。 */
+#pane-flow .wb-a2 .fw-ing-list .fw-scene-hd {
+  /* 第一个分组（当前进度）紧贴页签下沿时不要再多空一行 */
+  margin: 12px 0 6px;
+  padding: 0;
+  display: flex; align-items: center; gap: 6px;
+}
+#pane-flow .wb-a2 .fw-ing-list > :first-child .fw-scene-hd,
+#pane-flow .wb-a2 .fw-ing-list > section:first-child .fw-scene-hd { margin-top: 8px; }
+#pane-flow .wb-a2 .fw-tag {
+  display: inline-flex; align-items: center; gap: 6px;
+  /* 左侧不留圆角、贴合栏边；右端用 clip-path 切出尖角 */
+  margin-left: -10px;
+  /* 固定宽度：三个分组的标签等长，右端尖角落在同一条竖线上。
+     字数不同（当前进度 4 字 / 待决定 3 字 / 最近已决定 5 字）时不再一长一短。
+     宽度含右侧给尖角留的 9px。 */
+  width: 126px;
+  padding: 5px 17px 5px 12px;
+  clip-path: polygon(0 0, calc(100% - 9px) 0, 100% 50%, calc(100% - 9px) 100%, 0 100%);
+  background: var(--tag-bg);
+  color: var(--tag-fg);
+  font-size: 11.5px; font-weight: 650; letter-spacing: .02em;
+  line-height: 1.35; white-space: nowrap;
+}
+#pane-flow .wb-a2 .fw-tag > :first-child { min-width: 0; }
+#pane-flow .wb-a2 .fw-tag-n {
+  margin-left: auto;
+  font-size: 10px; font-weight: 700; line-height: 1.4;
+  opacity: .78; font-variant-numeric: tabular-nums;
+}
+/* 空状态正文（「这一轮的事都已定下…」）此前在这个表里没有任何规则，
+   它按段落继承到 13px/--tx，于是正文大于也亮于标题。降到次级说明字号与色阶。 */
+#pane-flow .wb-a2 .fw-ing-list .fw-rail-none {
+  margin: 0;
+  padding: 6px 9px 2px;
+  font-size: 11.5px; line-height: 1.65;
+  color: var(--tx2);
+}
+/* 当前进度卡：进度条 + 这一步落在哪个阶段 + 最近一次运行 + 三个动作。
+   不做仪表盘：阶段清单属于工作流编辑器，这里只回答「做到哪了、怎么往下走」。 */
+#pane-flow .wb-a2 .fw-ing-list .fw-prog {
+  display: flex; flex-direction: column; gap: 8px;
+  width: 100%; margin: 0; padding: 9px 9px 10px;
+  border: 0; border-radius: var(--r-card);
+  background: linear-gradient(180deg, var(--glass-fill), var(--glass-fill-2));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  box-shadow: inset 0 1px 0 var(--glass-lit), var(--glass-shadow), 0 0 0 1px var(--glass-edge);
+  color: var(--tx2);
+  font-size: 11.5px;
+}
+/* 进度条用 shadcn 的 Progress，只换 A2 token：底槽取岛下底色（读数未填的一段），
+   填充取强调色。高度 4px，和这一栏的其它细线一致。 */
+#pane-flow .wb-a2 .fw-ing-list .fw-prog [data-slot="progress"] { height: 4px; background: var(--bg); }
+#pane-flow .wb-a2 .fw-ing-list .fw-prog [data-slot="progress-indicator"] { background: var(--acc); }
+#pane-flow .wb-a2 .fw-prog-now { display: flex; align-items: center; gap: 6px; min-width: 0; }
+/* 「正在制作」压在这张卡的第一行，不另开栏目、也不给整块高亮底 —— 克制到两行：
+   一行「正在制作 + 当前状态」，一行「在哪个内容上 + 去右侧看执行」。
+   底下一条细线把它和下面的整片进度分开：上面是「这一刻」，下面是「这部片」。 */
+#pane-flow .wb-a2 .fw-prog-live {
+  display: flex; flex-direction: column; gap: 3px;
+  width: 100%; margin: 0; padding: 0 0 8px;
+  border: 0; border-bottom: 1px solid var(--line);
+  background: none; font: inherit; text-align: left; cursor: pointer;
+}
+#pane-flow .wb-a2 .fw-prog-live-hd { display: flex; align-items: center; gap: 6px; min-width: 0; }
+#pane-flow .wb-a2 .fw-prog-live-hd > b { color: var(--tx2); font-size: 11px; font-weight: 500; }
+#pane-flow .wb-a2 .fw-prog-live-now { display: flex; align-items: center; gap: 6px; min-width: 0; }
+#pane-flow .wb-a2 .fw-prog-live-now > b {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: var(--tx); font-size: 12px; font-weight: 550;
+}
+#pane-flow .wb-a2 .fw-prog-live-go { flex: none; margin-left: auto; color: var(--tx3); font-size: 11px; }
+#pane-flow .wb-a2 .fw-prog-live:hover .fw-prog-live-go { color: var(--tx); }#pane-flow .wb-a2 .fw-prog-now b {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: var(--tx); font-size: 12px; font-weight: 500;
+}
+#pane-flow .wb-a2 .fw-prog-state { flex: none; margin-left: auto; color: var(--tx3); font-size: 10.5px; }
+#pane-flow .wb-a2 .fw-prog-meta {
+  display: flex; align-items: center; gap: 8px; min-width: 0;
+  color: var(--tx3); font-size: 10.5px; font-variant-numeric: tabular-nums;
+}
+#pane-flow .wb-a2 .fw-prog-meta > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 「演示执行器」——运行是演示执行（不调 AI、不出片），这个标记不许省 */
+#pane-flow .wb-a2 .fw-prog-demo {
+  flex: none; margin-left: auto; padding: 0 6px;
+  border: 1px solid var(--line2); border-radius: 999px;
+  color: var(--tx2); line-height: 15px;
+}
+#pane-flow .wb-a2 .fw-prog-acts { display: flex; gap: 6px; margin-top: 1px; }
+#pane-flow .wb-a2 .fw-prog-run, #pane-flow .wb-a2 .fw-prog-mini {
+  flex: 1; min-width: 0; padding: 6px 6px;
+  border: 1px solid var(--line2); border-radius: var(--r-ctl);
+  font: inherit; font-size: 11px; line-height: 1.3; cursor: pointer;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  transition: border-color 160ms var(--eo), background-color 160ms var(--eo), color 160ms var(--eo);
+}
+/* 主动作（开始运行）在左栏不是页面的主操作，所以不做整行大按钮 ——
+   挤在一行里、用实心底色表明它是主动作，卡片也就维持一张读数卡的高度。 */
+#pane-flow .wb-a2 .fw-prog-run { background: var(--acc); border-color: var(--acc); color: var(--acc-ink); font-weight: 600; }
+#pane-flow .wb-a2 .fw-prog-run:hover:not(:disabled) { filter: brightness(1.06); }
+#pane-flow .wb-a2 .fw-prog-run:disabled { opacity: .5; cursor: wait; }
+#pane-flow .wb-a2 .fw-prog-mini { background: transparent; color: var(--tx2); }
+#pane-flow .wb-a2 .fw-prog-mini:hover { border-color: var(--tx3); color: var(--tx); }
+/* 内容行与左栏其它卡片同一套玻璃外壳：原来是 --panel2 + 一条描边，
+   在这一栏里看着像"平铺的方块"，和上面的产物卡、下面的资料卡不是一种东西。
+   这里只换外壳，缩略帧、标题、元信息的排版不动。 */
+#pane-flow .wb-a2 .fw-ing-list .fm-unit {
+  width: 100%;
+  min-height: 40px;
+  margin: 0;
+  padding: 7px 8px;
+  gap: 9px;
+  border: 0;
+  border-radius: var(--r-ctl);
+  background: linear-gradient(180deg, var(--glass-fill), var(--glass-fill-2));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  box-shadow: inset 0 1px 0 var(--glass-lit), var(--glass-shadow), 0 0 0 1px var(--glass-edge);
+  color: var(--tx);
+  transition: transform 180ms var(--eo), box-shadow 180ms var(--eo), color 180ms var(--eo);
+}
+#pane-flow .wb-a2 .fw-ing-list .fm-unit:hover {
+  transform: translateY(-1px);
+  box-shadow: inset 0 1px 0 var(--glass-lit), var(--glass-shadow),
+              0 0 0 1px color-mix(in srgb, var(--glass-edge) 60%, var(--tx3) 40%);
+}
+#pane-flow .wb-a2 .fw-ing-list .fm-unit[aria-current="true"] {
+  transform: translateY(-1px);
+  box-shadow: inset 0 1px 0 var(--glass-lit), var(--shadow-sel),
+              0 0 0 1px color-mix(in srgb, var(--acc) 55%, transparent);
+}
+#pane-flow .wb-a2 .fw-ing-list .fm-unit-frame { width: 44px; height: 26px; flex: 0 0 44px; border-radius: var(--r-thumb); }
+/* 内容行（整片之外真实存在的内容单元）。层级靠缩进 —— 产物里嵌套几层就缩几层，
+   不固定三级；行号用等宽数字，和名字之间留一点缝，念出来仍是「03 风格切换」。 */
+#pane-flow .wb-a2 .fw-ing-list .fm-unit[data-part] { min-height: 38px; }
+#pane-flow .wb-a2 .fw-ing-list .fm-unit[data-part="2"] { margin-left: 18px; width: calc(100% - 18px); }
+/* 内容行下的缺素材提醒：不是卡片，是一行小字 + 一个去处 ——
+   它挂在行的下方（行本身是 button，提醒不能嵌进去）。 */
+#pane-flow .wb-a2 .fw-ing-list .fm-unit-need {
+  width: 100%; margin: -2px 0 2px; padding: 5px 9px;
+  border: 1px dashed color-mix(in srgb, var(--warn) 45%, transparent);
+  border-radius: var(--r-ctl);
+  background: color-mix(in srgb, var(--warn) 8%, transparent);
+  color: var(--warn); font: inherit; font-size: 10.5px; text-align: left; cursor: pointer;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+#pane-flow .wb-a2 .fw-ing-list .fm-unit-need:hover { border-style: solid; }
+#pane-flow .wb-a2 .fw-ing-list .fm-unit-index {
+  margin-right: 5px; color: var(--tx3);
+  font-family: var(--font-mono); font-size: 11px; font-variant-numeric: tabular-nums;
+}
+#pane-flow .wb-a2 .fw-ing-list .fm-unit-body { gap: 1px; }
+#pane-flow .wb-a2 .fw-ing-list .fm-unit-body > b { font-size: 12.5px; font-weight: 550; color: var(--tx); }
+#pane-flow .wb-a2 .fw-ing-list .fm-unit-body > span {
+  font-family: var(--sans); font-size: 11px; color: var(--tx3);
+  gap: 8px; font-variant-numeric: tabular-nums;
+}
+#pane-flow .wb-a2 .fw-ing-list .fm-unit > .fm-dot { opacity: 0; transition: opacity 120ms var(--eo); }
+#pane-flow .wb-a2 .fw-ing-list .fm-unit:hover > .fm-dot,
+#pane-flow .wb-a2 .fw-ing-list .fm-unit[aria-current="true"] > .fm-dot { opacity: 1; }
+#pane-flow .wb-a2 .fw-ing-list .fm-tag {
+  height: 18px; padding: 0 6px; border-radius: 999px;
+  font-size: 10.5px; border-color: var(--line); color: var(--tx2);
+}
+#pane-flow .wb-a2 .fw-ing-footer {
+  padding: 8px 13px; border-top: 1px solid var(--line);
+  font-size: 11px; color: var(--tx3);
+}
+/* 待决定条目 */
+#pane-flow .wb-a2 .fw-rail-decision {
+  display: flex; align-items: flex-start; gap: 7px;
+  padding: 7px 9px; margin-bottom: 4px;
+  border: 1px solid var(--line); border-radius: var(--r-card);
+  background: var(--panel2);
+}
+#pane-flow .wb-a2 .fw-rail-decision .fm-dot { margin-top: 4px; flex: none; }
+#pane-flow .wb-a2 .fw-rail-decision-main { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+#pane-flow .wb-a2 .fw-rail-decision-main b { font-size: 12px; font-weight: 600; color: var(--tx); }
+#pane-flow .wb-a2 details.fw-rail-decision {
+  cursor: pointer;
+  display: block;               /* details 会被基础规则带成 flex，摘要与详情挤成一行 */
+  flex-direction: column;
+}
+#pane-flow .wb-a2 details.fw-rail-decision > summary {
+  display: flex; align-items: flex-start; gap: 7px;
+  list-style: none;
+}
+#pane-flow .wb-a2 details.fw-rail-decision > summary::-webkit-details-marker { display: none; }
+#pane-flow .wb-a2 .fw-rail-decision-body {
+  margin-top: 8px; padding-top: 8px;
+  border-top: 1px solid var(--line);
+  display: flex; flex-direction: column; gap: 8px;
+  cursor: default;
+}
+#pane-flow .wb-a2 .fw-rail-decision-body p { margin: 0; font-size: 11px; line-height: 1.55; color: var(--tx2); }
+#pane-flow .wb-a2 .fw-rail-decision-acts { display: flex; gap: 6px; }
+#pane-flow .wb-a2 .fw-decide-btn {
+  flex: 1; padding: 6px 0; border-radius: var(--r-card);
+  border: 1px solid var(--line); background: transparent;
+  color: var(--tx2); font-size: 12px; font-weight: 600; cursor: pointer;
+  transition: border-color .15s, background-color .15s, color .15s;
+}
+#pane-flow .wb-a2 .fw-decide-btn:hover { border-color: var(--acc); color: var(--acc); }
+#pane-flow .wb-a2 .fw-decide-btn[data-kind="done"]:hover { background: color-mix(in srgb, var(--acc) 12%, transparent); }
+#pane-flow .wb-a2 .fw-decide-btn[data-kind="rework"]:hover {
+  border-color: var(--warn, #d08a2c); color: var(--warn, #d08a2c);
+  background: color-mix(in srgb, var(--warn, #d08a2c) 10%, transparent);
+}
+#pane-flow .wb-a2 .fw-rail-decision-more {
+  padding: 0; border: 0; background: none; text-align: left;
+  font-size: 11px; color: var(--tx3); cursor: pointer;
+}
+#pane-flow .wb-a2 .fw-rail-decision-more:hover { color: var(--acc); text-decoration: underline; }
+#pane-flow .wb-a2 .fw-rail-decision-main small { font-size: 11px; line-height: 1.45; color: var(--tx3); }
+
+#pane-flow .wb-a2 .fw-artifacts { padding: 2px 10px 10px; gap: 6px; }
+/* 产物卡：外壳与左栏其它卡同一套玻璃（--glass-* 令牌），内部排版不动 ——
+   图标块仍是白底、状态胶囊仍是描边，卡片本身只是一层玻璃面。 */
+#pane-flow .wb-a2 .fw-artifact {
+  padding: 8px 9px;
+  border: 0;
+  border-radius: var(--r-card);
+  background: linear-gradient(180deg, var(--glass-fill), var(--glass-fill-2));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  box-shadow: inset 0 1px 0 var(--glass-lit), var(--glass-shadow), 0 0 0 1px var(--glass-edge);
+  color: var(--tx2);
+  transition: transform 180ms var(--eo), box-shadow 180ms var(--eo), color 180ms var(--eo);
+}
+#pane-flow .wb-a2 .fw-artifact:hover {
+  transform: translateY(-1px);
+  box-shadow: inset 0 1px 0 var(--glass-lit), var(--glass-shadow),
+              0 0 0 1px color-mix(in srgb, var(--glass-edge) 60%, var(--tx3) 40%);
+  color: var(--tx);
+}
+#pane-flow .wb-a2 .fw-artifact[aria-current="true"] {
+  transform: translateY(-1px);
+  box-shadow: inset 0 1px 0 var(--glass-lit), var(--shadow-sel),
+              0 0 0 1px color-mix(in srgb, var(--acc) 55%, transparent);
+  color: var(--tx);
+}
+#pane-flow .wb-a2 .fw-artifact-ic { width: 28px; height: 28px; border-radius: 6px; color: var(--acc-tx); background: var(--panel); }
+#pane-flow .wb-a2 .fw-artifact-main b { font-size: 12.5px; font-weight: 600; }
+#pane-flow .wb-a2 .fw-artifact-main small { font-size: 11px; color: var(--tx3); }
+/* 状态胶囊压在玻璃面上：描边跟着玻璃边线走，否则 --line 太淡会糊进卡面 */
+#pane-flow .wb-a2 .fw-artifact-status { font-size: 10px; border-color: var(--glass-edge); color: var(--tx3); border-radius: 999px; }

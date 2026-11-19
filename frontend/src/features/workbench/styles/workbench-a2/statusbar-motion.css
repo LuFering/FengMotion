@@ -1,0 +1,90 @@
+/* ── 基岛：状态栏（独立胶囊）──────────────────────────────── */
+#pane-flow .wb-a2 .wb-statusbar {
+  flex: 0 0 26px;
+  height: 26px;
+  min-height: 26px;
+  display: flex; align-items: center; gap: 8px;
+  padding: 0 2px;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+#pane-flow .wb-a2 .wb-status-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 22px; padding: 0 11px;
+  border: 1px solid var(--line); border-radius: 999px;
+  background: var(--panel); color: var(--tx3);
+  box-shadow: var(--shadow-base);
+  font-size: 11px; white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+#pane-flow .wb-a2 .wb-status-chip.is-btn { cursor: pointer; font: inherit; font-size: 11px; }
+#pane-flow .wb-a2 .wb-status-chip.is-btn:hover { color: var(--tx2); border-color: var(--line2); }
+#pane-flow .wb-a2 .wb-status-chip.is-quiet { color: var(--tx3); }
+#pane-flow .wb-a2 .wb-status-dot { width: 5px; height: 5px; flex: 0 0 5px; border-radius: 50%; background: var(--ok); }
+#pane-flow .wb-a2 .wb-status-dot[data-s="running"] { background: var(--mark); }
+
+/* ── 动效（Emil / A2 §7）────────────────────────────────── */
+@keyframes wbRiseIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes wbFrameIn {
+  from { opacity: .35; transform: scale(.982); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes wbPopIn {
+  from { opacity: 0; transform: scale(.965) translateY(-5px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+#pane-flow .wb-a2 .wb-projectbar { animation: wbRiseIn .5s var(--eo) both; }
+#pane-flow .wb-a2 .fw-ing { animation: wbRiseIn .5s var(--eo) .06s both; }
+#pane-flow .wb-a2 .fw-canvas { animation: wbRiseIn .55s var(--eo) .12s both; }
+#pane-flow .wb-a2 .fw-panel { animation: wbRiseIn .5s var(--eo) .18s both; }
+#pane-flow .wb-a2 .wb-statusbar { animation: wbRiseIn .5s var(--eo) .24s both; }
+#pane-flow .wb-a2 .fw-ing,
+#pane-flow .wb-a2 .fw-panel { transition: flex-basis .28s var(--eio), width .28s var(--eio); }
+#pane-flow .wb-a2 button { transition: background-color 160ms var(--eo), color 160ms var(--eo), border-color 160ms var(--eo), box-shadow 160ms var(--eo), transform 150ms var(--eo); }
+#pane-flow .wb-a2 button:active:not(:disabled) { transform: scale(.97); }
+#pane-flow .wb-a2 .fw-playbar .wb-play-main:active,
+#pane-flow .wb-a2 .fw-playbar .wb-play-main:active:not(:disabled) { transform: scale(.98); }
+#pane-flow .wb-a2 .fw-ing-list,
+#pane-flow .wb-a2 .fw-scroll,
+#pane-flow .wb-a2 .wb-insp-scroll,
+#pane-flow .wb-a2 .tl-body { scrollbar-width: none; scrollbar-color: var(--line2) transparent; }
+
+/* ── 响应式：不硬挤三栏 ─────────────────────────────────── */
+@media (max-width: 1400px) {
+}
+@media (max-width: 1280px) {
+}
+@media (max-width: 1200px) {
+  #pane-flow .wb-a2 .fw { grid-template-columns: minmax(0, 1fr) 272px; }
+  #pane-flow .wb-a2 .fw[data-panel="closed"] { grid-template-columns: minmax(0, 1fr) 36px; }
+  #pane-flow .wb-a2 .fw-ing {
+    position: absolute; inset: 0 auto 0 0; z-index: 31;
+    width: 232px;
+    display: none;
+    box-shadow: var(--shadow-float);
+  }
+  #pane-flow .wb-a2 .fw-ing[data-open] { display: flex; }
+  #pane-flow .wb-a2 .fw-scrim {
+    display: block; position: absolute; inset: 0; z-index: 30;
+    border: 0; border-radius: 0;
+    background: var(--media-scrim);
+    cursor: pointer;
+  }
+  #pane-flow .wb-a2 .wb-projectbar .fw-mobile { display: grid; }
+  #pane-flow .wb-a2 .wb-statusbar .wb-status-chip.is-quiet { display: none; }
+}
+/* 窄屏适配已移除：工作台按双列设计，不再把右栏改成覆盖式浮层。 */
+
+@media (prefers-reduced-motion: reduce) {
+  #pane-flow .wb-a2 *,
+  #pane-flow .wb-a2 *::before,
+  #pane-flow .wb-a2 *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}

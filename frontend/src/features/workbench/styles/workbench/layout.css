@@ -1,0 +1,356 @@
+/* ── 顶栏 ──────────────────────────────────────────────────── */
+.wb-projectbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  padding: 8px 16px;
+  min-height: 49px;
+  background: var(--surf);
+  border-bottom: 1px solid var(--line);
+}
+.wb-projectbar > .ui-icon { color: var(--dim) }
+.wb-projectbar select {
+  width: 190px; max-width: 26%; height: 32px;
+  padding: 4px 26px 4px 9px;
+  font-size: 12px;
+}
+.wb-projectbar .mini { height: 32px; font-size: 12px }
+.wb-projectbar .iconbtn { width: 30px; height: 32px }
+
+/* ── 三栏骨架 ──────────────────────────────────────────────── */
+.fw {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: var(--library-width, 272px) minmax(0, 1fr) var(--panel-width, 372px);
+  /* 三栏各自成卡片（对齐首页：卡片浮在 --bg 上，不靠紧贴的平版分隔） */
+  gap: 8px;
+  padding: 8px;
+}
+.fw-canvas {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--surf);
+  border: 1px solid var(--ht-edge);
+  border-radius: 10px;
+}
+
+/* 右栏（对话 / 设置）——同一种卡片 */
+.fw-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--surf);
+  border: 1px solid var(--ht-edge);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+/* ── 左栏（镜头列表）─────────────────────────────────────── */
+.fw-ing {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 0 16px;
+  gap: 16px;
+  background: var(--surf);
+  border: 1px solid var(--ht-edge);
+  border-radius: 10px;
+}
+.fw-ing-hd {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+  flex-shrink: 0;
+  color: var(--dim);
+}
+.fw-ing-hd h2, .fw-toolbar h2 {
+  font-size: 13px; font-weight: 600; margin: 0; color: var(--fg);
+}
+.fw-ing-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 2px;
+  overscroll-behavior: contain;
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 18px), transparent);
+}
+
+.fw-ing-empty .ui-icon { width: 30px; height: 30px; opacity: .7 }
+.fw-ing-footer {
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+  font-size: 11px; color: var(--dim);
+  flex-shrink: 0;
+}
+
+.fw-ing-btns .mini { flex: 1; min-width: 0 }
+
+/* 镜头卡在左栏里的约束 —— 缩略图固定，文字可截断 */
+.fw-ing-list .fm-unit { padding: 7px 9px; gap: 9px }
+.fw-ing-list .fm-unit-frame { width: 52px; height: 30px; flex: 0 0 52px }
+.fw-ing-list .fm-unit-body { min-width: 0 }
+.fw-ing-list .fm-unit-body > b { font-size: 11.5px; font-weight: 500 }
+
+/* ── 中栏工具条 ────────────────────────────────────────────── */
+.fw-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 48px;
+  padding: 0 20px;
+  background: var(--surf);
+  border-bottom: 1px solid var(--line);
+}
+.fw-count {
+  min-width: 20px; padding: 0 5px;
+  border-radius: 4px; text-align: center;
+  color: var(--dim); background: var(--hole);
+  font-size: 11px; font-variant-numeric: tabular-nums;
+}
+
+.fw-zoom {
+  display: flex; align-items: center; gap: 2px;
+  font-size: 11px; color: var(--dim);
+}
+.fw-zoom button {
+  width: 30px; height: 30px; padding: 0;
+  border: 1px solid color-mix(in srgb, var(--line) 80%, var(--fg) 8%);
+  border-radius: 4px;
+  display: grid; place-items: center;
+  background: var(--hole); color: var(--dim); cursor: pointer;
+  transition: color .14s, border-color .14s, background-color .14s;
+}
+.fw-zoom button:hover:not(:disabled) { color: var(--acc); border-color: var(--acc); background: var(--hole) }
+.fw-zoom button:disabled { opacity: .35; cursor: default }
+
+/* ── 舞台（paba .fw-stage）────────────────────────────────────
+   监看器容器。paba 的 stage 是画布，带径向点阵底 ——
+   本产品不做画布（那是拖拽编辑器），但**底纹保留**：
+   它让「这里是画面区」一眼可辨，而不是一块纯黑。 */
+.fw-stage {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+  outline: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  background-color: var(--bg);
+  background-image: radial-gradient(circle at 1px 1px, var(--grid) 1px, transparent 0);
+  background-size: 22px 22px;
+}
+.fw-stage:focus-visible { box-shadow: inset 0 0 0 2px var(--acc) }
+.fw-stage > * { min-width: 0 }
+/* 画面本身给一条边：暗场里也能看出"帧"的范围（工具面板不加阴影，只描边） */
+.fw-stage > .relative.size-full {
+  outline: 1px solid var(--line); outline-offset: -1px; border-radius: 10px;
+}
+
+/* ── 右栏（对话 / 设置）────────────────────────────────────── */
+.fw-bar {
+  flex: 0 0 auto;
+  padding: 16px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--surf);
+}
+.fw-bar:focus-within { border-color: color-mix(in srgb, var(--acc) 50%, var(--line)) }
+
+.fw-ctx {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 10px; padding: 8px 11px;
+  border-radius: 6px;
+  font-size: 11.5px; color: var(--dim);
+  background: color-mix(in srgb, var(--acc) 9%, transparent);
+  border: 1px solid color-mix(in srgb, var(--acc) 28%, transparent);
+}
+.fw-ctx img {
+  width: 56px; height: 32px; object-fit: cover;
+  border-radius: 6px; flex: 0 0 auto; background: var(--hole);
+}
+.fw-ctx b { color: var(--acc); font-weight: 650 }
+.fw-ctx .spacer { flex: 1 }
+.fw-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 9px }
+.fw-chips:empty { display: none }
+.fw-chips.off .fw-chip { opacity: .38 }
+
+.fw-scene-hd {
+  display: flex; align-items: center; gap: 9px;
+  margin-bottom: 9px;
+  font-size: 12px; color: var(--dim); font-weight: 600;
+}
+.fw-scene-hd .hint { font-weight: 400; color: var(--ph); font-size: 11.5px }
+.fw-scene-hd .spacer { flex: 1 }
+.fw-scene-hd button {
+  font: inherit; font-size: 11px; padding: 4px 8px;
+  border-radius: 4px; cursor: pointer; color: var(--dim);
+  background: color-mix(in srgb, var(--hole) 45%, transparent);
+  border: 1px solid color-mix(in srgb, var(--line) 60%, transparent);
+}
+.fw-scene-hd button:hover:not(:disabled) { color: var(--bad) }
+.fw-scene-hd button:disabled { opacity: .45 }
+
+/* ── 按钮（paba .mini）────────────────────────────────────────
+   工作台的小按钮 —— 6px 圆角、描边、悬停变强调字。
+   不是首页的胶囊（那是动作层），这是工具层的常规按钮。 */
+.mini {
+  font: inherit;
+  font-size: 12px;
+  font-weight: 550;
+  padding: 7px 11px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  color: var(--hint);
+  background: var(--surf);
+  cursor: pointer;
+  transition: color .14s, background-color .14s, border-color .14s;
+}
+.mini:hover:not(:disabled) { color: var(--acc-d); border-color: var(--acc) }
+.mini:disabled { color: var(--ph); cursor: default }
+.mini .ui-icon { width: 14px; height: 14px }
+/* 主按钮：胶囊 + 深色字（对齐首页 .hm-partner-submit / .fm-pill-go）。
+   工具按钮保持 6px 方框 —— 胶囊只留给「主操作」。 */
+.mini-strong {
+  border-radius: 999px;
+  background: var(--acc);
+  border-color: var(--acc);
+  color: var(--on-accent);            /* [R5] 深色字 */
+}
+.mini-strong:hover:not(:disabled) {
+  background: var(--acc-d);
+  border-color: var(--acc-d);
+  color: var(--on-accent);
+  transform: translateY(-1px);      /* 首页主按钮的手感 */
+}
+/* 禁用态：主按钮**收起填充** —— 蓝底灰字会读成「能按但坏了」，
+   退成 --hole 底 + 灰字才读成「还不能按」。 */
+.mini-strong:disabled {
+  background: var(--hole);
+  border-color: var(--line);
+  color: var(--ph);
+}
+
+.spacer { flex: 1 }
+
+/* ── flow 模式下的外壳（paba body.flowon）───────────────────
+   ⚠️ 工作台要占满整个视口高度，且**自己滚**（面板各自滚），
+      不能让页面整体滚 —— 所以锁 overflow。
+
+   关键：`#pane-flow` 必须 flex:1 + min-height:0。
+   `min-height:0` 是必须的 —— flex 子项默认 min-height:auto，
+   内容会把容器顶破（表现：pane 比视口还高）。 */
+body.flowon { overflow: hidden }
+body.flowon #app { height: 100vh; height: 100dvh; display: flex; flex-direction: column }
+body.flowon header { position: static; flex: 0 0 auto }
+body.flowon #pane-flow {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  /* ⚠️ .hm-sidebar 是 position:fixed，不占文档流 ——
+     工作台 pane 必须自己让开 68px 图标轨，否则内容钻到侧栏底下
+     （表现：镜头缩略图和行首文字被侧栏盖住）。 */
+  margin-left: var(--hm-sidebar);
+}
+body.flowon #pane-flow > * { flex: 1; min-height: 0 }
+
+/* ── 窄屏：左栏变抽屉（paba .fw-mobile / .fw-scrim）───────── */
+.fw-mobile, .fw-scrim { display: none }
+
+@media (max-width: 1200px) {
+  .fw { grid-template-columns: minmax(0, 1fr) var(--panel-width, 340px) }
+  .fw-ing {
+    position: absolute; inset: 8px auto 8px 8px; z-index: 31;
+    width: min(300px, calc(100% - 48px));
+    display: none;
+    box-shadow: 8px 0 28px rgba(0, 0, 0, .28);
+  }
+  .fw-ing[data-open] { display: flex }
+  .fw-scrim {
+    display: block; position: absolute; inset: 0; z-index: 30;
+    border: 0; border-radius: 0;
+    background: rgba(0, 0, 0, .28);
+    cursor: pointer;
+  }
+  .fw-mobile { display: grid }
+}
+
+@media (max-width: 860px) {
+  .fw { grid-template-columns: minmax(0, 1fr) }
+  .wb-projectbar select { width: 150px; max-width: none }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mini, .fw-zoom button { transition: none }
+}
+
+/* ── 进度条（paba .nc-pp-range）───────────────────────────────
+   ⚠️ 不用 shadcn Slider —— 那个是圆头灰轨的通用控件，
+      paba 有自己的进度条：**填充用 --acc，4px 轨，16px 白色滑块**。
+      用 input[type=range] + CSS 变量 --fill 控制填充比例。 */
+.pp-range {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex: 1;
+  min-width: 0;
+}
+.pp-range input[type=range] {
+  --fill: 0%;
+  flex: 1;
+  min-width: 0;
+  height: 20px;
+  margin: 0;
+  padding: 0;
+  background: 0 0;
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+}
+.pp-range input[type=range]::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(to right, var(--acc) var(--fill), var(--hole) var(--fill));
+}
+.pp-range input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px; height: 16px;
+  margin-top: -6px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 4px #00000066;
+  transition: transform .12s;
+}
+.pp-range input[type=range]:active::-webkit-slider-thumb { transform: scale(1.15) }
+.pp-range input[type=range]::-moz-range-track { height: 4px; border-radius: 2px; background: var(--hole) }
+.pp-range input[type=range]::-moz-range-progress { height: 4px; border-radius: 2px; background: var(--acc) }
+.pp-range input[type=range]::-moz-range-thumb {
+  width: 16px; height: 16px; border: 0; border-radius: 50%;
+  background: #fff; box-shadow: 0 1px 4px #00000066;
+}
+.pp-range input[type=range]:focus-visible { outline: 0 }
+.pp-range input[type=range]:focus-visible::-webkit-slider-thumb {
+  outline: 2px solid color-mix(in srgb, var(--fg) 45%, transparent);
+  outline-offset: 2px;
+}
+
+/* ── 选中态标记（顶栏/右栏的 tab）────────────────────────────
+   paba 用 --soft 底表示「这项被选中」，不是下划线。
+   下划线是 shadcn/Web 的习惯，paba 没有。 */
+.mini[aria-pressed="true"] {
+  background: var(--soft);
+  border-color: var(--acc);
+  color: var(--acc);
+}

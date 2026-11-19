@@ -1,0 +1,91 @@
+/* ── Scene inspector ─────────────────────────────────────── */
+#pane-flow .wb-insp { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+#pane-flow .wb-insp-scroll {
+  flex: 1; min-height: 0;
+  overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none;
+  padding: 14px 14px 14px;
+  display: flex; flex-direction: column; gap: 16px;
+}
+#pane-flow .wb-insp-hero { display: flex; align-items: center; gap: 12px; }
+#pane-flow .wb-insp-thumb {
+  width: 88px; height: 50px; flex: 0 0 88px;
+  overflow: hidden; background: #0c0e0f; outline: 1px solid var(--wb-line);
+  display: grid; place-items: center;
+}
+#pane-flow .wb-insp-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+#pane-flow .wb-insp-thumb-empty { font-size: var(--wb-fs-micro); color: var(--wb-text-3); }
+#pane-flow .wb-insp-kicker { font-size: var(--wb-fs-micro); color: var(--wb-text-3); letter-spacing: .02em; }
+
+#pane-flow .wb-insp-status .fm-dot { opacity: 1; }
+#pane-flow .wb-insp-section {
+  display: flex; flex-direction: column; gap: 6px;
+  padding-top: 12px; border-top: 1px solid var(--wb-line);
+}
+#pane-flow .wb-insp-section > h3 {
+  margin: 0 0 2px; display: flex; align-items: center; gap: 6px;
+  font-size: var(--wb-fs-head); font-weight: 600; color: var(--wb-text-2);
+}
+#pane-flow .wb-insp-tag {
+  font-size: var(--wb-fs-micro); font-weight: 450; color: var(--wb-text-3);
+  border: 1px solid var(--wb-line); border-radius: 2px; padding: 1px 5px; white-space: nowrap;
+}
+#pane-flow .wb-insp-kv {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  min-height: 20px; font-size: var(--wb-fs-meta); color: var(--wb-text-3);
+}
+#pane-flow .wb-insp-kv > b {
+  display: inline-flex; align-items: center; gap: 5px; min-width: 0;
+  font-size: var(--wb-fs-body); font-weight: 450; color: var(--wb-text); text-align: right;
+}
+#pane-flow .wb-insp-kv > b.num { font-family: var(--font-mono); font-size: var(--wb-fs-meta); color: var(--wb-text-2); }
+#pane-flow .wb-swatch { width: 11px; height: 11px; flex: 0 0 11px; border-radius: 2px; display: inline-block; outline: 1px solid #ffffff24; }
+#pane-flow .wb-insp-text { margin: 0; font-size: var(--wb-fs-body); line-height: 1.65; color: var(--wb-text-2); }
+#pane-flow .wb-insp-note { margin: 2px 0 0; font-size: var(--wb-fs-micro); line-height: 1.55; color: var(--wb-text-3); }
+#pane-flow .wb-insp-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 2px; }
+#pane-flow .wb-insp-task { display: flex; align-items: center; gap: 7px; font-size: var(--wb-fs-body); color: var(--wb-text-2); }
+#pane-flow .wb-insp-task .fm-dot { opacity: 1; }
+#pane-flow .wb-insp-foot {
+  flex: 0 0 auto; padding: 11px 14px 12px; border-top: 1px solid var(--wb-line);
+  background: var(--wb-plane);
+  display: flex; flex-direction: column; gap: 7px;
+}
+#pane-flow .wb-btn-primary {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  height: 32px; padding: 0 12px;
+  border: 1px solid var(--wb-accent); border-radius: 2px;
+  background: var(--wb-accent); color: var(--on-accent);
+  font: inherit; font-size: var(--wb-fs-body); font-weight: 600; cursor: pointer;
+}
+#pane-flow .wb-btn-primary:hover { background: var(--acc-d); border-color: var(--acc-d); }
+#pane-flow .wb-btn-primary svg { width: 14px; height: 14px; }
+#pane-flow .wb-btn-ghost {
+  display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+  height: 28px; padding: 0 9px;
+  border: 1px solid var(--wb-line); border-radius: 2px;
+  background: transparent; color: var(--wb-text-2);
+  font: inherit; font-size: var(--wb-fs-meta); cursor: pointer;
+}
+#pane-flow .wb-btn-ghost:hover { border-color: var(--wb-line-hi); color: var(--wb-text); background: #1d2021; }
+#pane-flow .wb-btn-ghost svg { width: 13px; height: 13px; }
+#pane-flow .wb-demo-line { display: flex; align-items: center; gap: 6px; font-size: var(--wb-fs-micro); color: var(--wb-text-3); }
+#pane-flow .wb-demo-dot { width: 5px; height: 5px; border-radius: 50%; background: #c9a227; flex: 0 0 5px; }
+#pane-flow .wb-insp-back { align-self: flex-start; margin-bottom: 2px; }
+
+/* chat blocks: the same flat surface language, no cards inside the rail */
+#pane-flow .wb-chat-block {
+  margin-left: 28px; padding: 8px 10px;
+  border-left: 2px solid var(--wb-line); background: #0f1112;
+  display: flex; flex-direction: column; gap: 5px;
+}
+#pane-flow .wb-chat-block-hd { font-size: var(--wb-fs-meta); color: var(--wb-text-3); }
+#pane-flow .wb-chat-block p { margin: 0; font-size: var(--wb-fs-body); line-height: 1.6; color: var(--wb-text-2); }
+#pane-flow .wb-chat-block details { font-size: var(--wb-fs-meta); color: var(--wb-text-3); }
+#pane-flow .wb-chat-block summary { cursor: pointer; }
+#pane-flow .wb-chat-event { font-size: var(--wb-fs-micro); color: var(--wb-text-3); }
+#pane-flow .wb-chat-task { display: flex; align-items: center; gap: 6px; font-size: var(--wb-fs-body); color: var(--wb-text-2); }
+#pane-flow .wb-chat-task .animate-spin { color: var(--wb-accent); }
+
+@keyframes wb-menu-in {
+  from { opacity: 0; transform: translateY(-3px); }
+  to { opacity: 1; transform: translateY(0); }
+}

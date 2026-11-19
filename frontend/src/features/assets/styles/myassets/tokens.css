@@ -1,0 +1,115 @@
+/* ═══════════════════════════════════════════════════════════════
+   我的素材 · Assets（G 深度优化版落地）
+   布局：页头岛通栏；其下三列 —— 组织岛（库/来源/智能文件夹/文件夹/标签，
+   可收起）+ 工具条（类型/排序浮层）与素材画布 + 检查器岛（选中出现）。
+   视觉只继承 A2 云端岛屿 V3 的 token：颜色 / 字号 / 圆角 / 阴影 / 动效 / 主题。
+   组件规则不写死色值；深色优先，浅色 token 同构。
+   ⚠️ --danger 是工程补充：V3 未定义危险色，仅用于删除/限制使用。
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── 页面外壳：素材页铺满工作区（只作用于 .mya 挂载时）────────── */
+.hm-main:has(.mya) { padding: 0 !important; }
+.hm-content[data-view="assets"] { max-width: none; margin: 0; }
+
+/* ── V3 token · 深色（默认）──────────────────────────────────── */
+.mya {
+  /* 表面 */
+  --bg: #000000;
+  --bg-glow: radial-gradient(1100px 520px at 50% 18%, #0b0d12 0%, #000000 62%);
+  --panel: #16171d;
+  --panel2: #101116;
+  --raised: #23242d;
+  --line: rgba(255, 255, 255, .06);
+  --line2: #34353f;
+  /* 文字 */
+  --tx: #edeef3;
+  --tx2: #a4a7b1;
+  --tx3: #62646e;
+  /* 交互信号 */
+  --acc: #3B8CF8;
+  --acc-ink: #ffffff;
+  --acc-tx: #8AB4FF;
+  --sel: rgba(59, 140, 248, .16);
+  --hover: rgba(255, 255, 255, .04);
+  /* 监看舞台 / 媒体 */
+  --stage-bg: #0a0b0e;
+  --scrim: rgba(0, 0, 0, .45);
+  --overlay: rgba(5, 5, 8, .42);
+  /* 状态（V3：不随主题变） */
+  --ok: #4caf7d;
+  --warn: #f5b83d;
+  --danger: #e06c75;
+  /* 圆角（同心：12 = 5 + 7；14 = 9 + 5；999 嵌 999） */
+  --r-panel: var(--fm-radius-panel);
+  --r-ctl: var(--fm-radius-ctl);
+  --r-card: var(--fm-radius-card);
+  --r-thumb: var(--fm-radius-card);
+  --r-float: var(--fm-radius-card);
+  --r-pill: var(--fm-radius-pill);
+  --r-mark: var(--fm-radius-mark);
+  --r-scroll: 4px;
+  /* 阴影层级 */
+  --shadow-base: 0 3px 10px rgba(0, 0, 0, .18);
+  --shadow-mid: 0 12px 32px rgba(0, 0, 0, .30);
+  --shadow-hero: 0 26px 64px rgba(0, 0, 0, .48), 0 4px 16px rgba(0, 0, 0, .30);
+  --shadow-card-on: 0 8px 20px rgba(0, 0, 0, .28);
+  --shadow-float: 0 32px 80px rgba(0, 0, 0, .50);
+  --shadow-seg: 0 1px 4px rgba(0, 0, 0, .25);
+  /* 动效（Emil Kowalski 规范） */
+  --eo: cubic-bezier(.23, 1, .32, 1);
+  --eio: cubic-bezier(.77, 0, .175, 1);
+  --gap: 16px;
+}
+
+/* ── V3 token · 浅色（同构；深色优先，浅色留作主题根切换）────── */
+html[data-theme="light"] .mya {
+  --bg: #e0e2e9;
+  --bg-glow: radial-gradient(1100px 520px at 50% 18%, #eef0f5 0%, #e0e2e9 62%);
+  --panel: #fcfcfd;
+  --panel2: #eef0f4;
+  --raised: #ffffff;
+  --line: rgba(25, 25, 50, .06);
+  --line2: #cdcdd6;
+  --tx: #191a20;
+  --tx2: #5b5e66;
+  --tx3: #94969e;
+  --acc: #2F6FE4;
+  --acc-ink: #ffffff;
+  --acc-tx: #1E5BBF;
+  --sel: rgba(47, 111, 228, .10);
+  --hover: rgba(25, 25, 50, .035);
+  --stage-bg: #d7d9e0;
+  --scrim: rgba(0, 0, 0, .45);
+  --overlay: rgba(236, 238, 244, .55);
+  --shadow-base: 0 3px 10px rgba(30, 30, 60, .08);
+  --shadow-mid: 0 12px 30px rgba(30, 30, 60, .12);
+  --shadow-hero: 0 26px 60px rgba(30, 30, 60, .20), 0 4px 14px rgba(30, 30, 60, .10);
+  --shadow-card-on: 0 8px 20px rgba(30, 30, 60, .14);
+  --shadow-float: 0 32px 80px rgba(30, 30, 60, .28);
+  --shadow-seg: 0 1px 4px rgba(30, 30, 60, .12);
+}
+/* 浅色主题：淡蓝底在白面上太轻，分组标签几乎看不出形状 ——
+   提高底浓度、加深文字，保持"有标签但不当主角"的分寸。 */
+html[data-theme="light"] .mya .mya-org-sec {
+  background: color-mix(in srgb, #2F6FE4 15%, transparent);
+  color: #1E5BBF;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, #2F6FE4 22%, transparent);
+}
+/* 触感主题：这一主题的 --acc 是暖墨色，套上去会变成米黄标签、几乎看不见。
+   作者要的是"工作台那个蓝色标签"，所以这枚标签在三套主题里都锁定蓝色系，
+   只调深浅去匹配各自的底色。 */
+/* 触感主题：这一主题是奶油纸 + 墨线 + 硬阴影，蓝色会显得是"从别的主题掉进来"的。
+   分组标签改用琥珀棕（纸面上的图章色），比该主题的亮黄强调色（--acc #f7c948）
+   更沉稳，两者对比清楚又不互相打架。选中态跟着走同一枚棕。
+   注意：这里刻意不用 var(--acc) —— 那是 #f7c948 亮黄，做标签底会晃眼。 */
+html[data-theme="tactile"] .mya .mya-org-sec {
+  background: color-mix(in srgb, #a9762a 34%, #efece3);
+  color: #4a3210;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, #8a5e1e 55%, transparent);
+}
+html[data-theme="tactile"] .mya .mya-org-row[data-on] {
+  background: color-mix(in srgb, #a9762a 15%, transparent);
+}
+html[data-theme="tactile"] .mya .mya-org-row[data-on]::before { background: #8a5e1e; }
+html[data-theme="tactile"] .mya .mya-org-row[data-on] .ui-icon { color: #6b4a14; }
+html[data-theme="tactile"] .mya .mya-org-row[data-on] em { color: #6b4a14; }

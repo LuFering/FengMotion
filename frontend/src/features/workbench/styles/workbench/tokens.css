@@ -1,0 +1,85 @@
+/* ═══════════════════════════════════════════════════════════════
+   工作台（二级）—— paba 的工具面板语言
+
+   ⚠️ 工作台**不该用首页那套**。
+      paba 自己分成两套：
+        首页        .hm-*     纸 + 墨（--ht-*）
+        工作台      .wb-* / .fw-*   工具面板（--surf / --hole / --line）
+
+      工作台是**干活的地方**，面板要平、要密、要能长时间盯着 ——
+      所以用灰阶而不是纸层，用 6px 小圆角而不是 24px 纸片。
+
+   下面每条都来自 paba 的 app.css（原样搬，不是衍生），
+   只删掉画布/拖拽相关的（fw-stage / fw-world / fw-link —— 本产品不做画布）。
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Workbench token layer ─────────────────────────────────
+   只改取值来源，不改现有类名。后续组件升级都从这里取。 */
+:root {
+  --wb-bg-app: var(--bg);
+  --wb-bg-panel: var(--surf);
+  --wb-bg-raised: var(--hole);
+  --wb-bg-overlay: color-mix(in srgb, var(--surf) 92%, #fff 8%);
+  --wb-border-subtle: var(--line);
+  --wb-border-strong: color-mix(in srgb, var(--line) 55%, var(--fg) 16%);
+  --wb-text-primary: var(--fg);
+  --wb-text-secondary: var(--dim);
+  --wb-text-muted: var(--ph);
+  --wb-accent: var(--acc);
+  --wb-accent-soft: color-mix(in srgb, var(--acc) 12%, transparent);
+  --wb-radius-sm: var(--fm-radius-mark);
+  --wb-radius-md: var(--fm-radius-ctl);
+  --wb-radius-lg: var(--fm-radius-card);
+  --wb-space-1: 4px;
+  --wb-space-2: 8px;
+  --wb-space-3: 12px;
+  --wb-space-4: 16px;
+}
+
+/* Segmented control */
+.fm-seg {
+  position: relative;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  align-items: stretch;
+  height: 32px;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--wb-border-subtle);
+  border-radius: var(--wb-radius-md);
+  background: var(--wb-bg-app);
+}
+.fm-seg-thumb {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  left: 2px;
+  height: calc(100% - 4px);
+  width: calc((100% - 4px) / var(--fm-seg-count));
+  border: 1px solid color-mix(in srgb, var(--wb-accent) 38%, var(--wb-border-strong));
+  border-radius: var(--wb-radius-sm);
+  background: color-mix(in srgb, var(--wb-accent) 13%, var(--wb-bg-panel));
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .32), inset 0 1px 0 rgba(255, 255, 255, .06);
+  transition: transform 200ms ease-out, opacity 150ms ease-out;
+  transform: translateX(calc(var(--fm-seg-index) * 100%));
+  pointer-events: none;
+}
+.fm-seg-thumb[data-hidden] { opacity: 0; }
+.fm-seg-item {
+  position: relative;
+  z-index: 1;
+  height: 26px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--wb-radius-sm);
+  background: transparent;
+  color: var(--wb-text-secondary);
+  font: 11px var(--sans);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 150ms ease-out;
+}
+.fm-seg-item:hover { color: var(--wb-text-primary); }
+.fm-seg-item[aria-selected="true"] { color: var(--wb-accent); font-weight: 600; background: var(--wb-accent-soft); border-radius: var(--wb-radius-sm); }
+.fm-seg-item:focus-visible { outline: 2px solid var(--wb-accent); outline-offset: -2px; }

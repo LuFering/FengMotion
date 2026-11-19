@@ -1,0 +1,199 @@
+/* ═══════════════════════════════════════════════════════════════
+   技法详情弹窗 · 排版
+
+   认知顺序：这是什么 → 能拿走什么 → 用在哪 → 怎么做 → 细节。
+   做法是把「技术元数据」折叠起来，让主内容一屏之内读完；
+   而不是把所有字段平铺成等权重的长列表。
+   ═══════════════════════════════════════════════════════════════ */
+
+.fxm-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  /* 右上角是关闭键，标题区整体让出 32px，避免收藏键被压到它下面 */
+  padding-right: 34px;
+}
+.fxm-head-main { min-width: 0 }
+.fxm-head h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 650;
+  line-height: 1.35;
+  letter-spacing: -0.01em;
+  color: var(--tx);
+}
+.fxm-nameen {
+  display: block;
+  margin-top: 3px;
+  font-size: 11.5px;
+  color: var(--tx3);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 一句话说明：这是用户判断「用不用得上」的主要依据，给它正文级的字重与行高 */
+.fxm-intent {
+  margin: 12px 0 0;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--tx2);
+}
+
+/* 主操作：紧跟说明下方，一眼就能看到 */
+.fxm-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+/* 运行方式标签贴在最右，用弱色 —— 它是状态提示，不是操作 */
+.fxm-mode {
+  margin-left: auto;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--hole);
+  color: var(--tx3);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+/* ── 内容分节 ───────────────────────────────────────────────── */
+.fxm-sec { margin-top: 20px }
+.fxm-label {
+  margin: 0 0 8px;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: .06em;
+  color: var(--tx3);
+}
+
+.fxm-useline {
+  display: flex;
+  gap: 8px;
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--tx2);
+}
+.fxm-useline + .fxm-useline { margin-top: 5px }
+.fxm-useok, .fxm-useno {
+  flex: none;
+  min-width: 34px;
+  font-size: 11px;
+  line-height: 1.9;
+}
+.fxm-useok { color: var(--ok) }
+.fxm-useno { color: var(--bad) }
+
+/* 步骤：编号做视觉锚点，正文对齐，避免「1. 2. 3.」挤在一起 */
+.fxm-steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  counter-reset: fxm-step;
+}
+.fxm-steps li {
+  display: flex;
+  gap: 9px;
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--tx2);
+}
+.fxm-stepno {
+  flex: none;
+  width: 17px;
+  height: 17px;
+  margin-top: 2px;
+  border-radius: 5px;
+  background: var(--hole);
+  color: var(--tx3);
+  font-size: 10px;
+  line-height: 17px;
+  text-align: center;
+}
+.fxm-plain { margin: 0; font-size: 12.5px; color: var(--tx2) }
+
+/* 参数：label 在左、值等宽在右，hint 另起一行弱色 */
+.fxm-params {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.fxm-params li {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--tx2);
+}
+.fxm-param-label { min-width: 84px; color: var(--tx3) }
+.fxm-params b { color: var(--tx) }
+.fxm-params em {
+  font-style: normal;
+  font-size: 11px;
+  color: var(--tx3);
+}
+
+/* 预警：用左侧细线区分，不用整块底色（弹窗里再套色块会显脏） */
+.fxm-warns {
+  margin: 0;
+  padding: 0 0 0 12px;
+  list-style: none;
+  border-left: 2px solid var(--warn);
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 12.5px;
+  line-height: 1.65;
+  color: var(--tx2);
+}
+.fxm-warns-sub { margin-top: 7px; border-left-color: var(--line2) }
+
+.fxm-related { display: flex; flex-wrap: wrap; gap: 6px }
+
+/* ── 技术细节：默认收起 ─────────────────────────────────────── */
+.fxm-details {
+  margin-top: 22px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line2);
+}
+.fxm-details > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-size: 11.5px;
+  color: var(--tx3);
+  list-style: none;
+  user-select: none;
+}
+.fxm-details > summary::-webkit-details-marker { display: none }
+.fxm-details > summary::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform .15s var(--eo);
+}
+.fxm-details[open] > summary::before { transform: rotate(45deg) }
+.fxm-details > summary:hover { color: var(--tx2) }
+.fxm-details .fx-io { margin-top: 12px }
+.fxm-note {
+  margin: 10px 0 0;
+  font-size: 11.5px;
+  line-height: 1.65;
+  color: var(--tx3);
+}
+
+/* .fx-io 是「dt/dd 包在 div 里」的结构，而 div 默认 block 会把 dt 和 dd
+   上下堆叠，网格的两列形同虚设。display:contents 让 dt/dd 直接落到网格列上。 */
+.fx-io > div { display: contents; }

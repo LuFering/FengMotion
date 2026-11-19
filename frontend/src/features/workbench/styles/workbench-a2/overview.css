@@ -1,0 +1,182 @@
+/* ── 监看区 · 画面优先 ─────────────────────────────
+   一块大画面 + 一行缩略入口 + 一行收起的问题，别的都不常驻：
+   任务只剩短状态、交付只在有最终文件时出现、空状态只留四个字。
+   分层靠灰阶与字号，不用边框、渐变、发光、虚线装饰。 */
+#pane-flow .wb-a2 .fw-monitor {
+  flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden;
+}
+#pane-flow .wb-a2 .fw-mon-visual {
+  flex: 1 1 0; min-height: 0; display: flex; flex-direction: column;
+  background: var(--stage-bg);
+}
+#pane-flow .wb-a2 .fw-mon-visual > .fw-stage { flex: 1; min-height: 0; }
+#pane-flow .wb-a2 .fw-mon-btn {
+  flex: none; padding: 0; border: 0; background: none;
+  color: var(--acc-tx); font: inherit; font-size: 12px; cursor: pointer; white-space: nowrap;
+}
+#pane-flow .wb-a2 .fw-mon-btn:hover { color: var(--acc); }
+#pane-flow .wb-a2 .fw-mon-btn.strong { font-weight: 650; }
+#pane-flow .wb-a2 .fw-mon-btn:disabled { color: var(--tx3); cursor: not-allowed; }
+#pane-flow .wb-a2 .fw-mon-btn:disabled:hover { color: var(--tx3); }
+#pane-flow .wb-a2 .fw-mon-notice {
+  flex: none; padding: 8px 16px 0; border: 0; background: none;
+  color: var(--warn); font: inherit; font-size: 11.5px; cursor: pointer; text-align: left;
+}
+#pane-flow .wb-a2 .fw-mon-rail {
+  flex: none; display: flex; align-items: center; gap: 16px;
+  padding: 10px 16px; background: var(--panel);
+}
+#pane-flow .wb-a2 .fw-mon-thumbs {
+  flex: 1; min-width: 0; display: flex; gap: 8px; overflow-x: auto;
+}
+#pane-flow .wb-a2 .fw-mon-thumb {
+  flex: none; width: 84px; height: 48px; padding: 0; border: 0; background: var(--panel2);
+  border-radius: 6px; overflow: hidden; cursor: pointer;
+}
+#pane-flow .wb-a2 .fw-mon-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+#pane-flow .wb-a2 .fw-mon-thumb[aria-selected="true"] { outline: 2px solid var(--acc); outline-offset: 1px; }
+#pane-flow .wb-a2 .fw-mon-thumb-file {
+  width: 100%; height: 100%; display: grid; place-items: center; color: var(--tx3); font-size: 11px;
+}
+#pane-flow .wb-a2 .fw-mon-task {
+  flex: none; display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--tx); white-space: nowrap;
+}
+#pane-flow .wb-a2 .fw-mon-problems {
+  flex: none; display: flex; flex-direction: column; gap: 6px; padding: 8px 16px 12px;
+}
+#pane-flow .wb-a2 .fw-mon-problem-row { display: flex; align-items: center; gap: 10px; min-width: 0; }
+#pane-flow .wb-a2 .fw-mon-problem-label { flex: none; font-size: 12px; font-weight: 650; color: var(--tx); }
+#pane-flow .wb-a2 .fw-mon-problem-btn {
+  display: flex; align-items: center; gap: 6px; min-width: 0; padding: 0; border: 0; background: none;
+  color: var(--tx2); font: inherit; font-size: 12px; cursor: pointer; white-space: nowrap;
+}
+#pane-flow .wb-a2 .fw-mon-problem-btn[aria-expanded="true"] { color: var(--acc-tx); }
+#pane-flow .wb-a2 .fw-mon-problem-detail {
+  display: flex; align-items: center; gap: 10px; min-width: 0; font-size: 11.5px; color: var(--tx3);
+}
+#pane-flow .wb-a2 .fw-mon-problem-detail .spacer { flex: 1; }
+#pane-flow .wb-a2 .fw-mon-problem-meta { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#pane-flow .wb-a2 .fw-mon-delivery {
+  flex: none; display: flex; flex-wrap: wrap; gap: 6px 24px;
+  padding: 10px 16px 12px; font-size: 13px; color: var(--tx);
+}
+#pane-flow .wb-a2 .fw-mon-fact-label { color: var(--tx3); margin-right: 6px; }
+#pane-flow .wb-a2 .fw-mon-empty {
+  flex: 1; min-height: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; padding: 24px; text-align: center;
+}
+#pane-flow .wb-a2 .fw-mon-empty-title { font-size: 15px; font-weight: 650; color: var(--tx); }
+#pane-flow .wb-a2 .fw-mon-empty-sub { margin: 0; font-size: 12.5px; line-height: 1.7; color: var(--tx3); }
+#pane-flow .wb-a2 .fw-mon-preview {
+  flex: 1; min-height: 0; display: flex; flex-direction: column; background: #000;
+}
+#pane-flow .wb-a2 .fw-mon-preview-media {
+  flex: 1; min-height: 0; width: 100%; object-fit: contain; display: block;
+}
+
+
+/* ── 资料页 · 素材 / 参考（分开两格，按格式一摞一摞堆）──────────
+   作者定稿：不做抽屉、不跳素材库；素材与参考分开展示；同一格式的文件叠成一摞
+   （图片一摞、视频一摞、音频一摞）。缩略图错开 + 轻转，像一叠照片；
+   没有缩略图的格式（字体/文档）用字标，不画空框。 */
+/* ── 素材 / 参考：文件本身就是牌堆里的卡（同格式一摞）──────────
+   作者定稿：参照概览的卡片，按相同格式的文件堆叠。所以卡面是那个文件自己的
+   缩略图（没有缩略图的格式给格式图标，不画空框），卡脚是文件名 + 授权/审核。
+   叠放、偏移、翻卡控件全部沿用 .fw-deck，这里只声明文件卡自己的尺寸与内容。 */
+#pane-flow .wb-a2 .fw-stack-hd {
+  display: flex; align-items: center; gap: 6px;
+  margin: 2px 2px 0;
+  font-size: 10.5px; font-weight: 700; letter-spacing: .08em; color: var(--tx3);
+}
+/* 文件卡只剩画面，所以不留卡脚那一块高度：卡矮一档、内边距收到 5px，
+   画面铺满整张卡。卡名不写在卡上，但 aria-label 仍带着它（读屏能念出来）。 */
+#pane-flow .wb-a2 .fw-deck--file .fw-deck-card {
+  height: 116px; padding: 5px;
+  display: flex; flex-direction: column;
+}
+#pane-flow .wb-a2 .fw-file-face {
+  display: grid; place-items: center; flex: 1; min-height: 0;
+  overflow: hidden; border-radius: var(--r-thumb);
+  background: color-mix(in srgb, var(--panel2) 70%, transparent);
+  border: 1px solid color-mix(in srgb, var(--glass-edge) 70%, transparent);
+}
+#pane-flow .wb-a2 .fw-file-face img { width: 100%; height: 100%; object-fit: cover; display: block; }
+#pane-flow .wb-a2 .fw-file-ph { color: var(--tx3); }
+/* 弹窗里给这一张文件一个大预览 */
+#pane-flow .wb-a2 .fw-asset-preview {
+  display: grid; place-items: center; margin: 10px 0 0;
+  aspect-ratio: 16 / 10; overflow: hidden;
+  border: 1px solid var(--line); border-radius: var(--r-card); background: var(--panel2);
+}
+#pane-flow .wb-a2 .fw-asset-preview img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+#pane-flow .wb-a2 .fw-modal .fw-rail-decision-acts { display: flex; gap: 6px; margin-bottom: 8px; }
+
+/* ── 概览栏 · 已确认（待决定下方）──────────────────────────────
+   已确认和待决定共用同一套牌堆（见 Workbench.tsx 的 RailDeck）：卡片外壳、叠放、
+   ‹ › 翻卡、圆点、点主卡散开成列表、FLIP 过渡全部同源，所以这里只需要声明
+   两者的差别：
+     · 卡片矮一档 —— 待决定的说明是最多两行，已确认只有一行「已通过 · 今天」，
+       同样高度会空出一截；
+     · 标题用次级色 —— 它是记录，不该和「等你拍板」抢注意力。
+   一条都没确认时整个区不渲染，不留说明文字。 */
+/* 记录卡也用玻璃，但它是"已经过去的事"：高光压一档、不加外投影。 */
+#pane-flow .wb-a2 .fw-deck--record .fw-deck-card { height: 52px; }
+#pane-flow .wb-a2 .fw-deck--record .fw-deck-card[data-pos="0"],
+#pane-flow .wb-a2 .fw-deck.is-list .fw-deck--record .fw-deck-card {
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--glass-lit) 60%, transparent),
+              0 0 0 1px var(--glass-edge);
+}
+/* 记事的卡只有一行说明：带上缩略图之后文本区只剩 ~90px，允许折行会顶出卡外 */
+#pane-flow .wb-a2 .fw-deck--record .fw-deck-card .fw-rail-decision-main small {
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+#pane-flow .wb-a2 .fw-deck--record .fw-deck-card .fw-rail-decision-main b { color: var(--tx2); }
+/* 记录条数可能比待决定多，圆点不参与收缩、放不下就横向滚，不要挤成椭圆 */
+#pane-flow .wb-a2 .fw-deck-dots { min-width: 0; overflow-x: auto; scrollbar-width: none; }
+#pane-flow .wb-a2 .fw-deck-dots::-webkit-scrollbar { display: none; }
+#pane-flow .wb-a2 .fw-deck-dot { flex: none; }
+
+/* ── 概览栏 · 视频内容 与 项目资料 ─────────────────────────────
+   视频内容：这一栏的主要导航。整片行复用 .fm-unit（缩略帧 + 标题 + 元信息行），
+   但整片还没有画面时**不放缩略帧**，不用空白图占位 —— 所以 data-state="whole"
+   只管最小高度，不加空帧位。
+   项目资料：只放入口，正文在各自视图里看。 */
+#pane-flow .wb-a2 .fw-ing-list .fm-unit[data-state="whole"] { min-height: 40px; }
+#pane-flow .wb-a2 .fw-ing-list .fm-unit[data-state="whole"] .fm-unit-body > span { color: var(--tx3); }
+/* 资料页的三个入口（素材 / 参考 / 缺失）用概览同一套蓝色标签，数字并进标签内部。
+   原来是一排灰卡：标题在左、数字在最右、再加一个 ›，三个东西分三处，读的时候要来回跳。
+   现在只有「标题 + 数字」一段，和概览的分组标签是同一个形态、同一条基线。
+   标签在这里是可点的（展开/收起这一格），所以补按钮的重置与悬停。 */
+#pane-flow .wb-a2 .fw-tag--shelf {
+  display: flex;
+  /* 与概览的分组标签同一条左边缘：列表有 10px 内边距，标签用 -10px 抵消掉，
+     否则它比下面的卡片往右缩进一截，看着是"没对齐"。 */
+  margin: 4px 0 2px -10px;
+  border: 0;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+  transition: filter 140ms var(--eo);
+}
+#pane-flow .wb-a2 .fw-tag--shelf:hover { filter: brightness(1.08); }
+#pane-flow .wb-a2 .fw-tag--shelf[aria-expanded="true"] { filter: brightness(1.12); }
+/* 小摞的标题（图片 / 视频 / 音频）：数量并到标题后面，右侧不再单独放数字。
+   原来这里是 10.5px/--tx3 的小字，比它下面的卡片标题还弱 —— 一摞内容压在一个
+   更淡的标题下面，层级是倒的。现在提到 11.5px/650/--tx，并加一条同色竖标，
+   和上面的蓝色标签共用"标题在前面领着一摞东西"这个关系。 */
+#pane-flow .wb-a2 .fw-stack-hd {
+  display: flex; align-items: center; gap: 6px;
+  margin: 8px 0 2px;
+  font-size: 11.5px; font-weight: 650; color: var(--tx);
+  letter-spacing: .01em;
+}
+#pane-flow .wb-a2 .fw-stack-hd::before {
+  content: ''; flex: none;
+  width: 2px; height: 11px; border-radius: 1px;
+  background: var(--acc);
+}
+#pane-flow .wb-a2 .fw-stack-hd .num {
+  margin-left: 6px; color: var(--tx3);
+  font-size: 10.5px; font-weight: 700;
+}

@@ -1,0 +1,114 @@
+/* ── A2 Light：同一套骨架，只换 token（设置 → 界面风格）──────── */
+html[data-theme="light"] #pane-flow {
+  --bg: #e0e2e9;
+  --bg-glow: #eef0f5;
+  --panel: #fcfcfd;
+  --panel2: #eef0f4;
+  --raised: #ffffff;
+  --line: rgba(25, 25, 50, .06);
+  --line2: #cdcdd6;
+  --tx: #191a20;
+  --tx2: #5b5e66;
+  --tx3: #94969e;
+  --acc: #2F6FE4;
+  --acc-ink: #ffffff;
+  --acc-tx: #1E5BBF;
+  --sel: rgba(47, 111, 228, .10);
+  --hover: rgba(25, 25, 50, .035);
+  --stage-bg: #d7d9e0;
+  --ph: #2F6FE4;
+  --thumb: #191a20;
+  --ok: #2e7d32;
+  --mark: #b7791f;
+  --warn: #b7791f;
+  --bad: #b4433e;
+  --shadow-base: 0 3px 10px rgba(30, 30, 60, .08);
+  --shadow-mid: 0 12px 30px rgba(30, 30, 60, .12);
+  --shadow-hero: 0 26px 60px rgba(30, 30, 60, .20), 0 4px 14px rgba(30, 30, 60, .10);
+  --shadow-sel: 0 8px 20px rgba(30, 30, 60, .14);
+  --shadow-frame: 0 18px 42px rgba(30, 30, 60, .18);
+  --shadow-float: 0 32px 80px rgba(30, 30, 60, .28);
+  --shadow-control: 0 1px 4px rgba(30, 30, 60, .10);
+  --on-media: #ffffff;
+  --media-scrim: rgba(5, 5, 8, .45);
+  --media-text-shadow: 0 1px 8px rgba(0, 0, 0, .45);
+
+  /* 浅色主题：底是 #e0e2e9 的灰面，岛面是 #fcfcfd 的近白。
+     前两版都用「白色叠加」做玻璃 —— 只能让卡面比岛面更白，卡就浮成一张纸片。
+     作者给的参照卡（产物页那张）是 #EDEFF4，比岛面深一档，也就是 --panel2。
+     所以这里改成「灰面叠加」：卡面取 --panel2 那一档，比岛面沉、比页底亮，
+     正好夹在中间，左栏所有卡片都落到同一个灰。 */
+  --glass-fill: rgba(238, 240, 245, .94);
+  --glass-fill-2: rgba(228, 231, 238, .90);
+  --glass-lit: rgba(255, 255, 255, .86);
+  --glass-edge: rgba(25, 25, 50, .12);
+  --glass-shadow: 0 3px 10px rgba(30, 30, 60, .07);
+
+  /* 浅色主题：--acc 已经够深，白字直接可读 */
+  --tag-bg: var(--acc);
+  --tag-fg: #ffffff;
+}
+
+/* ── A2 Tactile：奶油纸面 + 硬阴影 + 墨线（与深/浅同骨架）──── */
+html[data-theme="tactile"] #pane-flow {
+  --bg: #e6e1d5;
+  --bg-glow: linear-gradient(160deg, #efece3, #dcd8cc);
+  --panel: #eae6da;
+  --panel2: #ddd8c9;
+  --raised: #f4f1e8;
+  --line: rgba(34, 35, 31, .16);
+  --line2: #22231f;
+  --tx: #22231f;
+  --tx2: #55534a;
+  --tx3: #8a8676;
+  --acc: #f7c948;
+  --acc-ink: #22231f;
+  --acc-tx: #7a5b00;
+  --sel: rgba(247, 201, 72, .40);
+  --hover: rgba(34, 35, 31, .05);
+  --stage-bg: #b9bfa4;
+  --ph: #22231f;
+  --thumb: #22231f;
+  --ok: #2e7d32;
+  --mark: #8a5a00;
+  --warn: #8a5a00;
+  --bad: #a33d32;
+  --on-media: #ffffff;
+  --media-scrim: rgba(34, 35, 31, .45);
+  --media-text-shadow: 0 1px 6px rgba(0, 0, 0, .35);
+  /* 触感主题是奶油纸面：卡片不用玻璃，改用「纸片」的语法 ——
+     奶白渐变填充 + 一条墨线收边 + 硬偏移阴影（--shadow-base 同款 2px 2px 0）。
+     之前这里把阴影设成 none、只给半透明白，结果卡面既不像玻璃也不像纸，
+     和奶油底糊成一片。 */
+  --glass-fill: rgba(255, 255, 255, .72);
+  --glass-fill-2: rgba(255, 255, 255, .34);
+  --glass-lit: rgba(255, 255, 255, .90);
+  --glass-edge: #22231f;
+  --glass-shadow: 2px 2px 0 #22231f;
+  --glass-blur: 0px;
+
+  /* 触感主题底是奶油黄，蓝色标签会打架：改用墨色底 + 纸白字，
+     保留"标签"这个形态，颜色跟随主题身份。 */
+  --tag-bg: #22231f;
+  --tag-fg: #f4f1e8;
+
+  --r-panel: 20px;
+  --shadow-base: 2px 2px 0 #22231f;
+  --shadow-mid: 5px 5px 0 #22231f;
+  --shadow-hero: 5px 5px 0 #22231f, 0 0 0 2px #22231f;
+  --shadow-sel: 3px 3px 0 #22231f;
+  --shadow-frame: 3px 3px 0 #22231f;
+  --shadow-float: 8px 8px 0 #22231f;
+  --shadow-control: 2px 2px 0 #22231f;
+}
+
+/* 主题切换的短暂过渡：只淡入颜色，不移动布局 */
+html.theme-switching #pane-flow,
+html.theme-switching #pane-flow .fw,
+html.theme-switching #pane-flow .fw-ing,
+html.theme-switching #pane-flow .fw-canvas,
+html.theme-switching #pane-flow .fw-panel {
+  transition: background-color .28s ease, color .28s ease, border-color .28s ease;
+}
+
+/* 窄屏适配已移除：顶栏只按桌面布局收拢省略号，不再为 640px 隐藏控件。 */

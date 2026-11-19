@@ -1,0 +1,158 @@
+/* ── 内容区与海报墙 ─────────────────────────────────────────────── */
+
+.fx-content { flex: 1 1 auto; overflow-y: auto; padding: 18px 16px 22px; min-height: 0; }
+.fx-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+
+.fxc {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r-card);
+  overflow: hidden !important;
+  clip-path: inset(0 round var(--r-card));
+  text-align: left;
+}
+.fxc:hover { border-color: var(--line2); }
+
+.fxc-media {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  background: var(--stage-bg);
+  flex: none;
+  overflow: hidden !important;
+  clip-path: inset(0 round var(--r-card) var(--r-card) 0 0);
+}
+.fxc-media img, .fxc-media video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.fxc-hit { position: absolute; inset: 0; z-index: 2; border-radius: inherit; }
+.fxc-hit:focus-visible { outline-offset: -2px; }
+
+.fxc-fav {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 3;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  background: var(--media-scrim);
+  color: var(--media-ink);
+  backdrop-filter: blur(6px);
+}
+.fxc-fav:hover { filter: brightness(1.25); }
+.fxc-fav[data-on] { color: var(--warn); }
+
+.fxc-body { padding: 11px 12px 12px; display: flex; flex-direction: column; gap: 5px; }
+.fxc-title { margin: 0; font-size: 14px; font-weight: 700; line-height: 1.35; }
+.fxc-intent {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--tx2);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.fxc-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 2px;
+  font-size: 11.5px;
+  color: var(--tx3);
+  flex-wrap: wrap;
+}
+/* 去 AI 味：圆点复杂度已改成文字，点阵样式同步移除 */
+
+/* 能力标签：低对比胶囊（圆点 + 短文字），如实表达源库能力 */
+.fx-cap {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 20px;
+  padding: 0 7px;
+  border: 1px solid var(--line2);
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--tx2);
+}
+
+/* 海报式卡片：文字覆在画面底部渐变上（定稿形态） */
+.fxc-poster .fxc-body {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1;
+  padding: 26px 12px 10px;
+  background: linear-gradient(180deg, rgba(8, 9, 11, 0), rgba(8, 9, 11, 0.88) 62%);
+  color: #f4f5f7;
+  pointer-events: none;
+}
+.fxc-poster .fxc-title { color: #fff; text-shadow: 0 1px 8px rgba(0, 0, 0, 0.45); }
+/* Round 3（审计 25）：海报卡描述与普通卡统一两行截断，不再一行/两行混排 */
+.fxc-poster .fxc-intent { color: rgba(235, 237, 240, 0.82); -webkit-line-clamp: 2; }
+/* Round 3（审计 24 部分）：海报卡边框提一档，黑底海报在墙里有明确边界；
+   海报图本身纯黑仍需换图数据源，不在本轮。 */
+.fxc-poster { border-color: var(--line2); }
+.fxc-poster .fxc-meta { color: rgba(235, 237, 240, 0.66); }
+.fxc-poster .fx-cap { border-color: rgba(255, 255, 255, 0.28); color: rgba(255, 255, 255, 0.88); background: rgba(10, 10, 12, 0.35); }
+.fxc-catlabel {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 3;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--media-scrim);
+  backdrop-filter: blur(6px);
+  color: var(--media-ink);
+  font-size: 11px;
+  font-weight: 600;
+}
+.fxc-motion {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  z-index: 3;
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--media-scrim);
+  backdrop-filter: blur(6px);
+  color: var(--media-ink);
+}
+
+/* 空状态 */
+.fx-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 64px 20px;
+  text-align: center;
+  color: var(--tx3);
+}
+.fx-empty h3 { margin: 4px 0 0; font-size: 14px; color: var(--tx); }
+.fx-empty p { margin: 0; font-size: 12.5px; line-height: 1.6; max-width: 420px; }

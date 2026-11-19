@@ -1,0 +1,93 @@
+/* ── 工作区：16px 机身留白 + 16px 岛间隙 ───────────────────── */
+#pane-flow .wb-a2 {
+  padding: var(--gap);
+  gap: var(--gap);
+  background: transparent;
+  color: var(--tx);
+  font-family: var(--sans);
+  font-size: 13px;
+}
+#pane-flow .wb-a2 *,
+#pane-flow .wb-a2 *::before,
+#pane-flow .wb-a2 *::after { box-sizing: border-box; }
+#pane-flow .wb-spacer { flex: 1; }
+#pane-flow .wb-a2 button:focus-visible,
+#pane-flow .wb-a2 input:focus-visible,
+#pane-flow .wb-a2 textarea:focus-visible {
+  outline: 2px solid var(--acc);
+  outline-offset: 2px;
+}
+
+/* ── 基岛：顶栏（46px）────────────────────────────────────── */
+#pane-flow .wb-a2 .wb-projectbar {
+  flex: 0 0 46px;
+  height: 46px;
+  min-height: 46px;
+  padding: 0 14px;
+  gap: 8px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r-panel);
+  box-shadow: var(--shadow-base);
+}
+#pane-flow .wb-a2 .wb-logo {
+  width: 21px; height: 21px; flex: 0 0 21px;
+  display: grid; place-items: center;
+  border-radius: 6px;
+  background: var(--acc);
+  color: var(--acc-ink);
+  font-size: 11px; font-weight: 800;
+}
+#pane-flow .wb-a2 .wb-crumb { display: flex; align-items: center; gap: 7px; min-width: 0; }
+#pane-flow .wb-a2 .wb-crumb-sep { color: var(--tx3); font-size: 11px; }
+#pane-flow .wb-a2 .wb-crumb-scene {
+  max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: var(--tx2); font-size: 12px;
+}
+#pane-flow .wb-a2 .wb-project-switch {
+  height: 28px; max-width: 230px; padding: 0 5px;
+  border: 1px solid transparent; border-radius: var(--r-ctl);
+  background: transparent; color: var(--tx);
+  font: inherit; font-size: 13px; font-weight: 650;
+  display: inline-flex; align-items: center; gap: 4px; cursor: pointer;
+  transition: background-color 160ms var(--eo), border-color 160ms var(--eo);
+}
+#pane-flow .wb-a2 .wb-project-switch:hover { background: var(--hover); border-color: var(--line); }
+#pane-flow .wb-a2 .wb-project-name { max-width: 210px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#pane-flow .wb-a2 .wb-caret { width: 14px; height: 14px; color: var(--tx3); flex: 0 0 auto; }
+#pane-flow .wb-a2 .wb-top-actions { display: flex; align-items: center; gap: 2px; }
+#pane-flow .wb-a2 .wb-divider { width: 1px; height: 16px; background: var(--line); margin: 0 4px; }
+#pane-flow .wb-a2 .wb-agent-status {
+  height: 26px; padding: 0 10px; gap: 6px;
+  border: 1px solid var(--line2); border-radius: 999px;
+  background: var(--panel2); color: var(--tx2);
+  font: inherit; font-size: 12px; cursor: pointer;
+  display: inline-flex; align-items: center;
+  transition: color 160ms var(--eo), border-color 160ms var(--eo);
+}
+#pane-flow .wb-a2 .wb-agent-status:hover { color: var(--tx); border-color: var(--acc); }
+#pane-flow .wb-a2 .wb-agent-dot { width: 5px; height: 5px; flex: 0 0 5px; border-radius: 50%; background: var(--mark); }
+#pane-flow .wb-a2 .wb-export {
+  height: 28px; padding: 0 14px; margin-left: 4px;
+  border: 0; border-radius: var(--r-ctl);
+  background: var(--acc); color: var(--acc-ink);
+  font: inherit; font-size: 12.5px; font-weight: 600;
+  display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
+  transition: filter 160ms var(--eo), transform 160ms var(--eo);
+}
+#pane-flow .wb-a2 .wb-export:hover:not(:disabled) { filter: brightness(1.08); }
+#pane-flow .wb-a2 .wb-export:disabled { opacity: .45; cursor: default; }
+#pane-flow .wb-a2 .wb-projectbar .fw-toolbtn { width: 28px; height: 28px; border-radius: var(--r-ctl); }
+#pane-flow .wb-a2 .wb-projectbar .fw-mobile { display: none; }
+#pane-flow .wb-a2 .wb-switch-menu {
+  top: 34px; min-width: 250px; padding: 5px;
+  border: 1px solid var(--line2); border-radius: 14px;
+  background: var(--panel); box-shadow: var(--shadow-float);
+  animation: wbPopIn 180ms var(--eo) both;
+}
+#pane-flow .wb-a2 .wb-switch-head { padding: 5px 7px; font-size: 10.5px; letter-spacing: .08em; color: var(--tx3); }
+#pane-flow .wb-a2 .wb-switch-menu > button { min-height: 34px; padding: 6px 8px; border-radius: 6px; color: var(--tx2); }
+#pane-flow .wb-a2 .wb-switch-menu > button:hover { background: var(--hover); color: var(--tx); }
+#pane-flow .wb-a2 .wb-switch-menu > button[aria-current="true"] { background: var(--sel); color: var(--tx); }
+#pane-flow .wb-a2 .wb-menu-project b { font-size: 12.5px; font-weight: 600; }
+#pane-flow .wb-a2 .wb-menu-project small { font-size: 11px; color: var(--tx3); }

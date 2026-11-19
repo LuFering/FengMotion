@@ -1,0 +1,246 @@
+/* ── 主岛：监看 ───────────────────────────────────────────── */
+#pane-flow .wb-a2 .fw-toolbar {
+  flex: 0 0 40px;
+  height: 40px;
+  padding: 0 14px;
+  gap: 9px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+}
+#pane-flow .wb-a2 .wb-viewer-index {
+  font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .06em;
+  color: var(--tx3); white-space: nowrap;
+}
+#pane-flow .wb-a2 .wb-viewer-title { margin: 0; font-size: 13px; font-weight: 650; color: var(--tx); white-space: nowrap; }
+#pane-flow .wb-a2 .fw-toolbar .wb-viewer-title { flex: 1 1 auto; min-width: 60px; }
+#pane-flow .wb-a2 .wb-viewer-meta { font-size: 11.5px; color: var(--tx3); font-variant-numeric: tabular-nums; white-space: nowrap; }
+#pane-flow .wb-a2 .wb-status { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; color: var(--tx2); white-space: nowrap; }
+#pane-flow .wb-a2 .wb-status[data-status="waiting"] { color: var(--mark); }
+#pane-flow .wb-a2 .wb-status .fm-dot { opacity: 1; }
+#pane-flow .wb-a2 .fw-toolbar .fw-actionbar {
+  flex: 0 0 auto; height: auto;
+  padding: 0; border: 0; background: transparent;
+  display: flex; align-items: center; gap: 2px;
+}
+#pane-flow .wb-a2 .fw-toolbar .fw-actionbar .fw-toolbtn { width: 26px; height: 26px; border-radius: 6px; }
+#pane-flow .wb-a2 .fw-toolbar .fw-actionbar .fw-toolbtn svg { width: 17px; height: 17px; }
+#pane-flow .wb-a2 .fw-stage {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background-color: var(--stage-bg);
+  background-image: none;
+}
+#pane-flow .wb-a2 .fw-stage-edit { background: var(--stage-bg); }
+#pane-flow .wb-a2 .fw-media-fit {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  border: 0;
+  border-radius: var(--r-card);
+  background: var(--bg);
+  outline: 0;
+  overflow: hidden;
+  box-shadow: var(--shadow-frame);
+  outline: 1px solid var(--line2);
+  outline-offset: 0;
+}
+#pane-flow .wb-a2 .fw-stage > .relative.size-full {
+  border-radius: var(--r-card);
+  overflow: hidden;
+  box-shadow: var(--shadow-frame);
+}
+#pane-flow .wb-a2 .wb-frame-badge {
+  position: absolute; top: 10px; right: 12px; z-index: 6;
+  padding: 3px 8px; border-radius: 999px;
+  background: var(--media-scrim); color: var(--on-media);
+  font-size: 11px; letter-spacing: .02em;
+}
+#pane-flow .wb-a2 .wb-frame-cap {
+  position: absolute; left: 13px; bottom: 11px; z-index: 6;
+  color: var(--on-media); text-shadow: var(--media-text-shadow);
+  pointer-events: none;
+}
+#pane-flow .wb-a2 .wb-frame-cap-t { font-size: 14.5px; font-weight: 650; }
+#pane-flow .wb-a2 .fw-media-fit video { border-radius: inherit; }
+
+/* ── 播放控制 ─────────────────────────────────────────────── */
+#pane-flow .wb-a2 .fw-playbar {
+  flex: 0 0 auto;
+  height: 48px;
+  padding: 7px 14px 4px;
+  gap: 9px;
+  background: var(--panel);
+  border: 0;
+  display: flex; align-items: center;
+}
+#pane-flow .wb-a2 .fw-playbar .iconbtn {
+  width: 28px; height: 28px; border-radius: var(--r-ctl);
+  color: var(--tx2); background: transparent;
+  transition: background-color 150ms var(--eo), color 150ms var(--eo), transform 150ms var(--eo);
+}
+#pane-flow .wb-a2 .fw-playbar .iconbtn:hover { background: var(--hover); color: var(--tx); }
+#pane-flow .wb-a2 .fw-playbar .wb-play-main {
+  width: 31px; height: 31px; border-radius: 50%;
+  background: var(--acc); color: var(--acc-ink);
+  display: grid; place-items: center;
+}
+#pane-flow .wb-a2 .fw-playbar .wb-play-main svg { width: 12px; height: 12px; }
+#pane-flow .wb-a2 .fw-playbar .wb-play-main:hover { background: var(--acc); color: var(--acc-ink); filter: brightness(1.08); }
+#pane-flow .wb-a2 .fw-playbar .time {
+  width: auto; margin-left: 2px;
+  font-family: var(--font-mono); font-size: 12.5px; color: var(--tx);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+#pane-flow .wb-a2 .wb-time-dim { color: var(--tx3); }
+#pane-flow .wb-a2 .fw-playbar .pp-range { flex: 1; min-width: 0; }
+#pane-flow .wb-a2 .fw-playbar .pp-range input[type=range] { height: 20px; }
+#pane-flow .wb-a2 .fw-playbar .pp-range input[type=range]::-webkit-slider-runnable-track {
+  height: 4px; border-radius: 2px;
+  background: linear-gradient(to right, var(--acc) var(--fill), var(--line2) var(--fill));
+}
+#pane-flow .wb-a2 .fw-playbar .pp-range input[type=range]::-webkit-slider-thumb {
+  width: 15px; height: 15px; margin-top: -5.5px;
+  border: 2px solid var(--acc); border-radius: 50%;
+  background: var(--thumb); box-shadow: var(--shadow-control);
+}
+#pane-flow .wb-a2 .fw-playbar .pp-range input[type=range]::-moz-range-track { height: 4px; border-radius: 2px; background: var(--line2); }
+#pane-flow .wb-a2 .fw-playbar .pp-range input[type=range]::-moz-range-progress { height: 4px; border-radius: 2px; background: var(--acc); }
+#pane-flow .wb-a2 .fw-playbar .pp-range input[type=range]::-moz-range-thumb {
+  width: 15px; height: 15px; border: 2px solid var(--acc); border-radius: 50%; background: var(--thumb);
+}
+#pane-flow .wb-a2 .fw-playbar .fw-zoom { display: flex; align-items: center; gap: 4px; color: var(--tx3); font-size: 11.5px; }
+#pane-flow .wb-a2 .fw-playbar .fw-zoom button {
+  width: 24px; height: 24px; padding: 0;
+  border: 1px solid var(--line2); border-radius: 6px;
+  background: var(--panel2); color: var(--tx2);
+  display: grid; place-items: center; cursor: pointer;
+}
+#pane-flow .wb-a2 .fw-playbar .fw-zoom button:hover:not(:disabled) { color: var(--tx); border-color: var(--tx3); }
+#pane-flow .wb-a2 .fw-playbar .fw-zoom button:disabled { opacity: .4; cursor: default; }
+#pane-flow .wb-a2 .fw-playbar .fw-zoom span { width: auto; min-width: 28px; text-align: center; }
+
+/* ── 时间线（32px 轨道 / 5 等分刻度 / 1×–4×）──────────────── */
+#pane-flow .wb-a2 .tl-wrap {
+  flex: 0 0 104px;
+  min-height: 104px;
+  border-top: 1px solid var(--line);
+  background: var(--panel);
+}
+#pane-flow .wb-a2 .tl-head {
+  height: 30px; min-height: 30px;
+  padding: 0 14px;
+  gap: 10px;
+  border: 0;
+  display: flex; align-items: center;
+  color: var(--tx3);
+}
+#pane-flow .wb-a2 .wb-sec {
+  font-size: 10.5px; font-weight: 700; letter-spacing: .08em;
+  color: var(--tx3); text-transform: uppercase;
+  white-space: nowrap;
+}
+#pane-flow .wb-a2 .tl-plan-toggle {
+  border: 0; background: transparent; color: var(--tx2);
+  font: inherit; font-size: 11px; padding: 3px 6px; border-radius: 6px; cursor: pointer;
+}
+#pane-flow .wb-a2 .tl-plan-toggle:hover { background: var(--hover); color: var(--tx); }
+#pane-flow .wb-a2 .tl-plan-toggle[aria-pressed="true"] { color: var(--acc-tx); background: var(--sel); }
+#pane-flow .wb-a2 .tl-selected {
+  max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 11px; color: var(--tx3);
+}
+#pane-flow .wb-a2 .wb-zoom { display: flex; align-items: center; gap: 6px; color: var(--tx3); font-size: 11.5px; }
+#pane-flow .wb-a2 .wb-zoom button {
+  width: 22px; height: 22px; padding: 0;
+  border: 1px solid var(--line2); border-radius: 6px;
+  background: var(--panel2); color: var(--tx2);
+  font: inherit; font-size: 13px; line-height: 1; cursor: pointer;
+}
+#pane-flow .wb-a2 .wb-zoom button:hover:not(:disabled) { color: var(--tx); border-color: var(--tx3); }
+#pane-flow .wb-a2 .wb-zoom button:disabled { opacity: .4; cursor: default; }
+#pane-flow .wb-a2 .wb-zoom span { min-width: 32px; text-align: center; }
+#pane-flow .wb-a2 .tl-body {
+  flex: 1; min-height: 0;
+  display: block;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0 14px 8px;
+  scrollbar-width: none;
+}
+#pane-flow .wb-a2 .tl-canvas { position: relative; min-width: 100%; }
+#pane-flow .wb-a2 .tl-track {
+  position: relative;
+  height: 32px;
+  margin: 0;
+  display: flex;
+  gap: 3px;
+  background: transparent;
+  border: 0;
+  cursor: crosshair;
+}
+#pane-flow .wb-a2 .tl-clip {
+  position: relative;
+  top: auto; bottom: auto; left: auto;
+  width: auto; min-width: 14px;
+  height: 100%;
+  margin: 0; padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--panel2);
+  color: var(--tx2);
+  overflow: hidden;
+  cursor: pointer;
+  transition: background-color 160ms var(--eo), border-color 160ms var(--eo), box-shadow 160ms var(--eo);
+}
+#pane-flow .wb-a2 .tl-clip:hover { background: var(--hover); border-color: var(--line2); color: var(--tx); }
+#pane-flow .wb-a2 .tl-clip[aria-current="true"] {
+  background: var(--sel);
+  border-color: var(--acc);
+  box-shadow: 0 0 0 1px var(--acc);
+  color: var(--tx);
+}
+#pane-flow .wb-a2 .tl-clip-thumb {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: cover; opacity: .38; pointer-events: none;
+}
+#pane-flow .wb-a2 .tl-clip[aria-current="true"] .tl-clip-thumb { opacity: .55; }
+#pane-flow .wb-a2 .wb-compare-tag {
+  position: absolute; left: 8px; top: 8px; z-index: 6;
+  padding: 3px 8px; border-radius: 999px;
+  background: var(--media-scrim); color: var(--on-media);
+  font-size: 11px; letter-spacing: .02em;
+}
+#pane-flow .wb-a2 .fw-media-fit.chg { animation: wbFrameIn .38s var(--eo); }
+#pane-flow .wb-a2 .tl-clip span {
+  position: absolute; left: 5px; bottom: 2px;
+  font-family: var(--font-mono); font-size: 11px;
+  color: inherit; font-variant-numeric: tabular-nums;
+}
+#pane-flow .wb-a2 .tl-clip[aria-current="true"] span { color: var(--acc-tx); }
+#pane-flow .wb-a2 .tl-playhead {
+  position: absolute;
+  top: -4px; bottom: -4px;
+  width: 2.5px; margin-left: -1.25px;
+  background: var(--ph);
+  box-shadow: 0 0 12px var(--acc);
+  z-index: 2; pointer-events: none;
+}
+#pane-flow .wb-a2 .tl-playhead::before {
+  content: "";
+  position: absolute; top: -1px; left: -4.5px;
+  border: 5px solid transparent;
+  border-top: 6px solid var(--ph);
+}
+#pane-flow .wb-a2 .wb-scale {
+  display: flex; justify-content: space-between;
+  margin-top: 5px;
+  font-size: 11px; color: var(--tx2);
+  font-variant-numeric: tabular-nums;
+}
+#pane-flow .wb-a2 .fw-subbar { display: none; }

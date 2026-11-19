@@ -1,0 +1,91 @@
+/* ── 响应式：全宽布局，无侧栏挤压 ───────────────────────────── */
+.mya-filters[data-more] {
+  mask-image: linear-gradient(to right, black calc(100% - 24px), transparent);
+  -webkit-mask-image: linear-gradient(to right, black calc(100% - 24px), transparent);
+}
+@media (max-width: 1280px) {
+  .mya-search { width: 240px; }
+  .mya-grid { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+  .mya-list-head, .mya-row { grid-template-columns: 22px minmax(0, 1fr) 44px 82px 64px 58px 40px 68px 64px; gap: 6px; }
+  .mya-inspector { flex-basis: 272px; }
+}
+@media (max-width: 1100px) {
+  .mya-meta { display: none; }
+  .mya-search { width: 220px; }
+  .mya-org { flex-basis: 188px; }
+  .mya-list-head, .mya-row { grid-template-columns: 22px minmax(0, 1fr) 42px 76px 60px 54px 40px 64px 60px; gap: 6px; }
+}
+@media (max-width: 900px) {
+  .mya { padding: 12px; gap: 12px; }
+  .mya-cmd { padding: 0 12px; gap: 8px; }
+  .mya-search { width: 180px; }
+  .mya-org { flex-basis: 172px; }
+  .mya-inspector {
+    position: fixed;
+    top: 12px;
+    right: 12px;
+    bottom: 12px;
+    z-index: 80;
+    width: calc(100vw - 24px);
+    max-width: 340px;
+    border-color: var(--line2);
+    box-shadow: var(--shadow-float);
+  }
+}
+
+/* ── 动效 / 焦点 / 减少动态 ─────────────────────────────────── */
+@keyframes myaRise {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes myaPop {
+  from { opacity: 0; transform: scale(.965) translateY(-5px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+@keyframes myaFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes myaSpin { to { transform: rotate(360deg); } }
+
+.mya button:active { transform: scale(.97); }
+.mya button:focus-visible,
+.mya input:focus-visible,
+.mya select:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
+.mya input:focus-visible { outline-offset: 1px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .mya *, .mya *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
+
+/* ── A2 Tactile：奶油纸面 + 硬阴影 + 墨线 ─────────────────── */
+html[data-theme="tactile"] .mya {
+  --bg: #e6e1d5;
+  --bg-glow: linear-gradient(160deg, #efece3, #dcd8cc);
+  --panel: #eae6da;
+  --panel2: #ddd8c9;
+  --raised: #f4f1e8;
+  --line: rgba(34, 35, 31, .16);
+  --line2: #22231f;
+  --tx: #22231f;
+  --tx2: #55534a;
+  --tx3: #8a8676;
+  --acc: #f7c948;
+  --acc-ink: #22231f;
+  --acc-tx: #7a5b00;
+  --sel: rgba(247, 201, 72, .40);
+  --hover: rgba(34, 35, 31, .05);
+  --stage-bg: #b9bfa4;
+  --scrim: rgba(34, 35, 31, .22);
+  --overlay: rgba(247, 241, 226, .72);
+  --ok: #2e7d32;
+  --warn: #8a5a00;
+  --danger: #a33d32;
+  --r-panel: 20px;
+  --shadow-base: 2px 2px 0 #22231f;
+  --shadow-mid: 5px 5px 0 #22231f;
+  --shadow-hero: 5px 5px 0 #22231f, 0 0 0 2px #22231f;
+  --shadow-card-on: 3px 3px 0 #22231f;
+  --shadow-float: 8px 8px 0 #22231f;
+  --shadow-seg: 2px 2px 0 #22231f;
+}

@@ -1,0 +1,100 @@
+/* ═══════════════════════════════════════════════════════════════
+   FengMotion Workbench · A2 云端岛屿 V3
+   唯一视觉基准：~/Documents/FengMotion-工作台设计规范-云端岛屿V3.md
+   以及 ui-v3-themes.html 的 #d-a（升级版 V3 / dark）。
+
+   本文件只覆盖制作工作台（#pane-flow）。组件规则引用 token，
+   token 只在本文件顶部定义；页面/组件内不写死色值。
+   ═══════════════════════════════════════════════════════════════ */
+
+#pane-flow {
+  /* ── A2 深黑主题令牌（§3 / §5 / §7）────────────────────── */
+  --bg: #000000;
+  --bg-glow: #000000;
+  --panel: #16171d;
+  --panel2: #101116;
+  --raised: #23242d;
+  --line: rgba(255, 255, 255, .06);
+  --line2: #34353f;
+  --tx: #edeef3;
+  --tx2: #a4a7b1;
+  --tx3: #62646e;
+  --acc: #3B8CF8;
+  --acc-ink: #ffffff;
+  --acc-tx: #8AB4FF;
+  --sel: rgba(59, 140, 248, .16);
+  --hover: rgba(255, 255, 255, .04);
+  --stage-bg: #0a0b0e;
+  --ph: #8AB4FF;
+  --thumb: #edeef3;
+
+  /* ── 玻璃（左栏卡片用）──────────────────────────────────
+     左栏底色是纯色深灰，玻璃后面没有内容可透 —— 所以质感来自自身：
+     一层半透明面 + 顶部内高光做厚度 + 一圈极淡描边。 */
+  --glass-fill: rgba(255, 255, 255, .075);
+  --glass-fill-2: rgba(255, 255, 255, .018);
+  --glass-lit: rgba(255, 255, 255, .26);
+  --glass-edge: rgba(255, 255, 255, .08);
+  --glass-shadow: 0 6px 22px rgba(0, 0, 0, .42);
+  --glass-blur: 20px;
+
+  /* 分组标签（T1 单角斜切）底色：深色主题用主强调蓝 */
+  --tag-bg: var(--acc);
+  --tag-fg: var(--acc-ink);
+
+  /* ── 圆角 / 间距 / 阴影 / 动效 ─────────────────────────── */
+  --r-panel: var(--fm-radius-panel);
+  --r-ctl: var(--fm-radius-ctl);
+  --r-card: var(--fm-radius-card);
+  --r-thumb: var(--fm-radius-card);
+  --gap: 16px;
+  --shadow-base: 0 3px 10px rgba(0, 0, 0, .18);
+  --shadow-mid: 0 12px 32px rgba(0, 0, 0, .30);
+  --shadow-hero: 0 26px 64px rgba(0, 0, 0, .48), 0 4px 16px rgba(0, 0, 0, .30);
+  --shadow-sel: 0 8px 20px rgba(0, 0, 0, .28);
+  --shadow-frame: 0 18px 50px rgba(0, 0, 0, .45);
+  --shadow-float: 0 32px 80px rgba(0, 0, 0, .50);
+  --shadow-control: 0 1px 4px rgba(0, 0, 0, .25);
+  --eo: cubic-bezier(.23, 1, .32, 1);
+  --eio: cubic-bezier(.77, 0, .175, 1);
+
+  /* ── 状态色（不随主题变）──────────────────────────────── */
+  --ok: #4caf7d;
+  --mark: #f5b83d;
+  --warn: #f5b83d;
+  --bad: #d0695f;
+
+  /* ── 媒体覆盖层（视频上的文字/角标）────────────────────── */
+  --on-media: #ffffff;
+  --media-scrim: rgba(0, 0, 0, .45);
+  --media-text-shadow: 0 1px 8px rgba(0, 0, 0, .6);
+
+  /* ── 旧工作台变量 → A2 token（兼容现有组件，避免两套色）── */
+  --wb-bg-app: var(--bg);
+  --wb-chrome: var(--panel);
+  --wb-plane: var(--panel);
+  --wb-raised: var(--raised);
+  --wb-well: var(--panel2);
+  --wb-viewer: var(--stage-bg);
+  --wb-line: var(--line);
+  --wb-line-hi: var(--line2);
+  --wb-text: var(--tx);
+  --wb-text-2: var(--tx2);
+  --wb-text-3: var(--tx3);
+  --wb-accent: var(--acc);
+  --wb-accent-soft: var(--sel);
+  --on-accent: var(--acc-ink);
+  --acc-d: var(--acc);
+  --soft: var(--sel);
+  --surf: var(--panel);
+  --hole: var(--panel2);
+  --fg: var(--tx);
+  --dim: var(--tx2);
+  --hint: var(--tx2);
+  --sans: var(--font-sans);
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  background: radial-gradient(1100px 520px at 50% 18%, var(--bg-glow) 0%, var(--bg) 62%);
+  color: var(--tx);
+  font-family: var(--sans);
+}

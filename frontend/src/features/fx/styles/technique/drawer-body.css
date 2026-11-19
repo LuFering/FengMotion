@@ -1,0 +1,92 @@
+/* ── 去 AI 味：详情抽屉正文（此前 fx-dsec / fx-label / fx-io 等类无样式，
+   全靠浏览器默认排版，才显得像教程文档）──────────────────────── */
+.fx-drawer-title h2 { font-size: 17px; font-weight: 700; line-height: 1.35; margin: 0; }
+/* 弹窗内标题区上下留白：原来贴边，副标题像是挤在标题里 */
+.fx-modal .fx-drawer-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 18px 22px 22px; }
+.fx-drawer-title > span { display: block; margin-top: 3px; font-size: 12px; color: var(--tx3); }
+.fx-featured { font-style: normal; font-size: 11px; color: var(--tx2); }
+.fx-detail-intent { margin: 0; font-size: 13px; line-height: 1.7; color: var(--tx2); }
+.fx-detail-capline { margin: 0; font-size: 12px; line-height: 1.65; color: var(--tx2); }
+.fx-dsec { display: flex; flex-direction: column; gap: 6px; }
+.fx-label { margin: 0; font-size: 11px; font-weight: 700; letter-spacing: .08em; color: var(--tx3); }
+.fx-use-line { margin: 0; font-size: 13px; line-height: 1.7; color: var(--tx2); }
+.fx-use-line b { color: var(--tx3); font-weight: 600; margin-right: 6px; }
+.fx-steps { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
+.fx-steps li { font-size: 13px; line-height: 1.65; color: var(--tx2); }
+.fx-steps li::marker { color: var(--tx3); }
+.fx-io { display: grid; grid-template-columns: 64px 1fr; gap: 4px 12px; margin: 4px 0 0; font-size: 12.5px; }
+.fx-io dt { color: var(--tx3); }
+.fx-io dd { margin: 0; color: var(--tx2); line-height: 1.6; }
+.fx-bullets { margin: 0; padding-left: 17px; display: flex; flex-direction: column; gap: 4px; }
+.fx-bullets li { font-size: 13px; line-height: 1.65; color: var(--tx2); }
+.fx-bullets li::marker { color: var(--tx3); }
+.fx-subhead { margin: 6px 0 0; font-size: 12px; font-weight: 600; color: var(--tx2); }
+.fx-favbtn { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border: 1px solid var(--line2); border-radius: 999px; background: transparent; color: var(--tx2); font-size: 12px; cursor: pointer; }
+.fx-related { display: flex; flex-wrap: wrap; gap: 6px; }
+.fx-relchip { padding: 4px 10px; border: 1px solid var(--line2); border-radius: 999px; background: transparent; color: var(--tx2); font-size: 12px; cursor: pointer; }
+.fx-relchip:hover, .fx-favbtn:hover { background: var(--hover); color: var(--tx); }
+
+/* 无预览条目的占位：给出分类名而不是空白。
+   实测导入 124 条 shotcraft 卡片后整页是黑的，用户会以为导入没成功。 */
+/* 无预览条目的底板：极淡的对角线纹理，暗示「这里有意留空」而不是加载失败。
+   不放文字：分类名在卡片里已经出现过一次，再放中部会和标题抢位置。 */
+.fxc-media-empty {
+  position: absolute; inset: 0;
+  z-index: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--tx2);
+  font-size: 12px;
+  background-color: var(--inset);
+  background-image: repeating-linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--tx3) 7%, transparent) 0 1px,
+    transparent 1px 9px
+  );
+}
+/* 预览失败只是附加信息：贴在左上角的小标签，不再铺满整卡居中，压住卡片底部的分类与标题。 */
+.fxc-media .silent-media-error { position: absolute; left: 12px; top: 12px; padding: 3px 7px; border-radius: 4px; background: rgba(8, 10, 13, .56); color: rgba(255, 255, 255, .78); font-size: 10px; line-height: 1.4; pointer-events: none; }
+.fx-original-preview {
+  position: absolute;
+  inset: 0;
+  overflow: hidden !important;
+  pointer-events: none;
+  background: #08090b;
+  contain: strict;
+  transform: translateZ(0);
+  will-change: transform;
+  backface-visibility: hidden;
+  isolation: isolate;
+  clip-path: inset(0) !important;
+  transform-style: flat !important;
+}
+.fx-original-preview > div {
+  width: 100% !important;
+  height: 100% !important;
+}
+.fxc-media[data-original-preview] .silent-media-preview > img { object-fit: contain; background: #08090b; }
+/* 播放时让出完整画面；信息仍保留在无障碍树中。 */
+.fxlib .fxc-poster[data-preview-active] .fxc-body { opacity: 0; }
+
+/* 弹窗底部的版本/更新时间/条目 ID。
+   原来完全没有样式，三段内容挤成一行，时间戳和 id 连在一起读不出边界。 */
+.fx-source {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+  margin-top: 4px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line2);
+  font-size: 11px;
+  color: var(--tx3);
+}
+.fx-source .num { font-variant-numeric: tabular-nums; }
+
+/* 弹窗里标签列比抽屉宽一点：'video-shotcraft' 这种长值在 64px 下会被拆成两行 */
+.fx-modal .fx-io { grid-template-columns: 96px minmax(0, 1fr); }
+/* URL 可以在任意处折行（否则会撑破弹窗），
+   但 'video-shotcraft' 这种项目名是单个词，拆成两行读起来像两个值。 */
+.fx-modal .fx-io dd { overflow-wrap: anywhere; word-break: normal; }
+.fx-modal .fx-io dd:not(:has(a)) { white-space: nowrap; }

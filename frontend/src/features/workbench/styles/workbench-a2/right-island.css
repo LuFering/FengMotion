@@ -1,0 +1,289 @@
+/* ── 右岛：属性 / 场景检查器 ──────────────────────────────── */
+#pane-flow .wb-a2 .fw-panel .fw-ing-hd {
+  min-height: 52px;
+  padding: 13px 14px 9px;
+  gap: 6px;
+  border: 0;
+}
+#pane-flow .wb-a2 .fw-panel .fw-panel-seg { flex: 1; min-width: 0; }
+#pane-flow .wb-a2 .fw-panel .fw-toolbtn { flex: 0 0 26px; width: 26px; height: 26px; border-radius: var(--r-ctl); }
+#pane-flow .wb-a2 .wb-insp { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+#pane-flow .wb-a2 .wb-insp-scroll {
+  flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+  padding: 0 14px 14px;
+  display: flex; flex-direction: column; gap: 11px;
+  scrollbar-width: none;
+}
+#pane-flow .wb-a2 .wb-insp-scroll > * { flex: 0 0 auto; }
+#pane-flow .wb-a2 .wb-insp-hero {
+  display: flex; align-items: center; gap: 9px;
+  padding: 8px 10px;
+  background: var(--panel2); border: 1px solid var(--line); border-radius: var(--r-card);
+}
+#pane-flow .wb-a2 .wb-insp-thumb {
+  width: 44px; height: 26px; flex: 0 0 44px;
+  overflow: hidden; border-radius: var(--r-thumb);
+  background: var(--panel); display: grid; place-items: center;
+}
+#pane-flow .wb-a2 .wb-insp-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+#pane-flow .wb-a2 .wb-insp-thumb-empty { font-size: 10px; color: var(--tx3); }
+#pane-flow .wb-a2 .wb-insp-obj {
+  font-size: 12.5px; font-weight: 650; color: var(--acc-tx);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+#pane-flow .wb-a2 .wb-insp-kicker {
+  margin-top: 2px;
+  display: flex; align-items: center; gap: 5px;
+  font-size: 11px; color: var(--tx3); white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+#pane-flow .wb-a2 .wb-insp-kicker .fm-dot { opacity: 1; }
+#pane-flow .wb-a2 .wb-insp-section {
+  display: flex; flex-direction: column; gap: 7px;
+  padding-top: 10px; border-top: 1px solid var(--line);
+}
+#pane-flow .wb-a2 .wb-insp-section > h3 {
+  margin: 0 0 1px;
+  font-size: 12px; font-weight: 650; letter-spacing: .02em;
+  color: var(--tx2);
+  display: flex; align-items: center; gap: 6px;
+}
+#pane-flow .wb-a2 .wb-insp-tag {
+  font-size: 10px; font-weight: 450; color: var(--tx3);
+  border: 1px solid var(--line); border-radius: 999px; padding: 1px 6px;
+  white-space: nowrap;
+}
+#pane-flow .wb-a2 .wb-insp-kv {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  min-height: 34px; padding: 8px 11px;
+  background: var(--panel2); border: 1px solid var(--line); border-radius: var(--r-card);
+  font-size: 12.5px; color: var(--tx2);
+  font-variant-numeric: tabular-nums;
+}
+#pane-flow .wb-a2 .wb-insp-kv > b {
+  display: inline-flex; align-items: center; gap: 5px; min-width: 0;
+  font-size: 12.5px; font-weight: 500; color: var(--tx); text-align: right;
+}
+#pane-flow .wb-a2 .wb-insp-kv > b.num { font-family: var(--font-mono); font-size: 11.5px; color: var(--tx2); font-variant-numeric: tabular-nums; }
+#pane-flow .wb-a2 .wb-swatch { width: 12px; height: 12px; flex: 0 0 12px; border-radius: 3px; display: inline-block; outline: 1px solid var(--line2); }
+#pane-flow .wb-a2 .wb-insp-text { margin: 0; font-size: 12.5px; line-height: 1.65; color: var(--tx2); }
+#pane-flow .wb-a2 .wb-insp-note { margin: 1px 0 0; font-size: 11px; line-height: 1.6; color: var(--tx3); }
+#pane-flow .wb-a2 .wb-insp-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 1px; }
+#pane-flow .wb-a2 .wb-insp-task { display: flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--tx2); }
+#pane-flow .wb-a2 .wb-insp-task .fm-dot { opacity: 1; }
+#pane-flow .wb-a2 .wb-insp-foot {
+  flex: 0 0 auto; padding: 11px 14px 12px;
+  border-top: 1px solid var(--line);
+  background: var(--panel);
+  display: flex; flex-direction: column; gap: 8px;
+}
+#pane-flow .wb-a2 .wb-insp-foot .wb-btn-primary { width: 100%; }
+#pane-flow .wb-a2 .wb-btn-primary {
+  height: 34px; padding: 0 12px;
+  border: 0; border-radius: var(--r-ctl);
+  background: var(--acc); color: var(--acc-ink);
+  font: inherit; font-size: 12.5px; font-weight: 600;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer;
+  transition: filter 160ms var(--eo), transform 150ms var(--eo);
+}
+#pane-flow .wb-a2 .wb-btn-primary:hover { filter: brightness(1.08); }
+#pane-flow .wb-a2 .wb-btn-primary svg { width: 14px; height: 14px; }
+#pane-flow .wb-a2 .wb-btn-ghost {
+  height: 28px; padding: 0 10px;
+  border: 1px solid var(--line2); border-radius: var(--r-ctl);
+  background: var(--panel2); color: var(--tx2);
+  font: inherit; font-size: 11.5px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 5px; cursor: pointer;
+  transition: background-color 160ms var(--eo), color 160ms var(--eo), border-color 160ms var(--eo);
+}
+#pane-flow .wb-a2 .wb-btn-ghost:hover { background: var(--raised); color: var(--tx); border-color: var(--tx3); }
+#pane-flow .wb-a2 .wb-btn-ghost svg { width: 13px; height: 13px; }
+#pane-flow .wb-a2 .wb-insp-section .fw-constraint-row + .fw-constraint-row { margin-top: 0; }
+/* 修改约束默认收起：右栏首屏先给镜头/参数/引用，需要时再展开 */
+#pane-flow .wb-a2 .wb-insp-details {
+  background: var(--panel2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-card);
+  overflow: hidden;
+}
+#pane-flow .wb-a2 .wb-insp-details > summary {
+  display: flex; align-items: center; gap: 7px;
+  padding: 9px 11px;
+  font-size: 12.5px; color: var(--tx2);
+  cursor: pointer; list-style: none;
+}
+#pane-flow .wb-a2 .wb-insp-details > summary::-webkit-details-marker { display: none; }
+#pane-flow .wb-a2 .wb-insp-details > summary::after {
+  content: "›"; margin-left: auto;
+  color: var(--tx3); font-size: 15px; line-height: 1;
+  transition: transform 160ms var(--eo);
+}
+#pane-flow .wb-a2 .wb-insp-details[open] > summary::after { transform: rotate(90deg); }
+#pane-flow .wb-a2 .wb-insp-details-body {
+  display: flex; flex-direction: column; gap: 6px;
+  padding: 0 8px 8px;
+}
+#pane-flow .wb-a2 .wb-insp-details .fw-constraint-row {
+  background: var(--panel);
+  border-radius: var(--r-ctl);
+  padding: 7px 10px;
+  min-height: 32px;
+}
+
+/* 右栏页签：胶囊分段（A2 §8.6） */
+#pane-flow .wb-a2 .fm-seg {
+  height: 30px;
+  padding: 2px;
+  gap: 2px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel2);
+}
+#pane-flow .wb-a2 .fm-seg-thumb {
+  display: block;
+  top: 2px; bottom: 2px; left: 2px;
+  border: 0; border-radius: 999px;
+  background: var(--raised);
+  box-shadow: var(--shadow-control);
+}
+#pane-flow .wb-a2 .fm-seg-item {
+  position: relative;
+  height: 24px; padding: 0 10px;
+  border-radius: 999px;
+  font-size: 12px; font-weight: 450; color: var(--tx2);
+  transition: color 160ms var(--eo);
+}
+#pane-flow .wb-a2 .fm-seg-item:hover { color: var(--tx); background: transparent; }
+#pane-flow .wb-a2 .fm-seg-item[aria-selected="true"] {
+  background: transparent; color: var(--tx); font-weight: 600; border-radius: 999px;
+}
+#pane-flow .wb-a2 .fm-seg-item[aria-selected="true"]::after { display: none; }
+
+/* ── 右栏：对话（A2 同语言，不做卡片阵列）────────────────── */
+#pane-flow .wb-a2 .fw-ctx {
+  margin: 0 0 11px;
+  padding: 8px 10px;
+  background: var(--panel2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-card);
+  font-size: 12.5px;
+}
+#pane-flow .wb-a2 .fw-ctx img { width: 44px; height: 26px; border-radius: var(--r-thumb); }
+#pane-flow .wb-a2 .fw-ctx b { font-size: 12.5px; color: var(--tx); }
+#pane-flow .wb-a2 .fw-ctx .num { font-size: 10.5px; color: var(--tx3); }
+#pane-flow .wb-a2 .fw-ref-chips { gap: 5px; }
+#pane-flow .wb-a2 .fw-ref-chip {
+  border: 1px solid var(--line); border-radius: 999px;
+  background: var(--panel2); color: var(--tx2);
+  font-size: 10.5px; padding: 3px 8px;
+}
+#pane-flow .wb-a2 .fw-ref-chip[data-role="target"] { border-color: color-mix(in srgb, var(--acc) 45%, transparent); background: var(--sel); }
+#pane-flow .wb-a2 .wb-chat-block {
+  margin-left: 0; padding: 8px 10px;
+  background: var(--panel2); border: 1px solid var(--line); border-left: 1px solid var(--line);
+  border-radius: var(--r-card);
+  display: flex; flex-direction: column; gap: 5px;
+}
+#pane-flow .wb-a2 .wb-chat-block-hd { font-size: 11px; color: var(--tx3); }
+#pane-flow .wb-a2 .wb-chat-block p { margin: 0; font-size: 12.5px; line-height: 1.6; color: var(--tx2); }
+#pane-flow .wb-a2 .wb-chat-block details { font-size: 11px; color: var(--tx3); }
+#pane-flow .wb-a2 .wb-chat-block summary { cursor: pointer; }
+#pane-flow .wb-a2 .wb-chat-event { font-size: 11px; color: var(--tx3); }
+#pane-flow .wb-a2 .wb-chat-task { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--tx2); }
+#pane-flow .wb-a2 .wb-chat-task .animate-spin { color: var(--acc); }
+/* 上下文构成卡：左栏只有 300 多像素，卡片要按栏宽收窄并压小字号，
+   否则 320px 的固定宽度会顶出面板、被 .fw-panel 的 overflow:hidden 截掉。 */
+#pane-flow .wb-a2 .wb-ctxmeter { max-width: 100%; margin: 10px 0 2px; }
+#pane-flow .wb-a2 .wb-ctxmeter .ctx-num { font-size: 12px; line-height: 15px; }
+#pane-flow .wb-a2 .wb-ctxmeter .ctx-of { font-size: 10px; }
+#pane-flow .wb-a2 .wb-ctxmeter .ctx-chips { gap: 4px; }
+#pane-flow .wb-a2 .wb-ctxmeter .ctx-chip { font-size: 10px; padding: 0 3px; gap: 3px; }
+
+/* ── 侧栏「本轮过程」折叠摘要 ──────────────────────────────────
+   侧栏只有 300 多像素，不能照搬对话区那套完整任务列表：
+   一行摘要 + 展开看每步。默认收起。
+   状态一律用文字（执行了 N 步 / 正在执行 / N 步失败），不靠颜色判断。 */
+#pane-flow .wb-a2 .wb-process { margin: 2px 0 6px; }
+#pane-flow .wb-a2 .wb-process-head {
+  display: flex; align-items: center; gap: 6px; width: 100%;
+  padding: 3px 6px; border-radius: 6px; border: 1px solid var(--line);
+  background: var(--hole); color: var(--tx3);
+  font-size: 10.5px; text-align: left; cursor: pointer;
+  transition: border-color .14s ease, color .14s ease;
+}
+#pane-flow .wb-a2 .wb-process-head:hover { border-color: var(--line2); color: var(--tx2); }
+#pane-flow .wb-a2 .wb-process-head:focus-visible { outline: 2px solid var(--acc); outline-offset: 1px; }
+#pane-flow .wb-a2 .wb-process-state { color: var(--tx2); flex: none; }
+#pane-flow .wb-a2 .wb-process[data-running] .wb-process-state { color: var(--acc); }
+#pane-flow .wb-a2 .wb-process-detail { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#pane-flow .wb-a2 .wb-process-failed { display: inline-flex; align-items: center; gap: 3px; color: var(--danger); flex: none; }
+#pane-flow .wb-a2 .wb-process-caret { flex: none; transition: transform .16s ease; }
+#pane-flow .wb-a2 .wb-process-caret.is-open { transform: rotate(180deg); }
+#pane-flow .wb-a2 .wb-process-steps { margin: 4px 0 0; padding: 0 0 0 2px; list-style: none; display: flex; flex-direction: column; gap: 2px; }
+#pane-flow .wb-a2 .wb-process-steps li {
+  display: flex; align-items: baseline; gap: 5px;
+  font-size: 10.5px; color: var(--tx3); padding: 1px 4px;
+  border-left: 1px solid var(--line);
+}
+#pane-flow .wb-a2 .wb-process-steps li[data-error] { border-left-color: var(--danger); }
+#pane-flow .wb-a2 .wb-process-tool { color: var(--tx2); flex: none; }
+#pane-flow .wb-a2 .wb-process-args { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; opacity: .8; }
+#pane-flow .wb-a2 .wb-process-step-state { flex: none; opacity: .75; }
+#pane-flow .wb-a2 .wb-process-steps li[data-error] .wb-process-step-state { color: var(--danger); opacity: 1; }
+
+#pane-flow .wb-a2 .fw-compose { padding: 4px 12px 6px; border-top: 1px solid var(--line); }
+/* 输入框换成对话界面同一个官方组件（LeiBoxComposer）后，这一栏只有 300 多像素：
+   官方输入框自带 600px 画布的残留高度与较宽的内边距都在 Shadow DOM 里，
+   外面只能用宿主容器兜住宽度，避免横向溢出把整列顶出滚动条。 */
+#pane-flow .wb-a2 .fw-compose .lbx-host { width: 100%; max-width: 100%; }
+#pane-flow .wb-a2 .fw-compose .lbx-host:empty { min-height: 60px; border-radius: 24px; }
+/* 排队/说明行：原来挂在 ChatComposer 的 statusLeft 上，官方组件没有这一格，
+   换成输入框下方一行 11px 的次级文字。 */
+#pane-flow .wb-a2 .fw-compose-note { margin-top: 6px; font-size: 11px; color: var(--tx3); }
+#pane-flow .wb-a2 .fw-sheet {
+  padding: 8px 10px 8px;
+  border: 1px solid var(--line); border-radius: var(--r-card);
+  background: var(--panel2); box-shadow: none;
+}
+#pane-flow .wb-a2 .fw-sheet:focus-within { border-color: var(--line2); }
+#pane-flow .wb-a2 .fw-sheet .wb-input {
+  min-height: 54px; padding: 0; border: 0; border-radius: 0;
+  background: transparent; color: var(--tx); font-size: 13px;
+}
+#pane-flow .wb-a2 .fw-sheet .wb-input::placeholder { color: var(--tx3); }
+/* 作用范围：输入框上方一行。整行独占，名字不会被按钮挤到换行或截断；
+   真名（整片 / 场景 · 03 S03 / 帧 · 00:12）用次级文字色，前两字更淡。 */
+#pane-flow .wb-a2 .wb-queue-note button { background: none; border: 0; padding: 0; color: var(--acc); cursor: pointer; }
+#pane-flow .wb-a2 .wb-queue-note button:disabled { color: var(--tx3); cursor: default; }
+/* 保留条件摘要：只列已启用的，改约束走次级视图，不在输入框旁铺开关。 */
+#pane-flow .wb-a2 .fw-panel-reopen span { writing-mode: vertical-rl; font-size: 11px; }
+#pane-flow .wb-a2 .fw-panel-reopen-float { display: none; }
+#pane-flow .wb-a2 .fw-sheet .mini-strong {
+  min-height: 28px; padding: 0 12px; border-radius: 999px;
+  background: var(--acc); border-color: var(--acc); color: var(--acc-ink);
+}
+#pane-flow .wb-a2 .fw-sheet .mini-strong:disabled { background: var(--panel2); border-color: var(--line); color: var(--tx3); }
+#pane-flow .wb-a2 .fw-panel .fw-scroll { scrollbar-width: none; }
+
+/* 任务 / 设置 / 产物视图：沿用同一 token 与卡片语言 */
+#pane-flow .wb-a2 .fw-task-card {
+  padding: 10px 11px; border: 1px solid var(--line); border-radius: var(--r-card);
+  background: var(--panel2); color: var(--tx2); font-size: 12px;
+}
+#pane-flow .wb-a2 .fw-task-card b { color: var(--tx); }
+#pane-flow .wb-a2 .fw-tray-empty { font-size: 12px; color: var(--tx3); }
+#pane-flow .wb-a2 .fw-scene-hd { font-size: 10.5px; letter-spacing: .08em; font-weight: 700; color: var(--tx3); }
+#pane-flow .wb-a2 .wb-sep { height: 1px; background: var(--line); }
+#pane-flow .wb-a2 .wb-insp-kv + .wb-insp-kv { margin-top: 0; }
+#pane-flow .wb-a2 .fw-panel .grid > button {
+  border: 1px solid var(--line); border-radius: var(--r-card);
+  background: var(--panel2); color: var(--tx2);
+  font-size: 11px; min-height: 48px;
+}
+#pane-flow .wb-a2 .fw-panel .grid > button:hover { border-color: var(--line2); color: var(--tx); }
+#pane-flow .wb-a2 .fw-artifact-view { background: var(--panel); }
+#pane-flow .wb-a2 .fw-artifact-head h3 { font-size: 22px; color: var(--tx); }
+#pane-flow .wb-a2 .fw-artifact-head p { font-size: 13px; color: var(--tx2); }
+#pane-flow .wb-a2 .fw-artifact-kicker { font-size: 10.5px; letter-spacing: .08em; color: var(--tx3); }
+#pane-flow .wb-a2 .fw-artifact-sheet { background: var(--panel2); border: 1px solid var(--line); border-radius: var(--r-card); font-size: 13px; color: var(--tx); }
+#pane-flow .wb-a2 .fw-artifact-meta { font-size: 11px; color: var(--tx3); }

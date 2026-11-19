@@ -1,0 +1,182 @@
+/* ── P0.2 Remotion 编辑 ─────────────────────────────────────── */
+.fw-stage-edit {
+  padding: 0;
+  background: #05070b;
+}
+.fw-remotion-preview {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+.fw-remotion-preview > div { width: 100%; height: 100%; }
+.fw-edit-hint {
+  position: absolute;
+  left: 18px;
+  top: 16px;
+  z-index: 2;
+  padding: 5px 8px;
+  border: 1px solid color-mix(in srgb, var(--acc) 28%, var(--line));
+  border-radius: 4px;
+  background: rgba(5, 7, 11, .72);
+  color: var(--acc);
+  font-size: 10px;
+  pointer-events: none;
+}
+.fw-edit-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex: 1;
+  min-width: 0;
+  color: var(--dim);
+  font-size: 10.5px;
+}
+.fw-edit-row { display: flex; gap: 9px; align-items: flex-start; }
+.fw-edit-input,
+.fw-edit-color {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--hole);
+  color: var(--fg);
+  font: 11px/1.5 var(--sans);
+  padding: 7px 8px;
+  outline: 0;
+}
+.fw-edit-input:focus { border-color: var(--acc); }
+textarea.fw-edit-input { resize: vertical; }
+.fw-edit-color { height: 32px; padding: 3px; cursor: pointer; }
+.fw-edit-field input[type="range"] { width: 100%; accent-color: var(--acc); }
+
+/* 本地已改镜头 */
+.fm-tag[data-s="modified"] {
+  color: var(--acc);
+  border-color: color-mix(in srgb, var(--acc) 36%, var(--line));
+  background: color-mix(in srgb, var(--acc) 8%, transparent);
+}
+
+/* Agent 引用 chips */
+.fw-ref-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-bottom: 2px;
+}
+.fw-ref-empty { color: var(--ph); font-size: 10px; }
+.fw-ref-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 100%;
+  padding: 3px 5px 3px 7px;
+  border: 1px solid color-mix(in srgb, var(--acc) 30%, var(--line));
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--acc) 8%, transparent);
+  color: var(--dim);
+  font-size: 10px;
+}
+.fw-ref-chip i {
+  font-style: normal;
+  color: var(--acc);
+  font-size: 9px;
+}
+.fw-ref-chip[data-role="context"] {
+  border-color: var(--line);
+  background: var(--hole);
+}
+.fw-ref-chip[data-role="context"] i { color: var(--ph); }
+.fw-ref-chip > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fw-ref-chip > button {
+  border: 0;
+  background: transparent;
+  color: var(--ph);
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+  padding: 0 1px;
+}
+.fw-ref-chip > button:hover { color: var(--bad); }
+
+/* 画面区域引用（region） */
+.fw-region-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 15;
+  cursor: crosshair;
+  background: rgba(5, 7, 11, .18);
+}
+.fw-region-hint {
+  position: absolute;
+  left: 50%;
+  top: 14px;
+  transform: translateX(-50%);
+  padding: 4px 8px;
+  border: 1px solid color-mix(in srgb, var(--acc) 40%, var(--line));
+  border-radius: 4px;
+  background: rgba(5, 7, 11, .8);
+  color: var(--acc);
+  font-size: 10px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.fw-region-box {
+  position: absolute;
+  border: 1px solid var(--acc);
+  background: color-mix(in srgb, var(--acc) 14%, transparent);
+  box-shadow: 0 0 0 9999px rgba(5, 7, 11, .42);
+  pointer-events: none;
+}
+
+/* 预览下方动作条 */
+.fw-actionbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 0 0 38px;
+  padding: 0 16px;
+  background: var(--surf);
+  border-top: 1px solid var(--line);
+}
+.fw-actionbar .iconbtn {
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+}
+.fw-actionbar .iconbtn:hover { color: var(--acc); background: var(--hole); }
+.fw-actionbar .iconbtn[aria-pressed="true"] {
+  color: var(--acc);
+  background: color-mix(in srgb, var(--acc) 12%, transparent);
+}
+.fw-actionbar-sep { width: 1px; height: 16px; background: var(--line); margin: 0 5px; }
+
+/* 引用 manager 的新按钮与媒体适配层 */
+.fw-media-fit { position: relative; width: 100%; height: 100%; min-height: 0; }
+.fw-ref-chip .fw-ref-role {
+  border: 0; padding: 0; background: transparent; cursor: pointer;
+  color: var(--acc); font-size: 9px; font-style: normal;
+}
+.fw-ref-chip .fw-ref-label {
+  border: 0; padding: 0; background: transparent; cursor: pointer;
+  color: var(--dim); font: inherit; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.fw-ref-chip .fw-ref-label:hover { color: var(--fg); }
+.fw-ref-chip .fw-ref-role:hover { color: var(--fg); }
+.fw-ref-clear {
+  border: 0; background: transparent; color: var(--ph); cursor: pointer;
+  font-size: 9px; padding: 3px 4px;
+}
+.fw-ref-clear:hover { color: var(--bad); }
+
+/* Segmented placement */
+.fw-rail-seg { margin-bottom: var(--wb-space-2); flex-shrink: 0; }
+.fw-panel-hd { gap: var(--wb-space-2); }
+.fw-panel-seg { flex: 1; min-width: 0; }
+
+.fw-toolbtn { width: 28px; height: 28px; border-radius: var(--wb-radius-sm); }
+.fw-panel-hd .fw-toolbtn { flex: 0 0 28px; }
