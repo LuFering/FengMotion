@@ -51,10 +51,46 @@ export function SessionGroup({ collapsed, dragId, dropTarget, editText, editing,
         setDropTarget(null)
       }}>
                 {!flat && (
-                  <SessionGroupRow collapsed={collapsed} dropTarget={dropTarget} editText={editText} editing={editing} g={g} isUng={isUng} newSession={newSession} proj={proj} props={props} rowMenu={rowMenu} setArchivingProject={setArchivingProject} setCollapsedGroups={setCollapsedGroups} setDeleteConfirmText={setDeleteConfirmText} setDeletingProject={setDeletingProject} setEditText={setEditText} setEditing={setEditing} setRowMenu={setRowMenu} setViewMenu={setViewMenu} showProjectError={showProjectError} />
+                  <SessionGroupRow
+                    collapsed={collapsed}
+                    dropTarget={dropTarget}
+                    editText={editText}
+                    editing={editing}
+                    g={g}
+                    isUng={isUng}
+                    newSession={newSession}
+                    proj={proj}
+                    props={props}
+                    rowMenu={rowMenu}
+                    setArchivingProject={setArchivingProject}
+                    setCollapsedGroups={setCollapsedGroups}
+                    setDeleteConfirmText={setDeleteConfirmText}
+                    setDeletingProject={setDeletingProject}
+                    setEditText={setEditText}
+                    setEditing={setEditing}
+                    setRowMenu={setRowMenu}
+                    setViewMenu={setViewMenu}
+                    showProjectError={showProjectError}
+                  />
                 )}
                 {!collapsed && (
-                  <SessionGroupBody dragId={dragId} editText={editText} editing={editing} flat={flat} g={g} isUng={isUng} proj={proj} props={props} rowMenu={rowMenu} setDragId={setDragId} setDropTarget={setDropTarget} setEditText={setEditText} setEditing={setEditing} setRowMenu={setRowMenu} setViewMenu={setViewMenu} />
+                  <SessionGroupBody
+                    dragId={dragId}
+                    editText={editText}
+                    editing={editing}
+                    flat={flat}
+                    g={g}
+                    isUng={isUng}
+                    proj={proj}
+                    props={props}
+                    rowMenu={rowMenu}
+                    setDragId={setDragId}
+                    setDropTarget={setDropTarget}
+                    setEditText={setEditText}
+                    setEditing={setEditing}
+                    setRowMenu={setRowMenu}
+                    setViewMenu={setViewMenu}
+                  />
                 )}
     </div>
   )

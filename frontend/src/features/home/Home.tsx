@@ -426,7 +426,49 @@ export function Home(props: {
                 </div>}
               </div>
             </div>
-            <HomeComposer addFiles={addFiles} attachments={attachments} currentPrefs={currentPrefs} currentWorkdir={currentWorkdir} dirInputRef={dirInputRef} draft={draft} dragging={dragging} effectiveModel={effectiveModel} fileRef={fileRef} harness={harness} harnessId={harnessId} harnessPane={harnessPane} harnessState={harnessState} harnessStateOf={harnessStateOf} imageRef={imageRef} menu={menu} modelsOfHarness={modelsOfHarness} notReady={notReady} phrase={phrase} phraseChunks={phraseChunks} probe={probe} readyCount={readyCount} removeAttachment={removeAttachment} selectWorkdir={selectWorkdir} send={send} setDraft={setDraft} setDragging={setDragging} setHarnessId={setHarnessId} setHarnessPane={setHarnessPane} setMenu={setMenu} setModel={setModel} setPref={setPref} setWorkdirPath={setWorkdirPath} startError={startError} startIntent={startIntent} starting={starting} taRef={taRef} toast={toast} videoRef={videoRef} workdirPath={workdirPath} workdirs={workdirs} />
+            <HomeComposer
+              addFiles={addFiles}
+              attachments={attachments}
+              currentPrefs={currentPrefs}
+              currentWorkdir={currentWorkdir}
+              dirInputRef={dirInputRef}
+              draft={draft}
+              dragging={dragging}
+              effectiveModel={effectiveModel}
+              fileRef={fileRef}
+              harness={harness}
+              harnessId={harnessId}
+              harnessPane={harnessPane}
+              harnessState={harnessState}
+              harnessStateOf={harnessStateOf}
+              imageRef={imageRef}
+              menu={menu}
+              modelsOfHarness={modelsOfHarness}
+              notReady={notReady}
+              phrase={phrase}
+              phraseChunks={phraseChunks}
+              probe={probe}
+              readyCount={readyCount}
+              removeAttachment={removeAttachment}
+              selectWorkdir={selectWorkdir}
+              send={send}
+              setDraft={setDraft}
+              setDragging={setDragging}
+              setHarnessId={setHarnessId}
+              setHarnessPane={setHarnessPane}
+              setMenu={setMenu}
+              setModel={setModel}
+              setPref={setPref}
+              setWorkdirPath={setWorkdirPath}
+              startError={startError}
+              startIntent={startIntent}
+              starting={starting}
+              taRef={taRef}
+              toast={toast}
+              videoRef={videoRef}
+              workdirPath={workdirPath}
+              workdirs={workdirs}
+            />
           </div>
         </div>
 

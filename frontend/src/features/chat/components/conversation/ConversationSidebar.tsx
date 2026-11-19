@@ -159,7 +159,31 @@ export function ConversationSidebar({ archiveFilter, collapsedGroups, createProj
             ? true
             : (collapsedGroups.has(`__open:${g.key}`) ? false : !isCurrentGroup && g.sessions.length > 0)
           return (
-            <SessionGroup key={g.key} collapsed={collapsed} dragId={dragId} dropTarget={dropTarget} editText={editText} editing={editing} flat={flat} g={g} isUng={isUng} newSession={newSession} proj={proj} props={props} rowMenu={rowMenu} setArchivingProject={setArchivingProject} setCollapsedGroups={setCollapsedGroups} setDeleteConfirmText={setDeleteConfirmText} setDeletingProject={setDeletingProject} setDragId={setDragId} setDropTarget={setDropTarget} setEditText={setEditText} setEditing={setEditing} setRowMenu={setRowMenu} setViewMenu={setViewMenu} showProjectError={showProjectError} />
+            <SessionGroup key={g.key}
+              collapsed={collapsed}
+              dragId={dragId}
+              dropTarget={dropTarget}
+              editText={editText}
+              editing={editing}
+              flat={flat}
+              g={g}
+              isUng={isUng}
+              newSession={newSession}
+              proj={proj}
+              props={props}
+              rowMenu={rowMenu}
+              setArchivingProject={setArchivingProject}
+              setCollapsedGroups={setCollapsedGroups}
+              setDeleteConfirmText={setDeleteConfirmText}
+              setDeletingProject={setDeletingProject}
+              setDragId={setDragId}
+              setDropTarget={setDropTarget}
+              setEditText={setEditText}
+              setEditing={setEditing}
+              setRowMenu={setRowMenu}
+              setViewMenu={setViewMenu}
+              showProjectError={showProjectError}
+            />
           )
         })}
       </div>

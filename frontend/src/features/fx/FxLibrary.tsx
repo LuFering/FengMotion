@@ -512,9 +512,66 @@ export function FxLibrary() {
         </div>
 
         {/* 去 AI 味：整行图例删除——组件不再解释自己；能力与复杂度直接写进卡片元信息行 */}
-        <FxMetaBar SCOPES={SCOPES} activeCount={activeCount} cat={cat} clearFilters={clearFilters} counts={counts} exec={exec} filtersOpen={filtersOpen} impl={impl} inputKind={inputKind} maxComplexity={maxComplexity} previewKind={previewKind} query={query} scope={scope} searchRef={searchRef} searched={searched} semanticNote={semanticNote} setCat={setCat} setExec={setExec} setFiltersOpen={setFiltersOpen} setImpl={setImpl} setInputKind={setInputKind} setMaxComplexity={setMaxComplexity} setPreviewKind={setPreviewKind} setQuery={setQuery} setScope={setScope} setSort={setSort} setSourceFilter={setSourceFilter} sort={sort} sourceFilter={sourceFilter} sources={sources} visible={visible} />
+        <FxMetaBar
+          SCOPES={SCOPES}
+          activeCount={activeCount}
+          cat={cat}
+          clearFilters={clearFilters}
+          counts={counts}
+          exec={exec}
+          filtersOpen={filtersOpen}
+          impl={impl}
+          inputKind={inputKind}
+          maxComplexity={maxComplexity}
+          previewKind={previewKind}
+          query={query}
+          scope={scope}
+          searchRef={searchRef}
+          searched={searched}
+          semanticNote={semanticNote}
+          setCat={setCat}
+          setExec={setExec}
+          setFiltersOpen={setFiltersOpen}
+          setImpl={setImpl}
+          setInputKind={setInputKind}
+          setMaxComplexity={setMaxComplexity}
+          setPreviewKind={setPreviewKind}
+          setQuery={setQuery}
+          setScope={setScope}
+          setSort={setSort}
+          setSourceFilter={setSourceFilter}
+          sort={sort}
+          sourceFilter={sourceFilter}
+          sources={sources}
+          visible={visible}
+        />
 
-        <FxContent activeCount={activeCount} addFxToPending={addFxToPending} catalogError={catalogError} catalogLoading={catalogLoading} drawerOpen={drawerOpen} focusedPreviewId={focusedPreviewId} fxInPending={fxInPending} hoveredPreviewId={hoveredPreviewId} lib={lib} openDrawer={openDrawer} originalPosters={originalPosters} pick={pick} query={query} resetAll={resetAll} scope={scope} setFocusedPreviewId={setFocusedPreviewId} setHoveredPreviewId={setHoveredPreviewId} setScope={setScope} sorted={sorted} stashFxCard={stashFxCard} toggleFavorite={toggleFavorite} uniformExec={uniformExec} visible={visible} workflowFor={workflowFor} />
+        <FxContent
+          activeCount={activeCount}
+          addFxToPending={addFxToPending}
+          catalogError={catalogError}
+          catalogLoading={catalogLoading}
+          drawerOpen={drawerOpen}
+          focusedPreviewId={focusedPreviewId}
+          fxInPending={fxInPending}
+          hoveredPreviewId={hoveredPreviewId}
+          lib={lib}
+          openDrawer={openDrawer}
+          originalPosters={originalPosters}
+          pick={pick}
+          query={query}
+          resetAll={resetAll}
+          scope={scope}
+          setFocusedPreviewId={setFocusedPreviewId}
+          setHoveredPreviewId={setHoveredPreviewId}
+          setScope={setScope}
+          sorted={sorted}
+          stashFxCard={stashFxCard}
+          toggleFavorite={toggleFavorite}
+          uniformExec={uniformExec}
+          visible={visible}
+          workflowFor={workflowFor}
+        />
 
         {pick.active && (
           <PickBar
@@ -535,7 +592,21 @@ export function FxLibrary() {
           用项目统一的 Dialog（radix）而不是自绘抽屉：遮罩、焦点陷阱、
           Esc 关闭、滚动锁定都由组件负责，样式与「导入来源」等弹窗一致。 */}
       <Dialog open={drawerOpen && !!current} onOpenChange={(o) => { if (!o) closeDrawer() }}>
-        <FxDetailDialog closeDrawer={closeDrawer} closeRef={closeRef} copied={copied} copyRecipe={copyRecipe} current={current} lib={lib} modalRef={modalRef} openDrawer={openDrawer} playing={playing} setPlayingId={setPlayingId} setWorkflowFor={setWorkflowFor} techniques={techniques} toggleFavorite={toggleFavorite} />
+        <FxDetailDialog
+          closeDrawer={closeDrawer}
+          closeRef={closeRef}
+          copied={copied}
+          copyRecipe={copyRecipe}
+          current={current}
+          lib={lib}
+          modalRef={modalRef}
+          openDrawer={openDrawer}
+          playing={playing}
+          setPlayingId={setPlayingId}
+          setWorkflowFor={setWorkflowFor}
+          techniques={techniques}
+          toggleFavorite={toggleFavorite}
+        />
       </Dialog>
 
       {/* ── 用于工作流：目标选择（调用链未接入，只记意向） ── */}

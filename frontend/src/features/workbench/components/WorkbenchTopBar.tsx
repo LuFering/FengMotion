@@ -191,7 +191,22 @@ export function WorkbenchTopBar({
       <div className="wb-topbar-row wb-topbar-row-primary">
         <div className="wb-topbar-group wb-topbar-left">
           {/* 版本选择器：保留文字与微箭头，不透明弹出层 */}
-          <TopBarVersionMenu availableVisuals={availableVisuals} currentVersionLabel={currentVersionLabel} deliverableLead={deliverableLead} hasVersion={hasVersion} isHistorical={isHistorical} isOlderThanKnown={isOlderThanKnown} onOpenVersionHistory={onOpenVersionHistory} onSelectVisual={onSelectVisual} projectVersionAuthoritative={projectVersionAuthoritative} projectVersionNumber={projectVersionNumber} projectVersionVisual={projectVersionVisual} setVersionMenuOpen={setVersionMenuOpen} versionMenuOpen={versionMenuOpen} viewedPreview={viewedPreview} />
+          <TopBarVersionMenu
+            availableVisuals={availableVisuals}
+            currentVersionLabel={currentVersionLabel}
+            deliverableLead={deliverableLead}
+            hasVersion={hasVersion}
+            isHistorical={isHistorical}
+            isOlderThanKnown={isOlderThanKnown}
+            onOpenVersionHistory={onOpenVersionHistory}
+            onSelectVisual={onSelectVisual}
+            projectVersionAuthoritative={projectVersionAuthoritative}
+            projectVersionNumber={projectVersionNumber}
+            projectVersionVisual={projectVersionVisual}
+            setVersionMenuOpen={setVersionMenuOpen}
+            versionMenuOpen={versionMenuOpen}
+            viewedPreview={viewedPreview}
+          />
 
           {/* 版本对比：Vidstack 官方 32×32 规制分屏图标 */}
           <TopBarIconButton
@@ -252,12 +267,39 @@ export function WorkbenchTopBar({
         ) : (
           /* 普通监看模式：左侧主工具 ＋ 右侧项目信息与更多操作 */
           <>
-            <TopBarTools aiModifyTargetCapability={aiModifyTargetCapability} guidesMenuOpen={guidesMenuOpen} isAnyMenuOpen={isAnyMenuOpen} isGuidesActive={isGuidesActive} onReferenceFrame={onReferenceFrame} onSaveFrame={onSaveFrame} onToggleOverlayGuide={onToggleOverlayGuide} onTogglePanel={onTogglePanel} onToggleRegion={onToggleRegion} overlayGuides={overlayGuides} panelOpen={panelOpen} previewReady={previewReady} regionMode={regionMode} setGuidesMenuOpen={setGuidesMenuOpen} />
+            <TopBarTools
+              aiModifyTargetCapability={aiModifyTargetCapability}
+              guidesMenuOpen={guidesMenuOpen}
+              isAnyMenuOpen={isAnyMenuOpen}
+              isGuidesActive={isGuidesActive}
+              onReferenceFrame={onReferenceFrame}
+              onSaveFrame={onSaveFrame}
+              onToggleOverlayGuide={onToggleOverlayGuide}
+              onTogglePanel={onTogglePanel}
+              onToggleRegion={onToggleRegion}
+              overlayGuides={overlayGuides}
+              panelOpen={panelOpen}
+              previewReady={previewReady}
+              regionMode={regionMode}
+              setGuidesMenuOpen={setGuidesMenuOpen}
+            />
 
             {/* 第二行右侧：项目信息与设置、更多操作 */}
             <div className="wb-topbar-group wb-topbar-right">
               {/* 项目信息与设置：Vidstack info 图标 */}
-              <TopBarInfoMenu currentTime={currentTime} currentVersionLabel={currentVersionLabel} infoMenuOpen={infoMenuOpen} isAnyMenuOpen={isAnyMenuOpen} naturalHeight={naturalHeight} naturalWidth={naturalWidth} onOpenBrief={onOpenBrief} projectDuration={projectDuration} projectName={projectName} setInfoMenuOpen={setInfoMenuOpen} timelineFps={timelineFps} />
+              <TopBarInfoMenu
+                currentTime={currentTime}
+                currentVersionLabel={currentVersionLabel}
+                infoMenuOpen={infoMenuOpen}
+                isAnyMenuOpen={isAnyMenuOpen}
+                naturalHeight={naturalHeight}
+                naturalWidth={naturalWidth}
+                onOpenBrief={onOpenBrief}
+                projectDuration={projectDuration}
+                projectName={projectName}
+                setInfoMenuOpen={setInfoMenuOpen}
+                timelineFps={timelineFps}
+              />
 
               {/* 更多操作：Vidstack menu-horizontal 图标 */}
               <DropdownMenu open={moreMenuOpen} onOpenChange={setMoreMenuOpen}>

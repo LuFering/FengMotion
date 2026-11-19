@@ -715,7 +715,42 @@ export function Conversation(props: ConversationProps) {
 
       {/* 收起时整块不渲染：不留 56px 竖条（那是 dsh 的「图标轨」，本产品收起后
           左栏里没有任何还需要常驻的图标，留一条空轨道只是视觉噪音）。 */}
-      {!rail && <ConversationSidebar archiveFilter={archiveFilter} collapsedGroups={collapsedGroups} createProjectInline={createProjectInline} dragId={dragId} drawer={drawer} dropTarget={dropTarget} editText={editText} editing={editing} groupMode={groupMode} grouped={grouped} newSession={newSession} noMatches={noMatches} orderMode={orderMode} projectError={projectError} projectPending={projectPending} props={props} query={query} rowMenu={rowMenu} setArchiveFilter={setArchiveFilter} setArchivingProject={setArchivingProject} setCollapsedGroups={setCollapsedGroups} setDeleteConfirmText={setDeleteConfirmText} setDeletingProject={setDeletingProject} setDragId={setDragId} setDropTarget={setDropTarget} setEditText={setEditText} setEditing={setEditing} setGroupMode={setGroupMode} setOrderMode={setOrderMode} setQuery={setQuery} setRowMenu={setRowMenu} setViewMenu={setViewMenu} showProjectError={showProjectError} viewMenu={viewMenu} />}
+      {!rail && <ConversationSidebar
+          archiveFilter={archiveFilter}
+          collapsedGroups={collapsedGroups}
+          createProjectInline={createProjectInline}
+          dragId={dragId}
+          drawer={drawer}
+          dropTarget={dropTarget}
+          editText={editText}
+          editing={editing}
+          groupMode={groupMode}
+          grouped={grouped}
+          newSession={newSession}
+          noMatches={noMatches}
+          orderMode={orderMode}
+          projectError={projectError}
+          projectPending={projectPending}
+          props={props}
+          query={query}
+          rowMenu={rowMenu}
+          setArchiveFilter={setArchiveFilter}
+          setArchivingProject={setArchivingProject}
+          setCollapsedGroups={setCollapsedGroups}
+          setDeleteConfirmText={setDeleteConfirmText}
+          setDeletingProject={setDeletingProject}
+          setDragId={setDragId}
+          setDropTarget={setDropTarget}
+          setEditText={setEditText}
+          setEditing={setEditing}
+          setGroupMode={setGroupMode}
+          setOrderMode={setOrderMode}
+          setQuery={setQuery}
+          setRowMenu={setRowMenu}
+          setViewMenu={setViewMenu}
+          showProjectError={showProjectError}
+          viewMenu={viewMenu}
+        />}
 
       {props.overviewOpen && props.projectOverview}
       <div className="cv3-main" style={props.overviewOpen ? { display: 'none' } : undefined}>
@@ -742,7 +777,37 @@ export function Conversation(props: ConversationProps) {
 
         <div className="cv3-scroll" ref={scrollRef} onScroll={onScrollTrack}>
           <div className="cv3-view">
-            <ConversationThread activeIsServer={activeIsServer} activeMessagesLoaded={activeMessagesLoaded} activeThread={activeThread} agentPhase={agentPhase} composerWindow={composerWindow} entryNote={entryNote} getRoundOutcome={getRoundOutcome} messageMeterKinds={messageMeterKinds} messages={messages} pending={pending} pendingStartedAt={pendingStartedAt} projectPending={projectPending} props={props} replyNote={replyNote} replySaveRetry={replySaveRetry} retryLastRound={retryLastRound} retryMessages={retryMessages} retrySaveReply={retrySaveReply} retrySync={retrySync} send={send} sessionDraft={sessionDraft} setEntryNote={setEntryNote} setReplyNote={setReplyNote} showMessageMeter={showMessageMeter} startCreationFromEmpty={startCreationFromEmpty} startServerReply={startServerReply} unfinishedReply={unfinishedReply} usage={usage} userMessages={userMessages} />
+            <ConversationThread
+              activeIsServer={activeIsServer}
+              activeMessagesLoaded={activeMessagesLoaded}
+              activeThread={activeThread}
+              agentPhase={agentPhase}
+              composerWindow={composerWindow}
+              entryNote={entryNote}
+              getRoundOutcome={getRoundOutcome}
+              messageMeterKinds={messageMeterKinds}
+              messages={messages}
+              pending={pending}
+              pendingStartedAt={pendingStartedAt}
+              projectPending={projectPending}
+              props={props}
+              replyNote={replyNote}
+              replySaveRetry={replySaveRetry}
+              retryLastRound={retryLastRound}
+              retryMessages={retryMessages}
+              retrySaveReply={retrySaveReply}
+              retrySync={retrySync}
+              send={send}
+              sessionDraft={sessionDraft}
+              setEntryNote={setEntryNote}
+              setReplyNote={setReplyNote}
+              showMessageMeter={showMessageMeter}
+              startCreationFromEmpty={startCreationFromEmpty}
+              startServerReply={startServerReply}
+              unfinishedReply={unfinishedReply}
+              usage={usage}
+              userMessages={userMessages}
+            />
           </div>
 
           {/* 「回到最新」：翻离底部时才出现（dsh 的 34px 圆钮） */}
@@ -753,7 +818,38 @@ export function Conversation(props: ConversationProps) {
             </button>
           ) : null}
 
-          <ConversationComposerSeat activeIsServer={activeIsServer} activeThread={activeThread} addFiles={addFiles} attachments={attachments} backendModels={backendModels} composerContextUsage={composerContextUsage} composerHarnesses={composerHarnesses} composerMeterPanel={composerMeterPanel} composerPromptTokens={composerPromptTokens} effectiveModel={effectiveModel} fileRef={fileRef} imageRef={imageRef} messages={messages} onPickFiles={onPickFiles} pending={pending} projectPending={projectPending} props={props} selectedHarness={selectedHarness} sendError={sendError} sessionDraft={sessionDraft} setAttachments={setAttachments} setHarnessId={setHarnessId} setModel={setModel} setSendError={setSendError} setThinking={setThinking} stageLeadVersion={stageLeadVersion} stopping={stopping} streamStopRef={streamStopRef} submit={submit} submitting={submitting} />
+          <ConversationComposerSeat
+            activeIsServer={activeIsServer}
+            activeThread={activeThread}
+            addFiles={addFiles}
+            attachments={attachments}
+            backendModels={backendModels}
+            composerContextUsage={composerContextUsage}
+            composerHarnesses={composerHarnesses}
+            composerMeterPanel={composerMeterPanel}
+            composerPromptTokens={composerPromptTokens}
+            effectiveModel={effectiveModel}
+            fileRef={fileRef}
+            imageRef={imageRef}
+            messages={messages}
+            onPickFiles={onPickFiles}
+            pending={pending}
+            projectPending={projectPending}
+            props={props}
+            selectedHarness={selectedHarness}
+            sendError={sendError}
+            sessionDraft={sessionDraft}
+            setAttachments={setAttachments}
+            setHarnessId={setHarnessId}
+            setModel={setModel}
+            setSendError={setSendError}
+            setThinking={setThinking}
+            stageLeadVersion={stageLeadVersion}
+            stopping={stopping}
+            streamStopRef={streamStopRef}
+            submit={submit}
+            submitting={submitting}
+          />
         </div>
       </div>
 

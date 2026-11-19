@@ -373,7 +373,30 @@ export function WorkbenchTimeline({
       }}
     >
       {/* ── 1. 顶栏工具条（高 44px） ── */}
-      <TimelineHead currentTime={currentTime} frameFps={frameFps} limit={limit} looping={looping} markBoundary={markBoundary} maxZoom={maxZoom} onClear={onClear} onClipReference={onClipReference} onToggleLoop={onToggleLoop} opsDisabledReason={opsDisabledReason} picked={picked} pickedTrack={pickedTrack} setPickedId={setPickedId} setStart={setStart} setZoom={setZoom} setZoomTo={setZoomTo} span={span} stepFrame={stepFrame} trackClipCapability={trackClipCapability} tracksVerified={tracksVerified} unavailable={unavailable} zoom={zoom} />
+      <TimelineHead
+        currentTime={currentTime}
+        frameFps={frameFps}
+        limit={limit}
+        looping={looping}
+        markBoundary={markBoundary}
+        maxZoom={maxZoom}
+        onClear={onClear}
+        onClipReference={onClipReference}
+        onToggleLoop={onToggleLoop}
+        opsDisabledReason={opsDisabledReason}
+        picked={picked}
+        pickedTrack={pickedTrack}
+        setPickedId={setPickedId}
+        setStart={setStart}
+        setZoom={setZoom}
+        setZoomTo={setZoomTo}
+        span={span}
+        stepFrame={stepFrame}
+        trackClipCapability={trackClipCapability}
+        tracksVerified={tracksVerified}
+        unavailable={unavailable}
+        zoom={zoom}
+      />
 
       {/* ── 2. 待确认修改浮层（若存在，浮在顶部通知，不挤压内容） ── */}
       {pending && (
@@ -414,7 +437,21 @@ export function WorkbenchTimeline({
         />
 
         {/* 标尺行（高 28px）：左侧“内容 参考 ⓘ”，右侧主次刻度标尺 */}
-        <TimelineRuler currentTime={currentTime} frameFps={frameFps} limit={limit} minorTicks={minorTicks} onSeek={onSeek} pct={pct} playheadVisible={playheadVisible} step={step} ticks={ticks} timeAt={timeAt} tracks={tracks} tracksVerified={tracksVerified} unavailable={unavailable} />
+        <TimelineRuler
+          currentTime={currentTime}
+          frameFps={frameFps}
+          limit={limit}
+          minorTicks={minorTicks}
+          onSeek={onSeek}
+          pct={pct}
+          playheadVisible={playheadVisible}
+          step={step}
+          ticks={ticks}
+          timeAt={timeAt}
+          tracks={tracks}
+          tracksVerified={tracksVerified}
+          unavailable={unavailable}
+        />
 
         {/* 缩略帧带（高 28px）：与标尺及轨道严格同起点、16:9 裁切展示画面，移除独立缩略帧标签 */}
         <div className="wb-tl-grid wb-tl-ruler-film">
@@ -470,7 +507,23 @@ export function WorkbenchTimeline({
         </div>
 
         {/* ── 4. 轨道行容器（多轨时内部纵向滚动） ── */}
-        <TimelineRows collapsedIds={collapsedIds} onSeek={onSeek} pct={pct} pickedId={pickedId} playhead={playhead} setCollapsedIds={setCollapsedIds} setPickedId={setPickedId} span={span} spanEnd={spanEnd} spanStart={spanStart} trackStatus={trackStatus} tracks={tracks} unavailable={unavailable} viewEnd={viewEnd} viewStart={viewStart} />
+        <TimelineRows
+          collapsedIds={collapsedIds}
+          onSeek={onSeek}
+          pct={pct}
+          pickedId={pickedId}
+          playhead={playhead}
+          setCollapsedIds={setCollapsedIds}
+          setPickedId={setPickedId}
+          span={span}
+          spanEnd={spanEnd}
+          spanStart={spanStart}
+          trackStatus={trackStatus}
+          tracks={tracks}
+          unavailable={unavailable}
+          viewEnd={viewEnd}
+          viewStart={viewStart}
+        />
       </div>
 
       {/* ── 5. 底部安静平移导航条（高 14px） ── */}

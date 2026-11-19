@@ -179,7 +179,15 @@ export function SceneMain({ busy, change, changeLayer, checkpoint, current, docu
                   {document.width} × {document.height} · {document.fps} fps
                 </small>
               </div>
-      <SceneTracks changeLayer={changeLayer} checkpoint={checkpoint} document={document} elements={elements} selected={selected} setSelected={setSelected} trackDrag={trackDrag} />
+      <SceneTracks
+        changeLayer={changeLayer}
+        checkpoint={checkpoint}
+        document={document}
+        elements={elements}
+        selected={selected}
+        setSelected={setSelected}
+        trackDrag={trackDrag}
+      />
     </div>
   )
 }

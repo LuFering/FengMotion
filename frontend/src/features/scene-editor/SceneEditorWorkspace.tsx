@@ -341,8 +341,64 @@ export function SceneEditorWorkspace({
       {document ? (
         <>
           <div className="se-body">
-            <SceneConsolePanel abort={abort} add={add} busy={busy} change={change} changeLayer={changeLayer} changePatch={changePatch} consoleHeader={consoleHeader} current={current} document={document} exportMedia={exportMedia} historyMove={historyMove} historySizes={historySizes} jsonDraft={jsonDraft} jsonError={jsonError} jsonOpen={jsonOpen} manifest={manifest} openAssets={openAssets} persist={persist} progress={progress} savedAt={savedAt} selected={selected} selectedElement={selectedElement} selectedLayer={selectedLayer} setJsonDraft={setJsonDraft} setJsonError={setJsonError} setJsonOpen={setJsonOpen} setMessage={setMessage} setSelected={setSelected} setTime={setTime} time={time} />
-            <SceneMain busy={busy} change={change} changeLayer={changeLayer} checkpoint={checkpoint} current={current} document={document} elements={elements} endPlayback={endPlayback} importInput={importInput} load={load} locals={locals} nativeDocs={nativeDocs} onClose={onClose} persist={persist} playing={playing} projectId={projectId} selected={selected} setElements={setElements} setPlaying={setPlaying} setSelected={setSelected} setTime={setTime} sourceDocs={sourceDocs} time={time} trackDrag={trackDrag} />
+            <SceneConsolePanel
+              abort={abort}
+              add={add}
+              busy={busy}
+              change={change}
+              changeLayer={changeLayer}
+              changePatch={changePatch}
+              consoleHeader={consoleHeader}
+              current={current}
+              document={document}
+              exportMedia={exportMedia}
+              historyMove={historyMove}
+              historySizes={historySizes}
+              jsonDraft={jsonDraft}
+              jsonError={jsonError}
+              jsonOpen={jsonOpen}
+              manifest={manifest}
+              openAssets={openAssets}
+              persist={persist}
+              progress={progress}
+              savedAt={savedAt}
+              selected={selected}
+              selectedElement={selectedElement}
+              selectedLayer={selectedLayer}
+              setJsonDraft={setJsonDraft}
+              setJsonError={setJsonError}
+              setJsonOpen={setJsonOpen}
+              setMessage={setMessage}
+              setSelected={setSelected}
+              setTime={setTime}
+              time={time}
+            />
+            <SceneMain
+              busy={busy}
+              change={change}
+              changeLayer={changeLayer}
+              checkpoint={checkpoint}
+              current={current}
+              document={document}
+              elements={elements}
+              endPlayback={endPlayback}
+              importInput={importInput}
+              load={load}
+              locals={locals}
+              nativeDocs={nativeDocs}
+              onClose={onClose}
+              persist={persist}
+              playing={playing}
+              projectId={projectId}
+              selected={selected}
+              setElements={setElements}
+              setPlaying={setPlaying}
+              setSelected={setSelected}
+              setTime={setTime}
+              sourceDocs={sourceDocs}
+              time={time}
+              trackDrag={trackDrag}
+            />
           </div>
           {message && (
             <div className="se-notice" role="status">
@@ -379,7 +435,17 @@ export function SceneEditorWorkspace({
       )}
       {assetPicker && (
         <div className="se-modal-backdrop">
-          <SceneAssetDialog assetSearch={assetSearch} expectedKind={expectedKind} filteredAssets={filteredAssets} input={input} pickAsset={pickAsset} setAssetPicker={setAssetPicker} setAssetSearch={setAssetSearch} setAssets={setAssets} setMessage={setMessage} />
+          <SceneAssetDialog
+            assetSearch={assetSearch}
+            expectedKind={expectedKind}
+            filteredAssets={filteredAssets}
+            input={input}
+            pickAsset={pickAsset}
+            setAssetPicker={setAssetPicker}
+            setAssetSearch={setAssetSearch}
+            setAssets={setAssets}
+            setMessage={setMessage}
+          />
         </div>
       )}
     </section>

@@ -122,7 +122,18 @@ export function ConversationThread({ activeIsServer, activeMessagesLoaded, activ
           }))}
         />
       ) : (
-        <AiMessageBlock key={m.id} activeThread={activeThread} getRoundOutcome={getRoundOutcome} m={m} messages={messages} pending={pending} props={props} replySaveRetry={replySaveRetry} retryLastRound={retryLastRound} retrySaveReply={retrySaveReply} send={send} />
+        <AiMessageBlock key={m.id}
+          activeThread={activeThread}
+          getRoundOutcome={getRoundOutcome}
+          m={m}
+          messages={messages}
+          pending={pending}
+          props={props}
+          replySaveRetry={replySaveRetry}
+          retryLastRound={retryLastRound}
+          retrySaveReply={retrySaveReply}
+          send={send}
+        />
       ))}
 
       <CreationProgress projectId={activeThread?.projectId} sessionId={props.activeSessionId} />

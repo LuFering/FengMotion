@@ -752,13 +752,70 @@ export function RefLibrary() {
         )}
 
         {panelOpen && hasSegment && (
-          <RefAnalysisPanel current={current} endDraft={endDraft} inOutbox={inOutbox} observationDraft={observationDraft} removeSegment={removeSegment} reusable={reusable} saveSegmentEdits={saveSegmentEdits} segment={segment} setEndDraft={setEndDraft} setObservationDraft={setObservationDraft} setStartDraft={setStartDraft} setSuggestionDraft={setSuggestionDraft} startDraft={startDraft} suggestionDraft={suggestionDraft} toggleReference={toggleReference} />
+          <RefAnalysisPanel
+            current={current}
+            endDraft={endDraft}
+            inOutbox={inOutbox}
+            observationDraft={observationDraft}
+            removeSegment={removeSegment}
+            reusable={reusable}
+            saveSegmentEdits={saveSegmentEdits}
+            segment={segment}
+            setEndDraft={setEndDraft}
+            setObservationDraft={setObservationDraft}
+            setStartDraft={setStartDraft}
+            setSuggestionDraft={setSuggestionDraft}
+            startDraft={startDraft}
+            suggestionDraft={suggestionDraft}
+            toggleReference={toggleReference}
+          />
         )}
 
-        <RefDock advanceFilm={advanceFilm} cutSegmentAt={cutSegmentAt} film={film} filmSegments={filmSegments} filmsRef={filmsRef} hasVideo={hasVideo} playableFilms={playableFilms} playing={playing} pos={pos} segment={segment} segments={segments} selectFilm={selectFilm} selectSegment={selectSegment} setPlaying={setPlaying} setPos={setPos} videoRef={videoRef} videos={videos} />
+        <RefDock
+          advanceFilm={advanceFilm}
+          cutSegmentAt={cutSegmentAt}
+          film={film}
+          filmSegments={filmSegments}
+          filmsRef={filmsRef}
+          hasVideo={hasVideo}
+          playableFilms={playableFilms}
+          playing={playing}
+          pos={pos}
+          segment={segment}
+          segments={segments}
+          selectFilm={selectFilm}
+          selectSegment={selectSegment}
+          setPlaying={setPlaying}
+          setPos={setPos}
+          videoRef={videoRef}
+          videos={videos}
+        />
 
         {browseOpen && (
-          <RefBrowseDialog addRefToPending={addRefToPending} browseList={browseList} collId={collId} filmOf={filmOf} filters={filters} pick={pick} query={query} refInPending={refInPending} segment={segment} segments={segments} selectSegment={selectSegment} setBrowseOpen={setBrowseOpen} setCollId={setCollId} setFilters={setFilters} setQuery={setQuery} setSortKey={setSortKey} setTab={setTab} sortKey={sortKey} stashRefCard={stashRefCard} stored={stored} tab={tab} videos={videos} />
+          <RefBrowseDialog
+            addRefToPending={addRefToPending}
+            browseList={browseList}
+            collId={collId}
+            filmOf={filmOf}
+            filters={filters}
+            pick={pick}
+            query={query}
+            refInPending={refInPending}
+            segment={segment}
+            segments={segments}
+            selectSegment={selectSegment}
+            setBrowseOpen={setBrowseOpen}
+            setCollId={setCollId}
+            setFilters={setFilters}
+            setQuery={setQuery}
+            setSortKey={setSortKey}
+            setTab={setTab}
+            sortKey={sortKey}
+            stashRefCard={stashRefCard}
+            stored={stored}
+            tab={tab}
+            videos={videos}
+          />
         )}
 
         {pick.active && (

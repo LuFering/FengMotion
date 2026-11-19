@@ -295,12 +295,36 @@ export function SettingsScreen({
 
             {/* ── 外观 ─────────────────────────────────────── */}
             {section === 'appearance' && (
-              <SettingsAppearanceSection onChange={onChange} onPickWallpaper={onPickWallpaper} onThemeChange={onThemeChange} set={set} settings={settings} wallInputRef={wallInputRef} wallPreview={wallPreview} />
+              <SettingsAppearanceSection
+                onChange={onChange}
+                onPickWallpaper={onPickWallpaper}
+                onThemeChange={onThemeChange}
+                set={set}
+                settings={settings}
+                wallInputRef={wallInputRef}
+                wallPreview={wallPreview}
+              />
             )}
 
             {/* ── AI 与模型 ─────────────────────────────────── */}
             {section === 'ai' && (
-              <SettingsAiSection connectedHarnesses={connectedHarnesses} curPrefs={curPrefs} modelsFor={modelsFor} onChange={onChange} pendingHarnesses={pendingHarnesses} pickHarness={pickHarness} pickOpen={pickOpen} probe={probe} set={set} setPickOpen={setPickOpen} setPref={setPref} setShowInstall={setShowInstall} settings={settings} showInstall={showInstall} stateOf={stateOf} />
+              <SettingsAiSection
+                connectedHarnesses={connectedHarnesses}
+                curPrefs={curPrefs}
+                modelsFor={modelsFor}
+                onChange={onChange}
+                pendingHarnesses={pendingHarnesses}
+                pickHarness={pickHarness}
+                pickOpen={pickOpen}
+                probe={probe}
+                set={set}
+                setPickOpen={setPickOpen}
+                setPref={setPref}
+                setShowInstall={setShowInstall}
+                settings={settings}
+                showInstall={showInstall}
+                stateOf={stateOf}
+              />
             )}
 
             {/* 默认值还没有消费方，保留已有数据，界面不把它当作已生效能力。 */}
@@ -321,7 +345,20 @@ export function SettingsScreen({
 
             {/* ── 数据与存储 ────────────────────────────────── */}
             {section === 'data' && (
-              <SettingsDataSection backupInputRef={backupInputRef} confirmWipe={confirmWipe} notice={notice} onChange={onChange} onPickBackup={onPickBackup} onThemeChange={onThemeChange} onWipeLibrary={onWipeLibrary} setConfirmWipe={setConfirmWipe} setNotice={setNotice} setPrefs={setPrefs} settings={settings} stats={stats} />
+              <SettingsDataSection
+                backupInputRef={backupInputRef}
+                confirmWipe={confirmWipe}
+                notice={notice}
+                onChange={onChange}
+                onPickBackup={onPickBackup}
+                onThemeChange={onThemeChange}
+                onWipeLibrary={onWipeLibrary}
+                setConfirmWipe={setConfirmWipe}
+                setNotice={setNotice}
+                setPrefs={setPrefs}
+                settings={settings}
+                stats={stats}
+              />
             )}
 
             {/* ── 关于与反馈 ────────────────────────────────── */}

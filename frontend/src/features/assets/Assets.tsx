@@ -511,7 +511,28 @@ export function Assets({ projectName }: { projectName?: string } = {}) {
 
   return (
     <div className="mya">
-      <AssetsHeader activeLabel={activeLabel} assets={assets} clearFilter={clearFilter} counts={counts} enterPick={enterPick} inputRef={inputRef} node={node} orgOpen={orgOpen} pickMode={pickMode} pop={pop} search={search} setOrgOpen={setOrgOpen} setPop={setPop} setSearch={setSearch} setSortKey={setSortKey} setTypeFilter={setTypeFilter} setViewMode={setViewMode} sortKey={sortKey} typeFilter={typeFilter} viewMode={viewMode} />
+      <AssetsHeader
+        activeLabel={activeLabel}
+        assets={assets}
+        clearFilter={clearFilter}
+        counts={counts}
+        enterPick={enterPick}
+        inputRef={inputRef}
+        node={node}
+        orgOpen={orgOpen}
+        pickMode={pickMode}
+        pop={pop}
+        search={search}
+        setOrgOpen={setOrgOpen}
+        setPop={setPop}
+        setSearch={setSearch}
+        setSortKey={setSortKey}
+        setTypeFilter={setTypeFilter}
+        setViewMode={setViewMode}
+        sortKey={sortKey}
+        typeFilter={typeFilter}
+        viewMode={viewMode}
+      />
       <input ref={inputRef} type="file" multiple hidden onChange={onPick} />
 
       <div className="mya-body">
@@ -598,12 +619,55 @@ export function Assets({ projectName }: { projectName?: string } = {}) {
           )}
           {pop && <div className="mya-popshade" onClick={() => setPop(null)} />}
 
-          <AssetCanvas addToPending={addToPending} assets={assets} clearFilter={clearFilter} detailId={detailId} hoveredVideo={hoveredVideo} inputRef={inputRef} legacyPending={legacyPending} loadError={loadError} loading={loading} migrating={migrating} migration={migration} migrationDone={migrationDone} node={node} onGridKeys={onGridKeys} openDetail={openDetail} pending={pending} pickMode={pickMode} runMigration={runMigration} selected={selected} setHoveredVideo={setHoveredVideo} setLoadVersion={setLoadVersion} sortKey={sortKey} thumbs={thumbs} toggleFav={toggleFav} toggleSelect={toggleSelect} typeFilter={typeFilter} viewMode={viewMode} visible={visible} />
+          <AssetCanvas
+            addToPending={addToPending}
+            assets={assets}
+            clearFilter={clearFilter}
+            detailId={detailId}
+            hoveredVideo={hoveredVideo}
+            inputRef={inputRef}
+            legacyPending={legacyPending}
+            loadError={loadError}
+            loading={loading}
+            migrating={migrating}
+            migration={migration}
+            migrationDone={migrationDone}
+            node={node}
+            onGridKeys={onGridKeys}
+            openDetail={openDetail}
+            pending={pending}
+            pickMode={pickMode}
+            runMigration={runMigration}
+            selected={selected}
+            setHoveredVideo={setHoveredVideo}
+            setLoadVersion={setLoadVersion}
+            sortKey={sortKey}
+            thumbs={thumbs}
+            toggleFav={toggleFav}
+            toggleSelect={toggleSelect}
+            typeFilter={typeFilter}
+            viewMode={viewMode}
+            visible={visible}
+          />
 
         </div>
 
         {detail && (
-          <AssetInspector addToPending={addToPending} applyPatch={applyPatch} copyPath={copyPath} detail={detail} doDelete={doDelete} pending={pending} setDetailId={setDetailId} setRenameText={setRenameText} setRenaming={setRenaming} setTagText={setTagText} tagText={tagText} thumbs={thumbs} toggleFav={toggleFav} />
+          <AssetInspector
+            addToPending={addToPending}
+            applyPatch={applyPatch}
+            copyPath={copyPath}
+            detail={detail}
+            doDelete={doDelete}
+            pending={pending}
+            setDetailId={setDetailId}
+            setRenameText={setRenameText}
+            setRenaming={setRenaming}
+            setTagText={setTagText}
+            tagText={tagText}
+            thumbs={thumbs}
+            toggleFav={toggleFav}
+          />
         )}
       </div>
 
