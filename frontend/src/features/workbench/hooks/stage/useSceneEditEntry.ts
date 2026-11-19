@@ -6,7 +6,7 @@ import { readDocuments } from '@/features/scene-editor/services/sceneEditorServi
 import { readEditorRenders } from '@/features/scene-editor/services/sceneRender'
 import { FILM_FPS } from '@/demo/timeline'
 import { useEffect } from 'react'
-import { useTimelineManifest } from '@/features/workbench/hooks/target/useTimelineManifest'
+import { useTimelineManifest } from '@/features/workbench/hooks/modify-target/useTimelineManifest'
 import { useVisualSelection } from '@/features/workbench/hooks/stage/useVisualSelection'
 import type { WorkbenchProps } from '@/features/workbench/Workbench'
 import type { StageVisual } from '@/features/workbench/model/stageVisual'

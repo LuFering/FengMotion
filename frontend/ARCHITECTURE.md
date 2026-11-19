@@ -32,7 +32,7 @@ FengMotion Desktop 是 AI 视频创作工作台（桌面优先）。当前形态
 |---|---|
 | `main.tsx`、`index.css` | 入口与全局样式（**token 的唯一事实来源是 `src/index.css`**） |
 | `app/` | 入口组装（`App.tsx`）与应用壳：侧栏导航、资源库抽屉 |
-| `features/<模块>/` | 业务模块：`chat` 对话、`workbench` 工作台、`scene-editor` 场景编辑器、`workflow` 工作流、`assets` 素材、`fx` 特效库、`reference` 参考片库、`project` 项目、`creation` 创作任务、`home` 首页、`settings` 设置、`harness` 引擎。模块根目录放页面组件，内部按 `components/`、`hooks/`、`model/`（纯逻辑与类型）、`services/`、`styles/` 分。子目录按职责命名，不按「从哪个页面拆出来」命名（例如工作台 hooks 分 `session/`、`submit/`、`stage/`、`target/`、`review/`）；不是 hook 的普通函数放 `services/` 或 `model/`，样式统一放 `styles/` |
+| `features/<模块>/` | 业务模块：`chat` 对话、`workbench` 工作台、`scene-editor` 场景编辑器、`workflow` 工作流、`assets` 素材、`fx` 特效库、`reference` 参考片库、`project` 项目、`creation` 创作任务、`home` 首页、`settings` 设置、`harness` 引擎。模块根目录放页面组件，内部按 `components/`、`hooks/`、`model/`（纯逻辑与类型）、`services/`、`styles/` 分。子目录按职责命名，不按「从哪个页面拆出来」命名（例如工作台 hooks 分 `session/`、`submit/`、`stage/`、`modify-target/`、`review/`）；不是 hook 的普通函数放 `services/` 或 `model/`，样式统一放 `styles/` |
 | `api/` | 后端接口客户端，一个文件对应后端一个模块；`contracts.ts` 是契约类型的统一入口，内容按领域拆在 `api/types/` |
 | `shared/` | 跨模块复用：`ui/`（shadcn）、`icons/`、`components/`、`navigation/`、`local-documents/`、`pick-mode/`、`lib/`、`vendor/` |
 | `demo/` | 占位演示数据，见 `CLAUDE.md`「动手前必读」第 1 条 |
