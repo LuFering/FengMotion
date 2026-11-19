@@ -1,57 +1,46 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { studioHttpApi } from '@/api'
 import { ResourcePicker } from '@/features/workbench/components/ResourcePicker'
 import '@videojs/react/video/skin.css'
-import { registerComposer } from '@/features/assets/hooks/usePendingAssets'
-import { deliveredReferences, libraryReferences } from '@/features/creation/services/creationResources'
+import { libraryReferences } from '@/features/creation/services/creationResources'
 import { RailProgressPanel } from '@/features/workbench/components/RailProgress'
-import { ACTIVE_SCENES } from '@/demo/projectModel'
 import { type ProjectSummary } from '@/features/project/model/projects'
 import { ACTIVE_DURATION, FILM_FPS } from '@/demo/timeline'
 import { useAgentTasks } from '@/features/creation/hooks/useAgentTasks'
 import type { ProjectSceneState } from '@/api/taskClient'
-import type { AgentReference, ModificationConstraints, TaskEvent } from '@/api/studioApi'
-import { evaluateGate, GATE_PRIMARY_KIND, workflowService, workflowResourceReferences } from '@/features/workflow/services/workflowService'
-import { GATE_DEFS } from '@/features/workflow/model/workflowTemplates'
-import { contentOutline } from '@/features/workbench/model/contentOutline'
+import type { ModificationConstraints, TaskEvent } from '@/api/studioApi'
+import { evaluateGate, GATE_PRIMARY_KIND, workflowService } from '@/features/workflow/services/workflowService'
 import { stageState, type StageVisual } from '@/features/workbench/model/stageVisual'
-import { versionSeriesOf, resolveProjectVersion, findProjectVersionVisual, versionStanding, type ProjectVersionInfo } from '@/features/workbench/model/versionIdentity'
+import { versionStanding } from '@/features/workbench/model/versionIdentity'
 import { formatMediaTime } from '@/features/workbench/model/previewGeometry'
-import { materialShelves } from '@/features/workbench/model/materialDeck'
-import { initLibrary } from '@/features/assets/services/assetApiService'
 import { type MonitorProblem, type MonitorVisualItem } from '@/features/workbench/components/MonitorZones'
 import { VISUAL_KIND_LABEL } from '@/features/workbench/model/monitorVisual'
 import type { ChatState } from '@/features/chat/hooks/useChat'
-import { type SideTab, type RailTab } from '@/features/workbench/model/workbenchConsole'
+import { type SideTab } from '@/features/workbench/model/workbenchConsole'
 import { ProjectRail } from '@/features/workbench/components/ProjectRail'
 import { BottomTray } from '@/features/workbench/components/BottomTray'
 import { ConsoleChrome } from '@/features/workbench/components/ConsoleChrome'
 import { ArtifactView } from '@/features/workbench/components/ArtifactView'
 import { recordRoundOutcome } from '@/features/chat/model/roundOutcomes'
 import { invalidateBackfill } from '@/features/chat/services/roundOutcomeBackfill'
-import { fmtDay, TASK_STATUS_LABEL } from '@/shared/lib/status'
 import { SceneEditorWorkspace } from '@/features/scene-editor/SceneEditorWorkspace'
-import { editorRenderVisuals, readEditorRenders } from '@/features/scene-editor/render'
 import { WorkbenchTopBar } from '@/features/workbench/components/WorkbenchTopBar'
 import type { ViewId } from '@/shared/navigation/views'
 import { WorkflowExecutionLog } from '@/features/workbench/components/WorkbenchReview'
 import { WorkbenchPreviewCompare } from '@/features/workbench/components/WorkbenchPreviewCompare'
 import { BriefDetailWorkspace, type BriefSection } from '@/features/workbench/components/BriefDetailWorkspace'
 import { TaskDetailWorkspace } from '@/features/workbench/components/TaskDetailWorkspace'
-import { useWorkbenchReview } from '@/features/workbench/hooks/useWorkbenchReview'
 import { useSceneVersions } from '@/features/workbench/hooks/useSceneVersions'
 import type { SessionsState } from '@/features/chat/hooks/useSessions'
-import { summarizeRounds } from '@/features/workbench/services/workbenchReviewService'
 import { useStageTimeRange } from '@/features/workbench/components/StageTimeRange'
-import { readDocuments } from '@/features/scene-editor/service'
-import { evaluateDirectEditCapability, resolveDirectEditTarget, documentContentFingerprint, type BackendCapabilityInfo } from '@/features/workbench/services/workbenchCapabilityEvaluator'
+import { type BackendCapabilityInfo } from '@/features/workbench/services/workbenchCapabilityEvaluator'
 import '@/features/workbench/styles/workbench-timeline.css'
 import '@/features/workbench/styles/workbench-review.css'
 import '@/features/workbench/styles/workbench-desk.css'
 import '@/features/workbench/styles/workbench-timerange.css'
 import '@/features/workbench/styles/open-workbench.css'
 
-import { INITIAL_FRAME, scenePreviewOffset, readCorrectionAttempt } from '@/features/workbench/model/workbenchSession'
+import { INITIAL_FRAME, readCorrectionAttempt } from '@/features/workbench/model/workbenchSession'
 import { useWorkbenchExport } from '@/features/workbench/hooks/workbench/useWorkbenchExport'
 import { useWorkbenchSubmit } from '@/features/workbench/hooks/workbench/useWorkbenchSubmit'
 import { useRealModify } from '@/features/workbench/hooks/workbench/useRealModify'
@@ -69,6 +58,12 @@ import { WorkbenchMonitor } from '@/features/workbench/components/stage/Workbenc
 import { WorkbenchConsole } from '@/features/workbench/components/console/WorkbenchConsole'
 import { useDraftText } from '@/features/workbench/hooks/workbench/useDraftText'
 import { useBoundSession } from '@/features/workbench/hooks/workbench/useBoundSession'
+import { useSceneEditEntry } from '@/features/workbench/hooks/workbench/useSceneEditEntry'
+import { useProblemTracking } from '@/features/workbench/hooks/workbench/useProblemTracking'
+import { useStageVisuals } from '@/features/workbench/hooks/workbench/useStageVisuals'
+import { useStageRail } from '@/features/workbench/hooks/workbench/useStageRail'
+import { useReviewContext } from '@/features/workbench/hooks/workbench/useReviewContext'
+import { useWorkflowDecisions } from '@/features/workbench/hooks/workbench/useWorkflowDecisions'
 
 export interface WorkbenchProps {
   chat: ChatState
@@ -212,7 +207,6 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
   const rangeVisual = useRef<string | null>(null)
   /* 问题收起态：只记展开了哪一条，默认全部收起。 */
   const [expandedProblemId, setExpandedProblemId] = useState<string | null>(null)
-  type Decision = { wfId: string; nodeId: string; id: string; title: string; hint: string; detail: string }
   const { updatePendingSubmission, projectRecords, projectTask, workflow, refreshWorkflow, catalog, project, ensureBoundSession, currentSession, split, projectSessions } = useBoundSession({ boundSessionId, onSelectSession, pendingSubmissionRef, projectId, projects, propSessionId, setBoundSessionId, tasks, threads })
 
   // 页面重新打开、刷新或激活时，向服务端核对未决创作任务的真实执行状态
@@ -244,120 +238,8 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
     void verifyPendingTask()
   }, [projectId, boundSessionId])
 
-  const decisions = useMemo(() => {
-    void runsTick
-    if (!projectId) return []
-    const out: Decision[] = []
-    workflowsSnapshot
-      .filter((w) => w.projectId === projectId)
-      .forEach((w) => {
-        w.nodes.forEach((n) => {
-          if (n.type === 'review') {
-            const visual = stageState([w], workflowService.listRuns(w.id)).visuals[0]
-            if (!visual || visual.stale) return
-            const c = (n.params.checks ?? {}) as Record<string, boolean>
-            if ((c.done || c.rework) && n.params.reviewedVisualId === visual.id) return
-            out.push({
-              wfId: w.id, nodeId: n.id, id: `${w.id}:${n.id}`, title: '看片与修改',
-              hint: '对着预览给出结论：通过，或指出要改的地方',
-              detail: '结论会写进工作流的看片节点，后续制作按它执行。',
-            })
-          }
-          if (n.type === 'gate') {
-            if (n.params.rework) return
-            const ev = evaluateGate(w, n)
-            if (ev.decision !== 'pending') return
-            out.push({
-              wfId: w.id, nodeId: n.id, id: `${w.id}:${n.id}`, title: ev.label,
-              hint: ev.blocked.length ? ev.blocked.join('；') : '等待你确认',
-              detail: GATE_DEFS[String(n.params.gate ?? '')]?.question ?? '确认这一层的产物是否成立。',
-            })
-          }
-        })
-      })
-    return out
-  }, [projectId, workflowsSnapshot, runsTick])
-  /* 已确认：与待决定同一快照、同一遍历，只是过滤条件反过来——
-     看片已通过 + Gate 已确认，按 decidedAt 倒序。返工不算定下来，
-     不进这里（它回工作流返工）。 */
-  const confirmed = useMemo(() => {
-    if (!projectId) return []
-    const out: { id: string; title: string; hint: string; decidedAt: string }[] = []
-    workflowsSnapshot
-      .filter((w) => w.projectId === projectId)
-      .forEach((w) => {
-        w.nodes.forEach((n) => {
-          if (n.type === 'review') {
-            const c = (n.params.checks ?? {}) as Record<string, boolean>
-            const visual = stageState([w], workflowService.listRuns(w.id)).visuals[0]
-            if (!c.done || !visual || n.params.reviewedVisualId !== visual.id) return
-            const day = fmtDay(String(n.params.decidedAt ?? ''))
-            out.push({ id: `${w.id}:${n.id}`, title: '看片与修改', hint: `已通过${day ? ` · ${day}` : ''}`, decidedAt: String(n.params.decidedAt ?? '') })
-          }
-          if (n.type === 'gate') {
-            if (n.params.decision !== 'confirmed') return
-            const ev = evaluateGate(w, n)
-            if (ev.stale) return
-            const cf = (n.params.confirmedFor ?? {}) as { kind?: string; version?: string }
-            const day = fmtDay(String(n.params.decidedAt ?? ''))
-            out.push({ id: `${w.id}:${n.id}`, title: ev.label, hint: `已确认${cf.version ? ` · ${cf.version}` : ''}${day ? ` · ${day}` : ''}`, decidedAt: String(n.params.decidedAt ?? '') })
-          }
-        })
-      })
-    out.sort((a, b) => (b.decidedAt || '').localeCompare(a.decidedAt || ''))
-    return out
-  }, [projectId, workflowsSnapshot])
-  /* 监看区的问题清单见下面 monitorProblems：工作流返工 + 场景缺素材（带真实场景与时间）。
-     返工项目在待决定、已确认两边都不出现，review 同时有 done + rework 时以 done 为准。 */
-  /* 当前进度卡跟着「最近更新的那个工作流」走 —— 与上面两份快照同一来源，
-     决定写回后快照刷新，卡片里的「看片有没有留下结论」才能跟着变。 */
-  const progressWorkflow = useMemo(
-    () => workflowsSnapshot.find((w) => w.projectId === projectId) ?? null,
-    [projectId, workflowsSnapshot],
-  )
-  const [references, setReferences] = useState<AgentReference[]>(() => progressWorkflow ? workflowResourceReferences(progressWorkflow) : [])
-  const originalBrief = String(progressWorkflow?.nodes.find((n) => n.type === 'prompt')?.params.text ?? progressWorkflow?.description ?? '')
-  const review = useWorkbenchReview(projectId, originalBrief)
-  /* 每一轮的真实输入差异。演示执行器不写文件，所以这里归纳的是「提交了什么」，
-     不是文件改动清单 —— 变更清单在演示下本就为空，不能编。 */
-  const roundSummaries = useMemo(() => summarizeRounds(review.opinions), [review.opinions])
-  const retryBackendCapability = useCallback(() => setCapabilityProbe((n) => n + 1), [])
-  useEffect(() => {
-    let active = true
-    setBackendCapability({ status: 'checking' })
-    void studioHttpApi().workflowContext.previewImageCapability(projectId)
-      .then((capability) => {
-        if (!active) return
-        /* 画面与时间段需要的接口不同，分开记录，避免一项缺失把另一项也关掉。 */
-        const missingForSpan: string[] = []
-        if (!capability.baseVersionCheck) missingForSpan.push('版本预检校验')
-        if (!capability.atomicCorrection) missingForSpan.push('原子意见保存')
-        if (!capability.correctionRetryId) missingForSpan.push('重试任务标识')
-        const missingForImage = capability.supported ? [...missingForSpan] : ['画面图像接收', ...missingForSpan]
-        setBackendCapability({
-          status: missingForSpan.length > 0 ? 'unsupported' : 'ready',
-          spanSupported: missingForSpan.length === 0,
-          imageSupported: missingForImage.length === 0,
-          missingForSpan,
-          missingForImage,
-        })
-      })
-      .catch((err) => {
-        if (!active) return
-        const msg = err instanceof Error ? err.message : String(err)
-        setBackendCapability({ status: 'connection_error', error: msg })
-      })
-    return () => { active = false }
-  }, [projectId, capabilityProbe])
-  /* 后端恢复后自动重探：只在「连接失败」状态下轮询，避免常态打扰服务。 */
-  useEffect(() => {
-    if (backendCapability.status !== 'connection_error') return
-    const timer = window.setTimeout(() => setCapabilityProbe((n) => n + 1), 15000)
-    return () => window.clearTimeout(timer)
-  }, [backendCapability.status, capabilityProbe])
-
-  const selectedTaskRecord = projectRecords.find((r) => r.task.id === selectedTaskRecordId) ?? projectRecords[0] ?? null
-  const selectedTask = selectedTaskRecord ? (projectTask?.task?.id === selectedTaskRecord.task.id ? projectTask.task : selectedTaskRecord.task) : (projectTask?.task ?? null)
+  const { progressWorkflow, confirmed, decisions } = useWorkflowDecisions({ projectId, runsTick, workflowsSnapshot })
+  const { setReferences, review, references, selectedTaskRecord, selectedTask, retryBackendCapability, roundSummaries } = useReviewContext({ backendCapability, capabilityProbe, progressWorkflow, projectId, projectRecords, projectTask, selectedTaskRecordId, setBackendCapability, setCapabilityProbe })
 
   const openReview = (tab: SideTab) => {
     if (previewMediaRef.current instanceof HTMLVideoElement) previewMediaRef.current.pause()
@@ -397,53 +279,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
     setNotice(verdict === 'done' ? '已确认，记录到工作流。' : '已标记需要修改。')
   }
   // 调试直达：?artifact=artifact-content-contract 直接打开产物只读视图。
-  const initialArtifact = new URLSearchParams(window.location.search).get('artifact')
-  const [railTab, setRailTab] = useState<RailTab>(initialArtifact ? 'artifacts' : 'overview')
-  const [selectedArtifactId, setSelectedArtifactId] = useState<string | null>(initialArtifact)
-  /* 「正在制作」：AI 任务此刻在哪个内容上。只认真的还在跑的状态（排队/执行/构建）——
-     完成、停止、失败都不算在跑，整块随卡片一起不显示，左栏不常驻「暂无任务」。
-     内容名取这次请求的目标引用：内容单元用自己的名字，整片级任务说「整片」，
-     目标是渲染切片时说「当前预览画面」（那是这条片这次怎么渲的，不冒充内容）。 */
-  const liveTask = useMemo(() => {
-    const record = projectTask
-    if (!record || !['queued', 'running', 'building'].includes(record.task.status)) return null
-    const target = record.request?.references?.find((ref) => ref.role === 'target')
-    const label = target?.kind === 'scene' ? target.label
-      : !target || target.kind === 'project' ? '整片'
-      : '当前预览画面'
-    return { label, state: TASK_STATUS_LABEL[record.task.status] ?? record.task.status, taskId: record.task.id }
-  }, [projectTask])
-
-  /* 素材种子：工作台进来先把内置素材写进 IndexedDB，
-     资料页和别处读的是同一份，不各读一张内存表。 */
-  useEffect(() => {
-    void initLibrary().catch(() => undefined)
-  }, [])
-  /* ── 中间区域：这次制作到底做出了什么画面 ──────────────────────
-     依据《产品体验与工作流说明》§5 —— 可能是测试帧、局部试片、粗略整片，
-     也可能暂时没有画面。一律从本次运行产物里读（stageVisual.ts）。
-     这里**不再**拿素材库里的旧成片当预览：那是上一次制作留下的文件，
-     不是这次做出来的东西，放中间会让用户以为 AI 已经交片了。 */
-  const projectWorkflows = useMemo(
-    () => workflowsSnapshot.filter((w) => w.projectId === projectId),
-    [workflowsSnapshot, projectId],
-  )
-  /* 运行记录不是 React 状态：演示执行器把结果写进 localStorage，组件不会自己知道。
-     所以这里显式挂一个「重读」钩子 —— 运行开始和结束各调一次。
-     只依赖 workflowsSnapshot 的话，跑完画面区还停在「这次制作还没开始跑」。 */
-  const rereadRuns = () => setRunsTick((n) => n + 1)
-  const stageLive = Boolean(liveTask) || workflowRunning || sourceCreationBusy || remoteCreationBusy
-  useEffect(() => { let active = true; void editorRenderVisuals(projectId).then(items => { if (active) setEditorPreviews(items) }).catch(() => undefined); return () => { active = false } }, [projectId, editorExportTick])
-  /* 打开工作台就读一次当前场景：让「场景版本 vN」从一开始就可信，
-     而不是等到用户第一次提交后才知道改动会基于哪一版。
-     读失败就保持 null（界面显示不出结论），不编一个版本号出来。 */
-  useEffect(() => {
-    let active = true
-    void tasks.currentScene(projectId).then((probe) => {
-      if (active && probe.scene) setCurrentSceneState(probe.scene)
-    })
-    return () => { active = false }
-  }, [projectId])
+  const { setSelectedArtifactId, rereadRuns, projectWorkflows, stageLive, selectedArtifactId, setRailTab, railTab, liveTask } = useStageRail({ editorExportTick, projectId, projectTask, remoteCreationBusy, setCurrentSceneState, setEditorPreviews, setRunsTick, sourceCreationBusy, tasks, workflowRunning, workflowsSnapshot })
   /* 版本历史面板与审阅面板共用右栏位置。它不进 sideTab：
      那不是对话的子页签，而是一次「查看历史」的临时切换。 */
   /* 场景版本历史。回退成功后要把新的当前场景写回 currentSceneState，
@@ -461,161 +297,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
   /* 场景版本自带的视频：修改/创建任务真正提交过的那条片子。
      它与工作流产物是两条来源，但用户只关心「现在这条片子长什么样」，
      所以并进同一份画面列表；origin 标成 scene，让界面能说清它是哪来的。 */
-  const sceneVisuals = useMemo<StageVisual[]>(() => {
-    return sceneVersions.versions
-      .filter((v) => Boolean(v.artifactPath))
-      .map((v) => ({
-        id: `scene:${v.version}`,
-        origin: 'scene' as const,
-        tier: 'final' as const,
-        tierLabel: v.source === 'restore' ? `回退版本 v${v.version}` : `场景版本 v${v.version}`,
-        name: v.artifactPath!.split('/').pop() ?? v.artifactPath!,
-        media: 'video' as const,
-        /* 场景版本存的是相对项目目录的路径（renders/xxx.mp4），
-           而 <video src> 需要完整 URL。工作流产物的 file 本身就是可播放地址，
-           所以这里必须自己转一次 —— 否则画面区会报「暂时无法播放」。 */
-        file: studioHttpApi().artifacts.contentUrl(projectId, v.artifactPath!),
-        /* 场景版本没有 runId / workflowId，但 StageVisual 要求这两项。
-           用版本号占位而不是编一个工作流 ID —— 界面据此显示的是「场景版本」，不是工作流。 */
-        runId: `scene-${v.version}`,
-        artifactId: `scene-${v.version}`,
-        workflowId: '',
-        revision: v.version,
-        createdAt: v.createdAt,
-        artifactKind: 'scene-version',
-        // 场景版本就是当前提交结果，不是「过期预览」
-        stale: false,
-      }))
-  }, [sceneVersions.versions])
-
-  const stage = useMemo(() => {
-    const base = stageState(projectWorkflows, workflowService.listRuns())
-    /* 场景版本优先排在最前：它是用户最近一次真实提交的结果，
-       比工作流演示产物更该被当作「当前这条片子」。 */
-    const seen = new Set<string>()
-    const visuals = [...sceneVisuals, ...editorPreviews, ...base.visuals]
-      .filter((visual) => seen.has(visual.file) ? false : (seen.add(visual.file), true))
-      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-    const combined = { ...base, visuals }
-    return stageLive ? { ...combined, lastRunStatus: 'running' as const } : combined
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectWorkflows, workflowsSnapshot, runsTick, stageLive, editorPreviews, sceneVisuals])
-  /* 有画面就显示「最靠后的那一档」（整片 > 粗略整片 > 试片 > 测试帧）。 */
-  /* 画面区里「可以直接对比的两版」：同一个场景、都有真实视频文件、
-     而且确实是两个不同版本 —— 只有一版时不给入口，避免点了没东西可比。 */
-  const comparablePair = useMemo<[StageVisual, StageVisual] | null>(() => {
-    const videos = sceneVisuals.filter((visual) => visual.media === 'video' && !!visual.file)
-    if (videos.length < 2) return null
-    /* 以当前正在看的那一版为基准，找另一个版本与它对照。 */
-    const newest = videos[0]
-    const other = videos.find((visual) => visual.id !== newest.id)
-    return other ? [other, newest] : null
-  }, [sceneVisuals])
-  const stageLead: StageVisual | null = stage.visuals[0] ?? null
-  /* 注：原先这里有个 `stageStale`（stageLead.stale），用于时间段/画面修改的
-     前置校验。现在那两处校验改用 projectVersionLead（当前工程版本），
-     过期判断由「服务端场景版本是否一致」承担，不再需要一个独立变量。 */
-  /**
-   * 最新可交付的整片。
-   *
-   * <p>为什么要与 stageLead 分开：visuals 按 createdAt 排序，刚渲染的编辑器试片
-   * 会排在真实整片前面。如果「最新版本」和「导出目标」都跟着 stageLead 走，
-   * 就会出现两种错误：菜单头把试片的导出次数当成项目版本号（写「最新 v2」，
-   * 而场景版本其实到了 v4），导出按钮又因为首项不是 final 档而被禁用 ——
-   * 项目明明有整片，用户却导不出来。</p>
-   *
-   * <p>所以这里单独挑出「最新的、没标过期的整片」：导出只认它，
-   * 「最新 vN」也只报它。没有整片时如实为 null，由界面说明原因。</p>
-   */
-  const deliverableLead = useMemo<StageVisual | null>(() => {
-    const finals = stage.visuals.filter((visual) => visual.tier === 'final' && !visual.stale)
-    if (!finals.length) return null
-    /* visuals 已按 createdAt 由近到远排序，取第一个就是最新整片。 */
-    return finals[0]
-  }, [stage.visuals])
-
-  /**
-   * 当前**工程版本** —— 场景序列里最新的那一条。
-   *
-   * <p>这是「修改要基于哪一版工程」的基准，与下面两个概念必须分开：</p>
-   * <ul>
-   *   <li>{@code stageLead}：画面列表首项，可能是编辑器试片（按创建时间排）。</li>
-   *   <li>{@code deliverableLead}：最新可下载整片，导出只认它。</li>
-   * </ul>
-   *
-   * <p>用 `stageLead` 当工程基准会误拒：场景 v4 才是当前工程版本，
-   * 但列表首项若是刚渲染的试片 v2，`viewedPreview.id !== stageLead.id`
-   * 就成立，用户拿着当前版本却被要求「先切回或恢复到当前版本」。</p>
-   */
-  const projectVersionLead = useMemo<StageVisual | null>(() => {
-    const scenes = stage.visuals.filter((visual) => versionSeriesOf(visual) === 'scene')
-    if (!scenes.length) return null
-    /* 场景序列内取 revision 最大的那条 = 当前工程版本 */
-    return scenes.reduce((best, cur) => (cur.revision > best.revision ? cur : best))
-  }, [stage.visuals])
-
-  /**
-   * 当前工程版本号 —— 即使**没有对应的渲染画面**也要有值。
-   *
-   * <p>为什么要单独一份：`projectVersionLead` 只能从「有 artifactPath 的场景版本」
-   * 里取（画面列表是这么构造的）。如果工程已经改到 v17 但这一版还没渲染出片，
-   * 列表里最大的仍是 v16 —— 此时拿 v16 当基准会把 v16 自己判成「最新」，
-   * 而真实工程版本已经往前走了一格。</p>
-   *
-   * <p>所以优先用后端 `currentSceneState.version`（权威），
-   * 取不到才退回列表里的最大值。两者都没有时保持 null，界面不显示版本结论。</p>
-   */
-  const projectVersion = useMemo<ProjectVersionInfo>(() => {
-    /* 【关键】后端在「项目还没有任何工程版本」时也会返回 version: 0
-       （initialized=false）。0 不是一个版本号 —— 把它当权威工程版本会让界面
-       显示「当前工程版本 v0」，并把真实存在的画面全判成「比 v0 新」。
-       所以只有 initialized 为真时才认这个数字。 */
-    const backendVersion = currentSceneState?.initialized === true
-      ? currentSceneState.version
-      : undefined
-    return resolveProjectVersion(backendVersion, stage.visuals)
-  }, [currentSceneState?.initialized, currentSceneState?.version, stage.visuals])
-  const projectVersionNumber = projectVersion.version
-
-  /**
-   * 「回到当前工程版本」该跳到的那条画面。
-   *
-   * <p>不能跳 `deliverableLead`：它可能是工作流产物（另一条序列），
-   * 也可能在「工程 v17、可下载画面仍是 v16」时把用户带到仍是历史的 v16。
-   * 找不到对应画面时返回 null —— 界面应说明「尚无对应画面」，
-   * 而不是给一个会跳错地方的入口。</p>
-   */
-  const projectVersionVisual = useMemo(
-    () => findProjectVersionVisual(projectVersion, stage.visuals) as StageVisual | null,
-    [projectVersion, stage.visuals],
-  )
-
-  /* 能导出的前提是这次制作真有整片那一档，且不是过期版本。
-     试片、测试帧不能导出：那不是整片，导出来用户会以为拿到成片了。 */
-  const stageDeliverable = Boolean(deliverableLead)
-  /* 资料页那摞素材卡：本项目真实文件按格式堆叠，外加一张「缺失 / 不可用」。
-     工作流引用节点绑定了哪些，卡片上如实标出（不吹成「AI 精选」）。 */
-  const materials = useMemo(
-    () => materialShelves(projectId, progressWorkflow?.nodes.find((n) => n.type === 'refs')?.params.assetIds as string[] ?? []),
-    [projectId, progressWorkflow],
-  )
-
-  /* 内容页的行：整片之外，这部片真实有哪些内容单元。
-     只读工作流运行产物（见 data/contentOutline.ts）。监看区的问题定位也用同一份行。
-     运行记录在快照变化时重读 —— 执行器完成时快照不变，但目前执行器不产出场景结构，行不受影响。 */
-  const outline = useMemo(
-    () => contentOutline(workflowsSnapshot.filter((w) => w.projectId === projectId), workflowService.listRuns()),
-    [workflowsSnapshot, projectId],
-  )
-  useEffect(() => {
-    registerComposer((items) => {
-      referencesEdited.current = true
-      const incoming = deliveredReferences(items)
-      setReferences((old) => [...old.filter((ref) => !incoming.some((next) => next.id === ref.id)), ...incoming])
-      return true
-    })
-    return () => registerComposer(null)
-  }, [])
+  const { outline, projectVersion, stage, stageLead, projectVersionLead, deliverableLead, stageDeliverable, materials, projectVersionNumber, projectVersionVisual, sceneVisuals, comparablePair } = useStageVisuals({ currentSceneState, editorPreviews, progressWorkflow, projectId, projectWorkflows, referencesEdited, runsTick, sceneVersions, setReferences, stageLive, workflowsSnapshot })
   const range = useStageTimeRange(previewDuration)
   frameRef.current = frame
   const initialPanel = new URLSearchParams(window.location.search).get('panel')
@@ -639,61 +321,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
      清单缺失、格式不对或与当前版本对不上，就只显示成片轨 —— 不从源码里猜元素。 */
   const { setSequenceMovePending, directEditCapability, isHistoricalVersion, aiModifyTargetCapability, adjustPendingConfirm, spanModifyCapability, targetEvaluation, timelineFps, timelineManifest, referenceTimeline, trackClipCapability, manifestStatus, sequenceManifest, timelineOpsCapability, sequenceMovePending } = useTimelineManifest({ backendCapability, capturedPreview, documentsTick, previewDuration, previewFailed, previewReady, projectId, projectVersion, realModifyBusy, realRenderBusy, references, remoteCreationBusy, sceneFilmMeta, sessionDraft, viewedPreview, viewedStanding, workflowRunning })
   /* 新版本可能在播放器已经 ready 后才进入视图；不依赖 onReady 事件的触发顺序。 */
-  useEffect(() => {
-    if (!pendingPlayback || !previewReady || viewedPreview?.origin !== 'scene' || viewedPreview.revision !== pendingPlayback.version) return
-    const media = previewMediaRef.current
-    if (!(media instanceof HTMLVideoElement) || !Number.isFinite(media.duration)) return
-    media.currentTime = Math.min(pendingPlayback.start, media.duration)
-    setPreviewTime(media.currentTime)
-    setPendingPlayback(null)
-    setNotice('已定位到新版本的原修改位置，可播放并对比检查。')
-  }, [pendingPlayback, previewReady, viewedPreview?.id, viewedPreview?.origin, viewedPreview?.revision])
-
-  /* 审阅意见定位：等待目标版本的播放器真正就绪后再定位时间、选区与高亮框，彻底杜绝切版竞态与旧播放器赋值 */
-  useEffect(() => {
-    if (!pendingReviewLocate || !previewReady || viewedPreview?.id !== pendingReviewLocate.visualId) return
-    const media = previewMediaRef.current
-    if (media instanceof HTMLVideoElement && Number.isFinite(media.duration)) {
-      if (typeof pendingReviewLocate.timeSeconds === 'number') {
-        const targetTime = Math.min(pendingReviewLocate.timeSeconds, media.duration)
-        media.currentTime = targetTime
-        setPreviewTime(targetTime)
-      }
-    } else if (typeof pendingReviewLocate.timeSeconds === 'number') {
-      setPreviewTime(pendingReviewLocate.timeSeconds)
-    }
-    if (pendingReviewLocate.span) {
-      range.setSpan(pendingReviewLocate.span)
-    }
-    if (pendingReviewLocate.bbox) {
-      setPreviewLocation({ visualId: pendingReviewLocate.visualId, timeSeconds: pendingReviewLocate.timeSeconds, bbox: pendingReviewLocate.bbox })
-    }
-    setNotice(pendingReviewLocate.noticeText)
-    setPendingReviewLocate(null)
-  }, [pendingReviewLocate, previewReady, viewedPreview?.id])
-  useEffect(() => {
-    const identity = viewedPreview ? `${projectId}:${viewedPreview.id}` : null
-    if (rangeVisual.current !== identity) {
-      rangeVisual.current = identity
-      const isTargetPending = pendingReviewLocate && pendingReviewLocate.visualId === viewedPreview?.id
-      if (!isTargetPending) {
-        range.reset()
-        setLoopSpan(false)
-        const staleTarget = references.find((ref) => ref.role === 'target' && ref.kind === 'preview' && ref.source.visualId !== viewedPreview?.id)
-        if (staleTarget) {
-          setReferences((old) => old.filter((ref) => ref.id !== staleTarget.id))
-          capturedPreview.current = null
-          setPreviewLocation(null)
-          sessionDraft.updateDraft({ targetSnapshot: null })
-          setNotice('预览版本已变化，之前的画面或时间引用已移除，请重新选择修改目标。')
-        }
-      }
-      setSequenceMovePending(null)
-      setPreviewDuration(0)
-      setPreviewReady(false)
-    }
-  }, [projectId, viewedPreview?.id, range.reset, pendingReviewLocate])
-  const toggleProblem = (id: string) => setExpandedProblemId((cur) => (cur === id ? null : id))
+  const { toggleProblem } = useProblemTracking({ capturedPreview, pendingPlayback, pendingReviewLocate, previewMediaRef, previewReady, projectId, range, rangeVisual, references, sessionDraft, setExpandedProblemId, setLoopSpan, setNotice, setPendingPlayback, setPendingReviewLocate, setPreviewDuration, setPreviewLocation, setPreviewReady, setPreviewTime, setReferences, setSequenceMovePending, viewedPreview })
   /* 问题定位：设为修改范围 + 在左栏内容页高亮那一行。监看与时间线不动 —— 它们放的是渲染切片，拿它对应真实内容会串。 */
   const locateProblem = (p: MonitorProblem) => {
     if (!p.sceneRef) return
@@ -722,97 +350,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
   }
   void askVisual
 
-  const selectScene = (id: string) => {
-    setSelectedId(id)
-    setSelectedArtifactId(null)
-    setEditMode(false)
-    setReferences([])
-    setRailTab('overview')
-    const clip = ACTIVE_SCENES.find((item) => item.id === id)
-    // 0s 往往是黑场/入点，镜头发车时先落到该场有画面的代表帧。
-    if (clip) {
-      const target = clip.startFrame + scenePreviewOffset(clip.durationFrames)
-      resumeFrameRef.current = target
-      seek(target)
-    }
-    setRailOpen(false)                    // 窄屏选完就收起抽屉
-  }
-  const openEdit = () => {
-    if (!directEditCapability.allowed) {
-      setNotice(directEditCapability.reason || '当前版本不支持直接编辑')
-      return
-    }
-    /* 打开前重新读一遍文档与渲染快照再核对：缓存只是「上次算过」，
-       而用户在编辑器里改过并保存后，画面与文档可能已经不一致了。
-       这里以存储里的当前内容为准，绝不把旧的 versionConfirmed 直接带到打开动作上。 */
-    const freshTarget = resolveDirectEditTarget({
-      preview: viewedPreview
-        ? { origin: viewedPreview.origin, artifactId: viewedPreview.artifactId, runId: viewedPreview.runId }
-        : null,
-      previewSourceHash: sceneFilmMeta?.sourceHash ?? null,
-      docs: readDocuments(projectId).map((doc) => ({
-        id: doc.id,
-        sourceId: doc.source?.id,
-        sourceHash: doc.source?.sourceHash,
-        contentFingerprint: documentContentFingerprint(doc),
-      })),
-      renders: readEditorRenders(projectId).map((item) => ({
-        id: item.id,
-        sceneId: item.sceneId,
-        documentId: item.document?.id,
-        snapshotFingerprint: item.document ? documentContentFingerprint(item.document) : undefined,
-      })),
-    })
-    /* 打开的就是重新核对过的那份文档：判定与打开用同一个来源，
-       不会再出现「判定用 A、打开用 B」。 */
-    if (!freshTarget.docId) {
-      setNotice(freshTarget.reason || '未确认到与该画面一致的场景文档')
-      return
-    }
-    const freshCapability = evaluateDirectEditCapability({
-      projectId,
-      isHistorical: isHistoricalVersion,
-      hasPreview: Boolean(viewedPreview),
-      target: freshTarget,
-    })
-    setEditorDocumentId(freshTarget.docId)
-    /* 提醒交给编辑器显示：进入编辑后监看区被替换，写在那里的提示用户看不到。 */
-    setEditorNotice(freshCapability.note ?? '')
-    setComparison(null)
-    setReviewTab(null)
-    setSelectedArtifactId(null)
-    if (previewMediaRef.current instanceof HTMLVideoElement) previewMediaRef.current.pause()
-    setRegionMode(false)
-    setRegionRect(null)
-    setPanelOpen(true)
-    setEditMode(true)
-    setSideTab('edit')
-  }
-  const closeEdit = () => {
-    setEditMode(false)
-    setSideTab('chat')
-    /* 编辑器里可能保存过：让「文档与画面是否一致」的判定下次重新计算。 */
-    setDocumentsTick((n) => n + 1)
-  }
-  const seek = (nextFrame: number) => {
-    const next = Math.max(0, Math.min(totalFrames - 1, Math.round(nextFrame)))
-    setFrame(next)
-    const clip = [...ACTIVE_SCENES].reverse().find((item) => next / FILM_FPS >= item.start)
-    if (clip) setSelectedId(clip.id)
-  }
-  useEffect(() => {
-    if (!switchOpen) return
-    const onPointerDown = (event: PointerEvent) => {
-      if (!switchRef.current?.contains(event.target as Node)) setSwitchOpen(false)
-    }
-    const onKeyDown = (event: KeyboardEvent) => { if (event.key === 'Escape') setSwitchOpen(false) }
-    document.addEventListener('pointerdown', onPointerDown)
-    document.addEventListener('keydown', onKeyDown)
-    return () => {
-      document.removeEventListener('pointerdown', onPointerDown)
-      document.removeEventListener('keydown', onKeyDown)
-    }
-  }, [switchOpen])
+  const { openEdit, closeEdit, selectScene } = useSceneEditEntry({ directEditCapability, isHistoricalVersion, previewMediaRef, projectId, resumeFrameRef, sceneFilmMeta, setComparison, setDocumentsTick, setEditMode, setEditorDocumentId, setEditorNotice, setFrame, setNotice, setPanelOpen, setRailOpen, setRailTab, setReferences, setRegionMode, setRegionRect, setReviewTab, setSelectedArtifactId, setSelectedId, setSideTab, setSwitchOpen, switchOpen, switchRef, totalFrames, viewedPreview })
   const { previewSource, setTargetReference, currentProjectRef, defaultTarget, scopeFromReferences, clearTimeRange, activeSceneId, selectContentRow, effectiveTarget, openTaskRecords, scopeShort, selectTimeRange } = useTimeRangeTarget({ previewMediaRef, previewTime, project, projectId, projectVersion, range, references, sessionDraft, setConstraints, setEditMode, setFocusChatKey, setLoopSpan, setNotice, setPreviewTime, setReferences, setRegionMode, setScope, setSideTab, setTaskReturnTab, sideTab, stageLead, viewedPreview })
   /** 切换右栏页签时退出 Remotion 编辑态，避免「参数 → 场景」后监看器仍停在编辑预览。 */
   const { referenceRegion, focusFeedback, selectSideTab, removeReference, locateReference, toggleReferenceRole, clearReferences, referenceFrame, saveCurrentFrame, referenceArtifact, addContextReference } = useTargetReferences({ aiModifyTargetCapability, backendCapability, capturedPreview, editMode, previewMediaRef, previewSource, previewTime, project, projectRecords, projectVersion, range, references, referencesEdited, regionStart, resumeFrameRef, selectedTaskRecordId, sessionDraft, setCanvasView, setComparison, setEditMode, setFocusChatKey, setFrame, setLoopSpan, setNotice, setPanelOpen, setPreviewLocation, setRailTab, setReferences, setRegionMode, setRegionRect, setReviewTab, setSelectedArtifactId, setSelectedId, setSelectedVisual, setSideTab, setTargetReference, stage, stageLead, viewedPreview })
