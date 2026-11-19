@@ -48,7 +48,7 @@
 - `relative`：`resolved` 是包内路径，对应不到文件时为 `null`；
 - `package`：`resolved` 是包名，例如 `@remotion/player/x` 归为 `@remotion/player`；
 - `builtin`：Node 内置模块；
-- `alias`：按离文件最近的 `tsconfig.json` 中的 `compilerOptions.paths` 解析，解析不了时为 `null`。
+- `alias`：按离文件最近的 `tsconfig.json` 中的 `compilerOptions.paths` 解析，规则和 TypeScript 一样：精确匹配优先，否则取 `*` 前缀最长的模式。解析不了时为 `null`。
 
 import 依赖靠正则提取，是**近似结果**：注释里的 import 可能被多算，拼接出来的模块名会漏算。
 

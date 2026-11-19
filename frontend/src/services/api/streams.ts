@@ -18,6 +18,7 @@ import type {
   ChatStreamJob,
   ChatStreamMessage,
   ChatStreamStatus,
+  ChatStreamRender,
   ChatStreamTitle,
   ChatStreamUsage,
   ContextBreakdown,
@@ -424,13 +425,15 @@ export function openTaskEventStream(
 /* ============================ 对话回复流 ============================ */
 
 export interface ChatStreamHandlers {
-  onDelta?: (messageId: string, delta: string) => void
+  onDelta?: (messageId: string, delta: string, replaceFrom?: number) => void
   /**
    * 推理增量。与 {@link onDelta} 分开：这里的内容进「思考过程」折叠块，
    * 不进正文。后端没开推理或模型不产出时不会调用。
    */
-  onReasoning?: (messageId: string, delta: string) => void
+  onReasoning?: (messageId: string, delta: string, position?: { textOffset: number; order: number }) => void
   onCompleted?: (message: ChatMessage) => void
+  /** 这一轮改动了工程，后端自动渲染的进度；源码没变时不会调用。 */
+  onRender?: (render: ChatStreamRender) => void
   /**
    * 用户主动停止了一轮。
    *
@@ -501,6 +504,10 @@ export interface ChatStreamOptions {
   model?: string
   /** DSH 适配器支持的推理强度 ID；省略使用适配器默认值。 */
   reasoningEffort?: string
+  /** 只接上已有的一轮（切回对话时）；这条消息没有在跑或跑过的一轮就报 `turn_not_running`，不新开。 */
+  attach?: boolean
+  /** 用户点了「重新执行」：上一轮跑完了也再跑一次。 */
+  rerun?: boolean
   signal?: AbortSignal
   idleTimeoutMs?: number
   reconnectLimit?: number
@@ -559,16 +566,35 @@ export function openChatSessionStream(
     const type = isRecord(payload) && typeof payload.type === 'string' ? payload.type : message.event
     switch (type) {
       case 'delta': {
-        const delta = payload as { messageId?: unknown; delta?: unknown }
+        const delta = payload as { messageId?: unknown; delta?: unknown; replaceFrom?: unknown }
         if (typeof delta.messageId === 'string' && typeof delta.delta === 'string') {
-          handlers.onDelta?.(delta.messageId, delta.delta)
+          const offset = delta.replaceFrom
+          if (offset === undefined) handlers.onDelta?.(delta.messageId, delta.delta)
+          else if (typeof offset === 'number' && Number.isSafeInteger(offset) && offset >= 0) handlers.onDelta?.(delta.messageId, delta.delta, offset)
         }
         return 'continue'
       }
       case 'reasoning': {
-        const r = payload as { messageId?: unknown; delta?: unknown }
+        const r = payload as { messageId?: unknown; delta?: unknown; textOffset?: unknown; order?: unknown }
         if (typeof r.messageId === 'string' && typeof r.delta === 'string') {
-          handlers.onReasoning?.(r.messageId, r.delta)
+          const offset = r.textOffset, order = r.order
+          const position = typeof offset === 'number' && Number.isSafeInteger(offset) && offset >= 0
+            && typeof order === 'number' && Number.isSafeInteger(order) && order >= 0
+            ? { textOffset: offset, order } : undefined
+          handlers.onReasoning?.(r.messageId, r.delta, position)
+        }
+        return 'continue'
+      }
+      case 'render': {
+        const r = payload as { state?: unknown; version?: unknown; artifactPath?: unknown; message?: unknown }
+        if (r.state === 'rendering' || r.state === 'rendered' || r.state === 'failed' || r.state === 'skipped') {
+          handlers.onRender?.({
+            type: 'render',
+            state: r.state,
+            ...(typeof r.version === 'number' && Number.isSafeInteger(r.version) ? { version: r.version } : {}),
+            ...(typeof r.artifactPath === 'string' ? { artifactPath: r.artifactPath } : {}),
+            ...(typeof r.message === 'string' ? { message: r.message } : {}),
+          })
         }
         return 'continue'
       }
@@ -613,6 +639,8 @@ export function openChatSessionStream(
           callId?: unknown
           arguments?: unknown
           isError?: unknown
+          textOffset?: unknown
+          order?: unknown
         }
         const phase = status.phase
         if (phase === 'thinking' || phase === 'tool' || phase === 'done') {
@@ -629,6 +657,8 @@ export function openChatSessionStream(
               ? { callId: status.callId }
               : {}),
             ...(typeof status.arguments === 'string' ? { arguments: status.arguments } : {}),
+            ...(typeof status.textOffset === 'number' && Number.isSafeInteger(status.textOffset) && status.textOffset >= 0 ? { textOffset: status.textOffset } : {}),
+            ...(typeof status.order === 'number' && Number.isSafeInteger(status.order) && status.order >= 0 ? { order: status.order } : {}),
             ...(status.isError === true ? { isError: true } : {}),
           })
         }
@@ -782,7 +812,8 @@ export function openChatSessionStream(
       try {
         cycleStartedAt = Date.now()
         const response = await http.openEventStream(`/chat-sessions/${sessionId}/stream`, {
-          query: { harness: options.harness, model: options.model, reasoningEffort: options.reasoningEffort },
+          query: { harness: options.harness, model: options.model, reasoningEffort: options.reasoningEffort,
+            attach: options.attach ? true : undefined, rerun: options.rerun ? true : undefined },
           lastEventId: lastEventId ?? undefined,
           signal,
         })
@@ -826,7 +857,10 @@ export function openChatSessionStream(
           return
         }
         handlers.onError?.(apiError)
-        if (apiError.isNotFound || apiError.isCapabilityGap) {
+        // session_busy：上一轮还在跑，重连只会一次次被拒，提示一次就停
+        // turn_not_running：这一轮已经不在了（后端重启过），重连只会一次次被拒
+        if (apiError.isNotFound || apiError.isCapabilityGap || apiError.details?.rawCode === 'session_busy'
+          || apiError.details?.rawCode === 'turn_not_running') {
           emitState('failed')
           return
         }

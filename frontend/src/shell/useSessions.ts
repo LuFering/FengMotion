@@ -158,6 +158,7 @@ export function toViewMessage(m: ContractMessage, sessionId?: string): ChatMessa
     // 思考过程同样随消息读回：界面上它是折叠的「思考」任务，
     // 不读回来就会一切换会话就消失（此前正是如此）。
     ...(m.reasoning ? { thinking: m.reasoning } : {}),
+    ...(m.reasoningSegments && m.reasoningSegments.length > 0 ? { thinkingSegments: m.reasoningSegments } : {}),
     // 任务清单同样随消息读回：不读回来，completed 之后重读历史
     // 会把刚显示的清单冲掉 —— 用户看到的就是「闪一下就没了」。
     ...(m.todos && m.todos.length > 0 ? { todos: m.todos } : {}),

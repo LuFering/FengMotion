@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import type { ChatMessageToolCall, ChatReasoningSegment, ChatStreamStatus } from '@/types/contracts'
+import { appendReasoningSegment, applyTextDelta, updateTurnTools } from '@/services/assistantTurn'
 
 export interface ChatMessage {
   id: string
@@ -23,7 +25,9 @@ export interface ChatMessage {
    * 那个是演示数据里手写的摘要，这个是真实执行记录，带参数与成败。
    * 分开存是为了不破坏演示路径，同时让真实回复切走会话再回来仍能回看。
    */
-  executedTools?: { callId?: string; name: string; arguments?: string; done?: boolean; isError?: boolean }[]
+  executedTools?: ChatMessageToolCall[]
+  /** 思考按阶段的分段；有它时界面把每段放回对应阶段，没有时退回整块显示 `thinking`。 */
+  thinkingSegments?: ChatReasoningSegment[]
   /**
    * 模型通过 todo_write 提交的待办清单（整表替换，最后一次为准）。
    * 显式区分于下面的 `plan`（演示适配器手写的字符串数组）。
@@ -139,9 +143,12 @@ export function useChat() {
    * 与 appendAiText 分开而不是复用它：正文与推理是两条流，
    * 混在 text 里会把推理写进答案（用户复制、朗读、以及 Markdown 渲染都会带上）。
    */
-  const appendAiReasoning = (messageId: string, delta: string) => {
+  const appendAiReasoning = (messageId: string, delta: string, position?: { textOffset: number; order: number }) => {
     setMessages((items) =>
-      items.map((m) => (m.id === messageId ? { ...m, thinking: (m.thinking ?? '') + delta } : m)),
+      items.map((m) => (m.id === messageId
+        ? { ...m, thinking: (m.thinking ?? '') + delta,
+            ...(position ? { thinkingSegments: appendReasoningSegment(m.thinkingSegments ?? [], delta, position) } : {}) }
+        : m)),
     )
   }
 
@@ -168,38 +175,10 @@ export function useChat() {
    * 只有收到结果才回填。前端若在这里塞 `false`，重读历史后会变成
    * 「没有完成标记」，与实时态不一致。</p>
    */
-  const recordToolCall = (
-    messageId: string,
-    call: { callId?: string; name: string; arguments?: string; isError?: boolean; finished?: boolean },
-  ) => {
-    setMessages((items) => items.map((m) => {
-      if (m.id !== messageId) return m
-      const list = m.executedTools ?? []
-      if (call.finished) {
-        /* 结果帧：只翻转状态，不清空 name/arguments
-           （后端结果帧不带 name，整个覆盖会让名字在结束瞬间消失）。 */
-        if (!call.callId) return m
-        return {
-          ...m,
-          executedTools: list.map((c) => (
-            c.callId === call.callId
-              ? { ...c, done: true, ...(call.isError ? { isError: true } : {}) }
-              : c
-          )),
-        }
-      }
-      return {
-        ...m,
-        executedTools: [
-          ...list,
-          {
-            callId: call.callId ?? `anon-${list.length}`,
-            name: call.name,
-            ...(call.arguments ? { arguments: call.arguments } : {}),
-          },
-        ],
-      }
-    }))
+  const recordToolCall = (messageId: string, status: ChatStreamStatus) => {
+    if (status.phase !== 'tool') return
+    setMessages(items => items.map(message => message.id === messageId
+      ? { ...message, executedTools: updateTurnTools(message.executedTools ?? [], status) } : message))
   }
 
   /** 追加一条过程诊断；同 kind 只保留最后一条，避免重试刷屏。 */
@@ -215,18 +194,20 @@ export function useChat() {
     }))
   }
 
-  const appendAiText = (messageId: string, delta: string) => {
-    if (!delta) return
-    setMessages((items) => items.map((m) => (m.id === messageId ? { ...m, text: m.text + delta } : m)))
+  const appendAiText = (messageId: string, delta: string, replaceFrom?: number) => {
+    if (!delta && replaceFrom === undefined) return
+    setMessages(items => items.map(message => message.id === messageId
+      ? { ...message, text: applyTextDelta(message.text, delta, replaceFrom) } : message))
   }
   /* `completed` 给的是最终完整文本，**以它为准**（覆盖已拼接的），见契约 §4 */
   const finishAiMessage = (
     messageId: string,
     text: string,
-    executedTools?: { callId?: string; name: string; arguments?: string; done?: boolean; isError?: boolean }[],
+    executedTools?: ChatMessageToolCall[],
     reasoning?: string,
     todos?: { content: string; status: 'pending' | 'in_progress' | 'completed' }[],
     deliverables?: { path: string; description?: string }[],
+    reasoningSegments?: ChatReasoningSegment[],
   ) => {
     setMessages((items) => items.map((m) => (
       m.id === messageId
@@ -238,6 +219,7 @@ export function useChat() {
             /* 思考过程同理：流式期间已经逐块写进 thinking，服务端读回之前
                这里补一次终值，避免「重读之前那一瞬间」思考块消失。 */
             ...(reasoning ? { thinking: reasoning } : {}),
+            ...(reasoningSegments && reasoningSegments.length > 0 ? { thinkingSegments: reasoningSegments } : {}),
             /* 任务清单同理：completed 到重读历史之间有一瞬空档，
                这里先挂上，避免清单在那一瞬消失。 */
             ...(todos && todos.length > 0 ? { todos } : {}),

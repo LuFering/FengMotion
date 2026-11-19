@@ -963,7 +963,6 @@ html[data-theme="tactile"] #pane-conversation {
   gap: 10px;
   min-width: 0;
 }
-.cv3-ai-block[data-streaming] > .ai-answer { order: -1; }
 
 /* 状态文字：正文字号 13 / 行高 19.5，状态比它弱一档才不抢内容 */
 .cv3-streaming {

@@ -14,6 +14,9 @@ import { FileChanges } from '@/components/chat/FileChanges'
 import { collectFileChanges } from '@/components/chat/fileChangesModel'
 import { QuestionFormCard } from '@/components/chat/QuestionFormCard'
 import { splitQuestionForms } from '@/components/chat/questionForm'
+import { AssistantTurnContent } from '@/components/chat/AssistantTurnContent'
+import { splitAssistantTurn } from '@/services/assistantTurn'
+import { notifyProjectRendered } from '@/services/projectRenderEvents'
 import { ContextMeter, type Kind } from '@/components/bencho/ContextMeter'
 import {
   ChatMessage as ChatBubble, ThinkingIndicator, MarkdownText,
@@ -57,7 +60,7 @@ import { sessionDisplayTitle, sessionTimeLabel, sessionTimeFull } from '@/shell/
 import { useRoundOutcomes, clearRoundOutcome, recordRoundOutcome } from '@/shell/roundOutcomes'
 import { backfillRoundOutcomes, invalidateBackfill } from '@/shell/roundOutcomeBackfill'
 import { resolveReplySaveState, replySaveNotice, type ReplyLookup } from '@/shell/roundRestoreRules'
-import { lastRoundThinking, shouldShowMessageMeter, messagesForSession } from './conversationRound'
+import { shouldShowMessageMeter, messagesForSession } from './conversationRound'
 import '../styles/conversation.css'
 
 /**
@@ -554,6 +557,8 @@ export function Conversation(props: {
   /** 服务端回复的如实说明（Agent 未接入等）：显示在最后一条用户消息下方。
       与 `failed` 分开：能力缺口不是「回复失败」，重试也不会好。 */
   const [replyNote, setReplyNote] = useState<string | null>(null)
+  /** 最后一轮没有完成、也没有回复（后端重启过）：显示「重新执行」，由用户决定要不要再跑 */
+  const [unfinishedReply, setUnfinishedReply] = useState(false)
   /**
    * 「创作回复确认没存进会话」的待补存信息。
    *
@@ -611,8 +616,6 @@ export function Conversation(props: {
    * 都要连同这些痕迹一起清掉。</p>
    */
   const clearRoundTrace = () => {
-    setToolCalls([])
-    toolCallsRef.current = []
     setUsage(null)
     setAgentPhase(null)
     /* 上下文分档与实测 prompt 大小也是**这一轮**的读数：
@@ -703,13 +706,6 @@ export function Conversation(props: {
    * 按 `callId` 归并：开始帧建条目，结果帧翻转状态。没有 callId 的帧
    * （理论上不该出现，后端在缺 ID 时不下发）单独成条，不硬塞进上一条。
    */
-  const [toolCalls, setToolCalls] = useState<{
-    callId: string
-    name: string
-    arguments?: string
-    isError?: boolean
-    done: boolean
-  }[]>([])
 
   /**
    * `toolCalls` 的镜像。
@@ -717,13 +713,6 @@ export function Conversation(props: {
    * 为什么需要：`onCompleted` 的闭包是建流那一刻捕获的，读 `toolCalls` 只会拿到
    * 当时的空数组（state 更新不会改已捕获的闭包）。用 ref 才能取到本轮最新的记录。
    */
-  const toolCallsRef = useRef<{
-    callId: string
-    name: string
-    arguments?: string
-    isError?: boolean
-    done: boolean
-  }[]>([])
 
   /**
    * 本轮累计的 token 用量。
@@ -1174,6 +1163,7 @@ export function Conversation(props: {
       streamStopRef.current = null
       setPending(false)
       setReplyNote(null)
+      setUnfinishedReply(false)
       setSendError(null)
       idemKeyRef.current = null
       idemTextRef.current = null
@@ -1210,10 +1200,6 @@ export function Conversation(props: {
    * 推理是「边想边说」的：帧到达时 AI 消息的 text 还是空的，thinking 已经有内容。
    * 所以取最后一条 AI 消息的 thinking，而不是等整轮结束。
    */
-  const streamingThinking = useMemo(() => {
-    const last = messages[messages.length - 1]
-    return last?.role === 'ai' ? (last.thinking ?? '') : ''
-  }, [messages])
 
   /**
    * 本轮推理的最终文本。
@@ -1223,7 +1209,6 @@ export function Conversation(props: {
    * 这一轮想过什么。这里取本轮所有 AI 消息的 thinking 中最后一段非空的，
    * 让结束后仍可回看（与历史路径的呈现一致）。
    */
-  const lastThinking = useMemo(() => lastRoundThinking(messages), [messages])
   const userMessages = useMemo(() => messages.filter((m) => m.role === 'user'), [messages])
 
   /* 最新的用户消息 id：回复 effect 只依赖它（见下方说明，不能依赖整个数组） */
@@ -1292,7 +1277,6 @@ export function Conversation(props: {
    */
   const activeSubagentTools = [
     ...messages.flatMap((m) => m.executedTools ?? []),
-    ...toolCalls.map((t) => ({ name: t.name, done: t.done, isError: t.isError })),
   ]
   /* 「制作已开始」只认本会话里真的创建过东西（AI 消息带 changes），
      不能拿「左栏选中了某个项目」当依据 —— 那是切换当前项目，不是开始制作 */
@@ -1384,13 +1368,10 @@ export function Conversation(props: {
         cleanup 顺手把刚建的流掐断，表现就是回复永远停在头几个字。
      ⚠️ 退订等同于断线：**不当作完成**，并把没说完的那条从界面上撤掉，
         否则 StrictMode 重挂载会留下一条半截回复，再叠一条新的。 */
-  /* 服务端会话的续流：切去工作台会让本视图卸载，卸载时那条流被 cleanup 断掉。
-     后端不支持断点续读（Last-Event-ID 只校验格式），所以这里不尝试「接上旧流」，
-     而是在回到本视图时判断「最后一轮是否留下了没有回复的用户消息」：
-     有就重起一次流，让用户能接着说话，而不是永远卡在「正在回复…」或干脆没反应。
-
-     注意：重起等于让 agent 再跑一遍这一轮。这正是原先失败的点 ——
-     旧代码直接 return，切回来就什么都不做，用户再发消息也失败。 */
+  /* 服务端会话的续流：切去工作台会让本视图卸载，卸载时只断掉订阅，后端那一轮照常跑。
+     回到本视图时若最后一条用户消息还没有回复，就**只接上**那一轮（attach）：
+     还在跑就从头补发、接着看实时输出；已经不在了（后端重启过）就显示「重新执行」，由用户决定。
+     原先这里会直接再跑一遍这条消息，实测造成过重复执行、两个 agent 同时改同一个项目。 */
   useEffect(() => {
     if (!activeIsServer) return
     if (!props.activeSessionId) return
@@ -1416,7 +1397,8 @@ export function Conversation(props: {
     /* 失败过的不要再自动重起：会变成无限重试（见 MODULE_FAILED_IDS 注释） */
     if (MODULE_FAILED_IDS.has(lastUserId)) return
     servedRef.add(lastUserId)
-    startServerReply()
+    /* 只接上，不重跑：还在跑就接着看实时输出；已经不在了由用户点「重新执行」决定 */
+    startServerReply({ attach: true })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeIsServer, props.activeSessionId, lastUserId])
 
@@ -1481,9 +1463,11 @@ export function Conversation(props: {
    *
    * 真接上 Agent 之后这里不用改：delta/completed 走与演示适配器同一套收尾逻辑。
    */
-  const startServerReply = () => {
+  /* attach：只接上还在跑（或刚跑完）的那一轮，不新开；rerun：用户点了「重新执行」 */
+  const startServerReply = (mode: { attach?: boolean; rerun?: boolean } = {}) => {
     const sessionId = props.activeSessionId
     if (!sessionId) return
+    setUnfinishedReply(false)
     /* 开新一轮前只需断掉本地旧流，**不能**调 streamStopRef ——
        它内部会请求后端 /stop，等于每次发送都先给上一轮发一次停止请求。
        这里清 ref 即可：旧连接由 chatStreamManager 在 register 新流时接管。 */
@@ -1493,19 +1477,23 @@ export function Conversation(props: {
     setPendingStartedAt(Date.now())
     setPending(true)
     // 新的一轮从零开始记工具调用：上一轮的记录属于上一条回复，留着会串味。
-    setToolCalls([])
-    toolCallsRef.current = []
     // 产物同理：上一轮交付的文件不属于这一条回复。
     deliverablesRef.current = []
     setUsage(null)
     const handle = studioHttpApi().chat.stream(sessionId, {
       /* 推理增量进「思考过程」块，不进正文 */
-      onReasoning: (_messageId, delta) => {
-        chat.appendAiReasoning(aiId, delta)
+      onReasoning: (_messageId, delta, position) => {
+        chat.appendAiReasoning(aiId, delta, position)
       },
-      onDelta: (_messageId, delta) => {
+      /* 这一轮改动了工程：后端自动渲染。进度写在回复下方，出片后通知工作台刷新 */
+      onRender: (render) => {
+        if (render.message) setReplyNote(render.message)
+        const pid = activeThread?.projectId
+        if (render.state === 'rendered' && pid) notifyProjectRendered(pid, render.version)
+      },
+      onDelta: (_messageId, delta, replaceFrom) => {
         produced = true
-        chat.appendAiText(aiId, delta)
+        chat.appendAiText(aiId, delta, replaceFrom)
       },
       onTodo: (todos) => {
         /* 任务清单整表替换：模型每次 todo_write 都给完整清单。 */
@@ -1521,8 +1509,8 @@ export function Conversation(props: {
         produced = true
         // 带上本轮工具记录：completed 到服务端消息读回之间有个异步空档，
         // 不先挂上去，列表会在这一瞬间闪空。
-        chat.finishAiMessage(aiId, message.text, toolCallsRef.current, message.reasoning, message.todos,
-                             deliverablesRef.current)
+        chat.finishAiMessage(aiId, message.text, message.toolCalls, message.reasoning, message.todos,
+                             deliverablesRef.current, message.reasoningSegments)
         /* 服务端会话的内容以 server 消息数组为准（见上方 serverMirror 的说明）。
            这里必须把刚落库的回复重新读回来：否则下一次发消息、或任何让
            `activeThread.messages` 身份变化的操作，都会用「只有用户消息」的数组
@@ -1543,11 +1531,17 @@ export function Conversation(props: {
         setPending(false)
         setPendingStartedAt(null)
         setAgentPhase(null)
+        if (error.details?.rawCode === 'turn_not_running') {
+          setUnfinishedReply(true)
+          setReplyNote('这一轮没有完成，也没有保存回复（应用可能重启过）。')
+          return
+        }
         setReplyNote(error.isCapabilityGap
           ? 'Agent 暂时不可用：这条消息已保存在服务端，但没有收到回复。'
           : `没有拿到回复：${userMessageForError(error, '回复流中断了。')}`)
       },
       onStatus: (status) => {
+        chat.recordToolCall(aiId, status)
         if (status.phase === 'thinking') {
           setAgentPhase({ phase: 'thinking' })
         } else if (status.phase === 'tool') {
@@ -1577,32 +1571,6 @@ export function Conversation(props: {
           /* 每处更新都同时写 ref：`onCompleted` 的闭包读不到最新 state，
              只能靠 ref 取本轮完整记录。两处（state / ref）必须在同一个更新函数里，
              拆开写会漏掉其中一条路径。 */
-          if (status.arguments !== undefined) {
-            setToolCalls((prev) => {
-              const next = [
-                ...prev,
-                {
-                  callId: status.callId ?? `anon-${prev.length}`,
-                  name: status.label ?? status.name ?? '工具',
-                  ...(status.arguments ? { arguments: status.arguments } : {}),
-                  done: false,
-                },
-              ]
-              toolCallsRef.current = next
-              return next
-            })
-          } else if (status.callId) {
-            const target = status.callId
-            setToolCalls((prev) => {
-              const next = prev.map((c) => (
-                c.callId === target
-                  ? { ...c, done: true, ...(status.isError ? { isError: true } : {}) }
-                  : c
-              ))
-              toolCallsRef.current = next
-              return next
-            })
-          }
         } else {
           setAgentPhase(null)
         }
@@ -1715,7 +1683,8 @@ export function Conversation(props: {
            不是累计值 —— 累加会把压缩掉的内容也算进去。 */
         if (c.breakdown !== undefined) setBreakdown(c.breakdown)
       },
-    }, { harness: selectedHarness?.id ?? harnessId, model: backendModels.length ? effectiveModel : undefined, reasoningEffort: effectiveEffort ?? undefined })
+    }, { harness: selectedHarness?.id ?? harnessId, model: backendModels.length ? effectiveModel : undefined, reasoningEffort: effectiveEffort ?? undefined,
+      attach: mode.attach, rerun: mode.rerun })
     chatStreamManager.register({
       sessionId,
       userMessageId: lastUserId ?? undefined,
@@ -3219,24 +3188,25 @@ export function Conversation(props: {
                       · 其余工具 → TaskList（任务列表：一次任务 = 一个工具的多步调用）
                       两者混在一张清单里会互相稀释 —— 搜索回答「查了什么来源」，
                       任务列表回答「执行了哪几类动作」。 */}
-                  {m.executedTools && <WebSearchTrace calls={m.executedTools} live={false} />}
                   {(() => {
                     /* 过程日志：思考与工具调用合成一张任务列表 —— 这正是
                        BoardUI 任务列表的用法（一条日志里既有「正在思考」也有
                        「执行了什么」）。搜索类不进来，它有自己的轨迹。 */
-                    const tools = (m.executedTools ?? []).filter((c) => !isSearchTool(c.name))
+                    /* 有分段时思考按阶段放回正文之间（见下方 AssistantTurnContent），这里不再整块重复。
+                       旧消息没有分段，仍在这里整块显示。 */
+                    const staged = splitAssistantTurn(m.text, m.executedTools ?? [], m.thinkingSegments ?? [])
+                      .some((block) => block.kind === 'reasoning')
                     const tasks = [
                       /* 思考用全文而不是 truncate：推理已经落库，界面却只显示
                          开头 72 字，等于把存下来的内容又丢掉一次。多行排版见
                          task-list.css 的 .tl-step--multiline。 */
-                      ...(m.thinking ? [{ title: '思考', icon: ThinkingIcon, steps: [{ label: m.thinking, multiline: true }] }] : []),
-                      ...toolCallsToTasks(tools, false),
+                      ...(m.thinking && !staged ? [{ title: '思考', icon: ThinkingIcon, steps: [{ label: m.thinking, multiline: true }] }] : []),
                     ]
                     if (tasks.length === 0) return null
                     return (
                       <TaskList
                         tasks={tasks}
-                        revealed={(m.thinking ? 2 : 0) + toolCallsRevealed(tools)}
+                        revealed={m.thinking ? 2 : 0}
                         run={false}
                         working={false}
                       />
@@ -3259,11 +3229,24 @@ export function Conversation(props: {
                       正文里还可能夹着 `<question-form>` 表单（模型提问的唯一方式，
                       见 components/chat/questionForm.ts 的说明）。只在**流式结束后**
                       解析：流到一半时 JSON 还没闭合，提前解析会得到半张表。 */}
-                  {m.text ? (
-                    <AnswerBody>
+                  <AssistantTurnContent text={m.text} tools={m.executedTools} reasoning={m.thinkingSegments}
+                    /* 与整块思考、工具组用同一个 TaskList：同一条回复里的过程块长得一样 */
+                    renderReasoning={(text, last) => <TaskList
+                      tasks={[{ title: '思考', runningTitle: m.streaming === true && last ? '正在思考' : undefined,
+                        icon: ThinkingIcon, steps: [{ label: text, multiline: true }] }]}
+                      revealed={2} run={false} working={false} />}
+                    renderTools={(calls) => {
+                      const tools = calls.filter(call => !isSearchTool(call.name))
+                      return <>
+                        <WebSearchTrace calls={calls} live={m.streaming === true} revealed={calls.filter(call => isSearchTool(call.name)).length} />
+                        {tools.length > 0 && <TaskList tasks={toolCallsToTasks(tools, m.streaming === true)}
+                          revealed={toolCallsRevealed(tools)} run={false} working={false} />}
+                      </>
+                    }}
+                    renderText={(text) => <AnswerBody>
                       {(() => {
-                        if (m.streaming) return <MarkdownText text={m.text} />
-                        const segs = splitQuestionForms(m.text)
+                        if (m.streaming) return <MarkdownText text={text} />
+                        const segs = splitQuestionForms(text)
                         /* 没有表单就走原路径，不为「可能有」付额外渲染成本 */
                         if (segs.length === 1 && segs[0].kind === 'text') {
                           return <MarkdownText text={segs[0].text} />
@@ -3286,8 +3269,8 @@ export function Conversation(props: {
                             ),
                         )
                       })()}
-                    </AnswerBody>
-                  ) : null}
+                    </AnswerBody>}
+                  />
 
                   {/* 失败 / 演示标记：必须可见，不能只靠别处说明 */}
                   {m.failed ? (
@@ -3395,35 +3378,6 @@ export function Conversation(props: {
                   另一个真机发现：一旦消息挂上了 `executedTools`（落库后读回的历史记录），
                   这里必须让位 —— 否则同一次调用会在消息块内外各画一遍，界面上出现
                   两条「bash 完成」。两者是同一份数据的前后两个阶段，只能显示一个。 */}
-              {toolCalls.length > 0
-                && !messages[messages.length - 1]?.executedTools
-                && (
-                <>
-                  <WebSearchTrace calls={toolCalls} live />
-                  <TaskList
-                    tasks={[
-                      /* 实时思考：推理帧到达后，第一个任务就是「思考」。
-                         与历史路径同一个结构，用户看到的永远是同一种组织方式。 */
-                      /* 与历史消息里的思考同样用全文：实时看和回看应是同一份内容，
-                         只在这里截断会让「正在思考」比「回看」少显示一大段。 */
-                      ...((streamingThinking || lastThinking) ? [{ title: '思考', runningTitle: '正在思考', icon: ThinkingIcon, steps: [{ label: streamingThinking || lastThinking, multiline: true }] }] : []),
-                      ...toolCallsToTasks(toolCalls.filter((c) => !isSearchTool(c.name)), pending),
-                    ]}
-                    revealed={((streamingThinking || lastThinking) ? 2 : 0) + toolCallsRevealed(toolCalls.filter((c) => !isSearchTool(c.name)))}
-                    run={!pending}
-                    working={pending ? '正在处理' : false}
-                  />
-                  {/* 思考中但还没有工具调用：单独一条「思考」任务，
-                      让过程区始终有东西可看，而不是一片空白等正文。 */}
-                  {pending && toolCalls.length === 0 && !messages[messages.length - 1]?.text ? (
-                    <TaskList
-                      tasks={[{ title: '思考', runningTitle: '正在思考', steps: [{ label: '分析你的要求' }] }]}
-                      run={false}
-                      working={false}
-                    />
-                  ) : null}
-                </>
-              )}
               {/* token 用量：回答「这一轮花了多少」。只显示上游真的报了的桶，
                   没报的不占位 —— 显示「输入 0」会让人以为完全没消耗。
                   缓存命中单独标出：它含在总计里，单看总计容易高估成本。
@@ -3471,7 +3425,13 @@ export function Conversation(props: {
               {/* 服务端回复的如实说明：能力缺口（Agent 未接入）不是「回复失败」，
                   所以用中性说明而不是红色失败块 —— 重试也不会好，别让人白等。 */}
               {replyNote && (
-                <p className="cv3-demo-note" role="note">{replyNote}</p>
+                <p className="cv3-demo-note" role="note">
+                  {replyNote}
+                  {unfinishedReply && !pending && (
+                    <Button variant="outline" size="sm" style={{ marginLeft: 8 }}
+                      onClick={() => { setReplyNote(null); startServerReply({ rerun: true }) }}>重新执行</Button>
+                  )}
+                </p>
               )}
             </div>
           </div>

@@ -115,6 +115,7 @@ export interface MappingRequiredInput {
   kind: 'asset' | 'reference' | 'text' | string
   label: string
   required: boolean
+  requiredWhen?: string | null
 }
 
 export interface MappingGuideSection {
@@ -147,6 +148,7 @@ export interface MappingStepItem {
   step: string
   node: MappingTargetNode | string
   note?: string | null
+  action?: string | null
 }
 
 export interface MappingUnmappedItem {
@@ -275,6 +277,7 @@ export function normalizePresetMapping(raw: Partial<SkillPresetMapping> | null |
                 kind: String(item?.kind ?? 'asset'),
                 label: String(item?.label ?? ''),
                 required: Boolean(item?.required),
+                ...(item?.requiredWhen ? { requiredWhen: String(item.requiredWhen) } : {}),
               },
         )
       : [],
@@ -310,6 +313,7 @@ export function normalizePresetMapping(raw: Partial<SkillPresetMapping> | null |
       ? m.stepMapping.map((s) => ({
           step: String(s?.step ?? ''),
           node: String(s?.node ?? 'create'),
+          ...(s?.action ? { action: String(s.action) } : {}),
           ...(s?.note ? { note: String(s.note) } : {}),
         }))
       : [],

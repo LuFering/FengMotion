@@ -1261,6 +1261,9 @@ export interface ChatSession {
 export interface ChatMessageToolCall {
   callId?: string
   name: string
+  textOffset?: number
+  /** 与思考段共用的先后序号：同一正文位置上靠它分先后。旧记录没有。 */
+  order?: number
   /** 参数原文；后端已按 4000 字符截断。 */
   arguments?: string
   /** 是否已经结束（有结果帧）。 */
@@ -1283,6 +1286,8 @@ export interface ChatMessage {
   /** 这条助手回复的思考过程正文；没有思考时不出现。
       与 toolCalls 同理：思考也是回复的一部分，切走会话再回来要能重新看到。 */
   reasoning?: string
+  /** 思考按阶段的分段；旧消息或没有思考时不出现，此时界面退回整块显示 reasoning。 */
+  reasoningSegments?: ChatReasoningSegment[]
   /** 模型排的任务清单；没有清单时不出现。切走会话再回来要能回看。 */
   todos?: ChatStreamTodoItem[]
   /** 这条回复的 token 用量；没有记录时不出现。
@@ -1362,6 +1367,7 @@ export interface ChatStreamDelta {
   type: 'delta'
   messageId: Id
   delta: string
+  replaceFrom?: number
 }
 
 /**
@@ -1374,6 +1380,34 @@ export interface ChatStreamReasoning {
   type: 'reasoning'
   messageId: Id
   delta: string
+  /** 发生时正文的长度（UTF-16）；按阶段排正文时才有。 */
+  textOffset?: number
+  /** 与工具调用共用的先后序号。 */
+  order?: number
+}
+
+/**
+ * 一段思考：排在正文 `textOffset` 处，同一位置上按 `order` 与工具调用分先后。
+ * DSH 每一步是「思考 → 正文 → 工具」，这一步的思考与上一步的工具在同一个正文位置。
+ */
+export interface ChatReasoningSegment {
+  textOffset: number
+  order: number
+  text: string
+}
+
+/**
+ * 对话一轮改动了工程后的自动渲染进度。
+ *
+ * 在 `completed` 之后、`end` 之前到达：`rendering` 表示开始渲染，随后是 `rendered`（带版本号）、
+ * `failed` 或 `skipped`（改了源码但没有可渲染的入口，或项目正忙）。源码没变时不发。
+ */
+export interface ChatStreamRender {
+  type: 'render'
+  state: 'rendering' | 'rendered' | 'failed' | 'skipped'
+  version?: number
+  artifactPath?: string
+  message?: string
 }
 
 export interface ChatStreamCompleted {
@@ -1409,6 +1443,8 @@ export interface ChatStreamEnd {
 export interface ChatStreamStatus {
   type: 'status'
   phase: 'thinking' | 'tool' | 'done'
+  textOffset?: number
+  order?: number
   /** 仅 `phase === 'tool'` 时出现：工具名（如 `bash`）。 */
   name?: string
   /** 仅 `phase === 'tool'` 时出现：给人看的一句话说明。 */
@@ -1581,6 +1617,7 @@ export interface ChatStreamDeliverables {
 export type ChatStreamMessage =
   | ChatStreamDelta
   | ChatStreamReasoning
+  | ChatStreamRender
   | ChatStreamCompleted
   | ChatStreamTask
   | ChatStreamStatus

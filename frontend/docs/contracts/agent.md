@@ -83,11 +83,20 @@ event: end
 data: {"type":"end"}
 ```
 
-- `delta` 只追加文本；同一 `messageId` 的 delta 按到达顺序拼接。
+- `delta` 默认追加文本；同一 `messageId` 按到达顺序拼接。可选 `replaceFrom` 为 UTF-16 字符偏移，表示从该位置替换尾部，用于重试或已提交段落修正流式临时文本。
 - `completed` 给最终完整消息（以它为准，覆盖已拼接的文本）。
+- DSH 多阶段的公开正文会依次保留，阶段内部允许无正文的连续工具调用。`status.phase=tool` 开始帧与消息的 `toolCalls[]` 可带 `textOffset`，标记调用发生时正文的 UTF-16 长度；实时和历史均按这些位置交替展示阶段正文与调用组。旧记录无偏移时保留原分区展示，不猜顺序。
+- `done` 只表示整轮结束，不在首段阶段说明到达时提前发送。
+- 思考按阶段分段：`reasoning` 帧在按阶段排正文时带 `textOffset`（发生时正文的 UTF-16 长度）与 `order`；`status.phase=tool` 开始帧与 `toolCalls[]` 也带同一套 `order`。同一正文位置上，思考与工具调用按 `order` 分先后（DSH 每一步是「思考 → 正文 → 工具」，这一步的思考与上一步的工具落在同一位置）。
+- 落库消息与 `completed` 帧可带 `reasoningSegments: [{ textOffset, order, text }]`；`reasoning` 仍是整段拼接。旧消息没有分段，界面整块显示 `reasoning`；分段或工具缺 `order` 时同样不分段，不猜顺序。
+- 对话与制作 Agent 使用按工作块交流的指引：阶段开始前短述目标，完成、切换或遇阻时说明结果，同阶段可以连续调用工具，不要求逐工具旁白。规则写在项目 `AGENTS.md` 的「交流方式」一段（指引 v5，启动时自动升级带框架标记的旧项目）；工作目录的指引里没有这一段时，才拼进本轮消息兜底。模型内部推理仍与用户可见正文分离。
+- 自动出片：会话属于项目、且这一轮改动了工程源码（`src/`、`public/`、`film.config.json`、`package.json`）时，后端在 `completed` 之后渲染一次，按顺序发 `render` 帧：`{ type:"render", state:"rendering", message }`，渲染期间每 15 秒一帧 `heartbeat`，最后 `state` 为 `rendered`（带 `version`、`artifactPath`）、`failed` 或 `skipped`（没有可用的 `film.config.json` 入口，或项目正在制作/渲染）。源码没变时不发。这一轮失败（非用户停止）时同样先渲染，`render` 帧在 `error` 之前。
 - `task` 可在 `completed` 前后出现；前端据 `taskId` 另开任务事件流。
 - 流中错误：`event: error` + `ApiErrorDetail`；不得用半截文本冒充完成。
-- 断线重连：`Last-Event-ID` 为消息内序号；已 `completed` 的消息不重放 delta。
+- 一轮的运行与订阅分开：后端在自己的线程里跑一轮，每一帧带 `id`（这一轮内从 1 递增）存进缓冲；回复流请求只是订阅，先补发、再推后续，等待期间每 15 秒一帧 `heartbeat`。请求断开不影响这一轮，它照常跑完、落库、出片。没有前台时长、不再转后台（不再发 `background` 帧），只有一个 6 小时的防卡死兜底。
+- 同一条用户消息只跑一次：再次订阅（含跑完之后）都是补发。可选查询参数：`attach=true` 只接上已有的一轮，没有就返回 409 `turn_not_running`，不新开；带 `Last-Event-ID` 时同样只接上；`rerun=true` 表示用户点了「重新执行」，上一轮跑完了也再跑一次。另一条消息的一轮还在跑时返回 409 `session_busy`。每个会话只保留最近一轮的缓冲，后端重启后清空。
+- 没跑完的一轮（引擎失败、进程退出，用户主动停止除外）：已有正文或工具调用时存成一条回复，正文末尾标明「这一轮没有完成：原因」，先发 `completed` 再发 `error`。
+- 断线重连：`Last-Event-ID` 为这一轮内的帧序号，从它之后补发。
 
 ## 5. 会话与任务的关系
 

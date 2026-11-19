@@ -203,9 +203,10 @@ export function SkillPresetMappingEditor(props: {
             <span>默认画幅</span>
             <select
               disabled={readOnly}
-              value={draft.defaults.ratio ?? '16:9'}
+              value={draft.defaults.ratio ?? ''}
               onChange={(e) => update({ defaults: { ...draft.defaults, ratio: e.target.value || null } })}
             >
+              <option value="">未指定（创建时选择）</option>
               <option value="16:9">16:9</option>
               <option value="9:16">9:16</option>
               <option value="1:1">1:1</option>
@@ -260,7 +261,7 @@ export function SkillPresetMappingEditor(props: {
                     style={{ flex: 1 }}
                     value={req.label}
                     onChange={(e) => updateRequiredInput(idx, { label: e.target.value })}
-                    placeholder="例如：品牌 Logo（SVG 优先）"
+                    placeholder="素材或输入名称"
                   />
                   <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, whiteSpace: 'nowrap' }}>
                     <input
@@ -268,10 +269,13 @@ export function SkillPresetMappingEditor(props: {
                       disabled={readOnly}
                       style={{ width: 'auto' }}
                       checked={req.required}
-                      onChange={(e) => updateRequiredInput(idx, { required: e.target.checked })}
+                      onChange={(e) => updateRequiredInput(idx, { required: e.target.checked, requiredWhen: null })}
                     />
-                    必需
+                    全部场景必需
                   </label>
+                  {!req.required && <input aria-label={`${req.label || '素材'}的适用条件`} placeholder="仅在何种情况下必需（可留空）"
+                    disabled={readOnly} value={req.requiredWhen ?? ''} maxLength={200}
+                    onChange={(e) => updateRequiredInput(idx, { requiredWhen: e.target.value || null })} />}
                   {!readOnly && (
                     <button
                       type="button"

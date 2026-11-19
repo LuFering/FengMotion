@@ -62,6 +62,7 @@ export interface ChatMessageProps {
   below?: ReactNode
   /** AI 消息头像槽（工作台用 EyeTracker，对话界面不传） */
   avatar?: ReactNode
+  content?: ReactNode
 }
 
 /** 字节数 → "1.2 KB"。不显示时返回空串，调用方据此决定要不要渲染第二行 */
@@ -307,9 +308,10 @@ export function ChatMessage({
   onEditResend,
   below,
   avatar,
+  content,
 }: ChatMessageProps) {
   const reduce = useReducedMotion() ?? false
-  if (!text && !attachments?.length) return null
+  if (!text && !attachments?.length && content == null) return null
 
   if (role === 'user') {
     return (
@@ -361,7 +363,7 @@ export function ChatMessage({
       <div className="cm-ai-body">
         {/* 流式期间用逐行生长；结束后走 Markdown（含代码高亮）。
             两者不能同时用：Markdown 会把行合并成段落，逐行动画就没有落点了。 */}
-        {streaming ? <StreamedLines text={text} animate={!reduce} /> : <MarkdownText text={text} />}
+        {content ?? (streaming ? <StreamedLines text={text} animate={!reduce} /> : <MarkdownText text={text} />)}
 
         {stopped && !failed ? <p className="cm-stopped">已停止生成</p> : null}
         {demo && !streaming && !failed ? <p className="cm-note">演示回复 · 未连接 Agent</p> : null}

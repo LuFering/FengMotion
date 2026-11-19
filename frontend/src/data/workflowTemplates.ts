@@ -28,7 +28,7 @@ export interface WorkflowPresetMeta {
   commitSha?: string
   skillPath?: string
   sourceRepo?: string
-  requiredInputs?: Array<{ kind?: string; label: string; required?: boolean } | string>
+  requiredInputs?: Array<{ kind?: string; label: string; required?: boolean; requiredWhen?: string | null } | string>
   reviewChecklist?: string[]
 }
 

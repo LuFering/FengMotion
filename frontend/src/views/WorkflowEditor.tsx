@@ -1884,9 +1884,10 @@ function Inspector(props: {
             <div className="wfe-req-box">
               <b>当前视频类型建议准备的素材</b>
               <ul>
-                {(p.requiredInputs as Array<{ kind?: unknown; label?: unknown; required?: unknown } | string>).map((item, idx) => {
+                {(p.requiredInputs as Array<{ kind?: unknown; label?: unknown; required?: unknown; requiredWhen?: unknown } | string>).map((item, idx) => {
                   const text = typeof item === 'string' ? item : String(item?.label ?? '')
-                  const req = typeof item === 'object' && item?.required ? '（必需）' : ''
+                  const req = typeof item !== 'object' ? '' : item?.required ? '（全部场景必需）'
+                    : item?.requiredWhen ? `（适用条件：${String(item.requiredWhen)}）` : ''
                   return text ? <li key={idx}>{text}{req}</li> : null
                 })}
               </ul>

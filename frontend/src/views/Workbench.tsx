@@ -9,6 +9,8 @@ import { chatStreamManager, useSessionStream } from '@/services/chatStreamManage
 import { resolveSendPlanFromDraft } from '@/services/sendPlan'
 import { sessionDisplayTitle, sessionOptionLabel, sessionOptionText, sessionTimeFull } from '@/shell/sessionDisplay'
 import { ProcessSummary } from '@/components/chat/ProcessSummary'
+import { AssistantTurnContent } from '@/components/chat/AssistantTurnContent'
+import { MarkdownText } from '@/components/chat/MarkdownText'
 import { CreationProgress } from '@/components/chat/CreationProgress'
 import { ResourcePicker } from '@/components/ResourcePicker'
 import { EyeTracker } from '@/components/EyeTracker'
@@ -36,6 +38,7 @@ import { versionSeriesOf, versionBadgeLabel, versionItemLabel, resolveProjectVer
 import { containedMediaRect, formatMediaTime } from '@/data/previewGeometry'
 import { materialShelves, type MaterialFile, type MaterialShelf } from '@/data/materialDeck'
 import { initLibrary } from '@/services/assetApiService'
+import { notifyProjectRendered, onProjectRendered } from '@/services/projectRenderEvents'
 import {
   MonitorMediaPreview, MonitorProblemsCollapsed,
   type MonitorProblem, type MonitorVisualItem,
@@ -1249,6 +1252,17 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
       setRealRenderBusy(false)
     }
   }
+
+  /* 对话里自动渲染出了新版本（无论在对话页还是工作台侧栏发的消息）：和手动渲染成功后一样刷新，
+     画面区立刻能播这一版，不用手动重开。 */
+  useEffect(() => onProjectRendered((event) => {
+    if (event.projectId !== projectId) return
+    void sceneVersions.refresh(true)
+    void tasks.currentScene(projectId).then((probe) => { if (probe.scene) setCurrentSceneState(probe.scene) })
+    rereadRuns()
+    // sceneVersions / tasks 每次渲染都是新对象，放进依赖会反复订阅；只跟项目走
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [projectId])
 
   const [switchOpen, setSwitchOpen] = useState(false)
   const switchRef = useRef<HTMLDivElement | null>(null)
@@ -2969,8 +2983,8 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
             onReasoning: (_mid, delta) => {
               chat.appendAiReasoning(aiId, delta)
             },
-            onDelta: (_mid, delta) => {
-              chat.appendAiText(aiId, delta)
+            onDelta: (_mid, delta, replaceFrom) => {
+              chat.appendAiText(aiId, delta, replaceFrom)
             },
             onTodo: (todos) => {
               chat.setAiTodos(aiId, todos)
@@ -2979,28 +2993,16 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
                看不到任何步骤，只有 onCompleted 之后重读历史才有。
                用户在最关心「AI 到底改了什么」的地方，反而看不到执行过程。 */
             onStatus: (status) => {
-              if (status.phase !== 'tool') return
-              const name = status.name ?? status.label
-              /* 与对话区同一套判别：带 arguments 是开始帧，只带 callId 是结果帧。
-                 不按 isError 判断 —— 成功的结果帧两个字段都没有。 */
-              if (status.arguments !== undefined) {
-                chat.recordToolCall(aiId, {
-                  ...(status.callId ? { callId: status.callId } : {}),
-                  name: name ?? '工具',
-                  arguments: status.arguments,
-                })
-              } else if (status.callId) {
-                chat.recordToolCall(aiId, {
-                  callId: status.callId,
-                  name: name ?? '工具',
-                  finished: true,
-                  ...(status.isError ? { isError: true } : {}),
-                })
-              }
+              chat.recordToolCall(aiId, status)
+            },
+            /* 这一轮改动了工程：后端自动渲染，出片后刷新版本，画面区直接播新片 */
+            onRender: (render) => {
+              if (render.message) setNotice(render.message)
+              if (render.state === 'rendered') notifyProjectRendered(projectId, render.version)
             },
             onCompleted: (message) => {
               chatStreamManager.notifyCompleted(effectiveSid)
-              chat.finishAiMessage(aiId, message.text, undefined, message.reasoning, message.todos)
+              chat.finishAiMessage(aiId, message.text, message.toolCalls, message.reasoning, message.todos, message.deliverables)
               if (threads) {
                 void threads.loadMessages(effectiveSid, { force: true })
               }
@@ -4916,10 +4918,9 @@ function RightPanel({ projectId, target, preview, projectVersionNumber, projectV
                         failed={m.failed}
                         demo={m.demo}
                         avatar={<EyeTracker size={20} shape="Ball" eyeScale={1.7} within=".fw-scroll" extendToViewportOrigin />}
-                      />
-                      <ProcessSummary
-                        tools={m.executedTools}
-                        running={m.streaming === true}
+                        content={<AssistantTurnContent text={m.text} tools={m.executedTools}
+                          renderText={text => <MarkdownText text={text} />}
+                          renderTools={tools => <ProcessSummary tools={tools} running={m.streaming === true} />} />}
                       />
                       {/* 「本轮未改动工程」按**轮次**显示：用这条回复的 taskId
                           （= 触发它的用户消息 id）去查该轮结果。

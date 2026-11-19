@@ -86,6 +86,26 @@ test('instructed command decisions never include auto-run', () => {
   assert.equal(apiMod.INSTRUCTED_COMMAND_DECISION_OPTIONS.some((o) => /自动运行|auto/i.test(o.label + o.value)), false)
 })
 
+test('v2 actions and conditional inputs survive editor normalization, saving and workflow binding', async () => {
+  const preset = samplePreset('active')
+  const input = { kind: 'asset', label: '人物头像', required: false, requiredWhen: '人物排行模式' }
+  const step = { step: '绘制按年份变化的排名', action: 'compose', node: 'create', note: '使用提供的数据集' }
+  preset.mapping.requiredInputs = [input]
+  preset.mapping.stepMapping = [step]
+  preset.mapping.defaults = { duration: null, ratio: null }
+  const normalized = apiMod.normalizePresetMapping(preset.mapping)
+  assert.deepEqual(normalized.requiredInputs, [input])
+  assert.deepEqual(normalized.stepMapping, [step])
+  const graph = bindingMod.buildGraphFromSkillPreset({ ...preset, mapping: normalized })
+  assert.deepEqual(graph.nodes.find(node => node.type === 'refs').params.requiredInputs, [input])
+  let submitted
+  const client = apiMod.createSkillPresetsResource({ put: async (_url, body) => { submitted = body; return preset } })
+  await client.updatePresetMapping(preset.id, normalized)
+  assert.deepEqual(submitted.stepMapping, [step])
+  assert.deepEqual(submitted.requiredInputs, [input])
+  assert.deepEqual(submitted.defaults, { duration: null, ratio: null })
+})
+
 test('skillPresets client routes and extracts 422 validation errors accurately', async () => {
   const { ApiError, parseErrorPayload } = await server.ssrLoadModule('/src/services/api/errors.ts')
   const parsed = parseErrorPayload(422, {
