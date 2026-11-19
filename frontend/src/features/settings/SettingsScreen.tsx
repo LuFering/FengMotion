@@ -3,21 +3,18 @@ import { UiIcon, SemIcons } from '@/shared/icons/UiIcon'
 import { CpuChip01, Database01, Film01, HelpCircle, Palette, PuzzlePiece01, Sliders01, Star01 } from '@untitledui/icons'
 import { useEffect, useRef, useState } from 'react'
 import '@/features/settings/styles/settings-refined.css'
-import { HARNESSES, REASONING_LABEL, DEFAULT_PREFS, prefsKey, loadPrefs, savePrefs,
-         type ModelPrefs, type Reasoning } from '@/features/harness/model/harnesses'
-import { assetStats, formatBytes } from '@/features/assets/services/assetApiService'
+import { HARNESSES, DEFAULT_PREFS, prefsKey, loadPrefs, savePrefs, type ModelPrefs } from '@/features/harness/model/harnesses'
+import { assetStats } from '@/features/assets/services/assetApiService'
 import { resetLibrary } from '@/features/assets/services/assetService'
-import { type Settings, type ThemeId, type WallpaperId, type WallpaperScope,
-         DEFAULT_SETTINGS, FEEDBACK, applyBackup, clearModelPrefs, downloadBackup, readBackup,
-         normalizeSettings } from '@/features/settings/model/settings-model'
+import { type Settings, type ThemeId, type WallpaperId, FEEDBACK, applyBackup, readBackup } from '@/features/settings/model/settings-model'
 import { useHarnesses, availabilityOf, modelsOf } from '@/features/harness/hooks/useHarnesses'
 import { Dialog, DialogContent, DialogTitle } from '@/shared/ui/dialog'
-import { Popover, PopoverContent, PopoverTrigger } from '@/shared/ui/popover'
-import { Input } from '@/shared/ui/input'
-import { Checkbox } from '@/shared/ui/checkbox'
-import { Slider } from '@/shared/ui/slider'
 import { Button } from '@/shared/ui/button'
 import pkg from '../../../package.json'
+import { Row, Seg } from '@/features/settings/components/SettingsParts'
+import { SettingsDataSection } from '@/features/settings/components/SettingsDataSection'
+import { SettingsAiSection } from '@/features/settings/components/SettingsAiSection'
+import { SettingsAppearanceSection } from '@/features/settings/components/SettingsAppearanceSection'
 
 const APP_VERSION = pkg.version
 
@@ -56,33 +53,6 @@ const SECTIONS: Array<{ id: SectionId; label: string; icon: string }> = [
   { id: 'about', label: '关于与反馈', icon: 'circle-help' },
 ]
 
-/** 主题样片的三条色带 = 各主题的 bg / surf / acc（设计常量，与 brand.css 一致） */
-const THEMES: Array<{ id: ThemeId; label: string; desc: string }> = [
-  { id: 'dark', label: '深色', desc: '默认' },
-  { id: 'light', label: '浅色', desc: '' },
-  { id: 'tactile', label: '纸感', desc: '' },
-]
-
-/** 壁纸候选：id 与 wallpaper.css 的 data-wall 一一对应 */
-const WALLPAPERS: Array<{ id: WallpaperId; label: string }> = [
-  { id: 'none', label: '默认背景' },
-  { id: 'aurora', label: '极光' },
-  { id: 'dusk', label: '暮色' },
-  { id: 'paper', label: '纸纹' },
-  { id: 'grid', label: '网格' },
-]
-
-/** 显示范围：按真实视图 id 匹配（global = 全部） */
-const SCOPES: Array<{ value: WallpaperScope; label: string }> = [
-  { value: 'global', label: '全部页面' },
-  { value: 'home', label: '仅首页' },
-  { value: 'conversation', label: '仅我的创作' },
-  { value: 'assets', label: '仅我的素材' },
-  { value: 'production', label: '仅制作工作台' },
-]
-
-const CONTEXTS = [32, 64, 128] as const
-
 /**
  * 快捷键表 —— 必须与真实操作一致（规划 §3），不是一张说明表。
  * 每一条都能在对应界面里按键复现：
@@ -98,44 +68,6 @@ const SHORTCUTS: Array<{ area: string; name: string; keys: string[] }> = [
   { area: '我的素材', name: '打开当前卡片的详情', keys: ['Enter'] },
   { area: '全局', name: '关闭覆层 / 弹窗 / 选择模式', keys: ['Esc'] },
 ]
-
-function Icon({ name, className = 'ui-icon' }: { name: string; className?: string }) {
-  return (
-    <svg className={className} aria-hidden="true">
-      <use href={`./assets/paba-icons.svg#${name}`} />
-    </svg>
-  )
-}
-
-/** 分段选择：复用 paba 全局的 .ch-tabs（bg hole + 按下 surf） */
-function Seg({ value, options, onChange, ariaLabel }: {
-  value: string
-  options: Array<{ value: string; label: string }>
-  onChange: (v: string) => void
-  ariaLabel: string
-}) {
-  return (
-    <div className="ch-tabs" role="radiogroup" aria-label={ariaLabel}>
-      {options.map((o) => (
-        <button key={o.value} type="button" role="radio"
-                aria-checked={value === o.value}
-                tabIndex={value === o.value ? 0 : -1}
-                onKeyDown={(event) => {
-                  if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return
-                  event.preventDefault()
-                  const step = ['ArrowRight', 'ArrowDown'].includes(event.key) ? 1 : -1
-                  const next = (options.findIndex((option) => option.value === o.value) + step + options.length) % options.length
-                  onChange(options[next].value)
-                  const buttons = event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('[role="radio"]')
-                  buttons?.[next]?.focus()
-                }}
-                onClick={() => onChange(o.value)}>
-          {o.label}
-        </button>
-      ))}
-    </div>
-  )
-}
 
 export function SettingsScreen({
   open, onClose, settings, onChange, onThemeChange,
@@ -363,242 +295,12 @@ export function SettingsScreen({
 
             {/* ── 外观 ─────────────────────────────────────── */}
             {section === 'appearance' && (
-              <section className="set-sec">
-                <div className="set-theme-grid" role="radiogroup" aria-label="主题">
-                  {THEMES.map((t) => (
-                    <button key={t.id} type="button" role="radio"
-                            aria-checked={settings.theme === t.id}
-                            className="set-rowbtn"
-                            data-on={settings.theme === t.id || undefined}
-                            onClick={() => onThemeChange(t.id)}>
-                      <span className="set-theme-preview" data-theme={t.id} aria-hidden="true"><i className="set-preview-bar"/><i className="set-preview-nav"/><i className="set-preview-stage"/><i className="set-preview-side"/></span>
-                      <span className="set-rowtxt">
-                        <b>{t.label}</b>
-                        {t.desc && <small>{t.desc}</small>}
-                      </span>
-                      {settings.theme === t.id && <UiIcon icon={SemIcons.check} size="sm" className="set-ck" />}
-                    </button>
-                  ))}
-                </div>
-
-                <div className="set-group">
-                <h4 className="set-subhead">壁纸</h4>
-                <div className="set-walls" role="radiogroup" aria-label="壁纸">
-                  {WALLPAPERS.map((w) => {
-                    const pv = wallPreview(w.id)
-                    return (
-                      <button key={w.id} type="button" role="radio"
-                              aria-checked={settings.wallpaper === w.id}
-                              className="set-wall"
-                              data-on={settings.wallpaper === w.id || undefined}
-                              onClick={() => set('wallpaper', w.id)}>
-                        <span className="set-wall-prev" data-wall={pv.dataWall} style={pv.style} />
-                        <span className="set-wall-name">{w.label}</span>
-                        {settings.wallpaper === w.id && (
-                          <span className="set-wall-ck"><Icon name="check" /></span>
-                        )}
-                      </button>
-                    )
-                  })}
-                  {/* 自定义：没有图时就是「上传」入口，有图时显示这张图 */}
-                  <button type="button" role="radio"
-                          aria-checked={settings.wallpaper === 'custom'}
-                          className="set-wall"
-                          data-on={settings.wallpaper === 'custom' || undefined}
-                          onClick={() => {
-                            if (settings.wallpaperCustom) set('wallpaper', 'custom')
-                            else wallInputRef.current?.click()
-                          }}>
-                    {settings.wallpaperCustom
-                      ? <span className="set-wall-prev" data-wall="custom"
-                              style={{ backgroundImage: `url(${settings.wallpaperCustom})` }} />
-                      : <span className="set-wall-add"><Icon name="image-plus" /></span>}
-                    <span className="set-wall-name">
-                      {settings.wallpaperCustom ? '自定义图片' : '选择图片…'}
-                    </span>
-                    {settings.wallpaper === 'custom' && (
-                      <span className="set-wall-ck"><Icon name="check" /></span>
-                    )}
-                  </button>
-                  <input ref={wallInputRef} type="file" accept="image/*" hidden onChange={onPickWallpaper} />
-                </div>
-
-                {/* 有自定义图时给一个替换入口，不然只能靠再点一次卡片 */}
-                {settings.wallpaperCustom && (
-                  <Row label="自定义图片" hint="已保存在本机设置里">
-                    <Button variant="outline" size="sm" onClick={() => wallInputRef.current?.click()}>
-                      替换…
-                    </Button>
-                    <Button variant="outline" size="sm"
-                            onClick={() => onChange({ ...settings, wallpaperCustom: null, wallpaper: 'none' })}>
-                      移除
-                    </Button>
-                  </Row>
-                )}
-
-                <Row label="显示范围">
-                  <Seg ariaLabel="壁纸显示范围" value={settings.wallpaperScope}
-                       options={SCOPES.map((s) => ({ value: s.value, label: s.label }))}
-                       onChange={(v) => set('wallpaperScope', v as WallpaperScope)} />
-                </Row>
-
-                <Row label="背景遮罩" hint="压暗壁纸，保证上面的文字读得清">
-                  <Slider className="set-slider" value={[settings.wallpaperDim]} min={0} max={90} step={5}
-                          disabled={settings.wallpaper === 'none'}
-                          onValueChange={(v) => set('wallpaperDim', v[0] ?? 0)}
-                          aria-label="背景遮罩强度" />
-                  <span className="set-range-val">{settings.wallpaperDim}%</span>
-                </Row>
-                <Row label="恢复默认背景" hint="只清壁纸，不动主题">
-                  <Button variant="outline" size="sm"
-                          onClick={() => onChange({ ...settings, wallpaper: 'none', wallpaperDim: DEFAULT_SETTINGS.wallpaperDim })}>
-                    恢复
-                  </Button>
-                </Row>
-
-                </div>
-                <div className="set-group">
-                <h4 className="set-subhead">界面</h4>
-                <Row label="减弱动效" hint="压平界面动画与过渡；低性能设备或容易晕动时开启">
-                  <Checkbox checked={settings.reduceMotion}
-                            onCheckedChange={(v) => set('reduceMotion', v === true)}
-                            aria-label="减弱动效" />
-                </Row>
-                </div>
-              </section>
+              <SettingsAppearanceSection onChange={onChange} onPickWallpaper={onPickWallpaper} onThemeChange={onThemeChange} set={set} settings={settings} wallInputRef={wallInputRef} wallPreview={wallPreview} />
             )}
 
             {/* ── AI 与模型 ─────────────────────────────────── */}
             {section === 'ai' && (
-              <section className="set-sec">
-
-                {/* 已接入引擎三列等宽排列，只渲染实际接入项。 */}
-                <div className="set-hcards">
-                  {connectedHarnesses.map((h) => {
-                    const on = h.id === settings.harness
-                    return (
-                      <div key={h.id} className="set-hcard" data-on={on || undefined} title={stateOf(h.id).note ?? undefined}>
-                        {/* logo 占满卡片左侧整列（不再是一行里的小方块） */}
-                        <span className="set-hcard-side" style={{ '--h-color': h.color } as React.CSSProperties}>
-                          <i style={{ maskImage: `url(${h.icon})`, WebkitMaskImage: `url(${h.icon})` }} />
-                        </span>
-                        <div className="set-hcard-main">
-                          <div className="set-hcard-top">
-                            <div className="set-agent-who">
-                              <b>{h.name}</b>
-                              <small>
-                                <em data-ready />本机引擎已载入
-                              </small>
-                            </div>
-                            <Popover modal open={pickOpen === h.id}
-                                     onOpenChange={(o) => setPickOpen(o ? h.id : null)}>
-                              <PopoverTrigger asChild>
-                                <button type="button" className="set-agent-pick"
-                                        aria-label={`${h.name} 的模型：${on ? settings.model : '默认'}`}>
-                                  <span className="set-agent-pick-ic" style={{ '--h-color': h.color } as React.CSSProperties}>
-                                    <i style={{ maskImage: `url(${h.icon})`, WebkitMaskImage: `url(${h.icon})` }} />
-                                  </span>
-                                  <span className="v">{on ? (modelsFor(h.id).models.find((m) => m.id === settings.model)?.label ?? '选择模型') : '选择模型'}</span>
-                                  <Icon name="chevron-down" className="ui-icon set-agent-pick-chev" />
-                                </button>
-                              </PopoverTrigger>
-                              <PopoverContent className="set-pick" align="start" sideOffset={6}>
-                                <div className="set-pick-head">模型</div>
-                                <div className="set-pick-list" role="listbox" aria-label={`${h.name} 的模型`}>
-                                  {modelsFor(h.id).models.map((m) => {
-                                    const cur = on && settings.model === m.id
-                                    return (
-                                      <button key={m.id} type="button" role="option" aria-selected={cur}
-                                              className="set-pick-item" data-on={cur || undefined}
-                                              onClick={() => {
-                                                setHarnessSelection({ harness: h.id, model: m.id, reasoningEffort: undefined })
-                                                onChange({ ...settings, harness: h.id, model: m.id })
-                                                setPickOpen(null)
-                                              }}>
-                                        <span className="set-pick-item-ic" style={{ '--h-color': h.color } as React.CSSProperties}>
-                                          <i style={{ maskImage: `url(${h.icon})`, WebkitMaskImage: `url(${h.icon})` }} />
-                                        </span>
-                                        <span className="set-pick-item-v">{m.label}</span>
-                                        {cur && <Icon name="check" className="ui-icon set-pick-item-ck" />}
-                                      </button>
-                                    )
-                                  })}
-                                </div>
-                              </PopoverContent>
-                            </Popover>
-                            {on ? <span className="set-default-engine"><UiIcon icon={SemIcons.check} size="xs" />默认</span> : <button type="button" className="set-default-engine" onClick={() => pickHarness(h.id)}>设为默认</button>}
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-
-                {/* 待安装：未接入的引擎收在这里，展开看它需要什么。
-                    不是可有可无的装饰 —— 用户要知道「为什么它不在上面」。
-                    没有待接入引擎时整行不渲染：一个计数为 0 的折叠入口展开后什么也没有。 */}
-                {pendingHarnesses.length > 0 && <div className="set-agent-more">
-                  <button type="button" className="set-agent-more-head"
-                          aria-expanded={showInstall || undefined}
-                          onClick={() => setShowInstall((v) => !v)}>
-                    <Icon name="download" />
-                    <span>待接入的引擎</span>
-                    <small>{pendingHarnesses.length}</small>
-                    <Icon name="chevron-down" className="ui-icon set-agent-more-chev" />
-                  </button>
-                  {showInstall && (
-                    <div className="set-agent-more-body">
-                      <p className="set-hint">
-                        以下引擎尚未接入，暂不能发送任务。
-                      </p>
-                      <div className="set-hcards set-pending-hcards">
-                        {pendingHarnesses.map((h) => (
-                          <div key={h.id} className="set-hcard" data-pending>
-                            <span className="set-hcard-side" style={{ '--h-color': h.color } as React.CSSProperties}>
-                              <i style={{ maskImage: `url(${h.icon})`, WebkitMaskImage: `url(${h.icon})` }} />
-                            </span>
-                            <div className="set-agent-who">
-                              <b>{h.name}</b>
-                              <small>
-                                {stateOf(h.id).note ?? '未检测到可用引擎，请检查本机安装与配置。'}
-                              </small>
-                            </div>
-                            <span className="set-agent-tag">待接入</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>}
-
-                <div className="set-group">
-                <h4 className="set-subhead">连接</h4>
-                {/* 原来是一行灰字按钮夹在小标题和输入框之间，看起来像说明文字。
-                    改为一行正式设置：标签说明它做什么，右侧是按钮。 */}
-                <Row label="本机引擎与模型">
-                  <Button variant="outline" size="sm" onClick={() => void probe.refresh(true)}>重新检测</Button>
-                </Row>
-                <Row label="服务端点" hint="尚未验证连通性">
-                  <Input aria-label="服务端点" className="set-endpoint" value={settings.harnessEndpoint} spellCheck={false}
-                         onChange={(e) => set('harnessEndpoint', e.target.value)}
-                         placeholder="http://127.0.0.1:8788/v1" />
-                </Row>
-                </div>
-
-                <div className="set-group">
-                <h4 className="set-subhead">模型偏好</h4>
-                <Row label="思考强度">
-                  <Seg ariaLabel="默认思考强度" value={curPrefs.reasoning}
-                       options={(Object.keys(REASONING_LABEL) as Reasoning[]).map((r) => ({ value: r, label: REASONING_LABEL[r] }))}
-                       onChange={(v) => setPref({ reasoning: v as Reasoning })} />
-                </Row>
-                <Row label="上下文上限">
-                  <Seg ariaLabel="默认上下文上限" value={String(curPrefs.context)}
-                       options={CONTEXTS.map((c) => ({ value: String(c), label: `${c}K` }))}
-                       onChange={(v) => setPref({ context: Number(v) as ModelPrefs['context'] })} />
-                </Row>
-                </div>
-              </section>
+              <SettingsAiSection connectedHarnesses={connectedHarnesses} curPrefs={curPrefs} modelsFor={modelsFor} onChange={onChange} pendingHarnesses={pendingHarnesses} pickHarness={pickHarness} pickOpen={pickOpen} probe={probe} set={set} setPickOpen={setPickOpen} setPref={setPref} setShowInstall={setShowInstall} settings={settings} showInstall={showInstall} stateOf={stateOf} />
             )}
 
             {/* 默认值还没有消费方，保留已有数据，界面不把它当作已生效能力。 */}
@@ -619,86 +321,7 @@ export function SettingsScreen({
 
             {/* ── 数据与存储 ────────────────────────────────── */}
             {section === 'data' && (
-              <section className="set-sec">
-
-                <div className="set-group">
-                <h4 className="set-subhead">本机占用</h4>
-                <Row label="素材">
-                  <span className="num">{stats ? `${stats.count} 项 · ${formatBytes(stats.bytes)}` : '读取中…'}</span>
-                </Row>
-                <Row label="设置与偏好" hint="仅存本机，不上传">
-                  <span className="num">JSON · 约 {settingsBytes()} KB</span>
-                </Row>
-
-                </div>
-                <div className="set-group">
-                <h4 className="set-subhead">备份与恢复</h4>
-                <Row label="导出设置" hint="不含素材文件">
-                  <Button variant="outline" size="sm"
-                          onClick={() => {
-                            const name = downloadBackup(settings)
-                            setNotice(`已导出 ${name}`)
-                          }}>
-                    导出…
-                  </Button>
-                </Row>
-                <Row label="导入设置">
-                  <Button variant="outline" size="sm" onClick={() => backupInputRef.current?.click()}>
-                    导入…
-                  </Button>
-                  <input ref={backupInputRef} type="file" accept="application/json,.json" hidden
-                         onChange={onPickBackup} />
-                </Row>
-
-                </div>
-                <div className="set-group">
-                <h4 className="set-subhead">清理</h4>
-                <Row label="清除对话偏好" hint="思考强度与上下文上限回到默认（标准 · 64）">
-                  <Button variant="outline" size="sm"
-                          onClick={() => {
-                            const had = clearModelPrefs()
-                            setPrefs(loadPrefs())
-                            setNotice(had ? '对话偏好已清除' : '本来就没有自定义偏好')
-                          }}>
-                    清除
-                  </Button>
-                </Row>
-                <Row label="清空浏览器中的旧素材索引"
-                     hint="仅清除旧版存在浏览器里的素材数据，不删除素材库里的文件。">
-                  {!confirmWipe
-                    ? <Button variant="destructive" size="sm" onClick={() => setConfirmWipe(true)}>清空…</Button>
-                    : <Button variant="outline" size="sm" onClick={() => setConfirmWipe(false)}>取消</Button>}
-                </Row>
-                {confirmWipe && (
-                  <div className="set-hint" role="alertdialog" aria-label="确认清空本地素材">
-                    <p style={{ margin: '0 0 6px', color: 'var(--bad)' }}>
-                      这一步会删除浏览器里的旧素材数据，<b>不影响素材库</b>：
-                    </p>
-                    <ul style={{ margin: '0 0 8px', paddingLeft: 18, lineHeight: 1.7 }}>
-                      <li>浏览器 IndexedDB 里旧版存的素材文件会被删除，<b>不可撤销</b>；</li>
-                      <li>素材库（应用管理的目录）里的文件<b>不会</b>被删除，素材页仍然可用；</li>
-                      <li>如果还有旧素材没迁移，删掉后就再也迁移不过来了。</li>
-                    </ul>
-                    <Button variant="destructive" size="sm" onClick={onWipeLibrary}>
-                      我明白，清空旧索引
-                    </Button>
-                  </div>
-                )}
-                <Row label="恢复默认设置" hint="壁纸与自定义图片也会清除">
-                  <Button variant="outline" size="sm"
-                          onClick={() => {
-                            if (!window.confirm('把所有设置恢复为默认值？壁纸与自定义图片也会被清掉。')) return
-                            const next = normalizeSettings({ ...DEFAULT_SETTINGS })
-                            onChange(next)
-                            onThemeChange(next.theme)
-                            setNotice('设置已恢复默认')
-                          }}>
-                    恢复默认
-                  </Button>
-                </Row>
-                </div>
-                {notice && <p className="set-notice">{notice}</p>}
-              </section>
+              <SettingsDataSection backupInputRef={backupInputRef} confirmWipe={confirmWipe} notice={notice} onChange={onChange} onPickBackup={onPickBackup} onThemeChange={onThemeChange} onWipeLibrary={onWipeLibrary} setConfirmWipe={setConfirmWipe} setNotice={setNotice} setPrefs={setPrefs} settings={settings} stats={stats} />
             )}
 
             {/* ── 关于与反馈 ────────────────────────────────── */}
@@ -743,14 +366,6 @@ export function SettingsScreen({
   )
 }
 
-/** 「设置与偏好」占用量：真实量一下 localStorage 里的设置 JSON，不估算 */
-function settingsBytes(): number {
-  try {
-    const raw = localStorage.getItem('fengmotion:settings') ?? ''
-    return Math.max(1, Math.ceil(new TextEncoder().encode(raw).byteLength / 1024))
-  } catch { return 0 }
-}
-
 /** 把图片压到长边 ≤ max：自定义壁纸要塞进 localStorage，原图动辄几 MB */
 function downscaleImage(file: File, max: number): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -775,16 +390,4 @@ function downscaleImage(file: File, max: number): Promise<string> {
     }
     reader.readAsDataURL(file)
   })
-}
-
-function Row({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
-  return (
-    <div className="set-row">
-      <div className="set-row-label">
-        <b>{label}</b>
-        {hint && <em>{hint}</em>}
-      </div>
-      <div className="set-row-control">{children}</div>
-    </div>
-  )
 }

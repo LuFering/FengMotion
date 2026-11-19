@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { UiIcon, SemIcons } from '@/shared/icons/UiIcon'
-import { Film01, Image01, TextInput, ChevronLeftDouble, ChevronRightDouble, HelpCircle, LayersThree01, Minus, MusicNote01, Scan, Square, Type01 } from '@untitledui/icons'
 import type { CSSProperties, KeyboardEvent, PointerEvent } from 'react'
 /* 时间轨道图标全部用 lucide（第三轮统一）：选区起止用 |< >|，与原 phosphor CaretLine 语义一致。 */
-import { MediaIcon } from '@/shared/icons/MediaIcon'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/ui/tooltip'
 import { formatTimecode } from '@/features/workbench/model/timeRange'
 import { sequenceClipKey as clipKey, type SequenceEntry, type SequenceTrack } from '@/features/workbench/model/sequenceManifest'
 import type { CapabilityResult } from '@/features/workbench/services/workbenchCapabilityEvaluator'
 import '@/features/workbench/styles/workbench-timeline.css'
+import { TimelineHead } from '@/features/workbench/components/timeline/TimelineHead'
+import { clamp } from '@/features/workbench/components/timeline/timelineDisplay'
+import { TimelineRows } from '@/features/workbench/components/timeline/TimelineRows'
+import { TimelineRuler } from '@/features/workbench/components/timeline/TimelineRuler'
 
 export type WorkbenchTimelineSpan = { start: number; end: number }
 
@@ -58,39 +58,9 @@ type Drag = {
   viewStart: number
   viewWidth: number
 }
-
-const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v))
 const round = (v: number) => Math.round(v * 1000) / 1000
 const TICK_STEPS = [0.1, 0.2, 0.5, 1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 1800, 3600]
 const tickStepFor = (visible: number) => TICK_STEPS.find((s) => visible / s <= 7) ?? 7200
-const tickLabel = (seconds: number, step: number) => {
-  const m = Math.floor(seconds / 60)
-  const s = seconds % 60
-  if (step >= 1) return `${m}:${String(Math.round(s)).padStart(2, '0')}`
-  const digits = step < 0.2 ? 2 : 1
-  return `${m}:${s.toFixed(digits).padStart(digits + 3, '0')}`
-}
-
-const KIND_ICON = { text: Type01, image: Image01, video: Film01, audio: MusicNote01, shape: Square } as const
-const TRACK_ICON = {
-  text: TextInput,
-  video: Film01,
-  background: LayersThree01,
-  image: Image01,
-  audio: MusicNote01,
-  shape: Square,
-} as const
-type TrackVisualKind = keyof typeof TRACK_ICON
-
-const trackVisualKind = (track: SequenceTrack): TrackVisualKind => {
-  const label = `${track.name} ${track.clips[0]?.kind ?? ''}`
-  if (/字幕|文字|标题|caption|subtitle|text/i.test(label)) return 'text'
-  if (/音频|音乐|audio|music|sound/i.test(label)) return 'audio'
-  if (/背景|底图|background/i.test(track.name)) return 'background'
-  if (/画面|视频|video/i.test(label)) return 'video'
-  const kind = track.clips[0]?.kind
-  return kind && kind in TRACK_ICON ? kind : 'background'
-}
 
 /** 真实视频缩略帧序列（统一 16:9 无边框贴合） */
 function Filmstrip({ src, duration, frames = 12 }: { src: string; duration: number; frames?: number }) {
@@ -403,167 +373,7 @@ export function WorkbenchTimeline({
       }}
     >
       {/* ── 1. 顶栏工具条（高 44px） ── */}
-      <div className="wb-tl-head">
-        {/* 左侧：时间线标题 + 时码读数 + 逐帧 + 选区（紧密靠拢，组间留 12-16px 呼吸间距，不加额外底框） */}
-        <div className="wb-tl-head-left">
-          <span className="wb-tl-title">时间线</span>
-          <div className="wb-tl-readout">
-            <span className="wb-tl-time-current">{formatTimecode(currentTime, true)}</span>
-            <span className="wb-tl-sep">/</span>
-            <span className="wb-tl-total">{formatTimecode(limit, true)}</span>
-          </div>
-
-          {/* 逐帧定位：紧贴时间读数 */}
-          <div className="wb-tl-frame-step" role="group" aria-label="逐帧定位">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button type="button" className="wb-tl-icon" aria-label="上一帧" disabled={unavailable || !frameFps || currentTime <= 0} onClick={() => stepFrame(-1)}>
-                  <MediaIcon name="chevronLeft" size={16} />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent>{unavailable ? opsDisabledReason : frameFps ? '上一帧' : '帧率未知'}</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button type="button" className="wb-tl-icon" aria-label="下一帧" disabled={unavailable || !frameFps || currentTime >= limit} onClick={() => stepFrame(1)}>
-                  <MediaIcon name="chevronRight" size={16} />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent>{unavailable ? opsDisabledReason : frameFps ? '下一帧' : '帧率未知'}</TooltipContent>
-            </Tooltip>
-          </div>
-
-          {/* 选区范围标记：紧接逐帧 */}
-          <div className="wb-tl-range-markers" role="group" aria-label="设置选区范围">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button type="button" className="wb-tl-icon" aria-label="设为选区起点" disabled={unavailable || currentTime >= limit - 0.05} onClick={() => markBoundary('start')}>
-                  <UiIcon icon={ChevronLeftDouble} size="md" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent>{unavailable ? opsDisabledReason : '设为选区起点 ['}</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button type="button" className="wb-tl-icon" aria-label="设为选区终点" disabled={unavailable || currentTime <= 0.05} onClick={() => markBoundary('end')}>
-                  <UiIcon icon={ChevronRightDouble} size="md" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent>{unavailable ? opsDisabledReason : '设为选区终点 ]'}</TooltipContent>
-            </Tooltip>
-          </div>
-        </div>
-
-        {/* 中间：选中状态或默认操作（位置稳定，选中时展示“引用给 AI”，未选中时自然留白，不漂移浮动） */}
-        <div className="wb-tl-head-center">
-          {picked ? (
-            <div className="wb-tl-focus-pill" role="status">
-              <span className="wb-tl-focus-label">已选</span>
-              <span className="wb-tl-focus-name" title={picked.name}>{picked.name}</span>
-              <span className="wb-tl-focus-range">{formatTimecode(picked.start, true)}–{formatTimecode(picked.start + picked.duration, true)}</span>
-              {tracksVerified && (trackClipCapability?.allowed ?? true) ? (
-                <button
-                  type="button"
-                  className="wb-tl-action-btn primary"
-                  disabled={unavailable}
-                  onClick={() => pickedTrack && onClipReference?.(picked, pickedTrack)}
-                >
-                  引用给 AI
-                </button>
-              ) : (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span className="wb-tl-ref-tag" tabIndex={0}>参考</span>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    {trackClipCapability && !trackClipCapability.allowed
-                      ? trackClipCapability.reason
-                      : '当前轨道尚未确认与当前版本对应，仅支持时间与内容定位'}
-                  </TooltipContent>
-                </Tooltip>
-              )}
-              <button type="button" className="wb-tl-icon sm" aria-label="取消选择" onClick={() => setPickedId(null)}>
-                <UiIcon icon={SemIcons.close} size="sm" />
-              </button>
-            </div>
-          ) : span ? (
-            <div className="wb-tl-focus-pill" role="status">
-              <span className="wb-tl-focus-label">选区</span>
-              <span className="wb-tl-focus-range">{formatTimecode(span.start, true)}–{formatTimecode(span.end, true)}</span>
-              <button
-                type="button"
-                className="wb-tl-action-btn primary"
-                disabled={unavailable}
-                onClick={() => {
-                  /* 范围已通过 onSpanCommit 提交，此处点引用直接强化反馈 */
-                }}
-              >
-                已选定范围
-              </button>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    type="button"
-                    className="wb-tl-icon sm"
-                    data-active={looping || undefined}
-                    aria-pressed={looping}
-                    aria-label={looping ? '停止循环' : '循环选区'}
-                    disabled={unavailable}
-                    onClick={onToggleLoop}
-                  >
-                    <UiIcon icon={SemIcons.refresh} size="sm" />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>{looping ? '停止循环' : '循环选区'}</TooltipContent>
-              </Tooltip>
-              <button type="button" className="wb-tl-icon sm" aria-label="清除选区" onClick={onClear}>
-                <UiIcon icon={SemIcons.close} size="sm" />
-              </button>
-            </div>
-          ) : null}
-        </div>
-
-        {/* 右侧：缩放控制器 */}
-        <div className="wb-tl-head-right">
-          <div className="wb-tl-zoom" role="group" aria-label="缩放">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button type="button" className="wb-tl-icon" aria-label="缩小时间线" disabled={unavailable || zoom <= 1.001} onClick={() => setZoomTo(zoom / 1.8)}>
-                  <UiIcon icon={Minus} size="sm" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent>{unavailable ? opsDisabledReason : '缩小'}</TooltipContent>
-            </Tooltip>
-            <input
-              type="range"
-              className="wb-tl-zoom-slider"
-              aria-label="缩放比例"
-              min={1}
-              max={Math.max(1, maxZoom)}
-              step="any"
-              value={zoom}
-              disabled={unavailable || maxZoom <= 1}
-              onChange={(e) => setZoomTo(Number(e.target.value))}
-            />
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button type="button" className="wb-tl-icon" aria-label="放大时间线" disabled={unavailable || zoom >= maxZoom - 0.001} onClick={() => setZoomTo(zoom * 1.8)}>
-                  <UiIcon icon={SemIcons.plus} size="sm" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent>{unavailable ? opsDisabledReason : '放大'}</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button type="button" className="wb-tl-icon" aria-label="适应整片" disabled={unavailable || zoom <= 1.001} onClick={() => { setStart(0); setZoom(1) }}>
-                  <UiIcon icon={Scan} size="sm" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent>{unavailable ? opsDisabledReason : '适应整片 (重置缩放)'}</TooltipContent>
-            </Tooltip>
-          </div>
-        </div>
-      </div>
+      <TimelineHead currentTime={currentTime} frameFps={frameFps} limit={limit} looping={looping} markBoundary={markBoundary} maxZoom={maxZoom} onClear={onClear} onClipReference={onClipReference} onToggleLoop={onToggleLoop} opsDisabledReason={opsDisabledReason} picked={picked} pickedTrack={pickedTrack} setPickedId={setPickedId} setStart={setStart} setZoom={setZoom} setZoomTo={setZoomTo} span={span} stepFrame={stepFrame} trackClipCapability={trackClipCapability} tracksVerified={tracksVerified} unavailable={unavailable} zoom={zoom} />
 
       {/* ── 2. 待确认修改浮层（若存在，浮在顶部通知，不挤压内容） ── */}
       {pending && (
@@ -604,83 +414,7 @@ export function WorkbenchTimeline({
         />
 
         {/* 标尺行（高 28px）：左侧“内容 参考 ⓘ”，右侧主次刻度标尺 */}
-        <div className="wb-tl-grid wb-tl-ruler-row">
-          <div className="wb-tl-ruler-meta">
-            <span className="wb-tl-meta-title">内容</span>
-            {tracks.length > 0 && !tracksVerified && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="wb-tl-ref-badge" tabIndex={0} role="status">
-                    参考 <UiIcon icon={HelpCircle} size="xs" className="inline ml-0.5 opacity-70" />
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent>这些轨道尚未确认与当前版本对应，可浏览和定位。</TooltipContent>
-              </Tooltip>
-            )}
-            {frameFps && <small className="wb-tl-fps-label">{frameFps} fps</small>}
-          </div>
-
-          <div
-            className="wb-tl-ruler"
-            role="slider"
-            tabIndex={unavailable ? -1 : 0}
-            aria-label="播放位置"
-            aria-valuemin={0}
-            aria-valuemax={limit}
-            aria-valuenow={Math.min(currentTime, limit)}
-            aria-valuetext={formatTimecode(currentTime, true)}
-            aria-disabled={unavailable}
-            onPointerDown={(e) => {
-              if (unavailable || e.button !== 0) return
-              e.stopPropagation()
-              e.currentTarget.setPointerCapture(e.pointerId)
-              onSeek(timeAt(e.clientX))
-            }}
-            onPointerMove={(e) => {
-              if (!unavailable && e.currentTarget.hasPointerCapture(e.pointerId)) onSeek(timeAt(e.clientX))
-            }}
-            onPointerUp={(e) => {
-              if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId)
-            }}
-            onKeyDown={(e) => {
-              const frame = frameFps ? 1 / frameFps : 0.1
-              if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
-              e.preventDefault()
-              onSeek(clamp(currentTime + (e.key === 'ArrowLeft' ? -frame : frame), 0, limit))
-            }}
-          >
-            {/* 标尺次刻度（短线） */}
-            {minorTicks.map((mt) => (
-              <span
-                key={`m-${mt.time}`}
-                className="wb-tl-tick-minor"
-                data-mid={mt.mid || undefined}
-                style={{ left: `${pct(mt.time)}%` }}
-                aria-hidden="true"
-              />
-            ))}
-            {/* 标尺主刻度（长线 + 时码文字） */}
-            {ticks.map((tick, i) => (
-              <span
-                key={tick}
-                className="wb-tl-tick"
-                data-first={i === 0 && pct(tick) < 3 || undefined}
-                data-last={i === ticks.length - 1 && pct(tick) > 97 || undefined}
-                style={{ left: `${pct(tick)}%` }}
-              >
-                {tickLabel(tick, step)}
-              </span>
-            ))}
-            {/* 播放头顶部标记 */}
-            {playheadVisible && (
-              <span
-                className="wb-tl-playhead-cap"
-                style={{ left: `${pct(currentTime)}%` }}
-                aria-hidden="true"
-              />
-            )}
-          </div>
-        </div>
+        <TimelineRuler currentTime={currentTime} frameFps={frameFps} limit={limit} minorTicks={minorTicks} onSeek={onSeek} pct={pct} playheadVisible={playheadVisible} step={step} ticks={ticks} timeAt={timeAt} tracks={tracks} tracksVerified={tracksVerified} unavailable={unavailable} />
 
         {/* 缩略帧带（高 28px）：与标尺及轨道严格同起点、16:9 裁切展示画面，移除独立缩略帧标签 */}
         <div className="wb-tl-grid wb-tl-ruler-film">
@@ -736,121 +470,7 @@ export function WorkbenchTimeline({
         </div>
 
         {/* ── 4. 轨道行容器（多轨时内部纵向滚动） ── */}
-        <div className="wb-tl-rows" tabIndex={0} role="region" aria-label="轨道列表">
-          {/* 贯穿全轨的时间选区高亮底带 */}
-          {span && spanEnd > spanStart && (
-            <span
-              className="wb-tl-span-layer"
-              style={{
-                left: `calc(var(--wb-tl-gutter) + (100% - var(--wb-tl-gutter)) * ${pct(spanStart) / 100})`,
-                width: `calc((100% - var(--wb-tl-gutter)) * ${(pct(spanEnd) - pct(spanStart)) / 100})`,
-              }}
-              aria-hidden="true"
-            />
-          )}
-
-          {/* 无轨道清单状态 */}
-          {tracks.length === 0 && !unavailable && (
-            <div className="wb-tl-empty" role="status">
-              {trackStatus || '当前版本暂无可识别的轨道'}，仍可选择时间范围
-            </div>
-          )}
-
-          {/* 各轨道行（默认每轨 44px） */}
-          {tracks.map((tItem) => {
-            const parts = tItem.name.split(/\s*[·・]\s*/, 2)
-            const trackCode = parts.length > 1 ? parts[0] : ''
-            const trackName = parts.length > 1 ? parts[1] : tItem.name
-            const visualKind = trackVisualKind(tItem)
-            const TrackIconComp = TRACK_ICON[visualKind]
-            const collapsed = collapsedIds.has(tItem.id)
-
-            return (
-              <div
-                className="wb-tl-grid wb-tl-row wb-tl-row-track"
-                key={tItem.id}
-                data-visual={visualKind}
-                data-collapsed={collapsed || undefined}
-                data-active={tItem.clips.some((clip) => clipKey(tItem.id, clip.id) === pickedId) || undefined}
-              >
-                {/* 轨道头：折叠箭头 → 类型图标 → 轨道名称 → 次要代号 */}
-                <div className="wb-tl-gutter" title={`${tItem.name} · ${tItem.clips.length} 个片段`}>
-                  <button
-                    type="button"
-                    className="wb-tl-track-fold"
-                    aria-expanded={!collapsed}
-                    aria-label={collapsed ? `展开${trackName}` : `折叠${trackName}`}
-                    onClick={() => setCollapsedIds((prev) => {
-                      const next = new Set(prev)
-                      if (next.has(tItem.id)) next.delete(tItem.id)
-                      else next.add(tItem.id)
-                      return next
-                    })}
-                  >
-                    <UiIcon icon={SemIcons.expand} size="xs" className={`wb-tl-fold-arrow ${collapsed ? '' : 'is-expanded'} `} />
-                  </button>
-
-                  <span className="wb-tl-track-type-icon" aria-hidden="true">
-                    <TrackIconComp size={14} />
-                  </span>
-
-                  <span className="wb-tl-track-name">{trackName}</span>
-
-                  {trackCode && <span className="wb-tl-track-code">{trackCode}</span>}
-
-                  {/* 仅在多片段轨道上提供紧凑提示 */}
-                  {tItem.clips.length > 1 && (
-                    <span className="wb-tl-track-count" title={`${tItem.clips.length} 个片段`}>
-                      {tItem.clips.length}
-                    </span>
-                  )}
-                </div>
-
-                {/* 轨道槽与片段块 */}
-                <div className="wb-tl-lane">
-                  {collapsed ? null : tItem.clips.map((clip) => {
-                    const key = clipKey(tItem.id, clip.id)
-                    const shownStart = clip.start
-                    const shownDuration = clip.duration
-                    const left = Math.max(shownStart, viewStart)
-                    const right = Math.min(shownStart + shownDuration, viewEnd)
-                    if (right <= left) return null
-                    const hasSpecialIcon = clip.kind === 'text' || clip.kind === 'audio'
-                    const ClipIcon = KIND_ICON[clip.kind]
-                    const clipWidthPct = pct(right) - pct(left)
-
-                    return (
-                      <button
-                        key={clip.id}
-                        type="button"
-                        className="wb-tl-clip"
-                        style={{ left: `${pct(left)}%`, width: `${clipWidthPct}%` }}
-                        title={`${clip.name} (${formatTimecode(clip.start, true)}–${formatTimecode(clip.start + clip.duration, true)})`}
-                        disabled={unavailable}
-                        data-kind={clip.kind}
-                        data-picked={pickedId === key || undefined}
-                        aria-pressed={pickedId === key}
-                        onClick={() => {
-                          setPickedId(key)
-                          onSeek(clip.start)
-                        }}
-                      >
-                        {/* 优先突出 12px 内容名称，类型已在轨道头明确表达；仅在特殊素材且空间充裕时展示小图标 */}
-                        {hasSpecialIcon && clipWidthPct >= 10 && (
-                          <span className="wb-tl-clip-icon">
-                            <ClipIcon size={12} />
-                          </span>
-                        )}
-                        <span className="wb-tl-clip-name">{clip.name}</span>
-                      </button>
-                    )
-                  })}
-                  {playhead}
-                </div>
-              </div>
-            )
-          })}
-        </div>
+        <TimelineRows collapsedIds={collapsedIds} onSeek={onSeek} pct={pct} pickedId={pickedId} playhead={playhead} setCollapsedIds={setCollapsedIds} setPickedId={setPickedId} span={span} spanEnd={spanEnd} spanStart={spanStart} trackStatus={trackStatus} tracks={tracks} unavailable={unavailable} viewEnd={viewEnd} viewStart={viewStart} />
       </div>
 
       {/* ── 5. 底部安静平移导航条（高 14px） ── */}

@@ -13,47 +13,24 @@ import {
   type LocalSegment,
   type ServerVideo,
 } from '@/features/reference/services/referenceApiService'
-import { setAssetDragData, usePendingAssets, type PendingRefCard } from '@/features/assets/hooks/usePendingAssets'
-import { clearDragGhost, setDragGhost } from '@/shared/pick-mode/dragGhost'
+import { usePendingAssets, type PendingRefCard } from '@/features/assets/hooks/usePendingAssets'
 import { usePickMode } from '@/shared/pick-mode/usePickMode'
-import { PickBar, PickButton, PickCheck } from '@/shared/pick-mode/PickModeUI'
-import {
-  ANALYSIS_FIELDS,
-  REFERENCE_COLLECTIONS,
-  STATUS_META,
-  formatTimecode,
-  pendingFieldCount,
-  type ReferenceSegment,
-  type ReferenceStatus,
-} from '@/features/reference/model/referenceLibrary'
+import { PickBar, PickButton } from '@/shared/pick-mode/PickModeUI'
+import { REFERENCE_COLLECTIONS, STATUS_META, formatTimecode, pendingFieldCount, type ReferenceSegment, type ReferenceStatus } from '@/features/reference/model/referenceLibrary'
+import { Icon } from '@/features/reference/components/RefIcon'
+import { type BrowseTab, type SortKey, shortValue, segmentsOf } from '@/features/reference/model/refBrowse'
+import { RefBrowseDialog } from '@/features/reference/components/RefBrowseDialog'
+import { RefDock } from '@/features/reference/components/RefDock'
+import { RefAnalysisPanel } from '@/features/reference/components/RefAnalysisPanel'
+export type StatusFilter = ReferenceStatus | 'all'
 
-/**
- * 参考片库 —— 影院形态（2026-10-23 选型定版：三套排版语法中选「影院」）。
- *
- * 单位口径与项目一致：项目已去除「镜头」单位，本页的分析单位是**片段**
- * （参考片中一段连续时间范围），与工作台的场景以时间范围互相引用。
- *
- * 形态：画面铺满整个内容区，片单、片段段、分析全部以玻璃覆层浮在画面上，
- * 没有分栏。原页的库功能（搜索 / 字段筛选 / 收藏 / 最近 / 集合 / 排序）
- * 全部收进「片库」覆层网格，不丢功能。
- *
- * 数据口径：只展示现有演示数据；参考片没有视频文件，播放是逐帧静帧预览
- * （播放头推进 + 片段自动切换），不伪装真实视频播放；待分析字段保持
- * 「待分析」。「用作参考」把片段写入本地参考清单（localStorage outbox），
- * 工作台 AgentReference 接入后从该清单取用——当前不假装已直达工作台。
- */
-
-type BrowseTab = 'all' | 'favorites' | 'recent' | 'collections'
-type SortKey = 'source' | 'timecode' | 'status'
-type StatusFilter = ReferenceStatus | 'all'
-
-interface Filters {
+export interface Filters {
   cameraMove: string
   transition: string
   status: StatusFilter
 }
 
-interface StoredLibrary {
+export interface StoredLibrary {
   favorites: string[]
   recent: string[]
   memberships: Record<string, string[]>
@@ -63,41 +40,6 @@ const STORE_KEY = 'fm-reference-library-v1'
 const OUTBOX_KEY = 'fm-reference-outbox-v1'
 /** 拖拽时按片段 ID 暂存参数包（DataTransfer 只能传字符串） */
 export const REF_STASH_KEY = 'fm-ref-card-stash-v1'
-/* 以下两处原先在模块作用域里，直接绑定到演示常量。
-   数据改为服务端加载后，必须变成「按当前数据构建」的函数 ——
-   模块级 Map 会在数据到达前就固定成空表，之后永远查不到。 */
-
-const TAB_ITEMS: Array<{ id: BrowseTab; label: string }> = [
-  { id: 'all', label: '全部片段' },
-  { id: 'favorites', label: '收藏' },
-  { id: 'recent', label: '最近浏览' },
-  { id: 'collections', label: '参考集合' },
-]
-
-const SORT_ITEMS: Array<{ value: SortKey; label: string }> = [
-  { value: 'source', label: '按来源' },
-  { value: 'timecode', label: '按时间码' },
-  { value: 'status', label: '按状态' },
-]
-
-function Icon({ name, className = 'ui-icon' }: { name: string; className?: string }) {
-  return (
-    <svg className={className} aria-hidden="true">
-      <use href={`./assets/paba-icons.svg#${name}`} />
-    </svg>
-  )
-}
-
-/** 网格与覆层只显示短语；完整值（含「不适用（…）」）保留在分析面板里。 */
-function shortValue(value: string): string {
-  const wrapped = value.match(/^不适用（(.+)）$/)
-  return wrapped ? wrapped[1] : value
-}
-
-/** 某视频的片段（按 index 排序）。数据由调用方传入，不再读模块常量。 */
-function segmentsOf(all: ReferenceSegment[], videoId: string): ReferenceSegment[] {
-  return all.filter((s) => s.videoId === videoId).sort((a, b) => a.index - b.index)
-}
 
 function defaultMemberships(): Record<string, string[]> {
   return Object.fromEntries(REFERENCE_COLLECTIONS.map((c) => [c.id, [...c.segmentIds]]))
@@ -140,30 +82,6 @@ function readOutbox(): string[] {
   }
 }
 
-function StatusPill({ status }: { status: ReferenceStatus }) {
-  return (
-    <span className="rfc-pill" data-s={status}>
-      <i />
-      {STATUS_META[status].label}
-    </span>
-  )
-}
-
-/**
- * 筛选下拉的候选项：从**已解析**的片段里收集实际出现过的取值。
- *
- * 待解析（pending）的维度不参与 —— 它们的 value 是空串，收进来会多出一个
- * 无意义的空选项。数据由调用方传入，不再读模块级演示常量。
- */
-function fieldOptions(all: LocalSegment[], key: 'cameraMove' | 'transition'): string[] {
-  const seen = new Set<string>()
-  for (const s of all) {
-    const a = s.analysis[key]
-    if (a && !a.pending && a.value) seen.add(a.value)
-  }
-  return [...seen]
-}
-
 export function RefLibrary() {
   const pick = usePickMode()
   const pendingStore = usePendingAssets()
@@ -184,7 +102,6 @@ export function RefLibrary() {
   const [suggestionDraft, setSuggestionDraft] = useState('')
   const [startDraft, setStartDraft] = useState('0')
   const [endDraft, setEndDraft] = useState('0')
-
 
   const [filmId, setFilmId] = useState('')
   const [segmentId, setSegmentId] = useState('')
@@ -581,7 +498,6 @@ export function RefLibrary() {
     setEndDraft(current.end.toFixed(1))
   }, [current.id, current.observation, current.suggestion, current.start, current.end])
 
-
   const browseList = useMemo(() => {
     // 数据源是服务端片段，不是演示常量。
     let list: LocalSegment[] = segments.slice()
@@ -836,385 +752,13 @@ export function RefLibrary() {
         )}
 
         {panelOpen && hasSegment && (
-          <aside className="rfc-panel" aria-label="片段分析">
-            <div className="rfc-panel-head">
-              <h2>片段 {current.index + 1}</h2>
-              <StatusPill status={current.status} />
-              <span className="rfc-panel-tc num">
-                {formatTimecode(current.start)} – {formatTimecode(current.end)} · {current.end - current.start}s
-              </span>
-            </div>
-            <div className="rfc-panel-acts">
-              <button type="button" className={`rfc-btn primary${inOutbox ? ' is-done' : ''}`} onClick={() => { if (segment) toggleReference(segment) }}>
-                <Icon name={inOutbox ? 'check' : 'link'} /> {inOutbox ? '已加入参考' : '用作参考'}
-              </button>
-            </div>
-            {/* 不再按「画面 / 时间」分组：总共五项，分两段只是平白多一层打断。
-                全部平铺，用户从上往下一眼扫完。 */}
-            <div className="rfc-fgroup">
-              {ANALYSIS_FIELDS.map((f) => {
-                  const a = current.analysis[f.key]
-                  /* 每项只回答两件事：值是什么、这个值哪来的。
-                     右侧那枚小徽标区分「实测」（后端量出来的：切点/亮度/运动量）
-                     和「模型」（视觉模型判断的）—— 用户该知道哪些数字可追溯。 */
-                  return (
-                    <div key={f.key} className="rfc-field" data-pending={a.pending || undefined}>
-                      <span className="rfc-field-k">
-                        {f.label}
-                        <i className="rfc-field-hint">{f.hint}</i>
-                      </span>
-                      {a.pending
-                        ? <span className="rfc-field-v pend">待分析</span>
-                        : <span className="rfc-field-v">{a.value}</span>}
-                      {!a.pending && (
-                        <span className="rfc-src" data-src={a.source}>
-                          {a.source === 'measured' ? '实测' : '模型'}
-                        </span>
-                      )}
-                    </div>
-                  )
-              })}
-            </div>
-            {/* 结论：这条片段到底能不能用。放在所有依据之后、单独一块，
-                因为用户看完前五项后只想知道这一个答案。 */}
-            <div className="rfc-verdict" data-tone={reusable ? 'ok' : 'no'}>
-              <span className="rfc-verdict-k">可复用</span>
-              <span className="rfc-verdict-v">
-                {current.analysis.reusable.pending ? '待分析' : current.analysis.reusable.value}
-              </span>
-            </div>
-            {/* 人工记录与模型推断分开呈现（契约 §4.2 铁律）：
-                观察是「你看得到的」，推断是模型给的。混在一起用户会把推断当事实。
-                观察与建议可编辑并写回服务端；推断只读 —— 允许手改推断
-                等于把人的猜测伪装成模型结论。 */}
-            <div className="rfc-manual">
-              <label className="rfc-manual-field">
-                <span className="rfc-manual-k">你看到的画面（观察）</span>
-                <textarea
-                  className="rfc-manual-input"
-                  value={observationDraft}
-                  placeholder="例如：人物剪影居中，背景道路持续向后拉伸"
-                  onChange={(e) => setObservationDraft(e.target.value)}
-                  // 从事件读当前值：onBlur 里的 state 可能还是上一次渲染的快照。
-                  onBlur={(e) => void saveSegmentEdits({ observation: e.currentTarget.value })}
-                  rows={2}
-                />
-              </label>
-              <label className="rfc-manual-field">
-                <span className="rfc-manual-k">建议怎么用（建议）</span>
-                <textarea
-                  className="rfc-manual-input"
-                  value={suggestionDraft}
-                  placeholder="例如：可借鉴居中构图，但不要直接使用这画面"
-                  onChange={(e) => setSuggestionDraft(e.target.value)}
-                  onBlur={(e) => void saveSegmentEdits({ suggestion: e.currentTarget.value })}
-                  rows={2}
-                />
-              </label>
-              {current.inference && (
-                <div className="rfc-manual-field">
-                  <span className="rfc-manual-k">
-                    模型推断 <i className="rfc-manual-tag">只读</i>
-                  </span>
-                  <p className="rfc-manual-infer">{current.inference}</p>
-                </div>
-              )}
-            </div>
-
-            {/* 起止时间可调：动作可能只有半秒，也可能持续十秒 ——
-                固定 3 秒只是快捷方式，不是完整的人工切片。 */}
-            <div className="rfc-range-edit">
-              <span className="rfc-manual-k">片段范围</span>
-              <label>
-                起点
-                <input
-                  type="number" step="0.1" min="0"
-                  value={startDraft}
-                  onChange={(e) => setStartDraft(e.target.value)}
-                  onBlur={(e) => void saveSegmentEdits({ startSec: Number(e.currentTarget.value) })}
-                />
-              </label>
-              <label>
-                终点
-                <input
-                  type="number" step="0.1" min="0"
-                  value={endDraft}
-                  onChange={(e) => setEndDraft(e.target.value)}
-                  onBlur={(e) => void saveSegmentEdits({ endSec: Number(e.currentTarget.value) })}
-                />
-              </label>
-              <button
-                type="button"
-                className="rfc-manual-del"
-                onClick={() => void removeSegment(current.id)}
-                title="删除这个片段（不影响视频本身）"
-              >删除片段</button>
-            </div>
-
-            {current.tags.length > 0 && (
-              <div className="rfc-tags">
-                {current.tags.map((t) => (
-                  <span key={t} className="rfc-tag">{t}</span>
-                ))}
-              </div>
-            )}
-          </aside>
+          <RefAnalysisPanel current={current} endDraft={endDraft} inOutbox={inOutbox} observationDraft={observationDraft} removeSegment={removeSegment} reusable={reusable} saveSegmentEdits={saveSegmentEdits} segment={segment} setEndDraft={setEndDraft} setObservationDraft={setObservationDraft} setStartDraft={setStartDraft} setSuggestionDraft={setSuggestionDraft} startDraft={startDraft} suggestionDraft={suggestionDraft} toggleReference={toggleReference} />
         )}
 
-        <div className="rfc-dock">
-          <div className="rfc-transport">
-            <button
-              type="button"
-              className="rfc-play"
-              onClick={() => {
-                if (!playing && pos >= film.durationMs / 1000) { setPos(0); if (videoRef.current) videoRef.current.currentTime = 0 }
-                setPlaying((p) => !p)
-              }}
-              disabled={!hasVideo}
-              aria-label={hasVideo ? (playing ? '暂停' : '播放') : '暂无视频源'}
-            >
-              <Icon name={playing ? 'pause' : 'play'} />
-            </button>
-            {hasVideo && playableFilms.length > 1 && <button type="button" className="rfc-film-next" onClick={advanceFilm} aria-label="下一部参考片" title="下一部参考片"><Icon name="chevron-right" /></button>}
-            {/* 标记片段：从当前播放位置切一段。这是本阶段唯一的「切片」方式 ——
-                自动切分尚未接入，界面不提供假按钮。 */}
-            {film && (
-              <button
-                type="button"
-                className="rfc-film-next"
-                onClick={() => void cutSegmentAt(film.id, pos)}
-                aria-label="在当前播放位置标记一个片段"
-                title="在当前播放位置标记一个片段"
-              >
-                <Icon name="plus" />
-              </button>
-            )}
-            <span className="rfc-time num">
-              {formatTimecode(pos)} / {formatTimecode(film.durationMs / 1000)}
-            </span>
-            <span className="rfc-transport-hint">{hasVideo ? '动态示例 · 静音连播 · 空格暂停 · ←/→ 切片段' : '仅静帧 · 暂无视频源'}</span>
-            <span className="rfc-spacer" />
-          </div>
-          <div className="rfc-segbar" role="tablist" aria-label="片段">
-            {filmSegments.map((s) => {
-              const fill = pos <= s.start ? 0 : pos >= s.end ? 100 : ((pos - s.start) / (s.end - s.start)) * 100
-              return (
-                <button
-                  key={s.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={s.id === segment.id}
-                  className={`rfc-seg${s.id === segment.id ? ' is-on' : ''}`}
-                  style={{ flexGrow: s.end - s.start }}
-                  onClick={() => selectSegment(s.id)}
-                >
-                  <span className="rfc-seg-fill" style={{ width: `${fill}%` }} />
-                  <span className="rfc-seg-lb">片段 {s.index + 1}</span>
-                  <span className={`rfc-seg-dot st-${s.status}`} />
-                </button>
-              )
-            })}
-          </div>
-          <div className="rfc-films" ref={filmsRef}>
-            {videos.map((v) => {
-              const ss = segmentsOf(segments, v.id)
-              return (
-                <button
-                  key={v.id}
-                  type="button"
-                  className={`rfc-film${v.id === film.id ? ' is-on' : ''}`}
-                  onClick={() => selectFilm(v.id)}
-                  aria-pressed={v.id === film.id}
-                >
-                  {/* 缩略图来自服务端（素材抽帧）。没有缩略图时不放 <img>
-                      —— 拿演示静态图路径拼接真实片段 ID 只会得到裂图。 */}
-                  {v.thumbnailUrl
-                    ? <img src={v.thumbnailUrl} alt="" loading="lazy" />
-                    : <span className="rfc-film-ph" aria-hidden="true"><Icon name="film" /></span>}
-                  <span className="rfc-film-lb">
-                    <span className="rfc-film-t">{v.title}</span>
-                    {/* 去 AI 味：分析进度已由片段条上的状态点表达，不再把“已分析 x/y”当副标题 */}
-                    <span className="rfc-film-m num">{ss.length} 片段</span>
-                  </span>
-                </button>
-              )
-            })}
-          </div>
-        </div>
+        <RefDock advanceFilm={advanceFilm} cutSegmentAt={cutSegmentAt} film={film} filmSegments={filmSegments} filmsRef={filmsRef} hasVideo={hasVideo} playableFilms={playableFilms} playing={playing} pos={pos} segment={segment} segments={segments} selectFilm={selectFilm} selectSegment={selectSegment} setPlaying={setPlaying} setPos={setPos} videoRef={videoRef} videos={videos} />
 
         {browseOpen && (
-          <div className="rfc-browse" role="dialog" aria-label="片库">
-            <div className="rfc-browse-head">
-              <h2 className="rfc-browse-title">参考片库</h2>
-              <div className="rfc-tabs">
-                {TAB_ITEMS.map((t) => (
-                  <button
-                    key={t.id}
-                    type="button"
-                    className={`rfc-tab${tab === t.id ? ' is-on' : ''}`}
-                    onClick={() => setTab(t.id)}
-                  >
-                    {t.label}
-                  </button>
-                ))}
-              </div>
-              <button type="button" className="rfc-gbtn" onClick={() => setBrowseOpen(false)}>
-                <Icon name="x" /> 关闭
-              </button>
-            </div>
-            <div className="rfc-browse-tools">
-              <label className="rfc-search">
-                <Icon name="search" />
-                <input
-                  type="text"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="搜索片名、标签、分析值…"
-                />
-              </label>
-              {(
-                [
-
-                  ['cameraMove', '运镜', fieldOptions(segments, 'cameraMove')],
-                  ['transition', '转场', fieldOptions(segments, 'transition')],
-                ] as const
-              ).map(([key, label, options]) => (
-                <label key={key} className="rfc-selfield">
-                  <span>{label}</span>
-                  <select
-                    value={filters[key]}
-                    onChange={(e) => setFilters((f) => ({ ...f, [key]: e.target.value }))}
-                    aria-label={`按${label}筛选`}
-                  >
-                    <option value="all">全部</option>
-                    {options.map((o) => (
-                      <option key={o} value={o}>{shortValue(o)}</option>
-                    ))}
-                  </select>
-                </label>
-              ))}
-              <label className="rfc-selfield">
-                <span>状态</span>
-                <select
-                  value={filters.status}
-                  onChange={(e) => setFilters((f) => ({ ...f, status: e.target.value as StatusFilter }))}
-                  aria-label="按状态筛选"
-                >
-                  <option value="all">全部</option>
-                  <option value="analyzed">已分析</option>
-                  <option value="partial">部分分析</option>
-                  <option value="pending">待分析</option>
-                </select>
-              </label>
-              <label className="rfc-selfield">
-                <span>排序</span>
-                <select value={sortKey} onChange={(e) => setSortKey(e.target.value as SortKey)} aria-label="排序">
-                  {SORT_ITEMS.map((s) => (
-                    <option key={s.value} value={s.value}>{s.label}</option>
-                  ))}
-                </select>
-              </label>
-              <span className="rfc-browse-count num" role="status">{browseList.length} 个片段</span>
-            </div>
-            {tab === 'collections' && (
-              <div className="rfc-collchips">
-                {REFERENCE_COLLECTIONS.map((c) => (
-                  <button
-                    key={c.id}
-                    type="button"
-                    className={`rfc-chip${collId === c.id ? ' is-on' : ''}`}
-                    onClick={() => setCollId(c.id)}
-                  >
-                    {c.name} · {(stored.memberships[c.id] ?? []).length}
-                  </button>
-                ))}
-                <span className="rfc-collnote">{REFERENCE_COLLECTIONS.find((c) => c.id === collId)?.note}</span>
-              </div>
-            )}
-            <div className="rfc-grid">
-              {browseList.map((s) => {
-                const v = videos.find((x) => x.id === s.videoId)
-                const added = refInPending(s.id)
-                return (
-                  /* 外层用 div 而非 button：卡里还要放「加入待发送」按钮，
-                     嵌套 button 不合法（点击会串）。role+tabIndex 保留键盘可达。 */
-                  <div
-                    key={s.id}
-                    role="button"
-                    tabIndex={0}
-                    className="rfc-card"
-                    data-on={s.id === segment.id || undefined}
-                    data-added={added || undefined}
-                    draggable
-                    onDragStart={(e) => {
-                      /* 与素材库完全一致的两件事：
-                         ① 复用同一个 DataTransfer 类型，待发送那边不用改就能接住；
-                         ② 把默认那张整卡快照换成 56px 小块拖影 ——
-                            卡片 252×232 举在鼠标边会盖住落点，看不清往哪放。 */
-                      stashRefCard(s)
-                      setAssetDragData(e.dataTransfer, [s.id])
-                      const ghostEl = setDragGhost({
-                        // 用视频缩略图；没有就用中性标签（不拼演示静态图路径）。
-                        thumb: v?.thumbnailUrl ?? undefined,
-                        label: v?.title ?? '参考片',
-                        count: 1,
-                      })
-                      e.dataTransfer.setDragImage(ghostEl, 28, 28)
-                    }}
-                    onDragEnd={clearDragGhost}
-                    data-pickmode={pick.active || undefined}
-                    data-picked={(pick.active && pick.has(s.id)) || undefined}
-                    onClick={() => {
-                      if (pick.active) { pick.toggle(s.id); return }
-                      selectSegment(s.id)
-                      setBrowseOpen(false)
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault()
-                        selectSegment(s.id)
-                        setBrowseOpen(false)
-                      }
-                    }}
-                  >
-                    <span className="rfc-card-thumb">
-                      filmOf(s.videoId)?.thumbnailUrl
-                        ? <img src={filmOf(s.videoId)!.thumbnailUrl!} alt="" loading="lazy" draggable={false} />
-                        : <span className="rfc-film-ph" aria-hidden="true"><Icon name="film" /></span>
-                      <span className="rfc-card-marker">片段 {String(s.index + 1).padStart(2, '0')}<span>{s.end - s.start}s</span></span>
-                      {pick.active && <PickCheck checked={pick.has(s.id)} />}
-                      {stored.favorites.includes(s.id) && <span className="rfc-card-fav"><Icon name="star" /></span>}
-                      {/* 加入待发送：和素材库完全同构 —— 按钮放在缩略图容器内，
-                          不是卡片根节点。位置在收藏星标左侧一格。 */}
-                      {!pick.active && <button
-                        type="button"
-                        className="rfc-card-add"
-                        data-added={added || undefined}
-                        aria-label={added ? `${v?.title} 片段 ${s.index + 1} 已在待发送` : `把片段加入待发送`}
-                        title={added ? '已在待发送' : '加入待发送'}
-                        onClick={(e) => { e.stopPropagation(); addRefToPending([s]) }}
-                      >
-                        <Icon name={added ? 'check' : 'plus'} />
-                      </button>}
-                    </span>
-                    <span className="rfc-card-body">
-                      <span className="rfc-card-t">{v?.title}</span>
-                      <span className="rfc-card-m">
-                        {s.analysis.cameraMove.pending ? '运镜待分析' : shortValue(s.analysis.cameraMove.value)}
-                      </span>
-                      <span className="rfc-card-f">
-                        <span className="rfc-card-range num">{formatTimecode(s.start)} — {formatTimecode(s.end)}</span>
-                        <span className="rfc-card-status" data-s={s.status}><i />{STATUS_META[s.status].label}</span>
-                      </span>
-                    </span>
-                  </div>
-                )
-              })}
-              {browseList.length === 0 && (
-                <div className="rfc-empty">没有符合条件的片段，试试放宽筛选。</div>
-              )}
-            </div>
-          </div>
+          <RefBrowseDialog addRefToPending={addRefToPending} browseList={browseList} collId={collId} filmOf={filmOf} filters={filters} pick={pick} query={query} refInPending={refInPending} segment={segment} segments={segments} selectSegment={selectSegment} setBrowseOpen={setBrowseOpen} setCollId={setCollId} setFilters={setFilters} setQuery={setQuery} setSortKey={setSortKey} setTab={setTab} sortKey={sortKey} stashRefCard={stashRefCard} stored={stored} tab={tab} videos={videos} />
         )}
 
         {pick.active && (

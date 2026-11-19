@@ -1,22 +1,18 @@
 import React, { useState } from 'react'
 import { UiIcon, SemIcons } from '@/shared/icons/UiIcon'
 /* 通用图标（下载、信息）用 lucide；media-icons 只留给截帧、引用帧、对比这类媒体语义（第三轮统一）。 */
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/shared/ui/dropdown-menu'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/shared/ui/dropdown-menu'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/ui/tooltip'
 import { MediaIcon } from '@/shared/icons/MediaIcon'
 import type { StageVisual } from '@/features/workbench/model/stageVisual'
-import { versionBadgeLabel, versionItemLabel, versionSeriesOf, versionStanding, type ProjectVersionInfo } from '@/features/workbench/model/versionIdentity'
-import { formatMediaTime } from '@/features/workbench/model/previewGeometry'
+import { versionBadgeLabel, versionStanding, type ProjectVersionInfo } from '@/features/workbench/model/versionIdentity'
 import type { CapabilityResult } from '@/features/workbench/services/workbenchCapabilityEvaluator'
 import '@/features/workbench/styles/workbench-topbar.css'
+import { TopBarInfoMenu } from '@/features/workbench/components/topbar/TopBarInfoMenu'
+import { TopBarTasksMenu } from '@/features/workbench/components/topbar/TopBarTasksMenu'
+import { TopBarIconButton } from '@/features/workbench/components/topbar/TopBarIconButton'
+import { TopBarTools } from '@/features/workbench/components/topbar/TopBarTools'
+import { TopBarVersionMenu } from '@/features/workbench/components/topbar/TopBarVersionMenu'
 
 export interface OverlayGuidesState {
   safeArea: boolean
@@ -93,66 +89,6 @@ export interface WorkbenchTopBarProps {
   onOpenTasks: () => void
   onResetLayout: () => void
   onOpenBrief: () => void
-}
-
-/**
- * 统一顶级纯图标按钮组件（32px 点击区域、18px 居中图标、无底色悬停轻灰、开启浅蓝）
- * 内置 Tooltip 与禁用说明，支持在有菜单展开时抑制 Tooltip 避免双层覆盖。
- */
-function TopBarIconButton({
-  icon,
-  label,
-  tooltip,
-  active,
-  disabled,
-  disabledReason,
-  onClick,
-  suppressTooltip,
-  className = '',
-}: {
-  icon: React.ReactNode
-  label: string
-  tooltip?: string
-  active?: boolean
-  disabled?: boolean
-  disabledReason?: string
-  onClick?: () => void
-  suppressTooltip?: boolean
-  className?: string
-}) {
-  const tooltipText = disabled ? disabledReason || tooltip || label : tooltip || label
-
-  const button = (
-    <button
-      type="button"
-      className={`wb-topbar-icon-btn ${active ? 'wb-topbar-icon-btn-active' : ''} ${className}`}
-      disabled={disabled}
-      aria-label={label}
-      aria-pressed={active}
-      onClick={disabled ? undefined : onClick}
-    >
-      {icon}
-    </button>
-  )
-
-  if (suppressTooltip) {
-    return button
-  }
-
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        {disabled ? (
-          <span className="inline-flex cursor-not-allowed">{button}</span>
-        ) : (
-          button
-        )}
-      </TooltipTrigger>
-      <TooltipContent side="bottom" sideOffset={6}>
-        {tooltipText}
-      </TooltipContent>
-    </Tooltip>
-  )
 }
 
 export function WorkbenchTopBar({
@@ -255,148 +191,7 @@ export function WorkbenchTopBar({
       <div className="wb-topbar-row wb-topbar-row-primary">
         <div className="wb-topbar-group wb-topbar-left">
           {/* 版本选择器：保留文字与微箭头，不透明弹出层 */}
-          <DropdownMenu open={versionMenuOpen} onOpenChange={setVersionMenuOpen}>
-            <DropdownMenuTrigger asChild>
-              <button
-                type="button"
-                className="wb-topbar-version-pill"
-                data-historical={isHistorical || undefined}
-                disabled={!hasVersion}
-                aria-label={`当前版本 ${currentVersionLabel}`}
-              >
-                {isHistorical && (
-                  <span className="wb-topbar-version-hist-tag">历史</span>
-                )}
-                <span className="wb-topbar-version-name">
-                  {currentVersionLabel}
-                </span>
-                <MediaIcon name="chevronDown" size={12} />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="wb-topbar-menu">
-              <DropdownMenuLabel className="wb-topbar-menu-label">
-                <span>版本清单</span>
-                {/* 【来源必须写明】这里报的是「最新可下载整片」，不是当前工程版本。
-                    它可能来自工作流产物，编号与场景版本不是同一序列 ——
-                    只写「最新 v3」会让用户把它当成项目版本号。
-                    当前工程版本另有一行，两者分开表达。 */}
-                {deliverableLead && (
-                  <span className="wb-topbar-menu-latest">
-                    最新可下载：{versionItemLabel(deliverableLead)}
-                  </span>
-                )}
-              </DropdownMenuLabel>
-              {/* 当前工程版本单独一行，与「最新可下载」分开。
-                  非权威时明确说「未能确认」—— 不把「已知画面里最高的一版」
-                  冒充成当前工程版本。 */}
-              <div className="wb-topbar-version-project" data-authoritative={projectVersionAuthoritative ? 'yes' : 'no'}>
-                {typeof projectVersionNumber === 'number' ? (
-                  projectVersionAuthoritative ? (
-                    <span>当前工程版本 v{projectVersionNumber}</span>
-                  ) : (
-                    <span>
-                      当前工程版本未能确认（已知画面最高为 v{projectVersionNumber}，工程可能已更新）
-                    </span>
-                  )
-                ) : (
-                  <span>当前工程版本未能确认</span>
-                )}
-              </div>
-              <DropdownMenuSeparator />
-
-              {/* 【回到当前工程版本】只跳到「当前工程版本对应的那条画面」。
-                  原先是跳 deliverableLead —— 它可能是工作流产物（另一条序列），
-                  也可能在「工程 v17、可下载画面仍是 v16」时把用户带到仍是历史的 v16。
-                  没有对应画面时如实说明「尚无对应画面」，不给会跳错的入口。 */}
-              {(isHistorical || isOlderThanKnown) && (
-                <>
-                  {projectVersionVisual ? (
-                    <DropdownMenuItem
-                      className="wb-topbar-menu-item wb-topbar-menu-item-jump"
-                      onClick={() => onSelectVisual(projectVersionVisual)}
-                    >
-                      {/* 命名必须与可信度一致：
-                          权威时才能说「回到当前工程版本」；
-                          非权威时那个数字只是「已知画面最高」，只能说「查看已知最新画面」。 */}
-                      {isHistorical ? (
-                        <span>回到当前工程版本 (v{projectVersionNumber})</span>
-                      ) : (
-                        <span>查看已知最新画面 (v{projectVersionNumber})</span>
-                      )}
-                    </DropdownMenuItem>
-                  ) : (
-                    <div className="wb-topbar-menu-item wb-topbar-menu-item-note">
-                      <span>
-                        {isHistorical
-                          ? `当前工程版本 v${projectVersionNumber} 还没有渲染出的画面，暂无可跳转的版本`
-                          : `已知最新画面 v${projectVersionNumber} 不可跳转（工程版本未能确认）`}
-                      </span>
-                    </div>
-                  )}
-                  <DropdownMenuSeparator />
-                </>
-              )}
-
-              {/* 版本列表 */}
-              <div className="wb-topbar-version-list">
-                {availableVisuals.map((visual) => {
-                  const isCurrent = viewedPreview?.id === visual.id
-                  /* 「最新」只在**权威工程版本**下才标，且必须是场景序列里版本号
-                     完全相等的那一条。两层限制缺一不可：
-                     · 版本号来自后端（authoritative）—— 否则只是「已知画面里最高」，
-                       不能声称它就是当前工程版本；
-                     · 版本号相等 —— 工程已到 v17 但 v17 没渲出片时，列表里
-                       没有任何一条等于 v17，于是谁都不标「最新」。
-                       这是对的：把 v16 标成最新会让用户以为工程停在那里。 */
-                  const isLead = projectVersionAuthoritative === true
-                    && versionSeriesOf(visual) === 'scene'
-                    && typeof projectVersionNumber === 'number'
-                    && visual.revision === projectVersionNumber
-                  const dateStr = visual.createdAt
-                    ? new Date(visual.createdAt).toLocaleTimeString('zh-CN', {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })
-                    : ''
-
-                  return (
-                    <DropdownMenuItem
-                      key={visual.id}
-                      className="wb-topbar-menu-item"
-                      data-current={isCurrent || undefined}
-                      onClick={() => onSelectVisual(visual)}
-                    >
-                      <div className="wb-topbar-item-info">
-                        <span className="wb-topbar-item-version">
-                          {versionItemLabel(visual)}
-                        </span>
-                        <span className="wb-topbar-item-name truncate">
-                          {visual.tierLabel || visual.name}
-                        </span>
-                        {isLead && (
-                          <span className="wb-topbar-lead-pill">最新</span>
-                        )}
-                        {dateStr && (
-                          <span className="wb-topbar-item-time">{dateStr}</span>
-                        )}
-                      </div>
-                      {isCurrent && (
-                        <UiIcon icon={SemIcons.check} size="sm" className="ml-auto text-[var(--acc)]" />
-                      )}
-                    </DropdownMenuItem>
-                  )
-                })}
-              </div>
-
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                className="wb-topbar-menu-item text-[var(--portal-menu-tx2)]"
-                onClick={onOpenVersionHistory}
-              >
-                <span>查看完整版本历史 ›</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <TopBarVersionMenu availableVisuals={availableVisuals} currentVersionLabel={currentVersionLabel} deliverableLead={deliverableLead} hasVersion={hasVersion} isHistorical={isHistorical} isOlderThanKnown={isOlderThanKnown} onOpenVersionHistory={onOpenVersionHistory} onSelectVisual={onSelectVisual} projectVersionAuthoritative={projectVersionAuthoritative} projectVersionNumber={projectVersionNumber} projectVersionVisual={projectVersionVisual} setVersionMenuOpen={setVersionMenuOpen} versionMenuOpen={versionMenuOpen} viewedPreview={viewedPreview} />
 
           {/* 版本对比：Vidstack 官方 32×32 规制分屏图标 */}
           <TopBarIconButton
@@ -419,76 +214,7 @@ export function WorkbenchTopBar({
 
         <div className="wb-topbar-group wb-topbar-right">
           {/* 渲染任务入口：Vidstack queue-list 图标，进行中带脉冲蓝点 */}
-          <DropdownMenu open={tasksMenuOpen} onOpenChange={setTasksMenuOpen}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    type="button"
-                    className="wb-topbar-icon-btn relative"
-                    aria-label="查看渲染任务与生成进度"
-                  >
-                    <MediaIcon name="queueList" size={18} />
-                    {isTaskRunning && (
-                      <span
-                        className="wb-topbar-task-running-dot"
-                        aria-label="正在生成中"
-                      />
-                    )}
-                  </button>
-                </DropdownMenuTrigger>
-              </TooltipTrigger>
-              {!isAnyMenuOpen && (
-                <TooltipContent side="bottom" sideOffset={6}>
-                  {isTaskRunning ? '生成任务进行中，点击查看进度' : '查看渲染任务与生成进度'}
-                </TooltipContent>
-              )}
-            </Tooltip>
-
-            <DropdownMenuContent align="end" className="wb-topbar-menu">
-              <DropdownMenuLabel className="wb-topbar-menu-label">
-                <span>渲染与生成任务</span>
-                <span className={isTaskRunning ? 'text-[var(--acc)]' : 'text-[var(--portal-menu-tx3)]'}>
-                  {isTaskRunning ? '正在执行' : '空闲'}
-                </span>
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <div className="wb-topbar-info-section">
-                {activeTaskSummary ? (
-                  <>
-                    <div className="wb-topbar-info-row">
-                      <span className="wb-topbar-info-key">当前任务</span>
-                      <span className="wb-topbar-info-val truncate max-w-[140px]">
-                        {activeTaskSummary.title}
-                      </span>
-                    </div>
-                    <div className="wb-topbar-info-row">
-                      <span className="wb-topbar-info-key">状态</span>
-                      <span className="wb-topbar-info-val">
-                        {activeTaskSummary.state}
-                      </span>
-                    </div>
-                    {activeTaskSummary.error && (
-                      <div className="text-[11px] text-[var(--bad)] mt-1">
-                        {activeTaskSummary.error}
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <div className="text-[11.5px] text-[var(--portal-menu-tx3)] py-1">
-                    当前无排队或运行中的渲染任务
-                  </div>
-                )}
-              </div>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                className="wb-topbar-menu-item text-[var(--acc)]"
-                onClick={onOpenTasks}
-              >
-                <span>打开完整任务与日志面板 ›</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <TopBarTasksMenu activeTaskSummary={activeTaskSummary} isAnyMenuOpen={isAnyMenuOpen} isTaskRunning={isTaskRunning} onOpenTasks={onOpenTasks} setTasksMenuOpen={setTasksMenuOpen} tasksMenuOpen={tasksMenuOpen} />
 
           {/* 导出最新版本：Vidstack download 图标 */}
           <TopBarIconButton
@@ -526,201 +252,12 @@ export function WorkbenchTopBar({
         ) : (
           /* 普通监看模式：左侧主工具 ＋ 右侧项目信息与更多操作 */
           <>
-            <div className="wb-topbar-tools">
-              {/* 引用当前帧：Vidstack comment 图标 */}
-              <TopBarIconButton
-                icon={<MediaIcon name="comment" size={18} />}
-                label="引用当前帧到对话"
-                tooltip="引用当前帧到对话"
-                disabled={!previewReady || Boolean(aiModifyTargetCapability && !aiModifyTargetCapability.allowed)}
-                disabledReason={aiModifyTargetCapability && !aiModifyTargetCapability.allowed ? aiModifyTargetCapability.reason : "预览画面尚未就绪"}
-                onClick={onReferenceFrame}
-                suppressTooltip={isAnyMenuOpen}
-              />
-
-              {/* 框选区域：Vidstack 规制虚线矩形选区图标 */}
-              <TopBarIconButton
-                icon={<MediaIcon name="dashedBox" size={18} />}
-                label="框选画面区域 (Esc 取消)"
-                tooltip={regionMode ? '退出框选 (Esc)' : '框选画面区域 (Esc 取消)'}
-                active={regionMode}
-                disabled={!previewReady || Boolean(aiModifyTargetCapability && !aiModifyTargetCapability.allowed)}
-                disabledReason={aiModifyTargetCapability && !aiModifyTargetCapability.allowed ? aiModifyTargetCapability.reason : "预览画面尚未就绪"}
-                onClick={onToggleRegion}
-                suppressTooltip={isAnyMenuOpen}
-              />
-
-              {/* 保存当前帧：Vidstack camera 图标 */}
-              <TopBarIconButton
-                icon={<MediaIcon name="camera" size={18} />}
-                label="保存当前真实画面帧 (PNG)"
-                tooltip="保存当前真实画面帧 (PNG)"
-                disabled={!previewReady}
-                disabledReason="预览画面尚未就绪"
-                onClick={onSaveFrame}
-                suppressTooltip={isAnyMenuOpen}
-              />
-
-              {/* 极简细分隔线 */}
-              <span className="wb-topbar-divider" aria-hidden="true" />
-
-              {/* 辅助显示 ▾：Vidstack 规制 thirdsGrid 图标，微状态点提示 */}
-              <DropdownMenu open={guidesMenuOpen} onOpenChange={setGuidesMenuOpen}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <DropdownMenuTrigger asChild>
-                      <button
-                        type="button"
-                        className={`wb-topbar-icon-btn wb-topbar-guides-btn ${isGuidesActive ? 'wb-topbar-icon-btn-active' : ''}`}
-                        disabled={!previewReady}
-                        aria-label="画面辅助查看（三分线、安全区、规格）"
-                      >
-                        <MediaIcon name="thirdsGrid" size={18} />
-                        {isGuidesActive && (
-                          <span
-                            className="wb-topbar-active-dot"
-                            aria-hidden="true"
-                          />
-                        )}
-                      </button>
-                    </DropdownMenuTrigger>
-                  </TooltipTrigger>
-                  {!isAnyMenuOpen && (
-                    <TooltipContent side="bottom" sideOffset={6}>
-                      画面辅助查看（三分线、安全区、规格）
-                    </TooltipContent>
-                  )}
-                </Tooltip>
-
-                <DropdownMenuContent align="start" className="wb-topbar-menu">
-                  <DropdownMenuLabel className="wb-topbar-menu-label">
-                    画面辅助显示
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuCheckboxItem
-                    checked={overlayGuides.thirds}
-                    onCheckedChange={() => onToggleOverlayGuide('thirds')}
-                    className="wb-topbar-menu-check-item"
-                  >
-                    三分构图网格线
-                  </DropdownMenuCheckboxItem>
-                  <DropdownMenuCheckboxItem
-                    checked={overlayGuides.safeArea}
-                    onCheckedChange={() => onToggleOverlayGuide('safeArea')}
-                    className="wb-topbar-menu-check-item"
-                  >
-                    安全区 (90% 动作 / 80% 标题)
-                  </DropdownMenuCheckboxItem>
-                  <DropdownMenuCheckboxItem
-                    checked={overlayGuides.mediaFacts}
-                    onCheckedChange={() => onToggleOverlayGuide('mediaFacts')}
-                    className="wb-topbar-menu-check-item"
-                  >
-                    画面规格信息浮层
-                  </DropdownMenuCheckboxItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-
-              {/* 工作台全屏：Vidstack fullscreen / fullscreenExit 图标 */}
-              <TopBarIconButton
-                icon={
-                  <MediaIcon
-                    name={panelOpen ? 'fullscreen' : 'fullscreenExit'}
-                    size={18}
-                  />
-                }
-                label={panelOpen ? '工作台全屏' : '退出工作台全屏'}
-                tooltip={panelOpen ? '进入工作台全屏 (Esc 退出)' : '退出工作台全屏 (Esc)'}
-                active={!panelOpen}
-                onClick={onTogglePanel}
-                suppressTooltip={isAnyMenuOpen}
-              />
-            </div>
+            <TopBarTools aiModifyTargetCapability={aiModifyTargetCapability} guidesMenuOpen={guidesMenuOpen} isAnyMenuOpen={isAnyMenuOpen} isGuidesActive={isGuidesActive} onReferenceFrame={onReferenceFrame} onSaveFrame={onSaveFrame} onToggleOverlayGuide={onToggleOverlayGuide} onTogglePanel={onTogglePanel} onToggleRegion={onToggleRegion} overlayGuides={overlayGuides} panelOpen={panelOpen} previewReady={previewReady} regionMode={regionMode} setGuidesMenuOpen={setGuidesMenuOpen} />
 
             {/* 第二行右侧：项目信息与设置、更多操作 */}
             <div className="wb-topbar-group wb-topbar-right">
               {/* 项目信息与设置：Vidstack info 图标 */}
-              <DropdownMenu open={infoMenuOpen} onOpenChange={setInfoMenuOpen}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <DropdownMenuTrigger asChild>
-                      <button
-                        type="button"
-                        className="wb-topbar-icon-btn"
-                        aria-label="项目信息与参数规格"
-                      >
-                        <UiIcon icon={SemIcons.info} size="md" />
-                      </button>
-                    </DropdownMenuTrigger>
-                  </TooltipTrigger>
-                  {!isAnyMenuOpen && (
-                    <TooltipContent side="bottom" sideOffset={6}>
-                      项目信息与参数规格
-                    </TooltipContent>
-                  )}
-                </Tooltip>
-
-                <DropdownMenuContent align="end" className="wb-topbar-menu w-64">
-                  <DropdownMenuLabel className="wb-topbar-menu-label">
-                    <span>项目信息与规格</span>
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-
-                  <div className="wb-topbar-info-section">
-                    <div className="wb-topbar-info-title">工程设定</div>
-                    <div className="wb-topbar-info-row">
-                      <span className="wb-topbar-info-key">项目</span>
-                      <span className="wb-topbar-info-val truncate max-w-[150px]">
-                        {projectName}
-                      </span>
-                    </div>
-                    <div className="wb-topbar-info-row">
-                      <span className="wb-topbar-info-key">总时长</span>
-                      <span className="wb-topbar-info-val">
-                        {formatMediaTime(projectDuration)}
-                      </span>
-                    </div>
-                    <div className="wb-topbar-info-row">
-                      <span className="wb-topbar-info-key">目标帧率</span>
-                      <span className="wb-topbar-info-val">{timelineFps} fps</span>
-                    </div>
-                  </div>
-
-                  <DropdownMenuSeparator />
-
-                  <div className="wb-topbar-info-section">
-                    <div className="wb-topbar-info-title">当前监看媒体</div>
-                    <div className="wb-topbar-info-row">
-                      <span className="wb-topbar-info-key">实测画幅</span>
-                      <span className="wb-topbar-info-val">
-                        {naturalWidth > 0 && naturalHeight > 0
-                          ? `${naturalWidth} × ${naturalHeight}`
-                          : '检测中...'}
-                      </span>
-                    </div>
-                    <div className="wb-topbar-info-row">
-                      <span className="wb-topbar-info-key">播放进度</span>
-                      <span className="wb-topbar-info-val">
-                        {formatMediaTime(currentTime)}
-                      </span>
-                    </div>
-                    <div className="wb-topbar-info-row">
-                      <span className="wb-topbar-info-key">当前版本</span>
-                      <span className="wb-topbar-info-val">
-                        {currentVersionLabel}
-                      </span>
-                    </div>
-                  </div>
-
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    className="wb-topbar-menu-item text-[var(--acc)]"
-                    onClick={onOpenBrief}
-                  >
-                    <span>查看制作诉求与要求 ›</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <TopBarInfoMenu currentTime={currentTime} currentVersionLabel={currentVersionLabel} infoMenuOpen={infoMenuOpen} isAnyMenuOpen={isAnyMenuOpen} naturalHeight={naturalHeight} naturalWidth={naturalWidth} onOpenBrief={onOpenBrief} projectDuration={projectDuration} projectName={projectName} setInfoMenuOpen={setInfoMenuOpen} timelineFps={timelineFps} />
 
               {/* 更多操作：Vidstack menu-horizontal 图标 */}
               <DropdownMenu open={moreMenuOpen} onOpenChange={setMoreMenuOpen}>
