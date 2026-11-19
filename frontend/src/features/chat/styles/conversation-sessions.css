@@ -1,0 +1,207 @@
+/* ---- 会话落库状态（2026-11-01 接入服务端会话）----
+   服务端会话与仅本页草稿必须一眼可分；读失败/建失败不能长得像空态。 */
+.cv3-side-error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 6px 8px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--bad) 10%, transparent);
+  color: var(--bad);
+  font-size: 11px;
+  line-height: 17px;
+}
+
+.cv3-side-error button {
+  padding: 0 6px;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.cv3-side-error button:hover {
+  background: color-mix(in srgb, var(--bad) 12%, transparent);
+}
+
+/* 服务端已保存、但消息接口未接入：如实说明，不摆成「欢迎开始聊天」 */
+.cv3-server-note,
+.cv3-local-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--hole, var(--soft));
+  color: var(--tx2);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.cv3-server-note {
+  border-left: 2px solid var(--tx3);
+}
+
+.cv3-local-note {
+  border-left: 2px solid var(--warn);
+  color: var(--tx2);
+}
+
+.cv3-server-note b {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--tx1);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.cv3-server-note p {
+  margin: 0;
+}
+
+.cv3-server-note svg {
+  flex: none;
+  margin-top: 2px;
+  color: var(--tx3);
+}
+
+/* 输入卡内的不可发送说明：紧贴输入框，不另起一块卡片 */
+.cv3-compose-note {
+  margin: 0;
+  padding: 0 14px 2px;
+  color: var(--warn);
+  font-size: 11px;
+  line-height: 16px;
+}
+
+/* 发送失败：与「暂不可发送」的提示同一位置，但用失败色 —— 两者性质不同，
+   一个是能力没接（重试无用），一个是这次没发出去（改一下或重试即可）。 */
+.cv3-compose-note[data-error] {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  color: var(--bad);
+}
+
+.cv3-compose-note[data-error] svg {
+  flex: none;
+  margin-top: 2px;
+}
+
+/* 服务端详情读取失败：附在服务端说明块下方，形态与左栏的读取失败一致 */
+.cv3-sync-error {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin: -4px 0 0;
+  padding: 8px 12px;
+  border-left: 2px solid var(--warn);
+  border-radius: 10px;
+  background: var(--hole, var(--soft));
+  color: var(--tx2);
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.cv3-sync-error svg {
+  flex: none;
+  align-self: center;
+  color: var(--warn);
+}
+
+.cv3-sync-error span {
+  flex: 1;
+}
+
+.cv3-sync-error button {
+  flex: none;
+  padding: 1px 6px;
+  border: 1px solid var(--line, var(--hover));
+  border-radius: 6px;
+  background: transparent;
+  color: var(--tx1);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.cv3-sync-error button:hover {
+  background: var(--hover);
+}
+
+.cv3-input:disabled {
+  color: var(--tx3);
+  cursor: not-allowed;
+}
+
+/* 上下文占用（Bencho Context meter）：属于「辅助信息」层，和 token 用量同档。
+   原版是独立大卡片（标题+大数字+条+chips），放进消息末尾会喧宾夺主。
+   这里压成三行：读数、条、分档 —— 去掉它自己的标题行（「Context」），
+   因为旁边就是用量行，语境已经很清楚。 */
+/* 这张卡现在是消息区**唯一**的上下文读数（输入框圆环已撤掉），
+   所以它比原先「圆环弹层里的那份」要更正式一点：给足上边距，
+   与下面的 token 用量行拉开距离，读作「这一轮的收尾信息」而不是正文的一部分。 */
+.cv3-ctxmeter {
+  margin: 12px 0 0 0;
+  max-width: 320px;
+}
+.cv3-ctxmeter .ctx {
+  padding: 0;
+  background: none;
+  box-shadow: none;
+  border: none;
+}
+/* 标题行隐藏但保留 DOM：里面还带着「N%」这个最关键的数字，挪到读数行去 */
+.cv3-ctxmeter .ctx-head { display: none; }
+.cv3-ctxmeter .ctx-figure { margin: 0 0 6px; gap: 5px; }
+.cv3-ctxmeter .ctx-num { font-size: 13px; line-height: 16px; font-weight: 500; }
+.cv3-ctxmeter .ctx-of { font-size: 10.5px; color: var(--tx3); }
+.cv3-ctxmeter .ctx-bar { height: 4px; gap: 2px; }
+.cv3-ctxmeter .ctx-chips { margin-top: 6px; gap: 4px; }
+.cv3-ctxmeter .ctx-chip {
+  font-size: 10.5px;
+  line-height: 14px;
+  /* 高度与底色必须显式归零：Bencho 原版把 chip 画成 32px 高、6% 灰底的胶囊，
+     那个尺寸在独立卡片里合适，贴到消息末尾就变成五颗大药丸压过正文。 */
+  height: auto;
+  min-height: 0;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: none;
+  gap: 4px;
+}
+.cv3-ctxmeter .ctx-swatch { width: 6px; height: 6px; border-radius: 2px; }
+/* 顶部那行「N% · 估算」被隐藏后，百分比改由这里承担：
+   在读数后面补一个同色的百分比，避免信息丢失 */
+.cv3-ctxmeter .ctx-pct { font-size: 10.5px; color: var(--tx3); }
+
+/* token 用量：辅助信息，比正文再弱一档。等宽数字方便对比不同轮的消耗。 */
+.cv3-usage {
+  /* 与工具列表同一量级的上边距：它也是贴在正文末尾的独立区块，不能和正文黏在一起 */
+  margin: 10px 0 0 0;
+  color: var(--tx3);
+  font-size: 10.5px;
+  line-height: 16px;
+  opacity: 0.75;
+}
+
+/* 真实回复后的出口：只给一个可行动作，不做成卡片 ——
+   它不是「需求确认」那种流程节点，只是「想继续的话从这里走」。 */
+.cv3-after {
+  margin: 10px 0 0 0;
+}
+
+.cv3-after-btn {
+  font-size: 12px;
+}
+
+.cv3-after-hint {
+  margin: 0;
+  color: var(--tx3);
+  font-size: 11px;
+  line-height: 18px;
+}

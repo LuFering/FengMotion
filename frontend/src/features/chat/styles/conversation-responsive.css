@@ -1,0 +1,36 @@
+/* ---- 窄屏 ---- */
+@media (max-width: 900px) {
+  .cv3-head-actions {
+    display: none;
+  }
+}@media (max-width: 640px) {
+  .cv3-head {
+    padding: 10px 16px 0 14px;
+  }
+
+  .cv3-switch button {
+    padding: 4px 10px;
+    font-size: 12px;
+  }
+
+  .cv3-view {
+    padding: 16px 16px;
+  }
+
+  .cv3-compose {
+    padding: 0 16px 4px;
+  }
+
+  .cv3-user {
+    max-width: 82%;
+  }
+
+  .cv3-row {
+    gap: 8px;
+  }
+
+  .cv3-tools-left,
+  .cv3-trailing {
+    gap: 8px;
+  }
+}

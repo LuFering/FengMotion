@@ -1,0 +1,568 @@
+/* ---- 内侧会话栏（dsh SidebarRoot） ---- */
+.cv3-side {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  width: 280px;
+  min-height: 0;
+  /* 四边同距 16px（规范：页面内容区左右 24、窄窗 16；这里取窄窗档，
+     因为左栏外还有 68px 导航轨）。原来写 10px 0 10px 10px —— 右边没边距，
+     左栏就贴着主区、贴着导航轨，看起来像浮在界面上的卡片。 */
+  margin: 16px 0 16px 16px;
+  padding: 12px;
+  box-sizing: border-box;
+  /* 左栏 = 一张纸片，配方同首页（.hf-menu / .hf-panel 系列）：
+     面 + 1px 边线 + 圆角 + 投影。首页所有浮起元素都带边线与投影，
+     只有这样才能和首页是同一套设计语言。 */
+  border: 1px solid var(--cv-line);
+  border-radius: 14px;
+  /* 面与输入卡同一档（--hf-panel），首页菜单/浮层也是这个面 */
+  background: var(--cv-elev);
+  box-shadow: 0 6px 24px rgb(20 22 40 / .06);
+  color: var(--tx1);
+  font-size: 13px;
+}
+
+/* 动作条：左「新建对话 / 新建项目」，右「视图选项」。
+   对齐 dsh sectionHeader —— 那一行只有 36px 高、只放 28px 的小图标按钮，
+   没有整行的大按钮。原来的整行「新对话」把左栏最贵的第一屏浪费在一个
+   每个人都会用的动作上，视觉重量也不对（像主操作，其实是日常动作）。 */
+.cv3-side-top {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+  height: 44px;
+  margin: -4px -4px 8px;
+  padding: 0 4px 8px;
+  border-bottom: 1px solid var(--cv-line);
+  box-sizing: border-box;
+}
+
+/* 视图选项推到最右（dsh headerActions 也是 justify-content:flex-end） */
+.cv3-side-top .cv3-viewwrap {
+  margin-left: auto;
+}
+.cv3-side-title {
+  flex: 1; min-width: 0; overflow: hidden; white-space: nowrap;
+  color: var(--tx1); font-size: 14px; font-weight: 650;
+}
+.cv3-side-top:has(.sek[data-open='true']) .cv3-side-title { display: none; }
+
+.cv3-viewwrap,
+.cv3-rowmenu-wrap {
+  position: relative;
+  flex: none;
+}
+
+/* 视图选项按钮按下态 */
+.cv3-icon-btn[data-on] {
+  background: var(--hover);
+  color: var(--tx1);
+}
+
+/* ── 搜索：Bencho 的 Search 组件，并进顶行那一排图标 ──────
+   收起时它和旁边的图标按钮同款（透明底、悬停提亮、同一个 28px 见方），
+   点开后占满整行，同排按钮隐去；收起后按钮回来。
+   外框宽度跟着对象走（--w 是弹簧在写的那个数），所以这一行不会在
+   展开前后跳动。 */
+.cv3-side-top .cv3-top-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  transition: opacity 120ms ease;
+}
+.cv3-side-top .cv3-top-actions .cv3-viewwrap { margin-left: 0; }
+
+.cv3-side-top .sek {
+  /* 收起态不画底色：这一排的其他按钮都是透明的，搜索也不该例外 */
+  --pane: transparent;
+  --pane-edge: transparent;
+  width: var(--w);
+  height: 28px;
+  flex: none;
+}
+/* 展开后它就是一条输入槽，用项目的输入底色 */
+.cv3-side-top .sek[data-open='true'] { --pane: var(--hole); }
+.cv3-side-top .sek:not([data-open='true']) .sek-skin:hover { background: var(--hover); }
+/* 28px 的槽装不下 16px 的字；按比例回到项目 12px 的控件字号 */
+.cv3-side-top .sek .sek-field { font-size: 12px; }
+
+/* 展开时同排按钮淡出并退出点击（:has 读的是组件自己的状态，
+   组件不必为宿主多开一个回调） */
+.cv3-side-top:has(.sek[data-open='true']) .cv3-top-actions {
+  display: none;
+}
+.cv3-side-top .sek[data-open='true'] { max-width: 100%; }
+
+/* ── 搜索框（对齐 dsh search.placeholder：搜索会话名称）── */
+.cv3-search {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  margin: 2px 0 8px;
+  padding: 0 9px;
+  box-sizing: border-box;
+  border-radius: var(--fm-radius-ctl);
+  background: var(--hole);
+  color: var(--tx3);
+  /* 正文档 13px：搜索框下面管的就是 13px 的项目名/会话名，
+     输入框自己 12px 会显得小一号。 */
+  font-size: 13px;
+}
+
+.cv3-search:focus-within {
+  color: var(--tx2);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--acc) 45%, transparent);
+}
+
+.cv3-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--tx1);
+  font: inherit;
+  font-size: 13px;
+  outline: none;
+}
+
+.cv3-search input::placeholder {
+  color: var(--tx3);
+}
+
+.cv3-search button {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--tx3);
+  cursor: pointer;
+}
+
+.cv3-search button:hover {
+  background: var(--hover);
+  color: var(--tx1);
+}
+
+/* ── 左栏浮层菜单（视图选项 / 行操作）──
+   与首页 .hf-menu 同一套：面 + 边线 + 投影 */
+.cv3-menu {
+  position: absolute;
+  z-index: 60;
+  min-width: 190px;
+  padding: 5px;
+  border: 1px solid var(--cv-line-strong);
+  border-radius: var(--fm-radius-card);
+  background: var(--cv-elev);
+  box-shadow: 0 18px 40px rgb(0 0 0 / .28);
+}
+
+.cv3-viewmenu {
+  top: calc(100% + 6px);
+  right: 0;
+}
+
+.cv3-rowmenu {
+  top: calc(100% + 4px);
+  right: 0;
+  min-width: 168px;
+}
+
+.cv3-menu-sec {
+  padding: 7px 9px 4px;
+  color: var(--tx3);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: .02em;
+}
+
+.cv3-menu button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 9px;
+  border: 0;
+  border-radius: var(--fm-radius-ctl);
+  background: transparent;
+  color: var(--tx1);
+  font: inherit;
+  font-size: 12.5px;
+  line-height: 18px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cv3-menu button:hover {
+  background: var(--hover);
+}
+
+.cv3-menu button[data-danger] {
+  color: var(--bad);
+}
+
+.cv3-menu button span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── 行内「更多」按钮：默认隐形，悬停/展开才出现（同 dsh 会话行的操作钮）── */
+.cv3-row-more {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--fm-radius-ctl);
+  background: transparent;
+  color: var(--tx3);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity .12s, background-color .12s, color .12s;
+}
+
+.cv3-group-row:hover .cv3-row-more,
+.cv3-session:hover .cv3-row-more,
+.cv3-row-more[aria-expanded="true"] {
+  opacity: 1;
+}
+
+.cv3-row-more:hover {
+  background: var(--hover);
+  color: var(--tx1);
+}
+
+/* 组头行：折叠按钮 + 更多按钮 */
+.cv3-group-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding-right: 4px;
+}
+
+.cv3-group-row .cv3-group-head {
+  flex: 1;
+  min-width: 0;
+}
+
+/* 会话行内：置顶图标 / 时间 / 归档标记 */
+.cv3-session-pin {
+  flex: none;
+  color: var(--acc);
+}
+
+.cv3-session-time {
+  flex: none;
+  color: var(--tx3);
+  font-size: 11px;
+}
+
+.cv3-session-flag {
+  flex: none;
+  padding: 0 5px;
+  border-radius: 3px;
+  background: var(--hole);
+  color: var(--tx3);
+  font-size: 10px;
+  line-height: 15px;
+}
+
+.cv3-session[data-archived] .cv3-session-name {
+  color: var(--tx3);
+}
+
+/* 行内重命名输入 */
+.cv3-session-edit {
+  flex: 1;
+  min-width: 0;
+  height: 20px;
+  padding: 0 4px;
+  border: 1px solid var(--acc);
+  border-radius: 4px;
+  background: var(--hole);
+  color: var(--tx1);
+  font: inherit;
+  font-size: 13px;
+  outline: none;
+}
+
+.cv3-icon-btn {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--fm-radius-ctl);
+  background: transparent;
+  color: var(--tx2);
+  cursor: pointer;
+}
+
+.cv3-icon-btn:hover {
+  background: var(--hover);
+}
+
+.cv3-icon-btn:focus-visible {
+  outline: 2px solid var(--acc);
+  outline-offset: -2px;
+}
+
+/* 项目行上的「在此项目新建对话」：与 .cv3-row-more 同一档，
+   默认隐形、悬停/展开才现身（对齐 dsh rowActions 的 display:none → inline-flex）。
+   比 row-more 小 2px 且排在最右，因为在 dsh 里新会话钮是「顺路可点」，
+   不是每行都要看的主操作。 */
+.cv3-row-new {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--fm-radius-ctl);
+  background: transparent;
+  color: var(--tx3);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity .12s, background-color .12s, color .12s;
+}
+
+.cv3-group-row:hover .cv3-row-new,
+.cv3-row-new:focus-visible {
+  opacity: 1;
+}
+
+.cv3-row-new:hover {
+  background: var(--hover);
+  color: var(--acc);
+}
+
+
+
+
+.cv3-side-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+
+/* ── 两级树：项目（分组）→ 对话 ──
+   参照 dsh 的工作区模型：分组头可折叠、会话行可拖拽改归属。
+   拖放高亮用左边框 + 底色，不用大色块（保持左栏安静）。 */
+.cv3-group {
+  margin-bottom: 2px;
+  border-radius: var(--fm-radius-ctl);
+}
+
+.cv3-group-head {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: 100%;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: var(--fm-radius-ctl);
+  background: transparent;
+  color: var(--tx2);
+  font: inherit;
+  /* 项目名是左栏的「标题」：13px/600，必须比会话名（13px/400）更醒目。
+     原来 12px/600 比空提示（13px）还小 —— 层级是倒的。 */
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 20px;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 100ms cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 100ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.cv3-group-head:hover {
+  background: var(--hover);
+}
+
+/* 拖放目标：分组头亮起，提示「放到这个项目下」 */
+.cv3-group-head[data-drop] {
+  background: var(--hover);
+  box-shadow: inset 2px 0 0 var(--acc);
+  color: var(--tx1);
+}
+
+/* 当前项目：与拖放目标同样用左侧色条，但底色更弱 ——
+   两者可能同时成立（正把会话拖向当前项目），需要能分辨。
+   颜色之外还有 caret 展开态和项目名加粗，不只靠色条传达。 */
+.cv3-group-head[data-current] {
+  color: var(--tx1);
+  box-shadow: inset 2px 0 0 var(--acc);
+}
+
+.cv3-group[data-ungrouped] .cv3-group-head {
+  color: var(--tx3);
+  font-weight: 500;
+}
+
+.cv3-group-caret {
+  flex: none;
+  color: var(--tx3);
+  transition: transform 140ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.cv3-group-caret[data-open] {
+  transform: rotate(90deg);
+}
+
+.cv3-group-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 新建后就地改名（对齐 dsh Rows.module.css 的 renameInput：
+   .5px 边线 + radius-sm + button-elevated-fill 底 + 与标题同字号行高）。
+   不用弹窗：建出来的那一刻光标已经在名字里，直接打字即可。 */
+.cv3-group-editrow {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 8px;
+  border-radius: var(--fm-radius-ctl);
+}
+
+.cv3-group-edit {
+  flex: 1;
+  min-width: 0;
+  height: 20px;
+  padding: 0 2px;
+  border: 0.5px solid var(--line);
+  border-radius: 4px;
+  background: var(--hole);
+  color: var(--tx1);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 20px;
+  outline: none;
+}
+
+.cv3-group-edit:focus {
+  border-color: var(--acc);
+}
+
+.cv3-group-count {
+  flex: none;
+  margin-left: 2px;
+  color: var(--tx3);
+  /* 元数据档 11px（规范：正文 13 / 元数据 11 / 次要 10.5）。
+     原来 10px 是自造的第 4 档，与 .cv3-session-time 的 10.5 又不一样。 */
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 20px;
+}
+
+.cv3-group-body {
+  padding: 1px 0 4px 17px;
+}
+
+/* 会话行 —— 第二级。可拖拽：拖到别的项目分组头上改归属 */
+.cv3-session {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  border-radius: var(--fm-radius-ctl);
+  color: var(--tx2);
+  /* 正文档 13px：会话名和项目名同档，靠字重（600 vs 400）分层，
+     而不是靠字号差 —— 原来 12px 让第二级比第一级还小，
+     整列看起来像「标题被压扁了」。 */
+  font-size: 13px;
+  line-height: 20px;
+  cursor: pointer;
+  transition: background-color 100ms cubic-bezier(0.4, 0, 0.2, 1),
+              color 100ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.cv3-session:hover {
+  background: var(--hover);
+  color: var(--tx1);
+}
+
+.cv3-session[data-current] {
+  background: var(--hover);
+  color: var(--tx1);
+  font-weight: 500;
+}
+
+.cv3-session[data-dragging] {
+  opacity: 0.45;
+}
+
+.cv3-session-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+
+/* 我的项目行 —— 左栏主体。
+   深度适配：dsh 原来这里是「会话清单」，本产品换成「项目」：
+   创作者的活是按片子组织的，不是按聊天记录。 */
+
+.cv3-project:hover,
+.cv3-project[data-current] {
+  background: var(--hover);
+}
+
+
+
+.cv3-side-hint {
+  /* 左内边距 8px + 分组体的 17px 缩进 = 与会话名的 122px 对齐
+     （原来用 margin:0 4px 会左偏 4px，空提示和上面的会话名不在一条竖线上）。 */
+  margin: 0;
+  padding: 0 8px;
+  color: var(--tx3);
+  /* 次要说明档 11px：原来 13px 和正文同大，还比项目名（12px）大，
+     空项目的「还没有对话。」看起来像标题。 */
+  font-size: 11px;
+  line-height: 18px;
+}
+
+/* 收起后左栏整块不渲染（不是缩成 56px 图标轨）：
+   收起态下左栏没有任何需要常驻的图标，留一条空轨道只是视觉噪音。
+   原来那套 [data-rail] 收窄样式已随组件改动一并删除。 */
+
+/* 覆盖式抽屉（窄屏手动展开）：盖住主列，不挤压。
+   抽屉是浮层，留边距会显得没贴住容器，所以这里把浮动面板的 margin 收掉，
+   改用四边同宽的 inset 让它像一块真正的浮板压在主列上。 */
+.cv3-side[data-drawer] {
+  position: absolute;
+  left: 0;
+  top: 0;
+  /* bottom 留 40px 而不是 0：抽屉投影是 0 10px 30px（向下偏 10 + 扩散 30），
+     贴到底边时投影会被视口切掉，右下角看起来「缺了一块」。
+     40px = 10 偏移 + 30 扩散。 */
+  bottom: 40px;
+  z-index: 8;
+  margin: 10px;
+  border-radius: var(--fm-radius-panel);
+  box-shadow: 0 10px 30px rgb(0 0 0 / 0.5);
+}

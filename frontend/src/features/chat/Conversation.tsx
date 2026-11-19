@@ -1,11 +1,11 @@
-import { ProjectResourceEvidence } from './components/ProjectResourceEvidence'
+import { ProjectResourceEvidence } from '@/features/chat/components/ProjectResourceEvidence'
 import { UiIcon, SemIcons } from '@/shared/icons/UiIcon'
 import { Archive, LayoutGrid01, MessageSquare01, Minimize01, Pencil01, Pin01, Menu01, SlashCircle01 } from '@untitledui/icons'
 import { submitCreation } from '@/features/creation/services/creationClient'
 import { useHarnessSelection, setHarnessSelection } from '@/features/harness/hooks/useHarnessSelection'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Search as SeekSearch } from '@/features/chat/components/Search'
-import { WebSearchTrace, isSearchTool, type SearchCall } from '@/features/chat/components/WebSearchTrace'
+import { WebSearchTrace, isSearchTool } from '@/features/chat/components/WebSearchTrace'
 import { ChecklistDrawer } from '@/features/chat/components/bencho/Checklist'
 import { JobPanel, type JobView } from '@/features/chat/components/JobPanel'
 import { Deliverables } from '@/features/chat/components/Deliverables'
@@ -18,11 +18,9 @@ import { AssistantTurnContent } from '@/features/chat/components/AssistantTurnCo
 import { splitAssistantTurn } from '@/features/chat/model/assistantTurn'
 import { notifyProjectRendered } from '@/features/project/services/projectRenderEvents'
 import { ContextMeter, type Kind } from '@/features/chat/components/bencho/ContextMeter'
-import {
-  ChatMessage as ChatBubble, ThinkingIndicator, MarkdownText,
-  AnswerBody, AnswerActions, MessageActions, RunningDivider,
-  TaskList, type TaskItem, type TaskStepChip,
-} from '@/features/chat/components'
+import { ThinkingIcon } from '@/features/chat/components/ToolIcons'
+import { toolCallsToTasks, toolCallsRevealed } from '@/features/chat/components/toolDisplay'
+import { ChatMessage as ChatBubble, ThinkingIndicator, MarkdownText, AnswerBody, AnswerActions, MessageActions, RunningDivider, TaskList } from '@/features/chat/components'
 import { LeiBoxComposer } from '@/features/chat/components/LeiBoxComposer'
 import { ComposerAttachments } from '@/features/chat/components/ComposerAttachments'
 import { CreationProgress } from '@/features/chat/components/CreationProgress'
@@ -41,9 +39,9 @@ import { ApiError, userMessageForError } from '@/api/errors'
 const DRAFT_SESSION = '__draft__'
 import { HARNESSES, DEFAULT_PREFS, prefsKey, loadPrefs, savePrefs, type ModelPrefs } from '@/features/harness/model/harnesses'
 import { useHarnesses, availabilityOf, modelsOf, matchHarness } from '@/features/harness/hooks/useHarnesses'
-import type { ChatState, ChatMessage } from './hooks/useChat'
-import { UNGROUPED, sessionTitle, type SessionsState } from './hooks/useSessions'
-import { chatApi, hydrateDemoChat } from './services/chatService'
+import type { ChatState, ChatMessage } from '@/features/chat/hooks/useChat'
+import { UNGROUPED, sessionTitle, type SessionsState } from '@/features/chat/hooks/useSessions'
+import { chatApi, hydrateDemoChat } from '@/features/chat/services/chatService'
 import type { NewProjectInput } from '@/features/project/hooks/useProjects'
 import {
   Dialog, DialogContent, DialogTitle, DialogDescription,
@@ -60,8 +58,8 @@ import { sessionDisplayTitle, sessionTimeLabel, sessionTimeFull } from '@/featur
 import { useRoundOutcomes, clearRoundOutcome, recordRoundOutcome } from '@/features/chat/model/roundOutcomes'
 import { backfillRoundOutcomes, invalidateBackfill } from '@/features/chat/services/roundOutcomeBackfill'
 import { resolveReplySaveState, replySaveNotice, type ReplyLookup } from '@/features/chat/model/roundRestoreRules'
-import { shouldShowMessageMeter, messagesForSession } from './model/conversationRound'
-import './styles/conversation.css'
+import { shouldShowMessageMeter, messagesForSession } from '@/features/chat/model/conversationRound'
+import '@/features/chat/styles/conversation.css'
 
 /**
  * 创作对话视图 —— 先聊清楚，再开始制作。
@@ -121,377 +119,12 @@ const MODULE_SERVED_IDS = new Set<string>()
  */
 const MODULE_FAILED_IDS = new Set<string>()
 
-
-/**
- * 把工具调用转成 TaskList 的任务。
- *
- * ⚠️ 只处理**非搜索类**调用：网页搜索有自己的一套轨迹（WebSearchTrace），
- * 它回答的是「去查了什么来源」，和「执行了哪些命令」不是一件事。
- * 混在一张任务列表里，两类信息会互相稀释。
- *
- * 按工具名归组、保留首次出现顺序（顺序就是实际发生顺序）：
- * 一轮十几次 bash/read/write 平铺成一行一个，看起来是「一堆零散动作」；
- * 归成「读文件 / 执行命令 / 写文件」几个任务，才看得出这一轮做了哪几类事。
- */
-function toolCallsToTasks(calls: SearchCall[], running: boolean): TaskItem[] {
-  const groups = new Map<string, SearchCall[]>()
-  for (const call of calls) {
-    const list = groups.get(call.name)
-    if (list) list.push(call)
-    else groups.set(call.name, [call])
-  }
-
-  return [...groups.entries()].map(([name, list]) => {
-    const failed = list.filter((c) => c.isError).length
-    const done = list.filter((c) => c.done === true).length
-    const allDone = done === list.length
-    return {
-      title: `${name} · ${list.length} 次${failed > 0 ? ` · ${failed} 失败` : ''}`,
-      runningTitle: running && !allDone ? `正在执行 ${name}` : undefined,
-      /* 每类工具一个图标：bash / read / write / web_fetch 之间要能一眼分开。
-         ⚠️ 必须把 className 透传下去：TaskList 用它挂 .tl-task-icon
-         （16px 盒 + --dim 颜色）。不透传的话图标会按 SVG 默认尺寸与继承色渲染，
-         尺寸和颜色都与网页搜索的图标对不上。 */
-      icon: function Icon({ className }: { className?: string }) {
-        return <ToolIcon name={name} className={className} />
-      },
-      steps: list.map((call) => {
-        const chips = call.arguments ? toolChips(call.arguments) : []
-        return {
-          /* 没参数（或参数是 `{}`）时依次兜底：
-             中文说明 > 工具名。直接写「无参数」占一整行却什么也没说。 */
-          label: (call.arguments && shortArgs(call.arguments)) || NO_ARG_HINT[name] || name,
-          /* 失败标记优先：出错时最该看到的是「失败了」，不是它碰了哪个文件 */
-          chips: call.isError ? [{ label: '失败' }] : (chips.length > 0 ? chips : undefined),
-        }
-      }),
-    }
-  })
-}
-
-/**
- * TaskList 的 revealed 是「单元数」：每个任务 1 个标题单元 + 每步 1 个单元。
- * 按真实到达数算，不编造进度。
- */
-function toolCallsRevealed(calls: SearchCall[]): number {
-  const groups = new Map<string, number>()
-  for (const call of calls) groups.set(call.name, (groups.get(call.name) ?? 0) + 1)
-  let total = 0
-  for (const n of groups.values()) total += 1 + n
-  return total
-}
-
-
-/**
- * 工具名 → 图标。
- *
- * 为什么每个任务要有图标：网页搜索那块的标题有一个放大镜，任务列表没有，
- * 两块并排时一眼就能看出「一个是检索、一个是执行」；但任务列表内部
- * bash / read / write / web_fetch 之间完全没有区分，只能靠读文字。
- *
- * 图标用内联 SVG（stroke 描边、18×18），与 WebSearchTrace 的 LensIcon 同一套画法 ——
- * 引用 lucide 会让两种图标在同一行里线宽不一致。
- */
-function ToolIcon({ name, className }: { name: string; className?: string }) {
-  const n = name.toLowerCase()
-  /* className 由 TaskList 传入（.tl-task-icon，负责 16px 盒与颜色）；
-     .tl-task-svg 负责线宽与填充。两个都要，否则图标没有尺寸约束。 */
-  const common = {
-    viewBox: '0 0 18 18',
-    'aria-hidden': true,
-    className: `tl-task-svg${className ? ` ${className}` : ''}`,
-  } as const
-
-  /* 终端 / 命令 */
-  if (n.includes('bash') || n.includes('shell') || n.includes('pwsh') || n.includes('terminal')) {
-    return (
-      <svg {...common}>
-        <rect x="2" y="3.5" width="14" height="11" rx="2" />
-        <path d="M5.2 7.4 L7.4 9.4 L5.2 11.4" />
-        <path d="M9.4 11.4 H12.6" />
-      </svg>
-    )
-  }
-  /* 读文件 */
-  if (n === 'read' || n.includes('read_file') || n.includes('readfile')) {
-    return (
-      <svg {...common}>
-        <path d="M4 2.5 H11 L14 5.5 V15.5 H4 Z" />
-        <path d="M11 2.5 V5.5 H14" />
-      </svg>
-    )
-  }
-  /* 写 / 编辑文件 */
-  if (n === 'write' || n.includes('write') || n.includes('edit') || n.includes('str_replace')) {
-    return (
-      <svg {...common}>
-        <path d="M3 15 L3.6 11.8 L11.8 3.6 L14.4 6.2 L6.2 14.4 Z" />
-        <path d="M10.6 4.8 L13.2 7.4" />
-      </svg>
-    )
-  }
-  /* 抓网页 */
-  if (n.includes('fetch') || n.includes('http') || n.includes('url')) {
-    return (
-      <svg {...common}>
-        <circle cx="9" cy="9" r="6.5" />
-        <path d="M2.5 9 H15.5" />
-        <path d="M9 2.5 C11.4 4.8 11.4 13.2 9 15.5" />
-      </svg>
-    )
-  }
-  /* 目录 / 列文件 */
-  if (n.includes('ls') || n.includes('dir') || n.includes('glob') || n.includes('list')) {
-    return (
-      <svg {...common}>
-        <path d="M2.5 5.5 H7 L8.5 7.2 H15.5 V14 H2.5 Z" />
-      </svg>
-    )
-  }
-  /* 搜索类（理论上已被 WebSearchTrace 拿走，兜底） */
-  if (n.includes('search') || n.includes('grep') || n.includes('find')) {
-    return (
-      <svg {...common}>
-        <circle cx="7.6" cy="7.6" r="5.4" />
-        <path d="M11.6 11.6 L15.4 15.4" />
-      </svg>
-    )
-  }
-  /* 兜底：一个圆点，不编造含义 */
-  return (
-    <svg {...common}>
-      <circle cx="9" cy="9" r="3.2" />
-    </svg>
-  )
-}
-
-/**
- * 「思考」任务的图标。
- *
- * <p>思考不是工具调用，但它和工具步骤同处一张任务列表；不给图标时，
- * 工具行前面都有图标、唯独思考行前面空一格，看起来像渲染漏了。</p>
- */
-function ThinkingIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 18 18"
-      aria-hidden
-      className={`tl-task-svg${className ? ` ${className}` : ''}`}
-    >
-      {/* 一个思考气泡：外框 + 两个点，与工具图标的线宽保持一致 */}
-      <path d="M9 2.8 C12.9 2.8 15.6 5.2 15.6 8.2 C15.6 11.2 12.9 13.6 9 13.6
-               C7.9 13.6 6.9 13.4 6 13 L3 14.4 L3.9 11.6
-               C2.9 10.7 2.4 9.5 2.4 8.2 C2.4 5.2 5.1 2.8 9 2.8 Z" />
-      <circle cx="6.6" cy="8.2" r="0.9" fill="currentColor" stroke="none" />
-      <circle cx="11.4" cy="8.2" r="0.9" fill="currentColor" stroke="none" />
-    </svg>
-  )
-}
-
-
-/**
- * 从工具参数里抽出「这一步碰到了哪些文件」。
- *
- * 对应 BoardUI 任务列表的 chips：步骤行右侧跟一串小标签，
- * 每个标签是一个文件名 + 文件类型图标。它解决的问题是
- * 「Read / 写 / 编辑 这些动词本身没有信息量」——真正想知道的是
- * 它读了哪个文件。
- *
- * 只从参数里取真实出现的路径，不做推测：
- * 认 file_path / path / file 这类字段，以及命令里看起来像文件名的词。
- */
-function toolChips(args: string): TaskStepChip[] {
-  let parsed: Record<string, unknown> | null = null
-  try {
-    const v = JSON.parse(args)
-    if (v && typeof v === 'object' && !Array.isArray(v)) parsed = v as Record<string, unknown>
-  } catch {
-    /* 非 JSON：下面按命令文本猜 */
-  }
-
-  const paths: string[] = []
-  if (parsed) {
-    for (const k of ['file_path', 'path', 'file', 'target', 'filename']) {
-      const v = parsed[k]
-      if (typeof v === 'string' && v.trim()) paths.push(v.trim())
-    }
-  }
-  /* 命令里出现的文件名：取最后一个路径段，过滤掉纯参数与 URL */
-  if (paths.length === 0) {
-    const text = parsed ? String(parsed.command ?? '') : args
-    for (const word of text.split(/\s+/)) {
-      if (!/[./]/.test(word)) continue
-      if (word.startsWith('-') || word.startsWith('http')) continue
-      const base = word.replace(/^["']|["']$/g, '').split('/').pop() ?? ''
-      if (base && /\.\w+$/.test(base)) paths.push(base)
-    }
-  }
-
-  return paths.slice(0, 4).map((p) => {
-    const label = p.split('/').pop() || p
-    return { label, icon: <FileTypeIcon name={label} /> }
-  })
-}
-
-
-/**
- * 文件类型图标（chip 里的那个小字）。
- *
- * BoardUI 用 React 官方图标标 .tsx 文件；本项目没有那套品牌图标，
- * 改成按扩展名区分的通用图形 —— 目的是「一眼看出这是代码还是文档」，
- * 不是「认出这是哪个框架」。
- */
-function FileTypeIcon({ name }: { name: string }) {
-  const ext = (name.split('.').pop() ?? '').toLowerCase()
-  const common = { viewBox: '0 0 16 16', 'aria-hidden': true, className: 'tl-chip-svg' } as const
-
-  /* 代码类 */
-  /* mjs / cjs / mts / cts 也是 JS/TS，漏掉会掉进文档图标的兜底，
-     同一个项目里 .js 是代码图标、.mjs 是文档图标，看起来像渲染错了。 */
-  if (['ts', 'tsx', 'js', 'jsx', 'mjs', 'cjs', 'mts', 'cts', 'py', 'go', 'rs', 'java', 'c', 'cpp', 'sh'].includes(ext)) {
-    return (
-      <svg {...common}>
-        <path d="M5.6 4.4 L2.6 8 L5.6 11.6" />
-        <path d="M10.4 4.4 L13.4 8 L10.4 11.6" />
-      </svg>
-    )
-  }
-  /* 配置 / 数据 */
-  if (['json', 'yml', 'yaml', 'toml', 'xml', 'csv'].includes(ext)) {
-    return (
-      <svg {...common}>
-        <path d="M3 3 H13 V13 H3 Z" />
-        <path d="M3 6.5 H13" />
-      </svg>
-    )
-  }
-  /* 文档 */
-  if (['md', 'txt', 'doc', 'docx', 'pdf'].includes(ext)) {
-    return (
-      <svg {...common}>
-        <path d="M4 2 H10 L12.5 4.5 V14 H4 Z" />
-        <path d="M6 7 H10.5" />
-        <path d="M6 9.8 H10.5" />
-      </svg>
-    )
-  }
-  /* 图片 / 视频 */
-  if (['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg', 'mp4', 'mov', 'webm'].includes(ext)) {
-    return (
-      <svg {...common}>
-        <rect x="2.5" y="3.5" width="11" height="9" rx="1.5" />
-        <path d="M2.5 10.5 L6 7.5 L9 10" />
-      </svg>
-    )
-  }
-  /* 兜底：普通文件 */
-  return (
-    <svg {...common}>
-      <path d="M4 2 H10 L12.5 4.5 V14 H4 Z" />
-    </svg>
-  )
-}
-
-/**
- * 参数摘要。
- *
- * ⚠️ 不能直接把 JSON 原文截断显示 —— 实测步骤行会变成
- * `{"description":"Run echo hello and report out...`，用户读不出「在干什么」。
- * 工具参数是有结构的，要按已知字段取「人话」那一段：
- *   command / description / file_path / path / pattern / query / url
- * 都不认识时才退回「键名：值」的压缩形式。
- */
-/**
- * 无参数工具的中文说明。
- *
- * 有些工具的意图完全由「调用本身」表达（`list_agents` 不带任何参数）。
- * 此时行内容只能靠工具名，但直接写英文名读起来是「代码」不是「动作」。
- * 只列确实见过且语义明确的几个；没收录的退回工具名，不硬编。
- */
-const NO_ARG_HINT: Record<string, string> = {
-  list_agents: '查看子代理列表',
-  list_tasks: '查看任务列表',
-  list_jobs: '查看后台任务',
-  exit_plan_mode: '退出计划模式',
-  get_goal: '查看当前目标',
-}
-
-function shortArgs(args: string): string {
-  let parsed: Record<string, unknown> | null = null
-  try {
-    const v = JSON.parse(args)
-    if (v && typeof v === 'object' && !Array.isArray(v)) parsed = v as Record<string, unknown>
-  } catch {
-    /* 不是 JSON（例如纯命令字符串）：直接当文本用 */
-  }
-
-  if (!parsed) {
-    const oneLine = args.replace(/\s+/g, ' ').trim()
-    return oneLine.length > 72 ? `${oneLine.slice(0, 72)}…` : oneLine
-  }
-
-  /* ── 数组参数（todo_write 的 todos）───────────────────────
-     它的唯一字段是一个对象数组，下面那套「取字符串字段」的逻辑
-     一个都取不到，结果整行显示「（无参数）」—— 看起来像调用失败了。
-     这里按语义翻译：给出条目数 + 正在做的那条。 */
-  if (Array.isArray(parsed.todos)) {
-    const list = parsed.todos as { content?: unknown; status?: unknown }[]
-    const doing = list.find((t) => t?.status === 'in_progress')
-    const doingText = typeof doing?.content === 'string' ? doing.content.trim() : ''
-    const head = `更新任务清单 · ${list.length} 项`
-    return truncate(doingText ? `${head}：${doingText}` : head)
-  }
-
-  /* ── 交付参数（present 的 files）─────────────────────────
-     和 todo_write 同因：唯一字段是对象数组，取字符串字段那套取不到，
-     整行会显示「（无参数）」，看起来像调用失败。这里给出文件名。 */
-  if (Array.isArray(parsed.files)) {
-    const list = parsed.files as { path?: unknown }[]
-    const names = list
-      .map((f) => (typeof f?.path === 'string' ? f.path.split(/[\\/]/).pop() ?? '' : ''))
-      .filter(Boolean)
-    const head = `交付 ${list.length} 个文件`
-    return truncate(names.length > 0 ? `${head}：${names.join('、')}` : head)
-  }
-
-  /* 优先级按「哪个字段最能说明这一步在干什么」排 */
-  const KEYS = ['description', 'command', 'query', 'pattern', 'file_path', 'path', 'url', 'prompt']
-  for (const k of KEYS) {
-    const v = parsed[k]
-    if (typeof v === 'string' && v.trim()) return truncate(v.trim())
-  }
-
-  /* 兜底：取前两个**标量**字段，拼成「键：值」。
-     数组/对象也接进来 —— 它们至少说明「带了什么」，比什么都不说强。 */
-  const parts = Object.entries(parsed)
-    .filter(([, v]) => v !== null && v !== undefined)
-    .slice(0, 2)
-    .map(([k, v]) => {
-      if (typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean') {
-        return `${k}=${String(v)}`
-      }
-      if (Array.isArray(v)) return `${k}[${v.length}]`
-      return `${k}={…}`
-    })
-
-  /* 真的没有任何参数（如 list_agents 的参数就是 `{}`）。
-     返回空串，让调用方用工具名兜底 —— 「无参数」占满一整行却什么也没说，
-     连着几次调用就是几行废话。这类工具靠调用本身表达意图。 */
-  if (parts.length === 0) return ''
-  return truncate(parts.join(' '))
-}
-
 /** 诊断类型的兜底文案（后端一般会给 detail）。 */
 const DIAGNOSTIC_LABEL: Record<string, string> = {
   compaction: '上下文已压缩，早期对话被摘要替代',
   'max-tokens': '本回合达到 token 上限，回复可能不完整',
   retry: '模型调用失败，正在重试',
   interrupted: '本轮被中断',
-}
-
-function truncate(t: string): string {
-  const oneLine = t.replace(/\s+/g, ' ').trim()
-  return oneLine.length > 72 ? `${oneLine.slice(0, 72)}…` : oneLine
 }
 
 /* 相对时间（对齐 dsh time.ago：刚刚 / N分钟 / N小时 / N天 / N个月 / N年） */
@@ -509,7 +142,6 @@ function fmtWhen(t: number): string {
   const d = new Date(t)
   return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`
 }
-
 
 export function Conversation(props: {
   overviewOpen?: boolean
@@ -1452,7 +1084,6 @@ export function Conversation(props: {
     el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
   }, [])
 
-
   /**
    * 服务端会话的回复流（SSE）。
    *
@@ -1722,7 +1353,6 @@ export function Conversation(props: {
     }
   }
 
-
   /** 发送失败的原因（人话优先；网络/未找到/内容不合规各有说法）。 */
   const sendErrorText = (cause: unknown): string => {
     if (cause instanceof ApiError) {
@@ -1733,7 +1363,6 @@ export function Conversation(props: {
     }
     return cause instanceof Error ? cause.message : '消息没有发出去。'
   }
-
 
   const send = (text: string) => {
     const v = text.trim()
@@ -2694,8 +2323,6 @@ export function Conversation(props: {
       setSendError(error instanceof Error ? error.message : '项目尚未准备好，请重试。')
     } finally { setProjectPending(false) }
   }
-
-
 
   return (
     <div className="cv3">

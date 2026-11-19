@@ -1,0 +1,392 @@
+/* ---- 输入席（dsh ConversationRoot composerSeat：粘性底部 + 36px 渐隐） ----
+   渐隐终点色必须与「页面那一层」一致，不能用对话内自己的 --panel：
+   --panel 是 dsh 色板（深 #151517 / 浅 #fcfcfd），而右区现在透出 body（深 #000 / 浅 #e0e2e9），
+   两者不同 → 输入席底部会出现一条与页面不一致的色带（深色主题下最明显）。 */
+.cv3-seat {
+  position: sticky;
+  bottom: 0;
+  z-index: 7;
+  padding: 24px 0 12px;
+  /* 上缘 36px 渐隐到页面底色，**下缘必须完全不透明**。
+     只写一条 linear-gradient 时，整块区域的底色其实都是渐变色 ——
+     消息区滚到下面会从渐隐段透出来：实测出现「消息里的圆形图标
+     压在目标详情框上」，看着像层级错乱，实际是背景没盖住。
+     两层叠加：上层渐隐负责柔化上缘，下层实色负责遮住内容。 */
+  background:
+    linear-gradient(180deg, rgb(0 0 0 / 0) 0, var(--cv-page) 36px),
+    var(--cv-page);
+}
+
+/* Keep the composer centered and slightly narrower than the reading column.
+   The available-width cap preserves gutters on narrow windows. */
+.cv3-compose {
+  min-width: 0;
+  padding: 0 32px 4px;
+  --cv-compose-w: min(840px, max(620px, 60%), calc(100% - 32px));
+}
+
+.cv3-compose > .lbx-compose-box {
+  /* Match the home composer outer curve, including its tactile theme variant. */
+  --lbx-composer-radius: 24px;
+  width: 100%;
+  max-width: var(--cv-compose-w);
+  margin: 0 auto;
+}
+
+/* 输入卡 —— 直接套首页输入框（.hf-composer）的配方：
+   面 --hf-panel + 1px --hf-line + 24px 大圆角 + --hf-shadow。
+   ⚠️ 之前用 12px 卡片圆角、无边框、无投影，和首页完全是两种东西。 */
+.cv3-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  max-width: calc(min(920px, max(680px, 64%), calc(100% - 32px)) + 32px);
+  margin: 0 auto;
+  padding-top: 8px;
+  border: 1px solid var(--cv-line);
+  border-radius: 24px;
+  background: var(--cv-elev);
+  box-shadow: var(--cv-shadow);
+  font-size: 13px;
+  line-height: 19.5px;
+  transition: box-shadow 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 输入框聚焦晕染：dsh focus.css 的 2px 业务色环，做 35% 透明晕染而非硬环 */
+.cv3-card:focus-within {
+  /* 聚焦与首页一致：边线转品牌色 + 投影加强（不是加发光环） */
+  border-color: color-mix(in srgb, var(--brand, var(--acc)) 45%, var(--cv-line-strong));
+  box-shadow: var(--cv-shadow-focus);
+}
+
+/* @// 菜单（dsh MenuView：卡片内绝对定位，bottom 100%+4px，padding 4px） */
+.cv3-picker {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 4px);
+  left: 0;
+  z-index: 100;
+  max-height: 400px;
+  overflow-y: auto;
+  padding: 4px;
+  border: 0;
+  border-radius: var(--fm-radius-ctl);
+  background: var(--cv-elev);
+  box-shadow: 0 3px 8px rgb(0 0 0 / 0.04);
+}
+
+.cv3-picker button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 34px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: var(--fm-radius-ctl);
+  background: transparent;
+  color: var(--tx1);
+  font-size: 13px;
+  line-height: 20px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cv3-picker button[data-active] {
+  background: var(--hover);
+}
+
+.cv3-picker button span {
+  margin-left: auto;
+  color: var(--tx3);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+/* 卡片内的演示说明卡：与 @// 菜单同锚点，右对齐 */
+.cv3-card > .cv3-pop {
+  top: auto;
+  bottom: calc(100% + 4px);
+  right: 8px;
+  left: auto;
+}
+
+.cv3-input {
+  width: 100%;
+  min-height: 36px;
+  max-height: 336px;
+  padding: 4px 8px 0 14px;
+  box-sizing: border-box;
+  resize: none;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--tx1);
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 19.5px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  caret-color: var(--acc);
+}
+
+.cv3-input::placeholder {
+  color: var(--tx3);
+}
+
+/* 工具行（dsh InputBar row：padding 2/8/6，gap 12，可换行） */
+.cv3-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  padding: 2px 8px 6px;
+}
+
+/* ── 输入区工具栏（对齐 dsh InputBar：左附件/权限，右模型/发送）── */
+.cv3-leading,
+.cv3-trailing {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+/* 弹层锚点 */
+.cv3-cw {
+  position: relative;
+  flex: none;
+  min-width: 0;
+}
+
+/* 工具条上的胶囊按钮（dsh InputBar 的 chip：28px 高、13/20） */
+/* 权限模式胶囊 —— 逐条翻译 LeiBox Composer.tsx 审批按钮的 Tailwind 类：
+     flex h-8 max-w-full min-w-0 items-center whitespace-nowrap
+     rounded-full px-3 text-[11px] font-medium
+     普通态 text-secondary bg-black/5 hover:bg-black/10 active:bg-black/[0.12]
+     全权限 text-[#e25507] bg-[#e25507]/10 hover:/18 active:/22
+   子元素：图标 12px + mr-1.5；文字 truncate；ChevronDown 10px + ml-1。 */
+.cv3-chip-btn {
+  display: flex;
+  align-items: center;
+  height: 32px;                 /* h-8 */
+  max-width: 100%;
+  min-width: 0;
+  flex-shrink: 1;
+  padding: 0 12px;              /* px-3 */
+  border: 0;
+  border-radius: 999px;         /* rounded-full */
+  background: color-mix(in srgb, #000 5%, transparent);  /* bg-black/5 */
+  color: var(--tx2);            /* text-text-secondary */
+  font: inherit;
+  font-size: 11px;              /* text-[11px] */
+  font-weight: 500;             /* font-medium */
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 150ms cubic-bezier(0.4, 0, 0.2, 1), color 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.cv3-chip-btn:hover {
+  background: color-mix(in srgb, #000 10%, transparent);  /* bg-black/10 */
+  color: var(--fg);
+}
+
+.cv3-chip-btn:active {
+  background: color-mix(in srgb, #000 12%, transparent);  /* bg-black/[0.12] */
+}
+
+/* 全权限：橙色警示（原版刻意用暖色标出「这个模式更危险」） */
+.cv3-chip-btn[data-danger] {
+  background: color-mix(in srgb, #e25507 10%, transparent);
+  color: #e25507;
+}
+
+.cv3-chip-btn[data-danger]:hover {
+  background: color-mix(in srgb, #e25507 18%, transparent);
+  color: #e25507;
+}
+
+.cv3-chip-btn:hover,
+.cv3-chip-btn[data-on] {
+  background: color-mix(in srgb, var(--fg) 10%, transparent);
+  color: var(--tx1);
+}
+
+.cv3-perm-ico {
+  margin-right: 6px;            /* mr-1.5 */
+  flex-shrink: 0;
+}
+
+.cv3-perm-chev {
+  margin-left: 4px;             /* ml-1 */
+  flex-shrink: 0;
+}
+
+.cv3-chip-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ══ 引擎/模型选择器（照首页 .hf-harness / .hf-harness-pop 那套做）══
+   原来是一个通用 Cpu 图标 + 扁平菜单；首页早就是「两段式 chip
+   （状态点 · 品牌图标 | 模型名 · 箭头）+ 两级弹窗」，同一个产品里
+   两个入口不该长得不一样。数值直接取首页：chip 高 36/999px 圆角、
+   图标 17px、模型名 12px 等宽、弹窗 300px 宽 14px 圆角。 */
+
+/* 触发钮：两段式。状态点用绿/黄区分已接入/未接入，
+   品牌图标用 mask 上色（不用底色块），模型名等宽避免抖动。 */
+/* 跑光圈要动画一个自定义角度属性，必须先注册成 <angle> */
+@property --cv-spin {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@keyframes cv3-spin-cw {
+  to { --cv-spin: 360deg; }
+}
+
+/* 引擎/模型胶囊 —— 照搬 ModelThinkingSelector 的 trigger 类：
+     TintButton(h-8 rounded-full px-3 text-xs) + bg-ui-tint
+     内部：图标/文字 12px、档位 ml-1.5 次要色、箭头 ml-2 */
+.cv3-hbtn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 32px;                 /* h-8 */
+  max-width: 210px;             /* max-w-[210px] */
+  flex-shrink: 0;
+  padding: 0 12px;              /* px-3 */
+  border: 0;
+  border-radius: 999px;         /* rounded-full */
+  background: color-mix(in srgb, #000 5%, transparent);  /* bg-ui-tint */
+  color: var(--fg);
+  font: inherit;
+  font-size: 12px;              /* text-xs */
+  cursor: pointer;
+  transition: background-color 150ms;
+}
+
+/* 已接入引擎时，按钮外缘顺时针跑一圈品牌色光。
+   ⚠️ 在输入框里关掉（见下方 .cc-bar .cv3-hbtn[data-connected]::after）：
+   输入框是长时间停留的界面，持续旋转的 conic 渐变会把注意力从文字上拽走；
+   前端设计原则也明确「不做渐变」。首页那处是一次性点击的入口，保留。
+   用 ::after + inset:-2px 画在按钮外缘；遮罩只留 2px 环，中间镂空。 */
+.cv3-hbtn[data-connected]::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  padding: 2px;
+  border-radius: 999px;
+  pointer-events: none;
+  background: conic-gradient(from var(--cv-spin),
+    transparent 0deg, transparent 130deg,
+    color-mix(in srgb, var(--h-color) 45%, transparent) 200deg,
+    var(--h-color) 265deg,
+    #fff 292deg,
+    var(--h-color) 315deg,
+    color-mix(in srgb, var(--h-color) 45%, transparent) 350deg,
+    transparent 360deg);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--h-color) 90%, transparent))
+          drop-shadow(0 0 11px color-mix(in srgb, var(--h-color) 60%, transparent));
+  animation: cv3-spin-cw 2.8s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cv3-hbtn[data-connected]::after { animation: none; }
+}
+
+.cv3-hbtn:hover {
+  border-color: var(--cv-line-strong);
+  background: var(--panel2);
+}
+
+.cv3-hbtn[data-off] {
+  border-color: color-mix(in srgb, var(--warn) 40%, var(--cv-line));
+}
+
+/* 引擎段：参考组件里模型名是 13px 常规字重、次要色 ——
+   它只是「当前用的是哪个模型」，不是需要强调的标题。 */
+.cv3-hseg {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: var(--tx2);
+  font-size: 13px;
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+/* 状态点：已接入绿 / 未接入黄（不能只靠颜色，旁边还有文字） */
+.cv3-hseg i {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #3fb96f;
+}
+
+.cv3-hseg[data-off] i {
+  background: var(--warn);
+}
+
+/* 品牌图标：无底色、mask 上色、17px（同首页 .hf-harness-mark） */
+.cv3-hseg .cv3-hmark-img {
+  flex: 0 0 15px;
+  width: 15px;
+  height: 15px;
+  background-color: var(--h-color, var(--acc));
+  mask-position: center;
+  mask-size: contain;
+  mask-repeat: no-repeat;
+}
+
+.cv3-hbtn[data-off] .cv3-hseg .cv3-hmark-img {
+  background-color: var(--warn);
+  opacity: .82;
+}
+
+.cv3-hdiv {
+  width: 1px;
+  height: 12px;
+  background: var(--cv-line-strong);
+  opacity: .6;
+}
+
+.cv3-hdepth {
+  margin-left: 6px;             /* ml-1.5 */
+  flex-shrink: 0;
+  color: var(--tx2);
+  font-weight: 400;
+}
+
+.cv3-hmodel {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--tx2);
+  font-size: 11.5px;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+}
+
+.cv3-hoff {
+  color: var(--warn);
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.cv3-hchev {
+  flex: none;
+  opacity: .7;
+}
