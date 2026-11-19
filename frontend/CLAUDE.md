@@ -27,7 +27,7 @@
    （`src/features/workbench/model/contentOutline.ts`：scene-spec / scene-intents / film-plan）；
    没有可靠结构就只显示「整片」，不强行拆段、不空占位、不编缩略图。
 2. **`src/index.css` 是约束文件，不是建议。** 颜色/字体/间距/圆角只能用它定义的。
-3. **`src/views/Production.tsx` 是范式层**，其余是通用层。见下方「分层边界」。
+3. **范式层与通用层分开**，见下方「分层边界」。原来的范式层文件 `views/Production.tsx` 已经移除，场景/镜头相关的实现目前在 `src/features/workbench/` 与 `src/features/scene-editor/` 里。
 4. **一次只做一个视图。** 做完让作者看截图，确认后再继续。不要一次生成多个页面。
 
 ---
@@ -37,17 +37,17 @@
 「镜头」是**当前视频范式**的实现，不是产品地基。
 
 ```
-通用层（永不变）       shell/ · Overview · Assets · 未来的 script/audio/render/knowledge
+通用层（永不变）       app/ · shared/ · api/ · features/assets · 未来的 script/audio/render/knowledge
                       ↑ 不许出现「镜」「Shot」这类范式概念，用「单元 / Unit」
 ────────────────────────────────────────────────────────────
-范式层（可替换）       views/Production.tsx
+范式层（可替换）       工作台与场景编辑器里的场景/镜头实现
                       ↑ 当前是「镜头式」，将来可有时间线式/步骤式/场景式
 ```
 
 **规则：**
 
-- `shell/views.ts` 只声明"有哪些视图"，不声明"视图里有什么"
-- 换范式时**只替换 `Production.tsx`**，导航结构不动
+- `src/shared/navigation/views.ts` 只声明"有哪些视图"，不声明"视图里有什么"
+- 换范式时只替换范式层的实现，导航结构不动
 - 不要在通用层 import 范式层的类型
 
 ---

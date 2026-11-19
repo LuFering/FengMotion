@@ -18,7 +18,7 @@ FengMotion Desktop 是 AI 视频创作工作台（桌面优先）。当前形态
 
 | 路径 | 职责 |
 |---|---|
-| `src/` | 前端应用。`views/` 页面级视图；`components/` 通用与业务组件（`ui/`、`icons/`）；`shell/` 应用壳（导航、顶栏）；`services/` 数据入口层（studioApi 在此，见协议文档）；`data/` 前端数据与 fixture；`hooks/`、`lib/` 工具；`remotion/` Remotion 相关；`styles/` 与 `index.css` 样式与 token（**token 的唯一事实来源是 `src/index.css`**） |
+| `src/` | 前端应用，按业务模块组织（对照后端按领域分包），见下方「src 目录」 |
 | `public/` | 随构建发布的静态资源。`public/replica/` 为 iframe 过渡页，禁止继续在其中堆新功能 |
 | `docs/` | 文档站（GitHub Pages，`index.html` 为站点首页）与设计规格。`docs/design/` 设计规格（设计系统、工作流规格、知识库规格、导航图）；`docs/dev/` 开发文档（规范、进度、日志、协议、决策记录）；`docs/assets/`、`docs/media/` 站点素材 |
 | `design/` | 设计稿与参考素材（截图、logo 等），不是代码，不进构建 |
@@ -26,9 +26,26 @@ FengMotion Desktop 是 AI 视频创作工作台（桌面优先）。当前形态
 | `.claude/` | 维护者的本地 Agent 配置，协作者勿改 |
 | `.github/` | PR / Issue 模板 |
 
+## src 目录
+
+| 路径 | 职责 |
+|---|---|
+| `main.tsx`、`index.css` | 入口与全局样式（**token 的唯一事实来源是 `src/index.css`**） |
+| `app/` | 入口组装（`App.tsx`）与应用壳：侧栏导航、资源库抽屉 |
+| `features/<模块>/` | 业务模块：`chat` 对话、`workbench` 工作台、`scene-editor` 场景编辑器、`workflow` 工作流、`assets` 素材、`fx` 特效库、`reference` 参考片库、`project` 项目、`creation` 创作任务、`home` 首页、`settings` 设置、`harness` 引擎。模块根目录放页面组件，内部按 `components/`、`hooks/`、`model/`（纯逻辑与类型）、`services/`、`styles/` 分 |
+| `api/` | 后端接口客户端，一个文件对应后端一个模块；`contracts.ts` 是契约类型的统一入口，内容按领域拆在 `api/types/` |
+| `shared/` | 跨模块复用：`ui/`（shadcn）、`icons/`、`components/`、`navigation/`、`local-documents/`、`pick-mode/`、`lib/`、`vendor/` |
+| `demo/` | 占位演示数据，见 `CLAUDE.md`「动手前必读」第 1 条 |
+| `styles/` | 全局样式：token、品牌、图标、页面骨架 |
+| `remotion/shims/`、`fx-original/` | Remotion 依赖替身；特效库原片快照（不参与类型检查） |
+
+**依赖方向**：`features/` 可以引用 `api/`、`shared/` 和其他模块；`api/`、`shared/` 不引用 `features/`。只被一个模块用到的代码放进那个模块。
+
+**样式引入顺序**：`index.css` 里各模块样式的引入顺序决定层叠，移动文件时只改路径、不调顺序。
+
 ## 核心链路与边界
 
-- **数据唯一入口**：视图不直接拼数据，一律经 `src/services/` 的 studioApi 层；真实后端未接入前由演示适配器实现，UI 必须显式标注 Demo。细则见 [前后端协议](docs/dev/前后端协议.md)。
+- **数据唯一入口**：视图不直接拼数据，一律经 `src/api/`（含 `studioApi`）；真实后端未接入前由演示适配器实现，UI 必须显式标注 Demo。细则见 [前后端协议](docs/dev/前后端协议.md)。
 - **范式层与通用层**：当前视频范式（场景/镜头等概念）是实现层，不是产品地基；通用层（项目、任务、产物、检查）不得反向依赖范式概念。既有约定以根目录 `CLAUDE.md` 与 `docs/页面职责合同.md`、`docs/UI实现规范.md` 为准。
 - **样式边界**：颜色/字体/间距/圆角只准引用 token；每页私有一套大 CSS 是已知待治理问题，迁移路线见开发进度 04 期。
 
@@ -41,7 +58,7 @@ FengMotion Desktop 是 AI 视频创作工作台（桌面优先）。当前形态
 
 ### 工作台本地审阅（2026-10-29）
 
-`services/workbenchReviewService.ts` 按项目保存本地原始需求、纠正、特别保留要求和意见快照；`hooks/useWorkbenchReview.ts` 管理用户标记与保存失败状态。`views/WorkbenchReviewDesk.tsx` 提供要求/意见/版本的按需面板，`WorkbenchPreviewCompare.tsx` 只比较现有真实文件，`PreviewReviewTools.tsx` 将真实媒体时间范围带回修改意见。该链路不生成媒体，也不把用户标记当作检查运行。Remotion 原有参数编辑仍在工作台内按需打开。
+`features/workbench/services/workbenchReviewService.ts` 按项目保存本地原始需求、纠正、特别保留要求和意见快照；`features/workbench/hooks/useWorkbenchReview.ts` 管理用户标记与保存失败状态。`features/workbench/components/WorkbenchReviewDesk.tsx` 提供要求/意见/版本的按需面板，`WorkbenchPreviewCompare.tsx` 只比较现有真实文件。该链路不生成媒体，也不把用户标记当作检查运行。Remotion 原有参数编辑仍在工作台内按需打开。
 
 
 ### 工作台场景编辑器（2026-10-29）

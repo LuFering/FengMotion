@@ -22,11 +22,12 @@ npm run lint      # 静态检查
 
 | 目录 | 内容 |
 | --- | --- |
-| `src/views/` | 首页、工作台、资源库及工作流页面 |
-| `src/components/` | 公共组件与资源选择器 |
-| `src/services/` | 前端服务、工作流逻辑及后端接口 |
-| `src/shell/` | 导航、对话与应用状态 |
-| `src/features/scene-editor/`、`src/remotion/` | 编辑与预览相关代码 |
+| `src/app/` | 入口组装与应用壳（导航、资源库抽屉） |
+| `src/features/` | 按业务分的功能模块：对话、工作台、场景编辑器、工作流、素材、特效库、参考片库、项目、创作任务、首页、设置、引擎 |
+| `src/api/` | 后端接口客户端与契约类型（`api/types/` 按领域拆分） |
+| `src/shared/` | 跨模块复用：shadcn 组件、图标、通用组件、导航、工具 |
+| `src/demo/` | 占位演示数据（不是工作流的内容模型） |
+| `src/styles/`、`src/index.css` | 全局样式与 token |
 | `public/` | 应用需要的静态资源与示例 |
 | `workflow-v0.1.1/` | 当前创作方法、模板、工具与评估计划 |
 | `docs/` | 设计、接口、开发记录与界面评审 |
