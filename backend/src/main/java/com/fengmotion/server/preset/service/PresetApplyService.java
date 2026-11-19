@@ -32,6 +32,7 @@ import com.fengmotion.server.preset.domain.WorkflowPreset;
 import com.fengmotion.server.preset.store.WorkflowPresetRepository;
 import com.fengmotion.server.project.domain.Project;
 import com.fengmotion.server.project.store.ProjectRepository;
+import com.fengmotion.server.skill.service.SkillReferences;
 import com.fengmotion.server.skill.store.SkillPackageRepository;
 import com.fengmotion.server.workflow.service.CreationJobs;
 import com.fengmotion.server.workflow.service.ProjectOperationLock;
@@ -101,11 +102,13 @@ public class PresetApplyService {
      * @param guide            written / replaced / unchanged
      * @param guideBackup      指引被用户改过时的备份路径；没有为 null
      * @param componentsCopied 复制的组件源码数
+     * @param supportFilesCopied 顺着 import 一起复制的依赖文件数
      * @param drafts           两份工作稿的处理结果
      * @param warnings         警告
      */
     public record ApplyResult(String presetId, String previousPresetId, String guide, String guideBackup,
-                              int componentsCopied, List<DraftAction> drafts, List<String> warnings) {
+                              int componentsCopied, int supportFilesCopied, List<DraftAction> drafts,
+                              List<String> warnings) {
     }
 
     /** 读取项目当前的视频类型记录；没有落地过为 null。 */
@@ -134,7 +137,8 @@ public class PresetApplyService {
             Record previous = readRecord(root, warnings);
 
             /* 指引 */
-            String guideText = renderGuide(preset);
+            Support support = support(preset, warnings);
+            String guideText = renderGuide(preset, support);
             String guideSha = sha(guideText);
             Path guideFile = root.resolve(GUIDE);
             String guideAction;
@@ -161,7 +165,7 @@ public class PresetApplyService {
             if (!guideAction.equals("unchanged")) writeAtomically(guideFile, guideText);
 
             /* 组件源码 */
-            int copied = copyComponents(root, preset, warnings);
+            int[] copied = copySources(root, support, warnings);
 
             /* 工作稿 */
             List<DraftAction> draftActions = new ArrayList<>();
@@ -183,7 +187,7 @@ public class PresetApplyService {
             writeAtomically(recordFile, json.writerWithDefaultPrettyPrinter().writeValueAsString(record));
 
             return new ApplyResult(preset.id(), previous == null ? null : previous.presetId(),
-                    guideAction, backup, copied, draftActions, warnings);
+                    guideAction, backup, copied[0], copied[1], draftActions, warnings);
         } catch (IOException failed) {
             throw new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "preset_apply_failed", "视频类型未能写入项目：" + failed.getMessage());
         }
@@ -191,7 +195,67 @@ public class PresetApplyService {
 
     /* ── 指引 ─────────────────────────────────────────────────────── */
 
+    /**
+     * 要复制给 agent 的源码，以及 import 改写表。
+     *
+     * @param source       来源包目录；包已删除时为 null
+     * @param components   映射里的入口组件（包里确实存在的）
+     * @param dependencies 顺着 import 找到的依赖
+     * @param aliases      源码里的别名引用 → 包内路径
+     * @param unresolved   解析不了的引用：「引用（出现在 文件）」
+     */
+    record Support(Path source, List<String> components, List<String> dependencies,
+                   Map<String, String> aliases, List<String> unresolved) {
+        static Support none() {
+            return new Support(null, List.of(), List.of(), Map.of(), List.of());
+        }
+    }
+
+    private Support support(WorkflowPreset preset, List<String> warnings) {
+        List<PresetMapping.Component> components = preset.mapping().components() == null ? List.of() : preset.mapping().components();
+        if (components.isEmpty()) return Support.none();
+        var pkg = packages.findById(preset.skillPackageId()).orElse(null);
+        if (pkg == null || pkg.report() == null || !Files.isDirectory(Path.of(pkg.rootDir()))) {
+            warnings.add("来源 skill 包已删除，组件源码没有复制；指引仍已写入");
+            return Support.none();
+        }
+        Map<String, com.fengmotion.server.skill.domain.SkillInventory.FileEntry> files = new LinkedHashMap<>();
+        for (var file : pkg.report().files()) files.put(file.path(), file);
+        List<String> entries = new ArrayList<>();
+        for (var component : components) {
+            if (files.containsKey(component.path())) entries.add(component.path());
+            else warnings.add("组件源码不存在，未复制：" + component.path());
+        }
+        List<String> dependencies = SkillReferences.closure(pkg.report(), entries, SUPPORT_LIMIT);
+        Map<String, String> aliases = new java.util.TreeMap<>();
+        List<String> unresolved = new ArrayList<>();
+        for (String path : concat(entries, dependencies)) {
+            var file = files.get(path);
+            if (file == null || file.imports() == null) continue;
+            for (var ref : file.imports()) {
+                if (ref.kind().equals("alias") && ref.resolved() != null) aliases.put(ref.specifier(), ref.resolved());
+                else if ((ref.kind().equals("alias") || ref.kind().equals("relative")) && ref.resolved() == null) {
+                    unresolved.add(ref.specifier() + "（出现在 " + path + "）");
+                }
+            }
+        }
+        return new Support(Path.of(pkg.rootDir()).toAbsolutePath().normalize(), entries, dependencies, aliases, unresolved);
+    }
+
+    /** 依赖文件上限：与引用分析一致。 */
+    static final int SUPPORT_LIMIT = 80;
+
+    private static List<String> concat(List<String> a, List<String> b) {
+        List<String> out = new ArrayList<>(a);
+        out.addAll(b);
+        return out;
+    }
+
     static String renderGuide(WorkflowPreset preset) {
+        return renderGuide(preset, Support.none());
+    }
+
+    static String renderGuide(WorkflowPreset preset, Support support) {
         PresetMapping m = preset.mapping();
         StringBuilder out = new StringBuilder();
         out.append("# 视频类型：").append(m.name()).append("\n\n");
@@ -216,6 +280,25 @@ public class PresetApplyService {
             }
             out.append('\n');
         }
+        if (!support.dependencies().isEmpty() || !support.aliases().isEmpty() || !support.unresolved().isEmpty()) {
+            String base = STATE_DIR + "/" + SOURCES + "/";
+            out.append("## 组件依赖与 import 改写\n\n");
+            if (!support.dependencies().isEmpty()) {
+                out.append("这些组件依赖的 ").append(support.dependencies().size()).append(" 个文件已一并复制到 `")
+                        .append(base).append("`，同样只读。\n\n");
+            }
+            if (!support.aliases().isEmpty()) {
+                out.append("源码里用的是 skill 仓库自己的路径别名，本项目里解析不到。把组件复制进 src/ 时，按下表改写 import（指向你复制过去的位置）：\n\n");
+                support.aliases().forEach((specifier, path) ->
+                        out.append("- `").append(specifier).append("` → `").append(base).append(path).append("`\n"));
+                out.append('\n');
+            }
+            if (!support.unresolved().isEmpty()) {
+                out.append("解析不了的引用（skill 包里没有对应文件，需要自己处理或去掉）：\n\n");
+                for (String item : support.unresolved()) out.append("- `").append(item.replaceFirst("（", "`（")).append('\n');
+                out.append('\n');
+            }
+        }
         if (m.instructedCommands() != null && !m.instructedCommands().isEmpty()) {
             out.append("## skill 要求运行的命令（不要执行）\n\n");
             for (var c : m.instructedCommands()) {
@@ -235,23 +318,22 @@ public class PresetApplyService {
 
     /* ── 组件 ─────────────────────────────────────────────────────── */
 
-    private int copyComponents(Path root, WorkflowPreset preset, List<String> warnings) throws IOException {
+    /** 复制入口组件与依赖；返回 {入口数, 依赖数}。每次落地整体替换。 */
+    private int[] copySources(Path root, Support support, List<String> warnings) throws IOException {
         Path target = root.resolve(STATE_DIR).resolve(SOURCES);
         deleteTree(target, root);
-        List<PresetMapping.Component> components = preset.mapping().components() == null ? List.of() : preset.mapping().components();
-        if (components.isEmpty()) return 0;
-        var pkg = packages.findById(preset.skillPackageId()).orElse(null);
-        if (pkg == null || !Files.isDirectory(Path.of(pkg.rootDir()))) {
-            warnings.add("来源 skill 包已删除，组件源码没有复制；指引仍已写入");
-            return 0;
-        }
-        Path source = Path.of(pkg.rootDir()).toAbsolutePath().normalize();
+        if (support.source() == null) return new int[] {0, 0};
+        return new int[] {copyAll(support.source(), target, support.components(), warnings),
+                copyAll(support.source(), target, support.dependencies(), warnings)};
+    }
+
+    private static int copyAll(Path source, Path target, List<String> paths, List<String> warnings) throws IOException {
         int copied = 0;
-        for (var component : components) {
-            Path from = source.resolve(component.path()).normalize();
-            Path to = target.resolve(component.path()).normalize();
+        for (String path : paths) {
+            Path from = source.resolve(path).normalize();
+            Path to = target.resolve(path).normalize();
             if (!from.startsWith(source) || !to.startsWith(target) || !Files.isRegularFile(from, LinkOption.NOFOLLOW_LINKS)) {
-                warnings.add("组件源码不存在，未复制：" + component.path());
+                warnings.add("源码文件不存在，未复制：" + path);
                 continue;
             }
             Files.createDirectories(to.getParent());

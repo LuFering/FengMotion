@@ -29,6 +29,7 @@ import com.fengmotion.server.chat.domain.ChatMessage;
  *                    带上它，刷新后上下文占用条还在，而不是只在「刚发完」时可见。
  * @param deliverables 这条回复交付的文件；没有交付时不出现。
  *                    不带它的话，重读历史后产物卡片会消失。
+ * @param reasoningSegments 思考按阶段的分段；旧消息或没有推理时不出现。
  * @param createdAt   创建时间
  */
 public record ChatMessageResponse(
@@ -44,6 +45,7 @@ public record ChatMessageResponse(
         @JsonInclude(JsonInclude.Include.NON_NULL) JsonNode todos,
         @JsonInclude(JsonInclude.Include.NON_NULL) JsonNode usage,
         @JsonInclude(JsonInclude.Include.NON_NULL) JsonNode deliverables,
+        @JsonInclude(JsonInclude.Include.NON_NULL) JsonNode reasoningSegments,
         Instant createdAt) {
 
     /** 将领域对象转换为 API 响应对象。 */
@@ -61,6 +63,7 @@ public record ChatMessageResponse(
                 message.todos(),
                 message.usage(),
                 message.deliverables(),
+                message.reasoningSegments(),
                 message.createdAt());
     }
 }

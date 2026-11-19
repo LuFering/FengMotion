@@ -1,0 +1,11 @@
+# FengMotion 桌面端的环境变量。启动器（~/.local/bin/fengmotion）启动时读取这份文件。
+#
+# 格式：每行一个「名字=值」，不要写命令（文件只按文本解析，不会执行）。
+# 终端里已经设置的同名变量优先，这里的值不会覆盖它。
+# 这份文件存放密钥，请保持只有自己可读写：chmod 600 ~/.config/FengMotion/env
+#
+# 语义检索用的向量服务密钥（阿里云 DashScope）。缺少时检索会退回字面匹配。
+# DASHSCOPE_API_KEY=
+#
+# 可选：GitHub 令牌，用于导入私有仓库的 skill 包，或突破未登录限额（每小时 60 次）。
+# FENGMOTION_GITHUB_TOKEN=

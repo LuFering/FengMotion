@@ -44,11 +44,13 @@ public interface ChatMessageMapper {
     @Insert("""
             INSERT INTO chat_messages
                 (id, session_id, seq, role, text, task_id, references_json, attachments_json,
-                 tool_calls_json, reasoning, todos_json, usage_json, deliverables_json, created_at)
+                 tool_calls_json, reasoning, todos_json, usage_json, deliverables_json,
+                 reasoning_segments_json, created_at)
             VALUES
                 (#{id}, #{sessionId}, #{seq}, #{role}, #{text}, #{taskId},
                  #{referencesJson}, #{attachmentsJson}, #{toolCallsJson}, #{reasoning},
-                 #{todosJson}, #{usageJson}, #{deliverablesJson}, #{createdAt})
+                 #{todosJson}, #{usageJson}, #{deliverablesJson},
+                 #{reasoningSegmentsJson}, #{createdAt})
             """)
     int insert(ChatMessageRow row);
 
@@ -72,6 +74,7 @@ public interface ChatMessageMapper {
                    todos_json       AS todosJson,
                    usage_json       AS usageJson,
                    deliverables_json AS deliverablesJson,
+                   reasoning_segments_json AS reasoningSegmentsJson,
                    created_at     AS createdAt
             FROM chat_messages
             WHERE id = #{id}
@@ -121,6 +124,7 @@ public interface ChatMessageMapper {
                    todos_json       AS todosJson,
                    usage_json       AS usageJson,
                    deliverables_json AS deliverablesJson,
+                   reasoning_segments_json AS reasoningSegmentsJson,
                    created_at     AS createdAt
             FROM chat_messages
             WHERE session_id = #{sessionId} AND seq > #{afterSeq} AND role <> 'system'

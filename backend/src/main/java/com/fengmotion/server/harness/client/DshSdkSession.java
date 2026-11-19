@@ -29,6 +29,12 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
  */
 public class DshSdkSession {
 
+    /** 回复流心跳间隔：要明显小于前端的空闲断线判断（45 秒）。 */
+    static final Duration HEARTBEAT_INTERVAL = Duration.ofSeconds(15);
+
+    /** 测试用短间隔验证心跳；生产一律用 {@link #HEARTBEAT_INTERVAL}。 */
+    Duration heartbeatInterval = HEARTBEAT_INTERVAL;
+
     /** 默认的单次对话超时；推理型任务在慢模型上可能需要更久。 */
     public static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(180);
 
@@ -81,6 +87,8 @@ public class DshSdkSession {
          */
         void onTextDelta(String text);
 
+        default void onTextDelta(int turn, int step, String attempt, String text) { onTextDelta(text); }
+
         /**
          * 收到一个 token 级推理增量。
          *
@@ -95,6 +103,10 @@ public class DshSdkSession {
          * @param reasoning 推理内容；没有时为空字符串
          */
         void onAssistantMessage(String text, String reasoning);
+
+        default void onAssistantMessage(int turn, int step, String text, String reasoning) { onAssistantMessage(text, reasoning); }
+
+        default boolean collectAfterHandoff() { return false; }
 
         /**
          * DSH 为会话生成的标题。
@@ -626,6 +638,7 @@ public class DshSdkSession {
         boolean failed = false;
         String failure = null;
         int turn = 0;
+        int step = 0;
         long start = System.nanoTime();
         long deadline = start + timeout.toNanos();
         long foregroundDeadline = foreground == null
@@ -637,6 +650,7 @@ public class DshSdkSession {
         boolean handedOff = false;
         // 转后台后用来吞掉所有对外回调，同时照常累计结果。
         SilentListener sink = new SilentListener();
+        long lastHeartbeat = System.nanoTime();
 
         while (true) {
             if (!handedOff && System.nanoTime() > foregroundDeadline) {
@@ -649,14 +663,21 @@ public class DshSdkSession {
                     }
                 }
             }
-            Listener active = handedOff ? sink : listener;
+            Listener active = handedOff && !listener.collectAfterHandoff() ? sink : listener;
+            /* 工具调用期间（一条 bash 可能跑一分钟）DSH 什么都不发，回复流随之没有数据，
+               前端 45 秒收不到字节就按断线重连。按固定间隔发心跳，放在这个单线程循环里，
+               不会和别的帧交错写出。 */
+            if (System.nanoTime() - lastHeartbeat >= heartbeatInterval.toNanos()) {
+                lastHeartbeat = System.nanoTime();
+                active.onHeartbeat();
+            }
             if (System.nanoTime() > deadline) {
                 throw new IOException("等待 Agent 完成超时（" + timeout.toSeconds() + " 秒）");
             }
 
             // 先排空 stderr 里的 token 级增量。必须在读 stdout 之前做：
             // stdout 可能长时间没有新行，若先阻塞在那里，实时增量就全被压后了。
-            drainStreamFrames(active, reasoning);
+            drainStreamFrames(sessionId, active, reasoning);
 
             // 再消费等待响应期间缓存的通知，否则 prompt 阶段收到的 running 会丢失。
             JsonNode frame;
@@ -695,7 +716,7 @@ public class DshSdkSession {
                 long wait = Math.min(timeoutRemaining(deadline), STREAM_POLL_MILLIS * 1_000_000L);
                 JsonNode pending = awaitStreamFrame(wait);
                 if (pending != null) {
-                    dispatchStreamFrame(pending, listener, reasoning);
+                    dispatchStreamFrame(sessionId, pending, active, reasoning);
                 }
                 continue;
             }
@@ -712,15 +733,15 @@ public class DshSdkSession {
                     continue;
                 }
                 if ("running".equals(status)) {
-                    listener.onTurnStarted(turn == 0 ? 1 : turn);
+                    active.onTurnStarted(turn == 0 ? 1 : turn);
                 } else if ("idle".equals(status)) {
                     /* 退出前必须再排空一次 stderr。
                        stderr 由独立线程写入队列，到达顺序与 stdout 的通知不保证同步；
                        推理增量（reasoning-delta）经常紧跟在 idle 之后才被读到，
                        直接 return 会把它们全部丢掉 —— 表现是「插件明明收到了推理帧，
                        后端一次都没回调」，而正文增量因为先到所以正常。 */
-                    drainStreamFrames(listener, reasoning);
-                    listener.onIdle();
+                    drainStreamFrames(sessionId, active, reasoning);
+                    active.onIdle();
                     return new Outcome(text.toString(), reasoning.result(), failed, failure);
                 }
                 continue;
@@ -746,17 +767,20 @@ public class DshSdkSession {
             switch (type) {
                 case "turn/start" -> {
                     turn = data.path("turn").asInt(1);
-                    listener.onTurnStarted(turn);
+                    step = 0;
+                    active.onTurnStarted(turn);
                 }
-                case "step/start" -> listener.onStepStarted(
-                        data.path("turn").asInt(turn), data.path("step").asInt(1));
-                case "tool/call" -> listener.onToolCall(
+                case "step/start" -> {
+                    step = data.path("step").asInt(step + 1);
+                    active.onStepStarted(data.path("turn").asInt(turn), step);
+                }
+                case "tool/call" -> active.onToolCall(
                         data.path("callId").asText(""),
                         data.path("name").asText(""),
                         data.path("arguments").asText(""));
                 case "tool/result" -> {
                     JsonNode message = data.path("message");
-                    listener.onToolResult(
+                    active.onToolResult(
                             message.path("toolCallId").asText(""),
                             collectText(message.path("content")),
                             message.path("isError").asBoolean(false));
@@ -774,7 +798,7 @@ public class DshSdkSession {
                     /* 不再 setLength(0) 覆盖：推理是逐块攒起来的，
                        这里覆盖会把前面步骤的推理冲掉；交给 ReasoningTrace 去重。 */
                     reasoning.appendMessageReasoning(think);
-                    listener.onAssistantMessage(body, think);
+                    active.onAssistantMessage(data.path("turn").asInt(turn), data.path("step").asInt(step), body, think);
                     // 用量挂在消息上而不是独立事件（实测）：在同一个分支里顺带取出。
                     // 缺字段用 -1 表示「上游没给」，不用 0 —— 0 是「用了 0 个 token」，
                     // 与「不知道用了多少」是两件事，界面上不该混为一谈。
@@ -910,10 +934,10 @@ public class DshSdkSession {
      * @param listener 目标回调
      * @param reasoning 本轮推理正文的累加器；由调用方创建并最终读走
      */
-    private void drainStreamFrames(Listener listener, ReasoningTrace reasoning) {
+    private void drainStreamFrames(String sessionId, Listener listener, ReasoningTrace reasoning) {
         JsonNode frame;
         while ((frame = streamFrames.poll()) != null) {
-            dispatchStreamFrame(frame, listener, reasoning);
+            dispatchStreamFrame(sessionId, frame, listener, reasoning);
         }
     }
 
@@ -928,16 +952,19 @@ public class DshSdkSession {
      * @param listener  目标回调
      * @param reasoning 推理累加器
      */
-    private void dispatchStreamFrame(JsonNode frame, Listener listener, ReasoningTrace reasoning) {
+    private void dispatchStreamFrame(String sessionId, JsonNode frame, Listener listener, ReasoningTrace reasoning) {
         if (!"stream/delta".equals(frame.path("method").asText(""))) {
             return;
         }
         JsonNode params = frame.path("params");
+        if (params.hasNonNull("sessionId") && !sessionId.equals(params.path("sessionId").asText())) return;
         String kind = params.path("kind").asText("");
         if ("text".equals(kind)) {
             String text = params.path("text").asText("");
             if (!text.isEmpty()) {
-                listener.onTextDelta(text);
+                if (params.path("turn").isIntegralNumber() && params.path("step").isIntegralNumber() && params.path("attemptId").isTextual()) {
+                    listener.onTextDelta(params.get("turn").intValue(), params.get("step").intValue(), params.get("attemptId").textValue(), text);
+                } else listener.onTextDelta(text);
             }
         } else if ("thinking".equals(kind)) {
             String text = params.path("text").asText("");

@@ -22,6 +22,7 @@ import java.util.function.Consumer;
 public class NativeHarnesses {
     private final ObjectMapper json;
     private final HarnessProperties properties;
+    private final LocalApiUrl apiUrl;
     private final Map<String, Probe> cache = new ConcurrentHashMap<>();
     public record Selection(String harness, String model, String reasoningEffort) {
         public boolean nativeEngine() { return "codex".equals(harness) || "claude".equals(harness); }
@@ -188,6 +189,7 @@ public class NativeHarnesses {
         }
         ProcessBuilder builder = new ProcessBuilder(command).directory(cwd.toFile());
         builder.environment().remove("ELECTRON_RUN_AS_NODE");
+        apiUrl.applyTo(builder.environment());
         return new Channel(builder.start());
     }
     List<String> command(String id) throws IOException {

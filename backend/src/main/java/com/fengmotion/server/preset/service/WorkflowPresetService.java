@@ -99,9 +99,9 @@ public class WorkflowPresetService {
                 .orElseThrow(() -> new ApiException(HttpStatus.CONFLICT, "skill_package_missing",
                         "来源 skill 包已删除，无法校验修改；请重新导入后再生成"));
         PresetMapping next = withTruncated(mapping, preset.mapping().truncatedSources());
-        var problems = PresetMappingValidator.validate(next, pkg.report(), preset.skillPath());
+        var problems = PresetMappingValidator.validate(next, pkg.report(), preset.skillPath(), preset.mappingVersion());
         if (!problems.isEmpty()) throw new MappingInvalidException("修改后的映射没有通过校验，未保存", problems);
-        if (!presets.updateMapping(id, WorkflowPreset.DRAFT, next, Instant.now())) {
+        if (!presets.updateMapping(id, WorkflowPreset.DRAFT, next, preset.mappingVersion(), Instant.now())) {
             throw new ApiException(HttpStatus.CONFLICT, "preset_not_editable", "视频类型刚被启用或归档，修改未保存");
         }
         return get(id);
@@ -111,6 +111,13 @@ public class WorkflowPresetService {
     public WorkflowPreset activate(String id) {
         WorkflowPreset preset = get(id);
         if (preset.status().equals(WorkflowPreset.ACTIVE)) return preset;
+        if (!preset.status().equals(WorkflowPreset.DRAFT)) {
+            throw new ApiException(HttpStatus.CONFLICT, "preset_not_draft", "只有草稿可以启用");
+        }
+        SkillPackage pkg = packages.findById(preset.skillPackageId())
+                .orElseThrow(() -> new ApiException(HttpStatus.CONFLICT, "skill_package_missing", "来源 skill 包已删除，无法重新校验草稿"));
+        var problems = PresetMappingValidator.validate(preset.mapping(), pkg.report(), preset.skillPath(), preset.mappingVersion());
+        if (!problems.isEmpty()) throw new MappingInvalidException("草稿未通过当前校验，未启用；请修改或重新生成", problems);
         Instant now = Instant.now();
         if (!presets.updateStatus(id, WorkflowPreset.DRAFT, WorkflowPreset.ACTIVE, now, now)) {
             throw new ApiException(HttpStatus.CONFLICT, "preset_not_draft", "只有草稿可以启用");

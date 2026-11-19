@@ -34,5 +34,7 @@ public class ChatMessageRow {
     private String usageJson;
     /** 这条助手回复交付的文件（JSON 数组）；没有交付时为 null。 */
     private String deliverablesJson;
+    /** 思考按阶段的分段（JSON 数组）；旧消息或没有推理时为 null。 */
+    private String reasoningSegmentsJson;
     private String createdAt;
 }

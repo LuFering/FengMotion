@@ -23,18 +23,24 @@ public class DshPresetMappingModel implements PresetMappingModel {
     private final DshDirectTextModel model;
     private final HarnessProperties properties;
     private final long timeoutMs;
+    private final String provider;
+    private final String modelId;
 
     public DshPresetMappingModel(DshDirectTextModel model, HarnessProperties properties,
-                                 @Value("${fengmotion.preset.mapping-timeout-ms:120000}") long timeoutMs) {
+                                 @Value("${fengmotion.preset.mapping-timeout-ms:120000}") long timeoutMs,
+                                 @Value("${fengmotion.preset.mapping-provider:}") String provider,
+                                 @Value("${fengmotion.preset.mapping-model:}") String modelId) {
         this.model = model;
         this.properties = properties;
         this.timeoutMs = timeoutMs;
+        this.provider = provider == null || provider.isBlank() ? properties.getProvider() : provider.strip();
+        this.modelId = modelId == null || modelId.isBlank() ? properties.getModel() : modelId.strip();
     }
 
     @Override
     public String generate(String system, String prompt) {
         try {
-            return model.generate(new DshDirectTextModel.Request(properties.getProvider(), properties.getModel(),
+            return model.generate(new DshDirectTextModel.Request(provider, modelId,
                     system, prompt, 12_000, timeoutMs)).text();
         } catch (IOException failed) {
             log.warn("映射生成失败：{}", failed.getMessage());

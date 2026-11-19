@@ -46,7 +46,7 @@ final class PresetFixtures {
                 List.of(new PresetMapping.GuideSection("路径描绘", "先描边再填色，最后整体缓动稳定。", List.of(SKILL, "skills/logo/README.md"))),
                 List.of(new PresetMapping.Component(COMPONENT, "SVG 分路径动画")),
                 List.of(new PresetMapping.CommandDecision("bash scripts/check.sh", "replace-with-builtin", "用本项目渲染检查")),
-                List.of(new PresetMapping.StepMapping("渲染与关键帧检查", "review", null)),
+                List.of(new PresetMapping.StepMapping("检查已渲染的关键帧", "review", null, "inspect")),
                 List.of(new PresetMapping.Unmapped("分析参考视频", "参考分析由用户在素材与参考里提供")),
                 List.of("model-made-this-up"));
     }

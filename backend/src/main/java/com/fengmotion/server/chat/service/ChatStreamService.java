@@ -22,6 +22,7 @@ import com.fengmotion.server.chat.store.ChatMessageRepository;
 import com.fengmotion.server.chat.store.ChatSessionRepository;
 import com.fengmotion.server.common.ApiException;
 import com.fengmotion.server.harness.client.DshLauncher;
+import com.fengmotion.server.harness.client.DshNarration;
 import com.fengmotion.server.harness.client.DshProcess;
 import com.fengmotion.server.harness.client.DshSdkSession;
 import com.fengmotion.server.harness.config.HarnessProperties;
@@ -73,6 +74,8 @@ public class ChatStreamService {
     private final ChatMessageRepository messages;
     private final TransactionTemplate transactions;
     private final ObjectMapper json;
+    /** 一轮改动了工程就自动出片；放在最后，测试按位置构造时只需补一个参数。 */
+    private final com.fengmotion.server.workflow.service.ChatTurnRender turnRender;
 
     /**
      * 当前请求的 SSE 缓冲刷新动作。
@@ -95,6 +98,9 @@ public class ChatStreamService {
      * <p>只记「正在跑」的轮次：一轮结束（无论成败）就从表里移除，
      * 否则长期运行会累积已死进程的引用。</p>
      */
+    /** 会话已有一轮在跑时给前端的说明。 */
+    public static final String SESSION_BUSY_MESSAGE = "上一轮回复还在执行，结束后可在消息记录里查看结果；要中止请点停止。";
+
     private final java.util.Map<String, DshProcess> runningTurns =
             new java.util.concurrent.ConcurrentHashMap<>();
 
@@ -202,30 +208,18 @@ public class ChatStreamService {
     }
 
     /**
-     * 单轮的执行预算（超时上限）。
+     * 单轮的安全上限。
      *
-     * <p><strong>为什么不是直接用配置的 180 秒</strong>：180 秒对视频制作这类
-     * 「编译 + 渲染 + 多轮工具调用」的任务太短，一次真机任务很容易超过。
-     * 但也不能简单把超时调大 —— 那样用户会在界面上干等十分钟，且一旦用户离开
-     * 页面，这轮就白跑了。</p>
-     *
-     * <p>这里的做法是「前台跑 180 秒，没跑完就转后台继续跑」：SSE 连接上先
-     * 告诉用户「已转后台」，进程不杀、任务继续执行，完成后照样落库；
-     * 用户下次打开会话时从历史里看到结果。所以实际给引擎的时间是
-     * {@code turnTimeoutMs + backgroundBudgetMs}，前台只等前一段。</p>
-     *
-     * <p>两段都从配置读，部署时想整体改大只需调 {@code turn-timeout-ms}。</p>
-     *
-     * @return 本轮允许引擎执行的总时长
+     * <p>一轮在 {@link ChatTurns} 自己的线程里跑，不再绑在请求上，所以没有「前台等多久」这回事：
+     * 只在 DSH 结束这一轮、用户点停止或进程退出时结束。原先「前台 3 分钟转后台、13 分钟强杀」
+     * 会在做片做到一半时断开实时输出、甚至把跑了一半的结果丢掉。这里只留一个防止进程卡死的兜底。</p>
      */
     private Duration turnBudget() {
-        return Duration.ofMillis(properties.getTurnTimeoutMs() + properties.getBackgroundBudgetMs());
+        return TURN_SAFETY_CAP;
     }
 
-    /** 前台等待上限：超过就把这一轮交给后台，不再往 SSE 上推帧。 */
-    private Duration foregroundBudget() {
-        return Duration.ofMillis(properties.getTurnTimeoutMs());
-    }
+    /** 防止进程卡死永远不结束的兜底，远大于正常做片所需。 */
+    private static final Duration TURN_SAFETY_CAP = Duration.ofHours(6);
 
     /**
      * 停止某会话正在执行的轮次。
@@ -329,7 +323,8 @@ public class ChatStreamService {
             ChatSession session = sessions.findById(sessionId).orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "not_found", "会话不存在"));
             StringBuilder history = new StringBuilder(conversationHistory(sessionId));
             history.append("本轮要求：\n").append(text).append("\n开始或切换主要方向前先简短说明接下来做什么，不要披露内部推理。");
-            SseListener listener = new SseListener(writer, sessionId);
+            SseListener listener = new SseListener(writer, sessionId, false);
+            String renderBefore = turnRender == null ? null : turnRender.before(session.projectId(), projectRootFor(session));
             String reply = nativeHarnesses.run(new com.fengmotion.server.harness.client.NativeHarnesses.Selection(engine, model, effort),
                     java.nio.file.Path.of(workingDirectoryFor(session)), history.toString(), inlineImages(attachments), listener, turnBudget(), process -> {
                         active[0] = process;
@@ -338,9 +333,10 @@ public class ChatStreamService {
                     });
             if (wasStopped(sessionId)) writeStopped(writer);
             else {
-                var saved = appendAssistantMessage(sessionId, reply, null, listener.collectedToolCalls(), listener.collectedTodos(), listener.collectedUsage(), listener.collectedDeliverables());
+                var saved = appendAssistantMessage(sessionId, reply, null, listener.collectedToolCalls(), listener.collectedTodos(), listener.collectedUsage(), listener.collectedDeliverables(), null);
                 sessions.bindHarnessSession(sessionId, "external:" + engine);
                 listener.emitPhase("done", null, null); writeCompleted(writer, saved);
+                renderAfterTurn(session, renderBefore, text, writer);
             }
         } catch (Exception ex) {
             if (wasStopped(sessionId)) writeStopped(writer);
@@ -382,6 +378,90 @@ public class ChatStreamService {
      * @param session 当前会话
      * @return DSH 子进程的工作目录（绝对路径）
      */
+    /**
+     * 没跑完的一轮：已经说的、做的存成一条回复，末尾标明没有完成，并发 {@code completed}。
+     *
+     * <p>原先失败就什么都不存，界面上这一轮像没发生过，打开对话时又被当成「没回答」重跑。
+     * 什么都还没产出（正文和工具调用都没有）时不存。</p>
+     */
+    void saveUnfinished(String sessionId, SseListener listener, String reasoning, String reason, PrintWriter out) {
+        if (listener == null || listener.publicText == null) return;
+        String text = listener.publicText.text();
+        var tools = listener.collectedToolCalls();
+        if ((text == null || text.isBlank()) && tools.isEmpty()) return;
+        String body = (text == null || text.isBlank() ? "" : text + "\n\n") + "> 这一轮没有完成：" + reason;
+        ChatMessage saved = appendAssistantMessage(sessionId, body, reasoning, tools, listener.collectedTodos(),
+                listener.collectedUsage(), listener.collectedDeliverables(), listener.collectedReasoningSegments());
+        writeCompleted(out, saved);
+    }
+
+    /** 会话所属项目的根目录；不属于项目或项目没有目录时为 null。 */
+    private java.nio.file.Path projectRootFor(ChatSession session) {
+        String projectId = session.projectId();
+        if (projectId == null || projectId.isBlank()) return null;
+        return projects.findById(projectId).map(project -> project.rootPath())
+                .filter(root -> root != null && !root.isBlank())
+                .map(root -> java.nio.file.Path.of(root).toAbsolutePath().normalize())
+                .orElse(null);
+    }
+
+    /**
+     * 这一轮改动了工程就渲染出新版本，并把进度写成 {@code render} 帧。
+     *
+     * <p>渲染要 10 到 60 秒，这段时间没有别的帧；不发心跳的话前端 45 秒后按断线重连。
+     * 心跳由另一个线程写，此时请求线程阻塞在渲染里不写任何帧，所以不会交错；
+     * 写结果帧之前先停掉心跳线程。</p>
+     *
+     * @param out 回复流；已转后台、连接已收尾时传 null，只落版本不写帧
+     */
+    void renderAfterTurn(ChatSession session, String before, String prompt, PrintWriter out) {
+        if (turnRender == null || before == null) return;
+        java.nio.file.Path root = projectRootFor(session);
+        if (root == null) return;
+        Runnable flush = currentFlush.get();
+        var ticker = java.util.concurrent.Executors.newSingleThreadScheduledExecutor(task -> {
+            Thread thread = new Thread(task, "chat-render-heartbeat");
+            thread.setDaemon(true);
+            return thread;
+        });
+        try {
+            var result = turnRender.renderIfChanged(session.projectId(), root, before, prompt, () -> {
+                writeRender(out, "rendering", null, null, "正在渲染这一轮的改动…");
+                ticker.scheduleAtFixedRate(() -> {
+                    currentFlush.set(flush);
+                    writeFrame(out, "heartbeat", json.createObjectNode().put("type", "heartbeat"));
+                }, renderHeartbeatMillis, renderHeartbeatMillis, java.util.concurrent.TimeUnit.MILLISECONDS);
+            });
+            stopTicker(ticker);
+            result.ifPresent(r -> writeRender(out, r.state(), r.version(), r.artifactPath(), r.message()));
+        } finally {
+            stopTicker(ticker);
+        }
+    }
+
+    private static void stopTicker(java.util.concurrent.ScheduledExecutorService ticker) {
+        ticker.shutdownNow();
+        try {
+            ticker.awaitTermination(2, java.util.concurrent.TimeUnit.SECONDS);
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    /** 渲染期间的心跳间隔：要明显小于前端的空闲断线判断（45 秒）。测试里调短。 */
+    long renderHeartbeatMillis = 15_000;
+
+    /** 写一帧 {@code render}：{@code rendering} / {@code rendered} / {@code failed} / {@code skipped}。 */
+    private void writeRender(PrintWriter out, String state, Long version, String artifactPath, String message) {
+        ObjectNode data = json.createObjectNode();
+        data.put("type", "render");
+        data.put("state", state);
+        if (version != null) data.put("version", version);
+        if (artifactPath != null) data.put("artifactPath", artifactPath);
+        if (message != null) data.put("message", message);
+        writeFrame(out, "render", data);
+    }
+
     private String workingDirectoryFor(ChatSession session) {
         String projectId = session.projectId();
         if (projectId != null && !projectId.isBlank()) {
@@ -452,13 +532,9 @@ public class ChatStreamService {
 
         DshProcess process = null;
         AtomicBoolean finished = new AtomicBoolean(false);
-        /**
-         * 这一轮是否已交给后台线程收尾。
-         *
-         * <p>转后台之后，finally 不能再关进程 —— 关了就等于把正在后台跑的任务杀掉了，
-         * 而用户刚被告知「已转后台继续执行」。</p>
-         */
-        AtomicBoolean handedOff = new AtomicBoolean(false);
+        // 进程或协议中途失败时也要把已经说的、做的存下来，所以提到 try 外面
+        SseListener listener = null;
+        String renderBefore = null;
         // 分段计时：回答「每轮的进程启动到底占多少」这个问题。
         // 只有分得清 spawn / resume / 首 token / 总时长，才能判断要不要上常驻进程；
         // 当前决定是按 A 方案（每轮一个进程），这组数据用来验证该决定是否成立。
@@ -470,7 +546,15 @@ public class ChatStreamService {
                注册必须在 startSdk 之后、prompt 之前 —— 早于 startSdk 没有进程可记，
                晚于 prompt 则用户在启动阶段点停止会落空（而那正是最容易想取消的时刻：
                模型还没开始吐字，用户已经意识到发错了）。 */
-            runningTurns.put(sessionId, process);
+            if (runningTurns.putIfAbsent(sessionId, process) != null) {
+                /* 入口已经查过忙不忙，到这里说明两个请求同时进来。不能覆盖登记：
+                   覆盖后「停止」只停得到新进程，原来那轮成了停不掉的孤儿，
+                   而新进程续接会话时也会被那轮锁住。finally 只关本请求的进程。 */
+                writeError(writer, "session_busy", SESSION_BUSY_MESSAGE);
+                writeEnd(writer);
+                finished.set(true);
+                return;
+            }
             // 新一轮开始即清掉上一轮的停止标记，避免旧的「已停止」污染本轮的失败判断。
             cleanupStopMark(sessionId);
 
@@ -487,7 +571,10 @@ public class ChatStreamService {
             /* 工作目录用**会话所属项目**的根目录，而不是配置里的全局目录。
                这一条决定「AI 产出的文件算谁的」：全局目录下写出的视频不属于任何项目，
                界面上也就永远看不到产物。项目的 rootPath 是创建时分配的稳定路径。 */
-            driver.initialize(workingDirectoryFor(session), Duration.ofSeconds(10));
+            String workingDirectory = workingDirectoryFor(session);
+            // 这一轮之后要判断工程改没改，好决定是否自动出片
+            renderBefore = turnRender == null ? null : turnRender.before(session.projectId(), projectRootFor(session));
+            driver.initialize(workingDirectory, Duration.ofSeconds(10));
             timing.markReady();
 
             if (continuation) {
@@ -502,61 +589,45 @@ public class ChatStreamService {
             final PrintWriter out = writer;
             // listener 提到局部变量：成功收尾时的 done 帧也要经过它，才能与执行期间的
             // 阶段帧共用去重状态，避免同一个 phase 发两次。
-            SseListener listener = new SseListener(out, sessionId);
+            listener = new SseListener(out, sessionId, true);
             List<DshSdkSession.InlineImage> images = inlineImages(attachments);
             LOG.info("prompt images: attachmentsPresent={} resolved={}",
                     attachments != null, images.size());
-            /* 前台等 turnTimeoutMs，超时则交棒后台继续跑。
-               handedOff 置位后，driver 不再回调 listener，但循环继续读事件，
-               所以 finally 不能关进程 —— 关了就是把还在跑的任务杀掉。 */
             DshSdkSession.Outcome outcome = driver.prompt(
                     harnessSessionId,
-                    (importHistory ? conversationHistory(sessionId) + "\n本轮要求：\n" : "") + userText + "\n\n【交流方式】开始处理或切换主要工作方向前，先向用户简短说明接下来做什么；只在重要阶段更新，不必逐次播报工具。明确区分计划和已完成的结果，不要暴露内部推理。",
+                    (importHistory ? conversationHistory(sessionId) + "\n本轮要求：\n" : "") + userText + DshNarration.inlineFallback(java.nio.file.Path.of(workingDirectory)),
                     images,
                     listener,
-                    turnBudget(),
-                    foregroundBudget(),
-                    () -> {
-                        // 交接只发生在「前台超时」这一刻，做三件事：
-                        // 1) 标记已交棒，finally 不再关进程
-                        // 2) 通知前端「转后台了」，让它安心关连接
-                        // 3) 之后这一轮由本线程继续阻塞直到结束
-                        handedOff.set(true);
-                        LOG.info("turn handed off to background: session={}", sessionId);
-                        writeBackground(out);
-                        writeEnd(out);
-                    });
+                    turnBudget());
 
-            if (handedOff.get()) {
-                // 后台阶段：连接已由交接时的 end 帧收尾，这里只负责把结果落库。
-                // 前端下次打开会话时从历史里读到 —— 不假装它还在前台推送。
-                if (!outcome.failed()) {
-                    appendAssistantMessage(
-                            sessionId, outcome.text(), outcome.reasoning(),
-                            listener.collectedToolCalls(), listener.collectedTodos(),
-                            listener.collectedUsage(), listener.collectedDeliverables());
-                }
-            } else if (outcome.failed()) {
+            if (outcome.failed()) {
                 // 失败：发错误帧，不落库、不发 completed。前端据此显示失败而不是「已完成」。
                 // 但「用户主动停止」不是失败 —— 用 stopped 帧区分，否则界面会
                 // 报「Agent 执行失败」，用户还以为是自己把引擎弄坏了。
                 if (wasStopped(sessionId)) {
                     writeStopped(out);
                 } else {
-                    writeError(out, "agent_error", outcome.failure() == null ? "Agent 执行失败" : outcome.failure());
+                    /* 中途失败也可能已经说了、改了不少：先存成一条标明未完成的回复，再出片、报错。
+                       前端收到 error 就不再读，所以这些帧都在它前面。用户主动停止则不存、不渲染。 */
+                    String reason = outcome.failure() == null ? "Agent 执行失败" : outcome.failure();
+                    saveUnfinished(sessionId, listener, outcome.reasoning(), reason, out);
+                    renderAfterTurn(session, renderBefore, userText, out);
+                    writeError(out, "agent_error", reason);
                 }
                 writeEnd(out);
             } else {
                 // 成功：先把助手消息落库，再发 completed。顺序很重要——先落库保证
                 // 前端拿到 completed 时，历史接口一定已经能读到这条消息。
                 ChatMessage saved = appendAssistantMessage(
-                        sessionId, outcome.text(), outcome.reasoning(),
+                        sessionId, listener.publicText.text(), outcome.reasoning(),
                         listener.collectedToolCalls(), listener.collectedTodos(),
-                        listener.collectedUsage(), listener.collectedDeliverables());
+                        listener.collectedUsage(), listener.collectedDeliverables(),
+                        listener.collectedReasoningSegments());
                 // 先发 done 表达「本回合结束」，再发 completed 携带正文。
                 // 前端契约里 done 是收尾 phase，缺了它界面会停在「正在思考」。
                 listener.emitPhase("done", null, null);
                 writeCompleted(out, saved);
+                renderAfterTurn(session, renderBefore, userText, out);
                 writeEnd(out);
             }
             finished.set(true);
@@ -566,18 +637,18 @@ public class ChatStreamService {
             if (wasStopped(sessionId)) {
                 writeStopped(writer);
             } else {
-                // 进程/协议层失败：同样发错误帧，不假装完成。
-                writeError(writer, "agent_unavailable",
-                        failure.getMessage() == null ? "与引擎通信失败" : failure.getMessage());
+                // 进程/协议层失败：已经说的、做的照样存下来并出片，再发错误帧，不假装完成。
+                String reason = failure.getMessage() == null ? "与引擎通信失败" : failure.getMessage();
+                saveUnfinished(sessionId, listener, null, reason, writer);
+                renderAfterTurn(session, renderBefore, userText, writer);
+                writeError(writer, "agent_unavailable", reason);
             }
             writeEnd(writer);
             finished.set(true);
         } finally {
             timing.markFinished();
             logTurnTiming(sessionId, continuation, timing);
-            /* 这里是唯一关进程的地方。转后台的那一轮虽然中途发过 end 帧，
-               但读取循环一直跑到任务自然结束才回到 finally —— 也就是说
-               「后台线程」就是当前这个请求线程，不需要另起线程池。 */
+            // 这里是唯一关进程的地方：一轮跑在 ChatTurns 的线程里，跑完才回到这里
             if (process != null) {
                 runningTurns.remove(sessionId, process);
                 process.close();
@@ -721,7 +792,8 @@ public class ChatStreamService {
                                                com.fasterxml.jackson.databind.JsonNode toolCalls,
                                                com.fasterxml.jackson.databind.JsonNode todos,
                                                com.fasterxml.jackson.databind.JsonNode usage,
-                                               com.fasterxml.jackson.databind.JsonNode deliverables) {
+                                               com.fasterxml.jackson.databind.JsonNode deliverables,
+                                               com.fasterxml.jackson.databind.JsonNode reasoningSegments) {
         String body = text == null || text.isBlank() ? "" : text;
         return transactions.execute(status -> {
             messages.acquireWriteLock();
@@ -744,6 +816,7 @@ public class ChatStreamService {
                     usage == null || usage.isEmpty() ? null : usage,
                     // 空数组同样存 null：没有交付时读回来仍是「没有」。
                     deliverables == null || deliverables.isEmpty() ? null : deliverables,
+                    reasoningSegments == null || reasoningSegments.isEmpty() ? null : reasoningSegments,
                     now));
             sessions.touch(sessionId, now);
             return saved;
@@ -849,11 +922,12 @@ public class ChatStreamService {
      * @param messageId  本次流内稳定的助手消息占位 ID
      * @param delta      新增文本
      */
-    private void writeDelta(PrintWriter out, String messageId, String delta) {
+    private void writeDelta(PrintWriter out, String messageId, String delta, Integer replaceFrom) {
         ObjectNode data = json.createObjectNode();
         data.put("type", "delta");
         data.put("messageId", messageId);
         data.put("delta", delta);
+        if (replaceFrom != null) data.put("replaceFrom", replaceFrom);
         writeFrame(out, "delta", data);
     }
 
@@ -866,10 +940,17 @@ public class ChatStreamService {
      * 前端必须靠字段判断该往哪写，任一处漏判就会把推理混进正文。</p>
      */
     private void writeReasoning(PrintWriter out, String messageId, String delta) {
+        writeReasoning(out, messageId, delta, null, null);
+    }
+
+    /** 带位置的推理增量：前端据 textOffset / order 把它归到对应阶段的那一段思考。 */
+    private void writeReasoning(PrintWriter out, String messageId, String delta, Integer textOffset, Integer order) {
         ObjectNode data = json.createObjectNode();
         data.put("type", "reasoning");
         data.put("messageId", messageId);
         data.put("delta", delta);
+        if (textOffset != null) data.put("textOffset", textOffset);
+        if (order != null) data.put("order", order);
         writeFrame(out, "reasoning", data);
     }
 
@@ -882,10 +963,14 @@ public class ChatStreamService {
         body.put("sessionId", message.sessionId());
         body.put("role", message.role());
         body.put("text", message.text());
+        if (message.toolCalls() != null) body.set("toolCalls", message.toolCalls());
         // 思考过程随 completed 一起下发：前端据此把它挂到这条回复上，
         // 之后切走再回来由历史接口读回，两处都走同一个字段名。
         if (message.reasoning() != null) {
             body.put("reasoning", message.reasoning());
+        }
+        if (message.reasoningSegments() != null) {
+            body.set("reasoningSegments", message.reasoningSegments());
         }
         // 任务清单随 completed 一起下发：前端先挂到这条回复上，
         // 之后由历史接口读回（同一个字段名），保证两个时刻看到的一致。
@@ -926,20 +1011,6 @@ public class ChatStreamService {
         writeFrame(out, "stopped", data);
     }
 
-    /**
-     * 写一帧 {@code background}：本轮超时，已转后台继续执行。
-     *
-     * <p>必须如实告诉用户「还在跑，只是不在这个界面等了」。
-     * 如果什么都不发就让连接结束，界面会把它当成一轮空回复；
-     * 如果发失败，用户会以为任务挂了而重发一遍 —— 那才是真的浪费。</p>
-     */
-    private void writeBackground(PrintWriter out) {
-        ObjectNode data = json.createObjectNode();
-        data.put("reason", "foreground_timeout");
-        data.put("message", "任务已转后台继续执行，完成后可在历史中查看");
-        writeFrame(out, "background", data);
-    }
-
     /** 写终止帧。 */
     private void writeEnd(PrintWriter out) {
         ObjectNode data = json.createObjectNode();
@@ -953,6 +1024,7 @@ public class ChatStreamService {
      * <p>必须 flush：SSE 依赖及时到达，攒批会让前端一直看不到进度。</p>
      */
     private void writeFrame(PrintWriter out, String event, ObjectNode data) {
+        if (out == null) return;
         out.write("event: " + event + "\n");
         out.write("data: " + data.toString() + "\n\n");
         out.flush();
@@ -969,9 +1041,10 @@ public class ChatStreamService {
     }
 
     /** 把 SDK 事件回调翻译成 SSE 帧。 */
-    private final class SseListener implements DshSdkSession.Listener {
+    final class SseListener implements DshSdkSession.Listener {
         @Override public void onHeartbeat() { writeFrame(out, "heartbeat", json.createObjectNode().put("type", "heartbeat")); }
-        private final PrintWriter out;
+        private PrintWriter out;
+        private final DshTurnText publicText;
         /** 上一次发出的 phase，用于抑制重复帧。 */
         private String lastPhase;
         /**
@@ -981,8 +1054,6 @@ public class ChatStreamService {
          * 前端最终以 completed 携带的真实 ID 与全文为准。</p>
          */
         private final String pendingMessageId = "pending-" + UUID.randomUUID();
-        /** 是否已经发过至少一个正文增量。 */
-        private boolean streamed;
         /**
          * 本轮已经通过增量帧下发过的推理正文。
          *
@@ -1000,6 +1071,10 @@ public class ChatStreamService {
          * 用户再也查不到「这条回复当时跑了什么」。</p>
          */
         private final List<ObjectNode> toolCalls = new java.util.ArrayList<>();
+        /** 思考与工具调用的先后，用于把每段思考放回它那一阶段；只在按阶段排正文时记录。 */
+        private final TurnTimeline timeline = new TurnTimeline();
+        /** 本步是否收到过思考增量；没有时整段推理随 assistant/message 到达，要按本步开头补记一段。 */
+        private boolean thinkingStreamedThisStep;
 
         /** 本流所属的会话 ID；用于把引擎回传的标题写回正确的会话。 */
         /**
@@ -1046,10 +1121,14 @@ public class ChatStreamService {
 
         private final String sessionId;
 
-        SseListener(PrintWriter out, String sessionId) {
+        SseListener(PrintWriter out, String sessionId, boolean ordered) {
             this.out = out;
             this.sessionId = sessionId;
+            this.publicText = ordered ? new DshTurnText((chunk, replaceFrom) -> writeDelta(this.out, pendingMessageId, chunk, replaceFrom)) : null;
         }
+
+        void detach() { out = null; }
+        @Override public boolean collectAfterHandoff() { return publicText != null; }
 
         /**
          * 本轮收集到的工具调用记录。
@@ -1099,6 +1178,11 @@ public class ChatStreamService {
             return node.isEmpty() ? null : node;
         }
 
+        /** 本轮思考的分段；没有推理或不按阶段排正文时为 null。 */
+        com.fasterxml.jackson.databind.node.ArrayNode collectedReasoningSegments() {
+            return publicText == null ? null : timeline.toJson(json);
+        }
+
         com.fasterxml.jackson.databind.node.ArrayNode collectedToolCalls() {
             com.fasterxml.jackson.databind.node.ArrayNode array = json.createArrayNode();
             toolCalls.forEach(array::add);
@@ -1107,12 +1191,11 @@ public class ChatStreamService {
 
         @Override
         public void onTextDelta(String text) {
-            // 首个正文增量到达时，先把阶段从「思考」切到「输出」，让界面知道开始出字了。
-            if (!streamed) {
-                streamed = true;
-                emitPhase("done", null, null);
-            }
-            writeDelta(out, pendingMessageId, text);
+            if (publicText == null) writeDelta(out, pendingMessageId, text, null);
+        }
+
+        @Override public void onTextDelta(int turn, int step, String attempt, String text) {
+            publicText.delta(turn, step, attempt, text);
         }
 
         @Override
@@ -1123,7 +1206,13 @@ public class ChatStreamService {
                现在对话界面已经有 ReasoningBlock，这条链路要接通，
                否则用户永远看不到模型在想什么。 */
             reasoningStreamed.append(text);
-            writeReasoning(out, pendingMessageId, text);
+            if (publicText == null) {
+                writeReasoning(out, pendingMessageId, text);
+                return;
+            }
+            thinkingStreamedThisStep = true;
+            int offset = publicText.offset();
+            writeReasoning(out, pendingMessageId, text, offset, timeline.reasoning(offset, text));
         }
 
         /**
@@ -1147,8 +1236,8 @@ public class ChatStreamService {
 
         @Override
         public void onStepStarted(int turn, int step) {
-            // 步骤开始不额外发帧：turn 开始已经表达了「在思考」，
-            // 重复发会让前端状态闪烁。
+            if (publicText != null) publicText.start(turn, step);
+            thinkingStreamedThisStep = false;
         }
 
         @Override
@@ -1166,9 +1255,18 @@ public class ChatStreamService {
                能把「调用」和「结果」配对。
                lastPhase 仍然要更新，否则紧随其后的 thinking 帧会被误判成重复。 */
             lastPhase = "tool";
-            writeStatus(out, "tool", name, name, callId, arguments, false);
+            ObjectNode status = statusPayload(json, "tool", name, name, callId, arguments, false);
             // 同一份信息也记进落库用的列表：SSE 帧是「正在发生」，落库是「事后可查」。
             ObjectNode record = json.createObjectNode();
+            if (publicText != null) {
+                int offset = publicText.offset();
+                int order = timeline.toolOrder();
+                status.put("textOffset", offset);
+                status.put("order", order);
+                record.put("textOffset", offset);
+                record.put("order", order);
+            }
+            writeFrame(out, "status", status);
             if (callId != null && !callId.isBlank()) {
                 record.put("callId", callId);
             }
@@ -1264,14 +1362,23 @@ public class ChatStreamService {
         }
 
         @Override
+        public void onAssistantMessage(int turn, int step, String text, String reasoning) {
+            /* 没装流式插件（或本步思考没逐字到达）时，整段推理随这里到达：
+               它发生在本步正文之前，所以先按本步开头的位置记一段，再提交正文。 */
+            if (reasoning != null && !reasoning.isBlank() && !thinkingStreamedThisStep) {
+                publicText.start(turn, step);
+                int offset = publicText.stepStart();
+                int order = timeline.reasoning(offset, reasoning);
+                if (reasoningStreamed.length() == 0) {
+                    writeReasoning(out, pendingMessageId, reasoning, offset, order);
+                }
+            }
+            publicText.commit(turn, step, text);
+            onAssistantMessage(text, reasoning);
+        }
+
+        @Override
         public void onAssistantMessage(String text, String reasoning) {
-            // 正文只在整轮结束后以 completed 帧发出（此处可能还会被后续步骤覆盖），
-            // 因此这里不发 delta——没有 token 级增量，也不该把中间态当最终结果。
-            //
-            // 推理内容不同：DSH 把它放在 assistant/message 的 content 块里
-            // （type=reasoning），一次给全，没有 token 级增量。界面上的「思考过程」
-            // 需要一个位置放它，所以这里单独发 reasoning 帧。
-            // 不去动模型侧：推理一直都在，只是之前没人转出来。
             /* 整份推理只在「增量一条都没发过」时才下发。
                两条路径都发过的结果就是界面重复显示，落库那份由 Outcome 统一去重。 */
             if (reasoning != null && !reasoning.isBlank() && reasoningStreamed.length() == 0) {

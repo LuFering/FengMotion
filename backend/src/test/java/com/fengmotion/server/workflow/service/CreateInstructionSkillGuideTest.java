@@ -16,14 +16,25 @@ class CreateInstructionSkillGuideTest {
     @Test
     @DisplayName("有 skill-guide.md：指令里有读指引这一步；没有：不提")
     void mentionsGuideOnlyWhenPresent() {
-        String with = CreateAgentRunner.buildInstruction(null, NONE, "", true);
+        String with = CreateAgentRunner.buildInstruction(null, NONE, "", true, true);
         assertTrue(with.contains("再读 skill-guide.md"));
         assertTrue(with.contains("以原文和纠正为准"));
         assertTrue(with.contains("脚本一律不要执行"));
         assertTrue(with.indexOf("再读 skill-guide.md") < with.indexOf("2. 修改 src/"), "读指引要在动手改源码之前");
 
-        String without = CreateAgentRunner.buildInstruction(null, NONE, "", false);
+        String without = CreateAgentRunner.buildInstruction(null, NONE, "", false, true);
         assertFalse(without.contains("skill-guide.md"));
         assertTrue(without.contains("\n2. 修改 src/"), "没有指引时第 2 步不能多出缩进");
+    }
+
+    @Test
+    @DisplayName("交流方式：项目指引里已有就不重复；没有时拼进指令兜底")
+    void narrationOnlyWhenGuideLacksIt() {
+        String fallback = CreateAgentRunner.buildInstruction(null, NONE, "", false, false);
+        assertTrue(fallback.contains("交流方式："));
+        assertTrue(fallback.contains("按「工作阶段」交流"));
+
+        String inGuide = CreateAgentRunner.buildInstruction(null, NONE, "", false, true);
+        assertFalse(inGuide.contains("按「工作阶段」交流"));
     }
 }

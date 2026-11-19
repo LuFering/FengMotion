@@ -26,6 +26,7 @@ public class SemanticIndexBootstrapper {
 
     private final RetrievalCorpus corpus;
     private final SemanticIndex index;
+    private final EmbeddingProvider embeddings;
 
     @Value("${fengmotion.retrieval.enabled:true}")
     private boolean enabled;
@@ -39,6 +40,12 @@ public class SemanticIndexBootstrapper {
         if (!enabled) {
             log.info("语义检索已关闭（fengmotion.retrieval.enabled=false）");
             return;
+        }
+        /* 缺密钥时检索照样有结果（字面匹配），界面上看不出降级；只在这里说一次。
+           桌面端从应用菜单启动不经过 ~/.bashrc，是最常见的成因。 */
+        if (!embeddings.available()) {
+            log.warn("未配置 DASHSCOPE_API_KEY：语义检索不可用，检索会退回字面匹配。"
+                    + "桌面端可写进 ~/.config/FengMotion/env");
         }
         long startedAt = System.currentTimeMillis();
         try {

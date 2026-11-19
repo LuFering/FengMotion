@@ -147,7 +147,8 @@ public class CreateAgentRunner {
         }
 
         String instruction = buildInstruction(intent, resources, retrieveCandidates(projectRoot, intent),
-                Files.isRegularFile(projectRoot.resolve("skill-guide.md")));
+                Files.isRegularFile(projectRoot.resolve("skill-guide.md")),
+                com.fengmotion.server.harness.client.DshNarration.inGuide(projectRoot));
         Instant startedAt = Instant.now();
         String reply = ask(projectRoot, instruction, images, onProgress);
         long elapsedMs = Duration.between(startedAt, Instant.now()).toMillis();
@@ -253,10 +254,11 @@ public class CreateAgentRunner {
      *
      * @param intent        这一轮的意图
      * @param hasSkillGuide 项目里有 skill-guide.md（选用了从 skill 生成的视频类型）
+     * @param narrationInGuide 项目 AGENTS.md 已写有交流方式；否则把同一份规则拼进指令兜底
      * @return 指令
      */
     static String buildInstruction(String intent, ResourceContextBuilder.ResourceContext resources,
-                                   String candidates, boolean hasSkillGuide) {
+                                   String candidates, boolean hasSkillGuide, boolean narrationInGuide) {
         String task = (intent == null || intent.isBlank())
                 ? "按 prompt.original.md 与 corrections.md 推进这部片子"
                 : intent;
@@ -278,8 +280,7 @@ public class CreateAgentRunner {
                 %s
                 %s
 
-                在开始工作以及切换主要工作方向之前，先向用户用一两句话说明接下来要做什么；
-                只报告重要阶段，不必逐次播报工具调用。区分计划与已完成的结果，不要暴露内部推理。
+                %s
 
                 请在这个项目目录里工作：
                 1. 先读 prompt.original.md（用户原文，逐字，不要改写）和 corrections.md（后续纠正，较新的优先）。
@@ -300,7 +301,9 @@ public class CreateAgentRunner {
                 - film.config.json 的 entry 指向真实文件，compositionId 与代码里的 id 一致
 
                 做完后用一两句话说明你改了什么、画面变成什么样。不要贴大段代码。
-                """.formatted(task, resourceBlock, candidates, hasSkillGuide ? SKILL_GUIDE_STEP : "");
+                """.formatted(task, resourceBlock, candidates,
+                        narrationInGuide ? "" : "交流方式：\n" + com.fengmotion.server.harness.client.DshNarration.WORK_BLOCKS,
+                        hasSkillGuide ? SKILL_GUIDE_STEP : "");
     }
 
     /**

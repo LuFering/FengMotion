@@ -52,8 +52,10 @@ class DshDirectTextModelTest {
         if (profile != null) properties.setProfile(profile);
         String patch = System.getenv("FENGMOTION_DSH_PATCH");
         if (patch != null) properties.setPatch(patch);
+        String provider = System.getenv().getOrDefault("FENGMOTION_PRESET_PROVIDER", "agent2api-ecs");
+        String model = System.getenv().getOrDefault("FENGMOTION_PRESET_MODEL", "deepseek-v4.1-flash");
         var result = new DshDirectTextModel(properties, new ObjectMapper()).generate(
-                new DshDirectTextModel.Request("agent2api-ecs", "deepseek-v4.1-flash", null,
+                new DshDirectTextModel.Request(provider, model, null,
                         "请只回答：独立调用成功", 128, 45000));
         assertFalse(result.text().isBlank());
         System.out.println("DIRECT_MODEL_RESULT=" + result.text());

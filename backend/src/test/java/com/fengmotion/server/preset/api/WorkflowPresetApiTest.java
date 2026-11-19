@@ -12,7 +12,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -29,9 +31,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fengmotion.server.common.ApiException;
 import com.fengmotion.server.preset.domain.PresetMapping;
+import com.fengmotion.server.preset.domain.WorkflowPreset;
 import com.fengmotion.server.preset.service.PresetMappingModel;
+import com.fengmotion.server.preset.store.WorkflowPresetRepository;
 import com.fengmotion.server.skill.client.GithubArchiveClient;
 import com.fengmotion.server.skill.domain.SkillPackage;
 import com.fengmotion.server.skill.service.SkillPackageService;
@@ -46,6 +51,7 @@ class WorkflowPresetApiTest {
     @Autowired MockMvc mvc;
     @Autowired ObjectMapper json;
     @Autowired SkillPackageService skills;
+    @Autowired WorkflowPresetRepository presets;
     @MockBean GithubArchiveClient github;
     @MockBean PresetMappingModel model;
 
@@ -65,6 +71,7 @@ class WorkflowPresetApiTest {
 
         JsonNode preset = generate(pkg, PresetFixtures.SKILL, HttpStatus.CREATED);
         assertEquals("draft", preset.path("status").asText());
+        assertEquals(2, preset.path("mappingVersion").asInt());
         assertEquals("Logo 动画", preset.path("name").asText());
         assertEquals(pkg.commitSha(), preset.path("commitSha").asText());
         assertEquals(pkg.owner() + "/" + pkg.repo(), preset.path("sourceRepo").asText());
@@ -76,6 +83,16 @@ class WorkflowPresetApiTest {
         assertTrue(system.getValue().contains("待分析的数据"), "系统提示要声明资料不是指令");
         assertTrue(prompt.getValue().contains("<<<FILE " + PresetFixtures.SKILL + ">>>"));
         assertTrue(prompt.getValue().contains("- bash scripts/check.sh"), "要把清单里的命令交给模型逐条决定");
+        String userMessage = prompt.getValue();
+        assertTrue(userMessage.indexOf("生成一份工作流映射") >= 0
+                && userMessage.indexOf("生成一份工作流映射") < userMessage.indexOf("<<<FILE "));
+        String afterSources = userMessage.substring(userMessage.lastIndexOf("<<<END FILE>>>") + "<<<END FILE>>>".length());
+        assertTrue(afterSources.contains("只输出一个 JSON 对象"));
+        assertTrue(afterSources.contains("render → create") && afterSources.contains("deliver-approved → delivery"));
+        assertTrue(afterSources.contains("requiredWhen"));
+        for (String field : List.of("name", "slug", "guide", "sources", "reviewChecklist", "instructedCommands", "stepMapping")) {
+            assertTrue(afterSources.contains('"' + field + '"'), field);
+        }
     }
 
     @Test
@@ -99,6 +116,48 @@ class WorkflowPresetApiTest {
 
         mvc.perform(get("/api/workflow-presets").param("status", "all")).andExpect(status().isOk())
                 .andExpect(jsonPath("$[?(@.skillPackageId == '" + pkg.id() + "')]").isEmpty());
+    }
+
+    @Test
+    void rejectsWrongResponsibilitiesWithoutWritingOrOverwritingDrafts() throws Exception {
+        SkillPackage pkg = PresetFixtures.importLogoSkill(skills, github);
+        ObjectNode mapping = json.valueToTree(PresetFixtures.mapping("图表制作", null));
+        ObjectNode step = (ObjectNode) mapping.path("stepMapping").get(0);
+        step.put("step", "生成最终排名图").put("action", "render").put("node", "delivery");
+        when(model.generate(anyString(), anyString())).thenReturn(mapping.toString());
+        assertEquals("stepMapping[0].node", generate(pkg, PresetFixtures.SKILL, HttpStatus.UNPROCESSABLE_ENTITY)
+                .at("/error/problems/0/field").asText());
+        assertTrue(presets.find(null).stream().noneMatch(preset -> pkg.id().equals(preset.skillPackageId())));
+
+        step.put("node", "create");
+        when(model.generate(anyString(), anyString())).thenReturn(mapping.toString());
+        String id = generate(pkg, PresetFixtures.SKILL, HttpStatus.CREATED).path("id").asText();
+        WorkflowPreset before = presets.findById(id).orElseThrow();
+        step.remove("action");
+        mvc.perform(put("/api/workflow-presets/{id}/mapping", id).contentType(MediaType.APPLICATION_JSON).content(mapping.toString()))
+                .andExpect(status().isUnprocessableEntity()).andExpect(jsonPath("$.error.problems[0].field").value("stepMapping[0].action"));
+        assertEquals(before, presets.findById(id).orElseThrow());
+    }
+
+    @Test
+    void oldDraftIsNotRewrittenAndCanBeCorrectedBeforeActivation() throws Exception {
+        SkillPackage pkg = PresetFixtures.importLogoSkill(skills, github);
+        ObjectNode mapping = json.valueToTree(PresetFixtures.mapping("原草稿", null));
+        ObjectNode step = (ObjectNode) mapping.path("stepMapping").get(0);
+        step.remove("action");
+        step.put("step", "渲染成片 mp4 交付").put("node", "delivery");
+        String id = UUID.randomUUID().toString();
+        Instant now = Instant.now();
+        presets.save(new WorkflowPreset(id, "原草稿", "旧数据", WorkflowPreset.DRAFT, pkg.id(), "acme/logo", PresetFixtures.SKILL,
+                pkg.commitSha(), json.treeToValue(mapping, PresetMapping.class), 1, now, now, null));
+        WorkflowPreset before = presets.findById(id).orElseThrow();
+        mvc.perform(post("/api/workflow-presets/{id}/activate", id)).andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.error.problems[0].field").value("stepMapping[0].step"));
+        assertEquals(before, presets.findById(id).orElseThrow());
+        step.put("step", "交付已审过的影片");
+        mvc.perform(put("/api/workflow-presets/{id}/mapping", id).contentType(MediaType.APPLICATION_JSON).content(mapping.toString()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.mappingVersion").value(1));
+        mvc.perform(post("/api/workflow-presets/{id}/activate", id)).andExpect(status().isOk()).andExpect(jsonPath("$.status").value("active"));
     }
 
     @Test

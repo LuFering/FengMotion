@@ -20,6 +20,7 @@ import com.fengmotion.server.chat.domain.ChatMessage;
 import com.fengmotion.server.chat.service.ChatMessageService;
 import com.fengmotion.server.chat.service.ChatSessionService;
 import com.fengmotion.server.chat.service.ChatStreamService;
+import com.fengmotion.server.chat.service.ChatTurns;
 import com.fengmotion.server.common.ApiException;
 
 import jakarta.servlet.http.HttpServletResponse;
@@ -38,9 +39,9 @@ import lombok.RequiredArgsConstructor;
  * JSON 错误信封；交给内容协商会先按 Accept 选不出可写的表示，把 503 变成 406。
  * 这里先直接设定状态码与 Content-Type 写出错误信封，校验通过后再切换为流式写出。</p>
  *
- * <p>重连语义（如实）：DSH 子进程的生命周期是一次请求一次，无法跨请求续读；
- * 因此 {@code Last-Event-ID} 只做合法性校验，<strong>不做</strong>断点续读。
- * 已完成的助手消息在重连时由前端通过消息历史接口读取，而不是在这里重放。</p>
+ * <p>重连语义：一轮在 {@link ChatTurns} 里跑，不依赖这个请求。请求只是订阅：
+ * 带 {@code Last-Event-ID} 时从那一帧之后补发；一轮跑完后仍可补发，不会把同一条消息再执行一遍。
+ * 请求断开只是不再推送，这一轮照常跑完、照常落库。</p>
  */
 @RestController
 @RequestMapping("/api/chat-sessions/{sessionId}/stream")
@@ -49,6 +50,7 @@ public class ChatStreamController {
     private final ChatSessionService sessions;
     private final ChatMessageService messages;
     private final ChatStreamService stream;
+    private final ChatTurns turns;
     private final com.fengmotion.server.workflow.service.ResourceContextBuilder resourceContexts;
     private final com.fasterxml.jackson.databind.ObjectMapper json;
 
@@ -69,14 +71,14 @@ public class ChatStreamController {
             @RequestParam(value = "harness", required = false) String engine,
             @RequestParam(value = "model", required = false) String model,
             @RequestParam(value = "reasoningEffort", required = false) String reasoningEffort,
+            @RequestParam(value = "attach", required = false) boolean attach,
+            @RequestParam(value = "rerun", required = false) boolean rerun,
             HttpServletResponse response) throws IOException {
         try {
             // 会话不存在时先返回 404，避免把「会话被删」显示成「Agent 不可用」。
             sessions.get(sessionId);
 
-            if (lastEventId != null && lastEventId.isBlank()) {
-                throw new ApiException(HttpStatus.BAD_REQUEST, "validation_error", "Last-Event-ID 无效");
-            }
+            long afterSeq = parseLastEventId(lastEventId);
 
             // 引擎不可用是比「没有可发送的内容」更根本的阻塞：先给出 503，
             // 否则用户会收到「请先发一条消息」这种指向错误方向的提示。
@@ -91,6 +93,12 @@ public class ChatStreamController {
                 throw new ApiException(HttpStatus.BAD_REQUEST, "validation_error",
                         "没有可发送的内容：请在会话中先发一条消息，或用 prompt 参数指定");
             }
+            /* 重连（带 Last-Event-ID）和切回对话（attach）只订阅不新开：后端重启后缓冲没了，
+               这时让用户决定要不要重新执行，而不是悄悄把同一条消息再跑一遍。 */
+            ChatTurns.Mode mode = lastEventId != null || attach ? ChatTurns.Mode.ATTACH
+                    : rerun ? ChatTurns.Mode.RERUN : ChatTurns.Mode.START;
+            ChatTurns.Turn turn = turns.open(sessionId, resolved.key(), mode, writer ->
+                    stream.stream(sessionId, writer, resolved.text(), resolved.attachments(), engine, model, reasoningEffort, null));
 
             // 校验全部通过后才切换到流式响应头：一旦写出 200，就无法再改状态码。
             response.setStatus(HttpStatus.OK.value());
@@ -103,11 +111,11 @@ public class ChatStreamController {
             PrintWriter writer = response.getWriter();
             // 把 flushBuffer 交给服务层：Tomcat 的 Writer.flush() 只刷 Writer 缓冲，
             // 响应本身还有一层；不显式 flushBuffer，delta 帧会攒到最后一起到。
-            stream.stream(sessionId, writer, resolved.text(), resolved.attachments(), engine, model, reasoningEffort, () -> {
+            turns.follow(turn, afterSeq, writer, () -> {
                 try {
                     response.flushBuffer();
                 } catch (IOException ignored) {
-                    // 客户端断开时 flush 会失败；连接已无用，交给外层结束流程处理。
+                    // 客户端断开时 flush 会失败；follow 随后据 checkError 停止推送，这一轮不受影响。
                 }
             });
         } catch (ApiException ex) {
@@ -128,7 +136,7 @@ public class ChatStreamController {
     private Resolution resolvePrompt(String sessionId, String prompt) {
         // 显式 prompt 参数不带附件：它是调试/重放通道，附件只能来自已提交的用户消息。
         if (prompt != null && !prompt.isBlank()) {
-            return new Resolution(prompt, null);
+            return new Resolution("prompt:" + prompt, prompt, null);
         }
         // 历史按正序返回，这里翻到最后一页取最后一条用户消息。
         ChatMessageService.Page page = messages.list(sessionId, null, 200);
@@ -151,7 +159,7 @@ public class ChatStreamController {
                 if (resources.available()) {
                     text += "\n\n用户随这条消息指定的资源及用途：\n" + resources.description();
                 }
-                return new Resolution(text, item.attachments());
+                return new Resolution(item.id(), text, item.attachments());
             }
         }
         return null;
@@ -160,10 +168,23 @@ public class ChatStreamController {
     /**
      * 解析出的本轮输入。
      *
+     * @param key         这一轮对应哪条用户消息：同一条消息只跑一次，重连时据此接上
      * @param text        用户正文
      * @param attachments 该条消息带的附件元信息；没有时为 null
      */
-    private record Resolution(String text, com.fasterxml.jackson.databind.JsonNode attachments) {
+    private record Resolution(String key, String text, com.fasterxml.jackson.databind.JsonNode attachments) {
+    }
+
+    /** {@code Last-Event-ID} 是这一轮里的帧序号；缺省为 0（从头订阅）。 */
+    private static long parseLastEventId(String raw) {
+        if (raw == null) return 0;
+        try {
+            long seq = Long.parseLong(raw.trim());
+            if (seq >= 0) return seq;
+        } catch (NumberFormatException ignored) {
+            // 落到下面的校验错误
+        }
+        throw new ApiException(HttpStatus.BAD_REQUEST, "validation_error", "Last-Event-ID 无效");
     }
 
     /** 写出与 {@code ApiExceptionHandler} 相同的错误信封。 */

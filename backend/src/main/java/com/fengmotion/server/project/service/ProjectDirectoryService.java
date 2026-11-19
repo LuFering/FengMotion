@@ -163,7 +163,7 @@ public class ProjectDirectoryService {
      * 只升级带标记的文件：用户改过的指引属于他的创作资产，
      * 框架无权覆盖 —— 那会把他写下的项目约定悄悄冲掉。</p>
      */
-    static final String GENERATED_MARKER = "<!-- fengmotion:agent-guide:v4 -->";
+    static final String GENERATED_MARKER = "<!-- fengmotion:agent-guide:v7 -->";
 
     /**
      * 识别任意版本的框架标记。
@@ -217,6 +217,14 @@ public class ProjectDirectoryService {
 
                 原文与摘要冲突时以原文为准。看不懂需求就先问，不要自己编一个。
 
+                %s
+                ## 后端接口地址
+
+                下面所有接口都用环境变量 `FENGMOTION_API_URL` 拼地址（形如 `http://127.0.0.1:<端口>/api`）。
+                FengMotion 每次启动端口可能不同，**不要自己猜端口，也不要写死 8080** ——
+                那可能是别的进程，请求会卡住或拿到别处的数据。
+                变量为空说明这次不是由 FengMotion 启动的，接口不可用，如实说明，不要换端口重试。
+
                 ## 创作方式（方法，不是必过门槛）
 
                 下面这些是 workflow-v0.1.1 Prompt-first 的推荐做法，**按项目需要采用，不是每个需求都要走完的流程**。
@@ -256,9 +264,11 @@ public class ProjectDirectoryService {
                 已经统一建好语义索引。**用自然语言查，不要靠猜**：
 
                 ```bash
-                curl -s "http://127.0.0.1:8080/api/retrieval/search?q=镜头快速推近背景被拉开的眩晕感&limit=8"
+                curl -sG "$FENGMOTION_API_URL/retrieval/search" \\
+                  --data-urlencode "q=镜头快速推近背景被拉开的眩晕感" --data-urlencode "limit=8"
                 ```
 
+                - 中文查询必须用 `--data-urlencode` 传：直接拼进网址，后端会拒绝这个请求。
                 - `q` 写你想要的**视觉感受**，不是库里的术语。说「老电影那种颗粒感」比说「film grain」更容易命中。
                 - `kinds` 可选：`technique`（特效）、`capability`（风格/镜头卡/组件）、`asset`、`reference`。
                 - 返回 `score` 是相似度（0–1，越大越像），`text` 是命中的原文片段，`id` 是资源标识。
@@ -272,9 +282,9 @@ public class ProjectDirectoryService {
                 应用里有三个库，它们**不在项目目录里**，要靠下面的接口取：
 
                 ```bash
-                curl -s "http://127.0.0.1:8080/api/assets?limit=20"                    # 素材库
-                curl -s "http://127.0.0.1:8080/api/reference-videos?limit=20"          # 参考片库
-                curl -s "http://127.0.0.1:8080/api/fx-techniques?limit=100"            # 特效库
+                curl -s "$FENGMOTION_API_URL/assets?limit=20"                    # 素材库
+                curl -s "$FENGMOTION_API_URL/reference-videos?limit=20"          # 参考片库
+                curl -s "$FENGMOTION_API_URL/fx-techniques?limit=100"            # 特效库
                 ```
 
                 **什么时候该去查**：用户说「找个合适的素材」「用手法像某某的片」「加个转场特效」
@@ -295,7 +305,7 @@ public class ProjectDirectoryService {
                 现在后端只有一个渲染接口，它接受的是**场景 props**：
 
                 ```bash
-                curl -s -X POST "http://127.0.0.1:8080/api/projects/%s/renders" \\
+                curl -s -X POST "$FENGMOTION_API_URL/projects/%s/renders" \\
                   -H 'Content-Type: application/json' \\
                   -d @film.json
                 ```
@@ -317,7 +327,8 @@ public class ProjectDirectoryService {
                 - 不要伪造渲染结果：没出片就说没出片，不要编一个路径。
                 - 如果只能用上面那条场景 props 路径，就明确告诉用户「这一版是文字卡，画面还没做」，
                   不要把它描述成完成的创作。
-                """.formatted(effectiveWorkflowDir(workflowDir), projectId);
+                """.formatted(com.fengmotion.server.harness.client.DshNarration.guideSection(),
+                effectiveWorkflowDir(workflowDir), projectId);
     }
 
     /**

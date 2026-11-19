@@ -18,7 +18,7 @@ class NativeHarnessesTest {
         assertTrue(exe.toFile().setExecutable(true));
         HarnessProperties p = new HarnessProperties();
         if (id.equals("codex")) p.setCodexBin(exe.toString()); else p.setClaudeBin(exe.toString());
-        return new NativeHarnesses(new ObjectMapper(), p);
+        return new NativeHarnesses(new ObjectMapper(), p, new LocalApiUrl());
     }
     @Test void codexDiscoversPagesAndRoutesModelAndImages() throws Exception {
         var harness = adapter("codex", """
@@ -68,7 +68,7 @@ for line in sys.stdin:
     @Test void disabledDiscoveryDoesNotLaunchInstalledBinaries() {
         HarnessProperties properties = new HarnessProperties();
         properties.setEnabled(false);
-        var nativeHarnesses = new NativeHarnesses(new ObjectMapper(), properties);
+        var nativeHarnesses = new NativeHarnesses(new ObjectMapper(), properties, new LocalApiUrl());
         assertEquals(HarnessDescriptor.Status.UNAVAILABLE, nativeHarnesses.probe("codex").descriptor().status());
         assertTrue(nativeHarnesses.probe("claude").models().isEmpty());
     }
@@ -76,7 +76,7 @@ for line in sys.stdin:
     @Test void missingBinaryAndSlowProbeStayUnavailable() throws Exception {
         HarnessProperties p = new HarnessProperties();
         p.setCodexBin(dir.resolve("missing-binary").toString());
-        var missing = new NativeHarnesses(new ObjectMapper(), p).probe("codex");
+        var missing = new NativeHarnesses(new ObjectMapper(), p, new LocalApiUrl()).probe("codex");
         assertEquals(HarnessDescriptor.Status.UNAVAILABLE, missing.descriptor().status());
         assertTrue(missing.models().isEmpty());
         Path exe = dir.resolve("slow");
@@ -84,7 +84,7 @@ for line in sys.stdin:
         assertTrue(exe.toFile().setExecutable(true));
         p.setCodexBin(exe.toString()); p.setProbeTimeoutMs(500);
         long start = System.nanoTime();
-        var slow = new NativeHarnesses(new ObjectMapper(), p).probe("codex");
+        var slow = new NativeHarnesses(new ObjectMapper(), p, new LocalApiUrl()).probe("codex");
         assertEquals(HarnessDescriptor.Status.UNAVAILABLE, slow.descriptor().status());
         assertTrue(Duration.ofNanos(System.nanoTime() - start).toSeconds() < 6, "Probe must actually time out");
     }

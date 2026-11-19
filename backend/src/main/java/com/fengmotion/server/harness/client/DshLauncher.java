@@ -34,6 +34,7 @@ public class DshLauncher {
             org.slf4j.LoggerFactory.getLogger(DshLauncher.class);
 
     private final HarnessProperties properties;
+    private final LocalApiUrl apiUrl;
 
     /**
      * 启动一个新的 SDK 子进程。
@@ -78,6 +79,8 @@ public class DshLauncher {
 
         Map<String, String> environment = builder.environment();
         environment.remove("ELECTRON_RUN_AS_NODE");
+        // 项目指引里的接口示例用这个变量拼地址，见 LocalApiUrl
+        apiUrl.applyTo(environment);
 
         Process process = builder.start();
         return new DshProcess(process);

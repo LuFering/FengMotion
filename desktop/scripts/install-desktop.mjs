@@ -14,6 +14,7 @@
  *             ├── backend/       fengmotion-server.jar
  *             └── remotion/      渲染工程 + 运行依赖
  *   ~/.local/bin/fengmotion            启动器脚本（已在 PATH 中）
+ *   ~/.config/FengMotion/env           启动器读取的环境变量（密钥等），只在不存在时生成模板
  *   ~/.local/share/applications/fengmotion.desktop    应用菜单入口
  *   ~/.local/share/icons/hicolor/<size>/apps/fengmotion.png
  *
@@ -24,10 +25,11 @@
  *
  * 用法：
  *   node scripts/install-desktop.mjs           # 安装/覆盖
+ *   node scripts/install-desktop.mjs --launcher  # 只重写启动器（并补环境变量文件模板），不重装应用
  *   node scripts/install-desktop.mjs --uninstall
  */
 import { execFileSync } from 'node:child_process'
-import { cpSync, existsSync, mkdirSync, rmSync, writeFileSync, chmodSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync, chmodSync } from 'node:fs'
 import path from 'node:path'
 import os from 'node:os'
 
@@ -42,6 +44,9 @@ const BIN_PATH = path.join(BIN_DIR, APP_ID)
 const DESKTOP_DIR = path.join(home, '.local', 'share', 'applications')
 const DESKTOP_PATH = path.join(DESKTOP_DIR, `${APP_ID}.desktop`)
 const ICON_ROOT = path.join(home, '.local', 'share', 'icons', 'hicolor')
+const ENV_PATH = path.join(process.env.XDG_CONFIG_HOME || path.join(home, '.config'), APP_NAME, 'env')
+const LAUNCHER_TEMPLATE = path.join(import.meta.dirname, 'fengmotion-launcher.sh')
+const ENV_TEMPLATE = path.join(import.meta.dirname, 'fengmotion-env.template')
 
 const ELECTRON_SRC = path.join(repoRoot, 'node_modules', 'electron', 'dist')
 const DIST_SRC = path.join(repoRoot, '..', 'frontend', 'dist')
@@ -89,7 +94,26 @@ function uninstall() {
   }
   console.log('已卸载：')
   for (const p of removed) console.log('  ' + p.replace(home, '~'))
-  console.log('\n提示：应用数据（localStorage 等）在 ~/.config/FengMotion/ 下，如不需要可手动删除。')
+  console.log('\n提示：应用数据（localStorage 等）和环境变量文件 env 在 ~/.config/FengMotion/ 下，如不需要可手动删除。')
+}
+
+/** 启动器模板单独成文件：bash 的 ${...} 写进 JS 模板字符串要层层转义，容易写错。 */
+function writeLauncher() {
+  mkdirSync(BIN_DIR, { recursive: true })
+  const launcher = readFileSync(LAUNCHER_TEMPLATE, 'utf-8').replaceAll('@APP_DIR@', OPT_DIR)
+  writeFileSync(BIN_PATH, launcher, 'utf-8')
+  chmodSync(BIN_PATH, 0o755)
+}
+
+/**
+ * 环境变量文件只在不存在时生成一份全是注释的模板：里面可能已经写了用户的密钥，
+ * 重装时覆盖等于把密钥删掉。卸载也不删它。
+ */
+function writeEnvTemplate() {
+  if (existsSync(ENV_PATH)) return
+  mkdirSync(path.dirname(ENV_PATH), { recursive: true })
+  writeFileSync(ENV_PATH, readFileSync(ENV_TEMPLATE, 'utf-8'), { encoding: 'utf-8', mode: 0o600 })
+  chmodSync(ENV_PATH, 0o600)
 }
 
 function install() {
@@ -135,28 +159,9 @@ function install() {
     cpSync(path.join(ICONS_SRC, `${size}.png`), path.join(dest, `${APP_ID}.png`))
   }
 
-  // 3) 启动器脚本
-  mkdirSync(BIN_DIR, { recursive: true })
-  const launcher = `#!/usr/bin/env bash
-set -euo pipefail
-
-APP_DIR="${OPT_DIR}"
-
-# 关键：本机环境里存在 ELECTRON_RUN_AS_NODE=1（可能来自某个 Node 工具链的导出）。
-# 一旦带上它，Electron 会退化成纯 Node 进程，require('electron') 只返回二进制路径，
-# 应用会立刻报 "Cannot read properties of undefined (reading 'registerSchemesAsPrivileged')"。
-# 所以这里必须显式清掉。
-unset ELECTRON_RUN_AS_NODE
-
-# 注意：这里**不能**预设 FENGMOTION_API_BASE。
-# 主进程用它判断「要不要自己启动后端」—— 设了就会被当成「外部已提供后端」
-# 而完全跳过启动，应用随即表现为「连不上 Agent」。
-# 只有用户确实要在外部跑后端时才由他自己导出这个变量。
-
-exec "\${APP_DIR}/electron/electron" "\${APP_DIR}/app/main.cjs" "$@"
-`
-  writeFileSync(BIN_PATH, launcher, 'utf-8')
-  chmodSync(BIN_PATH, 0o755)
+  // 3) 启动器脚本与环境变量文件
+  writeLauncher()
+  writeEnvTemplate()
 
   // 4) 应用菜单入口
   mkdirSync(DESKTOP_DIR, { recursive: true })
@@ -203,10 +208,17 @@ Keywords=video;ai;fengmotion;剪辑;视频;
   · 应用菜单里搜「${APP_NAME}」
   · 或在终端执行 ${APP_ID}
 
+密钥（如语义检索用的 DASHSCOPE_API_KEY）写在 ${ENV_PATH.replace(home, '~')}，启动器启动时读取。
+
 注意：Agent（DSH）仍使用本机已配置的引擎，未随包分发。
 `)
 }
 
 const isUninstall = process.argv.includes('--uninstall')
 if (isUninstall) uninstall()
+else if (process.argv.includes('--launcher')) {
+  writeLauncher()
+  writeEnvTemplate()
+  console.log(`已更新启动器 ${BIN_PATH.replace(home, '~')}；环境变量文件 ${ENV_PATH.replace(home, '~')}`)
+}
 else install()

@@ -145,4 +145,29 @@ class DatabaseMigrationTest {
         assertEquals("fm-bound", jdbc.queryForObject(
                 "SELECT harness_session_id FROM chat_sessions WHERE id='old-session'", String.class));
     }
+
+    /** 旧消息表没有思考分段列：升级后补上，旧消息该列为 NULL（界面退回整块显示思考）。 */
+    @Test
+    void addsReasoningSegmentsToOldChatMessagesTable() {
+        DriverManagerDataSource dataSource = new DriverManagerDataSource("jdbc:sqlite:" + tempDir.resolve("messages.db"));
+        JdbcTemplate jdbc = new JdbcTemplate(dataSource);
+        jdbc.execute("""
+                CREATE TABLE chat_messages (
+                    id TEXT PRIMARY KEY,
+                    session_id TEXT NOT NULL,
+                    seq INTEGER NOT NULL,
+                    role TEXT NOT NULL,
+                    text TEXT NOT NULL,
+                    created_at TEXT NOT NULL
+                )
+                """);
+        jdbc.update("INSERT INTO chat_messages (id, session_id, seq, role, text, created_at) VALUES (?,?,?,?,?,?)",
+                "m-old", "s-old", 1, "assistant", "旧回复", "2026-01-01T00:00:00Z");
+
+        DatabaseMigration.migrate(jdbc);
+        DatabaseMigration.migrate(jdbc);
+
+        assertEquals(1, jdbc.queryForObject(
+                "SELECT COUNT(*) FROM chat_messages WHERE id='m-old' AND reasoning_segments_json IS NULL", Integer.class));
+    }
 }

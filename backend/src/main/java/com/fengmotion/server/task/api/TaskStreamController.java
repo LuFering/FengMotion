@@ -43,6 +43,8 @@ public class TaskStreamController {
 
     /** 事件流最长存活时间：超过就关掉，由前端重连。 */
     private static final long STREAM_TIMEOUT_MS = Duration.ofMinutes(30).toMillis();
+    /** 没有事件时多久发一次心跳：要明显小于前端的空闲断线判断（45 秒）。 */
+    static final long KEEPALIVE_MS = Duration.ofSeconds(15).toMillis();
 
     private final TaskService tasks;
 
@@ -76,15 +78,23 @@ public class TaskStreamController {
 
         // 用数组持有游标：lambda 里要更新它
         long[] cursor = { from };
+        long[] lastSentAt = { System.currentTimeMillis() };
         pump.scheduleWithFixedDelay(() -> {
             try {
                 List<TaskEvent> batch = tasks.eventsAfter(taskId, cursor[0]);
+                if (batch.isEmpty() && System.currentTimeMillis() - lastSentAt[0] >= KEEPALIVE_MS) {
+                    /* agent 长时间调用工具时没有任务事件，前端 45 秒收不到字节就按断线重连，
+                       连续几次会耗尽重连次数。注释行不产生事件，只证明连接还活着。 */
+                    emitter.send(SseEmitter.event().comment("ping"));
+                    lastSentAt[0] = System.currentTimeMillis();
+                }
                 for (TaskEvent event : batch) {
                     emitter.send(SseEmitter.event()
                             .id(String.valueOf(event.seq()))
                             .name(event.kind())
                             .data(event, MediaType.APPLICATION_JSON));
                     cursor[0] = event.seq();
+                    lastSentAt[0] = System.currentTimeMillis();
                 }
                 Task task = tasks.get(taskId);
                 if (task.isTerminal() && batch.isEmpty()) {

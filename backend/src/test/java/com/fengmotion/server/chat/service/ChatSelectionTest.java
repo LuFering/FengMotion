@@ -15,7 +15,7 @@ class ChatSelectionTest {
         when(harness.listModels(HarnessService.DSH_ID)).thenReturn(models);
         HarnessProperties properties = new HarnessProperties();
         properties.setModel("model-b");
-        return new ChatStreamService(harness, null, null, null, properties, null, null, null, null, null);
+        return new ChatStreamService(harness, null, null, null, properties, null, null, null, null, null, null);
     }
 
     private static final List<HarnessService.ModelEntry> catalog = List.of(

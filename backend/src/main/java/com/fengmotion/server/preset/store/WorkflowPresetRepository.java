@@ -17,7 +17,7 @@ public interface WorkflowPresetRepository {
     List<WorkflowPreset> find(String status);
 
     /** 仅当状态仍为 expected 时替换映射；返回是否更新成功。 */
-    boolean updateMapping(String id, String expected, PresetMapping mapping, Instant at);
+    boolean updateMapping(String id, String expected, PresetMapping mapping, int version, Instant at);
 
     /** 仅当状态仍为 expected 时改状态；返回是否更新成功。 */
     boolean updateStatus(String id, String expected, String status, Instant at, Instant activatedAt);

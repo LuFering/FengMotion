@@ -9,6 +9,7 @@ import java.util.Set;
 
 import com.fengmotion.server.preset.domain.PresetMapping;
 import com.fengmotion.server.skill.domain.SkillInventory;
+import com.fengmotion.server.skill.service.SkillReferences;
 
 /**
  * 逐项校验预设映射。
@@ -19,7 +20,6 @@ import com.fengmotion.server.skill.domain.SkillInventory;
  */
 public final class PresetMappingValidator {
 
-    static final Set<String> NODES = Set.of("prompt", "refs", "capability", "create", "review", "delivery", "drafts");
     static final Set<String> DECISIONS = Set.of("replace-with-builtin", "manual-approval", "ignore");
     static final Set<String> INPUT_KINDS = Set.of("asset", "reference", "text");
     static final Set<String> RATIOS = Set.of("16:9", "9:16", "1:1", "4:5");
@@ -44,13 +44,17 @@ public final class PresetMappingValidator {
      * @return 问题列表；为空表示通过
      */
     public static List<Problem> validate(PresetMapping mapping, SkillInventory inventory, String skillPath) {
+        return validate(mapping, inventory, skillPath, PresetMapping.VERSION);
+    }
+
+    static List<Problem> validate(PresetMapping mapping, SkillInventory inventory, String skillPath, int version) {
         List<Problem> problems = new ArrayList<>();
         if (mapping == null) {
             problems.add(new Problem("", "映射为空"));
             return problems;
         }
-        Map<String, String> categories = new HashMap<>();
-        for (var file : inventory.files()) categories.put(file.path(), file.category());
+        Map<String, SkillInventory.FileEntry> files = new HashMap<>();
+        for (var file : inventory.files()) files.put(file.path(), file);
 
         text(problems, "name", mapping.name(), 1, 40);
         text(problems, "description", mapping.description(), 1, 300);
@@ -66,13 +70,22 @@ public final class PresetMappingValidator {
         }
 
         List<PresetMapping.RequiredInput> inputs = orEmpty(mapping.requiredInputs());
+        boolean textOnlyOption = MappingResponsibilities.describesTextOnlyOption(mapping);
         if (inputs.size() > 10) problems.add(new Problem("requiredInputs", "最多 10 项"));
         for (int i = 0; i < inputs.size(); i++) {
             var input = inputs.get(i);
-            if (input == null || !INPUT_KINDS.contains(input.kind())) {
+            if (input == null || input.kind() == null || !INPUT_KINDS.contains(input.kind())) {
                 problems.add(new Problem("requiredInputs[" + i + "].kind", "只能是 " + INPUT_KINDS));
             }
-            if (input != null) text(problems, "requiredInputs[" + i + "].label", input.label(), 1, 100);
+            if (input != null) {
+                String field = "requiredInputs[" + i + "]";
+                text(problems, field + ".label", input.label(), 1, 100);
+                optionalText(problems, field + ".requiredWhen", input.requiredWhen(), 200);
+                boolean conditional = input.requiredWhen() != null && !input.requiredWhen().isBlank();
+                if (input.required() && (conditional || (textOnlyOption && "asset".equals(input.kind()) && MappingResponsibilities.isVisualAsset(input.label())))) {
+                    problems.add(new Problem(field + ".required", "分支所需素材不能标记为全局必需：设 required=false，并在 requiredWhen 说明适用条件"));
+                }
+            }
         }
 
         optionalText(problems, "lookdevTemplate", mapping.lookdevTemplate(), 20_000);
@@ -80,7 +93,11 @@ public final class PresetMappingValidator {
 
         List<String> checklist = orEmpty(mapping.reviewChecklist());
         if (checklist.isEmpty() || checklist.size() > 20) problems.add(new Problem("reviewChecklist", "需要 1 到 20 项"));
-        for (int i = 0; i < checklist.size(); i++) text(problems, "reviewChecklist[" + i + "]", checklist.get(i), 1, 200);
+        for (int i = 0; i < checklist.size(); i++) {
+            String field = "reviewChecklist[" + i + "]";
+            text(problems, field, checklist.get(i), 1, 200);
+            if (MappingResponsibilities.asksForLostContrast(checklist.get(i))) problems.add(new Problem(field, "以合格时可确认的结果提问，例如主体在所选背景上是否清晰可辨"));
+        }
 
         List<PresetMapping.GuideSection> guide = orEmpty(mapping.guide());
         if (guide.isEmpty() || guide.size() > 30) problems.add(new Problem("guide", "需要 1 到 30 段"));
@@ -98,7 +115,7 @@ public final class PresetMappingValidator {
             List<String> sources = orEmpty(section.sources());
             if (sources.isEmpty()) problems.add(new Problem(field + ".sources", "每段至少注明一个出处文件"));
             for (int j = 0; j < sources.size(); j++) {
-                if (!categories.containsKey(sources.get(j))) {
+                if (!files.containsKey(sources.get(j))) {
                     problems.add(new Problem(field + ".sources[" + j + "]", "清单里没有这个文件：" + sources.get(j)));
                 }
             }
@@ -115,11 +132,11 @@ public final class PresetMappingValidator {
                 problems.add(new Problem(field, "组件为空"));
                 continue;
             }
-            String category = categories.get(component.path());
-            if (category == null) {
+            var file = files.get(component.path());
+            if (file == null) {
                 problems.add(new Problem(field + ".path", "清单里没有这个文件：" + component.path()));
-            } else if (!category.equals("component") && !category.equals("code")) {
-                problems.add(new Problem(field + ".path", "不是组件或代码文件（类别 " + category + "）：" + component.path()));
+            } else if (!SkillReferences.isComponentCandidate(file)) {
+                problems.add(new Problem(field + ".path", "应选择可复用的制作组件，而不是文档、测试或应用启动入口：" + component.path()));
             }
             if (!seenComponents.add(String.valueOf(component.path()))) problems.add(new Problem(field + ".path", "重复的组件"));
             text(problems, field + ".purpose", component.purpose(), 1, 200);
@@ -144,7 +161,7 @@ public final class PresetMappingValidator {
             } else if (!decided.add(decision.command())) {
                 problems.add(new Problem(field + ".command", "同一条命令只能有一个决定"));
             }
-            if (!DECISIONS.contains(decision.decision())) {
+            if (decision.decision() == null || !DECISIONS.contains(decision.decision())) {
                 problems.add(new Problem(field + ".decision", "只能是 " + DECISIONS + "，不允许自动运行"));
             }
             optionalText(problems, field + ".note", decision.note(), 300);
@@ -163,7 +180,8 @@ public final class PresetMappingValidator {
                 continue;
             }
             text(problems, field + ".step", step.step(), 1, 200);
-            if (!NODES.contains(step.node())) problems.add(new Problem(field + ".node", "只能是 " + NODES));
+            if (step.node() == null || !MappingResponsibilities.NODES.contains(step.node())) problems.add(new Problem(field + ".node", "只能是 " + MappingResponsibilities.NODES));
+            MappingResponsibilities.checkStep(step, field, version, problems);
             optionalText(problems, field + ".note", step.note(), 300);
         }
 

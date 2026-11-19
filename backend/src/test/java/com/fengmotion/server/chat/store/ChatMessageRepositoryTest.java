@@ -128,7 +128,7 @@ class ChatMessageRepositoryTest {
         // arguments 本身是「JSON 字符串」：JS 端传过来时已经是字符串化的参数，
         // 这里用转义后的引号还原这一层，确保往返不破坏它。
         var toolCalls = json.readTree(
-                "[{\"callId\":\"call-1\",\"name\":\"bash\","
+                "[{\"callId\":\"call-1\",\"name\":\"bash\",\"textOffset\":6,"
                         + "\"arguments\":\"{\\\"command\\\":\\\"ls\\\"}\",\"done\":true},"
                         + "{\"callId\":\"call-2\",\"name\":\"write\","
                         + "\"arguments\":\"{\\\"path\\\":\\\"a.txt\\\"}\","
@@ -182,5 +182,21 @@ class ChatMessageRepositoryTest {
         String sessionId = UUID.randomUUID().toString();
         sessions.save(new ChatSession(sessionId, projectId, "消息测试", BASE, BASE));
         return sessionId;
+    }
+
+    /** 思考分段随消息往返；用旧写法保存的消息读回来没有分段。 */
+    @Test
+    void roundTripsReasoningSegments() throws Exception {
+        String sessionId = createSession();
+        var segments = json.readTree("[{\"textOffset\":0,\"order\":0,\"text\":\"先看目录\"},"
+                + "{\"textOffset\":7,\"order\":2,\"text\":\"再改代码\"}]");
+        ChatMessage saved = messages.append(new ChatMessage(
+                UUID.randomUUID().toString(), sessionId, 0, ChatMessage.ROLE_ASSISTANT, "我先检查项目。",
+                null, null, null, null, "先看目录再改代码", null, null, null, segments, BASE));
+
+        ChatMessage found = messages.findById(saved.id()).orElseThrow();
+        assertEquals(segments, found.reasoningSegments());
+        assertEquals("先看目录再改代码", found.reasoning());
+        assertNull(append(sessionId, "旧写法").reasoningSegments());
     }
 }

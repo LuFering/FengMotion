@@ -33,6 +33,8 @@ import com.fasterxml.jackson.databind.JsonNode;
  *                    没有用量记录时为 null。
  * @param deliverables 这条回复交付的文件（JSON 数组，present 工具）；
  *                     没有交付时为 null。
+ * @param reasoningSegments 思考按阶段的分段（JSON 数组，每项 textOffset / order / text），
+ *                     用于把每段思考放回它那一阶段的正文前面；旧消息或没有推理时为 null。
  * @param createdAt   创建时间
  */
 public record ChatMessage(
@@ -49,6 +51,7 @@ public record ChatMessage(
         JsonNode todos,
         JsonNode usage,
         JsonNode deliverables,
+        JsonNode reasoningSegments,
         Instant createdAt) {
 
     /** 系统角色只供内部使用，不下发展示；判断时集中在这里，避免各处散写字符串。 */
@@ -67,6 +70,26 @@ public record ChatMessage(
             JsonNode attachments,
             JsonNode toolCalls,
             Instant createdAt) {
-        this(id, sessionId, seq, role, text, taskId, references, attachments, toolCalls, null, null, null, null, createdAt);
+        this(id, sessionId, seq, role, text, taskId, references, attachments, toolCalls, null, null, null, null, null, createdAt);
+    }
+
+    /** 不带思考分段的写法：用户消息与旧调用方都走这里。 */
+    public ChatMessage(
+            String id,
+            String sessionId,
+            long seq,
+            String role,
+            String text,
+            String taskId,
+            JsonNode references,
+            JsonNode attachments,
+            JsonNode toolCalls,
+            String reasoning,
+            JsonNode todos,
+            JsonNode usage,
+            JsonNode deliverables,
+            Instant createdAt) {
+        this(id, sessionId, seq, role, text, taskId, references, attachments, toolCalls, reasoning, todos, usage,
+                deliverables, null, createdAt);
     }
 }

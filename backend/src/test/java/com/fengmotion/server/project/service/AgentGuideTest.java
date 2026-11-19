@@ -82,7 +82,7 @@ class AgentGuideTest {
         /* 不写死具体版本号：一升版本就要改测试，测的其实是「有没有升到当前版本」 */
         assertTrue(guide.startsWith(ProjectDirectoryService.GENERATED_MARKER),
                 "升级后应是当前版本：" + guide.substring(0, 60));
-        assertTrue(guide.contains("/api/assets"), "升级后应带上三库指引");
+        assertTrue(guide.contains("$FENGMOTION_API_URL/assets"), "升级后应带上三库指引");
     }
 
     @Test
@@ -125,9 +125,9 @@ class AgentGuideTest {
         /* 库里有什么，agent 原先完全不知道：AGENTS.md 一个字没提三库，
            只有用户手动选了资源、由 resources-in-use.md 带路径时才用得上。
            用户说「找个合适的素材」时它不会去翻库。 */
-        assertTrue(guide.contains("/api/assets"), "素材库接口");
-        assertTrue(guide.contains("/api/reference-videos"), "参考片库接口");
-        assertTrue(guide.contains("/api/fx-techniques"), "特效库接口");
+        assertTrue(guide.contains("$FENGMOTION_API_URL/assets"), "素材库接口");
+        assertTrue(guide.contains("$FENGMOTION_API_URL/reference-videos"), "参考片库接口");
+        assertTrue(guide.contains("$FENGMOTION_API_URL/fx-techniques"), "特效库接口");
         assertTrue(guide.contains("resources-in-use.md"), "用户已点名资源时的依据文件");
         assertTrue(guide.contains("不要自行更改用途"), "用途不能被 agent 改");
     }
@@ -200,5 +200,46 @@ class AgentGuideTest {
 
         assertEquals(ProjectDirectoryService.GuideUpgrade.CURRENT,
                 service.upgradeAgentGuide(dir, "proj-6"));
+    }
+
+    @Test
+    @DisplayName("指引带交流方式一段，DSH 加载指引即可，不必每轮在消息里重复")
+    void guideCarriesNarrationRules() throws Exception {
+        Path dir = tempDir.resolve("p-narration");
+        service.create(dir);
+        String guide = Files.readString(dir.resolve("AGENTS.md"));
+
+        assertTrue(guide.contains(com.fengmotion.server.harness.client.DshNarration.GUIDE_HEADING));
+        assertTrue(guide.contains("不逐个工具汇报"));
+        assertTrue(com.fengmotion.server.harness.client.DshNarration.inGuide(dir));
+        assertEquals("", com.fengmotion.server.harness.client.DshNarration.inlineFallback(dir));
+    }
+
+    @Test
+    @DisplayName("用户自维护的指引里没有交流方式：兜底拼进消息")
+    void fallbackWhenGuideLacksNarration() throws Exception {
+        Path dir = tempDir.resolve("p-own-guide");
+        Files.createDirectories(dir);
+        Files.writeString(dir.resolve("AGENTS.md"), "# 我自己的约定\n");
+
+        assertFalse(com.fengmotion.server.harness.client.DshNarration.inGuide(dir));
+        assertTrue(com.fengmotion.server.harness.client.DshNarration.inlineFallback(dir).contains("【交流方式】"));
+        assertTrue(com.fengmotion.server.harness.client.DshNarration.inlineFallback(tempDir.resolve("missing")).contains("【交流方式】"));
+    }
+
+    @Test
+    @DisplayName("接口示例用启动时传入的地址，不写死端口")
+    void guideUsesApiUrlFromEnvironment() throws Exception {
+        Path dir = tempDir.resolve("p-api-url");
+        service.create(dir);
+        String guide = Files.readString(dir.resolve("AGENTS.md"));
+
+        /* 桌面端每次启动换端口；写死的 8080 上可能是别的进程（实测是一个卡住的旧开发后端）。 */
+        assertFalse(guide.contains("127.0.0.1:8080"), "指引里不能再出现写死的端口");
+        assertTrue(guide.contains("\"$FENGMOTION_API_URL/retrieval/search"), "检索示例要用环境变量拼地址");
+        assertTrue(guide.contains("\"$FENGMOTION_API_URL/projects/__PROJECT_ID__/renders\""), "渲染接口同样用环境变量");
+        assertTrue(guide.contains("不要自己猜端口"));
+        /* 中文直接拼进网址会被后端拒绝（实测 Invalid character found in the request target） */
+        assertTrue(guide.contains("--data-urlencode \"q="), "中文查询要由 curl 编码");
     }
 }

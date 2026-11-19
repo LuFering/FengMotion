@@ -42,11 +42,12 @@ export function apply(ctx) {
    * 写入时序），写 stderr 稳定可收。stderr 里的非 JSON 行是 DSH 自己的诊断，
    * 后端按「以 { 开头且 method 为 stream/delta」筛选即可，不会误判。
    */
-  const emit = (params) => {
+  const attempts = new Map()
+  const emit = (params, scope) => {
     process.stderr.write(`${JSON.stringify({
       jsonrpc: '2.0',
       method: 'stream/delta',
-      params,
+      params: { ...params, ...scope },
     })}\n`)
   }
 
@@ -60,22 +61,28 @@ export function apply(ctx) {
    */
   ctx.on('agent/assistant-stream', ({ frame }) => {
     if (frame == null) return
+    const attemptId = frame.attemptId
+    if (frame.type === 'start' && typeof attemptId === 'string') {
+      const separator = attemptId.lastIndexOf(':')
+      if (separator > 0) attempts.set(attemptId, { sessionId: attemptId.slice(0, separator), attemptId, turn: frame.turn, step: frame.step })
+    }
+    const scope = attempts.get(attemptId)
     switch (frame.type) {
       case 'start':
-        emit({ kind: 'start', turn: frame.turn, step: frame.step })
+        emit({ kind: 'start', turn: frame.turn, step: frame.step }, scope)
         break
       case 'chunk': {
         const chunk = frame.chunk
         if (chunk == null) return
         switch (chunk.type) {
           case 'text-delta':
-            emit({ kind: 'text', text: chunk.text })
+            emit({ kind: 'text', text: chunk.text }, scope)
             break
           case 'reasoning-delta':
-            emit({ kind: 'thinking', text: chunk.text })
+            emit({ kind: 'thinking', text: chunk.text }, scope)
             break
           case 'block-start':
-            emit({ kind: 'block_start', blockType: chunk.blockType })
+            emit({ kind: 'block_start', blockType: chunk.blockType }, scope)
             break
           case 'block-end': {
             /* 组装好的完整块。推理块（type=reasoning）的正文只能从这里拿到：
@@ -87,7 +94,7 @@ export function apply(ctx) {
               kind: 'block_end',
               blockType: block?.type,
               ...(block?.type === 'reasoning' && typeof block.text === 'string' ? { text: block.text } : {}),
-            })
+            }, scope)
             break
           }
           case 'usage':
@@ -96,10 +103,10 @@ export function apply(ctx) {
               inputTokens: chunk.usage?.inputTokens,
               outputTokens: chunk.usage?.outputTokens,
               totalTokens: chunk.usage?.totalTokens,
-            })
+            }, scope)
             break
           case 'finish':
-            emit({ kind: 'finish', reason: chunk.reason?.kind })
+            emit({ kind: 'finish', reason: chunk.reason?.kind }, scope)
             break
           default:
             // tool-call-delta 等其余分片暂不转发：当前前端只消费文本增量。
@@ -108,7 +115,8 @@ export function apply(ctx) {
         break
       }
       case 'end':
-        emit({ kind: 'end', outcome: frame.outcome?.kind })
+        emit({ kind: 'end', outcome: frame.outcome?.kind }, scope)
+        attempts.delete(attemptId)
         break
       default:
         break

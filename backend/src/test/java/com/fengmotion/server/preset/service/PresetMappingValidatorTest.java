@@ -43,7 +43,7 @@ class PresetMappingValidatorTest {
                 List.of(new GuideSection("路径描绘", "先描边再填色", List.of(SKILL))),
                 List.of(new Component("skills/logo/src/Logo.tsx", "SVG 分路径动画")),
                 List.of(new CommandDecision("bash scripts/check.sh", "replace-with-builtin", "用本项目渲染检查")),
-                List.of(new StepMapping("渲染与关键帧检查", "review", null)), List.of(), List.of());
+                List.of(new StepMapping("检查已渲染的关键帧", "review", null, "inspect")), List.of(), List.of());
     }
 
     private static List<String> fields(PresetMapping m) {

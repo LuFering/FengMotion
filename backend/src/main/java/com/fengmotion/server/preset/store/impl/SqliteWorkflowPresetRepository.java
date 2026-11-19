@@ -41,9 +41,9 @@ public class SqliteWorkflowPresetRepository implements WorkflowPresetRepository 
     }
 
     @Override
-    public boolean updateMapping(String id, String expected, PresetMapping mapping, Instant at) {
+    public boolean updateMapping(String id, String expected, PresetMapping mapping, int version, Instant at) {
         return mapper.updateMapping(id, expected, mapping.name(), mapping.description(), write(mapping),
-                PresetMapping.VERSION, at.toString()) > 0;
+                version, at.toString()) > 0;
     }
 
     @Override

@@ -325,11 +325,25 @@ public class SkillInventoryScanner {
             return new ImportRef(specifier, "builtin", head);
         }
         if (alias != null) {
+            /* 和 TypeScript 一样选模式：精确匹配优先，否则取 * 前缀最长的那个。
+               按书写顺序取第一个会选错：同时有 "@/lib/x/*" 和 "@/*" 时，"@/*" 写在前面就会被它截走。 */
+            Map.Entry<String, List<String>> best = null;
+            String bestTarget = null;
+            int bestRank = -1;
             for (var entry : alias.paths().entrySet()) {
                 String target = matchAlias(entry.getKey(), specifier);
                 if (target == null) continue;
-                for (String replacement : entry.getValue()) {
-                    String candidate = join(alias.baseDir(), replacement.replace("*", target));
+                int star = entry.getKey().indexOf('*');
+                int rank = star < 0 ? Integer.MAX_VALUE : star;
+                if (rank > bestRank) {
+                    best = entry;
+                    bestTarget = target;
+                    bestRank = rank;
+                }
+            }
+            if (best != null) {
+                for (String replacement : best.getValue()) {
+                    String candidate = join(alias.baseDir(), replacement.replace("*", bestTarget));
                     String resolved = resolveFile(candidate, files);
                     if (resolved != null) return new ImportRef(specifier, "alias", resolved);
                 }

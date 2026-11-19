@@ -32,7 +32,7 @@ public record PresetMapping(String name, String description, String slug, String
                             List<Unmapped> unmapped, List<String> truncatedSources) {
 
     /** 映射格式版本。字段只增不改义；改义时升版本。 */
-    public static final int VERSION = 1;
+    public static final int VERSION = 2;
 
     /**
      * @param duration 默认时长描述，例如「8 秒」；没有为 null
@@ -46,7 +46,10 @@ public record PresetMapping(String name, String description, String slug, String
      * @param label    给用户看的提示
      * @param required 是否必需
      */
-    public record RequiredInput(String kind, String label, boolean required) {
+    public record RequiredInput(String kind, String label, boolean required, String requiredWhen) {
+        public RequiredInput(String kind, String label, boolean required) {
+            this(kind, label, required, null);
+        }
     }
 
     /**
@@ -77,7 +80,10 @@ public record PresetMapping(String name, String description, String slug, String
      * @param node prompt / refs / capability / create / review / delivery / drafts
      * @param note 说明
      */
-    public record StepMapping(String step, String node, String note) {
+    public record StepMapping(String step, String node, String note, String action) {
+        public StepMapping(String step, String node, String note) {
+            this(step, node, note, null);
+        }
     }
 
     /**

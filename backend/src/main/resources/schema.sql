@@ -46,6 +46,8 @@ CREATE INDEX IF NOT EXISTS idx_chat_sessions_project ON chat_sessions(project_id
 -- 恰恰是重看历史时最想知道的事。
 -- deliverables_json 保存这条回复交付的文件（present 工具）。不落库的话，
 -- completed 之后重读历史会把卡片冲掉（实测：闪一下就没了，与 todos 同因）。
+-- reasoning_segments_json 保存思考按阶段的分段（textOffset / order / text）。
+-- reasoning 是整段拼接，界面只能放成一大块；有了分段才能把每段思考放回它那一阶段。
 CREATE TABLE IF NOT EXISTS chat_messages (
     id TEXT PRIMARY KEY,
     session_id TEXT NOT NULL,
@@ -60,6 +62,7 @@ CREATE TABLE IF NOT EXISTS chat_messages (
     todos_json TEXT,
     usage_json TEXT,
     deliverables_json TEXT,
+    reasoning_segments_json TEXT,
     created_at TEXT NOT NULL,
     FOREIGN KEY (session_id) REFERENCES chat_sessions(id),
     UNIQUE (session_id, seq)

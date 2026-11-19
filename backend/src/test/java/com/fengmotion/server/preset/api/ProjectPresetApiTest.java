@@ -209,4 +209,45 @@ class ProjectPresetApiTest {
         mvc.perform(post("/api/projects/{id}/workflow/preset", fresh).contentType(MediaType.APPLICATION_JSON).content("{}"))
                 .andExpect(status().isBadRequest());
     }
+
+    @Test
+    @DisplayName("组件依赖一并复制、只读；指引里给出别名 import 改写表和解析不了的引用")
+    void copiesDependenciesWithImportTable() throws Exception {
+        String repo = "snapcn-" + UUID.randomUUID().toString().substring(0, 8);
+        String sha = UUID.randomUUID().toString().replace("-", "") + "00000000";
+        byte[] zip = com.fengmotion.server.skill.service.TestZips.github(
+                com.fengmotion.server.skill.service.SnapcnLikePackage.files(0, 0));
+        org.mockito.Mockito.when(github.resolveCommit(org.mockito.ArgumentMatchers.eq("acme"), org.mockito.ArgumentMatchers.eq(repo),
+                org.mockito.ArgumentMatchers.isNull())).thenReturn(sha);
+        org.mockito.Mockito.when(github.openZip(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.eq(repo),
+                org.mockito.ArgumentMatchers.eq(sha))).thenAnswer(i -> new java.io.ByteArrayInputStream(zip));
+        SkillPackage pkg = skills.importPackage("acme/" + repo, null, null).skillPackage();
+
+        String assemble = com.fengmotion.server.skill.service.SnapcnLikePackage.ASSEMBLE;
+        PresetMapping base = PresetFixtures.mapping("Logo 动画", null);
+        PresetMapping mapping = new PresetMapping(base.name(), base.description(), base.slug(), base.promptScaffold(),
+                base.defaults(), base.requiredInputs(), null, null, base.reviewChecklist(), base.guide(),
+                java.util.List.of(new PresetMapping.Component(assemble, "照片环绕后收拢成 Logo")),
+                base.instructedCommands(), base.stepMapping(), base.unmapped(), java.util.List.of());
+        WorkflowPreset preset = preset(pkg, WorkflowPreset.ACTIVE, mapping);
+        String id = project(false);
+
+        JsonNode result = apply(id, preset.id(), 200);
+        assertEquals(1, result.path("componentsCopied").asInt());
+        assertEquals(3, result.path("supportFilesCopied").asInt(), "共享库入口与它的两个子模块");
+
+        Path sources = root(id).resolve(".fengmotion/skill-sources");
+        for (String path : java.util.List.of(assemble, "registry/snap-cn-ui/core/index.ts", "registry/snap-cn-ui/core/color.ts")) {
+            Path file = sources.resolve(path);
+            assertTrue(Files.isRegularFile(file), path);
+            assertEquals(Set.of(PosixFilePermission.OWNER_READ, PosixFilePermission.GROUP_READ, PosixFilePermission.OTHERS_READ),
+                    Files.getPosixFilePermissions(file));
+        }
+        assertFalse(Files.exists(sources.resolve("registry/snap-cn-ui/core/__tests__/color.test.ts")), "测试文件不复制");
+
+        String guide = Files.readString(root(id).resolve("skill-guide.md"));
+        assertTrue(guide.contains("## 组件依赖与 import 改写"));
+        assertTrue(guide.contains("- `@/lib/snap-cn-ui` → `.fengmotion/skill-sources/registry/snap-cn-ui/core/index.ts`"), guide);
+        assertTrue(guide.contains("- `@/components/ui/missing`（出现在 " + assemble + "）"), guide);
+    }
 }
