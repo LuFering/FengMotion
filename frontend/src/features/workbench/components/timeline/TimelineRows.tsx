@@ -23,7 +23,7 @@ export interface TimelineRowsProps {
   viewStart: number
 }
 
-/** 从 WorkbenchTimeline.tsx 原样拆出的界面区块；props 与原处的变量同名。 */
+/** 时间线的轨道列表：每条轨道可折叠，按当前视野画出片段块，点击片段即选中并跳到其起点；选区以贯穿全轨的底带标出。 */
 export function TimelineRows({ collapsedIds, onSeek, pct, pickedId, playhead, setCollapsedIds, setPickedId, span, spanEnd, spanStart, trackStatus, tracks, unavailable, viewEnd, viewStart }: TimelineRowsProps) {
   return (
     <div className="wb-tl-rows" tabIndex={0} role="region" aria-label="轨道列表">

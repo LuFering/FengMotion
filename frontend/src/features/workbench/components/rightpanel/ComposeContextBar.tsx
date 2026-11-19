@@ -26,7 +26,7 @@ export interface ComposeContextBarProps {
   sessionDraft: { draft: SessionDraft; updateDraft: (updater: Partial<SessionDraft> | ((prev: SessionDraft) => Partial<SessionDraft>)) => SessionDraft; flushText: (text: string) => void; clearDraft: () => void; key: string }
 }
 
-/** 从 RightPanel.tsx 原样拆出的界面区块；props 与原处的变量同名。 */
+/** 输入框上方的发送上下文条：展示本次修改的目标、版本和意图，并列出可增删、定位的参考素材。 */
 export function ComposeContextBar({ onClearRange, onClearReferences, onLocateReference, onOpenResourcePicker, onRemoveReference, onResetScope, onRestoreVersion, onToggleReferenceRole, onViewLead, preview, projectId, projectVersion, projectVersionNumber, rangeSpan, references, scope, sessionDraft }: ComposeContextBarProps) {
   return (
     <div className="wb-compose-context">

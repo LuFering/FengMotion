@@ -31,7 +31,7 @@ import {
   UNIT_INITIAL,
   UNIT_TRANSITION,
 } from './chat-motion'
-import './task-list.css'
+import '@/features/chat/styles/components/task-list.css'
 
 /* ── 数据形状 ──────────────────────────────────────────────── */
 

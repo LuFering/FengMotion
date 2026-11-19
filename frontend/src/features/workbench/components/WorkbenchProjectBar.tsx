@@ -18,7 +18,7 @@ export interface WorkbenchProjectBarProps {
   switchRef: React.RefObject<HTMLDivElement | null>
 }
 
-/** 从 Workbench.tsx 原样拆出的界面区块；props 与原处的变量同名。 */
+/** 工作台顶部的项目栏：当前项目胶囊及切换项目菜单、「项目 / 场景」面包屑，编辑态下附带预览操作。 */
 export function WorkbenchProjectBar({ catalog, editMode, onBack, onSwitchProject, previewActions, project, setSwitchOpen, split, stageLead, switchOpen, switchRef }: WorkbenchProjectBarProps) {
   return (
     <div className="wb-projectbar" data-panel="open" data-editor={editMode} style={{ '--open-chat-width': `${split.width}px` } as React.CSSProperties}>

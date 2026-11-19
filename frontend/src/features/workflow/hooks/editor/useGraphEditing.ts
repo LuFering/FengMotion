@@ -19,7 +19,7 @@ export interface UseGraphEditingArgs {
   wrapRef: React.RefObject<HTMLDivElement | null>
 }
 
-/** 从 WorkflowEditor.tsx 的 EditorInner 原样搬出的一段状态与逻辑；参数与返回值和原处的变量同名。 */
+/** 工作流画布的图编辑：添加节点、改参数、按端口类型校验连线并防止成环，连线拖到空白处时按端口推荐可接节点。 */
 export function useGraphEditing({ edges, flow, focusRequest, markDirty, nodes, setActiveStage, setEdges, setNodes, workflow, wrapRef }: UseGraphEditingArgs) {
   const updateParams = useCallback(
     (nodeId: string, patch: Record<string, unknown>) => {

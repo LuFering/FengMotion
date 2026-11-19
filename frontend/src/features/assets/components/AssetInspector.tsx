@@ -21,7 +21,7 @@ export interface AssetInspectorProps {
   toggleFav: (a: MyAsset) => void
 }
 
-/** 从 Assets.tsx 原样拆出的界面区块；props 与原处的变量同名。 */
+/** 我的素材右侧的素材详情栏：预览、审核与加入待发送，文件信息、标签、授权与引用关系的查看和修改。 */
 export function AssetInspector({ addToPending, applyPatch, copyPath, detail, doDelete, pending, setDetailId, setRenameText, setRenaming, setTagText, tagText, thumbs, toggleFav }: AssetInspectorProps) {
   return (
     <aside className="mya-inspector" aria-label="素材详情">

@@ -10,7 +10,7 @@ export interface HistoryVersionNoticeProps {
   projectVersionNumber: number
 }
 
-/** 从 RightPanel.tsx 原样拆出的界面区块；props 与原处的变量同名。 */
+/** 正在查看历史版本画面时的提醒条：说明修改会基于哪个版本，并提供「恢复至此版」与「回到最新版」。 */
 export function HistoryVersionNotice({ onRestoreVersion, onViewLead, preview, projectVersionAuthoritative, projectVersionNumber }: HistoryVersionNoticeProps) {
   return (
     <div className="mb-1.5 px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/25 text-xs flex items-center justify-between text-amber-300">

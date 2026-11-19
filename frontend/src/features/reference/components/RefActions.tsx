@@ -1,9 +1,9 @@
 import type * as React from 'react'
 import { Icon } from '@/features/reference/components/RefIcon'
 import { PickButton } from '@/shared/pick-mode/PickModeUI'
-import { useCurrentSegment } from '@/features/reference/hooks/library/useCurrentSegment'
+import { useCurrentSegment } from '@/features/reference/hooks/useCurrentSegment'
 import { usePickMode } from '@/shared/pick-mode/usePickMode'
-import { useSegmentActions } from '@/features/reference/hooks/library/useSegmentActions'
+import { useSegmentActions } from '@/features/reference/hooks/useSegmentActions'
 
 export interface RefActionsProps {
   current: ReturnType<typeof useCurrentSegment>['current']
@@ -17,7 +17,7 @@ export interface RefActionsProps {
   toggleFavorite: ReturnType<typeof useSegmentActions>['toggleFavorite']
 }
 
-/** 从 RefLibrary.tsx 原样拆出的界面区块；props 与原处的变量同名。 */
+/** 参考片库顶部的操作按钮组：导入视频、多选、打开片库/搜索、收藏当前片段、开关分析面板。 */
 export function RefActions({ current, fileInputRef, hasSegment, isFav, panelOpen, pick, setBrowseOpen, setPanelOpen, toggleFavorite }: RefActionsProps) {
   return (
     <div className="rfc-actions">

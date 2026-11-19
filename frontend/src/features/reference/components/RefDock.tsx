@@ -24,7 +24,7 @@ export interface RefDockProps {
   videos: ServerVideo[]
 }
 
-/** 从 RefLibrary.tsx 原样拆出的界面区块；props 与原处的变量同名。 */
+/** 参考片库底部的播放区：播放控制与标记片段、当前视频的片段条、可切换的参考片横条。 */
 export function RefDock({ advanceFilm, cutSegmentAt, film, filmSegments, filmsRef, hasVideo, playableFilms, playing, pos, segment, segments, selectFilm, selectSegment, setPlaying, setPos, videoRef, videos }: RefDockProps) {
   return (
     <div className="rfc-dock">

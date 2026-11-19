@@ -41,7 +41,7 @@ export interface FxContentProps {
   workflowFor: FxTechnique | null
 }
 
-/** 从 FxLibrary.tsx 原样拆出的界面区块；props 与原处的变量同名。 */
+/** 技法库的主内容区：读取中/失败/空状态，以及技法卡片网格（悬停预览、收藏、加入待发送、拖拽与多选）。 */
 export function FxContent({ activeCount, addFxToPending, catalogError, catalogLoading, drawerOpen, focusedPreviewId, fxInPending, hoveredPreviewId, lib, openDrawer, originalPosters, pick, query, resetAll, scope, setFocusedPreviewId, setHoveredPreviewId, setScope, sorted, stashFxCard, toggleFavorite, uniformExec, visible, workflowFor }: FxContentProps) {
   return (
     <div className="fx-content">

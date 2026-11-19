@@ -21,7 +21,7 @@ export interface FxDetailDialogProps {
   toggleFavorite: (id: string) => void
 }
 
-/** 从 FxLibrary.tsx 原样拆出的界面区块；props 与原处的变量同名。 */
+/** 技法详情弹窗：预览与动作播放，名称说明、收藏、复制配方与用于工作流，以及用处、步骤、参数、注意事项、同类技法和技术细节。 */
 export function FxDetailDialog({ closeDrawer, closeRef, copied, copyRecipe, current, lib, modalRef, openDrawer, playing, setPlayingId, setWorkflowFor, techniques, toggleFavorite }: FxDetailDialogProps) {
   return (
     <DialogContent className="fx-modal" showCloseButton={false}>

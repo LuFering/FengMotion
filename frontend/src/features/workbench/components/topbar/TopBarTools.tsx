@@ -23,7 +23,7 @@ export interface TopBarToolsProps {
   setGuidesMenuOpen: React.Dispatch<React.SetStateAction<boolean>>
 }
 
-/** 从 WorkbenchTopBar.tsx 原样拆出的界面区块；props 与原处的变量同名。 */
+/** 工作台顶栏的画面工具组：引用当前帧、框选区域、保存当前帧、辅助显示开关和工作台全屏切换。 */
 export function TopBarTools({ aiModifyTargetCapability, guidesMenuOpen, isAnyMenuOpen, isGuidesActive, onReferenceFrame, onSaveFrame, onToggleOverlayGuide, onTogglePanel, onToggleRegion, overlayGuides, panelOpen, previewReady, regionMode, setGuidesMenuOpen }: TopBarToolsProps) {
   return (
     <div className="wb-topbar-tools">

@@ -1,9 +1,9 @@
 import type * as React from 'react'
 import { UiIcon, SemIcons } from '@/shared/icons/UiIcon'
 import { Save01, RefreshCw01, RefreshCcw01, Type01, ImagePlus, Film01, MusicNote01, Square, Image01 } from '@untitledui/icons'
-import type { SceneDocument, LayerKind, EditorLayer, ElementPatch, EditorManifest, HtmlElementInfo } from '@/features/scene-editor/types'
-import { SceneInspector } from '@/features/scene-editor/SceneInspector'
-import { exportProject, download } from '@/features/scene-editor/service'
+import type { SceneDocument, LayerKind, EditorLayer, ElementPatch, EditorManifest, HtmlElementInfo } from '@/features/scene-editor/model/types'
+import { SceneInspector } from '@/features/scene-editor/components/SceneInspector'
+import { exportProject, download } from '@/features/scene-editor/services/sceneEditorService'
 
 export interface SceneConsolePanelProps {
   abort: React.RefObject<AbortController | null>
@@ -38,7 +38,10 @@ export interface SceneConsolePanelProps {
   time: number
 }
 
-/** 从 SceneEditorWorkspace.tsx 原样拆出的界面区块；props 与原处的变量同名。 */
+/**
+ * 场景编辑器右侧的参数面板：保存状态与 JSON 直改、撤销重做、添加图层，
+ * 选中对象的属性检查器，以及工程包、参数和画面/视频导出与渲染进度。
+ */
 export function SceneConsolePanel({ abort, add, busy, change, changeLayer, changePatch, consoleHeader, current, document, exportMedia, historyMove, historySizes, jsonDraft, jsonError, jsonOpen, manifest, openAssets, persist, progress, savedAt, selected, selectedElement, selectedLayer, setJsonDraft, setJsonError, setJsonOpen, setMessage, setSelected, setTime, time }: SceneConsolePanelProps) {
   return (
     <aside className="se-console" aria-label="场景参数面板">

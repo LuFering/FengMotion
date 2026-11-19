@@ -19,7 +19,7 @@ export interface UseSessionCreateArgs {
   setLoadedProjects: React.Dispatch<React.SetStateAction<ReadonlySet<string>>>
 }
 
-/** 从 useSessions.ts 的 useSessions 原样搬出的一段状态与逻辑；参数与返回值和原处的变量同名。 */
+/** 会话的新建与重试保存：有项目时在服务端创建，失败或无项目时保留为本页未保存草稿。 */
 export function useSessionCreate({ begin, commitSessions, end, loadedRef, mountedRef, sessionsRef, setActiveId, setCreateError, setLoadedProjects }: UseSessionCreateArgs) {
   /**
    * 新建会话：有项目 → 真实创建；无项目 → 本页草稿，明确标「未保存」。

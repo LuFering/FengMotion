@@ -46,7 +46,7 @@ export interface EditorCanvasProps {
   zoom: number
 }
 
-/** 从 WorkflowEditor.tsx 原样拆出的界面区块；props 与原处的变量同名。 */
+/** 工作流编辑器的画布：拖入节点、连线与删除、撤销重做、整理与缩放；空画布时给出起步提示，连线拖到空白处时弹出可接节点菜单。 */
 export function EditorCanvas({ activeStage, addNode, compact, connectCandidates, connectMenu, displayedNodes, edges, flow, focusStage, isStructured, isValidConnection, markDirty, nodes, onConnect, onConnectEnd, onConnectStart, panelOpen, pickConnectCandidate, redo, redoStack, setCompact, setConnectMenu, setEdges, setLeftTab, setNodes, setPanelOpen, setRunNotice, setZoom, undo, undoStack, visibleEdges, wrapRef, zoom }: EditorCanvasProps) {
   return (
     <div className="wfe-canvas" ref={wrapRef} data-compact={compact || undefined}

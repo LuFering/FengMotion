@@ -4,7 +4,7 @@ export interface RefCatalogErrorProps {
   catalogError: string
 }
 
-/** 从 RefLibrary.tsx 原样拆出的界面区块；props 与原处的变量同名。 */
+/** 参考片库读取失败时的整页提示，显示错误信息并提供重试。 */
 export function RefCatalogError({ catalogError }: RefCatalogErrorProps) {
   return (
     <div className="rfc rfc-empty-state">

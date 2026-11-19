@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { UiIcon, SemIcons } from '@/shared/icons/UiIcon'
-import { createNativeDocument, documentFromSource, makeLayer } from './document'
-import { download, importDocument, loadManifest, readDocuments, saveDocument } from './service'
-import { renderScene, type EditorRenderRecord } from './render'
+import { createNativeDocument, documentFromSource, makeLayer } from './model/document'
+import { download, importDocument, loadManifest, readDocuments, saveDocument } from './services/sceneEditorService'
+import { renderScene, type EditorRenderRecord } from './services/sceneRender'
 import { getFileURL, initLibrary, listAssets } from '@/features/assets/services/assetApiService'
 import type { MyAsset } from '@/features/assets/model/myAssets'
 import type {
@@ -12,8 +12,8 @@ import type {
   HtmlElementInfo,
   LayerKind,
   SceneDocument,
-} from './types'
-import './scene-editor.css'
+} from './model/types'
+import './styles/scene-editor.css'
 import { SceneConsolePanel } from '@/features/scene-editor/components/SceneConsolePanel'
 import { SceneAssetDialog } from '@/features/scene-editor/components/SceneAssetDialog'
 import { SceneMain } from '@/features/scene-editor/components/SceneMain'

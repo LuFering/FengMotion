@@ -22,7 +22,7 @@ installBrowserGlobals()
 before(async () => {
   server = await startViteForModules()
   api = await server.ssrLoadModule('/src/api/index.ts')
-  ;({ useRealModify } = await server.ssrLoadModule('/src/features/workbench/hooks/workbench/useRealModify.ts'))
+  ;({ useRealModify } = await server.ssrLoadModule('/src/features/workbench/hooks/submit/useRealModify.ts'))
   roundOutcomes = await server.ssrLoadModule('/src/features/chat/model/roundOutcomes.ts')
 })
 

@@ -1,5 +1,5 @@
 import type * as React from 'react'
-import type { EditorLayer, SceneDocument, HtmlElementInfo } from '@/features/scene-editor/types'
+import type { EditorLayer, SceneDocument, HtmlElementInfo } from '@/features/scene-editor/model/types'
 
 export interface SceneTracksProps {
   changeLayer: (patch: Partial<EditorLayer>) => void
@@ -11,7 +11,7 @@ export interface SceneTracksProps {
   trackDrag: React.RefObject<{ id: string; edge: 'start' | 'end'; trackLeft: number; trackWidth: number } | null>
 }
 
-/** 从 SceneEditorWorkspace.tsx 原样拆出的界面区块；props 与原处的变量同名。 */
+/** 场景编辑器底部的轨道列表：HTML 源工程列出可选元素，Remotion 场景列出图层并可拖动手柄调整入点、出点。 */
 export function SceneTracks({ changeLayer, checkpoint, document, elements, selected, setSelected, trackDrag }: SceneTracksProps) {
   return (
     <div className="se-tracks">

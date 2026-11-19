@@ -1,5 +1,5 @@
 import { Group, NumberField } from '@/features/scene-editor/components/inspector/InspectorFields'
-import type { EditorLayer } from '@/features/scene-editor/types'
+import type { EditorLayer } from '@/features/scene-editor/model/types'
 
 export interface LayerAssetGroupProps {
   layer: EditorLayer
@@ -7,7 +7,7 @@ export interface LayerAssetGroupProps {
   onLayer: (patch: Partial<EditorLayer>) => void
 }
 
-/** 从 SceneInspector.tsx 原样拆出的界面区块；props 与原处的变量同名。 */
+/** 检查器中图层的「素材」分组：选择或替换绑定的素材，按图层类型设置填充方式、起点与音量。 */
 export function LayerAssetGroup({ layer, onChooseAsset, onLayer }: LayerAssetGroupProps) {
   return (
     <Group title="素材">

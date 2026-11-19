@@ -6,18 +6,18 @@ import { BriefPanel } from '@/features/workbench/components/BriefPanel'
 import { TaskRecordPanel } from '@/features/workbench/components/TaskRecordPanel'
 import { RightPanel } from '@/features/workbench/components/RightPanel'
 import { clearRoundOutcome } from '@/features/chat/model/roundOutcomes'
-import { useTimelineManifest } from '@/features/workbench/hooks/workbench/useTimelineManifest'
-import { useSubmitQueue } from '@/features/workbench/hooks/workbench/useSubmitQueue'
-import { useWorkbenchSubmit } from '@/features/workbench/hooks/workbench/useWorkbenchSubmit'
-import { useTargetReferences } from '@/features/workbench/hooks/workbench/useTargetReferences'
-import { useReviewOpinionLocate } from '@/features/workbench/hooks/workbench/useReviewOpinionLocate'
-import { useTimeRangeTarget } from '@/features/workbench/hooks/workbench/useTimeRangeTarget'
-import { useProjectRender } from '@/features/workbench/hooks/workbench/useProjectRender'
-import { useUnsavedReplies } from '@/features/workbench/hooks/workbench/useUnsavedReplies'
-import { useVisualSelection } from '@/features/workbench/hooks/workbench/useVisualSelection'
+import { useTimelineManifest } from '@/features/workbench/hooks/target/useTimelineManifest'
+import { useSubmitQueue } from '@/features/workbench/hooks/submit/useSubmitQueue'
+import { useWorkbenchSubmit } from '@/features/workbench/hooks/submit/useWorkbenchSubmit'
+import { useTargetReferences } from '@/features/workbench/hooks/target/useTargetReferences'
+import { useReviewOpinionLocate } from '@/features/workbench/hooks/review/useReviewOpinionLocate'
+import { useTimeRangeTarget } from '@/features/workbench/hooks/target/useTimeRangeTarget'
+import { useProjectRender } from '@/features/workbench/hooks/stage/useProjectRender'
+import { useUnsavedReplies } from '@/features/workbench/hooks/session/useUnsavedReplies'
+import { useVisualSelection } from '@/features/workbench/hooks/stage/useVisualSelection'
 import { useStageTimeRange } from '@/features/workbench/components/StageTimeRange'
 import { useWorkbenchReview } from '@/features/workbench/hooks/useWorkbenchReview'
-import { useWorkbenchExport } from '@/features/workbench/hooks/workbench/useWorkbenchExport'
+import { useWorkbenchExport } from '@/features/workbench/hooks/stage/useWorkbenchExport'
 import { useSceneVersions } from '@/features/workbench/hooks/useSceneVersions'
 import { useSessionDraft } from '@/features/chat/hooks/useDraftStore'
 import type { BriefSection } from '@/features/workbench/components/BriefDetailWorkspace'
@@ -122,7 +122,10 @@ export interface WorkbenchConsoleProps {
   workflowRunning: boolean
 }
 
-/** 从 Workbench.tsx 原样拆出的界面区块；props 与原处的变量同名。 */
+/**
+ * 工作台右栏：按页签在对话、版本、修改审阅、创作要求和执行记录之间切换内容，
+ * 场景编辑态下改为提示并提供返回对话的入口。
+ */
 export function WorkbenchConsole({ adjustPendingConfirm, boundSessionId, briefSection, cancelQueued, cancelTaskAndHold, chat, clearReferences, closeEdit, constraints, continueOpinion, currentProjectRef, currentSceneState, currentSession, defaultTarget, editMode, effectiveTarget, executionPhase, filmProject, focusChatKey, focusFeedback, getRoundOutcome, handleConfirmWholeProject, handleRetrySaveAllReplies, handleRetrySaveReply, locateReference, locateReviewOpinion, onNavigate, onSelectSession, openReview, openTaskRecords, pendingSubmits, projectId, projectName, projectRecords, projectSessions, projectTask, projectVersion, projectVersionNumber, projectWorkflows, range, realModifyBusy, realModifyError, realRenderBusy, references, remoteCreationBusy, removeReference, review, runQuickAction, sceneVersions, scope, scopeShort, selectSideTab, selectedTaskRecordId, sessionDraft, setBoundSessionId, setBriefSection, setCanvasView, setComparison, setComparisonAt, setConstraints, setEditMode, setLoopSpan, setNotice, setRealModifyError, setReferences, setResourcePickerOpen, setScope, setSelectedArtifactId, setSelectedTaskRecordId, setSelectedVisual, setSideTab, setTargetReference, setTrayOpen, setWorkbenchDraftText, showPreview, sideTab, sourceCreationBusy, stage, stageLead, startQueued, submit, targetEvaluation, taskReturnTab, threads, toggleReferenceRole, unsavedReplies, viewedPreview, workflowRunning }: WorkbenchConsoleProps) {
   return (
     <div className="open-workbench-conversation">

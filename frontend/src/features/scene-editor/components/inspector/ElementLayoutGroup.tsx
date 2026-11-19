@@ -1,5 +1,5 @@
 import { Group, NumberField } from '@/features/scene-editor/components/inspector/InspectorFields'
-import type { SceneDocument, ElementPatch } from '@/features/scene-editor/types'
+import type { SceneDocument, ElementPatch } from '@/features/scene-editor/model/types'
 
 export interface ElementLayoutGroupProps {
   document: SceneDocument
@@ -9,7 +9,7 @@ export interface ElementLayoutGroupProps {
   selected: string | null
 }
 
-/** 从 SceneInspector.tsx 原样拆出的界面区块；props 与原处的变量同名。 */
+/** 检查器中选中元素的「位置与外观」分组：偏移、缩放、旋转、不透明度、显隐，以及恢复元素原貌。 */
 export function ElementLayoutGroup({ document, onDocument, onPatch, patch, selected }: ElementLayoutGroupProps) {
   return (
     <Group title="位置与外观">

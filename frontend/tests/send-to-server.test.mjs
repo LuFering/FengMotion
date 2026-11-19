@@ -26,7 +26,7 @@ installBrowserGlobals()
 before(async () => {
   server = await startViteForModules()
   api = await server.ssrLoadModule('/src/api/index.ts')
-  ;({ useSendMessage } = await server.ssrLoadModule('/src/features/chat/hooks/conversation/useSendMessage.ts'))
+  ;({ useSendMessage } = await server.ssrLoadModule('/src/features/chat/hooks/reply/useSendMessage.ts'))
   drafts = await server.ssrLoadModule('/src/features/chat/hooks/useDraftStore.ts')
   roundOutcomes = await server.ssrLoadModule('/src/features/chat/model/roundOutcomes.ts')
 })

@@ -10,7 +10,7 @@
  * 后者能让布局不跳。形状按真实消息的排布来 —— 宽度错落、右侧留一个用户气泡位。
  */
 
-import './chat-skeleton.css'
+import '@/features/chat/styles/components/chat-skeleton.css'
 
 export function ChatSkeleton({ rows = 3 }: { rows?: number }) {
   return (

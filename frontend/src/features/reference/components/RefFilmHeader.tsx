@@ -1,6 +1,6 @@
 import { STATUS_META } from '@/features/reference/model/referenceLibrary'
 import { shortValue } from '@/features/reference/model/refBrowse'
-import { useCurrentSegment } from '@/features/reference/hooks/library/useCurrentSegment'
+import { useCurrentSegment } from '@/features/reference/hooks/useCurrentSegment'
 
 export interface RefFilmHeaderProps {
   current: ReturnType<typeof useCurrentSegment>['current']
@@ -10,7 +10,7 @@ export interface RefFilmHeaderProps {
   pendingCount: number
 }
 
-/** 从 RefLibrary.tsx 原样拆出的界面区块；props 与原处的变量同名。 */
+/** 参考片库当前视频的标题区：片名、简介，以及来源、片段序号与分析状态等元信息。 */
 export function RefFilmHeader({ current, film, filmSegments, hasSegment, pendingCount }: RefFilmHeaderProps) {
   return (
     <header className="rfc-head">

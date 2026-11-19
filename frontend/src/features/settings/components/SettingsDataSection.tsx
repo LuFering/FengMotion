@@ -21,7 +21,7 @@ export interface SettingsDataSectionProps {
   stats: { count: number; bytes: number } | null
 }
 
-/** 从 SettingsScreen.tsx 原样拆出的界面区块；props 与原处的变量同名。 */
+/** 设置页的数据分区：本机占用，设置的导出与导入，清除对话偏好、清空浏览器旧素材索引和恢复默认设置。 */
 export function SettingsDataSection({ backupInputRef, confirmWipe, notice, onChange, onPickBackup, onThemeChange, onWipeLibrary, setConfirmWipe, setNotice, setPrefs, settings, stats }: SettingsDataSectionProps) {
   return (
     <section className="set-sec">

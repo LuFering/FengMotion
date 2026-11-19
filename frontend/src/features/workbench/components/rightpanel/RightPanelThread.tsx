@@ -43,7 +43,10 @@ export interface RightPanelThreadProps {
   workbenchMeterWindow: number
 }
 
-/** 从 RightPanel.tsx 原样拆出的界面区块；props 与原处的变量同名。 */
+/**
+ * 工作台右栏的消息线程：历史加载中/失败/空会话三种状态，用户与 AI 消息及排队请求，
+ * 以及本轮结论、执行进度、回复补存、上下文占用和任务结果等随消息流出现的提示。
+ */
 export function RightPanelThread({ activeDone, activeLive, activeRecord, activeTask, cancelTask, currentSession, executionPhase, getRoundOutcome, isSessionLoading, latestEvent, messages, onCancelQueued, onClearRoundOutcome, onOpenTask, onResumeRequest, onRetryMessages, onRetrySaveAllReplies, onRetrySaveReply, onStartQueued, pending, projectId, realModifyBusy, records, unsavedReplies, workbenchMeterKinds, workbenchMeterWindow }: RightPanelThreadProps) {
   return (
     <div className="fw-scroll open-workbench-thread">

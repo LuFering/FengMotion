@@ -15,7 +15,10 @@ export interface UseDisplayedGraphArgs {
   workflow: WorkflowDef | null
 }
 
-/** 从 WorkflowEditor.tsx 的 EditorInner 原样搬出的一段状态与逻辑；参数与返回值和原处的变量同名。 */
+/**
+ * 工作流画布实际显示的节点与连线：Structured 聚焦某阶段时只显示该阶段，节点状态取正在跑或与当前版本匹配的上次运行，
+ * 并补画从看片指回创作的「返工」提示线（不写入图）。
+ */
 export function useDisplayedGraph({ activeStage, edges, lastRun, nodes, runMatches, running, workflow }: UseDisplayedGraphArgs) {
   const { displayedNodes, visibleEdges } = useMemo(() => {
     const structured = workflow?.path === 'structured'

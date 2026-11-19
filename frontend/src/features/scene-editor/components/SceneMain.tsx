@@ -1,10 +1,10 @@
 import type * as React from 'react'
 import { UiIcon, SemIcons } from '@/shared/icons/UiIcon'
-import { createNativeDocument } from '@/features/scene-editor/document'
-import { HtmlScenePreview } from '@/features/scene-editor/HtmlScenePreview'
-import { NativeScenePreview } from '@/features/scene-editor/NativeScenePreview'
+import { createNativeDocument } from '@/features/scene-editor/model/document'
+import { HtmlScenePreview } from '@/features/scene-editor/components/HtmlScenePreview'
+import { NativeScenePreview } from '@/features/scene-editor/components/NativeScenePreview'
 import { SceneTracks } from '@/features/scene-editor/components/SceneTracks'
-import type { SceneDocument, EditorLayer, HtmlElementInfo } from '@/features/scene-editor/types'
+import type { SceneDocument, EditorLayer, HtmlElementInfo } from '@/features/scene-editor/model/types'
 
 export interface SceneMainProps {
   busy: boolean
@@ -33,7 +33,7 @@ export interface SceneMainProps {
   trackDrag: React.RefObject<{ id: string; edge: 'start' | 'end'; trackLeft: number; trackWidth: number } | null>
 }
 
-/** 从 SceneEditorWorkspace.tsx 原样拆出的界面区块；props 与原处的变量同名。 */
+/** 场景编辑器的主区：顶栏切换、新建、导入场景与返回工作台，中间是场景预览、播放条和图层轨道。 */
 export function SceneMain({ busy, change, changeLayer, checkpoint, current, document, elements, endPlayback, importInput, load, locals, nativeDocs, onClose, persist, playing, projectId, selected, setElements, setPlaying, setSelected, setTime, sourceDocs, time, trackDrag }: SceneMainProps) {
   return (
     <div className="se-main">

@@ -1,5 +1,5 @@
 import { Group, NumberField } from '@/features/scene-editor/components/inspector/InspectorFields'
-import type { SceneDocument } from '@/features/scene-editor/types'
+import type { SceneDocument } from '@/features/scene-editor/model/types'
 
 export interface SceneSpecGroupProps {
   document: SceneDocument
@@ -7,7 +7,10 @@ export interface SceneSpecGroupProps {
   onDocument: (patch: Partial<SceneDocument>) => void
 }
 
-/** 从 SceneInspector.tsx 原样拆出的界面区块；props 与原处的变量同名。 */
+/**
+ * 检查器的「场景规格」分组：编辑场景名称和时长（改时长会把图层时间收进新时长内）。
+ * 原生场景可改画布尺寸、帧率和背景色；源工程场景只展示沿用的规格。
+ */
 export function SceneSpecGroup({ document, native, onDocument }: SceneSpecGroupProps) {
   return (
     <Group title="场景规格">

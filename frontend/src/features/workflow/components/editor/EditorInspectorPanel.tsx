@@ -33,7 +33,7 @@ export interface EditorInspectorPanelProps {
   updateParams: ReturnType<typeof useGraphEditing>['updateParams']
 }
 
-/** 从 WorkflowEditor.tsx 原样拆出的界面区块；props 与原处的变量同名。 */
+/** 工作流编辑器右侧检查器：选中节点时显示其设置、输入与输出并可单独运行，选中连线时显示连线设置；都没选中时隐藏。 */
 export function EditorInspectorPanel({ activeStage, doRunNode, edges, inspectorTab, isStructured, lastRun, latestRenderInfo, markDirty, nodes, runMatches, running, selectedEdge, selectedNode, setActiveStage, setEdges, setInspectorTab, setNodes, snapshot, updateParams }: EditorInspectorPanelProps) {
   return (
     <aside className="wfe-inspector" aria-label="检查器" hidden={!selectedNode && !selectedEdge}>

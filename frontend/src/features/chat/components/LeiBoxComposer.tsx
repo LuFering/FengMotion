@@ -16,7 +16,7 @@
 
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { HARNESSES } from '@/features/harness/model/harnesses'
-import '@/features/chat/components/leibox-composer.css'
+import '@/features/chat/styles/components/leibox-composer.css'
 import { type MountFn, writeComposerText } from '@/features/chat/components/leibox/leiboxEngine'
 import { useContextPopover } from '@/features/chat/components/leibox/useContextPopover'
 import { useLeiBoxMount } from '@/features/chat/components/leibox/useLeiBoxMount'

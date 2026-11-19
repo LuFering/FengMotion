@@ -1,5 +1,5 @@
 import { Group, NumberField } from '@/features/scene-editor/components/inspector/InspectorFields'
-import type { EditorLayer, SceneDocument } from '@/features/scene-editor/types'
+import type { EditorLayer, SceneDocument } from '@/features/scene-editor/model/types'
 
 export interface LayerTimingGroupProps {
   document: SceneDocument
@@ -7,7 +7,7 @@ export interface LayerTimingGroupProps {
   onLayer: (patch: Partial<EditorLayer>) => void
 }
 
-/** 从 SceneInspector.tsx 原样拆出的界面区块；props 与原处的变量同名。 */
+/** 检查器的「时间与动画」分组：编辑图层入点、出点，非音频图层还可设入退场动画，图片图层可设缓推倍率。 */
 export function LayerTimingGroup({ document, layer, onLayer }: LayerTimingGroupProps) {
   return (
     <Group title="时间与动画">

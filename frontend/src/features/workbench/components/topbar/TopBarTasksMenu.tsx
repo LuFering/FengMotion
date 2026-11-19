@@ -12,7 +12,7 @@ export interface TopBarTasksMenuProps {
   tasksMenuOpen: boolean
 }
 
-/** 从 WorkbenchTopBar.tsx 原样拆出的界面区块；props 与原处的变量同名。 */
+/** 工作台顶栏的任务菜单：图标上标出是否有任务在跑，展开显示当前渲染/生成任务的状态，并可打开完整任务面板。 */
 export function TopBarTasksMenu({ activeTaskSummary, isAnyMenuOpen, isTaskRunning, onOpenTasks, setTasksMenuOpen, tasksMenuOpen }: TopBarTasksMenuProps) {
   return (
     <DropdownMenu open={tasksMenuOpen} onOpenChange={setTasksMenuOpen}>

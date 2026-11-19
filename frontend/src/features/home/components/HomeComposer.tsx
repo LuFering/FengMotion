@@ -49,7 +49,7 @@ export interface HomeComposerProps {
   workdirs: Workdir[]
 }
 
-/** 从 Home.tsx 原样拆出的界面区块；props 与原处的变量同名。 */
+/** 首页的需求输入框：文字与附件输入、工作目录选择、执行引擎与模型设置、发送按钮及下方的状态提示。 */
 export function HomeComposer({ addFiles, attachments, currentPrefs, currentWorkdir, dirInputRef, draft, dragging, effectiveModel, fileRef, harness, harnessId, harnessPane, harnessState, harnessStateOf, imageRef, menu, modelsOfHarness, notReady, phrase, phraseChunks, probe, readyCount, removeAttachment, selectWorkdir, send, setDraft, setDragging, setHarnessId, setHarnessPane, setMenu, setModel, setPref, setWorkdirPath, startError, startIntent, starting, taRef, toast, videoRef, workdirPath, workdirs }: HomeComposerProps) {
   return (
     <div className="hf-sample">

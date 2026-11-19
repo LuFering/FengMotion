@@ -1,13 +1,13 @@
 import type * as React from 'react'
 import { Icon } from '@/features/reference/components/RefIcon'
-import { useRefImport } from '@/features/reference/hooks/library/useRefImport'
+import { useRefImport } from '@/features/reference/hooks/useRefImport'
 
 export interface RefEmptyLibraryProps {
   fileInputRef: React.RefObject<HTMLInputElement | null>
   onPickFiles: ReturnType<typeof useRefImport>['onPickFiles']
 }
 
-/** 从 RefLibrary.tsx 原样拆出的界面区块；props 与原处的变量同名。 */
+/** 参考片库还没有任何视频时的引导页，提供选择视频导入的入口。 */
 export function RefEmptyLibrary({ fileInputRef, onPickFiles }: RefEmptyLibraryProps) {
   return (
     <div className="rfc rfc-empty-state">

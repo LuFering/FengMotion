@@ -16,7 +16,7 @@ export interface UseSessionMessagesArgs {
   sessionsRef: React.RefObject<Session[]>
 }
 
-/** 从 useSessions.ts 的 useSessions 原样搬出的一段状态与逻辑；参数与返回值和原处的变量同名。 */
+/** 服务端会话的消息收发：读取历史消息写回会话，发送消息并在服务端保存后加入会话。 */
 export function useSessionMessages({ commitSessions, loadingMessages, messageRequests, mountedRef, sessionsRef }: UseSessionMessagesArgs) {
   /**
    * 读服务端消息历史（GET /chat-sessions/{id}/messages）。

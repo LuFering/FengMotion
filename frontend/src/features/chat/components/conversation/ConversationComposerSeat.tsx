@@ -45,7 +45,7 @@ export interface ConversationComposerSeatProps {
   submitting: boolean
 }
 
-/** 从 Conversation.tsx 原样拆出的界面区块；props 与原处的变量同名。 */
+/** 对话页底部的输入区：任务清单抽屉、发送目标胶囊、附件条、输入框与发送失败提示。 */
 export function ConversationComposerSeat({ activeIsServer, activeThread, addFiles, attachments, backendModels, composerContextUsage, composerHarnesses, composerMeterPanel, composerPromptTokens, effectiveModel, fileRef, imageRef, messages, onPickFiles, pending, projectPending, props, selectedHarness, sendError, sessionDraft, setAttachments, setHarnessId, setModel, setSendError, setThinking, stageLeadVersion, stopping, streamStopRef, submit, submitting }: ConversationComposerSeatProps) {
   return (
     <div className="cv3-seat">

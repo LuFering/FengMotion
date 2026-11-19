@@ -4,16 +4,16 @@ import { UiIcon, SemIcons } from '@/shared/icons/UiIcon'
 import { WorkbenchTimeline } from '@/features/workbench/components/WorkbenchTimeline'
 import { formatMediaTime } from '@/features/workbench/model/previewGeometry'
 import { duplicateClip } from '@/features/workbench/model/timelineEdit'
-import { useProjectRender } from '@/features/workbench/hooks/workbench/useProjectRender'
-import { useTimeRangeTarget } from '@/features/workbench/hooks/workbench/useTimeRangeTarget'
-import { useRegionSelect } from '@/features/workbench/hooks/workbench/useRegionSelect'
-import { useTargetReferences } from '@/features/workbench/hooks/workbench/useTargetReferences'
-import { useTimelineManifest } from '@/features/workbench/hooks/workbench/useTimelineManifest'
-import { useVisualSelection } from '@/features/workbench/hooks/workbench/useVisualSelection'
+import { useProjectRender } from '@/features/workbench/hooks/stage/useProjectRender'
+import { useTimeRangeTarget } from '@/features/workbench/hooks/target/useTimeRangeTarget'
+import { useRegionSelect } from '@/features/workbench/hooks/target/useRegionSelect'
+import { useTargetReferences } from '@/features/workbench/hooks/target/useTargetReferences'
+import { useTimelineManifest } from '@/features/workbench/hooks/target/useTimelineManifest'
+import { useVisualSelection } from '@/features/workbench/hooks/stage/useVisualSelection'
 import { useStageTimeRange } from '@/features/workbench/components/StageTimeRange'
 import { useWorkbenchReview } from '@/features/workbench/hooks/useWorkbenchReview'
-import { useWorkbenchSubmit } from '@/features/workbench/hooks/workbench/useWorkbenchSubmit'
-import { useRealModify } from '@/features/workbench/hooks/workbench/useRealModify'
+import { useWorkbenchSubmit } from '@/features/workbench/hooks/submit/useWorkbenchSubmit'
+import { useRealModify } from '@/features/workbench/hooks/submit/useRealModify'
 import type { BackendCapabilityInfo } from '@/features/workbench/services/workbenchCapabilityEvaluator'
 import type { SideTab } from '@/features/workbench/model/workbenchConsole'
 import type { TaskRecord } from '@/features/creation/hooks/useAgentTasks'
@@ -101,7 +101,10 @@ export interface WorkbenchMonitorProps {
   workflowRunning: boolean
 }
 
-/** 从 Workbench.tsx 原样拆出的界面区块；props 与原处的变量同名。 */
+/**
+ * 工作台中间的监看器：画面区，视频预览下方的时间线（片段与轨道操作转成待确认的修改请求），
+ * 以及提示、进行中任务和问题列表。
+ */
 export function WorkbenchMonitor({ agentReply, askFix, awaitingActive, backendCapability, chat, clearTimeRange, endRegion, expandedProblemId, filmProject, filmRenderError, focusFeedback, liveTask, locateProblem, loopSpan, manifestStatus, monitorProblems, moveRegion, notice, openEdit, openReview, overlayGuides, previewDuration, previewLocation, previewMediaRef, previewReady, previewSource, previewTime, projectTask, range, realModifyBusy, realRenderBusy, referenceTimeline, regionMode, regionRect, regionStart, remoteCreationBusy, retryBackendCapability, review, sceneFilmMeta, selectSideTab, selectTimeRange, selectedVisual, sequenceManifest, sequenceMovePending, setAgentReply, setBottomTab, setFilmRenderError, setFocusChatKey, setLoopSpan, setNotice, setPreviewDuration, setPreviewFailed, setPreviewReady, setPreviewTime, setRegionMode, setRegionRect, setSequenceMovePending, setTargetReference, setTrayOpen, setUsedResources, sourceCreationBusy, stage, stageLead, stageLive, stageRef, startRegion, submit, submitProjectRender, submitRealModify, timelineFps, timelineManifest, timelineOpsCapability, toggleProblem, trackClipCapability, usedResources, viewedPreview, workflowRunning }: WorkbenchMonitorProps) {
   return (
     <div className="fw-monitor">

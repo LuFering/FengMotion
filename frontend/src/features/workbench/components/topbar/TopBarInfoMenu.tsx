@@ -18,7 +18,7 @@ export interface TopBarInfoMenuProps {
   timelineFps: number
 }
 
-/** 从 WorkbenchTopBar.tsx 原样拆出的界面区块；props 与原处的变量同名。 */
+/** 工作台顶栏的项目信息菜单：列出项目时长、帧率和当前监看媒体的画幅、进度与版本，并可跳到制作要求。 */
 export function TopBarInfoMenu({ currentTime, currentVersionLabel, infoMenuOpen, isAnyMenuOpen, naturalHeight, naturalWidth, onOpenBrief, projectDuration, projectName, setInfoMenuOpen, timelineFps }: TopBarInfoMenuProps) {
   return (
     <DropdownMenu open={infoMenuOpen} onOpenChange={setInfoMenuOpen}>

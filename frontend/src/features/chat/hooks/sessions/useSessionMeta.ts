@@ -13,7 +13,7 @@ export interface UseSessionMetaArgs {
   setActiveId: React.Dispatch<React.SetStateAction<string | null>>
 }
 
-/** 从 useSessions.ts 的 useSessions 原样搬出的一段状态与逻辑；参数与返回值和原处的变量同名。 */
+/** 会话的元信息维护：改归属、重命名、采用引擎标题、置顶与归档，以及从服务端同步会话详情。 */
 export function useSessionMeta({ commitSessions, mountedRef, sessionsRef, setActiveId }: UseSessionMetaArgs) {
   /** 拖拽改归属：仅对本地草稿生效；服务端会话没有改归属端点，不允许伪装。 */
   const moveTo = useCallback((id: string, projectId: string | null) => {

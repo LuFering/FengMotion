@@ -19,7 +19,7 @@ export interface UseEditorEffectsArgs {
   wrapRef: React.RefObject<HTMLDivElement | null>
 }
 
-/** 从 WorkflowEditor.tsx 的 EditorInner 原样搬出的一段状态与逻辑；参数与返回值和原处的变量同名。 */
+/** 工作流编辑器的画布副作用：把门禁评估与泳道摘要注入节点、提供泳道折叠，首次载入与窗口变化时适配视图，窄屏时收起侧栏。 */
 export function useEditorEffects({ edges, flow, initial, initialFramed, markDirty, nodes, nodesInitialized, setNodes, setPanelOpen, snapshot, wrapRef }: UseEditorEffectsArgs) {
   /* Gate 评估与泳道摘要注入节点数据（Gate 口径与首页一致，来自服务层 evaluateGate） */
   useEffect(() => {

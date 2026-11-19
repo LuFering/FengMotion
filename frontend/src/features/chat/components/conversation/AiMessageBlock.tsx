@@ -27,7 +27,7 @@ export interface AiMessageBlockProps {
   send: (text: string) => void
 }
 
-/** 从 ConversationThread.tsx 原样拆出的界面区块；props 与原处的变量同名。 */
+/** 对话线程里的一条 AI 回复：过程区（思考、工具调用）、正文与提问表单、失败提示、操作条，以及文件改动和交付产物。 */
 export function AiMessageBlock({ activeThread, getRoundOutcome, m, messages, pending, props, replySaveRetry, retryLastRound, retrySaveReply, send }: AiMessageBlockProps) {
   return (
     <div className="cv3-ai-block" data-streaming={m.streaming || undefined}>

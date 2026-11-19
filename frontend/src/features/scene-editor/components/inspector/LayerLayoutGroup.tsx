@@ -1,12 +1,12 @@
 import { Group, NumberField } from '@/features/scene-editor/components/inspector/InspectorFields'
-import type { EditorLayer } from '@/features/scene-editor/types'
+import type { EditorLayer } from '@/features/scene-editor/model/types'
 
 export interface LayerLayoutGroupProps {
   layer: EditorLayer
   onLayer: (patch: Partial<EditorLayer>) => void
 }
 
-/** 从 SceneInspector.tsx 原样拆出的界面区块；props 与原处的变量同名。 */
+/** 检查器的「布局与外观」分组：编辑图层位置、尺寸、旋转、不透明度、变换原点和圆角，形状图层另有填充色。 */
 export function LayerLayoutGroup({ layer, onLayer }: LayerLayoutGroupProps) {
   return (
     <Group title="布局与外观">

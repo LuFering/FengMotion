@@ -21,7 +21,7 @@ import { useState } from 'react'
 import { UiIcon, SemIcons } from '@/shared/icons/UiIcon'
 import { File01 } from '@untitledui/icons'
 import type { FileChange } from '@/features/chat/model/fileChangesModel'
-import './file-changes.css'
+import '@/features/chat/styles/components/file-changes.css'
 
 /** 取文件名：列表里显示短的，完整路径进展开区。 */
 function baseName(p: string): string {

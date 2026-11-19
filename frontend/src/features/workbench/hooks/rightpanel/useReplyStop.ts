@@ -13,7 +13,7 @@ export interface UseReplyStopArgs {
   onNotice: ((message: string) => void) | undefined
 }
 
-/** 从 RightPanel.tsx 的 RightPanel 原样搬出的一段状态与逻辑；参数与返回值和原处的变量同名。 */
+/** 工作台右栏回复流的停止：判断停止键是否真能生效、跟踪停止请求，后端确认停止后撤掉半截回复并提示。 */
 export function useReplyStop({ chat, currentSession, engineeringBusy, onNotice }: UseReplyStopArgs) {
   /**
    * 两条独立的执行通道，必须分开判断，否则停止按钮会「能点但停不了」。

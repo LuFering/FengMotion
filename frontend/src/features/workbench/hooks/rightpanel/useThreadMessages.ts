@@ -15,7 +15,7 @@ export interface UseThreadMessagesArgs {
   projectId: string
 }
 
-/** 从 RightPanel.tsx 的 RightPanel 原样搬出的一段状态与逻辑；参数与返回值和原处的变量同名。 */
+/** 工作台右栏的消息线程（只合并本会话、本项目尚未落库的本地消息），以及左栏上下文构成卡的分档读数与窗口大小。 */
 export function useThreadMessages({ backendModels, chat, currentSession, effectiveModel, projectId }: UseThreadMessagesArgs) {
   const messages = useMemo(() => {
     if (!currentSession) {

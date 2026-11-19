@@ -44,7 +44,7 @@ export interface ConversationSidebarProps {
   viewMenu: boolean
 }
 
-/** 从 Conversation.tsx 原样拆出的界面区块；props 与原处的变量同名。 */
+/** 对话页左栏「项目与对话」：搜索、新建与视图选项，加载与错误提示，以及按项目分组的会话列表。 */
 export function ConversationSidebar({ archiveFilter, collapsedGroups, createProjectInline, dragId, drawer, dropTarget, editText, editing, groupMode, grouped, newSession, noMatches, orderMode, projectError, projectPending, props, query, rowMenu, setArchiveFilter, setArchivingProject, setCollapsedGroups, setDeleteConfirmText, setDeletingProject, setDragId, setDropTarget, setEditText, setEditing, setGroupMode, setOrderMode, setQuery, setRowMenu, setViewMenu, showProjectError, viewMenu }: ConversationSidebarProps) {
   return (
     <aside className="cv3-side" data-drawer={drawer || undefined} aria-label="项目与对话">

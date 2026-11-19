@@ -1,7 +1,7 @@
 import { Group } from '@/features/scene-editor/components/inspector/InspectorFields'
-import { KEYFRAME_PROPERTIES, makeKeyframe, type KeyframeProperty } from '@/features/scene-editor/keyframes'
+import { KEYFRAME_PROPERTIES, makeKeyframe, type KeyframeProperty } from '@/features/scene-editor/model/keyframes'
 import { UiIcon, SemIcons } from '@/shared/icons/UiIcon'
-import type { EditorLayer } from '@/features/scene-editor/types'
+import type { EditorLayer } from '@/features/scene-editor/model/types'
 
 export interface LayerKeyframeGroupProps {
   layer: EditorLayer
@@ -9,7 +9,7 @@ export interface LayerKeyframeGroupProps {
   playhead: number
 }
 
-/** 从 SceneInspector.tsx 原样拆出的界面区块；props 与原处的变量同名。 */
+/** 检查器的「属性关键帧」分组：列出图层已有关键帧并可删除，按属性在播放头处记录当前值。 */
 export function LayerKeyframeGroup({ layer, onLayer, playhead }: LayerKeyframeGroupProps) {
   return (
     <Group title="属性关键帧">

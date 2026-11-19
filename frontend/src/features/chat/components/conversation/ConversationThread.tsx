@@ -46,7 +46,7 @@ export interface ConversationThreadProps {
   userMessages: ChatMessage[]
 }
 
-/** 从 Conversation.tsx 原样拆出的界面区块；props 与原处的变量同名。 */
+/** 对话页的消息线程：历史读取与同步状态、空会话入口、消息列表、回复中的思考态，以及诊断、上下文占用和用量。 */
 export function ConversationThread({ activeIsServer, activeMessagesLoaded, activeThread, agentPhase, composerWindow, entryNote, getRoundOutcome, messageMeterKinds, messages, pending, pendingStartedAt, projectPending, props, replyNote, replySaveRetry, retryLastRound, retryMessages, retrySaveReply, retrySync, send, sessionDraft, setEntryNote, setReplyNote, showMessageMeter, startCreationFromEmpty, startServerReply, unfinishedReply, usage, userMessages }: ConversationThreadProps) {
   return (
     <div className="cv3-col">

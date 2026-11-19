@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { studioHttpApi } from '@/api'
-import './creation-progress.css'
+import '@/features/chat/styles/components/creation-progress.css'
 
 /** 实时预告属于运行中的创作任务，不当作最终回复保存。 */
 export function CreationProgress({ projectId, sessionId }: { projectId?: string | null; sessionId?: string | null }) {

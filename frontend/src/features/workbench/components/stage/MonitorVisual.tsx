@@ -61,7 +61,10 @@ export interface MonitorVisualProps {
   workflowRunning: WorkbenchMonitorProps['workflowRunning']
 }
 
-/** 从 WorkbenchMonitor.tsx 原样拆出的界面区块；props 与原处的变量同名。 */
+/**
+ * 监看器的画面区：播放选中的素材或当前查看的预览（含框选区域与辅助线），没有画面时显示开始制作的引导；
+ * 下方附带本次使用的资源、本轮说明、渲染失败和后端能力不足等提示。
+ */
 export function MonitorVisual({ agentReply, awaitingActive, backendCapability, chat, endRegion, filmProject, filmRenderError, focusFeedback, liveTask, loopSpan, moveRegion, notice, openEdit, openReview, overlayGuides, previewLocation, previewMediaRef, previewTime, projectTask, range, realModifyBusy, realRenderBusy, regionMode, regionRect, regionStart, remoteCreationBusy, retryBackendCapability, review, selectedVisual, setAgentReply, setBottomTab, setFilmRenderError, setNotice, setPreviewDuration, setPreviewFailed, setPreviewReady, setPreviewTime, setRegionMode, setRegionRect, setTrayOpen, setUsedResources, sourceCreationBusy, stage, stageLead, stageLive, stageRef, startRegion, submitProjectRender, submitRealModify, timelineFps, usedResources, viewedPreview, workflowRunning }: MonitorVisualProps) {
   return (
     <div className="fw-mon-visual">

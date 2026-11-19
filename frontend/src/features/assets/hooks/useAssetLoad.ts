@@ -1,0 +1,47 @@
+import type * as React from 'react'
+import { useEffect } from 'react'
+import { initLibrary, listAssets, listFolders, type FolderRow } from '@/features/assets/services/assetApiService'
+import { hasLegacyData } from '@/features/assets/services/assetIndexedDb'
+import { readAssetMigrationReport, type MigrationReport } from '@/features/assets/services/assetMigration'
+import type { MyAsset } from '@/features/assets/model/myAssets'
+
+export interface UseAssetLoadArgs {
+  loadVersion: number
+  setAssets: React.Dispatch<React.SetStateAction<MyAsset[]>>
+  setFolders: React.Dispatch<React.SetStateAction<FolderRow[]>>
+  setLegacyPending: React.Dispatch<React.SetStateAction<boolean>>
+  setLoadError: React.Dispatch<React.SetStateAction<boolean>>
+  setLoading: React.Dispatch<React.SetStateAction<boolean>>
+  setMigration: React.Dispatch<React.SetStateAction<MigrationReport | null>>
+}
+
+/** 我的素材的数据加载：读取素材与文件夹列表，同时检查是否有待迁移的旧版浏览器素材；loadVersion 变化时重新加载。 */
+export function useAssetLoad({ loadVersion, setAssets, setFolders, setLegacyPending, setLoadError, setLoading, setMigration }: UseAssetLoadArgs) {
+  // ── 加载 ──
+  useEffect(() => {
+    let alive = true
+    setLoading(true)
+    setLoadError(false)
+    ;(async () => {
+      try {
+        await initLibrary()
+        const [list, fl] = await Promise.all([listAssets(), listFolders()])
+        if (!alive) return
+        setAssets(list.sort((a, b) => b.createdAt - a.createdAt))
+        setFolders(fl)
+        setLoading(false)
+        // 检测旧库：有数据且尚未迁移过才提示。已经迁移过的不再打扰。
+        const [legacy, report] = await Promise.all([hasLegacyData(), readAssetMigrationReport()])
+        if (!alive) return
+        setMigration(report)
+        setLegacyPending(legacy && report?.phase !== 'migrated')
+      } catch {
+        if (!alive) return
+        setLoadError(true)
+        setLoading(false)
+      }
+    })()
+    return () => { alive = false }
+  }, [loadVersion])
+  return {  }
+}

@@ -27,7 +27,7 @@ export interface SessionGroupRowProps {
   showProjectError: (error: unknown) => void
 }
 
-/** 从 SessionGroup.tsx 原样拆出的界面区块；props 与原处的变量同名。 */
+/** 左栏分组的项目头一行：展开/切换项目、就地改名、项目操作菜单，以及在该项目下新建对话的入口。 */
 export function SessionGroupRow({ collapsed, dropTarget, editText, editing, g, isUng, newSession, proj, props, rowMenu, setArchivingProject, setCollapsedGroups, setDeleteConfirmText, setDeletingProject, setEditText, setEditing, setRowMenu, setViewMenu, showProjectError }: SessionGroupRowProps) {
   return (
     <div className="cv3-group-row">

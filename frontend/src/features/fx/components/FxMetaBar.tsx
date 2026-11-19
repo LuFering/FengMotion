@@ -40,7 +40,7 @@ export interface FxMetaBarProps {
   visible: FxTechnique[]
 }
 
-/** 从 FxLibrary.tsx 原样拆出的界面区块；props 与原处的变量同名。 */
+/** 技法库列表上方的工具栏：浏览范围、来源、搜索、筛选浮层与已生效的筛选标签、结果数和排序。 */
 export function FxMetaBar({ SCOPES, activeCount, cat, clearFilters, counts, exec, filtersOpen, impl, inputKind, maxComplexity, previewKind, query, scope, searchRef, searched, semanticNote, setCat, setExec, setFiltersOpen, setImpl, setInputKind, setMaxComplexity, setPreviewKind, setQuery, setScope, setSort, setSourceFilter, sort, sourceFilter, sources, visible }: FxMetaBarProps) {
   return (
     <div className="fx-meta">

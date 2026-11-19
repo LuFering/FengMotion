@@ -20,7 +20,7 @@ import { UiIcon, SemIcons } from '@/shared/icons/UiIcon'
 import { File01, ThumbsDown, ThumbsUp, VolumeMax, VolumeMin } from '@untitledui/icons'
 import { motion, useReducedMotion } from 'motion/react'
 import { MarkdownText } from './MarkdownText'
-import './chat-message.css'
+import '@/features/chat/styles/components/chat-message.css'
 
 export interface ChatMessageProps {
   role: 'user' | 'ai'

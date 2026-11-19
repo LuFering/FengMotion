@@ -31,7 +31,7 @@ export interface SessionGroupProps {
   showProjectError: (error: unknown) => void
 }
 
-/** 从 Conversation.tsx 原样拆出的界面区块；props 与原处的变量同名。 */
+/** 左栏的一个会话分组（某个项目、未分组或单列表）：项目头加会话列表，并接收把会话拖进该项目。 */
 export function SessionGroup({ collapsed, dragId, dropTarget, editText, editing, flat, g, isUng, newSession, proj, props, rowMenu, setArchivingProject, setCollapsedGroups, setDeleteConfirmText, setDeletingProject, setDragId, setDropTarget, setEditText, setEditing, setRowMenu, setViewMenu, showProjectError }: SessionGroupProps) {
   return (
     <div className="cv3-group" data-ungrouped={isUng && !flat || undefined}

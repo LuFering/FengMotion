@@ -12,7 +12,7 @@ export interface UseContextPopoverArgs {
   setCtxOpen: React.Dispatch<React.SetStateAction<boolean>>
 }
 
-/** 从 LeiBoxComposer.tsx 的 LeiBoxComposer 原样搬出的一段状态与逻辑；参数与返回值和原处的变量同名。 */
+/** 输入框上下文圆环的悬停卡片：控制悬停开合，并负责圆环与卡片之间的展开、收回形变动画。 */
 export function useContextPopover({ ctxClosing, ctxOpen, hoverTimer, popRef, ringRef, setCtxClosing, setCtxOpen }: UseContextPopoverArgs) {
   /* ── 悬停开合：官方 PreviewCard 的 delay 120 / closeDelay 150 ──────
      不是点击切换。点击在官方那里被 trigger-press 显式取消了。 */

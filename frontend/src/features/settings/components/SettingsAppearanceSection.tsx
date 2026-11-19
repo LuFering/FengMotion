@@ -17,7 +17,7 @@ export interface SettingsAppearanceSectionProps {
   wallPreview: (id: WallpaperId) => { dataWall: 'custom'; style: { backgroundImage: string } } | { dataWall: WallpaperId; style: undefined }
 }
 
-/** 从 SettingsScreen.tsx 原样拆出的界面区块；props 与原处的变量同名。 */
+/** 设置页的外观分区：主题选择，壁纸（含自定义图片、显示范围与遮罩强度），以及减弱动效开关。 */
 export function SettingsAppearanceSection({ onChange, onPickWallpaper, onThemeChange, set, settings, wallInputRef, wallPreview }: SettingsAppearanceSectionProps) {
   return (
     <section className="set-sec">

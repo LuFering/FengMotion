@@ -2,8 +2,8 @@ import type * as React from 'react'
 import { Icon } from '@/features/assets/components/AssetIcon'
 import { tagColor, type TreeEntry, type NodeId } from '@/features/assets/model/assetTree'
 import { formatBytes, type FolderRow } from '@/features/assets/services/assetApiService'
-import { useAssetActions } from '@/features/assets/hooks/library/useAssetActions'
-import { useAssetCollections } from '@/features/assets/hooks/library/useAssetCollections'
+import { useAssetActions } from '@/features/assets/hooks/useAssetActions'
+import { useAssetCollections } from '@/features/assets/hooks/useAssetCollections'
 
 export interface AssetsOrgPanelProps {
   addFolder: ReturnType<typeof useAssetActions>['addFolder']
@@ -20,7 +20,7 @@ export interface AssetsOrgPanelProps {
   tagList: ReturnType<typeof useAssetCollections>['tagList']
 }
 
-/** 从 Assets.tsx 原样拆出的界面区块；props 与原处的变量同名。 */
+/** 我的素材左侧的组织栏：按库、来源、项目、智能文件夹、文件夹和标签分组的导航，底部显示素材库总量。 */
 export function AssetsOrgPanel({ addFolder, coreNodes, counts, folders, node, projectNodes, renderNav, setNode, setOrgOpen, smartNodes, sourceNodes, tagList }: AssetsOrgPanelProps) {
   return (
     <aside className="mya-org" aria-label="素材组织">

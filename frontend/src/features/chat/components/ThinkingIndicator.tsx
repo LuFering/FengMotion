@@ -16,7 +16,7 @@
  */
 
 import { ThinkingOrb, type OrbState } from './thinking-orbs'
-import './thinking-indicator.css'
+import '@/features/chat/styles/components/thinking-indicator.css'
 
 export type ThinkingPhase = 'working' | 'searching' | 'solving' | 'connecting' | 'breathing'
 

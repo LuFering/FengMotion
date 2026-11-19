@@ -17,7 +17,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { UiIcon, SemIcons } from '@/shared/icons/UiIcon'
 import { ArrowUp, Square } from '@untitledui/icons'
 import { useSpringPress } from './useSpringPress'
-import './chat-composer.css'
+import '@/features/chat/styles/components/chat-composer.css'
 
 export interface ChatComposerProps {
   value: string

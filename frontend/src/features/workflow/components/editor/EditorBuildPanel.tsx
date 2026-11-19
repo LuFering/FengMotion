@@ -35,7 +35,7 @@ export interface EditorBuildPanelProps {
   workflowId: EditorInnerProps['workflowId']
 }
 
-/** 从 WorkflowEditor.tsx 原样拆出的界面区块；props 与原处的变量同名。 */
+/** 工作流编辑器左侧构建栏：流程大纲或制作阶段导航、可拖入画布的节点库，以及特效库与参考片库送来的待接入资源；侧栏收起时隐藏。 */
 export function EditorBuildPanel({ activeStage, addFxIntent, addNode, addRefSegment, focusRequest, focusStage, fxIntents, isStructured, leftTab, nodeQuery, nodes, panelOpen, refConsumed, refIds, setLeftTab, setNodeQuery, setNodes, setPanelOpen, targetForRefs, workflow, workflowId }: EditorBuildPanelProps) {
   return (
     <aside className="wfe-left" aria-label="构建栏" hidden={!panelOpen}>

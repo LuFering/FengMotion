@@ -26,7 +26,10 @@ export interface UseLeiBoxMountArgs {
   userInputRef: React.RefObject<(() => void) | undefined>
 }
 
-/** 从 LeiBoxComposer.tsx 的 LeiBoxComposer 原样搬出的一段状态与逻辑；参数与返回值和原处的变量同名。 */
+/**
+ * 挂载 LeiBox 官方输入框并适配到本页：传入引擎、模型与回调，压平演示舞台、同步主题与样式，
+ * 定位上下文圆环，桥接内部输入框与草稿；remountTick 变化时整体重建。
+ */
 export function useLeiBoxMount({ canStopRef, draftChangeRef, draftRef, flushRef, hostRef, hzRef, instanceRef, latestTextRef, modelCbRef, modelsRef, remountTick, selectedRef, setLocalEffort, setTextareaReady, stopRef, submitRef, textareaRef, thinkCbRef, userInputRef }: UseLeiBoxMountArgs) {
   useEffect(() => {
     let disposed = false

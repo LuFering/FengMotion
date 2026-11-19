@@ -22,7 +22,7 @@
  */
 import { useEffect, useRef, useState } from 'react'
 import { UiIcon, SemIcons } from '@/shared/icons/UiIcon'
-import './job-panel.css'
+import '@/features/chat/styles/components/job-panel.css'
 
 /** 一条任务在前端的形态（由流式帧维护）。 */
 export interface JobView {

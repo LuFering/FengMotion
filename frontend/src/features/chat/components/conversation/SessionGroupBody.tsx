@@ -25,7 +25,7 @@ export interface SessionGroupBodyProps {
   setViewMenu: React.Dispatch<React.SetStateAction<boolean>>
 }
 
-/** 从 SessionGroup.tsx 原样拆出的界面区块；props 与原处的变量同名。 */
+/** 左栏一个分组展开后的会话列表：每行可切换、拖动、就地重命名，并带置顶、归档、删除等行菜单。 */
 export function SessionGroupBody({ dragId, editText, editing, flat, g, isUng, proj, props, rowMenu, setDragId, setDropTarget, setEditText, setEditing, setRowMenu, setViewMenu }: SessionGroupBodyProps) {
   return (
     <div className="cv3-group-body">

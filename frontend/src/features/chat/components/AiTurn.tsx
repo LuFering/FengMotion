@@ -23,7 +23,7 @@
 
 import { useState, type ReactNode } from 'react'
 import { UiIcon, SemIcons } from '@/shared/icons/UiIcon'
-import './ai-turn.css'
+import '@/features/chat/styles/components/ai-turn.css'
 
 /* ── 思考折叠块 ────────────────────────────────────────────── */
 

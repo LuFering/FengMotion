@@ -18,7 +18,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import remarkBreaks from 'remark-breaks'
-import './markdown.css'
+import '@/features/chat/styles/components/markdown.css'
 
 /* ── shiki 单例 ──────────────────────────────────────────────
    高亮器很重（几百 KB），整个应用只该有一个实例，且只在真的出现代码块时

@@ -14,7 +14,7 @@ export interface UseSessionEditingArgs {
   setRemoveError: React.Dispatch<React.SetStateAction<string | null>>
 }
 
-/** 从 useSessions.ts 的 useSessions 原样搬出的一段状态与逻辑；参数与返回值和原处的变量同名。 */
+/** 会话的本地字段更新与删除；服务端会话等删除成功后才从列表移除。 */
 export function useSessionEditing({ commitSessions, mountedRef, sessionsRef, setActiveId, setRemoveError }: UseSessionEditingArgs) {
   const update = useCallback((id: string, patch: Partial<Omit<Session, 'id'>>) => {
     commitSessions((list) => list.map((s) => (s.id === id ? { ...s, ...patch, updatedAt: now() } : s)))

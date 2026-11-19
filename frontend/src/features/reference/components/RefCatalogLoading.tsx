@@ -1,6 +1,6 @@
 
 
-/** 从 RefLibrary.tsx 原样拆出的界面区块；props 与原处的变量同名。 */
+/** 参考片库首次加载期间的整页等待状态。 */
 export function RefCatalogLoading() {
   return (
     <div className="rfc rfc-empty-state">

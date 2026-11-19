@@ -22,7 +22,7 @@ export interface ModifySettingsPanelProps {
   sourceMode: boolean
 }
 
-/** 从 RightPanel.tsx 原样拆出的界面区块；props 与原处的变量同名。 */
+/** 右栏的「修改设置」页：选择修改作用范围、开关保留条件，提供快捷操作，并显示当前预览来源。 */
 export function ModifySettingsPanel({ constraints, onNavigate, onOpenReview, onQuickAction, onScopeChange, preview, scope, setConstraints, setSideTab, sourceMode }: ModifySettingsPanelProps) {
   return (
     <div className="fw-scroll">

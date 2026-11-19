@@ -22,7 +22,7 @@ export interface TopBarVersionMenuProps {
   viewedPreview: StageVisual | null
 }
 
-/** 从 WorkbenchTopBar.tsx 原样拆出的界面区块；props 与原处的变量同名。 */
+/** 工作台顶栏的版本菜单：显示正在查看的版本，展开后区分最新可下载与当前工程版本，可切换画面版本或打开完整版本历史。 */
 export function TopBarVersionMenu({ availableVisuals, currentVersionLabel, deliverableLead, hasVersion, isHistorical, isOlderThanKnown, onOpenVersionHistory, onSelectVisual, projectVersionAuthoritative, projectVersionNumber, projectVersionVisual, setVersionMenuOpen, versionMenuOpen, viewedPreview }: TopBarVersionMenuProps) {
   return (
     <DropdownMenu open={versionMenuOpen} onOpenChange={setVersionMenuOpen}>

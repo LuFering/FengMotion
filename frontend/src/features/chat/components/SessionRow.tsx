@@ -14,7 +14,7 @@
 import { useState, type ReactNode } from 'react'
 import { UiIcon, SemIcons } from '@/shared/icons/UiIcon'
 import { Pin01 } from '@untitledui/icons'
-import './session-row.css'
+import '@/features/chat/styles/components/session-row.css'
 
 export interface SessionRowProps {
   title: string

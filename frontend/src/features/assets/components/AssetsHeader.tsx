@@ -29,7 +29,7 @@ export interface AssetsHeaderProps {
   viewMode: 'grid' | 'list'
 }
 
-/** 从 Assets.tsx 原样拆出的界面区块；props 与原处的变量同名。 */
+/** 我的素材的标题行：搜索、视图切换、类型筛选与排序，以及选择素材、导入素材入口。 */
 export function AssetsHeader({ activeLabel, assets, clearFilter, counts, enterPick, inputRef, node, orgOpen, pickMode, pop, search, setOrgOpen, setPop, setSearch, setSortKey, setTypeFilter, setViewMode, sortKey, typeFilter, viewMode }: AssetsHeaderProps) {
   return (
     <PageHeader

@@ -21,7 +21,7 @@
 import { SpringDisclosure } from './SpringDisclosure'
 import { UiIcon, SemIcons } from '@/shared/icons/UiIcon'
 import { File01 } from '@untitledui/icons'
-import './composer-attachments.css'
+import '@/features/chat/styles/components/composer-attachments.css'
 
 /** 附件分类，对应两种视觉形态。 */
 export type ComposerAttachmentKind = 'image' | 'file'

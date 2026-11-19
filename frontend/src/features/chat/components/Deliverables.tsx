@@ -23,7 +23,7 @@
  * 中间文件不是一回事。所以这里只显示 present 的结果，不去扫文件系统 ——
  * 扫出来的东西没法区分「产物」和「临时文件」。
  */
-import './deliverables.css'
+import '@/features/chat/styles/components/deliverables.css'
 import { UiIcon } from '@/shared/icons/UiIcon'
 import { File01 } from '@untitledui/icons'
 

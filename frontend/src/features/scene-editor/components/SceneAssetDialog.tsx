@@ -3,7 +3,7 @@ import { UiIcon, SemIcons } from '@/shared/icons/UiIcon'
 import { importFiles, listAssets } from '@/features/assets/services/assetApiService'
 import { MusicNote01, ImagePlus } from '@untitledui/icons'
 import type { MyAsset } from '@/features/assets/model/myAssets'
-import type { LayerKind } from '@/features/scene-editor/types'
+import type { LayerKind } from '@/features/scene-editor/model/types'
 
 export interface SceneAssetDialogProps {
   assetSearch: string
@@ -17,7 +17,7 @@ export interface SceneAssetDialogProps {
   setMessage: React.Dispatch<React.SetStateAction<string>>
 }
 
-/** 从 SceneEditorWorkspace.tsx 原样拆出的界面区块；props 与原处的变量同名。 */
+/** 场景编辑器的素材选择对话框：按图层所需类型搜索素材库文件并绑定，也可导入本机文件后直接选用。 */
 export function SceneAssetDialog({ assetSearch, expectedKind, filteredAssets, input, pickAsset, setAssetPicker, setAssetSearch, setAssets, setMessage }: SceneAssetDialogProps) {
   return (
     <section className="se-asset-dialog" role="dialog" aria-modal="true" aria-label="选择真实素材">

@@ -22,7 +22,7 @@ export interface RefAnalysisPanelProps {
   toggleReference: (seg: ReferenceSegment) => void
 }
 
-/** 从 RefLibrary.tsx 原样拆出的界面区块；props 与原处的变量同名。 */
+/** 参考片库右侧的片段分析面板：各项分析值与来源、可复用结论、人工观察与建议、起止时间调整和删除。 */
 export function RefAnalysisPanel({ current, endDraft, inOutbox, observationDraft, removeSegment, reusable, saveSegmentEdits, segment, setEndDraft, setObservationDraft, setStartDraft, setSuggestionDraft, startDraft, suggestionDraft, toggleReference }: RefAnalysisPanelProps) {
   return (
     <aside className="rfc-panel" aria-label="片段分析">

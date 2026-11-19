@@ -3,7 +3,7 @@ import { useHarnessSelection, setHarnessSelection } from '@/features/harness/hoo
 import { useMemo } from 'react'
 import { HARNESSES } from '@/features/harness/model/harnesses'
 
-/** 从 RightPanel.tsx 的 RightPanel 原样搬出的一段状态与逻辑；参数与返回值和原处的变量同名。 */
+/** 工作台输入框的引擎选择：提供可选引擎及其模型列表、当前生效的模型，以及切换引擎、模型和推理强度的方法。 */
 export function useComposerEngine() {
   /* ── 输入框里的引擎 / 模型 / 推理强度 ──
      与对话界面同一套派生逻辑：模型列表以**后端目录**为准

@@ -21,7 +21,7 @@ export interface TimelineRulerProps {
   unavailable: boolean
 }
 
-/** 从 WorkbenchTimeline.tsx 原样拆出的界面区块；props 与原处的变量同名。 */
+/** 时间线的标尺行：刻度与播放头标记，点击、拖动或方向键定位播放位置；轨道未与当前版本确认时标出「参考」。 */
 export function TimelineRuler({ currentTime, frameFps, limit, minorTicks, onSeek, pct, playheadVisible, step, ticks, timeAt, tracks, tracksVerified, unavailable }: TimelineRulerProps) {
   return (
     <div className="wb-tl-grid wb-tl-ruler-row">

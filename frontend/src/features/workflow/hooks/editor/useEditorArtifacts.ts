@@ -31,7 +31,10 @@ export interface UseEditorArtifactsArgs {
   workflowId: EditorInnerProps['workflowId']
 }
 
-/** 从 WorkflowEditor.tsx 的 EditorInner 原样搬出的一段状态与逻辑；参数与返回值和原处的变量同名。 */
+/**
+ * 工作流编辑器的待接入资源与运行产物：把技法意向、参考片段接入画布节点，下载产物，继续、重试或交付已保存的项目运行；
+ * 并判断上次运行是否与当前版本匹配、给出最近一次的渲染信息。
+ */
 export function useEditorArtifacts({ addNode, dirty, lastRun, nodes, runHandle, running, setActiveRunLabel, setDrawerOpen, setDrawerTab, setLastRun, setLiveEvents, setNodes, setPendingTick, setRunNotice, setRunning, updateParams, workflow, workflowId }: UseEditorArtifactsArgs) {
   /* 待处理资源 */
   const addFxIntent = (intent: FxIntent) => {

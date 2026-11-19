@@ -34,7 +34,7 @@ export interface RefBrowseDialogProps {
   videos: ServerVideo[]
 }
 
-/** 从 RefLibrary.tsx 原样拆出的界面区块；props 与原处的变量同名。 */
+/** 参考片库的片库浮层：按标签页、搜索、筛选和排序浏览片段卡片，可选中播放、多选、拖拽或加入待发送。 */
 export function RefBrowseDialog({ addRefToPending, browseList, collId, filmOf, filters, pick, query, refInPending, segment, segments, selectSegment, setBrowseOpen, setCollId, setFilters, setQuery, setSortKey, setTab, sortKey, stashRefCard, stored, tab, videos }: RefBrowseDialogProps) {
   return (
     <div className="rfc-browse" role="dialog" aria-label="片库">

@@ -33,7 +33,7 @@ export interface TimelineHeadProps {
   zoom: number
 }
 
-/** 从 WorkbenchTimeline.tsx 原样拆出的界面区块；props 与原处的变量同名。 */
+/** 时间线的顶栏：时码读数、逐帧与选区起止标记，中间显示已选片段或选区（可引用给 AI、循环、清除），右侧是缩放控制。 */
 export function TimelineHead({ currentTime, frameFps, limit, looping, markBoundary, maxZoom, onClear, onClipReference, onToggleLoop, opsDisabledReason, picked, pickedTrack, setPickedId, setStart, setZoom, setZoomTo, span, stepFrame, trackClipCapability, tracksVerified, unavailable, zoom }: TimelineHeadProps) {
   return (
     <div className="wb-tl-head">

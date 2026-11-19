@@ -29,7 +29,7 @@ export interface SettingsAiSectionProps {
   stateOf: (id: string) => { state: HarnessAvailability; note: string | null }
 }
 
-/** 从 SettingsScreen.tsx 原样拆出的界面区块；props 与原处的变量同名。 */
+/** 设置页的 AI 引擎分区：已接入引擎的模型选择与默认引擎、待接入引擎说明、引擎检测与服务端点、默认思考强度和上下文上限。 */
 export function SettingsAiSection({ connectedHarnesses, curPrefs, modelsFor, onChange, pendingHarnesses, pickHarness, pickOpen, probe, set, setPickOpen, setPref, setShowInstall, settings, showInstall, stateOf }: SettingsAiSectionProps) {
   return (
     <section className="set-sec">

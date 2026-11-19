@@ -20,7 +20,7 @@ import { useMemo, useState } from 'react'
 import { UiIcon } from '@/shared/icons/UiIcon'
 import { Send01 } from '@untitledui/icons'
 import { formatFormAnswers as formatAnswersFor, type QuestionForm } from '@/features/chat/model/questionForm'
-import './question-form.css'
+import '@/features/chat/styles/components/question-form.css'
 
 /**
  * @param form       解析出的表单

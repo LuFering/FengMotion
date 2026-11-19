@@ -18,7 +18,7 @@ export interface UseSessionLoadingArgs {
   setLoadedProjects: React.Dispatch<React.SetStateAction<ReadonlySet<string>>>
 }
 
-/** 从 useSessions.ts 的 useSessions 原样搬出的一段状态与逻辑；参数与返回值和原处的变量同名。 */
+/** 按项目从服务端读取会话列表并与本页已有会话合并，提供刷新与出错后重读。 */
 export function useSessionLoading({ begin, commitSessions, end, loadedRef, loadingProjects, mountedRef, projectRequests, setError, setLoadedProjects }: UseSessionLoadingArgs) {
   /** 拉取某项目的全部会话（翻页直到 nextCursor 为空）。失败保留错误，不清空已有列表。 */
   const loadProject = useCallback(async (projectId: string) => {

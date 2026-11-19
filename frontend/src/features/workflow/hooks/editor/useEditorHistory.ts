@@ -21,7 +21,7 @@ export interface UseEditorHistoryArgs {
   workflow: WorkflowDef | null
 }
 
-/** 从 WorkflowEditor.tsx 的 EditorInner 原样搬出的一段状态与逻辑；参数与返回值和原处的变量同名。 */
+/** 工作流编辑器的快照与撤销重做：生成当前图的工作流快照，改动前压入撤销栈并标记未保存；另读取待接入的技法意向与参考片段。 */
 export function useEditorHistory({ edges, legacyDrafts, mapNodes, name, nodes, setDirty, setEdges, setHistoryVersion, setName, setNodes, setWorkflow, workflow }: UseEditorHistoryArgs) {
   const fxIntents = readJson<FxIntent[]>(FX_OUTBOX_KEY, [])
   const refIds = readJson<string[]>(REF_OUTBOX_KEY, [])

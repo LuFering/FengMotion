@@ -1,12 +1,12 @@
 import { Group, NumberField } from '@/features/scene-editor/components/inspector/InspectorFields'
-import type { EditorLayer } from '@/features/scene-editor/types'
+import type { EditorLayer } from '@/features/scene-editor/model/types'
 
 export interface LayerTextGroupProps {
   layer: EditorLayer
   onLayer: (patch: Partial<EditorLayer>) => void
 }
 
-/** 从 SceneInspector.tsx 原样拆出的界面区块；props 与原处的变量同名。 */
+/** 检查器的「文字」分组：编辑文字图层的内容、字号、字重、颜色和对齐方式。 */
 export function LayerTextGroup({ layer, onLayer }: LayerTextGroupProps) {
   return (
     <Group title="文字">

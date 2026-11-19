@@ -35,7 +35,10 @@ export interface UseEditorRunArgs {
   workflow: WorkflowDef | null
 }
 
-/** 从 WorkflowEditor.tsx 的 EditorInner 原样搬出的一段状态与逻辑；参数与返回值和原处的变量同名。 */
+/**
+ * 工作流编辑器的保存与运行：保存（含 Ctrl+S 与离开前提示）、整图运行与单节点运行，带 autoRun 进入时自动跑一次；
+ * 另检查项目原始需求文件的完整性，并清理旧版草稿字段。
+ */
 export function useEditorRun({ autoRun, dirty, legacyDrafts, markDirty, name, runHandle, running, setActiveRunLabel, setDirty, setDrawerOpen, setDrawerTab, setIntegrityWarn, setLastRun, setLegacyDrafts, setLiveEvents, setNodes, setRunNotice, setRunning, setViewing, setWorkflow, snapshot, workflow }: UseEditorRunArgs) {
   const doSave = useCallback(() => {
     if(documentsStatus().error){setRunNotice('本机记录尚有保存冲突，请先导出副本并重新核对。');return false}

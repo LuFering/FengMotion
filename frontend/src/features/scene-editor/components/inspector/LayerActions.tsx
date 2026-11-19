@@ -1,6 +1,6 @@
 import { UiIcon, SemIcons } from '@/shared/icons/UiIcon'
 import { EyeOff, Lock01, ArrowUp, ArrowDown } from '@untitledui/icons'
-import type { EditorLayer } from '@/features/scene-editor/types'
+import type { EditorLayer } from '@/features/scene-editor/model/types'
 
 export interface LayerActionsProps {
   layer: EditorLayer
@@ -10,7 +10,7 @@ export interface LayerActionsProps {
   onReorder: (direction: number) => void
 }
 
-/** 从 SceneInspector.tsx 原样拆出的界面区块；props 与原处的变量同名。 */
+/** 检查器中当前图层的操作按钮：显隐、锁定、复制、上下移动和删除。 */
 export function LayerActions({ layer, onDelete, onDuplicate, onLayer, onReorder }: LayerActionsProps) {
   return (
     <div className="se-layer-actions">

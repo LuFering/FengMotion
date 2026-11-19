@@ -8,7 +8,7 @@ export interface ComposeErrorBarProps {
   realModifyError: string
 }
 
-/** 从 RightPanel.tsx 原样拆出的界面区块；props 与原处的变量同名。 */
+/** 输入区的修改失败提示条：显示错误并可关闭；需要改为整片修改时额外给出「确认整片修改」。 */
 export function ComposeErrorBar({ adjustPendingConfirm, canConfirmWholeProject, onClearRealModifyError, onConfirmWholeProject, realModifyError }: ComposeErrorBarProps) {
   return (
     <div className="wb-compose-error flex items-center justify-between gap-2">

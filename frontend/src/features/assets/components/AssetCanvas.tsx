@@ -43,7 +43,7 @@ export interface AssetCanvasProps {
   visible: MyAsset[]
 }
 
-/** 从 Assets.tsx 原样拆出的界面区块；props 与原处的变量同名。 */
+/** 我的素材的主内容区：旧版素材迁移提示，以及加载/出错/空状态与素材的网格或列表（可多选、拖入或加入待发送）。 */
 export function AssetCanvas({ addToPending, assets, clearFilter, detailId, hoveredVideo, inputRef, legacyPending, loadError, loading, migrating, migration, migrationDone, node, onGridKeys, openDetail, pending, pickMode, runMigration, selected, setHoveredVideo, setLoadVersion, sortKey, thumbs, toggleFav, toggleSelect, typeFilter, viewMode, visible }: AssetCanvasProps) {
   return (
     <main className="mya-canvas">

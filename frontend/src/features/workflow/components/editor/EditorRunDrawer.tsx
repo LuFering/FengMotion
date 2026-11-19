@@ -32,7 +32,7 @@ export interface EditorRunDrawerProps {
   workflowId: EditorInnerProps['workflowId']
 }
 
-/** 从 WorkflowEditor.tsx 原样拆出的界面区块；props 与原处的变量同名。 */
+/** 工作流编辑器底部的执行日志抽屉（Structured 下为评估日志）：展示所选运行的事件、节点状态、产物与运行记录，产物可查看和下载。 */
 export function EditorRunDrawer({ artifactsToShow, dirty, downloadArtifact, downloading, drawerOpen, drawerTab, eventsToShow, isStructured, lastRun, nodes, runMatches, running, selectedRunCaption, setDrawerOpen, setDrawerTab, setLastRun, setLiveEvents, setViewing, viewing, workflowId }: EditorRunDrawerProps) {
   return (
     <div className="wfe-drawer" data-open={drawerOpen || undefined}>

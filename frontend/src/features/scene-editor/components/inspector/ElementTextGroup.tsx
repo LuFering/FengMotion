@@ -1,5 +1,5 @@
 import { Group, NumberField } from '@/features/scene-editor/components/inspector/InspectorFields'
-import type { HtmlElementInfo, ElementPatch } from '@/features/scene-editor/types'
+import type { HtmlElementInfo, ElementPatch } from '@/features/scene-editor/model/types'
 
 export interface ElementTextGroupProps {
   element: HtmlElementInfo
@@ -7,7 +7,7 @@ export interface ElementTextGroupProps {
   patch: ElementPatch
 }
 
-/** 从 SceneInspector.tsx 原样拆出的界面区块；props 与原处的变量同名。 */
+/** 检查器中选中元素的「文字」分组：修改文字内容、字号与颜色。 */
 export function ElementTextGroup({ element, onPatch, patch }: ElementTextGroupProps) {
   return (
     <Group title="文字">
