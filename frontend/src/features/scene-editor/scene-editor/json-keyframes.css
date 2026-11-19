@@ -1,0 +1,90 @@
+/* ── JSON 就地编辑 ──────────────────────────────────────────── */
+.se-json-toggle {
+  margin-left: 4px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--tx2);
+  padding: 3px 7px;
+  border-radius: 4px;
+  border: 1px solid var(--line);
+}
+.se-json-toggle[aria-expanded='true'] {
+  color: var(--acc-tx);
+  border-color: var(--acc);
+}
+.se-json-editor {
+  padding: 10px 16px 12px;
+  border-bottom: 1px solid var(--line);
+}
+.se-json-editor textarea {
+  width: 100%;
+  min-height: 220px;
+  resize: vertical;
+  padding: 10px;
+  border-radius: 6px;
+  border: 1px solid var(--line2);
+  background: var(--stage-bg);
+  color: var(--tx);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.6;
+}
+.se-json-error {
+  margin: 8px 0 0;
+  color: var(--warn);
+  font-size: 10.5px;
+}
+.se-json-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+/* ── 属性关键帧 ─────────────────────────────────────────────── */
+.se-keyframe-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin: 8px 0;
+}
+.se-keyframe-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--tx2);
+}
+.se-keyframe-row > span { flex: 1; }
+.se-keyframe-row small {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--tx3);
+}
+.se-keyframe-row button {
+  color: var(--tx3);
+  padding: 2px;
+  border-radius: 3px;
+}
+.se-keyframe-row button:hover { color: var(--bad); }
+.se-keyframe-add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 8px;
+}
+.se-keyframe-add button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  padding: 4px 7px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  color: var(--tx2);
+  white-space: nowrap;
+}
+.se-keyframe-add button:hover {
+  color: var(--acc-tx);
+  border-color: var(--acc);
+}

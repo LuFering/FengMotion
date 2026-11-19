@@ -1,0 +1,97 @@
+/* ── 8. 底部平移导航条（高 14px） ── */
+.wb-tl-pan {
+  position: relative;
+  flex: none;
+  height: 14px;
+  margin: 0 10px 0 calc(var(--wb-tl-gutter) + 10px);
+  background: transparent;
+  cursor: pointer;
+  touch-action: none;
+}
+
+.wb-tl-pan::before {
+  content: '';
+  position: absolute;
+  top: 5px;
+  bottom: 5px;
+  left: 0;
+  right: 0;
+  border-radius: 2px;
+  background: var(--line);
+}
+
+.wb-tl-pan-thumb {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  min-width: 16px;
+  border-radius: 3px;
+  background: var(--tx3);
+  opacity: 0.6;
+  cursor: grab;
+}
+
+.wb-tl-pan:hover .wb-tl-pan-thumb,
+.wb-tl-pan:focus-visible .wb-tl-pan-thumb {
+  opacity: 1;
+}
+
+.wb-tl-pan:active .wb-tl-pan-thumb {
+  cursor: grabbing;
+}
+
+.wb-tl-pan[data-disabled] {
+  display: none;
+}
+
+.wb-tl-empty {
+  padding: 14px;
+  color: var(--tx3);
+  font-size: 11px;
+}
+
+/* 焦点可见轮廓 */
+.wb-tl-icon:focus-visible,
+.wb-tl-ruler:focus-visible,
+.wb-tl-zoom-slider:focus-visible,
+.wb-tl-clip:focus-visible {
+  outline: 2px solid var(--acc);
+  outline-offset: 1px;
+}
+
+/* 响应式收拢 */
+@container (max-width: 700px) {
+  .wb-tl-head {
+    gap: 8px;
+    padding: 0 10px;
+  }
+  .wb-tl-head-left {
+    gap: 8px;
+  }
+  .wb-tl-focus-label {
+    display: none;
+  }
+}
+
+@container (max-width: 620px) {
+  .wb-tl {
+    --wb-tl-gutter: 118px;
+  }
+  .wb-tl-title,
+  .wb-tl-fps-label,
+  .wb-tl-focus-range {
+    display: none;
+  }
+}
+
+@container (max-width: 460px) {
+  .wb-tl {
+    --wb-tl-gutter: 96px;
+  }
+  .wb-tl-track-code {
+    display: none;
+  }
+  .wb-tl-zoom-slider {
+    width: 40px;
+  }
+}

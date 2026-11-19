@@ -1,0 +1,163 @@
+/* ── 行（引擎选择器弹层的行语言）──────────────────────────── */
+.set-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.set-rowbtn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color .14s;
+}
+.set-rowbtn:hover { background: var(--hole); }
+.set-rowbtn[data-on] { background: var(--soft); }
+.set-rowtxt {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.set-rowtxt b { font-size: 13px; font-weight: 600; }
+.set-rowtxt small { color: var(--dim); font-size: 11px; }
+.set-ck { flex: 0 0 auto; width: 14px; height: 14px; color: var(--acc); }
+
+/* 主题样片：30×20 三色带（各主题 bg / surf / acc 的设计常量） */
+.set-swatch {
+  display: flex;
+  flex: 0 0 30px;
+  width: 30px;
+  height: 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--fm-radius-thumb);
+  overflow: hidden;
+}
+.set-swatch i { flex: 1; }
+.set-swatch[data-theme="dark"] i:nth-child(1) { background: #000000; }
+.set-swatch[data-theme="dark"] i:nth-child(2) { background: #0d0d0f; }
+.set-swatch[data-theme="dark"] i:nth-child(3) { background: #3B8CF8; }
+.set-swatch[data-theme="light"] i:nth-child(1) { background: #e0e2e9; }
+.set-swatch[data-theme="light"] i:nth-child(2) { background: #fcfcfd; }
+.set-swatch[data-theme="light"] i:nth-child(3) { background: #2F6FE4; }
+.set-swatch[data-theme="tactile"] i:nth-child(1) { background: #e6e1d5; }
+.set-swatch[data-theme="tactile"] i:nth-child(2) { background: #eae6da; }
+.set-swatch[data-theme="tactile"] i:nth-child(3) { background: #f7c948; }
+
+/* 引擎行 */
+.set-hmark {
+  flex: 0 0 22px;
+  width: 22px;
+  height: 22px;
+  background-color: var(--h-color, var(--acc));
+  mask-position: center;
+  mask-size: contain;
+  mask-repeat: no-repeat;
+}
+.set-hstate {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-right: 2px;
+  color: var(--ph);
+  font-size: 11px;
+}
+.set-hstate i { width: 6px; height: 6px; border-radius: 999px; background: var(--ph); }
+.set-hstate[data-ready] { color: var(--ok); }
+.set-hstate[data-ready] i { background: var(--ok); }
+
+/* 模型行：cv3-hp-radio 的单选圆点 */
+.set-mrow code { font-size: 11.5px; }
+.set-radio {
+  flex: 0 0 auto;
+  width: 12px;
+  height: 12px;
+  border: 1.5px solid var(--line);
+  border-radius: 50%;
+  transition: border-color .14s, box-shadow .14s;
+}
+.set-mrow[data-on] .set-radio {
+  border-color: var(--acc);
+  box-shadow: inset 0 0 0 3px var(--acc);
+}
+
+/* ── 逐行设置项（端点 / 关于）：只靠间距，不画横线 ──────────── */
+.set-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 8px 2px;
+}
+.set-row-label { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.set-row-label b { font-size: 12.5px; font-weight: 600; }
+.set-row-label em { font-size: 11px; font-style: normal; color: var(--dim); line-height: 1.5; }
+.set-row-control {
+  flex: 0 1 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--fg);
+  text-align: right;
+}
+/* 端点输入用项目标准 Input（ui/input.tsx），这里只定宽度与等宽字 */
+.set-endpoint { width: 240px; font-family: ui-monospace, Consolas, monospace; font-size: 11.5px; }
+
+/* 数据分区的操作回执：一行说明字，不加底色不加框 */
+.set-notice {
+  margin: 8px 2px 0;
+  color: var(--dim);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+/* ── 减弱动效（设置 → 外观）：手动压平全局动画/过渡 ──────────
+   写法沿用 myassets.css 对 prefers-reduced-motion 的处理 */
+html[data-motion="reduce"] *,
+html[data-motion="reduce"] *::before,
+html[data-motion="reduce"] *::after {
+  animation-duration: .01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: .01ms !important;
+}
+
+/* 窄屏：端点行换列 */
+@media (max-width: 560px) {
+  .set-row { flex-direction: column; align-items: flex-start; gap: 6px; }
+  .set-row-control { text-align: left; }
+}
+
+/* ── 右栏内容宽度 ────────────────────────────────────────────
+   设置项是「左边标签 + 右边控件」的两端对齐行；行铺满整个内容宽度时，
+   视线要横穿 700px 才连得上标签和控件。内容收在 660px 内更紧凑，
+   竖向留白由 .set-row 的内边距给。 */
+.set-sec { max-width: 660px }
+/* 分段选择不能用 flex:1 平均分：文字一长（「仅我的创作」「时间码」）
+   就被压成两行，标签高度跟着参差。改成按内容宽度排，行内居中。 */
+.set-row-control .ch-tabs { flex: 0 0 auto; gap: 2px }
+.set-row-control .ch-tabs button {
+  flex: 0 0 auto;
+  padding: 6px 11px;
+  white-space: nowrap;
+  font-size: 12px;
+}
+/* 壁纸预览格子比通用行控件更宽，允许撑开 */
+.set-panel .set-walls { max-width: 100% }
+
+/* 主题行：名字要比左栏目录(12px)更醒目，否则「选项」看着像「目录」的子项 */
+.set-rowbtn .set-rowtxt b { font-size: 12.5px; font-weight: 600; }
+.set-rowbtn .set-rowtxt small { font-size: 11px; }
+/* 壁纸预览格子：浅色主题下白底/浅底格子会和弹窗底色糊在一起，补一圈内描边 */
+.set-wall-prev { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fg) 12%, transparent); }
+.set-wall[data-on] .set-wall-prev { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--acc) 30%, transparent); }

@@ -10,7 +10,7 @@ import { Icon } from '@/features/assets/components/AssetIcon'
 import { MEDIA_ICON, MEDIA_LABEL, SOURCE_LABEL, LICENSE_LABEL, REVIEW_LABEL, type MyAsset, type MediaType } from '@/features/assets/model/myAssets'
 import { formatDur, formatBytes } from '@/features/assets/services/assetApiService'
 import type { MigrationReport } from '@/features/assets/services/assetMigration'
-import type { NodeId } from '@/features/assets/Assets'
+import type { NodeId } from '@/features/assets/model/assetTree'
 
 export interface AssetCanvasProps {
   addToPending: (ids: string[]) => number

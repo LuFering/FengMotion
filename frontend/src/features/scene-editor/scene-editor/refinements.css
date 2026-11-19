@@ -1,0 +1,60 @@
+.se-title strong {
+  white-space: nowrap;
+}
+.se-title {
+  min-width: 130px;
+}
+@media (max-width: 1000px) {
+  #pane-flow .wb-a2[data-editor='true'] .wb-top-actions > *:not(.wb-remotion-entry) {
+    display: none;
+  }
+}
+@media (max-width: 760px) {
+  .se-header .se-title {
+    flex: 0 0 140px;
+    min-width: 140px;
+  }
+  .se-header > select {
+    flex: 1 1 160px;
+    max-width: none;
+  }
+  .se-header-action,
+  .se-header .se-exit,
+  .se-header > .se-icon {
+    order: 3;
+  }
+  .se-body {
+    grid-template-columns: minmax(0, 1fr) 240px;
+  }
+}
+
+/* 编辑态左栏窄：工具按钮保持单行文字，不出现「图\n片」这种竖排。 */
+#pane-flow .wb-a2 .open-workbench-layout[data-editor='true'] .se-tools button {
+  white-space: nowrap;
+  flex: none;
+}
+#pane-flow .wb-a2 .open-workbench-layout[data-editor='true'] .se-add-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+/* 轨道手柄：平时只露一条细边，指向轨道时才显形。
+   手柄必须盖在轨道条上、可聚焦，键盘也能用左右方向键微调。 */
+.se-track-range { overflow: visible; }
+.se-track-handle {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 8px;
+  z-index: 2;
+  cursor: ew-resize;
+  border-radius: 2px;
+  background: transparent;
+  transition: background-color 140ms ease;
+}
+.se-track-handle[data-edge='start'] { left: -4px; }
+.se-track-handle[data-edge='end'] { right: -4px; }
+.se-track-range:hover .se-track-handle,
+.se-track-handle:focus-visible { background: var(--acc); }
+.se-track-handle:focus-visible { outline: 2px solid var(--acc); outline-offset: 1px; }

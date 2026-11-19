@@ -1,0 +1,129 @@
+/* ── 素材库卡片上的「＋」与已添加状态 ─────────────────────────── */
+.mya-pending-btn {
+  position: absolute;
+  /* 卡片底部现在是文字浮层，按钮让到右上角、紧挨收藏星标 */
+  right: 42px;
+  top: 8px;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  background: color-mix(in srgb, var(--surf) 85%, transparent);
+  backdrop-filter: blur(6px);
+  color: var(--dim);
+  cursor: pointer;
+  opacity: 0;
+  transform: translateY(-3px);
+  transition: opacity .18s var(--eo), transform .18s var(--eo), color .18s var(--eo);
+}
+.mya-pending-btn .ui-icon { width: 14px; height: 14px; }
+.mya-card:hover .mya-pending-btn,
+.mya-pending-btn[data-added],
+.mya-pending-btn:focus-visible { opacity: 1; transform: translateY(0); }
+/* 已加入：常驻显示并点亮 —— 这是"已经在待发送里"的唯一标记，
+   不再另加一个大标签，免得素材库被标签淹没。 */
+.mya-pending-btn[data-added] { color: var(--acc); border-color: color-mix(in srgb, var(--acc) 55%, transparent); }
+.mya-card[data-pending] .mya-thumb { box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--acc) 45%, transparent); }
+
+/* 批量工具栏里的「加入待发送」：多选之后的主操作，用强调色 */
+.mya-batch-pending {
+  color: var(--acc) !important;
+  font-weight: 650;
+  border-color: color-mix(in srgb, var(--acc) 45%, transparent) !important;
+}
+.mya-batch-pending:hover { background: color-mix(in srgb, var(--acc) 12%, transparent) !important; }
+
+/* 检查器里的「加入待发送」 */
+.mya-actrow-use { margin-bottom: 6px; }
+.mya-use-btn { color: var(--acc) !important; }
+.mya-use-btn[data-added] { color: var(--ok, #2e7d32) !important; }
+
+/* ── 对话输入框里的附件：显示用途 ─────────────────────────────── */
+.cv3-attach-purpose {
+  flex: none;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--acc) 16%, transparent);
+  color: var(--acc-tx, var(--acc));
+  font-size: 9.5px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.cv3-attach-chip[data-from-pending] { background: color-mix(in srgb, var(--acc) 9%, var(--hole)); }
+
+/* ── 轻提示 ────────────────────────────────────────────────── */
+.fm-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 34px;
+  transform: translateX(-50%);
+  z-index: 200;
+  padding: 8px 15px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--fg) 88%, transparent);
+  color: var(--bg, #fff);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: var(--shadow-mid, 0 12px 30px rgb(0 0 0 / .3));
+  animation: fm-toast-in .18s ease both;
+  pointer-events: none;
+}
+@keyframes fm-toast-in { from { opacity: 0; transform: translate(-50%, 6px) } to { opacity: 1; transform: translate(-50%, 0) } }
+
+/* 触感主题：纸片语法（墨线 + 硬偏移），与工作台卡片一致 */
+html[data-theme="tactile"] .fmp { border: 2px solid #22231f; box-shadow: 4px 4px 0 #22231f; }
+html[data-theme="tactile"] .fmp-item,
+html[data-theme="tactile"] .fmp-x { border-color: #22231f; box-shadow: 2px 2px 0 #22231f; }
+html[data-theme="tactile"] .fmp-send { border-color: #22231f; box-shadow: 2px 2px 0 #22231f; }
+html[data-theme="tactile"] .hm-pending[data-over] { border-color: #22231f; background: rgba(34, 35, 31, .08); }
+
+
+/* ── 拖影：鼠标边那一小块缩略图 ─────────────────────────────────
+   默认拖影是元素自身快照（素材卡 292×330），举起来盖住落点。
+   这里缩到 56px，比指针大一圈，认得出是哪个素材又不挡路。
+   注意：这个元素由 JS 同步插进 body 供 setDragImage 截图，
+   所以必须"可见且已布局"，不能用 display:none 或 opacity:0。 */
+.fm-drag-ghost {
+  position: fixed;
+  left: -1000px;
+  top: -1000px;
+  z-index: 9999;
+  width: 56px;
+  height: 56px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 10px;
+  background: var(--hole, #151517);
+  border: 1px solid color-mix(in srgb, var(--acc) 55%, transparent);
+  box-shadow: 0 8px 20px rgb(0 0 0 / .35);
+  color: var(--fg, #ededed);
+  pointer-events: none;
+}
+.fm-drag-ghost img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.fm-drag-ghost-ph {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--dim, #c0bec8);
+  letter-spacing: -.02em;
+}
+.fm-drag-ghost[data-multi="true"] { box-shadow: 0 8px 20px rgb(0 0 0 / .35), 3px 3px 0 color-mix(in srgb, var(--acc) 60%, transparent); }
+.fm-drag-ghost-n {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 4px;
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+  background: var(--acc);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}

@@ -1,0 +1,158 @@
+/* ══ ChecklistDrawer ══════════════════════════════════════
+   停靠在输入框上方的任务清单抽屉。
+
+   配色沿用项目语义：普通态用 --line/--dim 的中性层，
+   全部完成才切到 --ok 绿 —— 这是项目里「完成」的既有含义，
+   不另造一套颜色。整块不含渐变、不含阴影，只靠表面灰阶分层，
+   与对话区其它过程块（任务列表、网页搜索）同一套语言。 */
+.chk-drawer {
+  --card: var(--surf);
+  --fill-slab: var(--surf);
+  --fill-on: var(--fg);
+  --ink: var(--fg);
+  --pane-edge: var(--line);
+  --signal: var(--acc);
+  --font-ui: var(--font-sans);
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surf);
+  font-family: var(--font-ui);
+  color: var(--fg);
+  overflow: hidden;
+}
+
+.chk-drawer-head {
+  position: relative;
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 6px;
+  /* 6px 而不是 8px：抽屉是常驻条，多出来的每一像素都在把输入框往下推。
+     正文区才是主角，这条只需读得清。 */
+  padding: 6px 10px;
+  border: 0;
+  background: none;
+  color: var(--dim);
+  font: inherit;
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+  transition: color 150ms ease;
+}
+.chk-drawer-head:hover { color: var(--fg); }
+.chk-drawer-head:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--acc);
+}
+
+/* caret 与对话区其它折叠标题一致：收起朝右、展开朝下 */
+.chk-drawer-caret {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform 200ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.chk-drawer[data-open] .chk-drawer-caret { transform: rotate(90deg); }
+
+.chk-drawer-title {
+  flex: none;
+  font-weight: 500;
+  color: var(--fg);
+}
+
+/* n/m 计数：等宽数字，避免 9/10 → 10/10 时宽度跳动 */
+.chk-drawer-count {
+  flex: none;
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--dim);
+}
+
+/* 收起时的当前步骤：单行截断，它是折叠态下唯一的过程线索 */
+.chk-drawer-now {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ph);
+}
+
+/* 进度条：压在头部底边，1.5px，不占布局高度 */
+.chk-drawer-bar {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 1.5px;
+  background: var(--line);
+}
+.chk-drawer-bar > i {
+  display: block;
+  height: 100%;
+  background: var(--acc);
+  transition: width 420ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* 全部完成：整块改用「完成」语义色。
+   不能只靠颜色 —— 标题同时变成「任务已完成」，见组件内文案。 */
+.chk-drawer[data-done] {
+  border-color: color-mix(in srgb, var(--ok) 40%, var(--line));
+}
+.chk-drawer[data-done] .chk-drawer-title { color: var(--ok); }
+.chk-drawer[data-done] .chk-drawer-bar > i { background: var(--ok); }
+
+/* ── 展开体 ─────────────────────────────────────────────────
+   用 grid 行高做展开动画，而不是 max-height 猜一个值：
+   max-height 要为一个「可能很长」的清单预留上限，短清单就会出现
+   展开后还剩一大段空白时间的问题。
+
+   ⚠️ 展开态必须用 auto 而不是 1fr：1fr 会让这一行参与「填满剩余空间」
+   的分配，行高被压到比内容矮，再叠加 overflow:hidden 就把最后一行
+   切掉了（实测 6 条时 scrollHeight 254 vs clientHeight 246，正好少一行）。
+   收起用 0fr、展开用 auto，动画同样成立，且内容永远不被裁。 */
+.chk-drawer-body {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.chk-drawer[data-open] .chk-drawer-body {
+  grid-template-rows: auto;
+}
+.chk-drawer-body[hidden] { display: none; }
+
+.chk-drawer-inner {
+  min-height: 0;
+  overflow: hidden;
+  /* 展开体左右 10、底部 6：与头部对齐，并让最后一行不贴着圆角 */
+  padding: 0 10px 6px;
+}
+
+/* 抽屉里的清单不再是一张卡片：它已经在抽屉这个表面上了，
+   再套一层底色会变成「卡片里的卡片」。 */
+.chk-drawer .chk.chk-auto {
+  width: 100%;
+  padding: 0;
+  background: none;
+  border: 0;
+}
+
+/* ── 紧凑行（抽屉内）───────────────────────────────────────
+   行高 30 由 JS 直接写在 style 上；这里只管字号与间距。
+   字号必须跟着缩：行高 30 配 14px 字会让文字贴边、
+   且与 30px 的行不成比例，读起来比原来更挤。 */
+.chk-say[data-compact] {
+  font-size: 13px;
+  line-height: 1.25;
+}
+
+/* 抽屉里的勾选框稍小一档，与外层 13px 的字同高 */
+.chk-drawer .chk-box {
+  box-shadow: inset 0 0 0 1.2px color-mix(in srgb, var(--fg) 26%, transparent);
+}

@@ -1,0 +1,91 @@
+/* ── 编辑态：和普通工作台同一套骨架 ──────────────────────────
+   普通工作台是「左栏控制台 + 右侧白卡片」。编辑态以前把整页换成一个卡片，
+   于是左栏消失、页签也回不去。这里让编辑器沿用同一骨架：
+   左列是控制台（标题与页签由工作台传入），右列是白卡片，卡内上方画面、下方轨道。 */
+/* 编辑态容器必须自己收敛高度：布局层是 grid，子项默认会被内容撑高，
+   编辑器内部又有「画面 + 轨道」两段，撑高后整块被窗口裁掉，底部就看不见了。
+   这里把它压回布局层高度，滚动交给左栏与轨道列表各自处理。 */
+#pane-flow .wb-a2.wb-studio .open-workbench-layout[data-editor='true'] .se-workspace {
+  grid-column: 1 / -1;
+  min-height: 0;
+  max-height: 100%;
+  overflow: hidden;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+}
+#pane-flow .wb-a2.wb-studio .open-workbench-layout[data-editor='true'] .se-body {
+  grid-template-columns: minmax(0, var(--open-chat-width, 460px)) minmax(0, 1fr);
+  gap: 0;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+}
+#pane-flow .wb-a2.wb-studio .open-workbench-layout[data-editor='true'] .se-console {
+  background: transparent;
+  border-right: 0;
+  padding: 0 16px 16px;
+  min-height: 0;
+  overflow-y: auto;
+}
+/* 右列就是那张白卡片：和普通工作台一致的圆角、留白与投影。 */
+#pane-flow .wb-a2.wb-studio .open-workbench-layout[data-editor='true'] .se-main {
+  margin: 0 16px 12px 0;
+  min-height: 0;
+  height: calc(100% - 12px);
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--surf);
+  box-shadow: 0 12px 40px rgb(20 22 40 / .12), 0 2px 8px rgb(20 22 40 / .06);
+}
+#pane-flow .wb-a2.wb-studio .open-workbench-layout[data-editor='true'] .se-header {
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+}
+
+/* The workbench card sits close to the window edge, leaving room for its shadow. */
+#pane-flow .wb-a2.wb-studio {
+  padding-right: 0;
+  padding-bottom: 0;
+}
+
+/* Video.js places three icons in the same button. Explicit, exclusive states
+   avoid the imported skin's layered cascade leaving the wrong icon visible. */
+#pane-flow .wb-videojs-skin .media-play-button .media-button-icon { opacity: 0; scale: 1; transition: none; }
+#pane-flow .wb-videojs-skin .media-play-button[data-ended] .media-play-button-restart-icon,
+#pane-flow .wb-videojs-skin .media-play-button[data-paused]:not([data-ended]) .media-play-button-play-icon,
+#pane-flow .wb-videojs-skin .media-play-button:not([data-paused]):not([data-ended]) .media-play-button-pause-icon { opacity: 1; }
+
+/* Icon-only review controls share the same target and rhythm as the player. */
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .wb-preview-review-button { justify-content: center; width: 36px; height: 36px; padding: 0; }
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-toolbar .wb-preview-tools-main button svg { width: 18px; height: 18px; stroke-width: 1.8; }
+
+/* Use the same Vidstack icon family inside the Video.js skin. The skin still
+   controls which state is shown; only the artwork is replaced. */
+.wb-videojs-skin :is(.media-play-button-play-icon, .media-play-button-pause-icon, .media-play-button-restart-icon, .media-mute-button-high-icon, .media-mute-button-low-icon, .media-mute-button-off-icon, .media-settings-menu-trigger-icon, .media-cast-button-enter-icon, .media-cast-button-exit-icon, .media-pip-button-enter-icon, .media-pip-button-exit-icon, .media-fullscreen-button-enter-icon, .media-fullscreen-button-exit-icon, .media-airplay-button-enter-icon, .media-airplay-button-exit-icon, .media-captions-button-on-icon, .media-captions-button-off-icon) {
+  background: currentColor;
+  mask-position: center; mask-size: contain; mask-repeat: no-repeat;
+  -webkit-mask-position: center; -webkit-mask-size: contain; -webkit-mask-repeat: no-repeat;
+}
+.wb-videojs-skin :is(.media-play-button-play-icon, .media-play-button-pause-icon, .media-play-button-restart-icon, .media-mute-button-high-icon, .media-mute-button-low-icon, .media-mute-button-off-icon, .media-settings-menu-trigger-icon, .media-cast-button-enter-icon, .media-cast-button-exit-icon, .media-pip-button-enter-icon, .media-pip-button-exit-icon, .media-fullscreen-button-enter-icon, .media-fullscreen-button-exit-icon, .media-airplay-button-enter-icon, .media-airplay-button-exit-icon, .media-captions-button-on-icon, .media-captions-button-off-icon) > * { opacity: 0; }
+.wb-videojs-skin .media-play-button-play-icon { mask-image: url('media-icons/raw/play.svg'); }
+.wb-videojs-skin .media-play-button-pause-icon { mask-image: url('media-icons/raw/pause.svg'); }
+.wb-videojs-skin .media-play-button-restart-icon { mask-image: url('media-icons/raw/replay.svg'); }
+.wb-videojs-skin .media-mute-button-high-icon { mask-image: url('media-icons/raw/volume-high.svg'); }
+.wb-videojs-skin .media-mute-button-low-icon { mask-image: url('media-icons/raw/volume-low.svg'); }
+.wb-videojs-skin .media-mute-button-off-icon { mask-image: url('media-icons/raw/mute.svg'); }
+.wb-videojs-skin .media-settings-menu-trigger-icon { mask-image: url('media-icons/raw/settings.svg'); }
+.wb-videojs-skin :is(.media-cast-button-enter-icon, .media-cast-button-exit-icon) { mask-image: url('media-icons/raw/chromecast.svg'); }
+.wb-videojs-skin .media-pip-button-enter-icon { mask-image: url('media-icons/raw/picture-in-picture.svg'); }
+.wb-videojs-skin .media-pip-button-exit-icon { mask-image: url('media-icons/raw/picture-in-picture-exit.svg'); }
+.wb-videojs-skin .media-fullscreen-button-enter-icon { mask-image: url('media-icons/raw/fullscreen.svg'); }
+.wb-videojs-skin .media-fullscreen-button-exit-icon { mask-image: url('media-icons/raw/fullscreen-exit.svg'); }
+.wb-videojs-skin :is(.media-airplay-button-enter-icon, .media-airplay-button-exit-icon) { mask-image: url('media-icons/raw/airplay.svg'); }
+.wb-videojs-skin .media-captions-button-on-icon { mask-image: url('media-icons/raw/closed-captions-on.svg'); }
+.wb-videojs-skin .media-captions-button-off-icon { mask-image: url('media-icons/raw/closed-captions.svg'); }
+
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .wb-player-time,
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .wb-videojs-skin {
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
+}

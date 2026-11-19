@@ -1,0 +1,149 @@
+/* 触感主题：硬边/硬阴影 */
+html[data-theme="tactile"] .hf-composer { border: 3px solid var(--hf-line2); border-radius: 26px; }
+html[data-theme="tactile"] .hf-composer:focus-within { border-color: var(--hf-line2); box-shadow: var(--hf-shadow-focus); }
+html[data-theme="tactile"] .hf-ibtn { border: 2px solid var(--hf-line2); background: var(--hf-raised); color: var(--hf-tx); box-shadow: 0 3px 0 var(--hf-line2); }
+html[data-theme="tactile"] .hf-ibtn:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--hf-line2); }
+html[data-theme="tactile"] .hf-modechip { border: 2px solid var(--hf-line2); background: var(--hf-acc); color: var(--hf-tx); box-shadow: 0 3px 0 var(--hf-line2); }
+html[data-theme="tactile"] .hf-harness { border: 2px solid var(--hf-line2); background: var(--hf-raised); color: var(--hf-tx); }
+html[data-theme="tactile"] .hf-harness-pop { border: 2.5px solid var(--hf-line2); box-shadow: 6px 6px 0 rgba(34, 35, 31, .85); }
+html[data-theme="tactile"] .hf-hp-drawer { border: 1.5px solid var(--hf-line2); background: var(--hf-raised); }
+html[data-theme="tactile"] .hf-hp-seg { border: 1.5px solid var(--hf-line2); }
+html[data-theme="tactile"] .hf-hp-seg button.on { box-shadow: 2px 2px 0 rgba(34, 35, 31, .5); }
+html[data-theme="tactile"] .hf-hp-logo { opacity: .95; }
+html[data-theme="tactile"] .hf-send { border: 2.5px solid var(--hf-line2); box-shadow: 0 4px 0 #000; }
+html[data-theme="tactile"] .hf-menu { border: 2.5px solid var(--hf-line2); box-shadow: 6px 6px 0 rgba(34,35,31,.85); }
+
+@media (max-width: 1100px) {
+  .hf-media { display: flex; min-height: 0; padding: 92px 24px 20px; }
+  .hf-sample { width: min(560px, 92%); }
+  .hf-hero { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+  .hf-copy { padding: 24px 32px 48px; }
+}
+
+/* 主题底必须覆盖 hero/media 的写死黑底 */
+.hf-hero, .hf-media { background: var(--hf-bg); }
+
+/* 触感主题：印章圆环与文字统一为深金/墨色，不再出现蓝圈 */
+html[data-theme="tactile"] .hf-seal { color: #7A5B00; }
+html[data-theme="tactile"] .hf-seal circle { stroke: currentColor; }
+
+/* 左右两块向中轴靠近：左侧右移，右侧左移 */
+.hf-sample { transform: translateX(40px); }
+.hf-copy { transform: translate(24px, 68px); }
+@media (max-width: 1400px) {
+  .hf-sample { transform: translateX(16px); }
+  .hf-copy { transform: translate(8px, 28px); }
+}
+@media (max-width: 1100px) {
+  .hf-sample { transform: none; }
+  .hf-copy { transform: none; }
+}
+
+.hf-wd-list button.is-sel > i { opacity: 1; }
+
+/* 工作目录取代原型 chip：只显示中文名，不放路径 */
+.hf-workdir-chip { max-width: 150px; }
+.hf-workdir-chip .hf-folder { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.hf-workdir-chip > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* 工作目录菜单：列表区最长 4 项，超出滚动；底部固定「添加工作目录…」 */
+.hf-workdir-menu { width: 216px; padding-bottom: 4px; }
+.hf-wd-list {
+  max-height: 152px;            /* 4 行 × 36px + 缝隙 */
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+.hf-wd-list button {
+  gap: 9px;
+  min-height: 36px;
+  padding: 7px 10px;
+}
+.hf-wd-list button > span:first-of-type {
+  flex: 1; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.hf-wd-folder {
+  width: 15px; height: 15px; flex: 0 0 15px;
+  fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
+  color: var(--hf-tx2, var(--hf-tx));
+}
+.hf-wd-sep { height: 1px; margin: 5px 6px; background: var(--hf-line2); opacity: .7; }
+.hf-wd-add {
+  gap: 9px;
+  min-height: 36px;
+  padding: 7px 10px;
+  color: var(--hf-tx2, var(--hf-tx));
+}
+.hf-wd-add:hover { background: var(--hf-panel2); }
+.hf-wd-plus {
+  width: 14px; height: 14px; flex: 0 0 14px;
+  fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round;
+}
+
+/* 雾现：空输入时提示短语从 blur 中显现、停留、散开 */
+.hf-ta { position: relative; }
+.hf-ph {
+  position: absolute;
+  top: 16px;
+  left: 18px;
+  right: 18px;
+  overflow: hidden;
+  pointer-events: none;
+  white-space: nowrap;
+  color: var(--hf-tx3);
+  font: 15.5px/1.55 var(--hf-sans);
+}
+.hf-ph > span {
+  display: inline-block;
+  opacity: 0;
+  filter: blur(9px);
+  transform: translateY(5px);
+  animation: hf-mist 4.2s cubic-bezier(.23,1,.32,1) both;
+}
+@keyframes hf-mist {
+  0%   { opacity: 0; filter: blur(9px); transform: translateY(5px); }
+  9%   { opacity: 1; filter: blur(0);   transform: none; }
+  55%  { opacity: 1; filter: blur(0);   transform: none; }
+  70%  { opacity: 0; filter: blur(7px); transform: translateY(-1px); }
+  100% { opacity: 0; filter: blur(7px); transform: translateY(-1px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hf-ph > span { animation: none; opacity: 1; filter: none; transform: none; }
+  .hf-ph > span:not(:first-child) { display: none; }
+}
+
+/* 多行输入：随内容向下增长，到上限后内部滚动 */
+.hf-composer textarea {
+  height: auto;
+  min-height: 58px;
+  max-height: 172px;
+  overflow-y: auto;
+  transition: height .16s ease-out;
+}
+/* 工作目录菜单改为向下展开 */
+.hf-menu {
+  top: calc(100% + 9px);
+  bottom: auto;
+  transform-origin: top left;
+}
+
+/* 输入框单向向下生长：固定顶部锚点，不再随高度上下居中 */
+/* 左侧模块：水平位置不动，改为垂直居中（原来按 43vh 顶部锚定，实际偏低 51px） */
+@media (min-width: 1101px) {
+  .hf-media {
+    align-items: center;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+}
+
+/* 隐藏 textarea 的浏览器原生滚动条（保留滚动能力） */
+.hf-composer textarea {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.hf-composer textarea::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}

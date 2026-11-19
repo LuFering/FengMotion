@@ -4,7 +4,7 @@ import { Icon } from '@/features/assets/components/AssetIcon'
 import { SearchField } from '@/shared/components/SearchField'
 import { MEDIA_LABEL, MEDIA_ICON, type MyAsset, type MediaType } from '@/features/assets/model/myAssets'
 import { TYPE_IDS, SORT_LABEL, type SortKey } from '@/features/assets/model/assetDisplay'
-import type { NodeId } from '@/features/assets/Assets'
+import type { NodeId } from '@/features/assets/model/assetTree'
 
 export interface AssetsHeaderProps {
   activeLabel: string

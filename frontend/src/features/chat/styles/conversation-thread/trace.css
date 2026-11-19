@@ -1,0 +1,74 @@
+/* 轨迹时间线：时间 | 圆点 | 内容，只列本会话真实事件 */
+.cv3-timeline {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cv3-tl {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.cv3-tl-time {
+  flex: none;
+  width: 44px;
+  color: var(--tx3);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.cv3-tl-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--tx3);
+  transform: translateY(-1px);
+}
+
+.cv3-tl-tool .cv3-tl-dot,
+.cv3-tl-plan .cv3-tl-dot,
+.cv3-tl-launch .cv3-tl-dot {
+  background: var(--acc);
+}
+
+.cv3-tl-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.cv3-tl-body b {
+  color: var(--tx1);
+}
+
+.cv3-tl-body span {
+  color: var(--tx3);
+  line-height: 20px;
+  overflow-wrap: anywhere;
+}
+
+.cv3-trace-empty {
+  padding: 32px 0;
+  text-align: center;
+}
+
+.cv3-trace-empty b {
+  font-size: 13px;
+}
+
+.cv3-trace-empty p {
+  margin: 8px 0 0;
+  color: var(--tx3);
+  font-size: 13px;
+  line-height: 20px;
+}

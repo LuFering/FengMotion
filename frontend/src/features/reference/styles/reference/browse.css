@@ -1,0 +1,145 @@
+/* ── 片库覆层 ───────────────────────────────────────────── */
+.rfc-browse {
+  position: absolute; inset: 14px; z-index: 8;
+  display: flex; flex-direction: column; overflow: hidden;
+  background: color-mix(in srgb, var(--panel2) 94%, transparent);
+  border: 1px solid var(--line2); border-radius: var(--r-panel);
+  backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+  box-shadow: var(--shadow-float);
+  animation: rfc-panel-in 0.25s var(--eo);
+}
+.rfc-browse-head { display: flex; align-items: center; gap: 14px; padding: 14px 16px 10px; }
+.rfc-tabs { display: flex; gap: 4px; background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 3px; }
+.rfc-tab { padding: 5px 14px; border-radius: 999px; color: var(--tx2); font-weight: 600; }
+.rfc-tab:hover { color: var(--tx); }
+.rfc-tab.is-on { background: var(--acc); color: var(--acc-ink); }
+.rfc-browse-count { color: var(--tx3); }
+.rfc-browse-head .rfc-gbtn { margin-left: auto; background: var(--panel); border-color: var(--line2); color: var(--tx); backdrop-filter: none; }
+.rfc-browse-tools { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; padding: 2px 16px 12px; border-bottom: 1px solid var(--line); }
+.rfc-search {
+  flex: 1; min-width: 210px; display: flex; align-items: center; gap: 8px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-ctl); padding: 7px 12px; color: var(--tx3);
+}
+.rfc-search input { flex: 1; background: none; border: 0; outline: 0; color: var(--tx); min-width: 0; }
+.rfc-selfield { display: inline-flex; align-items: center; gap: 7px; color: var(--tx3); font-size: 12.5px; }
+.rfc-selfield select {
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-ctl);
+  padding: 6px 8px; color: var(--tx); max-width: 170px;
+}
+.rfc-collchips { display: flex; gap: 7px; align-items: center; flex-wrap: wrap; padding: 12px 16px 0; }
+.rfc-chip {
+  padding: 5px 13px; border-radius: 999px; font-weight: 600;
+  background: var(--panel); border: 1px solid var(--line); color: var(--tx2);
+}
+.rfc-chip:hover { color: var(--tx); }
+.rfc-chip.is-on { background: var(--sel); border-color: var(--acc); color: var(--tx); }
+.rfc-collnote { color: var(--tx3); font-size: 12.5px; }
+.rfc-grid {
+  overflow-y: auto; padding: 14px 16px 18px;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(228px, 1fr));
+  /* 覆层是定高 flex 子项，auto 行会被均分拉伸导致卡片正文被裁——行高按内容取 */
+  grid-auto-rows: min-content;
+  gap: 12px; align-content: start;
+}
+.rfc-card {
+  /* 与素材库 .mya-card 同一套：整张卡就是画面，文字浮在画面上，
+     不再是「上面图片 + 下面信息栏」两段。 */
+  position: relative;
+  display: block;
+  text-align: left; padding: 0; width: 100%; min-width: 0;
+  aspect-ratio: 16 / 9;
+  background: var(--panel2); border: 1px solid var(--line);
+  border-radius: var(--r-card); overflow: hidden;
+  transition: border-color 0.15s var(--eo);
+  /* 外层从 <button> 改成 <div role=button> 后，手型光标要自己给回来，
+     否则用户根本看不出这张卡能点。 */
+  cursor: pointer;
+  user-select: none;
+}
+.rfc-card:hover { border-color: var(--line2); }
+.rfc-card:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
+/* 选中态：JSX 现在用 data-on（旧的 .is-on 已不再设置） */
+.rfc-card[data-on] { border-color: var(--acc); box-shadow: 0 0 0 1px var(--acc); }
+/* 卡片内的图片必须不可拖 —— 否则从图上起手拖出来的是"一张图片"，
+   不是这张卡片，待发送那边收不到 ID。这正是之前拖拽失效的原因。 */
+.rfc-card-thumb img { -webkit-user-drag: none; user-drag: none; pointer-events: none; }
+.rfc-card-thumb {
+  /* 铺满整卡（卡片已定 16:9，这里不再自己定义比例） */
+  position: absolute; inset: 0; display: block;
+  background: var(--stage-bg);
+  overflow: hidden;
+}
+.rfc-card-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+/* 序号 / 时间码：底部是文字浮层，所以让到左上；
+   右上留给 ＋ 与收藏星标（和素材库一致）。
+   时间码紧跟序号，避免与右上两枚按钮抢位。 */
+.rfc-card-idx, .rfc-card-tc {
+  position: absolute; top: 8px; padding: 1px 7px; border-radius: 6px;
+  background: var(--media-scrim); color: #fff; font-size: 11px;
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.rfc-card-idx { left: 8px; }
+.rfc-card-tc { left: 36px; }
+.rfc-card-fav { position: absolute; top: 7px; right: 7px; color: var(--warn); background: var(--media-scrim); border-radius: 6px; padding: 3px 5px; display: inline-flex; }
+/* 文字浮层：贴底、深色渐变压画面，保证任何图上都读得清。
+   与素材库 .mya-card-body 同一套做法（固定深色，不跟主题走）。 */
+.rfc-card-body {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  display: block;
+  padding: 24px 10px 8px;
+  background: linear-gradient(to top,
+    rgb(6 7 9 / .86) 0%,
+    rgb(6 7 9 / .60) 42%,
+    rgb(6 7 9 / 0) 100%);
+  pointer-events: none;
+}
+.rfc-card-t {
+  display: block; font-weight: 600; font-size: 12.5px;
+  color: #f7f8fa; line-height: 1.3;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  text-shadow: 0 1px 2px rgb(0 0 0 / .5);
+}
+.rfc-card-m {
+  display: block; color: rgb(255 255 255 / .68); font-size: 11px;
+  line-height: 1.35; margin-top: 1px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+/* 状态与时长原本占一行，浮层里塞不下三层 —— 合成一行，靠右对齐 */
+.rfc-card-f {
+  display: flex; align-items: center; gap: 6px; margin-top: 4px;
+  color: rgb(255 255 255 / .62); font-size: 10.5px;
+}
+.rfc-card-f .rfc-pill {
+  background: rgb(8 9 11 / .55); border-color: rgb(255 255 255 / .18);
+  color: #f0f2f6; backdrop-filter: none; padding: 0 6px; font-size: 10px;
+}
+.rfc-card-f > span:last-child { margin-left: auto; font-variant-numeric: tabular-nums; }
+.rfc-card-f .rfc-pill { background: var(--chip-bg); border-color: var(--line); color: var(--tx2); backdrop-filter: none; padding: 1px 8px; font-size: 11.5px; }
+.rfc-empty { grid-column: 1 / -1; text-align: center; color: var(--tx3); padding: 56px 0; }
+
+/* ── 吐司 ───────────────────────────────────────────────── */
+.rfc-toast {
+  position: absolute; left: 50%; bottom: 196px; transform: translateX(-50%); z-index: 9;
+  background: var(--panel-glass); border: 1px solid var(--panel-line);
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  color: var(--tx); padding: 9px 17px; border-radius: 10px; font-size: 13px;
+  box-shadow: var(--shadow-mid);
+  animation: rfc-panel-in 0.25s var(--eo);
+  white-space: nowrap;
+}
+
+/* ── 窄窗：分析面板改贴底，片名区收窄 ───────────────────── */
+@media (max-width: 900px) {
+  .rfc-head { max-width: 76vw; padding: 16px; }
+  .rfc-title { font-size: 21px; }
+  .rfc-actions { top: 16px; right: 16px; }
+  .rfc-panel { left: 12px; right: 12px; top: auto; bottom: 188px; width: auto; max-height: 44%; }
+  .rfc-nav { display: none; }
+  .rfc-transport-hint { display: none; }
+  .rfc-browse { inset: 8px; }
+}
+
+/* ── 影院态控件闲置淡出（.is-idle 由组件在 3 秒无活动后挂上） ── */
+.rfc-head, .rfc-actions, .rfc-nav { transition: opacity 0.35s ease; }
+.rfc.is-idle .rfc-head, .rfc.is-idle .rfc-actions, .rfc.is-idle .rfc-nav { opacity: 0; pointer-events: none; }
+.rfc.is-idle .rfc-stage { cursor: none; }

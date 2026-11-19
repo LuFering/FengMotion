@@ -1,0 +1,163 @@
+/* ═══════════════════════════════════════════════════════
+   参考片库 · 影院形态（2026-10-23 选型定版）
+
+   画面铺满内容区，片单 / 片段段 / 分析以玻璃覆层浮在画面上，无分栏；
+   库功能（搜索 / 筛选 / 收藏 / 最近 / 集合 / 排序）收进「片库」覆层。
+   单位是片段（一段连续时间范围），与项目去除「镜头」后的口径一致。
+
+   令牌沿用三库 A2 深黑 token（与原参考页同一套变量名），JSX 内不出现
+   十六进制色值；覆层玻璃的深色是影院形态的固定值，不随壳主题变。
+   ═══════════════════════════════════════════════════════ */
+
+/* 参考片库全幅挂载：舞台吃满内容区，只影响包含 .rfc 的页面 */
+#pane-reference:has(.rfc) {
+  height: 100dvh;
+  min-height: 0 !important;
+  max-height: 100dvh;
+  margin-left: var(--hm-sidebar, 68px) !important;
+  padding: 0 !important;
+  overflow: hidden;
+}
+#pane-reference .hm-content:has(.rfc) {
+  height: 100%;
+  min-height: 0;
+  margin: 0 !important;
+  padding: 0 !important;
+  max-width: none !important;
+  overflow: hidden;
+}
+body:has(#pane-reference .rfc) {
+  overflow: hidden;
+}
+
+.rfc {
+  /* A2 深黑 token —— 与三库同一套 */
+  --bg: radial-gradient(1100px 520px at 50% 18%, #0b0d12 0%, #000000 62%);
+  --panel: #16171d;
+  --panel2: #101116;
+  --raised: #23242d;
+  --line: rgba(255, 255, 255, 0.06);
+  --line2: #34353f;
+  --tx: #edeef3;
+  --tx2: #a4a7b1;
+  --tx3: #62646e;
+  --acc: #3B8CF8;
+  --acc-ink: #ffffff;
+  --acc-tx: #8AB4FF;
+  --sel: rgba(59, 140, 248, 0.16);
+  --hover: rgba(255, 255, 255, 0.04);
+  --ok: #4caf7d;
+  --warn: #f5b83d;
+  --scrim: rgba(5, 5, 8, 0.42);
+  --media-scrim: rgba(5, 5, 8, 0.58);
+  /* 画面底：与素材库 --stage-bg 同值。参考片库原本没有这个 token，
+     缩略图 var(--stage-bg) 取不到值 → 透明，图片未加载时会露出卡片底色。 */
+  --stage-bg: #0a0b0e;
+  --r-pill: var(--fm-radius-pill);
+  --shadow-mid: 0 12px 32px rgba(0, 0, 0, 0.3);
+  --shadow-float: 0 32px 80px rgba(0, 0, 0, 0.5);
+  --r-panel: var(--fm-radius-panel);
+  --r-ctl: var(--fm-radius-ctl);
+  --r-card: var(--fm-radius-card);
+  --eo: cubic-bezier(0.23, 1, 0.32, 1);
+
+  /* 画面之上的走带层恒为影院深色玻璃（片名/片单/片段段/走带，在照片上不随主题） */
+  --glass: rgba(10, 13, 18, 0.58);
+  --glass-deep: rgba(11, 14, 19, 0.86);
+  --glass-line: rgba(255, 255, 255, 0.15);
+  --ink: #eef1f6;
+  --ink-dim: rgba(238, 241, 246, 0.62);
+
+  /* 界面层（分析面板 / 片库覆层 / 吐司）跟随壳主题，由下方主题块覆写 */
+  --panel-glass: rgba(11, 14, 19, 0.86);
+  --panel-line: rgba(255, 255, 255, 0.15);
+  --chip-bg: rgba(255, 255, 255, 0.07);
+  --dash: rgba(255, 255, 255, 0.055);
+  --conf-track: rgba(255, 255, 255, 0.10);
+  --tag-bg: rgba(255, 255, 255, 0.06);
+  --seg-fill: rgba(59, 140, 248, 0.5);
+
+  position: relative;
+  flex: 1;
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+  background: #000;
+  color: var(--tx);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── 浅白主题：界面层换浅色 token（与素材库浅色根同值），走带层保持深色玻璃 ── */
+html[data-theme='light'] .rfc {
+  --panel: #fcfcfd;
+  --stage-bg: #d7d9e0;
+  --panel2: #eef0f4;
+  --raised: #ffffff;
+  --line: rgba(25, 25, 50, 0.06);
+  --line2: #cdcdd6;
+  --tx: #191a20;
+  --tx2: #5b5e66;
+  --tx3: #94969e;
+  --acc: #2F6FE4;
+  --acc-ink: #ffffff;
+  --acc-tx: #1E5BBF;
+  --sel: rgba(47, 111, 228, 0.10);
+  --hover: rgba(25, 25, 50, 0.035);
+  --ok: #3d9166;
+  --warn: #b97f16;
+  --shadow-mid: 0 12px 30px rgba(30, 30, 60, 0.12);
+  --shadow-float: 0 32px 80px rgba(30, 30, 60, 0.28);
+  --panel-glass: rgba(252, 252, 253, 0.94);
+  --panel-line: rgba(25, 25, 50, 0.12);
+  --chip-bg: rgba(25, 25, 50, 0.05);
+  --dash: rgba(25, 25, 50, 0.08);
+  --conf-track: rgba(25, 25, 50, 0.10);
+  --tag-bg: rgba(25, 25, 50, 0.05);
+  --seg-fill: rgba(47, 111, 228, 0.45);
+}
+
+/* ── 触感主题：纸色 + 硬阴影 + 黄强调（与素材库触感根同值） ── */
+html[data-theme='tactile'] .rfc {
+  --panel: #eae6da;
+  --stage-bg: #b9bfa4;
+  --panel2: #ddd8c9;
+  --raised: #f4f1e8;
+  --line: rgba(34, 35, 31, 0.16);
+  --line2: #22231f;
+  --tx: #22231f;
+  --tx2: #55534a;
+  --tx3: #8a8676;
+  --acc: #f7c948;
+  --acc-ink: #22231f;
+  --acc-tx: #7a5b00;
+  --sel: rgba(247, 201, 72, 0.40);
+  --hover: rgba(34, 35, 31, 0.05);
+  --ok: #2e7d32;
+  --warn: #8a5a00;
+  --r-panel: 20px;
+  --shadow-mid: 5px 5px 0 #22231f;
+  --shadow-float: 8px 8px 0 #22231f;
+  --panel-glass: rgba(244, 241, 232, 0.97);
+  --panel-line: #22231f;
+  --chip-bg: rgba(34, 35, 31, 0.06);
+  --dash: rgba(34, 35, 31, 0.14);
+  --conf-track: rgba(34, 35, 31, 0.14);
+  --tag-bg: rgba(34, 35, 31, 0.06);
+  --seg-fill: rgba(247, 201, 72, 0.55);
+}
+
+.rfc *,
+.rfc *::before,
+.rfc *::after { box-sizing: border-box; }
+.rfc button,
+.rfc input,
+.rfc select { font: inherit; color: inherit; }
+.rfc button { cursor: pointer; background: none; border: 0; }
+.rfc .ui-icon { width: 14px; height: 14px; flex: none; }
+.rfc .num { font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace; font-variant-numeric: tabular-nums; }
+.rfc-spacer { flex: 1; }

@@ -11,7 +11,7 @@ import { UiIcon, SemIcons } from '@/shared/icons/UiIcon'
 import { Star01 } from '@untitledui/icons'
 import { categoryLabel, execLabel } from '@/features/fx/model/fxFilters'
 import type { FxTechnique } from '@/features/fx/model/fxTechniques'
-import type { FxLibState, Scope } from '@/features/fx/FxLibrary'
+import type { FxLibState, Scope } from '@/features/fx/model/fxLibraryStore'
 import type { PickMode } from '@/shared/pick-mode/usePickMode'
 
 export interface FxContentProps {

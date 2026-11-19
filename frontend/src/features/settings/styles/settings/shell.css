@@ -1,0 +1,155 @@
+/* ═══════════════════════════════════════════════════════════════
+   设置 —— 大窗弹窗（shadcn Dialog，双栏：分区导航 + 内容面板）。
+
+   视觉沿用项目范式（不另造一套）：
+   · 窗体 = shadcn Dialog + 岛面板圆角（--fm-radius-panel）；
+   · 内部分层全靠灰阶递进（--hole / --soft），不画分隔线
+     （CLAUDE.md：表面靠灰阶递进，不靠边线和阴影）；
+   · 分区导航 = hm-nav 的 pill 项（选中 soft 底 + acc 字）；
+   · 行 = 引擎选择器弹层的行（透明底 / hover hole / 选中 soft + 勾）；
+   · 单选圆点 = cv3-hp-radio（选中 acc 内嵌 3px）；
+   · 输入 = 项目标准 Input（ui/input.tsx）；
+   · 标题 = pj-bar 的 13px/600。
+   颜色全走壳层 token；唯一硬编码：主题样片色带（各主题设计常量，
+   与 brand.css 的 token 值一致，样片不能跟随当前主题）。
+   ═══════════════════════════════════════════════════════════════ */
+
+.set-dlg {
+  display: flex;
+  flex-direction: column;
+  width: min(920px, calc(100vw - 48px));
+  height: min(640px, calc(100vh - 48px));
+  max-width: none;
+  padding: 0;
+  gap: 0;
+  overflow: hidden;
+  background: var(--surf);
+  border-radius: var(--fm-radius-panel);
+  box-shadow: 0 24px 64px rgb(0 0 0 / .35);
+}
+.set-dlg-head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  /* 高度由 24px 标题自然撑出（12px 上下内边距），不写死 */
+  padding: 12px 44px 12px 20px;
+  /* 头与内容靠灰阶递进分层，不画横线（CLAUDE.md：表面靠灰阶递进，不靠边线） */
+  background: var(--hole);
+}
+.set-dlg-title {
+  margin: 0;
+  /* 弹窗标题不该用页面主标题字阶（24px）：设置是工具面板，
+     标题一大就把左栏和正文全压成「小字」。这里用 15px/600，
+     与视图内 .t-title 同级，弹窗体感是「工具窗」而不是「页面」。 */
+  font-size: 15px;
+  line-height: 22px;
+  font-weight: 600;
+  letter-spacing: .01em;
+  color: var(--fg);
+}
+.set-dlg-body {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+/* ── 左：分区导航（hm-nav 的 pill 项）──────────────────────── */
+.set-nav {
+  position: relative;
+  flex: 0 0 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 14px 10px;
+}
+/* 左右两栏之间的柔和竖线：两端渐隐、低透明度，不是 1px 硬边 */
+.set-nav::after {
+  content: "";
+  position: absolute;
+  top: 14px;
+  bottom: 14px;
+  right: 0;
+  width: 1px;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    color-mix(in srgb, var(--fg) 14%, transparent) 16%,
+    color-mix(in srgb, var(--fg) 14%, transparent) 84%,
+    transparent
+  );
+}
+.set-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  /* 两行导航（主标题 + 灰字副标题），高度由内容撑出 */
+  min-height: 44px;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 14px;
+  background: none;
+  color: var(--dim);
+  font: inherit;
+  /* 左栏是目录，不是正文：主标题 12px、副标题 10.5px，选中时才加重 */
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color .15s, color .15s;
+}
+.set-nav-item:hover { background: color-mix(in srgb, var(--fg) 6%, transparent); color: var(--fg); }
+.set-nav-item[data-on] { background: var(--soft); color: var(--acc); font-weight: 600; letter-spacing: .01em; }
+.set-nav-item .ui-icon { width: 16px; height: 16px; flex: 0 0 16px; }
+/* 主标题 / 副标题：和 open-design 的 nav-item 一样是 strong + small 两行 */
+.set-nav-txt {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  line-height: 1.25;
+}
+.set-nav-txt b { font-size: 12px; font-weight: 550; color: inherit; }
+.set-nav-txt small {
+  font-size: 10.5px;
+  font-weight: 400;
+  color: var(--ph);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.set-nav-item[data-on] .set-nav-txt b { font-weight: 600; }
+.set-nav-item[data-on] .set-nav-txt small { color: color-mix(in srgb, var(--acc) 62%, var(--ph)); }
+
+/* ── 右：内容面板 ─────────────────────────────────────────── */
+.set-panel {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  padding: 14px 22px 18px;
+  scrollbar-width: none;
+  scrollbar-color: var(--line) transparent;
+}
+.set-sec-head {
+  margin: 0 0 4px;
+  /* 分区标题：比正文(12.5px)略大且更重，视线先落这里 */
+  font-size: 13px;
+  line-height: 20px;
+  font-weight: 650;
+  letter-spacing: .01em;
+  color: var(--fg);
+}
+.set-subhead {
+  margin: 20px 0 4px;
+  /* 子标题：和分区标题拉开一档，用字重而不是字号区分 */
+  font-size: 12px;
+  line-height: 18px;
+  font-weight: 600;
+  letter-spacing: .02em;
+  color: var(--fg);
+}
+.set-hint {
+  margin: 3px 0 8px;
+  color: var(--dim);
+  font-size: 11px;
+  line-height: 1.6;
+}

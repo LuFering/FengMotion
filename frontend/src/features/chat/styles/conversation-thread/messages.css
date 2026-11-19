@@ -1,0 +1,144 @@
+/* ---- 滚动区 + 粘性输入席（dsh ConversationRoot body） ---- */
+.cv3-scroll {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.cv3-view {
+  flex: 1 0 auto;
+  min-width: 0;
+  padding: 24px 32px 32px;
+}
+
+.cv3-col {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: min(920px, max(680px, 64%), calc(100% - 32px));
+  min-width: 0;
+  margin: 0 auto;
+}
+
+.cv3-col > * {
+  margin-top: 4px;
+}
+
+.cv3-col > :first-child {
+  margin-top: 0;
+}
+
+.cv3-col > .cv3-user,
+.cv3-col > .cv3-ai-block,
+.cv3-col > .cv3-pending {
+  margin-top: 24px;
+}
+
+.cv3-col > .cv3-user:first-child,
+.cv3-col > .cv3-ai-block:first-child {
+  margin-top: 0;
+}
+
+/* 用户气泡（dsh UserMessageBubble：20px 圆角，10/16，14/22，着色填充） */
+.cv3-user {
+  align-self: flex-end;
+  max-width: 70.2%;
+  margin: 0;
+  padding: 10px 16px;
+  border-radius: 14px;
+  background: var(--cv-bubble, var(--soft));
+  color: var(--tx1);
+  font-size: 13px;
+  line-height: 19.5px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.cv3-user-attachment {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--tx2);
+}
+
+.cv3-ai-intro {
+  margin: 0;
+  color: var(--tx2);
+  font-size: 13px;
+  line-height: 19.5px;
+  white-space: pre-wrap;
+}
+
+/* 助手块：正文 + 思考 + 工具 + 改了什么 + 方案 */
+.cv3-ai-block {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+/* 状态文字：正文字号 13 / 行高 19.5，状态比它弱一档才不抢内容 */
+.cv3-streaming {
+  margin: 0;
+  color: var(--tx3);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+/* 失败：明说这条没完成。不用中性色糊过去 —— 半截文本不是回复成功 */
+.cv3-failed {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--bad) 12%, transparent);
+  color: var(--bad);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+/* 演示来源标记：必须看得见，但不能比正文还抢眼 */
+.cv3-demo-note {
+  margin: 0;
+  color: var(--tx3);
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.cv3-rich {
+  min-width: 0;
+  color: var(--tx1);
+  font-size: 13px;
+  line-height: 19.5px;
+}
+
+.cv3-rich p {
+  margin: 0 0 16px;
+  overflow-wrap: anywhere;
+}
+
+.cv3-rich p:last-child {
+  margin-bottom: 0;
+}
+
+.cv3-rich ol {
+  margin: 8px 0 16px;
+  padding-left: 20px;
+  line-height: 24px;
+  /* Tailwind preflight 会清掉 ol 的 marker，这里显式要回编号 */
+  list-style: decimal;
+}
+
+.cv3-rich code {
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: var(--panel2);
+  font-family: var(--font-mono, ui-monospace, Consolas, monospace);
+  font-size: 13px;
+  color: var(--tx1);
+}

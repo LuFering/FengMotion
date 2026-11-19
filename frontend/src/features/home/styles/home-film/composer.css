@@ -1,0 +1,111 @@
+/* 输入框样本：结构取自 composer-input.html */
+.hf-sample { width: min(640px, 92%); }
+/* ── 引擎接入后的外圈顺时针光 / 聊天框聚焦的逆时针光 ──
+   用可动画的 conic 起始角实现「光绕着走」，环体靠 mask-composite 抠成描边，
+   再叠 drop-shadow 做辉光；不旋转元素本身，避免圆角形状被转歪。 */
+@property --hf-spin {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+@keyframes hf-spin-cw { to { --hf-spin: 360deg; } }
+@keyframes hf-spin-ccw { to { --hf-spin: -360deg; } }
+
+.hf-composer {
+  position: relative;
+  background: var(--hf-panel);
+  border: 1px solid var(--hf-line);
+  border-radius: 24px;
+  box-shadow: var(--hf-shadow);
+  transition: box-shadow .25s var(--eo, cubic-bezier(.23,1,.32,1)), border-color .25s var(--eo, cubic-bezier(.23,1,.32,1));
+}
+.hf-composer:focus-within {
+  border-color: color-mix(in srgb, var(--brand, var(--hf-acc)) 45%, var(--hf-line2));
+  box-shadow: var(--hf-shadow-focus);
+}
+/* 拖放悬停：边框与底色转品牌色，提示「可以放这里」 */
+.hf-composer[data-drag] {
+  border-color: color-mix(in srgb, var(--brand, var(--hf-acc)) 65%, var(--hf-line2));
+  background: color-mix(in srgb, var(--brand, var(--hf-acc)) 7%, var(--hf-panel));
+}
+/* 用真实覆盖层而不是伪元素：composer 内部有 z-index 各异的子元素，
+   伪元素容易被盖住；覆盖层插在内容之上、发送按钮之下。 */
+.hf-dropmask {
+  position: absolute; inset: 0; z-index: 4; display: grid; place-items: center;
+  border-radius: inherit; pointer-events: none;
+  background: color-mix(in srgb, var(--brand, var(--hf-acc)) 9%, transparent);
+  color: var(--brand, var(--hf-acc));
+  font: 600 13px var(--hf-sans); letter-spacing: .02em;
+}
+
+/* 聚焦：外缘逆时针亮起当前引擎品牌色的光，比常态更亮 */
+.hf-composer::before {
+  content: ''; position: absolute; inset: -1.5px; border-radius: inherit;
+  padding: 1.5px; pointer-events: none; opacity: 0;
+  transition: opacity .22s var(--eo, cubic-bezier(.23,1,.32,1));
+  background: conic-gradient(from var(--hf-spin),
+    transparent 0deg, transparent 150deg,
+    color-mix(in srgb, var(--brand, var(--hf-acc)) 70%, transparent) 235deg,
+    var(--brand, var(--hf-acc)) 300deg,
+    #fff 330deg,
+    var(--brand, var(--hf-acc)) 348deg,
+    transparent 360deg);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--brand, var(--hf-acc)) 85%, transparent))
+          drop-shadow(0 0 14px color-mix(in srgb, var(--brand, var(--hf-acc)) 55%, transparent));
+}
+.hf-composer:focus-within::before { opacity: 1; animation: hf-spin-ccw 3.4s linear infinite; }
+.hf-composer textarea {
+  display: block;
+  width: 100%;
+  min-height: 58px;
+  max-height: 172px;
+  padding: 16px 18px 4px;
+  border: 0;
+  outline: 0;
+  resize: none;
+  background: transparent;
+  color: var(--hf-tx);
+  font: 15.5px/1.55 var(--hf-sans);
+  overflow-y: auto;
+}
+.hf-composer textarea::placeholder { color: var(--hf-tx3); }
+.hf-toolbar { display: flex; align-items: center; gap: 8px; padding: 8px 12px 12px; }
+.hf-ibtn {
+  display: grid; place-items: center; width: 36px; height: 36px; flex: 0 0 auto;
+  padding: 0; border: 1px solid transparent; border-radius: 50%;
+  background: transparent; color: var(--hf-tx2); cursor: pointer;
+  transition: background .18s, color .18s, transform .18s;
+}
+.hf-ibtn:hover { background: var(--hf-panel2); color: var(--hf-tx); }
+.hf-ibtn:active { transform: scale(.92); }
+.hf-ibtn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.hf-modewrap { position: relative; }
+.hf-modechip {
+  display: flex; align-items: center; gap: 7px; height: 36px; padding: 0 13px;
+  border: 1px solid transparent; border-radius: 999px; background: var(--hf-acc-tint);
+  color: var(--hf-acc); font: 650 13px var(--hf-sans); cursor: pointer;
+  transition: background .18s, border-color .18s;
+}
+.hf-modechip:hover { border-color: var(--hf-acc); }
+.hf-modechip svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-linecap: round; }
+.hf-modechip .hf-mic { width: 15px; height: 15px; }
+.hf-modewrap[data-open] .hf-chev { transform: rotate(180deg); }
+.hf-menu {
+  position: absolute; left: 0; bottom: calc(100% + 9px); width: 190px; padding: 6px;
+  border: 1px solid var(--hf-line2); border-radius: 14px; background: var(--hf-panel);
+  box-shadow: 0 22px 55px rgba(0,0,0,.28); z-index: 50;
+}
+.hf-menu button {
+  display: flex; align-items: center; gap: 9px; width: 100%; min-height: 36px; padding: 7px 10px;
+  border: 0; border-radius: 6px; background: transparent; color: var(--hf-tx);
+  font: 13.5px var(--hf-sans); text-align: left; cursor: pointer;
+}
+.hf-menu button:hover { background: var(--hf-panel2); }
+.hf-menu .hf-ck { margin-left: auto; color: var(--hf-acc); opacity: 0; }
+.hf-menu button.is-sel .hf-ck { opacity: 1; }
+.hf-spacer { flex: 1; }
+.hf-count { min-width: 20px; color: var(--hf-tx3); font: 11.5px var(--hf-mono); text-align: right; }

@@ -1,0 +1,253 @@
+/* ═══════════════════════════════════════════════════════════════
+   AI 与模型 · 卡片网格
+   ─────────────────────────────────────────────────────────────
+   只借特效库的卡片形状与排布（.fx-grid / .fxc）：
+   minmax(300px, 1fr) 的等宽网格、16px 间距、圆角卡、1px 描边、hover 提亮。
+   卡内仍是原来那一行内容（方形 logo、名称 + 状态、模型块、开关）——
+   不铺图、不压渐变、不把徽标浮在角上。
+   ═══════════════════════════════════════════════════════════════ */
+
+.set-hcards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(248px, 1fr));
+  gap: 16px;
+  align-items: start;
+  margin: 12px 0 0;
+}
+
+.set-hcard {
+  /* 左列 = logo 整列，右列 = 名称/开关 + 模型长条 */
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  gap: 10px;
+  padding: 12px;
+  /* 卡片要有高度：左列 76 撑住，右列两行（名称区 + 模型长条）才不被压扁 */
+  min-height: 100px;
+  align-items: stretch;
+  background: var(--hole);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  transition: border-color .14s;
+}
+.set-hcard:hover { border-color: color-mix(in srgb, var(--fg) 22%, var(--line)); }
+.set-hcard[data-on] {
+  border-color: color-mix(in srgb, var(--acc) 45%, var(--line));
+  box-shadow: inset 2px 0 0 var(--acc);
+}
+
+/* 方形 logo 块（卡片行、待接入行共用）：固定正方格，品牌图标按 --h-color 上色 */
+.set-agent-ic {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--fg) 6%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fg) 8%, transparent);
+}
+.set-agent-ic > i {
+  display: block;
+  width: 19px;
+  height: 19px;
+  background-color: var(--h-color, var(--acc));
+  mask-position: center;
+  mask-size: contain;
+  mask-repeat: no-repeat;
+}
+
+/* 名称 + 一行状态 */
+.set-agent-who { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.set-agent-who b {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.set-agent-who small {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 11.5px;
+  color: var(--dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.set-agent-who small em {
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--ok);
+  font-style: normal;
+}
+
+/* 模型块（基础形态；卡片里再按 .set-hcard 覆写尺寸） */
+.set-agent-pick {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  height: 32px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--fg) 5%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fg) 8%, transparent);
+  color: var(--fg);
+  font: inherit;
+  cursor: pointer;
+  transition: background-color .14s, box-shadow .14s;
+}
+.set-agent-pick:hover { background: color-mix(in srgb, var(--fg) 9%, transparent); }
+.set-agent-pick:focus-visible { outline: 2px solid var(--acc); outline-offset: 1px; }
+.set-agent-pick[data-state="open"] { box-shadow: inset 0 0 0 1px var(--acc); }
+.set-agent-pick-ic { display: grid; place-items: center; flex: 0 0 14px; width: 14px; height: 14px; }
+.set-agent-pick-ic > i {
+  display: block;
+  width: 14px;
+  height: 14px;
+  background-color: var(--h-color, var(--acc));
+  mask-position: center;
+  mask-size: contain;
+  mask-repeat: no-repeat;
+}
+.set-agent-pick .v {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 500;
+  text-align: left;
+  font-variant-numeric: tabular-nums;
+}
+.set-agent-pick-chev { flex: 0 0 auto; width: 12px !important; height: 12px !important; color: var(--ph); }
+.set-agent-pick[data-state="open"] .set-agent-pick-chev { transform: rotate(180deg); }
+
+/* 左列：品牌 logo 占满这一整列（宽 68、高随卡片），不是行内小方块 */
+.set-hcard-side {
+  display: grid;
+  place-items: center;
+  align-self: stretch;
+  border-radius: 10px;
+  background:
+    radial-gradient(120% 120% at 50% 30%,
+      color-mix(in srgb, var(--h-color) 22%, transparent) 0%,
+      transparent 68%),
+    color-mix(in srgb, var(--fg) 5%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fg) 9%, transparent);
+}
+.set-hcard-side > i {
+  display: block;
+  width: 30px;
+  height: 30px;
+  background-color: var(--h-color, var(--acc));
+  mask-position: center;
+  mask-size: contain;
+  mask-repeat: no-repeat;
+}
+
+/* 右列：名称 + 状态 + 开关一行，模型长条贴在下面 */
+.set-hcard-main {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+}
+.set-hcard-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.set-hcard-top > .set-agent-who { flex: 0 0 auto; min-width: 0; }
+.set-hcard-top > :last-child { flex: 0 0 auto; }
+
+/* 模型块：整卡宽度的一条，和上面的 36px 高左右对齐 */
+.set-hcard .set-agent-pick {
+  /* 不再是整行横条：贴着 Harness 名称右侧的小胶囊，宽度按内容走 */
+  flex: 0 0 auto;
+  width: auto;
+  height: 24px;
+  gap: 6px;
+  padding: 0 7px;
+  background: color-mix(in srgb, var(--fg) 5%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fg) 8%, transparent);
+  border-radius: 6px;
+  color: var(--fg);
+}
+.set-hcard .set-agent-pick:hover { background: color-mix(in srgb, var(--fg) 9%, transparent); }
+.set-hcard .set-agent-pick .v { flex: 0 0 auto; font-size: 11.5px; }
+/* 卡内模型块左侧的品牌小图标要有固定宽度，否则被 .v 挤没 */
+.set-hcard .set-agent-pick-ic { flex: 0 0 12px; width: 12px; height: 12px; }
+.set-hcard .set-agent-pick-ic > i { width: 12px; height: 12px; }
+.set-agent-pick-chev { flex: 0 0 auto; width: 12px !important; height: 12px !important; color: var(--ph); }
+.set-agent-pick[data-state="open"] { box-shadow: inset 0 0 0 1px var(--acc); }
+.set-agent-pick[data-state="open"] .set-agent-pick-chev { transform: rotate(180deg); }
+
+/* 待接入：magpie 的 .ag-install —— 列表下方一行可展开的入口，标题 12.5px 灰字 */
+.set-agent-more { max-width: 560px; margin-top: 12px; }
+.set-agent-more-head {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 4px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--dim);
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+  transition: color .15s;
+}
+.set-agent-more-head:hover { color: var(--fg); }
+.set-agent-more-head > .ui-icon { width: 14px; height: 14px; }
+.set-agent-more-head small {
+  padding: 0 5px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--fg) 8%, transparent);
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+}
+.set-agent-more-chev { transition: transform .28s cubic-bezier(.22, 1, .36, 1); }
+.set-agent-more-head[aria-expanded] .set-agent-more-chev { transform: rotate(180deg); }
+.set-agent-more-body {
+  margin-top: 4px;
+  padding: 2px 0 0;
+  animation: setFoldIn .22s ease both;
+}
+@keyframes setFoldIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: none; }
+}
+/* 待接入行：和上面同构，但整体降一档亮度——它现在不可用，这是诚实的表达 */
+.set-agent-row {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 12px;
+  border: 1px solid color-mix(in srgb, var(--fg) 7%, transparent);
+  border-radius: 10px;
+  margin-bottom: 6px;
+  background: var(--hole);
+}
+.set-agent-row .set-agent-ic { background: color-mix(in srgb, var(--fg) 4%, transparent); }
+.set-agent-row .set-agent-ic > i { opacity: .82; }
+.set-agent-row .set-agent-who b { font-weight: 550; color: color-mix(in srgb, var(--fg) 82%, transparent); }
+.set-agent-tag {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--warn) 14%, transparent);
+  color: var(--warn);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}

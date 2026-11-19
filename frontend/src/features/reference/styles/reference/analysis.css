@@ -1,0 +1,94 @@
+/* ═══════════════════════════════════════════════════════════════
+   参考分析面板（2026-10-29 重做）
+   ─────────────────────────────────────────────────────────────
+   旧版把「景别/构图/运镜…」排成技术表格，每格还挂一条编造的置信度进度条，
+   用户看完不知道该拿这条片子干嘛。现在只保留创作时用得上的五项 + 一个结论：
+     · 标签旁给一句白话提示（镜头怎么动 / 快慢与停顿…），降低术语门槛
+     · 右侧徽标标明这个值哪来的：实测（后端量的）还是模型（视觉模型判断）
+     · 结论「可复用」单独一块，因为看完前五项用户只想知道这个答案
+   ═══════════════════════════════════════════════════════════════ */
+.rfc-field-k { display: flex; flex-direction: column; gap: 1px; width: 76px; }
+.rfc-field-hint {
+  font-style: normal;
+  font-size: 9.5px;
+  line-height: 1.2;
+  color: var(--tx3);
+  opacity: .75;
+}
+/* 来源徽标：不抢眼，但能一眼分清"量出来的"和"判断出来的" */
+.rfc-src {
+  flex: 0 0 auto;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 9.5px;
+  line-height: 1.5;
+  letter-spacing: .02em;
+  border: 1px solid;
+}
+.rfc-src[data-src="measured"] {
+  color: #7fd6a8;
+  border-color: rgba(76, 175, 125, .38);
+  background: rgba(76, 175, 125, .10);
+}
+.rfc-src[data-src="model"] {
+  color: var(--tx3);
+  border-color: var(--dash);
+  background: transparent;
+}
+
+/* 结论块 */
+.rfc-verdict {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--dash);
+  background: rgba(255, 255, 255, .03);
+}
+.rfc-verdict[data-tone="ok"] {
+  border-color: rgba(76, 175, 125, .40);
+  background: rgba(76, 175, 125, .08);
+}
+.rfc-verdict-k {
+  flex: none;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  color: var(--tx3);
+  padding-top: 1px;
+}
+.rfc-verdict[data-tone="ok"] .rfc-verdict-k { color: #7fd6a8; }
+.rfc-verdict-v { flex: 1; min-width: 0; font-size: 12.5px; font-weight: 600; line-height: 1.55; }
+
+/* 「给 AI 的话」折叠块 */
+.rfc-brief { margin-top: 12px; border-top: 1px dashed var(--dash); padding-top: 9px; }
+.rfc-brief > summary {
+  cursor: pointer;
+  font-size: 11.5px;
+  color: var(--tx2);
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  user-select: none;
+}
+.rfc-brief > summary::-webkit-details-marker { display: none; }
+.rfc-brief > summary::before {
+  content: '';
+  width: 5px; height: 5px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform .16s ease;
+  opacity: .7;
+}
+.rfc-brief[open] > summary::before { transform: rotate(45deg); }
+.rfc-brief > summary:hover { color: var(--fg); }
+.rfc-brief p {
+  margin: 8px 0 0;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--tx2);
+}

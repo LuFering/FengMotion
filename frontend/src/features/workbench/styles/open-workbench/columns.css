@@ -1,0 +1,183 @@
+/* 工作台的对话与画面布局，颜色与控件沿用工作台主题。 */
+#pane-flow .wb-a2.wb-studio .open-workbench-layout,
+#pane-flow .wb-a2.wb-studio .open-workbench-layout[data-panel='open'] {
+  display: grid;
+  grid-template-columns: minmax(0, var(--open-chat-width, 460px)) 4px minmax(0, 1fr);
+  /* .fw 原本是三张卡片并排：gap 8 + padding 8。
+     两列工作区里这两条会把对话列顶出内缩、底部留白，还让分隔条悬空。 */
+  gap: 0;
+  padding: 0;
+  transition: none;
+}
+#pane-flow .wb-a2.wb-studio .open-workbench-layout[data-panel='closed'] {
+  grid-template-columns: minmax(0, 1fr) !important;
+  width: 100% !important;
+}
+#pane-flow .wb-a2.wb-studio .open-workbench-layout[data-panel='closed'] .open-workbench-conversation,
+#pane-flow .wb-a2.wb-studio .open-workbench-layout[data-panel='closed'] .open-workbench-resize,
+#pane-flow .wb-a2.wb-studio .open-workbench-layout[data-panel='closed'] .fw-panel-reopen,
+#pane-flow .wb-a2.wb-studio .open-workbench-layout[data-panel='closed'] .fw-panel-reopen-float,
+#pane-flow .wb-a2.wb-studio:has(.open-workbench-layout[data-panel='closed']) .wb-projectbar,
+#pane-flow .wb-a2.wb-studio:has(.open-workbench-layout[data-panel='closed']) .wb-crumb,
+#pane-flow .wb-a2.wb-studio .wb-projectbar[data-panel='closed'],
+body.wb-fullscreen-active .hm-sidebar-restore,
+body.wb-fullscreen-active .wb-projectbar,
+body.wb-fullscreen-active .wb-crumb,
+body.wb-fullscreen-active .open-workbench-conversation,
+body.wb-fullscreen-active .open-workbench-resize,
+body.wb-fullscreen-active .fw-panel-reopen,
+body.wb-fullscreen-active .fw-panel-reopen-float {
+  display: none !important;
+  width: 0 !important;
+  min-width: 0 !important;
+  max-width: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: 0 !important;
+  pointer-events: none !important;
+}
+#pane-flow .wb-a2.wb-studio .open-workbench-layout[data-panel='closed'] .fw-canvas {
+  margin: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  border: 0 !important;
+  width: 100% !important;
+}
+#pane-flow .wb-a2.wb-studio .open-workbench-layout[data-editor='true'] { grid-template-columns: minmax(0, 1fr); }
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-ing {
+  position: absolute; inset: 0 auto 0 0; z-index: 31;
+  width: min(300px, 90%); display: none; box-shadow: var(--shadow-float);
+}
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-ing[data-open] { display: flex; }
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-scrim {
+  display: block; position: absolute; inset: 0; z-index: 30;
+  border: 0; background: var(--media-scrim); cursor: pointer;
+}
+#pane-flow .wb-a2.wb-studio .wb-projectbar .fw-mobile,
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-ing .fw-mobile { display: grid; }
+#pane-flow .wb-a2.wb-studio .open-workbench-conversation { position: relative; z-index: 9; min-width: 0; min-height: 0; margin-top: -12px; display: flex; flex-direction: column; }
+/* 对话列是平铺的一列，不是一张卡片。参考架构里两侧都是同一个工作区的两块，
+   给对话再套一层边框+圆角，看起来就像两个并排的独立应用。 */
+#pane-flow .wb-a2.wb-studio .open-workbench-conversation > .fw-panel,
+#pane-flow .wb-a2.wb-studio .open-workbench-conversation > .wb-review-desk,
+#pane-flow .wb-a2.wb-studio .open-workbench-conversation > .wb-scene-versions {
+  position: static; width: 100%; min-width: 0; min-height: 0; flex: 1;
+  border: 0; border-radius: 0; background: transparent;
+  animation: none; transition: none;
+}
+/* 输入框的权限与模型菜单会略微超出窄栏；消息本身仍由线程容器滚动裁切。 */
+#pane-flow .wb-a2.wb-studio .open-workbench-conversation > .fw-panel { overflow: visible; }
+/* 两列同属一个工作区，共用整页背景；只有画面框单独成色、浮在上面。 */
+/* 这里必须是透明，不能写实色 --bg：整页背景是挂在 .wb-a2 上的一张
+   radial-gradient（顶部中心偏亮，向下渐暗）。布局层铺实色会把下半截的渐变
+   盖平，于是顶栏显渐变、下面显纯色，看起来像中间横着一条色带。 */
+#pane-flow .wb-a2.wb-studio .open-workbench-layout {
+  background: transparent;
+  /* 整块工作区是一条连续背景，两列不该再有各自的内边距与间隙 */
+  gap: 0; padding: 0;
+}
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-canvas { border-left: 0; }
+/* 对话列不投影：它是背景上的一块，不是浮起的卡片。
+   原样式给 .fw-canvas 挂了 --shadow-hero、给 .fw-panel 挂了 --shadow-mid，
+   这两层阴影会从左列边缘渗出来，在导航栏和对话区之间形成一道假的分界线。 */
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-canvas,
+#pane-flow .wb-a2.wb-studio .open-workbench-conversation > .fw-panel,
+#pane-flow .wb-a2.wb-studio .open-workbench-conversation > .wb-review-desk,
+#pane-flow .wb-a2.wb-studio .open-workbench-conversation > .wb-scene-versions { box-shadow: none; }
+/* 对话区不设边框：它是背景上的一块文字与输入，不是并排的第二张卡片。 */
+#pane-flow .wb-a2.wb-studio .open-workbench-conversation { background: transparent; }
+#pane-flow .wb-a2.wb-studio .open-workbench-resize {
+  cursor: col-resize; touch-action: none; position: relative; z-index: 8;
+  width: 32px; margin-left: -14px; border: 0; outline: none;
+}
+#pane-flow .wb-a2.wb-studio .open-workbench-resize-handle {
+  position: absolute; width: 80px; height: 160px; left: -24px; top: 50%;
+  transform: translateY(-50%); overflow: visible; pointer-events: none; opacity: 0;
+  transition: opacity 160ms ease;
+}
+#pane-flow .wb-a2.wb-studio .open-workbench-resize-handle path {
+  fill: none; stroke: var(--tx3); stroke-width: 5; stroke-linecap: round;
+  transition: d 180ms ease;
+}
+#pane-flow .wb-a2.wb-studio .open-workbench-resize:hover .open-workbench-resize-handle,
+#pane-flow .wb-a2.wb-studio .open-workbench-resize:focus-visible .open-workbench-resize-handle,
+#pane-flow .wb-a2.wb-studio .open-workbench-layout[data-resizing] .open-workbench-resize-handle { opacity: .8; }
+#pane-flow .wb-a2.wb-studio .open-workbench-layout[data-resizing] { user-select: none; }
+#pane-flow .wb-a2.wb-studio .open-workbench-conversation .fw-panel-reopen { display: flex; width: 100%; height: 100%; }
+#pane-flow .wb-a2.wb-studio .open-workbench-conversation .fw-panel-reopen-float { display: none; }
+/* 收紧标题区，为下面的对话留出更多可用高度。 */
+#pane-flow .wb-a2.wb-studio .wb-assistant-heading {
+  height: 42px; min-height: 42px; padding: 0 20px;
+  border-bottom: 0;
+}
+#pane-flow .wb-a2.wb-studio .wb-assistant-heading strong { font-size: 15px; font-weight: 600; }
+#pane-flow .wb-a2.wb-studio .wb-assistant-heading span { font-size: 11px; color: var(--tx3); }
+#pane-flow .wb-a2.wb-studio .wb-console-session { display: flex; align-items: center; gap: 8px; min-width: 0; margin-left: 14px; }
+#pane-flow .wb-a2.wb-studio .wb-console-session-label { flex: none; font-size: 11px; }
+#pane-flow .wb-a2.wb-studio .wb-console-session-select,
+#pane-flow .wb-a2.wb-studio .wb-console-session-single { min-width: 0; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--tx); font-size: 11px; }
+#pane-flow .wb-a2.wb-studio .wb-console-session-select { height: 30px; padding: 0 7px; border: 1px solid var(--line); border-radius: 6px; background: var(--surf); cursor: pointer; }
+#pane-flow .wb-a2.wb-studio .wb-console-session-select:hover { border-color: var(--line2); background: var(--hole); }
+#pane-flow .wb-a2.wb-studio .wb-console-session-select:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
+/* 页签行跟着上移，省下的一段高度全给消息流和输入框。 */
+#pane-flow .wb-a2.wb-studio .fw-panel .fw-panel-hd { padding: 0 16px 4px; border-bottom: 0; }
+#pane-flow .wb-a2.wb-studio .open-workbench-thread { flex: 1; min-height: 0; overflow-y: auto; }
+#pane-flow .wb-a2.wb-studio .open-workbench-messages { display: flex; flex-direction: column; gap: 16px; padding: 16px 20px 24px; }
+#pane-flow .wb-a2.wb-studio .open-workbench-empty { padding: 20px 0 8px; }
+#pane-flow .wb-a2.wb-studio .open-workbench-empty b { color: var(--tx); font-size: 14px; font-weight: 600; }
+#pane-flow .wb-a2.wb-studio .open-workbench-empty p { color: var(--tx2); font-size: 12px; line-height: 1.6; margin: 8px 0 0; }
+#pane-flow .wb-a2.wb-studio .wb-feedback-starters { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+/* 抽屉与浮动抽屉彻底移除：控制台直接平铺展示，全屏与非全屏均不需要侧边竖排抽屉条 */
+.fw-panel-reopen,
+.fw-panel-reopen-float,
+#pane-flow .wb-a2.wb-studio .fw-panel-reopen,
+#pane-flow .wb-a2.wb-studio .fw-panel-reopen-float,
+#pane-flow .wb-a2.wb-studio .open-workbench-conversation .fw-panel-reopen,
+#pane-flow .wb-a2.wb-studio .open-workbench-conversation .fw-panel-reopen-float {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  opacity: 0 !important;
+}
+
+#pane-flow .wb-a2.wb-studio .fw-compose { flex: none; padding: 4px 14px 10px; border-top: 0; }
+#pane-flow .wb-a2.wb-studio .wb-compose-context {
+  margin-bottom: 8px; padding: 10px 11px 8px;
+  border: 1px solid var(--line); border-radius: 10px;
+  background: color-mix(in srgb, var(--surf) 60%, transparent);
+}
+#pane-flow .wb-a2.wb-studio .wb-compose-context .wb-target-pill-wrap { margin-bottom: 6px; }
+#pane-flow .wb-a2.wb-studio .wb-compose-context .fw-ref-chips { max-height: 72px; overflow-y: auto; }
+#pane-flow .wb-a2.wb-studio .wb-compose-context [role='radio'] { min-height: 27px; padding-inline: 8px; }
+#pane-flow .wb-a2.wb-studio .wb-compose-context .wb-target-pill {
+  min-height: 30px; padding: 3px 9px; border-color: var(--line2);
+  background: var(--surf); color: var(--tx2);
+}
+#pane-flow .wb-a2.wb-studio .wb-compose-context .wb-target-pill:hover { border-color: var(--acc); }
+#pane-flow .wb-a2.wb-studio .wb-compose-context [role='radiogroup'] {
+  gap: 2px; padding: 3px; border-color: var(--line); background: var(--hole);
+}
+#pane-flow .wb-a2.wb-studio .wb-compose-context [role='radio'] {
+  min-height: 26px; gap: 5px; padding: 4px 8px; font-size: 11px;
+  color: var(--tx2); border-radius: 999px;
+}
+#pane-flow .wb-a2.wb-studio .wb-compose-context [role='radio'] svg { width: 12px; height: 12px; }
+#pane-flow .wb-a2.wb-studio .wb-compose-context [role='radio']:hover { background: var(--surf); color: var(--tx); }
+#pane-flow .wb-a2.wb-studio .wb-compose-context [role='radio'][aria-checked='true'] {
+  background: var(--surf); color: var(--acc); box-shadow: 0 1px 3px rgb(20 22 40 / .12);
+}
+#pane-flow .wb-a2.wb-studio .wb-compose-context button:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
+#pane-flow .wb-a2.wb-studio .wb-compose-context .fw-ref-chips { align-items: center; gap: 6px; }
+#pane-flow .wb-a2.wb-studio .wb-compose-context .fw-ref-add {
+  display: inline-flex; align-items: center; gap: 4px; min-height: 26px; padding: 3px 7px;
+  /* 实线细边：虚线是「拖放区」的语言，这里只是一个普通按钮（设计原则：不用虚线装饰）。 */
+  border: 1px solid var(--line2); border-radius: 6px; color: var(--tx2); font-size: 11px;
+}
+#pane-flow .wb-a2.wb-studio .wb-compose-context .fw-ref-add:hover { color: var(--acc); border-color: var(--acc); background: var(--surf); }
+#pane-flow .wb-a2.wb-studio .wb-compose-context .fw-ref-chip { min-height: 26px; padding: 3px 8px; }
+#pane-flow .wb-a2.wb-studio .fw-compose > .fw-ref-chips { margin-bottom: 6px; max-height: 80px; overflow-y: auto; }
+#pane-flow .wb-a2.wb-studio .fw-sheet { padding: 12px; }
+#pane-flow .wb-a2.wb-studio .fw-sheet .wb-input { min-height: 76px; }
+#pane-flow .wb-a2.wb-studio .fw-sheet:focus-within { box-shadow: none; }

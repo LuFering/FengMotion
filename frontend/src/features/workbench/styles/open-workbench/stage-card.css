@@ -1,0 +1,154 @@
+/* 画面区：视频是这一列的主角，下面的版本信息压成一条，
+   别让它把画面推到只剩半屏（参考实现里右侧是整块工作区）。 */
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-canvas > .fw-scroll,
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-canvas > div { min-height: 0; }
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-monitor { flex: 1 1 auto; min-height: 0; }
+#pane-flow .wb-a2.wb-studio .fw-mon-agent-result {
+  display: flex; align-items: flex-start; gap: 10px; padding: 10px 16px;
+  color: var(--tx2); font-size: 12px; line-height: 1.6;
+  border-top: 1px solid var(--line); background: transparent;
+}
+#pane-flow .wb-a2.wb-studio .wb-result-details { min-width: 0; flex: 1; }
+#pane-flow .wb-a2.wb-studio .wb-result-details summary { display: flex; align-items: center; gap: 10px; cursor: pointer; list-style: none; }
+#pane-flow .wb-a2.wb-studio .wb-result-details summary:hover .wb-result-toggle { color: var(--acc); background: var(--hole); }
+#pane-flow .wb-a2.wb-studio .wb-result-details summary::-webkit-details-marker { display: none; }
+#pane-flow .wb-a2.wb-studio .wb-result-heading { color: var(--tx); font-size: 11px; font-weight: 600; white-space: nowrap; }
+#pane-flow .wb-a2.wb-studio .wb-result-preview { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+#pane-flow .wb-a2.wb-studio .wb-result-details summary svg { flex: none; transition: transform 150ms ease; }
+#pane-flow .wb-a2.wb-studio .wb-result-toggle { display: inline-flex; align-items: center; gap: 3px; flex: none; min-height: 28px; padding: 0 7px; border-radius: 6px; color: var(--tx2); font-size: 11px; }
+#pane-flow .wb-a2.wb-studio .wb-result-close, #pane-flow .wb-a2.wb-studio .wb-result-details[open] .wb-result-open { display: none; }
+#pane-flow .wb-a2.wb-studio .wb-result-details[open] .wb-result-close { display: inline; }
+#pane-flow .wb-a2.wb-studio .wb-result-details[open] summary svg { transform: rotate(180deg); }
+#pane-flow .wb-a2.wb-studio .wb-result-details p { max-height: 96px; overflow-y: auto; margin: 8px 0 0; padding-right: 8px; white-space: pre-wrap; overflow-wrap: anywhere; }
+#pane-flow .wb-a2.wb-studio .wb-result-details[open] .wb-result-preview { visibility: hidden; }
+#pane-flow .wb-a2.wb-studio .wb-result-details summary:focus-visible { outline: 2px solid var(--acc); outline-offset: 3px; }
+#pane-flow .wb-a2.wb-studio .fw-mon-agent-result button { display: grid; place-items: center; width: 28px; height: 28px; flex: none; border-radius: 6px; color: var(--tx2); }
+#pane-flow .wb-a2.wb-studio .fw-mon-agent-result button:hover { background: var(--hole); color: var(--tx); }
+#pane-flow .wb-a2.wb-studio .fw-mon-agent-result button:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
+/* 整个画面列（监看顶栏 + 画面 + 秒数行 + 缩略条 + 交付信息）是这一页唯一的「纸片」：
+   白色纸面 + 大圆角 + 柔和投影，四边留白浮在背景上。
+   纸片的边界要落在这一列的容器上，而不是只落在视频那一块 ——
+   否则只有画面变白，顶栏和底部信息还是背景色，读起来像三段拼起来的区域。
+   形状对齐参考里那张输入卡片：白色纸面、20px 圆角、四周都有空气。 */
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-canvas {
+  background: var(--surf);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 6px 24px rgb(20 22 40 / .06);
+  /* 卡片向上覆盖原顶栏占用的高度，和左侧项目栏从同一高度开始。 */
+  margin: -72px 6px 6px;
+}
+/* 卡片内部各条横带不再各自铺色（原本是 --panel / --panel2 / --hole 三种底色），
+   白色纸面成为唯一一层底，条与条之间靠留白和字号分层。 */
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-toolbar,
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-mon-rail,
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-mon-thumbs,
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-mon-btn,
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .wb-preview-tools,
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-mon-delivery {
+  background: transparent;
+  border-top: 0;
+  border-bottom: 0;
+}
+/* 画面框本身不再是卡片：它退成白纸面里的一个区域，靠留白界定，不再叠第二层底与投影。 */
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-mon-visual {
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
+  margin: 0;
+  padding: 8px 12px;
+  overflow: hidden;
+}
+/* 视频保留自己的黑底，圆角比外卡小一档 —— 外 20px、内嵌画面 14px，
+   两个圆角同尺寸时看起来像两张等大的卡片贴在一起。 */
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-mon-visual .fw-stage,
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-mon-visual video,
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-mon-visual img { border-radius: 14px; }
+/* 舞台自己有 --stage-bg 灰底，会盖住白纸面 —— 退回透明，
+   让白色卡片成为承托画面的一层。 */
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-mon-visual > .fw-stage {
+  container-type: size;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  box-shadow: none;
+}
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .wb-videojs-skin {
+  width: min(100cqw, calc(100cqh * var(--wb-video-ratio, 1.7778)));
+  height: auto; aspect-ratio: var(--wb-video-ratio, 1.7778);
+  flex: none; min-height: 0; overflow: hidden; border-radius: 10px;
+  background: #101216;
+}
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .wb-videojs-skin:fullscreen {
+  width: 100vw; height: 100vh; aspect-ratio: auto; border-radius: 0;
+}
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .wb-stage-label {
+  position: absolute; top: 20px; left: 20px; z-index: 4;
+  padding: 6px 10px; border-radius: 6px;
+  background: rgb(20 22 27 / .78); color: #fff;
+  font-size: 11px; font-weight: 600; pointer-events: none;
+}
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-toolbar {
+  position: relative; z-index: 5; flex: 0 0 auto; height: auto; min-height: 0;
+  display: flex; flex-direction: column; align-items: stretch;
+  padding: 8px 16px 4px; gap: 2px;
+}
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .wb-preview-toolbar-primary,
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .wb-preview-toolbar-secondary {
+  display: flex; align-items: center; min-width: 0; min-height: 36px; gap: 8px;
+}
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .wb-preview-toolbar-primary {
+  justify-content: space-between;
+}
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .wb-preview-toolbar-secondary {
+  flex-wrap: wrap;
+}
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .wb-preview-current-version {
+  margin-left: auto; padding: 4px 8px; border: 1px solid var(--line);
+  border-radius: 6px; color: var(--tx2); background: var(--panel2);
+  font-size: 11px; line-height: 18px; white-space: nowrap;
+}
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-toolbar .wb-preview-tools {
+  position: relative; padding: 0; min-width: 0;
+}
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-toolbar .wb-preview-tools-main {
+  gap: 2px; padding: 3px; border: 1px solid var(--line); border-radius: 10px;
+  background: var(--panel);
+}
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-toolbar .wb-preview-tools-main button {
+  min-height: 32px; padding: 0 10px; border: 0; border-radius: 6px;
+  background: transparent; font-size: 11px;
+  transition: background-color 140ms ease, border-color 140ms ease, transform 140ms ease;
+}
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-toolbar .wb-preview-tools-main button:active:not(:disabled) {
+  transform: translateY(1px);
+}
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .wb-preview-review-actions {
+  display: flex; align-items: center; gap: 4px; flex: none; margin-left: auto;
+  padding-left: 16px; border-left: 1px solid var(--line);
+}
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .wb-preview-review-button {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 32px;
+  padding: 0 10px; border: 0; border-radius: 6px; background: transparent;
+  color: var(--tx2); font-size: 11px; white-space: nowrap; cursor: pointer;
+}
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .wb-preview-review-button:hover:not(:disabled) {
+  background: var(--hover); color: var(--tx);
+}
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .wb-preview-review-button:disabled {
+  opacity: .45; cursor: not-allowed;
+}
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .wb-preview-review-button:focus-visible {
+  outline: 2px solid var(--acc); outline-offset: 2px;
+}
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-toolbar .wb-preview-range {
+  position: absolute; top: 100%; left: 0; z-index: 10; width: 360px;
+  padding: 12px; margin-top: 8px; border: 1px solid var(--line);
+  border-radius: 6px; background: var(--surf); box-shadow: 0 8px 24px rgb(20 22 40 / .12);
+}
+/* 缩略条原本被压到 96px 高（想给画面多留空间），但缩略卡本身就有 110px，
+   结果卡片下半截压到了交付信息行上。让它按内容自然高，重叠消失。 */
+#pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-mon-rail { max-height: none; }

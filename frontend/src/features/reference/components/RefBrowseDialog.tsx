@@ -6,7 +6,7 @@ import { setAssetDragData } from '@/features/assets/hooks/usePendingAssets'
 import { setDragGhost, clearDragGhost } from '@/shared/pick-mode/dragGhost'
 import { PickCheck } from '@/shared/pick-mode/PickModeUI'
 import type { LocalSegment, ServerVideo } from '@/features/reference/services/referenceApiService'
-import type { Filters, StoredLibrary, StatusFilter } from '@/features/reference/RefLibrary'
+import type { Filters, StoredLibrary, StatusFilter } from '@/features/reference/model/refLibraryStore'
 import type { PickMode } from '@/shared/pick-mode/usePickMode'
 
 export interface RefBrowseDialogProps {

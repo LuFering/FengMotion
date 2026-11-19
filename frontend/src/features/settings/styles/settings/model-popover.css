@@ -1,0 +1,78 @@
+/* ═══════════════════════════════════════════════════════════════
+   模型下拉浮层（Popover）
+   ─────────────────────────────────────────────────────────────
+   shadcn 的 PopoverContent 自带 bg-popover / p-4 / w-72 / rounded-md /
+   shadow-md 这一套 Tailwind 类，不覆盖它就是「一个白框 + 大内边距」。
+   这里全部改写成项目口味的紧凑列表：6px 内边距、30px 行高、12.5px 字，
+   当前项浅强调底 + 右侧打勾。参考 magpie 的 .pop。
+   ═══════════════════════════════════════════════════════════════ */
+.set-pick {
+  /* !important 不必要，但选择器要压过工具类：这里用 .set-pick 单类，
+     而工具类也多是单类 —— 靠加载顺序（本文件在 tailwind 之后 import）取胜 */
+  width: 224px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surf);
+  color: var(--fg);
+  box-shadow: 0 16px 40px rgb(0 0 0 / .42), 0 2px 6px rgb(0 0 0 / .18);
+  /* shadcn 默认给了 outline-hidden + 缩放动画，保留动画、去掉 4px 大内边距 */
+}
+.set-pick-head {
+  padding: 3px 8px 6px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  color: var(--ph);
+}
+.set-pick-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  max-height: min(123px, calc(100dvh - 100px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+.set-pick-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 30px;
+  flex: 0 0 30px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color .12s;
+}
+.set-pick-item:hover { background: color-mix(in srgb, var(--fg) 7%, transparent); }
+.set-pick-item:focus-visible { outline: 2px solid var(--acc); outline-offset: -2px; }
+.set-pick-item[data-on] { background: color-mix(in srgb, var(--acc) 11%, transparent); }
+.set-pick-item-ic { display: grid; place-items: center; flex: 0 0 14px; width: 14px; height: 14px; }
+.set-pick-item-ic > i {
+  display: block;
+  width: 14px;
+  height: 14px;
+  background-color: var(--h-color, var(--acc));
+  mask-position: center;
+  mask-size: contain;
+  mask-repeat: no-repeat;
+}
+.set-pick-item-v {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 12.5px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.set-pick-item-ck { flex: 0 0 13px; width: 13px; height: 13px; color: var(--acc); }

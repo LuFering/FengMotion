@@ -1,0 +1,73 @@
+/* ── 首页三套主题：右侧文案 + 左侧输入框同源 ───────────────── */
+.hf-page {
+  --hf-bg: #000;
+  --hf-fg: #F4F1EA;
+  --hf-sub: #DCDCDC;
+  --hf-accent: #3B8CF8;
+  --hf-seal: #7FA9F5;
+  --hf-panel: #16171d;
+  --hf-panel2: #1e1f27;
+  --hf-raised: #26272f;
+  --hf-line: rgba(255,255,255,.09);
+  --hf-line2: rgba(255,255,255,.16);
+  --hf-tx: #edeef3;
+  --hf-tx2: #a4a7b1;
+  --hf-tx3: #62646e;
+  --hf-acc: #3B8CF8;
+  --hf-acc-tint: rgba(59,140,248,.15);
+  --hf-send-bg: #26272f;
+  --hf-send-fg: #8AB4FF;
+  --hf-shadow: 0 24px 60px rgba(0,0,0,.5), 0 4px 16px rgba(0,0,0,.35);
+  --hf-shadow-focus: 0 28px 70px rgba(0,0,0,.55), 0 4px 18px rgba(0,0,0,.4);
+  background: var(--hf-bg);
+  color: var(--hf-fg);
+}
+.hf-title { color: var(--hf-fg); }
+.hf-lead { color: var(--hf-sub); }
+.hf-kw { color: var(--hf-accent); }
+.hf-ink path { stroke: var(--hf-accent); }
+.hf-seal { color: var(--hf-seal); }
+.hf-seal text { fill: currentColor; }
+
+html[data-theme="light"] .hf-page {
+  --hf-bg: #E0E2E9;
+  --hf-fg: #191a20;
+  --hf-sub: #5b5e66;
+  --hf-accent: #2F6FE4;
+  --hf-seal: #5A7FD6;
+  --hf-panel: #ffffff;
+  --hf-panel2: #f4f4f7;
+  --hf-raised: #eeeef2;
+  --hf-line: rgba(25,25,50,.10);
+  --hf-line2: rgba(25,25,50,.18);
+  --hf-tx: #191a20;
+  --hf-tx2: #5b5e66;
+  --hf-tx3: #9a9ca4;
+  --hf-acc: #2F6FE4;
+  --hf-acc-tint: rgba(47,111,228,.10);
+  --hf-send-bg: #17181c;
+  --hf-send-fg: #c9c2ff;
+  --hf-shadow: 0 24px 55px rgba(30,30,60,.13), 0 4px 14px rgba(30,30,60,.07);
+  --hf-shadow-focus: 0 28px 65px rgba(30,30,60,.17), 0 4px 16px rgba(30,30,60,.09);
+}
+html[data-theme="tactile"] .hf-page {
+  --hf-bg: #e6e1d5;
+  --hf-fg: #22231f;
+  --hf-sub: #55534a;
+  --hf-accent: #B7791F;
+  --hf-seal: #8A5A00;
+  --hf-panel: linear-gradient(165deg,#f0ede4,#e3dfd2);
+  --hf-panel2: #ddd8c9;
+  --hf-raised: #f4f1e8;
+  --hf-line: rgba(34,35,31,.35);
+  --hf-line2: #22231f;
+  --hf-tx: #22231f;
+  --hf-tx2: #55534a;
+  --hf-tx3: #8a8676;
+  --hf-acc: #f7c948;
+  --hf-acc-tint: rgba(247,201,72,.35);
+  --hf-send-bg: #22231f;
+  --hf-send-fg: #f7c948;
+  --hf-shadow: 3px 3px 0 #22231f;
+  --hf-shadow-focus: 3px 3px 0 #22231f, 0 0 0 3px rgba(247,201,72,.35);
+}

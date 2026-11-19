@@ -3,7 +3,7 @@ import { SearchField } from '@/shared/components/SearchField'
 import { UiIcon, SemIcons } from '@/shared/icons/UiIcon'
 import { CATEGORY_IDS, categoryLabel, EXEC_IDS, execLabel, IMPL_IDS, implLabel, INPUT_IDS, inputLabel, COMPLEXITY_STEPS } from '@/features/fx/model/fxFilters'
 import { SwitchVertical01 } from '@untitledui/icons'
-import type { Scope, SortKey } from '@/features/fx/FxLibrary'
+import type { Scope, SortKey } from '@/features/fx/model/fxLibraryStore'
 import type { FxCategory, FxTechnique, FxExecType, FxImpl, FxInputKind } from '@/features/fx/model/fxTechniques'
 
 export interface FxMetaBarProps {

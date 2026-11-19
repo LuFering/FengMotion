@@ -3,7 +3,7 @@ import { DialogContent } from '@/shared/ui/dialog'
 import { UiIcon, SemIcons } from '@/shared/icons/UiIcon'
 import { FX_EXEC_TYPES, type FxTechnique } from '@/features/fx/model/fxTechniques'
 import { Star01, Dataflow04 } from '@untitledui/icons'
-import type { FxLibState } from '@/features/fx/FxLibrary'
+import type { FxLibState } from '@/features/fx/model/fxLibraryStore'
 
 export interface FxDetailDialogProps {
   closeDrawer: () => void

@@ -1,0 +1,47 @@
+/* ═══════════════════════════════════════════════════════════════
+   版式参照 open-design（apps/web SettingsDialog）：
+   · 左栏 nav-item = 图标 + 主标题 + 灰字副标题（两行）
+   · 右栏 = 「分区卡片」内若干字段块；卡片用面板底色区分，
+     不画边框、不加阴影（CLAUDE.md:表面靠灰阶递进）
+   · 字段标签 12px/600 大写间距，选项主体比它更亮
+   ═══════════════════════════════════════════════════════════════ */
+
+/* 分区卡片：一块内容 = 一个面板。多个子标题之间靠卡片内的分组间距分开 */
+.set-sec {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-width: 680px;
+}
+/* 卡片里的分组块：本机占用 / 备份与恢复 / 清理 … 各自成为一个面板 */
+.set-card {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 12px;
+  padding: 14px 16px 12px;
+  border-radius: 10px;
+  background: var(--hole);
+}
+.set-card:first-of-type { margin-top: 8px; }
+.set-card > .set-subhead:first-child { margin-top: 0; }
+
+/* 字段标签（Row 的名称）：比正文小一档、字重更实，读起来是「标签」不是「句子」 */
+.set-row-label b {
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: .01em;
+}
+/* 标签内的小标题（卡片内那几个字段名）用大写间距，和选项主体拉开层次 */
+.set-card .set-row-label b {
+  font-size: 12px;
+  letter-spacing: .02em;
+}
+.set-row { padding: 7px 0; }
+.set-card .set-row { padding: 7px 0; }
+.set-card .set-row + .set-row { box-shadow: inset 0 1px 0 color-mix(in srgb, var(--fg) 5%, transparent); }
+
+/* 弹窗标题栏：18px（和 open-design 的 settings modal-head h2 同档），
+   比之前的 15px 更有「窗口标题」的存在感，但不再是 24px 页面标题 */
+.set-dlg-head { padding: 14px 44px 14px 20px; }
+.set-dlg-title { font-size: 18px; line-height: 26px; font-weight: 600; letter-spacing: -.01em; }

@@ -1,0 +1,187 @@
+/* ── 抽屉 ──────────────────────────────────────────────────── */
+/* 作者定稿：中央弹窗，不是侧边抽屉 —— 待发送是一份"要确认的清单"，
+   居中才像在核对，贴边会像导航的一部分。 */
+.fmp-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  background: rgb(0 0 0 / .38);
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  animation: fmp-fade .16s ease both;
+}
+.fmp-thumb[draggable="true"] { cursor: grab; }
+.fmp-thumb[draggable="true"]:active { cursor: grabbing; }
+@keyframes fmp-fade { from { opacity: 0 } to { opacity: 1 } }
+
+.fmp {
+  width: min(560px, 94vw);
+  max-height: min(78vh, 720px);
+  display: flex;
+  flex-direction: column;
+  background: var(--surf);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  color: var(--fg);
+  font-size: 12.5px;
+  overflow: hidden;
+  box-shadow: 0 28px 70px rgb(0 0 0 / .42), 0 2px 8px rgb(0 0 0 / .18);
+  animation: fmp-pop .2s cubic-bezier(.22, .61, .36, 1) both;
+}
+@keyframes fmp-pop { from { transform: translateY(8px) scale(.985); opacity: 0 } to { transform: none; opacity: 1 } }
+
+.fmp-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 16px 12px;
+  border-bottom: 1px solid var(--line);
+}
+.fmp-head h2 { margin: 0 0 4px; font-size: 15px; font-weight: 700; letter-spacing: -.01em; }
+.fmp-head p { margin: 0; font-size: 11px; line-height: 1.55; color: var(--hint); max-width: 300px; }
+.fmp-x {
+  flex: none;
+  display: grid; place-items: center;
+  width: 26px; height: 26px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--dim);
+  cursor: pointer;
+}
+.fmp-x:hover { color: var(--fg); border-color: var(--hint); }
+
+.fmp-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 30px 26px;
+  text-align: center;
+  color: var(--hint);
+}
+.fmp-empty svg { color: var(--hint); opacity: .55; }
+.fmp-empty b { color: var(--dim); font-size: 13px; font-weight: 650; }
+.fmp-empty p { margin: 0; font-size: 11.5px; line-height: 1.65; max-width: 260px; }
+
+.fmp-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  margin: 0;
+  padding: 10px 12px;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.fmp-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--hole);
+}
+/* 素材已被删除：整条降饱和 + 虚线边，让人一眼看出这条发不出去 */
+.fmp-item[data-missing] {
+  border-style: dashed;
+  border-color: var(--warn, #d08a2c);
+  background: color-mix(in srgb, var(--warn, #d08a2c) 8%, var(--hole));
+}
+.fmp-item[data-missing] .fmp-meta { color: var(--warn, #d08a2c); }
+
+.fmp-thumb {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--surf) 70%, transparent);
+  border: 1px solid var(--line);
+  color: var(--hint);
+}
+.fmp-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.fmp-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.fmp-main > b {
+  font-size: 12.5px; font-weight: 600; color: var(--fg);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.fmp-meta {
+  font-size: 10.5px; color: var(--hint);
+  font-variant-numeric: tabular-nums;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+.fmp-ctl { display: flex; align-items: center; gap: 8px; margin-top: 5px; flex-wrap: wrap; }
+.fmp-purpose {
+  flex: none;
+  height: 24px;
+  padding: 0 6px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surf);
+  color: var(--fg);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+.fmp-purpose-hint { flex: 1; min-width: 0; font-size: 10px; color: var(--hint); line-height: 1.4; }
+
+.fmp-note {
+  width: 100%;
+  height: 26px;
+  margin-top: 3px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surf);
+  color: var(--fg);
+  font: inherit;
+  font-size: 11px;
+}
+.fmp-note::placeholder { color: var(--hint); }
+.fmp-note:focus { outline: none; border-color: var(--acc); }
+
+.fmp-rm {
+  flex: none;
+  display: grid; place-items: center;
+  width: 22px; height: 22px;
+  border: 0; border-radius: 50%;
+  background: transparent;
+  color: var(--hint);
+  cursor: pointer;
+}
+.fmp-rm:hover { color: var(--bad, #b4433e); background: color-mix(in srgb, var(--bad, #b4433e) 12%, transparent); }
+
+.fmp-foot {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-top: 1px solid var(--line);
+}
+.fmp-clear, .fmp-send {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 30px; padding: 0 12px;
+  border-radius: 6px;
+  font: inherit; font-size: 12px; font-weight: 600;
+  cursor: pointer;
+}
+.fmp-clear { border: 1px solid var(--line); background: transparent; color: var(--dim); }
+.fmp-clear:hover:not(:disabled) { color: var(--bad, #b4433e); border-color: var(--bad, #b4433e); }
+.fmp-send { margin-left: auto; border: 1px solid transparent; background: var(--acc); color: #fff; }
+.fmp-send:hover:not(:disabled) { filter: brightness(1.06); }
+.fmp-clear:disabled, .fmp-send:disabled { opacity: .42; cursor: default; }
+.fmp-foot-note { flex: 1; min-width: 0; font-size: 10px; color: var(--hint); line-height: 1.4; }

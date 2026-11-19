@@ -1,0 +1,185 @@
+/* ── 2. 主工作区布局网格（左固定轨道头列 + 右侧时间画布） ── */
+.wb-tl-workspace {
+  position: relative;
+  min-height: 0;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.wb-tl-workspace[data-disabled] {
+  opacity: 0.5;
+}
+
+.wb-tl-grid {
+  display: grid;
+  grid-template-columns: var(--wb-tl-gutter) minmax(0, 1fr);
+}
+
+/* 左右分栏拖拽线 */
+.wb-tl-gutter-resize {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 12;
+  width: 8px;
+  cursor: col-resize;
+  touch-action: none;
+  background: transparent;
+}
+
+.wb-tl-gutter-resize::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 3px;
+  width: 2px;
+  background: var(--acc);
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.wb-tl-gutter-resize:hover::after,
+.wb-tl-gutter-resize:focus-visible::after {
+  opacity: 0.8;
+}
+
+/* ── 3. 标尺行（高 28px）：左侧“内容 参考 ⓘ”，右侧主次刻度标尺 ── */
+.wb-tl-ruler-row {
+  flex: none;
+  height: var(--wb-tl-ruler-h);
+  border-bottom: 1px solid var(--line);
+  background: var(--stage-bg);
+}
+
+.wb-tl-ruler-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px 0 12px;
+  border-right: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--tx2);
+  font-size: 11px;
+}
+
+.wb-tl-meta-title {
+  color: var(--tx2);
+  font-weight: 500;
+  font-size: 11px;
+  line-height: 1;
+}
+
+.wb-tl-ref-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 4.5px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--tx) 4%, transparent);
+  border: 1px solid color-mix(in srgb, var(--tx) 8%, transparent);
+  color: var(--tx3);
+  font-size: 9px;
+  line-height: 1;
+  cursor: help;
+}
+
+.wb-tl-fps-label {
+  margin-left: auto;
+  color: var(--tx3);
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.8;
+  line-height: 1;
+}
+
+.wb-tl-ruler {
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+  background: var(--stage-bg);
+  cursor: pointer;
+  touch-action: none;
+}
+
+/* 主刻度：长刻度线 8px + 顶部时码文字 */
+.wb-tl-tick {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  padding-left: 5px;
+  padding-top: 3px;
+  color: var(--tx2);
+  font-size: 9.5px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* 标尺零点主刻度：离左边界留出清晰空间 */
+.wb-tl-tick[data-first] {
+  padding-left: 8px;
+}
+
+.wb-tl-tick::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 1px;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.24);
+}
+
+.wb-tl-tick[data-last] {
+  transform: translateX(-100%);
+  padding-left: 0;
+  padding-right: 4px;
+}
+
+.wb-tl-tick[data-last]::after {
+  left: auto;
+  right: 0;
+}
+
+/* 次刻度：短线 4px（中点 6px） */
+.wb-tl-tick-minor {
+  position: absolute;
+  bottom: 0;
+  width: 1px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.10);
+  pointer-events: none;
+}
+
+.wb-tl-tick-minor[data-mid] {
+  height: 6px;
+  background: rgba(255, 255, 255, 0.18);
+}
+
+/* 播放头顶部实心倒三角微型标记 */
+.wb-tl-playhead-cap {
+  position: absolute;
+  bottom: 0;
+  z-index: 8;
+  width: 9px;
+  height: 8px;
+  transform: translateX(-50%);
+  background: var(--acc);
+  clip-path: polygon(0 0, 100% 0, 100% 45%, 50% 100%, 0 45%);
+  pointer-events: none;
+}
+
+/* 贯穿全部轨道的内容区 1px 品牌蓝竖线 */
+.wb-tl-playhead {
+  position: absolute;
+  z-index: 6;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  transform: translateX(-50%);
+  background: var(--acc);
+  box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+}

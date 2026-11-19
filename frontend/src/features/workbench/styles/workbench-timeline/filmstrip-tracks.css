@@ -1,0 +1,219 @@
+/* ── 4. 真实缩略帧带（高 28px，去亮色帧缝，去左侧独立标签） ── */
+.wb-tl-ruler-film {
+  flex: none;
+  height: var(--wb-tl-film-h);
+  border-bottom: 1px solid var(--line);
+  background: var(--stage-bg);
+}
+
+.wb-tl-film-meta {
+  border-right: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.wb-tl-ruler-film .wb-tl-lane,
+.wb-tl-track {
+  height: var(--wb-tl-film-h);
+}
+
+.wb-tl-track {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  background: var(--stage-bg);
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.wb-tl-film-window {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 0.88;
+}
+
+.wb-tl-film-position {
+  position: absolute;
+  top: 0;
+  height: 100%;
+}
+
+.wb-tl-filmstrip {
+  display: flex;
+  width: 100%;
+  height: 100%;
+}
+
+.wb-tl-filmstrip canvas {
+  display: block;
+  flex: 1 1 0;
+  width: 0;
+  height: 100%;
+  object-fit: cover;
+  border-right: none;
+}
+
+/* ── 5. 轨道列表（行高 44px） ── */
+.wb-tl-rows {
+  position: relative;
+  min-height: 0;
+  overflow-y: auto;
+  flex: 1 1 auto;
+  overscroll-behavior-y: contain;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--tx3) 50%, transparent) transparent;
+}
+
+.wb-tl-rows::-webkit-scrollbar {
+  width: 5px;
+}
+
+.wb-tl-rows::-webkit-scrollbar-thumb {
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--tx3) 50%, transparent);
+}
+
+.wb-tl-row-track {
+  height: var(--wb-tl-row-h);
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+  transition: background-color 100ms ease;
+}
+
+.wb-tl-row-track[data-active] {
+  background: color-mix(in srgb, var(--acc) 1.5%, var(--panel));
+}
+
+/* 轨道头：折叠箭头 → 类型图标 → 轨道名称 → 次要代号 */
+.wb-tl-gutter {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  padding: 0 10px 0 12px;
+  border-right: 1px solid var(--line);
+  background: var(--panel);
+  overflow: hidden;
+}
+
+.wb-tl-row-track[data-active] .wb-tl-gutter {
+  background: color-mix(in srgb, var(--acc) 2.5%, var(--panel));
+  box-shadow: inset 2px 0 0 var(--acc);
+}
+
+/* 折叠箭头：展开朝下、折叠朝右 */
+.wb-tl-track-fold {
+  display: grid;
+  place-items: center;
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--tx3);
+  cursor: pointer;
+  transition: color 120ms ease;
+}
+
+.wb-tl-track-fold:hover {
+  color: var(--tx);
+}
+
+.wb-tl-fold-arrow {
+  transform: rotate(0deg);
+  transition: transform 120ms ease;
+}
+
+.wb-tl-fold-arrow.is-expanded {
+  transform: rotate(90deg);
+}
+
+/* 类型图标（去掉方盒底座，直接呈现语义图标） */
+.wb-tl-track-type-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
+  color: var(--tx2);
+}
+
+.wb-tl-row-track[data-visual='text'] .wb-tl-track-type-icon {
+  color: color-mix(in srgb, var(--mark) 80%, var(--tx2));
+}
+
+.wb-tl-row-track[data-visual='video'] .wb-tl-track-type-icon {
+  color: color-mix(in srgb, var(--acc) 80%, var(--tx2));
+}
+
+.wb-tl-row-track[data-visual='background'] .wb-tl-track-type-icon {
+  color: var(--tx2);
+}
+
+/* 轨道名称：12px、中等字重、主要识别信息，统一基线 */
+.wb-tl-track-name {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--tx);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* 次要代号（如 V1、V2、T1）：10px、低对比度、无徽章边框与底色 */
+.wb-tl-track-code {
+  flex: 0 0 auto;
+  color: var(--tx3);
+  font-size: 10px;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  opacity: 0.8;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* 单片段时不显示；多片段紧凑数字 */
+.wb-tl-track-count {
+  margin-left: auto;
+  flex: 0 0 auto;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--tx3);
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 折叠态 */
+.wb-tl-row-track[data-collapsed],
+.wb-tl-row-track[data-collapsed] .wb-tl-lane {
+  height: 24px;
+}
+
+.wb-tl-row-track[data-collapsed] .wb-tl-track-name,
+.wb-tl-row-track[data-collapsed] .wb-tl-track-code {
+  display: none;
+}
+
+/* 右侧轨道槽 */
+.wb-tl-lane {
+  position: relative;
+  min-width: 0;
+}
+
+.wb-tl-row-track .wb-tl-lane {
+  height: var(--wb-tl-row-h);
+  background: var(--panel2);
+}
