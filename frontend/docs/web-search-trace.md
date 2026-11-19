@@ -15,8 +15,8 @@
 
 | 文件 | 作用 |
 |---|---|
-| `src/components/WebSearchTrace.tsx` | 组件 + 真实事件 → 步骤的转换 |
-| `src/styles/web-search-trace.css` | 样式、树形导轨、生长动效 |
+| `src/features/chat/components/WebSearchTrace.tsx` | 组件 + 真实事件 → 步骤的转换 |
+| `src/features/chat/styles/web-search-trace.css` | 样式、树形导轨、生长动效 |
 | `public/replica/web-search-run.html` | 独立演示页，可点「运行」看生长过程 |
 
 演示页直接用组件样式（构建时注入），改 CSS 后重新生成即可，不要手抄。

@@ -24,11 +24,11 @@ before(async () => {
     appType: 'custom',
     logLevel: 'silent',
   })
-  apiMod = await server.ssrLoadModule('/src/services/api/skillPresets.ts')
-  bindingMod = await server.ssrLoadModule('/src/services/workflowPresetBinding.ts')
-  service = (await server.ssrLoadModule('/src/services/workflowService.ts')).workflowService
-  execMod = await server.ssrLoadModule('/src/services/workflowExecution.ts')
-  MappingEditor = (await server.ssrLoadModule('/src/components/SkillPresetMappingEditor.tsx')).SkillPresetMappingEditor
+  apiMod = await server.ssrLoadModule('/src/api/skillPresets.ts')
+  bindingMod = await server.ssrLoadModule('/src/features/workflow/services/workflowPresetBinding.ts')
+  service = (await server.ssrLoadModule('/src/features/workflow/services/workflowService.ts')).workflowService
+  execMod = await server.ssrLoadModule('/src/features/workflow/services/workflowExecution.ts')
+  MappingEditor = (await server.ssrLoadModule('/src/features/workflow/components/SkillPresetMappingEditor.tsx')).SkillPresetMappingEditor
   renderToStaticMarkup = (await import('react-dom/server')).renderToStaticMarkup
 })
 
@@ -107,7 +107,7 @@ test('v2 actions and conditional inputs survive editor normalization, saving and
 })
 
 test('skillPresets client routes and extracts 422 validation errors accurately', async () => {
-  const { ApiError, parseErrorPayload } = await server.ssrLoadModule('/src/services/api/errors.ts')
+  const { ApiError, parseErrorPayload } = await server.ssrLoadModule('/src/api/errors.ts')
   const parsed = parseErrorPayload(422, {
     error: {
       code: 'mapping_invalid',
@@ -236,7 +236,7 @@ test('running with the untouched scaffold is rejected before any side effect', a
   values.set('fm-workflows-v2', '[]')
   const wf = service.createFromSkillPreset(samplePreset('active'), '骨架未填')
   const promptNode = wf.nodes.find((n) => n.type === 'prompt')
-  const { workflowGraphProblems } = await server.ssrLoadModule('/src/services/workflowGraph.ts')
+  const { workflowGraphProblems } = await server.ssrLoadModule('/src/features/workflow/services/workflowGraph.ts')
   for (const text of [promptNode.params.promptScaffold, `  ${promptNode.params.promptScaffold.replace(/\n/g, '\n\n')}  `]) {
     promptNode.params.text = text
     assert.ok(workflowGraphProblems(wf.nodes, wf.edges).some((p) => /骨架/.test(p.message)), '骨架原样（含空白差异）不能运行')
@@ -251,8 +251,8 @@ test('running with the untouched scaffold is rejected before any side effect', a
 })
 
 test('F4 running workflow with skillPresetId calls applyPresetToProject before agent creation and stops on failure', async () => {
-  const { installStudioHttpApi, createStudioApiClient, resetStudioHttpApi } = await server.ssrLoadModule('/src/services/api/index.ts')
-  const { startDemoRun } = await server.ssrLoadModule('/src/services/workflowService.ts')
+  const { installStudioHttpApi, createStudioApiClient, resetStudioHttpApi } = await server.ssrLoadModule('/src/api/index.ts')
+  const { startDemoRun } = await server.ssrLoadModule('/src/features/workflow/services/workflowService.ts')
   values.set('fm-workflows-v2', '[]')
   const wf = service.createFromSkillPreset(samplePreset('active'), '落地验证')
   wf.projectId = 'prj_apply'
@@ -308,9 +308,9 @@ test('F4 running workflow with skillPresetId calls applyPresetToProject before a
 })
 
 test('archived preset: run warns and continues, and tells whether the project already has the guide', async () => {
-  const { installStudioHttpApi, createStudioApiClient, resetStudioHttpApi } = await server.ssrLoadModule('/src/services/api/index.ts')
-  const { startDemoRun } = await server.ssrLoadModule('/src/services/workflowService.ts')
-  const { ApiError } = await server.ssrLoadModule('/src/services/api/errors.ts')
+  const { installStudioHttpApi, createStudioApiClient, resetStudioHttpApi } = await server.ssrLoadModule('/src/api/index.ts')
+  const { startDemoRun } = await server.ssrLoadModule('/src/features/workflow/services/workflowService.ts')
+  const { ApiError } = await server.ssrLoadModule('/src/api/errors.ts')
   values.set('fm-workflows-v2', '[]')
   const wf = service.createFromSkillPreset(samplePreset('active'), '归档后运行')
   wf.projectId = 'prj_archived'

@@ -8,8 +8,8 @@
 | 组件 | 文件 | 来源 | 授权 |
 |---|---|---|---|
 | AgentProgress | `src/components/AgentProgress.tsx` | BoardUI（Pro 组件，无源码） | 照实现复刻 |
-| AgentThinking | `src/components/AgentThinking.tsx` | BoardUI 免费组件 | MIT |
-| ThinkingOrbs | `src/components/thinking-orbs/` | [Libraries.dev](https://github.com/Jakubantalik/Libraries.dev) | MIT |
+| AgentThinking | `src/features/chat/components/AgentThinking.tsx` | BoardUI 免费组件 | MIT |
+| ThinkingOrbs | `src/features/chat/components/thinking-orbs/` | [Libraries.dev](https://github.com/Jakubantalik/Libraries.dev) | MIT |
 
 ## AgentProgress · 任务进度
 

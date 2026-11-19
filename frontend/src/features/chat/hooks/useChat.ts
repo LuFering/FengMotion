@@ -1,0 +1,256 @@
+import { useState } from 'react'
+import type { ChatMessageToolCall, ChatReasoningSegment, ChatStreamStatus } from '@/api/contracts'
+import { appendReasoningSegment, applyTextDelta, updateTurnTools } from '@/features/chat/model/assistantTurn'
+
+export interface ChatMessage {
+  id: string
+  role: 'user' | 'ai'
+  text: string
+  /** 服务端确认并保存的附件，用于回看消息时显示文件名。 */
+  attachments?: { name: string; mimeType: string; sizeBytes: number; fileId?: string }[]
+  references?: import('@/api/contracts').AgentReference[]
+  taskId?: string
+  projectId?: string
+  /** 归属会话 id；严格隔离不同会话的消息，防止跨会话串味 */
+  sessionId?: string
+  /** 消息时间（工作台对话 tab 只渲染 text，本字段对它无影响） */
+  at?: number
+  /** 对话视图的演示附加块（工作台对话 tab 只渲染 text，本字段对它无影响） */
+  thinking?: string
+  toolCalls?: { label: string; detail: string }[]
+  /**
+   * 从服务端消息里读回的工具调用记录。
+   *
+   * 与上面的 `toolCalls`（演示适配器用的 `{label, detail}`）是两回事，不能合并：
+   * 那个是演示数据里手写的摘要，这个是真实执行记录，带参数与成败。
+   * 分开存是为了不破坏演示路径，同时让真实回复切走会话再回来仍能回看。
+   */
+  executedTools?: ChatMessageToolCall[]
+  /** 思考按阶段的分段；有它时界面把每段放回对应阶段，没有时退回整块显示 `thinking`。 */
+  thinkingSegments?: ChatReasoningSegment[]
+  /**
+   * 模型通过 todo_write 提交的待办清单（整表替换，最后一次为准）。
+   * 显式区分于下面的 `plan`（演示适配器手写的字符串数组）。
+   */
+  todos?: { content: string; status: 'pending' | 'in_progress' | 'completed' }[]
+  /**
+   * 本轮的过程诊断（压缩 / token 上限 / 重试）。
+   * 与 failed 分开：诊断不表示失败，只表示「这次为什么可能不对劲」。
+   */
+  diagnostics?: { kind: 'compaction' | 'max-tokens' | 'retry' | 'interrupted'; detail?: string }[]
+  /**
+   * 这条回复交付的文件（present 工具）。
+   *
+   * 用户在对话里最想知道「东西在哪」，这个信息不该埋在正文里要他自己抠路径。
+   */
+  deliverables?: { path: string; description?: string }[]
+  /**
+   * 这条回复的 token 用量（落库形态，从历史读回）。
+   *
+   * 与流式期间的临时用量分开记：那个只在「刚发完」时存在，刷新就没了；
+   * 这个是持久事实，用来重建上下文占用条。
+   */
+  usage?: {
+    inputTokens?: number
+    outputTokens?: number
+    cacheReadTokens?: number
+    totalTokens?: number
+    promptTokens?: number
+    toolsTokens?: number
+    contextWindow?: number
+    /** 上下文分档快照；旧后端不产时保持 undefined。 */
+    breakdown?: {
+      systemTokens: number
+      memoryTokens: number
+      filesTokens: number
+      resultsTokens: number
+      chatTokens: number
+    }
+  }
+  plan?: string[]
+  /** “改了什么”表：只列真实创建的产物（项目 / 工作流），不编造文件改动 */
+  changes?: { file: string; change: string }[]
+  /** 演示适配器产出的回复：界面必须显示「未连接 Agent」，不得含糊成真实能力 */
+  demo?: boolean
+  /** 正在流式接收：文字还不完整，界面按「还没说完」呈现 */
+  streaming?: boolean
+  /** 流失败或中断的原因。有值 = 这条回复没有完成，界面不得当作成功 */
+  failed?: string
+}
+
+let sequence = 0
+const makeId = () => `msg-${Date.now().toString(36)}-${sequence++}`
+
+const INITIAL_MESSAGES: ChatMessage[] = [
+  {
+    id: 'intro',
+    role: 'ai',
+    text: '说说你想做什么片子。',
+  },
+]
+
+export function useChat() {
+  const [messages, setMessages] = useState(INITIAL_MESSAGES)
+  const [draft, setDraft] = useState('')
+  /* 返回新消息 id：排队中的消息先占位，任务真正启动时再把 taskId 补上去。 */
+  const addUserMessage = (text: string, taskId?: string, projectId?: string, sessionId?: string) => {
+    const id = makeId()
+    setMessages((items) => [...items, { id, role: 'user', text, taskId, projectId, sessionId, at: Date.now() }])
+    return id
+  }
+  const setMessageTaskId = (messageId: string, taskId: string) => {
+    setMessages((items) => items.map((m) => (m.id === messageId ? { ...m, taskId } : m)))
+  }
+  /* 对话视图的演示 agent 回复（本地生成） */
+  const addAiMessage = (m: { text: string; thinking?: string; toolCalls?: { label: string; detail: string }[]; plan?: string[]; changes?: { file: string; change: string }[] }) => {
+    setMessages((items) => [...items, { id: makeId(), role: 'ai', at: Date.now(), ...m }])
+  }
+
+  /* 追加一条**服务端已确认**的消息（带服务端 id）。
+     用服务端 id 而不是本地生成：重新装载历史时同一个 id 不会出现两份。
+     已在列表里的直接跳过 —— 重复提交 / 历史与发送竞态下不该出现两条一样的消息。 */
+  const appendMessage = (m: ChatMessage) => {
+    setMessages((items) => (items.some((x) => x.id === m.id) ? items : [...items, m]))
+  }
+
+  /* ── 流式回复（对话区走 services/chatService 的 stream）──────────
+     分成「占位 / 追加 / 收尾 / 失败」四步，是为了让界面能如实显示
+     「正在说」而不必等整段落地，并且失败时能明确标出这条没完成 ——
+     契约要求不得用半截文本冒充完成。
+     `demo` 只给演示适配器产的回复：服务端真回复传 `{ demo: false }`，
+     否则界面会给真实回复挂上「未连接 Agent」的假标签。 */
+  const startAiMessage = (options: { demo?: boolean; projectId?: string; sessionId?: string } = {}) => {
+    const id = makeId()
+    const demo = options.demo ?? true
+    setMessages((items) => [
+      ...items,
+      {
+        id,
+        role: 'ai',
+        text: '',
+        at: Date.now(),
+        streaming: true,
+        demo,
+        projectId: options.projectId,
+        sessionId: options.sessionId,
+      },
+    ])
+    return id
+  }
+  /**
+   * 追加推理增量。
+   *
+   * 与 appendAiText 分开而不是复用它：正文与推理是两条流，
+   * 混在 text 里会把推理写进答案（用户复制、朗读、以及 Markdown 渲染都会带上）。
+   */
+  const appendAiReasoning = (messageId: string, delta: string, position?: { textOffset: number; order: number }) => {
+    setMessages((items) =>
+      items.map((m) => (m.id === messageId
+        ? { ...m, thinking: (m.thinking ?? '') + delta,
+            ...(position ? { thinkingSegments: appendReasoningSegment(m.thinkingSegments ?? [], delta, position) } : {}) }
+        : m)),
+    )
+  }
+
+  /** 待办清单整表替换：DSH 的 todo 工具就是整表语义，不做增量合并。 */
+  const setAiTodos = (
+    messageId: string,
+    todos: { content: string; status: 'pending' | 'in_progress' | 'completed' }[],
+  ) => {
+    setMessages((items) => items.map((m) => (m.id === messageId ? { ...m, todos } : m)))
+  }
+
+  /**
+   * 记录一次工具调用（实时）。
+   *
+   * <p>侧栏原先只在 `onCompleted` 时收到工具列表，且那里传的是 `undefined` ——
+   * 于是执行过程中看不到任何步骤，只有事后重读历史才有。现在流式期间
+   * 就按同一套规则维护记录，与对话区一致：</p>
+   * <ul>
+   *   <li>带 `arguments` → 这是一次新调用的开始帧，追加条目（`done` 不写）；</li>
+   *   <li>带 `callId` 但没 `arguments` → 结果帧，回填 `done: true`（及 `isError`）。</li>
+   * </ul>
+   *
+   * <p><strong>开始帧不写 `done: false`</strong>：后端落库时也不写，
+   * 只有收到结果才回填。前端若在这里塞 `false`，重读历史后会变成
+   * 「没有完成标记」，与实时态不一致。</p>
+   */
+  const recordToolCall = (messageId: string, status: ChatStreamStatus) => {
+    if (status.phase !== 'tool') return
+    setMessages(items => items.map(message => message.id === messageId
+      ? { ...message, executedTools: updateTurnTools(message.executedTools ?? [], status) } : message))
+  }
+
+  /** 追加一条过程诊断；同 kind 只保留最后一条，避免重试刷屏。 */
+  const addAiDiagnostic = (
+    messageId: string,
+    kind: 'compaction' | 'max-tokens' | 'retry' | 'interrupted',
+    detail?: string,
+  ) => {
+    setMessages((items) => items.map((m) => {
+      if (m.id !== messageId) return m
+      const rest = (m.diagnostics ?? []).filter((d) => d.kind !== kind)
+      return { ...m, diagnostics: [...rest, { kind, detail }] }
+    }))
+  }
+
+  const appendAiText = (messageId: string, delta: string, replaceFrom?: number) => {
+    if (!delta && replaceFrom === undefined) return
+    setMessages(items => items.map(message => message.id === messageId
+      ? { ...message, text: applyTextDelta(message.text, delta, replaceFrom) } : message))
+  }
+  /* `completed` 给的是最终完整文本，**以它为准**（覆盖已拼接的），见契约 §4 */
+  const finishAiMessage = (
+    messageId: string,
+    text: string,
+    executedTools?: ChatMessageToolCall[],
+    reasoning?: string,
+    todos?: { content: string; status: 'pending' | 'in_progress' | 'completed' }[],
+    deliverables?: { path: string; description?: string }[],
+    reasoningSegments?: ChatReasoningSegment[],
+  ) => {
+    setMessages((items) => items.map((m) => (
+      m.id === messageId
+        ? {
+            ...m, text, streaming: false, failed: undefined,
+            /* 把本轮收集到的工具记录挂到消息上：completed 之后会异步重读服务端消息，
+               在那之前实时列表已经随 pending 消失 —— 不挂上的话，这一瞬间列表会闪空。 */
+            ...(executedTools && executedTools.length > 0 ? { executedTools } : {}),
+            /* 思考过程同理：流式期间已经逐块写进 thinking，服务端读回之前
+               这里补一次终值，避免「重读之前那一瞬间」思考块消失。 */
+            ...(reasoning ? { thinking: reasoning } : {}),
+            ...(reasoningSegments && reasoningSegments.length > 0 ? { thinkingSegments: reasoningSegments } : {}),
+            /* 任务清单同理：completed 到重读历史之间有一瞬空档，
+               这里先挂上，避免清单在那一瞬消失。 */
+            ...(todos && todos.length > 0 ? { todos } : {}),
+            /* 产物同理：completed 到重读历史之间有一瞬空档，
+               这里先挂上，避免卡片在那一瞬消失。 */
+            ...(deliverables && deliverables.length > 0 ? { deliverables } : {}),
+          }
+        : m
+    )))
+  }
+  const failAiMessage = (messageId: string, note: string) => {
+    setMessages((items) => items.map((m) => (
+      m.id === messageId ? { ...m, streaming: false, failed: note } : m
+    )))
+  }
+  /* 丢弃一条还没说完的消息：流被中断（切会话 / 卸载 / 重挂载）时用。
+     不丢的话，重挂载会另起一条，用户就会看到两条半截回复。 */
+  const removeMessage = (messageId: string) => {
+    setMessages((items) => items.filter((m) => m.id !== messageId))
+  }
+  /* 切换会话时整体换掉消息列表（会话树 → 当前对话） */
+  const replaceMessages = (next: ChatMessage[]) => setMessages(next)
+  /* 开新会话：回到初始状态（不动任何持久化数据） */
+  const clearChat = () => {
+    setMessages(INITIAL_MESSAGES)
+    setDraft('')
+  }
+  return {
+    messages, draft, setDraft, addUserMessage, setMessageTaskId, addAiMessage, appendMessage, clearChat,
+    replaceMessages, startAiMessage, appendAiText, appendAiReasoning, setAiTodos, recordToolCall, addAiDiagnostic, finishAiMessage, failAiMessage, removeMessage,
+  }
+}
+
+export type ChatState = ReturnType<typeof useChat>

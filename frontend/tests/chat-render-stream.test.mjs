@@ -6,8 +6,8 @@ import { fileURLToPath } from 'node:url'
 let server, streams, events
 before(async () => {
   server = await createServer({ root: fileURLToPath(new URL('..', import.meta.url)), server: { middlewareMode: true }, appType: 'custom', logLevel: 'silent' })
-  streams = await server.ssrLoadModule('/src/services/api/streams.ts')
-  events = await server.ssrLoadModule('/src/services/projectRenderEvents.ts')
+  streams = await server.ssrLoadModule('/src/api/streams.ts')
+  events = await server.ssrLoadModule('/src/features/project/services/projectRenderEvents.ts')
 })
 after(async () => { await server?.close() })
 
@@ -52,7 +52,7 @@ test('project render events only reach subscribers and stop after unsubscribe', 
 
 /* 切回对话只接上那一轮：请求带 attach；后端说这一轮不在了，就提示一次并停止，不重连、不重跑 */
 test('attach sends the flag and turn_not_running stops without reconnecting', async () => {
-  const errors = await server.ssrLoadModule('/src/services/api/errors.ts')
+  const errors = await server.ssrLoadModule('/src/api/errors.ts')
   let calls = 0, query = null
   const http = {
     config: { streamIdleTimeoutMs: 5000, streamReconnectLimit: 3, streamStableMs: 0, resyncLimit: 0 },

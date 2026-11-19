@@ -7,7 +7,7 @@ let toDeliverable
 
 before(async () => {
   server = await createServer({ server: { middlewareMode: true }, appType: 'custom', logLevel: 'silent' })
-  ;({ toDeliverable } = await server.ssrLoadModule('/src/shell/PendingAssets.tsx'))
+  ;({ toDeliverable } = await server.ssrLoadModule('/src/features/assets/components/PendingAssets.tsx'))
 })
 after(async () => { await server?.close() })
 

@@ -5,8 +5,8 @@ import { fileURLToPath } from 'node:url'
 let server, NavigationGuard, prepareCreationEntry
 before(async () => {
   server = await createServer({ root: fileURLToPath(new URL('..', import.meta.url)), server: { middlewareMode: true }, appType: 'custom', logLevel: 'silent' })
-  ;({ NavigationGuard } = await server.ssrLoadModule('/src/shell/navigationGuard.ts'))
-  ;({ prepareCreationEntry } = await server.ssrLoadModule('/src/services/creationEntry.ts'))
+  ;({ NavigationGuard } = await server.ssrLoadModule('/src/shared/navigation/navigationGuard.ts'))
+  ;({ prepareCreationEntry } = await server.ssrLoadModule('/src/features/creation/services/creationEntry.ts'))
 })
 after(async () => { await server?.close() })
 
@@ -80,7 +80,7 @@ test('session failure exposes prepared project for safe retry without another pr
 })
 
 test('first creation records the original brief; initialized projects are untouched', async () => {
-  const { ensureCreationContext } = await server.ssrLoadModule('/src/services/creationEntry.ts')
+  const { ensureCreationContext } = await server.ssrLoadModule('/src/features/creation/services/creationEntry.ts')
   const calls = []
   await ensureCreationContext('p', '原始需求\n逐字保留', { state: async () => ({ initialized: false }), init: async (...args) => calls.push(args) })
   assert.deepEqual(calls, [['p', '原始需求\n逐字保留']])

@@ -5,7 +5,7 @@ import {fileURLToPath} from 'node:url'
 let server,api,store,client
 const values=new Map()
 globalThis.localStorage={getItem:k=>values.get(k)??null,setItem:(k,v)=>{values.set(k,String(v));Object.defineProperty(globalThis.localStorage,k,{value:String(v),configurable:true,enumerable:true})},removeItem:k=>{values.delete(k);delete globalThis.localStorage[k]}}
-before(async()=>{server=await createServer({root:fileURLToPath(new URL('..',import.meta.url)),server:{middlewareMode:true},appType:'custom',logLevel:'silent'});api=(await server.ssrLoadModule('/src/services/api/index.ts')).studioHttpApi();store=await server.ssrLoadModule('/src/services/localDocuments.ts');client=await server.ssrLoadModule('/src/services/creationClient.ts')})
+before(async()=>{server=await createServer({root:fileURLToPath(new URL('..',import.meta.url)),server:{middlewareMode:true},appType:'custom',logLevel:'silent'});api=(await server.ssrLoadModule('/src/api/index.ts')).studioHttpApi();store=await server.ssrLoadModule('/src/shared/local-documents/localDocuments.ts');client=await server.ssrLoadModule('/src/features/creation/services/creationClient.ts')})
 after(async()=>{await server.close();delete globalThis.localStorage})
 test('lost POST response queries the same durable job rather than starting a second creation',async()=>{
  let posts=0,gets=0

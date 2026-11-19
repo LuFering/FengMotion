@@ -11,8 +11,8 @@
  *   · `/api/capabilities` 的 `agent.status` —— DSH 是否接入
  *   · `/api/harnesses` —— 引擎清单
  */
-import { studioHttpApi } from '../src/services/api/index.ts'
-import { availabilityOf, matchHarness } from '../src/shell/useHarnesses.ts'
+import { studioHttpApi } from '../src/api/index.ts'
+import { availabilityOf, matchHarness } from '../src/features/harness/hooks/useHarnesses.ts'
 
 const failures: string[] = []
 function check(label: string, actual: unknown, expected: unknown) {

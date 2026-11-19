@@ -6,8 +6,8 @@ import { fileURLToPath } from 'node:url'
 let server, turn, Content, render
 before(async () => {
   server = await createServer({ root: fileURLToPath(new URL('..', import.meta.url)), server: { middlewareMode: true }, appType: 'custom', logLevel: 'silent' })
-  turn = await server.ssrLoadModule('/src/services/assistantTurn.ts')
-  Content = (await server.ssrLoadModule('/src/components/chat/AssistantTurnContent.tsx')).AssistantTurnContent
+  turn = await server.ssrLoadModule('/src/features/chat/model/assistantTurn.ts')
+  Content = (await server.ssrLoadModule('/src/features/chat/components/AssistantTurnContent.tsx')).AssistantTurnContent
   render = (await import('react-dom/server')).renderToStaticMarkup
 })
 after(async () => { await server?.close() })

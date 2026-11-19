@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import { strict as assert } from 'node:assert'
-import { manifestMatches, parseSequenceManifest, sequenceClipKey } from '../src/data/sequenceManifest.ts'
+import { manifestMatches, parseSequenceManifest, sequenceClipKey } from '../src/features/workbench/model/sequenceManifest.ts'
 
 const manifest = parseSequenceManifest({
   schemaVersion: 2, sourceHash: 'revision-a', fps: 30, durationSeconds: 4,

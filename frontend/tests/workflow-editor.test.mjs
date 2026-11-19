@@ -8,10 +8,10 @@ const values = new Map()
 globalThis.localStorage = { getItem: (k) => values.get(k) ?? null, setItem: (k, v) => values.set(k, String(v)), removeItem: (k) => values.delete(k) }
 before(async () => {
   server = await createServer({ root: fileURLToPath(new URL('..', import.meta.url)), server: { middlewareMode: true }, appType: 'custom', logLevel: 'silent' })
-  graph = await server.ssrLoadModule('/src/services/workflowGraph.ts')
-  templates = await server.ssrLoadModule('/src/data/workflowTemplates.ts')
-  service = (await server.ssrLoadModule('/src/services/workflowService.ts')).workflowService
-  Preview = (await server.ssrLoadModule('/src/components/WorkflowGraphPreview.tsx')).WorkflowGraphPreview
+  graph = await server.ssrLoadModule('/src/features/workflow/services/workflowGraph.ts')
+  templates = await server.ssrLoadModule('/src/features/workflow/model/workflowTemplates.ts')
+  service = (await server.ssrLoadModule('/src/features/workflow/services/workflowService.ts')).workflowService
+  Preview = (await server.ssrLoadModule('/src/features/workflow/components/WorkflowGraphPreview.tsx')).WorkflowGraphPreview
   renderToStaticMarkup = (await import('react-dom/server')).renderToStaticMarkup
 })
 after(async () => { await server?.close(); delete globalThis.localStorage })
@@ -115,7 +115,7 @@ test('failed persistent writes never report a successful creation or save', () =
 })
 
 test('run identity never projects another version, project, unsaved graph or legacy record', async () => {
-  const { runMatchesDefinition } = await server.ssrLoadModule('/src/services/workflowPresentation.ts')
+  const { runMatchesDefinition } = await server.ssrLoadModule('/src/features/workflow/services/workflowPresentation.ts')
   const wf = { id: 'w', revision: 3, projectId: 'p' }
   const run = { workflowId: 'w', revision: 3, projectId: 'p' }
   assert.equal(runMatchesDefinition(run, wf, false), true)
@@ -127,14 +127,14 @@ test('run identity never projects another version, project, unsaved graph or leg
   assert.equal(runMatchesDefinition({ ...run, projectId: null }, { ...wf, projectId: null }, false), true)
 })
 test('legacy run labels do not invent demo status from missing video', async () => {
-  const { workflowRunLabel } = await server.ssrLoadModule('/src/services/workflowPresentation.ts')
+  const { workflowRunLabel } = await server.ssrLoadModule('/src/features/workflow/services/workflowPresentation.ts')
   assert.match(workflowRunLabel({ executionMode: 'project', artifacts: [] }), /项目运行/)
   assert.match(workflowRunLabel({ executionMode: 'demo', artifacts: [] }), /演示/)
   assert.match(workflowRunLabel({ artifacts: [] }), /类型未记录/)
   assert.match(workflowRunLabel({ artifacts: [{ demo: false }] }), /真实产物/)
 })
 test('card copy uses real prompt and project data, missing association is explicit', async () => {
-  const { workflowBrief, workflowProjectLabel } = await server.ssrLoadModule('/src/services/workflowPresentation.ts')
+  const { workflowBrief, workflowProjectLabel } = await server.ssrLoadModule('/src/features/workflow/services/workflowPresentation.ts')
   assert.equal(workflowBrief({ nodes: [{ type: 'prompt', params: { text: '产品广告\n蓝色画面' } }], description: 'old' }), '产品广告 蓝色画面')
   assert.equal(workflowBrief({ nodes: [], description: '' }), '')
   assert.equal(workflowProjectLabel('p', [{ id: 'p', name: '真实项目' }]), '真实项目')
@@ -143,7 +143,7 @@ test('card copy uses real prompt and project data, missing association is explic
   assert.match(workflowProjectLabel(null, []), /未关联/)
 })
 test('real demo executor persists immutable project, version, mode and node labels', async () => {
-  const { startDemoRun } = await server.ssrLoadModule('/src/services/workflowService.ts')
+  const { startDemoRun } = await server.ssrLoadModule('/src/features/workflow/services/workflowService.ts')
   const wf = service.createFromPath('prompt-first', 'general', '运行归属验证')
   const prompt = wf.nodes.find((n) => n.type === 'prompt'); prompt.params.text = '演示需求'
   const handle = startDemoRun(wf, { onEvent() {}, onNodeStatus() {} })
@@ -159,7 +159,7 @@ test('real demo executor persists immutable project, version, mode and node labe
 })
 
 test('port executor follows connected prompts and stops downstream on failure', async () => {
-  const { executeWorkflow }=await server.ssrLoadModule('/src/services/workflowExecution.ts')
+  const { executeWorkflow }=await server.ssrLoadModule('/src/features/workflow/services/workflowExecution.ts')
   const wf=service.createFromPath('prompt-first','general','真实端口测试')
   wf.nodes.find(n=>n.type==='prompt').params.text='已连接的需求'
   wf.nodes.unshift({...node('unused','prompt','未连接的需求')})
@@ -183,8 +183,8 @@ test('F1 templates use prompt -> create -> review -> delivery and do not hardcod
 })
 
 test('F2 pure migration removes lookdev/filmplan into legacyDrafts, converts finishing to delivery, and avoids IO on read', async () => {
-  const { migrateWorkflowDefinition } = await server.ssrLoadModule('/src/services/workflowMigration.ts')
-  const { executeWorkflow } = await server.ssrLoadModule('/src/services/workflowExecution.ts')
+  const { migrateWorkflowDefinition } = await server.ssrLoadModule('/src/features/workflow/services/workflowMigration.ts')
+  const { executeWorkflow } = await server.ssrLoadModule('/src/features/workflow/services/workflowExecution.ts')
   const legacyWf = {
     id: 'wf-legacy-1',
     name: '旧工作流',
@@ -248,7 +248,7 @@ test('F2 pure migration removes lookdev/filmplan into legacyDrafts, converts fin
 })
 
 test('delivery node is deterministic and cycle rerun clears create/review/delivery and passes correction', async () => {
-  const { executeWorkflow } = await server.ssrLoadModule('/src/services/workflowExecution.ts')
+  const { executeWorkflow } = await server.ssrLoadModule('/src/features/workflow/services/workflowExecution.ts')
   const g = templates.promptFirstGraph('general')
   g.nodes.find((n) => n.type === 'prompt').params.text = '原生需求'
 
@@ -334,7 +334,7 @@ test('delivery node is deterministic and cycle rerun clears create/review/delive
 /* 按真实顺序：第一次运行渲染出 v2 后停在等待审片 → 用户审片通过 v2（保存使 revision 变化）→ 继续交付。
    create 一旦被再次调用就会走 HTTP 并失败，所以运行状态为 completed 即证明没有重新渲染。 */
 async function awaitingDeliveryRun() {
-  const mod = await server.ssrLoadModule('/src/services/workflowService.ts')
+  const mod = await server.ssrLoadModule('/src/features/workflow/services/workflowService.ts')
   const wf = mod.workflowService.createFromPath('prompt-first', 'general', '交付测试', { projectId: 'p-deliver', seedPrompt: '原始需求' })
   const id = (type) => wf.nodes.find((n) => n.type === type).id
   const render = { state: 'rendered', version: 2, artifactPath: 'renders/v2.mp4', runId: 'run-deliver' }

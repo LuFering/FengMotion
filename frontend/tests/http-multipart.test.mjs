@@ -7,8 +7,8 @@ let HttpClient
 let DEFAULT_API_CONFIG
 before(async () => {
   server = await createServer({ server: { middlewareMode: true }, appType: 'custom', logLevel: 'silent' })
-  ;({ HttpClient } = await server.ssrLoadModule('/src/services/api/http.ts'))
-  ;({ DEFAULT_API_CONFIG } = await server.ssrLoadModule('/src/services/api/config.ts'))
+  ;({ HttpClient } = await server.ssrLoadModule('/src/api/http.ts'))
+  ;({ DEFAULT_API_CONFIG } = await server.ssrLoadModule('/src/api/config.ts'))
 })
 after(async () => { await server?.close() })
 

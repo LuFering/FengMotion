@@ -12,7 +12,7 @@ import { defineConfig, loadEnv } from 'vite'
  * 「npm run build 生效、npm run dev 不生效」——实测确认过：
  * shell 里设了 VITE_TEST_PROBE，dev 下浏览器读不到，Node 侧 loadEnv 却能读到。</p>
  *
- * <p>项目里只有 `src/services/api/config.ts` 读环境变量（后端地址），
+ * <p>项目里只有 `src/api/config.ts` 读环境变量（后端地址），
  * 所以这里只注入这一个。用 `loadEnv` 取值而不是 `process.env` 直读，
  * 是为了让 `desktop/.env*` 文件也能生效（loadEnv 会合并两者）。</p>
  *

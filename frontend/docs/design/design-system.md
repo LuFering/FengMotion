@@ -45,7 +45,7 @@
 
 ### 铁律
 
-- **状态色唯一来源是 `src/shell/status.ts`**（`statusOf()` → `{label, s}`，
+- **状态色唯一来源是 `src/shared/lib/status.ts`**（`statusOf()` → `{label, s}`，
   颜色由 `.fm-dot[data-s]` / `.fm-tag[data-s]` 决定）。组件里不许自己写状态色。
 - 状态**不能只靠颜色表达**：圆点/色块旁必须有文字。
 - 深色主题下 `color-scheme: dark` 必须保持（否则系统滚动条变白）。

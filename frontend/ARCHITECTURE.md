@@ -46,6 +46,6 @@ FengMotion Desktop 是 AI 视频创作工作台（桌面优先）。当前形态
 
 ### 工作台场景编辑器（2026-10-29）
 
-`src/editor/` 负责本机场景文档、属性面板、双引擎预览与导出，替换旧 `EditableShot` 标题覆盖层。`SceneDocument` 的图层描述通过同一个 `SceneComposition` 驱动 Remotion Player 与浏览器渲染器；素材复用 assetService 的 IndexedDB。HTML 引擎仅执行 `public/editor-sources/` 中已绑定、带原始 SHA-256 的源快照，元素修改作为独立覆盖记录，保留原 GSAP 时间轴。
+`src/features/scene-editor/` 负责本机场景文档、属性面板、双引擎预览与导出，替换旧 `EditableShot` 标题覆盖层。`SceneDocument` 的图层描述通过同一个 `SceneComposition` 驱动 Remotion Player 与浏览器渲染器；素材复用 assetService 的 IndexedDB。HTML 引擎仅执行 `public/editor-sources/` 中已绑定、带原始 SHA-256 的源快照，元素修改作为独立覆盖记录，保留原 GSAP 时间轴。
 
 `render.ts` 把真正生成的文件存入素材库，独立记录本机导出版本，再以 `origin: editor` 提供工作台预览；不制造工作流执行记录。HTML 支持工程包导出，尚不支持本机视频编码；这不是完整 Remotion Studio，也不导入任意 TSX 项目。详细验证及能力边界见 [场景编辑器验收记录](docs/ui-review/source-editor/README.md)。

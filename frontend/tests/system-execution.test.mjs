@@ -3,7 +3,7 @@ import {before,after,test} from 'node:test'
 import {createServer} from 'vite'
 import {fileURLToPath} from 'node:url'
 let server,executeWorkflow
-before(async()=>{server=await createServer({root:fileURLToPath(new URL('..',import.meta.url)),server:{middlewareMode:true},appType:'custom',logLevel:'silent'});({executeWorkflow}=await server.ssrLoadModule('/src/services/workflowExecution.ts'))})
+before(async()=>{server=await createServer({root:fileURLToPath(new URL('..',import.meta.url)),server:{middlewareMode:true},appType:'custom',logLevel:'silent'});({executeWorkflow}=await server.ssrLoadModule('/src/features/workflow/services/workflowExecution.ts'))})
 after(async()=>{await server.close()})
 const n=(id,type,params={})=>({id,type,params,position:{x:0,y:0}})
 const e=(id,source,sourcePort,target,targetPort)=>({id,source,sourcePort,target,targetPort})

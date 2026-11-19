@@ -2935,13 +2935,13 @@ async function groupAudit(): Promise<void> {
   })
   check('续传读取会话端点确实被发出（本地扩展，需回写契约）', missingHandles.length === 1, missingHandles.map((r) => `${r.method} ${r.path}`))
 
-  obs('文档内部基址口径不一致（非客户端偏差）：docs/contracts/README.md §2.1 写 `/api/v1`，02 §2 与 src/services/api/config.ts 默认值为 `/api`；02 已注明「最终前缀需要评审并同步三处」')
+  obs('文档内部基址口径不一致（非客户端偏差）：docs/contracts/README.md §2.1 写 `/api/v1`，02 §2 与 src/api/config.ts 默认值为 `/api`；02 已注明「最终前缀需要评审并同步三处」')
 
   // Vite 的扩展名解析顺序里 .js 优先于 .ts：src/ 下若混入「就地编译」产物，验收与产品构建都可能跑到编译副本
-  const apiDir = path.resolve(process.cwd(), 'src/services/api')
+  const apiDir = path.resolve(process.cwd(), 'src/api')
   if (fs.existsSync(apiDir)) {
     const offenders = fs.readdirSync(apiDir).filter((name) => name.endsWith('.js') || name.endsWith('.jsx'))
-    check('src/services/api/ 下没有编译产物 .js（避免遮蔽 .ts 源文件）', offenders.length === 0, offenders)
+    check('src/api/ 下没有编译产物 .js（避免遮蔽 .ts 源文件）', offenders.length === 0, offenders)
   } else {
     obs(`未找到 ${apiDir}（脚本需在仓库根目录运行），跳过 .js 遮蔽检查`)
   }

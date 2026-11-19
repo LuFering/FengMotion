@@ -48,7 +48,7 @@
 
 **改法：**
 
-创建 `src/components/PageHeader.tsx`：
+创建 `src/shared/components/PageHeader.tsx`：
 
 ```tsx
 export function PageHeader({ 
@@ -218,7 +218,7 @@ html[data-theme="tactile"] { --acc-d: #2563EB; --acc-l: #FBBF24; }
 
 **改法：**
 
-创建 `src/components/ui/button-system.tsx`：
+创建 `src/shared/ui/button-system.tsx`：
 
 ```tsx
 import { cva, type VariantProps } from 'class-variance-authority'

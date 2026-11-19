@@ -2,7 +2,7 @@
 
 状态：**待评审冻结**（2026-10-23 重写，替代 PR #2 的三份局部契约）。
 范围：前端全部八个视图 + 项目级工作台 + Agent 对话所需的数据与动作。
-类型实体：`src/types/contracts.ts`（纯类型、零 import、零运行时）。
+类型实体：`src/api/contracts.ts`（纯类型、零 import、零运行时）。
 边界：只约定字段、状态、关联、端点与错误；**不含后端实现、不含 Agent 编排、不含 UI**。
 
 ---
@@ -328,7 +328,7 @@ completed 且有 blocker/major → failed
 
 ## 5. 版本与变更流程
 
-1. 本目录文档 + `src/types/contracts.ts` 是同一份契约的两个视图，必须同步改；只改一处视为未完成。
+1. 本目录文档 + `src/api/contracts.ts` 是同一份契约的两个视图，必须同步改；只改一处视为未完成。
 2. 兼容变更（加可选字段、加枚举值、加端点）走 PR + 双人复核；破坏性变更必须新开 `/api/v2` 并给迁移期。
 3. 已冻结字段不直接改义：新增字段或枚举值，旧值标 `@deprecated` 并写明替代项。
 4. 实现跟不上契约时，先让适配器保持 Demo 标注，不私自改契约迁就实现。
@@ -341,9 +341,9 @@ completed 且有 blocker/major → failed
 | 现状 | 目标态 | 迁移期 |
 |---|---|---|
 | `studioApi` 只有任务/版本六个方法 | 本契约 60+ 端点 | 按域分 PR 接入，视图不动 |
-| 任务类型在 `studioApi.ts` 内定义，`mock: true` | `src/types/contracts.ts` 单一来源，`demo: true` | 接入第一个真实端点时切换 |
-| 项目数据来自 `src/data/projects.ts` 常量 | `GET /projects` | 02 期 |
-| 场景/分镜来自 `src/data/productionData.ts`，时长用秒 | `GET /scenes`，毫秒 | 03 期 |
+| 任务类型在 `studioApi.ts` 内定义，`mock: true` | `src/api/contracts.ts` 单一来源，`demo: true` | 接入第一个真实端点时切换 |
+| 项目数据来自 `src/features/project/model/projects.ts` 常量 | `GET /projects` | 02 期 |
+| 场景/分镜来自 `src/demo/productionData.ts`，时长用秒 | `GET /scenes`，毫秒 | 03 期 |
 | 镜头参数存 localStorage | `PUT /scenes/{id}/override` | 03 期 |
 | 素材存 IndexedDB，无服务端 | `/assets` + 分片上传 | 04-A 期 |
 | 参考片收藏/集合存 localStorage | `/reference-preferences` | 04-C 期 |

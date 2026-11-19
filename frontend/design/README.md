@@ -6,11 +6,11 @@
 
 | 目录 | 是什么 |
 |---|---|
-| `preview/` | 首页各版探索稿。`home-film-v3.html` 是现在首页第一屏的设计源（`src/views/Home.tsx` 与 `src/styles/home-film.css` 照它搬的）；其余是过程中的其他方向 |
+| `preview/` | 首页各版探索稿。`home-film-v3.html` 是现在首页第一屏的设计源（`src/features/home/Home.tsx` 与 `src/features/home/styles/home-film.css` 照它搬的）；其余是过程中的其他方向 |
 | `app-shots/` | 早期界面截图，用在原型页里做示意 |
 | `assets/logos/` | 原型页里「动效来源 / Agent 运行时」那几排技术 logo |
 
 ⚠️ 这些页面是当时按应用的 `public/` 根目录写的，里面既有相对路径也有
 `/frames`、`/cards`、`/assets` 这类绝对路径。其中 `/cards` 已随镜头卡库一起删除，
 所以现在直接打开不会完全还原 —— 它们是**历史快照**，留作追溯设计来源用，
-不保证可运行。要看效果请对照 `src/styles/home-film.css` 的现状。
+不保证可运行。要看效果请对照 `src/features/home/styles/home-film.css` 的现状。
