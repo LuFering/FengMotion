@@ -49,6 +49,8 @@ args=(
   "--server.port=$PORT"
   "--fengmotion.remotion.project-dir=$REPO/backend/remotion"
   "--fengmotion.remotion.node-modules=$REPO/frontend/node_modules"
+  # 实时预览脚本：工作台「实时」模式由后端按项目拉起 frontend/live-preview/server.mjs
+  "--fengmotion.live-preview.project-dir=$REPO/frontend/live-preview"
   "--fengmotion.workflow.dir=$REPO/frontend/workflow-v0.1.1"
   "--fengmotion.fx.assets-dir=$REPO/frontend/dist/capability-assets"
 )

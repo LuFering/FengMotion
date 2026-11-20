@@ -15,6 +15,9 @@ import { chainOf, fiberOf, hostsOf, type Level } from './probe'
 
 /** 最多采这么多帧：30 秒 / 30fps 的片子隔 2 帧采一次 */
 const MAX_SAMPLES = 450
+/** 缩略画面第一次挂出来之前最多等这么久（次数 × 间隔 = 6 秒）；等不到就照旧往下采 */
+const MAX_WAITS = 120
+const WAIT_MS = 50
 /** 这些组件只是排版或分段用的壳，不当成元素 */
 const STRUCTURAL = /^(AbsoluteFill|Sequence|Series|Fragment|Component|Freeze|Loop|Folder)$/
 const MEDIA = new Set(['img', 'video', 'canvas', 'svg', 'picture'])
@@ -134,6 +137,12 @@ export function LayerSampler({ component, props, width, height, fps, durationInF
   const hostRef = useRef<HTMLDivElement>(null)
   const seen = useRef(new Map<string, { owner: Owner; frames: number[] }>())
   const done = useRef(false)
+  /* 缩略画面还没挂出来时等它，而不是跳过这一帧：
+     以前一律往下走，首次打开时 450 步在一秒内空转完，报出「0 个元素」，元素轨整段缺失 */
+  const [waitTick, setWaitTick] = useState(0)
+  const waits = useRef(0)
+  /* 挂出来过一次之后，某一帧上什么都没有就是真的没有，不再等 */
+  const mounted = useRef(false)
 
   useEffect(() => {
     if (done.current) return
@@ -145,7 +154,23 @@ export function LayerSampler({ component, props, width, height, fps, durationInF
       if (cancelled) return
       {
         const root = hostRef.current?.querySelector(`[${SAMPLE_ATTR}]`) as HTMLElement | null
-        if (root) {
+        const ready = !!root && root.getBoundingClientRect().width >= 1 && (mounted.current || !!root.querySelector('[data-fm-src]'))
+        if (ready) mounted.current = true
+        if (!ready && !mounted.current) {
+          /* 页面看不见时（面板收起、标签页在后台）画面根本不渲染：等它重新可见，不算在等待预算里 */
+          if (document.hidden) {
+            const resume = () => { document.removeEventListener('visibilitychange', resume); if (!cancelled) setWaitTick((n) => n + 1) }
+            document.addEventListener('visibilitychange', resume)
+            return
+          }
+          /* 预算是第一次挂出来之前一共等多久，不是每一帧等多久：真挂不出来就照旧往下走，不会把采集拖上几十分钟 */
+          if (waits.current < MAX_WAITS) {
+            waits.current++
+            window.setTimeout(() => { if (!cancelled) setWaitTick((n) => n + 1) }, WAIT_MS)
+            return
+          }
+        }
+        if (root && ready) {
           const rootBox = root.getBoundingClientRect()
           const opacity = new Map<Element, number>()
           const owners = new Map<Element, Owner | null>()
@@ -184,7 +209,7 @@ export function LayerSampler({ component, props, width, height, fps, durationInF
       }
     })
     return () => { cancelled = true }
-  }, [frame, step, durationInFrames, fps, sceneNames, onDone])
+  }, [frame, waitTick, step, durationInFrames, fps, sceneNames, onDone])
 
   /* 缩小渲染省工夫：只量相对位置和可见性，尺寸无所谓 */
   const scale = Math.min(1, 480 / width)
