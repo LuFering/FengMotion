@@ -1,5 +1,8 @@
 package com.fengmotion.server.workflow.service;
 
+import com.fengmotion.server.project.domain.ProjectCreationActivity;
+import com.fengmotion.server.project.service.ProjectOperationLock;
+
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.AtomicMoveNotSupportedException;
@@ -55,7 +58,7 @@ public class WorkflowDraftService {
     private final ProjectRepository projects;
     private final WorkflowToolRunner tools;
     private final ProjectOperationLock operations;
-    private final CreationJobs jobs;
+    private final ProjectCreationActivity jobs;
 
     /**
      * 列出全部工作稿的状态（不含正文）。

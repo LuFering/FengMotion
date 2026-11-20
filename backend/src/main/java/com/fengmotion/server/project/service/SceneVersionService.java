@@ -36,9 +36,9 @@ public class SceneVersionService {
 
     private final ProjectRepository projects;
     private final ProjectSceneRepository scenes;
-    private final com.fengmotion.server.workflow.service.ProjectSourceSnapshots sourceSnapshots;
-    private final com.fengmotion.server.workflow.service.ProjectOperationLock operations;
-    private final com.fengmotion.server.workflow.service.CreationStateStore creationStates;
+    private final com.fengmotion.server.project.service.ProjectSourceSnapshots sourceSnapshots;
+    private final com.fengmotion.server.project.service.ProjectOperationLock operations;
+    private final com.fengmotion.server.project.store.CreationStateStore creationStates;
 
     /**
      * 列出项目的版本历史。

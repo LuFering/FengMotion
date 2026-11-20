@@ -113,7 +113,7 @@ export const Film: React.FC<FilmProps> = ({ scenes, fps, backgroundColor, color 
         const frames = Math.max(1, Math.round(scene.durationSeconds * fps))
         cursor += frames
         return (
-          <Sequence key={scene.id || index} from={from} durationInFrames={frames}>
+          <Sequence key={scene.id || index} name={scene.id || `场景 ${index + 1}`} from={from} durationInFrames={frames}>
             <SceneView
               scene={{ color: scene.color ?? color, ...scene }}
               fps={fps}

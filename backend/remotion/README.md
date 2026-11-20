@@ -1,69 +1,30 @@
-# 统一 Remotion 渲染工程
+# Remotion 渲染运行时
 
-所有项目共用这一个工程。项目之间的差异通过 props（场景 JSON）表达，不各自建工程。
+此目录由桌面打包脚本直接复制到运行资源中，保留两个渲染入口及一个共用实现。
 
-## 为什么统一
-
-- 每个项目单独装一套 Remotion 依赖，磁盘与安装时间随项目数线性增长
-- 版本容易漂移，出问题难定位
-- AI 只需要产出一份**场景数据**，不需要理解工程配置
-
-## AI 生产什么
-
-一份 JSON：
-
-```json
-{
-  "width": 1280, "height": 720, "fps": 30,
-  "backgroundColor": "#0b1220", "color": "#ffffff",
-  "scenes": [
-    { "id": "s1", "text": "标题", "subtitle": "副标题",
-      "durationSeconds": 2, "textAnimation": "fade" },
-    { "id": "s2", "text": "第二幕", "backgroundColor": "#1d4ed8",
-      "durationSeconds": 2, "textAnimation": "slide", "transition": "fade" }
-  ]
-}
-```
-
-字段刻意用视觉意图命名（text / backgroundColor / transition），不用 Remotion 术语 ——
-换渲染器时这份数据依然成立。
-
-| 字段 | 取值 | 说明 |
+| 文件 | Java 调用方 | 输入 |
 |---|---|---|
-| `textAnimation` | fade / slide / none | 文字进场方式 |
-| `transition` | cut / fade | 进入本场景的转场，首个场景忽略 |
-| `backgroundImage` | 相对路径或 http | 与 backgroundColor 同时给时图片优先 |
+| `render.mjs` | `render.service.RemotionRenderer` | 内置 `Film` 和场景 props，入口在本目录 `src/` |
+| `render-project.mjs` | `render.service.ProjectFilmRenderer` | Agent 编写的项目源码，由项目配置声明 entry 和 composition |
+| `render-shared.mjs` | 上述两个脚本 | 共用依赖解析、浏览器选择、临时目录和输出协议 |
+| `timeline.mjs` | 共用渲染流程 | 在实际渲染帧中采集序列、嵌套与条件挂载，返回轨道清单 |
 
-## 怎么渲染
+两条路径仍有调用方，不应只打包其中一个。Java 的 `creation.service.ProjectCreationService` 负责把源码创作、渲染和版本登记串起来；Node 脚本不承担业务状态转换。
 
-由后端 `RemotionRenderer` 以子进程调用：
+## 依赖与浏览器
 
+开发态复用前端 `node_modules`，由 `FENGMOTION_NODE_MODULES` 或打包资源配置指定，不在每个视频项目中重复安装。项目保存自己的源码、素材和 `film.config.json`。
+
+`FENGMOTION_CHROME` 可以指定 Chromium。未指定时沿用 Remotion 的浏览器选择或下载行为；`.cache/`、`.remotion/` 是忽略的本机缓存，不打进桌面安装资源。本轮目录整理不删除或移动这些缓存。
+
+## 调用与协议
+
+```bash
+node render.mjs --props /tmp/film.json --out /tmp/film.mp4
+node render-project.mjs --project /path/to/project --entry src/index.tsx --composition Main --out /tmp/project.mp4
+node render-project.mjs --project /path/to/snapshot --entry src/index.tsx --composition Main --timeline-only true
 ```
-node render.mjs --props <临时json> --out <产物路径> --browser <chromium路径>
-```
 
-stdout 输出一行 JSON 结果，stderr 为渲染进度。
+stdout 返回单行 JSON 结果，stderr 为进度或诊断。超时、取消、进程树清理和版本保存由 Java 调用层负责。渲染成功只能说明脚本生成了产物，画面仍需审片确认。
 
-## 依赖从哪来
-
-**不在这里 npm install。** Remotion 全家桶几百 MB，再装一份是浪费。
-默认复用仓库的 `frontend/node_modules`，可用 `FENGMOTION_NODE_MODULES` 覆盖。
-
-## 浏览器
-
-渲染要 Chromium 逐帧截图。默认用 `/opt/google/chrome/chrome`（配置项
-`fengmotion.remotion.browser`）。留空则 Remotion 会自行下载 chrome-headless-shell（约 92MB）。
-
-## 实测
-
-| 场景 | 结果 |
-|---|---|
-| 命令行直跑 | 640x360 / 90 帧 / 3.05 秒 / 168KB |
-| 经 API 触发 | 1280x720 / 120 帧 / 4.05 秒 / 286KB，耗时 15.5 秒 |
-| 浏览器播放 | readyState=4，无错误 |
-
-## 已知限制
-
-- **同步渲染**：请求会阻塞到出片。接入任务域后应改为「提交返回 taskId，进度走事件流」。
-- **单并发**：同时两个渲染请求会各起一个 Chromium 进程，内存压力大，目前没有队列。
-- **无音频**：场景数据里没有音轨字段，成片是静音的。
+结果中的 `sequences` 使用 schemaVersion 2，帧率保留小数，片段时间以秒表示。采集不完整或超出 60 轨/400 片段时返回 `detail: limited` 的成片轨并记录诊断，不把部分采集冒充完整轨道。Java 在视频旁保存绑定路径和视频 SHA-256 的隐藏清单；历史恢复使用对应源码快照和 `--timeline-only`，不生成新 MP4。桌面资源必须包含 `timeline.mjs` 与相同版本的 Remotion 运行依赖。

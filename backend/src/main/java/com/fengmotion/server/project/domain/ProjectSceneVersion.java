@@ -23,7 +23,7 @@ import com.fasterxml.jackson.databind.JsonNode;
  * @param prompt       触发这次变更的用户要求；非任务产生时为空串
  * @param editSummary  变更摘要，便于用户在列表里认出这是哪一版
  * @param artifactPath 该版本对应视频相对项目目录的路径；可能为空（未渲染或已清理）
- * @param source       {@code task} 表示由任务产生，{@code restore} 表示由回退产生
+ * @param source       {@code task}、{@code element_edit} 或 {@code restore}
  * @param fromVersion  回退时的来源版本；非回退版本为 null
  * @param createdAt    写入时间
  */
@@ -33,6 +33,9 @@ public record ProjectSceneVersion(String projectId, long version, JsonNode film,
 
     /** 由任务产生的版本。 */
     public static final String SOURCE_TASK = "task";
+
+    /** 由版本化元素编辑接口产生。 */
+    public static final String SOURCE_ELEMENT_EDIT = "element_edit";
 
     /** 由回退产生的版本。 */
     public static final String SOURCE_RESTORE = "restore";

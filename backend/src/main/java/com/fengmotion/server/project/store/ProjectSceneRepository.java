@@ -53,7 +53,7 @@ public interface ProjectSceneRepository {
      * @param prompt          触发这次变更的用户要求；可为 null
      * @param editSummary     变更摘要；可为 null
      * @param artifactPath    该版本视频相对项目目录的路径；可为 null
-     * @param source          {@link ProjectSceneVersion#SOURCE_TASK} 或 {@link ProjectSceneVersion#SOURCE_RESTORE}
+     * @param source          版本来源，如 task、element_edit 或 restore
      * @param fromVersion     回退时的来源版本；非回退传 null
      * @return 写入成功返回新版本号；版本已变化返回空
      */
@@ -77,4 +77,6 @@ public interface ProjectSceneRepository {
      * @return 该版本；不存在时为空
      */
     Optional<ProjectSceneVersion> findVersion(String projectId, long version);
+
+    Optional<ProjectSceneVersion> findLatestVersionByArtifact(String projectId, String artifactPath);
 }

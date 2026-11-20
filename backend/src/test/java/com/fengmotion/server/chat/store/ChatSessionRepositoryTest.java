@@ -57,7 +57,7 @@ class ChatSessionRepositoryTest {
     void usesMyBatisBackedImplementation() {
         // Spring 可能为仓储生成 CGLIB 代理，取目标类再比较。
         assertEquals(
-                com.fengmotion.server.chat.store.impl.SqliteChatSessionRepository.class,
+                com.fengmotion.server.chat.store.SqliteChatSessionRepository.class,
                 org.springframework.aop.support.AopUtils.getTargetClass(sessions));
     }
 

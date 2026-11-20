@@ -44,7 +44,7 @@ class UnfinishedTurnTest {
     void savesWhatTheTurnProducedAndMarksItUnfinished() {
         String sessionId = session();
         var output = new StringWriter();
-        var listener = stream.new SseListener(new PrintWriter(output), sessionId, true);
+        var listener = stream.replyListener(new PrintWriter(output), sessionId, true);
         listener.onStepStarted(1, 1);
         listener.onAssistantMessage(1, 1, "我先检查项目。", "");
         listener.onToolCall("a", "bash", "{}");
@@ -63,7 +63,7 @@ class UnfinishedTurnTest {
     void savesNothingWhenTheTurnProducedNothing() {
         String sessionId = session();
         var output = new StringWriter();
-        var listener = stream.new SseListener(new PrintWriter(output), sessionId, true);
+        var listener = stream.replyListener(new PrintWriter(output), sessionId, true);
 
         stream.saveUnfinished(sessionId, listener, null, "启动失败", new PrintWriter(output));
 

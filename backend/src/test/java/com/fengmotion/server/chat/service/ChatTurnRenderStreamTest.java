@@ -22,7 +22,7 @@ import com.fengmotion.server.chat.domain.ChatSession;
 import com.fengmotion.server.harness.config.HarnessProperties;
 import com.fengmotion.server.project.domain.Project;
 import com.fengmotion.server.project.store.ProjectRepository;
-import com.fengmotion.server.workflow.service.ChatTurnRender;
+import com.fengmotion.server.creation.service.ChatTurnRender;
 
 /** 对话后自动渲染：先报「正在渲染」，渲染期间有心跳，最后报结果。 */
 class ChatTurnRenderStreamTest {

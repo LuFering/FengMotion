@@ -15,6 +15,7 @@ import { existsSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { createRequire } from 'node:module'
+import { createTimelineCollector, timelineAdapter } from './timeline.mjs'
 
 /**
  * 递归复制目录。
@@ -174,7 +175,7 @@ export function emitResult(payload) {
  */
 export async function renderProject(options) {
   const { bundle } = await loadFrom(options.nodeModules, '@remotion/bundler')
-  const { renderMedia, selectComposition } = await loadFrom(options.nodeModules, '@remotion/renderer')
+  const { renderMedia, renderFrames, selectComposition } = await loadFrom(options.nodeModules, '@remotion/renderer')
 
   /* chdir 到可写目录：Remotion 把 .remotion（Chrome 下载）与 .cache（webpack）
      写到「当前工作目录」，只读镜像下直接 EACCES。仅复制源码不够。
@@ -186,7 +187,16 @@ export async function renderProject(options) {
      并不生效，已移除，避免留下一个看起来在起作用的假配置。 */
   process.chdir(options.workDir)
 
-  const serveUrl = await bundle({ entryPoint: options.entryPoint })
+  const collector = createTimelineCollector()
+  const adapter = await timelineAdapter(options.workDir, options.nodeModules, collector.prefix)
+  const serveUrl = await bundle({ entryPoint: options.entryPoint, outDir: path.join(options.workDir, '.fengmotion-bundle'),
+    enableCaching: false,
+    bundlerOverride: config => {
+      const { remotion: original, ...alias } = config.resolve.alias
+      return { ...config, resolve: { ...config.resolve, alias: { ...alias, 'remotion$': adapter },
+        modules: [options.nodeModules, ...(config.resolve.modules || ['node_modules'])] } }
+    },
+  })
 
   /* browserExecutable 必须同时给 selectComposition：
      只给 renderMedia 的话，selectComposition 会先去找 Chrome Headless Shell，
@@ -200,13 +210,20 @@ export async function renderProject(options) {
     browserExecutable,
   })
 
-  await renderMedia({
+  const shared = {
     composition,
     serveUrl,
-    codec: 'h264',
-    outputLocation: options.out,
     inputProps: options.props,
     browserExecutable,
+    onArtifact: collector.onArtifact,
+  }
+  if (options.timelineOnly) {
+    await renderFrames({...shared, imageFormat: 'none', outputDir: null,
+      concurrency: 1, onStart: () => {}, onFrameUpdate: () => {}})
+  } else await renderMedia({
+    ...shared,
+    codec: 'h264',
+    outputLocation: options.out,
     onProgress: ({ progress }) => {
       const pct = Math.round(progress * 100)
       if (pct % 25 === 0) process.stderr.write(`progress ${pct}%\n`)
@@ -218,5 +235,6 @@ export async function renderProject(options) {
     width: composition.width,
     height: composition.height,
     fps: composition.fps,
+    sequences: collector.manifest(composition),
   }
 }

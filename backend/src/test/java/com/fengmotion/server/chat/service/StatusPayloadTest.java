@@ -25,7 +25,7 @@ class StatusPayloadTest {
     @Test
     @DisplayName("思考阶段只带 type 和 phase，不夹带工具字段")
     void thinkingHasNoToolFields() {
-        ObjectNode payload = ChatStreamService.statusPayload(
+        ObjectNode payload = ChatSseWriter.statusPayload(
                 json, "thinking", null, null, null, null, false);
 
         assertEquals("status", payload.path("type").asText());
@@ -39,7 +39,7 @@ class StatusPayloadTest {
     @Test
     @DisplayName("工具开始帧带 name/label/callId/arguments")
     void toolCallCarriesStructuredFields() {
-        ObjectNode payload = ChatStreamService.statusPayload(
+        ObjectNode payload = ChatSseWriter.statusPayload(
                 json, "tool", "bash", "bash", "call-1", "{\"cmd\":\"ls -la\"}", false);
 
         assertEquals("tool", payload.path("phase").asText());
@@ -53,13 +53,13 @@ class StatusPayloadTest {
     @Test
     @DisplayName("工具结果帧只带 callId，失败时才带 isError")
     void toolResultCarriesCallIdAndErrorFlag() {
-        ObjectNode ok = ChatStreamService.statusPayload(
+        ObjectNode ok = ChatSseWriter.statusPayload(
                 json, "tool", null, null, "call-2", null, false);
         assertEquals("call-2", ok.path("callId").asText());
         assertFalse(ok.has("name"), "结果帧不重复下发工具名");
         assertFalse(ok.has("isError"), "成功的工具不该有 isError");
 
-        ObjectNode failed = ChatStreamService.statusPayload(
+        ObjectNode failed = ChatSseWriter.statusPayload(
                 json, "tool", null, null, "call-3", null, true);
         assertTrue(failed.path("isError").asBoolean(), "失败时 isError 必须为 true");
     }
@@ -67,7 +67,7 @@ class StatusPayloadTest {
     @Test
     @DisplayName("空 callId 与空参数不写进帧里")
     void blankFieldsAreOmitted() {
-        ObjectNode payload = ChatStreamService.statusPayload(
+        ObjectNode payload = ChatSseWriter.statusPayload(
                 json, "tool", "bash", "bash", "", "  ", false);
 
         assertFalse(payload.has("callId"), "空白 callId 不该占位");
@@ -79,7 +79,7 @@ class StatusPayloadTest {
     @DisplayName("超长参数被截断并以省略号结尾")
     void overlongArgumentsAreTruncated() {
         String huge = "x".repeat(5000);
-        ObjectNode payload = ChatStreamService.statusPayload(
+        ObjectNode payload = ChatSseWriter.statusPayload(
                 json, "tool", "write", "write", "call-4", huge, false);
 
         String args = payload.path("arguments").asText();

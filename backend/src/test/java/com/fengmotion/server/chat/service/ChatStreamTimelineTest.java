@@ -25,7 +25,7 @@ class ChatStreamTimelineTest {
 
     @Test void stageTextPrecedesToolsAndOffsetsStayStableAcrossToolOnlySteps() {
         var output = new StringWriter();
-        var listener = service().new SseListener(new PrintWriter(output), "session", true);
+        var listener = service().replyListener(new PrintWriter(output), "session", true);
         listener.onStepStarted(1, 1);
         listener.onTextDelta(1, 1, "session:1", "先检查项目。");
         listener.onAssistantMessage(1, 1, "先检查项目。", "");
@@ -58,7 +58,7 @@ class ChatStreamTimelineTest {
 
     @Test void backgroundCollectionStopsWritingButRetainsLaterStageTools() {
         var output = new StringWriter();
-        var listener = service().new SseListener(new PrintWriter(output), "session", true);
+        var listener = service().replyListener(new PrintWriter(output), "session", true);
         listener.onStepStarted(1, 1);
         listener.onAssistantMessage(1, 1, "先检查。", "");
         int before = output.toString().length();
@@ -75,7 +75,7 @@ class ChatStreamTimelineTest {
     /** 流式插件逐字发思考：每段思考记下所在阶段的正文位置，并和工具调用共用 order 分先后。 */
     @Test void streamedReasoningIsSegmentedPerStageAndOrderedAgainstTools() {
         var output = new StringWriter();
-        var listener = service().new SseListener(new PrintWriter(output), "session", true);
+        var listener = service().replyListener(new PrintWriter(output), "session", true);
         listener.onStepStarted(1, 1);
         listener.onThinkingDelta("先看");
         listener.onThinkingDelta("目录");
@@ -111,7 +111,7 @@ class ChatStreamTimelineTest {
     /** 没装流式插件：整段推理随 assistant/message 到达，排在这一步正文之前。 */
     @Test void wholeReasoningWithoutPluginLandsAtStepStart() {
         var output = new StringWriter();
-        var listener = service().new SseListener(new PrintWriter(output), "session", true);
+        var listener = service().replyListener(new PrintWriter(output), "session", true);
         listener.onStepStarted(1, 1);
         listener.onAssistantMessage(1, 1, "先检查。", "要先看目录");
         listener.onToolCall("a", "read", "{}");

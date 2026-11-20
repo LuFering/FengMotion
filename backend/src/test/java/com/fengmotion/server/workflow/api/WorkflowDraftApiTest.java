@@ -27,7 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fengmotion.server.project.domain.Project;
 import com.fengmotion.server.project.store.ProjectRepository;
-import com.fengmotion.server.workflow.service.ProjectOperationLock;
+import com.fengmotion.server.project.service.ProjectOperationLock;
 import com.fengmotion.server.workflow.service.WorkflowProjectService;
 
 /**

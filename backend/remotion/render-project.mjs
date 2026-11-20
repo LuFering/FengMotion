@@ -32,8 +32,11 @@ import {
 async function main() {
   const args = parseArgs(process.argv.slice(2))
 
-  if (!args.project || !args.entry || !args.composition || !args.out) {
-    emitResult({ ok: false, error: '缺少 --project / --entry / --composition / --out' })
+  const timelineOnly = args['timeline-only'] === 'true'
+  if (!args.project || !args.entry || !args.composition || (!timelineOnly && !args.out)) {
+    emitResult({ ok: false, error: timelineOnly
+      ? '缺少 --project / --entry / --composition'
+      : '缺少 --project / --entry / --composition / --out' })
     process.exit(2)
   }
 
@@ -72,10 +75,11 @@ async function main() {
       entryPoint: entryInWorkDir,
       compositionId: args.composition,
       props,
-      out: path.resolve(args.out),
+      out: args.out ? path.resolve(args.out) : null,
       browser: args.browser,
+      timelineOnly,
     })
-    emitResult({ ok: true, output: args.out, ...result })
+    emitResult({ ok: true, output: args.out ?? null, ...result })
   } finally {
     await cleanup(workDir)
   }

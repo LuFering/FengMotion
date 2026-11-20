@@ -3,7 +3,7 @@ package com.fengmotion.server.project.api;
 import java.util.List;
 import org.springframework.web.bind.annotation.*;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fengmotion.server.project.service.LocalStateStore;
+import com.fengmotion.server.project.store.LocalStateStore;
 import lombok.RequiredArgsConstructor;
 
 @RestController

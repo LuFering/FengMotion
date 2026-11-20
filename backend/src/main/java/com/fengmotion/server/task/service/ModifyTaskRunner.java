@@ -10,7 +10,8 @@ import org.springframework.stereotype.Component;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.fengmotion.server.catalog.service.RemotionRenderer;
+import com.fengmotion.server.render.service.RemotionRenderer;
+import com.fengmotion.server.render.service.VideoTimeline;
 import com.fengmotion.server.common.ApiException;
 import com.fengmotion.server.project.domain.Project;
 import com.fengmotion.server.project.domain.ProjectScene;
@@ -131,13 +132,13 @@ public class ModifyTaskRunner {
 
         // 渲染：交给统一工程
         Path root = Path.of(rootPath).toAbsolutePath().normalize();
-        String fileName = "modify-" + Instant.now().toEpochMilli() + ".mp4";
+        String fileName = "modify-" + Instant.now().toEpochMilli() + "-" + java.util.UUID.randomUUID() + ".mp4";
         Path output = root.resolve("renders").resolve(fileName);
-        renderer.render(modified, output);
+        renderer.render(modified, output, "renders/" + fileName);
 
         if (progress.isCancelled()) {
             try {
-                java.nio.file.Files.deleteIfExists(output);
+                VideoTimeline.discard(output);
             } catch (java.io.IOException ignored) {
                 // 删不掉不影响取消语义
             }

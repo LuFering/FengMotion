@@ -39,7 +39,7 @@ import com.fengmotion.server.project.store.ProjectRepository;
 import com.fengmotion.server.skill.client.GithubArchiveClient;
 import com.fengmotion.server.skill.domain.SkillPackage;
 import com.fengmotion.server.skill.service.SkillPackageService;
-import com.fengmotion.server.workflow.service.ProjectOperationLock;
+import com.fengmotion.server.project.service.ProjectOperationLock;
 import com.fengmotion.server.workflow.service.WorkflowProjectService;
 
 /**

@@ -6,7 +6,8 @@ import java.time.Instant;
 import org.springframework.stereotype.Component;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fengmotion.server.catalog.service.RemotionRenderer;
+import com.fengmotion.server.render.service.RemotionRenderer;
+import com.fengmotion.server.render.service.VideoTimeline;
 import com.fengmotion.server.common.ApiException;
 import com.fengmotion.server.project.domain.Project;
 import com.fengmotion.server.project.store.ProjectRepository;
@@ -60,16 +61,16 @@ public class RenderTaskRunner {
         progress.report(10, "准备渲染");
 
         Path root = Path.of(rootPath).toAbsolutePath().normalize();
-        String fileName = "render-" + Instant.now().toEpochMilli() + ".mp4";
+        String fileName = "render-" + Instant.now().toEpochMilli() + "-" + java.util.UUID.randomUUID() + ".mp4";
         Path output = root.resolve("renders").resolve(fileName);
 
         progress.report(30, "正在渲染画面");
-        RemotionRenderer.RenderResult result = renderer.render(film, output);
+        renderer.render(film, output, "renders/" + fileName);
 
         if (progress.isCancelled()) {
             // 已经渲染完了但用户不要了：删掉产物，别留一个用户没要的文件
             try {
-                java.nio.file.Files.deleteIfExists(output);
+                VideoTimeline.discard(output);
             } catch (java.io.IOException ignored) {
                 // 删不掉也不影响取消语义
             }

@@ -44,6 +44,9 @@ class ProjectSceneSnapshotTest {
     @Autowired
     private ObjectMapper json;
 
+    @Autowired
+    private org.springframework.jdbc.core.JdbcTemplate jdbc;
+
     /**
      * 造一个项目。
      *
@@ -183,6 +186,45 @@ class ProjectSceneSnapshotTest {
                 .film().path("scenes").get(0).path("text").asText());
         assertEquals("B 的内容", scenes.findVersion(b, 1).orElseThrow()
                 .film().path("scenes").get(0).path("text").asText());
+    }
+
+    @Test
+    void artifactLookupReturnsLatestMatchingVersionWithinTheProject() {
+        String projectId = newProject();
+        String otherProjectId = newProject();
+        scenes.commitWithSnapshot(projectId, 0, film("original"), null, "", "", "renders/a.mp4",
+                ProjectSceneVersion.SOURCE_TASK, null);
+        scenes.commitWithSnapshot(projectId, 1, film("other video"), null, "", "", "renders/b.mp4",
+                ProjectSceneVersion.SOURCE_TASK, null);
+        scenes.commitWithSnapshot(projectId, 2, film("original"), null, "", "", "renders/a.mp4",
+                ProjectSceneVersion.SOURCE_RESTORE, 1L);
+        scenes.commitWithSnapshot(otherProjectId, 0, film("other project"), null, "", "", "renders/a.mp4",
+                ProjectSceneVersion.SOURCE_TASK, null);
+
+        var found = scenes.findLatestVersionByArtifact(projectId, "renders/a.mp4").orElseThrow();
+        assertEquals(3, found.version());
+        assertTrue(found.restored());
+        assertEquals(projectId, found.projectId());
+        assertEquals(2, scenes.findLatestVersionByArtifact(projectId, "renders/b.mp4").orElseThrow().version());
+        assertTrue(scenes.findLatestVersionByArtifact(projectId, "renders/missing.mp4").isEmpty());
+        assertTrue(scenes.findLatestVersionByArtifact("unknown-project", "renders/a.mp4").isEmpty());
+        assertTrue(scenes.findLatestVersionByArtifact(projectId, null).isEmpty());
+        assertTrue(scenes.findLatestVersionByArtifact(projectId, " ").isEmpty());
+    }
+
+    @Test
+    void artifactLookupDoesNotDeserializeUnrelatedBrokenSnapshots() {
+        String projectId = newProject();
+        scenes.commitWithSnapshot(projectId, 0, film("target"), null, "", "", "renders/target.mp4",
+                ProjectSceneVersion.SOURCE_TASK, null);
+        scenes.commitWithSnapshot(projectId, 1, film("unrelated"), null, "", "", "renders/unrelated.mp4",
+                ProjectSceneVersion.SOURCE_TASK, null);
+        jdbc.update("UPDATE project_scene_versions SET film_json = ? WHERE project_id = ? AND version = ?",
+                "invalid json", projectId, 2);
+
+        var found = scenes.findLatestVersionByArtifact(projectId, "renders/target.mp4").orElseThrow();
+        assertEquals(1, found.version());
+        assertEquals("target", found.film().path("scenes").path(0).path("text").asText());
     }
 
     @Test

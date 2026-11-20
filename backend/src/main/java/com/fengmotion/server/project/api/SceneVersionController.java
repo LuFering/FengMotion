@@ -3,6 +3,8 @@ package com.fengmotion.server.project.api;
 import java.time.Instant;
 import java.util.List;
 
+import org.springframework.http.CacheControl;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -11,6 +13,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.fengmotion.server.project.domain.ProjectSceneVersion;
+import com.fengmotion.server.project.domain.SceneEditMetadata;
+import com.fengmotion.server.project.service.SceneEditMetadataService;
 import com.fengmotion.server.project.service.SceneVersionService;
 
 import lombok.RequiredArgsConstructor;
@@ -32,6 +36,7 @@ import lombok.RequiredArgsConstructor;
 public class SceneVersionController {
 
     private final SceneVersionService versions;
+    private final SceneEditMetadataService editMetadata;
 
     /**
      * 列出项目的全部场景版本，新版本在前。
@@ -57,6 +62,11 @@ public class SceneVersionController {
     @GetMapping("/{version}")
     public VersionItem get(@PathVariable String projectId, @PathVariable long version) {
         return toItem(versions.get(projectId, version));
+    }
+
+    @GetMapping("/{version}/edit-metadata")
+    public ResponseEntity<SceneEditMetadata> editMetadata(@PathVariable String projectId, @PathVariable long version) {
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(editMetadata.read(projectId, version));
     }
 
     /**
@@ -114,7 +124,7 @@ public class SceneVersionController {
      * @param prompt       触发该版本的用户要求
      * @param editSummary  变更摘要
      * @param artifactPath 该版本视频路径；可能为空
-     * @param source       {@code task} 或 {@code restore}
+     * @param source       {@code task}、{@code element_edit} 或 {@code restore}
      * @param fromVersion  回退来源版本；非回退为 null
      * @param createdAt    产生时间
      */

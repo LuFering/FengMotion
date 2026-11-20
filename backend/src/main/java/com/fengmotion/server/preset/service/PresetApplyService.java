@@ -34,8 +34,8 @@ import com.fengmotion.server.project.domain.Project;
 import com.fengmotion.server.project.store.ProjectRepository;
 import com.fengmotion.server.skill.service.SkillReferences;
 import com.fengmotion.server.skill.store.SkillPackageRepository;
-import com.fengmotion.server.workflow.service.CreationJobs;
-import com.fengmotion.server.workflow.service.ProjectOperationLock;
+import com.fengmotion.server.creation.service.CreationJobs;
+import com.fengmotion.server.project.service.ProjectOperationLock;
 import com.fengmotion.server.workflow.service.WorkflowDraftService;
 
 import lombok.RequiredArgsConstructor;

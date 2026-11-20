@@ -4,17 +4,13 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
-import java.security.DigestInputStream;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.HexFormat;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -48,14 +44,20 @@ public class AssetService {
     private final AssetRepository assets;
     private final AssetStorage storage;
     private final ResourceRefService refs;
-    private final ThumbnailService thumbnails;
+    private final AssetImportService importer;
 
+    @Autowired
     public AssetService(AssetRepository assets, AssetStorage storage, ResourceRefService refs,
-            ThumbnailService thumbnails) {
+                        ThumbnailService thumbnails, AssetImportService importer) {
         this.assets = assets;
         this.storage = storage;
         this.refs = refs;
-        this.thumbnails = thumbnails;
+        this.importer = importer;
+    }
+
+    public AssetService(AssetRepository assets, AssetStorage storage, ResourceRefService refs,
+                        ThumbnailService thumbnails) {
+        this(assets, storage, refs, thumbnails, new AssetImportService(assets, storage, thumbnails));
     }
 
     /** 导入结果：素材本体 + 是否命中去重。 */
@@ -79,8 +81,7 @@ public class AssetService {
     @Transactional
     public ImportResult importFile(String fileName, String mimeType, String folderId, String name,
             InputStream stream) {
-        // 默认行为：同一内容只保留一条记录（用户重复拖同一个文件时不该出现两条）。
-        return importFile(fileName, mimeType, folderId, name, stream, false);
+        return importer.importFile(fileName, mimeType, folderId, name, stream, false);
     }
 
     /**
@@ -99,258 +100,7 @@ public class AssetService {
     @Transactional
     public ImportResult importFile(String fileName, String mimeType, String folderId, String name,
             InputStream stream, boolean keepSeparateRecord) {
-        if (fileName == null || fileName.isBlank()) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "validation_error", "文件名不能为空");
-        }
-        AssetStates.MediaType mediaType = mediaTypeOf(fileName, mimeType);
-        if (mediaType == null) {
-            throw new ApiException(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "unsupported_media_type",
-                    "暂不支持这种文件类型：" + fileName);
-        }
-        if (folderId != null && assets.findFolder(folderId).isEmpty()) {
-            throw new ApiException(HttpStatus.NOT_FOUND, "not_found", "文件夹不存在");
-        }
-
-        String hash;
-        long size;
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            // 先写临时文件再按哈希归档：边读边算哈希，避免把整个文件读进内存。
-            Path tmp = Files.createTempFile("fengmotion-upload-", ".bin");
-            try {
-                size = copyAndDigest(stream, tmp, digest);
-                hash = HexFormat.of().formatHex(digest.digest());
-            } catch (IOException ex) {
-                Files.deleteIfExists(tmp);
-                throw ex;
-            }
-            Optional<Asset> existing = assets.findByHash(hash);
-            /* 命中去重还不够，要确认那份文件真的在磁盘上、并且不是空壳。
-               实测踩到过：库里记录还在、目录也在，但 original 文件已经没了
-               （删除流程中断、外部清理、或旧版本留下的空目录）。此时照常「复用」
-               会得到一条打不开的素材，而界面显示导入成功。
-
-               所以复用前先验文件；文件不可用时把本次导入的内容重新落盘，
-               让这条记录重新可用 —— 用户要的是能用的素材，不是一条空洞的索引。
-
-               注意「保留独立记录」分支也要验：它把已有记录的路径抄给新记录，
-               文件若已丢，抄过来的就是一条死记录。 */
-            boolean canReuse = existing.isPresent() && fileUsable(existing.get());
-            if (existing.isPresent() && !canReuse) {
-                log.warn("命中已有记录但文件不可用，将重新落盘：{}（哈希 {}）", fileName, hash);
-                // 不可复用时不能走「复用路径」的独立记录分支，否则新记录同样打不开。
-                existing = Optional.empty();
-            }
-            if (existing.isPresent() && !keepSeparateRecord) {
-                Files.deleteIfExists(tmp);
-                log.info("导入命中去重：{}（哈希 {}）", fileName, hash);
-                // 去重不该吞掉用户这次的目标文件夹：用户把已存在的文件拖进「参考资料」，
-                // 期待它出现在那里。若只返回旧记录，界面报「导入成功」而文件不在该文件夹，
-                // 用户会以为拖拽失效。名称/标签不合并（那是用户各自的记录），只移动归属。
-                return new ImportResult(placeInFolder(existing.get(), folderId), true);
-            }
-            if (existing.isPresent()) {
-                // 显式要求保留独立记录：文件本体复用同一份（不重复落盘），
-                // 但新建一条索引，让这条记录的名称/标签/文件夹能独立存在。
-                Files.deleteIfExists(tmp);
-                log.info("内容命中但保留独立记录：{}（哈希 {}）", fileName, hash);
-                return new ImportResult(duplicateRecordOf(existing.get(), fileName, mimeType, folderId,
-                        name, mediaType, hash, size), false);
-            }
-            if (size == 0) {
-                Files.deleteIfExists(tmp);
-                throw new ApiException(HttpStatus.BAD_REQUEST, "validation_error", "文件内容为空");
-            }
-            return new ImportResult(persist(tmp, fileName, mimeType, folderId, name, mediaType, hash, size), false);
-        } catch (IOException ex) {
-            log.error("导入文件失败：{}", fileName, ex);
-            throw new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "internal_error", "文件保存失败");
-        } catch (NoSuchAlgorithmException ex) {
-            throw new IllegalStateException("运行环境缺少 SHA-256", ex);
-        }
-    }
-
-    /**
-     * 已有记录对应的文件是否真的可用。
-     *
-     * <p>不能只看数据库：记录存在不代表文件存在，更不代表文件不是空壳。
-     * 这里同时检查「路径可解析」「文件存在」「文件非空」，
-     * 因为一个 0 字节的 original 与「文件丢了」对用户是同一个结果：打不开。</p>
-     *
-     * @param asset 已有记录
-     * @return 文件可复用时 true
-     */
-    private boolean fileUsable(Asset asset) {
-        String url = asset.fileUrl();
-        if (url == null || url.isBlank()) {
-            return false;
-        }
-        try {
-            Path file = storage.resolve(url);
-            return java.nio.file.Files.isRegularFile(file)
-                    && java.nio.file.Files.size(file) > 0;
-        } catch (IllegalArgumentException ex) {
-            // 路径越界或写坏：同样视为不可用，不要把它当成有效文件去复用。
-            log.warn("素材文件路径无效：{}", url, ex);
-            return false;
-        } catch (IOException ex) {
-            log.warn("检查素材文件失败：{}", url, ex);
-            return false;
-        }
-    }
-
-    /**
-     * 基于已有素材的文件，新建一条**独立的用户记录**。
-     *
-     * <p>文件本体复用同一份（`storagePath` 与 `contentHash` 相同，不占第二份磁盘），
-     * 但 id、名称、标签、文件夹、授权、审核都独立 —— 这正是「去重文件、不合并记录」。</p>
-     *
-     * <p>`content_hash` 上**没有**唯一约束（见 schema.sql）：多条记录可以共享同一内容。
-     * 去重由服务层保证 —— 文件只落盘一份，新记录直接复用已有记录的存储路径。</p>
-     */
-    private Asset duplicateRecordOf(Asset existing, String fileName, String mimeType, String folderId,
-            String name, AssetStates.MediaType mediaType, String hash, long size) {
-        Instant now = Instant.now();
-        String id = "asset_" + UUID.randomUUID();
-        Asset copy = new Asset(
-                id,
-                name == null || name.isBlank() ? fileName : name,
-                mediaType,
-                effectiveMimeType(fileName, mimeType, mediaType),
-                size,
-                AssetStates.SourceType.IMPORTED,
-                existing.processingStatus(),
-                existing.processingError(),
-                AssetStates.ReviewStatus.NONE,
-                AssetStates.Availability.ENABLED,
-                AssetStates.LicenseStatus.UNKNOWN,
-                null,
-                existing.width(),
-                existing.height(),
-                existing.durationMs(),
-                List.of(),
-                folderId,
-                // 复用同一份文件本体；缩略图也复用。
-                existing.fileUrl(),
-                existing.thumbnailUrl(),
-                // 保留真实哈希：多条记录共享同一内容时都记同一个哈希，
-                // 后续仍能按它找到可复用的文件本体。
-                hash,
-                now,
-                now,
-                null,
-                id,
-                false);
-        return assets.save(copy);
-    }
-
-    /**
-     * 生成缩略图，返回相对存储根的路径；失败返回 null。
-     *
-     * <p>与文件本体放在同一目录（{@code thumb.webp}），这样删素材时一次递归就能清干净，
-     * 不需要维护第二套目录结构。</p>
-     */
-    private String generateThumbnail(Path targetDir, Path original, AssetStates.MediaType mediaType) {
-        boolean generated = switch (mediaType) {
-            case VIDEO -> thumbnails.extractVideoThumbnail(original, targetDir.resolve("thumb.webp"));
-            case IMAGE -> thumbnails.extractImageThumbnail(original, targetDir.resolve("thumb.webp"));
-            // 音频、字体、文档没有可用的画面。前端按类型显示图标即可，
-            // 不为它们生成一张假图 —— 假缩略图比没有更糟。
-            default -> false;
-        };
-        if (!generated) {
-            return null;
-        }
-        Path relative = storage.root().relativize(targetDir.resolve("thumb.webp"));
-        return relative.toString();
-    }
-
-    /**
-     * 把已存在的素材放到用户这次指定的文件夹。
-     *
-     * <p>只在用户显式指定了文件夹、且与当前归属不同时才移动；其余字段（名称/标签/授权）
-     * 一律不动 —— 那是用户自己的记录，不该因为别人又导入了一次同一个文件而被改写。</p>
-     */
-    private Asset placeInFolder(Asset existing, String folderId) {
-        if (folderId == null || folderId.equals(existing.folderId())) {
-            return existing;
-        }
-        Instant now = Instant.now();
-        Asset moved = new Asset(
-                existing.id(), existing.name(), existing.mediaType(), existing.mimeType(),
-                existing.sizeBytes(), existing.sourceType(), existing.processingStatus(),
-                existing.processingError(), existing.reviewStatus(), existing.availability(),
-                existing.licenseStatus(), existing.licenseDetails(), existing.width(), existing.height(),
-                existing.durationMs(), existing.tags(), folderId, existing.fileUrl(),
-                existing.thumbnailUrl(), existing.contentHash(), existing.createdAt(), now,
-                existing.lastUsedAt(), "v" + UUID.randomUUID(), existing.demo());
-        return assets.updateWithEtag(moved, existing.etag()).orElse(existing);
-    }
-
-    private Asset persist(Path tmp, String fileName, String mimeType, String folderId, String name,
-            AssetStates.MediaType mediaType, String hash, long size) throws IOException {
-        String relativeDir = storage.relativeDirFor(hash);
-        Path targetDir = storage.resolve(relativeDir);
-        Files.createDirectories(targetDir);
-        String extension = extensionOf(fileName);
-        Path target = targetDir.resolve("original" + extension);
-        Files.move(tmp, target, StandardCopyOption.REPLACE_EXISTING);
-
-        Instant now = Instant.now();
-        String id = "asset_" + UUID.randomUUID();
-        String relativeFile = Path.of(relativeDir, "original" + extension).toString();
-
-        // 探测元数据与生成缩略图。两者的失败都不影响导入：读不出就留空，
-        // 界面显示「未知」/类型图标，而不是让整次导入失败。
-        // 图片也要探测：宽高是用户会看的信息，缺了会显示成「未知」。
-        // 音频也走 probe（它单独取容器时长，没有视频流时宽高为 null 是正常的）。
-        ThumbnailService.MediaInfo info = switch (mediaType) {
-            case VIDEO, AUDIO, IMAGE -> thumbnails.probe(target);
-            default -> null;
-        };
-        // 图片没有时长。ffprobe 对 PNG 会报单帧时长（0.04s），那是技术值不是语义值，
-        // 直接存下来会让界面显示「0:00」这种误导性的时长。
-        if (info != null && mediaType == AssetStates.MediaType.IMAGE) {
-            info = new ThumbnailService.MediaInfo(info.width(), info.height(), null);
-        }
-        String relativeThumb = generateThumbnail(targetDir, target, mediaType);
-
-        // 处理状态如实反映实际结果：只有真的解析过才敢标 ready。
-        // 什么都没解析出来时停在 pending —— 那表示「还没做」，不是「做失败了」。
-        boolean parsed = info != null || relativeThumb != null;
-        AssetStates.ProcessingStatus processing = parsed
-                ? AssetStates.ProcessingStatus.READY
-                : AssetStates.ProcessingStatus.PENDING;
-
-        Asset asset = new Asset(
-                id,
-                name == null || name.isBlank() ? fileName : name,
-                mediaType,
-                effectiveMimeType(fileName, mimeType, mediaType),
-                size,
-                AssetStates.SourceType.IMPORTED,
-                processing,
-                null,
-                // 从未提审 —— 注意不是 pending：pending 是「已提审」。
-                AssetStates.ReviewStatus.NONE,
-                AssetStates.Availability.ENABLED,
-                // 没有可靠授权信息一律 unknown，不猜。
-                AssetStates.LicenseStatus.UNKNOWN,
-                null,
-                info == null ? null : info.width(),
-                info == null ? null : info.height(),
-                info == null ? null : info.durationMs(),
-                List.of(),
-                folderId,
-                relativeFile,
-                relativeThumb,
-                hash,
-                now,
-                now,
-                null,
-                id,
-                false);
-        return assets.save(asset);
+        return importer.importFile(fileName, mimeType, folderId, name, stream, keepSeparateRecord);
     }
 
     /**
@@ -502,12 +252,6 @@ public class AssetService {
         return assets.counts();
     }
 
-    private static long copyAndDigest(InputStream in, Path target, MessageDigest digest) throws IOException {
-        try (DigestInputStream dis = new DigestInputStream(in, digest)) {
-            return Files.copy(dis, target, StandardCopyOption.REPLACE_EXISTING);
-        }
-    }
-
     private static void deleteRecursively(Path dir) throws IOException {
         if (!Files.exists(dir)) {
             return;
@@ -520,93 +264,11 @@ public class AssetService {
         }
     }
 
-    private static String extensionOf(String fileName) {
-        int dot = fileName.lastIndexOf('.');
-        if (dot < 0 || dot == fileName.length() - 1) {
-            return "";
-        }
-        String ext = fileName.substring(dot).toLowerCase();
-        // 扩展名只保留安全字符，避免文件名里带路径分隔符时写出目录。
-        return ext.matches("\\.[a-z0-9]{1,10}") ? ext : "";
-    }
-
-    /**
-     * 由文件名与 MIME 推断媒体类型。
-     *
-     * <p>契约 asset.md 的素材页要覆盖图片/视频/音频/字体/文档五类，
-     * 所以这里比对话附件上传的类型范围更宽（附件只收图片/视频/音频）。</p>
-     */
-    /**
-     * 存下来的 MIME。
-     *
-     * <p>客户端没带类型（curl、部分拖拽、被标成 octet-stream）时，不能把
-     * {@code application/octet-stream} 原样存进库：界面会显示一个对用户无意义的类型，
-     * 而实际类型明明能从扩展名看出来。这里按已判定的媒体类型与扩展名补一个具体值。</p>
-     */
     static String effectiveMimeType(String fileName, String mimeType, AssetStates.MediaType mediaType) {
-        if (mimeType != null && !mimeType.isBlank()
-                && !mimeType.equalsIgnoreCase("application/octet-stream")) {
-            return mimeType;
-        }
-        String name = fileName == null ? "" : fileName.toLowerCase();
-        int dot = name.lastIndexOf('.');
-        String ext = dot >= 0 ? name.substring(dot + 1) : "";
-        return switch (ext) {
-            case "mp4", "m4v" -> "video/mp4";
-            case "mov" -> "video/quicktime";
-            case "mkv" -> "video/x-matroska";
-            case "webm" -> "video/webm";
-            case "avi" -> "video/x-msvideo";
-            case "png" -> "image/png";
-            case "jpg", "jpeg" -> "image/jpeg";
-            case "gif" -> "image/gif";
-            case "webp" -> "image/webp";
-            case "svg" -> "image/svg+xml";
-            case "avif" -> "image/avif";
-            case "mp3" -> "audio/mpeg";
-            case "wav" -> "audio/wav";
-            case "flac" -> "audio/flac";
-            case "aac", "m4a" -> "audio/aac";
-            case "ogg" -> "audio/ogg";
-            case "woff2" -> "font/woff2";
-            case "woff" -> "font/woff";
-            case "ttf" -> "font/ttf";
-            case "otf" -> "font/otf";
-            case "pdf" -> "application/pdf";
-            case "md" -> "text/markdown";
-            case "txt" -> "text/plain";
-            case "json" -> "application/json";
-            default -> switch (mediaType) {
-                case VIDEO -> "video/mp4";
-                case IMAGE -> "image/png";
-                case AUDIO -> "audio/mpeg";
-                case FONT -> "font/ttf";
-                case DOC -> "application/octet-stream";
-            };
-        };
+        return AssetMediaTypes.effectiveMimeType(fileName, mimeType, mediaType);
     }
 
     static AssetStates.MediaType mediaTypeOf(String fileName, String mimeType) {
-        String mime = mimeType == null ? "" : mimeType.toLowerCase();
-        String name = fileName.toLowerCase();
-        // 先看 MIME，看不出来再看扩展名。只认 MIME 会误拒：
-        // curl、部分桌面拖拽、以及被系统标成 application/octet-stream 的 mp4 都没有正确 MIME，
-        // 而文件的扩展名是可靠的。
-        if (mime.startsWith("image/") || name.matches(".*\\.(png|jpe?g|gif|webp|bmp|svg|avif|heic)$")) {
-            return AssetStates.MediaType.IMAGE;
-        }
-        if (mime.startsWith("video/") || name.matches(".*\\.(mp4|mov|mkv|webm|avi|m4v)$")) {
-            return AssetStates.MediaType.VIDEO;
-        }
-        if (mime.startsWith("audio/") || name.matches(".*\\.(mp3|wav|flac|aac|m4a|ogg)$")) {
-            return AssetStates.MediaType.AUDIO;
-        }
-        if (mime.startsWith("font/") || name.matches(".*\\.(woff2?|ttf|otf)$")) {
-            return AssetStates.MediaType.FONT;
-        }
-        if (mime.equals("application/pdf") || name.matches(".*\\.(pdf|md|txt|docx?|json)$")) {
-            return AssetStates.MediaType.DOC;
-        }
-        return null;
+        return AssetMediaTypes.mediaTypeOf(fileName, mimeType);
     }
 }

@@ -51,7 +51,7 @@ public class ChatStreamController {
     private final ChatMessageService messages;
     private final ChatStreamService stream;
     private final ChatTurns turns;
-    private final com.fengmotion.server.workflow.service.ResourceContextBuilder resourceContexts;
+    private final com.fengmotion.server.creation.service.ResourceContextBuilder resourceContexts;
     private final com.fasterxml.jackson.databind.ObjectMapper json;
 
     /**
