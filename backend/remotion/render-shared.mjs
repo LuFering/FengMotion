@@ -218,7 +218,7 @@ export async function renderProject(options) {
     onArtifact: collector.onArtifact,
   }
   if (options.timelineOnly) {
-    await renderFrames({...shared, imageFormat: 'none', outputDir: null,
+    if (!options.assemblyTimeline) await renderFrames({...shared, imageFormat: 'none', outputDir: null,
       concurrency: 1, onStart: () => {}, onFrameUpdate: () => {}})
   } else await renderMedia({
     ...shared,
@@ -235,6 +235,6 @@ export async function renderProject(options) {
     width: composition.width,
     height: composition.height,
     fps: composition.fps,
-    sequences: collector.manifest(composition),
+    sequences: options.assemblyTimeline ?? collector.manifest(composition),
   }
 }

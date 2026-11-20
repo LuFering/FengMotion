@@ -14,6 +14,15 @@ class CreateInstructionSkillGuideTest {
     private static final ResourceContextBuilder.ResourceContext NONE = new ResourceContextBuilder.ResourceContext(false, "", List.of());
 
     @Test
+    void shotDeliveryReplacesTheLegacyEntryInstruction() {
+        String instruction = CreateAgentRunner.buildInstruction("图表科普", NONE, "", false, true, true);
+        assertTrue(instruction.contains("shot-timeline-v1"));
+        assertTrue(instruction.contains("src/shots/<sourceId>.tsx"));
+        assertTrue(instruction.contains("独立放在 public/voiceover.wav"));
+        assertFalse(instruction.contains("确保 src/index.tsx"));
+    }
+
+    @Test
     @DisplayName("有 skill-guide.md：指令里有读指引这一步；没有：不提")
     void mentionsGuideOnlyWhenPresent() {
         String with = CreateAgentRunner.buildInstruction(null, NONE, "", true, true);

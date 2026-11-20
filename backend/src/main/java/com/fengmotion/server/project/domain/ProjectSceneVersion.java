@@ -37,6 +37,9 @@ public record ProjectSceneVersion(String projectId, long version, JsonNode film,
     /** 由版本化元素编辑接口产生。 */
     public static final String SOURCE_ELEMENT_EDIT = "element_edit";
 
+    /** 由镜头候选稿确认并提交。 */
+    public static final String SOURCE_SHOT_EDIT = "shot_edit";
+
     /** 由回退产生的版本。 */
     public static final String SOURCE_RESTORE = "restore";
 

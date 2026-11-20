@@ -118,8 +118,26 @@ public class CreateAgentRunner {
         }
     }
 
+    AgentOutcome runShotFilm(Path root, String intent, ResourceContextBuilder.ResourceContext resources, String image,
+                             String projectId, String sessionId, String requestId,
+                             com.fengmotion.server.harness.client.NativeHarnesses.Selection selected) {
+        selection.set(selected);
+        progressStore.begin(projectId, sessionId, requestId);
+        try {
+            return run(root, intent, resources, image, text -> progressStore.append(projectId, requestId, text), true);
+        } finally {
+            progressStore.finish(projectId, requestId);
+            selection.remove();
+        }
+    }
+
     public AgentOutcome run(Path projectRoot, String intent, ResourceContextBuilder.ResourceContext resources, String previewImage,
                             java.util.function.Consumer<String> onProgress) {
+        return run(projectRoot, intent, resources, previewImage, onProgress, false);
+    }
+
+    private AgentOutcome run(Path projectRoot, String intent, ResourceContextBuilder.ResourceContext resources, String previewImage,
+                             java.util.function.Consumer<String> onProgress, boolean shotTimeline) {
         var images = previewImages(previewImage);
         if (!Files.isDirectory(projectRoot)) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "validation_error", "项目目录不存在");
@@ -142,7 +160,7 @@ public class CreateAgentRunner {
 
         String instruction = buildInstruction(intent, resources, references.resolveCandidates(projectRoot, intent),
                 Files.isRegularFile(projectRoot.resolve("skill-guide.md")),
-                com.fengmotion.server.harness.client.DshNarration.inGuide(projectRoot));
+                com.fengmotion.server.harness.client.DshNarration.inGuide(projectRoot), shotTimeline);
         Instant startedAt = Instant.now();
         String reply = ask(projectRoot, instruction, images, onProgress);
         long elapsedMs = Duration.between(startedAt, Instant.now()).toMillis();
@@ -207,6 +225,11 @@ public class CreateAgentRunner {
      */
     static String buildInstruction(String intent, ResourceContextBuilder.ResourceContext resources,
                                    String candidates, boolean hasSkillGuide, boolean narrationInGuide) {
+        return buildInstruction(intent, resources, candidates, hasSkillGuide, narrationInGuide, false);
+    }
+
+    static String buildInstruction(String intent, ResourceContextBuilder.ResourceContext resources,
+                                   String candidates, boolean hasSkillGuide, boolean narrationInGuide, boolean shotTimeline) {
         String task = (intent == null || intent.isBlank())
                 ? "按 prompt.original.md 与 corrections.md 推进这部片子"
                 : intent;
@@ -223,6 +246,24 @@ public class CreateAgentRunner {
                 """.formatted(resources.description())
                 : "";
 
+        String delivery = shotTimeline ? """
+                2. 这次采用镜头装配试点。这个交付契约优先于 AGENTS.md 或技能中自建入口的旧要求。
+                   每个镜头组件放在 src/shots/<sourceId>.tsx，命名导出 Shot，不注册 Composition。
+                   镜头内部可自由用 Remotion/React 做图表、动效和排版；用镜头本地帧驱动动画。
+                   可共享只读配色、字体与纯数据；不要在镜头内放音频、发网络请求或修改全局样式。
+                3. 写 film.config.json，例如：
+                   {"format":"shot-timeline-v1","width":1280,"height":720,"fps":30,"shots":[{"id":"intro","sourceId":"chart","label":"咖啡因对比","frames":120},{"id":"end","sourceId":"outro","label":"片尾","frames":90}],"voiceover":"voiceover.wav"}
+                   镜头按数组顺序硬切，后端计算起点和总时长并生成入口。id 是唯一实例名，sourceId 对应组件文件，均用小写字母开头及小写数字、下划线或短横线。
+                   如有可用旁白，将它独立放在 public/voiceover.wav（也支持 mp3、m4a），让画面节奏对齐旁白；无旁白需求时省略 voiceover。不要伪造配音，如缺少必要素材则先问。
+                   不要写 entry、compositionId 或自建总装入口。
+                """ : """
+                2. 修改 src/ 里的 Remotion 源码，让画面符合要求。可以新增或调整组件。
+                3. 确保 src/index.tsx 里 registerRoot 注册了一个 Composition，
+                   并在 film.config.json 写清 entry 与 compositionId（两个名字必须与实际一致）。
+                """;
+        String acceptance = shotTimeline ? "合法的镜头清单、每个命名导出的 Shot 能通过装配与渲染。"
+                : "src/index.tsx 存在且能通过打包；film.config.json 的 entry 指向真实文件，compositionId 与代码里的 id 一致。";
+
         return """
                 这一轮要做的事：%s
                 %s
@@ -234,24 +275,19 @@ public class CreateAgentRunner {
                 1. 先读 prompt.original.md（用户原文，逐字，不要改写）和 corrections.md（后续纠正，较新的优先）。
                    lookdev-brief.md、film-plan.md 如果已不是模板原样，里面是用户或上一轮定下的视觉构想与导演处理，
                    按已确认的方向对待；要偏离时在 decisions.md 写明原因。
-                %s2. 修改 src/ 里的 Remotion 源码，让画面符合要求。可以新增或调整组件。
-                3. 确保 src/index.tsx 里 registerRoot 注册了一个 Composition，
-                   并在 film.config.json 写清 entry 与 compositionId（两个名字必须与实际一致）。
-                4. 不要自己调用渲染接口，也不要伪造视频文件 —— 后端会负责渲染。
+                %s%s4. 不要自己调用渲染接口，也不要伪造视频文件 —— 后端会负责渲染。
                 5. 在 decisions.md 里补一段「本轮参考」：
                    - 检索状态是「检索成功」「索引未就绪」还是「向量服务失败」（以 retrieval-log.md 为准）；
                    - 用了哪条候选就写它的 ID，并说明用在了画面哪个位置；
                    - 一条都没用就写「未采用」，并说明为什么（不相关 / 不适合本片）。
                    没有参考任何条目时也要写清这一点，不要略过。
 
-                交付判据（后端会据此检查）：
-                - src/index.tsx 存在且能通过打包
-                - film.config.json 的 entry 指向真实文件，compositionId 与代码里的 id 一致
+                交付判据（后端会据此检查）：%s
 
                 做完后用一两句话说明你改了什么、画面变成什么样。不要贴大段代码。
                 """.formatted(task, resourceBlock, candidates,
                         narrationInGuide ? "" : "交流方式：\n" + com.fengmotion.server.harness.client.DshNarration.WORK_BLOCKS,
-                        hasSkillGuide ? SKILL_GUIDE_STEP : "");
+                        hasSkillGuide ? SKILL_GUIDE_STEP : "", delivery, acceptance);
     }
 
     /**

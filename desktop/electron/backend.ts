@@ -166,10 +166,19 @@ export async function startBackend(options: StartOptions): Promise<BackendHandle
   const remotionDir = path.join(options.resourcesRoot, 'remotion')
   const remotionModules = path.join(remotionDir, 'node_modules')
   const remotionArgs: string[] = []
+  const livePreviewDir = options.packaged
+    ? path.join(options.resourcesRoot, 'live-preview')
+    : [path.join(options.resourcesRoot, 'live-preview'),
+       path.resolve(options.resourcesRoot, '..', 'frontend', 'live-preview')]
+      .find((directory) => existsSync(path.join(directory, 'server.mjs')))
+  if (livePreviewDir) remotionArgs.push(`--fengmotion.live-preview.project-dir=${livePreviewDir}`)
   if (existsSync(path.join(remotionDir, 'render.mjs'))) {
     remotionArgs.push(`--fengmotion.remotion.project-dir=${remotionDir}`)
     if (existsSync(remotionModules)) {
       remotionArgs.push(`--fengmotion.remotion.node-modules=${remotionModules}`)
+    } else if (!options.packaged) {
+      const developmentModules = path.resolve(options.resourcesRoot, '..', 'frontend', 'node_modules')
+      if (existsSync(developmentModules)) remotionArgs.push(`--fengmotion.remotion.node-modules=${developmentModules}`)
     }
   } else {
     // 找不到就明确记一笔：这会让渲染完全不可用，不该静默

@@ -12,6 +12,7 @@ import com.fengmotion.server.common.ApiException;
 import com.fengmotion.server.project.store.LocalStateStore;
 import com.fengmotion.server.project.store.ProjectRepository;
 import com.fengmotion.server.project.domain.ProjectCreationActivity;
+import com.fengmotion.server.project.domain.ShotTimeline;
 import com.fengmotion.server.creation.domain.CreationSessionAccess;
 import com.fengmotion.server.creation.domain.CreateRequest;
 import jakarta.annotation.PreDestroy;
@@ -35,12 +36,13 @@ public class CreationJobs implements ProjectCreationActivity {
     public record Job(String projectId,String requestId,String sessionId,String userMessageId,String state,String phase,JsonNode result,String error,String createdAt) {}
     public synchronized Job submit(String projectId,CreateRequest request) {
         if(request==null||request.requestId()==null||request.requestId().isBlank())throw bad("制作请求缺少身份");
+        if(request.filmFormat()!=null&&!ShotTimeline.FORMAT.equals(request.filmFormat()))throw bad("不支持的 filmFormat");
         projects.findById(projectId).orElseThrow(()->new ApiException(HttpStatus.NOT_FOUND,"not_found","项目不存在"));
         sessionAccess.validate(projectId,request.sessionId(),request.userMessageId());
         JsonNode payload=json.valueToTree(request);
         var existing=find(request.requestId());
         if(existing!=null){
-            if(!projectId.equals(existing.projectId())||!payload.equals(existing.data().get("request")))throw new ApiException(HttpStatus.CONFLICT,"task_idempotency_conflict","请求身份已用于不同内容");
+            if(!projectId.equals(existing.projectId())||!sameRequest(payload,existing.data().get("request")))throw new ApiException(HttpStatus.CONFLICT,"task_idempotency_conflict","请求身份已用于不同内容");
             return get(projectId,request.requestId());
         }
         if(activeProjects.containsKey(projectId))throw new ApiException(HttpStatus.CONFLICT,"project_busy","项目已有制作任务，请等当前任务完成");
@@ -51,11 +53,22 @@ public class CreationJobs implements ProjectCreationActivity {
         catch(RejectedExecutionException full){active.remove(request.requestId());activeProjects.remove(projectId,request.requestId());finish(request.requestId(),"failed",null,"制作队列已满，请稍后以新请求重试");}
         return get(projectId,request.requestId());
     }
+
+    private static boolean sameRequest(JsonNode incoming, JsonNode stored) {
+        return stored != null && incoming.equals((left, right) -> {
+            if (left.isIntegralNumber() && right.isIntegralNumber()) {
+                return left.bigIntegerValue().compareTo(right.bigIntegerValue());
+            }
+            return left.equals(right) ? 0 : 1;
+        }, stored);
+    }
     private void execute(String projectId,CreateRequest request){
         try{
             synchronized(this) { workers.put(request.requestId(), Thread.currentThread()); }
             if(cancellations.contains(request.requestId()))throw new InterruptedException("制作已取消");
-            var out=render.createThenRender(projectId,request.intent(),request.references(),request.previewImage(),request.baseVersion(),request.correction(),request.requestId(),request.sessionId(),request.userMessageId(),request.engineSelection());
+            var out=request.filmFormat()==null
+                    ? render.createThenRender(projectId,request.intent(),request.references(),request.previewImage(),request.baseVersion(),request.correction(),request.requestId(),request.sessionId(),request.userMessageId(),request.engineSelection())
+                    : render.createShotFilm(projectId,request);
             var media=out.render();ObjectNode result=json.createObjectNode();
             result.put("state",out.state());result.put("reply",out.reply());result.put("agentMs",out.agentMs());result.put("artifactPath",out.artifactPath());
             if(out.version()==null)result.putNull("version");else result.put("version",out.version());

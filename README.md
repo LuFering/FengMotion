@@ -1,112 +1,135 @@
 <div align="center">
 
-<img src="frontend/public/assets/brand/fengmotion-mark.png" alt="FengMotion 标志" width="96" />
+<img src="frontend/public/assets/brand/fengmotion-mark.png" alt="FengMotion" width="88" />
 
 # FengMotion
 
-**把想法说出来，让 AI 和你一起把它做成视频。**
+### 从一句话，到一条片子。
 
-一款正在开发中的 AI 视频创作桌面应用。用自然语言描述画面，借助 Remotion 编写和渲染视频，再通过对话继续修改。
+用自然语言创作视频，在画面中提出修改，让每一轮结果都有迹可循。
 
-[项目主页](https://lufering.github.io/FengMotion/) · [下载试用](#下载试用) · [开发路线图](ROADMAP.md) · [版本记录](CHANGELOG.md) · [参与贡献](CONTRIBUTING.md)
+<p>
+  <img alt="开发版本 0.1.2" src="https://img.shields.io/badge/version-0.1.2-2463EB?style=flat-square" />
+  <img alt="持续开发中" src="https://img.shields.io/badge/status-in_development-64748B?style=flat-square" />
+  <img alt="Electron 桌面应用" src="https://img.shields.io/badge/desktop-Electron-1E293B?style=flat-square" />
+  <img alt="Remotion 视频渲染" src="https://img.shields.io/badge/video-Remotion-1E293B?style=flat-square" />
+</p>
+
+[下载试用](https://github.com/LuFering/FengMotion/releases) · [项目主页](https://lufering.github.io/FengMotion/) · [开发进度](PROGRESS.md) · [路线图](ROADMAP.md) · [反馈问题](https://github.com/LuFering/FengMotion/issues)
 
 </div>
 
----
+<p align="center">
+  <img src="docs/assets/screenshots/workbench-coffee.png" alt="FengMotion 桌面工作台：coffee 科普视频、柱状图画面、五段时间线与引用给 AI 入口" width="1100" />
+</p>
 
-## 从想法到画面
+<p align="center"><sub>真实桌面截图 · coffee 30 秒科普短片 · 成片预览、版本与片段定位<br />支持截图和区域引用。画面对象点选与属性面板尚未接入；后端已提供版本化文字编辑接口。</sub></p>
 
-你可以先写下一句话，也可以带上素材、参考片或想尝试的技法。FengMotion 会将需求交给 AI，生成或修改视频工程，并渲染预览。看到结果后，你可以继续用自然语言提出修改意见，逐步接近想要的画面。
+## 把想法做成可继续修改的工程
 
-它既可以制作文字、图形和动画，也可以结合素材创作；不要求每个项目都有实拍素材或先写好分镜。
+FengMotion 是一款本地运行的 AI 视频创作桌面应用。你描述内容、风格和修改意图，Agent 编写或修改真实的 Remotion 工程，应用负责渲染、保存版本和展示结果。需求、源码、素材与成片留在自己的电脑里；模型调用仍取决于你配置的服务。
 
-## 能做什么
+可以从一句话开始，也可以带上图片、视频、参考片段或特效技法。不要求每次创作先写分镜或配置工作流。
 
-- **自然语言创作**：描述想法，由 AI 修改 Remotion 工程并渲染视频。
-- **在工作台继续修改**：查看预览、描述修改意见，使用版本记录回看已有结果。
-- **管理创作资源**：整理素材、参考片与特效技法，在创作时选择和引用。
-- **使用创作工作流**：通过 Prompt-first 路径保存需求并启动创作；工作流编辑器还在完善中。
-- **保留项目文件**：项目需求、代码和渲染结果保存在本机，便于继续创作。
-
-## 当前进展
-
-项目版本为 **0.1.2**，处于持续迭代开发和测试阶段。自然语言创作、资源引用和渲染已有真实实现，但新近整合的功能仍需更多端到端测试。生成质量取决于模型、资源、需求和运行环境。
-
-工作流中的部分节点目前仅展示界面快照；自动分析参考视频、完整的自动审片与返工尚未完成。当前提供 Linux x86_64 试用包，其他平台尚未完成适配。
-
-## 下载试用
-
-从 [GitHub Releases](https://github.com/LuFering/FengMotion/releases) 下载 `FengMotion-0.1.2-x86_64.AppImage`。赋予执行权限后运行：
-
-```bash
-chmod +x FengMotion-0.1.2-x86_64.AppImage
-./FengMotion-0.1.2-x86_64.AppImage
+```text
+描述想法 → 选择参考与素材 → Agent 编写工程 → 渲染并保存版本
+    ↑                                         ↓
+    └──────── 引用画面 / 框选区域 / 指定时间段 ─────┘
 ```
 
-应用包含后端和 Java 运行时；AI 创作仍需要本机安装并配置 DSH、可用模型及 Node.js。不同 Linux 环境的兼容性尚需验证。
+| 创作 | 调整 | 积累 |
+| :--- | :--- | :--- |
+| 自然语言驱动代码与动画；过程展示阶段说明、工具调用和文件变更。 | 预览成片、定位片段、圈出画面区域，再把明确的修改要求交给 AI。 | 保留源码快照和视频版本，复用素材、参考片、技法与工作流预设。 |
 
-## 本地开发
+## 当前能做到哪里
 
-### 准备环境
+当前源码版本为 **0.1.2**，持续开发中。下表描述截至 **2026-11-20** 的实现；本地开发进展与公开安装包的发布时间分别记录。
 
-- Node.js 与 npm；前端构建依赖 Vite 8，请使用 Node.js 20.19+ 或 22.12+。
-- Java 21 和 Maven，用于运行后端。
-- 已安装并配置可用模型的 [DeepSeek Harness（DSH）](https://github.com/deepseek-ai/DeepSeek-Harness)：AI 对话和创作需要它。模型与路径请按自己的环境配置，不能直接依赖仓库里的本机示例。
-- 首次渲染可能需要下载 Remotion 使用的浏览器；部分素材处理功能需要 FFmpeg。
+| 能力 | 当前状态 |
+| :--- | :--- |
+| 对话创作与渲染 | 已接通 Agent 修改工程、后台创作任务、渲染和结果回读；需配置可用引擎与模型。 |
+| 版本与轨道 | 源码快照、版本恢复、按视频保存轨道；有可靠历史来源时可补建轨道。已用 coffee 和独立样例实测。 |
+| 画面反馈 | 当前帧、框选区域、时间范围可随意见传递；轨道片段可定位并引用给 AI。 |
+| Skill → 工作流预设 | 支持导入、生成映射草稿、职责校验、人工审阅启用和关联项目。 |
+| 素材与参考 | 支持素材、参考片段和技法管理及引用；送入上下文不等于模型已正确采用。 |
+| 画面元素 | 后端提供按版本读取声明文字及修改文字、生成新版本的接口；当前桌面 UI 尚未接入元素点选与属性面板。 |
+| 自动审片与多平台 | 完整视觉审片、自动返工仍需开发；有多平台打包配置，本轮桌面实测覆盖 Linux。 |
 
-### 启动后端
+具体证据、限制和下一步见 [项目进度](PROGRESS.md)。新功能先在 [未发布记录](CHANGELOG.md) 中登记，不等同于已发布版本。
+
+## 下载与运行
+
+在 [GitHub Releases](https://github.com/LuFering/FengMotion/releases) 选择与你的系统匹配的实际发布资产。Linux AppImage 下载后赋予执行权限，例如：
+
+```bash
+chmod +x './FengMotion-<版本>-x86_64.AppImage'
+'./FengMotion-<版本>-x86_64.AppImage'
+```
+
+桌面包包含后端、Java 运行时和渲染资源。AI 创作还需要本机配置可用的执行引擎与模型；DSH 路径见 [DeepSeek Harness](https://github.com/deepseek-ai/DeepSeek-Harness)。渲染依赖 Node.js，首次使用可能下载 Chromium。跨机器与其他平台的安装兼容性以实际验证为准。
+
+<details>
+<summary><strong>本地开发：依赖、启动与检查</strong></summary>
+
+准备 Node.js 22.18+ 与 npm、Java 21、Maven；媒体元数据和缩略图需要 FFmpeg / ffprobe。Node.js 22.18+ 可直接运行仓库中导入 TypeScript 的 Node 测试。
+
+**1. 获取源码与依赖**
 
 ```bash
 git clone https://github.com/LuFering/FengMotion.git
-cd FengMotion/backend
+cd FengMotion
+npm --prefix frontend ci
+npm --prefix desktop ci
+```
+
+**2. 启动后端**（从仓库根目录执行）
+
+```bash
+export FENGMOTION_REMOTION_DIR="$PWD/backend/remotion"
+export FENGMOTION_NODE_MODULES="$PWD/frontend/node_modules"
+export FENGMOTION_WORKFLOW_DIR="$PWD/frontend/workflow-v0.1.1"
+cd backend
 mvn spring-boot:run
 ```
 
-后端默认监听 `http://127.0.0.1:8080`。在另一个终端确认服务：
+显式指定目录可避免默认配置中的旧工作区相对路径影响首次启动。DSH 的 `patch`、provider 与 model 需按自己的环境设置，不能直接沿用示例值。详见 [后端说明](backend/README.md)。
 
-```bash
-curl http://127.0.0.1:8080/api/health
-```
-
-### 启动前端
+**3. 在另一终端启动前端**
 
 ```bash
 cd FengMotion/frontend
-npm install
 npm run dev
 ```
 
-打开终端显示的本地地址，默认是 `http://localhost:5173`。页面能够打开不代表 AI 已经配置完成；开始创作前，请确认 DSH、模型和渲染环境可用。
+开发前端通常位于 `http://localhost:5173`，后端默认位于 `http://127.0.0.1:8080`。桌面壳启动后端时会选择端口并向前端传递实际地址。
 
-Linux 桌面应用的构建方式见 [桌面打包与更新](frontend/docs/dev/桌面打包与更新.md)。打包和安装仍需按目标机器验证。
+**4. 检查与构建**（从仓库根目录执行）
 
-## 项目结构
-
-```text
-FengMotion/
-├── backend/                 后端、数据库、DSH 接入与渲染服务
-│   ├── src/                 服务端代码与测试
-│   ├── remotion/            渲染工程与脚本
-│   ├── dsh-plugin/          对话流桥接插件
-│   └── docs/                后端设计与实现记录
-├── frontend/                前端应用与创作方法
-│   ├── src/                 界面、工作台、资源库与服务接口
-│   ├── workflow-v0.1.1/     当前创作方法、模板和工具
-│   └── docs/                设计、接口和开发文档
-├── harness/                 Harness 独立开发预留目录
-├── desktop/                 桌面壳与多平台部署配置
-│   ├── electron/            Electron 进程与系统集成
-│   └── scripts/             桌面构建、打包与安装脚本
-└── docs/                    项目展示网站（GitHub Pages）
+```bash
+curl http://127.0.0.1:8080/api/health
+(cd backend && mvn clean package && node --test src/test/*.test.mjs)
+(cd frontend && node --test tests/*.test.mjs && npm run build)
+(cd desktop && npm run build:shell)
 ```
 
-默认情况下，项目文件位于 `~/FengMotion/projects/`，应用数据库和附件位于 `~/.config/FengMotion/data/`。不同环境可通过配置调整。
+健康检查只证明服务启动，AI 创作和真实渲染需另行验证。桌面资源准备、安装和打包见 [desktop/README.md](desktop/README.md)。
 
-- [前端开发说明](frontend/README.md) · [桌面打包说明](desktop/README.md)
-- [后端开发说明](backend/README.md)
-- [实现状态与已知限制](backend/docs/当前实现状态.md)
-- [开发路线图](ROADMAP.md) · [版本记录](CHANGELOG.md) · [参与贡献](CONTRIBUTING.md)
+</details>
 
-## 参与与反馈
+## 工程与数据
 
-欢迎通过 [Issues](https://github.com/LuFering/FengMotion/issues) 分享使用问题、创作想法或改进建议。项目仍在快速变化，提交问题时附上操作步骤、运行环境和错误信息会很有帮助。
+| 目录 | 职责 | 深入阅读 |
+| :--- | :--- | :--- |
+| `backend/` | Java 21 / Spring Boot / SQLite；项目、对话、创作、渲染与产物模块 | [体系地图](backend/SYSTEM_MAP.md) · [开发指南](backend/DEVELOPMENT.md) |
+| `frontend/` | React / TypeScript；工作台、场景编辑器、资源库与工作流 | [前端架构](frontend/ARCHITECTURE.md) |
+| `desktop/` | Electron；桌面窗口、内置服务、运行资源与打包 | [桌面开发](desktop/README.md) |
+| `frontend/workflow-v0.1.1/` | 创作方法、节点协议、模板与工具 | [工作流说明](frontend/workflow-v0.1.1/README.md) |
+| `docs/` | 项目展示网站、契约、研究记录与 README 截图 | [截图来源](docs/assets/screenshots/README.md) |
+
+Linux 默认项目目录为 `~/FengMotion/projects/`，应用数据位于 `~/.config/FengMotion/data/`。新渲染会保存源码快照、独立视频和对应轨道文件；恢复旧工程会新增版本，保留历史记录。请勿提交个人数据库、模型密钥或本机配置。
+
+## 接下来
+
+优先打通**工程版本 → 可编辑元素 → 受控修改 → 新版本渲染**：让画面中的标题、图形和图表参数能够绑定到真实工程。与此同时完善长任务恢复、错误诊断和部署一致性。具体拆分与验收条件见 [路线图](ROADMAP.md)。
+
+欢迎通过 [Issues](https://github.com/LuFering/FengMotion/issues) 提交使用问题或创作案例，通过 [贡献指南](CONTRIBUTING.md) 参与开发。反馈时带上操作步骤、系统环境、所用版本及可分享的截图，会更容易复现和解决。

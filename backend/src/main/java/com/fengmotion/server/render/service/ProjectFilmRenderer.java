@@ -96,6 +96,10 @@ public class ProjectFilmRenderer {
         command.add(config.entry());
         command.add("--composition");
         command.add(config.compositionId());
+        if (config.shotTimeline() != null) {
+            command.add("--shot-timeline");
+            command.add(json.valueToTree(config.shotTimeline()).toString());
+        }
         if (output == null) {
             command.add("--timeline-only");
             command.add("true");

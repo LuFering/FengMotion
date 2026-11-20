@@ -68,6 +68,7 @@ function assertPrerequisites() {
     [path.join(RESOURCES_SRC, 'backend', 'fengmotion-server.jar'), '后端 jar（electron/resources/backend）'],
     [path.join(RESOURCES_SRC, 'remotion', 'render.mjs'), 'Remotion 渲染工程（electron/resources/remotion）'],
     [path.join(RESOURCES_SRC, 'remotion', 'node_modules'), 'Remotion 运行依赖（electron/resources/remotion/node_modules）'],
+    [path.join(RESOURCES_SRC, 'live-preview', 'server.mjs'), '实时预览脚本（electron/resources/live-preview）'],
   ]
   const missing = required.filter(([p]) => !existsSync(p))
   if (missing.length > 0) {

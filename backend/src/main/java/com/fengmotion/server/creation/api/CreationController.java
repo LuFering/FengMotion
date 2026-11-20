@@ -186,6 +186,9 @@ public class CreationController {
     @PostMapping("/create")
     public CreateResponse create(@PathVariable String projectId,
                                  @RequestBody(required = false) CreateRequest request) {
+        if (request != null && request.filmFormat() != null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "filmFormat 请通过异步 creation-jobs 提交");
+        }
         String intent = request == null ? null : request.intent();
         var references = request == null ? null : request.references();
         var outcome = projectRender.createThenRender(

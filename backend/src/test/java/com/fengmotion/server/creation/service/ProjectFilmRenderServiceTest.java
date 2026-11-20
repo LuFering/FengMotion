@@ -33,6 +33,18 @@ import com.fengmotion.server.render.service.ProjectFilmRenderer;
 class ProjectFilmRenderServiceTest {
     private final ObjectMapper json = new ObjectMapper();
 
+    @Test
+    void explicitShotCreationCannotFallBackToLegacyEntry() throws Exception {
+        Path root = projectRoot();
+        var scenes = mock(ProjectSceneRepository.class);
+        var renderer = mock(ProjectFilmRenderer.class);
+        var service = service(root, scenes, renderer, mock(CreationStateStore.class));
+
+        var error = assertThrows(ApiException.class, () -> service.render("project", "chart explainer", true));
+        assertEquals("shot_timeline_required", error.getCode());
+        verify(renderer, never()).render(any(), any(), any());
+    }
+
     private Path projectRoot() throws Exception {
         Path root = Files.createTempDirectory("project-film-render-");
         Files.createDirectories(root.resolve("src"));

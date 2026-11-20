@@ -67,7 +67,7 @@ fengmotion:
     # 工程目录：含 render.mjs 与 src/。留空时按 user.dir/remotion 推断（开发态）
     project-dir: ${FENGMOTION_REMOTION_DIR:FengMotion-desktop/backend/remotion}
     # 依赖目录：复用桌面端已装的 node_modules，不再单独装几百 MB
-    node-modules: ${FENGMOTION_NODE_MODULES:FengMotion-desktop/frontend/node_modules}
+    node-modules: ${FENGMOTION_NODE_MODULES:}
     # Chromium 路径：留空则由 Remotion 自行下载 chrome-headless-shell
     # 浏览器路径。留空则交给 Remotion 自己下载 chrome-headless-shell（跨机器最稳）。
     # 写死本机路径会在别人的电脑上失败，所以默认不再指向 /opt/google/chrome。
@@ -75,6 +75,10 @@ fengmotion:
     node: ${FENGMOTION_NODE:/usr/bin/node}
     # 渲染超时：长片会更久
     timeout-seconds: 600
+  live-preview:
+    project-dir: ${FENGMOTION_LIVE_PREVIEW_DIR:}
+    start-timeout-seconds: 60
+    idle-timeout-seconds: 600
   cors:
     # Electron 壳以 fengmotion://app 为 origin，必须显式列入白名单；
     # 否则壳内所有 fetch 都会被 CORS 拦成 403。

@@ -8,7 +8,9 @@
 
 后端是 **Java 21 / Spring Boot 3.3.5 模块化单体**。一个 Java 服务对桌面提供 HTTP / SSE，管理 SQLite、项目文件和外部子进程。当前 Maven 版本为 0.1.2，主要依赖为 MyBatis-Plus 3.5.18、SQLite JDBC 3.45.1.0、Jackson 和 Lombok，见 [pom.xml](pom.xml)。
 
-当前盘点：18 个一级包、284 个生产 Java 文件（含 package-info）、36 个 REST Controller、114 个方法级路由声明、25 张由源码创建的表、108 个 Java 测试类。数量是源码快照，不是能力数或覆盖率。
+体系基线盘点：18 个一级包、284 个生产 Java 文件（含 package-info）、36 个 REST Controller、114 个方法级路由声明、25 张由源码创建的表、108 个 Java 测试类。以上数量是早前体系基线快照，不含后续镜头候选稿和实时预览增量。
+
+实时预览增量：`render.api.LivePreviewController` 提供 `POST/GET/DELETE /api/projects/{id}/live-preview`；`LivePreviewService → LivePreviewLauncher → LivePreviewProcess` 管理当前工作稿预览 Node 进程。每项目复用一份请求、最多三份就绪预览，切换时允许单个临时启动进程，就绪后再淘汰旧预览。前端通过 POST 续期，闲置回收与后端退出会清理进程树；不访问场景版本仓储、不写源码。详情见 [实时预览契约](../frontend/docs/contracts/live-preview.md)。
 
 ```mermaid
 flowchart LR

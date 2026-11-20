@@ -15,6 +15,11 @@
 
 ## 专题说明
 
+- [源码实时预览](../../frontend/docs/contracts/live-preview.md)：Java 进程启动、复用、健康检查、空闲回收和桌面运行时配置。
+
+- [可替换镜头验证样例](audits/shot-replacement-pilot.md)：局部渲染、帧时序与独立音轨保留的验证步骤。
+- [首次创作镜头装配](shot-timeline.md)：选择试点的请求、源码与镜头清单契约。
+- [镜头候选稿契约](../../frontend/docs/contracts/shot-candidates.md)：隔离预览、确认提交、幂等和失败回滚。
 - [会话消息持久化](会话消息持久化.md)
 - [事务与 SQLite 写锁](事务与SQLite写锁.md)
 - [DSH 集成与接口清单](harness集成与接口清单.md)：包含多个时间点的修订；旧包名和旧结论应以当前架构及源码为准。

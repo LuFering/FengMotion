@@ -20,6 +20,39 @@ import static org.mockito.Mockito.*;
 import static org.junit.jupiter.api.Assertions.*;
 class CreationJobsTest {
  @TempDir Path dir;
+
+ @Test void explicitShotRequestUsesTheShotCreationJobAndKeepsItsFormatInTheRequest() throws Exception {
+  var jdbc = new JdbcTemplate(new DriverManagerDataSource("jdbc:sqlite:" + dir.resolve("shot-jobs.db")));
+  var json = new ObjectMapper();
+  var store = new LocalStateStore(jdbc, json);
+  var init = LocalStateStore.class.getDeclaredMethod("init");
+  init.setAccessible(true);
+  init.invoke(store);
+  var tasks = mock(CreationTaskStore.class);
+  var creation = mock(ProjectCreationService.class);
+  var projects = mock(ProjectRepository.class);
+  when(projects.findById("project")).thenReturn(Optional.of(new Project("project", "图表", null, null, dir.toString(), Instant.now())));
+  var request = new CreateRequest("图表短片", null, null, 0L, null, "shots", null, null, null, null, null,
+          null, "shot-timeline-v1");
+  when(creation.createShotFilm("project", request)).thenReturn(
+          new ProjectCreationService.CreateOutcome("rendered", "已装配", 1, "renders/shot.mp4", 1L, null, List.of()));
+  var jobs = new CreationJobs(store, tasks, creation, projects, mock(CreationSessionAccess.class), json);
+  try {
+   jobs.submit("project", request);
+   assertEquals("shot-timeline-v1", store.find("creation-request", "shots").orElseThrow().data()
+           .path("request").path("filmFormat").asText());
+   for (int attempt = 0; attempt < 80 && !jobs.get("project", "shots").state().equals("rendered"); attempt++) Thread.sleep(25);
+   assertEquals("rendered", jobs.get("project", "shots").state());
+   assertEquals(1L, jobs.submit("project", request).result().path("version").asLong());
+   var changed = new CreateRequest("图表短片", null, null, 1L, null, "shots", null, null, null, null, null,
+           null, "shot-timeline-v1");
+   assertEquals("task_idempotency_conflict", assertThrows(ApiException.class, () -> jobs.submit("project", changed)).getCode());
+   verify(creation).createShotFilm("project", request);
+   verifyNoMoreInteractions(creation);
+  } finally {
+   jobs.close();
+  }
+ }
  @Test void requestLifetimeAndExactReplayDoNotDependOnClientConnection()throws Exception{
   var jdbc=new JdbcTemplate(new DriverManagerDataSource("jdbc:sqlite:"+dir.resolve("jobs.db")));var json=new ObjectMapper();var store=new LocalStateStore(jdbc,json);
   var init=LocalStateStore.class.getDeclaredMethod("init");init.setAccessible(true);init.invoke(store);

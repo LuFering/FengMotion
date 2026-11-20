@@ -34,7 +34,7 @@ backend/
 |---|---|---|
 | `project` | 项目元数据、目录、工程配置、源码指纹、快照与恢复、同项目互斥 | `ProjectService`、`ProjectFilmConfig`、`ProjectSourceSnapshots`、`SceneVersionService` |
 | `workflow` | 原始需求、纠正、工作稿和 Prompt-first 上下文 | `WorkflowProjectController`、`WorkflowProjectService`、`WorkflowDraftService` |
-| `creation` | 异步创作请求、Agent 修改源码、资源上下文、参考检索、渲染与版本提交的编排 | `CreationController`、`CreationJobController`、`CreateAgentRunner`、`CreationReferenceService`、`ProjectCreationService`、`ProjectFilmRenderService`、`SceneElementEditService`、`CreationJobs` |
+| `creation` | 异步创作请求、Agent 修改源码、资源上下文、参考检索、候选稿、渲染与版本提交的编排 | `CreationController`、`CreationJobController`、`CreateAgentRunner`、`CreationReferenceService`、`ProjectCreationService`、`ProjectFilmRenderService`、`SceneElementEditService`、`ShotCandidateService`、`CreationJobs` |
 | `render` | Remotion 子进程适配、超时、进程清理、渲染输入输出 | `ProjectFilmRenderer`、`RemotionRenderer`、`RenderController` |
 | `artifact` | 项目产物读取、下载与路径边界 | `ArtifactController` |
 | `task` | 原有场景数据修改/渲染任务、事件、取消和恢复 | `TaskService`、`ModifyTaskRunner`、`RenderTaskRunner` |
@@ -82,9 +82,13 @@ backend/
 
 `RemotionRenderer` 调用 `remotion/render.mjs`，处理已有场景数据；`ProjectFilmRenderer` 调用 `remotion/render-project.mjs`，处理项目源码入口。两者共享 `render-shared.mjs`，目前仍有调用方，不能作为重复实现删除。
 
+实时预览也归入 `render`：`LivePreviewController` 提供启动/查询/停止接口，`LivePreviewService` 管理每项目会话、并发启动复用、三个就绪预览和单个临时启动名额、空闲回收；`LivePreviewLauncher` 解析共享运行时与日志路径；`LivePreviewProcess` 处理首行就绪信号、HTTP 健康检查与进程树终止。启动握手、HTTP 检查及停止等待都在共享状态锁外进行，启动中的失败只由启动流程解析；新预览就绪后才淘汰旧的。预览依赖项目配置但不提交工程版本、不阻塞 Agent 创作。协议见 [live-preview.md](../frontend/docs/contracts/live-preview.md)。
+
 `task` 保留场景修改和渲染任务，`creation` 保留自由源码创作请求。两者有不同的请求、事件和恢复语义，本次只整理归属，不合并状态机或改写历史记录。
 
 `ProjectCreationService` 编排工程修改、任务幂等、项目互斥和创作状态；`ProjectFilmRenderService` 专门负责工程配置校验、源码快照、Remotion 执行、版本快照提交、冲突产物清理与源码文件列表。两者共用原来的项目版本与渲染服务，不改变 `/film` 和 `/render` 的响应契约。
+
+`ShotCandidateService` 是镜头装配的受控两阶段入口：从当前版本快照构造隔离候选，局部渲染并保存可校验的预览；只有确认时才重新装配、完整渲染、恢复工作区并条件提交 `shot_edit` 版本。候选目录不进入当前源码指纹，确认失败清理新产物并保留候选重试；它不替代不受信代码沙箱，也不把硬切镜头规则推广到转场工程。
 
 `CreateAgentRunner` 负责创作准备、Agent 会话、源码改动判定和进度；`CreationReferenceService` 承担检索候选选择、检索状态解释和 `retrieval-log.md` 追加。检索失败与字面匹配降级的提示、检索日志格式和写入位置保持不变。
 

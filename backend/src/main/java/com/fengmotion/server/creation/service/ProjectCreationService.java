@@ -5,6 +5,7 @@ import com.fengmotion.server.project.service.ProjectOperationLock;
 import com.fengmotion.server.project.service.ProjectSourceSnapshots;
 import com.fengmotion.server.project.store.CreationStateStore;
 import com.fengmotion.server.creation.domain.CreationSessionAccess;
+import com.fengmotion.server.creation.domain.CreateRequest;
 import com.fengmotion.server.project.service.ProjectFilmConfig;
 import com.fengmotion.server.render.service.ProjectFilmRenderer;
 import com.fengmotion.server.workflow.service.WorkflowProjectService;
@@ -21,6 +22,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fengmotion.server.common.ApiException;
 import com.fengmotion.server.project.domain.Project;
 import com.fengmotion.server.project.domain.ProjectScene;
+import com.fengmotion.server.project.domain.ShotTimeline;
 import com.fengmotion.server.project.store.ProjectRepository;
 import com.fengmotion.server.project.store.ProjectSceneRepository;
 
@@ -113,7 +115,12 @@ public class ProjectCreationService {
     }
 
     private RenderOutcome renderUnlocked(String projectId, String prompt) {
-        ProjectFilmRenderService.RenderResult result = filmRenders.render(projectId, prompt);
+        return renderUnlocked(projectId, prompt, false);
+    }
+
+    private RenderOutcome renderUnlocked(String projectId, String prompt, boolean shotTimeline) {
+        ProjectFilmRenderService.RenderResult result = shotTimeline
+                ? filmRenders.render(projectId, prompt, true) : filmRenders.render(projectId, prompt);
         return new RenderOutcome(result.artifactPath(), result.version(), result.entry(),
                 result.compositionId(), result.result(), result.renderMs());
     }
@@ -159,11 +166,25 @@ public class ProjectCreationService {
     public CreateOutcome createThenRender(String projectId, String intent, JsonNode references, String previewImage, Long expectedVersion,
             String correction, String requestId, String sessionId, String userMessageId,
             com.fengmotion.server.harness.client.NativeHarnesses.Selection selection) {
+        return createThenRender(projectId, intent, references, previewImage, expectedVersion, correction,
+                requestId, sessionId, userMessageId, selection, false);
+    }
+
+    CreateOutcome createShotFilm(String projectId, CreateRequest request) {
+        return createThenRender(projectId, request.intent(), request.references(), request.previewImage(),
+                request.baseVersion(), request.correction(), request.requestId(), request.sessionId(),
+                request.userMessageId(), request.engineSelection(), true);
+    }
+
+    private CreateOutcome createThenRender(String projectId, String intent, JsonNode references, String previewImage, Long expectedVersion,
+            String correction, String requestId, String sessionId, String userMessageId,
+            com.fengmotion.server.harness.client.NativeHarnesses.Selection selection, boolean shotTimeline) {
         if (selection != null) agent.validateSelection(selection);
         operations.acquire(projectId);
         try {
             if (requestId != null && !requestId.isBlank()) {
                 String requestHash = computeFingerprint(projectId, intent, references, previewImage, expectedVersion, correction);
+                if (shotTimeline) requestHash += "|film=" + ShotTimeline.FORMAT;
                 if (selection != null) requestHash += "|engine=" + selection.harness() + "|model=" + selection.model() + "|effort=" + selection.reasoningEffort();
                 var existingTask = creationTasks.findByRequestId(requestId);
                 if (existingTask.isPresent()) {
@@ -216,15 +237,18 @@ public class ProjectCreationService {
                 }
             }
             try {
-                if (expectedVersion != null) {
+                if (expectedVersion != null || shotTimeline) {
                     long actualVersion = scenes.find(projectId).filter(ProjectScene::present).map(ProjectScene::version).orElse(0L);
-                    if (actualVersion != expectedVersion) {
+                    if (expectedVersion != null && actualVersion != expectedVersion) {
                         throw new ApiException(HttpStatus.CONFLICT, "version_conflict", "项目版本已变化，请刷新预览并重新选择修改目标。");
+                    }
+                    if (shotTimeline && actualVersion != 0) {
+                        throw new ApiException(HttpStatus.CONFLICT, "shot_film_requires_new_project", "镜头装配试点只用于尚未出片的项目");
                     }
                 }
                 if (previewImage != null) CreateAgentRunner.previewImages(previewImage);
                 if (correction != null && !correction.isBlank()) workflowProject.recordCorrection(projectId, correction, requestId);
-                return createUnlocked(projectId, intent, references, previewImage, requestId, sessionId, userMessageId, selection);
+                return createUnlocked(projectId, intent, references, previewImage, requestId, sessionId, userMessageId, selection, shotTimeline);
             } catch (RuntimeException failure) {
                 if (requestId != null && !requestId.isBlank()) {
                     creationTasks.updateFailed(requestId, failure.getMessage());
@@ -312,6 +336,11 @@ public class ProjectCreationService {
     }
     private CreateOutcome createUnlocked(String projectId, String intent, JsonNode references, String previewImage, String requestId,
             String sessionId, String userMessageId, com.fengmotion.server.harness.client.NativeHarnesses.Selection selection) {
+        return createUnlocked(projectId, intent, references, previewImage, requestId, sessionId, userMessageId, selection, false);
+    }
+
+    private CreateOutcome createUnlocked(String projectId, String intent, JsonNode references, String previewImage, String requestId,
+            String sessionId, String userMessageId, com.fengmotion.server.harness.client.NativeHarnesses.Selection selection, boolean shotTimeline) {
         Project project = projects.findById(projectId)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "not_found", "项目不存在"));
         String rootPath = project.rootPath();
@@ -342,7 +371,9 @@ public class ProjectCreationService {
         }
         String reply = null;
         try {
-            var agentResult = agent.run(root, instruction, resources, previewImage, projectId, sessionId, requestId, selection);
+            var agentResult = shotTimeline
+                    ? agent.runShotFilm(root, instruction, resources, previewImage, projectId, sessionId, requestId, selection)
+                    : agent.run(root, instruction, resources, previewImage, projectId, sessionId, requestId, selection);
             reply = agentResult.reply();
             // 新项目尚无入口也能正常追问；先判断是否改动，再校验可渲染性。
             if (!agentResult.changed()) {
@@ -360,8 +391,8 @@ public class ProjectCreationService {
                 creationTasks.updatePhase(requestId, "rendering");
             }
 
-            filmRenders.validateConfig(root);
-            RenderOutcome rendered = renderUnlocked(projectId, intent);
+            if (!shotTimeline) filmRenders.validateConfig(root);
+            RenderOutcome rendered = renderUnlocked(projectId, intent, shotTimeline);
             boolean saved = recordAssistantReplyToSession(sessionId, userMessageId, requestId, reply);
             try {
                 creationStates.write(root, creationStates.state(CreateOutcome.RENDERED, intent, reply,

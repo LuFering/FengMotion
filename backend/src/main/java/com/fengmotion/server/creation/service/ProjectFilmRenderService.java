@@ -61,6 +61,10 @@ public class ProjectFilmRenderService {
     }
 
     RenderResult render(String projectId, String prompt) {
+        return render(projectId, prompt, false);
+    }
+
+    RenderResult render(String projectId, String prompt, boolean requireShots) {
         Project project = projects.findById(projectId)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "not_found", "项目不存在"));
         String rootPath = project.rootPath();
@@ -68,18 +72,26 @@ public class ProjectFilmRenderService {
             throw new ApiException(HttpStatus.BAD_REQUEST, "validation_error", "项目还没有目录");
         }
         Path root = Path.of(rootPath).toAbsolutePath().normalize();
-        configs.read(root);
+        readConfig(root, requireShots);
         String sourceSnapshot = sourceSnapshots.capture(root);
-        Path renderRoot = sourceSnapshots.resolve(root, sourceSnapshot);
-        ProjectFilmConfig.FilmConfig config = configs.read(renderRoot);
 
         String fileName = "project-" + Instant.now().toEpochMilli() + "-" + UUID.randomUUID() + ".mp4";
         Path output = root.resolve("renders").resolve(fileName);
-        long baseVersion = scenes.find(projectId)
-                .filter(ProjectScene::present).map(ProjectScene::version).orElse(0L);
         Instant startedAt = Instant.now();
         try {
+            Path renderRoot = sourceSnapshots.resolve(root, sourceSnapshot);
+            ProjectFilmConfig.FilmConfig config = readConfig(renderRoot, requireShots);
+            long baseVersion = scenes.find(projectId)
+                    .filter(ProjectScene::present).map(ProjectScene::version).orElse(0L);
+            if (requireShots && baseVersion != 0) {
+                throw new ApiException(HttpStatus.CONFLICT, "scene_version_conflict", "首次制作期间已有新场景版本，未覆盖");
+            }
             ProjectFilmRenderer.Result result = renderer.render(renderRoot, config, output);
+            var timeline = config.shotTimeline();
+            if (timeline != null && (result.durationInFrames() != timeline.durationInFrames()
+                    || result.fps() != timeline.fps() || result.width() != timeline.width() || result.height() != timeline.height())) {
+                throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, "shot_render_mismatch", "渲染规格与镜头装配清单不一致");
+            }
             long elapsedMs = java.time.Duration.between(startedAt, Instant.now()).toMillis();
 
             ObjectNode fingerprint = (ObjectNode) fingerprint(renderRoot, config, result, elapsedMs);
@@ -110,12 +122,21 @@ public class ProjectFilmRenderService {
             } catch (IOException cleanup) {
                 failure.addSuppressed(cleanup);
             }
+            sourceSnapshots.discard(root, sourceSnapshot);
             throw failure;
         }
     }
 
     void validateConfig(Path root) {
         configs.read(root);
+    }
+
+    private ProjectFilmConfig.FilmConfig readConfig(Path root, boolean requireShots) {
+        var config = configs.read(root);
+        if (requireShots && config.shotTimeline() == null) {
+            throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, "shot_timeline_required", "本轮请求按镜头装配，不能使用旧版源码入口");
+        }
+        return config;
     }
 
     List<String> sourceFiles(Path root) {
@@ -138,6 +159,7 @@ public class ProjectFilmRenderService {
         node.put("kind", "project-render");
         node.put("entry", config.entry());
         node.put("compositionId", config.compositionId());
+        if (config.shotTimeline() != null) node.set("shotTimeline", json.valueToTree(config.shotTimeline()));
 
         ObjectNode output = node.putObject("output");
         output.put("durationInFrames", result.durationInFrames());

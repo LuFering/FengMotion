@@ -16,9 +16,10 @@
  * 找不到就明确失败，而不是猜一个。</p>
  */
 
-import { readFile } from 'node:fs/promises'
+import { readFile, writeFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import path from 'node:path'
+import { shotAssembly, shotTracks } from './shot-assembly.mjs'
 
 import {
   cleanup,
@@ -41,6 +42,10 @@ async function main() {
   }
 
   const projectDir = path.resolve(args.project)
+  const timeline = args['shot-timeline'] ? JSON.parse(args['shot-timeline']) : null
+  if (timeline && (args.entry !== '.fengmotion-shot-entry.tsx' || args.composition !== 'FengMotionShots')) {
+    throw new Error('镜头装配必须使用后端入口和固定合成')
+  }
   if (!existsSync(projectDir)) {
     emitResult({ ok: false, error: `项目目录不存在：${projectDir}` })
     process.exit(2)
@@ -53,7 +58,7 @@ async function main() {
     emitResult({ ok: false, error: `入口越界：${args.entry} 不在项目目录内` })
     process.exit(2)
   }
-  if (!existsSync(entryAbs)) {
+  if (!timeline && !existsSync(entryAbs)) {
     emitResult({ ok: false, error: `入口不存在：${args.entry}` })
     process.exit(2)
   }
@@ -69,6 +74,7 @@ async function main() {
   const entryInWorkDir = path.join(workDir, path.relative(projectDir, entryAbs))
 
   try {
+    if (timeline) await writeFile(entryInWorkDir, shotAssembly(timeline))
     const result = await renderProject({
       nodeModules,
       workDir,
@@ -78,6 +84,7 @@ async function main() {
       out: args.out ? path.resolve(args.out) : null,
       browser: args.browser,
       timelineOnly,
+      assemblyTimeline: timeline ? shotTracks(timeline) : undefined,
     })
     emitResult({ ok: true, output: args.out ?? null, ...result })
   } finally {

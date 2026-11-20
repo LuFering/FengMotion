@@ -11,6 +11,8 @@ import java.nio.file.Path;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fengmotion.server.common.ApiException;
@@ -24,6 +26,12 @@ import com.fengmotion.server.common.ApiException;
 @DisplayName("项目工程配置")
 class ProjectFilmConfigTest {
 
+    private static final String ASSEMBLY = """
+            {"format":"shot-timeline-v1","width":960,"height":540,"fps":30,
+             "shots":[{"id":"chart","sourceId":"cards","label":"对比","frames":120},
+                      {"id":"end","sourceId":"cards","label":"片尾","frames":90}],"voiceover":"voiceover.wav"}
+            """;
+
     private final ProjectFilmConfig configs = new ProjectFilmConfig(new ObjectMapper());
 
     @TempDir
@@ -36,6 +44,45 @@ class ProjectFilmConfigTest {
      */
     private void writeConfig(String content) throws Exception {
         Files.writeString(root.resolve(ProjectFilmConfig.FILE_NAME), content);
+    }
+
+    private void shotFiles() throws Exception {
+        Files.createDirectories(root.resolve("src/shots"));
+        Files.writeString(root.resolve("src/shots/cards.tsx"), "export const Shot = () => null;");
+        Files.createDirectories(root.resolve("public"));
+        Files.writeString(root.resolve("public/voiceover.wav"), "audio fixture");
+    }
+
+    @Test
+    void derivesStableInstanceTimingWithoutAnAgentOwnedEntry() throws Exception {
+        shotFiles();
+        writeConfig(ASSEMBLY);
+
+        var config = configs.read(root);
+        var timeline = config.shotTimeline();
+        assertEquals(".fengmotion-shot-entry.tsx", config.entry());
+        assertFalse(Files.exists(root.resolve(config.entry())));
+        assertEquals(210, timeline.durationInFrames());
+        assertEquals("chart", timeline.shots().getFirst().id());
+        assertEquals(120, timeline.shots().getLast().startFrame());
+        assertEquals("voiceover.wav", timeline.voiceover());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"entry", "duplicate", "escape", "empty", "fraction", "audio", "nested-start"})
+    void refusesInvalidAssembly(String mode) throws Exception {
+        shotFiles();
+        writeConfig(switch (mode) {
+            case "entry" -> ASSEMBLY.replace("\"width\"", "\"entry\":\"src/index.tsx\",\"width\"");
+            case "duplicate" -> ASSEMBLY.replace("\"end\"", "\"chart\"");
+            case "escape" -> ASSEMBLY.replace("\"cards\"", "\"../cards\"");
+            case "empty" -> ASSEMBLY.replace("\"frames\":120", "\"frames\":0");
+            case "fraction" -> ASSEMBLY.replace("\"fps\":30", "\"fps\":29.97");
+            case "audio" -> ASSEMBLY.replace("voiceover.wav", "voiceover.mp3");
+            default -> ASSEMBLY.replace("\"frames\":120", "\"frames\":120,\"startFrame\":7");
+        });
+
+        assertEquals("shot_timeline_invalid", assertThrows(ApiException.class, () -> configs.read(root)).getCode());
     }
 
     @Test

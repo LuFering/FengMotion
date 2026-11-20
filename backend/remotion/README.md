@@ -8,6 +8,7 @@
 | `render-project.mjs` | `render.service.ProjectFilmRenderer` | Agent 编写的项目源码，由项目配置声明 entry 和 composition |
 | `render-shared.mjs` | 上述两个脚本 | 共用依赖解析、浏览器选择、临时目录和输出协议 |
 | `timeline.mjs` | 共用渲染流程 | 在实际渲染帧中采集序列、嵌套与条件挂载，返回轨道清单 |
+| `shot-assembly.mjs` | 项目渲染入口 | 从 Java 验证的镜头清单生成临时入口和稳定镜头轨道 |
 
 两条路径仍有调用方，不应只打包其中一个。Java 的 `creation.service.ProjectCreationService` 负责把源码创作、渲染和版本登记串起来；Node 脚本不承担业务状态转换。
 
@@ -28,3 +29,5 @@ node render-project.mjs --project /path/to/snapshot --entry src/index.tsx --comp
 stdout 返回单行 JSON 结果，stderr 为进度或诊断。超时、取消、进程树清理和版本保存由 Java 调用层负责。渲染成功只能说明脚本生成了产物，画面仍需审片确认。
 
 结果中的 `sequences` 使用 schemaVersion 2，帧率保留小数，片段时间以秒表示。采集不完整或超出 60 轨/400 片段时返回 `detail: limited` 的成片轨并记录诊断，不把部分采集冒充完整轨道。Java 在视频旁保存绑定路径和视频 SHA-256 的隐藏清单；历史恢复使用对应源码快照和 `--timeline-only`，不生成新 MP4。桌面资源必须包含 `timeline.mjs` 与相同版本的 Remotion 运行依赖。
+
+[`shot-timeline-v1`](../docs/shot-timeline.md) 仍由 `render-project.mjs` 接入，不另建进程接口；它的运行入口由后端在临时目录生成，轨道来自已校验的装配清单，不依赖运行时临时序列 ID。

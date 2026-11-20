@@ -20,6 +20,7 @@
 export FENGMOTION_REMOTION_DIR="$PWD/remotion"
 export FENGMOTION_NODE_MODULES="$(cd ../frontend && pwd)/node_modules"
 export FENGMOTION_WORKFLOW_DIR="$(cd ../frontend && pwd)/workflow-v0.1.1"
+export FENGMOTION_LIVE_PREVIEW_DIR="$(cd ../frontend && pwd)/live-preview"
 mvn spring-boot:run
 ```
 
@@ -33,6 +34,25 @@ mvn test
 健康检查只说明服务已启动。对话和创作还需要安装并配置 DSH 与可用模型；默认配置中有开发机的示例路径和模型名，使用其他环境时需调整。可选语义检索依赖对应的向量服务配置；没有配置或服务不可用时不能视为已经完成有效检索。
 
 默认项目文件位于 `~/FengMotion/projects/`，数据库与上传文件位于 `~/.config/FengMotion/data/`。相关设置见 `src/main/resources/application.yml`。请勿将密钥或个人配置提交到仓库。
+
+## 源码实时预览
+
+`POST /api/projects/{id}/live-preview` 启动或复用本机 Node 预览，`GET` 查询，`DELETE` 停止。响应字段、错误和前端心跳约定见 [实时预览契约](../frontend/docs/contracts/live-preview.md)。稳定状态最多三个就绪预览，切换时允许一个临时启动进程；新进程就绪后才淘汰最久未心跳的旧预览，失败则保留旧预览。空闲超过十分钟自动回收。Agent 创作期间允许预览，预览不登记成片版本。
+
+脚本与共享依赖由上面的环境变量定位，日志在数据目录的 `logs/live-preview/`。当前预览壳需要真实工程入口，镜头装配格式暂返回不可用。`LivePreviewServiceTest` 验证生命周期，`LivePreviewApiTest` 使用真实 Node 协议夹具，`LivePreviewRuntimeTest` 验证实际预览壳打包和热更新（缺少前端依赖时跳过）。
+
+依赖目录默认配置为空，开发态从 `frontend/live-preview/` 的同级 `node_modules/` 定位，不依赖启动命令的相对路径。查询时临时 HTTP 失败保留仍存活的进程；启动失败由握手流程返回原因，回收任务不抢先覆盖它。停止等待在共享锁外执行；关闭期间启动返回 `503 live_preview_stopping`，成功和业务错误响应均不缓存。
+
+本机 Maven 未加入 PATH 时，可用以下命令复跑（路径是本开发机环境，不是运行依赖）：
+
+```bash
+export JAVA_HOME=/usr/lib/jvm/java-21-openjdk
+export PATH="$JAVA_HOME/bin:$PATH"
+/home/lufering/.local/opt/apache-maven-3.9.11/bin/mvn -o \
+  -Dtest=LivePreviewServiceTest,LivePreviewApiTest,LivePreviewRuntimeTest,ModuleLayoutTest test
+```
+
+运行时测试包含真实 Node 转发进程、父进程强杀、最新脚本热更新和缺少 `@babel/parser` 的失败信号。Linux 测试不能代替 Windows 安装态验证。
 
 ## 目录
 

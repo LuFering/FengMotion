@@ -14,7 +14,7 @@
  */
 
 import { execFileSync } from 'node:child_process'
-import { copyFileSync, cpSync, existsSync, mkdirSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { copyFileSync, cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 
 const repoRoot = path.resolve(import.meta.dirname, '..')
@@ -47,7 +47,10 @@ const workflowOut = path.join(outRoot, 'workflow-v0.1.1')
    通过 LD_LIBRARY_PATH 指过去。这不是通用解法 —— 目标机 glibc 版本过旧仍可能起不来，
    那种情况下的表现是「没有缩略图」，不是崩溃，已由后端降级路径兜住。 */
 const ffmpegOut = path.join(outRoot, 'ffmpeg')
-const REMOTION_RUNTIME_PACKAGES = ['@remotion/bundler', '@remotion/renderer']
+const REMOTION_RUNTIME_PACKAGES = ['@remotion/bundler', '@remotion/renderer', '@remotion/player', 'remotion']
+const PREVIEW_RUNTIME_PACKAGES = ['esbuild', '@babel/core', '@babel/parser', 'react', 'react-dom']
+const livePreviewSrc = path.resolve(repoRoot, '..', 'frontend', 'live-preview')
+const livePreviewOut = path.join(outRoot, 'live-preview')
 /** 与 desktop 使用的 Remotion 版本保持一致；换版本时这里和 desktop 一起改。 */
 const REMOTION_VERSION = '4.0.519'
 
@@ -210,7 +213,13 @@ function buildRemotion() {
     name: 'fengmotion-remotion-runtime',
     private: true,
     version: '0.0.0',
-    dependencies: Object.fromEntries(REMOTION_RUNTIME_PACKAGES.map((p) => [p, REMOTION_VERSION])),
+    dependencies: {
+      ...Object.fromEntries(REMOTION_RUNTIME_PACKAGES.map((name) => [name, REMOTION_VERSION])),
+      ...Object.fromEntries(PREVIEW_RUNTIME_PACKAGES.map((name) => {
+        const manifest = path.resolve(repoRoot, '..', 'frontend', 'node_modules', name, 'package.json')
+        return [name, JSON.parse(readFileSync(manifest, 'utf8')).version]
+      })),
+    },
   }
   writeFileSync(path.join(remotionOut, 'package.json'), JSON.stringify(pkgJson, null, 2) + '\n')
   console.log(`  安装运行依赖：${deps.join(', ')}`)
@@ -225,6 +234,9 @@ function buildRemotion() {
     throw new Error(`Remotion 运行依赖安装失败：${remotionModulesOut} 为空`)
   }
   console.log(`  render.mjs + src/ 已复制，运行依赖已安装（顶层包 ${pkgCount} 个）`)
+  if (!existsSync(path.join(livePreviewSrc, 'server.mjs'))) throw new Error('缺少实时预览脚本')
+  rmSync(livePreviewOut, { recursive: true, force: true })
+  cpSync(livePreviewSrc, livePreviewOut, { recursive: true })
 }
 
 /* ── 4. workflow-v0.1.1 创作工具 ──────────────────────────────── */
@@ -348,7 +360,7 @@ function verify() {
 
   console.log('  JRE 体积:', (dirSizeBytes(jreDir) / 1024 / 1024).toFixed(1) + ' MB')
 
-  for (const file of ['render.mjs', 'render-shared.mjs', 'render-project.mjs']) {
+  for (const file of ['render.mjs', 'render-shared.mjs', 'render-project.mjs', 'timeline.mjs']) {
     if (!existsSync(path.join(remotionOut, file))) {
       throw new Error(`缺少渲染脚本：${file}（项目工程渲染会失败）`)
     }
@@ -357,7 +369,7 @@ function verify() {
   const entry = path.join(remotionOut, 'src', 'index.tsx')
   if (!existsSync(renderScript)) throw new Error(`缺少 Remotion 渲染脚本：${renderScript}`)
   if (!existsSync(entry)) throw new Error(`缺少 Remotion 工程入口：${entry}`)
-  for (const pkg of REMOTION_RUNTIME_PACKAGES) {
+  for (const pkg of [...REMOTION_RUNTIME_PACKAGES, ...PREVIEW_RUNTIME_PACKAGES]) {
     if (!existsSync(path.join(remotionModulesOut, pkg))) {
       throw new Error(`缺少 Remotion 运行依赖：${pkg}`)
     }
@@ -370,6 +382,9 @@ function verify() {
     }
   }
   console.log('  Remotion 工程与依赖: 就绪')
+  for (const file of ['server.mjs', 'annotate.mjs', 'source-edit.mjs', 'harness/entry.tsx']) {
+    if (!existsSync(path.join(livePreviewOut, file))) throw new Error(`缺少实时预览文件：${file}`)
+  }
 
   const initTool = path.join(workflowOut, 'prompt-first', 'tools', 'init-project.mjs')
   if (!existsSync(initTool)) throw new Error(`缺少 workflow-v0.1.1 init-project：${initTool}`)
