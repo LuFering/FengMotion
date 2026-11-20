@@ -1,8 +1,8 @@
 /* ═══════════════════════════════════════════════════════════════════
    FengMotion Workbench Topbar
-   两行式紧凑画面控制与版本管理工具栏（Vidstack 图标体系 ＋ Portal 主题保障）
-   - 上行(36px)：版本号下拉、对比图标 ───── 渲染任务、导出图标 │ 切换器
-   - 下行(36px)：引用此帧、框选区域、保存当前帧 │ 辅助查看、专注预览 ── 项目信息、更多操作
+   一行式画面控制栏（44px）：
+   [版本 ▾] [实时|成片] │ 引用帧 存帧 │ 辅助 全屏 ──── [对比] [任务] [导出] [⋯] │ [对话|工作台]
+   顶栏窄于 600px 时对比 / 导出 / 存帧收进「更多」（见 WorkbenchTopBar 的 COMPACT_BELOW）
    ═══════════════════════════════════════════════════════════════════ */
 
 /* ── Portal 弹出层全局主题作用域保障（彻底消除透明背景问题） ── */
@@ -17,16 +17,39 @@
   --portal-menu-shadow: 0 16px 36px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.07);
 }
 
+/* 菜单挂在 body 上读不到 #pane-flow 的变量：按主题在根上给一份同值的菜单色（值与 workbench-a2/themes.css 一致） */
+html[data-theme="light"] {
+  --portal-menu-bg: #ffffff;
+  --portal-menu-line: #cdcdd6;
+  --portal-menu-tx: #191a20;
+  --portal-menu-tx2: #5b5e66;
+  --portal-menu-tx3: #94969e;
+  --portal-menu-hover: rgba(25, 25, 50, 0.05);
+  --portal-menu-active: rgba(47, 111, 228, 0.10);
+  --portal-menu-shadow: 0 16px 36px rgba(30, 30, 60, 0.16), 0 0 0 1px rgba(25, 25, 50, 0.06);
+}
+
+html[data-theme="tactile"] {
+  --portal-menu-bg: #f4f1e8;
+  --portal-menu-line: #22231f;
+  --portal-menu-tx: #22231f;
+  --portal-menu-tx2: #55534a;
+  --portal-menu-tx3: #8a8676;
+  --portal-menu-hover: rgba(34, 35, 31, 0.07);
+  --portal-menu-active: rgba(247, 201, 72, 0.40);
+  --portal-menu-shadow: 6px 6px 0 #22231f, 0 0 0 2px #22231f;
+}
+
 .wb-topbar {
   flex: none;
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: 4px 16px;
+  gap: 0;
+  padding: 5px 12px;
   background: var(--panel, #14171d);
   border-bottom: 1px solid var(--line, #272c35);
   user-select: none;
-  min-height: 76px;
+  min-height: 44px;
 }
 
 .wb-topbar-row {
@@ -35,7 +58,7 @@
   justify-content: space-between;
   height: 34px;
   min-height: 34px;
-  gap: 12px;
+  gap: 10px;
 }
 
 .wb-topbar-group {
@@ -53,25 +76,25 @@
 .wb-topbar-right {
   flex: 0 0 auto;
   justify-content: flex-end;
-  gap: 6px;
+  gap: 2px;
 }
 
-/* 统一纯图标按钮规范：32×32px 点击区域、18px 居中图标、1.75 细描边 */
+/* 图标按钮（规范 §4 / §7 / §9.6）：28px、控件圆角、悬停 150ms、按下 scale(.97)、仅键盘焦点显示焦点环 */
 .wb-topbar-icon-btn {
   position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   padding: 0;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius: var(--r-ctl, 10px);
   background: transparent;
-  color: var(--tx2, #9ba3b0);
+  color: var(--tx2);
   cursor: pointer;
   flex: none;
-  transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease, opacity 120ms ease;
+  transition: background-color 150ms var(--eo, ease-out), color 150ms var(--eo, ease-out), border-color 150ms var(--eo, ease-out), transform 150ms var(--eo, ease-out);
 }
 
 .wb-topbar-icon-btn svg,
@@ -80,28 +103,60 @@
   color: inherit;
 }
 
-.wb-topbar-icon-btn:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--tx, #f0f2f5) 7%, transparent);
-  color: var(--tx, #f0f2f5);
+.wb-topbar-icon-btn svg {
+  width: 17px;
+  height: 17px;
 }
 
-/* 激活态：浅蓝底 ＋ 品牌蓝图标 */
+.wb-topbar-icon-btn:hover:not(:disabled) {
+  background: var(--hover);
+  color: var(--tx);
+}
+
+.wb-topbar-icon-btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.wb-topbar-icon-btn[data-state="open"] {
+  background: var(--hover);
+  color: var(--tx);
+}
+
+/* 开启态（辅助线开着、全屏中、对比中）：强调色浅底 */
 .wb-topbar-icon-btn[data-active],
 .wb-topbar-icon-btn-active {
-  background: color-mix(in srgb, var(--acc, #3b8cf8) 12%, var(--panel, #14171d)) !important;
-  border-color: color-mix(in srgb, var(--acc, #3b8cf8) 30%, transparent) !important;
-  color: var(--acc, #3b8cf8) !important;
+  background: var(--sel);
+  border-color: transparent;
+  color: var(--acc-tx);
 }
 
 .wb-topbar-icon-btn:focus-visible {
-  outline: 2px solid var(--acc, #3b8cf8);
-  outline-offset: 1px;
+  outline: 2px solid var(--acc);
+  outline-offset: 2px;
 }
 
+/* 禁用：降低存在感但仍看得清是什么；原因写在悬停提示里（外层 span 接收悬停） */
 .wb-topbar-icon-btn:disabled {
-  opacity: 0.35;
+  opacity: 0.38;
   cursor: not-allowed;
   pointer-events: none;
+}
+
+/* Tactile：按键有行程（规范 §7 例外条款） */
+html[data-theme="tactile"] #pane-flow .wb-topbar-icon-btn:active:not(:disabled) {
+  transform: translateY(1.5px);
+}
+
+html[data-theme="tactile"] #pane-flow .wb-topbar-icon-btn[data-active],
+html[data-theme="tactile"] #pane-flow .wb-topbar-icon-btn-active {
+  border: 1.5px solid var(--line2);
+  background: var(--acc);
+  color: var(--acc-ink);
+  box-shadow: 0 2px 0 var(--line2);
+}
+
+html[data-theme="tactile"] #pane-flow .wb-topbar-icon-btn:focus-visible {
+  outline: 2.5px solid var(--line2);
 }
 
 /* 任务执行中脉冲动画 */
@@ -127,10 +182,10 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  height: 30px;
-  padding: 0 8px;
-  border: 1px solid color-mix(in srgb, var(--tx, #f0f2f5) 10%, var(--line, #272c35));
-  border-radius: 6px;
+  height: 28px;
+  padding: 0 8px 0 10px;
+  border: 1px solid color-mix(in srgb, var(--tx) 10%, var(--line));
+  border-radius: var(--r-ctl, 10px);
   background: color-mix(in srgb, var(--tx, #f0f2f5) 3%, var(--panel, #14171d));
   color: var(--tx, #f0f2f5);
   font-family: var(--sans);
@@ -199,23 +254,20 @@
 }
 
 /* 下行工具排布 */
-.wb-topbar-row-secondary {
-  border-top: 1px solid color-mix(in srgb, var(--line, #272c35) 40%, transparent);
-  padding-top: 1px;
-}
 
 .wb-topbar-tools {
   display: flex;
   align-items: center;
-  gap: 4px;
-  width: 100%;
+  gap: 2px;
+  min-width: 0;
 }
 
 .wb-topbar-divider {
   width: 1px;
-  height: 16px;
-  background: color-mix(in srgb, var(--line, #272c35) 80%, transparent);
-  margin: 0 5px;
+  height: 14px;
+  background: var(--line2);
+  opacity: 0.6;
+  margin: 0 4px;
   flex: none;
 }
 
@@ -224,7 +276,8 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  width: 100%;
+  min-width: 0;
+  margin-left: 6px;
   font-size: 11.5px;
 }
 
@@ -246,7 +299,7 @@
    下拉菜单样式（解决 Portal 透明问题，保证不透明与清晰层级）
    ═══════════════════════════════════════════════════════════════════ */
 .wb-topbar-menu,
-[data-slot="dropdown-menu-content"].wb-topbar-menu {
+:is([data-slot="dropdown-menu-content"], [data-slot="dropdown-menu-sub-content"]).wb-topbar-menu {
   min-width: 240px;
   background-color: var(--portal-menu-bg) !important;
   border: 1px solid var(--portal-menu-line) !important;
@@ -292,13 +345,14 @@
   padding: 6px 8px;
   font-size: 12px;
   color: var(--portal-menu-tx);
-  border-radius: 4px;
+  border-radius: 5px; /* 同心：菜单 10px − 内边距 5px */
   cursor: pointer;
   transition: background-color 100ms ease;
 }
 
 .wb-topbar-menu-item:hover,
-.wb-topbar-menu-item:focus {
+.wb-topbar-menu-item:focus,
+.wb-topbar-menu-item[data-state="open"] {
   background: var(--portal-menu-hover);
   color: var(--portal-menu-tx);
 }
@@ -421,4 +475,63 @@
 
 .wb-topbar-menu-item-note:hover {
   background: transparent;
+}
+
+/* ── 更多菜单：窄面板收进来的项，后面跟一句为什么不能用 ── */
+.wb-topbar-menu-why {
+  margin-left: 12px;
+  color: var(--portal-menu-tx3);
+  font-size: 10.5px;
+}
+
+/* 快捷键表：键帽 = 边框 + 2px 底边（规范 §8.8） */
+[data-slot="dropdown-menu-sub-content"].wb-topbar-keys {
+  min-width: 260px;
+  padding: 6px;
+}
+
+.wb-topbar-key-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 5px 6px;
+  color: var(--portal-menu-tx2);
+  font-size: 12px;
+}
+
+.wb-topbar-kbds {
+  display: inline-flex;
+  gap: 3px;
+}
+
+.wb-topbar-kbds kbd {
+  min-width: 20px;
+  padding: 1px 5px;
+  border: 1px solid var(--portal-menu-line);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  color: var(--portal-menu-tx);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 10.5px;
+  text-align: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wb-topbar-icon-btn { transition: none; }
+}
+
+/* 紧凑模式（顶栏 < 600px）：左侧去掉细分隔线、收紧间距，保证一行放得下不互相挤压 */
+.wb-topbar[data-compact] .wb-topbar-row { gap: 6px; }
+.wb-topbar[data-compact] .wb-topbar-left .wb-topbar-divider { display: none; }
+.wb-topbar[data-compact] .wb-live-toggle { margin: 0 2px; }
+
+/* Tactile：分段控件的选中段一律信号黄 + 墨色硬阴影（规范 §10），和「对话 | 工作台」一致 */
+html[data-theme="tactile"] #pane-flow .wb-live-toggle {
+  box-shadow: inset 0 0 0 1.5px var(--line2);
+}
+html[data-theme="tactile"] #pane-flow .wb-live-toggle button[aria-checked="true"] {
+  background: var(--acc);
+  color: var(--acc-ink);
+  box-shadow: 0 2px 0 var(--line2);
 }

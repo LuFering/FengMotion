@@ -16,6 +16,8 @@ import type { TaskRecord } from '@/features/creation/hooks/useAgentTasks'
 import type { MonitorVisualItem } from '@/features/workbench/components/MonitorZones'
 
 export interface UseTargetReferencesArgs {
+  /** 实时画面（运行工程源码）正在显示：引用当前帧改为引用时间和帧号 */
+  liveFrame: { seconds: number; frame: number; pause: () => void } | null
   aiModifyTargetCapability: CapabilityResult
   backendCapability: BackendCapabilityInfo
   capturedPreview: React.RefObject<{ id: string; image: string } | null>
@@ -61,7 +63,7 @@ export interface UseTargetReferencesArgs {
  * 修改意见的引用管理：把当前画面、框选区域或产物加为引用并把目标固化进草稿，支持移除、清空、定位与目标/参考互换。
  * 另含右栏页签切换、聚焦意见输入框和保存当前帧。
  */
-export function useTargetReferences({ aiModifyTargetCapability, backendCapability, capturedPreview, editMode, previewMediaRef, previewSource, previewTime, project, projectRecords, projectVersion, range, references, referencesEdited, regionStart, resumeFrameRef, selectedTaskRecordId, sessionDraft, setCanvasView, setComparison, setEditMode, setFocusChatKey, setFrame, setLoopSpan, setNotice, setPanelOpen, setPreviewLocation, setRailTab, setReferences, setRegionMode, setRegionRect, setReviewTab, setSelectedArtifactId, setSelectedId, setSelectedVisual, setSideTab, setTargetReference, stage, stageLead, viewedPreview }: UseTargetReferencesArgs) {
+export function useTargetReferences({ aiModifyTargetCapability, backendCapability, capturedPreview, editMode, liveFrame, previewMediaRef, previewSource, previewTime, project, projectRecords, projectVersion, range, references, referencesEdited, regionStart, resumeFrameRef, selectedTaskRecordId, sessionDraft, setCanvasView, setComparison, setEditMode, setFocusChatKey, setFrame, setLoopSpan, setNotice, setPanelOpen, setPreviewLocation, setRailTab, setReferences, setRegionMode, setRegionRect, setReviewTab, setSelectedArtifactId, setSelectedId, setSelectedVisual, setSideTab, setTargetReference, stage, stageLead, viewedPreview }: UseTargetReferencesArgs) {
   /** 切换右栏页签时退出 Remotion 编辑态，避免「参数 → 场景」后监看器仍停在编辑预览。 */
   const selectSideTab = (next: SideTab) => {
     setReviewTab(null)
@@ -170,6 +172,34 @@ export function useTargetReferences({ aiModifyTargetCapability, backendCapabilit
    */
   const referencePreview = (region?: { x: number; y: number; w: number; h: number }, whole = false, options: { label?: string; intent?: 'modify'; quiet?: boolean } = {}) => {
     if (!viewedPreview) return
+    /* 实时画面：引用时间和帧号，不附图 —— 能取到的只有上次出片的画面，源码改过之后那张图和眼前的不一样，
+       带错图比不带图更误导 */
+    if (liveFrame && !whole && !region) {
+      if (!aiModifyTargetCapability.allowed) { setNotice(aiModifyTargetCapability.reason || '当前画面无法作为修改目标'); return }
+      liveFrame.pause()
+      const timeSeconds = liveFrame.seconds
+      const id = `preview:${viewedPreview.id}:live:${liveFrame.frame}`
+      capturedPreview.current = null
+      setPreviewLocation({ visualId: viewedPreview.id, timeSeconds })
+      const targetLabel = `${viewedPreview.name} · 实时画面 ${formatMediaTime(timeSeconds)}（第 ${liveFrame.frame} 帧）`
+      const targetRef: AgentReference = { id, role: 'target', kind: 'preview', source: previewSource(viewedPreview), timeSeconds, label: targetLabel }
+      setTargetReference(targetRef)
+      sessionDraft.updateDraft({
+        targetSnapshot: {
+          version: viewedPreview.revision ?? stageLead?.revision ?? null,
+          versionSeries: versionSeriesOf(viewedPreview),
+          versionConfirmed: projectVersion.authoritative,
+          scope: 'scene', rangeSpan: null, bbox: null, label: targetLabel, previewImage: null,
+          references: [targetRef, ...references.filter(r => r.role !== 'target')],
+          pinned: true,
+          intentAction: options.intent ?? sessionDraft.draft.targetSnapshot?.intentAction ?? sessionDraft.draft.intentAction ?? 'modify',
+        },
+      })
+      focusFeedback()
+      if (options.quiet) return targetLabel
+      setNotice(`已引用实时画面第 ${liveFrame.frame} 帧，输入意见后发送。`)
+      return targetLabel
+    }
     if (!aiModifyTargetCapability.allowed) {
       setNotice(aiModifyTargetCapability.reason || '当前画面无法作为修改目标')
       return

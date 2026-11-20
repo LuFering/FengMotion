@@ -164,3 +164,26 @@ body.wb-fullscreen-active .fw-panel-reopen-float {
 #pane-flow .wb-a2.wb-studio .fw-sheet { padding: 12px; }
 #pane-flow .wb-a2.wb-studio .fw-sheet .wb-input { min-height: 76px; }
 #pane-flow .wb-a2.wb-studio .fw-sheet:focus-within { box-shadow: none; }
+
+/* 发送上下文条：不再是输入框上面再套一张卡（两层框叠在一起），而是贴着输入框的一行：
+   目标胶囊 · 修改/提问 · 去向提示 ……… 引用资源；挂了引用才多出一行引用条。 */
+#pane-flow .wb-a2.wb-studio .wb-compose-context {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+  margin-bottom: 6px; padding: 0 2px;
+  border: 0; border-radius: 0; background: transparent;
+}
+#pane-flow .wb-a2.wb-studio .wb-compose-context .wb-target-pill-wrap { flex: 1 1 auto; min-width: 0; margin-bottom: 0; }
+#pane-flow .wb-a2.wb-studio .wb-compose-context .fw-ref-chips { flex: 0 1 auto; margin-left: auto; max-height: 64px; }
+#pane-flow .wb-a2.wb-studio .wb-compose-context .fw-ref-chips:has(.fw-ref-chip) { flex-basis: 100%; margin-left: 0; }
+/* 去向提示是说明，不是链接：用次要灰字，不用强调色 */
+#pane-flow .wb-a2.wb-studio .wb-compose-context .tp-hint { color: var(--tx3); font-size: 11px; }
+#pane-flow .wb-a2.wb-studio .wb-compose-context .fw-ref-add {
+  min-height: 28px; padding: 0 11px 0 8px; gap: 4px;
+  border: 1px solid var(--line2); border-radius: 999px; background: transparent;
+  color: var(--tx2); font-size: 11.5px;
+  transition: color 150ms var(--eo, ease-out), border-color 150ms var(--eo, ease-out), background-color 150ms var(--eo, ease-out), transform 150ms var(--eo, ease-out);
+}
+#pane-flow .wb-a2.wb-studio .wb-compose-context .fw-ref-add:hover { color: var(--tx); border-color: var(--tx3); background: var(--hover); }
+#pane-flow .wb-a2.wb-studio .wb-compose-context .fw-ref-add:active { transform: scale(.97); }
+html[data-theme="tactile"] #pane-flow .wb-a2.wb-studio .wb-compose-context .fw-ref-add { border: 1.5px solid var(--line2); box-shadow: 0 2px 0 var(--line2); }
+html[data-theme="tactile"] #pane-flow .wb-a2.wb-studio .wb-compose-context .fw-ref-add:active { transform: translateY(1.5px); box-shadow: 0 .5px 0 var(--line2); }

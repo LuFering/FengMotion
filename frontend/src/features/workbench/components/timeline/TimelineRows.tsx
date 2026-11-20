@@ -60,7 +60,8 @@ export function TimelineRows(props: TimelineRowsProps) {
   useEffect(() => () => window.clearTimeout(tipTimer.current), [])
   const hideTip = () => { window.clearTimeout(tipTimer.current); setTip(null) }
 
-  const clipNode = (track: SequenceTrack, clip: SequenceEntry) => {
+  /** index：场景片段在轨上的序号（块面左下角的小字标），其余类别不标 */
+  const clipNode = (track: SequenceTrack, clip: SequenceEntry, index?: number) => {
     const key = clipKey(track.id, clip.id)
     const left = Math.max(clip.start, viewStart)
     const right = Math.min(clip.start + clip.duration, viewEnd)
@@ -100,6 +101,7 @@ export function TimelineRows(props: TimelineRowsProps) {
         {!tiny && (clip.kind === 'audio' || clip.kind === 'video' || clip.kind === 'image') && widthPct >= 8 && (
           <span className="wb-tl-clip-icon"><ClipIcon size={11} /></span>
         )}
+        {!tiny && index !== undefined && widthPct >= 5 && <span className="wb-tl-clip-tag" aria-hidden="true">{index}</span>}
         {!tiny && <span className="wb-tl-clip-name">{lead}</span>}
         {!tiny && sub && widthPct >= 9 && <span className="wb-tl-clip-sub">{sub}</span>}
       </button>
@@ -166,7 +168,7 @@ export function TimelineRows(props: TimelineRowsProps) {
                 )}
               </div>
               <div className="wb-tl-lane">
-                {single ? group.tracks[0].clips.map((clip) => clipNode(group.tracks[0], clip))
+                {single ? group.tracks[0].clips.map((clip, i) => clipNode(group.tracks[0], clip, group.category === 'scene' ? i + 1 : undefined))
                   : collapsed ? <Density group={group} viewStart={viewStart} viewEnd={viewEnd} disabled={unavailable} onPick={(t) => onGroupPick(group, t)} /> : null}
                 {playhead}
               </div>
@@ -177,7 +179,7 @@ export function TimelineRows(props: TimelineRowsProps) {
                   <span className="wb-tl-lane-name">{track.name}</span>
                 </div>
                 <div className="wb-tl-lane">
-                  {track.clips.map((clip) => clipNode(track, clip))}
+                  {track.clips.map((clip, i) => clipNode(track, clip, group.category === 'scene' ? i + 1 : undefined))}
                   {playhead}
                 </div>
               </div>

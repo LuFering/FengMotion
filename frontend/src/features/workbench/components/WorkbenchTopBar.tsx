@@ -1,14 +1,14 @@
-import React, { useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { UiIcon, SemIcons } from '@/shared/icons/UiIcon'
 /* 通用图标（下载、信息）用 lucide；media-icons 只留给截帧、引用帧、对比这类媒体语义（第三轮统一）。 */
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/shared/ui/dropdown-menu'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger } from '@/shared/ui/dropdown-menu'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/ui/tooltip'
 import { MediaIcon } from '@/shared/icons/MediaIcon'
 import type { StageVisual } from '@/features/workbench/model/stageVisual'
 import { versionBadgeLabel, versionStanding, type ProjectVersionInfo } from '@/features/workbench/model/versionIdentity'
 import type { CapabilityResult } from '@/features/workbench/services/workbenchCapabilityEvaluator'
 import '@/features/workbench/styles/workbench-topbar.css'
-import { TopBarInfoMenu } from '@/features/workbench/components/topbar/TopBarInfoMenu'
+import { TopBarInfoContent } from '@/features/workbench/components/topbar/TopBarInfoContent'
 import { TopBarTasksMenu } from '@/features/workbench/components/topbar/TopBarTasksMenu'
 import { TopBarIconButton } from '@/features/workbench/components/topbar/TopBarIconButton'
 import { TopBarTools } from '@/features/workbench/components/topbar/TopBarTools'
@@ -16,6 +16,21 @@ import { TopBarElements } from '@/features/workbench/components/topbar/TopBarEle
 import { TopBarLiveToggle } from '@/features/workbench/components/topbar/TopBarLiveToggle'
 import type { ElementInspector } from '@/features/workbench/hooks/stage/useElementInspector'
 import { TopBarVersionMenu } from '@/features/workbench/components/topbar/TopBarVersionMenu'
+
+/** 顶栏宽度低于这个值就进入紧凑模式 */
+const COMPACT_BELOW = 600
+const EXPORT_DISABLED = '这次制作还没有产出整片，没有可导出的文件'
+/** 快捷键表：只列真的接上了的 */
+const SHORTCUTS: [string[], string][] = [
+  [['空格'], '播放 / 暂停'],
+  [['Esc'], '取消选择 / 退出对比'],
+  [['←', '→'], '逐帧（时间线获得焦点时）'],
+  [['[', ']'], '上一个 / 下一个切点'],
+  [['I', 'O'], '设选区起点 / 终点'],
+  [['/'], '在轨道上找元素'],
+  [['+', '−', '0'], '放大 / 缩小 / 适应整片'],
+  [['Shift'], '拖动时不吸附切点'],
+]
 
 export interface OverlayGuidesState {
   safeArea: boolean
@@ -58,6 +73,8 @@ export interface WorkbenchTopBarProps {
   projectVersionVisual?: StageVisual | null
   availableVisuals: StageVisual[]
   previewReady: boolean
+  /** 正在显示实时画面（运行工程源码）：存帧不可用，要说明原因 */
+  liveFrame?: boolean
   comparison: [StageVisual, StageVisual] | null
   comparablePair: [StageVisual, StageVisual] | null
   /** 画面元素编辑：顶栏的「元素」列表从这里读 */
@@ -104,6 +121,7 @@ export function WorkbenchTopBar({
   projectVersionVisual,
   availableVisuals,
   previewReady,
+  liveFrame = false,
   comparison,
   comparablePair,
   elementInspector,
@@ -137,11 +155,10 @@ export function WorkbenchTopBar({
   const [versionMenuOpen, setVersionMenuOpen] = useState(false)
   const [guidesMenuOpen, setGuidesMenuOpen] = useState(false)
   const [tasksMenuOpen, setTasksMenuOpen] = useState(false)
-  const [infoMenuOpen, setInfoMenuOpen] = useState(false)
   const [moreMenuOpen, setMoreMenuOpen] = useState(false)
 
   const isAnyMenuOpen =
-    versionMenuOpen || guidesMenuOpen || tasksMenuOpen || infoMenuOpen || moreMenuOpen
+    versionMenuOpen || guidesMenuOpen || tasksMenuOpen || moreMenuOpen
 
   /* 「历史」的判断必须**同一条版本序列内**才成立。
      原先是 `deliverableLead ?? stageLead` 的 revision 直接与当前预览比大小 ——
@@ -190,12 +207,40 @@ export function WorkbenchTopBar({
       : mediaElement.naturalHeight
     : 0
 
+  /* 顶栏放不下一行时（右侧窄面板），对比、导出、存帧收进「更多」 */
+  const headerRef = useRef<HTMLElement>(null)
+  const [compact, setCompact] = useState(false)
+  useEffect(() => {
+    const node = headerRef.current
+    if (!node || typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(([entry]) => setCompact(entry.contentRect.width < COMPACT_BELOW))
+    ro.observe(node)
+    return () => ro.disconnect()
+  }, [])
+
+  const exportTip = deliverableLead ? `导出最新整片（v${deliverableLead.revision} · ${deliverableLead.name}）` : '导出最新版本'
+  /* 实时画面是网页实时渲染的，存不了真实的帧；存帧只对成片可用 */
+  const saveFrame = liveFrame
+    ? { disabled: true, reason: '实时画面不能直接存图；切到「成片」可以保存出片的画面', short: '切到成片后可用' }
+    : { disabled: !previewReady, reason: '画面还在加载', short: '画面还在加载' }
+  const compareButton = (
+    <TopBarIconButton
+      icon={<MediaIcon name="compare" size={18} />}
+      label={comparison ? '退出对比 (Esc)' : '对比版本'}
+      tooltip={comparison ? '退出对比 (Esc)' : comparablePair ? `对比 ${comparablePair[0].tierLabel} 与 ${comparablePair[1].tierLabel}` : '对比版本'}
+      active={Boolean(comparison)}
+      disabled={!comparison && !comparablePair}
+      disabledReason="只有一个版本，没有可对比的"
+      onClick={comparison ? onCloseCompare : onStartCompare}
+      suppressTooltip={isAnyMenuOpen}
+    />
+  )
+
   return (
-    <header className="wb-topbar" aria-label="工作台画面控制">
-      {/* ── 第一行：[当前版本 ▾] [版本对比] ────── [渲染任务] [导出] │ [对话 | 工作台] ── */}
-      <div className="wb-topbar-row wb-topbar-row-primary">
+    <header className="wb-topbar" ref={headerRef} data-compact={compact || undefined} aria-label="工作台画面控制">
+      {/* 一行：[版本 ▾] [实时|成片] │ 画面工具 ──────── [对比] [任务] [导出] [⋯] │ [对话|工作台] */}
+      <div className="wb-topbar-row">
         <div className="wb-topbar-group wb-topbar-left">
-          {/* 版本选择器：保留文字与微箭头，不透明弹出层 */}
           <TopBarVersionMenu
             availableVisuals={availableVisuals}
             currentVersionLabel={currentVersionLabel}
@@ -213,151 +258,126 @@ export function WorkbenchTopBar({
             viewedPreview={viewedPreview}
           />
 
-          {/* 版本对比：Vidstack 官方 32×32 规制分屏图标 */}
-          <TopBarIconButton
-            icon={<MediaIcon name="compare" size={18} />}
-            label={comparison ? '退出对比 (Esc)' : '对比版本'}
-            tooltip={
-              comparison
-                ? '退出对比模式 (Esc)'
-                : comparablePair
-                  ? `对比 ${comparablePair[0].tierLabel} 与 ${comparablePair[1].tierLabel}`
-                  : '对比版本'
-            }
-            active={Boolean(comparison)}
-            disabled={!comparison && !comparablePair}
-            disabledReason="当前只有一个版本，暂无可对比的对照版"
-            onClick={comparison ? onCloseCompare : onStartCompare}
-            suppressTooltip={isAnyMenuOpen}
-          />
+          {comparison ? (
+            /* 对比模式：画面工具收起，只说明在对比什么 */
+            <div className="wb-topbar-comparison-bar">
+              <span className="wb-topbar-comparison-tag">对比</span>
+              <span className="wb-topbar-comparison-desc">{comparison[0].tierLabel} ↔ {comparison[1].tierLabel}</span>
+            </div>
+          ) : (
+            <>
+              <TopBarLiveToggle live={live.on} available={live.available} status={live.status} message={live.message}
+                                onChange={live.onChange} suppressTooltip={isAnyMenuOpen} />
+              {/* 元素声明列表属于成片模式；实时模式直接在画面上点选真实元素 */}
+              {!live.on && <TopBarElements inspector={elementInspector} fps={timelineFps} suppressTooltip={isAnyMenuOpen} />}
+              <span className="wb-topbar-divider" aria-hidden="true" />
+              <TopBarTools
+                aiModifyTargetCapability={aiModifyTargetCapability}
+                guidesMenuOpen={guidesMenuOpen}
+                isAnyMenuOpen={isAnyMenuOpen}
+                isGuidesActive={isGuidesActive}
+                onReferenceFrame={onReferenceFrame}
+                onSaveFrame={onSaveFrame}
+                onToggleOverlayGuide={onToggleOverlayGuide}
+                onTogglePanel={onTogglePanel}
+                overlayGuides={overlayGuides}
+                panelOpen={panelOpen}
+                previewReady={previewReady}
+                setGuidesMenuOpen={setGuidesMenuOpen}
+                saveFrame={compact ? null : saveFrame}
+              />
+            </>
+          )}
         </div>
 
         <div className="wb-topbar-group wb-topbar-right">
-          {/* 渲染任务入口：Vidstack queue-list 图标，进行中带脉冲蓝点 */}
+          {!compact && compareButton}
           <TopBarTasksMenu activeTaskSummary={activeTaskSummary} isAnyMenuOpen={isAnyMenuOpen} isTaskRunning={isTaskRunning} onOpenTasks={onOpenTasks} setTasksMenuOpen={setTasksMenuOpen} tasksMenuOpen={tasksMenuOpen} />
+          {!compact && (
+            <TopBarIconButton
+              icon={<UiIcon icon={SemIcons.download} size="md" />}
+              label="导出最新版本"
+              tooltip={exportTip}
+              disabled={!canExport}
+              disabledReason={EXPORT_DISABLED}
+              onClick={onExport}
+              suppressTooltip={isAnyMenuOpen}
+            />
+          )}
 
-          {/* 导出最新版本：Vidstack download 图标 */}
-          <TopBarIconButton
-            icon={<UiIcon icon={SemIcons.download} size="md" />}
-            label="导出最新版本"
-            tooltip={
-              deliverableLead
-                ? `导出最新产出整片（v${deliverableLead.revision} · ${deliverableLead.name}）`
-                : '导出最新版本'
-            }
-            disabled={!canExport}
-            disabledReason="这次制作还没有产出整片，没有可导出的文件"
-            onClick={onExport}
-            suppressTooltip={isAnyMenuOpen}
-          />
+          {/* 更多：窄面板时对比 / 导出 / 存帧收进来；项目信息、快捷键、布局重置常驻这里 */}
+          <DropdownMenu open={moreMenuOpen} onOpenChange={setMoreMenuOpen}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <DropdownMenuTrigger asChild>
+                  <button type="button" className="wb-topbar-icon-btn" aria-label="更多工作台操作">
+                    <MediaIcon name="menuHorizontal" size={18} />
+                  </button>
+                </DropdownMenuTrigger>
+              </TooltipTrigger>
+              {!isAnyMenuOpen && <TooltipContent side="bottom" sideOffset={6}>更多</TooltipContent>}
+            </Tooltip>
 
-          {/* 细分隔线 */}
+            <DropdownMenuContent align="end" className="wb-topbar-menu">
+              {compact && (
+                <>
+                  <DropdownMenuItem className="wb-topbar-menu-item" disabled={!comparison && !comparablePair}
+                                    onClick={comparison ? onCloseCompare : onStartCompare}>
+                    <span>{comparison ? '退出对比' : '对比版本'}</span>
+                    {!comparison && !comparablePair && <small className="wb-topbar-menu-why">只有一个版本</small>}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="wb-topbar-menu-item" disabled={!canExport} onClick={onExport}>
+                    <span>导出最新版本</span>
+                    {!canExport && <small className="wb-topbar-menu-why">还没有整片</small>}
+                  </DropdownMenuItem>
+                  {!comparison && (
+                    <DropdownMenuItem className="wb-topbar-menu-item" disabled={saveFrame.disabled} onClick={onSaveFrame}>
+                      <span>保存当前帧 (PNG)</span>
+                      {saveFrame.disabled && <small className="wb-topbar-menu-why">{saveFrame.short}</small>}
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuSeparator />
+                </>
+              )}
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger className="wb-topbar-menu-item">项目信息</DropdownMenuSubTrigger>
+                <DropdownMenuSubContent className="wb-topbar-menu w-64">
+                  <TopBarInfoContent
+                    currentTime={currentTime}
+                    currentVersionLabel={currentVersionLabel}
+                    naturalHeight={naturalHeight}
+                    naturalWidth={naturalWidth}
+                    onOpenBrief={onOpenBrief}
+                    projectDuration={projectDuration}
+                    projectName={projectName}
+                    timelineFps={timelineFps}
+                  />
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger className="wb-topbar-menu-item">快捷键</DropdownMenuSubTrigger>
+                <DropdownMenuSubContent className="wb-topbar-menu wb-topbar-keys">
+                  {SHORTCUTS.map(([keys, what]) => (
+                    <div key={what} className="wb-topbar-key-row">
+                      <span>{what}</span>
+                      <span className="wb-topbar-kbds">{keys.map((k) => <kbd key={k}>{k}</kbd>)}</span>
+                    </div>
+                  ))}
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
+              <DropdownMenuItem className="wb-topbar-menu-item" onClick={onOpenVersionHistory}>
+                <span>版本审阅台</span>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem className="wb-topbar-menu-item" onClick={onResetLayout}>
+                <span>重置工作台布局</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
           <span className="wb-topbar-divider" aria-hidden="true" />
-
-          {/* 对话 / 工作台切换器：固定在右上角最右侧 */}
           <div className="wb-topbar-switch-slot">{viewSwitchElement}</div>
         </div>
-      </div>
-
-      {/* ── 第二行：[引用] [框选] [保存] │ [辅助 ▾] [专注] ── [项目信息] [更多 ▾] ── */}
-      <div className="wb-topbar-row wb-topbar-row-secondary">
-        {comparison ? (
-          /* 对比模式：精炼版本关系说明，不写死左/右 */
-          <div className="wb-topbar-comparison-bar">
-            <span className="wb-topbar-comparison-tag">对比模式</span>
-            <span className="wb-topbar-comparison-desc">
-              正在对比：{comparison[0].tierLabel} ↔ {comparison[1].tierLabel}
-            </span>
-          </div>
-        ) : (
-          /* 普通监看模式：左侧主工具 ＋ 右侧项目信息与更多操作 */
-          <>
-            <TopBarTools
-              aiModifyTargetCapability={aiModifyTargetCapability}
-              guidesMenuOpen={guidesMenuOpen}
-              isAnyMenuOpen={isAnyMenuOpen}
-              isGuidesActive={isGuidesActive}
-              onReferenceFrame={onReferenceFrame}
-              onSaveFrame={onSaveFrame}
-              onToggleOverlayGuide={onToggleOverlayGuide}
-              onTogglePanel={onTogglePanel}
-              overlayGuides={overlayGuides}
-              panelOpen={panelOpen}
-              previewReady={previewReady}
-              setGuidesMenuOpen={setGuidesMenuOpen}
-              elements={<>
-                <TopBarLiveToggle live={live.on} available={live.available} status={live.status} message={live.message}
-                                  onChange={live.onChange} suppressTooltip={isAnyMenuOpen} />
-                {/* 元素声明列表属于成片模式；实时模式直接在画面上点选真实元素 */}
-                {!live.on && <TopBarElements inspector={elementInspector} fps={timelineFps} suppressTooltip={isAnyMenuOpen} />}
-              </>}
-            />
-
-            {/* 第二行右侧：项目信息与设置、更多操作 */}
-            <div className="wb-topbar-group wb-topbar-right">
-              {/* 项目信息与设置：Vidstack info 图标 */}
-              <TopBarInfoMenu
-                currentTime={currentTime}
-                currentVersionLabel={currentVersionLabel}
-                infoMenuOpen={infoMenuOpen}
-                isAnyMenuOpen={isAnyMenuOpen}
-                naturalHeight={naturalHeight}
-                naturalWidth={naturalWidth}
-                onOpenBrief={onOpenBrief}
-                projectDuration={projectDuration}
-                projectName={projectName}
-                setInfoMenuOpen={setInfoMenuOpen}
-                timelineFps={timelineFps}
-              />
-
-              {/* 更多操作：Vidstack menu-horizontal 图标 */}
-              <DropdownMenu open={moreMenuOpen} onOpenChange={setMoreMenuOpen}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <DropdownMenuTrigger asChild>
-                      <button
-                        type="button"
-                        className="wb-topbar-icon-btn"
-                        aria-label="更多工作台操作"
-                      >
-                        <MediaIcon name="menuHorizontal" size={18} />
-                      </button>
-                    </DropdownMenuTrigger>
-                  </TooltipTrigger>
-                  {!isAnyMenuOpen && (
-                    <TooltipContent side="bottom" sideOffset={6}>
-                      更多工作台操作
-                    </TooltipContent>
-                  )}
-                </Tooltip>
-
-                <DropdownMenuContent align="end" className="wb-topbar-menu">
-                  <DropdownMenuItem
-                    className="wb-topbar-menu-item"
-                    onClick={onResetLayout}
-                  >
-                    <span>重置工作台布局</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    className="wb-topbar-menu-item"
-                    onClick={() => {
-                      alert('快捷键提示：\n• 空格 (Space)：播放 / 暂停\n• Esc：取消框选 / 退出对比\n• ← / →：逐帧微调\n• [ / ]：标记时间选区')
-                    }}
-                  >
-                    <span>快捷键指南</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    className="wb-topbar-menu-item text-[var(--portal-menu-tx2)]"
-                    onClick={onOpenVersionHistory}
-                  >
-                    <span>版本审阅台</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </>
-        )}
       </div>
     </header>
   )

@@ -129,7 +129,7 @@
   bottom: 0;
   width: 1px;
   height: 8px;
-  background: rgba(255, 255, 255, 0.24);
+  background: color-mix(in srgb, var(--tx) 26%, transparent);
 }
 
 .wb-tl-tick[data-last] {
@@ -149,13 +149,13 @@
   bottom: 0;
   width: 1px;
   height: 4px;
-  background: rgba(255, 255, 255, 0.10);
+  background: color-mix(in srgb, var(--tx) 11%, transparent);
   pointer-events: none;
 }
 
 .wb-tl-tick-minor[data-mid] {
   height: 6px;
-  background: rgba(255, 255, 255, 0.18);
+  background: color-mix(in srgb, var(--tx) 18%, transparent);
 }
 
 /* 播放头顶部实心倒三角微型标记 */

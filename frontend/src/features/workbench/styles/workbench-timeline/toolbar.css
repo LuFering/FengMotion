@@ -115,20 +115,35 @@
   height: 28px;
   padding: 0;
   border: 0;
-  border-radius: 4px;
+  border-radius: var(--r-ctl, 10px);
   background: transparent;
-  color: var(--tx);
+  color: var(--tx2);
   cursor: pointer;
-  transition: background-color 120ms ease, color 120ms ease, opacity 120ms ease;
+  transition: background-color 150ms var(--eo, ease-out), color 150ms var(--eo, ease-out), transform 150ms var(--eo, ease-out);
+}
+
+.wb-tl-icon:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.wb-tl-icon:focus-visible,
+.wb-tl-action-btn:focus-visible {
+  outline: 2px solid var(--acc);
+  outline-offset: 2px;
+}
+
+html[data-theme="tactile"] #pane-flow .wb-tl-icon:active:not(:disabled) {
+  transform: translateY(1.5px);
 }
 
 .wb-tl-icon.sm {
   width: 22px;
   height: 22px;
+  border-radius: 999px;
 }
 
 .wb-tl-icon:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--tx) 8%, transparent);
+  background: var(--hover);
   color: var(--tx);
 }
 
@@ -138,7 +153,7 @@
 }
 
 .wb-tl-icon:disabled {
-  opacity: 0.28;
+  opacity: 0.32;
   cursor: not-allowed;
   pointer-events: none;
 }
@@ -156,10 +171,12 @@
   align-items: center;
   gap: 8px;
   max-width: 100%;
-  padding: 2.5px 6px 2.5px 10px;
-  border: 1px solid color-mix(in srgb, var(--tx) 9%, var(--line));
-  border-radius: 4px;
-  background: color-mix(in srgb, var(--tx) 3.5%, var(--panel));
+  height: 28px;
+  box-sizing: border-box;
+  padding: 0 3px 0 11px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel2);
   color: var(--tx);
   font-size: 11px;
   white-space: nowrap;
@@ -195,15 +212,20 @@
 }
 
 .wb-tl-action-btn {
-  padding: 2.5px 8px;
+  height: 22px;
+  padding: 0 10px;
   border: 0;
-  border-radius: 4px;
-  font-size: 10.5px;
+  border-radius: 999px;
+  font-size: 11px;
   font-weight: 500;
   cursor: pointer;
   white-space: nowrap;
   flex: none;
-  transition: background-color 120ms ease, opacity 120ms ease;
+  transition: background-color 150ms var(--eo, ease-out), filter 150ms var(--eo, ease-out), transform 150ms var(--eo, ease-out);
+}
+
+.wb-tl-action-btn:active:not(:disabled) {
+  transform: scale(0.97);
 }
 
 .wb-tl-action-btn.primary {
@@ -212,7 +234,17 @@
 }
 
 .wb-tl-action-btn.primary:hover:not(:disabled) {
-  opacity: 0.92;
+  filter: brightness(1.08);
+}
+
+html[data-theme="tactile"] #pane-flow .wb-tl-action-btn.primary {
+  border: 1.5px solid var(--line2);
+  box-shadow: 0 2px 0 var(--line2);
+}
+
+html[data-theme="tactile"] #pane-flow .wb-tl-action-btn.primary:active:not(:disabled) {
+  transform: translateY(1.5px);
+  box-shadow: 0 0.5px 0 var(--line2);
 }
 
 .wb-tl-ref-tag {

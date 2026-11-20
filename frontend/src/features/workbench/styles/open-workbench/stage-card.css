@@ -152,3 +152,44 @@
 /* 缩略条原本被压到 96px 高（想给画面多留空间），但缩略卡本身就有 110px，
    结果卡片下半截压到了交付信息行上。让它按内容自然高，重叠消失。 */
 #pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-mon-rail { max-height: none; }
+
+/* 本轮说明：不再单独占一行，改成浮在画面左上角的小标签（点开看全文，× 关掉）。
+   内容和左侧对话里的回复是同一句，只在对话还没收到时出现，所以不该挤占画面高度。 */
+#pane-flow .wb-a2 .fw-mon-visual { position: relative; }
+#pane-flow .wb-a2.wb-studio .fw-mon-visual > .fw-mon-agent-result {
+  position: absolute; top: 10px; left: 10px; z-index: 6;
+  align-items: center; gap: 2px;
+  max-width: min(440px, calc(100% - 20px));
+  padding: 2px 3px 2px 10px;
+  border: 1px solid var(--line); border-radius: 15px;
+  background: color-mix(in srgb, var(--raised) 90%, transparent);
+  backdrop-filter: blur(8px);
+  box-shadow: var(--shadow-control);
+  font-size: 11.5px; line-height: 1.5;
+  animation: fw-chip-in 220ms var(--eo, ease-out) both;
+}
+@keyframes fw-chip-in { from { opacity: 0; transform: translateY(-4px); } }
+#pane-flow .wb-a2.wb-studio .fw-mon-visual > .fw-mon-agent-result .wb-result-preview { max-width: 260px; color: var(--tx2); }
+#pane-flow .wb-a2.wb-studio .fw-mon-visual > .fw-mon-agent-result .wb-result-toggle { min-height: 22px; padding: 0 4px; }
+#pane-flow .wb-a2.wb-studio .fw-mon-visual > .fw-mon-agent-result .wb-result-open,
+#pane-flow .wb-a2.wb-studio .fw-mon-visual > .fw-mon-agent-result .wb-result-close { display: none; }
+#pane-flow .wb-a2.wb-studio .fw-mon-visual > .fw-mon-agent-result .wb-result-details[open] summary svg { transform: rotate(180deg); }
+#pane-flow .wb-a2.wb-studio .fw-mon-visual > .fw-mon-agent-result .wb-result-details[open] .wb-result-preview { visibility: hidden; }
+#pane-flow .wb-a2.wb-studio .fw-mon-visual > .fw-mon-agent-result .wb-result-details p {
+  max-height: 180px; margin: 4px 0 6px; overflow-y: auto; padding-right: 6px;
+  color: var(--tx); font-size: 12px; line-height: 1.65; white-space: pre-wrap;
+}
+#pane-flow .wb-a2.wb-studio .fw-mon-visual > .fw-mon-agent-result:has(details[open]) { align-items: flex-start; border-radius: 12px; padding: 6px 4px 4px 12px; }
+#pane-flow .wb-a2.wb-studio .fw-mon-visual > .fw-mon-agent-result > button {
+  display: grid; place-items: center; flex: none; width: 22px; height: 22px; padding: 0;
+  border: 0; border-radius: 999px; background: transparent; color: var(--tx3); cursor: pointer;
+  transition: background-color 150ms var(--eo, ease-out), color 150ms var(--eo, ease-out);
+}
+#pane-flow .wb-a2.wb-studio .fw-mon-visual > .fw-mon-agent-result > button:hover { background: var(--hover); color: var(--tx); }
+#pane-flow .wb-a2.wb-studio .fw-mon-visual > .fw-mon-agent-result > button svg { margin: 0; }
+html[data-theme="tactile"] #pane-flow .wb-a2.wb-studio .fw-mon-visual > .fw-mon-agent-result {
+  border: 1.5px solid var(--line2); background: var(--raised); backdrop-filter: none; box-shadow: 2px 2px 0 var(--line2);
+}
+@media (prefers-reduced-motion: reduce) {
+  #pane-flow .wb-a2.wb-studio .fw-mon-visual > .fw-mon-agent-result { animation: none; }
+}

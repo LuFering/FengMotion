@@ -2,6 +2,7 @@ import type * as React from 'react'
 import { MonitorProblemsCollapsed, type MonitorProblem } from '@/features/workbench/components/MonitorZones'
 import { UiIcon, SemIcons } from '@/shared/icons/UiIcon'
 import { WorkbenchTimeline } from '@/features/workbench/components/WorkbenchTimeline'
+import { useTimelineSplit } from '@/features/workbench/hooks/stage/useTimelineSplit'
 import { formatMediaTime } from '@/features/workbench/model/previewGeometry'
 import { duplicateClip } from '@/features/workbench/model/timelineEdit'
 import { useProjectRender } from '@/features/workbench/hooks/stage/useProjectRender'
@@ -109,8 +110,9 @@ export interface WorkbenchMonitorProps {
  * 以及提示、进行中任务和问题列表。
  */
 export function WorkbenchMonitor({ projectId, inspector, live, askAiLive, workbenchBusy, agentReply, askFix, awaitingActive, backendCapability, chat, clearTimeRange, expandedProblemId, filmProject, filmRenderError, focusFeedback, liveTask, locateProblem, loopSpan, manifestStatus, monitorProblems, notice, openEdit, openReview, overlayGuides, previewDuration, previewLocation, previewMediaRef, previewReady, previewSource, previewTime, projectTask, range, realModifyBusy, realRenderBusy, referenceTimeline, remoteCreationBusy, retryBackendCapability, review, sceneFilmMeta, selectSideTab, selectTimeRange, selectedVisual, sequenceManifest, sequenceMovePending, setAgentReply, setBottomTab, setFilmRenderError, setFocusChatKey, setLoopSpan, setNotice, setPreviewDuration, setPreviewFailed, setPreviewReady, setPreviewTime, setSequenceMovePending, setTargetReference, setTrayOpen, setUsedResources, sourceCreationBusy, stage, stageLead, stageLive, stageRef, submit, submitProjectRender, submitRealModify, timelineFps, timelineManifest, timelineOpsCapability, toggleProblem, trackClipCapability, usedResources, viewedPreview, workflowRunning }: WorkbenchMonitorProps) {
+  const { height: timelineHeight, containerRef: monitorRef, handle: splitHandle } = useTimelineSplit(projectId)
   return (
-    <div className="fw-monitor">
+    <div className="fw-monitor" ref={monitorRef}>
       <MonitorVisual
         inspector={inspector}
         live={live}
@@ -162,7 +164,12 @@ export function WorkbenchMonitor({ projectId, inspector, live, askAiLive, workbe
         viewedPreview={viewedPreview}
         workflowRunning={workflowRunning}
       />
-      {viewedPreview?.media === 'video' && <WorkbenchTimeline
+      {viewedPreview?.media === 'video' && <>
+      {/* 画面与时间线的分隔条：上下拖动分高度，双击回到自动 */}
+      <div className="fw-tl-split" role="separator" aria-orientation="horizontal" aria-label="调整时间线高度" tabIndex={0}
+           data-sized={timelineHeight !== null || undefined} {...splitHandle} />
+      <div className="fw-tl-slot" data-sized={timelineHeight !== null || undefined} style={timelineHeight !== null ? { height: timelineHeight } : undefined}>
+      <WorkbenchTimeline
         key={viewedPreview.id} videoUrl={viewedPreview.file}
         duration={live?.meta ? live.duration : previewDuration} currentTime={live ? live.time : previewTime} span={range.span}
         fps={live?.meta ? live.fps : timelineFps}
@@ -303,7 +310,9 @@ export function WorkbenchMonitor({ projectId, inspector, live, askAiLive, workbe
             ? (track.hidden ? '显示轨道' : '隐藏轨道')
             : (track.muted ? '取消静音' : '静音轨道')
           setSequenceMovePending({ brief, label })
-        }} />}
+        }} />
+      </div>
+      </>}
       {/* 提示不该只在「没有画面」时出现：轨道操作失败（例如复制放不下）
           也走这里，而那时画面上通常是有内容的。 */}
       {notice && (

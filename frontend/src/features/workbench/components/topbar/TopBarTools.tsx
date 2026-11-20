@@ -1,5 +1,4 @@
 import type * as React from 'react'
-import type { ReactNode } from 'react'
 import { TopBarIconButton } from '@/features/workbench/components/topbar/TopBarIconButton'
 import { MediaIcon } from '@/shared/icons/MediaIcon'
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuCheckboxItem } from '@/shared/ui/dropdown-menu'
@@ -20,8 +19,8 @@ export interface TopBarToolsProps {
   panelOpen: boolean
   previewReady: boolean
   setGuidesMenuOpen: React.Dispatch<React.SetStateAction<boolean>>
-  /** 「元素」列表（这一版可编辑的画面元素） */
-  elements?: ReactNode
+  /** 存帧按钮的状态；null = 收进了「更多」菜单（窄面板） */
+  saveFrame: { disabled: boolean; reason: string } | null
 }
 
 /**
@@ -29,10 +28,9 @@ export interface TopBarToolsProps {
  *
  * <p>原来的「框选区域」按钮已去掉：暂停后直接在画面上拖拽就是框选，点击就是点选元素，不用先切模式。</p>
  */
-export function TopBarTools({ aiModifyTargetCapability, guidesMenuOpen, isAnyMenuOpen, isGuidesActive, onReferenceFrame, onSaveFrame, onToggleOverlayGuide, onTogglePanel, overlayGuides, panelOpen, previewReady, setGuidesMenuOpen, elements }: TopBarToolsProps) {
+export function TopBarTools({ aiModifyTargetCapability, guidesMenuOpen, isAnyMenuOpen, isGuidesActive, onReferenceFrame, onSaveFrame, onToggleOverlayGuide, onTogglePanel, overlayGuides, panelOpen, previewReady, setGuidesMenuOpen, saveFrame }: TopBarToolsProps) {
   return (
     <div className="wb-topbar-tools">
-      {elements}
 
       {/* 引用当前帧：Vidstack comment 图标 */}
       <TopBarIconButton
@@ -40,21 +38,23 @@ export function TopBarTools({ aiModifyTargetCapability, guidesMenuOpen, isAnyMen
         label="引用当前帧到对话"
         tooltip="引用当前帧到对话"
         disabled={!previewReady || Boolean(aiModifyTargetCapability && !aiModifyTargetCapability.allowed)}
-        disabledReason={aiModifyTargetCapability && !aiModifyTargetCapability.allowed ? aiModifyTargetCapability.reason : "预览画面尚未就绪"}
+        disabledReason={aiModifyTargetCapability && !aiModifyTargetCapability.allowed ? aiModifyTargetCapability.reason : '画面还在加载'}
         onClick={onReferenceFrame}
         suppressTooltip={isAnyMenuOpen}
       />
 
-      {/* 保存当前帧：Vidstack camera 图标 */}
-      <TopBarIconButton
-        icon={<MediaIcon name="camera" size={18} />}
-        label="保存当前真实画面帧 (PNG)"
-        tooltip="保存当前真实画面帧 (PNG)"
-        disabled={!previewReady}
-        disabledReason="预览画面尚未就绪"
-        onClick={onSaveFrame}
-        suppressTooltip={isAnyMenuOpen}
-      />
+      {/* 保存当前帧 */}
+      {saveFrame && (
+        <TopBarIconButton
+          icon={<MediaIcon name="camera" size={18} />}
+          label="保存当前画面帧 (PNG)"
+          tooltip="保存当前画面帧 (PNG)"
+          disabled={saveFrame.disabled}
+          disabledReason={saveFrame.reason}
+          onClick={onSaveFrame}
+          suppressTooltip={isAnyMenuOpen}
+        />
+      )}
 
       {/* 极简细分隔线 */}
       <span className="wb-topbar-divider" aria-hidden="true" />

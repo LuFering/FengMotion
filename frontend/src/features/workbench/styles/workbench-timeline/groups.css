@@ -57,6 +57,13 @@ html[data-theme="tactile"] #pane-flow .wb-tl {
 .wb-tl-group .wb-tl-gutter {
   gap: 6px;
   padding: 0 8px 0 8px;
+  border-right: 0;
+}
+
+/* 轨道名栏与轨道区之间不画通长竖线，靠底色深浅分开 */
+.wb-tl-ruler-meta,
+.wb-tl-film-meta {
+  border-right: 0;
 }
 
 .wb-tl-group[data-active] > .wb-tl-group-head .wb-tl-gutter {
@@ -184,38 +191,52 @@ html[data-theme="tactile"] #pane-flow .wb-tl {
   cursor: default;
 }
 
-/* ── 片段 ── */
+/* ── 片段：代表色铺满块面（规范 §8.5），不画左色条、不画边框 ──
+   块与块之间只靠 3px 缝分开；同心圆角：轨道 24px、上下各留 3px → 块圆角 5px（场景 32px 轨 → 6px）。 */
+.wb-tl {
+  --clip-fill: 30%;
+  --clip-fill-hover: 40%;
+}
+
+html[data-theme="light"] #pane-flow .wb-tl {
+  --clip-fill: 20%;
+  --clip-fill-hover: 28%;
+}
+
 .wb-tl-group .wb-tl-clip {
   top: 3px;
   height: calc(100% - 6px);
   min-width: 3px;
   gap: 5px;
-  padding: 0 6px;
-  border: 1px solid color-mix(in srgb, var(--c) 24%, transparent);
-  border-left: 2px solid var(--c);
-  border-radius: 4px;
-  background: color-mix(in srgb, var(--c) 15%, var(--panel2));
+  padding: 0 7px;
+  border: 0;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--c) var(--clip-fill), var(--panel2));
+  box-shadow: none;
   color: var(--tx);
   font-size: 11px;
-  transition: background-color 120ms var(--eo, ease), opacity 160ms var(--eo, ease), box-shadow 120ms var(--eo, ease);
+  transition: background-color 150ms var(--eo, ease), opacity 160ms var(--eo, ease), box-shadow 150ms var(--eo, ease), transform 150ms var(--eo, ease);
+}
+
+.wb-tl-group[data-cat='scene'] .wb-tl-clip {
+  border-radius: 6px;
+  padding-left: 6px;
 }
 
 .wb-tl-group .wb-tl-clip:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--c) 24%, var(--panel2));
-  border-color: color-mix(in srgb, var(--c) 40%, transparent);
-  border-left-color: var(--c);
+  border: 0;
+  background: color-mix(in srgb, var(--c) var(--clip-fill-hover), var(--panel2));
 }
 
 .wb-tl-group .wb-tl-clip:active:not(:disabled) {
-  transform: scale(0.985);
+  transform: scale(0.97);
 }
 
-/* 太窄：只剩色块 */
+/* 太窄：只剩一块实色 */
 .wb-tl-group .wb-tl-clip[data-tiny] {
   padding: 0;
-  border-width: 0;
-  border-left-width: 0;
-  background: color-mix(in srgb, var(--c) 55%, var(--panel2));
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--c) 62%, var(--panel2));
 }
 
 .wb-tl-group .wb-tl-clip-name {
@@ -237,7 +258,7 @@ html[data-theme="tactile"] #pane-flow .wb-tl {
 .wb-tl-group .wb-tl-clip-icon {
   width: 12px;
   height: 12px;
-  color: var(--c);
+  color: color-mix(in srgb, var(--c) 70%, var(--tx));
 }
 
 .wb-tl-group[data-cat='scene'] .wb-tl-clip-name {
@@ -245,18 +266,27 @@ html[data-theme="tactile"] #pane-flow .wb-tl {
   font-weight: 600;
 }
 
-/* 选中：强调色描边 + 一圈外环（规范 §8.5） */
-.wb-tl-group .wb-tl-clip[data-picked] {
-  z-index: 3;
-  border: 1px solid var(--acc) !important;
-  background: color-mix(in srgb, var(--acc) 20%, var(--panel2)) !important;
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--acc) 45%, transparent) !important;
-  color: var(--tx) !important;
+/* 场景序号：块面左下角的小字标 */
+.wb-tl-clip-tag {
+  flex: none;
+  align-self: flex-end;
+  margin-bottom: 4px;
+  color: color-mix(in srgb, var(--c) 55%, var(--tx2));
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
 }
 
-html[data-theme="tactile"] #pane-flow .wb-tl-group .wb-tl-clip[data-picked] {
-  border-color: var(--line2) !important;
-  box-shadow: 0 0 0 1px var(--line2) !important;
+/* 选中：强调色描边 + 一圈 1px 外环（规范 §8.5）；块面没有边框，描边用内阴影画 */
+.wb-tl-group .wb-tl-clip[data-picked] {
+  z-index: 3;
+  background: color-mix(in srgb, var(--acc) 26%, var(--panel2));
+  box-shadow: inset 0 0 0 1px var(--acc), 0 0 0 1px color-mix(in srgb, var(--acc) 45%, transparent);
+}
+
+.wb-tl-group .wb-tl-clip[data-picked] .wb-tl-clip-tag {
+  color: var(--acc-tx);
 }
 
 /* 同一元素在别处出现的片段：淡淡提一下 */
@@ -270,30 +300,58 @@ html[data-theme="tactile"] #pane-flow .wb-tl-group .wb-tl-clip[data-picked] {
 }
 
 .wb-tl-group .wb-tl-clip[data-match] {
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--mark) 70%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--mark) 75%, transparent);
 }
 
 .wb-tl-group .wb-tl-clip[data-focus] {
   z-index: 4;
-  box-shadow: 0 0 0 2px var(--mark);
+  box-shadow: inset 0 0 0 1px var(--mark), 0 0 0 1.5px var(--mark);
 }
 
 /* 改过：右上角一个小圆点（像编辑器里「未保存」的那个点） */
 .wb-tl-group .wb-tl-clip[data-changed]::after {
   content: '';
   position: absolute;
-  top: 2px;
-  right: 2px;
+  top: 3px;
+  right: 3px;
   width: 5px;
   height: 5px;
   border-radius: 50%;
   background: var(--tx);
-  box-shadow: 0 0 0 1.5px var(--panel2);
+  box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--c) var(--clip-fill), var(--panel2));
 }
 
 .wb-tl-group .wb-tl-clip[data-tiny][data-changed]::after {
   top: -3px;
   right: -3px;
+  box-shadow: 0 0 0 1.5px var(--panel2);
+}
+
+/* Tactile：片段是一枚枚墨边小键，选中整块变信号黄（规范 §10） */
+html[data-theme="tactile"] #pane-flow .wb-tl-group .wb-tl-clip:not([data-tiny]) {
+  border: 1.5px solid var(--line2);
+  background: color-mix(in srgb, var(--c) 26%, var(--raised));
+  box-shadow: 1.5px 1.5px 0 var(--line2);
+}
+
+html[data-theme="tactile"] #pane-flow .wb-tl-group .wb-tl-clip:not([data-tiny]):hover:not(:disabled) {
+  border: 1.5px solid var(--line2);
+  background: color-mix(in srgb, var(--c) 36%, var(--raised));
+}
+
+html[data-theme="tactile"] #pane-flow .wb-tl-group .wb-tl-clip:active:not(:disabled) {
+  transform: translate(1px, 1px);
+  box-shadow: 0.5px 0.5px 0 var(--line2);
+}
+
+html[data-theme="tactile"] #pane-flow .wb-tl-group .wb-tl-clip[data-picked] {
+  background: var(--acc);
+  color: var(--acc-ink);
+  box-shadow: 1.5px 1.5px 0 var(--line2);
+}
+
+html[data-theme="tactile"] #pane-flow .wb-tl-group .wb-tl-clip[data-focus] {
+  box-shadow: 1.5px 1.5px 0 var(--line2), 0 0 0 2px var(--mark);
 }
 
 /* ── 播放头：2.5px 强调色 + 顶部三角 + 微光；Tactile 用 3px 墨线、不发光 ── */
@@ -712,4 +770,62 @@ html[data-theme="tactile"] #pane-flow .wb-tl-search[data-active] {
 @media (prefers-reduced-motion: reduce) {
   .wb-tl-tip,
   .wb-tl-span-pop { animation: none; }
+}
+
+/* ── 画面与时间线之间的分隔条（useTimelineSplit）──
+   没拖过：时间线按内容排、最多占监看区 46%，不被画面挤扁；拖过：用拖出来的高度。 */
+.fw-tl-slot {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  max-height: 46%;
+}
+
+.fw-tl-slot[data-sized] {
+  max-height: none;
+}
+
+.fw-tl-slot > .wb-tl {
+  flex: 1 1 auto;
+  max-height: none;
+}
+
+.fw-tl-split {
+  position: relative;
+  z-index: 5;
+  flex: none;
+  height: 7px;
+  margin: -3px 0 -4px;
+  cursor: row-resize;
+  touch-action: none;
+}
+
+.fw-tl-split::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 50%;
+  width: 36px;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--line2);
+  opacity: 0;
+  transform: translateX(-50%);
+  transition: opacity 150ms var(--eo, ease-out), background-color 150ms var(--eo, ease-out), width 150ms var(--eo, ease-out);
+}
+
+.fw-tl-split:hover::after,
+.fw-tl-split:focus-visible::after {
+  opacity: 1;
+}
+
+.fw-tl-split:active::after {
+  width: 52px;
+  background: var(--acc);
+  opacity: 1;
+}
+
+.fw-tl-split:focus-visible {
+  outline: none;
 }

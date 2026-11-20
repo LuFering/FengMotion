@@ -82,8 +82,11 @@ type Drag = {
   viewWidth: number
 }
 const round = (v: number) => Math.round(v * 1000) / 1000
+const NO_TRACKS: SequenceTrack[] = []
 const TICK_STEPS = [0.1, 0.2, 0.5, 1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 1800, 3600]
-const tickStepFor = (visible: number) => TICK_STEPS.find((s) => visible / s <= 7) ?? 7200
+/** 刻度步长：按轨道区实际宽度定刻度数（每个时码至少留 58px），窄面板上不会叠字 */
+const tickStepFor = (visible: number, maxTicks = 7) => TICK_STEPS.find((s) => visible / s <= maxTicks) ?? 7200
+const TICK_MIN_PX = 58
 /** 轨道名栏默认宽度：放得下「图片与视频 3 轨 · 12 个」 */
 const GUTTER_DEFAULT = 184
 /** 拖动 / 点击离切点这么近（像素）就贴上去 */
@@ -142,7 +145,7 @@ function Filmstrip({ src, duration, frames = 12 }: { src: string; duration: numb
 }
 
 export function WorkbenchTimeline({
-  videoUrl, duration, currentTime, fps, tracks = [], span, disabled, looping, maxZoom,
+  videoUrl, duration, currentTime, fps, tracks: tracksProp = NO_TRACKS, span, disabled, looping, maxZoom,
   onSeek, onSpanChange, onSpanCommit, onClear, onToggleLoop, pending, onPendingAccept, onPendingDrop, onClipReference, trackStatus, tracksVerified = false,
   timelineOpsCapability, trackClipCapability, marker, onClipPick, externalPick, note,
   persistKey, changed, onClearChanges, onSpanAsk, askBusy, previewNote,
@@ -180,7 +183,7 @@ export function WorkbenchTimeline({
 
   const beginGutterDrag = (e: PointerEvent<HTMLDivElement>) => {
     e.preventDefault()
-    gutterDrag.current = { x: e.clientX, w: gutterWidth }
+    gutterDrag.current = { x: e.clientX, w: gutter }
     ;(e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId)
   }
   const moveGutterDrag = (e: PointerEvent<HTMLDivElement>) => {
@@ -196,9 +199,10 @@ export function WorkbenchTimeline({
   }
 
   const limit = Number.isFinite(duration) && duration > 0 ? duration : 0
-  if (!tracks.length && limit > 0) tracks = [{ id: 'composition', name: '成片', clips: [
+  /* 没有轨道清单时只有一条成片轨（不改传进来的 tracks：后面的 useMemo 都依赖它保持不变） */
+  const tracks = useMemo<SequenceTrack[]>(() => (tracksProp.length || !(limit > 0) ? tracksProp : [{ id: 'composition', name: '成片', clips: [
     { id: 'composition', name: '成片', kind: 'video', start: 0, duration: limit },
-  ] }]
+  ] }]), [tracksProp, limit])
   const unavailable = disabled || limit === 0 || !(timelineOpsCapability?.allowed ?? true)
   const opsDisabledReason = timelineOpsCapability && !timelineOpsCapability.allowed
     ? timelineOpsCapability.reason
@@ -403,6 +407,25 @@ export function WorkbenchTimeline({
     setHover({ time: clamp(viewStart + ratio * width, 0, limit), ratio })
   }
 
+  /* 时间线和轨道区宽度：刻度密度、轨道名栏封顶都按它算 */
+  const root = useRef<HTMLElement>(null)
+  const [laneWidth, setLaneWidth] = useState(0)
+  const [rootWidth, setRootWidth] = useState(0)
+  useEffect(() => {
+    const lane = track.current
+    const box = root.current
+    if (!lane || !box || typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(() => {
+      setLaneWidth(Math.round(lane.getBoundingClientRect().width))
+      setRootWidth(Math.round(box.getBoundingClientRect().width))
+    })
+    ro.observe(lane)
+    ro.observe(box)
+    return () => ro.disconnect()
+  }, [])
+  /* 轨道名栏最多占时间线的 34%：窄面板上把宽度让给轨道，拖宽的设置仍然记着 */
+  const gutter = rootWidth ? Math.min(gutterWidth, Math.max(96, Math.round(rootWidth * 0.34))) : gutterWidth
+
   /* 滚轮缩放与平移 */
   useEffect(() => {
     const node = workspace.current
@@ -471,7 +494,7 @@ export function WorkbenchTimeline({
   }
 
   /* 标尺主次刻度计算 */
-  const step = tickStepFor(width)
+  const step = tickStepFor(width, laneWidth ? Math.max(2, Math.min(7, Math.floor(laneWidth / TICK_MIN_PX))) : 7)
   const ticks: number[] = []
   for (let t = Math.ceil((viewStart - 1e-8) / step) * step; t <= viewEnd + 1e-8 && ticks.length < 14; t += step) ticks.push(round(t))
   const minorSubdivisions = step >= 1 ? 5 : 4
@@ -498,9 +521,10 @@ export function WorkbenchTimeline({
     <section
       className="wb-tl"
       data-pending={pending ? true : undefined}
-      data-gutter={gutterWidth < 125 ? 'tight' : gutterWidth < 155 ? 'narrow' : undefined}
+      ref={root}
+      data-gutter={gutter < 125 ? 'tight' : gutter < 155 ? 'narrow' : undefined}
       aria-label="时间线"
-      style={{ '--wb-tl-gutter': `${gutterWidth}px` } as CSSProperties}
+      style={{ '--wb-tl-gutter': `${gutter}px` } as CSSProperties}
       onKeyDown={(e) => {
         const target = e.target as HTMLElement | null
         if (target && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName))) return
@@ -575,11 +599,11 @@ export function WorkbenchTimeline({
           role="separator"
           aria-orientation="vertical"
           aria-label="调整轨道名宽度"
-          aria-valuenow={gutterWidth}
+          aria-valuenow={gutter}
           aria-valuemin={110}
           aria-valuemax={260}
           tabIndex={0}
-          style={{ left: `${gutterWidth - 4}px` }}
+          style={{ left: `${gutter - 4}px` }}
           onPointerDown={beginGutterDrag}
           onPointerMove={moveGutterDrag}
           onPointerUp={endGutterDrag}

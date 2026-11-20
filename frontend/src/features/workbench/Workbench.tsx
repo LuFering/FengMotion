@@ -320,7 +320,13 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
 
   const { sceneFilmMeta, viewedPreview, viewedStanding, projectName, totalFrames, switchOpen, switchRef, setSwitchOpen, setSelectedVisual, setSelectedStageVisual, selectedArtifact, selectedVisual, monitorProblems } = useVisualSelection({ capturedPreview, catalog, outline, projectId, projectVersion, references, regionStart, sceneVersions, selectedArtifactId, sessionDraft, setNotice, setPreviewDuration, setPreviewFailed, setPreviewLocation, setPreviewReady, setReferences, setRegionMode, setRegionRect, stage, stageLead, workflowsSnapshot })
 
-  const { setSequenceMovePending, directEditCapability, isHistoricalVersion, aiModifyTargetCapability, adjustPendingConfirm, spanModifyCapability, targetEvaluation, timelineFps, timelineManifest, referenceTimeline, trackClipCapability, manifestStatus, sequenceManifest, timelineOpsCapability, sequenceMovePending } = useTimelineManifest({ backendCapability, capturedPreview, documentsTick, previewDuration, previewFailed, previewReady, projectId, projectVersion, realModifyBusy, realRenderBusy, references, remoteCreationBusy, sceneFilmMeta, sessionDraft, viewedPreview, viewedStanding, workflowRunning })
+  /* 实时画面：看当前版本时运行工程源码（见 frontend/live-preview）；历史版本、对比、编辑器模式仍放成片 */
+  const [liveMode, setLiveMode] = useState(true)
+  const liveEligible = viewedPreview?.media === 'video' && (!stageLead || viewedPreview.id === stageLead.id) && !comparison && !editMode
+  const live = useLivePreview({ projectId, enabled: liveMode && liveEligible })
+  /* 实时画面跑起来就算「预览就绪」：引用当前帧、框选这类能力不该因为没挂成片视频而被禁用 */
+  const liveFrameReady = liveMode && liveEligible && live.active && !!live.meta
+  const { setSequenceMovePending, directEditCapability, isHistoricalVersion, aiModifyTargetCapability, adjustPendingConfirm, spanModifyCapability, targetEvaluation, timelineFps, timelineManifest, referenceTimeline, trackClipCapability, manifestStatus, sequenceManifest, timelineOpsCapability, sequenceMovePending } = useTimelineManifest({ backendCapability, capturedPreview, documentsTick, previewDuration, previewFailed, previewReady: previewReady || liveFrameReady, projectId, projectVersion, realModifyBusy, realRenderBusy, references, remoteCreationBusy, sceneFilmMeta, sessionDraft, viewedPreview, viewedStanding, workflowRunning })
   /* 新版本可能在播放器已经 ready 后才进入视图；不依赖 onReady 事件的触发顺序。 */
   const { toggleProblem } = useProblemTracking({ capturedPreview, pendingPlayback, pendingReviewLocate, previewMediaRef, previewReady, projectId, range, rangeVisual, references, sessionDraft, setExpandedProblemId, setLoopSpan, setNotice, setPendingPlayback, setPendingReviewLocate, setPreviewDuration, setPreviewLocation, setPreviewReady, setPreviewTime, setReferences, setSequenceMovePending, viewedPreview })
   /* 问题定位：设为修改范围 + 在左栏内容页高亮那一行。监看与时间线不动 —— 它们放的是渲染切片，拿它对应真实内容会串。 */
@@ -354,7 +360,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
   const { openEdit, closeEdit, selectScene } = useSceneEditEntry({ directEditCapability, isHistoricalVersion, previewMediaRef, projectId, resumeFrameRef, sceneFilmMeta, setComparison, setDocumentsTick, setEditMode, setEditorDocumentId, setEditorNotice, setFrame, setNotice, setPanelOpen, setRailOpen, setRailTab, setReferences, setRegionMode, setRegionRect, setReviewTab, setSelectedArtifactId, setSelectedId, setSideTab, setSwitchOpen, switchOpen, switchRef, totalFrames, viewedPreview })
   const { previewSource, setTargetReference, currentProjectRef, defaultTarget, scopeFromReferences, clearTimeRange, activeSceneId, selectContentRow, effectiveTarget, openTaskRecords, scopeShort, selectTimeRange } = useTimeRangeTarget({ previewMediaRef, previewTime, project, projectId, projectVersion, range, references, sessionDraft, setConstraints, setEditMode, setFocusChatKey, setLoopSpan, setNotice, setPreviewTime, setReferences, setRegionMode, setScope, setSideTab, setTaskReturnTab, sideTab, stageLead, viewedPreview })
   /** 切换右栏页签时退出 Remotion 编辑态，避免「参数 → 场景」后监看器仍停在编辑预览。 */
-  const { referenceRegion, referenceElement, focusFeedback, selectSideTab, removeReference, locateReference, toggleReferenceRole, clearReferences, referenceFrame, saveCurrentFrame, referenceArtifact, addContextReference } = useTargetReferences({ aiModifyTargetCapability, backendCapability, capturedPreview, editMode, previewMediaRef, previewSource, previewTime, project, projectRecords, projectVersion, range, references, referencesEdited, regionStart, resumeFrameRef, selectedTaskRecordId, sessionDraft, setCanvasView, setComparison, setEditMode, setFocusChatKey, setFrame, setLoopSpan, setNotice, setPanelOpen, setPreviewLocation, setRailTab, setReferences, setRegionMode, setRegionRect, setReviewTab, setSelectedArtifactId, setSelectedId, setSelectedVisual, setSideTab, setTargetReference, stage, stageLead, viewedPreview })
+  const { referenceRegion, referenceElement, focusFeedback, selectSideTab, removeReference, locateReference, toggleReferenceRole, clearReferences, referenceFrame, saveCurrentFrame, referenceArtifact, addContextReference } = useTargetReferences({ aiModifyTargetCapability, backendCapability, capturedPreview, editMode, liveFrame: liveFrameReady ? { seconds: live.time, frame: live.frame, pause: live.pause } : null, previewMediaRef, previewSource, previewTime, project, projectRecords, projectVersion, range, references, referencesEdited, regionStart, resumeFrameRef, selectedTaskRecordId, sessionDraft, setCanvasView, setComparison, setEditMode, setFocusChatKey, setFrame, setLoopSpan, setNotice, setPanelOpen, setPreviewLocation, setRailTab, setReferences, setRegionMode, setRegionRect, setReviewTab, setSelectedArtifactId, setSelectedId, setSelectedVisual, setSideTab, setTargetReference, stage, stageLead, viewedPreview })
   /** 实际视频显示矩形：stage 可能留白，Player 还会因 16:9 产生 letterbox。 */
   /* 画面框选已并进元素点选（拖拽即框选）；这里只保留它统一的 Esc 退出（对比、全屏） */
   useRegionSelect({ comparison, panelOpen, previewMediaRef, referenceRegion, regionMode, regionStart, setComparison, setComparisonAt, setNotice, setPanelOpen, setRegionMode, setRegionRect, stageRef })
@@ -403,10 +409,6 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
     referenceElement, submit, draft: sessionDraft.draft,
   })
 
-  /* 实时画面：看当前版本时运行工程源码（见 frontend/live-preview）；历史版本、对比、编辑器模式仍放成片 */
-  const [liveMode, setLiveMode] = useState(true)
-  const liveEligible = viewedPreview?.media === 'video' && (!stageLead || viewedPreview.id === stageLead.id) && !comparison && !editMode
-  const live = useLivePreview({ projectId, enabled: liveMode && liveEligible })
   const askAiLive = useLiveAskAi({ draft: sessionDraft.draft, updateDraft: sessionDraft.updateDraft, submit, onSent: focusFeedback })
   const workbenchBusy = Boolean(liveTask) || workflowRunning || realRenderBusy || realModifyBusy || remoteCreationBusy
 
@@ -617,7 +619,8 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
                编辑器试片也带 revision（第几次导出），混进来会报出错误的版本号。 */
             deliverableLead={deliverableLead}
             availableVisuals={sceneVisuals.length > 0 ? sceneVisuals : stage.visuals}
-            previewReady={previewReady}
+            previewReady={previewReady || liveFrameReady}
+            liveFrame={liveFrameReady}
             aiModifyTargetCapability={aiModifyTargetCapability}
             comparison={comparison}
             comparablePair={comparablePair}
