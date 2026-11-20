@@ -3,20 +3,25 @@ import { StageFrame } from '@/features/workbench/components/StageFrame'
 import { UiIcon, SemIcons } from '@/shared/icons/UiIcon'
 import { MonitorOverlayGuides } from '@/features/workbench/components/MonitorOverlayGuides'
 import { MonitorStageEmpty } from '@/features/workbench/components/MonitorStageEmpty'
+import { ElementLayer } from '@/features/workbench/components/stage/ElementLayer'
+import { LiveStage } from '@/features/workbench/components/stage/LiveStage'
+import { ElementInspectorPopover } from '@/features/workbench/components/stage/ElementInspectorPopover'
 import type { WorkbenchMonitorProps } from '@/features/workbench/components/stage/WorkbenchMonitor'
 
 export interface MonitorVisualProps {
+  inspector: WorkbenchMonitorProps['inspector']
+  live: WorkbenchMonitorProps['live']
+  askAiLive: WorkbenchMonitorProps['askAiLive']
+  workbenchBusy: WorkbenchMonitorProps['workbenchBusy']
   agentReply: WorkbenchMonitorProps['agentReply']
   awaitingActive: WorkbenchMonitorProps['awaitingActive']
   backendCapability: WorkbenchMonitorProps['backendCapability']
   chat: WorkbenchMonitorProps['chat']
-  endRegion: WorkbenchMonitorProps['endRegion']
   filmProject: WorkbenchMonitorProps['filmProject']
   filmRenderError: WorkbenchMonitorProps['filmRenderError']
   focusFeedback: WorkbenchMonitorProps['focusFeedback']
   liveTask: WorkbenchMonitorProps['liveTask']
   loopSpan: WorkbenchMonitorProps['loopSpan']
-  moveRegion: WorkbenchMonitorProps['moveRegion']
   notice: WorkbenchMonitorProps['notice']
   openEdit: WorkbenchMonitorProps['openEdit']
   openReview: WorkbenchMonitorProps['openReview']
@@ -28,9 +33,6 @@ export interface MonitorVisualProps {
   range: WorkbenchMonitorProps['range']
   realModifyBusy: WorkbenchMonitorProps['realModifyBusy']
   realRenderBusy: WorkbenchMonitorProps['realRenderBusy']
-  regionMode: WorkbenchMonitorProps['regionMode']
-  regionRect: WorkbenchMonitorProps['regionRect']
-  regionStart: WorkbenchMonitorProps['regionStart']
   remoteCreationBusy: WorkbenchMonitorProps['remoteCreationBusy']
   retryBackendCapability: WorkbenchMonitorProps['retryBackendCapability']
   review: WorkbenchMonitorProps['review']
@@ -43,8 +45,6 @@ export interface MonitorVisualProps {
   setPreviewFailed: WorkbenchMonitorProps['setPreviewFailed']
   setPreviewReady: WorkbenchMonitorProps['setPreviewReady']
   setPreviewTime: WorkbenchMonitorProps['setPreviewTime']
-  setRegionMode: WorkbenchMonitorProps['setRegionMode']
-  setRegionRect: WorkbenchMonitorProps['setRegionRect']
   setTrayOpen: WorkbenchMonitorProps['setTrayOpen']
   setUsedResources: WorkbenchMonitorProps['setUsedResources']
   sourceCreationBusy: WorkbenchMonitorProps['sourceCreationBusy']
@@ -52,7 +52,6 @@ export interface MonitorVisualProps {
   stageLead: WorkbenchMonitorProps['stageLead']
   stageLive: WorkbenchMonitorProps['stageLive']
   stageRef: WorkbenchMonitorProps['stageRef']
-  startRegion: WorkbenchMonitorProps['startRegion']
   submitProjectRender: WorkbenchMonitorProps['submitProjectRender']
   submitRealModify: WorkbenchMonitorProps['submitRealModify']
   timelineFps: WorkbenchMonitorProps['timelineFps']
@@ -65,15 +64,27 @@ export interface MonitorVisualProps {
  * 监看器的画面区：播放选中的素材或当前查看的预览（含框选区域与辅助线），没有画面时显示开始制作的引导；
  * 下方附带本次使用的资源、本轮说明、渲染失败和后端能力不足等提示。
  */
-export function MonitorVisual({ agentReply, awaitingActive, backendCapability, chat, endRegion, filmProject, filmRenderError, focusFeedback, liveTask, loopSpan, moveRegion, notice, openEdit, openReview, overlayGuides, previewLocation, previewMediaRef, previewTime, projectTask, range, realModifyBusy, realRenderBusy, regionMode, regionRect, regionStart, remoteCreationBusy, retryBackendCapability, review, selectedVisual, setAgentReply, setBottomTab, setFilmRenderError, setNotice, setPreviewDuration, setPreviewFailed, setPreviewReady, setPreviewTime, setRegionMode, setRegionRect, setTrayOpen, setUsedResources, sourceCreationBusy, stage, stageLead, stageLive, stageRef, startRegion, submitProjectRender, submitRealModify, timelineFps, usedResources, viewedPreview, workflowRunning }: MonitorVisualProps) {
+export function MonitorVisual({ inspector, live, askAiLive, workbenchBusy, agentReply, awaitingActive, backendCapability, chat, filmProject, filmRenderError, focusFeedback, liveTask, loopSpan, notice, openEdit, openReview, overlayGuides, previewLocation, previewMediaRef, previewTime, projectTask, range, realModifyBusy, realRenderBusy, remoteCreationBusy, retryBackendCapability, review, selectedVisual, setAgentReply, setBottomTab, setFilmRenderError, setNotice, setPreviewDuration, setPreviewFailed, setPreviewReady, setPreviewTime, setTrayOpen, setUsedResources, sourceCreationBusy, stage, stageLead, stageLive, stageRef, submitProjectRender, submitRealModify, timelineFps, usedResources, viewedPreview, workflowRunning }: MonitorVisualProps) {
   return (
     <div className="fw-mon-visual">
-      {selectedVisual && !viewedPreview ? (
+      {/* 属性小窗挂到 body 上；放在画面框外面，React 事件沿组件树冒泡时不会被当成点画面 */}
+      {viewedPreview && !live && <ElementInspectorPopover inspector={inspector} fps={timelineFps || 30} />}
+      {live && viewedPreview ? (
+        /* 实时画面：运行工程源码；点选、悬停在预览窗口里处理（见 LiveStage） */
+        <div className="fw-stage fw-stage-frame fw-stage-live" ref={stageRef}>
+          <LiveStage live={live} onAskAi={askAiLive} busy={workbenchBusy}
+                     onRender={() => void submitProjectRender()} renderBusy={realRenderBusy || realModifyBusy} />
+        </div>
+      ) : selectedVisual && !viewedPreview ? (
         <MonitorMediaPreview key={selectedVisual.id} item={selectedVisual} />
       ) : viewedPreview ? (
         /* 这次制作做出来的那一档画面（测试帧 / 试片 / 粗略整片 / 整片）。
            只放画面本身：档位、名字和「这是哪次运行」都在上方的工具条与缩略入口里。 */
-        <div className="fw-stage fw-stage-frame" ref={stageRef}>
+        <div className="fw-stage fw-stage-frame" ref={stageRef}
+             /* 点选 / 框选在捕获阶段截下，播放器自己的控件不受影响（见 useElementInspector） */
+             {...inspector.handlers}
+             data-el-pick={inspector.enabled || undefined}
+             data-el-hover={inspector.hovered ? '' : undefined}>
           <StageFrame key={viewedPreview.id} visual={viewedPreview} mediaRef={previewMediaRef} onTime={setPreviewTime} currentTime={previewTime} onReady={(ready) => {
             setPreviewReady(ready)
             if (ready) setPreviewFailed(false)
@@ -83,12 +94,8 @@ export function MonitorVisual({ agentReply, awaitingActive, backendCapability, c
               {notice}<UiIcon icon={SemIcons.close} className="ml-1 inline size-3" />
             </button>
           )}
-          {regionMode && (
-            <div className="fw-region-layer" onPointerDown={startRegion} onPointerMove={moveRegion} onPointerUp={endRegion} onPointerCancel={() => { regionStart.current = null; setRegionMode(false); setRegionRect(null) }}>
-              <div className="fw-region-hint">拖拽框选画面区域 · Esc 取消</div>
-              {regionRect && <div className="fw-region-box" style={{ left: `${regionRect.x * 100}%`, top: `${regionRect.y * 100}%`, width: `${regionRect.w * 100}%`, height: `${regionRect.h * 100}%` }} />}
-            </div>
-          )}
+          {/* 画面元素标注：可点选元素的描边、选中框、落点与框选 */}
+          <ElementLayer inspector={inspector} />
           {/* 辅助查看覆盖层（紧密贴合真实画面矩形，无画面不猜数值） */}
           <MonitorOverlayGuides
             mediaRef={previewMediaRef}

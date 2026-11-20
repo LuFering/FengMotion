@@ -1,0 +1,511 @@
+/* ═══════════════════════════════════════════════════════════════
+   画面元素编辑：标注层（叠在画面上）+ 属性小窗（挂在 body 上）+ 顶栏元素列表
+
+   标注层压在任意画面上都要看得清：线用白色加一圈深色外描边，
+   选中态换成强调色实线 + 四角标记。小窗挂在 body 上，读不到工作台局部变量，
+   只用全局 token（--surf / --fg / --dim / --ph / --line / --acc），三套主题各自成立。
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── 标注层 ─────────────────────────────────────────────── */
+.el-layer {
+  position: absolute;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.el-box {
+  position: absolute;
+  box-sizing: border-box;
+  border: 1px dashed rgb(255 255 255 / .55);
+  border-radius: 3px;
+  box-shadow: 0 0 0 1px rgb(0 0 0 / .25);
+  transition: border-color 120ms ease, background-color 120ms ease;
+}
+.el-box[data-hover] {
+  border-style: solid;
+  border-color: rgb(255 255 255 / .9);
+  background: rgb(255 255 255 / .06);
+}
+.el-box[data-selected] {
+  border: 1.5px solid var(--acc);
+  background: color-mix(in srgb, var(--acc) 8%, transparent);
+  box-shadow: 0 0 0 1px rgb(0 0 0 / .3), 0 0 0 4px color-mix(in srgb, var(--acc) 18%, transparent);
+}
+
+/* 选中框的四角标记：传统编辑器的「这个被选中了」，但不给拖拽手柄 —— 位置不在这里改 */
+.el-corner {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  border: 1.5px solid var(--acc);
+  border-radius: 1.5px;
+  background: #fff;
+}
+.el-corner[data-c="tl"] { top: -4.5px; left: -4.5px; }
+.el-corner[data-c="tr"] { top: -4.5px; right: -4.5px; }
+.el-corner[data-c="bl"] { bottom: -4.5px; left: -4.5px; }
+.el-corner[data-c="br"] { right: -4.5px; bottom: -4.5px; }
+
+/* 元素名小标签：贴在框的左上方，框贴着画面顶边时也不会出画（画面框会裁） */
+.el-tag {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: -1px;
+  max-width: 220px;
+  overflow: hidden;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgb(15 16 20 / .82);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.el-box[data-selected] .el-tag,
+.el-region[data-selected] .el-tag { background: var(--acc); }
+
+/* 点在没有元素的地方：一个落点圆环 */
+.el-point {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  margin: -7px 0 0 -7px;
+  border: 2px solid var(--acc);
+  border-radius: 999px;
+  background: rgb(255 255 255 / .9);
+  box-shadow: 0 0 0 1px rgb(0 0 0 / .3), 0 0 0 6px color-mix(in srgb, var(--acc) 22%, transparent);
+  animation: el-ping 1.6s ease-out infinite;
+}
+@keyframes el-ping { 0% { box-shadow: 0 0 0 1px rgb(0 0 0 / .3), 0 0 0 0 color-mix(in srgb, var(--acc) 40%, transparent); } 100% { box-shadow: 0 0 0 1px rgb(0 0 0 / .3), 0 0 0 12px transparent; } }
+
+/* 框选：拖拽中虚线，松手后实线 */
+.el-region {
+  position: absolute;
+  box-sizing: border-box;
+  border: 1.5px dashed var(--acc);
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--acc) 10%, transparent);
+  box-shadow: 0 0 0 1px rgb(0 0 0 / .25);
+}
+.el-region[data-selected] { border-style: solid; }
+
+/* 暂停时的操作提示：左上角一枚小胶囊，鼠标移进画面才出现 */
+.el-hint {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgb(15 16 20 / .66);
+  color: rgb(255 255 255 / .9);
+  font-size: 11px;
+  line-height: 16px;
+  opacity: 0;
+  transition: opacity 160ms ease;
+  backdrop-filter: blur(6px);
+}
+.fw-stage-frame:hover .el-hint { opacity: 1; }
+
+@media (prefers-reduced-motion: reduce) { .el-point { animation: none; } }
+
+/* 画面上的指针：可以点选时是十字，悬到元素上是手 */
+.fw-stage-frame[data-el-pick] .fw-stage-media { cursor: crosshair; }
+.fw-stage-frame[data-el-hover] .fw-stage-media { cursor: pointer; }
+
+/* ── 属性小窗 ───────────────────────────────────────────── */
+.el-inspector {
+  --ei-surf: color-mix(in srgb, var(--hole) 88%, #fff 6%);
+  --ei-field: color-mix(in srgb, var(--hole) 70%, var(--bg));
+  --ei-line: color-mix(in srgb, var(--fg) 12%, transparent);
+  --ei-line-strong: color-mix(in srgb, var(--fg) 20%, transparent);
+  position: fixed;
+  z-index: 9000;
+  display: flex;
+  flex-direction: column;
+  width: 300px;
+  max-height: calc(100vh - 24px);
+  overflow: hidden auto;
+  border: .5px solid var(--ei-line-strong);
+  border-radius: 14px;
+  background: var(--ei-surf);
+  box-shadow: 0 18px 44px rgb(0 0 0 / .45), 0 2px 6px rgb(0 0 0 / .25);
+  color: var(--fg);
+  font-size: 13px;
+  line-height: 20px;
+  animation: el-pop 160ms cubic-bezier(.2, .8, .2, 1);
+  transform-origin: top left;
+}
+.el-inspector[data-side="left"] { transform-origin: top right; }
+@keyframes el-pop { from { opacity: 0; transform: scale(.96) translateY(-2px); } }
+@media (prefers-reduced-motion: reduce) { .el-inspector { animation: none; } }
+
+html[data-theme="light"] .el-inspector {
+  --ei-surf: #ffffff;
+  --ei-field: color-mix(in srgb, var(--hole) 80%, #fff);
+  box-shadow: 0 16px 40px rgb(30 30 60 / .16), 0 1px 3px rgb(30 30 60 / .08);
+}
+html[data-theme="tactile"] .el-inspector {
+  --ei-surf: color-mix(in srgb, var(--surf) 60%, #fff);
+  --ei-field: color-mix(in srgb, var(--surf) 85%, #fff);
+  --ei-line-strong: #22231f;
+  border-width: 1px;
+  border-radius: 16px;
+  box-shadow: 3px 3px 0 #22231f;
+}
+
+.el-insp-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 10px 8px 12px;
+}
+.el-insp-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--acc) 14%, transparent);
+  color: var(--acc);
+}
+.el-insp-title {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.el-insp-id {
+  flex: none;
+  max-width: 96px;
+  overflow: hidden;
+  padding: 0 5px;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--fg) 6%, transparent);
+  color: var(--ph);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 11px;
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.el-insp-x {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  margin-left: auto;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ph);
+  cursor: pointer;
+}
+.el-insp-x:hover { background: color-mix(in srgb, var(--fg) 8%, transparent); color: var(--fg); }
+
+.el-insp-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 2px 12px 12px;
+}
+
+.el-field { display: flex; flex-direction: column; gap: 5px; }
+.el-field-k,
+.el-props dt,
+.el-insp-ai-k {
+  color: var(--ph);
+  font-size: 11px;
+  line-height: 16px;
+}
+.el-insp-input,
+.el-ask-input {
+  width: 100%;
+  box-sizing: border-box;
+  border: .5px solid var(--ei-line-strong);
+  border-radius: 8px;
+  background: var(--ei-field);
+  color: var(--fg);
+  font: inherit;
+  font-size: 13px;
+  line-height: 20px;
+  resize: none;
+  outline: none;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+.el-insp-input { min-height: 34px; padding: 6px 9px; }
+.el-insp-input:focus,
+.el-ask-input:focus {
+  border-color: var(--acc);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--acc) 16%, transparent);
+}
+.el-insp-input:disabled { color: var(--dim); cursor: not-allowed; }
+
+/* 只读属性：两列，键名弱、值等宽 */
+.el-props { display: flex; flex-direction: column; gap: 4px; margin: 0; }
+.el-props > div { display: flex; align-items: baseline; gap: 10px; }
+.el-props dt { flex: 0 0 28px; }
+.el-props dd { min-width: 0; margin: 0; color: var(--dim); font-size: 12px; line-height: 18px; }
+.el-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--fg);
+  font: inherit;
+  text-decoration: underline;
+  text-decoration-color: var(--ei-line-strong);
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.el-link:hover { color: var(--acc); text-decoration-color: currentColor; }
+.el-ok { color: var(--ok); }
+.el-dim { color: var(--ph); }
+
+.el-insp-note {
+  margin: 0;
+  padding: 6px 9px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--fg) 5%, transparent);
+  color: var(--dim);
+  font-size: 12px;
+  line-height: 18px;
+}
+.el-insp-fail {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  margin: 0;
+  color: var(--bad);
+  font-size: 12px;
+  line-height: 18px;
+}
+.el-mini-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  padding: 0 8px;
+  border: .5px solid var(--ei-line-strong);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.el-mini-btn:hover { background: color-mix(in srgb, var(--fg) 6%, transparent); }
+
+.el-insp-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  min-height: 28px;
+}
+.el-btn {
+  height: 28px;
+  padding: 0 12px;
+  border: .5px solid transparent;
+  border-radius: 8px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 120ms ease, opacity 120ms ease;
+}
+.el-btn[data-variant="ghost"] { border-color: var(--ei-line-strong); background: transparent; color: var(--fg); }
+.el-btn[data-variant="ghost"]:hover:not(:disabled) { background: color-mix(in srgb, var(--fg) 6%, transparent); }
+.el-btn[data-variant="primary"] { background: var(--acc); color: #fff; }
+.el-btn[data-variant="primary"]:hover:not(:disabled) { background: color-mix(in srgb, var(--acc) 88%, #000); }
+.el-btn:disabled { opacity: .4; cursor: default; }
+.el-saving { display: inline-flex; align-items: center; gap: 6px; color: var(--dim); font-size: 12px; }
+.el-spin { animation: el-spin 1s linear infinite; }
+@keyframes el-spin { to { transform: rotate(360deg); } }
+
+/* 交给 AI：和属性分开一块，底色深半档，读作「另一条路」 */
+.el-insp-ai {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px 12px;
+  border-top: .5px solid var(--ei-line);
+  background: color-mix(in srgb, var(--fg) 2.5%, transparent);
+}
+.el-insp-ai-k { display: inline-flex; align-items: center; gap: 5px; }
+.el-insp-ai-k svg { color: var(--acc); }
+.el-ask { position: relative; }
+.el-ask-input { min-height: 34px; max-height: 96px; padding: 6px 38px 6px 9px; field-sizing: content; }
+.el-ask-input::placeholder { color: var(--ph); }
+.el-ask-send {
+  position: absolute;
+  right: 5px;
+  bottom: 5px;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: var(--fg);
+  color: var(--surf);
+  cursor: pointer;
+  transition: opacity 120ms ease;
+}
+.el-ask-send:disabled { opacity: .25; cursor: default; }
+
+.el-insp-x:focus-visible,
+.el-btn:focus-visible,
+.el-mini-btn:focus-visible,
+.el-link:focus-visible,
+.el-ask-send:focus-visible { outline: 2px solid var(--acc); outline-offset: 1px; }
+
+/* ── 顶栏元素列表 ───────────────────────────────────────── */
+.wb-topbar-elements-btn { gap: 2px; width: auto; min-width: 32px; padding: 0 6px; }
+.wb-topbar-count {
+  min-width: 14px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--acc, #3b8cf8) 18%, transparent);
+  color: var(--acc, #3b8cf8);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 14px;
+}
+.wb-elements-menu { width: 280px; }
+.wb-elements-item { display: flex; align-items: center; gap: 8px; padding: 6px 8px; }
+.wb-elements-icon { flex: none; color: var(--portal-menu-tx2); }
+.wb-elements-text { display: flex; flex: 1; flex-direction: column; min-width: 0; }
+.wb-elements-name { overflow: hidden; font-size: 12px; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
+.wb-elements-sub { overflow: hidden; color: var(--portal-menu-tx3); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.wb-elements-time { flex: none; color: var(--portal-menu-tx2); font-size: 11px; }
+.wb-elements-empty { margin: 0; padding: 6px 8px 8px; color: var(--portal-menu-tx2); font-size: 12px; line-height: 18px; }
+
+/* ── 时间线：选中元素出现的时间段 ─────────────────────────── */
+.wb-tl-marker {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 2;
+  box-sizing: border-box;
+  border-inline: 1.5px solid var(--acc, #3b8cf8);
+  background: color-mix(in srgb, var(--acc, #3b8cf8) 16%, transparent);
+  pointer-events: none;
+}
+.wb-tl-marker > span {
+  position: absolute;
+  top: 2px;
+  left: 4px;
+  max-width: calc(100% - 8px);
+  overflow: hidden;
+  padding: 0 4px;
+  border-radius: 3px;
+  background: var(--acc, #3b8cf8);
+  color: #fff;
+  font-size: 10px;
+  line-height: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── 实时画面属性小窗的补充 ──────────────────────────────── */
+/* 组件层级：外 → 内，点哪层选哪层（像设计工具的图层路径） */
+.el-crumbs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  margin: -2px 0 0;
+}
+.el-crumb,
+.el-crumb-more {
+  max-width: 110px;
+  overflow: hidden;
+  padding: 1px 6px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--ph);
+  font: inherit;
+  font-size: 11px;
+  line-height: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.el-crumb { cursor: pointer; }
+.el-crumb + .el-crumb::before { content: '›'; margin-right: 6px; color: var(--ph); opacity: .6; }
+.el-crumb:hover { color: var(--fg); background: color-mix(in srgb, var(--fg) 6%, transparent); }
+.el-crumb[data-on] { color: var(--acc); background: color-mix(in srgb, var(--acc) 12%, transparent); font-weight: 500; }
+.el-crumb:focus-visible { outline: 2px solid var(--acc); outline-offset: 1px; }
+
+.el-textblock {
+  max-height: 96px;
+  margin: 0;
+  overflow: auto;
+  padding: 6px 9px;
+  border: .5px solid var(--ei-line);
+  border-radius: 8px;
+  background: var(--ei-field);
+  color: var(--fg);
+  font-size: 13px;
+  line-height: 20px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.el-color { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-mono, ui-monospace, monospace); }
+.el-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  box-shadow: inset 0 0 0 .5px color-mix(in srgb, var(--fg) 30%, transparent);
+}
+.el-copy { margin-left: 4px; vertical-align: -2px; opacity: .6; }
+
+/* ── 顶栏「实时 | 成片」：胶囊分段（规范 §8.6）—— 胶囊嵌胶囊，选中段浮起面 + 轻阴影 + 字重 600 ── */
+.wb-live-toggle {
+  display: inline-flex;
+  align-items: center;
+  height: 30px;
+  margin-right: 6px;
+  padding: 2px;
+  box-sizing: border-box;
+  border-radius: 999px;
+  background: var(--panel2, rgb(255 255 255 / .05));
+  box-shadow: inset 0 0 0 1px var(--line, rgb(255 255 255 / .06));
+}
+.wb-live-toggle button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--tx2, #a4a7b1);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background-color 150ms var(--eo, ease-out), color 150ms var(--eo, ease-out), transform 150ms var(--eo, ease-out);
+}
+.wb-live-toggle button:hover:not(:disabled) { color: var(--tx, #edeef3); }
+.wb-live-toggle button:active:not(:disabled) { transform: scale(.97); }
+.wb-live-toggle button[aria-checked="true"] {
+  background: var(--raised, #23242d);
+  color: var(--tx, #edeef3);
+  font-weight: 600;
+  box-shadow: var(--shadow-control, 0 1px 4px rgb(0 0 0 / .25));
+}
+.wb-live-toggle button:disabled { opacity: .45; cursor: default; }
+.wb-live-toggle button:focus-visible { outline: 2px solid var(--acc, #3b8cf8); outline-offset: 1px; }
+.wb-live-dot { width: 6px; height: 6px; border-radius: 999px; background: currentColor; opacity: .45; }
+.wb-live-toggle button[data-state="ready"] .wb-live-dot { background: var(--ok, #4caf7d); opacity: 1; }
+.wb-live-toggle button[data-state="starting"] .wb-live-dot { background: var(--warn, #f5b83d); opacity: 1; }
+.wb-live-toggle button[data-state="unavailable"] .wb-live-dot { background: var(--bad, #d0695f); opacity: 1; }

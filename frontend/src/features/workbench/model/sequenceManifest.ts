@@ -27,13 +27,22 @@ export interface SequenceEntry {
   /** 持续秒数，必须大于 0。 */
   duration: number
   hidden?: boolean
+  /** 实时模式的元素片段：元素在源码里的位置（同一元素的多段共用） */
+  src?: string
+  /** 元素里的文字，用于在轨道上搜索 */
+  text?: string
 }
+
+/** 轨道类别：时间线按类别把轨道收成抽屉 */
+export type TrackCategory = 'scene' | 'text' | 'shape' | 'background' | 'media' | 'audio'
 
 export interface SequenceTrack {
   id: string
   name: string
   /** 同一轨道内的片段，按时间排序，互不重叠。 */
   clips: SequenceEntry[]
+  /** 轨道类别；没有就按名称和片段类型推断 */
+  category?: TrackCategory
   /** 隐藏：整条轨不参与渲染（画面与声音都不出现）。 */
   hidden?: boolean
   /** 静音：保留画面，只关掉这条轨的声音。 */
@@ -48,6 +57,9 @@ export interface SequenceManifest {
   schemaVersion: 2
   /** 清单描述的是这条片子的哪一版；与渲染快照的 sourceHash 对应。 */
   sourceHash?: string
+  artifactPath?: string
+  detail?: 'sequences' | 'composition' | 'limited' | 'unavailable'
+  recovered?: boolean
   fps: number
   durationSeconds: number
   tracks: SequenceTrack[]
@@ -67,7 +79,9 @@ const OVERLAP_EPS = 0.002
 export function parseSequenceManifest(input: unknown): SequenceManifest | null {
   const raw = input as Partial<SequenceManifest>
   if (!raw || raw.schemaVersion !== 2) return null
-  if (!isNum(raw.fps, 1, 240) || !isNum(raw.durationSeconds, 0.01, 36000)) return null
+  if (!isNum(raw.fps, 1, 240) || !isNum(raw.durationSeconds, 1 / 240, 36000)) return null
+  if (raw.detail !== undefined && !['sequences', 'composition', 'limited', 'unavailable'].includes(raw.detail)) return null
+  if (raw.artifactPath !== undefined && (typeof raw.artifactPath !== 'string' || !raw.artifactPath.trim())) return null
   if (!Array.isArray(raw.tracks) || raw.tracks.length === 0 || raw.tracks.length > 60) return null
   const trackIds = new Set<string>()
   const tracks: SequenceTrack[] = []
@@ -114,7 +128,10 @@ export function parseSequenceManifest(input: unknown): SequenceManifest | null {
     })
   }
   const sourceHash = typeof raw.sourceHash === 'string' && raw.sourceHash ? raw.sourceHash : undefined
-  return { schemaVersion: 2, ...(sourceHash ? { sourceHash } : {}), fps: raw.fps, durationSeconds: raw.durationSeconds, tracks }
+  return { schemaVersion: 2, ...(sourceHash ? { sourceHash } : {}),
+    ...(raw.artifactPath ? { artifactPath: raw.artifactPath } : {}),
+    ...(raw.detail ? { detail: raw.detail } : {}), ...(raw.recovered ? { recovered: true } : {}),
+    fps: raw.fps, durationSeconds: raw.durationSeconds, tracks }
 }
 
 /**
@@ -124,8 +141,14 @@ export function parseSequenceManifest(input: unknown): SequenceManifest | null {
  */
 export function manifestMatches(
   manifest: SequenceManifest | null,
-  media: { sourceHash?: string | null; duration: number },
+  media: { artifactPath?: string | null; sourceHash?: string | null; duration: number },
 ): manifest is SequenceManifest {
   if (!manifest) return false
+  if (manifest.detail && manifest.detail !== 'sequences') return false
+  if (manifest.artifactPath || media.artifactPath) {
+    return !!manifest.artifactPath && manifest.artifactPath === media.artifactPath
+      && (!media.sourceHash || manifest.sourceHash === media.sourceHash)
+      && Math.abs(manifest.durationSeconds - media.duration) <= 0.1
+  }
   return !!manifest.sourceHash && !!media.sourceHash && manifest.sourceHash === media.sourceHash && Math.abs(manifest.durationSeconds - media.duration) <= 0.1
 }

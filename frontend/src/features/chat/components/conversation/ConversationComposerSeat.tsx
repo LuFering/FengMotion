@@ -43,12 +43,15 @@ export interface ConversationComposerSeatProps {
   streamStopRef: React.RefObject<(() => void) | null>
   submit: (text?: string) => void
   submitting: boolean
+  /** 浮在输入席上缘的内容（「回到最新」圆钮）：跟着输入席的实际高度走，不会压到目标条 */
+  overlay?: React.ReactNode
 }
 
 /** 对话页底部的输入区：任务清单抽屉、发送目标胶囊、附件条、输入框与发送失败提示。 */
-export function ConversationComposerSeat({ activeIsServer, activeThread, addFiles, attachments, backendModels, composerContextUsage, composerHarnesses, composerMeterPanel, composerPromptTokens, effectiveModel, fileRef, imageRef, messages, onPickFiles, pending, projectPending, props, selectedHarness, sendError, sessionDraft, setAttachments, setHarnessId, setModel, setSendError, setThinking, stageLeadVersion, stopping, streamStopRef, submit, submitting }: ConversationComposerSeatProps) {
+export function ConversationComposerSeat({ activeIsServer, activeThread, addFiles, attachments, backendModels, composerContextUsage, composerHarnesses, composerMeterPanel, composerPromptTokens, effectiveModel, fileRef, imageRef, messages, onPickFiles, pending, projectPending, props, selectedHarness, sendError, sessionDraft, setAttachments, setHarnessId, setModel, setSendError, setThinking, stageLeadVersion, stopping, streamStopRef, submit, submitting, overlay }: ConversationComposerSeatProps) {
   return (
     <div className="cv3-seat">
+      {overlay}
       {/* 输入框：几何取自 BoardUI 免费聊天模板（52px 胶囊 / 36px 圆钮 /
           10px 间距），加载态是环绕光带。
           引擎与模型选择器沿用对话界面原来那一套（composerModelPicker），
@@ -112,32 +115,20 @@ export function ConversationComposerSeat({ activeIsServer, activeThread, addFile
           }}
         />
       )}
+      {/* 继续调整却没选目标：同一套提示条，两个出路并排 —— 去工作台圈定，或确认整片改 */}
       {sessionDraft.draft.continuationScopeMode === 'target_required' && !sessionDraft.draft.targetSnapshot && (
-        <div className="flex items-center justify-between gap-2 px-3 py-2 mb-2 rounded-lg bg-amber-500/10 border border-amber-500/25 text-xs text-amber-500">
-          <span className="flex-1">继续调整尚未选定修改目标。可在工作台圈定画面/时间，或直接整片提交：</span>
-          <div className="flex items-center gap-1.5 shrink-0">
-            <button
-              type="button"
-              className="px-2 py-0.5 rounded bg-blue-500/15 hover:bg-blue-500/25 text-blue-500 font-medium transition-colors"
-              onClick={() => {
-                if (activeThread?.projectId) {
-                  props.onOpenWorkbench(props.activeSessionId)
-                }
-              }}
-            >
-              返回工作台选目标
+        <div className="cv3-notice cv3-scope-note" data-tone="warn" role="status">
+          <UiIcon icon={SemIcons.warning} size="sm" className="cv3-notice-icon" />
+          <span className="cv3-notice-text">还没选要改的画面或时间段</span>
+          {activeThread?.projectId && (
+            <button type="button" className="cv3-notice-btn" onClick={() => props.onOpenWorkbench(props.activeSessionId)}>
+              去工作台选
             </button>
-            <button
-              type="button"
-              className="px-2 py-0.5 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-500 font-medium transition-colors"
-              onClick={() => {
-                sessionDraft.updateDraft({ continuationScopeMode: 'whole_confirmed' })
-                setSendError(null)
-              }}
-            >
-              确认整片修改
-            </button>
-          </div>
+          )}
+          <button type="button" className="cv3-notice-btn"
+                  onClick={() => { sessionDraft.updateDraft({ continuationScopeMode: 'whole_confirmed' }); setSendError(null) }}>
+            整片修改
+          </button>
         </div>
       )}
       {/* 输入框整体使用 LeiBox 官方「Agent 对话输入框」原版实现：
@@ -191,7 +182,11 @@ export function ConversationComposerSeat({ activeIsServer, activeThread, addFile
           发送结果（网络/校验失败）仍由本页判断并显示。 */}
       {sendError ? (
         <p className="cv3-compose-note" role="alert" data-error="">
-          <UiIcon icon={SemIcons.error} size="xs" /> {sendError}
+          <UiIcon icon={SemIcons.error} size="sm" />
+          <span>{sendError}</span>
+          <button type="button" className="cv3-compose-note-x" aria-label="关闭" onClick={() => setSendError(null)}>
+            <UiIcon icon={SemIcons.close} size="xs" />
+          </button>
         </p>
       ) : null}
       </div>

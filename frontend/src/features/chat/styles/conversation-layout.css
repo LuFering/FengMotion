@@ -1,173 +1,134 @@
-/* 项目 agent 对话视图（第三版：照抄 dsh 对话界面源码）。
-   数值来源（dsh-ref 源码实测，非凭印象）：
-   - AppFrame/columns：会话栏默认 280（可拖 264–420），收起轨 56，
-     1024 以下自动收轨、手动展开为覆盖式抽屉；中心最小 400。
-   - SidebarRoot：padding 6/12，14px；新会话条 38px 高、12px 圆角、
-     0.5px 边框；面板行 36px 高、12px 圆角；会话行 32px 高、12px 圆角、
-     标题 14/20、时间 10/16；轨内控件 36px、padding 18/10/6。
-   - ConversationRoot header：最小高 76px，padding 10/28/0/20，
-     0.5px 底边；标题行 30px；标题 14/20 500；tab 行 margin-top 10px、
-     gap 32px，tab 13/16 500，激活品牌蓝 + 2px 下划线。
-   - ChatView：滚动区 padding 16 + 两侧各 16；内容列
-     clamp(680, 列宽×0.64, 920)；流间距默认 4px，回复 12px。
-   - AssistantMarkdown：正文 14/24，块间距 16。
-   - ReasoningRow：思考行 24px，摘要 13/20 三级色，展开体缩进 22px。
-   - UserMessageBubble：气泡 20px 圆角，padding 10/16，14/22。
-   - InputBar：卡片 28px 圆角、输入面填充、柔和投影；文本 14/24，
-     padding 4/8/0/14，停靠最小高 36、最高 336；工具行 padding 2/8/6，
-     gap 12；+ 钮 28px 圆；权限/模型 chip 28px 高、13/20；
-     发送钮 34px 圆、品牌蓝底白字，空态 0.4。
-   - MenuView（@// 菜单）：卡片内绝对定位，bottom 100%+4px，padding 4px；
-     行最小高 34px，padding 6/8，12px 圆角，13/20；分组标题 11/16 500。
-   - StatsPills（状态条）：12px，三级色，等宽数字，pill padding 1/8，8px 圆角。
-   - 圆角：sm 8 / md 12 / lg 16 / xl 20 / panel 28；
-     缓动 cubic-bezier(0.4, 0, 0.2, 1)。
-   颜色全部走 FengMotion 现有三主题 token（--panel/--panel2/--tx1/--tx2/
-   --tx3/--line/--line2/--acc/--hover/--soft），不自带色板；
-   品牌蓝 --acc 对应 dsh 的 business-primary / info-fill。
-   窄屏：会话栏按 dsh 响应式收轨/抽屉，主列 min-width:0，禁止内部横向溢出。
-   打磨轮 cv4（用户 21:29 拍板，数值仍以 dsh 源码为准）：
-   - 抽屉投影：dsh 无抽屉专属阴影 token，浮层用 elevation-prominent；抽屉边缘
-     按任务授权 fallback 取 0 10px 30px rgb(0 0 0 / 0.5)，遮罩本身不动（已有）。
-   - 气泡：dsh UserMessageBubble 浅 #EDF3FE（deepseek-50）/ 深 #2C2C2E
-     （bluish-850）；此前浅色走全局 --soft 蓝 tint、深色走 #13233A，均改回 dsh 值。
-   - 卡片硬边：dsh elevation 用 0.5px l2 发丝线 + 极淡投影（soft/prominent），
-     表面靠色阶区分（深 950 #151517 → 900 #1B1B1C → 850 #2C2C2E）；卡片 1px
-     line2 描边全部改发丝线，l2 值：浅 rgb(0 0 0 / 0.10)，深 rgb(255 255 255 / 0.12)，
-     卡片面统一再压到 rgb(255 255 255 / 0.08)（任务授权的极低透明度白线）。
-   - 标签：标题行 gap 8px → 12px；演示 pill 高 24px 一档（chip 仍为 dsh InputBar 28px）。
-   - 微交互：dsh 折叠无高度动画（ReasoningRow 用 contain 收起、chevron 转 100ms），
-     故不发明高度动画；hover 背景统一 100ms cubic-bezier(0.4,0,0.2,1)；
-     输入框聚焦按 dsh focus.css 的 2px 业务色环、做 35% 透明晕染。
-   - 双侧栏：cv3 已含 dsh narrowExpanded 机制（280 ↔ 56 轨、1024 断点、窄屏抽屉），
-     本轮保留机制，只补收起/展开钮的 hover title 做可发现性；68px 应用壳不动。 */
+/* ═══════════════════════════════════════════════════════════════
+   对话页 · 设计变量与整页骨架（阅读型布局）
 
-/* 注意：--panel/--panel2/--line2/--tx/--hover 在对话 pane 内并无定义（CDP 实测为空，
-   导致卡片/侧栏面全透明、次级文字全继承纯白）——须在此按三主题显式补齐，取值与
-   现有主题 token 一致（深黑取 brand/myassets 深色值，浅白取 myassets 浅色值）。 */
+   整页是一张安静的纸：阅读区和最左侧导航轨同一个底色，连成一整块；
+   内容居中成一列，输入框浮在底部。项目与对话不再常驻成左栏，
+   收进左上角的切换按钮，点开像百叶窗一样往下铺开一块浮层，不挤占阅读区。
+
+   层次（三套主题同一套关系）：
+     导航轨 / 阅读区（--cv-page = --bg，整块贴边）
+       └ 内嵌卡片（--cv-inset：文件改动、产物、提问表单、任务清单、代码块）
+       └ 用户气泡（--cv-bubble，比卡片再实一档）
+       └ 浮起层（--cv-raised：输入框、项目与对话面板、菜单，唯一带投影的一层）
+
+   规范（全页只用这几档，别处不要再自造数值）：
+     字号  正文 14/24 · 界面 13/20 · 次要 12/18 · 元数据 11/16
+     圆角  卡片 12 · 控件 8 · 标签 6 · 胶囊 999（大浮层 14）
+     细线  一律 0.5px（焦点环 2px 除外）
+     文字  --fg 主 · --dim 次 · --ph 弱
+     间距  4 的倍数；一轮与一轮之间 32，AI 块内部 12
+     宽度  阅读列 --cv-col：正文、卡片、任务清单、目标条、输入框都用它，左右严格对齐
+   ═══════════════════════════════════════════════════════════════ */
+
 #pane-conversation {
-  /* 灰阶一律接全局三档（--bg 页底 / --surf 面板 / --hole 凹陷），不再自带一套 dsh 色板：
-     之前这里写死 --panel #151517 / --panel2 #1b1b1c，与全局 --hole #151517 / --surf #0D0D0F
-     不是同一套，暗色主题下侧栏就比其他界面的面亮一档 —— 三套主题都对齐回全局值。 */
-  /* 层级：页面(--bg) < 会话栏(--surf) < 卡片/浮层(--hole)
-     ⚠️ 卡片必须比它所在的页面亮一档才浮得起来：暗色下 --surf(#0D0D0F) 只比 --bg 亮一点点，
-        输入卡放上去几乎看不出边界，所以卡片取 --hole(#151517)。 */
-  --panel: var(--hole);
-  --panel2: var(--surf);
-  --line2: var(--line);
-  /* 描边：与其余 pane（workflow/technique/reference）一致，暗色用半透明白发丝线，
-     而不是全局 --line 的实色 #2A2A2E —— 实色在暗底上偏重，看起来像框死。 */
-  --line: rgba(255, 255, 255, 0.06);
-  --hover: rgba(255, 255, 255, .08);
-  /* --tx：输入框目标胶囊等共享组件读的是 --tx（工作台作用域里有定义），
-     这里不补的话它们会落到写死的浅色兜底 #242a28，暗色下几乎看不见。 */
+  /* ── 表面 ── */
+  --cv-page: var(--bg);
+  /* 深色下阅读区是纯黑，卡片、气泡、浮起层各亮一档才分得出层次 */
+  --cv-inset: color-mix(in srgb, var(--hole) 92%, var(--bg));
+  --cv-raised: color-mix(in srgb, var(--hole) 88%, #fff 5%);
+  /* ── 细线 ── */
+  --line: rgba(255, 255, 255, .07);
+  --cv-line: rgba(255, 255, 255, .09);
+  --cv-line-strong: rgba(255, 255, 255, .14);
+  /* ── 交互底色 ── */
+  --hover: rgba(255, 255, 255, .06);
+  --cv-select: color-mix(in srgb, var(--acc) 16%, transparent);
+  /* ── 投影：只给浮起层 ── */
+  --cv-shadow: 0 10px 32px rgba(0, 0, 0, .45), 0 0 0 .5px rgba(255, 255, 255, .06);
+  --cv-shadow-focus: 0 12px 36px rgba(0, 0, 0, .5), 0 0 0 .5px color-mix(in srgb, var(--acc) 45%, transparent);
+  --cv-shadow-menu: 0 12px 32px rgba(0, 0, 0, .5);
+
+  /* ── 文字三档（各组件历史上读的名字都映射到这三档） ── */
   --tx: var(--fg);
   --tx1: var(--fg);
   --tx2: var(--dim);
   --tx3: var(--ph);
-  /* 纸片元素（输入卡/方案卡/浮层）复用首页已验收的 --hf-* 语言：
-     面板面 + 1px 边线 + 大圆角 + 投影，与首页输入框同一套外观。
-     ⚠️ 我此前按「不靠边线阴影」字面理解把它们删了，结果和首页明显不同 ——
-        那句说的是别用边线做层次，而输入框是浮起的纸片，本来就带边线和投影。 */
-  --cv-elev: var(--hf-panel, #16171d);
-  --cv-line: var(--hf-line, rgba(255, 255, 255, .09));
-  --cv-line-strong: var(--hf-line2, rgba(255, 255, 255, .16));
-  --cv-shadow: var(--hf-shadow, 0 24px 60px rgba(0, 0, 0, .5), 0 4px 16px rgba(0, 0, 0, .35));
-  --cv-shadow-focus: var(--hf-shadow-focus, 0 28px 70px rgba(0, 0, 0, .55));
-  --cv-bubble: var(--surf);
-  /* 右区这一层 = 应用壳/导航栏透出的 body 底色，也就是全局 --bg */
-  --cv-page: var(--bg);
-  /* 描边一律用全局 --line（其他界面的唯一边线来源），不再自造半透明白/黑：
-     原来暗色用 rgb(255 255 255 / 0.08)、触感用 rgba(34,35,31,.28)，
-     与全局 --line(#2A2A2E / rgba(34,35,31,.18)) 不是同一个东西。 */
-  --cv-hairline: var(--line);
-  --cv-hairline-w: 1px;
+
+  /* ── 旧名兼容：组件里仍在读这些名字，统一指到新体系 ── */
+  --panel: var(--cv-inset);
+  --panel2: var(--cv-raised);
+  --line2: var(--cv-line-strong);
+  --cv-elev: var(--cv-raised);
+  /* 用户气泡比内嵌卡片再实一点：它是这一轮的起点，要在一屏里一眼找到 */
+  --cv-bubble: color-mix(in srgb, var(--hole) 94%, #fff 6%);
+
+  /* ── 规范数值 ── */
+  --cv-r-card: 12px;
+  --cv-r-ctl: 8px;
+  --cv-r-tag: 6px;
+  --cv-r-float: 14px;
+  --cv-col: 760px;
+  --cv-gutter: 24px;
+  --cv-ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --cv-r-bubble: 14px;
+  /* 正文（Markdown 与逐行正文）在阅读区放大到 14/24；工作台右栏不设，保持原档 */
+  --md-fs: 14px;
+  --md-lh: 24px;
+
+  /* 共享组件读的是全局 --fm-radius-*（工作台那套 6/10）；对话页内改成本页的四档，
+     组件不用为对话页另写一份圆角 */
+  --fm-radius-mark: var(--cv-r-tag);
+  --fm-radius-sm: var(--cv-r-tag);
+  --fm-radius-ctl: var(--cv-r-ctl);
+  --fm-radius-card: var(--cv-r-card);
+  --fm-radius-thumb: var(--cv-r-ctl);
+  --fm-radius-float: var(--cv-r-float);
+  --fm-radius-panel: var(--cv-r-float);
 }
 
 html[data-theme="light"] #pane-conversation {
-  --panel: var(--hole);
-  --panel2: var(--surf);
-  /* ⚠️ 必须显式覆盖 --line：不覆盖就继承暗色块的 rgba(255,255,255,.06)，
-     白线在浅底上等于没有边线（实测按钮/卡片描边全消失）。 */
-  --line: rgba(25, 25, 50, .06);
-  --line2: #cdcdd6;
-  --hover: rgba(38, 49, 72, .06);
-  --tx: var(--fg);
-  --tx1: var(--fg);
-  --tx2: var(--dim);
-  --tx3: var(--ph);
-  --cv-elev: var(--hf-panel, #ffffff);
-  --cv-line: var(--hf-line, rgba(25, 25, 50, .10));
-  --cv-line-strong: var(--hf-line2, rgba(25, 25, 50, .18));
-  --cv-shadow: var(--hf-shadow, 0 24px 55px rgba(30, 30, 60, .13), 0 4px 14px rgba(30, 30, 60, .07));
-  --cv-shadow-focus: var(--hf-shadow-focus, 0 28px 65px rgba(30, 30, 60, .17));
-  --cv-bubble: #edf3fe;
-  --cv-page: var(--bg);
-  --cv-hairline: var(--line);
-  --cv-hairline-w: 1px;
+  /* 浅色：阅读区是导航轨那层浅灰，卡片和气泡往白里走，输入框是纯白卡 */
+  --cv-inset: color-mix(in srgb, var(--surf) 55%, var(--bg));
+  --cv-raised: #ffffff;
+  --cv-bubble: color-mix(in srgb, var(--surf) 82%, var(--bg));
+  --line: rgba(25, 25, 50, .07);
+  --cv-line: rgba(25, 25, 50, .09);
+  --cv-line-strong: rgba(25, 25, 50, .16);
+  --hover: rgba(38, 49, 72, .05);
+  --cv-select: color-mix(in srgb, var(--acc) 10%, transparent);
+  --cv-shadow: 0 8px 28px rgba(30, 30, 60, .08), 0 1px 2px rgba(30, 30, 60, .05);
+  --cv-shadow-focus: 0 10px 32px rgba(30, 30, 60, .11), 0 0 0 .5px color-mix(in srgb, var(--acc) 40%, transparent);
+  --cv-shadow-menu: 0 12px 32px rgba(30, 30, 60, .14), 0 1px 3px rgba(30, 30, 60, .06);
 }
 
 html[data-theme="tactile"] #pane-conversation {
-  --panel: var(--hole);
-  --panel2: var(--surf);
-  --line2: var(--line);
-  --line: rgba(34, 35, 31, .16);
-  --hover: rgba(34, 35, 31, .08);
-  --tx: var(--fg);
-  --tx1: var(--fg);
-  --tx2: var(--dim);
-  --tx3: var(--ph);
-  --cv-elev: var(--hf-panel, #f0ede4);
-  --cv-line: var(--hf-line, rgba(34, 35, 31, .35));
-  --cv-line-strong: var(--hf-line2, #22231f);
-  --cv-shadow: var(--hf-shadow, 3px 3px 0 #22231f);
-  --cv-shadow-focus: var(--hf-shadow-focus, 3px 3px 0 #22231f);
-  /* ⚠️ 必须显式给：漏了会继承深色默认值 #2c2c2e（深底）+ 本主题深色文字
-     —— 深底深字，用户气泡几乎看不见（截图实测确认过） */
+  --cv-inset: color-mix(in srgb, var(--surf) 70%, #fff);
+  --cv-raised: color-mix(in srgb, var(--surf) 60%, #fff);
   --cv-bubble: var(--hole);
-  --cv-page: var(--bg);
-  --cv-hairline: var(--line);
-  --cv-hairline-w: 1px;
+  --line: rgba(34, 35, 31, .14);
+  --cv-line: rgba(34, 35, 31, .22);
+  --cv-line-strong: #22231f;
+  --hover: rgba(34, 35, 31, .06);
+  --cv-select: color-mix(in srgb, var(--acc) 34%, transparent);
+  /* 触感主题：浮起层用硬阴影，和首页、工作台一致 */
+  --cv-shadow: 3px 3px 0 #22231f;
+  --cv-shadow-focus: 3px 3px 0 #22231f;
+  --cv-shadow-menu: 3px 3px 0 #22231f;
+  --cv-r-float: 16px;
+  --cv-r-bubble: 16px;
 }
 
 #pane-conversation {
-  /* 全局没有 html/body/#root 高度链，父级 #app 高度是 auto（仅 body.flowon 时才有高度），
-     百分比高度解析不出来会塌成内容高度（“半面”bug）——pane 必须自撑一屏，同 #pane-home 口径 */
+  /* 全局没有 html/body/#root 高度链：pane 必须自撑一屏（同 #pane-home） */
   height: 100dvh;
   min-height: 0;
-  /* 侧栏 position:fixed 不占文档流，各 pane 都要自己让出 68px（同 home-film / technique 口径） */
+  /* 导航轨是 fixed，不占文档流，各 pane 自己让出 68px */
   margin-left: var(--hm-sidebar, 68px);
 }
 
-/* 右区底色 = 应用壳/导航栏那一层（body 的 --bg），不是对话内自己那套 --panel。
-   ⚠️ 之前 .cv3 铺了 --panel（深 #151517 / 浅 #fcfcfd），而导航栏是透明的、透出 body
-      （深 #000 / 浅 #e0e2e9）—— 两套色板并列，右区就和导航栏对不上。
-      现在右区透出同一层，只有左侧会话栏铺自己的面（--panel2），层级才自洽。 */
+/* 整页：左栏 + 阅读区，从上到下贴边，没有外边距、没有浮起的卡片 */
 .cv3 {
   position: relative;
   display: flex;
   height: 100%;
   min-height: 0;
-  /* 不能 overflow:hidden：左栏/输入卡都带投影（触感主题是硬阴影 3px 3px 0），
-     裁掉后右下角的圆弧会被切成斜边，看起来像「缺了一块」。
-     横向溢出由各栏自己 min-width:0 控制，不需要在这里裁。 */
-  overflow: visible;
-  background: transparent;
+  overflow: hidden;
+  background: var(--cv-page);
   color: var(--tx1);
   font-size: 13px;
+  line-height: 20px;
 }
 
-.cv3-backdrop {
-  position: absolute;
-  inset: 0;
-  z-index: 7;
-  padding: 0;
-  border: 0;
-  background: rgb(0 0 0 / 0.4);
-  cursor: pointer;
-}
-
-/* hover 反馈统一 100ms（dsh TurnProcess 的 color 100ms 口径，缓动取主题 cubic-bezier） */
-.cv3-icon-btn, .cv3-row-new, .cv3-project {
-  transition: background-color 100ms cubic-bezier(0.4, 0, 0.2, 1);
+.cv3-icon-btn, .cv3-row-new {
+  transition: background-color 100ms var(--cv-ease), color 100ms var(--cv-ease);
 }

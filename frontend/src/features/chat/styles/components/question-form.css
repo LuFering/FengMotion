@@ -8,8 +8,8 @@
 .qf {
   margin: 14px 0;
   max-width: 560px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
+  border: .5px solid var(--line);
+  border-radius: 12px;
   background: var(--surf);
   overflow: hidden;
 }
@@ -21,7 +21,7 @@
   justify-content: space-between;
   gap: 12px;
   padding: 9px 12px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: .5px solid var(--line);
 }
 
 .qf-title {
@@ -33,7 +33,7 @@
 
 .qf-progress {
   flex: none;
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--dim);
   font-variant-numeric: tabular-nums;
   padding: 0 6px;
@@ -52,7 +52,7 @@
 }
 
 .qf-label {
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--fg);
   margin-bottom: 5px;
   line-height: 16px;
@@ -78,11 +78,11 @@
   gap: 9px;
   width: 100%;
   padding: 6px 10px;
-  border: 1px solid transparent;
+  border: .5px solid transparent;
   border-radius: 6px;
   background: transparent;
   color: var(--dim);
-  font-size: 11.5px;
+  font-size: 12px;
   line-height: 17px;
   text-align: left;
   cursor: pointer;
@@ -117,7 +117,7 @@
   background: transparent;
   transition: border-color 120ms ease, background 120ms ease;
 }
-.qf-opt[data-multi] .qf-box { border-radius: 4px; }
+.qf-opt[data-multi] .qf-box { border-radius: 6px; }
 
 .qf-opt:hover:not(:disabled) .qf-box {
   border-color: color-mix(in srgb, var(--fg) 50%, transparent);
@@ -152,11 +152,11 @@
 .qf-input {
   width: 100%;
   padding: 7px 10px;
-  border: 1px solid var(--line);
+  border: .5px solid var(--line);
   border-radius: 6px;
   background: var(--bg);
   color: var(--fg);
-  font-size: 11.5px;
+  font-size: 12px;
   line-height: 18px;
   font-family: inherit;
 }
@@ -172,7 +172,7 @@
   align-items: center;
   gap: 10px;
   padding: 9px 12px;
-  border-top: 1px solid var(--line);
+  border-top: .5px solid var(--line);
   /* 底栏略深一档：让「提交」和上面的选项区分成两个区域 */
   background: color-mix(in srgb, var(--fg) 2.5%, var(--surf));
 }
@@ -183,10 +183,10 @@
   gap: 6px;
   padding: 5px 12px;
   border-radius: 6px;
-  border: 1px solid transparent;
+  border: .5px solid transparent;
   background: var(--acc);
   color: var(--on-accent);
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 500;
   line-height: 18px;
   cursor: pointer;
@@ -201,6 +201,6 @@
 
 /* 提示文字：说出「为什么不能提交」，而不是让按钮默默变灰 */
 .qf-hint {
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--dim);
 }

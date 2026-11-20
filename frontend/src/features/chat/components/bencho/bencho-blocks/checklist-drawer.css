@@ -14,9 +14,10 @@
   --signal: var(--acc);
   --font-ui: var(--font-sans);
   width: 100%;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--surf);
+  /* 对话页里是内嵌卡片那一档（--cv-*），别处回落到全局 token */
+  border: .5px solid var(--cv-line, var(--line));
+  border-radius: var(--cv-r-card, 12px);
+  background: var(--cv-inset, var(--surf));
   font-family: var(--font-ui);
   color: var(--fg);
   overflow: hidden;
@@ -30,12 +31,13 @@
   gap: 6px;
   /* 6px 而不是 8px：抽屉是常驻条，多出来的每一像素都在把输入框往下推。
      正文区才是主角，这条只需读得清。 */
-  padding: 6px 10px;
+  min-height: 34px;
+  padding: 6px 12px;
   border: 0;
   background: none;
   color: var(--dim);
   font: inherit;
-  font-size: 12.5px;
+  font-size: 13px;
   text-align: left;
   cursor: pointer;
   transition: color 150ms ease;
@@ -69,7 +71,7 @@
 /* n/m 计数：等宽数字，避免 9/10 → 10/10 时宽度跳动 */
 .chk-drawer-count {
   flex: none;
-  font-size: 11.5px;
+  font-size: 12px;
   font-variant-numeric: tabular-nums;
   color: var(--dim);
 }
@@ -91,7 +93,7 @@
   bottom: 0;
   left: 0;
   height: 1.5px;
-  background: var(--line);
+  background: var(--cv-line, var(--line));
 }
 .chk-drawer-bar > i {
   display: block;
@@ -103,7 +105,7 @@
 /* 全部完成：整块改用「完成」语义色。
    不能只靠颜色 —— 标题同时变成「任务已完成」，见组件内文案。 */
 .chk-drawer[data-done] {
-  border-color: color-mix(in srgb, var(--ok) 40%, var(--line));
+  border-color: color-mix(in srgb, var(--ok) 40%, var(--cv-line, var(--line)));
 }
 .chk-drawer[data-done] .chk-drawer-title { color: var(--ok); }
 .chk-drawer[data-done] .chk-drawer-bar > i { background: var(--ok); }
@@ -131,7 +133,7 @@
   min-height: 0;
   overflow: hidden;
   /* 展开体左右 10、底部 6：与头部对齐，并让最后一行不贴着圆角 */
-  padding: 0 10px 6px;
+  padding: 0 12px 8px;
 }
 
 /* 抽屉里的清单不再是一张卡片：它已经在抽屉这个表面上了，

@@ -1,32 +1,113 @@
+import { useEffect, useRef, useState } from 'react'
 import type * as React from 'react'
-import { trackVisualKind, TRACK_ICON, KIND_ICON } from '@/features/workbench/components/timeline/timelineDisplay'
-import { sequenceClipKey as clipKey, type SequenceTrack } from '@/features/workbench/model/sequenceManifest'
+import { createPortal } from 'react-dom'
+import { CATEGORY_ICON, KIND_ICON, clipLabel, clipTime } from '@/features/workbench/components/timeline/timelineDisplay'
+import { sequenceClipKey as clipKey, type SequenceEntry, type SequenceTrack } from '@/features/workbench/model/sequenceManifest'
+import { densityBins, type TrackGroup } from '@/features/workbench/model/timelineGroups'
+import { shortSrc } from '@/features/workbench/model/liveEdit'
 import { UiIcon, SemIcons } from '@/shared/icons/UiIcon'
-import { formatTimecode } from '@/features/workbench/model/timeRange'
 import type { WorkbenchTimelineSpan } from '@/features/workbench/components/WorkbenchTimeline'
 
 export interface TimelineRowsProps {
-  collapsedIds: Set<string>
-  onSeek: (seconds: number) => void
+  groups: TrackGroup[]
+  isCollapsed: (group: TrackGroup) => boolean
+  onToggleGroup: (group: TrackGroup) => void
+  fps: number | undefined
   pct: (t: number) => number
   pickedId: string | null
+  /** 选中片段所属的元素：同一元素在别处出现的片段淡淡标出 */
+  pickedSrc: string | null
+  onClipActivate: (clip: SequenceEntry, track: SequenceTrack) => void
+  onClipZoom: (clip: SequenceEntry) => void
+  /** 收起的抽屉里点了某个时间 */
+  onGroupPick: (group: TrackGroup, seconds: number) => void
+  /** 搜索命中的片段（clipKey）；null = 没在搜 */
+  matches: ReadonlySet<string> | null
+  /** 搜索时当前定位到的那一个 */
+  focusKey: string | null
+  /** 改过的元素（源码位置） */
+  changed: ReadonlySet<string> | undefined
+  onJumpChange: (group: TrackGroup) => void
   playhead: React.JSX.Element | null
-  setCollapsedIds: React.Dispatch<React.SetStateAction<Set<string>>>
-  setPickedId: React.Dispatch<React.SetStateAction<string | null>>
   span: WorkbenchTimelineSpan | null
   spanEnd: number
   spanStart: number
   trackStatus: string | undefined
-  tracks: SequenceTrack[]
   unavailable: boolean
   viewEnd: number
   viewStart: number
 }
 
-/** 时间线的轨道列表：每条轨道可折叠，按当前视野画出片段块，点击片段即选中并跳到其起点；选区以贯穿全轨的底带标出。 */
-export function TimelineRows({ collapsedIds, onSeek, pct, pickedId, playhead, setCollapsedIds, setPickedId, span, spanEnd, spanStart, trackStatus, tracks, unavailable, viewEnd, viewStart }: TimelineRowsProps) {
+/** 比视野窄这么多的片段只画色块，不放字 */
+const TINY_PCT = 2.4
+const DENSITY_BINS = 72
+/** 相邻片段之间留的缝（规范 §8.5：3px） */
+const CLIP_GAP = 3
+/** 悬停多久出提示（规范 §7：350ms） */
+const TIP_DELAY = 350
+
+type Tip = { clip: SequenceEntry; track: SequenceTrack; rect: DOMRect }
+
+/**
+ * 时间线的轨道列表：按类别（场景 / 文字 / 图形 / 背景 / 图片与视频 / 音频）收成抽屉。
+ * 抽屉收起时只留一条疏密条，看得出这一类东西在哪些时间扎堆，点一下就跳过去选中那一刻最显眼的一个；
+ * 展开后每条轨一行，同时出现的元素分在不同的轨上。只有一条轨的类别直接摊开，不多占一行。
+ */
+export function TimelineRows(props: TimelineRowsProps) {
+  const { groups, isCollapsed, onToggleGroup, fps, pct, pickedId, pickedSrc, onClipActivate, onClipZoom, onGroupPick, matches, focusKey, changed, onJumpChange, playhead, span, spanEnd, spanStart, trackStatus, unavailable, viewEnd, viewStart } = props
+  const [tip, setTip] = useState<Tip | null>(null)
+  const tipTimer = useRef(0)
+  useEffect(() => () => window.clearTimeout(tipTimer.current), [])
+  const hideTip = () => { window.clearTimeout(tipTimer.current); setTip(null) }
+
+  const clipNode = (track: SequenceTrack, clip: SequenceEntry) => {
+    const key = clipKey(track.id, clip.id)
+    const left = Math.max(clip.start, viewStart)
+    const right = Math.min(clip.start + clip.duration, viewEnd)
+    if (right <= left) return null
+    const widthPct = pct(right) - pct(left)
+    const tiny = widthPct < TINY_PCT
+    const picked = pickedId === key
+    const ClipIcon = KIND_ICON[clip.kind]
+    const { lead, sub } = clipLabel(clip)
+    return (
+      <button
+        key={clip.id}
+        type="button"
+        className="wb-tl-clip"
+        style={{ left: `${pct(left)}%`, width: `max(3px, calc(${widthPct}% - ${CLIP_GAP}px))` }}
+        aria-label={`${clip.name} ${clipTime(clip.start, fps)}–${clipTime(clip.start + clip.duration, fps)}`}
+        disabled={unavailable}
+        data-kind={clip.kind}
+        data-tiny={tiny || undefined}
+        data-picked={picked || undefined}
+        data-related={!picked && !!pickedSrc && clip.src === pickedSrc || undefined}
+        data-match={matches?.has(key) || undefined}
+        data-dim={matches && !matches.has(key) || undefined}
+        data-focus={focusKey === key || undefined}
+        data-changed={!!clip.src && changed?.has(clip.src) || undefined}
+        aria-pressed={picked}
+        onPointerEnter={(e) => {
+          const target = e.currentTarget
+          window.clearTimeout(tipTimer.current)
+          tipTimer.current = window.setTimeout(() => setTip({ clip, track, rect: target.getBoundingClientRect() }), TIP_DELAY)
+        }}
+        onPointerLeave={hideTip}
+        onPointerDown={hideTip}
+        onClick={() => onClipActivate(clip, track)}
+        onDoubleClick={() => onClipZoom(clip)}
+      >
+        {!tiny && (clip.kind === 'audio' || clip.kind === 'video' || clip.kind === 'image') && widthPct >= 8 && (
+          <span className="wb-tl-clip-icon"><ClipIcon size={11} /></span>
+        )}
+        {!tiny && <span className="wb-tl-clip-name">{lead}</span>}
+        {!tiny && sub && widthPct >= 9 && <span className="wb-tl-clip-sub">{sub}</span>}
+      </button>
+    )
+  }
+
   return (
-    <div className="wb-tl-rows" tabIndex={0} role="region" aria-label="轨道列表">
+    <div className="wb-tl-rows" tabIndex={0} role="region" aria-label="轨道列表" onScroll={hideTip}>
       {/* 贯穿全轨的时间选区高亮底带 */}
       {span && spanEnd > spanStart && (
         <span
@@ -39,107 +120,117 @@ export function TimelineRows({ collapsedIds, onSeek, pct, pickedId, playhead, se
         />
       )}
 
-      {/* 无轨道清单状态 */}
-      {tracks.length === 0 && !unavailable && (
+      {groups.length === 0 && !unavailable && (
         <div className="wb-tl-empty" role="status">
           {trackStatus || '当前版本暂无可识别的轨道'}，仍可选择时间范围
         </div>
       )}
 
-      {/* 各轨道行（默认每轨 44px） */}
-      {tracks.map((tItem) => {
-        const parts = tItem.name.split(/\s*[·・]\s*/, 2)
-        const trackCode = parts.length > 1 ? parts[0] : ''
-        const trackName = parts.length > 1 ? parts[1] : tItem.name
-        const visualKind = trackVisualKind(tItem)
-        const TrackIconComp = TRACK_ICON[visualKind]
-        const collapsed = collapsedIds.has(tItem.id)
-
+      {groups.map((group) => {
+        const collapsed = isCollapsed(group)
+        const single = group.tracks.length === 1
+        const Icon = CATEGORY_ICON[group.category]
+        const changedSrcs = new Set<string>()
+        let hits = 0
+        let active = false
+        for (const t of group.tracks) for (const c of t.clips) {
+          if (c.src && changed?.has(c.src)) changedSrcs.add(c.src)
+          if (matches?.has(clipKey(t.id, c.id))) hits++
+          if (clipKey(t.id, c.id) === pickedId) active = true
+        }
+        const countText = single ? `${group.count} 个` : `${group.tracks.length} 轨 · ${group.count} 个`
         return (
-          <div
-            className="wb-tl-grid wb-tl-row wb-tl-row-track"
-            key={tItem.id}
-            data-visual={visualKind}
-            data-collapsed={collapsed || undefined}
-            data-active={tItem.clips.some((clip) => clipKey(tItem.id, clip.id) === pickedId) || undefined}
-          >
-            {/* 轨道头：折叠箭头 → 类型图标 → 轨道名称 → 次要代号 */}
-            <div className="wb-tl-gutter" title={`${tItem.name} · ${tItem.clips.length} 个片段`}>
-              <button
-                type="button"
-                className="wb-tl-track-fold"
-                aria-expanded={!collapsed}
-                aria-label={collapsed ? `展开${trackName}` : `折叠${trackName}`}
-                onClick={() => setCollapsedIds((prev) => {
-                  const next = new Set(prev)
-                  if (next.has(tItem.id)) next.delete(tItem.id)
-                  else next.add(tItem.id)
-                  return next
-                })}
-              >
-                <UiIcon icon={SemIcons.expand} size="xs" className={`wb-tl-fold-arrow ${collapsed ? '' : 'is-expanded'} `} />
-              </button>
-
-              <span className="wb-tl-track-type-icon" aria-hidden="true">
-                <TrackIconComp size={14} />
-              </span>
-
-              <span className="wb-tl-track-name">{trackName}</span>
-
-              {trackCode && <span className="wb-tl-track-code">{trackCode}</span>}
-
-              {/* 仅在多片段轨道上提供紧凑提示 */}
-              {tItem.clips.length > 1 && (
-                <span className="wb-tl-track-count" title={`${tItem.clips.length} 个片段`}>
-                  {tItem.clips.length}
-                </span>
-              )}
-            </div>
-
-            {/* 轨道槽与片段块 */}
-            <div className="wb-tl-lane">
-              {collapsed ? null : tItem.clips.map((clip) => {
-                const key = clipKey(tItem.id, clip.id)
-                const shownStart = clip.start
-                const shownDuration = clip.duration
-                const left = Math.max(shownStart, viewStart)
-                const right = Math.min(shownStart + shownDuration, viewEnd)
-                if (right <= left) return null
-                const hasSpecialIcon = clip.kind === 'text' || clip.kind === 'audio'
-                const ClipIcon = KIND_ICON[clip.kind]
-                const clipWidthPct = pct(right) - pct(left)
-
-                return (
+          <div className="wb-tl-group" key={group.category} data-cat={group.category} data-collapsed={collapsed && !single || undefined} data-active={active || undefined}>
+            <div className="wb-tl-grid wb-tl-row wb-tl-group-head" data-single={single || undefined}>
+              <div className="wb-tl-gutter" title={`${group.label} · ${countText}`}>
+                {single ? <span className="wb-tl-track-fold" aria-hidden="true" /> : (
                   <button
-                    key={clip.id}
                     type="button"
-                    className="wb-tl-clip"
-                    style={{ left: `${pct(left)}%`, width: `${clipWidthPct}%` }}
-                    title={`${clip.name} (${formatTimecode(clip.start, true)}–${formatTimecode(clip.start + clip.duration, true)})`}
-                    disabled={unavailable}
-                    data-kind={clip.kind}
-                    data-picked={pickedId === key || undefined}
-                    aria-pressed={pickedId === key}
-                    onClick={() => {
-                      setPickedId(key)
-                      onSeek(clip.start)
-                    }}
+                    className="wb-tl-track-fold"
+                    aria-expanded={!collapsed}
+                    aria-label={collapsed ? `展开${group.label}` : `收起${group.label}`}
+                    onClick={() => onToggleGroup(group)}
                   >
-                    {/* 优先突出 12px 内容名称，类型已在轨道头明确表达；仅在特殊素材且空间充裕时展示小图标 */}
-                    {hasSpecialIcon && clipWidthPct >= 10 && (
-                      <span className="wb-tl-clip-icon">
-                        <ClipIcon size={12} />
-                      </span>
-                    )}
-                    <span className="wb-tl-clip-name">{clip.name}</span>
+                    <UiIcon icon={SemIcons.expand} size="xs" className={`wb-tl-fold-arrow ${collapsed ? '' : 'is-expanded'}`} />
                   </button>
-                )
-              })}
-              {playhead}
+                )}
+                <span className="wb-tl-track-type-icon" aria-hidden="true"><Icon size={13} /></span>
+                <span className="wb-tl-group-name">{group.label}</span>
+                <span className="wb-tl-group-count">{countText}</span>
+                {matches && hits > 0 && <span className="wb-tl-group-hits" title={`${hits} 处符合`}>{hits}</span>}
+                {changedSrcs.size > 0 && (
+                  <button type="button" className="wb-tl-change-badge" title={`有 ${changedSrcs.size} 处改动，点一下跳到下一处`}
+                          aria-label={`${group.label}有 ${changedSrcs.size} 处改动，跳到下一处`} onClick={() => onJumpChange(group)}>
+                    {changedSrcs.size}
+                  </button>
+                )}
+              </div>
+              <div className="wb-tl-lane">
+                {single ? group.tracks[0].clips.map((clip) => clipNode(group.tracks[0], clip))
+                  : collapsed ? <Density group={group} viewStart={viewStart} viewEnd={viewEnd} disabled={unavailable} onPick={(t) => onGroupPick(group, t)} /> : null}
+                {playhead}
+              </div>
             </div>
+            {!single && !collapsed && group.tracks.map((track) => (
+              <div className="wb-tl-grid wb-tl-row wb-tl-lane-row" key={track.id}>
+                <div className="wb-tl-gutter" title={`${track.name} · ${track.clips.length} 段`}>
+                  <span className="wb-tl-lane-name">{track.name}</span>
+                </div>
+                <div className="wb-tl-lane">
+                  {track.clips.map((clip) => clipNode(track, clip))}
+                  {playhead}
+                </div>
+              </div>
+            ))}
           </div>
         )
       })}
+
+      {tip && <ClipTip tip={tip} fps={fps} changed={!!tip.clip.src && !!changed?.has(tip.clip.src)} />}
     </div>
+  )
+}
+
+/** 收起的抽屉：一条疏密条，越密的地方越深 */
+function Density({ group, viewStart, viewEnd, disabled, onPick }: { group: TrackGroup; viewStart: number; viewEnd: number; disabled: boolean; onPick: (seconds: number) => void }) {
+  const bins = densityBins(group, viewStart, viewEnd, DENSITY_BINS)
+  const max = Math.max(1, ...bins)
+  return (
+    <div
+      className="wb-tl-density"
+      role="button"
+      tabIndex={disabled ? -1 : 0}
+      aria-label={`${group.label}的分布，点一下跳到那里并选中`}
+      aria-disabled={disabled}
+      onClick={(e) => {
+        if (disabled) return
+        const rect = e.currentTarget.getBoundingClientRect()
+        if (!rect.width) return
+        onPick(viewStart + ((e.clientX - rect.left) / rect.width) * (viewEnd - viewStart))
+      }}
+    >
+      {bins.map((n, i) => (
+        <span key={i} data-empty={n === 0 || undefined} style={{ opacity: n ? 0.28 + 0.72 * (n / max) : undefined }} />
+      ))}
+    </div>
+  )
+}
+
+/** 片段悬停提示：名称、文字、起止时间、源码位置；挂在 #pane-flow 里用工作台的颜色 */
+function ClipTip({ tip, fps, changed }: { tip: Tip; fps: number | undefined; changed: boolean }) {
+  const host = typeof document !== 'undefined' ? document.getElementById('pane-flow') ?? document.body : null
+  if (!host) return null
+  const { clip, track, rect } = tip
+  const end = clip.start + clip.duration
+  const { lead, sub } = clipLabel(clip)
+  const x = Math.min(window.innerWidth - 240, Math.max(8, rect.left + Math.min(rect.width / 2, 120) - 20))
+  return createPortal(
+    <div className="wb-tl-tip" role="tooltip" style={{ left: x, top: rect.top - 6 }}>
+      <strong>{lead}{changed && <em>改过</em>}</strong>
+      {sub && <span className="wb-tl-tip-text">{sub}</span>}
+      <span className="wb-tl-tip-time">{clipTime(clip.start, fps)} – {clipTime(end, fps)}<i>{clip.duration.toFixed(clip.duration < 10 ? 2 : 1)}s</i></span>
+      <span className="wb-tl-tip-src">{track.name}{clip.src ? ` · ${shortSrc(clip.src)}` : ''}</span>
+    </div>,
+    host,
   )
 }

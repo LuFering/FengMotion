@@ -4,19 +4,43 @@
      对话视图与工作台是同一个会话的两种呈现，切换器必须在两边长得一样、
      落在同一个角落（作者要求「两个界面彼此切换，按钮位置一致」）。
      两边各写一份 CSS 就一定会漂移 —— 这里只定义一次。
-   依赖的 token（--panel2 / --line / --tx2 / --acc / --on-accent / --hover）
-   在对话 pane 与工作台 pane 的作用域里都定义了同名变量，因此这一份样式
-   进哪个视图都成立，不需要局部覆盖。
-   尺寸：总高 30px（比顶栏 46px 矮、与标题行 30px 齐平），字号 12。 */
+   配色不借所在页面的 token：对话页与工作台虽然都有 --panel2 / --acc 这些名字，
+   取值却不同（对话页底色是白、工作台是浅灰，蓝色也不是同一个），借了就两边长得不一样。
+   所以切换器自带一套 --vs-* 变量，取值统一用工作台三套主题里的那一组。
+   尺寸：总高 30px，字号 12。 */
 
 .view-switch {
+  /* 深色（默认）：取自工作台 tokens.css */
+  --vs-bg: #101116;
+  --vs-line: rgba(255, 255, 255, .06);
+  --vs-tx: #a4a7b1;
+  --vs-hover: rgba(255, 255, 255, .04);
+  --vs-acc: #3B8CF8;
+  --vs-on-acc: #ffffff;
   display: flex;
   flex: none;
   gap: 4px;
   padding: 2px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--vs-line);
   border-radius: 999px;
-  background: var(--panel2);
+  background: var(--vs-bg);
+}
+/* 浅色 / 触感：取自工作台 themes.css 的同名主题 */
+html[data-theme="light"] .view-switch {
+  --vs-bg: #eef0f4;
+  --vs-line: rgba(25, 25, 50, .06);
+  --vs-tx: #5b5e66;
+  --vs-hover: rgba(25, 25, 50, .035);
+  --vs-acc: #2F6FE4;
+  --vs-on-acc: #ffffff;
+}
+html[data-theme="tactile"] .view-switch {
+  --vs-bg: #ddd8c9;
+  --vs-line: rgba(34, 35, 31, .16);
+  --vs-tx: #55534a;
+  --vs-hover: rgba(34, 35, 31, .05);
+  --vs-acc: #f7c948;
+  --vs-on-acc: #22231f;
 }
 
 .view-switch button {
@@ -24,7 +48,7 @@
   border: 0;
   border-radius: 999px;
   background: transparent;
-  color: var(--tx2);
+  color: var(--vs-tx);
   font: inherit;
   font-size: 12px;
   line-height: 18px;
@@ -34,13 +58,13 @@
 }
 
 .view-switch button:hover:not(:disabled):not([aria-current="page"]) {
-  background: var(--hover);
+  background: var(--vs-hover);
 }
 
 /* 当前视图实心：不靠文字猜“我在哪” */
 .view-switch button[aria-current="page"] {
-  background: var(--acc);
-  color: var(--on-accent, #fff);
+  background: var(--vs-acc);
+  color: var(--vs-on-acc);
   cursor: default;
 }
 

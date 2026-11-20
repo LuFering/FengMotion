@@ -30,20 +30,9 @@
   border-radius: var(--r-panel);
   box-shadow: var(--shadow-base);
 }
-#pane-flow .wb-a2 .wb-logo {
-  width: 21px; height: 21px; flex: 0 0 21px;
-  display: grid; place-items: center;
-  border-radius: 6px;
-  background: var(--acc);
-  color: var(--acc-ink);
-  font-size: 11px; font-weight: 800;
-}
+
 #pane-flow .wb-a2 .wb-crumb { display: flex; align-items: center; gap: 7px; min-width: 0; }
-#pane-flow .wb-a2 .wb-crumb-sep { color: var(--tx3); font-size: 11px; }
-#pane-flow .wb-a2 .wb-crumb-scene {
-  max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  color: var(--tx2); font-size: 12px;
-}
+
 #pane-flow .wb-a2 .wb-project-switch {
   height: 28px; max-width: 230px; padding: 0 5px;
   border: 1px solid transparent; border-radius: var(--r-ctl);

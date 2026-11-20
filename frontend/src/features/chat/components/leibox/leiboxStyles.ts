@@ -40,15 +40,17 @@ export function composerThemeCss(showContextRing: boolean | undefined): string {
           }
 
           /* ── 主题模式 1：深色模式（dark） ── */
+          /* --lbx-surface* 由宿主页面给（对话页 = 浮起层那一档），变量会穿过 Shadow DOM 继承进来；
+             没给的页面（工作台右栏）回落到原来的写死值 */
           [data-theme="dark"] [data-message-composer-surface] {
-            background: #15161a !important;
+            background: var(--lbx-surface, #15161a) !important;
             color: #ededed !important;
-            border: 1px solid rgba(255, 255, 255, 0.09) !important;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.04) !important;
+            border: var(--lbx-surface-border, 1px solid rgba(255, 255, 255, 0.09)) !important;
+            box-shadow: var(--lbx-surface-shadow, 0 4px 20px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.04)) !important;
           }
           [data-theme="dark"] [data-message-composer-surface]:focus-within {
-            border-color: rgba(59, 140, 248, 0.45) !important;
-            box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(59, 140, 248, 0.25) !important;
+            border-color: var(--lbx-surface-focus-line, rgba(59, 140, 248, 0.45)) !important;
+            box-shadow: var(--lbx-surface-shadow-focus, 0 6px 24px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(59, 140, 248, 0.25)) !important;
           }
           [data-theme="dark"] textarea.composer-textarea {
             color: #ededed !important;
@@ -90,14 +92,14 @@ export function composerThemeCss(showContextRing: boolean | undefined): string {
 
           /* ── 主题模式 2：触感/纸感模式（tactile） ── */
           [data-theme="tactile"] [data-message-composer-surface] {
-            background: #ddd8c9 !important;
+            background: var(--lbx-surface, #ddd8c9) !important;
             color: #22231f !important;
-            border: 1px solid rgba(34, 35, 31, 0.18) !important;
-            box-shadow: 0 2px 8px rgba(34, 35, 31, 0.08) !important;
+            border: var(--lbx-surface-border, 1px solid rgba(34, 35, 31, 0.18)) !important;
+            box-shadow: var(--lbx-surface-shadow, 0 2px 8px rgba(34, 35, 31, 0.08)) !important;
           }
           [data-theme="tactile"] [data-message-composer-surface]:focus-within {
-            border-color: rgba(217, 169, 43, 0.6) !important;
-            box-shadow: 0 4px 12px rgba(34, 35, 31, 0.12) !important;
+            border-color: var(--lbx-surface-focus-line, rgba(217, 169, 43, 0.6)) !important;
+            box-shadow: var(--lbx-surface-shadow-focus, 0 4px 12px rgba(34, 35, 31, 0.12)) !important;
           }
           [data-theme="tactile"] textarea.composer-textarea {
             color: #22231f !important;

@@ -246,7 +246,7 @@ export function LeiBoxComposer({
    *
    * <p>为什么用官方的 `disabled` 而不是自己改按钮：官方把它映射成宿主元素的
    * `inert`，是整体不可交互的语义 —— 既阻止重复提交，也不会画出一个
-   * 看着能停、实际停不了的停止键。取消入口在下方任务面板。</p>
+   * 看着能停、实际停不了的停止键。工程任务跑完会自动解锁。</p>
    */
   useEffect(() => {
     const locked = Boolean(busy) && !canStop
@@ -254,7 +254,7 @@ export function LeiBoxComposer({
     const host = hostRef.current
     if (host) {
       if (locked) {
-        host.title = '工程任务进行中，取消入口在下方任务面板'
+        host.title = '工程任务进行中，完成后可以继续输入'
         host.setAttribute('data-locked-by-task', '')
       } else {
         host.removeAttribute('title')

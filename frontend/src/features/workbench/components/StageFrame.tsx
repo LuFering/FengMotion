@@ -3,11 +3,6 @@ import { Video, VideoPlayer, VideoSkin } from '@videojs/react/video'
 import { type StageVisual } from '@/features/workbench/model/stageVisual'
 import { containedMediaRect } from '@/features/workbench/model/previewGeometry'
 
-/* ── 这次制作的画面 ───────────────────────────────────────────
-   只渲染产物真的指到的那个文件（测试帧 / 试片 / 整片）。
-   视频给原生控件，图片给静态画面 —— 不套播放器皮肤，
-   因为没有时间轴就没有逐帧定位，装成播放器会让用户以为能拖到某一帧。
-   文件加载失败就说失败，不退回旧成片。 */
 export function StageFrame({ visual, mediaRef, onTime, onDuration, location, currentTime, onReady, onFailed, loopSpan }: { visual: StageVisual; mediaRef: React.RefObject<HTMLVideoElement | HTMLImageElement | null>; onTime: (time: number) => void; onDuration: (duration: number) => void; onReady: (ready: boolean) => void; onFailed?: (failed: boolean) => void; currentTime: number; loopSpan?: { start: number; end: number } | null; location?: { visualId: string; timeSeconds?: number; bbox?: { x: number; y: number; w: number; h: number } } | null }) {
   useEffect(() => {
     const media = mediaRef.current

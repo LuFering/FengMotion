@@ -15,6 +15,8 @@
  */
 
 import { useEffect, useState, type ReactNode } from 'react'
+import { UiIcon, SemIcons } from '@/shared/icons/UiIcon'
+import { isKnownFileName } from '@/features/chat/model/fileKind'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import remarkBreaks from 'remark-breaks'
@@ -48,10 +50,13 @@ function loadHighlighter(): Promise<Highlighter> {
 
 /* ── 代码块 ────────────────────────────────────────────────── */
 
-function CodeBlock({ code, lang }: { code: string; lang: string }) {
+function CodeBlock({ code, lang, plain = false }: { code: string; lang: string; plain?: boolean }) {
   const [html, setHtml] = useState<string | null>(null)
 
   useEffect(() => {
+    /* 流式中代码每帧都在变长：这时不上色，否则每帧都要重新高亮一遍，
+       颜色还会在新旧结果之间闪。写完（plain 变 false）后再高亮一次。 */
+    if (plain) return
     let cancelled = false
     loadHighlighter()
       .then((hl) => {
@@ -68,12 +73,12 @@ function CodeBlock({ code, lang }: { code: string; lang: string }) {
     return () => {
       cancelled = true
     }
-  }, [code, lang])
+  }, [code, lang, plain])
 
   return (
     <div className="md-code">
       {lang ? <span className="md-code-lang">{lang}</span> : null}
-      {html ? (
+      {html && !plain ? (
         <div className="md-code-body" dangerouslySetInnerHTML={{ __html: html }} />
       ) : (
         <pre className="md-code-body md-code-fallback">
@@ -81,6 +86,45 @@ function CodeBlock({ code, lang }: { code: string; lang: string }) {
         </pre>
       )}
     </div>
+  )
+}
+
+/* ── 文件路径 ──────────────────────────────────────────────
+   回复里用反引号写出的文件（`renders/coffee.mp4`）是「东西在哪」，不是代码：
+   按文件渲染 —— FengMotion 标志、目录淡、文件名实，悬停看完整路径，点一下复制路径。
+   只认不带空格、扩展名常见的路径；URL、`包名:标识` 这类仍按普通行内代码显示。 */
+
+function looksLikeFilePath(raw: string): boolean {
+  if (!raw || raw.length > 260 || /\s/.test(raw) || raw.includes('://')) return false
+  const base = raw.replace(/\/+$/, '').split('/').pop() ?? ''
+  return isKnownFileName(base)
+}
+
+function FileMention({ path }: { path: string }) {
+  const [copied, setCopied] = useState(false)
+  useEffect(() => {
+    if (!copied) return
+    const timer = setTimeout(() => setCopied(false), 1400)
+    return () => clearTimeout(timer)
+  }, [copied])
+  const name = path.split('/').pop() ?? path
+  const dir = path.slice(0, path.length - name.length)
+  return (
+    <button
+      type="button"
+      className="md-file"
+      data-copied={copied || undefined}
+      title={copied ? '已复制路径' : `${path}\n点击复制路径`}
+      aria-label={copied ? `已复制路径 ${path}` : `复制路径 ${path}`}
+      onClick={() => { void navigator.clipboard.writeText(path).then(() => setCopied(true), () => undefined) }}
+    >
+      {/* 前面是 FengMotion 标志：这是 FengMotion 这一轮产出 / 用到的文件；复制成功时换成对勾 */}
+      {copied
+        ? <span className="md-file-icon" aria-hidden="true"><UiIcon icon={SemIcons.check} size="xs" /></span>
+        : <img className="md-file-icon md-file-logo" src="./assets/brand/fengmotion-mark.png" alt="" width={12} height={12} draggable={false} />}
+      {dir ? <span className="md-file-dir">{dir}</span> : null}
+      <span className="md-file-name">{name}</span>
+    </button>
   )
 }
 
@@ -124,7 +168,12 @@ function escapeAttr(s: string) {
 
 /* ── 对外组件 ──────────────────────────────────────────────── */
 
-export function MarkdownText({ text, className }: { text: string; className?: string }) {
+/**
+ * @param streaming 正在逐字输出：代码块先不上色（见 CodeBlock）。
+ *   还没闭合的代码块由 Markdown 解析器当作「一直延伸到末尾」的代码块，显示为正在变长的代码，
+ *   不会露出裸的 ``` 。
+ */
+export function MarkdownText({ text, className, streaming = false }: { text: string; className?: string; streaming?: boolean }) {
   return (
     <div className={`md${className ? ` ${className}` : ''}`}>
       <Markdown
@@ -146,8 +195,11 @@ export function MarkdownText({ text, className }: { text: string; className?: st
             const raw = String(children ?? '')
             const match = /language-([\w-]+)/.exec(cls ?? '')
             /* 有 language-* 才是块级；否则是行内 `code` */
-            if (!match) return <code className="md-inline-code">{raw.replace(/\n$/, '')}</code>
-            return <CodeBlock code={raw.replace(/\n$/, '')} lang={match[1]} />
+            if (!match) {
+              const inline = raw.replace(/\n$/, '')
+              return looksLikeFilePath(inline) ? <FileMention path={inline} /> : <code className="md-inline-code">{inline}</code>
+            }
+            return <CodeBlock code={raw.replace(/\n$/, '')} lang={match[1]} plain={streaming} />
           },
           /* react-markdown 默认会给块级代码再套一层 <pre>，这里已经自带容器，去掉 */
           pre: ({ children }: { children?: ReactNode }) => <>{children}</>,

@@ -24,8 +24,11 @@
  * 扫出来的东西没法区分「产物」和「临时文件」。
  */
 import '@/features/chat/styles/components/deliverables.css'
-import { UiIcon } from '@/shared/icons/UiIcon'
-import { File01 } from '@untitledui/icons'
+import { useEffect, useState } from 'react'
+import { UiIcon, SemIcons } from '@/shared/icons/UiIcon'
+import { Monitor01 } from '@untitledui/icons'
+import { FileKindIcon } from '@/features/chat/components/FileKindIcon'
+import { fileKindOf } from '@/features/chat/model/fileKind'
 
 /** 一个交付物。 */
 export interface Deliverable {
@@ -46,38 +49,75 @@ function extLabel(p: string): string {
   return i > 0 && i < name.length - 1 ? name.slice(i + 1).toUpperCase() : 'FILE'
 }
 
+/** 复制路径：成功后对勾停留一会儿，让人知道点到了 */
+function CopyPathButton({ path }: { path: string }) {
+  const [copied, setCopied] = useState(false)
+  useEffect(() => {
+    if (!copied) return
+    const timer = setTimeout(() => setCopied(false), 1400)
+    return () => clearTimeout(timer)
+  }, [copied])
+  return (
+    <button
+      type="button"
+      className="dlv-action"
+      aria-label={copied ? '已复制路径' : '复制路径'}
+      title={copied ? '已复制路径' : '复制路径'}
+      onClick={() => { void navigator.clipboard.writeText(path).then(() => setCopied(true), () => undefined) }}
+    >
+      <UiIcon icon={copied ? SemIcons.check : SemIcons.copy} size="sm" />
+    </button>
+  )
+}
+
 /**
  * 产物卡片。
  *
+ * <p>照 dsh 的交付物卡：类型图标块 + 文件名 + 一行「类型 · 说明」，两列网格，窄时单列。
+ * 操作只放真正能用的：复制路径；视频另给「在工作台查看」（桌面壳目前不提供直接打开文件）。
+ * 操作平时淡出，悬停或键盘聚焦时出现。</p>
+ *
  * @param files 本次交付的文件；通常 1–4 个
+ * @param onOpenWorkbench 有项目工作台可去时传入
  */
-export function Deliverables({ files }: { files: Deliverable[] }) {
+export function Deliverables({ files, onOpenWorkbench }: { files: Deliverable[]; onOpenWorkbench?: () => void }) {
   if (files.length === 0) return null
   return (
-    <div className="dlv">
+    <section className="dlv" aria-label="产物">
       <div className="dlv-head">
         <span>产物</span>
         <span className="dlv-count num">{files.length}</span>
       </div>
       <div className="dlv-group">
-        {files.map((f) => (
-          <div key={f.path} className="dlv-item" title={f.path}>
-            <span className="dlv-media" aria-hidden="true">
-              <UiIcon icon={File01} size="sm" />
-            </span>
-            <span className="dlv-content">
-              <span className="dlv-name">{baseName(f.path)}</span>
-              {/* 描述与类型同处第二行：描述是给人读的，类型是元数据。
-                  两者都可能有也都没有，用分隔点连起来，缺一个就不分隔。 */}
-              <span className="dlv-meta">
-                <span className="dlv-ext">{extLabel(f.path)}</span>
-                {f.description && <span className="dlv-desc">{f.description}</span>}
+        {files.map((f) => {
+          const name = baseName(f.path)
+          const isVideo = fileKindOf(name) === 'video'
+          return (
+            <div key={f.path} className="dlv-item" title={f.path}>
+              <span className="dlv-media" aria-hidden="true">
+                <FileKindIcon name={name} size="md" />
               </span>
-            </span>
-          </div>
-        ))}
+              <span className="dlv-content">
+                <span className="dlv-name">{name}</span>
+                {/* 描述与类型同处第二行：描述是给人读的，类型是元数据 */}
+                <span className="dlv-meta">
+                  <span className="dlv-ext num">{extLabel(f.path)}</span>
+                  {f.description && <span className="dlv-desc">{f.description}</span>}
+                </span>
+              </span>
+              <span className="dlv-actions">
+                {isVideo && onOpenWorkbench ? (
+                  <button type="button" className="dlv-action" aria-label="在工作台查看" title="在工作台查看" onClick={onOpenWorkbench}>
+                    <UiIcon icon={Monitor01} size="sm" />
+                  </button>
+                ) : null}
+                <CopyPathButton path={f.path} />
+              </span>
+            </div>
+          )
+        })}
       </div>
-    </div>
+    </section>
   )
 }
 

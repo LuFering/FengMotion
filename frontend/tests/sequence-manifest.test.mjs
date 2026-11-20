@@ -20,3 +20,12 @@ test('identical clip IDs in different tracks remain distinct, including delimite
   assert.notEqual(sequenceClipKey('one', 'same'), sequenceClipKey('two', 'same'))
   assert.notEqual(sequenceClipKey('a:b', 'c'), sequenceClipKey('a', 'b:c'))
 })
+
+test('video identity prevents same-duration cross-version tracks and fallback editing', () => {
+  const bound = parseSequenceManifest({ ...manifest, artifactPath: 'renders/a.mp4', detail: 'sequences' })
+  assert.ok(manifestMatches(bound, { artifactPath: 'renders/a.mp4', duration: 4 }))
+  assert.equal(manifestMatches(bound, { artifactPath: 'renders/b.mp4', sourceHash: 'revision-a', duration: 4 }), false)
+  assert.equal(manifestMatches(bound, { artifactPath: 'renders/a.mp4', sourceHash: 'wrong', duration: 4 }), false)
+  assert.equal(manifestMatches({ ...bound, detail: 'limited' }, { artifactPath: 'renders/a.mp4', duration: 4 }), false)
+  assert.equal(manifestMatches(manifest, { artifactPath: 'renders/a.mp4', sourceHash: 'revision-a', duration: 4 }), false)
+})

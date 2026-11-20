@@ -1,0 +1,448 @@
+/* ═══════════════════════════════════════════════════════════════
+   实时画面 · 选中元素的微型工具条与抽屉
+
+   挂在 #pane-flow 里，只用工作台令牌（workbench-a2/tokens.css）：
+   面 --panel / 浮起 --raised / 参数卡 --panel2 / 线 --line、--line2 / 字 --tx、--tx2、--tx3 /
+   强调 --acc、--acc-tx、--sel / 阴影 --shadow-mid / 曲线 --eo。三套主题随令牌切换。
+   规范：工作台设计规范 V3 §6 字号与等宽数字、§7 动效、§8.6 属性面板。
+   同心圆角：工具条 10 = 按钮 7 + 内边距 3；抽屉 14 = 参数卡 9 + 内边距 5。
+   ═══════════════════════════════════════════════════════════════ */
+
+#pane-flow .lve {
+  position: fixed;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: max-content;
+  max-width: min(420px, calc(100vw - 24px));
+  font-family: var(--sans);
+  color: var(--tx);
+  animation: lve-in 180ms var(--eo);
+  transform-origin: top left;
+}
+#pane-flow .lve[data-up] { flex-direction: column-reverse; transform-origin: bottom left; }
+@keyframes lve-in { from { opacity: 0; transform: scale(.965) translateY(-5px); } }
+#pane-flow .lve[data-up] { animation-name: lve-in-up; }
+@keyframes lve-in-up { from { opacity: 0; transform: scale(.965) translateY(5px); } }
+
+/* ── 第一级：工具条 ── */
+#pane-flow .lve-bar {
+  display: flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 1px;
+  height: 34px;
+  padding: 3px;
+  border: 1px solid var(--line2);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--panel) 94%, transparent);
+  box-shadow: var(--shadow-mid);
+  backdrop-filter: blur(14px);
+}
+#pane-flow .lve-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-width: 26px;
+  height: 26px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--tx2);
+  font: inherit;
+  font-size: 12px;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 150ms var(--eo), color 150ms var(--eo), transform 150ms var(--eo);
+}
+#pane-flow .lve-btn:hover:not(:disabled) { background: var(--hover); color: var(--tx); }
+#pane-flow .lve-btn:active:not(:disabled) { transform: scale(.97); }
+#pane-flow .lve-btn[aria-pressed="true"] { background: var(--sel); color: var(--acc-tx); }
+#pane-flow .lve-btn:disabled { opacity: .4; cursor: default; }
+#pane-flow .lve-btn:focus-visible { outline: 2px solid var(--acc); outline-offset: 0; }
+#pane-flow .lve-name { max-width: 150px; padding: 0 7px; color: var(--tx); font-weight: 600; }
+#pane-flow .lve-name > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+#pane-flow .lve-caret { flex: none; opacity: .6; transition: transform 150ms var(--eo); }
+#pane-flow .lve-name[aria-pressed="true"] .lve-caret { transform: rotate(180deg); }
+#pane-flow .lve-glyph { font-size: 12.5px; font-weight: 600; letter-spacing: -.02em; }
+#pane-flow .lve-val .num,
+#pane-flow .lve-hexmini { color: var(--tx); font-size: 11.5px; font-variant-numeric: tabular-nums; }
+#pane-flow .lve-btn[aria-pressed="true"] .num { color: inherit; }
+#pane-flow .lve-hexmini { font-family: var(--font-mono); font-size: 11px; color: var(--tx2); }
+#pane-flow .lve-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tx) 22%, transparent);
+}
+#pane-flow .lve-ai { color: var(--acc-tx); }
+#pane-flow .lve-x { color: var(--tx3); }
+#pane-flow .lve-sep { width: 1px; height: 16px; margin: 0 3px; background: var(--line2); }
+#pane-flow .lve-spin { margin: 0 4px; color: var(--tx2); animation: lve-spin 1s linear infinite; }
+@keyframes lve-spin { to { transform: rotate(360deg); } }
+#pane-flow .lve[data-stale] .lve-bar > .lve-btn:not(.lve-x) { pointer-events: none; opacity: .55; }
+
+/* 写回失败：贴在工具条旁的一行 */
+#pane-flow .lve-msg {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  align-self: flex-start;
+  max-width: 360px;
+  padding: 6px 6px 6px 10px;
+  border: 1px solid color-mix(in srgb, var(--bad) 40%, var(--line2));
+  border-radius: 9px;
+  background: var(--panel);
+  box-shadow: var(--shadow-mid);
+  color: var(--tx);
+  font-size: 11.5px;
+  line-height: 16px;
+}
+#pane-flow .lve-msg button {
+  display: grid; place-items: center; width: 20px; height: 20px; padding: 0;
+  border: 0; border-radius: 6px; background: transparent; color: var(--tx3); cursor: pointer;
+}
+#pane-flow .lve-msg button:hover { background: var(--hover); color: var(--tx); }
+
+/* ── 第二级：抽屉 ── */
+#pane-flow .lve-drawer {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 296px;
+  max-height: min(420px, 60vh);
+  overflow: auto;
+  padding: 5px;
+  border: 1px solid var(--line2);
+  border-radius: 14px;
+  background: var(--panel);
+  box-shadow: var(--shadow-mid);
+  animation: lve-in 180ms var(--eo);
+  scrollbar-width: thin;
+}
+#pane-flow .lve[data-up] .lve-drawer { animation-name: lve-in-up; }
+#pane-flow .lve-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 6px 7px 4px;
+  color: var(--tx3);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+#pane-flow .lve-head > span {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--tx3);
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 参数行 = 小卡（§8.6）：标签 52px + 控件 + 数值 */
+#pane-flow .lve-row {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  align-items: center;
+  gap: 4px 8px;
+  padding: 7px 9px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--panel2);
+}
+#pane-flow .lve-row-k { color: var(--tx2); font-size: 11.5px; }
+#pane-flow .lve-row-v { display: flex; align-items: center; gap: 8px; min-width: 0; }
+#pane-flow .lve-row-note { grid-column: 2; }
+#pane-flow .lve-row[data-disabled] .lve-row-k { color: var(--tx3); }
+
+/* 滑杆：轨高 4，把手 16 圆 + 强调色 2px 描边 */
+#pane-flow .lve-slider {
+  flex: 1;
+  min-width: 0;
+  height: 16px;
+  margin: 0;
+  background: transparent;
+  appearance: none;
+  cursor: pointer;
+}
+#pane-flow .lve-slider::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 999px;
+  background: linear-gradient(to right, var(--acc) var(--lve-pct, 0%), var(--line2) var(--lve-pct, 0%));
+}
+#pane-flow .lve-slider::-webkit-slider-thumb {
+  width: 16px;
+  height: 16px;
+  margin-top: -6px;
+  border: 2px solid var(--acc);
+  border-radius: 999px;
+  background: var(--raised);
+  box-shadow: var(--shadow-control);
+  appearance: none;
+}
+#pane-flow .lve-slider::-moz-range-track { height: 4px; border-radius: 999px; background: var(--line2); }
+#pane-flow .lve-slider::-moz-range-progress { height: 4px; border-radius: 999px; background: var(--acc); }
+#pane-flow .lve-slider::-moz-range-thumb { width: 12px; height: 12px; border: 2px solid var(--acc); border-radius: 999px; background: var(--raised); }
+#pane-flow .lve-slider:disabled { cursor: default; opacity: .45; }
+#pane-flow .lve-slider:focus-visible { outline: none; }
+#pane-flow .lve-slider:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 3px var(--sel); }
+
+/* 数字框：等宽；悬停出边框；按住左右拖动擦洗 */
+#pane-flow .lve-num {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 2px;
+  height: 24px;
+  padding: 0 6px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: var(--panel);
+  cursor: ew-resize;
+  transition: border-color 150ms var(--eo);
+}
+#pane-flow .lve-num:hover:not([data-disabled]),
+#pane-flow .lve-num:focus-within { border-color: var(--line2); }
+#pane-flow .lve-num:focus-within { cursor: text; border-color: var(--acc); }
+#pane-flow .lve-num input {
+  width: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--tx);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  outline: none;
+  cursor: inherit;
+}
+#pane-flow .lve-num-unit { color: var(--tx3); font-size: 10.5px; }
+#pane-flow .lve-num[data-disabled] { cursor: default; opacity: .55; }
+
+/* 分段：胶囊嵌胶囊，选中段浮起面 + 轻阴影 + 字重 600 */
+#pane-flow .lve-seg {
+  display: flex;
+  flex: 1;
+  gap: 1px;
+  padding: 2px;
+  border-radius: 999px;
+  background: var(--panel);
+}
+#pane-flow .lve-seg button {
+  flex: 1;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--tx2);
+  font-size: 11px;
+  cursor: pointer;
+  transition: background-color 150ms var(--eo), color 150ms var(--eo);
+}
+#pane-flow .lve-seg button:hover:not(:disabled) { color: var(--tx); }
+#pane-flow .lve-seg button[aria-checked="true"] { background: var(--raised); color: var(--tx); font-weight: 600; box-shadow: var(--shadow-control); }
+#pane-flow .lve-seg button:disabled { cursor: default; }
+#pane-flow .lve-seg[data-disabled] { opacity: .5; }
+
+/* 取色：色块（点开系统取色器）+ 十六进制 */
+#pane-flow .lve-color { display: flex; align-items: center; gap: 8px; }
+#pane-flow .lve-swatch {
+  position: relative;
+  width: 24px;
+  height: 24px;
+  overflow: hidden;
+  border-radius: 6px;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tx) 20%, transparent);
+  cursor: pointer;
+}
+#pane-flow .lve-swatch input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+#pane-flow .lve-hex {
+  width: 84px;
+  height: 24px;
+  padding: 0 7px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--tx);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  text-transform: uppercase;
+  outline: none;
+}
+#pane-flow .lve-hex:hover:not(:disabled) { border-color: var(--line2); }
+#pane-flow .lve-hex:focus { border-color: var(--acc); }
+#pane-flow .lve-color[data-disabled] { opacity: .55; }
+
+/* 计算出来的值：说明来源，按需换成固定值 */
+#pane-flow .lve-expr {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+  color: var(--tx3);
+  font-size: 11px;
+}
+#pane-flow .lve-expr code {
+  padding: 0 5px;
+  border-radius: 4px;
+  background: var(--panel);
+  color: var(--tx2);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  line-height: 16px;
+}
+#pane-flow .lve-expr button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--acc-tx);
+  font: inherit;
+  cursor: pointer;
+}
+#pane-flow .lve-expr button:hover { text-decoration: underline; text-underline-offset: 2px; }
+
+/* 文字 / 交给 AI 的输入 */
+#pane-flow .lve-text,
+#pane-flow .lve-ask textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--panel2);
+  color: var(--tx);
+  font: inherit;
+  font-size: 13px;
+  line-height: 20px;
+  resize: none;
+  outline: none;
+  transition: border-color 150ms var(--eo);
+}
+#pane-flow .lve-text:focus,
+#pane-flow .lve-ask textarea:focus { border-color: var(--acc); }
+#pane-flow .lve-ask { position: relative; }
+#pane-flow .lve-ask textarea { padding-right: 38px; }
+#pane-flow .lve-ask button {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: var(--acc);
+  color: var(--acc-ink);
+  cursor: pointer;
+  transition: opacity 150ms var(--eo), transform 150ms var(--eo);
+}
+#pane-flow .lve-ask button:active:not(:disabled) { transform: scale(.97); }
+#pane-flow .lve-ask button:disabled { opacity: .3; cursor: default; }
+
+#pane-flow .lve-actions { display: flex; align-items: center; gap: 6px; padding: 2px 2px 0; }
+#pane-flow .lve-hint { flex: 1; min-width: 0; margin: 0; padding: 0 4px; color: var(--tx3); font-size: 11px; line-height: 16px; }
+#pane-flow .lve-ghost,
+#pane-flow .lve-primary {
+  height: 26px;
+  padding: 0 11px;
+  border-radius: 7px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background-color 150ms var(--eo), transform 150ms var(--eo);
+}
+#pane-flow .lve-ghost { border: 1px solid var(--line2); background: transparent; color: var(--tx); }
+#pane-flow .lve-ghost:hover:not(:disabled) { background: var(--hover); }
+#pane-flow .lve-primary { border: 0; background: var(--acc); color: var(--acc-ink); font-weight: 600; }
+#pane-flow .lve-ghost:active:not(:disabled),
+#pane-flow .lve-primary:active:not(:disabled) { transform: scale(.97); }
+#pane-flow .lve-ghost:disabled,
+#pane-flow .lve-primary:disabled { opacity: .4; cursor: default; }
+#pane-flow .lve-wide { width: 100%; margin-top: 6px; }
+
+/* 层级列表：外 → 内缩进 */
+#pane-flow .lve-list { display: flex; flex-direction: column; gap: 1px; }
+#pane-flow .lve-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 28px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--tx2);
+  font: inherit;
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+}
+#pane-flow .lve-item:hover { background: var(--hover); color: var(--tx); }
+#pane-flow .lve-item[aria-selected="true"] { background: var(--sel); color: var(--acc-tx); font-weight: 600; }
+#pane-flow .lve-item-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#pane-flow .lve-item-src { color: var(--tx3); font-family: var(--font-mono); font-size: 10.5px; font-weight: 400; }
+
+/* ── 第三级：详情里的折叠块 ── */
+#pane-flow .lve-sec { border-radius: 9px; }
+#pane-flow .lve-sec[data-open] { background: var(--panel2); box-shadow: inset 0 0 0 1px var(--line); }
+#pane-flow .lve-sec-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 30px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--tx);
+  font: inherit;
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+}
+#pane-flow .lve-sec-head:hover { background: var(--hover); }
+#pane-flow .lve-sec-v { margin-left: auto; color: var(--tx3); font-size: 11.5px; }
+#pane-flow .lve-sec-v.num, #pane-flow .lve-sec-v .num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+#pane-flow .lve-sec[data-open] .lve-caret { transform: rotate(180deg); }
+#pane-flow .lve-sec-body { padding: 0 9px 9px; }
+#pane-flow .lve-dl { display: flex; flex-direction: column; gap: 4px; margin: 0; }
+#pane-flow .lve-dl > div { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+#pane-flow .lve-dl dt { flex: 0 0 34px; color: var(--tx3); font-size: 11px; }
+#pane-flow .lve-dl dd { min-width: 0; margin: 0; overflow: hidden; color: var(--tx2); font-size: 11.5px; text-overflow: ellipsis; white-space: nowrap; }
+#pane-flow .lve-dl .num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+#pane-flow .lve-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px; }
+#pane-flow .lve-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--tx);
+  font-size: 11px;
+  cursor: pointer;
+}
+#pane-flow .lve-link:hover { color: var(--acc-tx); }
+
+/* 触感主题：浮层用硬阴影（§5 / §10） */
+html[data-theme="tactile"] #pane-flow .lve-bar,
+html[data-theme="tactile"] #pane-flow .lve-drawer,
+html[data-theme="tactile"] #pane-flow .lve-msg { border: 2px solid #22231f; box-shadow: 5px 5px 0 rgba(34, 35, 31, .85); backdrop-filter: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  #pane-flow .lve,
+  #pane-flow .lve-drawer { animation: none; }
+}

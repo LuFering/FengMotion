@@ -1,0 +1,29 @@
+/* 项目色块（ProjectTile）：色相按项目名固定生成（--tile-h），
+   深 / 浅 / 触感三套主题各取一组明度，保证字与底的对比都够。 */
+.project-tile {
+  --tile-h: 210;
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: hsl(var(--tile-h) 32% 24%);
+  color: hsl(var(--tile-h) 70% 80%);
+  font-size: 12.5px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0;
+  user-select: none;
+}
+.project-tile[data-size='sm'] { width: 22px; height: 22px; border-radius: 6px; font-size: 11px; }
+.project-tile[data-size='xs'] { width: 18px; height: 18px; border-radius: 5px; font-size: 10px; }
+html[data-theme="light"] .project-tile {
+  background: hsl(var(--tile-h) 62% 92%);
+  color: hsl(var(--tile-h) 48% 34%);
+}
+html[data-theme="tactile"] .project-tile {
+  background: hsl(var(--tile-h) 36% 82%);
+  color: hsl(var(--tile-h) 42% 26%);
+  box-shadow: inset 0 0 0 1px rgba(34, 35, 31, .16);
+}

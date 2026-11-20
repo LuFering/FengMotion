@@ -136,6 +136,34 @@ function AppContent() {
     return projectSessions[0]?.id ?? null
   }, [openProject, threads.activeId, threads.sessions])
 
+  /* 当前项目跟着打开的对话走。
+     启动时会恢复上次打开的对话，但当前项目（openProject）只认地址栏，于是对话内容显示出来了，
+     左栏却没选中、「工作台」也是灰的，非要点一下那条对话才能用。现在对话一确定，就把它所属的项目设为当前项目。
+     只在对话所属项目变化时跟一次：之后用户在左栏换项目、或在工作台切项目，不会被拉回去。 */
+  const activeSessionProject = threads.sessions.find((s) => s.id === threads.activeId)?.projectId ?? null
+  const urlProject = useRef(initialQuery.get('project'))
+  useEffect(() => {
+    if (!activeSessionProject || activeSessionProject === openProject) return
+    /* 地址栏指定了项目（调试直达）时，首次不覆盖它 */
+    if (urlProject.current && openProject === urlProject.current) { urlProject.current = null; return }
+    setOpenProject(activeSessionProject)
+    // 只跟「对话所属项目」的变化；openProject 不进依赖，否则用户手动换项目会被拉回
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSessionProject])
+
+  /* 启动时没有上次打开的对话（第一次用、或那条已被删）：会话列表读完后，打开最近活跃的一条。
+     只做一次，不在之后用户主动清空选择时又自动选上。 */
+  const autoOpened = useRef(false)
+  useEffect(() => {
+    if (autoOpened.current || projects.loading || threads.loading || threads.sessions.length === 0) return
+    /* 会话按项目分批读回：所有项目都读完才判断，否则上次那条可能只是所在项目还没读到 */
+    if (!projects.list.every((p) => threads.loadedProjects.has(p.id))) return
+    autoOpened.current = true
+    if (threads.activeId && threads.sessions.some((s) => s.id === threads.activeId)) return
+    const latest = [...threads.sessions].filter((s) => !s.archived).sort((a, b) => b.updatedAt - a.updatedAt)[0]
+    if (latest) threads.setActiveId(latest.id)
+  }, [projects.loading, projects.list, threads.loading, threads.loadedProjects, threads.sessions, threads.activeId, threads])
+
   const handleSelectWorkbenchSession = useCallback((sessionId: string) => {
     threads.setActiveId(sessionId)
     if (openProject) {

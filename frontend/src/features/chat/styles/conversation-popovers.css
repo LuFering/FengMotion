@@ -1,5 +1,0 @@
-/* 对话输入区弹层入口（原先单文件，按段拆进 conversation-popovers/）。
-   按原先的先后顺序引入，层叠顺序不能调换：后面的段会覆盖前面的规则。 */
-@import "./conversation-popovers/harness-pop.css";/* 引擎与模型弹窗 */
-@import "./conversation-popovers/menus.css";/* Radix 菜单、权限、添加面板 */
-@import "./conversation-popovers/composer-bar.css";/* 向上展开、待发送附件、发送钮、状态条 */

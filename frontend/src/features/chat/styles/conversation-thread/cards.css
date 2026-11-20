@@ -1,0 +1,93 @@
+/* ═══════════════════════════════════════════════════════════════
+   阅读区里的内嵌卡片：文件改动、交付产物、提问表单、代码块、表格、「新建的东西」
+
+   这些组件工作台右栏也在用，原样式按右栏写（底色 = --surf，自带上下外边距）。
+   对话页的阅读区本身就是 --surf，卡片再用 --surf 就只剩一条线 —— 浅色主题下几乎看不见。
+   所以在对话页内统一改成「内嵌一档」：--cv-inset 底、0.5px 线、12 圆角、无投影；
+   外边距一律归零，间距交给 .cv3-ai-block 的 gap。
+   ═══════════════════════════════════════════════════════════════ */
+
+#pane-conversation .fc,
+#pane-conversation .qf,
+#pane-conversation .dlv {
+  max-width: 100%;
+  margin: 0;
+}
+
+#pane-conversation .fc,
+#pane-conversation .qf,
+#pane-conversation .dlv-item,
+#pane-conversation .md-code,
+#pane-conversation .cv3-changes {
+  border: .5px solid var(--cv-line);
+  border-radius: var(--cv-r-card);
+  background: var(--cv-inset);
+}
+
+#pane-conversation .dlv-item:hover,
+#pane-conversation .dlv-item:focus-within {
+  border-color: var(--cv-line-strong);
+  background: color-mix(in srgb, var(--cv-inset) 96%, var(--fg));
+}
+
+/* 卡片里的分隔线、页脚与输入框跟着卡片换档 */
+#pane-conversation .qf-head,
+#pane-conversation .qf-foot { border-color: var(--cv-line); }
+#pane-conversation .qf-foot { background: transparent; }
+#pane-conversation .qf-input {
+  border-color: var(--cv-line);
+  background: var(--cv-raised);
+}
+#pane-conversation .qf-title { font-size: 13px; line-height: 18px; }
+
+/* 代码块与表格：代码块在正文流里，靠卡片自身和上下文分开 */
+#pane-conversation .md-code { margin: 4px 0 14px; }
+#pane-conversation .md th { background: var(--cv-inset); }
+#pane-conversation .md th,
+#pane-conversation .md td { border-color: var(--cv-line); }
+#pane-conversation .md table {
+  overflow: hidden;
+  border-radius: var(--cv-r-ctl);
+}
+
+/* 「新建的东西」：旧消息里的产物表，按同一张卡片画 */
+#pane-conversation .cv3-changes { padding: 12px 14px 6px; }
+#pane-conversation .cv3-changes-title { font-size: 13px; font-weight: 600; }
+#pane-conversation .cv3-changes th,
+#pane-conversation .cv3-changes td { border-color: var(--cv-line); font-size: 13px; }
+#pane-conversation .cv3-changes tr:last-child td { border-bottom: 0; }
+#pane-conversation .cv3-changes td code { color: var(--tx1); font-size: 12px; }
+
+/* 创作进度（运行中的创作任务实时预告）：同一档内嵌卡片，标题前一颗呼吸点表示「还在跑」 */
+#pane-conversation .creation-progress {
+  margin: 0;
+  padding: 10px 14px;
+  border: .5px solid var(--cv-line);
+  border-radius: var(--cv-r-card);
+  background: var(--cv-inset);
+  color: var(--tx2);
+  font-size: 13px;
+  line-height: 20px;
+}
+#pane-conversation .creation-progress strong {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+  color: var(--tx3);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 16px;
+}
+#pane-conversation .creation-progress strong::before {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--acc);
+  content: '';
+  animation: cv3-breathe 1.6s ease-in-out infinite;
+}
+@keyframes cv3-breathe { 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) {
+  #pane-conversation .creation-progress strong::before { animation: none; }
+}

@@ -1,129 +1,4 @@
-/* 思考行（dsh ReasoningRow：24px 行，摘要 13/20，展开体缩进 22px，无卡片） */
-.cv3-think {
-  color: var(--tx3);
-  font-size: 13px;
-  line-height: 20px;
-}
 
-.cv3-think summary {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  height: 24px;
-  min-width: 0;
-  overflow: hidden;
-  cursor: pointer;
-  list-style: none;
-}
-
-.cv3-think summary::-webkit-details-marker {
-  display: none;
-}
-
-.cv3-think-chev {
-  flex: none;
-  transition: transform 100ms cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.cv3-think[open] .cv3-think-chev {
-  transform: rotate(180deg);
-}
-
-.cv3-think-title {
-  flex: none;
-  font-weight: 400;
-}
-
-.cv3-think-sep {
-  flex: none;
-  width: 2px;
-  height: 2px;
-  margin: 0 8px;
-  border-radius: 1px;
-  background: var(--tx3);
-}
-
-.cv3-think-sum {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.cv3-think p {
-  margin: 0;
-  padding: 4px 0 4px 22px;
-  color: var(--tx2);
-  font-size: 13px;
-  line-height: 19.5px;
-  white-space: pre-wrap;
-}
-
-/* 工具调用：整组默认收成一行摘要。
-   一轮改工程常产生十几条 bash/read/write，逐条展开会把 agent 的正文淹掉。 */
-.cv3-tool-group {
-  margin: 6px 0;
-  border-radius: 6px;
-  background: var(--hole);
-}
-
-.cv3-tool-group-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 9px;
-  color: var(--tx3);
-  font-size: 11.5px;
-  cursor: pointer;
-  list-style: none;
-}
-
-.cv3-tool-group-head::-webkit-details-marker { display: none; }
-
-/* 摘要上露出失败：不能让用户展开才发现出错 */
-.cv3-tool-group[data-state='failed'] .cv3-tool-group-title { color: var(--bad); }
-
-.cv3-tool-group-title { font-weight: 550; }
-
-.cv3-tool-group-hint {
-  margin-left: auto;
-  color: var(--tx3);
-  opacity: 0.7;
-  font-size: 10.5px;
-}
-
-.cv3-tool-group > .cv3-tool-list {
-  padding: 0 9px 4px;
-}
-
-/* 工具调用行：0.5px 底边分隔，标签 + 详情 */
-.cv3-tools {
-  display: flex;
-  flex-direction: column;
-}
-
-/* 检索到的参考/特效：不逐行画分隔线（长线在窄栏里像表格），
-   靠行间距与次级色区分即可 */
-.cv3-tool {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  padding: 8px 0;
-  font-size: 13px;
-  line-height: 20px;
-}
-
-.cv3-tool b {
-  flex: none;
-  color: var(--tx2);
-  font-weight: 600;
-}
-
-.cv3-tool span {
-  color: var(--tx3);
-  overflow-wrap: anywhere;
-}
 
 /* 改了什么表（dsh 消息内 markdown 表格口径：文件/改动两列） */
 .cv3-changes-title {
@@ -140,7 +15,7 @@
 
 .cv3-changes th {
   padding: 6px 8px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: .5px solid var(--line);
   color: var(--tx3);
   font-size: 13px;
   font-weight: 500;
@@ -150,7 +25,7 @@
 
 .cv3-changes td {
   padding: 6px 8px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: .5px solid var(--line);
   font-size: 13px;
   line-height: 19.5px;
 }
@@ -162,17 +37,6 @@
   overflow-wrap: anywhere;
 }
 
-
-.cv3-pending {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin: 0;
-  color: var(--tx3);
-  font-size: 12px;
-  line-height: 22px;
-}
-
 .cv3-spin {
   animation: cv3-spin 1s linear infinite;
 }
@@ -181,84 +45,31 @@
   to { transform: rotate(360deg); }
 }
 
-/* 工具调用列表：一轮里可能十几条，按行堆叠，每条可展开看参数。
-   表面靠灰阶递进，不加边框 —— 与其余面板保持一致。
-   margin-top 给足：它紧跟在消息正文后面，真机上 4px 会让工具名与正文黏成一句。 */
-.cv3-tool-list {
-  list-style: none;
-  margin: 10px 0 0 0;
-  padding: 0;
+/* 一轮结束后执行过程收成的这一行（dsh 的 TurnProcessNode：一行、底边 0.5px、数字等宽对齐）。
+   比正文弱一档；悬停时文字变深、箭头出现反馈，不加底色块。 */
+.cv3-process-toggle {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.cv3-tool details {
-  border-radius: 4px;
-  background: var(--hole);
-}
-
-.cv3-tool-head {
-  display: flex;
+  width: 100%;
   align-items: center;
   gap: 8px;
-  padding: 3px 8px;
+  min-height: 32px;
+  margin: 0 0 10px;
+  padding: 0 2px;
+  border: 0;
+  border-bottom: 0.5px solid var(--line);
+  background: transparent;
+  color: var(--dim);
+  font-size: 13px;
+  line-height: 20px;
+  text-align: start;
   cursor: pointer;
-  font-size: 11.5px;
-  line-height: 18px;
-  color: var(--tx2);
-  /* 去掉浏览器默认的三角，用状态文字本身表达展开与否 */
-  list-style: none;
+  transition: color .12s cubic-bezier(.4, 0, .2, 1);
 }
-
-.cv3-tool-head::-webkit-details-marker {
-  display: none;
-}
-
-.cv3-tool-name {
-  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
-  color: var(--tx2);
-}
-
-/* 状态文字：必须带字，不能只靠颜色区分（色弱也要看得出来） */
-.cv3-tool-state {
-  margin-left: auto;
-  font-size: 10.5px;
-  color: var(--tx3);
-}
-
-.cv3-tool[data-state='running'] .cv3-tool-state {
-  color: var(--acc);
-}
-
-.cv3-tool[data-state='done'] .cv3-tool-state {
-  color: var(--good);
-}
-
-.cv3-tool[data-state='failed'] .cv3-tool-state {
-  color: var(--bad);
-}
-
-.cv3-tool[data-state='failed'] .cv3-tool-name {
-  color: var(--bad);
-}
-
-/* 参数全文：等宽、可滚动。默认收起（details 未展开时不可见），
-   展开后限高，避免一次长脚本把对话区顶走。 */
-.cv3-tool-body {
-  margin: 0;
-  padding: 4px 8px 8px 8px;
-  color: var(--tx3);
-  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
-  font-size: 11px;
-  line-height: 16px;
-  white-space: pre-wrap;
-  word-break: break-all;
-  max-height: 240px;
-  overflow-y: auto;
-}
-
-.cv3-tool-body-empty {
-  font-style: normal;
-  opacity: 0.7;
-}
+.cv3-process-toggle:hover,
+.cv3-process-toggle[aria-expanded="true"] { color: var(--fg); }
+.cv3-process-toggle:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; border-radius: 6px; }
+.cv3-process-title { font-weight: 500; }
+.cv3-process-meta { font-variant-numeric: tabular-nums; }
+.cv3-process-failed { color: var(--bad); font-variant-numeric: tabular-nums; }
+.cv3-process-caret { margin-inline-start: auto; width: 16px; height: 16px; flex: none; transition: transform .16s cubic-bezier(.4, 0, .2, 1); }
+.cv3-process-caret.is-open { transform: rotate(180deg); }

@@ -1,28 +1,26 @@
 import type * as React from 'react'
 import { UiIcon, SemIcons } from '@/shared/icons/UiIcon'
 import { Button } from '@/shared/ui/button'
-import { ProjectResourceEvidence } from '@/features/chat/components/ProjectResourceEvidence'
-import { ChatMessage as ChatBubble, RunningDivider, ThinkingIndicator } from '@/features/chat/components'
+import { ChatMessage as ChatBubble } from '@/features/chat/components'
+import { LiveRunStatus } from '@/features/chat/components/conversation/LiveRunStatus'
 import { type RoundOutcome } from '@/features/chat/model/roundOutcomes'
 import { CreationProgress } from '@/features/chat/components/CreationProgress'
 import { Minimize01, SlashCircle01 } from '@untitledui/icons'
 import { DIAGNOSTIC_LABEL } from '@/features/chat/model/conversationFormat'
-import { ContextMeter, type Kind } from '@/features/chat/components/bencho/ContextMeter'
 import type { Session } from '@/features/chat/hooks/useSessions'
 import type { ChatMessage } from '@/features/chat/hooks/useChat'
 import type { ConversationProps } from '@/features/chat/Conversation'
 import type { SessionDraft } from '@/features/chat/hooks/useDraftStore'
 import { AiMessageBlock } from '@/features/chat/components/conversation/AiMessageBlock'
+import { Notice } from '@/features/chat/components/conversation/Notice'
 
 export interface ConversationThreadProps {
   activeIsServer: boolean
   activeMessagesLoaded: boolean
   activeThread: Session | null
   agentPhase: { phase: string; label?: string; callId?: string; arguments?: string; isError?: boolean } | null
-  composerWindow: number
   entryNote: { sessionId: string | null; text: string } | null
   getRoundOutcome: (userMessageId: string | undefined) => RoundOutcome | null
-  messageMeterKinds: Kind[]
   messages: ChatMessage[]
   pending: boolean
   pendingStartedAt: number | null
@@ -38,16 +36,14 @@ export interface ConversationThreadProps {
   sessionDraft: { draft: SessionDraft; updateDraft: (updater: Partial<SessionDraft> | ((prev: SessionDraft) => Partial<SessionDraft>)) => SessionDraft; flushText: (text: string) => void; clearDraft: () => void; key: string }
   setEntryNote: React.Dispatch<React.SetStateAction<{ sessionId: string | null; text: string } | null>>
   setReplyNote: React.Dispatch<React.SetStateAction<string | null>>
-  showMessageMeter: boolean
   startCreationFromEmpty: () => Promise<void>
   startServerReply: (mode?: { attach?: boolean; rerun?: boolean }) => void
   unfinishedReply: boolean
-  usage: { inputTokens?: number; outputTokens?: number; cacheReadTokens?: number; totalTokens?: number } | null
   userMessages: ChatMessage[]
 }
 
 /** 对话页的消息线程：历史读取与同步状态、空会话入口、消息列表、回复中的思考态，以及诊断、上下文占用和用量。 */
-export function ConversationThread({ activeIsServer, activeMessagesLoaded, activeThread, agentPhase, composerWindow, entryNote, getRoundOutcome, messageMeterKinds, messages, pending, pendingStartedAt, projectPending, props, replyNote, replySaveRetry, retryLastRound, retryMessages, retrySaveReply, retrySync, send, sessionDraft, setEntryNote, setReplyNote, showMessageMeter, startCreationFromEmpty, startServerReply, unfinishedReply, usage, userMessages }: ConversationThreadProps) {
+export function ConversationThread({ activeIsServer, activeMessagesLoaded, activeThread, agentPhase, entryNote, getRoundOutcome, messages, pending, pendingStartedAt, projectPending, props, replyNote, replySaveRetry, retryLastRound, retryMessages, retrySaveReply, retrySync, send, sessionDraft, setEntryNote, setReplyNote, startCreationFromEmpty, startServerReply, unfinishedReply, userMessages }: ConversationThreadProps) {
   return (
     <div className="cv3-col">
       {/* 服务端会话：历史、发送与 Agent 回复都已接上。
@@ -58,35 +54,25 @@ export function ConversationThread({ activeIsServer, activeMessagesLoaded, activ
       {/* 历史读取：加载中 / 失败（可重试）。失败时不清空已读到的部分，
           但必须说明「不是完整历史」—— 空会话与没读到是两件事。 */}
       {activeIsServer && !activeMessagesLoaded && !activeThread?.messagesError && (
-        <p className="cv3-streaming" role="status">
-          <UiIcon icon={SemIcons.loading} size="xs" className="cv3-spin" /> 正在读取历史消息…
-        </p>
+        <Notice tone="loading">正在读取历史消息…</Notice>
       )}
       {activeIsServer && activeThread?.messagesError && (
-        <p className="cv3-sync-error" role="alert">
-          <UiIcon icon={SemIcons.error} size="xs" />
-          <span>历史消息没读全（{activeThread.messagesError}）当前显示的只是已读到的部分。</span>
-          <button type="button" onClick={retryMessages}>重试</button>
-        </p>
+        <Notice tone="warn" detail={activeThread.messagesError} action={{ label: '重试', onClick: retryMessages }}>
+          历史消息没读全，下面只是已读到的部分
+        </Notice>
       )}
       {/* 首条需求没存进服务端：内容是用户刚写的，必须原样留在界面上并说明没存。
           不说的话，读回历史后这条会消失，看起来就像「刚写的话丢了」。 */}
       {activeIsServer && activeThread?.unsavedFirst && (
-        <p className="cv3-sync-error" role="alert">
-          <UiIcon icon={SemIcons.error} size="xs" />
-          <span>
-            下面第一条需求没有存进服务端（{activeThread.unsavedFirst.error}）
-            内容只保留在本页，可复制后重新发送。
-          </span>
-        </p>
+        <Notice tone="error" detail={activeThread.unsavedFirst.error}>
+          第一条需求没存进服务端，只留在本页，可复制后重新发送
+        </Notice>
       )}
       {/* 详情读取失败：标题/时间/计数仍来自列表，只是可能不是最新 —— 明说，并给重试 */}
       {activeIsServer && activeThread?.syncError && (
-        <p className="cv3-sync-error" role="alert">
-          <UiIcon icon={SemIcons.error} size="xs" />
-          <span>最新详情没读到（{activeThread.syncError}）当前显示的是最近一次拿到的信息，可能不是最新。</span>
-          <button type="button" onClick={retrySync}>重试</button>
-        </p>
+        <Notice tone="warn" detail={activeThread.syncError} action={{ label: '重试', onClick: retrySync }}>
+          会话详情没刷新到，显示的可能不是最新
+        </Notice>
       )}
       {userMessages.length === 0 && !activeIsServer && sessionDraft.draft.intentAction !== 'query' && (
         <div className="cv3-start-empty">
@@ -97,17 +83,15 @@ export function ConversationThread({ activeIsServer, activeMessagesLoaded, activ
           </div>
         </div>
       )}
-      {entryNote?.sessionId === props.activeSessionId && userMessages.length === 0 && <p className="cv3-entry-note" role="status">{entryNote.text}</p>}
+      {entryNote?.sessionId === props.activeSessionId && userMessages.length === 0 && <Notice>{entryNote.text}</Notice>}
       {/* 本页草稿：明确「不在服务端」。服务端会话已在上面说明，不重复。 */}
       {activeThread?.origin === 'local' && (
-        <p className="cv3-local-note" role="note">
+        <Notice tone="warn" role="note" detail={activeThread.localNote}>
           {activeThread.projectId
-            ? `${activeThread.localNote ?? '这条对话尚未保存到服务端。'} 未接入 Agent 的回复仅用于梳理需求，不代表已经执行。`
-            : '这条对话没有归属项目，仅保存在本页，刷新后不会保留。未接入 Agent 的回复仅用于梳理需求，不代表已经执行。'}
-        </p>
+            ? '这条对话还没保存到服务端，这里的回复只用来梳理需求，不会执行'
+            : '这条对话不属于任何项目，只存在本页，刷新后不保留'}
+        </Notice>
       )}
-
-      {activeThread?.projectId && <ProjectResourceEvidence key={`${activeThread.projectId}:${props.activeSessionId}:${messages.filter(m=>!m.streaming).length}`} projectId={activeThread.projectId}/>}
 
       {messages.map((m) => m.role === 'user' ? (
         <ChatBubble
@@ -138,39 +122,14 @@ export function ConversationThread({ activeIsServer, activeMessagesLoaded, activ
 
       <CreationProgress projectId={activeThread?.projectId} sessionId={props.activeSessionId} />
 
-      {/* ⚠️ 这里原来写的是「pending 且最后一条是 user」。
-          但真实流程一发送就会插入一条 streaming 的 AI 消息（useChat.startAiMessage），
-          所以「最后一条是 user」永远不成立 —— 思考态从来没显示过（实测 ti=0 全程）。
-          正确条件：pending 且当前 AI 消息还没有正文（有正文就该看正文，不是看思考）。 */}
-      {pending && (messages[messages.length - 1]?.role === 'ai' ? !messages[messages.length - 1]?.text : true) && (
-        <>
-        {/* dsh 只在「上一块不是用户消息」时画这条 0.5px 分隔线：
-            紧跟在用户发言之后时，气泡本身就足够分隔，再画一条是多余的。 */}
-        {messages[messages.length - 1]?.role !== 'user' ? <RunningDivider /> : null}
-        {/* 思考态用 ThinkingOrbs：状态与当前阶段一一对应，
-            不是随便挑一个好看的动画。
-            阶段来自后端结构化透传（thinking / tool / 回复），
-            所以这里显示的是真实阶段，不是按时长猜的。 */}
-        <ThinkingIndicator
-          phase={
-            agentPhase === null
-              ? 'working'
-              : agentPhase.phase === 'thinking'
-                ? 'solving'
-                : agentPhase.phase === 'tool'
-                  ? 'searching'
-                  : 'working'
-          }
-          label={
-            agentPhase?.phase === 'tool' && agentPhase.label
-              ? agentPhase.isError
-                ? `工具失败：${agentPhase.label}`
-                : `正在调用：${agentPhase.label}`
-              : undefined
-          }
-          elapsed={pendingStartedAt ? (Date.now() - pendingStartedAt) / 1000 : undefined}
+      {/* 运行中的状态行：整轮在跑就常驻在最底部，正文出来后也不撤（见 LiveRunStatus） */}
+      {pending && (
+        <LiveRunStatus
+          phase={agentPhase}
+          startedAt={pendingStartedAt}
+          hasText={Boolean(messages[messages.length - 1]?.role === 'ai' && messages[messages.length - 1]?.text)}
+          afterUser={messages[messages.length - 1]?.role === 'user'}
         />
-        </>
       )}
       {/* 工具调用历史：一轮里可能调十几次工具，只显示「当前一个」等于没有记录。
           这里用 TaskList —— 它是 BoardUI 任务列表的 1:1 移植（第 6、7 项），
@@ -210,35 +169,15 @@ export function ConversationThread({ activeIsServer, activeMessagesLoaded, activ
           </p>
         )
       })()}
-      {/* 上下文占用：这是**唯一**的入口（输入框里的圆环已撤掉）。
-          只有拿到真实分子和分母才画 —— 画一个没有分母的进度条不如不画。
-          数据取「最后一条带 usage 的 AI 消息」的落库值（composerPromptTokens /
-          composerWindow），与输入框同源；分档口径见 composerMeterKinds：
-          system / tools / files / chat / memory 五档相加正好等于实测 prompt 大小。 */}
-      {showMessageMeter && (
-        <div className="cv3-ctxmeter">
-          <ContextMeter kinds={messageMeterKinds} windowK={Math.round(composerWindow / 1000)} style="Bar" />
-        </div>
-      )}
-      {usage && (usage.inputTokens !== undefined || usage.outputTokens !== undefined) && (
-        <p className="cv3-usage num">
-          {usage.inputTokens !== undefined && <>输入 {usage.inputTokens}</>}
-          {usage.outputTokens !== undefined && <>{usage.inputTokens !== undefined ? ' · ' : ''}输出 {usage.outputTokens}</>}
-          {usage.cacheReadTokens !== undefined && usage.cacheReadTokens > 0 && (
-            <> · 缓存命中 {usage.cacheReadTokens}</>
-          )}
-        </p>
-      )}
+      {/* 上下文占用只在输入框的圆环里看（悬停展开分档）；这一轮的用量在回复操作条右侧。
+          消息底部不再单独铺一条占用条和一行用量文字。 */}
       {/* 服务端回复的如实说明：能力缺口（Agent 未接入）不是「回复失败」，
           所以用中性说明而不是红色失败块 —— 重试也不会好，别让人白等。 */}
       {replyNote && (
-        <p className="cv3-demo-note" role="note">
+        <Notice role="note"
+          action={unfinishedReply && !pending ? { label: '重新执行', onClick: () => { setReplyNote(null); startServerReply({ rerun: true }) } } : undefined}>
           {replyNote}
-          {unfinishedReply && !pending && (
-            <Button variant="outline" size="sm" style={{ marginLeft: 8 }}
-              onClick={() => { setReplyNote(null); startServerReply({ rerun: true }) }}>重新执行</Button>
-          )}
-        </p>
+        </Notice>
       )}
     </div>
   )

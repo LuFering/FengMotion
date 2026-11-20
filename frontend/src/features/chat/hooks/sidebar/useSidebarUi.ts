@@ -9,11 +9,10 @@ export interface UseSidebarUiArgs {
   showProjectError: (error: unknown) => void
 }
 
-/** 对话页左栏的界面状态：窄窗收起、分组折叠、拖动、视图选项、行菜单与就地重命名，以及项目归档、删除的确认流程。 */
+/** 对话页「项目与对话」面板的界面状态：开合、分组折叠、拖动、视图选项、行菜单与就地重命名，以及项目归档、删除的确认流程。 */
 export function useSidebarUi({ props, setProjectError, showProjectError }: UseSidebarUiArgs) {
-  /* dsh 响应式：1024 以下左栏自动收为 56px 轨，手动展开为覆盖式抽屉 */
-  const [narrow, setNarrow] = useState(() => (typeof window === 'undefined' ? false : window.innerWidth < 1024))
-  const [sideExpanded, setSideExpanded] = useState(() => (typeof window === 'undefined' ? true : window.innerWidth >= 1024))
+  /* 项目与对话面板：收在左上角的切换按钮里，点开才浮出来，默认收起 */
+  const [sideOpen, setSideOpen] = useState(false)
   /* 左栏两级树：折叠状态、正在拖的会话、拖放目标组 */
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(() => new Set())
   const [dragId, setDragId] = useState<string | null>(null)
@@ -105,5 +104,5 @@ export function useSidebarUi({ props, setProjectError, showProjectError }: UseSi
       setDeletingBusy(false)
     }
   }, [deletingProject, props])
-  return { setNarrow, archiveFilter, groupMode, narrow, orderMode, query, sideExpanded, setEditing, setEditText, setCollapsedGroups, setSideExpanded, setQuery, viewMenu, setViewMenu, setRowMenu, setGroupMode, setOrderMode, setArchiveFilter, collapsedGroups, dragId, setDropTarget, setDragId, editing, editText, dropTarget, rowMenu, setArchivingProject, setDeleteConfirmText, setDeletingProject, archivingProject, deletingBusy, confirmArchiveProject, deletingProject, deleteConfirmText, confirmDeleteProject }
+  return { archiveFilter, groupMode, orderMode, query, sideOpen, setEditing, setEditText, setCollapsedGroups, setSideOpen, setQuery, viewMenu, setViewMenu, setRowMenu, setGroupMode, setOrderMode, setArchiveFilter, collapsedGroups, dragId, setDropTarget, setDragId, editing, editText, dropTarget, rowMenu, setArchivingProject, setDeleteConfirmText, setDeletingProject, archivingProject, deletingBusy, confirmArchiveProject, deletingProject, deleteConfirmText, confirmDeleteProject }
 }

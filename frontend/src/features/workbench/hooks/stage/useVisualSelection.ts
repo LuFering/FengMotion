@@ -155,8 +155,6 @@ export function useVisualSelection({ capturedPreview, catalog, outline, projectI
     () => versionStanding(viewedPreview, projectVersion),
     [viewedPreview, projectVersion],
   )
-  /* 场景版本快照里的渲染元信息：帧率与 sourceHash。
-     只用来校准时间线；没有就是没有，不猜。 */
   const sceneFilmMeta = useMemo(() => {
     if (viewedPreview?.origin !== 'scene') return null
     const film = sceneVersions.versions.find((version) => version.version === viewedPreview.revision)?.film

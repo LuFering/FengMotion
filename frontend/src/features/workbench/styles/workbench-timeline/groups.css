@@ -1,0 +1,715 @@
+/* ── 9. 轨道按类别收成抽屉（设计规范 §8.5 / §6）──────────────────────
+   片段用类别代表色：浅底 + 左侧 2px 色边；场景轨 32px、元素轨 24px、片段间 3px 缝。
+   颜色全部从工作台变量派生，深色 / 浅色 / Tactile 三个主题自动跟随。 */
+
+.wb-tl {
+  --tl-scene: var(--acc);
+  --tl-text: var(--mark);
+  --tl-shape: color-mix(in srgb, var(--ok) 50%, var(--acc));
+  --tl-background: var(--tx3);
+  --tl-media: color-mix(in srgb, var(--acc) 50%, #b06ad9);
+  --tl-audio: var(--ok);
+  --wb-tl-lane-h: 24px;
+  --wb-tl-scene-h: 32px;
+}
+
+/* Tactile 的强调色是黄：图形改用独立的青色，不和场景、文字混 */
+html[data-theme="tactile"] #pane-flow .wb-tl {
+  --tl-shape: #1f8a86;
+  --tl-media: #7a4fb0;
+}
+
+.wb-tl-group { --c: var(--tl-shape); border-bottom: 1px solid var(--line); }
+.wb-tl-group[data-cat='scene'] { --c: var(--tl-scene); }
+.wb-tl-group[data-cat='text'] { --c: var(--tl-text); }
+.wb-tl-group[data-cat='shape'] { --c: var(--tl-shape); }
+.wb-tl-group[data-cat='background'] { --c: var(--tl-background); }
+.wb-tl-group[data-cat='media'] { --c: var(--tl-media); }
+.wb-tl-group[data-cat='audio'] { --c: var(--tl-audio); }
+
+/* ── 行：抽屉头 + 各条轨 ── */
+.wb-tl-group-head,
+.wb-tl-lane-row {
+  height: var(--wb-tl-lane-h);
+  background: var(--panel);
+}
+
+.wb-tl-group[data-cat='scene'] .wb-tl-group-head[data-single],
+.wb-tl-group[data-cat='scene'] .wb-tl-lane-row {
+  height: var(--wb-tl-scene-h);
+}
+
+.wb-tl-group-head .wb-tl-lane,
+.wb-tl-lane-row .wb-tl-lane {
+  height: 100%;
+  background: var(--panel2);
+}
+
+/* 展开的多轨抽屉：头行只是标题，轨道槽留空并略暗，和下面的轨分开 */
+.wb-tl-group-head:not([data-single]) .wb-tl-lane {
+  background: color-mix(in srgb, var(--panel) 60%, var(--panel2));
+}
+
+.wb-tl-lane-row + .wb-tl-lane-row .wb-tl-lane {
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--line) 55%, transparent);
+}
+
+.wb-tl-group .wb-tl-gutter {
+  gap: 6px;
+  padding: 0 8px 0 8px;
+}
+
+.wb-tl-group[data-active] > .wb-tl-group-head .wb-tl-gutter {
+  box-shadow: inset 2px 0 0 var(--c);
+}
+
+.wb-tl-group .wb-tl-track-type-icon {
+  flex-basis: 14px;
+  width: 14px;
+  color: var(--c);
+}
+
+/* 类别标题：规范 §6 的 10.5px 大写小标题 */
+.wb-tl-group-name {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--tx);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.wb-tl-group-count {
+  flex: 0 0 auto;
+  margin-left: auto;
+  color: var(--tx3);
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.wb-tl[data-gutter='tight'] .wb-tl-group-count {
+  display: none;
+}
+
+.wb-tl-group-hits {
+  flex: none;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--mark) 22%, transparent);
+  color: var(--tx);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  line-height: 15px;
+  text-align: center;
+}
+
+/* 抽屉里有改动：小圆点 + 数字，点一下跳到下一处 */
+.wb-tl-change-badge {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 3px;
+  height: 16px;
+  padding: 0 5px 0 4px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--raised);
+  color: var(--tx);
+  cursor: pointer;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  transition: border-color 120ms var(--eo, ease);
+}
+
+.wb-tl-change-badge::before,
+.wb-tl-change-dot {
+  content: '';
+  flex: none;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--tx);
+}
+
+.wb-tl-change-badge:hover {
+  border-color: var(--tx3);
+}
+
+.wb-tl-lane-name {
+  min-width: 0;
+  overflow: hidden;
+  padding-left: 22px;
+  color: var(--tx3);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── 收起的抽屉：疏密条 ── */
+.wb-tl-density {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  padding: 0 1px;
+  cursor: pointer;
+}
+
+.wb-tl-density span {
+  flex: 1 1 0;
+  height: 9px;
+  border-radius: 1.5px;
+  background: var(--c);
+  transition: height 120ms var(--eo, ease);
+}
+
+.wb-tl-density span[data-empty] {
+  height: 3px;
+  background: color-mix(in srgb, var(--tx) 7%, transparent);
+}
+
+.wb-tl-density:hover span:not([data-empty]) {
+  height: 13px;
+}
+
+.wb-tl-density[aria-disabled='true'] {
+  cursor: default;
+}
+
+/* ── 片段 ── */
+.wb-tl-group .wb-tl-clip {
+  top: 3px;
+  height: calc(100% - 6px);
+  min-width: 3px;
+  gap: 5px;
+  padding: 0 6px;
+  border: 1px solid color-mix(in srgb, var(--c) 24%, transparent);
+  border-left: 2px solid var(--c);
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--c) 15%, var(--panel2));
+  color: var(--tx);
+  font-size: 11px;
+  transition: background-color 120ms var(--eo, ease), opacity 160ms var(--eo, ease), box-shadow 120ms var(--eo, ease);
+}
+
+.wb-tl-group .wb-tl-clip:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--c) 24%, var(--panel2));
+  border-color: color-mix(in srgb, var(--c) 40%, transparent);
+  border-left-color: var(--c);
+}
+
+.wb-tl-group .wb-tl-clip:active:not(:disabled) {
+  transform: scale(0.985);
+}
+
+/* 太窄：只剩色块 */
+.wb-tl-group .wb-tl-clip[data-tiny] {
+  padding: 0;
+  border-width: 0;
+  border-left-width: 0;
+  background: color-mix(in srgb, var(--c) 55%, var(--panel2));
+}
+
+.wb-tl-group .wb-tl-clip-name {
+  flex: 0 1 auto;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.wb-tl-clip-sub {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--tx3);
+  font-size: 10.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wb-tl-group .wb-tl-clip-icon {
+  width: 12px;
+  height: 12px;
+  color: var(--c);
+}
+
+.wb-tl-group[data-cat='scene'] .wb-tl-clip-name {
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+/* 选中：强调色描边 + 一圈外环（规范 §8.5） */
+.wb-tl-group .wb-tl-clip[data-picked] {
+  z-index: 3;
+  border: 1px solid var(--acc) !important;
+  background: color-mix(in srgb, var(--acc) 20%, var(--panel2)) !important;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--acc) 45%, transparent) !important;
+  color: var(--tx) !important;
+}
+
+html[data-theme="tactile"] #pane-flow .wb-tl-group .wb-tl-clip[data-picked] {
+  border-color: var(--line2) !important;
+  box-shadow: 0 0 0 1px var(--line2) !important;
+}
+
+/* 同一元素在别处出现的片段：淡淡提一下 */
+.wb-tl-group .wb-tl-clip[data-related] {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--acc) 50%, transparent);
+}
+
+/* 搜索：命中的亮、其余淡 */
+.wb-tl-group .wb-tl-clip[data-dim] {
+  opacity: 0.26;
+}
+
+.wb-tl-group .wb-tl-clip[data-match] {
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--mark) 70%, transparent);
+}
+
+.wb-tl-group .wb-tl-clip[data-focus] {
+  z-index: 4;
+  box-shadow: 0 0 0 2px var(--mark);
+}
+
+/* 改过：右上角一个小圆点（像编辑器里「未保存」的那个点） */
+.wb-tl-group .wb-tl-clip[data-changed]::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--tx);
+  box-shadow: 0 0 0 1.5px var(--panel2);
+}
+
+.wb-tl-group .wb-tl-clip[data-tiny][data-changed]::after {
+  top: -3px;
+  right: -3px;
+}
+
+/* ── 播放头：2.5px 强调色 + 顶部三角 + 微光；Tactile 用 3px 墨线、不发光 ── */
+.wb-tl-playhead {
+  width: 2.5px;
+  border-radius: 1px;
+  background: var(--acc);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--acc) 55%, transparent);
+}
+
+.wb-tl-playhead-cap {
+  width: 11px;
+  height: 9px;
+  background: var(--acc);
+  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--acc) 50%, transparent));
+}
+
+html[data-theme="tactile"] #pane-flow .wb-tl-playhead {
+  width: 3px;
+  background: var(--line2);
+  box-shadow: none;
+}
+
+html[data-theme="tactile"] #pane-flow .wb-tl-playhead-cap {
+  background: var(--line2);
+  filter: none;
+}
+
+/* 标尺刻度数字等宽 */
+.wb-tl-tick,
+.wb-tl-fps-label,
+.wb-tl-focus-range,
+.wb-tl-readout {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── 片段悬停提示（挂在 #pane-flow，fixed 定位） ── */
+.wb-tl-tip {
+  position: fixed;
+  z-index: 80;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  max-width: 260px;
+  padding: 7px 10px 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-ctl, 8px);
+  background: var(--raised);
+  box-shadow: var(--shadow-mid);
+  color: var(--tx);
+  font-family: var(--sans);
+  font-size: 12px;
+  pointer-events: none;
+  transform: translateY(-100%);
+  animation: wb-tl-tip-in 140ms var(--eo, ease) both;
+}
+
+@keyframes wb-tl-tip-in {
+  from { opacity: 0; transform: translateY(calc(-100% + 3px)); }
+}
+
+.wb-tl-tip strong {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.wb-tl-tip strong em {
+  padding: 0 5px;
+  border-radius: 6px;
+  background: var(--hover);
+  color: var(--tx2);
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 500;
+}
+
+.wb-tl-tip-text {
+  overflow: hidden;
+  color: var(--tx2);
+  font-size: 11.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wb-tl-tip-time {
+  display: flex;
+  gap: 8px;
+  color: var(--tx);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.wb-tl-tip-time i {
+  color: var(--tx3);
+  font-style: normal;
+}
+
+.wb-tl-tip-src {
+  color: var(--tx3);
+  font-size: 10.5px;
+}
+
+/* ── 悬停在标尺 / 缩略帧带上浮出的那一帧 ── */
+.wb-tl-hover-frame {
+  position: absolute;
+  top: calc(var(--wb-tl-ruler-h) + var(--wb-tl-film-h) + 6px);
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  pointer-events: none;
+  transform: translateX(-50%);
+}
+
+.wb-tl-hover-frame[data-edge='start'] { transform: translateX(-12%); }
+.wb-tl-hover-frame[data-edge='end'] { transform: translateX(-88%); }
+
+.wb-tl-hover-shot {
+  position: relative;
+  width: 160px;
+  height: 90px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--r-thumb, 8px);
+  background: var(--stage-bg);
+  box-shadow: var(--shadow-mid);
+}
+
+.wb-tl-hover-shot canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.wb-tl-hover-shot[data-empty] canvas {
+  opacity: 0;
+}
+
+.wb-tl-hover-note {
+  position: absolute;
+  left: 5px;
+  bottom: 5px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 10px;
+}
+
+.wb-tl-hover-time {
+  padding: 1px 7px;
+  border-radius: 6px;
+  background: var(--raised);
+  box-shadow: var(--shadow-control);
+  color: var(--tx);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── 找元素：平时只是一个放大镜，点开（或有搜索词时）才展开成输入框 ── */
+.wb-tl-search {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 5px;
+  width: 28px;
+  height: 26px;
+  padding: 0 7px;
+  border: 1px solid transparent;
+  border-radius: var(--r-ctl, 8px);
+  background: transparent;
+  color: var(--tx2);
+  cursor: pointer;
+  transition: width 180ms var(--eo, ease), border-color 120ms var(--eo, ease), background-color 120ms var(--eo, ease);
+}
+
+.wb-tl-search:hover {
+  background: color-mix(in srgb, var(--tx) 8%, transparent);
+}
+
+.wb-tl-search:focus-within,
+.wb-tl-search[data-active] {
+  width: 168px;
+  border-color: color-mix(in srgb, var(--acc) 60%, var(--line));
+  background: var(--panel2);
+  cursor: text;
+}
+
+html[data-theme="tactile"] #pane-flow .wb-tl-search:focus-within,
+html[data-theme="tactile"] #pane-flow .wb-tl-search[data-active] {
+  border-color: var(--line2);
+}
+
+.wb-tl-search input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--tx);
+  font-family: var(--sans);
+  font-size: 12px;
+  cursor: inherit;
+}
+
+.wb-tl-search input::placeholder {
+  color: var(--tx3);
+}
+
+.wb-tl-search input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.wb-tl-search-count {
+  flex: none;
+  color: var(--tx3);
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── 顶栏：改动胶囊 ── */
+.wb-tl-focus-pill[data-tone='changes'] .wb-tl-action-btn {
+  border: 1px solid var(--line);
+  background: var(--raised);
+  color: var(--tx);
+}
+
+/* ── 选区里的元素（弹层挂在 #pane-flow） ── */
+.wb-tl-span-pop {
+  z-index: 80;
+  width: 300px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-card, 12px);
+  background: var(--raised);
+  box-shadow: var(--shadow-mid);
+  color: var(--tx);
+  font-family: var(--sans);
+  font-size: 12px;
+  animation: wb-tl-pop-in 180ms var(--eo, ease) both;
+}
+
+@keyframes wb-tl-pop-in {
+  from { opacity: 0; transform: scale(0.965) translateY(-5px); }
+}
+
+.wb-tl-span-pop-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 0 2px 8px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.wb-tl-span-pop-head em {
+  color: var(--tx3);
+  font-family: var(--sans);
+  font-size: 10.5px;
+  font-style: normal;
+}
+
+.wb-tl-span-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  max-height: 220px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+  scrollbar-width: thin;
+}
+
+.wb-tl-span-list button {
+  --c: var(--tl-shape, var(--tx2));
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  padding: 5px 6px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--tx);
+  cursor: pointer;
+  text-align: left;
+}
+
+.wb-tl-span-list button:hover {
+  background: var(--hover);
+}
+
+.wb-tl-span-list button > svg { color: var(--c); }
+.wb-tl-span-list button[data-cat='scene'] { --c: var(--acc); }
+.wb-tl-span-list button[data-cat='text'] { --c: var(--mark); }
+.wb-tl-span-list button[data-cat='background'] { --c: var(--tx3); }
+.wb-tl-span-list button[data-cat='audio'] { --c: var(--ok); }
+
+.wb-tl-span-name {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wb-tl-span-name small {
+  overflow: hidden;
+  color: var(--tx3);
+  font-size: 10.5px;
+  text-overflow: ellipsis;
+}
+
+.wb-tl-span-at {
+  color: var(--tx3);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+}
+
+.wb-tl-span-none {
+  padding: 8px 6px;
+  color: var(--tx3);
+}
+
+.wb-tl-span-ask {
+  position: relative;
+  margin-top: 8px;
+}
+
+.wb-tl-span-ask textarea {
+  display: block;
+  width: 100%;
+  min-height: 52px;
+  padding: 7px 34px 7px 9px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-ctl, 8px);
+  outline: 0;
+  background: var(--panel2);
+  color: var(--tx);
+  font-family: var(--sans);
+  font-size: 12px;
+  resize: none;
+}
+
+.wb-tl-span-ask textarea:focus {
+  border-color: color-mix(in srgb, var(--acc) 60%, var(--line));
+}
+
+.wb-tl-span-ask button {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--acc);
+  color: var(--acc-ink);
+  cursor: pointer;
+}
+
+.wb-tl-span-ask button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.wb-tl-span-hint {
+  margin: 6px 2px 0;
+  color: var(--tx3);
+  font-size: 10.5px;
+}
+
+.wb-tl-spin {
+  animation: wb-tl-spin 0.9s linear infinite;
+}
+
+@keyframes wb-tl-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── 窄面板：顶栏先收次要控件（快捷键还在），搜索展开时让出中间的胶囊 ── */
+.wb-tl-head-center {
+  overflow: hidden;
+}
+
+.wb-tl-focus-pill {
+  min-width: 0;
+  max-width: 100%;
+}
+
+@container (max-width: 760px) {
+  .wb-tl-zoom-slider { display: none; }
+  .wb-tl-title,
+  .wb-tl-focus-pill .wb-tl-focus-range { display: none; }
+  .wb-tl-head:has(.wb-tl-search:focus-within, .wb-tl-search[data-active]) .wb-tl-head-center { visibility: hidden; }
+}
+
+@container (max-width: 620px) {
+  .wb-tl-frame-step [aria-label$='切点'] { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wb-tl-tip,
+  .wb-tl-span-pop { animation: none; }
+}

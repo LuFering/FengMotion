@@ -6,6 +6,7 @@ import { sessionDisplayTitle, sessionTimeFull } from '@/features/chat/model/sess
 import type { Session } from '@/features/chat/hooks/useSessions'
 import type { ProjectSummary } from '@/features/project/model/projects'
 import type { ConversationProps } from '@/features/chat/Conversation'
+import { flipMenuUp } from '@/features/chat/components/conversation/flipMenuUp'
 
 export interface SessionGroupBodyProps {
   dragId: string | null
@@ -57,21 +58,27 @@ export function SessionGroupBody({ dragId, editText, editing, flat, g, isUng, pr
                    onClick={(e) => e.stopPropagation()} />
           ) : (
             <>
-              {t.pinned && <UiIcon icon={Pin01} size="xs" className="cv3-session-pin" aria-label="已置顶" />}
-              {/* 标题走共享规则：空白标题的兜底必须与侧栏一致，
-                  否则同一个会话在两处可能显示成不同的名字。 */}
-              <span className="cv3-session-name">{sessionDisplayTitle(t)}</span>
-              {t.archived
-                ? <span className="cv3-session-flag">已归档</span>
-                : t.origin === 'local'
-                  ? <span className="cv3-session-flag" title={t.localNote ?? '未保存到服务端'}>仅本页</span>
-                  : (
-                    /* 悬停给完整时间：列表里为紧凑用了相对时间，
-                       但用户要能核对准确时刻。 */
-                    <span className="cv3-session-time num" title={sessionTimeFull(t.updatedAt)}>
-                      {fmtAgo(t.updatedAt)}
-                    </span>
-                  )}
+              {/* 两行：上面是标题，下面是时间或状态。一行挤标题和时间时，
+                  标题常被截到只剩几个字，左栏又窄，读不出是哪一轮对话。 */}
+              <span className="cv3-session-text">
+                {/* 标题走共享规则：空白标题的兜底必须与侧栏一致，
+                    否则同一个会话在两处可能显示成不同的名字。 */}
+                <span className="cv3-session-name">{sessionDisplayTitle(t)}</span>
+                <span className="cv3-session-sub">
+                  {t.pinned && <UiIcon icon={Pin01} size="xs" className="cv3-session-pin" aria-label="已置顶" />}
+                  {t.archived
+                    ? <span className="cv3-session-flag">已归档</span>
+                    : t.origin === 'local'
+                      ? <span className="cv3-session-flag" title={t.localNote ?? '未保存到服务端'}>仅本页</span>
+                      : (
+                        /* 悬停给完整时间：列表里为紧凑用了相对时间，
+                           但用户要能核对准确时刻。 */
+                        <span className="cv3-session-time num" title={sessionTimeFull(t.updatedAt)}>
+                          {fmtAgo(t.updatedAt)}
+                        </span>
+                      )}
+                </span>
+              </span>
             </>
           )}
           <div className="cv3-rowmenu-wrap">
@@ -84,7 +91,7 @@ export function SessionGroupBody({ dragId, editText, editing, flat, g, isUng, pr
               /* 菜单整体拦掉点击冒泡：菜单项在会话行内部，而整行点击=切换会话。
                  不拦的话，点「删除对话」会先把会话切成这一条，删完再清空当前对话 ——
                  用户只是想删掉一条不相关的会话。 */
-              <div className="cv3-menu cv3-rowmenu" role="menu"
+              <div className="cv3-menu cv3-rowmenu" role="menu" ref={flipMenuUp}
                    onClick={(e) => e.stopPropagation()}
                    onKeyDown={(e) => e.stopPropagation()}>
                 {/* 服务端会话暂无重命名端点：不提供会「只改本页却像已保存」的操作 */}
@@ -106,17 +113,17 @@ export function SessionGroupBody({ dragId, editText, editing, flat, g, isUng, pr
                             // 失败原因由 threads.createError 统一显示，这里不重复
                             void props.threads.retryCreate(t.id)
                           }}>
-                    <UiIcon icon={SemIcons.check} size="xs" /><span>重试保存到服务端</span>
+                    <UiIcon icon={SemIcons.check} size="sm" /><span>重试保存到服务端</span>
                   </button>
                 )}
                 <button type="button" role="menuitem"
                         onClick={() => { props.threads.setPinned(t.id, !t.pinned); setRowMenu(null) }}>
-                  {t.pinned ? <UiIcon icon={Pin01} size="sm" /> : <UiIcon icon={Pin01} size="sm" />}
+                  <UiIcon icon={Pin01} size="sm" />
                   <span>{t.pinned ? '取消置顶' : '置顶会话'}</span>
                 </button>
                 <button type="button" role="menuitem"
                         onClick={() => { props.threads.setArchived(t.id, !t.archived); setRowMenu(null) }}>
-                  {t.archived ? <UiIcon icon={Archive} size="sm" /> : <UiIcon icon={Archive} size="sm" />}
+                  <UiIcon icon={Archive} size="sm" />
                   <span>{t.archived ? '取消归档' : '归档会话'}</span>
                 </button>
                 <button type="button" role="menuitem" data-danger
@@ -128,7 +135,7 @@ export function SessionGroupBody({ dragId, editText, editing, flat, g, isUng, pr
                               && !window.confirm(`删除对话「${t.title}」？服务端将不再返回这条对话。`)) return
                           void props.threads.remove(t.id)
                         }}>
-                  <UiIcon icon={SemIcons.trash} size="xs" />
+                  <UiIcon icon={SemIcons.trash} size="sm" />
                   <span>{t.origin === 'local' ? '丢弃这条草稿' : '删除对话'}</span>
                 </button>
               </div>

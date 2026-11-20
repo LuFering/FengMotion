@@ -100,6 +100,8 @@ export function evaluateTrackClipReferenceCapability(params: {
    */
   modifyBlock?: ModifyBlockReason
   manifestStatus: 'loading' | 'missing' | 'invalid' | 'ready' | 'error'
+  manifestReason?: string
+  manifestDetail?: string
   hasManifest: boolean
   hasSourceHashMatch: boolean
   hasVerifiedTracks: boolean
@@ -108,16 +110,21 @@ export function evaluateTrackClipReferenceCapability(params: {
     return { allowed: false, status: 'missing_data', reason: '暂无预览画面，无轨道数据' }
   }
   if (params.manifestStatus === 'loading') {
-    return { allowed: false, status: 'loading', reason: '正在读取轨道信息…' }
+    return { allowed: false, status: 'loading', reason: '正在读取或恢复该视频的轨道…' }
   }
   if (params.manifestStatus === 'missing') {
-    return { allowed: false, status: 'missing_data', reason: '当前项目没有轨道清单文件' }
+    return { allowed: false, status: 'missing_data', reason: params.manifestReason || '该视频暂无片段轨道，可选择成片时间范围' }
   }
   if (params.manifestStatus === 'invalid') {
-    return { allowed: false, status: 'unsupported', reason: '轨道清单格式无效，无法解析片段' }
+    return { allowed: false, status: 'unsupported', reason: params.manifestReason || '轨道清单格式无效，无法解析片段' }
   }
   if (params.manifestStatus === 'error') {
-    return { allowed: false, status: 'connection_error', reason: '轨道信息读取失败，网络或服务异常' }
+    return { allowed: false, status: 'connection_error', reason: params.manifestReason || '轨道信息读取失败，网络或服务异常' }
+  }
+  if (params.manifestDetail && params.manifestDetail !== 'sequences') {
+    return { allowed: false, status: 'unsupported', reason: params.manifestDetail === 'composition'
+      ? '该视频没有独立序列，可选择成片时间范围'
+      : '暂未获得完整片段轨道，可选择成片时间范围' }
   }
   if (params.modifyBlock && params.modifyBlock !== 'ok') {
     return {

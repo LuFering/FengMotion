@@ -21,7 +21,7 @@ export interface HomeComposerProps {
   harnessState: { state: HarnessAvailability; note: string | null }
   harnessStateOf: (id: string) => { state: HarnessAvailability; note: string | null }
   imageRef: React.RefObject<HTMLInputElement | null>
-  menu: 'workdir' | 'add' | 'harness' | 'intent' | null
+  menu: 'workdir' | 'add' | 'harness' | null
   modelsOfHarness: (id: string) => { models: HarnessModel[]; source: 'server' | 'none' | 'unknown' }
   notReady: boolean
   phrase: string
@@ -35,12 +35,11 @@ export interface HomeComposerProps {
   setDragging: React.Dispatch<React.SetStateAction<boolean>>
   setHarnessId: (harness: string) => void
   setHarnessPane: React.Dispatch<React.SetStateAction<string | null>>
-  setMenu: React.Dispatch<React.SetStateAction<'workdir' | 'add' | 'harness' | 'intent' | null>>
+  setMenu: React.Dispatch<React.SetStateAction<'workdir' | 'add' | 'harness' | null>>
   setModel: (model: string) => void
   setPref: (patch: Partial<ModelPrefs>) => void
   setWorkdirPath: React.Dispatch<React.SetStateAction<string | null>>
   startError: string
-  startIntent: 'create' | 'chat'
   starting: boolean
   taRef: React.RefObject<HTMLTextAreaElement | null>
   toast: string
@@ -50,7 +49,7 @@ export interface HomeComposerProps {
 }
 
 /** 首页的需求输入框：文字与附件输入、工作目录选择、执行引擎与模型设置、发送按钮及下方的状态提示。 */
-export function HomeComposer({ addFiles, attachments, currentPrefs, currentWorkdir, dirInputRef, draft, dragging, effectiveModel, fileRef, harness, harnessId, harnessPane, harnessState, harnessStateOf, imageRef, menu, modelsOfHarness, notReady, phrase, phraseChunks, probe, readyCount, removeAttachment, selectWorkdir, send, setDraft, setDragging, setHarnessId, setHarnessPane, setMenu, setModel, setPref, setWorkdirPath, startError, startIntent, starting, taRef, toast, videoRef, workdirPath, workdirs }: HomeComposerProps) {
+export function HomeComposer({ addFiles, attachments, currentPrefs, currentWorkdir, dirInputRef, draft, dragging, effectiveModel, fileRef, harness, harnessId, harnessPane, harnessState, harnessStateOf, imageRef, menu, modelsOfHarness, notReady, phrase, phraseChunks, probe, readyCount, removeAttachment, selectWorkdir, send, setDraft, setDragging, setHarnessId, setHarnessPane, setMenu, setModel, setPref, setWorkdirPath, startError, starting, taRef, toast, videoRef, workdirPath, workdirs }: HomeComposerProps) {
   return (
     <div className="hf-sample">
       <div className="hf-composer" data-drag={dragging || undefined}
@@ -158,7 +157,7 @@ export function HomeComposer({ addFiles, attachments, currentPrefs, currentWorkd
               <svg className="hf-folder" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></svg>
               {/* 按钮显示当前目录名（超长截到 6 个字符加省略号），未选时才是「工作目录」 */}
               <span title={currentWorkdir ? currentWorkdir.path : undefined}>
-                {currentWorkdir ? shortenDir(currentWorkdir.label) : startIntent === 'create' ? '新建项目' : '本页对话'}
+                {currentWorkdir ? shortenDir(currentWorkdir.label) : '新建项目'}
               </span>
               <svg className="hf-chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" /></svg>
             </button>
@@ -166,7 +165,7 @@ export function HomeComposer({ addFiles, attachments, currentPrefs, currentWorkd
               <div className="hf-menu hf-workdir-menu">
                 <div className="hf-wd-list">
                   <button type="button" className={workdirPath === null ? 'is-sel' : undefined} onClick={() => { setWorkdirPath(null); setMenu(null) }}>
-                    <span>{startIntent === 'create' ? '新建视频项目' : '本页临时对话'}</span>
+                    <span>新建视频项目</span>
                   </button>
                   {workdirs.map((d) => (
                     <button key={d.path} type="button" className={workdirPath === d.path ? 'is-sel' : undefined}
@@ -293,8 +292,8 @@ export function HomeComposer({ addFiles, attachments, currentPrefs, currentWorkd
             )}
           </div>
           <button className="hf-send" type="button" disabled={starting || notReady || (!draft.trim() && !attachments.length)}
-                  title={starting ? '正在准备…' : notReady ? `${harness.name} 未接入` : startIntent === 'create' ? '准备制作：带入需求后确认发送' : '准备对话：不修改工程'}
-                  onClick={() => void send()} aria-label={starting ? '正在准备' : startIntent === 'create' ? '准备制作' : '准备对话'}>
+                  title={starting ? '正在准备…' : notReady ? `${harness.name} 未接入` : '准备制作：带入需求后确认发送'}
+                  onClick={() => void send()} aria-label={starting ? '正在准备' : '准备制作'}>
             <svg viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7" /></svg>
           </button>
         </div>

@@ -12,6 +12,9 @@ import { TopBarInfoMenu } from '@/features/workbench/components/topbar/TopBarInf
 import { TopBarTasksMenu } from '@/features/workbench/components/topbar/TopBarTasksMenu'
 import { TopBarIconButton } from '@/features/workbench/components/topbar/TopBarIconButton'
 import { TopBarTools } from '@/features/workbench/components/topbar/TopBarTools'
+import { TopBarElements } from '@/features/workbench/components/topbar/TopBarElements'
+import { TopBarLiveToggle } from '@/features/workbench/components/topbar/TopBarLiveToggle'
+import type { ElementInspector } from '@/features/workbench/hooks/stage/useElementInspector'
 import { TopBarVersionMenu } from '@/features/workbench/components/topbar/TopBarVersionMenu'
 
 export interface OverlayGuidesState {
@@ -57,8 +60,10 @@ export interface WorkbenchTopBarProps {
   previewReady: boolean
   comparison: [StageVisual, StageVisual] | null
   comparablePair: [StageVisual, StageVisual] | null
-  regionMode: boolean
-  onToggleRegion: () => void
+  /** 画面元素编辑：顶栏的「元素」列表从这里读 */
+  elementInspector: ElementInspector
+  /** 「实时 | 成片」切换的状态 */
+  live: { on: boolean; available: boolean; status: 'off' | 'starting' | 'ready' | 'unavailable'; message: string; onChange: (on: boolean) => void }
   onReferenceFrame: () => void
   onSaveFrame: () => void
   overlayGuides: OverlayGuidesState
@@ -101,8 +106,8 @@ export function WorkbenchTopBar({
   previewReady,
   comparison,
   comparablePair,
-  regionMode,
-  onToggleRegion,
+  elementInspector,
+  live,
   onReferenceFrame,
   onSaveFrame,
   overlayGuides,
@@ -276,12 +281,16 @@ export function WorkbenchTopBar({
               onSaveFrame={onSaveFrame}
               onToggleOverlayGuide={onToggleOverlayGuide}
               onTogglePanel={onTogglePanel}
-              onToggleRegion={onToggleRegion}
               overlayGuides={overlayGuides}
               panelOpen={panelOpen}
               previewReady={previewReady}
-              regionMode={regionMode}
               setGuidesMenuOpen={setGuidesMenuOpen}
+              elements={<>
+                <TopBarLiveToggle live={live.on} available={live.available} status={live.status} message={live.message}
+                                  onChange={live.onChange} suppressTooltip={isAnyMenuOpen} />
+                {/* 元素声明列表属于成片模式；实时模式直接在画面上点选真实元素 */}
+                {!live.on && <TopBarElements inspector={elementInspector} fps={timelineFps} suppressTooltip={isAnyMenuOpen} />}
+              </>}
             />
 
             {/* 第二行右侧：项目信息与设置、更多操作 */}

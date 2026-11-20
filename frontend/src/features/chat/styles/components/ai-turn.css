@@ -377,3 +377,19 @@
 .ai-turn-body {
   padding: 0 16px 12px;
 }
+
+/* 最后一条回复的操作条常显（dsh：一轮以正文结尾时 actions-reveal="always"），
+   更早的回复仍是悬停才出现，避免整页都是按钮。 */
+.cv3-ai-block[data-last] .ai-actions .cm-actions {
+  opacity: 1;
+}
+/* 用量：跟在时间后面，最弱一档；悬停看输入 / 输出 / 缓存明细 */
+.cv3-usage-badge {
+  margin-inline-start: 8px;
+  color: var(--ph);
+  font-size: 11px;
+  line-height: 16px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  cursor: default;
+}

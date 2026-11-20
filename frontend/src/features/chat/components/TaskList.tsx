@@ -39,10 +39,18 @@ export interface TaskStepChip {
   label: string
   /** 文件类型图标等；不传就只有文字 */
   icon?: React.ReactNode
+  /** 悬停时显示的完整内容（例如完整路径） */
+  title?: string
+  /** error：失败标记 */
+  tone?: 'error'
 }
 
 export interface TaskStep {
+  /** 稳定身份（工具调用 id）：新步骤到达时已有的行不重建 */
+  id?: string
   label: string
+  /** 这一步正在执行：整行扫光 */
+  running?: boolean
   chips?: TaskStepChip[]
   /**
    * 保留换行，按多行排版。
@@ -55,6 +63,8 @@ export interface TaskStep {
 }
 
 export interface TaskItem {
+  /** 稳定身份：标题里的次数会变，不能拿标题当 key，否则每来一步整组重建、重新生长 */
+  id?: string
   /** 完成后的标题，如「已找到项目文件」 */
   title: string
   /** 进行中的标题，如「正在搜索项目文件」；不传则沿用 title */
@@ -241,7 +251,7 @@ export function useRevealTicker({
 
 function Chip({ chip }: { chip: TaskStepChip }) {
   return (
-    <span className={`tl-chip${chip.icon ? ' tl-chip--icon' : ''}`}>
+    <span className={`tl-chip${chip.icon ? ' tl-chip--icon' : ''}${chip.tone === 'error' ? ' tl-chip--error' : ''}`} title={chip.title}>
       {chip.icon ? (
         <span aria-hidden className="tl-chip-icon">
           {chip.icon}
@@ -268,7 +278,7 @@ function StepRow({
   return (
     <LogRow first={first} last={last} reduce={reduce}>
       <span className={step.multiline ? 'tl-step tl-step--multiline' : 'tl-step'}>
-        {active ? <ShimmerText>{step.label}</ShimmerText> : step.label}
+        {active || step.running ? <ShimmerText>{step.label}</ShimmerText> : step.label}
         {step.chips?.map((chip, i) => (
           <Chip key={`${chip.label}-${i}`} chip={chip} />
         ))}
@@ -378,7 +388,7 @@ function TaskBlock({
             const lastStep = i === Math.min(revealed - headIndex - 2, task.steps.length - 1)
             return (
               <StepRow
-                key={`${step.label}-${i}`}
+                key={step.id ?? `${step.label}-${i}`}
                 step={step}
                 active={!reduce && revealed === unit + 1 && revealed < total}
                 first={i === 0}
@@ -461,7 +471,7 @@ export function TaskList({
       {entries.map(({ task, headIndex, endIndex }, i) =>
         shown <= headIndex ? null : (
           <TaskBlock
-            key={`${task.title}-${i}`}
+            key={task.id ?? `${task.title}-${i}`}
             task={task}
             headIndex={headIndex}
             endIndex={endIndex}

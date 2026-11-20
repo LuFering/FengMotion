@@ -126,7 +126,9 @@ export function ContextMeter({
   style?: MeterStyle;
   colour?: "Colour" | "Mono";
 }) {
-  const [compact, setCompact] = useState(false);
+  /* 原版的「Compact」只是本地演示动画，并不会真的压缩对话；
+     本产品没有接压缩接口，按钮已去掉，压缩态恒为关（保留算式，接上接口时再打开） */
+  const compact = false;
   const [hot, setHot] = useState<string | null>(null);
 
   const CHAT_COMPACT = chatCompactK ?? (kinds.find((c) => c.id === "chat")?.k ?? 0) * 0.28;
@@ -148,7 +150,7 @@ export function ContextMeter({
   const was = OWNERS[compact ? 0 : 1];
   /* the swap only plays once Compact has been pressed: on first paint
      there is nothing to swap from */
-  const [moved, setMoved] = useState(false);
+  const moved = false;
   /* the big number rolls toward whatever it is showing */
   const hotKind = hot ? kinds.findIndex((c) => c.id === hot) : -1;
   const target = hotKind >= 0 ? sizes[hotKind] : used;
@@ -166,19 +168,15 @@ export function ContextMeter({
       data-mono={colour === "Mono" || undefined}
       onPointerLeave={() => setHot(null)}
     >
-      {/* only what reads at a glance: the name, and the one action */}
       <div className="ctx-head">
-        <span className="ctx-title">Context</span>
-        <button type="button" className="ctx-act" data-quiet={compact || undefined} onClick={() => { setMoved(true); setCompact((v) => !v); }}>
-          {compact ? "Undo" : "Compact"}
-        </button>
+        <span className="ctx-title">上下文</span>
       </div>
       <div className="ctx-figure" aria-live="polite">
         <span className="ctx-num">
           <span className="ctx-sr">{fmt(target)}</span>
           <Roll text={fmt(target)} up={up.current} />
         </span>
-        <span className="ctx-of">{hotKind >= 0 ? kinds[hotKind].name : `of ${windowK}K`}</span>
+        <span className="ctx-of">{hotKind >= 0 ? kinds[hotKind].name : `/ ${windowK}K`}</span>
       </div>
       {style === "Bar" ? (
         /* the bar: one segment per kind, as wide as its share, and the

@@ -44,6 +44,7 @@ function versionVisual(projectId: string, item: SceneVersionsHook['versions'][nu
     file: artifactUrl,
     runId: '',
     artifactId: item.artifactPath || '',
+    artifactPath: item.artifactPath || undefined,
     workflowId: '',
     createdAt: item.createdAt || '',
     artifactKind: 'render',

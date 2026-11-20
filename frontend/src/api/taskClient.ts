@@ -148,6 +148,65 @@ export interface ProjectSceneVersion {
   createdAt: string
 }
 
+/**
+ * 工程版本里声明的一个可编辑元素（契约：frontend/docs/contracts/scene-edit-metadata.md）。
+ *
+ * <p>首版只有文字；`placement` 可省略 —— 没有位置的元素能读、能在列表里看到，但点不中。</p>
+ */
+export interface SceneEditElement {
+  id: string
+  kind: 'text'
+  label: string
+  properties: { text: string }
+  placement?: {
+    /** 相对成片的帧区间 [startFrame, endFrame) */
+    startFrame: number
+    endFrame: number
+    /** 归一化画布坐标，0–1 */
+    bounds: { x: number; y: number; w: number; h: number }
+  }
+}
+
+/** 版本声明读取结果：declared 可编辑；preview_only 只能预览，reason 说明原因。 */
+export interface SceneEditMetadata {
+  projectId: string
+  version: number
+  artifactPath: string | null
+  status: 'declared' | 'preview_only'
+  sourceHash: string | null
+  elements: SceneEditElement[]
+  reason: { code: string; message: string } | null
+}
+
+/** 文字写回请求：baseVersion / sourceHash 必须原样带回读取到的值。 */
+export interface SceneElementEditRequest {
+  baseVersion: number
+  sourceHash: string
+  elementId: string
+  properties: { text: string }
+  prompt?: string
+}
+
+/** 文字写回成功：新版本的基本信息。 */
+export interface SceneElementEditResult {
+  projectId: string
+  version: number
+  artifactPath: string
+  sourceHash: string
+  elementId: string
+  properties: { text: string }
+}
+
+/** 工程源码实时预览进程的状态（契约：frontend/docs/contracts/live-preview.md） */
+export interface LivePreviewStatus {
+  projectId: string
+  status: 'ready' | 'stopped'
+  /** 预览页地址，工作台用 iframe 加载；stopped 时为 null */
+  url: string | null
+  compositionId?: string
+  startedAt?: string
+}
+
 /** 前端事件回调。 */
 export type TaskEventHandler = (event: StudioTaskEvent) => void
 
@@ -437,6 +496,61 @@ export function createTaskClient(http: HttpClient) {
         `/projects/${encodeURIComponent(projectId)}/scene/versions/${version}/restore`,
         expectedVersion === undefined ? {} : { expectedVersion },
       )
+    },
+
+    /**
+     * 读取某个场景版本的元素声明。
+     *
+     * <p>读的是该版本的源码快照，不借用工作区或其他版本；不缓存。
+     * 「只能预览」也是 200，原因在 reason 里，调用方不要把它当失败。</p>
+     *
+     * @param projectId 项目 ID
+     * @param version 场景版本号（不是工作流 revision）
+     * @returns 声明或不可用原因
+     */
+    sceneEditMetadata(projectId: string, version: number): Promise<SceneEditMetadata> {
+      return http.get<SceneEditMetadata>(
+        `/projects/${encodeURIComponent(projectId)}/scene/versions/${version}/edit-metadata`,
+      )
+    },
+
+    /**
+     * 写回一个元素的文字，渲染并提交新版本。
+     *
+     * <p>接口同步等渲染和提交完成，所以超时放得很宽（与整片渲染同档）。
+     * 超时不代表服务端停了 —— 调用方应重新读取当前版本，而不是直接重试。</p>
+     *
+     * @param projectId 项目 ID
+     * @param body 基线版本、源码指纹、元素与新文字
+     * @returns 新版本
+     */
+    editSceneElement(projectId: string, body: SceneElementEditRequest): Promise<SceneElementEditResult> {
+      return http.post<SceneElementEditResult>(
+        `/projects/${encodeURIComponent(projectId)}/scene/versions/${body.baseVersion}/edit`,
+        body,
+        { timeoutMs: 960_000 },
+      )
+    },
+
+    /**
+     * 启动（或复用）项目的源码实时预览进程，等它就绪后返回预览地址。
+     *
+     * <p>同一项目重复调用只会刷新空闲计时，工作台用它当心跳。</p>
+     *
+     * @param projectId 项目 ID
+     * @returns 预览状态
+     */
+    startLivePreview(projectId: string): Promise<LivePreviewStatus> {
+      return http.post<LivePreviewStatus>(`/projects/${encodeURIComponent(projectId)}/live-preview`, {}, { timeoutMs: 90_000 })
+    },
+
+    /**
+     * 停止项目的源码实时预览进程；没有在运行也算成功。
+     *
+     * @param projectId 项目 ID
+     */
+    stopLivePreview(projectId: string): Promise<void> {
+      return http.del(`/projects/${encodeURIComponent(projectId)}/live-preview`)
     },
 
     /**

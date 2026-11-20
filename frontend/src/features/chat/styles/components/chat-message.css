@@ -22,10 +22,8 @@
      · 栈：max-width = min(内容宽 × .702, 82%)
      · 气泡：padding 10px 16px、圆角 radius-xl、字号 14px / 行高 22px、
              white-space: pre-wrap、word-break: break-word
-   颜色用 --dsw-specific-bubble（dsh 的语义变量），本项目没有就在
-   brand.css 里补一个别名指向 --soft，不再自造一套蓝。
-
-   之前用的是 BoardUI 的 16px + --soft，与 dsh 不一致 —— 这一版对齐 dsh。 */
+   颜色读 --cv-bubble（对话页定义，等于内嵌卡片那一档的浅底），
+   圆角读 --cv-r-bubble；工作台右栏没定义，回落到 --soft 和全局浮层圆角。 */
 
 .cm-user-wrap {
   align-items: flex-end;
@@ -37,30 +35,19 @@
    不补的话 min(calc(var(...) * .702), 82%) 里的 var 解析失败，
    整个算式退化，气泡宽度就变成不可预测的。 */
 .cm-user-wrap {
-  --dsh-chat-content-width: 748px;
+  --dsh-chat-content-width: var(--cv-col, 748px);
 }
 
 .cm-user {
   max-width: min(calc(var(--dsh-chat-content-width, 748px) * 0.702), 82%);
   padding: 10px 16px;
-  border-radius: var(--fm-radius-float, 14px);
-  background: var(--dsw-specific-bubble, var(--soft));
+  border-radius: var(--cv-r-bubble, var(--fm-radius-float, 14px));
+  background: var(--cv-bubble, var(--soft));
   color: var(--fg);
   font-size: 14px;
   line-height: 22px;
   white-space: pre-wrap;
   word-break: break-word;
-}
-
-.cm-user-attachments {
-  display: block;
-  margin-top: 6px;
-}
-.cm-user-attachment {
-  display: block;
-  font-size: 11px;
-  line-height: 16px;
-  color: var(--dim);
 }
 
 .cm-user-actions {
@@ -105,8 +92,8 @@
 }
 .cm-line {
   margin: 0;
-  font-size: 13.5px;
-  line-height: 1.72;
+  font-size: var(--md-fs, 13.5px);
+  line-height: var(--md-lh, 1.72);
   color: var(--fg);
   overflow-wrap: anywhere;
 }
@@ -136,8 +123,8 @@
   line-height: 17px;
   color: var(--bad);
   background: transparent;
-  border: 1px solid currentColor;
-  border-radius: 4px;
+  border: .5px solid currentColor;
+  border-radius: 6px;
   cursor: pointer;
 }
 

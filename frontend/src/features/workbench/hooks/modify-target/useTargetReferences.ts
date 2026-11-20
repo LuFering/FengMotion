@@ -161,7 +161,14 @@ export function useTargetReferences({ aiModifyTargetCapability, backendCapabilit
     })
   }
   const focusFeedback = () => { setReviewTab(null); setSideTab('chat'); setPanelOpen(true); setFocusChatKey((k) => k + 1) }
-  const referencePreview = (region?: { x: number; y: number; w: number; h: number }, whole = false) => {
+  /**
+   * 把当前画面（可带框选区域）挂成本轮的修改目标。
+   *
+   * @param options.label  目标名称（画面元素用元素名，例如「片头标题」），不给就写「框选区域」
+   * @param options.intent 强制意图：元素小窗里「交给 AI」就是要改，不沿用草稿里可能残留的「提问」
+   * @param options.quiet  不弹提示：调用方紧接着会自己提交，不需要再说「输入意见后发送」
+   */
+  const referencePreview = (region?: { x: number; y: number; w: number; h: number }, whole = false, options: { label?: string; intent?: 'modify'; quiet?: boolean } = {}) => {
     if (!viewedPreview) return
     if (!aiModifyTargetCapability.allowed) {
       setNotice(aiModifyTargetCapability.reason || '当前画面无法作为修改目标')
@@ -195,7 +202,7 @@ export function useTargetReferences({ aiModifyTargetCapability, backendCapabilit
     setRegionRect(null)
     setPreviewLocation({ visualId: viewedPreview.id, timeSeconds, bbox: region })
     const timeLabel = timeSeconds === undefined ? '' : ` · ${formatMediaTime(timeSeconds)}`
-    const targetLabel = `${viewedPreview.name}${timeLabel}${region ? ' · 框选区域' : ''}`
+    const targetLabel = `${viewedPreview.name}${timeLabel}${region ? ` · ${options.label ?? '框选区域'}` : ''}`
     const targetRef: AgentReference = { id, role: 'target', kind: 'preview', source: previewSource(viewedPreview), timeSeconds, bbox: region, label: targetLabel }
     setTargetReference(targetRef)
 
@@ -217,12 +224,14 @@ export function useTargetReferences({ aiModifyTargetCapability, backendCapabilit
         /* 意图继承顺序：旧快照的意图 → 用户刚在无目标状态下选的草稿级意图 → 默认修改。
            少了中间这一层，「先选『关于此提问』再圈时间段/框选画面」会被改回修改，
            用户的提问就变成了真实改工程。 */
-        intentAction: sessionDraft.draft.targetSnapshot?.intentAction
+        intentAction: options.intent
+          ?? sessionDraft.draft.targetSnapshot?.intentAction
           ?? sessionDraft.draft.intentAction
           ?? 'modify',
       },
     })
     focusFeedback()
+    if (options.quiet) return targetLabel
     const isSupported = backendCapability.imageSupported === true
     setNotice(!whole && !isSupported ? `已记录画面；${aiModifyTargetCapability.reason || '暂无法确认后端支持发送画面'}。` : whole ? '已引用当前预览，输入意见后发送。' : region ? '已引用当前画面及框选区域，输入意见后发送。' : '已引用当前画面，输入意见后发送。')
   }
@@ -263,11 +272,13 @@ export function useTargetReferences({ aiModifyTargetCapability, backendCapabilit
     }
   }, [previewMediaRef, previewTime, viewedPreview, project.name])
   const referenceRegion = (bbox: { x: number; y: number; w: number; h: number }) => referencePreview(bbox)
+  /** 画面元素小窗「交给 AI」：挂上元素区域与当前画面，意图固定为修改；返回目标名称，供调用方确认目标已挂上再提交 */
+  const referenceElement = (bbox: { x: number; y: number; w: number; h: number }, label: string) => referencePreview(bbox, false, { label, intent: 'modify', quiet: true })
   const referenceArtifact = (artifact: WorkbenchArtifact) => {
     addContextReference({
       id: `artifact:${artifact.id}:${artifact.version}`, role: 'context', kind: 'artifact',
       artifactId: artifact.id, version: artifact.version, label: `${artifact.title} · ${artifact.version}`,
     })
   }
-  return { referenceRegion, focusFeedback, selectSideTab, removeReference, locateReference, toggleReferenceRole, clearReferences, referenceFrame, saveCurrentFrame, referenceArtifact, addContextReference }
+  return { referenceRegion, referenceElement, focusFeedback, selectSideTab, removeReference, locateReference, toggleReferenceRole, clearReferences, referenceFrame, saveCurrentFrame, referenceArtifact, addContextReference }
 }

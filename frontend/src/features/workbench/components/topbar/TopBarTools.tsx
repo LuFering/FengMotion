@@ -1,4 +1,5 @@
 import type * as React from 'react'
+import type { ReactNode } from 'react'
 import { TopBarIconButton } from '@/features/workbench/components/topbar/TopBarIconButton'
 import { MediaIcon } from '@/shared/icons/MediaIcon'
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuCheckboxItem } from '@/shared/ui/dropdown-menu'
@@ -15,18 +16,24 @@ export interface TopBarToolsProps {
   onSaveFrame: () => void
   onToggleOverlayGuide: (key: keyof OverlayGuidesState) => void
   onTogglePanel: () => void
-  onToggleRegion: () => void
   overlayGuides: OverlayGuidesState
   panelOpen: boolean
   previewReady: boolean
-  regionMode: boolean
   setGuidesMenuOpen: React.Dispatch<React.SetStateAction<boolean>>
+  /** 「元素」列表（这一版可编辑的画面元素） */
+  elements?: ReactNode
 }
 
-/** 工作台顶栏的画面工具组：引用当前帧、框选区域、保存当前帧、辅助显示开关和工作台全屏切换。 */
-export function TopBarTools({ aiModifyTargetCapability, guidesMenuOpen, isAnyMenuOpen, isGuidesActive, onReferenceFrame, onSaveFrame, onToggleOverlayGuide, onTogglePanel, onToggleRegion, overlayGuides, panelOpen, previewReady, regionMode, setGuidesMenuOpen }: TopBarToolsProps) {
+/**
+ * 工作台顶栏的画面工具组：画面元素列表、引用当前帧、保存当前帧、辅助显示开关和工作台全屏切换。
+ *
+ * <p>原来的「框选区域」按钮已去掉：暂停后直接在画面上拖拽就是框选，点击就是点选元素，不用先切模式。</p>
+ */
+export function TopBarTools({ aiModifyTargetCapability, guidesMenuOpen, isAnyMenuOpen, isGuidesActive, onReferenceFrame, onSaveFrame, onToggleOverlayGuide, onTogglePanel, overlayGuides, panelOpen, previewReady, setGuidesMenuOpen, elements }: TopBarToolsProps) {
   return (
     <div className="wb-topbar-tools">
+      {elements}
+
       {/* 引用当前帧：Vidstack comment 图标 */}
       <TopBarIconButton
         icon={<MediaIcon name="comment" size={18} />}
@@ -35,18 +42,6 @@ export function TopBarTools({ aiModifyTargetCapability, guidesMenuOpen, isAnyMen
         disabled={!previewReady || Boolean(aiModifyTargetCapability && !aiModifyTargetCapability.allowed)}
         disabledReason={aiModifyTargetCapability && !aiModifyTargetCapability.allowed ? aiModifyTargetCapability.reason : "预览画面尚未就绪"}
         onClick={onReferenceFrame}
-        suppressTooltip={isAnyMenuOpen}
-      />
-
-      {/* 框选区域：Vidstack 规制虚线矩形选区图标 */}
-      <TopBarIconButton
-        icon={<MediaIcon name="dashedBox" size={18} />}
-        label="框选画面区域 (Esc 取消)"
-        tooltip={regionMode ? '退出框选 (Esc)' : '框选画面区域 (Esc 取消)'}
-        active={regionMode}
-        disabled={!previewReady || Boolean(aiModifyTargetCapability && !aiModifyTargetCapability.allowed)}
-        disabledReason={aiModifyTargetCapability && !aiModifyTargetCapability.allowed ? aiModifyTargetCapability.reason : "预览画面尚未就绪"}
-        onClick={onToggleRegion}
         suppressTooltip={isAnyMenuOpen}
       />
 

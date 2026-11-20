@@ -203,33 +203,6 @@
    侧栏只有 300 多像素，不能照搬对话区那套完整任务列表：
    一行摘要 + 展开看每步。默认收起。
    状态一律用文字（执行了 N 步 / 正在执行 / N 步失败），不靠颜色判断。 */
-#pane-flow .wb-a2 .wb-process { margin: 2px 0 6px; }
-#pane-flow .wb-a2 .wb-process-head {
-  display: flex; align-items: center; gap: 6px; width: 100%;
-  padding: 3px 6px; border-radius: 6px; border: 1px solid var(--line);
-  background: var(--hole); color: var(--tx3);
-  font-size: 10.5px; text-align: left; cursor: pointer;
-  transition: border-color .14s ease, color .14s ease;
-}
-#pane-flow .wb-a2 .wb-process-head:hover { border-color: var(--line2); color: var(--tx2); }
-#pane-flow .wb-a2 .wb-process-head:focus-visible { outline: 2px solid var(--acc); outline-offset: 1px; }
-#pane-flow .wb-a2 .wb-process-state { color: var(--tx2); flex: none; }
-#pane-flow .wb-a2 .wb-process[data-running] .wb-process-state { color: var(--acc); }
-#pane-flow .wb-a2 .wb-process-detail { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-#pane-flow .wb-a2 .wb-process-failed { display: inline-flex; align-items: center; gap: 3px; color: var(--danger); flex: none; }
-#pane-flow .wb-a2 .wb-process-caret { flex: none; transition: transform .16s ease; }
-#pane-flow .wb-a2 .wb-process-caret.is-open { transform: rotate(180deg); }
-#pane-flow .wb-a2 .wb-process-steps { margin: 4px 0 0; padding: 0 0 0 2px; list-style: none; display: flex; flex-direction: column; gap: 2px; }
-#pane-flow .wb-a2 .wb-process-steps li {
-  display: flex; align-items: baseline; gap: 5px;
-  font-size: 10.5px; color: var(--tx3); padding: 1px 4px;
-  border-left: 1px solid var(--line);
-}
-#pane-flow .wb-a2 .wb-process-steps li[data-error] { border-left-color: var(--danger); }
-#pane-flow .wb-a2 .wb-process-tool { color: var(--tx2); flex: none; }
-#pane-flow .wb-a2 .wb-process-args { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; opacity: .8; }
-#pane-flow .wb-a2 .wb-process-step-state { flex: none; opacity: .75; }
-#pane-flow .wb-a2 .wb-process-steps li[data-error] .wb-process-step-state { color: var(--danger); opacity: 1; }
 
 #pane-flow .wb-a2 .fw-compose { padding: 4px 12px 6px; border-top: 1px solid var(--line); }
 /* 输入框换成对话界面同一个官方组件（LeiBoxComposer）后，这一栏只有 300 多像素：
@@ -287,3 +260,18 @@
 #pane-flow .wb-a2 .fw-artifact-kicker { font-size: 10.5px; letter-spacing: .08em; color: var(--tx3); }
 #pane-flow .wb-a2 .fw-artifact-sheet { background: var(--panel2); border: 1px solid var(--line); border-radius: var(--r-card); font-size: 13px; color: var(--tx); }
 #pane-flow .wb-a2 .fw-artifact-meta { font-size: 11px; color: var(--tx3); }
+
+/* 右栏「回到最新」：沿用对话页的圆钮，但右栏的输入区不在滚动区里，
+   所以改成贴在滚动区底部的粘性按钮（随视口，不随内容）。 */
+#pane-flow .wb-a2 .wb-to-bottom {
+  position: sticky;
+  bottom: 12px;
+  left: auto;
+  margin: 8px auto 0;
+  transform: none;
+  border: 0.5px solid var(--line2, var(--line));
+  background: var(--raised, var(--panel));
+  box-shadow: var(--shadow-base, 0 3px 10px rgba(0, 0, 0, .12));
+  color: var(--tx);
+}
+#pane-flow .wb-a2 .wb-to-bottom:hover { background: var(--panel2); }

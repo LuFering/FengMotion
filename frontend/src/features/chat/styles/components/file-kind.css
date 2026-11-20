@@ -1,0 +1,15 @@
+/* 文件类型图标（FileKindIcon）：图标本身着类型色，不加色块底。
+   颜色只用全局语义 token，三套主题下都随主题变化。 */
+.fk-icon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  color: var(--dim);
+}
+.fk-icon[data-kind="code"] { color: var(--acc); }
+.fk-icon[data-kind="data"],
+.fk-icon[data-kind="folder"] { color: var(--warn); }
+.fk-icon[data-kind="image"] { color: var(--ok); }
+.fk-icon[data-kind="video"] { color: color-mix(in srgb, var(--acc) 45%, #9b5de5); }
+.fk-icon[data-kind="audio"] { color: color-mix(in srgb, var(--bad) 70%, var(--warn)); }

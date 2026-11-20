@@ -15,17 +15,18 @@
   flex-wrap: wrap;
   max-width: min(360px, 32vw);
   min-width: 0;
-  padding: 2px 4px;
-  background: var(--surf);
-  border: 1px solid var(--line);
-  border-radius: 6px;
+  padding: 0 4px;
+  /* 和子代理徽标同一种胶囊：标题后面跟着的「正在发生的事」 */
+  background: var(--cv-inset, var(--surf));
+  border: .5px solid var(--cv-line, var(--line));
+  border-radius: 999px;
 }
 
 .jobp-row {
   display: flex;
   align-items: center;
   gap: 5px;
-  height: 20px;
+  height: 22px;
   padding: 0 4px;
   font-size: 11px;
   color: var(--dim);
@@ -53,7 +54,7 @@
   color: var(--fg);
   /* 命令行用等宽，和对话里的工具调用一致 */
   font-family: var(--font-mono, ui-monospace, monospace);
-  font-size: 10.5px;
+  font-size: 11px;
 }
 
 .jobp-time {
@@ -74,10 +75,10 @@
 
 .jobp-tag {
   padding: 0 4px;
-  border-radius: 3px;
+  border-radius: 6px;
   background: color-mix(in srgb, var(--warn) 16%, transparent);
-  font-size: 10px;
-  line-height: 14px;
+  font-size: 11px;
+  line-height: 16px;
 }
 
 /* 跑动中的转圈：用 CSS 而不是逐帧 state，省一次重渲染 */

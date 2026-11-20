@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties, KeyboardEvent, PointerEvent } from 'react'
 /* 时间轨道图标全部用 lucide（第三轮统一）：选区起止用 |< >|，与原 phosphor CaretLine 语义一致。 */
 import { formatTimecode } from '@/features/workbench/model/timeRange'
@@ -9,6 +9,11 @@ import { TimelineHead } from '@/features/workbench/components/timeline/TimelineH
 import { clamp } from '@/features/workbench/components/timeline/timelineDisplay'
 import { TimelineRows } from '@/features/workbench/components/timeline/TimelineRows'
 import { TimelineRuler } from '@/features/workbench/components/timeline/TimelineRuler'
+import { HoverFrame } from '@/features/workbench/components/timeline/HoverFrame'
+import {
+  adjacentCut, categoryOf, cutPoints, defaultCollapsed, elementsInSpan, groupTracks, prominentClipAt, searchClips, snapTo,
+  type SpanElement, type TrackGroup,
+} from '@/features/workbench/model/timelineGroups'
 
 export type WorkbenchTimelineSpan = { start: number; end: number }
 
@@ -46,6 +51,24 @@ export interface WorkbenchTimelineProps {
   onTrackAction?: (action: 'toggle-visibility' | 'toggle-muted', track: SequenceTrack) => void
   timelineOpsCapability?: CapabilityResult
   trackClipCapability?: CapabilityResult
+  /** 画面上选中的元素出现的时间段：只画一条标记，不当成修改选区 */
+  marker?: { start: number; end: number; label: string } | null
+  /** 点了轨道上的某个片段（定位之外的额外动作，例如实时模式下在画面里选中这个元素）；at = 想看的那一刻（秒） */
+  onClipPick?: (clip: SequenceEntry, track: SequenceTrack, at?: number) => void
+  /** 外部要求选中的片段（画面里选中元素时，高亮它在元素轨上的那一段）；clipKey(轨道, 片段) */
+  externalPick?: string | null
+  /** 轨道区标题旁的一句说明（例如「正在采集元素轨」） */
+  note?: string
+  /** 记住各类别抽屉收起 / 展开的键（按项目） */
+  persistKey?: string
+  /** 改过的元素（源码位置），轨道上打点标出 */
+  changed?: ReadonlySet<string>
+  onClearChanges?: () => void
+  /** 把时间选区连同里面的元素交给 AI（实时模式） */
+  onSpanAsk?: (prompt: string) => Promise<boolean>
+  askBusy?: boolean
+  /** 悬停预览画面的来源说明（实时模式下是「上次出片」） */
+  previewNote?: string
 }
 
 type Drag = {
@@ -61,6 +84,10 @@ type Drag = {
 const round = (v: number) => Math.round(v * 1000) / 1000
 const TICK_STEPS = [0.1, 0.2, 0.5, 1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 1800, 3600]
 const tickStepFor = (visible: number) => TICK_STEPS.find((s) => visible / s <= 7) ?? 7200
+/** 轨道名栏默认宽度：放得下「图片与视频 3 轨 · 12 个」 */
+const GUTTER_DEFAULT = 184
+/** 拖动 / 点击离切点这么近（像素）就贴上去 */
+const SNAP_PX = 6
 
 /** 真实视频缩略帧序列（统一 16:9 无边框贴合） */
 function Filmstrip({ src, duration, frames = 12 }: { src: string; duration: number; frames?: number }) {
@@ -117,7 +144,8 @@ function Filmstrip({ src, duration, frames = 12 }: { src: string; duration: numb
 export function WorkbenchTimeline({
   videoUrl, duration, currentTime, fps, tracks = [], span, disabled, looping, maxZoom,
   onSeek, onSpanChange, onSpanCommit, onClear, onToggleLoop, pending, onPendingAccept, onPendingDrop, onClipReference, trackStatus, tracksVerified = false,
-  timelineOpsCapability, trackClipCapability,
+  timelineOpsCapability, trackClipCapability, marker, onClipPick, externalPick, note,
+  persistKey, changed, onClearChanges, onSpanAsk, askBusy, previewNote,
 }: WorkbenchTimelineProps) {
   const track = useRef<HTMLDivElement>(null)
   const workspace = useRef<HTMLDivElement>(null)
@@ -126,8 +154,28 @@ export function WorkbenchTimeline({
   const drag = useRef<Drag | null>(null)
 
   const [pickedId, setPickedId] = useState<string | null>(null)
-  const [collapsedIds, setCollapsedIds] = useState<Set<string>>(() => new Set())
-  const [gutterWidth, setGutterWidth] = useState(144)
+  /* 画面里选中了元素：轨道上跟着高亮它那一段（渲染期间比对，不用 effect） */
+  const [externalSeen, setExternalSeen] = useState(externalPick ?? null)
+  if ((externalPick ?? null) !== externalSeen) {
+    setExternalSeen(externalPick ?? null)
+    if (externalPick) setPickedId(externalPick)
+  }
+  /* 抽屉收起 / 展开：用户点过的按项目记住，没点过的按默认规则（场景展开，超过 2 条轨的收起） */
+  const storeKey = persistKey ? `fm-tl-groups:${persistKey}` : null
+  const [groupCollapsed, setGroupCollapsed] = useState<Record<string, boolean>>(() => {
+    try { return storeKey ? JSON.parse(localStorage.getItem(storeKey) ?? '{}') as Record<string, boolean> : {} } catch { return {} }
+  })
+  const setCollapsedFor = (category: string, collapsed: boolean) => setGroupCollapsed((prev) => {
+    const next = { ...prev, [category]: collapsed }
+    try { if (storeKey) localStorage.setItem(storeKey, JSON.stringify(next)) } catch { /* 存不下就只在这次有效 */ }
+    return next
+  })
+  const [query, setQuery] = useState('')
+  const [searchIndex, setSearchIndex] = useState(-1)
+  const searchInput = useRef<HTMLInputElement>(null)
+  /* 悬停在标尺 / 缩略帧带上：浮出那一帧 */
+  const [hover, setHover] = useState<{ time: number; ratio: number } | null>(null)
+  const [gutterWidth, setGutterWidth] = useState(GUTTER_DEFAULT)
   const gutterDrag = useRef<{ x: number; w: number } | null>(null)
 
   const beginGutterDrag = (e: PointerEvent<HTMLDivElement>) => {
@@ -148,6 +196,9 @@ export function WorkbenchTimeline({
   }
 
   const limit = Number.isFinite(duration) && duration > 0 ? duration : 0
+  if (!tracks.length && limit > 0) tracks = [{ id: 'composition', name: '成片', clips: [
+    { id: 'composition', name: '成片', kind: 'video', start: 0, duration: limit },
+  ] }]
   const unavailable = disabled || limit === 0 || !(timelineOpsCapability?.allowed ?? true)
   const opsDisabledReason = timelineOpsCapability && !timelineOpsCapability.allowed
     ? timelineOpsCapability.reason
@@ -167,6 +218,14 @@ export function WorkbenchTimeline({
     const rect = track.current?.getBoundingClientRect()
     const ratio = rect && rect.width ? clamp((clientX - rect.left) / rect.width, 0, 1) : 0
     return round(clamp(viewStart + ratio * width, 0, limit))
+  }
+  /* 切点：所有片段的起止。拖动、点击时靠近就吸上去，按住 Shift 不吸 */
+  const points = useMemo(() => cutPoints(tracks, limit), [tracks, limit])
+  const snapAt = (clientX: number, free: boolean) => {
+    const t = timeAt(clientX)
+    const px = track.current?.getBoundingClientRect().width ?? 0
+    if (free || !px || !points.length) return t
+    return snapTo(points, t, (SNAP_PX / px) * width)
   }
 
   const setZoomTo = (value: number, anchor?: { time: number; ratio: number }) => {
@@ -206,15 +265,16 @@ export function WorkbenchTimeline({
     const kind = edge === 'start' || edge === 'end' ? edge : 'create'
     if (kind !== 'create' && !span) return
     e.preventDefault()
-    drag.current = { pointerId: e.pointerId, kind, anchor: timeAt(e.clientX), x: e.clientX, original: span, moved: false, viewStart, viewWidth: width }
+    drag.current = { pointerId: e.pointerId, kind, anchor: snapAt(e.clientX, e.shiftKey), x: e.clientX, original: span, moved: false, viewStart, viewWidth: width }
     e.currentTarget.setPointerCapture(e.pointerId)
   }
 
   const move = (e: PointerEvent<HTMLDivElement>) => {
+    hoverAt(e.clientX)
     const d = drag.current
     if (!d || d.pointerId !== e.pointerId) return
     if (Math.abs(e.clientX - d.x) >= 3) d.moved = true
-    if (d.moved) onSpanChange(nextSpan(d, timeAt(e.clientX)))
+    if (d.moved) onSpanChange(nextSpan(d, snapAt(e.clientX, e.shiftKey)))
   }
 
   const finish = (e: PointerEvent<HTMLDivElement>) => {
@@ -222,13 +282,14 @@ export function WorkbenchTimeline({
     if (!d || d.pointerId !== e.pointerId) return
     drag.current = null
     if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId)
-    const time = timeAt(e.clientX)
+    const time = snapAt(e.clientX, e.shiftKey)
     if (!d.moved) {
       if (d.kind === 'create') onSeek(time)
       return
     }
     const next = nextSpan(d, time)
-    if (next.end > next.start) { onSpanChange(next); onSpanCommit(next) } else onSpanChange(d.original)
+    /* 拉出了时间选区：顶栏改显示选区（和里面的元素），不再显示之前点的片段 */
+    if (next.end > next.start) { setPickedId(null); onSpanChange(next); onSpanCommit(next) } else onSpanChange(d.original)
   }
 
   const markBoundary = (edge: 'start' | 'end') => {
@@ -236,7 +297,7 @@ export function WorkbenchTimeline({
     const next = edge === 'start'
       ? { start: time, end: span && span.end > time + 0.05 ? span.end : limit }
       : { start: span && span.start < time - 0.05 ? span.start : 0, end: time }
-    if (next.end - next.start >= Math.min(0.05, limit)) { onSpanChange(next); onSpanCommit(next) }
+    if (next.end - next.start >= Math.min(0.05, limit)) { setPickedId(null); onSpanChange(next); onSpanCommit(next) }
   }
 
   const keyHandle = (e: KeyboardEvent<HTMLButtonElement>, edge: 'start' | 'end') => {
@@ -260,6 +321,87 @@ export function WorkbenchTimeline({
 
   const pickedTrack = pickedId ? tracks.find((row) => row.clips.some((clip) => clipKey(row.id, clip.id) === pickedId)) : undefined
   const picked = pickedTrack?.clips.find((clip) => clipKey(pickedTrack.id, clip.id) === pickedId) ?? null
+
+  const groups = useMemo(() => groupTracks(tracks), [tracks])
+  /* 搜索：命中的片段按时间排；有命中的抽屉自动展开 */
+  const hits = useMemo(() => (query.trim() ? searchClips(tracks, query) : null), [tracks, query])
+  const hitKeys = useMemo(() => (hits ? new Set(hits.map((h) => clipKey(h.track.id, h.clip.id))) : null), [hits])
+  const hitCats = useMemo(() => new Set(hits?.map((h) => categoryOf(h.track)) ?? []), [hits])
+  const isCollapsed = (g: TrackGroup) => !hitCats.has(g.category) && (groupCollapsed[g.category] ?? defaultCollapsed(g))
+
+  /** 视野外的时间拉进视野（放大时跳到别处用） */
+  const reveal = (t: number) => {
+    if (t >= viewStart && t <= viewEnd) return
+    setStart(clamp(t - width * 0.2, 0, Math.max(0, limit - width)))
+  }
+  const pickClip = (clip: SequenceEntry, row: SequenceTrack, at?: number) => {
+    setPickedId(clipKey(row.id, clip.id))
+    const t = at ?? clip.start
+    onSeek(t)
+    reveal(t)
+    onClipPick?.(clip, row, at)
+  }
+  /* 跳到某个片段时它所在的抽屉要打开，不然选中了也看不见 */
+  const pickAndOpen = (clip: SequenceEntry, row: SequenceTrack) => {
+    const g = groups.find((x) => x.tracks.includes(row))
+    if (g && isCollapsed(g)) setCollapsedFor(g.category, false)
+    pickClip(clip, row)
+  }
+  const stepSearch = (direction: -1 | 1) => {
+    if (!hits?.length) return
+    const next = ((searchIndex < 0 && direction < 0 ? 0 : searchIndex) + direction + hits.length) % hits.length
+    setSearchIndex(next)
+    pickClip(hits[next].clip, hits[next].track)
+  }
+  const cutPrev = adjacentCut(points, currentTime, -1)
+  const cutNext = adjacentCut(points, currentTime, 1)
+  const goCut = (direction: -1 | 1) => {
+    const t = direction < 0 ? cutPrev : cutNext
+    if (t === null || unavailable) return
+    onSeek(t)
+    reveal(t)
+  }
+  /* 改动：同一元素多段只算一处；「下一处」从播放头往后找，到头了回到开头 */
+  const changedClips = (within: SequenceTrack[]) => {
+    const out: { clip: SequenceEntry; track: SequenceTrack }[] = []
+    if (!changed?.size) return out
+    for (const row of within) for (const clip of row.clips) if (clip.src && changed.has(clip.src)) out.push({ clip, track: row })
+    return out.sort((a, b) => a.clip.start - b.clip.start)
+  }
+  const jumpChange = (within: SequenceTrack[]) => {
+    const list = changedClips(within)
+    if (!list.length) return
+    const hit = list.find((x) => x.clip.start > currentTime + 0.02) ?? list[0]
+    pickAndOpen(hit.clip, hit.track)
+  }
+  const changedCount = new Set(changedClips(tracks).map((x) => x.clip.src)).size
+  const spanElements = useMemo(() => (span ? elementsInSpan(tracks, span) : []), [tracks, span])
+  const pickSpanElement = (el: SpanElement) => {
+    for (const row of tracks) for (const clip of row.clips) {
+      if (el.src ? clip.src !== el.src : clip.name !== el.name || categoryOf(row) !== el.category) continue
+      if (clip.start + clip.duration <= (span?.start ?? 0) || clip.start >= (span?.end ?? limit)) continue
+      const at = span ? clamp(span.start, clip.start, clip.start + clip.duration - 1e-3) : undefined
+      const g = groups.find((x) => x.tracks.includes(row))
+      if (g && isCollapsed(g)) setCollapsedFor(g.category, false)
+      pickClip(clip, row, at)
+      return
+    }
+  }
+  /** 双击片段：把视野放大到正好看清这一段 */
+  const zoomToClip = (clip: SequenceEntry) => {
+    if (unavailable || maxZoom <= 1 || !(clip.duration > 0)) return
+    const pad = Math.max(clip.duration * 0.15, frameFps ? 2 / frameFps : 0.05)
+    const next = clamp(limit / (clip.duration + pad * 2), 1, Math.max(1, maxZoom))
+    const nextWidth = limit / next
+    setStart(clamp(clip.start + clip.duration / 2 - nextWidth / 2, 0, Math.max(0, limit - nextWidth)))
+    setZoom(next)
+  }
+  const hoverAt = (clientX: number | null) => {
+    const rect = track.current?.getBoundingClientRect()
+    if (clientX === null || !rect?.width || !videoUrl) { setHover(null); return }
+    const ratio = clamp((clientX - rect.left) / rect.width, 0, 1)
+    setHover({ time: clamp(viewStart + ratio * width, 0, limit), ratio })
+  }
 
   /* 滚轮缩放与平移 */
   useEffect(() => {
@@ -365,6 +507,10 @@ export function WorkbenchTimeline({
         if ((e.key === '=' || e.key === '+') && !unavailable) { e.preventDefault(); setZoomTo(zoom * 1.5); return }
         if ((e.key === '-' || e.key === '_') && !unavailable) { e.preventDefault(); setZoomTo(zoom / 1.5); return }
         if (e.key === '0' && !unavailable) { e.preventDefault(); setStart(0); setZoom(1); return }
+        if (e.key === '[' || e.key === ']') { e.preventDefault(); goCut(e.key === '[' ? -1 : 1); return }
+        if ((e.key === 'i' || e.key === 'I') && !unavailable && !e.metaKey && !e.ctrlKey) { e.preventDefault(); markBoundary('start'); return }
+        if ((e.key === 'o' || e.key === 'O') && !unavailable && !e.metaKey && !e.ctrlKey) { e.preventDefault(); markBoundary('end'); return }
+        if (e.key === '/') { e.preventDefault(); searchInput.current?.focus(); return }
         if (e.key !== 'Escape') return
         e.preventDefault()
         if (cancelDrag()) return
@@ -396,6 +542,17 @@ export function WorkbenchTimeline({
         tracksVerified={tracksVerified}
         unavailable={unavailable}
         zoom={zoom}
+        search={{
+          query, count: hits?.length ?? 0, index: Math.max(0, searchIndex), step: stepSearch,
+          setQuery: (q) => { setQuery(q); setSearchIndex(-1) },
+        }}
+        searchInput={searchInput}
+        cut={{ prev: cutPrev, next: cutNext, go: goCut }}
+        spanElements={spanElements}
+        onSpanPick={pickSpanElement}
+        onSpanAsk={onSpanAsk}
+        askBusy={askBusy}
+        changes={changedCount ? { count: changedCount, next: () => jumpChange(tracks), clear: () => onClearChanges?.() } : null}
       />
 
       {/* ── 2. 待确认修改浮层（若存在，浮在顶部通知，不挤压内容） ── */}
@@ -427,7 +584,7 @@ export function WorkbenchTimeline({
           onPointerMove={moveGutterDrag}
           onPointerUp={endGutterDrag}
           onPointerCancel={endGutterDrag}
-          onDoubleClick={() => setGutterWidth(144)}
+          onDoubleClick={() => setGutterWidth(GUTTER_DEFAULT)}
           onKeyDown={(e) => {
             if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
             e.preventDefault()
@@ -447,10 +604,12 @@ export function WorkbenchTimeline({
           playheadVisible={playheadVisible}
           step={step}
           ticks={ticks}
-          timeAt={timeAt}
+          scrubAt={snapAt}
+          onHover={hoverAt}
           tracks={tracks}
           tracksVerified={tracksVerified}
           unavailable={unavailable}
+          note={note}
         />
 
         {/* 缩略帧带（高 28px）：与标尺及轨道严格同起点、16:9 裁切展示画面，移除独立缩略帧标签 */}
@@ -465,6 +624,8 @@ export function WorkbenchTimeline({
               onPointerUp={finish}
               onPointerCancel={cancelDrag}
               onLostPointerCapture={cancelDrag}
+              onPointerEnter={(e) => hoverAt(e.clientX)}
+              onPointerLeave={() => hoverAt(null)}
             >
               <div className="wb-tl-film-window">
                 <div
@@ -474,6 +635,13 @@ export function WorkbenchTimeline({
                   <Filmstrip key={videoUrl} src={videoUrl} duration={limit} />
                 </div>
               </div>
+              {/* 选中元素出现的时间段：淡色底 + 两侧细线，元素名贴在左上 */}
+              {marker && marker.end > viewStart && marker.start < viewEnd && (
+                <div className="wb-tl-marker" aria-label={`${marker.label} 出现的时间段`}
+                     style={{ left: `${pct(Math.max(viewStart, marker.start))}%`, width: `${pct(Math.min(viewEnd, marker.end)) - pct(Math.max(viewStart, marker.start))}%` }}>
+                  <span>{marker.label}</span>
+                </div>
+              )}
               {/* 缩略条中的选区指示 */}
               {span && spanEnd > spanStart && (
                 <div
@@ -508,22 +676,36 @@ export function WorkbenchTimeline({
 
         {/* ── 4. 轨道行容器（多轨时内部纵向滚动） ── */}
         <TimelineRows
-          collapsedIds={collapsedIds}
-          onSeek={onSeek}
+          groups={groups}
+          isCollapsed={isCollapsed}
+          onToggleGroup={(g) => setCollapsedFor(g.category, !isCollapsed(g))}
+          fps={frameFps}
           pct={pct}
           pickedId={pickedId}
+          pickedSrc={picked?.src ?? null}
+          onClipActivate={(clip, row) => pickClip(clip, row)}
+          onClipZoom={zoomToClip}
+          onGroupPick={(g, t) => {
+            const hit = prominentClipAt(g, t)
+            if (!hit) { onSeek(t); return }
+            const inside = t >= hit.clip.start && t < hit.clip.start + hit.clip.duration
+            pickClip(hit.clip, hit.track, inside ? round(t) : undefined)
+          }}
+          matches={hitKeys}
+          focusKey={hits && searchIndex >= 0 && hits[searchIndex] ? clipKey(hits[searchIndex].track.id, hits[searchIndex].clip.id) : null}
+          changed={changed}
+          onJumpChange={(g) => jumpChange(g.tracks)}
           playhead={playhead}
-          setCollapsedIds={setCollapsedIds}
-          setPickedId={setPickedId}
           span={span}
           spanEnd={spanEnd}
           spanStart={spanStart}
           trackStatus={trackStatus}
-          tracks={tracks}
           unavailable={unavailable}
           viewEnd={viewEnd}
           viewStart={viewStart}
         />
+
+        {hover && !unavailable && <HoverFrame src={videoUrl} time={hover.time} ratio={hover.ratio} fps={frameFps} note={previewNote} />}
       </div>
 
       {/* ── 5. 底部安静平移导航条（高 14px） ── */}

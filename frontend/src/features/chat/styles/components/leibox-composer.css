@@ -26,8 +26,12 @@
    visibility 由 JS 在压平完成后恢复，见组件注释。 */
 .lbx-host:empty {
   min-height: 132px;
-  border-radius: 24px;
-  background: var(--surf);
+  box-sizing: border-box;
+  /* 与挂载后的输入框同圆角、同面、同细线：脚本加载完替换时看不出换了一块 */
+  border: .5px solid var(--cv-line, var(--line));
+  border-radius: var(--lbx-composer-radius, 24px);
+  background: var(--cv-raised, var(--surf));
+  box-shadow: var(--cv-shadow, none);
 }
 
 /* ── 自建的上下文圆钮 + 点阵面板 ─────────────────────────────

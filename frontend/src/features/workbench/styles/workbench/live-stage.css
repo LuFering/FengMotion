@@ -1,0 +1,263 @@
+/* ═══════════════════════════════════════════════════════════════
+   实时画面：iframe 里运行工程源码，外层只放播放条、状态与报错
+
+   尺寸和成片播放器同一套算法：舞台是尺寸容器，画面按比例塞满（宽 = min(容器宽, 容器高 × 比例)）。
+   ═══════════════════════════════════════════════════════════════ */
+.fw-live {
+  position: relative;
+  width: min(100cqw, calc(100cqh * var(--live-ratio, 1.7778)));
+  aspect-ratio: var(--live-ratio, 1.7778);
+  flex: none;
+  overflow: hidden;
+  border-radius: 10px;
+  background: var(--stage-bg, #101216);
+}
+.fw-live-frame {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: transparent;
+}
+
+/* 启动 / 刷新中：薄薄一层，不挡住上一帧的样子 */
+.fw-live-veil {
+  position: absolute;
+  inset: 0;
+  font-family: var(--sans);
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: var(--overlay, rgb(5 5 8 / .42));
+  color: var(--on-media, #fff);
+  font-size: 12px;
+  backdrop-filter: blur(2.5px);
+  pointer-events: none;
+}
+.fw-live-spin { animation: fw-live-spin 1s linear infinite; }
+@keyframes fw-live-spin { to { transform: rotate(360deg); } }
+
+/* 编译失败 / 运行出错：左上角一张小卡，不盖满画面（画面还停在上一次成功的结果） */
+.fw-live-error {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(420px, calc(100% - 24px));
+  max-height: calc(100% - 72px);
+  padding: 10px 12px 12px;
+  box-sizing: border-box;
+  border: .5px solid rgb(255 255 255 / .12);
+  border-radius: 12px;
+  background: rgb(22 20 22 / .92);
+  box-shadow: 0 12px 32px rgb(0 0 0 / .4);
+  color: #f3f3f3;
+  font-size: 12px;
+  backdrop-filter: blur(8px);
+}
+.fw-live-error-head { display: flex; align-items: center; gap: 6px; font-weight: 600; }
+.fw-live-error-head svg { color: #ff7b72; flex: none; }
+.fw-live-error-body {
+  margin: 0;
+  max-height: 140px;
+  overflow: auto;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgb(0 0 0 / .35);
+  color: rgb(255 255 255 / .78);
+  font: 11px/17px var(--font-mono, ui-monospace, monospace);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.fw-live-x {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  margin-left: auto;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: rgb(255 255 255 / .6);
+  cursor: pointer;
+}
+.fw-live-x:hover { background: rgb(255 255 255 / .1); color: #fff; }
+.fw-live-btn {
+  align-self: flex-start;
+  height: 26px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 7px;
+  background: #fff;
+  color: #111;
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+.fw-live-btn:disabled { opacity: .45; cursor: default; }
+.fw-live-error-pill {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 24px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 999px;
+  background: rgb(22 20 22 / .88);
+  color: #ffb4ad;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+/* 播放条：与成片播放器（Video.js 默认皮肤）同一形态 —— 底部悬浮胶囊，44px 高，白 10% 毛玻璃，
+   36px 圆钮、18px 白色图标、13px 等宽时间码、4px 进度轨。悬停画面出现，暂停时常驻。 */
+.fw-live-bar {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  left: 8px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 44px;
+  padding: 4px 14px 4px 4px;
+  border-radius: 99px;
+  background: oklch(1 0 0 / .1);
+  box-shadow: 0 0 0 1px oklch(0 0 0 / .1), 0 1px 3px oklch(0 0 0 / .15), 0 4px 16px oklch(0 0 0 / .1);
+  color: #fff;
+  font-size: 13px;
+  opacity: 0;
+  transition: opacity 180ms var(--eo, ease-out);
+  backdrop-filter: blur(16px) saturate(1.25);
+}
+.fw-live:hover .fw-live-bar,
+.fw-live-bar[data-paused],
+.fw-live-bar:focus-within { opacity: 1; }
+.fw-live-play,
+.fw-live-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: 99px;
+  background: transparent;
+  color: #fff;
+  cursor: pointer;
+  transition: background-color 150ms var(--eo, ease-out), transform 150ms var(--eo, ease-out);
+}
+.fw-live-play:hover,
+.fw-live-icon:hover { background: oklch(1 0 0 / .12); }
+.fw-live-play:active,
+.fw-live-icon:active { transform: scale(.97); }
+.fw-live-play:focus-visible,
+.fw-live-icon:focus-visible { outline: 2px solid var(--acc, #3b8cf8); outline-offset: -2px; }
+.fw-live-time {
+  flex: none;
+  margin: 0 8px;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: .02em;
+}
+.fw-live-total { margin-left: 4px; color: oklch(1 0 0 / .6); }
+/* 进度轨：4px，填充白色；逐帧拖动不加过渡 */
+.fw-live-progress {
+  flex: 1;
+  min-width: 40px;
+  height: 20px;
+  margin: 0;
+  background: transparent;
+  appearance: none;
+  cursor: pointer;
+}
+.fw-live-progress::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 99px;
+  background: linear-gradient(to right, #fff var(--fw-live-pct, 0%), oklch(1 0 0 / .25) var(--fw-live-pct, 0%));
+}
+.fw-live-progress::-webkit-slider-thumb {
+  width: 12px;
+  height: 12px;
+  margin-top: -4px;
+  border: 0;
+  border-radius: 99px;
+  background: #fff;
+  box-shadow: 0 1px 3px oklch(0 0 0 / .35);
+  appearance: none;
+}
+.fw-live-progress::-moz-range-track { height: 4px; border-radius: 99px; background: oklch(1 0 0 / .25); }
+.fw-live-progress::-moz-range-progress { height: 4px; border-radius: 99px; background: #fff; }
+.fw-live-progress::-moz-range-thumb { width: 12px; height: 12px; border: 0; border-radius: 99px; background: #fff; }
+.fw-live-progress:focus-visible { outline: none; }
+
+/* 工作稿改动胶囊：右上角，黑底 45% 胶囊（规范 §8.3 角标），等宽数字 */
+.fw-live-edits {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 3px 0 11px;
+  border-radius: 99px;
+  background: var(--media-scrim, rgb(0 0 0 / .45));
+  color: var(--on-media, #fff);
+  font-size: 12px;
+  backdrop-filter: blur(10px);
+  animation: fw-live-in 180ms var(--eo, ease-out);
+}
+@keyframes fw-live-in { from { opacity: 0; transform: translateY(-4px) scale(.965); } }
+.fw-live-edits b { font-weight: 600; font-variant-numeric: tabular-nums; }
+.fw-live-edits-dot { width: 6px; height: 6px; border-radius: 99px; background: var(--mark, #f5b83d); }
+.fw-live-edits-btn {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 99px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.fw-live-edits-btn:hover:not(:disabled) { background: oklch(1 0 0 / .14); }
+.fw-live-edits-render {
+  height: 24px;
+  padding: 0 11px;
+  border: 0;
+  border-radius: 99px;
+  background: var(--acc, #3b8cf8);
+  color: var(--acc-ink, #fff);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 150ms var(--eo, ease-out);
+}
+.fw-live-edits-render:active:not(:disabled) { transform: scale(.97); }
+.fw-live-edits-btn:disabled,
+.fw-live-edits-render:disabled { opacity: .5; cursor: default; }
+
+/* 源码刷新时只轻轻罩一下：改个字号不该整屏闪一次 */
+.fw-live-veil[data-soft] { background: transparent; backdrop-filter: none; align-items: flex-start; justify-content: flex-start; padding: 12px; }
+.fw-live-veil[data-soft] { font-size: 11.5px; }
+
+@media (prefers-reduced-motion: reduce) { .fw-live-spin, .fw-live-edits { animation: none; } }

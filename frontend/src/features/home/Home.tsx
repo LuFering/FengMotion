@@ -154,10 +154,9 @@ export function Home(props: {
 }) {
   const [ready, setReady] = useState(false)
   const [draft, setDraft] = useState('')
-  const [startIntent, setStartIntent] = useState<'create' | 'chat'>('create')
   const [starting, setStarting] = useState(false)
   const [startError, setStartError] = useState('')
-  const [menu, setMenu] = useState<null | 'workdir' | 'add' | 'harness' | 'intent'>(null)
+  const [menu, setMenu] = useState<null | 'workdir' | 'add' | 'harness'>(null)
   /* 工作目录。真实链路按 docs/dev/前后端协议 与后端 workspace 包的规划走：
      Electron 主进程 dialog.showOpenDialog（DSH 的 dsh-desktop:directory-pick 同款），
      前端只经适配器拿「显示名 + 路径」。
@@ -345,12 +344,8 @@ export function Home(props: {
       setToast(`${harness.name} 未接入：不会创建任务，请切回已配置引擎。`)
       return
     }
-    if (startIntent === 'create' && currentWorkdir && !props.projects?.some((project) => project.path === currentWorkdir.path)) {
+    if (currentWorkdir && !props.projects?.some((project) => project.path === currentWorkdir.path)) {
       setStartError('这个目录尚未关联视频项目。请在目录菜单选择“新建视频项目”或一个已有项目。')
-      return
-    }
-    if (startIntent === 'chat' && attachments.length && !props.projects?.some((project) => project.path === currentWorkdir?.path)) {
-      setToast('附件需要项目会话，请先选择已有项目的工作目录。')
       return
     }
     /* 准备项目/会话与草稿；实际提交由创作区输入框显式完成。 */
@@ -358,7 +353,7 @@ export function Home(props: {
       setStarting(true)
       setStartError('')
       try { await props.onStart({
-        intent: startIntent,
+        intent: 'create',
         draft,
         attachments: attachments.map(({ file, kind }) => ({ file, kind })),
         workdir: currentWorkdir,
@@ -416,15 +411,8 @@ export function Home(props: {
               <img src="./assets/brand/fengmotion-mark.png" alt="" />
               <span className="hf-brandname">FengMotion</span>
               <span className="hf-brandsep" aria-hidden="true">|</span>
-              <div className="hf-entry-choice">
-                <button type="button" className="hf-brandstart" disabled={starting} aria-haspopup="menu" aria-expanded={menu === 'intent'} onClick={() => setMenu(menu === 'intent' ? null : 'intent')}>
-                  {startIntent === 'create' ? '开始创作' : '先聊想法'}<svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg>
-                </button>
-                {menu === 'intent' && <div className="hf-menu hf-entry-menu" role="menu" aria-label="开始方式">
-                  <button type="button" role="menuitemradio" aria-checked={startIntent === 'create'} onClick={() => { setStartIntent('create'); setMenu(null); taRef.current?.focus() }}><span>制作视频</span><small>准备项目与需求</small></button>
-                  <button type="button" role="menuitemradio" aria-checked={startIntent === 'chat'} onClick={() => { setStartIntent('chat'); setMenu(null); taRef.current?.focus() }}><span>先聊想法</span><small>讨论，不修改工程</small></button>
-                </div>}
-              </div>
+              {/* 首页只做一件事：带着需求开始创作。不再提供「先聊想法」的切换菜单。 */}
+              <span className="hf-brandstart">开始创作</span>
             </div>
             <HomeComposer
               addFiles={addFiles}
@@ -461,7 +449,6 @@ export function Home(props: {
               setPref={setPref}
               setWorkdirPath={setWorkdirPath}
               startError={startError}
-              startIntent={startIntent}
               starting={starting}
               taRef={taRef}
               toast={toast}

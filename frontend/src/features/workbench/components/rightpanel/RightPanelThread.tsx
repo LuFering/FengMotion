@@ -1,8 +1,9 @@
+import { useEffect, useRef } from 'react'
 import { UiIcon, SemIcons } from '@/shared/icons/UiIcon'
 import { MessageSquare01, Square } from '@untitledui/icons'
-import { ProcessSummary } from '@/features/chat/components/ProcessSummary'
-import { AssistantTurnContent } from '@/features/chat/components/AssistantTurnContent'
-import { MarkdownText } from '@/features/chat/components/MarkdownText'
+import { LiveRunStatus } from '@/features/chat/components/conversation/LiveRunStatus'
+import { useScrollFollow } from '@/features/chat/hooks/thread/useScrollFollow'
+import { WorkbenchAiContent } from '@/features/workbench/components/rightpanel/WorkbenchAiContent'
 import { CreationProgress } from '@/features/chat/components/CreationProgress'
 import { EyeTracker } from '@/features/workbench/components/EyeTracker'
 import { ChatMessage } from '@/features/chat/components'
@@ -48,9 +49,28 @@ export interface RightPanelThreadProps {
  * 以及本轮结论、执行进度、回复补存、上下文占用和任务结果等随消息流出现的提示。
  */
 export function RightPanelThread({ activeDone, activeLive, activeRecord, activeTask, cancelTask, currentSession, executionPhase, getRoundOutcome, isSessionLoading, latestEvent, messages, onCancelQueued, onClearRoundOutcome, onOpenTask, onResumeRequest, onRetryMessages, onRetrySaveAllReplies, onRetrySaveReply, onStartQueued, pending, projectId, realModifyBusy, records, unsavedReplies, workbenchMeterKinds, workbenchMeterWindow }: RightPanelThreadProps) {
+  /* 跟随最新内容与「回到最新」：规则与对话页同一套（useScrollFollow） */
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const contentRef = useRef<HTMLDivElement>(null)
+  const { away, toBottom } = useScrollFollow(scrollRef, contentRef)
+  const last = messages[messages.length - 1]
+  const replying = last?.role === 'ai' && last.streaming === true
+  const running = realModifyBusy || replying
+  useEffect(() => {
+    if (running) toBottom()
+  }, [running, toBottom])
+  const lastUserAt = [...messages].reverse().find((x) => x.role === 'user')?.at ?? null
+  const runLabel = realModifyBusy
+    ? executionPhase === 'analyzing'
+      ? '正在分析需求并修改工程源码'
+      : executionPhase === 'rendering'
+        ? '源码已改完，正在渲染视频画面'
+        : '正在执行修改'
+    : undefined
+
   return (
-    <div className="fw-scroll open-workbench-thread">
-      <div className="open-workbench-messages">
+    <div className="fw-scroll open-workbench-thread" ref={scrollRef}>
+      <div className="open-workbench-messages" ref={contentRef}>
         {/* 消息：AI 不用气泡，用户用 --soft 底（fm-components §9） */}
         {/* 历史读取中状态 */}
         {currentSession && currentSession.origin === 'server' && (isSessionLoading || (!currentSession.messagesLoaded && !currentSession.messagesError)) ? (
@@ -135,9 +155,7 @@ export function RightPanelThread({ activeDone, activeLive, activeRecord, activeT
                   failed={m.failed}
                   demo={m.demo}
                   avatar={<EyeTracker size={20} shape="Ball" eyeScale={1.7} within=".fw-scroll" extendToViewportOrigin />}
-                  content={<AssistantTurnContent text={m.text} tools={m.executedTools}
-                    renderText={text => <MarkdownText text={text} />}
-                    renderTools={tools => <ProcessSummary tools={tools} running={m.streaming === true} />} />}
+                  content={<WorkbenchAiContent m={m} />}
                 />
                 {/* 「本轮未改动工程」按**轮次**显示：用这条回复的 taskId
                     （= 触发它的用户消息 id）去查该轮结果。
@@ -191,19 +209,6 @@ export function RightPanelThread({ activeDone, activeLive, activeRecord, activeT
         })()}
 
         {/* 约束 3：真实执行状态展示，按后端真实阶段（analyzing / rendering）展示，不模拟虚构进度 */}
-        {realModifyBusy && (
-          <div className="wb-real-execution-status flex items-center gap-2.5 px-3 py-2 mt-2 rounded-lg bg-[var(--hole)] border border-[var(--line)] text-xs text-[var(--tx2)] shadow-sm animate-pulse">
-            <UiIcon icon={SemIcons.loading} size="sm" className="animate-spin text-blue-400 shrink-0" />
-            <span>
-              {executionPhase === 'analyzing'
-                ? '正在由 AI 分析需求并修改工程源码…'
-                : executionPhase === 'rendering'
-                ? '工程源码已修改完毕，正在渲染视频画面…'
-                : '创作执行中，正在处理…'}
-            </span>
-          </div>
-        )}
-
         {/* 约束 1：多条回复补存提示，以服务端任务记录为依据，支持逐条与一键批量保存 */}
         {unsavedReplies && unsavedReplies.length > 0 && (
           <div className="wb-unsaved-reply-alert mt-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300 flex flex-col gap-2 shadow-sm">
@@ -303,7 +308,22 @@ export function RightPanelThread({ activeDone, activeLive, activeRecord, activeT
         )}
 
         <CreationProgress projectId={projectId} sessionId={currentSession?.id} />
+        {/* 这一轮在跑就常驻在最底部：此刻在做什么，加已用时长（从发出这条消息算起） */}
+        {running && (
+          <LiveRunStatus
+            phase={null}
+            startedAt={lastUserAt}
+            hasText={Boolean(last?.role === 'ai' && last.text)}
+            afterUser={last?.role === 'user'}
+            label={runLabel}
+          />
+        )}
       </div>
+      {away ? (
+        <button type="button" className="cv3-to-bottom wb-to-bottom" aria-label="回到最新" title="回到最新" onClick={() => toBottom('smooth')}>
+          <UiIcon icon={SemIcons.collapse} size="md" />
+        </button>
+      ) : null}
     </div>
   )
 }

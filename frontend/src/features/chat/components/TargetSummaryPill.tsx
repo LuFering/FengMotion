@@ -1,6 +1,7 @@
-import React, { useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { UiIcon, SemIcons } from '@/shared/icons/UiIcon'
-import { Link04, HelpCircle, Star01, Target01 } from '@untitledui/icons'
+import { Link04, Target01 } from '@untitledui/icons'
+import '@/features/chat/styles/components/target-pill.css'
 import type { TargetSnapshot } from '@/features/chat/hooks/useDraftStore'
 import { resolveSendPlan, describeSendPlan } from '@/features/chat/model/sendPlan'
 
@@ -94,6 +95,21 @@ export function TargetSummaryPill({
 }: TargetSummaryPillProps) {
   const [expanded, setExpanded] = useState(false)
   const [confirmRemoveGlobal, setConfirmRemoveGlobal] = useState(false)
+  const wrapRef = useRef<HTMLDivElement>(null)
+  /* 详情是浮层：点到外面或按 Esc 就收起，不会一直挡在输入框上 */
+  useEffect(() => {
+    if (!expanded) return
+    const onDown = (e: PointerEvent) => {
+      if (!wrapRef.current?.contains(e.target as Node)) setExpanded(false)
+    }
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setExpanded(false) }
+    document.addEventListener('pointerdown', onDown)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('pointerdown', onDown)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [expanded])
 
   /* 意图与去向一律来自共享判定（{@link resolveSendPlan}），本组件不再自己算。
      历史 bug 就出在这里：组件默认 `?? 'modify'`，于是「没有目标、没有意图」
@@ -254,212 +270,133 @@ export function TargetSummaryPill({
     }
   }
 
+  const intentOptions: { value: 'modify' | 'query'; label: string; title: string }[] = [
+    { value: 'modify', label: '修改工程', title: '发送时会真实修改视频工程' },
+    { value: 'query', label: '只提问', title: '只在对话里回答，不修改视频工程' },
+  ]
+  const toneOf = planCopy.tone === 'modify' ? 'modify' : planCopy.tone === 'blocked' ? 'blocked' : 'neutral'
+  const rangeText = plan.kind !== 'modify'
+    ? (effectiveRange || hasBbox ? '仅作为提问参考，不产生修改' : '不涉及修改范围')
+    : effectiveRange
+      ? `${fmtClock(effectiveRange.start)} – ${fmtClock(effectiveRange.end)}`
+      : effectiveScope === 'project'
+        ? '整片工程'
+        : '当前画面'
+
   return (
-    <div className={`wb-target-pill-wrap mb-1.5 flex flex-col items-start w-full ${layoutMode === 'normal' ? 'max-w-2xl mx-auto' : ''}`}>
-      <div className="flex flex-wrap items-center gap-1.5 max-w-full">
-        {/* 目标胶囊主体 */}
-        <div
-          className={`wb-target-pill inline-flex items-center gap-1.5 max-w-full text-xs px-2.5 py-1 rounded-full border transition-all ${
-            isHistorical
-              ? 'bg-amber-500/10 border-amber-500/40 text-amber-300'
-              : 'bg-[var(--hole,#edf0ee)] dark:bg-[#1f2127] border-[var(--line,#e0e5e2)] dark:border-[#2d3039] text-[var(--tx2,#66716c)] dark:text-[#a0a5b2] hover:border-[var(--line2,#c4ccc7)]'
-          }`}
-        >
+    <div className={`wb-target-pill-wrap tp${layoutMode === 'normal' ? ' tp--normal' : ''}`} ref={wrapRef}>
+      <div className="tp-bar">
+        {/* 目标胶囊：写清这次发送的去向；点开看基准版本与范围 */}
+        <div className="wb-target-pill tp-target" data-historical={isHistorical || undefined}>
           <button
             type="button"
-            className="inline-flex items-center gap-1.5 min-w-0 text-left cursor-pointer"
+            className="tp-target-main"
+            aria-expanded={expanded}
+            aria-haspopup="dialog"
             onClick={() => setExpanded((v) => !v)}
-            title="点击展开/收起修改目标详情与过期核对"
           >
-            {isHistorical ? (
-              <UiIcon icon={SemIcons.warning} size="xs" className="text-amber-400 shrink-0 animate-pulse" />
-            ) : (
-              <UiIcon icon={Target01} size="xs" className="text-emerald-500 shrink-0" />
-            )}
-            <span className="truncate font-medium text-[var(--tx,#242a28)] dark:text-[#ededed] text-[11px] max-w-[240px]">
-              {summary}
-            </span>
-            <UiIcon icon={SemIcons.collapse} size="xs" className={`text-[var(--tx3,#8f9b95)] shrink-0 transition-transform ${expanded ? 'rotate-180' : ''} `} />
+            <UiIcon icon={isHistorical ? SemIcons.warning : Target01} size="xs" className="tp-target-icon" />
+            <span className="tp-target-text">{summary}</span>
+            <UiIcon icon={SemIcons.collapse} size="xs" className={`tp-caret${expanded ? ' is-open' : ''}`} />
           </button>
 
           {isCustomized && (
-            <div className="inline-flex items-center gap-1 shrink-0 ml-0.5">
-              {confirmRemoveGlobal ? (
-                <span className="inline-flex items-center gap-1 text-[10px] text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded">
-                  {afterRemove.kind === 'modify' ? '确认转为全片？' : '确认移除目标？'}
-                  <button
-                    type="button"
-                    className="font-semibold text-red-500 hover:underline cursor-pointer"
-                    onClick={handleRemoveClick}
-                  >
-                    确认
-                  </button>
-                  <button
-                    type="button"
-                    className="text-[var(--tx3,#8f9b95)] hover:underline cursor-pointer ml-1"
-                    onClick={(e) => { e.stopPropagation(); setConfirmRemoveGlobal(false) }}
-                  >
-                    取消
-                  </button>
-                </span>
-              ) : (
-                <button
-                  type="button"
-                  className="text-[10px] text-[var(--tx3,#8f9b95)] hover:text-red-500 p-0.5 shrink-0 transition-colors cursor-pointer"
-                  title={removeHint}
-                  onClick={handleRemoveClick}
-                >
-                  <UiIcon icon={SemIcons.close} size="xs" />
-                </button>
-              )}
-            </div>
+            confirmRemoveGlobal ? (
+              <span className="tp-confirm" role="group" aria-label="确认移除目标">
+                <span>{afterRemove.kind === 'modify' ? '转为整片？' : '移除目标？'}</span>
+                <button type="button" className="tp-confirm-yes" onClick={handleRemoveClick}>确认</button>
+                <button type="button" className="tp-confirm-no" onClick={(e) => { e.stopPropagation(); setConfirmRemoveGlobal(false) }}>取消</button>
+              </span>
+            ) : (
+              <button type="button" className="tp-remove" title={removeHint} aria-label={removeHint} onClick={handleRemoveClick}>
+                <UiIcon icon={SemIcons.close} size="xs" />
+              </button>
+            )
           )}
         </div>
 
-        {/* 意图切换器：修改视频 vs 提问咨询。
-            两个按钮用 radiogroup 语义：它们是同一件事的两个互斥选项，
-            选中态必须能被读屏和键盘用户识别 —— 只靠颜色高亮，
-            看不到颜色的人无法知道这句话发出去会不会改工程。 */}
+        {/* 意图切换：同一件事的两个互斥选项，用 radiogroup 语义 ——
+            看不到颜色的人也要能知道这句话发出去会不会改工程。未选择时两个都不高亮。 */}
         {onIntentChange && (
-          <div role="radiogroup" aria-label="这条消息的作用" className="inline-flex items-center p-0.5 rounded-full border border-[var(--line,#e0e5e2)] dark:border-[#2d3039] bg-[var(--hole,#edf0ee)] dark:bg-[#1f2127] text-[10px]">
-            <button
-              type="button"
-              role="radio"
-              aria-checked={selectedIntent === 'modify'}
-              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full transition-colors cursor-pointer font-medium ${
-                selectedIntent === 'modify'
-                  ? 'bg-amber-500/20 text-amber-400 font-semibold'
-                  : 'text-[var(--tx3,#8f9b95)] hover:text-[var(--tx,#242a28)] dark:hover:text-[#dedede]'
-              }`}
-              onClick={() => onIntentChange('modify')}
-              title="发送时会真实修改视频工程"
-            >
-              <UiIcon icon={Star01} size="xs" />
-              <span>修改此目标</span>
-            </button>
-            <button
-              type="button"
-              role="radio"
-              aria-checked={selectedIntent === 'query'}
-              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full transition-colors cursor-pointer font-medium ${
-                selectedIntent === 'query'
-                  ? 'bg-blue-500/20 text-blue-400 font-semibold'
-                  : 'text-[var(--tx3,#8f9b95)] hover:text-[var(--tx,#242a28)] dark:hover:text-[#dedede]'
-              }`}
-              onClick={() => onIntentChange('query')}
-              title="只在对话里回答，不修改视频工程"
-            >
-              <UiIcon icon={HelpCircle} size="xs" />
-              <span>关于此提问</span>
-            </button>
+          <div role="radiogroup" aria-label="这条消息的作用" className="tp-seg" data-value={selectedIntent ?? undefined}>
+            {intentOptions.map((o) => (
+              <button
+                key={o.value}
+                type="button"
+                role="radio"
+                aria-checked={selectedIntent === o.value}
+                className="tp-seg-item"
+                data-intent={o.value}
+                title={o.title}
+                onClick={() => onIntentChange(o.value)}
+              >
+                {o.label}
+              </button>
+            ))}
           </div>
         )}
-        {/* 未显式选择时两个按钮都不高亮 —— 光看按钮不知道「现在会怎样」。
-            用一句话把当前真实去向补上，避免用户以为默认就是改工程。
-            左侧胶囊已经写着同一个去向（例如「普通对话」）时不再重复。 */}
+        {/* 未显式选择时补一句真实去向；胶囊已经写着同一个去向时不再重复 */}
         {onIntentChange && selectedIntent === null && summary !== planCopy.label && (
-          <span className="text-[10px] text-[var(--tx3,#8f9b95)] shrink-0">
-            未选择：{planCopy.label === '普通对话' ? '按普通对话发送' : planCopy.label}
-          </span>
+          <span className="tp-hint">未选择：{planCopy.label === '普通对话' ? '按普通对话发送' : planCopy.label}</span>
         )}
       </div>
 
       {expanded && (
-        <div className="wb-target-details w-full p-2.5 mt-1 rounded-xl bg-[var(--hole,#edf0ee)] dark:bg-[#1c1d22] border border-[var(--line,#e0e5e2)] dark:border-[#2e313b] text-xs flex flex-col gap-2 shadow-sm">
+        <div className="wb-target-details tp-pop" role="dialog" aria-label="修改目标详情">
+          {/* 第一行就是这次发送会发生什么：和胶囊同源，不另起一套说法 */}
+          <p className="tp-pop-plan" data-tone={toneOf}>
+            <b>{planCopy.label}</b>
+            <span>{planCopy.detail}</span>
+          </p>
+
           {isHistorical ? (
-            <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/25 flex flex-col gap-1.5">
-              <div className="flex items-center gap-1.5 text-amber-400 font-medium text-[11px]">
-                <UiIcon icon={SemIcons.warning} size="xs" className="shrink-0" />
+            <div className="tp-warn">
+              <p className="tp-warn-title">
+                <UiIcon icon={SemIcons.warning} size="xs" />
                 目标引用的基准版本已过期
-              </div>
-              <p className="text-[11px] text-[var(--tx2,#66716c)] dark:text-[#a7abb5] leading-relaxed">
-                当前草稿基于历史版本 <span className="font-semibold text-amber-300">v{effectiveVersion}</span>，但最新工程已推进至 <span className="font-semibold text-blue-400">v{stageLeadVersion ?? '最新'}</span>。新版本时间轴与画面可能已变动，不可直接套用。
               </p>
-              <div className="mt-1 flex flex-wrap items-center gap-2 pt-1.5 border-t border-amber-500/20">
+              <p className="tp-warn-body">
+                草稿基于历史版本 <b>v{effectiveVersion}</b>，最新工程已到 <b>v{stageLeadVersion ?? '最新'}</b>。新版本的时间轴与画面可能已变动，不能直接套用。
+              </p>
+              <div className="tp-warn-actions">
                 {onViewLead && (
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-1 text-[11px] px-2.5 py-1 rounded bg-blue-600 hover:bg-blue-500 text-white font-medium transition-colors cursor-pointer"
-                    onClick={() => {
-                      onViewLead()
-                      setExpanded(false)
-                    }}
-                  >
-                    <UiIcon icon={Link04} size="xs" /> 查看最新版画面重新选择
+                  <button type="button" className="tp-btn tp-btn--primary" onClick={() => { onViewLead(); setExpanded(false) }}>
+                    <UiIcon icon={Link04} size="xs" /> 查看最新版画面
                   </button>
                 )}
-                <button
-                  type="button"
-                  className="text-[11px] px-2 py-1 rounded bg-[var(--hole,#edf0ee)] dark:bg-[#252830] text-amber-400 hover:text-amber-300 border border-amber-500/30 transition-colors cursor-pointer"
-                  onClick={handleRemoveClick}
-                >
-                  {removeHint}
-                </button>
                 {onRestoreVersion && effectiveVersion !== null && (
-                  <button
-                    type="button"
-                    className="text-[11px] px-2 py-1 rounded text-[var(--tx2,#66716c)] hover:text-white transition-colors cursor-pointer ml-auto"
-                    onClick={() => onRestoreVersion(Number(effectiveVersion))}
-                  >
+                  <button type="button" className="tp-btn" onClick={() => onRestoreVersion(Number(effectiveVersion))}>
                     恢复工程到 v{effectiveVersion}
                   </button>
                 )}
               </div>
             </div>
-          ) : (
-            <div className="flex items-center justify-between text-[11px]">
-              <span className="text-[var(--tx3,#8f9b95)]">基准工程版本</span>
-              <span className="font-medium text-[var(--tx,#242a28)] dark:text-[#ededed]">
-                {hasVersion ? `v${effectiveVersion}（当前基准）` : '尚未生成版本'}
-              </span>
+          ) : null}
+
+          <dl className="tp-rows">
+            {!isHistorical && (
+              <div className="tp-row">
+                <dt>基准版本</dt>
+                <dd className="num">{hasVersion ? `v${effectiveVersion}` : '尚未生成版本'}</dd>
+              </div>
+            )}
+            <div className="tp-row">
+              <dt>{plan.kind === 'modify' ? '修改范围' : '引用范围'}</dt>
+              <dd className="num">{rangeText}</dd>
+            </div>
+            {hasBbox && (
+              <div className="tp-row">
+                <dt>画面选区</dt>
+                <dd>已框选局部区域</dd>
+              </div>
+            )}
+          </dl>
+
+          {(targetSnapshot || isCustomized) && (
+            <div className="tp-pop-foot">
+              <button type="button" className="tp-link" onClick={handleRemoveClick}>{removeHint}</button>
             </div>
           )}
-
-          <div className="flex items-center justify-between text-[11px]">
-            <span className="text-[var(--tx3,#8f9b95)]">发送预期动作</span>
-            <span className={`font-semibold ${
-              planCopy.tone === 'modify' ? 'text-amber-400'
-                : planCopy.tone === 'blocked' ? 'text-red-400'
-                  : 'text-blue-400'
-            }`}>
-              {planCopy.label} —— {planCopy.detail}
-            </span>
-          </div>
-
-          {/* 普通对话没有「修改范围」可言：这里若仍写「全片修改（作用于整个项目工程）」，
-              就会和上面那句「不会修改工程」直接打架。没有范围就如实说不涉及。 */}
-          <div className="flex items-center justify-between text-[11px]">
-            <span className="text-[var(--tx3,#8f9b95)]">
-              {plan.kind === 'modify' ? '目标范围与时间' : '引用范围'}
-            </span>
-            <span className="font-medium text-[var(--tx,#242a28)] dark:text-[#ededed]">
-              {plan.kind !== 'modify'
-                ? (effectiveRange || hasBbox ? '仅作为提问参考，不产生修改' : '不涉及修改范围')
-                : effectiveRange
-                  ? `${fmtClock(effectiveRange.start)} – ${fmtClock(effectiveRange.end)}`
-                  : effectiveScope === 'project'
-                    ? '全片修改（作用于整个项目工程）'
-                    : '当前画面'}
-            </span>
-          </div>
-
-          {hasBbox && (
-            <div className="flex items-center justify-between text-[11px]">
-              <span className="text-[var(--tx3,#8f9b95)]">画面选区</span>
-              <span className="font-medium text-emerald-400">已框选局部画面区域</span>
-            </div>
-          )}
-
-          <div className="pt-1.5 border-t border-[var(--line,#e0e5e2)] dark:border-[#2b2d35] flex items-center justify-between text-[10px] text-[var(--tx3,#8f9b95)]">
-            <span>当前模式：{plan.kind !== 'modify' ? '仅提问' : effectiveRange || hasBbox ? '精确片段' : '全片宏观'}</span>
-            <button
-              type="button"
-              className="hover:text-red-500 transition-colors cursor-pointer"
-              onClick={handleRemoveClick}
-            >
-              清空目标
-            </button>
-          </div>
         </div>
       )}
     </div>

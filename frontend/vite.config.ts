@@ -22,6 +22,8 @@ import { defineConfig, loadEnv } from 'vite'
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, import.meta.dirname, 'VITE_')
   const apiBase = env.VITE_FENGMOTION_API_BASE
+  /* 开发版专用：后端还没有实时预览接口时，直接连手动起的预览服务（见 frontend/live-preview） */
+  const livePreviewUrl = env.VITE_FENGMOTION_LIVE_PREVIEW_URL
 
   return {
     plugins: [
@@ -47,9 +49,10 @@ export default defineConfig(({ mode }) => {
         '@remotion/motion-blur': path.resolve(import.meta.dirname, './src/remotion/shims/motion-blur-mock.tsx'),
       },
     },
-    define: apiBase
-      ? { 'import.meta.env.VITE_FENGMOTION_API_BASE': JSON.stringify(apiBase) }
-      : {},
+    define: {
+      ...(apiBase ? { 'import.meta.env.VITE_FENGMOTION_API_BASE': JSON.stringify(apiBase) } : {}),
+      ...(livePreviewUrl ? { 'import.meta.env.VITE_FENGMOTION_LIVE_PREVIEW_URL': JSON.stringify(livePreviewUrl) } : {}),
+    },
     // 桌面版：构建产物用相对路径，便于 Electron 以 file:// 加载
     base: './',
   }

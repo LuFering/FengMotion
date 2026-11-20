@@ -1,7 +1,8 @@
 import type * as React from 'react'
+import { useLayoutEffect, useRef } from 'react'
 import { Search as SeekSearch } from '@/features/chat/components/Search'
 import { UiIcon, SemIcons } from '@/shared/icons/UiIcon'
-import { LayoutGrid01, MessageSquare01 } from '@untitledui/icons'
+import { LayoutGrid01 } from '@untitledui/icons'
 import { UNGROUPED, type Session } from '@/features/chat/hooks/useSessions'
 import { SessionGroup } from '@/features/chat/components/conversation/SessionGroup'
 import type { ConversationProps } from '@/features/chat/Conversation'
@@ -12,7 +13,8 @@ export interface ConversationSidebarProps {
   collapsedGroups: Set<string>
   createProjectInline: () => Promise<void>
   dragId: string | null
-  drawer: boolean
+  /** 面板的开合阶段：open 展开 / closing 正在往上卷回（播完由上层卸载） */
+  state: 'open' | 'closing'
   dropTarget: string | null
   editText: string
   editing: string | null
@@ -44,66 +46,79 @@ export interface ConversationSidebarProps {
   viewMenu: boolean
 }
 
-/** 对话页左栏「项目与对话」：搜索、新建与视图选项，加载与错误提示，以及按项目分组的会话列表。 */
-export function ConversationSidebar({ archiveFilter, collapsedGroups, createProjectInline, dragId, drawer, dropTarget, editText, editing, groupMode, grouped, newSession, noMatches, orderMode, projectError, projectPending, props, query, rowMenu, setArchiveFilter, setArchivingProject, setCollapsedGroups, setDeleteConfirmText, setDeletingProject, setDragId, setDropTarget, setEditText, setEditing, setGroupMode, setOrderMode, setQuery, setRowMenu, setViewMenu, showProjectError, viewMenu }: ConversationSidebarProps) {
+/** 「项目与对话」面板：挂在左上角切换按钮下面，浮在阅读区之上；搜索、新建与视图选项，加载与错误提示，以及按项目分组的会话列表。 */
+export function ConversationSidebar({ archiveFilter, collapsedGroups, createProjectInline, dragId, state, dropTarget, editText, editing, groupMode, grouped, newSession, noMatches, orderMode, projectError, projectPending, props, query, rowMenu, setArchiveFilter, setArchivingProject, setCollapsedGroups, setDeleteConfirmText, setDeletingProject, setDragId, setDropTarget, setEditText, setEditing, setGroupMode, setOrderMode, setQuery, setRowMenu, setViewMenu, showProjectError, viewMenu }: ConversationSidebarProps) {
+  /* 百叶窗：打开那一刻给每一行编个序号（--i），CSS 按序号错开落下的时间，
+     一行接一行从上往下翻下来。只在打开时编一次，之后展开的分组按 0 号直接落位。 */
+  const panelRef = useRef<HTMLElement>(null)
+  useLayoutEffect(() => {
+    const rows = panelRef.current?.querySelectorAll<HTMLElement>(
+      '.cv3-side-top, .cv3-new-chat, .cv3-side > .cv3-side-hint, .cv3-side > .cv3-side-error, .cv3-group-row, .cv3-session, .cv3-group-body > .cv3-side-hint, .cv3-side-list > .cv3-side-hint')
+    rows?.forEach((row, i) => row.style.setProperty('--i', String(i)))
+  }, [])
   return (
-    <aside className="cv3-side" data-drawer={drawer || undefined} aria-label="项目与对话">
-      {/* 左栏标题与项目/对话操作同层，视图选项靠近下面的列表。 */}
+    <aside ref={panelRef} className="cv3-side" data-state={state} role="dialog" aria-label="项目与对话">
+      {/* 顶部：标题、搜索和一个「⋯」菜单（全部项目、新建项目、视图选项都收在里面），
+          下面单独一行「＋ 新对话」—— 左栏唯一的主操作，一眼就能找到。 */}
       <div className="cv3-side-top">
         <span className="cv3-side-title">项目与对话</span>
-        {/* 搜索并进这一排：收起时和旁边的图标按钮同款，点开时占满整条，
-            同排其他按钮随即隐去，收起后再回来（见 conversation.css）。 */}
-        <SeekSearch value={query} onChange={setQuery} width={248} size={28}
+        {/* 搜索：收起时和「⋯」同款小图标，点开占满整行，同排其他按钮随即隐去 */}
+        <SeekSearch value={query} onChange={setQuery} width={236} size={28}
                     placeholder="搜索对话名称" ariaLabel="搜索对话" />
         <div className="cv3-top-actions">
-        {props.onOverviewChange && <button type="button" className="cv3-icon-btn" aria-label="查看全部项目" title="查看全部项目" aria-pressed={props.overviewOpen ?? false} data-on={props.overviewOpen || undefined} onClick={() => props.onOverviewChange?.(true)}><UiIcon icon={LayoutGrid01} size="sm" /></button>}
-        <button type="button" className="cv3-icon-btn" aria-label="新建对话" title="新建对话"
-                onClick={() => newSession()}>
-          <UiIcon icon={MessageSquare01} size="sm" />
-        </button>
-        <button type="button" className="cv3-icon-btn" aria-label="新建项目" title="新建项目"
-                disabled={projectPending} onClick={() => void createProjectInline()}>
-          <UiIcon icon={SemIcons.folder} size="sm" />
-        </button>
-        {/* 视图选项（对齐 dsh viewOptions：分组方式 / 排序方式 / 归档筛选） */}
-        <div className="cv3-viewwrap">
-          <button type="button" className="cv3-icon-btn" aria-label="视图选项" title="视图选项"
-                  aria-expanded={viewMenu} data-on={viewMenu || undefined}
-                  onClick={() => { setViewMenu((o) => !o); setRowMenu(null) }}>
-            <UiIcon icon={SemIcons.sliders} size="sm" />
-          </button>
-          {viewMenu && (
-            <div className="cv3-menu cv3-viewmenu" role="menu">
-              <div className="cv3-menu-sec">分组方式</div>
-              <button type="button" role="menuitemradio" aria-checked={groupMode === 'project'}
-                      onClick={() => { setGroupMode('project'); setViewMenu(false) }}>
-                <span>按项目</span>{groupMode === 'project' && <UiIcon icon={SemIcons.check} size="sm" />}
-              </button>
-              <button type="button" role="menuitemradio" aria-checked={groupMode === 'flat'}
-                      onClick={() => { setGroupMode('flat'); setViewMenu(false) }}>
-                <span>单列表</span>{groupMode === 'flat' && <UiIcon icon={SemIcons.check} size="sm" />}
-              </button>
-              <div className="cv3-menu-sec">排序方式</div>
-              <button type="button" role="menuitemradio" aria-checked={orderMode === 'updated'}
-                      onClick={() => { setOrderMode('updated'); setViewMenu(false) }}>
-                <span>最近更新</span>{orderMode === 'updated' && <UiIcon icon={SemIcons.check} size="sm" />}
-              </button>
-              <button type="button" role="menuitemradio" aria-checked={orderMode === 'manual'}
-                      onClick={() => { setOrderMode('manual'); setViewMenu(false) }}>
-                <span>手动排序</span>{orderMode === 'manual' && <UiIcon icon={SemIcons.check} size="sm" />}
-              </button>
-              <div className="cv3-menu-sec">筛选会话</div>
-              {([['hide', '隐藏已归档'], ['show', '全部对话（显示已归档）'], ['only', '仅显示已归档']] as const).map(([v, label]) => (
-                <button key={v} type="button" role="menuitemradio" aria-checked={archiveFilter === v}
-                        onClick={() => { setArchiveFilter(v); setViewMenu(false) }}>
-                  <span>{label}</span>{archiveFilter === v && <UiIcon icon={SemIcons.check} size="sm" />}
+          <div className="cv3-viewwrap">
+            <button type="button" className="cv3-icon-btn" aria-label="更多" title="更多"
+                    aria-haspopup="menu" aria-expanded={viewMenu} data-on={viewMenu || undefined}
+                    onClick={() => { setViewMenu((o) => !o); setRowMenu(null) }}>
+              <UiIcon icon={SemIcons.more} size="sm" />
+            </button>
+            {viewMenu && (
+              <div className="cv3-menu cv3-viewmenu" role="menu">
+                {props.onOverviewChange && (
+                  <button type="button" role="menuitem"
+                          onClick={() => { setViewMenu(false); props.onOverviewChange?.(true) }}>
+                    <UiIcon icon={LayoutGrid01} size="sm" /><span>全部项目</span>
+                  </button>
+                )}
+                <button type="button" role="menuitem" disabled={projectPending}
+                        onClick={() => { setViewMenu(false); void createProjectInline() }}>
+                  <UiIcon icon={SemIcons.folder} size="sm" /><span>新建项目</span>
                 </button>
-              ))}
-            </div>
-          )}
-        </div>
+                <div className="cv3-menu-sep" role="separator" />
+                <div className="cv3-menu-sec">分组方式</div>
+                <button type="button" role="menuitemradio" aria-checked={groupMode === 'project'}
+                        onClick={() => { setGroupMode('project'); setViewMenu(false) }}>
+                  <span>按项目</span>{groupMode === 'project' && <UiIcon icon={SemIcons.check} size="sm" />}
+                </button>
+                <button type="button" role="menuitemradio" aria-checked={groupMode === 'flat'}
+                        onClick={() => { setGroupMode('flat'); setViewMenu(false) }}>
+                  <span>单列表</span>{groupMode === 'flat' && <UiIcon icon={SemIcons.check} size="sm" />}
+                </button>
+                <div className="cv3-menu-sec">排序方式</div>
+                <button type="button" role="menuitemradio" aria-checked={orderMode === 'updated'}
+                        onClick={() => { setOrderMode('updated'); setViewMenu(false) }}>
+                  <span>最近更新</span>{orderMode === 'updated' && <UiIcon icon={SemIcons.check} size="sm" />}
+                </button>
+                <button type="button" role="menuitemradio" aria-checked={orderMode === 'manual'}
+                        onClick={() => { setOrderMode('manual'); setViewMenu(false) }}>
+                  <span>手动排序</span>{orderMode === 'manual' && <UiIcon icon={SemIcons.check} size="sm" />}
+                </button>
+                <div className="cv3-menu-sec">显示</div>
+                {([['hide', '隐藏已归档'], ['show', '显示已归档'], ['only', '只看已归档']] as const).map(([v, label]) => (
+                  <button key={v} type="button" role="menuitemradio" aria-checked={archiveFilter === v}
+                          onClick={() => { setArchiveFilter(v); setViewMenu(false) }}>
+                    <span>{label}</span>{archiveFilter === v && <UiIcon icon={SemIcons.check} size="sm" />}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
+      <button type="button" className="cv3-new-chat" onClick={() => newSession()}>
+        <UiIcon icon={SemIcons.plus} size="sm" />
+        <span>新对话</span>
+      </button>
 
       {/* 读取/创建的项目与对话状态：放在标题下方，标题始终锚在左栏顶部，
           不因一条错误被推下去。 */}

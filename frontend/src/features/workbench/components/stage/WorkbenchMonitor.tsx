@@ -6,7 +6,6 @@ import { formatMediaTime } from '@/features/workbench/model/previewGeometry'
 import { duplicateClip } from '@/features/workbench/model/timelineEdit'
 import { useProjectRender } from '@/features/workbench/hooks/stage/useProjectRender'
 import { useTimeRangeTarget } from '@/features/workbench/hooks/modify-target/useTimeRangeTarget'
-import { useRegionSelect } from '@/features/workbench/hooks/modify-target/useRegionSelect'
 import { useTargetReferences } from '@/features/workbench/hooks/modify-target/useTargetReferences'
 import { useTimelineManifest } from '@/features/workbench/hooks/modify-target/useTimelineManifest'
 import { useVisualSelection } from '@/features/workbench/hooks/stage/useVisualSelection'
@@ -20,15 +19,26 @@ import type { TaskRecord } from '@/features/creation/hooks/useAgentTasks'
 import type { StageVisual } from '@/features/workbench/model/stageVisual'
 import type { WorkbenchProps } from '@/features/workbench/Workbench'
 import { MonitorVisual } from '@/features/workbench/components/stage/MonitorVisual'
+import type { ElementInspector } from '@/features/workbench/hooks/stage/useElementInspector'
+import { LAYER_CLIP_PREFIX, layerClipFor, type LivePreview } from '@/features/workbench/hooks/stage/useLivePreview'
+import { sequenceClipKey } from '@/features/workbench/model/sequenceManifest'
+import { FILM_FPS } from '@/demo/timeline'
 
 export interface WorkbenchMonitorProps {
+  /** 时间线按项目记住抽屉收起状态 */
+  projectId: string
+  /** 画面元素编辑（点选 / 框选 / 属性小窗） */
+  inspector: ElementInspector
+  /** 实时画面（运行工程源码）；null = 放成片 */
+  live: LivePreview | null
+  askAiLive: (prompt: string) => Promise<boolean>
+  workbenchBusy: boolean
   agentReply: ReturnType<typeof useProjectRender>['agentReply']
   askFix: (p: MonitorProblem) => void
   awaitingActive: ReturnType<typeof useProjectRender>['awaitingActive']
   backendCapability: BackendCapabilityInfo
   chat: WorkbenchProps['chat']
   clearTimeRange: ReturnType<typeof useTimeRangeTarget>['clearTimeRange']
-  endRegion: ReturnType<typeof useRegionSelect>['endRegion']
   expandedProblemId: string | null
   filmProject: ReturnType<typeof useProjectRender>['filmProject']
   filmRenderError: ReturnType<typeof useProjectRender>['filmRenderError']
@@ -38,7 +48,6 @@ export interface WorkbenchMonitorProps {
   loopSpan: boolean
   manifestStatus: ReturnType<typeof useTimelineManifest>['manifestStatus']
   monitorProblems: ReturnType<typeof useVisualSelection>['monitorProblems']
-  moveRegion: ReturnType<typeof useRegionSelect>['moveRegion']
   notice: string
   openEdit: () => void
   openReview: (tab: SideTab) => void
@@ -54,9 +63,6 @@ export interface WorkbenchMonitorProps {
   realModifyBusy: boolean
   realRenderBusy: ReturnType<typeof useProjectRender>['realRenderBusy']
   referenceTimeline: ReturnType<typeof useTimelineManifest>['referenceTimeline']
-  regionMode: boolean
-  regionRect: { x: number; y: number; w: number; h: number } | null
-  regionStart: React.RefObject<{ sx: number; sy: number; mx: number; my: number; pointerId: number } | null>
   remoteCreationBusy: boolean
   retryBackendCapability: () => void
   review: ReturnType<typeof useWorkbenchReview>
@@ -76,8 +82,6 @@ export interface WorkbenchMonitorProps {
   setPreviewFailed: React.Dispatch<React.SetStateAction<boolean>>
   setPreviewReady: React.Dispatch<React.SetStateAction<boolean>>
   setPreviewTime: React.Dispatch<React.SetStateAction<number>>
-  setRegionMode: React.Dispatch<React.SetStateAction<boolean>>
-  setRegionRect: React.Dispatch<React.SetStateAction<{ x: number; y: number; w: number; h: number } | null>>
   setSequenceMovePending: ReturnType<typeof useTimelineManifest>['setSequenceMovePending']
   setTargetReference: ReturnType<typeof useTimeRangeTarget>['setTargetReference']
   setTrayOpen: React.Dispatch<React.SetStateAction<boolean>>
@@ -87,7 +91,6 @@ export interface WorkbenchMonitorProps {
   stageLead: StageVisual
   stageLive: boolean
   stageRef: React.RefObject<HTMLDivElement | null>
-  startRegion: ReturnType<typeof useRegionSelect>['startRegion']
   submit: ReturnType<typeof useWorkbenchSubmit>['submit']
   submitProjectRender: ReturnType<typeof useProjectRender>['submitProjectRender']
   submitRealModify: ReturnType<typeof useRealModify>['submitRealModify']
@@ -105,21 +108,23 @@ export interface WorkbenchMonitorProps {
  * 工作台中间的监看器：画面区，视频预览下方的时间线（片段与轨道操作转成待确认的修改请求），
  * 以及提示、进行中任务和问题列表。
  */
-export function WorkbenchMonitor({ agentReply, askFix, awaitingActive, backendCapability, chat, clearTimeRange, endRegion, expandedProblemId, filmProject, filmRenderError, focusFeedback, liveTask, locateProblem, loopSpan, manifestStatus, monitorProblems, moveRegion, notice, openEdit, openReview, overlayGuides, previewDuration, previewLocation, previewMediaRef, previewReady, previewSource, previewTime, projectTask, range, realModifyBusy, realRenderBusy, referenceTimeline, regionMode, regionRect, regionStart, remoteCreationBusy, retryBackendCapability, review, sceneFilmMeta, selectSideTab, selectTimeRange, selectedVisual, sequenceManifest, sequenceMovePending, setAgentReply, setBottomTab, setFilmRenderError, setFocusChatKey, setLoopSpan, setNotice, setPreviewDuration, setPreviewFailed, setPreviewReady, setPreviewTime, setRegionMode, setRegionRect, setSequenceMovePending, setTargetReference, setTrayOpen, setUsedResources, sourceCreationBusy, stage, stageLead, stageLive, stageRef, startRegion, submit, submitProjectRender, submitRealModify, timelineFps, timelineManifest, timelineOpsCapability, toggleProblem, trackClipCapability, usedResources, viewedPreview, workflowRunning }: WorkbenchMonitorProps) {
+export function WorkbenchMonitor({ projectId, inspector, live, askAiLive, workbenchBusy, agentReply, askFix, awaitingActive, backendCapability, chat, clearTimeRange, expandedProblemId, filmProject, filmRenderError, focusFeedback, liveTask, locateProblem, loopSpan, manifestStatus, monitorProblems, notice, openEdit, openReview, overlayGuides, previewDuration, previewLocation, previewMediaRef, previewReady, previewSource, previewTime, projectTask, range, realModifyBusy, realRenderBusy, referenceTimeline, remoteCreationBusy, retryBackendCapability, review, sceneFilmMeta, selectSideTab, selectTimeRange, selectedVisual, sequenceManifest, sequenceMovePending, setAgentReply, setBottomTab, setFilmRenderError, setFocusChatKey, setLoopSpan, setNotice, setPreviewDuration, setPreviewFailed, setPreviewReady, setPreviewTime, setSequenceMovePending, setTargetReference, setTrayOpen, setUsedResources, sourceCreationBusy, stage, stageLead, stageLive, stageRef, submit, submitProjectRender, submitRealModify, timelineFps, timelineManifest, timelineOpsCapability, toggleProblem, trackClipCapability, usedResources, viewedPreview, workflowRunning }: WorkbenchMonitorProps) {
   return (
     <div className="fw-monitor">
       <MonitorVisual
+        inspector={inspector}
+        live={live}
+        askAiLive={askAiLive}
+        workbenchBusy={workbenchBusy}
         agentReply={agentReply}
         awaitingActive={awaitingActive}
         backendCapability={backendCapability}
         chat={chat}
-        endRegion={endRegion}
         filmProject={filmProject}
         filmRenderError={filmRenderError}
         focusFeedback={focusFeedback}
         liveTask={liveTask}
         loopSpan={loopSpan}
-        moveRegion={moveRegion}
         notice={notice}
         openEdit={openEdit}
         openReview={openReview}
@@ -131,9 +136,6 @@ export function WorkbenchMonitor({ agentReply, askFix, awaitingActive, backendCa
         range={range}
         realModifyBusy={realModifyBusy}
         realRenderBusy={realRenderBusy}
-        regionMode={regionMode}
-        regionRect={regionRect}
-        regionStart={regionStart}
         remoteCreationBusy={remoteCreationBusy}
         retryBackendCapability={retryBackendCapability}
         review={review}
@@ -146,8 +148,6 @@ export function WorkbenchMonitor({ agentReply, askFix, awaitingActive, backendCa
         setPreviewFailed={setPreviewFailed}
         setPreviewReady={setPreviewReady}
         setPreviewTime={setPreviewTime}
-        setRegionMode={setRegionMode}
-        setRegionRect={setRegionRect}
         setTrayOpen={setTrayOpen}
         setUsedResources={setUsedResources}
         sourceCreationBusy={sourceCreationBusy}
@@ -155,7 +155,6 @@ export function WorkbenchMonitor({ agentReply, askFix, awaitingActive, backendCa
         stageLead={stageLead}
         stageLive={stageLive}
         stageRef={stageRef}
-        startRegion={startRegion}
         submitProjectRender={submitProjectRender}
         submitRealModify={submitRealModify}
         timelineFps={timelineFps}
@@ -165,17 +164,49 @@ export function WorkbenchMonitor({ agentReply, askFix, awaitingActive, backendCa
       />
       {viewedPreview?.media === 'video' && <WorkbenchTimeline
         key={viewedPreview.id} videoUrl={viewedPreview.file}
-        duration={previewDuration} currentTime={previewTime} span={range.span}
-        fps={timelineFps} tracks={(timelineManifest ?? referenceTimeline)?.tracks ?? []} tracksVerified={!!timelineManifest}
-        trackStatus={trackClipCapability && !trackClipCapability.allowed ? trackClipCapability.reason : (manifestStatus === 'loading' ? '正在读取轨道信息' : manifestStatus === 'missing' ? '当前项目没有轨道清单' : manifestStatus === 'invalid' ? '轨道清单格式无效' : manifestStatus === 'error' ? '轨道信息读取失败' : !sequenceManifest?.sourceHash || !sceneFilmMeta?.sourceHash ? '缺少版本校验信息，无法确认轨道归属' : '轨道清单与当前版本不匹配')}
+        duration={live?.meta ? live.duration : previewDuration} currentTime={live ? live.time : previewTime} span={range.span}
+        fps={live?.meta ? live.fps : timelineFps}
+        /* 实时模式的轨道来自运行中的片段登记（和出片时采集的是同一套），一定属于当前源码 */
+        tracks={live?.meta ? live.tracks : (timelineManifest ?? referenceTimeline)?.tracks ?? []}
+        tracksVerified={live?.meta ? true : !!timelineManifest}
+        trackStatus={live?.meta ? undefined : trackClipCapability && !trackClipCapability.allowed ? trackClipCapability.reason : (manifestStatus === 'loading' ? '正在读取轨道信息' : manifestStatus === 'missing' ? '当前项目没有轨道清单' : manifestStatus === 'invalid' ? '轨道清单格式无效' : manifestStatus === 'error' ? '轨道信息读取失败' : !sequenceManifest?.sourceHash || !sceneFilmMeta?.sourceHash ? '缺少版本校验信息，无法确认轨道归属' : '轨道清单与当前版本不匹配')}
         looping={loopSpan}
-        timelineOpsCapability={timelineOpsCapability}
-        trackClipCapability={trackClipCapability}
+        note={live?.meta ? (live.layersPending ? '采集元素…' : '实时') : undefined}
+        /* 实时模式：点元素轨上的片段，跳到它出现处并在画面里选中它；画面里选中元素时，轨道上高亮它那一段 */
+        onClipPick={live ? (clip, _track, atSeconds) => {
+          if (!clip.id.startsWith(LAYER_CLIP_PREFIX)) return
+          const body = clip.id.slice(LAYER_CLIP_PREFIX.length)
+          const src = body.slice(0, body.lastIndexOf('@'))
+          const from = Math.round(clip.start * live.fps)
+          const span = Math.round(clip.duration * live.fps)
+          /* 指定了时刻（点疏密条、选区里的元素）就落在那一刻；否则落在片段靠前的位置而不是第一帧 ——
+             很多元素第一帧还在淡入，几乎看不见 */
+          const at = atSeconds !== undefined ? Math.round(atSeconds * live.fps) : from + Math.min(Math.max(1, Math.round(span / 3)), 15)
+          live.selectSource(src, Math.min(Math.max(at, from), from + Math.max(0, span - 1)))
+        } : undefined}
+        persistKey={projectId || undefined}
+        changed={live?.meta ? live.changed : undefined}
+        onClearChanges={live?.clearChanges}
+        onSpanAsk={live?.meta ? askAiLive : undefined}
+        askBusy={workbenchBusy}
+        previewNote={live ? '上次出片' : undefined}
+        externalPick={live && live.selection?.kind === 'element' ? (() => {
+          const hit = layerClipFor(live.tracks, live.selection.element.chain.slice(live.selection.element.level).map((c) => c.src), live.time)
+          return hit ? sequenceClipKey(hit.trackId, hit.clipId) : null
+        })() : null}
+        marker={inspector.target?.kind === 'element' && inspector.target.element.placement ? {
+          start: inspector.target.element.placement.startFrame / (timelineFps || FILM_FPS),
+          end: inspector.target.element.placement.endFrame / (timelineFps || FILM_FPS),
+          label: inspector.target.element.label,
+        } : null}
+        /* 成片模式的轨道能力按「轨道清单是否属于这个视频」判定；实时模式的轨道来自正在运行的源码，本来就对得上 */
+        timelineOpsCapability={live?.meta ? undefined : timelineOpsCapability}
+        trackClipCapability={live?.meta ? undefined : trackClipCapability}
         /* 上限按「能看清单帧」定：最细视野 = 12 帧（30fps 约 0.4 秒），
            一帧约占视野 1/12，足以逐帧对照。原来固定 1.5 秒视野，
            4 秒的片子只能放到 2.7 倍，根本看不到细节。 */
-        maxZoom={Math.max(1, Math.min(240, previewDuration * 30 / 12))}
-        disabled={!previewReady || realModifyBusy || realRenderBusy || workflowRunning || remoteCreationBusy}
+        maxZoom={Math.max(1, Math.min(240, (live?.meta ? live.duration * live.fps : previewDuration * 30) / 12))}
+        disabled={(live ? !live.meta : !previewReady) || realModifyBusy || realRenderBusy || workflowRunning || remoteCreationBusy}
         onToggleLoop={() => {
           const media = previewMediaRef.current
           if (!loopSpan && range.span && media instanceof HTMLVideoElement) {
@@ -184,11 +215,15 @@ export function WorkbenchMonitor({ agentReply, askFix, awaitingActive, backendCa
           }
           setLoopSpan((on) => !on)
         }}
-        onSeek={(seconds) => { const media = previewMediaRef.current; if (media instanceof HTMLVideoElement) { media.currentTime = seconds; setPreviewTime(seconds) } }}
+        onSeek={(seconds) => {
+          if (live) { live.pause(); live.seekSeconds(seconds); return }
+          const media = previewMediaRef.current
+          if (media instanceof HTMLVideoElement) { media.currentTime = seconds; setPreviewTime(seconds) }
+        }}
         onSpanChange={range.setSpan} onSpanCommit={selectTimeRange} onClear={clearTimeRange}
         onClipReference={(clip, track) => {
           if (!viewedPreview) return
-          if (!trackClipCapability.allowed) {
+          if (!live && !trackClipCapability.allowed) {
             setNotice(trackClipCapability.reason || '当前轨道片段无法作为修改目标')
             return
           }

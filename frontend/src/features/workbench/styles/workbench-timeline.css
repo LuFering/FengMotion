@@ -5,3 +5,4 @@
 @import "./workbench-timeline/filmstrip-tracks.css";/* 4–5. 缩略帧带、轨道列表 */
 @import "./workbench-timeline/clips-selection.css";/* 6–7. 片段、选区指示 */
 @import "./workbench-timeline/navigator.css";/* 8. 底部平移导航条 */
+@import "./workbench-timeline/groups.css";/* 9. 类别抽屉、片段代表色、播放头、悬停提示、找元素、选区元素（覆盖前面同名规则） */

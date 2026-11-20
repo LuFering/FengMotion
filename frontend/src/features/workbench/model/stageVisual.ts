@@ -58,6 +58,7 @@ export interface StageVisual {
   media: 'video' | 'image'
   /** 相对路径（产物里写的就是相对路径） */
   file: string
+  artifactPath?: string
   /** 来自哪次运行、哪个产物 */
   runId: string
   artifactId: string
@@ -115,6 +116,8 @@ function visualsOf(art: WfArtifact, tier: StageTier, run: WorkflowRun, stale: bo
       name: f.split('/').pop() ?? f,
       media: VIDEO_RE.test(f) ? ('video' as const) : ('image' as const),
       file: f,
+      ...(typeof json.artifactPath === 'string' && (f === json.file || f === json.video)
+        ? { artifactPath: json.artifactPath } : {}),
       runId: run.id,
       artifactId: art.id,
       workflowId: run.workflowId,

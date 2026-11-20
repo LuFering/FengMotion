@@ -1,140 +1,90 @@
-/* ---- 主列 ---- */
+/* ── 阅读区 ─────────────────────────────────────────────────
+   整块贴边，没有外边距，没有卡片框；顶栏、消息、输入席都在这一张纸上。 */
 .cv3-main {
   display: flex;
   flex: 1;
   flex-direction: column;
   min-width: 0;
   min-height: 0;
-  /* 与左栏同一套边距（16px 四边）：原来只有左栏有 margin，主区贴到右边缘，
-     两边不对称，看着像左栏浮在界面上。 */
-  margin: 16px 16px 16px 16px;
-  --cv-page: var(--bg);
   overflow: hidden;
   background: var(--cv-page);
 }
 
-/* ---- 顶栏（dsh ConversationRoot header） ----
-   深度适配后这里只剩「标题行」：dsh 的 对话/轨迹 两个 tab 已删，
-   所以不再需要 76px 的两行高度，收到 56px，标题行贴顶。 */
+/* ── 顶栏 ───────────────────────────────────────────────────
+   48–52px 一行，透明，没有分隔线：正文滚上来时由滚动区顶端的渐隐接住。
+   左边是切换按钮（项目色块 + 对话标题，点开项目与对话面板），右边是对话 | 工作台切换器。
+   切换器位置与工作台顶栏一致（中线离顶 26px、离右 22px），来回切换按钮不跳。 */
 .cv3-head {
   position: relative;
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: start;
+  z-index: 3;
+  display: flex;
   flex: none;
-  min-height: 60px;
-  padding: 12px 24px;
+  align-items: center;
+  height: 52px;
+  padding: 0 22px 0 12px;
   box-sizing: border-box;
-  border-bottom: 1px solid var(--cv-line);
-  /* 不画贯穿全宽的底边线：靠留白与内容分层，线只在需要的地方出现 */
 }
 
 .cv3-title-row {
-  grid-column: 2;
   display: flex;
+  flex: 1;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   min-width: 0;
-  min-height: 30px;
 }
 
-.cv3-crumb {
+/* 左上角的切换按钮：项目色块 + 对话标题 + ▾，点开「项目与对话」面板。
+   平时就是一行标题，不画按钮框；悬停 / 展开时才出现底色，读作「这里能点」。 */
+.cv3-switch-wrap {
+  position: relative;
   min-width: 0;
-  max-width: 420px;
-  overflow: hidden;
-  padding: 4px 8px;
+}
+.cv3-switch-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  max-width: min(520px, 50vw);
+  height: 32px;
+  padding: 0 8px 0 6px;
+  border: 0;
+  border-radius: var(--cv-r-ctl);
+  background: transparent;
   color: var(--tx1);
+  font: inherit;
   font-size: 14px;
   font-weight: 600;
   line-height: 20px;
+  letter-spacing: -.005em;
+  cursor: pointer;
+  transition: background-color 120ms var(--cv-ease);
+}
+.cv3-switch-btn:hover,
+.cv3-switch-btn[aria-expanded="true"] { background: var(--hover); }
+.cv3-switch-btn:focus-visible { outline: 2px solid var(--acc); outline-offset: 0; }
+.cv3-switch-icon { flex: none; color: var(--tx2); }
+.cv3-switch-caret {
+  flex: none;
+  color: var(--tx3);
+  transition: transform 200ms var(--cv-ease);
+}
+.cv3-switch-btn[aria-expanded="true"] .cv3-switch-caret { transform: rotate(180deg); }
+.cv3-crumb-text {
+  min-width: 0;
+  overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.cv3-head-actions {
-  display: flex;
-  flex: none;
-  align-items: center;
-  gap: 8px;
-  margin-left: 10px;
-}
-
-.cv3-chip-wrap {
-  position: relative;
-}
-
-.cv3-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  height: 28px;
-  max-width: 220px;
-  padding: 0 4px 0 8px;
-  border: 0;
-  border-radius: var(--fm-radius-mark);
-  outline: 0;
-  background: transparent;
-  color: var(--tx2);
-  font-size: 13px;
-  font-weight: 500;
-  line-height: 20px;
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-.cv3-chip-model {
-  font-weight: 400;
-}
-
-.cv3-chip:hover:not(:disabled) {
-  background: var(--hover);
-}
-
-.cv3-chip:focus-visible {
-  box-shadow: 0 0 0 2px var(--acc);
-}
-
-.cv3-chip svg {
-  flex: none;
-  color: var(--tx3);
-}
-
-/* 演示说明卡：点开即说明，不做死按钮 */
-.cv3-pop {
-  position: absolute;
-  top: calc(100% + 4px);
-  right: 0;
-  z-index: 30;
-  width: max-content;
-  max-width: 280px;
-  padding: 12px;
-  border: 0;
-  border-radius: var(--fm-radius-ctl);
-  background: var(--cv-elev);
-  box-shadow: 0 3px 8px rgb(0 0 0 / 0.04);
-  color: var(--tx2);
-  font-size: 13px;
-  line-height: 20px;
-  white-space: normal;
-}
-
-.cv3-pop p {
-  margin: 0;
-}
-
-.cv3-pop button {
-  margin-top: 8px;
-  padding: 4px 12px;
-  border: 0;
-  border-radius: 999px;
-  background: var(--acc);
-  color: var(--on-accent, #fff);
-  font-size: 12px;
-  cursor: pointer;
-}
-
-/* 视图切换器（对话 ⇄ 工作台）的样式在 styles/view-switch.css 里统一定义，
-   两个视图共用一份；这里只负责把它推到标题行最右侧 */
 .cv3-title-row > .view-switch {
   margin-left: auto;
+}
+
+/* 标题这一组（切换按钮、子代理徽标、后台任务）与左侧导航栏的 logo 对齐中线：
+   logo 的中线离顶 34px（导航栏上内边距 14 + 品牌行 40 的一半），
+   顶栏 52px 居中是 26px，所以整组往下挪 8px。
+   对话 | 工作台切换器不动 —— 它要和工作台顶栏的切换器同一位置，来回切换不跳。 */
+.cv3-title-row > :not(.view-switch) {
+  position: relative;
+  top: 8px;
 }

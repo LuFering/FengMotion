@@ -15,14 +15,17 @@ export interface TimelineRulerProps {
   playheadVisible: boolean
   step: number
   ticks: number[]
-  timeAt: (clientX: number) => number
+  /** 指针位置 → 时间；free = 按住 Shift，不吸附到切点 */
+  scrubAt: (clientX: number, free: boolean) => number
+  /** 指针悬停在标尺上（null = 离开），用来浮出那一帧 */
+  onHover: (clientX: number | null) => void
   tracks: SequenceTrack[]
   tracksVerified: boolean
   unavailable: boolean
 }
 
 /** 时间线的标尺行：刻度与播放头标记，点击、拖动或方向键定位播放位置；轨道未与当前版本确认时标出「参考」。 */
-export function TimelineRuler({ currentTime, frameFps, limit, minorTicks, onSeek, pct, playheadVisible, step, ticks, timeAt, tracks, tracksVerified, unavailable }: TimelineRulerProps) {
+export function TimelineRuler({ currentTime, frameFps, limit, minorTicks, onSeek, pct, playheadVisible, step, ticks, scrubAt, onHover, tracks, tracksVerified, unavailable, note }: TimelineRulerProps & { note?: string }) {
   return (
     <div className="wb-tl-grid wb-tl-ruler-row">
       <div className="wb-tl-ruler-meta">
@@ -37,7 +40,8 @@ export function TimelineRuler({ currentTime, frameFps, limit, minorTicks, onSeek
             <TooltipContent>这些轨道尚未确认与当前版本对应，可浏览和定位。</TooltipContent>
           </Tooltip>
         )}
-        {frameFps && <small className="wb-tl-fps-label">{frameFps} fps</small>}
+        {note && <small className="wb-tl-note" role="status">{note}</small>}
+        {frameFps && <small className="wb-tl-fps-label">{Math.round(frameFps * 100) / 100} fps</small>}
       </div>
 
       <div
@@ -54,11 +58,13 @@ export function TimelineRuler({ currentTime, frameFps, limit, minorTicks, onSeek
           if (unavailable || e.button !== 0) return
           e.stopPropagation()
           e.currentTarget.setPointerCapture(e.pointerId)
-          onSeek(timeAt(e.clientX))
+          onSeek(scrubAt(e.clientX, e.shiftKey))
         }}
         onPointerMove={(e) => {
-          if (!unavailable && e.currentTarget.hasPointerCapture(e.pointerId)) onSeek(timeAt(e.clientX))
+          onHover(e.clientX)
+          if (!unavailable && e.currentTarget.hasPointerCapture(e.pointerId)) onSeek(scrubAt(e.clientX, e.shiftKey))
         }}
+        onPointerLeave={() => onHover(null)}
         onPointerUp={(e) => {
           if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId)
         }}

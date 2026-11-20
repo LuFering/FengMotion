@@ -1,8 +1,12 @@
+import { useState } from 'react'
 import { clearRoundOutcome, type RoundOutcome } from '@/features/chat/model/roundOutcomes'
 import { splitAssistantTurn } from '@/features/chat/model/assistantTurn'
 import { ThinkingIcon } from '@/features/chat/components/ToolIcons'
 import { TaskList, AnswerBody, MarkdownText, AnswerActions, MessageActions } from '@/features/chat/components'
+import { ProcessToggle } from '@/features/chat/components/conversation/ProcessToggle'
+import { processSummary } from '@/features/chat/model/processSummary'
 import { AssistantTurnContent } from '@/features/chat/components/AssistantTurnContent'
+import { TypewriterText } from '@/features/chat/components/TypewriterText'
 import { isSearchTool, WebSearchTrace } from '@/features/chat/components/WebSearchTrace'
 import { toolCallsToTasks, toolCallsRevealed } from '@/features/chat/components/toolDisplay'
 import { splitQuestionForms } from '@/features/chat/model/questionForm'
@@ -10,6 +14,7 @@ import { QuestionFormCard } from '@/features/chat/components/QuestionFormCard'
 import { collectFileChanges } from '@/features/chat/model/fileChangesModel'
 import { FileChanges } from '@/features/chat/components/FileChanges'
 import { Deliverables } from '@/features/chat/components/Deliverables'
+import { Notice } from '@/features/chat/components/conversation/Notice'
 import type { Session } from '@/features/chat/hooks/useSessions'
 import type { ChatMessage } from '@/features/chat/hooks/useChat'
 import type { ConversationProps } from '@/features/chat/Conversation'
@@ -29,8 +34,18 @@ export interface AiMessageBlockProps {
 
 /** 对话线程里的一条 AI 回复：过程区（思考、工具调用）、正文与提问表单、失败提示、操作条，以及文件改动和交付产物。 */
 export function AiMessageBlock({ activeThread, getRoundOutcome, m, messages, pending, props, replySaveRetry, retryLastRound, retrySaveReply, send }: AiMessageBlockProps) {
+  /* 执行过程（思考、工具调用）在跑的时候展开，一轮结束后收成一行，点开可回看。
+     中途失败的轮次保持展开：要看清卡在哪一步。用户手动开合过就以手动为准。 */
+  const [processManual, setProcessManual] = useState<boolean | null>(null)
+  const process = processSummary(m)
+  const processOpen = processManual ?? (m.streaming === true || Boolean(m.failed))
+  const hideProcess = process !== null && !processOpen
   return (
-    <div className="cv3-ai-block" data-streaming={m.streaming || undefined}>
+    <div className="cv3-ai-block" data-streaming={m.streaming || undefined}
+         data-last={m.id === messages[messages.length - 1]?.id || undefined}>
+      {process && m.streaming !== true && (
+        <ProcessToggle summary={process} open={processOpen} onToggle={() => setProcessManual(!processOpen)} />
+      )}
       {/* 「本轮未改动工程」按**轮次**显示：用这条回复的 taskId
           （= 触发它的用户消息 id）查共享 store。
           与工作台侧栏读同一份数据，取不到就不显示。 */}
@@ -38,17 +53,9 @@ export function AiMessageBlock({ activeThread, getRoundOutcome, m, messages, pen
         const outcome = getRoundOutcome(m.taskId)
         if (!outcome) return null
         return (
-          <p className="cv3-demo-note" role="status" data-round-outcome="">
-            本轮未改动工程 · 没有新版本
-            <button
-              type="button"
-              onClick={() => clearRoundOutcome(activeThread?.projectId, props.activeSessionId, outcome.userMessageId)}
-              aria-label="关闭"
-              style={{ marginLeft: 6, opacity: 0.7 }}
-            >
-              ×
-            </button>
-          </p>
+          <Notice onDismiss={() => clearRoundOutcome(activeThread?.projectId, props.activeSessionId, outcome.userMessageId)}>
+            本轮没有改动工程，也没有生成新版本
+          </Notice>
         )
       })()}
       {/* ══ 过程区（turn-process）═══════════════════════════
@@ -75,7 +82,7 @@ export function AiMessageBlock({ activeThread, getRoundOutcome, m, messages, pen
              task-list.css 的 .tl-step--multiline。 */
           ...(m.thinking && !staged ? [{ title: '思考', icon: ThinkingIcon, steps: [{ label: m.thinking, multiline: true }] }] : []),
         ]
-        if (tasks.length === 0) return null
+        if (tasks.length === 0 || hideProcess) return null
         return (
           <TaskList
             tasks={tasks}
@@ -86,7 +93,7 @@ export function AiMessageBlock({ activeThread, getRoundOutcome, m, messages, pen
         )
       })()}
       {/* 演示适配器的工具摘要：同样用任务列表，保持两处一致 */}
-      {m.toolCalls && m.toolCalls.length > 0 && (
+      {!hideProcess && m.toolCalls && m.toolCalls.length > 0 && (
         <TaskList
           tasks={[{ title: '工具调用', steps: m.toolCalls.map((t) => ({ label: `${t.label}：${t.detail}` })) }]}
           revealed={1 + m.toolCalls.length}
@@ -102,7 +109,7 @@ export function AiMessageBlock({ activeThread, getRoundOutcome, m, messages, pen
           正文里还可能夹着 `<question-form>` 表单（模型提问的唯一方式，
           见 components/chat/questionForm.ts 的说明）。只在**流式结束后**
           解析：流到一半时 JSON 还没闭合，提前解析会得到半张表。 */}
-      <AssistantTurnContent text={m.text} tools={m.executedTools} reasoning={m.thinkingSegments}
+      <AssistantTurnContent text={m.text} tools={m.executedTools} reasoning={m.thinkingSegments} hideProcess={hideProcess}
         /* 与整块思考、工具组用同一个 TaskList：同一条回复里的过程块长得一样 */
         renderReasoning={(text, last) => <TaskList
           tasks={[{ title: '思考', runningTitle: m.streaming === true && last ? '正在思考' : undefined,
@@ -117,8 +124,9 @@ export function AiMessageBlock({ activeThread, getRoundOutcome, m, messages, pen
           </>
         }}
         renderText={(text) => <AnswerBody>
-          {(() => {
-            if (m.streaming) return <MarkdownText text={text} />
+          <TypewriterText text={text} live={m.streaming === true}>{(visible, settled) => {
+            /* 逐字输出期间只渲染已放出的前缀；放完且流式结束后才走完整渲染（含提问表单）。 */
+            if (!settled) return <MarkdownText text={visible} streaming />
             const segs = splitQuestionForms(text)
             /* 没有表单就走原路径，不为「可能有」付额外渲染成本 */
             if (segs.length === 1 && segs[0].kind === 'text') {
@@ -141,40 +149,21 @@ export function AiMessageBlock({ activeThread, getRoundOutcome, m, messages, pen
                   />
                 ),
             )
-          })()}
+          }}</TypewriterText>
         </AnswerBody>}
       />
 
       {/* 失败 / 演示标记：必须可见，不能只靠别处说明 */}
       {m.failed ? (
-        <p className="cm-failed" role="alert">
-          这条回复没有完成：{m.failed}
-          {replySaveRetry && replySaveRetry.localId === m.id ? (
-            <button
-              type="button"
-              className="cm-failed-retry"
-              data-reply-save-retry=""
-              onClick={() => void retrySaveReply()}
-            >
-              重试补存
-            </button>
-          ) : null}
-        </p>
+        <Notice tone="error" detail={m.failed}
+          action={replySaveRetry && replySaveRetry.localId === m.id ? { label: '重试补存', onClick: () => void retrySaveReply() } : undefined}>
+          这条回复没有完成{m.failed.length <= 40 ? `：${m.failed}` : ''}
+        </Notice>
       ) : null}
       {m.demo && !m.streaming && !m.failed ? (
-        <p className="cm-note">演示回复 · 未连接 Agent</p>
+        <Notice role="note">演示回复，未连接 Agent</Notice>
       ) : null}
 
-      {/* 操作条：dsh 放在正文之后、左移 6px 对齐文字 */}
-      {!m.streaming && m.text ? (
-        <AnswerActions>
-          <MessageActions
-            text={m.text}
-            at={m.at}
-            onRetry={m.failed ? () => retryLastRound() : undefined}
-          />
-        </AnswerActions>
-      ) : null}
       {m.changes && m.changes.length > 0 && (
         <div className="cv3-changes">
           <b className="cv3-changes-title">新建的东西</b>
@@ -188,17 +177,49 @@ export function AiMessageBlock({ activeThread, getRoundOutcome, m, messages, pen
           </table>
         </div>
       )}
-      {/* 文件改动：这条回复动过哪些文件。放在产物之前 ——
-          先「改了什么」再「交付了什么」，符合读的顺序。 */}
+      {/* 回答之后的收尾，顺序照 dsh：先「改了什么」，再「交付了什么」，最后是操作条。 */}
       {(() => {
         const fc = collectFileChanges(m.executedTools)
-        return fc.length > 0 ? <FileChanges changes={fc} /> : null
+        return fc.length > 0 && !m.streaming ? <FileChanges changes={fc} /> : null
       })()}
-      {/* 交付的产物：模型主动 present 的文件。
-          放在回复最末 —— 「说了什么」之后才是「东西在哪」。 */}
       {m.deliverables && m.deliverables.length > 0 && (
-        <Deliverables files={m.deliverables} />
+        <Deliverables
+          files={m.deliverables}
+          onOpenWorkbench={props.openProject !== null ? () => props.onOpenWorkbench(props.activeSessionId) : undefined}
+        />
       )}
+      {/* 操作条：复制、朗读、重试与时间，右侧是这一轮的用量（悬停看明细）。
+          最后一条回复常显，其余悬停时出现。 */}
+      {!m.streaming && m.text ? (
+        <AnswerActions>
+          <MessageActions
+            text={m.text}
+            at={m.at}
+            onRetry={m.failed ? () => retryLastRound() : undefined}
+            extra={usageBadge(m.usage)}
+          />
+        </AnswerActions>
+      ) : null}
     </div>
   )
+}
+
+/** 1234 → 1.2k；用于用量这种只需要量级的数字 */
+function compactTokens(n: number): string {
+  return n >= 1000 ? `${(n / 1000).toFixed(n >= 100_000 ? 0 : 1)}k` : String(n)
+}
+
+/** 这一轮的用量：只显示上游真的报了的数；没有就不占位 */
+function usageBadge(usage: ChatMessage['usage']) {
+  if (!usage) return null
+  const input = usage.inputTokens
+  const output = usage.outputTokens
+  const total = usage.totalTokens ?? (input !== undefined || output !== undefined ? (input ?? 0) + (output ?? 0) : undefined)
+  if (total === undefined || total <= 0) return null
+  const detail = [
+    input !== undefined ? `输入 ${input.toLocaleString()}` : null,
+    output !== undefined ? `输出 ${output.toLocaleString()}` : null,
+    usage.cacheReadTokens ? `缓存命中 ${usage.cacheReadTokens.toLocaleString()}` : null,
+  ].filter(Boolean).join(' · ')
+  return <span className="cv3-usage-badge num" title={detail || undefined}>用量 {compactTokens(total)} tok</span>
 }

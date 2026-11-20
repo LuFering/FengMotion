@@ -70,10 +70,21 @@ export interface ArtifactsResource {
    * @param path 相对项目根目录的路径
    */
   contentUrl(projectId: string, path: string): string
+  timeline(projectId: string, path: string): Promise<unknown>
+  recoverTimeline(projectId: string, path: string): Promise<unknown>
 }
 
 export function createArtifactsResource(http: HttpClient): ArtifactsResource {
   return {
+    timeline(projectId, path) {
+      return http.get<unknown>(`/projects/${encodeURIComponent(projectId)}/timeline`, { query: { path } })
+    },
+
+    recoverTimeline(projectId, path) {
+      return http.post<unknown>(`/projects/${encodeURIComponent(projectId)}/timeline/recover`,
+        { artifactPath: path }, { timeoutMs: 960_000 })
+    },
+
     async list(projectId, options = {}) {
       const result = await http.get<ProjectArtifactList>(
         `/projects/${encodeURIComponent(projectId)}/artifacts`,

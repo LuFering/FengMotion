@@ -20,7 +20,8 @@
 .hf-harness[data-off] .hf-harness-mark { background-color: #b97f2a; opacity: .82; }
 .hf-harness-off { color: #b97f2a; font-weight: 600; }
 .hf-harness-div { width: 1px; height: 13px; background: var(--hf-line2); opacity: .6; }
-.hf-harness-model { font: 12px var(--hf-mono); color: var(--hf-tx2); white-space: nowrap; max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
+/* 模型名与对话页输入框里的模型按钮同一套字体（界面无衬线体，不用等宽）。 */
+.hf-harness-model { font: 12px var(--hf-sans); color: var(--hf-tx2); white-space: nowrap; max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
 .hf-harness .hf-chev { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 2; opacity: .7; }
 .hf-harnesswrap { position: relative; }
 /* 已接入引擎时，按钮外缘顺时针跑一圈品牌色光 */
@@ -122,7 +123,7 @@
 .hf-hp-sep { height: 1px; margin: 7px 6px; background: var(--hf-line); }
 .hf-hp-radio { width: 12px; height: 12px; flex: 0 0 auto; border: 1.5px solid var(--hf-line2); border-radius: 50%; }
 .hf-hp-item[aria-selected="true"] .hf-hp-radio { border-color: var(--hf-acc); box-shadow: inset 0 0 0 3px var(--hf-acc); }
-.hf-hp-model .hf-hp-txt b { font: 12.5px var(--hf-mono); font-weight: 500; }
+.hf-hp-model .hf-hp-txt b { font: 12.5px var(--hf-sans); font-weight: 500; }
 .hf-hp-model .hf-hp-go-down { position: relative; }
 .hf-send {
   display: grid; place-items: center; width: 40px; height: 40px; flex: 0 0 auto;

@@ -8,8 +8,8 @@
  * - `+` `−` 符号绝对定位在行首，**不占内容宽度**（内容不被推右）
  * - 行号等宽右对齐
  *
- * 外层折叠结构照 open-design 的 `FileEditCard`：一行一个文件，
- * 右侧 `+N −M`，点开看明细。不做成大卡片 —— 它是过程补充，不是产物。
+ * 外层照 dsh 的 ChangedFiles：一张轻卡，头部是图标块 +「已编辑 N 个文件」+ 等宽的 `+a −d`；
+ * 下面默认列前 4 个文件，其余收在「全部 N 个文件」里。每行右侧是增删行数，点开看改动片段。
  *
  * ## 计数口径必须说清楚
  *
@@ -19,7 +19,7 @@
  */
 import { useState } from 'react'
 import { UiIcon, SemIcons } from '@/shared/icons/UiIcon'
-import { File01 } from '@untitledui/icons'
+import { FileKindIcon } from '@/features/chat/components/FileKindIcon'
 import type { FileChange } from '@/features/chat/model/fileChangesModel'
 import '@/features/chat/styles/components/file-changes.css'
 
@@ -27,6 +27,27 @@ import '@/features/chat/styles/components/file-changes.css'
 function baseName(p: string): string {
   const parts = p.split(/[\\/]/).filter(Boolean)
   return parts[parts.length - 1] ?? p
+}
+
+/**
+ * 列表里显示的目录：去掉这批文件共同的上级目录，只留最后一级共同目录作锚点。
+ *
+ * <p>Agent 报的是绝对路径（/home/…/项目/src/a.ts），整串挤在一行里，文件名反而被截没了。
+ * 去掉公共前缀后读作「项目/src/a.ts」，一眼能看出在哪；完整路径仍在悬停提示里。</p>
+ */
+function shortDirs(paths: string[]): Map<string, string> {
+  const dirs = paths.map((p) => p.split(/[\\/]/).filter(Boolean).slice(0, -1))
+  let common = dirs[0]?.length ?? 0
+  for (const d of dirs) {
+    let i = 0
+    while (i < common && i < d.length && d[i] === dirs[0][i]) i++
+    common = i
+  }
+  const keepFrom = Math.max(0, common - 1)
+  return new Map(paths.map((p, i) => {
+    const rest = dirs[i].slice(keepFrom)
+    return [p, rest.length > 0 ? `${rest.join('/')}/` : '']
+  }))
 }
 
 /** 一行代码。`sign` 为 + / − 时走 diff 配色。 */
@@ -41,10 +62,10 @@ function DiffLine({ text, sign, lineNo }: { text: string; sign?: '+' | '−'; li
   )
 }
 
-function FileRow({ change }: { change: FileChange }) {
+function FileRow({ change, dir }: { change: FileChange; dir: string }) {
   const [open, setOpen] = useState(false)
-  /* 有片段明细才给展开箭头 —— 否则点了没反应，是个假控件。 */
   const expandable = change.hunks.length > 0
+  const name = baseName(change.path)
   return (
     <li className="fc-row" data-open={open || undefined}>
       <button
@@ -55,18 +76,21 @@ function FileRow({ change }: { change: FileChange }) {
         disabled={!expandable}
         title={change.path}
       >
-        <UiIcon icon={SemIcons.expand} size="xs" className="fc-caret" aria-hidden="true" />
-        <span className="fc-name num">{baseName(change.path)}</span>
-        <span className="fc-kind">{change.kind === 'write' ? '写入' : '修改'}</span>
-        <span className="fc-stat">
-          {change.added > 0 && <span className="fc-add num">+{change.added}</span>}
-          {change.deleted > 0 && <span className="fc-del num">−{change.deleted}</span>}
+        <FileKindIcon name={name} size="sm" />
+        <span className="fc-path-line">
+          {dir ? <span className="fc-dir">{dir}</span> : null}
+          <span className="fc-name">{name}</span>
+        </span>
+        {change.kind === 'write' ? <span className="fc-kind">新建</span> : null}
+        <span className="fc-stat num">
+          {change.added > 0 && <span className="fc-add">+{change.added}</span>}
+          {change.deleted > 0 && <span className="fc-del">−{change.deleted}</span>}
           {change.added === 0 && change.deleted === 0 && <span className="fc-none">无行变更</span>}
         </span>
+        <UiIcon icon={SemIcons.expand} size="xs" className="fc-caret" aria-hidden="true" />
       </button>
       {open && (
         <div className="fc-detail">
-          <div className="fc-path num" title={change.path}>{change.path}</div>
           {change.hunks.map((h, i) => (
             /* 行号连续编下去，删行和增行**不各自从 1 重来** ——
                重来会让同一处改动看起来像两段不相干的内容。
@@ -98,35 +122,45 @@ function FileRow({ change }: { change: FileChange }) {
  *
  * @param changes 由 {@link collectFileChanges} 推导出的改动
  */
+/** 默认直接列出的文件数；更多的收在「全部 N 个文件」里 */
+const COLLAPSED_ROWS = 4
+
 export function FileChanges({ changes }: { changes: FileChange[] }) {
-  const [collapsed, setCollapsed] = useState(true)
+  const [showAll, setShowAll] = useState(false)
   if (changes.length === 0) return null
 
   const totalAdded = changes.reduce((n, c) => n + c.added, 0)
   const totalDeleted = changes.reduce((n, c) => n + c.deleted, 0)
+  const rows = showAll ? changes : changes.slice(0, COLLAPSED_ROWS)
+  const dirs = shortDirs(changes.map((c) => c.path))
 
   return (
-    <div className="fc">
-      <button
-        type="button"
-        className="fc-summary"
-        onClick={() => setCollapsed((v) => !v)}
-        aria-expanded={!collapsed}
-      >
-        <UiIcon icon={SemIcons.expand} size="xs" className="fc-caret" aria-hidden="true" />
-        <UiIcon icon={File01} size="xs" aria-hidden="true" />
-        <span className="fc-title">改动 {changes.length} 个文件</span>
-        {totalAdded > 0 && <span className="fc-add num">+{totalAdded}</span>}
-        {totalDeleted > 0 && <span className="fc-del num">−{totalDeleted}</span>}
-      </button>
-      {!collapsed && (
-        <ul className="fc-list">
-          {changes.map((c) => (
-            <FileRow key={c.path} change={c} />
-          ))}
-        </ul>
+    <section className="fc" aria-label="文件改动">
+      <header className="fc-summary">
+        <span className="fc-badge" aria-hidden="true">
+          <FileKindIcon name="" size="md" />
+        </span>
+        <span className="fc-summary-text">
+          {/* 单个文件也写「1 个文件」：文件名在下面那一行里，头部再写一遍就重复了 */}
+          <span className="fc-title">已编辑 {changes.length} 个文件</span>
+          <span className="fc-total num">
+            {totalAdded > 0 && <span className="fc-add">+{totalAdded}</span>}
+            {totalDeleted > 0 && <span className="fc-del">−{totalDeleted}</span>}
+            {totalAdded === 0 && totalDeleted === 0 && <span className="fc-none">无行变更</span>}
+          </span>
+        </span>
+      </header>
+      <ul className="fc-list">
+        {rows.map((c) => (
+          <FileRow key={c.path} change={c} dir={dirs.get(c.path) ?? ''} />
+        ))}
+      </ul>
+      {changes.length > COLLAPSED_ROWS && (
+        <button type="button" className="fc-more" onClick={() => setShowAll((v) => !v)} aria-expanded={showAll}>
+          {showAll ? '收起' : `全部 ${changes.length} 个文件`}
+        </button>
       )}
-    </div>
+    </section>
   )
 }
 

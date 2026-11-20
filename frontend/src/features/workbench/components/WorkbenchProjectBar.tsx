@@ -1,8 +1,8 @@
 import type * as React from 'react'
 import { UiIcon, SemIcons } from '@/shared/icons/UiIcon'
 import { Folder } from '@untitledui/icons'
+import { ProjectTile } from '@/shared/components/ProjectTile'
 import type { ProjectSummary } from '@/features/project/model/projects'
-import type { StageVisual } from '@/features/workbench/model/stageVisual'
 
 export interface WorkbenchProjectBarProps {
   catalog: ProjectSummary[]
@@ -13,13 +13,12 @@ export interface WorkbenchProjectBarProps {
   project: ProjectSummary
   setSwitchOpen: React.Dispatch<React.SetStateAction<boolean>>
   split: { containerRef: React.RefObject<HTMLDivElement | null>; width: number; bounds: { min: number; max: number }; dragging: boolean; feedback: { offset: number; bend: number; stretch: number }; onPointerDown: (event: React.PointerEvent<HTMLElement>) => void; onPointerMove: (event: React.PointerEvent<HTMLElement>) => void; onPointerUp: (event: React.PointerEvent<HTMLElement>) => void; onPointerCancel: () => void; onKeyDown: (event: React.KeyboardEvent<HTMLElement>) => void; onDoubleClick: () => void; reset: () => void }
-  stageLead: StageVisual
   switchOpen: boolean
   switchRef: React.RefObject<HTMLDivElement | null>
 }
 
-/** 工作台顶部的项目栏：当前项目胶囊及切换项目菜单、「项目 / 场景」面包屑，编辑态下附带预览操作。 */
-export function WorkbenchProjectBar({ catalog, editMode, onBack, onSwitchProject, previewActions, project, setSwitchOpen, split, stageLead, switchOpen, switchRef }: WorkbenchProjectBarProps) {
+/** 工作台顶部的项目栏：当前项目胶囊及切换项目菜单，编辑态下附带预览操作。 */
+export function WorkbenchProjectBar({ catalog, editMode, onBack, onSwitchProject, previewActions, project, setSwitchOpen, split, switchOpen, switchRef }: WorkbenchProjectBarProps) {
   return (
     <div className="wb-projectbar" data-panel="open" data-editor={editMode} style={{ '--open-chat-width': `${split.width}px` } as React.CSSProperties}>
       {/* 左上角不再放「返回我的创作」和「项目内容与进度」两个孤立方按钮：
@@ -34,7 +33,7 @@ export function WorkbenchProjectBar({ catalog, editMode, onBack, onSwitchProject
                   aria-expanded={switchOpen} aria-haspopup="menu"
                   title={`当前项目：${project.name}`}
                   onClick={() => setSwitchOpen((v) => !v)}>
-            <span className="wb-logo" aria-hidden="true"><UiIcon icon={SemIcons.film} size="sm" /></span>
+            <ProjectTile name={project.name} />
             <span className="wb-project-name">{project.name}</span>
             <UiIcon icon={SemIcons.collapse} className="wb-caret" />
           </button>
@@ -48,6 +47,7 @@ export function WorkbenchProjectBar({ catalog, editMode, onBack, onSwitchProject
                 <button key={p.id} type="button" role="menuitem"
                         aria-current={p.id === project.id ? 'true' : undefined}
                         onClick={() => { setSwitchOpen(false); if (p.id !== project.id) onSwitchProject(p.id) }}>
+                  <ProjectTile name={p.name} size="sm" />
                   <span className="wb-menu-project">
                     <b className="truncate">{p.name}</b>
                     <small>{p.doneClips}/{p.totalClips} 场</small>
@@ -65,12 +65,8 @@ export function WorkbenchProjectBar({ catalog, editMode, onBack, onSwitchProject
             </div>
           )}
         </div>
-        {/* 面包屑只留「项目 / 场景名」。原来还挂着内部编号（S01）与「当前成片」
-            —— 编号是数据层的 id，用户不需要；「当前成片」是默认态，说出来等于没说。
-            同理删掉右侧的分辨率/帧率/时长：分辨率与帧率画面角标已经有了，
-            总时长底部状态条也有，这里是第三遍。 */}
-        <span className="wb-crumb-sep">/</span>
-        <span className="wb-crumb-scene">{stageLead ? stageLead.tierLabel : '制作工作台'}</span>
+        {/* 不再挂「/ 场景版本 vN」面包屑：正在看的版本由画面列顶栏的版本菜单负责，
+            这里再写一遍是重复信息，也让顶栏读起来像一条固定的路径。 */}
       </div>
       {editMode && <div className="wb-projectbar-actions">{previewActions}</div>}
     </div>

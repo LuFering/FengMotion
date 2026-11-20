@@ -13,16 +13,7 @@
 }
 #pane-flow .wb-a2.wb-studio .wb-project-switch:hover,
 #pane-flow .wb-a2.wb-studio .wb-project-switch[aria-expanded='true'] { background: var(--hole); border-color: var(--line); }
-/* 图标不再是独立的白色方块，而是胶囊里的一枚徽标 ——
-   尺寸跟着胶囊高度走，底色比胶囊深一档，靠色阶而不是靠边框区分。 */
-#pane-flow .wb-a2.wb-studio .wb-logo {
-  display: grid; place-items: center;
-  width: 26px; height: 26px; flex: 0 0 26px;
-  border-radius: 999px;
-  background: var(--panel2);
-  color: var(--tx2);
-  box-shadow: none;
-}
+
 #pane-flow .wb-a2.wb-studio .wb-project-switch .wb-project-name { font-size: 14px; font-weight: 600; letter-spacing: -.01em; }
 #pane-flow .wb-a2.wb-studio .wb-project-switch .wb-caret { width: 13px; height: 13px; }
 #pane-flow .wb-a2.wb-studio .wb-project-switch[aria-expanded='true'] .wb-caret { transform: rotate(180deg); }
@@ -135,3 +126,14 @@
   transition: background-color 140ms var(--eo), color 140ms var(--eo);
 }
 #pane-flow .wb-a2.wb-studio .wb-console-more:hover { background: var(--hole); color: var(--tx2); }
+
+/* 胶囊：色块贴左、名字、箭头；悬停或展开时整颗胶囊有底色 */
+#pane-flow .wb-a2.wb-studio .wb-project-switch { padding: 0 10px 0 4px; gap: 9px; }
+#pane-flow .wb-a2.wb-studio .wb-project-switch .wb-caret { color: var(--tx3); transition: transform 160ms var(--eo); }
+#pane-flow .wb-a2.wb-studio .wb-project-switch:hover .wb-caret { color: var(--tx2); }
+
+/* 切换菜单：每个项目一行，色块 + 名字 + 场次，当前项目打勾 */
+#pane-flow .wb-a2.wb-studio .wb-switch-menu > button[role='menuitem'] {
+  display: flex; width: 100%; align-items: center; gap: 10px; text-align: start;
+}
+#pane-flow .wb-a2.wb-studio .wb-switch-menu .wb-menu-check { flex: none; color: var(--acc); }

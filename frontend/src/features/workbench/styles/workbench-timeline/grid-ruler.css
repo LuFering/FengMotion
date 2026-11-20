@@ -183,3 +183,12 @@
   box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.4);
   pointer-events: none;
 }
+
+/* 轨道区标题旁的状态说明（实时模式「正在采集元素轨」）：次要文字，不抢轨道 */
+.wb-tl-note {
+  overflow: hidden;
+  color: var(--tx3);
+  font-size: 10.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

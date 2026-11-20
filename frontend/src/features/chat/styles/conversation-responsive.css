@@ -1,36 +1,7 @@
-/* ---- 窄屏 ---- */
-@media (max-width: 900px) {
-  .cv3-head-actions {
-    display: none;
-  }
-}@media (max-width: 640px) {
-  .cv3-head {
-    padding: 10px 16px 0 14px;
-  }
-
-  .cv3-switch button {
-    padding: 4px 10px;
-    font-size: 12px;
-  }
-
-  .cv3-view {
-    padding: 16px 16px;
-  }
-
-  .cv3-compose {
-    padding: 0 16px 4px;
-  }
-
-  .cv3-user {
-    max-width: 82%;
-  }
-
-  .cv3-row {
-    gap: 8px;
-  }
-
-  .cv3-tools-left,
-  .cv3-trailing {
-    gap: 8px;
-  }
+/* ── 窄屏 ─────────────────────────────────────────────────────
+   阅读列两侧的留白收窄；其余（阅读列宽度、输入框）跟着 --cv-gutter 走。
+   项目与对话面板宽屏窄屏同一个（浮层，见 sidebar），窄屏不另做抽屉。 */
+@media (max-width: 760px) {
+  #pane-conversation { --cv-gutter: 16px; }
+  .cv3-head { padding: 0 16px 0 10px; }
 }

@@ -50,6 +50,7 @@ export function useStageVisuals({ currentSceneState, editorPreviews, progressWor
            而 <video src> 需要完整 URL。工作流产物的 file 本身就是可播放地址，
            所以这里必须自己转一次 —— 否则画面区会报「暂时无法播放」。 */
         file: studioHttpApi().artifacts.contentUrl(projectId, v.artifactPath!),
+        artifactPath: v.artifactPath!,
         /* 场景版本没有 runId / workflowId，但 StageVisual 要求这两项。
            用版本号占位而不是编一个工作流 ID —— 界面据此显示的是「场景版本」，不是工作流。 */
         runId: `scene-${v.version}`,
@@ -61,7 +62,7 @@ export function useStageVisuals({ currentSceneState, editorPreviews, progressWor
         // 场景版本就是当前提交结果，不是「过期预览」
         stale: false,
       }))
-  }, [sceneVersions.versions])
+  }, [sceneVersions.versions, projectId])
 
   const stage = useMemo(() => {
     const base = stageState(projectWorkflows, workflowService.listRuns())

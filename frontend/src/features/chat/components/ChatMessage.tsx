@@ -198,12 +198,15 @@ export function MessageActions({
   hidden = false,
   onRetry,
   onFeedback,
+  extra,
 }: {
   text: string
   at?: number
   hidden?: boolean
   onRetry?: () => void
   onFeedback?: (value: 'up' | 'down') => void
+  /** 排在时间之后的附加信息（例如这一轮的用量） */
+  extra?: ReactNode
 }) {
   const [voted, setVoted] = useState<'up' | 'down' | null>(null)
   const [copied, setCopied] = useState(false)
@@ -287,6 +290,7 @@ export function MessageActions({
           {formatAgo(at)}
         </time>
       ) : null}
+      {extra}
     </div>
   )
 }

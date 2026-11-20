@@ -31,6 +31,9 @@ import { WorkbenchPreviewCompare } from '@/features/workbench/components/Workben
 import { BriefDetailWorkspace, type BriefSection } from '@/features/workbench/components/BriefDetailWorkspace'
 import { TaskDetailWorkspace } from '@/features/workbench/components/TaskDetailWorkspace'
 import { useSceneVersions } from '@/features/workbench/hooks/useSceneVersions'
+import { useElementInspector } from '@/features/workbench/hooks/stage/useElementInspector'
+import { useLivePreview } from '@/features/workbench/hooks/stage/useLivePreview'
+import { useLiveAskAi } from '@/features/workbench/hooks/stage/useLiveAskAi'
 import type { SessionsState } from '@/features/chat/hooks/useSessions'
 import { useStageTimeRange } from '@/features/workbench/components/StageTimeRange'
 import { type BackendCapabilityInfo } from '@/features/workbench/services/workbenchCapabilityEvaluator'
@@ -155,7 +158,8 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
   const [editMode, setEditMode] = useState(new URLSearchParams(window.location.search).get('edit') === '1' || new URLSearchParams(window.location.search).get('panel') === 'edit')
   const referencesEdited = useRef(false)
   const [regionMode, setRegionMode] = useState(false)
-  const [regionRect, setRegionRect] = useState<{ x: number; y: number; w: number; h: number } | null>(null)
+  /* 框选矩形已由元素点选自己画；旧的取消/重置调用仍会写它，保留 setter 即可 */
+  const [, setRegionRect] = useState<{ x: number; y: number; w: number; h: number } | null>(null)
   const regionStart = useRef<{ sx: number; sy: number; mx: number; my: number; pointerId: number } | null>(null)
   const stageRef = useRef<HTMLDivElement | null>(null)
   const previewMediaRef = useRef<HTMLVideoElement | HTMLImageElement | null>(null)
@@ -316,9 +320,6 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
 
   const { sceneFilmMeta, viewedPreview, viewedStanding, projectName, totalFrames, switchOpen, switchRef, setSwitchOpen, setSelectedVisual, setSelectedStageVisual, selectedArtifact, selectedVisual, monitorProblems } = useVisualSelection({ capturedPreview, catalog, outline, projectId, projectVersion, references, regionStart, sceneVersions, selectedArtifactId, sessionDraft, setNotice, setPreviewDuration, setPreviewFailed, setPreviewLocation, setPreviewReady, setReferences, setRegionMode, setRegionRect, stage, stageLead, workflowsSnapshot })
 
-  /* 序列清单：生成侧写入项目目录的 sequences.json。
-     它描述的是「这条片子里有哪些元素、各占哪几秒」，元素在代码里仍写成 Sequence。
-     清单缺失、格式不对或与当前版本对不上，就只显示成片轨 —— 不从源码里猜元素。 */
   const { setSequenceMovePending, directEditCapability, isHistoricalVersion, aiModifyTargetCapability, adjustPendingConfirm, spanModifyCapability, targetEvaluation, timelineFps, timelineManifest, referenceTimeline, trackClipCapability, manifestStatus, sequenceManifest, timelineOpsCapability, sequenceMovePending } = useTimelineManifest({ backendCapability, capturedPreview, documentsTick, previewDuration, previewFailed, previewReady, projectId, projectVersion, realModifyBusy, realRenderBusy, references, remoteCreationBusy, sceneFilmMeta, sessionDraft, viewedPreview, viewedStanding, workflowRunning })
   /* 新版本可能在播放器已经 ready 后才进入视图；不依赖 onReady 事件的触发顺序。 */
   const { toggleProblem } = useProblemTracking({ capturedPreview, pendingPlayback, pendingReviewLocate, previewMediaRef, previewReady, projectId, range, rangeVisual, references, sessionDraft, setExpandedProblemId, setLoopSpan, setNotice, setPendingPlayback, setPendingReviewLocate, setPreviewDuration, setPreviewLocation, setPreviewReady, setPreviewTime, setReferences, setSequenceMovePending, viewedPreview })
@@ -353,9 +354,10 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
   const { openEdit, closeEdit, selectScene } = useSceneEditEntry({ directEditCapability, isHistoricalVersion, previewMediaRef, projectId, resumeFrameRef, sceneFilmMeta, setComparison, setDocumentsTick, setEditMode, setEditorDocumentId, setEditorNotice, setFrame, setNotice, setPanelOpen, setRailOpen, setRailTab, setReferences, setRegionMode, setRegionRect, setReviewTab, setSelectedArtifactId, setSelectedId, setSideTab, setSwitchOpen, switchOpen, switchRef, totalFrames, viewedPreview })
   const { previewSource, setTargetReference, currentProjectRef, defaultTarget, scopeFromReferences, clearTimeRange, activeSceneId, selectContentRow, effectiveTarget, openTaskRecords, scopeShort, selectTimeRange } = useTimeRangeTarget({ previewMediaRef, previewTime, project, projectId, projectVersion, range, references, sessionDraft, setConstraints, setEditMode, setFocusChatKey, setLoopSpan, setNotice, setPreviewTime, setReferences, setRegionMode, setScope, setSideTab, setTaskReturnTab, sideTab, stageLead, viewedPreview })
   /** 切换右栏页签时退出 Remotion 编辑态，避免「参数 → 场景」后监看器仍停在编辑预览。 */
-  const { referenceRegion, focusFeedback, selectSideTab, removeReference, locateReference, toggleReferenceRole, clearReferences, referenceFrame, saveCurrentFrame, referenceArtifact, addContextReference } = useTargetReferences({ aiModifyTargetCapability, backendCapability, capturedPreview, editMode, previewMediaRef, previewSource, previewTime, project, projectRecords, projectVersion, range, references, referencesEdited, regionStart, resumeFrameRef, selectedTaskRecordId, sessionDraft, setCanvasView, setComparison, setEditMode, setFocusChatKey, setFrame, setLoopSpan, setNotice, setPanelOpen, setPreviewLocation, setRailTab, setReferences, setRegionMode, setRegionRect, setReviewTab, setSelectedArtifactId, setSelectedId, setSelectedVisual, setSideTab, setTargetReference, stage, stageLead, viewedPreview })
+  const { referenceRegion, referenceElement, focusFeedback, selectSideTab, removeReference, locateReference, toggleReferenceRole, clearReferences, referenceFrame, saveCurrentFrame, referenceArtifact, addContextReference } = useTargetReferences({ aiModifyTargetCapability, backendCapability, capturedPreview, editMode, previewMediaRef, previewSource, previewTime, project, projectRecords, projectVersion, range, references, referencesEdited, regionStart, resumeFrameRef, selectedTaskRecordId, sessionDraft, setCanvasView, setComparison, setEditMode, setFocusChatKey, setFrame, setLoopSpan, setNotice, setPanelOpen, setPreviewLocation, setRailTab, setReferences, setRegionMode, setRegionRect, setReviewTab, setSelectedArtifactId, setSelectedId, setSelectedVisual, setSideTab, setTargetReference, stage, stageLead, viewedPreview })
   /** 实际视频显示矩形：stage 可能留白，Player 还会因 16:9 产生 letterbox。 */
-  const { startRegion, moveRegion, endRegion } = useRegionSelect({ comparison, panelOpen, previewMediaRef, referenceRegion, regionMode, regionStart, setComparison, setComparisonAt, setNotice, setPanelOpen, setRegionMode, setRegionRect, stageRef })
+  /* 画面框选已并进元素点选（拖拽即框选）；这里只保留它统一的 Esc 退出（对比、全屏） */
+  useRegionSelect({ comparison, panelOpen, previewMediaRef, referenceRegion, regionMode, regionStart, setComparison, setComparisonAt, setNotice, setPanelOpen, setRegionMode, setRegionRect, stageRef })
   /* 制作中插话的排队规则（演示适配器没有实时干预接口）：
      任务在跑时新发的不并行启动、不假装已干预 —— 先排队，当前任务结束（完成/失败）
      后按序启动；用户点了停止后，排队的先不动，等用户点「现在开始」或新发指令时
@@ -390,6 +392,24 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
   const { cancelTaskAndHold, handleConfirmWholeProject, submit } = useWorkbenchSubmit({ adjustPendingConfirm, aiModifyTargetCapability, boundSessionId, capturedPreview, chat, currentProjectRef, currentSession, holdQueue, isLiveTask, pendingSubmits, projectId, range, references, sessionDraft, setConstraints, setHoldQueue, setLoopSpan, setNotice, setPendingSubmits, setPreviewLocation, setRealModifyError, setReferences, setScope, spanModifyCapability, startNow, submissionEngine, submitRealModify, submitTimeSpan, targetEvaluation, tasks, threads })
   const { previewActions, runQuickAction, exportDeliverable, workbenchViewSwitch } = useWorkbenchExport({ constraints, deliverableLead, exporting, focusFeedback, onNavigate, openReview, setConstraints, setExporting, setNotice, setPanelOpen, setWorkbenchDraftText, stageDeliverable, viewedPreview })
 
+  /* 画面元素编辑：暂停时点选 / 框选画面，鼠标右侧弹出属性小窗 ——
+     声明过的文字可以自己改（版本化写回），任何位置都可以交给 AI。 */
+  const inspector = useElementInspector({
+    projectId, viewedPreview, sceneVersions, previewMediaRef, stageRef,
+    fps: timelineFps || FILM_FPS,
+    busy: Boolean(liveTask) || workflowRunning || realRenderBusy || realModifyBusy || remoteCreationBusy,
+    setNotice,
+    showLatest: () => { setSelectedVisual(null); setSelectedArtifactId(null); setComparison(null) },
+    referenceElement, submit, draft: sessionDraft.draft,
+  })
+
+  /* 实时画面：看当前版本时运行工程源码（见 frontend/live-preview）；历史版本、对比、编辑器模式仍放成片 */
+  const [liveMode, setLiveMode] = useState(true)
+  const liveEligible = viewedPreview?.media === 'video' && (!stageLead || viewedPreview.id === stageLead.id) && !comparison && !editMode
+  const live = useLivePreview({ projectId, enabled: liveMode && liveEligible })
+  const askAiLive = useLiveAskAi({ draft: sessionDraft.draft, updateDraft: sessionDraft.updateDraft, submit, onSent: focusFeedback })
+  const workbenchBusy = Boolean(liveTask) || workflowRunning || realRenderBusy || realModifyBusy || remoteCreationBusy
+
   return (
     <div className="wb-a2 wb-studio flex h-full min-h-0 flex-col" data-editor={editMode} data-mode="dark">
 
@@ -404,7 +424,6 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
           project={project}
           setSwitchOpen={setSwitchOpen}
           split={split}
-          stageLead={stageLead}
           switchOpen={switchOpen}
           switchRef={switchRef}
         />
@@ -602,13 +621,8 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
             aiModifyTargetCapability={aiModifyTargetCapability}
             comparison={comparison}
             comparablePair={comparablePair}
-            regionMode={regionMode}
-            onToggleRegion={() => {
-              if (previewMediaRef.current instanceof HTMLVideoElement) previewMediaRef.current.pause()
-              regionStart.current = null
-              setRegionMode((v) => !v)
-              setRegionRect(null)
-            }}
+            elementInspector={inspector}
+            live={{ on: liveMode && liveEligible, available: liveEligible, status: live.status, message: live.message, onChange: setLiveMode }}
             onReferenceFrame={referenceFrame}
             onSaveFrame={saveCurrentFrame}
             overlayGuides={overlayGuides}
@@ -702,13 +716,17 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
                           onClose={() => setSelectedArtifactId(null)} />
           ) : (
             <WorkbenchMonitor
+              projectId={projectId}
+              inspector={inspector}
+              live={live.active ? live : null}
+              askAiLive={askAiLive}
+              workbenchBusy={workbenchBusy}
               agentReply={agentReply}
               askFix={askFix}
               awaitingActive={awaitingActive}
               backendCapability={backendCapability}
               chat={chat}
               clearTimeRange={clearTimeRange}
-              endRegion={endRegion}
               expandedProblemId={expandedProblemId}
               filmProject={filmProject}
               filmRenderError={filmRenderError}
@@ -718,7 +736,6 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
               loopSpan={loopSpan}
               manifestStatus={manifestStatus}
               monitorProblems={monitorProblems}
-              moveRegion={moveRegion}
               notice={notice}
               openEdit={openEdit}
               openReview={openReview}
@@ -734,9 +751,6 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
               realModifyBusy={realModifyBusy}
               realRenderBusy={realRenderBusy}
               referenceTimeline={referenceTimeline}
-              regionMode={regionMode}
-              regionRect={regionRect}
-              regionStart={regionStart}
               remoteCreationBusy={remoteCreationBusy}
               retryBackendCapability={retryBackendCapability}
               review={review}
@@ -756,8 +770,6 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
               setPreviewFailed={setPreviewFailed}
               setPreviewReady={setPreviewReady}
               setPreviewTime={setPreviewTime}
-              setRegionMode={setRegionMode}
-              setRegionRect={setRegionRect}
               setSequenceMovePending={setSequenceMovePending}
               setTargetReference={setTargetReference}
               setTrayOpen={setTrayOpen}
@@ -767,7 +779,6 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
               stageLead={stageLead}
               stageLive={stageLive}
               stageRef={stageRef}
-              startRegion={startRegion}
               submit={submit}
               submitProjectRender={submitProjectRender}
               submitRealModify={submitRealModify}

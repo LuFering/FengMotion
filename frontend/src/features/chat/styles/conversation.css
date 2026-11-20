@@ -1,10 +1,9 @@
 /* 对话视图样式入口。按原先单文件里的先后顺序引入，层叠顺序不能调换：
    后面的分片（窄屏、会话落库状态等）依赖覆盖前面的规则。 */
 @import "./conversation-layout.css";     /* 设计数值来源、页面骨架与变量 */
-@import "./conversation-sidebar.css";    /* 内侧会话栏：搜索、浮层菜单、项目 → 对话两级树 */
+@import "./conversation-sidebar.css";    /* 项目与对话面板：左上角按钮点开的浮层、搜索、菜单、两级树 */
 @import "./conversation-thread.css";     /* 主列：顶栏、滚动区、消息流 */
 @import "./conversation-composer.css";   /* 输入席与输入区工具栏 */
-@import "./conversation-popovers.css";   /* 引擎/模型弹窗、输入区弹层、发送钮、状态条 */
 @import "./conversation-responsive.css"; /* 窄屏 */
 @import "./conversation-sessions.css";   /* 会话落库状态 */
 @import "./conversation-extras.css";     /* 删除确认、模型选择器、任务清单停靠位、过程诊断 */

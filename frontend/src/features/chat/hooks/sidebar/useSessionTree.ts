@@ -5,15 +5,13 @@ import type { ConversationProps } from '@/features/chat/Conversation'
 export interface UseSessionTreeArgs {
   archiveFilter: 'hide' | 'show' | 'only'
   groupMode: 'project' | 'flat'
-  narrow: boolean
   orderMode: 'updated' | 'manual'
   props: ConversationProps
   query: string
-  sideExpanded: boolean
 }
 
-/** 对话页左栏的会话列表数据：按归档筛选、搜索、排序与分组方式算出分组列表，并给出左栏的抽屉/图标条形态。 */
-export function useSessionTree({ archiveFilter, groupMode, narrow, orderMode, props, query, sideExpanded }: UseSessionTreeArgs) {
+/** 对话页左栏的会话列表数据：按归档筛选、搜索、排序与分组方式算出分组列表。 */
+export function useSessionTree({ archiveFilter, groupMode, orderMode, props, query }: UseSessionTreeArgs) {
   /* 「制作已开始」只认本会话里真的创建过东西（AI 消息带 changes），
      不能拿「左栏选中了某个项目」当依据 —— 那是切换当前项目，不是开始制作 */
   /* ── 左栏数据管线（对齐 dsh：筛选 → 搜索 → 排序 → 分组）──
@@ -95,7 +93,5 @@ export function useSessionTree({ archiveFilter, groupMode, narrow, orderMode, pr
 
   const noMatches = visibleSessions.length === 0
 
-  const drawer = narrow && sideExpanded
-  const rail = !sideExpanded
-  return { drawer, rail, noMatches, grouped }
+  return { noMatches, grouped }
 }

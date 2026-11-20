@@ -10,8 +10,9 @@
    ═══════════════════════════════════════════════════════════════ */
 
 .md {
-  font-size: 13.5px;
-  line-height: 1.72;
+  /* 对话页把正文放大到 14/24（阅读型页面）；工作台右栏是窄栏，保持 13.5 */
+  font-size: var(--md-fs, 13.5px);
+  line-height: var(--md-lh, 1.72);
   color: var(--fg);
   overflow-wrap: anywhere;
 }
@@ -42,8 +43,8 @@
 }
 .md h1 { font-size: 17px; }
 .md h2 { font-size: 16px; }
-.md h3 { font-size: 14.5px; }
-.md h4 { font-size: 13.5px; }
+.md h3 { font-size: 15px; }
+.md h4 { font-size: var(--md-fs, 13.5px); }
 
 /* ── 列表 ──────────────────────────────────────────────────────
    列表项里的段落不再留底边距，否则每一项之间会被撑开一格。 */
@@ -73,21 +74,61 @@
 .md a {
   color: var(--acc);
   text-decoration: none;
-  border-bottom: 1px solid color-mix(in srgb, var(--acc) 35%, transparent);
+  border-bottom: .5px solid color-mix(in srgb, var(--acc) 35%, transparent);
 }
 .md a:hover {
   border-bottom-color: var(--acc);
 }
 
+/* 行内代码：浅底、无边框、与正文基线对齐；等宽字比正文小一号，避免一段话里忽大忽小 */
 .md-inline-code {
   padding: 1px 5px;
-  border-radius: 4px;
-  background: var(--hole);
-  border: 1px solid color-mix(in srgb, var(--line) 60%, transparent);
-  font-family: ui-monospace, Consolas, monospace;
-  font-size: 12px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--fg) 6%, transparent);
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
+  font-size: 0.86em;
+  line-height: 1;
   color: var(--fg);
   white-space: break-spaces;
+}
+
+/* 文件路径（FileMention）：FengMotion 标志 + 目录（淡）+ 文件名（实）。
+   用界面字体而不是等宽体：它是「一个文件」，不是一段代码；点一下复制路径。 */
+.md-file {
+  display: inline-flex;
+  max-width: 100%;
+  align-items: center;
+  gap: 4px;
+  margin: 0 1px;
+  padding: 1px 7px 1px 5px;
+  border: 0;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--fg) 5%, transparent);
+  color: var(--fg);
+  font: inherit;
+  font-size: 0.93em;
+  line-height: 1.45;
+  vertical-align: baseline;
+  cursor: pointer;
+  transition: background-color 120ms cubic-bezier(.4, 0, .2, 1);
+}
+.md-file:hover { background: color-mix(in srgb, var(--fg) 9%, transparent); }
+.md-file:focus-visible { outline: 2px solid var(--acc); outline-offset: 1px; }
+.md-file-icon { flex: none; transform: translateY(0.5px); }
+.md-file-logo { width: 12px; height: 12px; border-radius: 3px; object-fit: contain; }
+.md-file[data-copied] .md-file-icon { color: var(--ok); }
+.md-file-dir {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ph);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.md-file-name {
+  overflow: hidden;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .md del {
@@ -98,20 +139,15 @@
    横向滚动而不是压缩：列多时压缩会把每个格子挤成两行，
    表格就失去了「一眼对照」的作用。 */
 
-.md-table-wrap {
-  overflow-x: auto;
-  margin: 0 0 10px;
-}
-
 .md table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 12.5px;
+  font-size: 13px;
 }
 .md th,
 .md td {
   padding: 6px 10px;
-  border: 1px solid var(--line);
+  border: .5px solid var(--line);
   text-align: start;
   vertical-align: top;
 }
@@ -129,7 +165,7 @@
 .md hr {
   margin: 14px 0;
   border: 0;
-  border-top: 1px solid var(--line);
+  border-top: .5px solid var(--line);
 }
 
 .md blockquote {
@@ -144,8 +180,8 @@
 .md-code {
   position: relative;
   margin: 0 0 10px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
+  border: .5px solid var(--line);
+  border-radius: 12px;
   background: var(--hole);
   overflow: hidden;
 }
@@ -154,7 +190,7 @@
   position: absolute;
   top: 6px;
   inset-inline-end: 10px;
-  font-size: 10.5px;
+  font-size: 11px;
   letter-spacing: 0.02em;
   color: var(--ph);
   text-transform: lowercase;

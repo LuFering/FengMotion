@@ -1,7 +1,7 @@
 import type * as React from 'react'
 import { useState, useEffect, useMemo } from 'react'
 import { parseSequenceManifest, manifestMatches, type SequenceManifest, type SequenceEntry } from '@/features/workbench/model/sequenceManifest'
-import { studioHttpApi } from '@/api'
+import { loadVideoTimeline, timelineArtifactPath } from '@/features/workbench/services/videoTimeline'
 import { evaluateExecutableLocalTarget } from '@/features/workbench/services/workbenchTargetEvaluator'
 import { modifyBlockReason, type ProjectVersionInfo, type VersionStanding } from '@/features/workbench/model/versionIdentity'
 import { readDocumentsVersion, readDocuments } from '@/features/scene-editor/services/sceneEditorService'
@@ -33,15 +33,18 @@ export interface UseTimelineManifestArgs {
 }
 
 /**
- * 时间线序列清单与修改能力判定：读取并核对 sequences.json（版本对不上时仅作参考轨），据当前画面与工程版本
+ * 时间线序列清单与修改能力判定：读取并核对当前视频的独立清单，据当前画面与工程版本
  * 评估时间线操作、片段引用、画面/时间段修改与直接编辑是否可用；另存拖动元素条得到的待发调整。
  */
 export function useTimelineManifest({ backendCapability, capturedPreview, documentsTick, previewDuration, previewFailed, previewReady, projectId, projectVersion, realModifyBusy, realRenderBusy, references, remoteCreationBusy, sceneFilmMeta, sessionDraft, viewedPreview, viewedStanding, workflowRunning }: UseTimelineManifestArgs) {
-  /* 序列清单：生成侧写入项目目录的 sequences.json。
-     它描述的是「这条片子里有哪些元素、各占哪几秒」，元素在代码里仍写成 Sequence。
-     清单缺失、格式不对或与当前版本对不上，就只显示成片轨 —— 不从源码里猜元素。 */
-  const [sequenceManifest, setSequenceManifest] = useState<SequenceManifest | null>(null)
-  const [manifestStatus, setManifestStatus] = useState<'loading' | 'missing' | 'invalid' | 'ready' | 'error'>('loading')
+  const artifactPath = timelineArtifactPath(projectId, viewedPreview)
+  const manifestKey = JSON.stringify([projectId, viewedPreview?.id, artifactPath])
+  type ManifestStatus = 'loading' | 'missing' | 'invalid' | 'ready' | 'error'
+  const [loaded, setLoaded] = useState<{ key: string; manifest: SequenceManifest | null; status: ManifestStatus; reason?: string } | null>(null)
+  const sequenceManifest = loaded?.key === manifestKey ? loaded.manifest : null
+  const manifestStatus: ManifestStatus = loaded?.key === manifestKey ? loaded.status : artifactPath ? 'loading' : 'missing'
+  const manifestReason = loaded?.key === manifestKey ? loaded.reason : undefined
+  const timelineBusy = realModifyBusy || realRenderBusy || remoteCreationBusy || workflowRunning
   /* 拖动元素条得到的待发送调整。它不直接生效：AI 才是改代码的一方。 */
   const [sequenceMovePending, setSequenceMovePending] = useState<
     | { item: SequenceEntry; next: { start: number; duration: number }; brief: string; intent: 'move' | 'trim-start' | 'trim-end'; label?: string }
@@ -49,22 +52,23 @@ export function useTimelineManifest({ backendCapability, capturedPreview, docume
     | null
   >(null)
   useEffect(() => {
-    if (!viewedPreview) { setSequenceManifest(null); return }
+    if (!artifactPath || timelineBusy) return
     let active = true
-    setSequenceManifest(null)
-    setManifestStatus('loading')
-    const url = studioHttpApi().artifacts.contentUrl(projectId, 'sequences.json')
-    void fetch(url)
-      .then(async (r) => {
-        if (r.status === 404) { if (active) setManifestStatus('missing'); return }
-        if (!r.ok) throw new Error('manifest request failed')
-        const parsed = parseSequenceManifest(await r.json())
-        if (active) { setSequenceManifest(parsed); setManifestStatus(parsed ? 'ready' : 'invalid') }
+    setLoaded({ key: manifestKey, manifest: null, status: 'loading' })
+    void loadVideoTimeline(projectId, artifactPath)
+      .then((raw) => {
+        const parsed = parseSequenceManifest(raw)
+        if (active) setLoaded({ key: manifestKey, manifest: parsed, status: parsed ? 'ready' : 'invalid' })
       })
-      .catch(() => { if (active) { setSequenceManifest(null); setManifestStatus('error') } })
+      .catch((error: unknown) => {
+        const status = (error as { httpStatus?: number })?.httpStatus
+        if (active) setLoaded({ key: manifestKey, manifest: null,
+          status: status === 404 ? 'missing' : status === 422 ? 'invalid' : 'error',
+          reason: error instanceof Error ? error.message : '轨道读取失败' })
+      })
     return () => { active = false }
-  }, [projectId, viewedPreview?.id])
-  const timelineManifest = manifestMatches(sequenceManifest, { sourceHash: sceneFilmMeta?.sourceHash, duration: previewDuration })
+  }, [projectId, artifactPath, manifestKey, timelineBusy])
+  const timelineManifest = manifestMatches(sequenceManifest, { artifactPath, sourceHash: sceneFilmMeta?.sourceHash, duration: previewDuration })
     ? sequenceManifest
     : null
   /* 参考轨道：清单存在但与当前版本对不上时，仍然展示出来，只是明确标为参考。
@@ -73,9 +77,10 @@ export function useTimelineManifest({ backendCapability, capturedPreview, docume
        · 两边都有指纹但不一致（版本已变）
      展示前提是总时长对得上，否则片段位置会画到错误的画面上。 */
   const referenceTimeline = !timelineManifest && sequenceManifest
+    && sequenceManifest.artifactPath === artifactPath
     && Math.abs(sequenceManifest.durationSeconds - previewDuration) <= 0.1
     ? sequenceManifest : null
-  const timelineFps = timelineManifest?.fps ?? sceneFilmMeta?.fps
+  const timelineFps = timelineManifest?.fps ?? referenceTimeline?.fps ?? sceneFilmMeta?.fps
 
   // 与实际提交分支 100% 对齐的目标有效性评估，按真实提交能力严格判断，绝不让不支持的目标滑入无范围整片修改
   const targetEvaluation = evaluateExecutableLocalTarget(
@@ -155,8 +160,10 @@ export function useTimelineManifest({ backendCapability, capturedPreview, docume
     isHistorical: isHistoricalVersion,
     modifyBlock,
     manifestStatus,
+    manifestReason,
+    manifestDetail: sequenceManifest?.detail,
     hasManifest: Boolean(sequenceManifest),
-    hasSourceHashMatch: Boolean(sequenceManifest?.sourceHash && sceneFilmMeta?.sourceHash),
+    hasSourceHashMatch: Boolean(artifactPath && sequenceManifest?.artifactPath === artifactPath),
     hasVerifiedTracks: Boolean(timelineManifest),
   })
 

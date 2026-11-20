@@ -12,12 +12,9 @@
   background: transparent; border: 0; border-bottom: 1px solid var(--line);
   border-radius: 0; box-shadow: none; gap: 10px;
 }
-#pane-flow .wb-a2.wb-studio .wb-logo {
-  display: grid; place-items: center; width: 30px; height: 30px;
-  border-radius: 10px; background: var(--raised); color: var(--tx2); box-shadow: none;
-}
+
 #pane-flow .wb-a2.wb-studio .wb-project-name { font-size: 14px; letter-spacing: -.02em; }
-#pane-flow .wb-a2.wb-studio .wb-crumb-scene { font-size: 11px; }
+
 #pane-flow .wb-a2.wb-studio .wb-top-actions { display: flex; align-items: center; gap: 7px; }
 #pane-flow .wb-a2.wb-studio .wb-top-actions > button { margin: 0; }
 #pane-flow .wb-a2.wb-studio .wb-review-entry,
@@ -147,7 +144,7 @@
 @media(max-width:1200px) {
   #pane-flow .wb-a2.wb-studio .fw { grid-template-columns: 185px minmax(0,1fr) 290px; }
   #pane-flow .wb-a2.wb-studio .wb-top-actions .wb-agent-status { display: none; }
-  #pane-flow .wb-a2.wb-studio .wb-crumb-sep,#pane-flow .wb-a2.wb-studio .wb-crumb-scene { display: none; }
+
   #pane-flow .wb-a2.wb-studio .fw-mon-visual { padding: 12px; }
 }
 @media(max-width:1200px) {

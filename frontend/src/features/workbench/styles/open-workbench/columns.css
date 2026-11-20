@@ -150,24 +150,7 @@ body.wb-fullscreen-active .fw-panel-reopen-float {
 }
 #pane-flow .wb-a2.wb-studio .wb-compose-context .wb-target-pill-wrap { margin-bottom: 6px; }
 #pane-flow .wb-a2.wb-studio .wb-compose-context .fw-ref-chips { max-height: 72px; overflow-y: auto; }
-#pane-flow .wb-a2.wb-studio .wb-compose-context [role='radio'] { min-height: 27px; padding-inline: 8px; }
-#pane-flow .wb-a2.wb-studio .wb-compose-context .wb-target-pill {
-  min-height: 30px; padding: 3px 9px; border-color: var(--line2);
-  background: var(--surf); color: var(--tx2);
-}
-#pane-flow .wb-a2.wb-studio .wb-compose-context .wb-target-pill:hover { border-color: var(--acc); }
-#pane-flow .wb-a2.wb-studio .wb-compose-context [role='radiogroup'] {
-  gap: 2px; padding: 3px; border-color: var(--line); background: var(--hole);
-}
-#pane-flow .wb-a2.wb-studio .wb-compose-context [role='radio'] {
-  min-height: 26px; gap: 5px; padding: 4px 8px; font-size: 11px;
-  color: var(--tx2); border-radius: 999px;
-}
-#pane-flow .wb-a2.wb-studio .wb-compose-context [role='radio'] svg { width: 12px; height: 12px; }
-#pane-flow .wb-a2.wb-studio .wb-compose-context [role='radio']:hover { background: var(--surf); color: var(--tx); }
-#pane-flow .wb-a2.wb-studio .wb-compose-context [role='radio'][aria-checked='true'] {
-  background: var(--surf); color: var(--acc); box-shadow: 0 1px 3px rgb(20 22 40 / .12);
-}
+/* 目标条（胶囊 + 修改/提问切换）的样式由组件自带的 target-pill.css 统一提供，对话页与工作台共用，这里不再覆盖。 */
 #pane-flow .wb-a2.wb-studio .wb-compose-context button:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
 #pane-flow .wb-a2.wb-studio .wb-compose-context .fw-ref-chips { align-items: center; gap: 6px; }
 #pane-flow .wb-a2.wb-studio .wb-compose-context .fw-ref-add {

@@ -1,27 +1,35 @@
-/* ── 删除项目确认对话框 ──────────────────────────────────────
-   窄面板，不占屏幕：删除是一次确认，不是一个需要沉浸的工作区。 */
+/* ── 归档 / 删除项目确认对话框 ──────────────────────────────
+   对话框挂在 body 上（Radix Portal），不在 #pane-conversation 里，
+   读不到对话页的 --cv-* 变量，所以这里只用全局 token 和写死的规范数值。
+   窄面板：删除是一次确认，不是一个需要沉浸的工作区。 */
 .cv3-del-dlg {
-  width: min(460px, calc(100vw - 48px));
+  width: min(440px, calc(100vw - 48px));
   max-width: none;
-  padding: 20px;
-  gap: 12px;
+  padding: 22px 22px 18px;
+  gap: 10px;
+  border: .5px solid var(--line);
+  border-radius: 14px;
   background: var(--surf);
-  border-radius: var(--fm-radius-panel);
+}
+html[data-theme="tactile"] .cv3-del-dlg {
+  border: 1px solid #22231f;
+  border-radius: 20px;
+  box-shadow: 4px 4px 0 #22231f;
 }
 .cv3-del-title {
   margin: 0;
-  font-size: 15px;
-  line-height: 22px;
-  font-weight: 600;
   color: var(--fg);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 22px;
 }
 .cv3-del-desc {
   margin: 0;
+  color: var(--dim);
   font-size: 13px;
   line-height: 20px;
-  color: var(--tx2);
 }
-/* 「目录与成片保留」这句是用户判断要不要继续的关键信息，
+/* 「目录与成片保留 / 将被永久删除」是用户判断要不要继续的关键信息，
    不能和普通说明一样淡 —— 用正文色，其余部分才弱下去。 */
 .cv3-del-desc strong {
   color: var(--fg);
@@ -31,47 +39,49 @@
   display: flex;
   justify-content: flex-end;
   gap: 8px;
-  margin-top: 4px;
+  margin-top: 6px;
 }
 
-/* 删除确认：要求逐字输入项目名。
-   不用 shadcn Input —— 它是表单控件，这里要的是「一个必须被打对的字符串」，
-   视觉上更接近输入框而不是按钮，但语义是校验闸门。 */
+/* 删除确认：要求逐字输入项目名。语义是校验闸门，不是普通表单项 */
 .cv3-del-input {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 6px;
+  margin-top: 4px;
 }
 .cv3-del-input-label {
-  font-size: 11px;
-  line-height: 16px;
-  color: var(--tx3);
+  color: var(--ph);
+  font-size: 12px;
+  line-height: 18px;
 }
 .cv3-del-input input {
   width: 100%;
-  height: 30px;
-  padding: 0 9px;
-  font-size: 13px;
+  height: 32px;
+  padding: 0 10px;
+  border: .5px solid var(--line);
+  border-radius: 8px;
+  background: var(--hole);
   color: var(--fg);
-  background: var(--inset);
-  border: 1px solid var(--line);
-  border-radius: var(--fm-radius-sm, 6px);
+  font-size: 13px;
   outline: none;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
 }
 .cv3-del-input input:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
+  border-color: var(--acc);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--acc) 18%, transparent);
 }
 .cv3-del-input input::placeholder {
-  color: var(--tx3);
+  color: var(--ph);
   opacity: .7;
 }
 
 /* 「回到最新」圆钮 —— 对齐 dsh 的 .dM7RPG_toBottom：
-   34px 圆钮、浮在输入区上方、有投影，翻离底部时才出现。 */
+   34px 圆钮、浮在输入区上方、有投影，翻离底部时才出现。
+   挂在粘性输入席里，按输入席自身定位：底边落在输入席上缘以下 12px（渐隐区里），
+   离目标条还有 12px —— 输入区变高变矮它都跟着走，不再写死离页底多少像素。 */
 .cv3-to-bottom {
   position: absolute;
-  bottom: 132px;
+  bottom: calc(100% - 12px);
   left: 50%;
   z-index: 8;
   display: flex;
@@ -80,8 +90,8 @@
   align-items: center;
   justify-content: center;
   padding: 0;
-  border: 1px solid var(--cv-line);
-  border-radius: 100px;
+  border: .5px solid var(--cv-line);
+  border-radius: 999px;
   background: var(--cv-elev);
   box-shadow: var(--cv-shadow);
   color: var(--tx1);
@@ -90,7 +100,7 @@
   transition: background-color 120ms ease;
 }
 .cv3-to-bottom:hover {
-  background: var(--panel2);
+  background: color-mix(in srgb, var(--cv-raised) 94%, var(--fg));
 }
 .cv3-to-bottom:focus-visible {
   outline: none;
@@ -100,26 +110,6 @@
 /* ── 输入框内的模型选择器：静态、无旋转光带 ────────────────────
    理由见 .cv3-hbtn[data-connected]::after 的注释：输入框是长时间停留的
    界面，持续动画会持续抢注意力。连接状态仍由左侧绿点表达，信息不丢。 */
-/* 直接不渲染这层伪元素：只关 animation/background 仍会留下一圈
-   box-shadow 描边（遮罩把阴影也裁成了环），看起来像边框没对齐。 */
-.cc-bar .cv3-hbtn[data-connected]::after {
-  content: none;
-  display: none;
-}
-
-/* 输入框里的模型胶囊与原版一致：常显 bg-ui-tint、无边框、圆角全。
-   这里只覆盖宽度上限（底栏空间比原版窄），其余交给基类。 */
-.cc-bar .cv3-hbtn {
-  max-width: 240px;
-}
-.cc-bar .cv3-hbtn:hover {
-  background: color-mix(in srgb, #000 10%, transparent);
-}
-.cc-bar .cv3-hmodel {
-  font-size: 12px;
-  color: var(--fg);
-  font-weight: 500;             /* font-medium */
-}
 
 /* ── 任务清单抽屉停靠位（todo_write）────────────────────────
    贴在输入框正上方，与输入框同宽同中线。
@@ -128,11 +118,8 @@
    ⚠️ 宽度约束与 .cv3-compose > .cc 保持一致 ——
    否则抽屉会比输入框宽或窄，边缘对不齐（实测过的老问题）。 */
 .cv3-todo-dock {
-  width: 100%;
-  max-width: min(920px, max(680px, 64%), calc(100% - 32px));
-  margin: 0 auto 8px;
+  margin-bottom: 8px;
 }
-
 
 /* ── 过程诊断（压缩 / token 上限 / 重试 / 中断）──────────────
    一条低调的说明行，放在用量之前。
@@ -158,15 +145,28 @@
 }
 .cv3-diagnostic svg { flex: none; opacity: .85; }
 
-html[data-theme="tactile"] .cv3-compose > .lbx-compose-box { --lbx-composer-radius: 26px; }
+html[data-theme="tactile"] .cv3-compose > .lbx-compose-box { --lbx-composer-radius: 22px; }
 
 /* 空态在消息区垂直居中、与下方输入框同一条中轴，不再贴在左上角留出整片空白。 */
-.cv3-view:has(> .cv3-col > .cv3-start-empty) { display:flex; flex-direction:column; }
-.cv3-col:has(> .cv3-start-empty) { flex:1 0 auto; }
+.cv3-view:has(> .cv3-col > .cv3-start-empty) { display: flex; flex-direction: column; }
+.cv3-col:has(> .cv3-start-empty) { flex: 1 0 auto; }
 /* 选择器带上 .cv3-col：前面的 `.cv3-col > :first-child { margin-top:0 }` 同为 0,2,0，会把 auto 压掉。 */
-.cv3-col > .cv3-start-empty { margin:auto; padding:0 0 8vh; max-width:540px; text-align:center; }
-.cv3-start-empty h2 { margin:0 0 10px; color:var(--fg); font-size:22px; font-weight:600; letter-spacing:-.025em; }
-.cv3-start-empty p { color:var(--dim); font-size:13px; line-height:1.7; margin:0 0 22px; }
-.cv3-start-empty>div { display:flex; flex-wrap:wrap; justify-content:center; gap:8px; }
-.cv3-entry-note { color:var(--dim); font-size:12px; line-height:1.6; margin:16px 0; }
-.project-resource-evidence{margin:14px 0;font-size:12px;line-height:1.7;color:var(--dim)}.project-resource-evidence summary{cursor:pointer;color:var(--fg);width:fit-content}.project-resource-evidence p{margin:8px 0}.project-resource-evidence>div{padding:10px 0;border-bottom:1px solid var(--line)}.project-resource-evidence ul{padding-left:18px}
+.cv3-col > .cv3-start-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 520px;
+  margin: auto;
+  padding: 0 0 10vh;
+  text-align: center;
+}
+.cv3-start-empty h2 {
+  margin: 0 0 16px;
+  color: var(--fg);
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 30px;
+  letter-spacing: -.02em;
+}
+.cv3-start-empty p { margin: 0 0 20px; color: var(--dim); font-size: 13px; line-height: 20px; }
+.cv3-start-empty > div { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }

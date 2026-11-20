@@ -29,12 +29,16 @@ import { useComposerFiles } from '@/features/chat/hooks/composer/useComposerFile
 import { useSendMessage } from '@/features/chat/hooks/reply/useSendMessage'
 import { useServerReply } from '@/features/chat/hooks/reply/useServerReply'
 import { useComposerModel } from '@/features/chat/hooks/composer/useComposerModel'
+import { usePresence } from '@/features/chat/hooks/sidebar/usePresence'
 import { useSessionTree } from '@/features/chat/hooks/sidebar/useSessionTree'
 import { useSidebarUi } from '@/features/chat/hooks/sidebar/useSidebarUi'
 import { useReplyStreamState } from '@/features/chat/hooks/reply/useReplyStreamState'
 import type { ComposerAttachment } from '@/features/chat/model/composerAttachment'
 import { ConversationComposerSeat } from '@/features/chat/components/conversation/ConversationComposerSeat'
+import { ProjectTile } from '@/shared/components/ProjectTile'
+import { isUntitledSession, sessionDisplayTitle } from '@/features/chat/model/sessionDisplay'
 import { ConversationThread } from '@/features/chat/components/conversation/ConversationThread'
+import { useScrollFollow } from '@/features/chat/hooks/thread/useScrollFollow'
 import { ConversationSidebar } from '@/features/chat/components/conversation/ConversationSidebar'
 import '@/features/chat/styles/conversation.css'
 
@@ -118,9 +122,9 @@ export function Conversation(props: ConversationProps) {
     mountedRef.current = true
     return () => { mountedRef.current = false }
   }, [])
-  const { loadMessages, pending, setPending, setPendingStartedAt, breakdown, contextUsed, contextWindow, toolsTokens, clearRoundTrace, deliverablesRef, setAgentPhase, setBreakdown, setContextUsed, setContextWindow, setJobs, setStopping, setToolsTokens, setUsage, jobs, agentPhase, pendingStartedAt, usage, stopping } = useReplyStreamState({ chat, props, setReplyNote })
+  const { loadMessages, pending, setPending, setPendingStartedAt, breakdown, contextUsed, contextWindow, toolsTokens, clearRoundTrace, deliverablesRef, setAgentPhase, setBreakdown, setContextUsed, setContextWindow, setJobs, setStopping, setToolsTokens, setUsage, jobs, agentPhase, pendingStartedAt, stopping } = useReplyStreamState({ chat, props, setReplyNote })
   /* dsh 响应式：1024 以下左栏自动收为 56px 轨，手动展开为覆盖式抽屉 */
-  const { setNarrow, archiveFilter, groupMode, narrow, orderMode, query, sideExpanded, setEditing, setEditText, setCollapsedGroups, setSideExpanded, setQuery, viewMenu, setViewMenu, setRowMenu, setGroupMode, setOrderMode, setArchiveFilter, collapsedGroups, dragId, setDropTarget, setDragId, editing, editText, dropTarget, rowMenu, setArchivingProject, setDeleteConfirmText, setDeletingProject, archivingProject, deletingBusy, confirmArchiveProject, deletingProject, deleteConfirmText, confirmDeleteProject } = useSidebarUi({ props, setProjectError, showProjectError })
+  const { archiveFilter, groupMode, orderMode, query, sideOpen, setEditing, setEditText, setCollapsedGroups, setSideOpen, setQuery, viewMenu, setViewMenu, setRowMenu, setGroupMode, setOrderMode, setArchiveFilter, collapsedGroups, dragId, setDropTarget, setDragId, editing, editText, dropTarget, rowMenu, setArchivingProject, setDeleteConfirmText, setDeletingProject, archivingProject, deletingBusy, confirmArchiveProject, deletingProject, deleteConfirmText, confirmDeleteProject } = useSidebarUi({ props, setProjectError, showProjectError })
 
   /* ── 输入区工具栏（对齐 dsh InputBar：左侧附件/权限，右侧模型/发送）──
      attachments=待发送附件；permission=权限模式（dsh preset.readOnly/workspaceWrite/fullAccess）；
@@ -186,12 +190,6 @@ export function Conversation(props: ConversationProps) {
       return true
     })
     return () => registerComposer(null)
-  }, [])
-
-  useEffect(() => {
-    const onResize = () => setNarrow(window.innerWidth < 1024)
-    window.addEventListener('resize', onResize)
-    return () => window.removeEventListener('resize', onResize)
   }, [])
 
   /* 会话 ⇄ 当前对话的双向同步：
@@ -487,6 +485,7 @@ export function Conversation(props: ConversationProps) {
   /* 标题优先用当前项目名：左栏选项目之后，这里应该跟着变，
      否则用户会不知道现在聊的是哪一支片子 */
   const title = currentProject?.name ?? (usableName(firstBrief).slice(0, 14) || '未命名创作')
+  const headTitle = activeThread && !isUntitledSession(activeThread) ? sessionDisplayTitle(activeThread) : title
 
   /**
    * 当前会话的全部工具调用（历史 + 本轮实时）。
@@ -506,7 +505,41 @@ export function Conversation(props: ConversationProps) {
      3. orderMode：最近更新 / 手动（手动=用户拖拽后的既有顺序）
         置顶的永远在最前（dsh pinSession 语义）
      4. groupMode：按项目两级 / 单列表 */
-  const { drawer, rail, noMatches, grouped } = useSessionTree({ archiveFilter, groupMode, narrow, orderMode, props, query, sideExpanded })
+  const { noMatches, grouped } = useSessionTree({ archiveFilter, groupMode, orderMode, props, query })
+
+  /* ── 项目与对话面板的开合 ──
+     面板挂在左上角切换按钮下面，浮在阅读区之上。
+     收起时机：再点按钮、点面板外、Esc、切到别的对话（含新建）、打开全部项目。 */
+  const switchRef = useRef<HTMLDivElement>(null)
+  const sidePresence = usePresence(sideOpen, 220)
+  const sideKey = `${props.activeSessionId ?? ''}|${props.overviewOpen ? 1 : 0}`
+  const [sideKeySeen, setSideKeySeen] = useState(sideKey)
+  if (sideKey !== sideKeySeen) {
+    setSideKeySeen(sideKey)
+    if (sideOpen) setSideOpen(false)
+  }
+  useEffect(() => {
+    if (!sideOpen) return
+    const onPointerDown = (e: PointerEvent) => {
+      const target = e.target as Node | null
+      if (target && switchRef.current?.contains(target)) return
+      /* 面板里打开的归档/删除确认框挂在 body 上，点它不算「点面板外」 */
+      if (target instanceof Element && target.closest('[role="dialog"]')) return
+      setSideOpen(false)
+    }
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || e.defaultPrevented) return
+      /* Esc 先关面板里的小菜单，再关面板 */
+      if (rowMenu || viewMenu) { setRowMenu(null); setViewMenu(false); return }
+      setSideOpen(false)
+    }
+    document.addEventListener('pointerdown', onPointerDown, true)
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown, true)
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [sideOpen, rowMenu, viewMenu, setSideOpen, setRowMenu, setViewMenu])
 
   /* 回复流：订阅 services/chatService 的 stream，视图只负责显示。
      ⚠️ 依赖必须是「最后一条用户消息的 id」，不能是整个 messages 数组 ——
@@ -572,34 +605,21 @@ export function Conversation(props: ConversationProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lastUserId, activeIsServer])
 
-  /* 新消息进来滚到底（只在接近底部时跟随，不抢用户翻历史） */
+  /* 跟随最新内容：贴底时内容一变高就跟到底；用户往上翻就停，回到底部或发消息再恢复。
+     翻离底部时显示 dsh 那个 34px 的「回到最新」圆钮。 */
+  const viewRef = useRef<HTMLDivElement>(null)
+  const { away: awayFromBottom, toBottom } = useScrollFollow(scrollRef, viewRef)
+  const backToBottom = useCallback(() => toBottom('smooth'), [toBottom])
+  /* 发出新一轮（或切到别的会话）时回到底部，让人看着这一轮从头执行 */
   useEffect(() => {
-    const el = scrollRef.current
-    if (!el) return
-    if (el.scrollHeight - el.scrollTop - el.clientHeight < 320) el.scrollTop = el.scrollHeight
-  }, [messages, pending])
-
-  /**
-   * 用户是否已经翻离底部。
-   *
-   * dsh 在翻离底部时给一个 34px 的「回到最新」圆钮（.dM7RPG_toBottom）：
-   * 生成中内容一直往下长，翻上去看历史的人需要一个明确的一步返回，
-   * 否则只能自己一路往下滚。
-   */
-  const [awayFromBottom, setAwayFromBottom] = useState(false)
-  const onScrollTrack = useCallback(() => {
-    const el = scrollRef.current
-    if (!el) return
-    setAwayFromBottom(el.scrollHeight - el.scrollTop - el.clientHeight > 320)
-  }, [])
-  const backToBottom = useCallback(() => {
-    const el = scrollRef.current
-    if (!el) return
-    el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
-  }, [])
+    if (pending) toBottom()
+  }, [pending, toBottom])
+  useEffect(() => {
+    toBottom()
+  }, [props.activeSessionId, toBottom])
 
   /* ── 输入区派生值 ── */
-  const { backendModels, effectiveEffort, effectiveModel, selectedHarness, showMessageMeter, messageMeterKinds, composerWindow, composerHarnesses, composerContextUsage, composerPromptTokens, composerMeterPanel } = useComposerModel({ breakdown, contextUsed, contextWindow, harnessId, messages, model, prefs, setPrefs, thinking, toolsTokens })
+  const { backendModels, effectiveEffort, effectiveModel, selectedHarness, composerHarnesses, composerContextUsage, composerPromptTokens, composerMeterPanel } = useComposerModel({ breakdown, contextUsed, contextWindow, harnessId, messages, model, prefs, setPrefs, thinking, toolsTokens })
 
   /**
    * 服务端会话的回复流（SSE）。
@@ -711,58 +731,63 @@ export function Conversation(props: ConversationProps) {
 
   return (
     <div className="cv3">
-      {drawer && <button type="button" aria-label="关闭项目栏" className="cv3-backdrop" onClick={() => setSideExpanded(false)} />}
-
-      {/* 收起时整块不渲染：不留 56px 竖条（那是 dsh 的「图标轨」，本产品收起后
-          左栏里没有任何还需要常驻的图标，留一条空轨道只是视觉噪音）。 */}
-      {!rail && <ConversationSidebar
-          archiveFilter={archiveFilter}
-          collapsedGroups={collapsedGroups}
-          createProjectInline={createProjectInline}
-          dragId={dragId}
-          drawer={drawer}
-          dropTarget={dropTarget}
-          editText={editText}
-          editing={editing}
-          groupMode={groupMode}
-          grouped={grouped}
-          newSession={newSession}
-          noMatches={noMatches}
-          orderMode={orderMode}
-          projectError={projectError}
-          projectPending={projectPending}
-          props={props}
-          query={query}
-          rowMenu={rowMenu}
-          setArchiveFilter={setArchiveFilter}
-          setArchivingProject={setArchivingProject}
-          setCollapsedGroups={setCollapsedGroups}
-          setDeleteConfirmText={setDeleteConfirmText}
-          setDeletingProject={setDeletingProject}
-          setDragId={setDragId}
-          setDropTarget={setDropTarget}
-          setEditText={setEditText}
-          setEditing={setEditing}
-          setGroupMode={setGroupMode}
-          setOrderMode={setOrderMode}
-          setQuery={setQuery}
-          setRowMenu={setRowMenu}
-          setViewMenu={setViewMenu}
-          showProjectError={showProjectError}
-          viewMenu={viewMenu}
-        />}
 
       {props.overviewOpen && props.projectOverview}
       <div className="cv3-main" style={props.overviewOpen ? { display: 'none' } : undefined}>
         <header className="cv3-head">
           <div className="cv3-title-row">
-            <button type="button" className="cv3-icon-btn" aria-label={sideExpanded ? '收起项目栏' : '展开项目栏'} title={sideExpanded ? '收起项目栏' : '展开项目栏'} onClick={() => setSideExpanded((o) => !o)}>
-              <UiIcon icon={Menu01} size="md" />
-            </button>
-            {/* 子代理徽标：紧贴标题左侧。「派了个分身去干活」和「跑条 bash」
+            {/* 左上角的切换按钮：项目色块 + 当前对话标题 + ▾。既说明「现在在哪」，
+                点开又是「项目与对话」面板 —— 面板浮在阅读区上面，不挤占对话 */}
+            <div className="cv3-switch-wrap" ref={switchRef}>
+              <button type="button" className="cv3-switch-btn" aria-haspopup="dialog" aria-expanded={sideOpen}
+                      title={currentProject ? `${currentProject.name} · ${headTitle}` : headTitle}
+                      onClick={() => setSideOpen((o) => !o)}>
+                {currentProject ? <ProjectTile name={currentProject.name} size="xs" /> : <UiIcon icon={Menu01} size="sm" className="cv3-switch-icon" />}
+                <span className="cv3-crumb-text">{headTitle}</span>
+                <UiIcon icon={SemIcons.collapse} size="xs" className="cv3-switch-caret" />
+              </button>
+              {sidePresence && (
+              <ConversationSidebar
+                archiveFilter={archiveFilter}
+                collapsedGroups={collapsedGroups}
+                createProjectInline={createProjectInline}
+                dragId={dragId}
+                state={sidePresence}
+                dropTarget={dropTarget}
+                editText={editText}
+                editing={editing}
+                groupMode={groupMode}
+                grouped={grouped}
+                newSession={newSession}
+                noMatches={noMatches}
+                orderMode={orderMode}
+                projectError={projectError}
+                projectPending={projectPending}
+                props={props}
+                query={query}
+                rowMenu={rowMenu}
+                setArchiveFilter={setArchiveFilter}
+                setArchivingProject={setArchivingProject}
+                setCollapsedGroups={setCollapsedGroups}
+                setDeleteConfirmText={setDeleteConfirmText}
+                setDeletingProject={setDeletingProject}
+                setDragId={setDragId}
+                setDropTarget={setDropTarget}
+                setEditText={setEditText}
+                setEditing={setEditing}
+                setGroupMode={setGroupMode}
+                setOrderMode={setOrderMode}
+                setQuery={setQuery}
+                setRowMenu={setRowMenu}
+                setViewMenu={setViewMenu}
+                showProjectError={showProjectError}
+                viewMenu={viewMenu}
+              />
+              )}
+            </div>
+            {/* 子代理徽标：跟在标题后面。「派了个分身去干活」和「跑条 bash」
                 不是一个量级的事 —— 前者可能几十秒不回来，不标出来用户会以为卡住。 */}
             <SubagentBadge tools={activeSubagentTools} />
-            <div className="cv3-crumb" title={title}>{title}</div>
             {/* 后台任务：放在标题右侧而不是输入框上方 ——
                 它不是「要读的内容」，放输入框上方会把人往输入框推的视线打断。
                 只显示还在跑的、以及出事的（快任务完成即移除），
@@ -775,17 +800,15 @@ export function Conversation(props: ConversationProps) {
           </div>
         </header>
 
-        <div className="cv3-scroll" ref={scrollRef} onScroll={onScrollTrack}>
-          <div className="cv3-view">
+        <div className="cv3-scroll" ref={scrollRef}>
+          <div className="cv3-view" ref={viewRef}>
             <ConversationThread
               activeIsServer={activeIsServer}
               activeMessagesLoaded={activeMessagesLoaded}
               activeThread={activeThread}
               agentPhase={agentPhase}
-              composerWindow={composerWindow}
               entryNote={entryNote}
               getRoundOutcome={getRoundOutcome}
-              messageMeterKinds={messageMeterKinds}
               messages={messages}
               pending={pending}
               pendingStartedAt={pendingStartedAt}
@@ -801,24 +824,21 @@ export function Conversation(props: ConversationProps) {
               sessionDraft={sessionDraft}
               setEntryNote={setEntryNote}
               setReplyNote={setReplyNote}
-              showMessageMeter={showMessageMeter}
               startCreationFromEmpty={startCreationFromEmpty}
               startServerReply={startServerReply}
               unfinishedReply={unfinishedReply}
-              usage={usage}
               userMessages={userMessages}
             />
           </div>
 
-          {/* 「回到最新」：翻离底部时才出现（dsh 的 34px 圆钮） */}
-          {awayFromBottom ? (
-            <button type="button" className="cv3-to-bottom" aria-label="回到最新" title="回到最新"
-                    onClick={backToBottom}>
-              <UiIcon icon={SemIcons.collapse} size="md" />
-            </button>
-          ) : null}
-
           <ConversationComposerSeat
+            overlay={awayFromBottom ? (
+              /* 「回到最新」：翻离底部时才出现（dsh 的 34px 圆钮），挂在输入席上缘 */
+              <button type="button" className="cv3-to-bottom" aria-label="回到最新" title="回到最新"
+                      onClick={backToBottom}>
+                <UiIcon icon={SemIcons.collapse} size="md" />
+              </button>
+            ) : null}
             activeIsServer={activeIsServer}
             activeThread={activeThread}
             addFiles={addFiles}

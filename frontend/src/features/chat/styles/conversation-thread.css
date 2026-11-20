@@ -3,4 +3,4 @@
 @import "./conversation-thread/header.css";/* 主列与顶栏 */
 @import "./conversation-thread/messages.css";/* 滚动区、用户气泡、助手块 */
 @import "./conversation-thread/reasoning-tools.css";/* 思考行、工具调用、改了什么 */
-@import "./conversation-thread/trace.css";/* 轨迹时间线 */
+@import "./conversation-thread/cards.css";/* 阅读区内嵌卡片：文件改动、产物、提问表单、代码块 */

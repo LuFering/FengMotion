@@ -1,9 +1,11 @@
 import type * as React from 'react'
 import { UiIcon, SemIcons } from '@/shared/icons/UiIcon'
-import { Menu01, Pencil01, Archive, MessageSquare01 } from '@untitledui/icons'
+import { Menu01, Pencil01, Archive } from '@untitledui/icons'
+import { ProjectTile } from '@/shared/components/ProjectTile'
 import type { Session } from '@/features/chat/hooks/useSessions'
 import type { ProjectSummary } from '@/features/project/model/projects'
 import type { ConversationProps } from '@/features/chat/Conversation'
+import { flipMenuUp } from '@/features/chat/components/conversation/flipMenuUp'
 
 export interface SessionGroupRowProps {
   collapsed: boolean
@@ -35,7 +37,7 @@ export function SessionGroupRow({ collapsed, dropTarget, editText, editing, g, i
           不用先填弹窗里的表单再确认一遍） */}
       {!isUng && proj && editing === proj.id ? (
         <div className="cv3-group-head cv3-group-editrow">
-          <UiIcon icon={SemIcons.expand} size="xs" className="cv3-group-caret" data-open={!collapsed || undefined} />
+          <ProjectTile name={editText || proj.name} size="sm" />
           <input className="cv3-group-edit" autoFocus value={editText}
                  aria-label="项目名称"
                  onChange={(e) => setEditText(e.target.value)}
@@ -82,13 +84,17 @@ export function SessionGroupRow({ collapsed, dropTarget, editText, editing, g, i
                 })
               }}
               title={isUng ? '没有归属项目的对话，可拖到项目下' : `${proj?.name ?? ''}（点击展开并切换到此项目）`}>
-        <UiIcon icon={SemIcons.expand} size="xs" className="cv3-group-caret" data-open={!collapsed || undefined} />
+        {/* 项目用色块认，箭头退到最右当次要提示：和工作台项目栏同一套色块 */}
+        {isUng
+          ? <span className="cv3-group-ung" aria-hidden="true"><UiIcon icon={SemIcons.folder} size="xs" /></span>
+          : <ProjectTile name={proj?.name ?? '未命名项目'} size="sm" />}
         <span className="cv3-group-name">{isUng ? '未分组' : proj?.name ?? '未命名项目'}</span>
         {/* 0 不显示：空项目挂一个「0」只是噪音，还会和下面的
             「还没有对话。」重复表达同一件事。dsh 的行也没有计数。 */}
         {g.sessions.length > 0 && (
           <span className="cv3-group-count num">{g.sessions.length}</span>
         )}
+        <UiIcon icon={SemIcons.expand} size="xs" className="cv3-group-caret" data-open={!collapsed || undefined} />
       </button>
       )}
       {!isUng && proj && (
@@ -100,7 +106,7 @@ export function SessionGroupRow({ collapsed, dropTarget, editText, editing, g, i
               <UiIcon icon={SemIcons.more} size="sm" />
             </button>
             {rowMenu === proj.id && (
-              <div className="cv3-menu cv3-rowmenu" role="menu">
+              <div className="cv3-menu cv3-rowmenu" role="menu" ref={flipMenuUp}>
                 <button type="button" role="menuitem"
                         onClick={() => { props.onSelectProject(proj.id); setRowMenu(null) }}>
                   <UiIcon icon={Menu01} size="sm" /><span>打开项目</span>
@@ -122,7 +128,7 @@ export function SessionGroupRow({ collapsed, dropTarget, editText, editing, g, i
                           setDeleteConfirmText('')
                           setDeletingProject(proj)
                         }}>
-                  <UiIcon icon={SemIcons.trash} size="xs" /><span>删除项目</span>
+                  <UiIcon icon={SemIcons.trash} size="sm" /><span>删除项目</span>
                 </button>
               </div>
             )}
@@ -132,7 +138,7 @@ export function SessionGroupRow({ collapsed, dropTarget, editText, editing, g, i
           <button type="button" className="cv3-row-new" aria-label={`在 ${proj.name} 中新建对话`}
                   title={`在 ${proj.name} 中新建对话`}
                   onClick={(e) => { e.stopPropagation(); newSession(proj.id) }}>
-            <UiIcon icon={MessageSquare01} size="sm" />
+            <UiIcon icon={SemIcons.plus} size="sm" />
           </button>
         </>
       )}

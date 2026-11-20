@@ -1,142 +1,134 @@
-/* ---- 会话落库状态（2026-11-01 接入服务端会话）----
-   服务端会话与仅本页草稿必须一眼可分；读失败/建失败不能长得像空态。 */
-.cv3-side-error {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-  margin: 0;
-  padding: 6px 8px;
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--bad) 10%, transparent);
-  color: var(--bad);
-  font-size: 11px;
-  line-height: 17px;
-}
-
-.cv3-side-error button {
-  padding: 0 6px;
-  border: 1px solid currentColor;
-  border-radius: 4px;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  cursor: pointer;
-}
-
-.cv3-side-error button:hover {
-  background: color-mix(in srgb, var(--bad) 12%, transparent);
-}
-
-/* 服务端已保存、但消息接口未接入：如实说明，不摆成「欢迎开始聊天」 */
-.cv3-server-note,
-.cv3-local-note {
+/* ═══════════════════════════════════════════════════════════════
+   提示条（Notice）—— 对话页所有「说明一件事」的提示都长这样：
+   图标 + 一句话 + 至多一个按钮，同一档浅底、0.5px 细线、控件圆角。
+   轻重只靠图标和图标色区分：信息（弱）· 读取中 · 注意（琥珀）· 失败（红）。
+   正文一律是次要文字色 —— 提示是旁白，不该比正文还响。
+   ═══════════════════════════════════════════════════════════════ */
+.cv3-notice {
   display: flex;
   align-items: flex-start;
   gap: 8px;
-  margin: 0;
-  padding: 10px 12px;
-  border-radius: 10px;
-  background: var(--hole, var(--soft));
+  width: fit-content;
+  max-width: 100%;
+  padding: 7px 10px;
+  box-sizing: border-box;
+  border: .5px solid var(--cv-line);
+  border-radius: var(--cv-r-ctl);
+  background: var(--cv-inset);
   color: var(--tx2);
   font-size: 12px;
   line-height: 18px;
 }
-
-.cv3-server-note {
-  border-left: 2px solid var(--tx3);
-}
-
-.cv3-local-note {
-  border-left: 2px solid var(--warn);
-  color: var(--tx2);
-}
-
-.cv3-server-note b {
-  display: block;
-  margin-bottom: 2px;
-  color: var(--tx1);
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.cv3-server-note p {
-  margin: 0;
-}
-
-.cv3-server-note svg {
+.cv3-notice-icon {
   flex: none;
-  margin-top: 2px;
+  margin-top: 1px;
   color: var(--tx3);
 }
-
-/* 输入卡内的不可发送说明：紧贴输入框，不另起一块卡片 */
-.cv3-compose-note {
-  margin: 0;
-  padding: 0 14px 2px;
-  color: var(--warn);
-  font-size: 11px;
-  line-height: 16px;
-}
-
-/* 发送失败：与「暂不可发送」的提示同一位置，但用失败色 —— 两者性质不同，
-   一个是能力没接（重试无用），一个是这次没发出去（改一下或重试即可）。 */
-.cv3-compose-note[data-error] {
-  display: flex;
-  align-items: flex-start;
-  gap: 4px;
-  color: var(--bad);
-}
-
-.cv3-compose-note[data-error] svg {
-  flex: none;
-  margin-top: 2px;
-}
-
-/* 服务端详情读取失败：附在服务端说明块下方，形态与左栏的读取失败一致 */
-.cv3-sync-error {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  margin: -4px 0 0;
-  padding: 8px 12px;
-  border-left: 2px solid var(--warn);
-  border-radius: 10px;
-  background: var(--hole, var(--soft));
-  color: var(--tx2);
-  font-size: 11px;
-  line-height: 16px;
-}
-
-.cv3-sync-error svg {
-  flex: none;
-  align-self: center;
-  color: var(--warn);
-}
-
-.cv3-sync-error span {
+.cv3-notice[data-tone="warn"] .cv3-notice-icon { color: var(--warn); }
+.cv3-notice[data-tone="error"] .cv3-notice-icon { color: var(--bad); }
+.cv3-notice[data-tone="error"] { border-color: color-mix(in srgb, var(--bad) 28%, var(--cv-line)); }
+.cv3-notice-text {
   flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
-
-.cv3-sync-error button {
+.cv3-notice-btn {
   flex: none;
-  padding: 1px 6px;
-  border: 1px solid var(--line, var(--hover));
-  border-radius: 6px;
-  background: transparent;
+  height: 20px;
+  margin: -1px -2px -1px 4px;
+  padding: 0 8px;
+  border: .5px solid var(--cv-line-strong);
+  border-radius: var(--cv-r-tag);
+  background: var(--cv-raised);
   color: var(--tx1);
-  font-size: 11px;
+  font: inherit;
+  font-size: 12px;
+  line-height: 18px;
   cursor: pointer;
 }
-
-.cv3-sync-error button:hover {
-  background: var(--hover);
-}
-
-.cv3-input:disabled {
+.cv3-notice-btn:hover { border-color: var(--tx3); }
+.cv3-notice-x {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  margin: 0 -4px 0 2px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--cv-r-tag);
+  background: transparent;
   color: var(--tx3);
-  cursor: not-allowed;
+  cursor: pointer;
 }
+.cv3-notice-x:hover { background: var(--hover); color: var(--tx1); }
+.cv3-notice-btn:focus-visible,
+.cv3-notice-x:focus-visible { outline: 2px solid var(--acc); outline-offset: 1px; }
+
+/* 左栏的读取/创建失败：同一套提示条，铺满左栏宽度，按钮换行也不挤 */
+.cv3-side-error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  margin: 0 0 8px;
+  padding: 7px 10px;
+  border: .5px solid color-mix(in srgb, var(--bad) 28%, var(--cv-line));
+  border-radius: var(--cv-r-ctl);
+  background: var(--cv-raised);
+  color: var(--tx2);
+  font-size: 12px;
+  line-height: 18px;
+}
+.cv3-side-error button {
+  height: 20px;
+  padding: 0 8px;
+  border: .5px solid var(--cv-line-strong);
+  border-radius: var(--cv-r-tag);
+  background: transparent;
+  color: var(--tx1);
+  font: inherit;
+  cursor: pointer;
+}
+.cv3-side-error button:hover { background: var(--hover); }
+.cv3-side > .cv3-side-hint { margin-bottom: 6px; }
+
+/* 「还没选修改目标」：贴在输入框上方，铺满输入框宽度，按钮靠右 */
+.cv3-scope-note {
+  width: 100%;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.cv3-scope-note .cv3-notice-icon { margin-top: 0; }
+.cv3-scope-note .cv3-notice-btn + .cv3-notice-btn { margin-left: 0; }
+
+/* 发送失败：紧贴输入框下沿的一行小字，不另起一块卡片 —— 改一下或重发即可 */
+.cv3-compose-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 8px 0 0;
+  padding: 0 14px;
+  color: var(--bad);
+  font-size: 12px;
+  line-height: 18px;
+}
+.cv3-compose-note svg { flex: none; margin-top: 1px; }
+.cv3-compose-note > span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.cv3-compose-note-x {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--cv-r-tag);
+  background: transparent;
+  color: var(--tx3);
+  cursor: pointer;
+}
+.cv3-compose-note-x:hover { background: var(--hover); color: var(--tx1); }
 
 /* 上下文占用（Bencho Context meter）：属于「辅助信息」层，和 token 用量同档。
    原版是独立大卡片（标题+大数字+条+chips），放进消息末尾会喧宾夺主。
@@ -159,49 +151,20 @@
 .cv3-ctxmeter .ctx-head { display: none; }
 .cv3-ctxmeter .ctx-figure { margin: 0 0 6px; gap: 5px; }
 .cv3-ctxmeter .ctx-num { font-size: 13px; line-height: 16px; font-weight: 500; }
-.cv3-ctxmeter .ctx-of { font-size: 10.5px; color: var(--tx3); }
+.cv3-ctxmeter .ctx-of { font-size: 11px; color: var(--tx3); }
 .cv3-ctxmeter .ctx-bar { height: 4px; gap: 2px; }
 .cv3-ctxmeter .ctx-chips { margin-top: 6px; gap: 4px; }
 .cv3-ctxmeter .ctx-chip {
-  font-size: 10.5px;
+  font-size: 11px;
   line-height: 14px;
   /* 高度与底色必须显式归零：Bencho 原版把 chip 画成 32px 高、6% 灰底的胶囊，
      那个尺寸在独立卡片里合适，贴到消息末尾就变成五颗大药丸压过正文。 */
   height: auto;
   min-height: 0;
   padding: 1px 5px;
-  border-radius: 4px;
+  border-radius: 6px;
   background: none;
   gap: 4px;
 }
 .cv3-ctxmeter .ctx-swatch { width: 6px; height: 6px; border-radius: 2px; }
-/* 顶部那行「N% · 估算」被隐藏后，百分比改由这里承担：
-   在读数后面补一个同色的百分比，避免信息丢失 */
-.cv3-ctxmeter .ctx-pct { font-size: 10.5px; color: var(--tx3); }
 
-/* token 用量：辅助信息，比正文再弱一档。等宽数字方便对比不同轮的消耗。 */
-.cv3-usage {
-  /* 与工具列表同一量级的上边距：它也是贴在正文末尾的独立区块，不能和正文黏在一起 */
-  margin: 10px 0 0 0;
-  color: var(--tx3);
-  font-size: 10.5px;
-  line-height: 16px;
-  opacity: 0.75;
-}
-
-/* 真实回复后的出口：只给一个可行动作，不做成卡片 ——
-   它不是「需求确认」那种流程节点，只是「想继续的话从这里走」。 */
-.cv3-after {
-  margin: 10px 0 0 0;
-}
-
-.cv3-after-btn {
-  font-size: 12px;
-}
-
-.cv3-after-hint {
-  margin: 0;
-  color: var(--tx3);
-  font-size: 11px;
-  line-height: 18px;
-}
