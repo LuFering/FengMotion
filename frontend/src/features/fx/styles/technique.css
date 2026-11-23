@@ -7,3 +7,4 @@
 @import "./technique/workflow-toast.css";    /* 用于工作流的目标选择、吐司、响应式 */
 @import "./technique/drawer-body.css";       /* 详情抽屉正文 */
 @import "./technique/detail-typography.css"; /* 技法详情弹窗排版、内容分节、技术细节 */
+@import "./technique/polish.css";            /* 2026-11-23 打磨：网格密度、海报卡文字层、画面按钮（必须最后） */

@@ -222,11 +222,11 @@ export function CapabilityImportDialog({ open, onOpenChange, onImported }: {
           )}
 
           {phase === 'idle' && !error && (
-            <div className="fxi-note">
-              <b>识别规则</b>
-              当前识别 TSX 文件，候选文件不保证都能独立渲染；每次最多导入 60 个。<br />
-              导入时保存所选源码，不会执行；依赖文件、许可证与预览尚未自动导入。
-            </div>
+            /* 原先是居中虚线大框，看起来像空状态占位；改成输入框下方的两条要点 */
+            <ul className="fxi-rules" aria-label="识别规则">
+              <li>只识别 TSX 文件，候选不保证都能独立渲染；每次最多导入 60 个。</li>
+              <li>只保存所选源码，不会执行；依赖、许可证与预览暂不自动导入。</li>
+            </ul>
           )}
 
           {phase === 'done' && (

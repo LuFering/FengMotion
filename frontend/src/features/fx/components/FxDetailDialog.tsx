@@ -1,11 +1,21 @@
 import type * as React from 'react'
+import { useEffect, useRef } from 'react'
 import { DialogContent } from '@/shared/ui/dialog'
+import { ChevronLeft, ChevronRight } from '@untitledui/icons'
 import { UiIcon, SemIcons } from '@/shared/icons/UiIcon'
 import { FX_EXEC_TYPES, type FxTechnique } from '@/features/fx/model/fxTechniques'
 import { Star01, Dataflow04 } from '@untitledui/icons'
 import type { FxLibState } from '@/features/fx/model/fxLibraryStore'
+import { categoryLabel } from '@/features/fx/model/fxFilters'
+import { shortSourceUrl, sourceCategory } from '@/features/fx/model/fxDisplay'
+import { resolvePoster, type OriginalPosterMap } from '@/features/fx/components/fxPoster'
 
 export interface FxDetailDialogProps {
+  /** 与卡片同一个「加入待发送」，同一去重规则 */
+  addFxToPending: (list: FxTechnique[]) => void
+  fxInPending: (id: string) => boolean
+  /** 当前墙的可见顺序，上一条/下一条照它走（契约 §6） */
+  wall: FxTechnique[]
   closeDrawer: () => void
   closeRef: React.RefObject<HTMLButtonElement | null>
   copied: 'idle' | 'ok' | 'fail'
@@ -14,6 +24,8 @@ export interface FxDetailDialogProps {
   lib: FxLibState
   modalRef: React.RefObject<HTMLDivElement | null>
   openDrawer: (id: string) => void
+  /** 原始场景封面清单：详情与卡片用同一张画面 */
+  originalPosters: OriginalPosterMap
   playing: boolean
   setPlayingId: React.Dispatch<React.SetStateAction<string | null>>
   setWorkflowFor: React.Dispatch<React.SetStateAction<FxTechnique | null>>
@@ -22,9 +34,29 @@ export interface FxDetailDialogProps {
 }
 
 /** 技法详情弹窗：预览与动作播放，名称说明、收藏、复制配方与用于工作流，以及用处、步骤、参数、注意事项、同类技法和技术细节。 */
-export function FxDetailDialog({ closeDrawer, closeRef, copied, copyRecipe, current, lib, modalRef, openDrawer, playing, setPlayingId, setWorkflowFor, techniques, toggleFavorite }: FxDetailDialogProps) {
+export function FxDetailDialog({ addFxToPending, fxInPending, wall, closeDrawer, closeRef, copied, copyRecipe, current, lib, modalRef, openDrawer, originalPosters, playing, setPlayingId, setWorkflowFor, techniques, toggleFavorite }: FxDetailDialogProps) {
+  const poster = current ? resolvePoster(current, originalPosters) : ''
+  const subCategory = current ? sourceCategory(current) : null
+  const added = current ? fxInPending(current.id) : false
+  /* 从「同类技法」跳进来的条目可能不在当前墙里：那时不显示计数与切换 */
+  const idx = current ? wall.findIndex((t) => t.id === current.id) : -1
+  const prev = idx > 0 ? wall[idx - 1] : null
+  const next = idx >= 0 && idx < wall.length - 1 ? wall[idx + 1] : null
+  const bodyRef = useRef<HTMLDivElement>(null)
+
+  /* 换条目时正文回到顶部，否则会停在上一条滚到的位置 */
+  useEffect(() => { bodyRef.current?.scrollTo({ top: 0 }) }, [current?.id])
+
+  function onKeyDown(e: React.KeyboardEvent) {
+    if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return
+    const el = e.target as HTMLElement
+    if (el.closest('input, textarea, select, [contenteditable="true"], [role="menu"]')) return
+    if (e.key === 'ArrowLeft' && prev) { e.preventDefault(); openDrawer(prev.id) }
+    if (e.key === 'ArrowRight' && next) { e.preventDefault(); openDrawer(next.id) }
+  }
+
   return (
-    <DialogContent className="fx-modal" showCloseButton={false}>
+    <DialogContent className="fx-modal" showCloseButton={false} onKeyDown={onKeyDown}>
       {/* 关闭键挂在弹窗根部而不是预览图里：条目没有预览图时，
           放在预览里的按钮会跟着一起消失，用户就只能靠 Esc 关闭。 */}
       <button
@@ -37,11 +69,27 @@ export function FxDetailDialog({ closeDrawer, closeRef, copied, copyRecipe, curr
       >
         <UiIcon icon={SemIcons.close} size="sm" aria-hidden="true" />
       </button>
+      {idx >= 0 && wall.length > 1 && (
+        <div className="fx-modal-nav" role="group" aria-label="切换技法">
+          <button type="button" className="fx-modal-navbtn" disabled={!prev} onClick={() => prev && openDrawer(prev.id)}
+                  aria-label={prev ? `上一条：${prev.name}` : '已是第一条'} title="上一条（←）">
+            <UiIcon icon={ChevronLeft} size="sm" aria-hidden="true" />
+          </button>
+          <span className="fx-modal-count" aria-live="polite">{idx + 1} / {wall.length}</span>
+          <button type="button" className="fx-modal-navbtn" disabled={!next} onClick={() => next && openDrawer(next.id)}
+                  aria-label={next ? `下一条：${next.name}` : '已是最后一条'} title="下一条（→）">
+            <UiIcon icon={ChevronRight} size="sm" aria-hidden="true" />
+          </button>
+        </div>
+      )}
       {current && (
         <div ref={modalRef} className="fx-modal-scroll">
-          {current.previewImage ? <div className="fx-preview">
+          {poster ? <div className="fx-preview">
+            {/* 同图虚化铺底：主图完整显示（contain），两侧不留死黑 */}
+            <img className="fx-preview-bg" src={poster} alt="" aria-hidden="true" />
             <img
-              src={current.previewImage}
+              className="fx-preview-main"
+              src={poster}
               alt=""
               onError={(e) => e.currentTarget.classList.add('is-broken')}
             />
@@ -50,7 +98,7 @@ export function FxDetailDialog({ closeDrawer, closeRef, copied, copyRecipe, curr
                 key={current.id}
                 className="fx-preview-video"
                 src={current.previewVideo}
-                poster={current.previewImage}
+                poster={poster}
                 muted
                 loop
                 playsInline
@@ -69,19 +117,23 @@ export function FxDetailDialog({ closeDrawer, closeRef, copied, copyRecipe, curr
                 {playing ? <UiIcon icon={SemIcons.pause} size="sm" aria-hidden="true" /> : <UiIcon icon={SemIcons.play} size="sm" aria-hidden="true" />}
               </button>
             )}
-            <span className={`fx-cap fx-cap-${current.execType} fx-preview-cap`} title={FX_EXEC_TYPES[current.execType].hint}>
-              {current.execLabel}
-            </span>
+            {/* 能力标签只保留操作行旁那一处，画面上不再重复 */}
             {current.previewCaption && <span className="fx-preview-caption">{current.previewCaption}</span>}
           </div> : null}
 
-          <div className="fx-drawer-body">
+          <div className="fx-drawer-body" ref={bodyRef}>
             {/* 打开卡片的意图：先认清「这是什么效果」，再决定「用不用得上」，
                 最后才是「怎么拿走」。所以顺序是 名称 → 一句话说明 → 操作 → 用处 → 细节，
                 技术元数据（复杂度/依赖/来源/版本）收进折叠区，不跟主信息抢位置。 */}
 
+            {/* 标题、说明、操作吸顶：正文滚下去也能随时加入待发送或复制 */}
+            <div className="fxm-top">
             <header className="fxm-head">
               <div className="fxm-head-main">
+                <p className="fxm-eyebrow">
+                  {categoryLabel(current.category)}
+                  {current.sourceProject && <span> · {current.sourceProject}</span>}
+                </p>
                 <h2 id="fx-drawer-title">{current.name}</h2>
                 {current.nameEn && <span className="fxm-nameen">{current.nameEn}</span>}
               </div>
@@ -97,12 +149,18 @@ export function FxDetailDialog({ closeDrawer, closeRef, copied, copyRecipe, curr
               </button>
             </header>
 
-            <p className="fxm-intent">{current.intent}</p>
+            {/* 来源没给说明就不留空段落：空 p 的外边距会在标题和操作之间撑出一块空白 */}
+            {current.intent?.trim() && <p className="fxm-intent">{current.intent}</p>}
 
             {/* 主操作紧跟说明：读懂了就能立刻拿走，不用滚到底部去找。
                 状态标签（能否一键运行）就放在按钮旁边，避免读完正文才发现用不了。 */}
             <div className="fxm-actions">
-              <button type="button" className="fx-btn fx-btn-primary" onClick={copyRecipe}>
+              {/* 主操作：交给创作对话。原先 fx-btn-primary 与样式里的 .is-primary 对不上，主按钮一直没有底色 */}
+              <button type="button" className="fx-btn is-primary" disabled={added} onClick={() => addFxToPending([current])}>
+                <UiIcon icon={added ? SemIcons.check : SemIcons.plus} size="sm" aria-hidden="true" />
+                {added ? '已在待发送' : '加入待发送'}
+              </button>
+              <button type="button" className="fx-btn" onClick={copyRecipe}>
                 {copied === 'ok' ? <UiIcon icon={SemIcons.check} size="sm" aria-hidden="true" /> : <UiIcon icon={SemIcons.copy} size="sm" aria-hidden="true" />}
                 {copied === 'ok' ? '已复制' : copied === 'fail' ? '复制失败' : '复制配方'}
               </button>
@@ -113,6 +171,7 @@ export function FxDetailDialog({ closeDrawer, closeRef, copied, copyRecipe, curr
               <span className={`fxm-mode fx-cap-${current.execType}`} title={FX_EXEC_TYPES[current.execType].hint}>
                 {current.execLabel}
               </span>
+            </div>
             </div>
 
             {/* 用处：只有真填了才显示。外部导入的条目往往没有 antiScenes，
@@ -197,7 +256,8 @@ export function FxDetailDialog({ closeDrawer, closeRef, copied, copyRecipe, curr
             <details className="fxm-details">
               <summary>技术细节</summary>
               <dl className="fx-io">
-                <div><dt>分类</dt><dd>{current.categoryLabel}</dd></div>
+                <div><dt>分类</dt><dd>{categoryLabel(current.category)}</dd></div>
+                {subCategory && <div><dt>来源分类</dt><dd>{subCategory}</dd></div>}
                 <div><dt>实现</dt><dd>{current.implLabel}</dd></div>
                 <div><dt>复杂度</dt><dd className="num">{current.complexity} / 5</dd></div>
                 {current.inputRequirement && <div><dt>输入</dt><dd>{current.inputRequirement}</dd></div>}
@@ -206,7 +266,7 @@ export function FxDetailDialog({ closeDrawer, closeRef, copied, copyRecipe, curr
                 {current.compatibility.length > 0 && <div><dt>兼容</dt><dd>{current.compatibility.join('；')}</dd></div>}
                 {current.sourceProject && <div><dt>来源</dt><dd>{current.sourceProject}</dd></div>}
                 {current.sourceUrl && (
-                  <div><dt>链接</dt><dd><a href={current.sourceUrl} target="_blank" rel="noreferrer">{current.sourceUrl}</a></dd></div>
+                  <div><dt>链接</dt><dd><a href={current.sourceUrl} target="_blank" rel="noreferrer" title={current.sourceUrl}>{shortSourceUrl(current.sourceUrl)}</a></dd></div>
                 )}
                 {current.licenseCode && <div><dt>代码许可</dt><dd>{current.licenseCode}</dd></div>}
                 {current.licensePreview && <div><dt>预览许可</dt><dd>{current.licensePreview}</dd></div>}

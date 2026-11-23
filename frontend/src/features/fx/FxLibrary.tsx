@@ -3,13 +3,14 @@ import { UiIcon, SemIcons } from '@/shared/icons/UiIcon'
 import { Clock, Star01 } from '@untitledui/icons'
 import { type FxCategory, type FxExecType, type FxImpl, type FxInputKind, type FxTechnique } from '@/features/fx/model/fxTechniques'
 import { listTechniques } from '@/features/fx/services/fxApiService'
-import { PROJECTS, STAGE_LABEL } from '@/features/project/model/projects'
+import { STAGE_LABEL, type ProjectSummary } from '@/features/project/model/projects'
 import { usePendingAssets } from '@/features/assets/hooks/usePendingAssets'
 import { usePickMode } from '@/shared/pick-mode/usePickMode'
 import { PickBar, PickButton } from '@/shared/pick-mode/PickModeUI'
-import { Dialog } from '@/shared/ui/dialog'
+import { Dialog, DialogContent, DialogTitle } from '@/shared/ui/dialog'
 import { CapabilityImportDialog } from '@/features/fx/components/CapabilityImportDialog'
 import { FxDetailDialog } from '@/features/fx/components/FxDetailDialog'
+import { groupByCategory } from '@/features/fx/model/fxDisplay'
 import { FxContent } from '@/features/fx/components/FxContent'
 import { FxMetaBar } from '@/features/fx/components/FxMetaBar'
 import { type SortKey, type Scope, type FxLibState, EMPTY_TECHNIQUES, loadLibState } from '@/features/fx/model/fxLibraryStore'
@@ -24,7 +25,12 @@ import { useFxCatalogLoad } from '@/features/fx/hooks/useFxCatalogLoad'
 import { useFxPending } from '@/features/fx/hooks/useFxPending'
 import { useOriginalPosters } from '@/features/fx/hooks/useOriginalPosters'
 
-export function FxLibrary() {
+export interface FxLibraryProps {
+  /** 「用于工作流」的目标项目：来自 GET /projects（App 的 useProjects），不读演示常量 PROJECTS（契约 §7） */
+  projects?: { list: ProjectSummary[]; loading: boolean; error: string | null }
+}
+
+export function FxLibrary({ projects }: FxLibraryProps = {}) {
   const [query, setQuery] = useState('')
   const [sourceFilter, setSourceFilter] = useState('')
   const [scope, setScope] = useState<Scope>('all')
@@ -103,6 +109,9 @@ export function FxLibrary() {
   const { current, searched, counts, activeCount, sources, visible, sorted, uniformExec } = useFxFilteredList({ cat, exec, impl, inputKind, lib, maxComplexity, previewKind, query, scope, selectedId, semanticOrder, sort, sourceFilter, techniques })
 
   const playing = current !== null && playingId === current.id
+  /* 墙的实际顺序：按分类且未限定分类时分段，详情的上一条/下一条也走这个顺序 */
+  const groups = sort === 'cat' && cat === 'all' ? groupByCategory(sorted) : null
+  const wall = groups ? groups.flatMap((g) => g.items) : sorted
   const { clearFilters, resetAll } = useFilterReset({ setCat, setExec, setImpl, setInputKind, setMaxComplexity, setPreviewKind, setQuery, setScope, setSourceFilter })
 
   const { openDrawer, closeDrawer } = useFxDrawer({ closeRef, drawerOpen, pushRecent, selectedId, setDrawerOpen, setSelectedId })
@@ -119,12 +128,14 @@ export function FxLibrary() {
 
   const { copyRecipe, recordWorkflowIntent } = useFxRecipeActions({ copyTimer, current, setCopied, setWorkflowFor, showToast, workflowFor })
 
-  const SCOPES: Array<{ id: Scope; label: string; count: number; icon: React.ReactNode }> = [
+  const ALL_SCOPES: Array<{ id: Scope; label: string; count: number; icon: React.ReactNode }> = [
     { id: 'all', label: '全部', count: searched.length, icon: null },
     { id: 'featured', label: '精选', count: counts.featured, icon: null },
     { id: 'favorites', label: '收藏', count: counts.favorites, icon: <UiIcon icon={Star01} size="xs" aria-hidden="true" /> },
     { id: 'recent', label: '最近使用', count: counts.recent, icon: <UiIcon icon={Clock} size="xs" aria-hidden="true" /> },
   ]
+  /* 「精选」为 0 时只会通向空页，未选中就不显示；收藏/最近有空态引导，保留。 */
+  const SCOPES = ALL_SCOPES.filter((s) => s.id !== 'featured' || s.count > 0 || scope === 'featured')
 
   return (
     <div className="fxlib">
@@ -132,9 +143,9 @@ export function FxLibrary() {
         void listTechniques().then((list) => { setTechniques(list); setCatalogError(null) })
           .catch(() => setCatalogError('刷新技法库失败'))
       }} />
-      <section className="fx-panel" aria-label="特效技法库" inert={drawerOpen || workflowFor ? true : undefined}>
+      <section className="fx-panel" aria-label="特效库" inert={drawerOpen || workflowFor ? true : undefined}>
         <div className="fx-cmd">
-          <div className="fx-heading-group"><h1 className="fx-cmd-title">特效技法库</h1></div>
+          <div className="fx-heading-group"><h1 className="fx-cmd-title">特效库</h1></div>
           {!pick.active && <PickButton onClick={pick.enter} label="特效" />}
           {/* 入口：粘贴 GitHub 仓库地址，识别其中的技能后导入。 */}
           <button type="button" className="fx-toolbtn" onClick={() => setImportOpen(true)}>导入来源</button>
@@ -182,6 +193,8 @@ export function FxLibrary() {
           catalogLoading={catalogLoading}
           drawerOpen={drawerOpen}
           focusedPreviewId={focusedPreviewId}
+          groups={groups}
+          scrollKey={[scope, cat, sourceFilter, sort, query.trim(), exec, impl, inputKind, maxComplexity, previewKind].join('|')}
           fxInPending={fxInPending}
           hoveredPreviewId={hoveredPreviewId}
           lib={lib}
@@ -222,6 +235,9 @@ export function FxLibrary() {
           Esc 关闭、滚动锁定都由组件负责，样式与「导入来源」等弹窗一致。 */}
       <Dialog open={drawerOpen && !!current} onOpenChange={(o) => { if (!o) closeDrawer() }}>
         <FxDetailDialog
+          addFxToPending={addFxToPending}
+          fxInPending={fxInPending}
+          wall={wall}
           closeDrawer={closeDrawer}
           closeRef={closeRef}
           copied={copied}
@@ -230,6 +246,7 @@ export function FxLibrary() {
           lib={lib}
           modalRef={modalRef}
           openDrawer={openDrawer}
+          originalPosters={originalPosters}
           playing={playing}
           setPlayingId={setPlayingId}
           setWorkflowFor={setWorkflowFor}
@@ -239,43 +256,48 @@ export function FxLibrary() {
       </Dialog>
 
       {/* ── 用于工作流：目标选择（调用链未接入，只记意向） ── */}
-      {workflowFor && (
-        <div
-          className="fx-scrim fx-scrim-center"
-          onMouseDown={(e) => {
-            if (e.target === e.currentTarget) setWorkflowFor(null)
-          }}
-        >
-          <div className="fx-dialog" role="dialog" aria-modal="true" aria-labelledby="fx-dialog-title">
-            <div className="fx-dialog-head">
-              <h3 id="fx-dialog-title">将「{workflowFor.name}」用于项目</h3>
-              <button type="button" className="fx-dialog-close" onClick={() => setWorkflowFor(null)} aria-label="关闭">
-                <UiIcon icon={SemIcons.close} size="sm" aria-hidden="true" />
-              </button>
-            </div>
-            <p className="fx-dialog-note">
-              <UiIcon icon={SemIcons.info} size="xs" aria-hidden="true" />
-              工作流调用链尚未接入。选择目标后只会把意向记入本地清单，不会真正插入或执行。
-            </p>
-            <div className="fx-dialog-list">
-              {PROJECTS.map((p) => (
-                <button
-                  key={p.id}
-                  type="button"
-                  className="fx-dialog-item"
-                  onClick={() => recordWorkflowIntent(p.id, p.name)}
-                >
-                  <span className="fx-dialog-item-main">
-                    <b>{p.name}</b>
-                    <em>{STAGE_LABEL[p.stage]}</em>
-                  </span>
-                  <UiIcon icon={SemIcons.expand} size="xs" aria-hidden="true" />
+      {/* 原先是自绘弹窗，JSX 类名（fx-scrim-center / fx-dialog-item…）在样式表里不存在，
+          弹窗成了页面里的普通块，把墙挤窄；列表还读演示常量 PROJECTS。
+          现在走共享 Dialog（遮罩、焦点、Esc 与详情一致），项目来自 GET /projects。 */}
+      <Dialog open={!!workflowFor} onOpenChange={(o) => { if (!o) setWorkflowFor(null) }}>
+        <DialogContent className="fx-wf" showCloseButton={false} aria-describedby="fx-wf-note">
+          {workflowFor && (
+            <>
+              <div className="fx-wf-head">
+                <DialogTitle className="fx-wf-title">用于工作流</DialogTitle>
+                <p className="fx-wf-sub">把「{workflowFor.name}」记入哪个项目</p>
+                <button type="button" className="fx-wf-close" onClick={() => setWorkflowFor(null)} aria-label="关闭" title="关闭（Esc）">
+                  <UiIcon icon={SemIcons.close} size="sm" aria-hidden="true" />
                 </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
+              </div>
+              <p id="fx-wf-note" className="fx-wf-note">
+                <UiIcon icon={SemIcons.info} size="xs" aria-hidden="true" />
+                调用链未接入，只记入本地意向清单，不会执行。
+              </p>
+              {projects?.loading ? (
+                <p className="fx-wf-empty" role="status">正在读取项目…</p>
+              ) : projects?.error ? (
+                <p className="fx-wf-empty" role="alert">项目读取失败：{projects.error}</p>
+              ) : !projects || projects.list.length === 0 ? (
+                <p className="fx-wf-empty">还没有项目，先在首页新建一个。</p>
+              ) : (
+                <ul className="fx-wf-list">
+                  {projects.list.map((p) => (
+                    <li key={p.id}>
+                      <button type="button" className="fx-wf-item" onClick={() => recordWorkflowIntent(p.id, p.name)}>
+                        <span className="fx-wf-mark" aria-hidden="true">{p.name.trim().slice(0, 1).toUpperCase() || '·'}</span>
+                        <span className="fx-wf-name">{p.name}</span>
+                        <span className="fx-wf-stage">{STAGE_LABEL[p.stage] ?? ''}</span>
+                        <UiIcon icon={SemIcons.expand} size="xs" aria-hidden="true" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {toast && (
         <div className="fx-toast" role="status">

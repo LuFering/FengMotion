@@ -15,7 +15,10 @@
    · 动效：--eo 进入；按钮 :active 缩到 .97。
    ═══════════════════════════════════════════════════════════════ */
 
-.fxlib {
+.fxlib,
+/* 详情弹窗经 portal 渲染在 .fxlib 之外，同一套 token 也要给它，否则 --sel/--tx 等为空 */
+.fx-modal,
+.fx-wf {
   --fx-bg: #000000;
   --fx-bg-glow: radial-gradient(1100px 520px at 50% 18%, #0b0d12 0%, #000000 62%);
   --panel: #16171d;
@@ -52,7 +55,9 @@
   --eio: cubic-bezier(0.77, 0, 0.175, 1);
 }
 
-html[data-theme='light'] .fxlib {
+html[data-theme='light'] .fxlib,
+html[data-theme='light'] .fx-modal,
+html[data-theme='light'] .fx-wf {
   --fx-bg: #e0e2e9;
   --fx-bg-glow: radial-gradient(1100px 520px at 50% 18%, #eef0f5 0%, #e0e2e9 62%);
   --panel: #fcfcfd;
@@ -78,7 +83,9 @@ html[data-theme='light'] .fxlib {
   --shadow-ctl: 0 1px 3px rgba(30, 30, 60, 0.1);
 }
 
-html[data-theme='tactile'] .fxlib {
+html[data-theme='tactile'] .fxlib,
+html[data-theme='tactile'] .fx-modal,
+html[data-theme='tactile'] .fx-wf {
   --fx-bg: #e6e1d5;
   --fx-bg-glow: linear-gradient(160deg, #efece3, #dcd8cc);
   --panel: #eae6da;

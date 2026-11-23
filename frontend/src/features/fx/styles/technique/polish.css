@@ -1,0 +1,267 @@
+/* ── 特效库打磨 · 2026-11-23 ─────────────────────────────────────
+   依据 docs/design/特效库打磨方案-2026-11-23.md §4.3 / §5。
+   必须最后引入；src/styles/card-details.css 里有 `.fxlib .fxc-poster …`（3 级类名）
+   的旧精调，这里统一用 `.fxlib .fx-grid …` 多一级压过，不用 !important。
+   画面上的文字固定白色系，三套主题一致（画面本身不随主题变）。 */
+
+.fxlib .fx-grid {
+  /* 216px 与素材页同一密度：1069 宽 4 列、1440 宽 5 列 */
+  grid-template-columns: repeat(auto-fill, minmax(min(216px, 100%), 1fr));
+  gap: 14px;
+}
+
+/* 卡片：内侧一圈极淡高光，悬停提亮一档 */
+.fxlib .fx-grid .fxc-poster {
+  border-color: var(--line);
+  border-radius: 10px;
+  clip-path: inset(0 round 10px);
+  transition: border-color .15s;
+}
+.fxlib .fx-grid .fxc-poster::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / .06);
+  pointer-events: none;
+}
+.fxlib .fx-grid .fxc-poster:hover { border-color: var(--line2); }
+
+/* 文字层：多段渐变，画面上半部不压暗 */
+.fxlib .fx-grid .fxc-poster .fxc-body {
+  padding: 34px 13px 11px;
+  gap: 3px;
+  background: linear-gradient(0deg,
+    rgb(7 8 11 / .9) 0%,
+    rgb(7 8 11 / .72) 38%,
+    rgb(7 8 11 / .32) 72%,
+    rgb(7 8 11 / 0) 100%);
+}
+.fxlib .fx-grid .fxc-category {
+  display: flex;
+  gap: 4px;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: rgb(255 255 255 / .6);
+  font-size: 10.5px;
+  line-height: 1.4;
+  letter-spacing: .02em;
+}
+.fxlib .fx-grid .fxc-subcat {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: rgb(255 255 255 / .42);
+}
+.fxlib .fx-grid .fxc-poster .fxc-title {
+  font-size: 14px;
+  font-weight: 550;
+  line-height: 1.4;
+  letter-spacing: -.005em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 6px rgb(0 0 0 / .4);
+}
+.fxlib .fx-grid .fxc-poster .fxc-intent {
+  font-size: 12px;
+  line-height: 1.5;
+  color: rgb(255 255 255 / .68);
+  -webkit-line-clamp: 1;
+}
+.fxlib .fx-grid .fxc-poster .fxc-meta {
+  margin-top: 2px;
+  font-size: 10.5px;
+  color: rgb(255 255 255 / .5);
+}
+
+/* 画面按钮：26px，半透明深底 */
+.fxlib .fx-grid .fxc .fxc-fav,
+.fxlib .fx-grid .fxc .fxc-add {
+  top: 10px;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  background: rgb(10 11 14 / .64);
+  color: rgb(255 255 255 / .88);
+}
+.fxlib .fx-grid .fxc .fxc-fav { right: 10px; }
+.fxlib .fx-grid .fxc .fxc-add { right: 42px; }
+.fxlib .fx-grid .fxc .fxc-fav:hover,
+.fxlib .fx-grid .fxc .fxc-add:hover { background: rgb(10 11 14 / .82); filter: none; }
+.fxlib .fx-grid .fxc .fxc-fav[data-on] { color: var(--warn); }
+.fxlib .fx-grid .fxc .fxc-fav svg,
+.fxlib .fx-grid .fxc .fxc-add svg { width: 13px; height: 13px; }
+
+/* 详情遮罩：轻遮罩、不模糊背后页面（方案 §4.4）。弹窗经 portal 渲染在 .fxlib 之外，
+   遮罩与内容是兄弟节点，用 :has 只命中特效库详情，不影响其它弹窗。 */
+[data-slot='dialog-overlay']:has(+ .fx-modal, + .fx-wf, + .fxi-dlg) {
+  background: rgb(5 5 8 / .52);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+html[data-theme='light'] [data-slot='dialog-overlay']:has(+ .fx-modal, + .fx-wf, + .fxi-dlg) { background: rgb(20 22 28 / .28); }
+
+/* 页签计数：浅灰、正文字体（覆盖全局 .num 的等宽） */
+.fxlib .fx-meta-scope em.num { font-family: inherit; color: var(--tx3); }
+
+/* ═══ 第二轮 · 使用与观感（方案 §8） ═══════════════════════════════ */
+
+/* 工具条：分类 / 来源 / 排序 同款下拉按钮 */
+.fxlib .fx-meta-sep { flex: none; width: 1px; height: 16px; margin: 0 4px; background: var(--line2); }
+.fxlib .fx-meta .fx-cmd-search { flex: 0 1 260px; max-width: 260px; margin-right: 0; }
+/* src/styles/interface-polish.css 给搜索 order:1、旧 .fx-sort order:3；新排序按钮没有 .fx-sort，
+   不补 order 会被排到左侧。顺序：范围 | 分类 来源 …… 搜索 筛选 排序 */
+.fxlib .fx-meta > .fx-filterwrap { order: 2; }
+.fxlib .fx-meta > .fx-menubtn.is-quiet { order: 3; }
+.fxlib .fx-meta > .fx-result-summary { order: 0; }
+.fx-menubtn {
+  display: inline-flex; align-items: center; gap: 6px; flex: none;
+  height: 30px; padding: 0 9px 0 11px;
+  border: 1px solid var(--line2); border-radius: 7px;
+  background: transparent; color: var(--tx2);
+  font-size: 12px; font-weight: 500; white-space: nowrap;
+  transition: background .15s, color .15s, border-color .15s;
+}
+.fx-menubtn:hover { background: var(--hover); color: var(--tx); }
+.fx-menubtn:focus-visible { outline: 2px solid var(--acc); outline-offset: 1px; }
+.fx-menubtn-value { color: var(--tx); font-weight: 550; max-width: 140px; overflow: hidden; text-overflow: ellipsis; }
+.fx-menubtn-value[data-sep]::before { content: '·'; margin-right: 6px; color: var(--tx3); font-weight: 400; }
+.fx-menubtn[data-on] { border-color: color-mix(in srgb, var(--acc) 55%, transparent); background: var(--sel); color: var(--acc-tx); }
+.fx-menubtn[data-on] .fx-menubtn-value { color: var(--acc-tx); }
+.fx-menubtn-chev { opacity: .6; transition: transform .15s var(--eo); }
+.fx-menubtn[data-state='open'] .fx-menubtn-chev { transform: rotate(180deg); }
+.fx-menubtn.is-quiet { border-color: transparent; padding: 0 6px 0 8px; color: var(--tx3); }
+.fx-menubtn.is-quiet .fx-menubtn-value { color: var(--tx2); font-weight: 500; }
+.fx-menubtn.is-quiet:hover .fx-menubtn-value { color: var(--tx); }
+
+/* 下拉面板经 portal 渲染在 .fxlib 之外，用全局主题色 */
+.fx-menu { padding: 4px; border-radius: 10px; }
+.fx-menu .fx-menu-item { gap: 12px; min-height: 30px; padding: 0 30px 0 9px; font-size: 12.5px; border-radius: 6px; }
+.fx-menu .fx-menu-text { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fx-menu .fx-menu-count { flex: none; font-size: 11px; font-variant-numeric: tabular-nums; opacity: .55; }
+.fx-menu .fx-menu-item [data-slot='dropdown-menu-radio-item-indicator'] svg { width: 14px; height: 14px; }
+
+/* 按分类分段：段标题吸顶。.fx-content 顶部有 18px 内边距，用负 top 把标题贴到可视区顶端 */
+.fxlib .fx-group + .fx-group { margin-top: 26px; }
+.fxlib .fx-group-head {
+  position: sticky; top: -18px; z-index: 5;
+  display: flex; align-items: baseline; gap: 8px;
+  margin: -18px 0 0; padding: 18px 2px 10px;
+  background: var(--panel2);
+  font-size: 13px; font-weight: 600; letter-spacing: .01em; color: var(--tx);
+}
+.fxlib .fx-group-head em { font-style: normal; font-size: 11px; font-weight: 400; color: var(--tx3); font-variant-numeric: tabular-nums; }
+
+/* 卡片：键盘焦点环（卡片有 clip-path，外描边会被裁掉，画在内侧高光层上） */
+.fxlib .fx-grid .fxc-poster:has(.fxc-hit:focus-visible)::after { box-shadow: inset 0 0 0 2px var(--acc); }
+.fxlib .fx-grid .fxc-hit:focus-visible { outline: none; }
+/* 悬停：画面缓慢放大，文字层不动 */
+.fxlib .fx-grid .fxc-media .silent-media-preview > img { transition: transform .5s var(--eo); }
+.fxlib .fx-grid .fxc-poster:hover .fxc-media .silent-media-preview > img { transform: scale(1.03); }
+
+/* 详情：预览限高，主图完整显示，同图虚化铺底 */
+.fx-modal .fx-preview { aspect-ratio: auto; height: min(320px, 38vh); border-radius: 0; background: #08090b; }
+.fx-modal .fx-preview img.fx-preview-main { object-fit: contain; z-index: 1; }
+.fx-modal .fx-preview video { z-index: 2; object-fit: contain; }
+.fx-modal .fx-preview img.fx-preview-bg { object-fit: cover; filter: blur(28px) saturate(1.15); transform: scale(1.18); opacity: .42; }
+.fx-modal .fx-preview-toggle, .fx-modal .fx-preview-caption { z-index: 3; }
+
+/* 详情：标题 + 说明 + 操作吸顶（正文 .fx-drawer-body 内边距 18/22） */
+.fx-modal .fxm-top {
+  position: sticky; top: -18px; z-index: 4;
+  margin: -18px -22px 0; padding: 16px 22px 14px;
+  background: var(--surf);
+  border-bottom: 1px solid var(--line);
+}
+.fx-modal .fx-drawer-body > .fxm-sec { margin-top: 2px; }
+.fx-modal .fxm-eyebrow { margin: 0 0 4px; font-size: 11px; line-height: 1.4; color: var(--tx3); letter-spacing: .02em; }
+.fx-modal .fxm-head h2 { font-size: 17px; font-weight: 600; }
+.fx-modal .fxm-intent { margin-top: 8px; }
+.fx-modal .fxm-actions { margin-top: 14px; }
+.fx-modal .fxm-actions .fx-btn { height: 32px; padding: 0 13px; font-weight: 550; }
+.fx-modal .fxm-actions .fx-btn.is-primary { flex: none; }
+.fx-modal .fxm-actions .fx-btn.is-primary:disabled { background: var(--sel); color: var(--acc-tx); filter: none; cursor: default; }
+.fx-modal .fx-io .num { font-family: inherit; font-variant-numeric: tabular-nums; }
+.fx-modal .fx-io a { color: var(--acc-tx); text-decoration: none; }
+.fx-modal .fx-io a:hover { text-decoration: underline; }
+
+/* 详情：上一条 / 下一条，与关闭键同一款深色底 */
+.fx-modal-nav {
+  position: absolute; top: 10px; right: 46px; z-index: 5;
+  display: inline-flex; align-items: center; height: 28px; padding: 0 2px;
+  border: 1px solid rgb(255 255 255 / .16); border-radius: 8px;
+  background: rgb(0 0 0 / .5); backdrop-filter: blur(6px); color: #fff;
+}
+.fx-modal-navbtn { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 6px; color: inherit; }
+.fx-modal-navbtn:hover:not(:disabled) { background: rgb(255 255 255 / .12); }
+.fx-modal-navbtn:disabled { opacity: .32; cursor: default; }
+.fx-modal-navbtn:focus-visible { outline: 2px solid var(--acc); outline-offset: 1px; }
+.fx-modal-count { min-width: 56px; text-align: center; font-size: 11px; font-variant-numeric: tabular-nums; color: rgb(255 255 255 / .78); }
+.fx-modal:not(:has(.fx-preview)) .fxm-head { padding-right: 150px; }
+
+/* ═══ 第三轮 · 弹窗、多选、状态与窄屏（方案 §9） ═══════════════════ */
+
+/* 用于工作流：共享 Dialog，经 portal 渲染；主题 token 已在 base.css 里给 .fx-wf */
+.fx-wf {
+  display: flex; flex-direction: column; gap: 0;
+  width: min(440px, calc(100vw - 48px)); max-width: none; max-height: min(80vh, 620px);
+  padding: 0; overflow: hidden;
+  background: var(--panel); color: var(--tx);
+  border: 1px solid var(--line2); border-radius: 14px; box-shadow: var(--shadow-overlay);
+}
+.fx-wf-head { position: relative; padding: 18px 52px 0 20px; }
+.fx-wf-title { margin: 0; font-size: 15px; font-weight: 600; line-height: 1.4; color: var(--tx); }
+.fx-wf-sub { margin: 4px 0 0; font-size: 12.5px; line-height: 1.55; color: var(--tx2); overflow-wrap: anywhere; }
+.fx-wf-close {
+  position: absolute; top: 14px; right: 14px; width: 28px; height: 28px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 0; border-radius: 7px; background: none; color: var(--tx3); cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.fx-wf-close:hover { background: var(--hover); color: var(--tx); }
+.fx-wf-close:focus-visible, .fx-wf-item:focus-visible { outline: 2px solid var(--acc); outline-offset: 1px; }
+.fx-wf-note { display: flex; align-items: flex-start; gap: 6px; margin: 10px 20px 0; font-size: 11.5px; line-height: 1.55; color: var(--tx3); }
+.fx-wf-note svg { flex: none; margin-top: 2px; }
+.fx-wf-list { margin: 12px 0 0; padding: 6px 10px 12px; list-style: none; overflow-y: auto; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 2px; }
+.fx-wf-item {
+  display: flex; align-items: center; gap: 11px; width: 100%;
+  padding: 9px 10px; border: 0; border-radius: 8px; background: none;
+  color: var(--tx); font: inherit; text-align: left; cursor: pointer;
+  transition: background .15s;
+}
+.fx-wf-item:hover { background: var(--hover); }
+.fx-wf-mark {
+  flex: none; width: 28px; height: 28px; border-radius: 7px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--panel2); border: 1px solid var(--line2);
+  font-size: 12px; font-weight: 600; color: var(--tx2);
+}
+.fx-wf-name { flex: 1 1 auto; min-width: 0; font-size: 13px; font-weight: 550; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fx-wf-stage { flex: none; font-size: 11.5px; color: var(--tx3); }
+.fx-wf-item > svg { flex: none; color: var(--tx3); opacity: 0; transition: opacity .15s; }
+.fx-wf-item:hover > svg, .fx-wf-item:focus-visible > svg { opacity: 1; }
+.fx-wf-empty { margin: 12px 0 0; padding: 22px 20px 24px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--tx3); text-align: center; }
+
+/* 多选：选中卡强调色内描边 + 画面轻染，扫一眼就知道选了哪些 */
+.fxlib .fx-grid .fxc-poster[data-picked]::after { box-shadow: inset 0 0 0 2px var(--acc); }
+.fxlib .fx-grid .fxc-poster[data-picked] .fxc-media::after {
+  content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  background: color-mix(in srgb, var(--acc) 16%, transparent);
+}
+
+/* 窄屏：元信息行不折行，搜索框先收缩，排序留在第一行 */
+@media (min-width: 641px) {
+  /* 多一级 .fx-panel：src/styles/interface-polish.css 有同权重、加载更晚的 .fxlib .fx-meta { flex-wrap:wrap } */
+  .fxlib .fx-panel .fx-meta { flex-wrap: nowrap; }
+  .fxlib .fx-meta .fx-cmd-search { flex: 0 1 260px; min-width: 140px; }
+}
+
+/* 读取中：与真实卡同尺寸的骨架，加载完不跳 */
+.fxlib .fx-loading .fm-state-loading-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(216px, 100%), 1fr)); gap: 14px; padding: 0; }
+.fxlib .fx-loading .fm-skeleton-card { padding: 0; border: 0; background: none; }
+.fxlib .fx-loading .fm-skeleton-media { display: block; width: 100%; aspect-ratio: 16 / 10; border-radius: 10px; }
+.fxlib .fx-loading .fm-skeleton-lines { display: none; }

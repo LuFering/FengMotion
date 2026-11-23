@@ -494,7 +494,7 @@ function AppContent() {
               {isSub && current && view === 'render' && (
                 <RenderDelivery project={current} tasks={tasks} />
               )}
-              {view === 'knowledge' && <FxLibrary />}
+              {view === 'knowledge' && <FxLibrary projects={projects} />}
               {view === 'reference' && <RefLibrary />}
               {view === 'methods' && <Workflow />}
             </div>

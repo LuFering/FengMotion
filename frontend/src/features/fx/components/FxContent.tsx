@@ -1,15 +1,19 @@
 import type * as React from 'react'
 import { EmptyState } from '@/shared/components/fm/EmptyState'
+import { LoadingState } from '@/shared/components/fm/LoadingState'
 import { originalSceneLoader } from '@/features/fx/components/fxOriginalRegistry'
 import { setAssetDragData } from '@/features/assets/hooks/usePendingAssets'
 import { setDragGhost, clearDragGhost } from '@/shared/pick-mode/dragGhost'
 import { SilentVideoPreview } from '@/shared/components/SilentVideoPreview'
 import { FxPreviewBoundary, FxOriginalWavesPreview } from '@/features/fx/components/FxPreview'
-import { Suspense } from 'react'
+import { Suspense, useEffect, useRef } from 'react'
 import { PickCheck } from '@/shared/pick-mode/PickModeUI'
 import { UiIcon, SemIcons } from '@/shared/icons/UiIcon'
 import { Star01 } from '@untitledui/icons'
 import { categoryLabel, execLabel } from '@/features/fx/model/fxFilters'
+import { sourceCategory } from '@/features/fx/model/fxDisplay'
+import { resolvePoster } from '@/features/fx/components/fxPoster'
+import type { FxGroup } from '@/features/fx/model/fxDisplay'
 import type { FxTechnique } from '@/features/fx/model/fxTechniques'
 import type { FxLibState, Scope } from '@/features/fx/model/fxLibraryStore'
 import type { PickMode } from '@/shared/pick-mode/usePickMode'
@@ -21,6 +25,10 @@ export interface FxContentProps {
   catalogLoading: boolean
   drawerOpen: boolean
   focusedPreviewId: string | null
+  /** 范围、分类、来源、排序、搜索任一变化时换值：列表回到顶部，不停在上一份结果的中段 */
+  scrollKey: string
+  /** 「按分类」时的分段；null 表示不分组，直接用 sorted */
+  groups: FxGroup[] | null
   fxInPending: (id: string) => boolean
   hoveredPreviewId: string | null
   lib: FxLibState
@@ -42,13 +50,15 @@ export interface FxContentProps {
 }
 
 /** 技法库的主内容区：读取中/失败/空状态，以及技法卡片网格（悬停预览、收藏、加入待发送、拖拽与多选）。 */
-export function FxContent({ activeCount, addFxToPending, catalogError, catalogLoading, drawerOpen, focusedPreviewId, fxInPending, hoveredPreviewId, lib, openDrawer, originalPosters, pick, query, resetAll, scope, setFocusedPreviewId, setHoveredPreviewId, setScope, sorted, stashFxCard, toggleFavorite, uniformExec, visible, workflowFor }: FxContentProps) {
+export function FxContent({ activeCount, addFxToPending, catalogError, catalogLoading, drawerOpen, focusedPreviewId, groups, scrollKey, fxInPending, hoveredPreviewId, lib, openDrawer, originalPosters, pick, query, resetAll, scope, setFocusedPreviewId, setHoveredPreviewId, setScope, sorted, stashFxCard, toggleFavorite, uniformExec, visible, workflowFor }: FxContentProps) {
+  const scrollRef = useRef<HTMLDivElement>(null)
+  useEffect(() => { scrollRef.current?.scrollTo({ top: 0 }) }, [scrollKey])
   return (
-    <div className="fx-content">
+    <div className="fx-content" ref={scrollRef}>
       {catalogLoading ? (
         /* 加载中与「没有技法」必须分开：技法目录来自服务端，
            还没读到时显示「空的」会让用户以为库是空的。 */
-        <EmptyState icon="loader" title="正在读取技法库" body="从本地服务读取技法目录…" />
+        <div className="fx-loading"><LoadingState rows={10} /></div>
       ) : catalogError ? (
         <EmptyState
           icon="alert-triangle"
@@ -74,19 +84,36 @@ export function FxContent({ activeCount, addFxToPending, catalogError, catalogLo
           <EmptyState
             icon="search"
             title="没有匹配的技法"
-            body="换个词，或清除分类 / 状态 / 输入 / 实现 / 复杂度筛选。"
+            body="换个关键词，或清除筛选条件。"
             action={{ label: '清除搜索与筛选', onClick: resetAll }}
           />
         )
       ) : (
-        <div className="fx-grid">
-          {sorted.map((t) => {
+        groups ? (
+          /* 按分类分段：段标题吸顶，滚到哪一段一眼可见（契约 §6） */
+          <div className="fx-groups">
+            {groups.map((g) => (
+              <section key={g.id} className="fx-group" aria-label={`${g.label}，${g.items.length} 项`}>
+                <h2 className="fx-group-head">{g.label}<em>{g.items.length}</em></h2>
+                <div className="fx-grid">{g.items.map(renderCard)}</div>
+              </section>
+            ))}
+          </div>
+        ) : (
+          <div className="fx-grid">{sorted.map(renderCard)}</div>
+        )
+      )}
+    </div>
+  )
+
+  /* 函数声明会提升，放在 return 之后只是为了让上面的结构先读到 */
+  function renderCard(t: FxTechnique) {
             const fav = lib.favorites.includes(t.id)
             const hasOriginal = Boolean(originalSceneLoader(t.sourceProject, t.sourcePath))
             const previewActive = !drawerOpen && !workflowFor && (focusedPreviewId ?? hoveredPreviewId) === t.id
-            const originalPoster = hasOriginal && t.sourcePath ? originalPosters[t.sourcePath] : undefined
-            const poster = originalPoster && /^[a-f0-9]{20}\.jpg$/.test(originalPoster.file)
-              ? `${import.meta.env.BASE_URL}fx-original-posters/${originalPoster.file}?v=${encodeURIComponent(originalPoster.checksum || '')}` : t.previewImage
+            const poster = resolvePoster(t, originalPosters)
+            const subCategory = sourceCategory(t)
+            const intent = t.intent?.trim()
             return (
               <article
                 key={t.id}
@@ -109,7 +136,7 @@ export function FxContent({ activeCount, addFxToPending, catalogError, catalogLo
                   stashFxCard(t)
                   setAssetDragData(e.dataTransfer, [t.id])
                   const ghostEl = setDragGhost({
-                    thumb: t.previewImage,
+                    thumb: poster,
                     label: t.name,
                     count: 1,
                   })
@@ -163,19 +190,27 @@ export function FxContent({ activeCount, addFxToPending, catalogError, catalogLo
                         aria-label={pick.active ? `${pick.has(t.id) ? '取消选择' : '选择'} ${t.name}` : `查看技法：${t.name}`}
                         onClick={() => { if (pick.active) pick.toggle(t.id); else openDrawer(t.id) }} />
                 <div className="fxc-body">
-                  <span className="fxc-category">{categoryLabel(t.category)}</span>
-                  <h3 className="fxc-title">{t.name}</h3>
-                  <p className="fxc-intent">{t.intent}</p>
-                  <div className="fxc-meta">
-                    {!uniformExec && <span>{execLabel(t.execType)}</span>}
-                    {t.inputLabels.length > 0 && <span className="fxc-inputs">{t.inputLabels.join(' / ')}</span>}
-                  </div>
+                  {/* 首行：中文分类 · 来源分类（来源分类与中文相同或为空时不写） */}
+                  {/* 分组模式下段标题已写了分类，卡片只留来源分类；都没有就整行不出现 */}
+                  {groups ? (
+                    subCategory && <span className="fxc-category"><span className="fxc-subcat">{subCategory}</span></span>
+                  ) : (
+                    <span className="fxc-category">
+                      {categoryLabel(t.category)}
+                      {subCategory && <span className="fxc-subcat">· {subCategory}</span>}
+                    </span>
+                  )}
+                  <h3 className="fxc-title" title={t.name}>{t.name}</h3>
+                  {/* 来源没给用途就不显示这一行，不补默认文案 */}
+                  {intent && <p className="fxc-intent">{intent}</p>}
+                  {(!uniformExec || t.inputLabels.length > 0) && (
+                    <div className="fxc-meta">
+                      {!uniformExec && <span>{execLabel(t.execType)}</span>}
+                      {t.inputLabels.length > 0 && <span className="fxc-inputs">{t.inputLabels.join(' / ')}</span>}
+                    </div>
+                  )}
                 </div>
               </article>
             )
-          })}
-        </div>
-      )}
-    </div>
-  )
+  }
 }
