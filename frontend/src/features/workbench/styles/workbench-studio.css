@@ -26,7 +26,7 @@
 #pane-flow .wb-a2.wb-studio .wb-top-actions button:hover { background: var(--hover); color: var(--tx); }
 #pane-flow .wb-a2.wb-studio .wb-top-actions button[aria-pressed='true'] { background: var(--sel); color: var(--acc-tx); border-color: var(--line2); }
 #pane-flow .wb-a2.wb-studio .wb-export { height: 32px; border-radius: 6px; padding: 0 12px; }
-#pane-flow .wb-a2.wb-studio .wb-agent-status { background: transparent; border: 0; font-size: 10px; }
+#pane-flow .wb-a2.wb-studio .wb-agent-status { background: transparent; border: 0; font-size: 10.5px; }
 #pane-flow .wb-a2.wb-studio .fw { grid-template-columns: 204px minmax(0,1fr) 322px; gap: 12px; }
 #pane-flow .wb-a2.wb-studio .fw-ing,
 #pane-flow .wb-a2.wb-studio .fw-panel,
@@ -44,7 +44,7 @@
 #pane-flow .wb-a2.wb-studio .fm-seg-thumb { border: 1px solid var(--line); box-shadow: none; background: var(--raised); border-radius: 6px; }
 #pane-flow .wb-a2.wb-studio .fm-seg button { font-size: 11px; }
 #pane-flow .wb-a2.wb-studio .fw-ing-list { padding: 4px 13px 16px; gap: 18px; }
-#pane-flow .wb-a2.wb-studio .fw-tag { clip-path: none; background: transparent; color: var(--tx3); padding: 0; font-size: 10px; letter-spacing: .03em; box-shadow: none; margin: 0; }
+#pane-flow .wb-a2.wb-studio .fw-tag { clip-path: none; background: transparent; color: var(--tx3); padding: 0; font-size: 10.5px; letter-spacing: .03em; box-shadow: none; margin: 0; }
 #pane-flow .wb-a2.wb-studio .fw-scene-hd { margin: 2px 0 12px; padding: 0; }
 #pane-flow .wb-a2.wb-studio .fw-tag-n { color: var(--tx3); margin-left: auto; }
 #pane-flow .wb-a2.wb-studio .fw-ing-list .fw-prog {
@@ -55,24 +55,24 @@
 #pane-flow .wb-a2.wb-studio .fw-prog::after { display: none; }
 #pane-flow .wb-a2.wb-studio .fw-prog-now b { font-size: 12px; font-weight: 500; }
 #pane-flow .wb-a2.wb-studio .fw-prog-state { display: none; }
-#pane-flow .wb-a2.wb-studio .fw-prog-meta { font-size: 10px; display: block; line-height: 1.8; }
+#pane-flow .wb-a2.wb-studio .fw-prog-meta { font-size: 10.5px; display: block; line-height: 1.8; }
 #pane-flow .wb-a2.wb-studio .fw-prog-demo { border: 0; padding: 0; display: block; color: var(--tx3); }
 #pane-flow .wb-a2.wb-studio .fw-prog-acts { flex-wrap: wrap; gap: 7px; }
-#pane-flow .wb-a2.wb-studio .fw-prog-acts button { font-size: 10px; height: 28px; border-radius: 6px; }
+#pane-flow .wb-a2.wb-studio .fw-prog-acts button { font-size: 10.5px; height: 28px; border-radius: 6px; }
 #pane-flow .wb-a2.wb-studio .fw-prog-acts .fw-prog-run { flex-basis: 100%; background: var(--raised); color: var(--tx); border-color: var(--line2); box-shadow: none; }
 #pane-flow .wb-a2.wb-studio .fw-ing-list .fw-prog [data-slot='progress'] { height: 3px; order: 2; margin: 1px 0 3px; background: var(--raised); }
 #pane-flow .wb-a2.wb-studio .fw-prog-now { order: 1; }
 #pane-flow .wb-a2.wb-studio .fw-prog-meta { order: 3; }
 #pane-flow .wb-a2.wb-studio .fw-prog-acts { order: 4; }
 #pane-flow .wb-a2.wb-studio .wb-space-links { flex: none; margin: 0 13px; padding: 17px 0 12px; border-top: 1px solid var(--line); }
-#pane-flow .wb-a2.wb-studio .wb-space-links > span { display: block; font-size: 10px; color: var(--tx3); margin: 0 8px 9px; }
+#pane-flow .wb-a2.wb-studio .wb-space-links > span { display: block; font-size: 10.5px; color: var(--tx3); margin: 0 8px 9px; }
 #pane-flow .wb-a2.wb-studio .wb-space-links button { display: flex; align-items: center; gap: 9px; width: 100%; padding: 10px 8px; font-size: 11px; color: var(--tx2); border-radius: 6px; }
 #pane-flow .wb-a2.wb-studio .wb-space-links button svg:last-child { margin-left: auto; color: var(--tx3); }
 #pane-flow .wb-a2.wb-studio .wb-space-links button:hover { background: var(--hover); color: var(--tx); }
 #pane-flow .wb-a2.wb-studio .fw-toolbar { height: 54px; min-height: 54px; padding: 0 19px; background: var(--panel2); border-bottom: 1px solid var(--line); gap: 10px; }
-#pane-flow .wb-a2.wb-studio .wb-viewer-index { color: var(--tx3); font-size: 10px; }
+#pane-flow .wb-a2.wb-studio .wb-viewer-index { color: var(--tx3); font-size: 10.5px; }
 #pane-flow .wb-a2.wb-studio .wb-viewer-title { font-size: 12px; font-weight: 550; }
-#pane-flow .wb-a2.wb-studio .wb-status { background: transparent; padding: 0; font-size: 10px; }
+#pane-flow .wb-a2.wb-studio .wb-status { background: transparent; padding: 0; font-size: 10.5px; }
 #pane-flow .wb-a2.wb-studio .fw-mon-visual { background: var(--stage-bg); padding: 16px; }
 #pane-flow .wb-a2.wb-studio .fw-stage-frame { border-radius: 6px; overflow: hidden; background: var(--stage-bg); }
 #pane-flow .wb-a2.wb-studio .fw-mon-rail { padding: 13px 16px 15px; background: var(--panel2); border-top: 1px solid var(--line); }
@@ -81,13 +81,13 @@
 #pane-flow .wb-a2.wb-studio .fw-mon-thumb-img { height: 51px; border-radius: 4px; overflow: hidden; opacity: .8; transition: opacity .15s; }
 #pane-flow .wb-a2.wb-studio .fw-mon-thumb:hover .fw-mon-thumb-img,
 #pane-flow .wb-a2.wb-studio .fw-mon-thumb[aria-selected='true'] .fw-mon-thumb-img { opacity: 1; }
-#pane-flow .wb-a2.wb-studio .fw-mon-thumb-name { font-size: 10px; margin-top: 7px; color: var(--tx2); }
-#pane-flow .wb-a2.wb-studio .fw-mon-thumb-name small { font-size: 9px; color: var(--tx3); }
+#pane-flow .wb-a2.wb-studio .fw-mon-thumb-name { font-size: 10.5px; margin-top: 7px; color: var(--tx2); }
+#pane-flow .wb-a2.wb-studio .fw-mon-thumb-name small { font-size: 10.5px; color: var(--tx3); }
 /* 空监看保持画幅边界，简报与实际可用操作各有一个主要位置。 */
 #pane-flow .wb-a2.wb-studio .wb-studio-preflight { display: flex; flex-direction: column; width: 100%; max-width: none; flex: 1; min-height: 0; padding: 0; margin: 0; background: transparent; border: 0; border-radius: 0; box-shadow: none; overflow-y: auto; }
 /* 画面区已经在右侧面板里，空舞台只用底色区分，不再画第二层描边（面板套面板）。 */
 #pane-flow .wb-a2.wb-studio .wb-waiting-stage { position: relative; display: flex; flex-direction: column; justify-content: center; flex: 1 0 270px; min-height: 270px; border: 0; border-radius: 10px; background: var(--panel2); padding: 42px 26px; }
-#pane-flow .wb-a2.wb-studio .wb-waiting-state { position: absolute; top: 17px; left: 18px; display: flex; align-items: center; gap: 7px; font-size: 10px; color: var(--tx3); }
+#pane-flow .wb-a2.wb-studio .wb-waiting-state { position: absolute; top: 17px; left: 18px; display: flex; align-items: center; gap: 7px; font-size: 10.5px; color: var(--tx3); }
 #pane-flow .wb-a2.wb-studio .wb-waiting-state > span { width: 5px; height: 5px; border-radius: 50%; background: var(--tx3); }
 #pane-flow .wb-a2.wb-studio .wb-waiting-state > .is-running { background: var(--acc); }
 #pane-flow .wb-a2.wb-studio .wb-waiting-content { text-align: center; padding: 8px 0; }
@@ -100,20 +100,20 @@
 #pane-flow .wb-a2.wb-studio .wb-start-editor:hover { filter: brightness(1.1); }
 #pane-flow .wb-a2.wb-studio .wb-view-execution { color: var(--tx2); }
 #pane-flow .wb-a2.wb-studio .wb-view-execution:hover { color: var(--tx); }
-#pane-flow .wb-a2.wb-studio .wb-waiting-caption { position: absolute; bottom: 13px; right: 16px; color: var(--tx3); font-size: 9px; letter-spacing: .08em; }
+#pane-flow .wb-a2.wb-studio .wb-waiting-caption { position: absolute; bottom: 13px; right: 16px; color: var(--tx3); font-size: 10.5px; letter-spacing: .08em; }
 #pane-flow .wb-a2.wb-studio .wb-studio-brief { flex: none; padding: 22px 6px 3px; }
 #pane-flow .wb-a2.wb-studio .wb-studio-brief-head { display: flex; align-items: center; justify-content: space-between; }
 #pane-flow .wb-a2.wb-studio .wb-studio-brief-head > span { display: flex; gap: 7px; align-items: center; color: var(--tx2); font-size: 11px; font-weight: 550; }
-#pane-flow .wb-a2.wb-studio .wb-studio-brief-head button { display: inline-flex; gap: 5px; align-items: center; color: var(--tx3); font-size: 10px; }
+#pane-flow .wb-a2.wb-studio .wb-studio-brief-head button { display: inline-flex; gap: 5px; align-items: center; color: var(--tx3); font-size: 10.5px; }
 #pane-flow .wb-a2.wb-studio .wb-studio-brief-head button:hover { color: var(--acc-tx); }
 #pane-flow .wb-a2.wb-studio .wb-studio-brief > p { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; color: var(--tx2); margin: 11px 0 0; font-size: 12px; line-height: 1.9; }
-#pane-flow .wb-a2.wb-studio .wb-studio-corrections { color: var(--acc-tx); font-size: 10px; display: inline-flex; align-items: center; gap: 5px; margin-top: 8px; }
-#pane-flow .wb-a2.wb-studio .wb-studio-availability { display: flex; align-items: center; gap: 7px; flex: none; font-size: 10px; color: var(--tx3); padding: 15px 6px 0; }
+#pane-flow .wb-a2.wb-studio .wb-studio-corrections { color: var(--acc-tx); font-size: 10.5px; display: inline-flex; align-items: center; gap: 5px; margin-top: 8px; }
+#pane-flow .wb-a2.wb-studio .wb-studio-availability { display: flex; align-items: center; gap: 7px; flex: none; font-size: 10.5px; color: var(--tx3); padding: 15px 6px 0; }
 #pane-flow .wb-a2.wb-studio .wb-studio-availability > span { width: 4px; height: 4px; border-radius: 50%; background: var(--warn); flex: none; }
 /* 对话是一张连贯的工作面，输入区有清晰的层次。 */
 #pane-flow .wb-a2.wb-studio .wb-assistant-heading { height: 54px; flex: none; display: flex; align-items: center; gap: 9px; padding: 0 17px; border-bottom: 1px solid var(--line); color: var(--tx2); }
 #pane-flow .wb-a2.wb-studio .wb-assistant-heading strong { font-size: 12px; color: var(--tx); font-weight: 550; }
-#pane-flow .wb-a2.wb-studio .wb-assistant-heading > span { margin-left: auto; color: var(--tx3); font-size: 9px; padding: 3px 6px; border: 1px solid var(--line); border-radius: 4px; }
+#pane-flow .wb-a2.wb-studio .wb-assistant-heading > span { margin-left: auto; color: var(--tx3); font-size: 10.5px; padding: 3px 6px; border: 1px solid var(--line); border-radius: 4px; }
 #pane-flow .wb-a2.wb-studio .fw-panel-hd { min-height: 44px; padding: 8px 12px; gap: 3px; }
 #pane-flow .wb-a2.wb-studio .fw-panel .fw-scroll > .flex { padding: 24px 18px; gap: 18px; }
 #pane-flow .wb-a2.wb-studio .wb-feedback-context { padding: 0 0 20px; background: transparent; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; align-items: flex-start; box-shadow: none; }
@@ -121,22 +121,22 @@
 #pane-flow .wb-a2.wb-studio .wb-feedback-context small { font-size: 11px; line-height: 1.9; color: var(--tx3); margin-top: 6px; }
 #pane-flow .wb-a2.wb-studio .wb-feedback-context-icon { display: none; }
 #pane-flow .wb-a2.wb-studio .wb-feedback-starters { display: flex; flex-direction: column; gap: 7px; padding-top: 0; }
-#pane-flow .wb-a2.wb-studio .wb-feedback-starters > span { margin-bottom: 5px; font-size: 10px; }
+#pane-flow .wb-a2.wb-studio .wb-feedback-starters > span { margin-bottom: 5px; font-size: 10.5px; }
 #pane-flow .wb-a2.wb-studio .wb-feedback-starters button { padding: 10px 11px; border: 1px solid var(--line); background: transparent; border-radius: 6px; justify-content: space-between; font-size: 11px; }
 #pane-flow .wb-a2.wb-studio .wb-feedback-starters button:hover { background: var(--hover); border-color: var(--line2); }
-#pane-flow .wb-a2.wb-studio .wb-demo-line { line-height: 1.8; font-size: 10px; }
+#pane-flow .wb-a2.wb-studio .wb-demo-line { line-height: 1.8; font-size: 10.5px; }
 #pane-flow .wb-a2.wb-studio .fw-compose { padding: 12px; border-top: 0; }
 #pane-flow .wb-a2.wb-studio .fw-sheet { background: var(--panel2); border: 1px solid var(--line2); border-radius: 10px; padding: 13px; box-shadow: none; }
 #pane-flow .wb-a2.wb-studio .fw-sheet:focus-within { border-color: var(--acc); box-shadow: 0 0 0 2px var(--sel); }
 #pane-flow .wb-a2.wb-studio .wb-input { font-size: 12px; line-height: 1.8; min-height: 76px; color: var(--tx); }
 #pane-flow .wb-a2.wb-studio .wb-input::placeholder { color: var(--tx3); }
-#pane-flow .wb-a2.wb-studio .wb-compose-scope { color: var(--tx3); margin-bottom: 7px; font-size: 10px; }
+#pane-flow .wb-a2.wb-studio .wb-compose-scope { color: var(--tx3); margin-bottom: 7px; font-size: 10.5px; }
 #pane-flow .wb-a2.wb-studio .wb-compose-scope b { font-weight: 500; color: var(--tx2); }
-#pane-flow .wb-a2.wb-studio .wb-compose-constraints { margin-top: 8px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 9px; }
-#pane-flow .wb-a2.wb-studio .fw-sheet .mini-strong { background: var(--acc); color: var(--acc-ink); border-radius: 6px; box-shadow: none; border: 0; font-size: 10px; padding: 7px 10px; }
+#pane-flow .wb-a2.wb-studio .wb-compose-constraints { margin-top: 8px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 10.5px; }
+#pane-flow .wb-a2.wb-studio .fw-sheet .mini-strong { background: var(--acc); color: var(--acc-ink); border-radius: 6px; box-shadow: none; border: 0; font-size: 10.5px; padding: 7px 10px; }
 #pane-flow .wb-a2.wb-studio .fw-sheet .mini-strong:disabled { background: var(--raised); color: var(--tx3); opacity: 1; }
 #pane-flow .wb-a2.wb-studio .wb-statusbar { min-height: 21px; padding: 0 3px; gap: 12px; }
-#pane-flow .wb-a2.wb-studio .wb-status-chip { border: 0; background: transparent; padding: 0; box-shadow: none; color: var(--tx3); font-size: 10px; }
+#pane-flow .wb-a2.wb-studio .wb-status-chip { border: 0; background: transparent; padding: 0; box-shadow: none; color: var(--tx3); font-size: 10.5px; }
 #pane-flow .wb-a2.wb-studio .wb-status-chip.is-btn { padding: 3px 6px; border-radius: 4px; }
 #pane-flow .wb-a2.wb-studio .wb-status-chip.is-btn:hover { background: var(--hover); color: var(--tx); }
 #pane-flow .wb-a2.wb-studio button:focus-visible { outline: 2px solid var(--acc); outline-offset: 3px; }
@@ -160,7 +160,7 @@
   #pane-flow .wb-a2.wb-studio .wb-waiting-content p { margin: 8px auto 0; }
   #pane-flow .wb-a2.wb-studio .wb-studio-brief { padding-top: 17px; }
   #pane-flow .wb-a2.wb-studio .wb-studio-brief > p { -webkit-line-clamp: 2; }
-  #pane-flow .wb-a2.wb-studio .wb-studio-availability { padding-top: 10px; font-size: 9px; }
+  #pane-flow .wb-a2.wb-studio .wb-studio-availability { padding-top: 10px; font-size: 10.5px; }
 }
 @media(prefers-reduced-motion:reduce) { #pane-flow .wb-a2.wb-studio *,#pane-flow .wb-a2.wb-studio *::before,#pane-flow .wb-a2.wb-studio *::after { animation: none !important; transition: none !important; } }
 
@@ -170,7 +170,7 @@
 @media(max-width:1200px) { #pane-flow .wb-a2.wb-studio .fw[data-panel='closed'] { grid-template-columns: minmax(0,1fr) 36px; } }
 #pane-flow .wb-a2.wb-studio .wb-feedback-starters { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 6px; }
 #pane-flow .wb-a2.wb-studio .wb-feedback-starters > span { grid-column: 1/-1; }
-#pane-flow .wb-a2.wb-studio .wb-feedback-starters button { padding: 9px 7px; gap: 3px; font-size: 10px; }
+#pane-flow .wb-a2.wb-studio .wb-feedback-starters button { padding: 9px 7px; gap: 3px; font-size: 10.5px; }
 #pane-flow .wb-a2.wb-studio .fw-ref-empty { display: none; }
 #pane-flow .wb-a2.wb-studio .fw-panel .fw-scroll > .flex { gap: 15px; padding-top: 19px; }
 #pane-flow .wb-a2.wb-studio .fw-sheet .wb-input { min-height: 65px; }

@@ -10,7 +10,7 @@
 .rfc-field-k { display: flex; flex-direction: column; gap: 1px; width: 76px; }
 .rfc-field-hint {
   font-style: normal;
-  font-size: 9.5px;
+  font-size: 10.5px;
   line-height: 1.2;
   color: var(--tx3);
   opacity: .75;
@@ -20,7 +20,7 @@
   flex: 0 0 auto;
   padding: 1px 6px;
   border-radius: 999px;
-  font-size: 9.5px;
+  font-size: 10.5px;
   line-height: 1.5;
   letter-spacing: .02em;
   border: 1px solid;

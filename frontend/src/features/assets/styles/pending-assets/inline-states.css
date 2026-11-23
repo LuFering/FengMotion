@@ -47,7 +47,7 @@
   border-radius: 4px;
   background: color-mix(in srgb, var(--acc) 16%, transparent);
   color: var(--acc-tx, var(--acc));
-  font-size: 9.5px;
+  font-size: 10.5px;
   font-weight: 700;
   white-space: nowrap;
 }
@@ -133,7 +133,7 @@ html[data-theme="tactile"] .hm-pending[data-over] { border-color: #22231f; backg
   border-radius: 6px;
   background: var(--acc);
   color: #fff;
-  font-size: 10px;
+  font-size: 10.5px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }

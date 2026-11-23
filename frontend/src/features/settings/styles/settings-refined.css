@@ -6,7 +6,7 @@
 }
 .set-refined .set-dlg-head { min-height: 48px; padding: 0 50px 0 18px; gap: 9px; background: var(--surf); border-bottom: 1px solid var(--line); color: var(--dim); }
 .set-refined .set-dlg-title { font-size: 15px; line-height: 1.5; font-weight: 600; }
-.set-refined .set-local-label { margin-left: auto; font-size: 10px; color: var(--ph); }
+.set-refined .set-local-label { margin-left: auto; font-size: 10.5px; color: var(--ph); }
 .set-refined > [data-slot='dialog-close'] { top: 11px; right: 12px; }
 .set-refined .set-nav { flex-basis: 180px; min-height: 0; padding: 14px 10px 12px; gap: 2px; background: var(--hole); overflow-y: auto; }
 .set-refined .set-nav::after { display: none; }
@@ -19,9 +19,9 @@
 .set-refined .set-nav-item[data-on] { background: color-mix(in srgb,var(--acc) 12%,transparent); color: var(--fg); }
 .set-refined .set-nav-item[data-on] > svg { color: var(--acc); }
 .set-refined .set-nav-txt b { font-size: 12px; line-height: 1.5; font-weight: 500; }
-.set-refined .set-nav-txt small { font-size: 10px; line-height: 1.5; color: var(--ph); margin-top: 2px; }
+.set-refined .set-nav-txt small { font-size: 10.5px; line-height: 1.5; color: var(--ph); margin-top: 2px; }
 .set-refined .set-nav-item[data-on] .set-nav-txt small { color: var(--dim); }
-.set-refined .set-nav-foot { font-size: 10px; color: var(--ph); padding: 22px 10px 0; margin-top: auto; }
+.set-refined .set-nav-foot { font-size: 10.5px; color: var(--ph); padding: 22px 10px 0; margin-top: auto; }
 .set-refined .set-search-empty { color: var(--dim); font-size: 11px; padding: 10px; }
 .set-refined .set-panel { padding: 20px 26px 26px; scrollbar-width: thin; overscroll-behavior: contain; background: var(--surf); }
 /* 分区标题一律不画：左栏高亮已经说明「你在哪一栏」，右侧直接进内容。
@@ -48,15 +48,15 @@
 .set-refined .ch-tabs [role='radio'] { height: 28px; border-radius: 4px; font-size: 11px; padding: 0 10px; color: var(--dim); }
 .set-refined .ch-tabs [aria-checked='true'] { background: var(--surf); color: var(--fg); box-shadow: 0 1px 3px rgb(0 0 0 / .12); }
 .set-refined .set-key { min-height: 44px; gap: 6px; font-size: 12px; }
-.set-refined .set-key em { font-size: 10px; color: var(--ph); }
-.set-refined .set-key kbd { min-width: 25px; padding: 4px 6px; border: 1px solid var(--line); border-radius: 4px; background: var(--surf); box-shadow: 0 2px 0 var(--line); font-size: 10px; }
+.set-refined .set-key em { font-size: 10.5px; color: var(--ph); }
+.set-refined .set-key kbd { min-width: 25px; padding: 4px 6px; border: 1px solid var(--line); border-radius: 4px; background: var(--surf); box-shadow: 0 2px 0 var(--line); font-size: 10.5px; }
 /* 主题样片必须保持各自配色，不跟随当前主题变色。 */
 .set-refined .set-theme-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; }
 .set-refined .set-theme-grid .set-rowbtn { position: relative; display: flex; align-items: stretch; flex-direction: column; gap: 0; padding: 5px; border: 1px solid var(--line); border-radius: 10px; background: transparent; }
 .set-refined .set-theme-grid .set-rowbtn[data-on] { border-color: var(--acc); box-shadow: 0 0 0 1px var(--acc); background: transparent; }
 .set-refined .set-theme-grid .set-rowtxt { padding: 11px 7px 6px; }
 .set-refined .set-theme-grid .set-rowtxt b { display: block; font-size: 12px; }
-.set-refined .set-theme-grid .set-rowtxt small { display: block; font-size: 10px; margin-top: 4px; }
+.set-refined .set-theme-grid .set-rowtxt small { display: block; font-size: 10.5px; margin-top: 4px; }
 .set-refined .set-theme-grid .set-ck { position: absolute; bottom: 28px; right: 12px; color: var(--acc); }
 .set-theme-preview { --preview-bg:#0a0b0e; --preview-panel:#20222b; --preview-soft:#15171e; --preview-accent:#3b8cf8; display: block; height: 88px; position: relative; background: var(--preview-bg); border-radius: 4px; overflow: hidden; }
 .set-theme-preview[data-theme='light'] { --preview-bg:#e0e2e9; --preview-panel:#fcfcfd; --preview-soft:#d2d5df; --preview-accent:#2f6fe4; }
@@ -70,7 +70,7 @@
 .set-refined .set-walls { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 11px; }
 .set-refined .set-wall { width: auto; border-radius: 6px; border: 1px solid var(--line); padding: 0; overflow: hidden; }
 .set-refined .set-wall-prev,.set-refined .set-wall-add { height: 76px; }
-.set-refined .set-wall-name { font-size: 10px; padding: 8px 9px; }
+.set-refined .set-wall-name { font-size: 10.5px; padding: 8px 9px; }
 /* 五个范围选项一行放得下（约 400px）；原来 330px 上限把最后一项挤到第二行，成了一个半空的框。 */
 .set-refined .set-row-control > [role='radiogroup'][aria-label='壁纸显示范围'] { max-width: 440px; justify-content: flex-end; }
 .set-refined .set-hcards { grid-template-columns: repeat(3,minmax(0,1fr)); gap: 10px; margin: 0; }
@@ -90,7 +90,7 @@
 .set-refined .set-unavailable > svg { color: var(--ph); margin-bottom: 12px; }
 .set-refined .set-unavailable h3 { font-size: 14px; font-weight: 550; color: var(--fg); margin: 0 0 6px; }
 .set-refined .set-unavailable p { font-size: 12px; line-height: 1.8; margin: 0; max-width: 430px; }
-.set-refined .set-unavailable > span { display: inline-block; font-size: 10px; color: var(--ph); margin-top: 17px; border: 1px solid var(--line); border-radius: 4px; padding: 4px 7px; }
+.set-refined .set-unavailable > span { display: inline-block; font-size: 10.5px; color: var(--ph); margin-top: 17px; border: 1px solid var(--line); border-radius: 4px; padding: 4px 7px; }
 .set-refined button:focus-visible { outline: 2px solid var(--acc); outline-offset: 3px; }
 @media(max-width:800px) {
   .set-dlg.set-refined { width:calc(100vw - 24px); height:calc(100dvh - 24px); }
@@ -114,7 +114,7 @@
 }
 .set-refined .set-wall-prev,.set-refined .set-wall-add { width:100%; aspect-ratio:auto; }
 .set-refined .set-row-control [data-slot='button'] { border-radius:6px; font-size:11px; }
-.set-refined .set-default-engine { margin-left:auto; display:inline-flex; align-items:center; gap:5px; color:var(--acc); font-size:10px; padding:5px 7px; border-radius:4px; background:color-mix(in srgb,var(--acc) 9%,transparent); }
+.set-refined .set-default-engine { margin-left:auto; display:inline-flex; align-items:center; gap:5px; color:var(--acc); font-size:10.5px; padding:5px 7px; border-radius:4px; background:color-mix(in srgb,var(--acc) 9%,transparent); }
 .set-refined .set-row-control { overflow-wrap:anywhere; }
 
 /* 已接入 Harness 固定三列；卡片内容纵向排布，模型选择器不挤占名称。 */
@@ -125,7 +125,7 @@
 .set-refined .set-hcard-top { display:flex; flex-direction:column; align-items:stretch; gap:12px; }
 .set-refined .set-hcard-top > .set-agent-who { flex:none; width:100%; }
 .set-refined .set-agent-who b { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:12px; }
-.set-refined .set-agent-who small { font-size:10px; line-height:1.6; }
+.set-refined .set-agent-who small { font-size:10.5px; line-height:1.6; }
 .set-refined .set-hcard .set-agent-pick { width:100%; min-width:0; height:30px; justify-content:flex-start; }
 .set-refined .set-hcard .set-agent-pick .v { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; text-align:left; }
 .set-refined .set-hcard .set-default-engine { position:absolute; top:18px; right:12px; margin:0; }
@@ -135,7 +135,7 @@
 .set-refined .set-agent-more { max-width:none; }
 .set-refined .set-pending-hcards { margin-top:12px; }
 .set-refined .set-pending-hcards .set-hcard { min-height:146px; justify-content:flex-start; }
-.set-refined .set-hcard[data-pending] .set-agent-tag { position:absolute; top:18px; right:12px; font-size:9px; padding:3px 6px; border-radius:4px; }
+.set-refined .set-hcard[data-pending] .set-agent-tag { position:absolute; top:18px; right:12px; font-size:10.5px; padding:3px 6px; border-radius:4px; }
 .set-refined .set-hcard[data-pending] .set-agent-who { margin-top:2px; }
 .set-refined .set-hcard[data-pending] .set-agent-who small { display:block; margin-top:7px; color:var(--dim); }
 

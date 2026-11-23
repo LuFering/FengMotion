@@ -168,7 +168,7 @@
 .fm-hd-idx i {
   font-style: normal;
   font-family: var(--font-mono, ui-monospace, monospace);
-  font-size: 10px;
+  font-size: 10.5px;
   color: var(--ph);
 }
 .fm-heading h2 {
@@ -181,7 +181,7 @@
 }
 .fm-hd-slug {
   font-style: normal;
-  font-size: 10px;
+  font-size: 10.5px;
   letter-spacing: .18em;
   color: var(--ph);
   white-space: nowrap;

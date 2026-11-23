@@ -17,7 +17,7 @@
   user-select: none;
 }
 .project-tile[data-size='sm'] { width: 22px; height: 22px; border-radius: 6px; font-size: 11px; }
-.project-tile[data-size='xs'] { width: 18px; height: 18px; border-radius: 5px; font-size: 10px; }
+.project-tile[data-size='xs'] { width: 18px; height: 18px; border-radius: 5px; font-size: 10.5px; }
 html[data-theme="light"] .project-tile {
   background: hsl(var(--tile-h) 62% 92%);
   color: hsl(var(--tile-h) 48% 34%);

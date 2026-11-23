@@ -108,7 +108,7 @@ html[data-theme='tactile'] .wfl .wf-blank-start:hover:not(:disabled) { border-co
 .wf-sb-play { fill:var(--acc); }
 .wf-sb-mark { fill:none; stroke:var(--acc); stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round; }
 .wf-sb-gate { fill:var(--raised); stroke:var(--acc); stroke-width:1.2; }
-.wf-sb text { fill:var(--tx2); font-family:var(--font-sans); font-size:10px; font-weight:500; }
+.wf-sb text { fill:var(--tx2); font-family:var(--font-sans); font-size:10.5px; font-weight:500; }
 .wf-sb-edge { fill:none; stroke:color-mix(in srgb,var(--tx) 26%,transparent); stroke-width:1.2; stroke-linecap:round; }
 .wf-graph-preview[data-compact] .wf-sb-edge { stroke-width:.8; }
 

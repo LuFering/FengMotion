@@ -108,7 +108,7 @@
   flex: none;
   padding: 1px 7px;
   border-radius: 999px;
-  font-size: 10px;
+  font-size: 10.5px;
   font-weight: 600;
   color: var(--acc);
   background: color-mix(in srgb, var(--acc) 16%, transparent);
@@ -124,7 +124,7 @@ body.hm-nav-expanded .nav-library-cur {
   display: block;
   margin-left: auto;
   padding: 0 6px;
-  font-size: 10px;
+  font-size: 10.5px;
   font-weight: 500;
   color: var(--acc);
   opacity: .85;
@@ -142,7 +142,7 @@ body.studio-shell .nav-leaf.nav-placeholder :is(.ico, .ui-icon, .hm-nav-text) { 
   right: 8px;
   top: 50%;
   transform: translateY(-50%);
-  font-size: 9px;
+  font-size: 10.5px;
   color: var(--dim);
   opacity: .8;
   pointer-events: none;

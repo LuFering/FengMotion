@@ -26,7 +26,7 @@
   background: var(--panel); display: grid; place-items: center;
 }
 #pane-flow .wb-a2 .wb-insp-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
-#pane-flow .wb-a2 .wb-insp-thumb-empty { font-size: 10px; color: var(--tx3); }
+#pane-flow .wb-a2 .wb-insp-thumb-empty { font-size: 10.5px; color: var(--tx3); }
 #pane-flow .wb-a2 .wb-insp-obj {
   font-size: 12.5px; font-weight: 650; color: var(--acc-tx);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -49,7 +49,7 @@
   display: flex; align-items: center; gap: 6px;
 }
 #pane-flow .wb-a2 .wb-insp-tag {
-  font-size: 10px; font-weight: 450; color: var(--tx3);
+  font-size: 10.5px; font-weight: 450; color: var(--tx3);
   border: 1px solid var(--line); border-radius: 999px; padding: 1px 6px;
   white-space: nowrap;
 }
@@ -195,9 +195,9 @@
    否则 320px 的固定宽度会顶出面板、被 .fw-panel 的 overflow:hidden 截掉。 */
 #pane-flow .wb-a2 .wb-ctxmeter { max-width: 100%; margin: 10px 0 2px; }
 #pane-flow .wb-a2 .wb-ctxmeter .ctx-num { font-size: 12px; line-height: 15px; }
-#pane-flow .wb-a2 .wb-ctxmeter .ctx-of { font-size: 10px; }
+#pane-flow .wb-a2 .wb-ctxmeter .ctx-of { font-size: 10.5px; }
 #pane-flow .wb-a2 .wb-ctxmeter .ctx-chips { gap: 4px; }
-#pane-flow .wb-a2 .wb-ctxmeter .ctx-chip { font-size: 10px; padding: 0 3px; gap: 3px; }
+#pane-flow .wb-a2 .wb-ctxmeter .ctx-chip { font-size: 10.5px; padding: 0 3px; gap: 3px; }
 
 /* ── 侧栏「本轮过程」折叠摘要 ──────────────────────────────────
    侧栏只有 300 多像素，不能照搬对话区那套完整任务列表：

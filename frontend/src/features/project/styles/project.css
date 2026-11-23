@@ -114,7 +114,7 @@
 .pj-entry-work { grid-column: span 2 }
 .pj-todo {
   position: absolute; right: 38px; top: 50%; transform: translateY(-50%);
-  padding: 1px 6px; border-radius: 4px; font-style: normal; font-size: 10px;
+  padding: 1px 6px; border-radius: 4px; font-style: normal; font-size: 10.5px;
   background: var(--hole); color: var(--dim);
 }
 
@@ -186,7 +186,7 @@
 /* ═══ 项目卡上的动作菜单（fm-components 里的 .fm-project-act 的延伸）═══ */
 .fm-project-planned {
   position: absolute; left: 8px; top: 8px; z-index: 1;
-  padding: 2px 6px; border-radius: 4px; font-size: 10px;
+  padding: 2px 6px; border-radius: 4px; font-size: 10.5px;
   background: #14161ac4; color: var(--warn);
   border: 1px solid color-mix(in srgb, var(--warn) 45%, transparent);
 }

@@ -482,7 +482,7 @@ html[data-theme='tactile'] .wfl {
 }
 .wfe-connectmenu-head { display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 700; color: var(--tx); }
 .wfe-connectmenu-dot { flex: none; width: 9px; height: 9px; border-radius: 999px; }
-.wfe-connectmenu-type { margin-left: auto; font-size: 10px; font-weight: 700; color: var(--tx3); }
+.wfe-connectmenu-type { margin-left: auto; font-size: 10.5px; font-weight: 700; color: var(--tx3); }
 .wfe-connectmenu-search {
   display: flex; align-items: center; gap: 6px;
   border: 1px solid var(--line2); border-radius: 6px; background: var(--panel2); padding: 5px 8px; color: var(--tx3);

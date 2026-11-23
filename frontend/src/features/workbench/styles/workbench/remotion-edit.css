@@ -20,7 +20,7 @@
   border-radius: 4px;
   background: rgba(5, 7, 11, .72);
   color: var(--acc);
-  font-size: 10px;
+  font-size: 10.5px;
   pointer-events: none;
 }
 .fw-edit-field {
@@ -64,7 +64,7 @@ textarea.fw-edit-input { resize: vertical; }
   gap: 5px;
   margin-bottom: 2px;
 }
-.fw-ref-empty { color: var(--ph); font-size: 10px; }
+.fw-ref-empty { color: var(--ph); font-size: 10.5px; }
 .fw-ref-chip {
   display: inline-flex;
   align-items: center;
@@ -75,12 +75,12 @@ textarea.fw-edit-input { resize: vertical; }
   border-radius: 4px;
   background: color-mix(in srgb, var(--acc) 8%, transparent);
   color: var(--dim);
-  font-size: 10px;
+  font-size: 10.5px;
 }
 .fw-ref-chip i {
   font-style: normal;
   color: var(--acc);
-  font-size: 9px;
+  font-size: 10.5px;
 }
 .fw-ref-chip[data-role="context"] {
   border-color: var(--line);
@@ -121,7 +121,7 @@ textarea.fw-edit-input { resize: vertical; }
   border-radius: 4px;
   background: rgba(5, 7, 11, .8);
   color: var(--acc);
-  font-size: 10px;
+  font-size: 10.5px;
   white-space: nowrap;
   pointer-events: none;
 }
@@ -159,7 +159,7 @@ textarea.fw-edit-input { resize: vertical; }
 .fw-media-fit { position: relative; width: 100%; height: 100%; min-height: 0; }
 .fw-ref-chip .fw-ref-role {
   border: 0; padding: 0; background: transparent; cursor: pointer;
-  color: var(--acc); font-size: 9px; font-style: normal;
+  color: var(--acc); font-size: 10.5px; font-style: normal;
 }
 .fw-ref-chip .fw-ref-label {
   border: 0; padding: 0; background: transparent; cursor: pointer;
@@ -169,7 +169,7 @@ textarea.fw-edit-input { resize: vertical; }
 .fw-ref-chip .fw-ref-role:hover { color: var(--fg); }
 .fw-ref-clear {
   border: 0; background: transparent; color: var(--ph); cursor: pointer;
-  font-size: 9px; padding: 3px 4px;
+  font-size: 10.5px; padding: 3px 4px;
 }
 .fw-ref-clear:hover { color: var(--bad); }
 

@@ -1,5 +1,5 @@
 /* 预设相关的小件：新建页的来源标签、检查器里的素材提示。导入面板的样式在 github-import.css。 */
-.wf-preset-tag { display:inline-block; font-size:10px; padding:2px 6px; border-radius:4px; background:var(--soft); color:var(--acc); margin-left:8px; font-weight:500; }
+.wf-preset-tag { display:inline-block; font-size:10.5px; padding:2px 6px; border-radius:4px; background:var(--soft); color:var(--acc); margin-left:8px; font-weight:500; }
 .wfe-req-box { padding:9px 10px; border-radius:6px; background:var(--hole); border:1px solid var(--editor-border); margin-bottom:12px; font-size:11px; line-height:1.6; }
 .wfe-req-box b { display:block; margin-bottom:4px; color:var(--fg); }
 .wfe-req-box ul { margin:0; padding-left:16px; color:var(--dim); }

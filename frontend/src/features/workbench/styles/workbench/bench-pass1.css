@@ -97,12 +97,12 @@
   background: var(--wb-raised); box-shadow: 0 14px 30px rgba(0,0,0,.38);
   animation: wb-menu-in 150ms ease-out;
 }
-#pane-flow .wb-switch-head { padding: 5px 7px; font-size: 10px; color: var(--wb-text-3); }
+#pane-flow .wb-switch-head { padding: 5px 7px; font-size: 10.5px; color: var(--wb-text-3); }
 #pane-flow .wb-switch-menu > button { min-height: 34px; padding: 5px 7px; border-radius: 2px; }
 #pane-flow .wb-switch-menu > button:hover { background: #202425; }
 #pane-flow .wb-switch-menu > button[aria-current="true"] { background: var(--wb-accent-soft); }
 #pane-flow .wb-menu-project b { font-size: 12px; }
-#pane-flow .wb-menu-project small { font-size: 10px; color: var(--wb-text-3); }
+#pane-flow .wb-menu-project small { font-size: 10.5px; color: var(--wb-text-3); }
 
 /* left: a shot bin with room to scan — 46px rows, 13/11 hierarchy */
 #pane-flow .fw-ing-hd {
@@ -289,7 +289,7 @@
   font-size: var(--wb-fs-body); color: var(--wb-text-2);
 }
 #pane-flow .fw-panel .fm-msg-ai { font-size: var(--wb-fs-body); line-height: 1.7; color: var(--wb-text-2); }
-#pane-flow .fw-msg-avatar { color: var(--wb-text-3); font-size: 9px; background: #1d2021; }
+#pane-flow .fw-msg-avatar { color: var(--wb-text-3); font-size: 10.5px; background: #1d2021; }
 #pane-flow .fw-compose { padding: 8px 10px 10px; border-top: 1px solid var(--wb-line); }
 #pane-flow .fw-sheet {
   border: 1px solid var(--wb-line); border-radius: 2px;

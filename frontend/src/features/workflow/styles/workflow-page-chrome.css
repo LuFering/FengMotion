@@ -7,16 +7,16 @@
 .wfl .wfshop-search .fm-searchfield:focus-within { outline:none; border-color:color-mix(in srgb,var(--fg) 26%,var(--line)); background:var(--surf); box-shadow:none; }
 /* 工作流保留横幅、货架及全部卡片，仅调整周围文字和控件。 */
 .wfl .wfshop-header h1 { font-weight:550; letter-spacing:-.035em; }
-.wfl .wfshop-eyebrow { font-size:9px; font-weight:500; letter-spacing:.14em; }
+.wfl .wfshop-eyebrow { font-size:10.5px; font-weight:500; letter-spacing:.14em; }
 .wfl .wfshop-header p { line-height:1.8; color:var(--tx2); }
 .wfl .wfshop-create { font-size:12px; font-weight:550; border-radius:6px; gap:8px; }
 .wfl .wfshop-tabs button { font-size:12px; font-weight:500; letter-spacing:0; }
 .wfl .wfshop-tabs button span { font-size:11px; font-variant-numeric:tabular-nums; }
-.wfl .wfshop-tabs small { font-size:9px; font-weight:400; }
+.wfl .wfshop-tabs small { font-size:10.5px; font-weight:400; }
 .wfl .wfshop-section-head h2 { font-size:16px; font-weight:550; letter-spacing:-.02em; }
 .wfl .wfshop-section-head p { font-size:11px; line-height:1.7; }
 .wfl .wfshop-section-head > span { font-size:11px; font-variant-numeric:tabular-nums; }
-.wfl .wfshop-footnote { font-size:10px; line-height:1.7; }
+.wfl .wfshop-footnote { font-size:10.5px; line-height:1.7; }
 .wfl .wfh-cmd-title { font-size:20px; font-weight:550; letter-spacing:-.025em; }
 .wfl .wfe-cmd h1,
 .wfl .wfe-cmd-title { font-weight:550; letter-spacing:-.02em; }

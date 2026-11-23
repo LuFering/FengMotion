@@ -19,7 +19,7 @@
 }
 .rfc-manual-tag {
   font-style: normal;
-  font-size: 10px;
+  font-size: 10.5px;
   padding: 1px 5px;
   border-radius: var(--fm-radius-mark);
   background: var(--panel-alt);

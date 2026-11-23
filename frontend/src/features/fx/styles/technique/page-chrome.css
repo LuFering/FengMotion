@@ -14,7 +14,7 @@
 .fxlib .fx-meta-count b { font-weight:550; }
 .fxlib .fx-meta-scope { gap:3px; }
 .fxlib .fx-meta-scope button { font-size:11px; font-weight:500; border-radius:6px; }
-.fxlib .fx-meta-scope button em { font-size:10px; font-variant-numeric:tabular-nums; }
+.fxlib .fx-meta-scope button em { font-size:10.5px; font-variant-numeric:tabular-nums; }
 .fxlib .fx-sort-select { font-size:11px; }
 /* 筛选浮层靠分组和行距组织，不影响下面的海报墙。 */
 .fxlib .fx-pop { padding:18px; border-radius:10px; }

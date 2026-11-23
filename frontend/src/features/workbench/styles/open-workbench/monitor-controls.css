@@ -5,7 +5,7 @@
    「画面预览」升为这一屏的主标题（14px/650），一眼能分出层级。 */
 #pane-flow .wb-a2.wb-studio .open-workbench-layout .fw-toolbar .wb-viewer-index {
   font-family: var(--font-sans);
-  font-size: 9.5px;
+  font-size: 10.5px;
   font-weight: 500;
   letter-spacing: .12em;
   text-transform: uppercase;
