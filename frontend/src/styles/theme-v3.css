@@ -1,0 +1,91 @@
+/* ═══════════════════════════════════════════════════════════════
+   V3 页面层 token · 唯一来源（2026-11-23 收口）
+
+   素材、工作流、特效库、参考片库、工作台五页原先各写一遍、取值相同的
+   页面层颜色与几何 token，统一在这里按 html[data-theme] 定义一次。
+
+   规则：
+   · 本文件在 index.css 里紧跟 tokens.css，早于所有页面样式。
+     页面文件里留下的同名声明是**有意的覆盖**（同优先级、后加载即生效），
+     每处都在原文件注明原因；新增页面不要再复制这一块。
+   · 状态色只表状态：--ok 完成 · --warn 待你决定 · --bad 失败；装饰用 --acc 或中性灰。
+   · .fx-modal 是特效库经 portal 渲染到页面外的详情弹窗，同样需要这套 token。
+   ═══════════════════════════════════════════════════════════════ */
+
+.mya,
+.wfl,
+.fxlib,
+.fx-modal,
+.fx-wf,
+.rfc,
+#pane-flow {
+  --panel: #16171d;
+  --panel2: #101116;
+  --raised: #23242d;
+  --line: rgba(255, 255, 255, .06);
+  --line2: #34353f;
+  --tx: #edeef3;
+  --tx2: #a4a7b1;
+  --tx3: #62646e;
+  --acc: #3B8CF8;
+  --acc-ink: #ffffff;
+  --acc-tx: #8AB4FF;
+  --sel: rgba(59, 140, 248, .16);
+  --hover: rgba(255, 255, 255, .04);
+  --ok: #4caf7d;
+  --warn: #f5b83d;
+  --r-panel: var(--fm-radius-panel);
+  --r-ctl: var(--fm-radius-ctl);
+  --r-card: var(--fm-radius-card);
+  --shadow-mid: 0 12px 32px rgba(0, 0, 0, .30);
+  --eo: cubic-bezier(.23, 1, .32, 1);
+}
+
+html[data-theme='light'] .mya,
+html[data-theme='light'] .wfl,
+html[data-theme='light'] .fxlib,
+html[data-theme='light'] .fx-modal,
+html[data-theme='light'] .fx-wf,
+html[data-theme='light'] .rfc,
+html[data-theme='light'] #pane-flow {
+  --panel: #fcfcfd;
+  --panel2: #eef0f4;
+  --raised: #ffffff;
+  --line: rgba(25, 25, 50, .06);
+  --line2: #cdcdd6;
+  --tx: #191a20;
+  --tx2: #5b5e66;
+  --tx3: #94969e;
+  --acc: #2F6FE4;
+  --acc-ink: #ffffff;
+  --acc-tx: #1E5BBF;
+  --sel: rgba(47, 111, 228, .10);
+  --hover: rgba(25, 25, 50, .035);
+  --shadow-mid: 0 12px 30px rgba(30, 30, 60, .12);
+}
+
+html[data-theme='tactile'] .mya,
+html[data-theme='tactile'] .wfl,
+html[data-theme='tactile'] .fxlib,
+html[data-theme='tactile'] .fx-modal,
+html[data-theme='tactile'] .fx-wf,
+html[data-theme='tactile'] .rfc,
+html[data-theme='tactile'] #pane-flow {
+  --panel: #eae6da;
+  --panel2: #ddd8c9;
+  --raised: #f4f1e8;
+  --line: rgba(34, 35, 31, .16);
+  --line2: #22231f;
+  --tx: #22231f;
+  --tx2: #55534a;
+  --tx3: #8a8676;
+  --acc: #f7c948;
+  --acc-ink: #22231f;
+  --acc-tx: #7a5b00;
+  --sel: rgba(247, 201, 72, .40);
+  --hover: rgba(34, 35, 31, .05);
+  --ok: #2e7d32;
+  --warn: #8a5a00;
+  --r-panel: 20px;
+  --shadow-mid: 5px 5px 0 #22231f;
+}

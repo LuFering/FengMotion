@@ -66,28 +66,16 @@ html[data-theme="tactile"] .mya button:active:not(:disabled) { transform: transl
 html[data-theme="tactile"] .mya {
   --bg: #e6e1d5;
   --bg-glow: linear-gradient(160deg, #efece3, #dcd8cc);
-  --panel: #eae6da;
-  --panel2: #ddd8c9;
-  --raised: #f4f1e8;
-  --line: rgba(34, 35, 31, .16);
-  --line2: #22231f;
-  --tx: #22231f;
-  --tx2: #55534a;
+  /* 覆盖 theme-v3.css：素材页触感单独加深过三级字与强调字、选中底略淡，
+     保证卡片元数据在奶油纸面上的对比；是否并回共享值待素材页那一批看画面再定 */
   --tx3: #706c5e;
-  --acc: #f7c948;
-  --acc-ink: #22231f;
   --acc-tx: #6b4e00;
   --sel: rgba(247, 201, 72, .36);
-  --hover: rgba(34, 35, 31, .05);
   --stage-bg: #b9bfa4;
   --scrim: rgba(34, 35, 31, .22);
   --overlay: rgba(247, 241, 226, .72);
-  --ok: #2e7d32;
-  --warn: #8a5a00;
   --danger: #a33d32;
-  --r-panel: 20px;
   --shadow-base: 2px 2px 0 #22231f;
-  --shadow-mid: 5px 5px 0 #22231f;
   --shadow-hero: 5px 5px 0 #22231f, 0 0 0 2px #22231f;
   --shadow-card-on: 3px 3px 0 #22231f;
   --shadow-float: 8px 8px 0 #22231f;

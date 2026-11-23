@@ -11,19 +11,11 @@
   /* ── A2 深黑主题令牌（§3 / §5 / §7）────────────────────── */
   --bg: #000000;
   --bg-glow: #000000;
-  --panel: #16171d;
-  --panel2: #101116;
-  --raised: #23242d;
+  /* 与 theme-v3.css 同值，但必须留在这里：workbench.css 引入的 bench-pass1.css
+     晚于 theme-v3.css 加载，也在 #pane-flow 上定义 --line / --acc / --ok / --warn，
+     靠本文件更晚加载把它压回 V3 值。删掉会让工作台深色描边、强调色、状态色变样 */
   --line: rgba(255, 255, 255, .06);
-  --line2: #34353f;
-  --tx: #edeef3;
-  --tx2: #a4a7b1;
-  --tx3: #62646e;
   --acc: #3B8CF8;
-  --acc-ink: #ffffff;
-  --acc-tx: #8AB4FF;
-  --sel: rgba(59, 140, 248, .16);
-  --hover: rgba(255, 255, 255, .04);
   --stage-bg: #0a0b0e;
   --ph: #8AB4FF;
   --thumb: #edeef3;
@@ -43,22 +35,18 @@
   --tag-fg: var(--acc-ink);
 
   /* ── 圆角 / 间距 / 阴影 / 动效 ─────────────────────────── */
-  --r-panel: var(--fm-radius-panel);
-  --r-ctl: var(--fm-radius-ctl);
-  --r-card: var(--fm-radius-card);
   --r-thumb: var(--fm-radius-card);
   --gap: 16px;
   --shadow-base: 0 3px 10px rgba(0, 0, 0, .18);
-  --shadow-mid: 0 12px 32px rgba(0, 0, 0, .30);
   --shadow-hero: 0 26px 64px rgba(0, 0, 0, .48), 0 4px 16px rgba(0, 0, 0, .30);
   --shadow-sel: 0 8px 20px rgba(0, 0, 0, .28);
   --shadow-frame: 0 18px 50px rgba(0, 0, 0, .45);
   --shadow-float: 0 32px 80px rgba(0, 0, 0, .50);
   --shadow-control: 0 1px 4px rgba(0, 0, 0, .25);
-  --eo: cubic-bezier(.23, 1, .32, 1);
   --eio: cubic-bezier(.77, 0, .175, 1);
 
   /* ── 状态色（不随主题变）──────────────────────────────── */
+  /* --ok / --warn 同上：压住 bench-pass1.css，不可删 */
   --ok: #4caf7d;
   --mark: #f5b83d;
   --warn: #f5b83d;

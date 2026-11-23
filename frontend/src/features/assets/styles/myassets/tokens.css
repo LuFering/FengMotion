@@ -16,33 +16,15 @@
   /* 表面 */
   --bg: #000000;
   --bg-glow: radial-gradient(1100px 520px at 50% 18%, #0b0d12 0%, #000000 62%);
-  --panel: #16171d;
-  --panel2: #101116;
-  --raised: #23242d;
-  --line: rgba(255, 255, 255, .06);
-  --line2: #34353f;
   /* 文字 */
-  --tx: #edeef3;
-  --tx2: #a4a7b1;
-  --tx3: #62646e;
   /* 交互信号 */
-  --acc: #3B8CF8;
-  --acc-ink: #ffffff;
-  --acc-tx: #8AB4FF;
-  --sel: rgba(59, 140, 248, .16);
-  --hover: rgba(255, 255, 255, .04);
   /* 监看舞台 / 媒体 */
   --stage-bg: #0a0b0e;
   --scrim: rgba(0, 0, 0, .45);
   --overlay: rgba(5, 5, 8, .42);
   /* 状态（V3：不随主题变） */
-  --ok: #4caf7d;
-  --warn: #f5b83d;
   --danger: #e06c75;
   /* 圆角（同心：12 = 5 + 7；14 = 9 + 5；999 嵌 999） */
-  --r-panel: var(--fm-radius-panel);
-  --r-ctl: var(--fm-radius-ctl);
-  --r-card: var(--fm-radius-card);
   --r-thumb: var(--fm-radius-card);
   --r-float: var(--fm-radius-card);
   --r-pill: var(--fm-radius-pill);
@@ -50,13 +32,11 @@
   --r-scroll: 4px;
   /* 阴影层级 */
   --shadow-base: 0 3px 10px rgba(0, 0, 0, .18);
-  --shadow-mid: 0 12px 32px rgba(0, 0, 0, .30);
   --shadow-hero: 0 26px 64px rgba(0, 0, 0, .48), 0 4px 16px rgba(0, 0, 0, .30);
   --shadow-card-on: 0 8px 20px rgba(0, 0, 0, .28);
   --shadow-float: 0 32px 80px rgba(0, 0, 0, .50);
   --shadow-seg: 0 1px 4px rgba(0, 0, 0, .25);
   /* 动效（Emil Kowalski 规范） */
-  --eo: cubic-bezier(.23, 1, .32, 1);
   --eio: cubic-bezier(.77, 0, .175, 1);
   --gap: 16px;
 }
@@ -65,24 +45,10 @@
 html[data-theme="light"] .mya {
   --bg: #e0e2e9;
   --bg-glow: radial-gradient(1100px 520px at 50% 18%, #eef0f5 0%, #e0e2e9 62%);
-  --panel: #fcfcfd;
-  --panel2: #eef0f4;
-  --raised: #ffffff;
-  --line: rgba(25, 25, 50, .06);
-  --line2: #cdcdd6;
-  --tx: #191a20;
-  --tx2: #5b5e66;
-  --tx3: #94969e;
-  --acc: #2F6FE4;
-  --acc-ink: #ffffff;
-  --acc-tx: #1E5BBF;
-  --sel: rgba(47, 111, 228, .10);
-  --hover: rgba(25, 25, 50, .035);
   --stage-bg: #d7d9e0;
   --scrim: rgba(0, 0, 0, .45);
   --overlay: rgba(236, 238, 244, .55);
   --shadow-base: 0 3px 10px rgba(30, 30, 60, .08);
-  --shadow-mid: 0 12px 30px rgba(30, 30, 60, .12);
   --shadow-hero: 0 26px 60px rgba(30, 30, 60, .20), 0 4px 14px rgba(30, 30, 60, .10);
   --shadow-card-on: 0 8px 20px rgba(30, 30, 60, .14);
   --shadow-float: 0 32px 80px rgba(30, 30, 60, .28);

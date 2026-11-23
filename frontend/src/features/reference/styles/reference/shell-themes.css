@@ -33,33 +33,13 @@ body:has(#pane-reference .rfc) {
 .rfc {
   /* A2 深黑 token —— 与三库同一套 */
   --bg: radial-gradient(1100px 520px at 50% 18%, #0b0d12 0%, #000000 62%);
-  --panel: #16171d;
-  --panel2: #101116;
-  --raised: #23242d;
-  --line: rgba(255, 255, 255, 0.06);
-  --line2: #34353f;
-  --tx: #edeef3;
-  --tx2: #a4a7b1;
-  --tx3: #62646e;
-  --acc: #3B8CF8;
-  --acc-ink: #ffffff;
-  --acc-tx: #8AB4FF;
-  --sel: rgba(59, 140, 248, 0.16);
-  --hover: rgba(255, 255, 255, 0.04);
-  --ok: #4caf7d;
-  --warn: #f5b83d;
   --scrim: rgba(5, 5, 8, 0.42);
   --media-scrim: rgba(5, 5, 8, 0.58);
   /* 画面底：与素材库 --stage-bg 同值。参考片库原本没有这个 token，
      缩略图 var(--stage-bg) 取不到值 → 透明，图片未加载时会露出卡片底色。 */
   --stage-bg: #0a0b0e;
   --r-pill: var(--fm-radius-pill);
-  --shadow-mid: 0 12px 32px rgba(0, 0, 0, 0.3);
   --shadow-float: 0 32px 80px rgba(0, 0, 0, 0.5);
-  --r-panel: var(--fm-radius-panel);
-  --r-ctl: var(--fm-radius-ctl);
-  --r-card: var(--fm-radius-card);
-  --eo: cubic-bezier(0.23, 1, 0.32, 1);
 
   /* 画面之上的走带层恒为影院深色玻璃（片名/片单/片段段/走带，在照片上不随主题） */
   --glass: rgba(10, 13, 18, 0.58);
@@ -94,23 +74,9 @@ body:has(#pane-reference .rfc) {
 
 /* ── 浅白主题：界面层换浅色 token（与素材库浅色根同值），走带层保持深色玻璃 ── */
 html[data-theme='light'] .rfc {
-  --panel: #fcfcfd;
   --stage-bg: #d7d9e0;
-  --panel2: #eef0f4;
-  --raised: #ffffff;
-  --line: rgba(25, 25, 50, 0.06);
-  --line2: #cdcdd6;
-  --tx: #191a20;
-  --tx2: #5b5e66;
-  --tx3: #94969e;
-  --acc: #2F6FE4;
-  --acc-ink: #ffffff;
-  --acc-tx: #1E5BBF;
-  --sel: rgba(47, 111, 228, 0.10);
-  --hover: rgba(25, 25, 50, 0.035);
   --ok: #3d9166;
   --warn: #b97f16;
-  --shadow-mid: 0 12px 30px rgba(30, 30, 60, 0.12);
   --shadow-float: 0 32px 80px rgba(30, 30, 60, 0.28);
   --panel-glass: rgba(252, 252, 253, 0.94);
   --panel-line: rgba(25, 25, 50, 0.12);
@@ -123,24 +89,7 @@ html[data-theme='light'] .rfc {
 
 /* ── 触感主题：纸色 + 硬阴影 + 黄强调（与素材库触感根同值） ── */
 html[data-theme='tactile'] .rfc {
-  --panel: #eae6da;
   --stage-bg: #b9bfa4;
-  --panel2: #ddd8c9;
-  --raised: #f4f1e8;
-  --line: rgba(34, 35, 31, 0.16);
-  --line2: #22231f;
-  --tx: #22231f;
-  --tx2: #55534a;
-  --tx3: #8a8676;
-  --acc: #f7c948;
-  --acc-ink: #22231f;
-  --acc-tx: #7a5b00;
-  --sel: rgba(247, 201, 72, 0.40);
-  --hover: rgba(34, 35, 31, 0.05);
-  --ok: #2e7d32;
-  --warn: #8a5a00;
-  --r-panel: 20px;
-  --shadow-mid: 5px 5px 0 #22231f;
   --shadow-float: 8px 8px 0 #22231f;
   --panel-glass: rgba(244, 241, 232, 0.97);
   --panel-line: #22231f;

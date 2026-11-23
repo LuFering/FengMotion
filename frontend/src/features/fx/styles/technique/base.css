@@ -21,37 +21,17 @@
 .fx-wf {
   --fx-bg: #000000;
   --fx-bg-glow: radial-gradient(1100px 520px at 50% 18%, #0b0d12 0%, #000000 62%);
-  --panel: #16171d;
-  --panel2: #101116;
-  --raised: #23242d;
-  --line: rgba(255, 255, 255, 0.06);
-  --line2: #34353f;
-  --tx: #edeef3;
-  --tx2: #a4a7b1;
-  --tx3: #62646e;
-  --acc: #3B8CF8;
-  --acc-ink: #ffffff;
-  --acc-tx: #8AB4FF;
-  --sel: rgba(59, 140, 248, 0.16);
-  --hover: rgba(255, 255, 255, 0.04);
   --stage-bg: #0a0b0e;
-  --ok: #4caf7d;
-  --warn: #f5b83d;
   --danger: #e5534b;
   --media-ink: #ffffff;
   --media-scrim: rgba(5, 5, 8, 0.55);
   --scrim: rgba(5, 5, 8, 0.42);
   --shadow-base: 0 3px 10px rgba(0, 0, 0, 0.18);
-  --shadow-mid: 0 12px 32px rgba(0, 0, 0, 0.3);
   --shadow-hero: 0 26px 64px rgba(0, 0, 0, 0.48), 0 4px 16px rgba(0, 0, 0, 0.3);
   --shadow-raised: 0 8px 20px rgba(0, 0, 0, 0.28);
   --shadow-overlay: 0 32px 80px rgba(0, 0, 0, 0.5);
   --shadow-ctl: 0 1px 3px rgba(0, 0, 0, 0.18);
-  --r-panel: var(--fm-radius-panel);
-  --r-ctl: var(--fm-radius-ctl);
-  --r-card: var(--fm-radius-card);
   --r-thumb: var(--fm-radius-card);
-  --eo: cubic-bezier(0.23, 1, 0.32, 1);
   --eio: cubic-bezier(0.77, 0, 0.175, 1);
 }
 
@@ -60,23 +40,9 @@ html[data-theme='light'] .fx-modal,
 html[data-theme='light'] .fx-wf {
   --fx-bg: #e0e2e9;
   --fx-bg-glow: radial-gradient(1100px 520px at 50% 18%, #eef0f5 0%, #e0e2e9 62%);
-  --panel: #fcfcfd;
-  --panel2: #eef0f4;
-  --raised: #ffffff;
-  --line: rgba(25, 25, 50, 0.06);
-  --line2: #cdcdd6;
-  --tx: #191a20;
-  --tx2: #5b5e66;
-  --tx3: #94969e;
-  --acc: #2F6FE4;
-  --acc-ink: #ffffff;
-  --acc-tx: #1E5BBF;
-  --sel: rgba(47, 111, 228, 0.1);
-  --hover: rgba(25, 25, 50, 0.035);
   --stage-bg: #d7d9e0;
   --scrim: rgba(20, 20, 40, 0.3);
   --shadow-base: 0 3px 10px rgba(30, 30, 60, 0.08);
-  --shadow-mid: 0 12px 30px rgba(30, 30, 60, 0.12);
   --shadow-hero: 0 26px 60px rgba(30, 30, 60, 0.2), 0 4px 14px rgba(30, 30, 60, 0.1);
   --shadow-raised: 0 8px 18px rgba(30, 30, 60, 0.14);
   --shadow-overlay: 0 32px 80px rgba(30, 30, 60, 0.28);
@@ -88,30 +54,13 @@ html[data-theme='tactile'] .fx-modal,
 html[data-theme='tactile'] .fx-wf {
   --fx-bg: #e6e1d5;
   --fx-bg-glow: linear-gradient(160deg, #efece3, #dcd8cc);
-  --panel: #eae6da;
-  --panel2: #ddd8c9;
-  --raised: #f4f1e8;
-  --line: rgba(34, 35, 31, 0.16);
-  --line2: #22231f;
-  --tx: #22231f;
-  --tx2: #55534a;
-  --tx3: #8a8676;
-  --acc: #f7c948;
-  --acc-ink: #22231f;
-  --acc-tx: #7a5b00;
-  --sel: rgba(247, 201, 72, 0.40);
-  --hover: rgba(34, 35, 31, 0.05);
   --stage-bg: #b9bfa4;
-  --ok: #2e7d32;
-  --warn: #8a5a00;
   --scrim: rgba(34, 35, 31, 0.22);
   --shadow-base: 2px 2px 0 #22231f;
-  --shadow-mid: 5px 5px 0 #22231f;
   --shadow-hero: 5px 5px 0 #22231f, 0 0 0 2px #22231f;
   --shadow-raised: 3px 3px 0 #22231f;
   --shadow-overlay: 8px 8px 0 #22231f;
   --shadow-ctl: 2px 2px 0 #22231f;
-  --r-panel: 20px;
 }
 
 /* 页面占满 hm-main；壳层标题栏已在 App 里对 knowledge 视图关闭 */
