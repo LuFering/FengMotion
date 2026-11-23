@@ -284,7 +284,15 @@ html[data-theme='tactile'] .wfe-left>.wfe-tabs button[data-on] { background:var(
 .wfe-run-hint i { width:6px; height:6px; border-radius:50%; background:var(--ok); }
 .wfe-run-hint[data-real] { color:var(--tx2); }
 .wfl .wfe-btn.wfe-run { padding:0 14px 0 11px; }
-.wfl .wfe-btn.wfe-save:disabled { opacity:1; border-color:transparent; background:transparent; color:var(--tx3); }
+/* 没有改动时「保存」是明确的禁用按钮：保留边框、不响应悬停，而不是一段像文字的灰字 */
+.wfl .wfe-btn.wfe-save:disabled { opacity:1; border-color:var(--line2); background:transparent; color:var(--tx3); cursor:not-allowed; }
+.wfl .wfe-btn.wfe-save:disabled:hover { background:transparent; }
+/* 执行方式与运行合成一组 */
+.wfe-run-group { display:inline-flex; flex:none; align-items:center; gap:10px; height:32px; padding:0 0 0 11px; border:1px solid var(--line2); border-radius:var(--r-ctl,6px); background:var(--panel); }
+.wfl .wfe-run-group > .wfe-btn.wfe-run { height:30px; margin-right:0; border-radius:calc(var(--r-ctl,6px) - 1px); }
+@media (max-width:1100px) { .wfe-run-group { gap:0; padding:0; border:0; background:none; } .wfl .wfe-run-group > .wfe-btn.wfe-run { height:32px; } }
+/* 首次适应视图完成前不显示画布内容（useEditorEffects 写 data-framed） */
+.wfe-canvas:not([data-framed]) .react-flow__viewport { visibility:hidden; }
 .wfe-cmd .wfe-project-picker > .wfe-btn { padding:0 8px 0 9px; gap:6px; font-weight:500; }
 .wfe-cmd .wfe-project-picker > .wfe-btn svg:last-child { width:13px; height:13px; color:var(--tx3); }
 @media (max-width:1100px) { .wfe-run-hint { display:none; } }

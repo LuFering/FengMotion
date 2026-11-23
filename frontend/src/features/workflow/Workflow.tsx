@@ -20,6 +20,7 @@ import type { WorkflowPreset } from '@/api/skillPresets'
 import { useProjects } from '@/features/project/hooks/useProjects'
 import { workflowBrief, workflowProjectLabel } from './services/workflowPresentation'
 import { WorkflowGraphPreview } from './components/WorkflowGraphPreview'
+import { MenuSelect } from '@/shared/components/MenuSelect'
 import { GithubImportPanel } from './components/import/GithubImportPanel'
 import { WorkflowEditor } from './WorkflowEditor'
 import './styles/workflow.css'
@@ -170,7 +171,8 @@ function WorkflowHome(props: {
         <button type="button" aria-pressed={filter === 'used'} onClick={() => setFilter('used')}>最近使用</button>
       </div>
       <div className="wf-library-search"><SearchField value={query} onChange={setQuery} placeholder="搜索工作流" ariaLabel="搜索工作流"/></div>
-      <label className="wf-sort"><span className="wf-sr-only">排序</span><select value={sort} onChange={(e) => setSort(e.target.value)}><option value="updated">最近编辑</option><option value="name">名称排序</option></select></label>
+      <MenuSelect className="wf-sort" label="" quiet align="end" ariaLabel="排序" value={sort} onChange={setSort}
+        options={[{ value: 'updated', label: '最近编辑' }, { value: 'name', label: '名称排序' }]} />
     </div>
     {notice && <p className="wf-inline-notice" role="status">{notice}<button type="button" aria-label="关闭提示" onClick={() => setNotice('')}><UiIcon icon={SemIcons.close} size="sm" /></button></p>}
     {!filtered.length ? <div className="wf-library-empty"><UiIcon icon={SemIcons.workflow} size="xl" /><h2>{q ? '没有找到相关工作流' : filter === 'used' ? '还没有运行记录' : '创建你的第一条工作流'}</h2>{q && <p>换个名称或关键词试试。</p>}<button type="button" className="wf-secondary" onClick={() => { if(q) setQuery(''); else props.onCreate() }}>{q ? '清除搜索' : '新建工作流'}</button></div> :
@@ -181,7 +183,7 @@ function WorkflowHome(props: {
         const runState = last ? (last.status === 'completed' ? 'done' : last.status === 'failed' ? 'failed' : last.status === 'running' ? 'running' : last.status === 'awaiting_info' ? 'waiting' : 'idle') : null
         const projectLabel = w.projectId ? workflowProjectLabel(w.projectId, projects.list, projects.loading, Boolean(projects.error)) : ''
         const poster = posterById.get(w.id)
-        const meta = [w.path === 'structured' ? '分阶段评估' : '自由创作', `${count} 个节点`, `v${w.revision}`]
+        const meta = [w.path === 'structured' ? '分阶段评估' : '自由创作', `${count} 个节点`, `v${w.revision}`, ...(w.skillPresetMeta ? [`来自 GitHub：${w.skillPresetMeta.sourceRepo}`] : [])]
         return <article className="wf-library-card" key={w.id} data-poster={poster ? '' : undefined}>
           <div className="wf-card-stage" aria-hidden="true">
             {poster && <video className="wf-card-poster" src={`${poster}#t=0.1`} preload="metadata" muted playsInline tabIndex={-1} />}
@@ -192,14 +194,16 @@ function WorkflowHome(props: {
           <div className="wf-card-actions" data-confirming={deleting === w.id || undefined}><button type="button" title="复制工作流" aria-label={`复制 ${w.name}`} onClick={() => { try { workflowService.duplicateWorkflow(w.id); props.onChanged(); setNotice('已复制工作流') } catch (e) { setNotice(e instanceof Error ? e.message : '复制失败，请重试。') } }}><UiIcon icon={SemIcons.copy} size="sm" /></button><button type="button" title="删除工作流" aria-label={`删除 ${w.name}`} onClick={() => setDeleting(deleting === w.id ? null : w.id)}><UiIcon icon={SemIcons.trash} size="sm" /></button></div>
           <div className="wf-card-body">
             <h3 className="wf-card-name" title={w.name}>{displayWorkflowName(w.name)}</h3>
-            {/* 同名工作流靠需求原文区分；还没写需求就明说，不留空让卡片看起来都一样 */}
-            {brief ? <p className="wf-card-brief" title={brief}>{brief}</p>
-              : w.path !== 'structured' && <p className="wf-card-brief" data-empty="">还没写需求</p>}
-            {/* 节点数一眼能从分镜上数出来，元信息只留关联项目（或路径）和时间 */}
+            {/* 写了需求才显示；没写是默认状态，不逐卡重复一句空值 */}
+            {brief && <p className="wf-card-brief" title={brief}>{brief}</p>}
+            {/* 版本与节点数常驻：同名工作流（多张「通用创作工作流」）靠它和时间区分 */}
             <div className="wf-card-meta">
-              {w.projectId
-                ? <span className="wf-card-project" title={projectLabel}><UiIcon icon={SemIcons.folder} size="xs" /><span>{projectLabel}</span></span>
-                : <span className="wf-card-facts" title={meta.join('，')}>{meta[0]}{w.skillPresetMeta && <span className="wf-card-source" title={w.skillPresetMeta.sourceRepo}>，来自 GitHub</span>}</span>}
+              <span className="wf-card-facts" title={meta.join('，')}>
+                <span className="num">v{w.revision} · {count} 个节点</span>
+                {w.projectId && <span className="wf-card-project" title={projectLabel}><UiIcon icon={SemIcons.folder} size="xs" /><span>{projectLabel}</span></span>}
+                {/* 一行放不下三样：有关联项目时来源只进悬停提示（与改版前一致） */}
+                {w.skillPresetMeta && !w.projectId && <span className="wf-card-source" title={w.skillPresetMeta.sourceRepo}>来自 GitHub</span>}
+              </span>
               <time dateTime={last?.startedAt ?? w.updatedAt} title={`${last ? '运行于' : '编辑于'} ${new Date(last?.startedAt ?? w.updatedAt).toLocaleString('zh-CN')}`}>{fmtTime(last?.startedAt ?? w.updatedAt)}</time>
             </div>
           </div>

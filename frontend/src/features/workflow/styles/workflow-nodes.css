@@ -3,11 +3,10 @@
    结构：头部（图标 · 标题 / 执行方式 · 状态）→ 画面窗口 → 端口行。没有色条、没有分隔线，
    三段靠留白和窗口本身的明暗分开。
    宽 240；圆角同心（卡 12 · 窗口 7 · 图标 6）；字阶 12.5/600 标题 · 11 端口与说明 · 10.5 小字。
-   类别色 --cat-* 定义在 workflow.css，只落在图标和窗口里的记号上，不铺满卡片。
+   图标与窗口记号统一用强调色；只有运行中 / 失败这类真实状态才改边框颜色。
    ═══════════════════════════════════════════════════════════════ */
 
 .wfe .wfn {
-  --c: var(--cat-doc);
   position: relative;
   width: 240px;
   padding: 0;
@@ -25,12 +24,6 @@ html[data-theme='dark'] .wfe .wfn,
 html:not([data-theme]) .wfe .wfn {
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 6px 18px rgba(0, 0, 0, 0.35);
 }
-
-.wfe .wfn[data-cat='input'] { --c: var(--cat-input); }
-.wfe .wfn[data-cat='make'] { --c: var(--cat-make); }
-.wfe .wfn[data-cat='review'] { --c: var(--cat-review); }
-.wfe .wfn[data-cat='deliver'] { --c: var(--cat-deliver); }
-.wfe .wfn[data-cat='gate'] { --c: var(--cat-gate); }
 
 .wfe .wfn:hover { border-color: color-mix(in srgb, var(--tx) 24%, transparent); }
 
@@ -52,23 +45,17 @@ html:not([data-theme]) .wfe .wfn {
   padding: 11px 12px 10px;
 }
 
+/* 类型图标：所有节点同一种强调色，类型靠图形区分（打磨方案 §3.7：默认状态不上色） */
 .wfn-mark {
-  --c: var(--cat-doc);
   flex: none;
   display: grid;
   place-items: center;
   width: 28px;
   height: 28px;
   border-radius: var(--r-ctl);
-  background: color-mix(in srgb, var(--c) 14%, transparent);
-  color: var(--c);
+  background: color-mix(in srgb, var(--acc) 12%, transparent);
+  color: var(--acc-tx);
 }
-
-.wfn-mark[data-cat='input'] { --c: var(--cat-input); }
-.wfn-mark[data-cat='make'] { --c: var(--cat-make); }
-.wfn-mark[data-cat='review'] { --c: var(--cat-review); }
-.wfn-mark[data-cat='deliver'] { --c: var(--cat-deliver); }
-.wfn-mark[data-cat='gate'] { --c: var(--cat-gate); }
 
 .wfn-heading {
   display: flex;
@@ -264,12 +251,12 @@ html:not([data-theme]) .wfe .wfn {
 .wfe .wfn-screen-title small { color: var(--screen-dim); font-size: 10.5px; font-weight: 500; }
 
 /* 审片：取景框四角 + 底部一条检查进度 */
-.wfn-viewfinder { position: absolute; inset: 0; width: 100%; height: 100%; fill: none; stroke: color-mix(in srgb, var(--cat-review) 70%, transparent); stroke-width: 1.5; }
+.wfn-viewfinder { position: absolute; inset: 0; width: 100%; height: 100%; fill: none; stroke: color-mix(in srgb, var(--acc) 70%, transparent); stroke-width: 1.5; }
 .wfe .wfn-screen[data-review='ok'] .wfn-viewfinder { stroke: var(--ok); }
 .wfe .wfn-screen[data-review='ok'] .wfn-screen-title { color: var(--ok); }
-.wfe .wfn-screen[data-review='rework'] .wfn-screen-title { color: var(--cat-review); }
+.wfe .wfn-screen[data-review='rework'] .wfn-screen-title { color: var(--warn); }
 .wfn-screen-meter { position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: rgba(255, 255, 255, 0.06); }
-.wfn-screen-meter::after { content: ''; position: absolute; inset: 0 auto 0 0; width: calc(var(--v) * 100%); background: var(--cat-review); }
+.wfn-screen-meter::after { content: ''; position: absolute; inset: 0 auto 0 0; width: calc(var(--v) * 100%); background: var(--acc); }
 
 /* 制作中：屏幕上一道光从左扫到右，是画布上唯一的常驻动效 */
 .wfe .wfn-screen[data-running]::after {

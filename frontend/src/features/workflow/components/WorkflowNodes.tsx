@@ -153,7 +153,8 @@ export const FmNodeView = memo(function FmNodeView({ data, selected }: { data: F
         <NodeMark type={data.defType}/>
         <div className="wfn-heading">
           <b>{title}</b>
-          {cap && <small className="wfn-exec" data-x={cap.execution} title={cap.detail}>{cap.label}</small>}
+          {/* 真实制作 / 演示是整条工作流的运行方式，顶栏运行按钮旁已经写了；节点上只标它自己特有的执行方式 */}
+          {cap && cap.execution !== 'agent' && cap.execution !== 'demo' && <small className="wfn-exec" data-x={cap.execution} title={cap.detail}>{cap.label}</small>}
         </div>
         {data.status !== 'idle' && <NodeState status={data.status}/>}
       </div>

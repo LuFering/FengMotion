@@ -40,6 +40,9 @@ import { EditorInspectorPanel } from '@/features/workflow/components/editor/Edit
 import { EditorCanvas } from '@/features/workflow/components/editor/EditorCanvas'
 import { EditorBuildPanel } from '@/features/workflow/components/editor/EditorBuildPanel'
 
+/** 节点库开关（只记用户手动的开 / 关，本机，不上传） */
+const PANEL_OPEN_KEY = 'fm-wf-library-open'
+
 export function WorkflowEditor(props: { workflowId: string; onBack: () => void; autoRun?: boolean }) {
   return (
     <ReactFlowProvider>
@@ -62,8 +65,20 @@ function EditorInner({ workflowId, onBack, autoRun }: EditorInnerProps) {
   const [dirty, setDirty] = useState(false)
   const [runNotice, setRunNotice] = useState('')
   const [leftTab, setLeftTab] = useState<'stages' | 'nodes' | 'pending'>(initial?.path === 'structured' ? 'stages' : 'nodes')
-  /* 已有节点、窗口又不宽时先收起节点库，把宽度留给画布；空画布要靠节点库起步，照常打开 */
-  const [panelOpen, setPanelOpen] = useState(() => window.innerWidth >= 1280 || (window.innerWidth >= 760 && !(initial?.nodes.length)))
+  /* 节点库：空画布要靠它起步，照常打开；已有节点的流程默认收起，按你上次手动的开关来（打磨方案 §5 第 3 条）。
+     窄窗自动收起不算手动，不记。 */
+  const [panelOpen, setPanelOpen] = useState(() => {
+    if (window.innerWidth < 760) return false
+    if (!initial?.nodes.length) return true
+    try { return localStorage.getItem(PANEL_OPEN_KEY) === '1' } catch { return false }
+  })
+  const setPanelOpenByUser = (next: boolean | ((prev: boolean) => boolean)) => {
+    setPanelOpen((prev) => {
+      const open = typeof next === 'function' ? next(prev) : next
+      try { localStorage.setItem(PANEL_OPEN_KEY, open ? '1' : '0') } catch { /* 存不下只影响下次打开 */ }
+      return open
+    })
+  }
   const [activeStage, setActiveStage] = useState<number | null>(initial?.path === 'structured' ? 0 : null)
   const [zoom, setZoom] = useState(1)
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -172,7 +187,7 @@ function EditorInner({ workflowId, onBack, autoRun }: EditorInnerProps) {
         void flow.fitView({ padding: 0.16, minZoom: 0.2, maxZoom: 1, duration: 200 })
       } else if (!mod && event.key === '/') {
         event.preventDefault()
-        setPanelOpen(true)
+        setPanelOpenByUser(true)
         setLeftTab('nodes')
         window.setTimeout(() => document.querySelector<HTMLInputElement>('.wfe-library-search input')?.focus(), 30)
       } else if (event.key === 'Escape') {
@@ -273,12 +288,13 @@ function EditorInner({ workflowId, onBack, autoRun }: EditorInnerProps) {
             <UiIcon icon={SlashCircle01} size="sm" />取消
           </button>
         ) : (
-          <>
+          /* 执行方式与运行合成一组：左边说这次运行会做什么，右边是动作 */
+          <span className="wfe-run-group">
             <span className="wfe-run-hint" data-real={runCap.real || undefined} title={runCap.detail}>{runCap.real ? <><i aria-hidden="true" />{runCap.label}</> : runCap.label}</span>
             <button type="button" className="wfe-btn is-primary wfe-run" onClick={doRun} title={runCap.detail}>
               <UiIcon icon={SemIcons.play} size="sm" />{isStructured ? '评估' : '运行'}
             </button>
-          </>
+          </span>
         )}
       </div>
 
@@ -307,7 +323,7 @@ function EditorInner({ workflowId, onBack, autoRun }: EditorInnerProps) {
           refIds={refIds}
           setLeftTab={setLeftTab}
           setNodeQuery={setNodeQuery}
-          setPanelOpen={setPanelOpen}
+          setPanelOpen={setPanelOpenByUser}
           targetForRefs={targetForRefs}
           workflowId={workflowId}
         />
@@ -339,7 +355,7 @@ function EditorInner({ workflowId, onBack, autoRun }: EditorInnerProps) {
           setEdges={setEdges}
           setLeftTab={setLeftTab}
           setNodes={setNodes}
-          setPanelOpen={setPanelOpen}
+          setPanelOpen={setPanelOpenByUser}
           setRunNotice={setRunNotice}
           setZoom={setZoom}
           undo={undo}

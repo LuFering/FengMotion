@@ -22,7 +22,7 @@
 .wf-view-tabs button span { margin-left:5px; font-size:11px; color:var(--dim); }
 .wf-library-search { width:232px; min-width:120px; margin-left:auto; }
 .wf-library-search .ui-search { width:100%; }
-.wf-sort select { max-width:125px; height:34px; border:1px solid var(--line); border-radius:6px; padding:0 8px; background:var(--surf); font-size:12px; }
+.wf-sort { flex:none; }
 .wf-icon { display:grid; place-items:center; height:30px; width:30px; border-radius:6px; color:var(--dim); }
 .wf-icon:hover { background:var(--hole); color:var(--fg); }
 .wf-library-footnote { display:flex; align-items:flex-start; gap:7px; font-size:11px; color:var(--dim); padding-top:24px; line-height:1.7; }
@@ -94,26 +94,20 @@ html[data-theme='tactile'] .wfl .wf-blank-start:hover:not(:disabled) { border-co
 .wf-card-hit { position:absolute; inset:0; z-index:2; border-radius:inherit; }
 .wf-card-hit:focus-visible { outline:none; }
 
-/* ── 小分镜：画框画产出物，颜色只落在画框里的记号上 ── */
-.wf-sb { --c: var(--cat-doc); --screen:#16171d; }
-.wf-sb[data-cat='input'] { --c: var(--cat-input); }
-.wf-sb[data-cat='make'] { --c: var(--cat-make); }
-.wf-sb[data-cat='review'] { --c: var(--cat-review); }
-.wf-sb[data-cat='deliver'] { --c: var(--cat-deliver); }
-.wf-sb[data-cat='gate'] { --c: var(--cat-gate); }
-.wf-sb-frame { fill:var(--raised); stroke:color-mix(in srgb,var(--tx) 16%,transparent); stroke-width:1; }
+/* ── 小分镜：所有画框同一块 --raised 底、同一道细边，只有记号用强调色 ──
+   （打磨方案 §3.6：去掉审片琥珀框、交付绿底和深色监看屏，浅色主题不再两深两浅） */
+.wf-sb-frame,
+.wf-sb-screen,
+.wf-sb-done,
+.wf-sb-cell { fill:var(--raised); stroke:color-mix(in srgb,var(--tx) 16%,transparent); stroke-width:1; }
 .wf-sb-ink { fill:none; stroke:color-mix(in srgb,var(--tx) 34%,transparent); stroke-width:2; stroke-linecap:round; }
-.wf-sb-tile { fill:color-mix(in srgb,var(--c) 30%,var(--raised)); }
-.wf-sb-tile[data-i='1'] { fill:color-mix(in srgb,var(--c) 16%,var(--raised)); }
-.wf-sb-tile[data-i='2'] { fill:color-mix(in srgb,var(--c) 22%,var(--raised)); }
-.wf-sb-tile[data-i='3'] { fill:color-mix(in srgb,var(--c) 40%,var(--raised)); }
-/* 监看画面不跟主题变亮：浅色主题里也是一块深色屏幕 */
-.wf-sb-screen { fill:var(--screen); stroke:color-mix(in srgb,var(--c) 45%,transparent); stroke-width:1; }
-.wf-sb-play { fill:#fff; opacity:.85; }
-.wf-sb-mark { fill:none; stroke:var(--c); stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round; }
-.wf-sb-done { fill:color-mix(in srgb,var(--c) 16%,var(--raised)); stroke:color-mix(in srgb,var(--c) 55%,transparent); stroke-width:1; }
-.wf-sb-gate { fill:color-mix(in srgb,var(--c) 14%,var(--raised)); stroke:var(--c); stroke-width:1.2; }
-.wf-sb-cell { fill:var(--raised); stroke:color-mix(in srgb,var(--c) 55%,transparent); stroke-width:1; }
+.wf-sb-tile { fill:color-mix(in srgb,var(--acc) 28%,var(--raised)); }
+.wf-sb-tile[data-i='1'] { fill:color-mix(in srgb,var(--acc) 12%,var(--raised)); }
+.wf-sb-tile[data-i='2'] { fill:color-mix(in srgb,var(--acc) 18%,var(--raised)); }
+.wf-sb-tile[data-i='3'] { fill:color-mix(in srgb,var(--acc) 38%,var(--raised)); }
+.wf-sb-play { fill:var(--acc); }
+.wf-sb-mark { fill:none; stroke:var(--acc); stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round; }
+.wf-sb-gate { fill:var(--raised); stroke:var(--acc); stroke-width:1.2; }
 .wf-sb text { fill:var(--tx2); font-family:var(--font-sans); font-size:10px; font-weight:500; }
 .wf-sb-edge { fill:none; stroke:color-mix(in srgb,var(--tx) 26%,transparent); stroke-width:1.2; stroke-linecap:round; }
 .wf-graph-preview[data-compact] .wf-sb-edge { stroke-width:.8; }
@@ -134,11 +128,12 @@ html[data-theme='tactile'] .wfl .wf-blank-start:hover:not(:disabled) { border-co
 
 /* ── 浮在底部的文字：画布色渐变托底，不另起一块白底 ── */
 .wf-card-body { position:absolute; inset:auto 0 0; z-index:1; display:flex; flex-direction:column; gap:3px; padding:22px 16px 13px; background:linear-gradient(180deg, transparent, color-mix(in srgb,var(--canvas) 92%,transparent) 42%); pointer-events:none; }
-.wf-card-brief[data-empty] { color:var(--tx3); }
 .wf-card-name { margin:0; overflow:hidden; color:var(--tx); font-size:15px; font-weight:600; line-height:21px; letter-spacing:-.01em; text-overflow:ellipsis; white-space:nowrap; }
 .wf-card-brief { margin:0; overflow:hidden; color:var(--tx2); font-size:12px; line-height:17px; text-overflow:ellipsis; white-space:nowrap; }
 .wf-card-meta { display:flex; align-items:baseline; justify-content:space-between; gap:12px; color:var(--tx3); font-size:11px; line-height:16px; }
-.wf-card-facts { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.wf-card-facts { display:flex; align-items:baseline; gap:10px; min-width:0; overflow:hidden; white-space:nowrap; }
+.wf-card-facts > .num, .wf-card-facts > .wf-card-source { flex:none; }
+.wf-card-facts > .wf-card-project { flex:0 1 auto; min-width:3em; }
 .wf-card-source { color:var(--acc-tx); }
 .wf-card-meta time { flex:none; font-variant-numeric:tabular-nums; }
 .wf-card-project { display:flex; flex:0 1 auto; align-items:center; gap:5px; min-width:0; color:inherit; font-size:11px; line-height:16px; }
@@ -173,11 +168,14 @@ html[data-theme='tactile'] .wfl .wf-blank-start:hover:not(:disabled) { border-co
 .wf-library-card[data-poster] .wf-card-brief, .wf-library-card[data-poster] .wf-card-project { color:rgba(235,237,240,.82); }
 .wf-library-card[data-poster] .wf-card-meta, .wf-library-card[data-poster] .wf-card-project svg { color:rgba(235,237,240,.62); }
 
-html[data-theme='light'] .wf-sb { --screen:#2a2c35; }
-html[data-theme='tactile'] .wf-sb { --screen:#22231f; }
+/* 浅色主题：卡片画布（#e8eaef）与页面（#e0e2e9）几乎同色，提一档到 --panel；渐变托底跟着走 */
+html[data-theme='light'] .wfl .wf-library-card:not([data-poster]) { --canvas: var(--panel); }
 html[data-theme='tactile'] .wfl .wf-library-card { border:1.5px solid var(--line2); box-shadow:var(--shadow-base); }
 html[data-theme='tactile'] .wfl .wf-library-card:hover { box-shadow:var(--shadow-mid); }
-html[data-theme='tactile'] .wf-sb-frame { stroke:var(--line2); }
+html[data-theme='tactile'] .wf-sb-frame,
+html[data-theme='tactile'] .wf-sb-screen,
+html[data-theme='tactile'] .wf-sb-done,
+html[data-theme='tactile'] .wf-sb-cell { stroke:var(--line2); }
 html[data-theme='tactile'] .wf-card-run, html[data-theme='tactile'] .wf-card-actions { background:var(--raised); box-shadow:0 0 0 1.5px var(--line2); backdrop-filter:none; }
 
 /* 新建页预设卡片的缩略图区与首页同一套画布 */
