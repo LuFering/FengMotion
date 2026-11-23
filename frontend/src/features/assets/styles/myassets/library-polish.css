@@ -5,10 +5,22 @@
 .mya.mya-library {
   --ov-bg: rgb(10 11 14 / .64);
   --ov-line: rgb(255 255 255 / .14);
-  /* 透明底：中灰，白色与黑色图形都能看清（上轮评审要求）；两格只差一点，不和画面抢。三套主题共用 */
+  /* 透明底：深色 / 触感主题用中灰，白色与黑色图形都能看清；两格只差一点，不和画面抢 */
   --check-a: #5d6067;
   --check-b: #666970;
 }
+/* 浅色主题换浅中灰（打磨方案 §3.8）：深灰格在浅页面上像一块补丁；再浅白色图形又看不见，取中间 */
+html[data-theme='light'] .mya.mya-library { --check-a: #b9bcc5; --check-b: #c4c7cf; }
+/* 浅色主题：卡片内侧高光换成深色一圈，浅底上才有边 */
+html[data-theme='light'] .mya-library .mya-card { border-color: rgb(20 22 30 / .10); }
+html[data-theme='light'] .mya-library .mya-card::after { box-shadow: inset 0 0 0 1px rgb(20 22 30 / .06); }
+
+/* 详情视频预览：画面 + 共享播放条压在底部 */
+.mya-library .mya-preview-video { position: relative; width: 100%; height: 100%; }
+.mya-library .mya-preview-video > img { width: 100%; height: 100%; object-fit: contain; }
+.mya-library .mya-preview-transport { position: absolute; left: 8px; right: 8px; bottom: 8px; z-index: 1; }
+/* 详情「项目 / 文件夹」：共享下拉，右对齐、不撑破键值行 */
+.mya-library .mya-kv-menu { max-width: 100%; justify-content: flex-end; }
 /* 全局 .num（工作台 timeline-primitives.css）会设等宽字体；本页数字只用等宽数字，字体跟正文 */
 .mya-library .num { font-family: inherit; font-variant-numeric: tabular-nums; }
 .mya-library .mya-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
@@ -36,15 +48,8 @@
 .mya-library .mya-types button[aria-pressed="true"] span { color: inherit; }
 .mya-library .mya-types-gap { flex: 1 1 auto; }
 .mya-library .mya-browser-views { display: flex; align-items: center; gap: 8px; margin-left: auto; }
-.mya-library .mya-sort { position: relative; display: inline-flex; align-items: center; }
-.mya-library .mya-sort select {
-  appearance: none; height: 32px; max-width: none; padding: 0 28px 0 11px;
-  border: 1px solid var(--line); border-radius: var(--r-ctl);
-  background: transparent; color: var(--tx2); font: inherit; font-size: 12px; cursor: pointer;
-  transition: border-color .15s, color .15s;
-}
-.mya-library .mya-sort select:hover { border-color: var(--line2); color: var(--tx); }
-.mya-library .mya-sort .ui-icon { position: absolute; right: 9px; width: 12px; height: 12px; color: var(--tx2); pointer-events: none; }
+/* 排序是共享 MenuSelect（styles/menu-select.css），这里只定高度与工具条对齐 */
+.mya-library .mya-sort { height: 32px; }
 .mya-library .mya-seg { height: 32px; }
 .mya-library .mya-pickbtn { height: 32px; padding: 0 12px; border-color: var(--line); color: var(--tx2); font-weight: 500; }
 .mya-library .mya-pickbtn:hover { border-color: var(--line2); color: var(--tx); background: var(--hover); }
@@ -161,7 +166,7 @@
 }
 .mya-library .mya-card .mya-fmt {
   flex: 0 0 auto; height: auto; padding: 0; background: none; border-radius: 0;
-  color: rgba(255, 255, 255, .78); font-size: 10px; font-weight: 600; letter-spacing: .06em;
+  color: rgba(255, 255, 255, .78); font-size: 10.5px; font-weight: 600; letter-spacing: .06em;
 }
 .mya-library .mya-card-spec { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .mya-library .mya-card .mya-demo { flex: 0 0 auto; font-size: 10.5px; color: rgba(255, 255, 255, .42); }

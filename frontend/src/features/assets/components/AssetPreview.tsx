@@ -1,4 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import type * as React from 'react'
+import { MediaTransport } from '@/shared/components/MediaTransport'
 import { type MyAsset } from '@/features/assets/model/myAssets'
 import { assetFormatBadge } from '@/features/assets/model/assetDisplay'
 import { formatDur, getFileURL } from '@/features/assets/services/assetApiService'
@@ -91,6 +93,7 @@ export function Preview({ asset, poster }: { asset: MyAsset; poster?: string }) 
   const [url, setUrl] = useState<string | null>(null)
   const [failed, setFailed] = useState(false)
   const [attempt, setAttempt] = useState(0)
+  const videoRef = useRef<HTMLVideoElement>(null)
   useEffect(() => {
     let alive = true
     void resolvePlayableUrl(asset.id, asset.filePath).then((u) => { if (alive) setUrl(u) }).catch(() => { if (alive) setFailed(true) })
@@ -104,8 +107,15 @@ export function Preview({ asset, poster }: { asset: MyAsset; poster?: string }) 
     return src ? <img key={attempt} src={src} alt={asset.name} onError={() => setFailed(true)} /> : <span className="mya-preview-ph"><Icon name="image" /></span>
   }
   if (asset.mediaType === 'video') {
-    return url ? <video key={attempt} onError={() => setFailed(true)} src={url} controls muted playsInline preload="metadata" poster={poster} />
-               : <span className="mya-preview-ph"><Icon name="film" /></span>
+    /* 共享播放条替换原生 controls；地址解析出来之前先放卡片封面，不留一块空占位 */
+    return (
+      <div className="mya-preview-video">
+        {url
+          ? <video ref={videoRef} key={attempt} onError={() => setFailed(true)} src={url} muted playsInline preload="metadata" poster={poster} />
+          : poster ? <img src={poster} alt="" /> : <span className="mya-preview-ph"><Icon name="film" /></span>}
+        {url && <MediaTransport mediaRef={videoRef as React.RefObject<HTMLMediaElement | null>} mediaKey={`${url}#${attempt}`} fallbackDuration={asset.duration} className="mya-preview-transport" />}
+      </div>
+    )
   }
   if (asset.mediaType === 'audio') {
     return (

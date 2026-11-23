@@ -258,6 +258,7 @@ export function Assets({ projects = NO_PROJECTS, currentProjectId = null }: {
             migrationDone={migrationDone}
             node={node}
             scopeLabel={activeLabel}
+            onShowAll={() => setNode('all')}
             onGridKeys={onGridKeys}
             openDetail={openDetail}
             pending={pending}

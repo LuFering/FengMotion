@@ -15,6 +15,10 @@ import { assetFormatBadge, assetUseBlock, detailSpec, formatAssetDate, mayHaveAl
 import { Icon } from '@/features/assets/components/AssetIcon'
 import type { ProjectOption } from '@/features/assets/model/assetTree'
 import { Preview } from '@/features/assets/components/AssetPreview'
+import { MenuSelect } from '@/shared/components/MenuSelect'
+
+/** 下拉里「未归属 / 未分类」的值（radix 单选项不用空字符串） */
+const NONE = '__none__'
 import { formatBytes, formatDur, type FolderRow } from '@/features/assets/services/assetApiService'
 import {
   PURPOSE_LABEL,
@@ -389,48 +393,45 @@ export function AssetInspector({
           <div className="mya-kv-row">
             <dt>项目</dt>
             <dd>
-              <select
-                className="mya-kv-select"
-                value={detail.projectId ?? ''}
-                aria-label="归属项目"
-                onChange={(e) => {
-                  const nextId = e.target.value || null
+              <MenuSelect
+                className="mya-kv-menu"
+                label=""
+                quiet
+                align="end"
+                ariaLabel="归属项目"
+                value={detail.projectId ?? NONE}
+                onChange={(v) => {
+                  const nextId = v === NONE ? null : v
                   moveToProject([detail.id], nextId, projects.find((p) => p.id === nextId)?.name)
                 }}
-              >
-                <option value="">未归属</option>
-                {/* 归属的项目已归档或不在列表里：如实标出，不悄悄显示成「未归属」 */}
-                {detail.projectId && !projects.some((p) => p.id === detail.projectId) && (
-                  <option value={detail.projectId}>项目不可用</option>
-                )}
-                {projects.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
+                options={[
+                  { value: NONE, label: '未归属' },
+                  /* 归属的项目已归档或不在列表里：如实标出，不悄悄显示成「未归属」 */
+                  ...(detail.projectId && !projects.some((p) => p.id === detail.projectId)
+                    ? [{ value: detail.projectId, label: '项目不可用' }]
+                    : []),
+                  ...projects.map((p) => ({ value: p.id, label: p.name })),
+                ]}
+              />
             </dd>
           </div>
           <div className="mya-kv-row">
             <dt>文件夹</dt>
             <dd>
-              <select
-                className="mya-kv-select"
-                value={detail.folderId ?? ''}
-                aria-label="所属文件夹"
-                onChange={(e) => {
-                  const nextId = e.target.value || null
+              <MenuSelect
+                className="mya-kv-menu"
+                label=""
+                quiet
+                align="end"
+                ariaLabel="所属文件夹"
+                value={detail.folderId ?? NONE}
+                onChange={(v) => {
+                  const nextId = v === NONE ? null : v
                   const folderName = folders.find((f) => f.id === nextId)?.name
                   moveToFolder([detail.id], nextId, folderName)
                 }}
-              >
-                <option value="">未分类</option>
-                {folders.map((f) => (
-                  <option key={f.id} value={f.id}>
-                    {f.name}
-                  </option>
-                ))}
-              </select>
+                options={[{ value: NONE, label: '未分类' }, ...folders.map((f) => ({ value: f.id, label: f.name }))]}
+              />
             </dd>
           </div>
           <div className="mya-kv-row">

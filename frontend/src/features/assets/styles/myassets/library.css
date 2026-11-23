@@ -44,9 +44,6 @@
 .mya-library .mya-result-count { color: var(--tx2); font-size: 12px; white-space: nowrap; }
 .mya-library .mya-reset { background: transparent; border: 0; color: var(--acc-tx); padding: 5px; font-size: 12px; cursor: pointer; white-space: nowrap; }
 .mya-library .mya-browser-views { display: flex; gap: 14px; align-items: center; margin-left: auto; }
-.mya-library .mya-sort { display: flex; align-items: center; gap: 5px; color: var(--tx2); }
-.mya-library .mya-sort .ui-icon { width: 15px; height: 15px; }
-.mya-library .mya-sort select { background: var(--panel); color: var(--tx2); border: 0; padding: 6px 2px; font: inherit; font-size: 12px; cursor: pointer; max-width: 120px; }
 .mya-library .mya-seg { height: 32px; border-radius: 7px; box-shadow: none; }
 .mya-library .mya-seg button { height: 26px; width: 30px; padding: 0; justify-content: center; border-radius: 4px; }
 .mya-library .mya-seg .ui-icon { width: 15px; height: 15px; }

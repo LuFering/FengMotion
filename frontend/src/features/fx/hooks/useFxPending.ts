@@ -36,8 +36,16 @@ export function useFxPending({ pendingStore }: UseFxPendingArgs) {
   }
 
   const addFxToPending = (list: FxTechnique[]) => {
+    /* 撤销只拿走这一次新加的：原本就在待发送里的不动 */
+    const fresh = list.filter((t) => !pendingStore.has(t.id)).map((t) => t.id)
     const n = pendingStore.addFx(list.map(toFxCard))
-    emitToast(n > 0 ? `已加入待发送 ${n} 个特效` : '已在待发送中')
+    if (n > 0) {
+      emitToast(n === 1 ? '已加入待发送' : `已加入待发送 ${n} 个特效`, {
+        action: { label: '撤销', run: () => pendingStore.removeMany(fresh) },
+      })
+    } else {
+      emitToast('已在待发送中')
+    }
   }
   return { addFxToPending, stashFxCard }
 }

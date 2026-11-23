@@ -66,10 +66,8 @@ body.studio-shell:has(.rfc[data-previewing]) .hm-sidebar:not(:hover):not(:focus-
 /* 画面从视口左边缘铺开；交互覆层保留原来的安全区，显隐导航不重排。 */
 body.studio-shell #pane-reference:has(.rfc) { margin-left:0 !important; width:100%; }
 .rfc .rfc-overlays { position:absolute; inset:0 0 0 var(--hm-sidebar,68px); }
-/* 底部随导航显现状态避让，视频舞台不参与布局变化。两处过渡相抵，播放键不横移。 */
-.rfc .rfc-dock { left:0; transition:left .32s ease; }
-.rfc .rfc-head { left:0; transition:left .32s ease,opacity .35s ease; }
-.rfc .rfc-transport { padding-left:0; transition:padding-left .32s ease; }
-body.studio-shell:has(.rfc[data-previewing]):not(:has(.hm-sidebar:hover,.hm-sidebar:focus-within)) :is(.rfc-dock,.rfc-head) { left:calc(-1 * var(--hm-sidebar,68px)); }
-body.studio-shell:has(.rfc[data-previewing]):not(:has(.hm-sidebar:hover,.hm-sidebar:focus-within)) .rfc-transport { padding-left:var(--hm-sidebar,68px); }
-@media(prefers-reduced-motion:reduce) { .rfc .rfc-dock,.rfc .rfc-transport,.rfc .rfc-head { transition:none; } }
+/* 播放时只淡出导航：片名、播放条、时间轴、片单始终留在安全区内，左边对齐，不随导航显隐横移，
+   也不伸进淡出后仍接收指针的导航区域。 */
+.rfc .rfc-dock { left:0; }
+.rfc .rfc-head { left:0; transition:opacity .35s ease; }
+@media(prefers-reduced-motion:reduce) { .rfc .rfc-head { transition:none; } }

@@ -83,8 +83,9 @@
   font-size: 11px;
   line-height: 1.9;
 }
-.fxm-useok { color: var(--ok) }
-.fxm-useno { color: var(--bad) }
+/* 适合 / 不适合是说明，不是状态：中性色，靠字面区分（打磨方案 §3.9） */
+.fxm-useok { color: var(--tx2) }
+.fxm-useno { color: var(--tx3) }
 
 /* 步骤：编号做视觉锚点，正文对齐，避免「1. 2. 3.」挤在一起 */
 .fxm-steps {

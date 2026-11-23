@@ -190,11 +190,10 @@ export function FxContent({ activeCount, addFxToPending, catalogError, catalogLo
                         aria-label={pick.active ? `${pick.has(t.id) ? '取消选择' : '选择'} ${t.name}` : `查看技法：${t.name}`}
                         onClick={() => { if (pick.active) pick.toggle(t.id); else openDrawer(t.id) }} />
                 <div className="fxc-body">
-                  {/* 首行：中文分类 · 来源分类（来源分类与中文相同或为空时不写） */}
-                  {/* 分组模式下段标题已写了分类，卡片只留来源分类；都没有就整行不出现 */}
-                  {groups ? (
-                    subCategory && <span className="fxc-category"><span className="fxc-subcat">{subCategory}</span></span>
-                  ) : (
+                  {/* 首行：中文分类 · 来源分类（来源分类与中文相同或为空时不写）。
+                      分组模式下段标题已写了分类，来源分类（ThemeAnimations…）同一段里几乎都一样，
+                      不再占一行，只留在详情技术细节里（打磨方案 §3.9） */}
+                  {groups ? null : (
                     <span className="fxc-category">
                       {categoryLabel(t.category)}
                       {subCategory && <span className="fxc-subcat">· {subCategory}</span>}

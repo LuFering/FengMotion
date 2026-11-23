@@ -129,11 +129,8 @@ export function FxDetailDialog({ addFxToPending, fxInPending, wall, closeDrawer,
             {/* 标题、说明、操作吸顶：正文滚下去也能随时加入待发送或复制 */}
             <div className="fxm-top">
             <header className="fxm-head">
+              {/* 分类、来源只在下方技术细节里写一处，标题区不重复（打磨方案 §3.9） */}
               <div className="fxm-head-main">
-                <p className="fxm-eyebrow">
-                  {categoryLabel(current.category)}
-                  {current.sourceProject && <span> · {current.sourceProject}</span>}
-                </p>
                 <h2 id="fx-drawer-title">{current.name}</h2>
                 {current.nameEn && <span className="fxm-nameen">{current.nameEn}</span>}
               </div>

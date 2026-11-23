@@ -1,6 +1,7 @@
 import { Icon } from './AssetIcon'
 import { MEDIA_LABEL, type MediaType } from '../model/myAssets'
 import { TYPE_IDS, SORT_LABEL, type SortKey } from '../model/assetDisplay'
+import { MenuSelect } from '@/shared/components/MenuSelect'
 
 interface Props {
   activeLabel: string
@@ -43,12 +44,9 @@ export function AssetsToolbar(p: Props) {
         </div>
       ) : <span className="mya-types-gap" />}
       <div className="mya-browser-views">
-        <label className="mya-sort" title="排序">
-          <select aria-label="素材排序" value={p.sortKey} onChange={e => p.setSortKey(e.target.value as SortKey)}>
-            {(Object.keys(SORT_LABEL) as SortKey[]).map(key => <option key={key} value={key}>{SORT_LABEL[key]}</option>)}
-          </select>
-          <Icon name="chevron-down" />
-        </label>
+        <MenuSelect className="mya-sort" label="" quiet align="end" ariaLabel="素材排序" value={p.sortKey}
+          onChange={(v) => p.setSortKey(v as SortKey)}
+          options={(Object.keys(SORT_LABEL) as SortKey[]).map((key) => ({ value: key, label: SORT_LABEL[key] }))} />
         <div className="mya-seg" role="group" aria-label="素材视图">
           {(['grid', 'list'] as const).map(mode => <button key={mode} type="button" aria-label={mode === 'grid' ? '网格视图' : '列表视图'} title={mode === 'grid' ? '网格视图' : '列表视图'} aria-pressed={p.viewMode === mode} className={p.viewMode === mode ? 'on' : ''} onClick={() => p.setViewMode(mode)}><Icon name={mode === 'grid' ? 'layout-grid' : 'list'} /></button>)}
         </div>

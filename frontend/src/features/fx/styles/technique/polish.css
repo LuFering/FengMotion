@@ -28,6 +28,18 @@
 }
 .fxlib .fx-grid .fxc-poster:hover { border-color: var(--line2); }
 
+/* 近黑封面（SCENE A、AFTER…）在墙面上是一块死黑：画面上统一叠一层很淡的底部提亮，
+   亮封面几乎看不出，黑封面有了层次；浅色 / 触感主题提得多一点（打磨方案 §3.9） */
+.fxlib .fx-grid .fxc-poster .fxc-media::before {
+  content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  background: radial-gradient(120% 70% at 50% 100%, rgb(255 255 255 / .07), rgb(255 255 255 / 0) 70%);
+  mix-blend-mode: screen;
+}
+html[data-theme='light'] .fxlib .fx-grid .fxc-poster .fxc-media::before,
+html[data-theme='tactile'] .fxlib .fx-grid .fxc-poster .fxc-media::before {
+  background: radial-gradient(120% 75% at 50% 100%, rgb(255 255 255 / .2), rgb(255 255 255 / 0) 74%);
+}
+
 /* 文字层：多段渐变，画面上半部不压暗 */
 .fxlib .fx-grid .fxc-poster .fxc-body {
   padding: 34px 13px 11px;
@@ -78,17 +90,18 @@
   color: rgb(255 255 255 / .5);
 }
 
-/* 画面按钮：26px，半透明深底 */
+/* 画面按钮：28px、离边 8px，两颗之间留 6px，和整卡热区拉开（打磨方案 §3.9）；z-index 高于 .fxc-hit */
 .fxlib .fx-grid .fxc .fxc-fav,
 .fxlib .fx-grid .fxc .fxc-add {
-  top: 10px;
-  width: 26px;
-  height: 26px;
+  top: 8px;
+  z-index: 3;
+  width: 28px;
+  height: 28px;
   border-radius: 6px;
   background: rgb(10 11 14 / .64);
   color: rgb(255 255 255 / .88);
 }
-.fxlib .fx-grid .fxc .fxc-fav { right: 10px; }
+.fxlib .fx-grid .fxc .fxc-fav { right: 8px; }
 .fxlib .fx-grid .fxc .fxc-add { right: 42px; }
 .fxlib .fx-grid .fxc .fxc-fav:hover,
 .fxlib .fx-grid .fxc .fxc-add:hover { background: rgb(10 11 14 / .82); filter: none; }
@@ -153,7 +166,6 @@ html[data-theme='light'] [data-slot='dialog-overlay']:has(+ .fx-modal, + .fx-wf,
   border-bottom: 1px solid var(--line);
 }
 .fx-modal .fx-drawer-body > .fxm-sec { margin-top: 2px; }
-.fx-modal .fxm-eyebrow { margin: 0 0 4px; font-size: 11px; line-height: 1.4; color: var(--tx3); letter-spacing: .02em; }
 .fx-modal .fxm-head h2 { font-size: 17px; font-weight: 600; }
 .fx-modal .fxm-intent { margin-top: 8px; }
 .fx-modal .fxm-actions { margin-top: 14px; }

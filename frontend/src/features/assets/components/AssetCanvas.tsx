@@ -46,6 +46,8 @@ export interface AssetCanvasProps {
   node: NodeId
   /** 当前分类名，用于项目空态文案 */
   scopeLabel: string
+  /** 切到「全部素材」：项目为空、库里却有素材时给直达，不让人以为素材丢了 */
+  onShowAll: () => void
   onGridKeys: (e: React.KeyboardEvent) => void
   openDetail: (a: MyAsset) => void
   pending: {
@@ -91,6 +93,7 @@ export function AssetCanvas({
   migrationDone,
   node,
   scopeLabel,
+  onShowAll,
   onGridKeys,
   openDetail,
   pending,
@@ -163,6 +166,7 @@ export function AssetCanvas({
               title={`「${scopeLabel}」还没有素材`}
               body="在这里导入的素材会归属到这个项目；也可以在全部素材里选中后「移至项目」。"
               action={{ label: '导入素材', onClick: () => inputRef.current?.click() }}
+              secondary={{ label: `查看全部素材（${assets.length}）`, onClick: onShowAll }}
             />
           ) : (
             <EmptyState

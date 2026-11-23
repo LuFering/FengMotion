@@ -435,6 +435,11 @@
               background-color var(--fm-dur-micro) var(--fm-ease);
 }
 .fm-state-action:hover { border-color: var(--acc); background: var(--hole) }
+.fm-state-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--fm-space-2); margin-top: var(--fm-space-4) }
+.fm-state-actions .fm-state-action { margin-top: 0 }
+/* 次动作：去别处看，不和主动作抢 */
+.fm-state-action.is-quiet { border-color: transparent; background: transparent; color: var(--acc-tx, var(--acc)) }
+.fm-state-action.is-quiet:hover { border-color: transparent; background: var(--hole) }
 
 .fm-state-loading {
   flex: 1 1 auto;
