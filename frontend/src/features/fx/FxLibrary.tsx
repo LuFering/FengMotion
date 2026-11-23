@@ -1,3 +1,4 @@
+import '@/features/fx/styles/technique/page-chrome.css'
 import { useEffect, useRef, useState } from 'react'
 import { UiIcon, SemIcons } from '@/shared/icons/UiIcon'
 import { Clock, Star01 } from '@untitledui/icons'

@@ -1,3 +1,4 @@
+import '@/features/reference/styles/reference/page-chrome.css'
 import { useEffect, useRef, useState } from 'react'
 import { type LocalSegment, type ServerVideo } from '@/features/reference/services/referenceApiService'
 import { usePendingAssets } from '@/features/assets/hooks/usePendingAssets'

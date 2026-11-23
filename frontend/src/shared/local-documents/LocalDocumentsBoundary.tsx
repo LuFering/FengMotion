@@ -1,3 +1,4 @@
+import './local-documents.css'
 import { Fragment, useEffect, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { initDesktopApiBase } from '@/api'
 import { initializeDocuments, documentsStatus, subscribeDocuments, flushLocalDocuments, downloadDocumentBackup, acknowledgeDocumentDifferences } from './localDocuments'

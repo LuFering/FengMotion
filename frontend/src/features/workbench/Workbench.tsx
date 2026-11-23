@@ -1,3 +1,4 @@
+import '@/features/workbench/styles/workbench-page-chrome.css'
 import { useEffect, useRef, useState } from 'react'
 import { studioHttpApi } from '@/api'
 import { ResourcePicker } from '@/features/workbench/components/ResourcePicker'

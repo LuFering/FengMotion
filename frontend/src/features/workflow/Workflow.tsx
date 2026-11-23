@@ -1,3 +1,4 @@
+import '@/features/workflow/styles/workflow-page-chrome.css'
 /**
  * 工作流（v5 重构）
  *

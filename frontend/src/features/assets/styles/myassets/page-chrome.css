@@ -1,0 +1,76 @@
+/* 我的素材：页头、工具条与字阶收口。
+   原在 src/styles/interface-polish.css（跨页补丁），2026-11-24 按页拆回，只搬家、不改值。
+   由页面入口组件第一个导入，保持原来的层叠顺序（先于本页其它样式）。 */
+.mya .fm-page-head-title { font-size:18px; font-weight:550; line-height:26px; letter-spacing:-.025em; }
+.mya .fm-page-head-main { gap:14px; align-items:baseline; }
+.mya .fm-page-head-meta { font-size:11px; font-weight:400; color:var(--tx3); }
+.mya .fm-page-head-actions { gap:9px; min-width:0; }
+.mya .fm-page-head-actions .fm-searchfield { height:34px; border-radius:6px; background:var(--panel2,var(--hole));
+  border-color:var(--line); transition:border-color .15s,box-shadow .15s; }
+.mya .fm-page-head-actions .fm-searchfield-input { font-size:12px; line-height:1.5; }
+.mya .fm-page-head-actions .fm-searchfield:focus-within { outline:none; border-color:color-mix(in srgb,var(--fg) 26%,var(--line)); background:var(--surf); box-shadow:none; }
+.mya .fm-page-head-actions .mya-pickbtn,
+.mya .fm-page-head-actions .mya-primary { min-height:34px; border-radius:6px; font-size:11px; font-weight:500; gap:7px; }
+.mya .mya-result-count { font-size:11px; font-variant-numeric:tabular-nums; }
+/* 素材组织栏与筛选行：计数安静、名称清楚。 */
+.mya .mya-org-head { font-size:11px; letter-spacing:.02em; font-weight:500; }
+.mya .mya-org-row { font-size:12px; font-weight:400; }
+.mya .mya-org-row[data-on] { font-weight:550; }
+.mya .mya-org-row em { font-size:10px; font-variant-numeric:tabular-nums; }
+.mya .mya-org-sec { font-size:10px; font-weight:500; letter-spacing:.035em; }
+.mya .mya-org-foot { font-size:10px; line-height:1.7; }
+.mya .mya-toolbar { box-shadow:none; }
+.mya .mya-crumb { font-size:12px; letter-spacing:-.01em; }
+.mya .mya-toolbtn { border-radius:6px; font-size:11px; font-weight:500; }
+.mya .mya-seg { border-radius:6px; }
+.mya .mya-seg button { border-radius:4px; font-size:11px; font-weight:500; }
+.mya .mya-pop { border-radius:10px; padding:6px; }
+.mya .mya-poprow { border-radius:6px; font-size:12px; }
+/* 键盘反馈只覆盖导航与工具，不改变任何卡片悬停语言。 */
+.mya .mya-toolbtn:focus-visible { outline:2px solid var(--acc); outline-offset:3px; }
+@media(max-width:900px) {
+  .mya .fm-page-head-title { font-size:16px; }
+  .mya .fm-page-head-meta { font-size:10px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .mya .fm-page-head-actions .fm-searchfield { transition:none; }
+}
+.mya .fm-page-head-title { font-size:25px; font-weight:550; line-height:1.3; letter-spacing:-.035em; }
+/* 素材管理：页头去掉独立面板，搜索与视图控制进入内容工具条。 */
+/* 顶部只留一行：标题、搜索、视图控制、两个动作按钮都在同一条基线上。
+   原来搜索和视图控制单独占一条工具条，于是标题行下面多出一条空白带。 */
+.mya > .fm-page-head { position:relative; z-index:30; min-height:56px; align-items:center; padding:6px 20px 10px; background:transparent; border:0; border-radius:0; box-shadow:none; gap:14px; }
+.mya .fm-page-head-main { display:flex; flex-direction:row; align-items:center; gap:10px; flex:0 0 auto; min-width:0; }
+.mya .fm-page-head-meta { display:block; line-height:1.5; }
+.mya .mya-heading-project { display:block; color:var(--tx3); font-size:11px; max-width:280px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+/* 工具条只在选择模式 / 批量操作时出现，因此不再保留常驻的底部横线。 */
+.mya .mya-toolbar { padding:0 20px 12px; min-height:46px; background:transparent; border:0; border-bottom:1px solid var(--line); border-radius:0; box-shadow:none; gap:10px; flex-wrap:wrap; }
+.mya .mya-content-search { flex:0 1 460px; max-width:460px; min-width:150px; }
+/* 动作区从左往右铺开：搜索紧接标题，视图控制在最右端两个按钮之前。
+   原来 actions 用 margin-left:auto 整体右靠，标题与搜索之间会空出一大块。 */
+.mya > .fm-page-head .fm-page-head-actions { flex:1 1 auto; margin-left:0; justify-content:flex-start; }
+.mya .fm-page-head-actions .mya-seg,
+.mya .fm-page-head-actions .mya-tool-wrap,
+.mya .fm-page-head-actions .mya-crumb,
+.mya .fm-page-head-actions .mya-clearbtn-sm,
+.mya .fm-page-head-actions .mya-toolbtn { flex:0 0 auto; }
+.mya .fm-page-head-actions .mya-spacer { display:block; flex:1 1 auto; min-width:0; }
+.mya .mya-content-search .fm-searchfield { width:100%; max-width:none; height:34px; border-radius:6px; }
+.mya .mya-content-search .fm-searchfield-input { font-size:12px; }
+.mya .mya-content-search .fm-searchfield:focus-within { border-color:color-mix(in srgb,var(--fg) 26%,var(--line)); background:var(--surf); box-shadow:none; }
+.mya .mya-crumb[hidden] { display:none; }
+.mya .mya-toolbar .mya-crumb { color:var(--tx2); max-width:150px; }
+.mya .mya-toolbar .mya-crumb b { font-weight:500; }
+.mya .mya-org-head { min-height:42px; padding-bottom:10px; border-bottom:1px solid var(--line); }
+.mya .mya-org-sec { width:auto; margin:18px 0 5px; padding:0 9px; background:none; color:var(--tx3); clip-path:none; line-height:1.6; }
+@media(max-width:850px) {
+  .mya .mya-content-search { max-width:none; flex:1 1 100%; }
+  .mya .fm-page-head-actions { flex-wrap:wrap; }
+  .mya .fm-page-head-actions .mya-crumb { order:4; flex-basis:100%; max-width:none; }
+}
+@media(max-width:600px) {
+  .mya .fm-page-head-title { font-size:22px; }
+  .mya .mya-toolbar { padding-left:12px; padding-right:12px; }
+  .mya .mya-content-search { flex-basis:100%; }
+}
+.mya > .fm-page-head { padding:6px 16px 10px; }

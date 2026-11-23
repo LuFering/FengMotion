@@ -1,0 +1,95 @@
+/* 特效库：页头、工具条与字阶收口。
+   原在 src/styles/interface-polish.css（跨页补丁），2026-11-24 按页拆回，只搬家、不改值。
+   由页面入口组件第一个导入，保持原来的层叠顺序（先于本页其它样式）。 */
+/* 库页命令栏：标题与动作保持一条稳定的基线。 */
+.fxlib .fx-cmd { gap:14px; align-items:center; }
+.fxlib .fx-cmd-title { font-size:18px; font-weight:550; line-height:26px; letter-spacing:-.025em; }
+.fxlib .fx-cmd-search .fm-searchfield { height:34px; border-radius:6px; background:var(--panel2,var(--hole));
+  border-color:var(--line); transition:border-color .15s,box-shadow .15s; }
+.fxlib .fx-cmd-search .fm-searchfield-input { font-size:12px; line-height:1.5; }
+.fxlib .fx-cmd-search .fm-searchfield:focus-within { outline:none; border-color:color-mix(in srgb,var(--fg) 26%,var(--line)); background:var(--surf); box-shadow:none; }
+.fxlib .fx-toolbtn { min-height:34px; border-radius:6px; font-size:11px; font-weight:500; gap:7px; }
+.fxlib .fx-meta { gap:12px; align-items:center; }
+.fxlib .fx-meta-count { font-size:11px; font-variant-numeric:tabular-nums; }
+.fxlib .fx-meta-count b { font-weight:550; }
+.fxlib .fx-meta-scope { gap:3px; }
+.fxlib .fx-meta-scope button { font-size:11px; font-weight:500; border-radius:6px; }
+.fxlib .fx-meta-scope button em { font-size:10px; font-variant-numeric:tabular-nums; }
+.fxlib .fx-sort-select { font-size:11px; }
+/* 筛选浮层靠分组和行距组织，不影响下面的海报墙。 */
+.fxlib .fx-pop { padding:18px; border-radius:10px; }
+.fxlib .fx-pop .fx-filtergroup + .fx-filtergroup { margin-top:18px; }
+.fxlib .fx-filterlabel { font-size:11px; font-weight:550; letter-spacing:.02em; line-height:1.7; }
+.fxlib .fx-chips { gap:7px; }
+.fxlib .fx-chip { font-size:11px; line-height:1.5; border-radius:6px; }
+.fxlib .fx-pop-foot { margin-top:16px; padding-top:12px; }
+.fxlib .fx-drawer-titles h2 { font-size:18px; font-weight:550; letter-spacing:-.025em; line-height:1.5; }
+.fxlib .fx-drawer-sub { font-size:11px; line-height:1.7; gap:9px; }
+/* 键盘反馈只覆盖导航与工具，不改变任何卡片悬停语言。 */
+.fxlib .fx-toolbtn:focus-visible { outline:2px solid var(--acc); outline-offset:3px; }
+@media(max-width:900px) {
+  .fxlib .fx-cmd { gap:10px; }
+  .fxlib .fx-cmd-title { font-size:16px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .fxlib .fx-cmd .fm-searchfield { transition:none; }
+}
+/* 筛选面板根据可用高度滚动，底部操作仍可到达。 */
+.fxlib .fx-pop { max-height:min(660px,calc(100dvh - 210px)); scrollbar-width:thin; overscroll-behavior:contain; }
+/* 内容页构图：页头负责身份与主要动作，内容工具归到浏览区域。 */
+.fxlib .fx-cmd { min-height:82px; padding:22px 16px 18px; gap:18px; border-bottom:0; }
+.fxlib .fx-heading-group { flex:1; min-width:0; }
+.fxlib .fx-cmd-title { font-size:25px; font-weight:550; line-height:1.3; letter-spacing:-.035em; }
+.fxlib .fx-meta { position:relative; z-index:35; min-height:50px; padding:0 16px 14px; gap:14px; border-bottom:1px solid var(--line); overflow:visible; flex-wrap:wrap; }
+.fxlib .fx-meta-scope { order:0; gap:20px; align-self:center; }
+.fxlib .fx-meta-scope button { border-radius:0; padding:9px 0; background:transparent; border-bottom:2px solid transparent; color:var(--tx3); font-size:12px; }
+.fxlib .fx-meta-scope button[data-on] { background:transparent; border-bottom-color:var(--acc); color:var(--tx); }
+.fxlib .fx-meta-scope button:hover { background:transparent; color:var(--tx); }
+.fxlib .fx-meta-scope button em { margin-left:3px; }
+.fxlib .fx-cmd-search { order:1; flex:0 1 250px; min-width:180px; max-width:300px; margin:0 0 0 auto; }
+.fxlib .fx-cmd-search .fm-searchfield { width:100%; max-width:none; }
+.fxlib .fx-filterwrap { order:2; }
+.fxlib .fx-sort { order:3; flex:none; font-size:11px; }
+.fxlib .fx-spacer { display:none; }
+.fxlib .fx-activechip { order:4; }
+.fxlib .fx-result-summary { order:5; color:var(--tx3); font-size:11px; white-space:nowrap; }
+@media(max-width:1100px) {
+  .fxlib .fx-cmd-search { flex-basis:200px; }
+  .fxlib .fx-meta { gap:12px; }
+  .fxlib .fx-meta-scope { gap:16px; }
+}
+@media(max-width:850px) {
+  .fxlib .fx-meta-scope { flex:1 0 100%; }
+  .fxlib .fx-pop { max-height:calc(100dvh - 260px); }
+  .fxlib .fx-cmd-search { margin-left:0; flex:1; max-width:none; }
+}
+@media(max-width:600px) {
+  .fxlib .fx-cmd { min-height:70px; padding-top:16px; padding-bottom:14px; }
+  .fxlib .fx-cmd-title { font-size:22px; }
+}
+/* 检索降级提示：跟在搜索框下方的一行小字。
+   用 --tx3（次要文字）而不是警告色：这不是错误，是能力降级，
+   用红色会让人以为搜索坏了。 */
+.fxlib .fx-cmd-search { position:relative; }
+.fxlib .fx-search-note { position:absolute; top:100%; left:2px; margin-top:3px;
+  font-size:10.5px; line-height:1.4; color:var(--tx3);
+  white-space:nowrap; pointer-events:none; }
+/* 来源署名与限制说明：比正文更弱的一档，不和技法内容抢注意力。 */
+.fxlib .fx-attribution { margin:6px 0 0;
+  font-size:10.5px; line-height:1.5; color:var(--tx3); }
+.fxlib .fx-io a { color:var(--tx2); text-decoration:underline; text-underline-offset:2px; word-break:break-all; }
+.fxlib .fx-io a:hover { color:var(--tx1); }
+/* ── 库级页面页头统一（第二轮精修）────────────────────────────
+   特效库、我的素材、工作流三页的标题放在同一位置：离顶 16px 的 56px 标题行，
+   标题左缘距导航栏 32px，字阶 25/550。
+   特效库原先把页头也装进整页的圆角面板里，和我的素材「页头在面板外、内容在面板里」
+   不一致，面板里又套海报卡片。现在面板只包内容区，页头与范围/搜索行直接落在页面底色上。
+   面板（--r-panel 圆角 + --shadow-base）保留：它是库页与工作台共用的岛屿语言。 */
+.fxlib { background:var(--fx-bg); }
+.fxlib .fx-panel { background:transparent; border:0; border-radius:0; box-shadow:none; overflow:visible; }
+.fxlib .fx-cmd { min-height:56px; padding:6px 16px 10px; }
+.fxlib .fx-meta { padding:0 16px 14px; border-bottom:0; }
+.fxlib .fx-content { background:var(--panel2); border:1px solid var(--line); border-radius:var(--r-panel); box-shadow:var(--shadow-base); padding:18px 16px 22px; }
+@media(max-width:600px) {
+  .fxlib .fx-cmd { min-height:52px; padding-top:4px; padding-bottom:8px; }
+}

@@ -1,3 +1,4 @@
+import '@/features/settings/styles/settings-page-chrome.css'
 import { setHarnessSelection } from '@/features/harness/hooks/useHarnessSelection'
 import { UiIcon, SemIcons } from '@/shared/icons/UiIcon'
 import { CpuChip01, Database01, Film01, HelpCircle, Palette, PuzzlePiece01, Sliders01, Star01 } from '@untitledui/icons'

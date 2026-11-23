@@ -1,0 +1,45 @@
+/* 工作流（列表与编辑器）：页头、工具条与字阶收口。
+   原在 src/styles/interface-polish.css（跨页补丁），2026-11-24 按页拆回，只搬家、不改值。
+   由页面入口组件第一个导入，保持原来的层叠顺序（先于本页其它样式）。 */
+.wfl .wfshop-search .fm-searchfield { height:34px; border-radius:6px; background:var(--panel2,var(--hole));
+  border-color:var(--line); transition:border-color .15s,box-shadow .15s; }
+.wfl .wfshop-search .fm-searchfield-input { font-size:12px; line-height:1.5; }
+.wfl .wfshop-search .fm-searchfield:focus-within { outline:none; border-color:color-mix(in srgb,var(--fg) 26%,var(--line)); background:var(--surf); box-shadow:none; }
+/* 工作流保留横幅、货架及全部卡片，仅调整周围文字和控件。 */
+.wfl .wfshop-header h1 { font-weight:550; letter-spacing:-.035em; }
+.wfl .wfshop-eyebrow { font-size:9px; font-weight:500; letter-spacing:.14em; }
+.wfl .wfshop-header p { line-height:1.8; color:var(--tx2); }
+.wfl .wfshop-create { font-size:12px; font-weight:550; border-radius:6px; gap:8px; }
+.wfl .wfshop-tabs button { font-size:12px; font-weight:500; letter-spacing:0; }
+.wfl .wfshop-tabs button span { font-size:11px; font-variant-numeric:tabular-nums; }
+.wfl .wfshop-tabs small { font-size:9px; font-weight:400; }
+.wfl .wfshop-section-head h2 { font-size:16px; font-weight:550; letter-spacing:-.02em; }
+.wfl .wfshop-section-head p { font-size:11px; line-height:1.7; }
+.wfl .wfshop-section-head > span { font-size:11px; font-variant-numeric:tabular-nums; }
+.wfl .wfshop-footnote { font-size:10px; line-height:1.7; }
+.wfl .wfh-cmd-title { font-size:20px; font-weight:550; letter-spacing:-.025em; }
+.wfl .wfe-cmd h1,
+.wfl .wfe-cmd-title { font-weight:550; letter-spacing:-.02em; }
+.wfl .wfe-cmd .wfe-btn { font-size:11px; border-radius:6px; }
+/* 键盘反馈只覆盖导航与工具，不改变任何卡片悬停语言。 */
+.wfl .wfshop-tabs button:focus-visible { outline:2px solid var(--acc); outline-offset:3px; }
+@media(prefers-reduced-motion:reduce) {
+  .wfl .wfshop-search .fm-searchfield { transition:none; }
+}
+/* 工作流：搜索回到页级动作，分类只负责切换货架范围。 */
+.wfl .wfshop-header { align-items:center; min-height:42px; }
+.wfl .wfshop-heading-line h1 { margin:0; font-size:25px; }
+.wfl .wfshop-header-actions { display:flex; align-items:center; gap:12px; min-width:0; }
+.wfl .wfshop-header .wfshop-search { width:230px; padding:0; }
+.wfl .wfshop-header .wfshop-create { min-height:36px; padding:8px 14px; }
+.wfl .wfshop-toolbar { margin-bottom:18px; min-height:40px; align-items:stretch; }
+.wfl .wfshop-tabs { align-items:stretch; }
+.wfl .wfshop-tabs button { padding:8px 0 11px; }
+@media(max-width:850px) {
+  .wfl .wfshop-header .wfshop-search { width:180px; }
+}
+@media(max-width:600px) {
+  .wfl .wfshop-header { flex-wrap:wrap; gap:12px; }
+  .wfl .wfshop-header-actions { width:100%; }
+  .wfl .wfshop-header .wfshop-search { flex:1; width:auto; }
+}

@@ -1,0 +1,8 @@
+/* 制作工作台：页头、工具条与字阶收口。
+   原在 src/styles/interface-polish.css（跨页补丁），2026-11-24 按页拆回，只搬家、不改值。
+   由页面入口组件第一个导入，保持原来的层叠顺序（先于本页其它样式）。 */
+/* 我的创作：不动会话条目、制作卡片或输入框几何，仅整理顶部导航。 */
+/* 已完成的工作台与设置只收口辅助字阶，保留卡片定稿。 */
+#pane-flow .wb-studio .wb-current-preview-meta { font-size:10px; line-height:1.6; font-variant-numeric:tabular-nums; }
+#pane-flow .wb-studio .wb-preview-clock { font-size:10px; letter-spacing:.015em; }
+#pane-flow .wb-studio .wb-desk-caption { line-height:1.8; }

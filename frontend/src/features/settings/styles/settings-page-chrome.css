@@ -1,0 +1,4 @@
+/* 设置：页头、工具条与字阶收口。
+   原在 src/styles/interface-polish.css（跨页补丁），2026-11-24 按页拆回，只搬家、不改值。
+   由页面入口组件第一个导入，保持原来的层叠顺序（先于本页其它样式）。 */
+.set-refined .set-section-heading p { line-height:1.7; }

@@ -1,3 +1,4 @@
+import '@/features/assets/styles/myassets/page-chrome.css'
 import { useRef, useState } from 'react'
 import { type MediaType, type MyAsset } from '@/features/assets/model/myAssets'
 import { type FolderRow } from '@/features/assets/services/assetApiService'

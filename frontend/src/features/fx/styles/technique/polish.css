@@ -126,7 +126,7 @@ html[data-theme='light'] [data-slot='dialog-overlay']:has(+ .fx-modal, + .fx-wf,
 /* 工具条：分类 / 来源 / 排序 同款下拉按钮 */
 .fxlib .fx-meta-sep { flex: none; width: 1px; height: 16px; margin: 0 4px; background: var(--line2); }
 .fxlib .fx-meta .fx-cmd-search { flex: 0 1 260px; max-width: 260px; margin-right: 0; }
-/* src/styles/interface-polish.css 给搜索 order:1、旧 .fx-sort order:3；新排序按钮没有 .fx-sort，
+/* technique/page-chrome.css 给搜索 order:1、旧 .fx-sort order:3；新排序按钮没有 .fx-sort，
    不补 order 会被排到左侧。顺序：范围 | 分类 来源 …… 搜索 筛选 排序 */
 .fxlib .fx-meta > .fx-filterwrap { order: 2; }
 .fxlib .fx-meta > .fm-menubtn.is-quiet { order: 3; }
@@ -242,7 +242,7 @@ html[data-theme='light'] [data-slot='dialog-overlay']:has(+ .fx-modal, + .fx-wf,
 
 /* 窄屏：元信息行不折行，搜索框先收缩，排序留在第一行 */
 @media (min-width: 641px) {
-  /* 多一级 .fx-panel：src/styles/interface-polish.css 有同权重、加载更晚的 .fxlib .fx-meta { flex-wrap:wrap } */
+  /* 多一级 .fx-panel：technique/page-chrome.css 有同权重、加载更晚的 .fxlib .fx-meta { flex-wrap:wrap } */
   .fxlib .fx-panel .fx-meta { flex-wrap: nowrap; }
   .fxlib .fx-meta .fx-cmd-search { flex: 0 1 260px; min-width: 140px; }
 }

@@ -1,4 +1,3 @@
-import '@/styles/interface-polish.css'
 import '@/styles/card-details.css'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useChat } from '@/features/chat/hooks/useChat'
