@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type * as React from 'react'
 import { Row } from '@/features/settings/components/SettingsParts'
 import { formatBytes } from '@/features/assets/services/assetApiService'
@@ -23,6 +24,8 @@ export interface SettingsDataSectionProps {
 
 /** 设置页的数据分区：本机占用，设置的导出与导入，清除对话偏好、清空浏览器旧素材索引和恢复默认设置。 */
 export function SettingsDataSection({ backupInputRef, confirmWipe, notice, onChange, onPickBackup, onThemeChange, onWipeLibrary, setConfirmWipe, setNotice, setPrefs, settings, stats }: SettingsDataSectionProps) {
+  /* 恢复默认改为页内确认，与「清空旧素材索引」一致（原先是浏览器原生 confirm） */
+  const [confirmReset, setConfirmReset] = useState(false)
   return (
     <section className="set-sec">
 
@@ -90,17 +93,25 @@ export function SettingsDataSection({ backupInputRef, confirmWipe, notice, onCha
         </div>
       )}
       <Row label="恢复默认设置" hint="壁纸与自定义图片也会清除">
-        <Button variant="outline" size="sm"
-                onClick={() => {
-                  if (!window.confirm('把所有设置恢复为默认值？壁纸与自定义图片也会被清掉。')) return
-                  const next = normalizeSettings({ ...DEFAULT_SETTINGS })
-                  onChange(next)
-                  onThemeChange(next.theme)
-                  setNotice('设置已恢复默认')
-                }}>
-          恢复默认
-        </Button>
+        {!confirmReset
+          ? <Button variant="outline" size="sm" onClick={() => setConfirmReset(true)}>恢复默认…</Button>
+          : <Button variant="outline" size="sm" onClick={() => setConfirmReset(false)}>取消</Button>}
       </Row>
+      {confirmReset && (
+        <div className="set-hint set-confirm" role="alertdialog" aria-label="确认恢复默认设置">
+          <p>主题、启动页、壁纸（含自定义图片）、引擎与模型都会回到默认值；素材与项目不受影响。</p>
+          <Button variant="destructive" size="sm"
+                  onClick={() => {
+                    const next = normalizeSettings({ ...DEFAULT_SETTINGS })
+                    onChange(next)
+                    onThemeChange(next.theme)
+                    setConfirmReset(false)
+                    setNotice('设置已恢复默认')
+                  }}>
+            恢复默认设置
+          </Button>
+        </div>
+      )}
       </div>
       {notice && <p className="set-notice">{notice}</p>}
     </section>

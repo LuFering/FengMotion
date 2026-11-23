@@ -138,3 +138,63 @@
 .set-refined .set-hcard[data-pending] .set-agent-tag { position:absolute; top:18px; right:12px; font-size:9px; padding:3px 6px; border-radius:4px; }
 .set-refined .set-hcard[data-pending] .set-agent-who { margin-top:2px; }
 .set-refined .set-hcard[data-pending] .set-agent-who small { display:block; margin-top:7px; color:var(--dim); }
+
+/* ═══ 2026-11-23 打磨（docs/design/设置界面打磨方案-2026-11-23.md §3） ═══ */
+
+/* 轻遮罩：与特效库详情同值，不模糊背后页面 */
+[data-slot='dialog-overlay']:has(+ .set-dlg) { background: rgb(5 5 8 / .52); backdrop-filter: none; -webkit-backdrop-filter: none; }
+html[data-theme='light'] [data-slot='dialog-overlay']:has(+ .set-dlg),
+html[data-theme='tactile'] [data-slot='dialog-overlay']:has(+ .set-dlg) { background: rgb(20 22 28 / .28); }
+
+/* 最小字号 11px（待接入小标签 10.5px） */
+.set-refined .set-local-label { font-size: 10.5px; }
+.set-refined .set-nav-search input { font-size: 12px; }
+.set-refined .set-key { font-size: 12.5px; }
+.set-refined .set-key em { font-size: 11px; color: var(--dim); }
+.set-refined .set-key kbd { min-width: 26px; font-size: 11px; font-family: inherit; text-align: center; }
+.set-refined .set-theme-grid .set-rowtxt b { font-size: 12.5px; }
+.set-refined .set-theme-grid .set-rowtxt small { font-size: 11px; }
+.set-refined .set-wall-name { font-size: 11.5px; }
+.set-refined .set-default-engine { font-size: 11px; }
+.set-refined .set-agent-who b { font-size: 13px; }
+.set-refined .set-agent-who small { font-size: 11px; }
+.set-refined .set-agent-pick .v { font-size: 12px; }
+.set-refined .set-hcard[data-pending] .set-agent-tag { font-size: 10.5px; }
+.set-refined .set-row-label b { font-size: 12.5px; }
+.set-refined .set-row-label em { font-size: 11.5px; }
+.set-refined .set-row-control { font-size: 12px; }
+.set-refined .ch-tabs [role='radio'] { font-size: 11.5px; }
+.set-refined .set-row-control [data-slot='button'] { font-size: 12px; }
+.set-refined .set-hint { font-size: 11.5px; }
+.set-refined .set-notice { font-size: 12px; }
+.set-refined .set-endpoint { font-size: 12px; }
+.set-refined .set-agent-more-head { font-size: 12px; }
+
+/* 模型不在清单里：警示色，提示重新选择 */
+.set-refined .set-agent-pick[data-stale] { border-color: color-mix(in srgb, var(--warn, #f5b83d) 55%, transparent); }
+.set-refined .set-agent-pick[data-stale] .v { color: var(--warn, #f5b83d); }
+
+/* 导航：尚未接入的分区归在小标签下，弱化 */
+.set-refined .set-nav-label { margin: 14px 10px 4px; font-size: 10.5px; font-weight: 600; letter-spacing: .06em; color: var(--ph); }
+.set-refined .set-nav-item[data-pending]:not([data-on]) { color: var(--ph); }
+.set-refined .set-nav-item[data-pending]:not([data-on]) > svg { color: var(--ph); opacity: .8; }
+.set-refined .set-nav-item:focus-visible { outline: 2px solid var(--acc); outline-offset: -2px; }
+
+/* 快捷键行：左为名称 + 作用范围（两行），右为键帽靠右。结构改动原先未配样式，
+   名称与范围挤成一串、键帽浮在中间 */
+.set-refined .set-key { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 16px; }
+.set-refined .set-key-name { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.set-refined .set-key-name em { font-style: normal; }
+.set-refined .set-key-keys { display: inline-flex; gap: 4px; justify-self: end; }
+.set-refined .set-subhead small { margin-left: 8px; font-size: 11px; font-weight: 400; color: var(--dim); }
+
+/* 高度随内容（打磨方案 §3.12）：原先固定 624px，插件、实验室、关于这类分区下半截大片空白。
+   上限保持原值，内容超出时右侧面板自己滚动；下限 420px，实际不会低于左侧导航的高度。
+   小屏（≤ 800px）仍按上方媒体查询铺满。 */
+@media (min-width: 801px) {
+  .set-dlg.set-refined { height: auto; min-height: min(420px, calc(100dvh - 72px)); max-height: min(624px, calc(100dvh - 72px)); }
+}
+
+/* 页内确认（恢复默认 / 清空旧索引） */
+.set-refined .set-confirm { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 10px 12px; border-radius: 8px; background: color-mix(in srgb, var(--bad, #e5534b) 8%, transparent); }
+.set-refined .set-confirm p { margin: 0; color: var(--fg); line-height: 1.7; }

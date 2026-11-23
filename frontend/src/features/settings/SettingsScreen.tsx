@@ -42,13 +42,14 @@ type SectionId =
   | 'general' | 'appearance' | 'ai' | 'creation'
   | 'plugins' | 'lab' | 'data' | 'about'
 
-const SECTIONS: Array<{ id: SectionId; label: string; icon: string }> = [
+/* pending：功能尚未接入，导航里归到「尚未接入」小标签下弱化显示（settings-ui 契约 §2） */
+const SECTIONS: Array<{ id: SectionId; label: string; icon: string; pending?: true }> = [
   { id: 'general', label: '通用', icon: 'compass' },
   { id: 'appearance', label: '外观', icon: 'sun' },
   { id: 'ai', label: 'AI 与模型', icon: 'boxes' },
-  { id: 'creation', label: '创作与预览', icon: 'clapperboard' },
-  { id: 'plugins', label: '插件', icon: 'ungroup' },
-  { id: 'lab', label: '实验室', icon: 'sparkles' },
+  { id: 'creation', label: '创作与预览', icon: 'clapperboard', pending: true },
+  { id: 'plugins', label: '插件', icon: 'ungroup', pending: true },
+  { id: 'lab', label: '实验室', icon: 'sparkles', pending: true },
   { id: 'data', label: '数据与存储', icon: 'cylinder' },
   { id: 'about', label: '关于与反馈', icon: 'circle-help' },
 ]
@@ -244,7 +245,12 @@ export function SettingsScreen({
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose() }}>
-      <DialogContent className="set-dlg set-refined" showCloseButton aria-describedby={undefined}>
+      <DialogContent className="set-dlg set-refined" showCloseButton aria-describedby={undefined}
+                     onOpenAutoFocus={(e) => {
+                       /* 不让焦点抢到「查找设置分类」：落在当前分区的导航项上 */
+                       e.preventDefault()
+                       document.querySelector<HTMLElement>('.set-refined .set-nav-item[data-on]')?.focus()
+                     }}>
         <div className="set-dlg-head">
           <UiIcon icon={SemIcons.settings} size="md" /><DialogTitle className="set-dlg-title">设置</DialogTitle>
         </div>
@@ -252,18 +258,28 @@ export function SettingsScreen({
         <div className="set-dlg-body">
           <nav className="set-nav" aria-label="设置分区">
             <div className="set-nav-search"><UiIcon icon={SemIcons.search} size="sm" /><input aria-label="查找设置分类" placeholder="查找设置分类" value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => { if (e.key === 'Escape' && query) { e.stopPropagation(); setQuery('') } if (e.key === 'Enter' && filteredSections[0]) { setSection(filteredSections[0].id); setQuery('') } }}/></div>
-            {filteredSections.map((s) => {
-              const NavIcon = navIcons[s.id]
-              return <button key={s.id} type="button" className="set-nav-item"
-                      data-on={section === s.id || undefined}
-                      aria-current={section === s.id ? 'true' : undefined}
-                      onClick={() => { setSection(s.id); setNotice(''); setConfirmWipe(false) }}>
-                <NavIcon size={16} />
-                <span className="set-nav-txt">
-                  <b>{s.label}</b>
-                </span>
-              </button>
-            })}
+            {(() => {
+              const item = (s: (typeof SECTIONS)[number]) => {
+                const NavIcon = navIcons[s.id]
+                return <button key={s.id} type="button" className="set-nav-item"
+                        data-on={section === s.id || undefined}
+                        data-pending={s.pending || undefined}
+                        aria-current={section === s.id ? 'true' : undefined}
+                        onClick={() => { setSection(s.id); setNotice(''); setConfirmWipe(false) }}>
+                  <NavIcon size={16} />
+                  <span className="set-nav-txt">
+                    <b>{s.label}</b>
+                  </span>
+                </button>
+              }
+              const ready = filteredSections.filter((s) => !s.pending)
+              const later = filteredSections.filter((s) => s.pending)
+              return <>
+                {ready.map(item)}
+                {later.length > 0 && <p className="set-nav-label">尚未接入</p>}
+                {later.map(item)}
+              </>
+            })()}
             {filteredSections.length === 0 && <p className="set-search-empty">没有匹配的分类</p>}
           </nav>
 
@@ -272,20 +288,23 @@ export function SettingsScreen({
             {/* ── 通用 ─────────────────────────────────────── */}
             {section === 'general' && (
               <section className="set-sec">
+                <div className="set-group">
+                <h4 className="set-subhead">启动</h4>
                 <Row label="启动时打开">
                   <Seg ariaLabel="启动时打开" value={settings.startView}
                        options={[{ value: 'home', label: '首页' }, { value: 'conversation', label: '我的创作' }]}
                        onChange={(v) => set('startView', v as Settings['startView'])} />
                 </Row>
+                </div>
 
                 <div className="set-group">
-                  <h4 className="set-subhead">快捷键</h4>
+                  <h4 className="set-subhead">快捷键<small>暂不可自定义</small></h4>
                   <div className="set-keys">
                     {SHORTCUTS.map((k) => (
                       <div className="set-key" key={`${k.area}-${k.name}`}>
-                        <span>{k.name}</span>
-                        <em>{k.area}</em>
-                        {k.keys.map((key) => <kbd key={key}>{key}</kbd>)}
+                        {/* 左：名称 + 作用范围两行；右：按键。范围原先夹在名称和按键之间，像一段无关灰字 */}
+                        <span className="set-key-name">{k.name}<em>{k.area}</em></span>
+                        <span className="set-key-keys">{k.keys.map((key) => <kbd key={key}>{key}</kbd>)}</span>
                       </div>
                     ))}
                   </div>
@@ -336,11 +355,11 @@ export function SettingsScreen({
             )}
 
             {section === 'plugins' && (
-              <section className="set-sec"><div className="set-unavailable"><UiIcon icon={PuzzlePiece01} size="xl" /><h3>插件服务尚未接入</h3></div></section>
+              <section className="set-sec"><div className="set-unavailable"><UiIcon icon={PuzzlePiece01} size="xl" /><h3>插件服务尚未接入</h3><p>还没有插件机制，这里暂无可安装或启停的内容。</p></div></section>
             )}
 
             {section === 'lab' && (
-              <section className="set-sec"><div className="set-unavailable"><UiIcon icon={Star01} size="xl" /><h3>暂没有可启用的实验功能</h3></div></section>
+              <section className="set-sec"><div className="set-unavailable"><UiIcon icon={Star01} size="xl" /><h3>暂没有可启用的实验功能</h3><p>实验开关只在对应功能真正可用时出现，不提供无效开关。</p></div></section>
             )}
 
             {/* ── 数据与存储 ────────────────────────────────── */}
@@ -364,11 +383,14 @@ export function SettingsScreen({
             {/* ── 关于与反馈 ────────────────────────────────── */}
             {section === 'about' && (
               <section className="set-sec">
+                <div className="set-group">
+                <h4 className="set-subhead">应用</h4>
                 <Row label="产品"><span>FengMotion Desktop</span></Row>
                 <Row label="版本"><span className="num">v{APP_VERSION}</span></Row>
                 <Row label="数据存放">
                   <span>本机，不上传</span>
                 </Row>
+                </div>
 
                 <div className="set-group">
                 <h4 className="set-subhead">反馈</h4>

@@ -34,10 +34,17 @@ export function SettingsAiSection({ connectedHarnesses, curPrefs, modelsFor, onC
   return (
     <section className="set-sec">
 
+      <div className="set-group">
+      <h4 className="set-subhead">引擎</h4>
       {/* 已接入引擎三列等宽排列，只渲染实际接入项。 */}
       <div className="set-hcards">
         {connectedHarnesses.map((h) => {
           const on = h.id === settings.harness
+          /* 模型按钮如实显示：已保存模型不在引擎实际清单里时标出来，不静默改写设置（settings-ui 契约 §2） */
+          const list = modelsFor(h.id).models
+          const cur = on ? list.find((m) => m.id === settings.model) : undefined
+          const stale = on && !cur && !!settings.model && list.length > 0
+          const pickLabel = cur?.label ?? (stale ? `${settings.model} · 不在列表中` : '选择模型')
           return (
             <div key={h.id} className="set-hcard" data-on={on || undefined} title={stateOf(h.id).note ?? undefined}>
               {/* logo 占满卡片左侧整列（不再是一行里的小方块） */}
@@ -56,11 +63,13 @@ export function SettingsAiSection({ connectedHarnesses, curPrefs, modelsFor, onC
                            onOpenChange={(o) => setPickOpen(o ? h.id : null)}>
                     <PopoverTrigger asChild>
                       <button type="button" className="set-agent-pick"
-                              aria-label={`${h.name} 的模型：${on ? settings.model : '默认'}`}>
+                              data-stale={stale || undefined}
+                              title={stale ? `已保存的模型 ${settings.model} 不在当前引擎的模型列表中，请重新选择` : undefined}
+                              aria-label={`${h.name} 的模型：${pickLabel}`}>
                         <span className="set-agent-pick-ic" style={{ '--h-color': h.color } as React.CSSProperties}>
                           <i style={{ maskImage: `url(${h.icon})`, WebkitMaskImage: `url(${h.icon})` }} />
                         </span>
-                        <span className="v">{on ? (modelsFor(h.id).models.find((m) => m.id === settings.model)?.label ?? '选择模型') : '选择模型'}</span>
+                        <span className="v">{pickLabel}</span>
                         <Icon name="chevron-down" className="ui-icon set-agent-pick-chev" />
                       </button>
                     </PopoverTrigger>
@@ -88,7 +97,8 @@ export function SettingsAiSection({ connectedHarnesses, curPrefs, modelsFor, onC
                       </div>
                     </PopoverContent>
                   </Popover>
-                  {on ? <span className="set-default-engine"><UiIcon icon={SemIcons.check} size="xs" />默认</span> : <button type="button" className="set-default-engine" onClick={() => pickHarness(h.id)}>设为默认</button>}
+                  {/* 「默认」是状态（实心浅底 + 勾），「设为默认」是动作（文字按钮，悬停才出边框），两者不能长得一样 */}
+                  {on ? <span className="set-default-engine" data-current><UiIcon icon={SemIcons.check} size="xs" />默认</span> : <button type="button" className="set-default-engine" aria-label={`将 ${h.name} 设为默认引擎`} onClick={() => pickHarness(h.id)}>设为默认</button>}
                 </div>
               </div>
             </div>
@@ -132,6 +142,7 @@ export function SettingsAiSection({ connectedHarnesses, curPrefs, modelsFor, onC
           </div>
         )}
       </div>}
+      </div>
 
       <div className="set-group">
       <h4 className="set-subhead">连接</h4>

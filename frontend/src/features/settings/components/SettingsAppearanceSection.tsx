@@ -21,6 +21,8 @@ export interface SettingsAppearanceSectionProps {
 export function SettingsAppearanceSection({ onChange, onPickWallpaper, onThemeChange, set, settings, wallInputRef, wallPreview }: SettingsAppearanceSectionProps) {
   return (
     <section className="set-sec">
+      <div className="set-group">
+      <h4 className="set-subhead">主题</h4>
       <div className="set-theme-grid" role="radiogroup" aria-label="主题">
         {THEMES.map((t) => (
           <button key={t.id} type="button" role="radio"
@@ -38,6 +40,7 @@ export function SettingsAppearanceSection({ onChange, onPickWallpaper, onThemeCh
         ))}
       </div>
 
+      </div>
       <div className="set-group">
       <h4 className="set-subhead">壁纸</h4>
       <div className="set-walls" role="radiogroup" aria-label="壁纸">
