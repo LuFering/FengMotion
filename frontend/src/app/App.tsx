@@ -486,7 +486,11 @@ function AppContent() {
               )}
               {/* 创作资产是例外：既可作为项目内的上下文视图，
                   也可作为不带项目过滤的全局入口 */}
-              {isSub && view === 'assets' && <Assets projectName={current?.name} />}
+              {/* key 跟随当前项目：换项目时分类重新停在新项目上 */}
+              {isSub && view === 'assets' && (
+                <Assets key={current?.id ?? 'all'} currentProjectId={current?.id ?? null}
+                        projects={projects.list.map((p) => ({ id: p.id, name: p.name }))} />
+              )}
               {isSub && current && view === 'render' && (
                 <RenderDelivery project={current} tasks={tasks} />
               )}

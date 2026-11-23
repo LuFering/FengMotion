@@ -140,6 +140,14 @@ export function createLibraryResource(http: HttpClient) {
         return res.video
       },
 
+      /** `POST /reference-videos/from-asset`：把素材库里的视频登记为参考片（复用同一 assetId）。 */
+      async registerVideoFromAsset(assetId: string, title?: string): Promise<{ video: any; deduped: boolean }> {
+        return http.post<{ video: any; deduped: boolean }>('/reference-videos/from-asset', {
+          assetId,
+          ...(title ? { title } : {}),
+        })
+      },
+
       /**
        * 片段列表（逐页取完）。
        *

@@ -177,4 +177,36 @@ class AssetApiTest {
                 .andExpect(header().string("Content-Type",
                         org.hamcrest.Matchers.containsString("text/plain")));
     }
+
+    @Test
+    @DisplayName("批量更新：移动文件夹、增删标签、部分失败返回 207")
+    void batchUpdateMovesFolderAndTags() throws Exception {
+        String id1 = com.jayway.jsonpath.JsonPath.read(uploadText("b1.txt", "batch-1"), "$.asset.id");
+        String id2 = com.jayway.jsonpath.JsonPath.read(uploadText("b2.txt", "batch-2"), "$.asset.id");
+        String folderJson = mvc.perform(post("/api/asset-folders")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"批量目录\"}"))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        String folderId = com.jayway.jsonpath.JsonPath.read(folderJson, "$.id");
+
+        mvc.perform(post("/api/assets/batch-update")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"ids\":[\"" + id1 + "\",\"" + id2 + "\"],\"folderId\":\"" + folderId
+                                + "\",\"addTags\":[\"★\",\"片头\"]}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.results[0].ok").value(true))
+                .andExpect(jsonPath("$.results[0].asset.folderId").value(folderId))
+                .andExpect(jsonPath("$.results[1].asset.tags[1]").value("片头"));
+
+        // 移回根目录（空串 folderId）并移除单个标签，同时包含不存在的 ID 返回 207
+        mvc.perform(post("/api/assets/batch-update")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"ids\":[\"" + id1 + "\",\"asset_missing\"],\"folderId\":\"\",\"removeTags\":[\"片头\"]}"))
+                .andExpect(status().isMultiStatus())
+                .andExpect(jsonPath("$.results[0].ok").value(true))
+                .andExpect(jsonPath("$.results[0].asset.folderId").doesNotExist())
+                .andExpect(jsonPath("$.results[0].asset.tags[0]").value("★"))
+                .andExpect(jsonPath("$.results[1].ok").value(false));
+    }
 }

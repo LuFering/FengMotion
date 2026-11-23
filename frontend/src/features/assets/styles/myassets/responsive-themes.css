@@ -1,25 +1,27 @@
-/* ── 响应式：全宽布局，无侧栏挤压 ───────────────────────────── */
-.mya-filters[data-more] {
-  mask-image: linear-gradient(to right, black calc(100% - 24px), transparent);
-  -webkit-mask-image: linear-gradient(to right, black calc(100% - 24px), transparent);
-}
+/* ── 响应式：桌面优先，窄屏不硬挤多栏 ───────────────────────────── */
 @media (max-width: 1280px) {
-  .mya-search { width: 240px; }
-  .mya-grid { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
-  .mya-list-head, .mya-row { grid-template-columns: 22px minmax(0, 1fr) 44px 82px 64px 58px 40px 68px 64px; gap: 6px; }
-  .mya-inspector { flex-basis: 272px; }
+  .mya-content-search { flex-basis: 210px; }
+  .mya-grid { grid-template-columns: repeat(auto-fill, minmax(224px, 1fr)); }
+  .mya-list-head,
+  .mya-row {
+    grid-template-columns: 22px minmax(150px, 1fr) 44px 80px 64px 56px 40px 72px 68px 54px;
+    gap: 6px;
+  }
+  .mya-inspector { flex-basis: 284px; }
 }
 @media (max-width: 1100px) {
-  .mya-meta { display: none; }
-  .mya-search { width: 220px; }
-  .mya-org { flex-basis: 188px; }
-  .mya-list-head, .mya-row { grid-template-columns: 22px minmax(0, 1fr) 42px 76px 60px 54px 40px 64px 60px; gap: 6px; }
+  .mya-total-hint { display: none; }
+  .mya-content-search { flex-basis: 180px; }
+  .mya-org { flex-basis: 192px; }
+  .mya-list-head,
+  .mya-row {
+    grid-template-columns: 22px minmax(140px, 1fr) 42px 74px 60px 52px 38px 68px 64px 52px;
+    gap: 6px;
+  }
 }
 @media (max-width: 900px) {
-  .mya { padding: 12px; gap: 12px; }
-  .mya-cmd { padding: 0 12px; gap: 8px; }
-  .mya-search { width: 180px; }
-  .mya-org { flex-basis: 172px; }
+  .mya { padding: 10px; gap: 10px; }
+  .mya-org { flex-basis: 176px; }
   .mya-inspector {
     position: fixed;
     top: 12px;
@@ -27,7 +29,7 @@
     bottom: 12px;
     z-index: 80;
     width: calc(100vw - 24px);
-    max-width: 340px;
+    max-width: 336px;
     border-color: var(--line2);
     box-shadow: var(--shadow-float);
   }
@@ -35,11 +37,11 @@
 
 /* ── 动效 / 焦点 / 减少动态 ─────────────────────────────────── */
 @keyframes myaRise {
-  from { opacity: 0; transform: translateY(10px); }
+  from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
 }
 @keyframes myaPop {
-  from { opacity: 0; transform: scale(.965) translateY(-5px); }
+  from { opacity: 0; transform: scale(.97) translateY(-4px); }
   to { opacity: 1; transform: scale(1) translateY(0); }
 }
 @keyframes myaFade {
@@ -48,7 +50,9 @@
 }
 @keyframes myaSpin { to { transform: rotate(360deg); } }
 
-.mya button:active { transform: scale(.97); }
+.mya button:active:not(:disabled) { transform: scale(.97); }
+html[data-theme="tactile"] .mya button:active:not(:disabled) { transform: translateY(1.5px); }
+
 .mya button:focus-visible,
 .mya input:focus-visible,
 .mya select:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
@@ -58,7 +62,7 @@
   .mya *, .mya *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
 
-/* ── A2 Tactile：奶油纸面 + 硬阴影 + 墨线 ─────────────────── */
+/* ── A2 Tactile：奶油纸面 + 硬阴影 + 墨线（对齐工作台触感主题） ── */
 html[data-theme="tactile"] .mya {
   --bg: #e6e1d5;
   --bg-glow: linear-gradient(160deg, #efece3, #dcd8cc);
@@ -69,11 +73,11 @@ html[data-theme="tactile"] .mya {
   --line2: #22231f;
   --tx: #22231f;
   --tx2: #55534a;
-  --tx3: #8a8676;
+  --tx3: #706c5e;
   --acc: #f7c948;
   --acc-ink: #22231f;
-  --acc-tx: #7a5b00;
-  --sel: rgba(247, 201, 72, .40);
+  --acc-tx: #6b4e00;
+  --sel: rgba(247, 201, 72, .36);
   --hover: rgba(34, 35, 31, .05);
   --stage-bg: #b9bfa4;
   --scrim: rgba(34, 35, 31, .22);

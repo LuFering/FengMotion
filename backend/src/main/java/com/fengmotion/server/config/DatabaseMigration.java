@@ -288,6 +288,14 @@ public class DatabaseMigration {
            根本插不进去（迁移会以 500 失败，且原因很难看出是索引问题）。 */
         jdbc.execute("DROP INDEX IF EXISTS idx_assets_content_hash");
         jdbc.execute("CREATE INDEX IF NOT EXISTS idx_assets_content_hash ON assets(content_hash)");
+        /* 素材归属项目（2026-11-23）：可空，旧记录全部是「未归属」。
+           归属只有一个；「被哪些项目用到」仍记在 resource_refs，两者不互相推断。 */
+        Set<String> assetColumns = new HashSet<>(jdbc.query("PRAGMA table_info(assets)",
+                (rs, row) -> rs.getString("name")));
+        if (!assetColumns.contains("project_id")) {
+            jdbc.execute("ALTER TABLE assets ADD COLUMN project_id TEXT");
+        }
+        jdbc.execute("CREATE INDEX IF NOT EXISTS idx_assets_project ON assets(project_id)");
         // 资源引用关系：删除前据此判断 409，不静默级联。
         jdbc.execute("""
                 CREATE TABLE IF NOT EXISTS resource_refs (

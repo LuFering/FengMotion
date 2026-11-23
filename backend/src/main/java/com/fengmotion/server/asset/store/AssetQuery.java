@@ -21,6 +21,8 @@ import com.fengmotion.server.asset.domain.AssetStates;
  * @param sort             recent / name / size / created
  * @param limit            每页数量
  * @param offset           偏移量
+ * @param projectId        归属项目；null 且 {@code unassignedOnly=false} 表示不限
+ * @param unassignedOnly   只看未归属项目的素材
  */
 public record AssetQuery(
         AssetStates.MediaType mediaType,
@@ -35,7 +37,18 @@ public record AssetQuery(
         String tag,
         String sort,
         int limit,
-        int offset) {
+        int offset,
+        String projectId,
+        boolean unassignedOnly) {
+
+    /** 不按项目筛选的查询（旧调用方沿用）。 */
+    public AssetQuery(AssetStates.MediaType mediaType, AssetStates.SourceType sourceType,
+            AssetStates.ReviewStatus reviewStatus, AssetStates.Availability availability,
+            AssetStates.LicenseStatus licenseStatus, AssetStates.ProcessingStatus processingStatus,
+            String folderId, boolean rootOnly, String q, String tag, String sort, int limit, int offset) {
+        this(mediaType, sourceType, reviewStatus, availability, licenseStatus, processingStatus,
+                folderId, rootOnly, q, tag, sort, limit, offset, null, false);
+    }
 
     /** LIKE 的通配串：{@code %q%}，并把 q 里的 % 和 _ 转义，避免用户输入被当成通配符。 */
     public String qLike() {

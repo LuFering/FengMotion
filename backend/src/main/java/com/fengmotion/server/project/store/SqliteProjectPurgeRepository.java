@@ -90,6 +90,10 @@ public class SqliteProjectPurgeRepository implements ProjectPurgeRepository {
         // Older installations can run tests before optional local-document bootstrap.
         Integer localTables=jdbc.queryForObject("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='local_documents'",Integer.class);
         if(localTables!=null && localTables>0)jdbc.update("DELETE FROM local_documents WHERE project_id = ?",projectId);
+        /* 归属到这个项目的素材变回「未归属」：素材是用户的文件，不随项目删除。
+           顺带换 etag：持有旧快照的客户端再提交修改会被乐观锁挡住，不会把归属写回去。 */
+        jdbc.update("UPDATE assets SET project_id = NULL, updated_at = ?, etag = 'v' || lower(hex(randomblob(16)))"
+                + " WHERE project_id = ?", java.time.Instant.now().toString(), projectId);
         return jdbc.update("DELETE FROM projects WHERE id = ?", projectId);
     }
 }

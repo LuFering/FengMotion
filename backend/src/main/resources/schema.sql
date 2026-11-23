@@ -229,10 +229,14 @@ CREATE TABLE IF NOT EXISTS assets (
     last_used_at TEXT,
     etag TEXT NOT NULL,
     demo INTEGER NOT NULL DEFAULT 0,
+    -- 归属项目，可空 = 未归属；由 DatabaseMigration 对旧库补列
+    project_id TEXT,
     FOREIGN KEY (folder_id) REFERENCES asset_folders(id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_assets_folder ON assets(folder_id);
+-- idx_assets_project 不在这里建：本文件启动时先于 DatabaseMigration 执行，旧库的 assets 表
+-- 还没有 project_id 列，在这里建索引会让启动失败。索引由 DatabaseMigration 补列后再建。
 CREATE INDEX IF NOT EXISTS idx_assets_media_type ON assets(media_type);
 CREATE INDEX IF NOT EXISTS idx_assets_review_status ON assets(review_status);
 CREATE INDEX IF NOT EXISTS idx_assets_last_used ON assets(last_used_at DESC);

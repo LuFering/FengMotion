@@ -70,6 +70,7 @@ public class SqliteAssetRepository implements AssetRepository {
         row.setLastUsedAt(asset.lastUsedAt() == null ? null : asset.lastUsedAt().toString());
         row.setEtag(asset.etag());
         row.setDemo(asset.demo() ? 1 : 0);
+        row.setProjectId(asset.projectId());
         assets.insert(row);
         return asset;
     }
@@ -106,6 +107,7 @@ public class SqliteAssetRepository implements AssetRepository {
         row.setLastUsedAt(asset.lastUsedAt() == null ? null : asset.lastUsedAt().toString());
         row.setUpdatedAt(asset.updatedAt().toString());
         row.setEtag(asset.etag());
+        row.setProjectId(asset.projectId());
         int updated = assets.updateWithEtag(row, expectedEtag);
         return updated == 0 ? Optional.empty() : findById(asset.id());
     }
@@ -121,7 +123,7 @@ public class SqliteAssetRepository implements AssetRepository {
                 wire(query.mediaType()), wire(query.sourceType()), wire(query.reviewStatus()),
                 wire(query.availability()), wire(query.licenseStatus()), wire(query.processingStatus()),
                 query.folderId(), query.rootOnly(), query.q(), query.qLike(), query.tag(), query.tagLike(),
-                query.sort(), query.limit(), query.offset());
+                query.projectId(), query.unassignedOnly(), query.sort(), query.limit(), query.offset());
         List<Asset> result = new ArrayList<>(rows.size());
         for (AssetRow row : rows) {
             result.add(toAsset(row));
@@ -134,7 +136,8 @@ public class SqliteAssetRepository implements AssetRepository {
         return assets.count(
                 wire(query.mediaType()), wire(query.sourceType()), wire(query.reviewStatus()),
                 wire(query.availability()), wire(query.licenseStatus()), wire(query.processingStatus()),
-                query.folderId(), query.rootOnly(), query.q(), query.qLike(), query.tag(), query.tagLike());
+                query.folderId(), query.rootOnly(), query.q(), query.qLike(), query.tag(), query.tagLike(),
+                query.projectId(), query.unassignedOnly());
     }
 
     @Override
@@ -150,6 +153,11 @@ public class SqliteAssetRepository implements AssetRepository {
     @Override
     public void moveFolderToRoot(String folderId) {
         assets.moveFolderToRoot(folderId, Instant.now().toString());
+    }
+
+    @Override
+    public boolean projectExists(String projectId) {
+        return assets.countActiveProject(projectId) > 0;
     }
 
     // ── 文件夹 ──
@@ -222,7 +230,8 @@ public class SqliteAssetRepository implements AssetRepository {
                 parseInstant(row.getUpdatedAt()),
                 row.getLastUsedAt() == null ? null : parseInstant(row.getLastUsedAt()),
                 row.getEtag(),
-                row.getDemo() != null && row.getDemo() == 1);
+                row.getDemo() != null && row.getDemo() == 1,
+                row.getProjectId());
     }
 
     private AssetFolder toFolder(AssetFolderRow row) {

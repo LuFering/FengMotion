@@ -34,6 +34,7 @@ import java.util.List;
  * @param contentHash      内容 SHA-256；迁移时用它校验「传上去的是不是同一个文件」
  * @param refs             引用方
  * @param demo             演示数据标记
+ * @param projectId        归属项目；null 表示未归属
  */
 public record AssetResponse(
         String id,
@@ -61,7 +62,8 @@ public record AssetResponse(
         String etag,
         String contentHash,
         List<RefResponse> refs,
-        boolean demo) {
+        boolean demo,
+        String projectId) {
 
     /** 引用方。 */
     public record RefResponse(String kind, String id, String label) {

@@ -16,6 +16,8 @@ import type { HttpClient } from './http'
 import type { UploadOptions, UploadProgress, UploadResult } from './types'
 import type {
   Asset,
+  AssetBatchUpdateRequest,
+  AssetBatchUpdateResult,
   AssetFacets,
   AssetFolder,
   AssetImportRequest,
@@ -35,6 +37,7 @@ export interface UploadSessionCreateRequest {
   mimeType: string
   sizeBytes: number
   folderId?: string | null
+  projectId?: string | null
 }
 
 /** `PUT .../chunks/{index}` 的选项。`Content-Range` 由调用方给出：本层不替服务端决定分片大小。 */
@@ -326,6 +329,7 @@ export function createAssetsResource(http: HttpClient) {
           mimeType,
           sizeBytes,
           folderId: options.folderId ?? null,
+          projectId: options.projectId ?? null,
         })
 
     const uploadId = session.uploadId
@@ -482,11 +486,12 @@ export function createAssetsResource(http: HttpClient) {
      */
     async uploadOne(
       file: File,
-      options: { folderId?: string; name?: string; keepSeparateRecord?: boolean; signal?: AbortSignal } = {},
+      options: { folderId?: string; projectId?: string; name?: string; keepSeparateRecord?: boolean; signal?: AbortSignal } = {},
     ): Promise<Asset> {
       const form = new FormData()
       form.append('file', file, file.name)
       if (options.folderId) form.append('folderId', options.folderId)
+      if (options.projectId) form.append('projectId', options.projectId)
       if (options.name) form.append('name', options.name)
       if (options.keepSeparateRecord) form.append('keepSeparateRecord', 'true')
       const res = await http.post<{ asset: Asset; deduped: boolean }>('/assets', form, {
@@ -560,6 +565,25 @@ export function createAssetsResource(http: HttpClient) {
         body: { ids },
       })
       return buildBatchRemoveResult(response.data, response.status, ids)
+    },
+
+    /**
+     * `POST /assets/batch-update`：批量移动文件夹或增删标签（asset.md §3.4）。
+     * `folderId: ""` 表示移回根目录，`undefined` 表示不改文件夹。
+     */
+    async batchUpdate(body: AssetBatchUpdateRequest): Promise<AssetBatchUpdateResult> {
+      if (body.ids.length === 0) return { results: [] }
+      const payload = {
+        ids: body.ids,
+        ...(body.folderId !== undefined ? { folderId: body.folderId ?? '' } : {}),
+        ...(body.projectId !== undefined ? { projectId: body.projectId ?? '' } : {}),
+        ...(body.addTags ? { addTags: body.addTags } : {}),
+        ...(body.removeTags ? { removeTags: body.removeTags } : {}),
+      }
+      const response = await http.request<AssetBatchUpdateResult>('POST', '/assets/batch-update', {
+        body: payload,
+      })
+      return response.data ?? { results: [] }
     },
 
     /**

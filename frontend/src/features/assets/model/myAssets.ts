@@ -26,9 +26,12 @@ export type LicenseStatus = 'allowed' | 'attribution_required' | 'restricted' | 
  * 授权（licenseStatus）与此完全独立：审核通过不代表有使用许可。
  */
 export type ReviewStatus = 'none' | 'pending' | 'needs_review' | 'approved' | 'rejected'
+export type ProcessingStatus = 'pending' | 'processing' | 'ready' | 'failed'
+export type AvailabilityStatus = 'enabled' | 'disabled' | 'deprecated'
+export type AssetRefKind = 'project' | 'scene' | 'workflow' | 'reference' | 'task'
 
 export interface AssetRef {
-  kind: 'project' | 'workflow' | 'task'
+  kind: AssetRefKind
   id: string
   label: string
 }
@@ -36,27 +39,35 @@ export interface AssetRef {
 export interface MyAsset {
   id: string
   name: string
-  /** 内置素材 = public 下的真实路径；导入素材 = 原始文件名（本体在本地索引里） */
+  /** 内置素材 = public 下的真实路径；服务端素材 = 相对内容路径或访问 URL */
   filePath: string
   mimeType: string
   sizeBytes: number
   mediaType: MediaType
-  /** 内置图片用自身路径当缩略图；导入素材的缩略图是索引里的 blob（由 service 解析） */
+  /** 内置图片用自身路径当缩略图；服务端素材有缩略图时为相对地址 */
   thumbnailPath?: string
   duration?: number
   width?: number
   height?: number
   tags: string[]
   folderId: string | null
+  /** 归属项目；null / 缺省为未归属。整理用，与 refs（被谁用到）互不推断 */
+  projectId?: string | null
   sourceType: SourceType
+  processingStatus?: ProcessingStatus
+  processingError?: string
+  availability?: AvailabilityStatus
   licenseStatus: LicenseStatus
   licenseDetails?: string
   reviewStatus: ReviewStatus
+  contentHash?: string
   createdAt: number
+  updatedAt?: number
   lastUsedAt?: number
   refs: AssetRef[]
   /** true = 内置种子（删除后不再恢复）；false = 用户导入 */
   builtin: boolean
+  demo?: boolean
 }
 
 export const MEDIA_LABEL: Record<MediaType, string> = {
@@ -74,6 +85,55 @@ export const LICENSE_LABEL: Record<LicenseStatus, string> = {
 export const REVIEW_LABEL: Record<ReviewStatus, string> = {
   none: '未提审', pending: '待审核', needs_review: '需复核',
   approved: '已通过', rejected: '未通过',
+}
+
+export const PROCESSING_LABEL: Record<ProcessingStatus, string> = {
+  pending: '待处理', processing: '处理中', ready: '已就绪', failed: '处理失败',
+}
+
+export const AVAILABILITY_LABEL: Record<AvailabilityStatus, string> = {
+  enabled: '可用', disabled: '已停用', deprecated: '已弃用',
+}
+
+export const REF_KIND_LABEL: Record<AssetRefKind, string> = {
+  project: '项目', scene: '场景', workflow: '工作流', reference: '参考片', task: '任务',
+}
+
+export const REF_KIND_ICON: Record<AssetRefKind, string> = {
+  project: 'clapperboard', scene: 'film', workflow: 'workflow', reference: 'camera', task: 'play',
+}
+
+/**
+ * 契约 asset.md §1.1 的合法审核状态转换动作。
+ * 只展示当前状态允许跳转的下一步，避免用户点出被后端 409 拒绝的非法跳转。
+ */
+export interface ReviewTransitionAction {
+  to: ReviewStatus
+  label: string
+  icon: string
+  tone?: 'primary' | 'danger' | 'neutral'
+  requiresReady?: boolean
+}
+
+export const REVIEW_TRANSITIONS: Record<ReviewStatus, ReviewTransitionAction[]> = {
+  none: [
+    { to: 'pending', label: '提交审核', icon: 'arrow-up-right', tone: 'primary' },
+  ],
+  pending: [
+    { to: 'approved', label: '通过审核', icon: 'circle-check', tone: 'primary', requiresReady: true },
+    { to: 'needs_review', label: '需复核', icon: 'undo-2', tone: 'neutral' },
+    { to: 'rejected', label: '不通过', icon: 'x', tone: 'danger' },
+  ],
+  needs_review: [
+    { to: 'pending', label: '重新提审', icon: 'refresh-cw', tone: 'primary' },
+    { to: 'rejected', label: '不通过', icon: 'x', tone: 'danger' },
+  ],
+  approved: [
+    { to: 'needs_review', label: '退回复核', icon: 'undo-2', tone: 'neutral' },
+  ],
+  rejected: [
+    { to: 'pending', label: '重新提审', icon: 'refresh-cw', tone: 'neutral' },
+  ],
 }
 
 export const MEDIA_ICON: Record<MediaType, string> = {

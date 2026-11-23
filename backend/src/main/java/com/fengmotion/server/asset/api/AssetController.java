@@ -68,6 +68,7 @@ public class AssetController {
      * @param licenseStatus    授权筛选
      * @param processingStatus 处理状态筛选
      * @param folderId         文件夹；传 {@code root} 表示只看根目录
+     * @param projectId        归属项目；传 {@code unassigned} 表示只看未归属的素材
      * @param q               名称/标签子串
      * @param tag              单个标签
      * @param sort             recent / name / size / created
@@ -85,6 +86,7 @@ public class AssetController {
             @RequestParam(required = false) String licenseStatus,
             @RequestParam(required = false) String processingStatus,
             @RequestParam(required = false) String folderId,
+            @RequestParam(required = false) String projectId,
             @RequestParam(required = false) String q,
             @RequestParam(required = false) String tag,
             @RequestParam(required = false, defaultValue = "recent") String sort,
@@ -94,6 +96,7 @@ public class AssetController {
         Pagination.requireValidLimit(limit, "每页数量需在 1 到 " + Pagination.MAX_LIMIT + " 之间");
         int offset = Pagination.decodeOffsetCursor(cursor, "游标无效");
         boolean rootOnly = "root".equals(folderId);
+        boolean unassigned = "unassigned".equals(projectId);
         AssetQuery query = new AssetQuery(
                 AssetStates.MediaType.fromWire(mediaType),
                 AssetStates.SourceType.fromWire(sourceType),
@@ -107,7 +110,9 @@ public class AssetController {
                 blankToNull(tag),
                 sort,
                 limit,
-                offset);
+                offset,
+                unassigned ? null : blankToNull(projectId),
+                unassigned);
         boolean withRefs = "refs".equals(include);
         List<Asset> found = assets.search(query);
         int total = assets.count(query);
@@ -125,7 +130,8 @@ public class AssetController {
     public FacetsResponse facets() {
         AssetCounts counts = assets.counts();
         return new FacetsResponse(counts.total(), counts.mediaTypes(), counts.sourceTypes(),
-                counts.reviewStatus(), counts.availability(), counts.licenseStatus());
+                counts.reviewStatus(), counts.availability(), counts.licenseStatus(),
+                counts.projects(), counts.unassigned());
     }
 
     /**
@@ -143,6 +149,8 @@ public class AssetController {
             @RequestParam("file") MultipartFile file,
             @RequestParam(required = false) String folderId,
             @RequestParam(required = false) String name,
+            /* 归属项目；不传或空串为未归属。 */
+            @RequestParam(required = false) String projectId,
             /*
              * 迁移用：内容命中也保留独立记录。
              *
@@ -157,7 +165,7 @@ public class AssetController {
         AssetService.ImportResult result;
         try (InputStream in = file.getInputStream()) {
             result = assets.importFile(file.getOriginalFilename(), file.getContentType(), folderId, name,
-                    in, keepSeparateRecord);
+                    in, keepSeparateRecord, blankToNull(projectId));
         } catch (IOException ex) {
             throw new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "internal_error", "读取上传内容失败");
         }
@@ -209,6 +217,22 @@ public class AssetController {
         boolean anyFailed = results.stream().anyMatch(item -> !item.ok());
         return ResponseEntity.status(anyFailed ? HttpStatus.MULTI_STATUS : HttpStatus.OK)
                 .body(new BatchDeleteResponse(results));
+    }
+
+    /** 批量更新文件夹与标签：全部成功返回 200，部分失败返回 207 与逐项结果。 */
+    @PostMapping("/batch-update")
+    public ResponseEntity<BatchUpdateResponse> batchUpdate(@RequestBody(required = false) BatchUpdateRequest request) {
+        if (request == null || request.ids() == null || request.ids().isEmpty()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "validation_error", "ids 不能为空");
+        }
+        List<AssetService.UpdateItemResult> raw = assets.updateMany(new AssetService.BatchUpdateSpec(
+                request.ids(), request.folderId(), request.addTags(), request.removeTags(), request.projectId()));
+        List<BatchUpdateItem> items = raw.stream()
+                .map(r -> new BatchUpdateItem(r.id(), r.ok(), r.asset() == null ? null : responses.of(r.asset(), true), r.error()))
+                .toList();
+        boolean anyFailed = items.stream().anyMatch(item -> !item.ok());
+        return ResponseEntity.status(anyFailed ? HttpStatus.MULTI_STATUS : HttpStatus.OK)
+                .body(new BatchUpdateResponse(items));
     }
 
     /**
@@ -300,7 +324,10 @@ public class AssetController {
             java.util.Map<String, Integer> sourceTypes,
             java.util.Map<String, Integer> reviewStatus,
             java.util.Map<String, Integer> availability,
-            java.util.Map<String, Integer> licenseStatus) {
+            java.util.Map<String, Integer> licenseStatus,
+            /* 归属项目 → 条数，只含有素材的项目；未归属单独计数。 */
+            java.util.Map<String, Integer> projects,
+            int unassigned) {
     }
 
     /** 批量删除请求。 */
@@ -309,5 +336,21 @@ public class AssetController {
 
     /** 批量删除结果：逐项成功或失败，不合并成单一状态。 */
     public record BatchDeleteResponse(List<AssetService.DeleteItemResult> results) {
+    }
+
+    /**
+     * 批量更新请求；{@code folderId} 为 null 表示不改文件夹，空串表示移回根目录。
+     * {@code projectId} 同理：null 不改，空串改为未归属。
+     */
+    public record BatchUpdateRequest(List<String> ids, String folderId, List<String> addTags, List<String> removeTags,
+            String projectId) {
+    }
+
+    /** 批量更新单条结果。 */
+    public record BatchUpdateItem(String id, boolean ok, AssetResponse asset, String error) {
+    }
+
+    /** 批量更新结果。 */
+    public record BatchUpdateResponse(List<BatchUpdateItem> results) {
     }
 }

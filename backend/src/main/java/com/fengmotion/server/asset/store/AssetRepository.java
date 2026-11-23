@@ -53,6 +53,9 @@ public interface AssetRepository {
 
     void moveFolderToRoot(String folderId);
 
+    /** 项目存在且未归档；素材只能归属到这样的项目。 */
+    boolean projectExists(String projectId);
+
     // ── 文件夹 ──
 
     AssetFolder saveFolder(AssetFolder folder);

@@ -103,6 +103,13 @@ public class AssetService {
         return importer.importFile(fileName, mimeType, folderId, name, stream, keepSeparateRecord);
     }
 
+    /** 导入并归属到项目；projectId 为 null 表示未归属。 */
+    @Transactional
+    public ImportResult importFile(String fileName, String mimeType, String folderId, String name,
+            InputStream stream, boolean keepSeparateRecord, String projectId) {
+        return importer.importFile(fileName, mimeType, folderId, name, stream, keepSeparateRecord, projectId);
+    }
+
     /**
      * 更新素材的用户可改字段。
      *
@@ -144,6 +151,9 @@ public class AssetService {
                 && assets.findFolder(request.targetFolderId()).isEmpty()) {
             throw new ApiException(HttpStatus.NOT_FOUND, "not_found", "文件夹不存在");
         }
+        if (request.movesProject()) {
+            requireProject(request.targetProjectId());
+        }
 
         Instant now = Instant.now();
         Asset updated = new Asset(
@@ -174,7 +184,9 @@ public class AssetService {
                 now,
                 request.touchLastUsed() ? now : current.lastUsedAt(),
                 "v" + UUID.randomUUID(),
-                current.demo());
+                current.demo(),
+                // projectId 三态，同 folderId。不改时必须带上原值：旧构造器会把它当成未归属。
+                request.movesProject() ? request.targetProjectId() : current.projectId());
         return assets.updateWithEtag(updated, etag == null ? current.etag() : etag)
                 .orElseThrow(() -> new ApiException(HttpStatus.CONFLICT, "etag_mismatch",
                         "素材已被其他操作修改，请刷新后重试"));
@@ -233,6 +245,103 @@ public class AssetService {
 
     /** 批量删除的逐项结果。 */
     public record DeleteItemResult(String id, boolean ok, String error) {
+    }
+
+    /**
+     * 批量更新的请求参数。{@code folderId} 为 null 表示不改，空串表示移回根目录；
+     * {@code projectId} 同理：null 不改，空串改为未归属。
+     */
+    public record BatchUpdateSpec(List<String> ids, String folderId, List<String> addTags, List<String> removeTags,
+            String projectId) {
+
+        public BatchUpdateSpec(List<String> ids, String folderId, List<String> addTags, List<String> removeTags) {
+            this(ids, folderId, addTags, removeTags, null);
+        }
+    }
+
+    /** 批量更新的逐项结果。 */
+    public record UpdateItemResult(String id, boolean ok, Asset asset, String error) {
+    }
+
+    /**
+     * 批量修改文件夹与增删标签（契约 asset.md §3.4）。
+     *
+     * <p>目标文件夹在开始前先校验存在性（不存在直接 404）；单条素材不存在或并发冲突按逐项失败返回，不回滚其余条目。</p>
+     */
+    @Transactional
+    public List<UpdateItemResult> updateMany(BatchUpdateSpec spec) {
+        boolean movesFolder = spec.folderId() != null;
+        String targetFolderId = movesFolder && !spec.folderId().isBlank() ? spec.folderId().strip() : null;
+        if (targetFolderId != null && assets.findFolder(targetFolderId).isEmpty()) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "not_found", "文件夹不存在");
+        }
+        boolean movesProject = spec.projectId() != null;
+        String targetProjectId = movesProject && !spec.projectId().isBlank() ? spec.projectId().strip() : null;
+        if (movesProject) {
+            requireProject(targetProjectId);
+        }
+        List<String> toAdd = spec.addTags() == null ? List.of()
+                : spec.addTags().stream().filter(t -> t != null && !t.isBlank()).map(String::strip).toList();
+        java.util.Set<String> toRemove = spec.removeTags() == null ? java.util.Set.of()
+                : spec.removeTags().stream().filter(t -> t != null && !t.isBlank()).map(String::strip)
+                        .collect(java.util.stream.Collectors.toSet());
+
+        List<UpdateItemResult> results = new ArrayList<>(spec.ids().size());
+        for (String id : spec.ids()) {
+            Optional<Asset> found = assets.findById(id);
+            if (found.isEmpty()) {
+                results.add(new UpdateItemResult(id, false, null, "素材不存在"));
+                continue;
+            }
+            Asset current = found.get();
+            java.util.LinkedHashSet<String> mergedTags = new java.util.LinkedHashSet<>(
+                    current.tags() == null ? List.of() : current.tags());
+            mergedTags.addAll(toAdd);
+            mergedTags.removeAll(toRemove);
+
+            Instant now = Instant.now();
+            Asset updated = new Asset(
+                    current.id(),
+                    current.name(),
+                    current.mediaType(),
+                    current.mimeType(),
+                    current.sizeBytes(),
+                    current.sourceType(),
+                    current.processingStatus(),
+                    current.processingError(),
+                    current.reviewStatus(),
+                    current.availability(),
+                    current.licenseStatus(),
+                    current.licenseDetails(),
+                    current.width(),
+                    current.height(),
+                    current.durationMs(),
+                    List.copyOf(mergedTags),
+                    movesFolder ? targetFolderId : current.folderId(),
+                    current.fileUrl(),
+                    current.thumbnailUrl(),
+                    current.contentHash(),
+                    current.createdAt(),
+                    now,
+                    current.lastUsedAt(),
+                    "v" + UUID.randomUUID(),
+                    current.demo(),
+                    movesProject ? targetProjectId : current.projectId());
+            Optional<Asset> saved = assets.updateWithEtag(updated, current.etag());
+            if (saved.isPresent()) {
+                results.add(new UpdateItemResult(id, true, saved.get(), null));
+            } else {
+                results.add(new UpdateItemResult(id, false, null, "素材已被其他操作修改，请刷新后重试"));
+            }
+        }
+        return results;
+    }
+
+    /** 归属项目必须存在且未归档；null 表示未归属，不校验。 */
+    public void requireProject(String projectId) {
+        if (projectId != null && !assets.projectExists(projectId)) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "not_found", "项目不存在或已归档");
+        }
     }
 
     public Asset require(String id) {

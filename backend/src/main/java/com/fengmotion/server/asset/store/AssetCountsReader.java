@@ -33,7 +33,20 @@ public class AssetCountsReader {
                 fill(AssetStates.ReviewStatus.values(), mapper.countByReviewStatus(), AssetStates.ReviewStatus::wire),
                 fill(AssetStates.Availability.values(), mapper.countByAvailability(), AssetStates.Availability::wire),
                 fill(AssetStates.LicenseStatus.values(), mapper.countByLicenseStatus(),
-                        AssetStates.LicenseStatus::wire));
+                        AssetStates.LicenseStatus::wire),
+                projects(mapper.countByProject()),
+                mapper.countUnassigned());
+    }
+
+    /** 项目没有固定取值，不补 0：只列出至少有一条素材的项目，其余由前端按项目列表补齐。 */
+    private static Map<String, Integer> projects(List<Map<String, Object>> rows) {
+        Map<String, Integer> counts = new LinkedHashMap<>();
+        for (Map<String, Object> row : rows) {
+            if (row.get("k") instanceof String id && row.get("c") instanceof Number number) {
+                counts.put(id, number.intValue());
+            }
+        }
+        return counts;
     }
 
     private static <E extends Enum<E>> Map<String, Integer> fill(

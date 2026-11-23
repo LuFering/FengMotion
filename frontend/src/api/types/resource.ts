@@ -29,7 +29,7 @@ export type ResourceAvailability = 'enabled' | 'disabled' | 'deprecated'
 
 /** 引用关系：资源被谁用了。多值，不是状态。 */
 export interface ResourceRef {
-  kind: 'project' | 'workflow' | 'task' | 'scene'
+  kind: 'project' | 'workflow' | 'task' | 'scene' | 'reference'
   id: Id
   label: string
 }

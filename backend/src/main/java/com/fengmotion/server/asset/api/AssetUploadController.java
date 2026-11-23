@@ -52,9 +52,12 @@ public class AssetUploadController {
         if (request == null) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "validation_error", "请求体不能为空");
         }
+        // 建会话时就校验项目：等到合并完成才报「项目不存在」，用户已经白传了整个文件。
+        String projectId = request.projectId() == null || request.projectId().isBlank() ? null : request.projectId();
+        assets.requireProject(projectId);
         return ResponseEntity.status(HttpStatus.CREATED).body(
                 SessionResponse.of(sessions.create(request.fileName(), request.mimeType(),
-                        request.sizeBytes() == null ? 0 : request.sizeBytes(), request.folderId())));
+                        request.sizeBytes() == null ? 0 : request.sizeBytes(), request.folderId(), projectId)));
     }
 
     /** 读会话；续传时客户端据此拿到已确认字节数。 */
@@ -96,7 +99,7 @@ public class AssetUploadController {
             UploadSessionService.Session assembled = sessions.assemble(uploadId, tmp);
             try (InputStream in = Files.newInputStream(tmp)) {
                 AssetService.ImportResult result = assets.importFile(session.fileName(), session.mimeType(),
-                        assembled.folderId(), null, in);
+                        assembled.folderId(), null, in, false, assembled.projectId());
                 return ResponseEntity.status(HttpStatus.CREATED)
                         .body(new AssetController.UploadResponse(responses.of(result.asset(), true),
                                 result.deduped()));
@@ -120,7 +123,8 @@ public class AssetUploadController {
     }
 
     /** 建会话请求（契约 asset.md §3.2）。 */
-    public record CreateSessionRequest(String fileName, String mimeType, Long sizeBytes, String folderId) {
+    public record CreateSessionRequest(String fileName, String mimeType, Long sizeBytes, String folderId,
+            String projectId) {
     }
 
     /**
@@ -138,12 +142,13 @@ public class AssetUploadController {
             long receivedBytes,
             String status,
             String expiresAt,
-            String folderId) {
+            String folderId,
+            String projectId) {
 
         static SessionResponse of(UploadSessionService.Session session) {
             return new SessionResponse(session.uploadId(), session.fileName(), session.mimeType(),
                     session.sizeBytes(), session.chunkSizeBytes(), session.receivedBytes(), session.status(),
-                    session.expiresAt().toString(), session.folderId());
+                    session.expiresAt().toString(), session.folderId(), session.projectId());
         }
     }
 }

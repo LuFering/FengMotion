@@ -1,11 +1,11 @@
-/* ── 页面根：16px 机身留白 + 16px 岛间隙 ─────────────────────── */
+/* ── 页面根：14px 机身留白 + 14px 岛间隙 ─────────────────────── */
 .mya {
   display: flex;
   flex-direction: column;
-  gap: var(--gap);
+  gap: 14px;
   height: 100vh;
   min-height: 0;
-  padding: var(--gap);
+  padding: 14px;
   overflow: hidden;
   background: var(--bg-glow);
   color: var(--tx);
@@ -15,17 +15,22 @@
   -webkit-font-smoothing: antialiased;
 }
 
+.mya ::selection {
+  background: var(--sel);
+  color: var(--tx);
+}
+
 .mya .mono,
 .mya .mya-mono {
   font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   font-variant-numeric: tabular-nums;
 }
 
-/* ── 主体三列：组织岛 | 主列（工具条/画布/状态）| 检查器岛 ────── */
+/* ── 主体三列：组织岛 | 主列（画布）| 检查器岛 ────── */
 .mya-body {
   flex: 1 1 auto;
   display: flex;
-  gap: var(--gap);
+  gap: 14px;
   min-height: 0;
   min-width: 0;
 }
@@ -33,7 +38,7 @@
   flex: 1 1 auto;
   display: flex;
   flex-direction: column;
-  gap: var(--gap);
+  gap: 12px;
   min-width: 0;
   min-height: 0;
 }
@@ -41,70 +46,117 @@
 .mya .ui-icon { flex: 0 0 auto; }
 .mya .mya-spacer { flex: 1; }
 
-/* ── 顶部命令/搜索条（全宽）────────────────────────────────── */
-.mya-cmd {
-  flex: 0 0 46px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 0 14px;
-  background: var(--panel);
-  border: 1px solid transparent;
-  border-radius: var(--r-panel);
-  box-shadow: var(--shadow-base);
-  animation: myaRise .5s var(--eo) both;
-}
-.mya-logo {
-  width: 21px;
-  height: 21px;
-  flex: 0 0 21px;
-  display: grid;
-  place-items: center;
-  border-radius: var(--r-mark);
-  background: var(--acc);
-  color: var(--acc-ink);
-}
-.mya-logo .ui-icon { width: 12px; height: 12px; }
-.mya-title { margin: 0; font-size: 13px; font-weight: 650; white-space: nowrap; }
-.mya-meta { font-size: 11.5px; color: var(--tx3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
-/* 共享页头接入（整改清单 3）：页头本体由 fm-page.css 定义，这里只补岛面外观 */
+/* ── 顶栏（对齐工作台 44px 紧凑高度与 28px/30px 控件层级）──────── */
 .mya > .fm-page-head {
   flex: 0 0 auto;
-  padding: 0 14px;
+  min-height: 46px;
+  padding: 6px 14px;
   background: var(--panel);
-  border: 1px solid transparent;
+  border: 1px solid var(--line);
   border-radius: var(--r-panel);
   box-shadow: var(--shadow-base);
-  animation: myaRise .5s var(--eo) both;
 }
-.mya > .fm-page-head .fm-searchfield { flex: 0 1 240px; background: var(--panel2); }
-.mya > .fm-page-head .mya-seg { flex: 0 0 auto; }
-.mya > .fm-page-head .mya-primary { flex: 0 0 auto; }
+.mya > .fm-page-head .fm-page-head-title {
+  font-size: 14.5px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  color: var(--tx);
+}
+.mya > .fm-page-head .fm-page-head-actions {
+  flex: 1 1 auto;
+  margin-left: 12px;
+  gap: 8px;
+  min-width: 0;
+}
+.mya-content-search {
+  flex: 0 1 248px;
+  min-width: 150px;
+}
+.mya > .fm-page-head .fm-searchfield {
+  height: 30px;
+  background: var(--panel2);
+  border-color: var(--line);
+}
+.mya > .fm-page-head .fm-searchfield:focus-within {
+  border-color: var(--line2);
+  background: var(--raised);
+}
 
+/* 筛选范围胶囊与总数提示 */
+.mya-scope-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 6px 0 10px;
+  border: 1px solid color-mix(in srgb, var(--acc) 38%, var(--line));
+  border-radius: var(--r-pill);
+  background: var(--sel);
+  color: var(--tx);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.mya-scope-pill b {
+  font-weight: 600;
+  color: var(--tx);
+}
+.mya-scope-count {
+  font-size: 11px;
+  color: var(--acc-tx);
+}
+.mya-scope-clear {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: var(--tx2);
+  cursor: pointer;
+}
+.mya-scope-clear:hover {
+  background: var(--hover);
+  color: var(--tx);
+}
+.mya-scope-clear .ui-icon {
+  width: 11px;
+  height: 11px;
+}
+.mya-total-hint {
+  font-size: 11.5px;
+  color: var(--tx2);
+  white-space: nowrap;
+}
+
+/* 视图分段控件（对齐工作台分段开关：不抢主操作实心色） */
 .mya-seg {
-  display: flex;
+  display: inline-flex;
+  align-items: center;
   gap: 2px;
+  height: 30px;
   padding: 2px;
   background: var(--panel2);
   border: 1px solid var(--line);
-  border-radius: var(--r-pill);
+  border-radius: var(--r-ctl);
+  flex: 0 0 auto;
 }
 .mya-seg button {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  min-height: 28px;
-  padding: 4px 12px;
+  height: 24px;
+  padding: 0 10px;
   white-space: nowrap;
   border: 0;
-  border-radius: var(--r-pill);
+  border-radius: calc(var(--r-ctl) - 2px);
   background: none;
   color: var(--tx2);
   font: inherit;
-  font-size: 12.5px;
+  font-size: 12px;
   cursor: pointer;
-  transition: background-color .18s var(--eo), color .18s var(--eo), box-shadow .18s var(--eo);
+  transition: background-color .15s var(--eo), color .15s var(--eo), box-shadow .15s var(--eo);
 }
 .mya-seg button:hover { color: var(--tx); }
 .mya-seg button.on {
@@ -115,23 +167,26 @@
 }
 .mya-seg .ui-icon { width: 13px; height: 13px; }
 
+/* 主操作按钮：全顶栏唯一实心强调色 */
 .mya-primary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  height: 36px;
-  padding: 0 16px;
+  height: 30px;
+  padding: 0 13px;
   border: 0;
   border-radius: var(--r-ctl);
   background: var(--acc);
   color: var(--acc-ink);
   font: inherit;
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 600;
   white-space: nowrap;
   cursor: pointer;
+  flex: 0 0 auto;
   transition: transform .15s var(--eo), filter .15s var(--eo);
 }
-.mya-primary:hover { filter: brightness(1.06); }
+.mya-primary:hover:not(:disabled) { filter: brightness(1.06); }
+.mya-primary:disabled { opacity: 0.42; cursor: not-allowed; }
 .mya-primary .ui-icon { width: 13px; height: 13px; }

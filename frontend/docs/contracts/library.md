@@ -156,6 +156,7 @@
 |---|---|---|
 | GET | `/reference-videos?q=&tag=&status=&cursor=` | 参考片列表 |
 | GET | `/reference-videos/{videoId}` | 详情 + 镜头段计数 |
+| POST | `/reference-videos/from-asset` | `{ assetId, title? }`：把素材库里的视频登记为参考片（复用同一 `assetId`，不重复存文件），返回 `201`（新建）或 `200`（已存在，`deduped=true`）+ `{ video, deduped }`；非视频素材返回 `400 validation_error` |
 | POST | `/reference-videos/{videoId}/analyze` | 发起解析，`202` + `TaskAcceptedResponse` |
 | GET | `/reference-shots?videoId=&status=&q=&tags=&sort=source&cursor=` | 镜头段列表 |
 | GET | `/reference-shots/{shotId}` | 镜头段详情 |

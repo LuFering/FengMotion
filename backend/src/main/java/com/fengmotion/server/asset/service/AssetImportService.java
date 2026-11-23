@@ -42,6 +42,18 @@ public class AssetImportService {
     @Transactional
     public AssetService.ImportResult importFile(String fileName, String mimeType, String folderId, String name,
                                                 InputStream stream, boolean keepSeparateRecord) {
+        return importFile(fileName, mimeType, folderId, name, stream, keepSeparateRecord, null);
+    }
+
+    /**
+     * 导入并归属到项目。
+     *
+     * @param projectId 归属项目；null 表示未归属。命中去重时只给「未归属」的已有素材补上项目，
+     *                  已归属别的项目的素材不会因为另一个项目导入了同一文件而被改走。
+     */
+    @Transactional
+    public AssetService.ImportResult importFile(String fileName, String mimeType, String folderId, String name,
+                                                InputStream stream, boolean keepSeparateRecord, String projectId) {
         if (fileName == null || fileName.isBlank()) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "validation_error", "文件名不能为空");
         }
@@ -52,6 +64,9 @@ public class AssetImportService {
         }
         if (folderId != null && assets.findFolder(folderId).isEmpty()) {
             throw new ApiException(HttpStatus.NOT_FOUND, "not_found", "文件夹不存在");
+        }
+        if (projectId != null && !assets.projectExists(projectId)) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "not_found", "项目不存在或已归档");
         }
 
         try {
@@ -76,20 +91,20 @@ public class AssetImportService {
             if (existing.isPresent() && !keepSeparateRecord) {
                 Files.deleteIfExists(tmp);
                 log.info("导入命中去重：{}（哈希 {}）", fileName, hash);
-                return new AssetService.ImportResult(placeInFolder(existing.get(), folderId), true);
+                return new AssetService.ImportResult(placeInFolder(existing.get(), folderId, projectId), true);
             }
             if (existing.isPresent()) {
                 Files.deleteIfExists(tmp);
                 log.info("内容命中但保留独立记录：{}（哈希 {}）", fileName, hash);
                 return new AssetService.ImportResult(duplicateRecordOf(existing.get(), fileName, mimeType,
-                        folderId, name, mediaType, hash, size), false);
+                        folderId, name, mediaType, hash, size, projectId), false);
             }
             if (size == 0) {
                 Files.deleteIfExists(tmp);
                 throw new ApiException(HttpStatus.BAD_REQUEST, "validation_error", "文件内容为空");
             }
             return new AssetService.ImportResult(persist(tmp, fileName, mimeType, folderId, name,
-                    mediaType, hash, size), false);
+                    mediaType, hash, size, projectId), false);
         } catch (IOException failure) {
             log.error("导入文件失败：{}", fileName, failure);
             throw new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "internal_error", "文件保存失败");
@@ -116,7 +131,8 @@ public class AssetImportService {
     }
 
     private Asset duplicateRecordOf(Asset existing, String fileName, String mimeType, String folderId,
-                                    String name, AssetStates.MediaType mediaType, String hash, long size) {
+                                    String name, AssetStates.MediaType mediaType, String hash, long size,
+                                    String projectId) {
         Instant now = Instant.now();
         String id = "asset_" + UUID.randomUUID();
         Asset copy = new Asset(
@@ -144,12 +160,19 @@ public class AssetImportService {
                 now,
                 null,
                 id,
-                false);
+                false,
+                projectId);
         return assets.save(copy);
     }
 
-    private Asset placeInFolder(Asset existing, String folderId) {
-        if (folderId == null || folderId.equals(existing.folderId())) {
+    /**
+     * 命中去重时把已有素材放到这次导入的位置：文件夹跟随这次导入；
+     * 项目只在已有素材未归属时补上，不把别的项目的素材改走。
+     */
+    private Asset placeInFolder(Asset existing, String folderId, String projectId) {
+        boolean moveFolder = folderId != null && !folderId.equals(existing.folderId());
+        boolean claimProject = projectId != null && existing.projectId() == null;
+        if (!moveFolder && !claimProject) {
             return existing;
         }
         Instant now = Instant.now();
@@ -158,14 +181,16 @@ public class AssetImportService {
                 existing.sizeBytes(), existing.sourceType(), existing.processingStatus(),
                 existing.processingError(), existing.reviewStatus(), existing.availability(),
                 existing.licenseStatus(), existing.licenseDetails(), existing.width(), existing.height(),
-                existing.durationMs(), existing.tags(), folderId, existing.fileUrl(),
-                existing.thumbnailUrl(), existing.contentHash(), existing.createdAt(), now,
-                existing.lastUsedAt(), "v" + UUID.randomUUID(), existing.demo());
+                existing.durationMs(), existing.tags(), moveFolder ? folderId : existing.folderId(),
+                existing.fileUrl(), existing.thumbnailUrl(), existing.contentHash(), existing.createdAt(), now,
+                existing.lastUsedAt(), "v" + UUID.randomUUID(), existing.demo(),
+                claimProject ? projectId : existing.projectId());
         return assets.updateWithEtag(moved, existing.etag()).orElse(existing);
     }
 
     private Asset persist(Path tmp, String fileName, String mimeType, String folderId, String name,
-                          AssetStates.MediaType mediaType, String hash, long size) throws IOException {
+                          AssetStates.MediaType mediaType, String hash, long size,
+                          String projectId) throws IOException {
         String relativeDir = storage.relativeDirFor(hash);
         Path targetDir = storage.resolve(relativeDir);
         Files.createDirectories(targetDir);
@@ -214,7 +239,8 @@ public class AssetImportService {
                 now,
                 null,
                 id,
-                false);
+                false,
+                projectId);
         return assets.save(asset);
     }
 

@@ -3,6 +3,8 @@
 状态：**待评审冻结**。类型：`Asset`、`AssetFolder`、`UploadSession`、`AssetUpdateRequest`。
 职责边界：只管理**真实文件**的索引与元数据；不负责镜头分析（参考片库），不负责技法定义（特效库）。
 
+本轮界面实施口径与已核对的后端差异见 [素材界面契约](assets-ui.md)（2026-11-21）：当前本地内容端点、上传完成响应、批量逐项确认、范围计数与待发送语义。
+
 ## 1. 五维状态
 
 素材必须同时表达五个正交维度，禁止压成一个 `ready`：
@@ -64,6 +66,7 @@
 | `durationMs` | number | 否 | 音视频时长 |
 | `tags` | string[] | 是 | 标签 |
 | `folderId` | string \| null | 是 | 文件夹；根为 null |
+| `projectId` | string \| null | 是 | 归属项目（2026-11-23 新增）；null 为未归属。只有一个归属，「被哪些项目用到」仍记在 `refs`，两者互不推断 |
 | `refs` | ResourceRef[] | 是 | 被谁引用 |
 | `fileUrl` | string | 是 | 原文件 URL（短期签名） |
 | `thumbnailUrl` | string | 否 | 缩略图 |
@@ -76,18 +79,21 @@
 
 ### 3.1 列表
 
-`GET /assets?mediaType=&sourceType=&folderId=&q=&tags=&sort=recent&cursor=&limit=`
+`GET /assets?mediaType=&sourceType=&folderId=&projectId=&q=&tags=&sort=recent&cursor=&limit=`
+
+- `projectId=<id>` 只看归属该项目的素材；`projectId=unassigned` 只看未归属的素材；不传不限。
 
 - `q` 匹配文件名与标签，不搜 OCR/台词。
 - `sort`：`recent`（lastUsedAt 倒序，默认）/`name`/`size`/`created`。
 - 返回 `Page<Asset>`；`refs` 在列表接口可省略（`?include=refs` 才返回），避免列表过重。
+- `GET /assets/facets` 另返回 `projects: Record<projectId, number>`（只含至少有一条素材的项目）与 `unassigned: number`；口径同其他 facets，不受当前筛选影响。
 
 ### 3.2 上传（浏览器/远程）
 
 `POST /assets/uploads`：
 
 ```json
-{ "fileName": "intro.mp4", "mimeType": "video/mp4", "sizeBytes": 104857600, "folderId": null }
+{ "fileName": "intro.mp4", "mimeType": "video/mp4", "sizeBytes": 104857600, "folderId": null, "projectId": null }
 ```
 
 返回 `201` + `UploadSession`（含 `uploadId`、`chunkSizeBytes`、`expiresAt`）。
@@ -119,10 +125,16 @@
 |---|---|---|
 | GET | `/assets/{assetId}` | 详情（含 refs） |
 | PATCH | `/assets/{assetId}` | 改名/标签/文件夹/授权/审核/可用性，带 `If-Match` |
+| POST | `/assets/batch-update` | `{ ids: [], folderId?: string \| null, addTags?: string[], removeTags?: string[], projectId?: string \| null }`；部分失败返回 `207` + 逐项结果 |
 | DELETE | `/assets/{assetId}` | 删除；被引用返回 `409` + 引用方 |
 | POST | `/assets/batch-delete` | `{ ids: [] }`；部分失败返回 `207` + 逐项结果 |
 
-- 删除前检查引用：任一 `refs` 非空 → `409 conflict`，`details.refs` 列出项目/工作流/场景。
+- 删除前检查引用：任一 `refs` 非空 → `409 conflict`，`details.refs` 列出项目/工作流/场景/参考片。
+- 批量更新（`POST /assets/batch-update`）：
+  - `folderId`：省略表示不改文件夹；`""`（空串）表示移回根目录；非空字符串表示移入目标文件夹（目标文件夹不存在时 `404 not_found`）。
+  - `projectId`：同为三态 —— 省略不改；`""` 改为未归属；非空归属该项目。单条 `PATCH` 规则相同。目标项目不存在或已归档时 `404 not_found`，整批不执行。只改其他字段时归属保持不变。
+  - `addTags` / `removeTags`：在每条素材原有标签基础上做集合并/差，保留收藏星标 `'★'` 除非显式出现在 `removeTags`。
+  - 返回 `{ results: [{ id, ok, asset?, error? }] }`，全部成功 `200`，部分失败 `207`。
 - `availability=deprecated` 只能由显式请求设置，且不可逆；重复设置幂等。
 - `reviewStatus=approved` 要求 `processingStatus=ready`，否则 `409 conflict`。
 - 审核状态转换必须符合 §1.1 的转换表；非法转换（如 `none` → `approved`）返回 `409 conflict` + `details.from`/`details.to`。
@@ -148,5 +160,9 @@
 - 普通视频导入后**不自动**成为「已解析参考片」；需要用户显式发起解析（见 `library.md`）。
 - 内置素材（`sourceType=builtin`）删除后不恢复；`builtin` 不可改为 `imported`。
 - 生成结果（`sourceType=generated`）必须记录来源任务 `refs(kind=task)`，不能悬空。
-- 素材是工作区级资源，不属于单个项目；项目通过 `refs` 引用。
+- 素材文件本体是工作区级的，只存一份；**归属**（`projectId`）用来整理收纳，至多一个，可改可清空。其他项目使用它仍通过 `refs` 引用，不复制文件。（2026-11-23 起替代「素材不属于单个项目」）
+- 上传（`POST /assets` 的 `projectId` 表单字段、`POST /assets/uploads` 的 `projectId`）可直接归属到项目；分片上传在建会话时就校验项目，不等传完才报错。
+- 导入命中去重时：已有素材未归属则补上本次的项目；已归属别的项目则保持原归属，不被改走。
+- 物理删除项目（`DELETE /projects/{id}?purge=true`）时，其素材变回未归属并更换 `etag`，素材不删除；归档项目不改变归属，但归档项目不能再接收新的归属。
+- 生成结果自动归属到来源项目：**未实现**，当前后端没有写入 `sourceType=generated` 素材的流程，接入时再补。
 - 列表空态返回空数组，不用 404。

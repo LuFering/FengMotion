@@ -1,10 +1,9 @@
 /* ── 主岛内的素材卡 ─────────────────────────────────────────────
-   网格密度参考 Eagle / Immich 一类素材库：卡片最小 264px，
-   1600 宽下 4 列、间距 20px，缩略图贴边通栏、信息区独立成块。 */
+   网格密度：卡片最小 256px，1600 宽下 4 列、间距 18px，媒体铺满 16:9。 */
 .mya-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(264px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(256px, 1fr));
+  gap: 18px;
   align-content: start;
 }
 @keyframes myaCardIn {
@@ -14,8 +13,6 @@
 .mya-card {
   position: relative;
   min-width: 0;
-  /* 整张卡就是画面本身：媒体铺满，文字浮在画面上。
-     不再是「上面缩略图 + 下面一条信息栏」的上下两段。 */
   aspect-ratio: 16 / 9;
   padding: 0;
   overflow: hidden;
@@ -23,14 +20,13 @@
   border: 1px solid var(--line);
   border-radius: var(--r-card);
   cursor: pointer;
-  /* 去 AI 味：取消逐张错峰升起，整网只做一次淡入 */
-  animation: myaCardIn .25s var(--eo) backwards;
-  transition: transform .22s var(--eo), box-shadow .22s var(--eo), background-color .22s var(--eo), border-color .22s var(--eo);
+  animation: myaCardIn .22s var(--eo) backwards;
+  transition: transform .2s var(--eo), box-shadow .2s var(--eo), background-color .2s var(--eo), border-color .2s var(--eo);
 }
 .mya-card:hover {
-  transform: translateY(-3px);
+  transform: translateY(-2px);
   border-color: var(--line2);
-  box-shadow: 0 14px 34px rgb(0 0 0 / .30);
+  box-shadow: 0 12px 28px rgb(0 0 0 / .28);
 }
 @media (prefers-reduced-motion: reduce) {
   .mya-card { animation: none; transition: none; }
@@ -40,17 +36,15 @@
 }
 .mya-card[data-on] {
   background: var(--raised);
-  border-color: color-mix(in srgb, var(--acc) 55%, transparent);
+  border-color: color-mix(in srgb, var(--acc) 65%, transparent);
   box-shadow: var(--shadow-card-on);
-  transform: translateY(-1px);
 }
 .mya-card[data-picked] { box-shadow: inset 0 0 0 1.5px var(--acc); }
 .mya-card[data-on][data-picked] { box-shadow: var(--shadow-card-on), inset 0 0 0 1.5px var(--acc); }
-.mya-card:active { transform: scale(.98); }
+.mya-card:active { transform: scale(.985); }
 .mya-card:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
 
 .mya-thumb {
-  /* 铺满整张卡（卡片已经定好 16:9，这里不再自己定义比例） */
   position: absolute;
   inset: 0;
   overflow: hidden;
@@ -61,101 +55,179 @@
   height: 100%;
   object-fit: cover;
   display: block;
-  transition: transform .5s var(--eo);
-  /* Round 3（审计 17 部分）：近黑帧提亮一档，缓解「一墙坏图」的第一观感；
-     根治需换中帧/亮帧数据源，不在本轮。 */
-  filter: brightness(1.15) contrast(1.05);
+  transition: transform .45s var(--eo);
+  filter: brightness(1.12) contrast(1.04);
 }
-.mya-card:hover .mya-thumb img { transform: scale(1.05); }
-.mya-thumb-ph { position: absolute; inset: 0; display: grid; place-items: center; color: var(--tx3); }
+.mya-card:hover .mya-thumb img { transform: scale(1.04); }
+.mya-thumb-ph { position: absolute; inset: 0; display: grid; place-items: center; color: var(--tx2); }
 .mya-thumb-ph .ui-icon { width: 26px; height: 26px; }
-.mya-dur {
+
+/* ── 非视觉素材（字体 / 音频 / 文档）的类型化卡面 ───────────────── */
+.mya-surface {
   position: absolute;
-  right: 8px;
-  bottom: 8px;
-  padding: 2px 7px;
-  border-radius: var(--r-pill);
-  background: var(--scrim);
-  backdrop-filter: blur(4px);
-  color: var(--tx);
-  font-size: 11px;
-  line-height: 1.25;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px 16px 36px;
+  background: radial-gradient(120% 90% at 50% 22%, #1d222e 0%, #0e1017 100%);
+  color: #eef1f7;
+  user-select: none;
 }
+.mya-surface-font {
+  align-items: flex-start;
+  justify-content: center;
+  padding-left: 20px;
+  gap: 3px;
+}
+.mya-surface-glyph {
+  font-size: 38px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  color: #f5f7fb;
+}
+.mya-surface-sample {
+  font-size: 12px;
+  color: rgba(235, 240, 250, 0.72);
+  letter-spacing: 0.02em;
+}
+.mya-surface-audio {
+  gap: 10px;
+}
+.mya-audio-bars {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 30px;
+}
+.mya-audio-bars i {
+  display: block;
+  width: 3px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--acc) 72%, #c9dcff);
+}
+.mya-audio-bars i:nth-child(1) { height: 10px; }
+.mya-audio-bars i:nth-child(2) { height: 20px; }
+.mya-audio-bars i:nth-child(3) { height: 14px; }
+.mya-audio-bars i:nth-child(4) { height: 28px; }
+.mya-audio-bars i:nth-child(5) { height: 18px; }
+.mya-audio-bars i:nth-child(6) { height: 24px; }
+.mya-audio-bars i:nth-child(7) { height: 12px; }
+.mya-audio-bars i:nth-child(8) { height: 22px; }
+.mya-audio-bars i:nth-child(9) { height: 11px; }
+
+.mya-surface-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border-radius: var(--r-pill);
+  background: rgba(255, 255, 255, 0.08);
+  font-size: 11px;
+  color: rgba(240, 244, 250, 0.85);
+}
+.mya-surface-ext {
+  font-weight: 650;
+  letter-spacing: 0.04em;
+}
+.mya-surface-dur {
+  color: rgba(240, 244, 250, 0.68);
+}
+
+.mya-doc-sheet {
+  width: 54px;
+  height: 66px;
+  padding: 10px 8px;
+  border-radius: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.28);
+}
+.mya-doc-ext {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #9ec3ff;
+  margin-bottom: 2px;
+}
+.mya-doc-sheet i {
+  display: block;
+  height: 2px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.22);
+}
+.mya-doc-sheet i:last-child { width: 65%; }
+
+/* 卡片角落交互控件 */
 .mya-check {
   position: absolute;
   left: 8px;
   top: 8px;
+  z-index: 3;
   display: grid;
   place-items: center;
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   border-radius: var(--r-mark);
-  background: color-mix(in srgb, var(--panel) 85%, transparent);
+  background: rgba(12, 14, 18, 0.68);
   backdrop-filter: blur(6px);
-  border: 1px solid var(--line2);
+  border: 1px solid rgba(255, 255, 255, 0.16);
   opacity: 0;
-  transform: translateY(-3px);
-  transition: opacity .18s var(--eo), transform .18s var(--eo);
+  transform: translateY(-2px);
+  transition: opacity .16s var(--eo), transform .16s var(--eo);
 }
 .mya-check input { width: 13px; height: 13px; margin: 0; accent-color: var(--acc); cursor: pointer; }
 .mya-card:hover .mya-check,
 .mya-card[data-on] .mya-check,
 .mya-card[data-picked] .mya-check,
 .mya-check:focus-within { opacity: 1; transform: translateY(0); }
+
 .mya-star {
   position: absolute;
   right: 8px;
   top: 8px;
+  z-index: 3;
   display: grid;
   place-items: center;
   width: 26px;
   height: 26px;
-  border: 1px solid var(--line2);
-  border-radius: var(--r-pill);
-  background: color-mix(in srgb, var(--panel) 85%, transparent);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 6px;
+  background: rgba(12, 14, 18, 0.68);
   backdrop-filter: blur(6px);
-  color: var(--tx2);
+  color: rgba(255, 255, 255, 0.85);
   cursor: pointer;
   opacity: 0;
-  transform: translateY(-3px);
-  transition: opacity .18s var(--eo), transform .18s var(--eo), color .18s var(--eo);
+  transform: translateY(-2px);
+  transition: opacity .16s var(--eo), transform .16s var(--eo), color .16s var(--eo);
 }
-.mya-card:hover .mya-star, .mya-star[data-on], .mya-star:focus-visible { opacity: 1; transform: translateY(0); }
+.mya-card:hover .mya-star,
+.mya-star[data-on],
+.mya-star:focus-visible { opacity: 1; transform: translateY(0); }
 .mya-star[data-on] { color: var(--warn); }
 .mya-star .ui-icon { width: 14px; height: 14px; }
+
 .mya-refs-badge {
-  /* 从「压在画面左下角」改成信息行里的一枚胶囊：
-     文字浮层现在占着画面底部，徽标再压在那里会互相遮挡。 */
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
   flex: 0 0 auto;
   padding: 1px 6px;
   border-radius: var(--r-pill);
-  /* Round 3（审计 19）：徽标底衬固定深色，不随主题变透明；触感下也看得见 */
-  background: rgba(8, 9, 11, .5);
+  background: rgba(8, 9, 11, 0.55);
   color: #f4f5f7;
   font-size: 10.5px;
   line-height: 1.35;
   pointer-events: none;
 }
 .mya-refs-badge .ui-icon { width: 11px; height: 11px; color: #cfd6e4; }
-.mya-scrub {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 2px;
-  background: var(--acc);
-  transform: scaleX(0);
-  transform-origin: left;
-  opacity: 0;
-  pointer-events: none;
-}
-.mya-card:hover .mya-scrub { opacity: 1; animation: myaScrub 1.6s linear infinite; }
-@keyframes myaScrub { from { transform: scaleX(0); } to { transform: scaleX(1); } }
-/* 文字浮层：贴在画面底部，下面用一层渐变把画面压暗，保证任何图上都读得清。
-   渐变是固定深色（不跟主题走）—— 它压的是一张照片，不是面板。 */
+
+/* 卡片底部文字浮层 */
 .mya-card-body {
   position: absolute;
   left: 0;
@@ -163,19 +235,19 @@
   bottom: 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
   min-width: 0;
-  padding: 26px 11px 9px;
+  padding: 28px 12px 10px;
   background: linear-gradient(to top,
-    rgb(6 7 9 / .86) 0%,
-    rgb(6 7 9 / .62) 42%,
+    rgb(6 7 9 / .90) 0%,
+    rgb(6 7 9 / .62) 46%,
     rgb(6 7 9 / 0) 100%);
   pointer-events: none;
 }
 .mya-card-name {
   font-size: 13px;
   font-weight: 600;
-  line-height: 1.3;
+  line-height: 1.32;
   color: #f7f8fa;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -189,18 +261,16 @@
   min-width: 0;
   font-size: 11px;
   line-height: 1.4;
-  color: rgb(255 255 255 / .68);
+  color: rgb(255 255 255 / .72);
 }
 .mya-card-spec { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mya-flag { flex: 0 0 auto; margin-left: auto; font-size: 10.5px; color: #f0c07a; }
-.mya-flag[data-tone="bad"] { color: #ff9b9b; }
 
-/* ── 列表视图：对齐账本，行本身也是小卡 ───────────────────────── */
+/* ── 列表视图：对齐账本（含行内快捷操作） ───────────────────────── */
 .mya-list { display: flex; flex-direction: column; gap: 4px; }
 .mya-list-head,
 .mya-row {
   display: grid;
-  grid-template-columns: 22px minmax(0, 1fr) 44px 78px 60px 54px 40px 64px 58px;
+  grid-template-columns: 24px minmax(180px, 1fr) 48px 86px 68px 62px 44px 76px 72px 58px;
   align-items: center;
   gap: 8px;
   padding: 0 10px;
@@ -210,15 +280,14 @@
   top: 0;
   z-index: 2;
   background: var(--panel);
-  min-height: 28px;
-  font-size: 10.5px;
-  font-weight: 700;
-  letter-spacing: .08em;
-  text-transform: uppercase;
-  color: var(--tx3);
+  min-height: 30px;
+  border-bottom: 1px solid var(--line);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--tx2);
 }
 .mya-row {
-  min-height: 38px;
+  min-height: 40px;
   padding: 5px 10px;
   background: var(--panel2);
   border: 1px solid var(--line);
@@ -226,21 +295,21 @@
   color: var(--tx2);
   font-size: 12.5px;
   cursor: pointer;
-  transition: transform .15s var(--eo), box-shadow .15s var(--eo), background-color .15s var(--eo), border-color .15s var(--eo);
+  transition: background-color .14s var(--eo), border-color .14s var(--eo), box-shadow .14s var(--eo);
 }
-.mya-row:hover { transform: translateY(-1px); background: var(--hover); }
+.mya-row:hover { background: var(--hover); border-color: var(--line2); }
 .mya-row[data-on] {
   background: var(--raised);
   border-color: color-mix(in srgb, var(--acc) 55%, transparent);
   box-shadow: var(--shadow-card-on);
-  transform: translateY(-1px);
 }
 .mya-row[data-picked] { box-shadow: inset 0 0 0 1.5px var(--acc); }
 .mya-row[data-on][data-picked] { box-shadow: var(--shadow-card-on), inset 0 0 0 1.5px var(--acc); }
 .mya-row:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
+
 .mya-col-check { display: grid; place-items: center; }
-.mya-col-check input { width: 12px; height: 12px; margin: 0; accent-color: var(--acc); cursor: pointer; }
-.mya-col-name { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.mya-col-check input { width: 13px; height: 13px; margin: 0; accent-color: var(--acc); cursor: pointer; }
+.mya-col-name { display: flex; align-items: center; gap: 9px; min-width: 0; }
 .mya-row-thumb {
   width: 44px;
   height: 26px;
@@ -248,36 +317,137 @@
   display: grid;
   place-items: center;
   overflow: hidden;
-  border-radius: var(--r-thumb);
+  border-radius: 5px;
   background: var(--stage-bg);
-  color: var(--tx3);
+  color: var(--tx2);
 }
 .mya-row-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .mya-row-thumb .ui-icon { width: 13px; height: 13px; }
-.mya-row-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--tx); }
-.mya-row-star { width: 11px; height: 11px; color: var(--warn); }
-.mya-col-type, .mya-col-src { font-size: 11.5px; color: var(--tx3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.mya-col-refs { font-size: 11.5px; color: var(--tx3); white-space: nowrap; }
-.mya-col-dim, .mya-col-size { font-size: 11.5px; color: var(--tx3); white-space: nowrap; }
+.mya-row-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--tx);
+  font-weight: 500;
+}
+.mya-row-star { width: 12px; height: 12px; color: var(--warn); flex: 0 0 auto; }
+
+.mya-col-type,
+.mya-col-src {
+  font-size: 11.5px;
+  color: var(--tx2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mya-col-dim,
+.mya-col-size,
+.mya-col-refs {
+  font-size: 11.5px;
+  color: var(--tx2);
+  white-space: nowrap;
+  text-align: right;
+}
+.mya-list-head .mya-col-dim,
+.mya-list-head .mya-col-size,
+.mya-list-head .mya-col-refs {
+  text-align: right;
+}
+
+/* 状态胶囊：圆点 + 文字（符合无障碍双通道原则，去厚重边框） */
 .mya-status-pill {
   display: inline-flex;
   align-items: center;
-  padding: 2px 8px;
-  border: 1px solid var(--line);
+  gap: 5px;
+  padding: 2px 7px;
   border-radius: var(--r-pill);
-  background: var(--panel);
-  color: var(--tx3);
-  font-size: 10.5px;
+  background: color-mix(in srgb, var(--tx) 5%, transparent);
+  color: var(--tx2);
+  font-size: 11px;
   white-space: nowrap;
+}
+.mya-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--tx2);
+  flex: 0 0 6px;
+}
+.mya-status-pill[data-s="allowed"],
+.mya-status-pill[data-s="approved"],
+.mya-status-pill[data-s="ready"] {
+  color: var(--ok);
+  background: color-mix(in srgb, var(--ok) 12%, transparent);
+}
+.mya-status-pill[data-s="allowed"] .mya-status-dot,
+.mya-status-pill[data-s="approved"] .mya-status-dot,
+.mya-status-pill[data-s="ready"] .mya-status-dot {
+  background: var(--ok);
 }
 .mya-status-pill[data-s="attribution_required"],
 .mya-status-pill[data-s="unknown"],
 .mya-status-pill[data-s="pending"],
+.mya-status-pill[data-s="processing"],
 .mya-status-pill[data-s="needs_review"] {
   color: var(--warn);
-  border-color: color-mix(in srgb, var(--warn) 38%, transparent);
+  background: color-mix(in srgb, var(--warn) 13%, transparent);
 }
-.mya-status-pill[data-s="restricted"] {
+.mya-status-pill[data-s="attribution_required"] .mya-status-dot,
+.mya-status-pill[data-s="unknown"] .mya-status-dot,
+.mya-status-pill[data-s="pending"] .mya-status-dot,
+.mya-status-pill[data-s="processing"] .mya-status-dot,
+.mya-status-pill[data-s="needs_review"] .mya-status-dot {
+  background: var(--warn);
+}
+.mya-status-pill[data-s="restricted"],
+.mya-status-pill[data-s="rejected"],
+.mya-status-pill[data-s="failed"] {
   color: var(--danger);
-  border-color: color-mix(in srgb, var(--danger) 38%, transparent);
+  background: color-mix(in srgb, var(--danger) 13%, transparent);
+}
+.mya-status-pill[data-s="restricted"] .mya-status-dot,
+.mya-status-pill[data-s="rejected"] .mya-status-dot,
+.mya-status-pill[data-s="failed"] .mya-status-dot {
+  background: var(--danger);
+}
+
+/* 列表行内快捷操作 */
+.mya-col-acts {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+}
+.mya-list-head .mya-col-acts {
+  justify-content: flex-end;
+}
+.mya-row-actbtn {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: calc(var(--r-ctl) - 2px);
+  background: transparent;
+  color: var(--tx2);
+  cursor: pointer;
+  transition: background-color .14s var(--eo), color .14s var(--eo);
+}
+.mya-row-actbtn:hover {
+  background: var(--raised);
+  border-color: var(--line2);
+  color: var(--tx);
+}
+.mya-row-actbtn[data-added] {
+  color: var(--acc-tx);
+  background: var(--sel);
+}
+.mya-row-actbtn[data-on] {
+  color: var(--warn);
+}
+.mya-row-actbtn .ui-icon {
+  width: 13px;
+  height: 13px;
 }

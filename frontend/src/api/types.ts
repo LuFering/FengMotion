@@ -226,6 +226,8 @@ export interface UploadProgress {
 
 export interface UploadOptions {
   folderId?: string | null
+  /** 完成后素材归属的项目；null 为未归属。 */
+  projectId?: string | null
   signal?: AbortSignal
   onProgress?: (progress: UploadProgress) => void
   /** 续传：复用已存在的上传会话，从服务端 `receivedBytes` 之后继续。 */

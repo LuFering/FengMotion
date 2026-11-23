@@ -92,6 +92,23 @@ public class ReferenceVideoController {
                         result.deduped()));
     }
 
+    /**
+     * 把素材库里已有的视频登记为参考片（契约 library.md §4.3）。
+     *
+     * <p>新建返回 201，该素材已登记过返回 200（{@code deduped=true}）；非视频素材返回 400。</p>
+     */
+    @PostMapping("/from-asset")
+    public ResponseEntity<ImportResponse> importFromAsset(@RequestBody(required = false) FromAssetRequest request) {
+        if (request == null || request.assetId() == null || request.assetId().isBlank()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "validation_error", "assetId 不能为空");
+        }
+        ReferenceVideoService.ImportResult result = service.importFromAsset(request.assetId(), request.title());
+        HttpStatus status = result.deduped() ? HttpStatus.OK : HttpStatus.CREATED;
+        return ResponseEntity.status(status)
+                .body(new ImportResponse(toVideo(result.video(), service.segmentsOf(result.video().id())),
+                        result.deduped()));
+    }
+
     /** 视频详情（含片段数）。 */
     @GetMapping("/{videoId}")
     public VideoResponse get(@PathVariable String videoId) {
@@ -252,6 +269,10 @@ public class ReferenceVideoController {
 
     /** 导入结果；{@code deduped} 表示命中了已有参考片。 */
     public record ImportResponse(VideoResponse video, boolean deduped) {
+    }
+
+    /** 从已有视频素材登记参考片请求。 */
+    public record FromAssetRequest(String assetId, String title) {
     }
 
     /** 更新视频请求。 */

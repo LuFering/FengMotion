@@ -14,6 +14,8 @@ import java.util.Map;
  * @param reviewStatus reviewStatus → 条数
  * @param availability availability → 条数
  * @param licenseStatus licenseStatus → 条数
+ * @param projects     归属项目 ID → 条数；只含至少有一条素材的项目
+ * @param unassigned   未归属任何项目的条数
  */
 public record AssetCounts(
         int total,
@@ -21,5 +23,7 @@ public record AssetCounts(
         Map<String, Integer> sourceTypes,
         Map<String, Integer> reviewStatus,
         Map<String, Integer> availability,
-        Map<String, Integer> licenseStatus) {
+        Map<String, Integer> licenseStatus,
+        Map<String, Integer> projects,
+        int unassigned) {
 }

@@ -63,7 +63,8 @@ public class AssetResponses {
                 // 只比大小抓不到内容被换掉的情况。
                 asset.contentHash(),
                 refList,
-                asset.demo());
+                asset.demo(),
+                asset.projectId());
     }
 
     private static RefResponse toRef(RefRow row) {

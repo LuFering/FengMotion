@@ -165,4 +165,48 @@ class ReferenceApiTest {
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.error.code").value("not_found"));
     }
+
+    @Test
+    @DisplayName("从已有视频素材登记参考片：新建 201 并写入引用，重复登记 200 deduped=true，非视频 400")
+    void registersReferenceVideoFromExistingAsset() throws Exception {
+        Assumptions.assumeTrue(Files.isRegularFile(SAMPLE), "本机缺少示例视频，跳过");
+        MockMultipartFile videoFile = new MockMultipartFile("file", "asset-vid.mp4", "video/mp4",
+                Files.readAllBytes(SAMPLE));
+        String uploaded = mvc.perform(multipart("/api/assets").file(videoFile))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        String assetId = com.jayway.jsonpath.JsonPath.read(uploaded, "$.asset.id");
+
+        mvc.perform(post("/api/reference-videos/from-asset")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"assetId\":\"" + assetId + "\",\"title\":\"转入参考片\"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.deduped").value(false))
+                .andExpect(jsonPath("$.video.assetId").value(assetId))
+                .andExpect(jsonPath("$.video.title").value("转入参考片"));
+
+        // 重复登记返回 200 且 deduped=true
+        mvc.perform(post("/api/reference-videos/from-asset")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"assetId\":\"" + assetId + "\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.deduped").value(true));
+
+        // 素材详情能查到 reference 类型的引用
+        mvc.perform(get("/api/assets/" + assetId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.refs[0].kind").value("reference"));
+
+        // 非视频素材返回 400
+        MockMultipartFile textFile = new MockMultipartFile("file", "note.txt", "text/plain", "hi".getBytes());
+        String docUploaded = mvc.perform(multipart("/api/assets").file(textFile))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        String docId = com.jayway.jsonpath.JsonPath.read(docUploaded, "$.asset.id");
+        mvc.perform(post("/api/reference-videos/from-asset")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"assetId\":\"" + docId + "\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("validation_error"));
+    }
 }

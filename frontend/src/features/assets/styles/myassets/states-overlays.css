@@ -1,4 +1,4 @@
-/* ── 空态 / 加载（不留白屏，不用虚线大卡）──────────────────── */
+/* ── 空态 / 加载与检查器预览内容 ─────────────────────────────── */
 .mya-state {
   min-height: 320px;
   display: flex;
@@ -11,8 +11,8 @@
   color: var(--tx2);
 }
 .mya-state h3 { margin: 0; font-size: 13px; font-weight: 650; color: var(--tx); }
-.mya-state p { margin: 0; font-size: 12.5px; line-height: 1.7; color: var(--tx3); }
-.mya-empty-icon { width: 24px; height: 24px; color: var(--tx3); }
+.mya-state p { margin: 0; font-size: 12.5px; line-height: 1.7; color: var(--tx2); }
+.mya-empty-icon { width: 24px; height: 24px; color: var(--tx2); }
 .mya-spin {
   width: 16px;
   height: 16px;
@@ -22,65 +22,77 @@
   animation: myaSpin .8s linear infinite;
 }
 
-/* ── 预览内容 ─────────────────────────────────────────────── */
-.mya-audio { display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%; padding: 0 14px; color: var(--tx3); }
-.mya-audio .ui-icon { width: 22px; height: 22px; }
-.mya-audio audio { width: 100%; }
-.mya-font { width: 100%; padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; text-align: left; }
-.mya-font-big { font-size: 24px; }
-.mya-font-sm { font-size: 12px; color: var(--tx2); }
-.mya-doc { display: flex; flex-direction: column; align-items: center; gap: 8px; color: var(--tx2); font-size: 11.5px; }
-.mya-doc .ui-icon { width: 24px; height: 24px; color: var(--tx3); }
-.mya-doc a { color: var(--acc-tx); }
-.mya-doc p { margin: 0; }
-
-/* ── 浮层：重命名（V3 8.8 浮层语言）──────────
-   导入队列 / 拖放提示两块浮层已按作者要求删除，样式一并清掉。 */
-
-.mya-modal {
-  position: fixed;
-  inset: 0;
-  z-index: 100;
-  display: grid;
-  place-items: center;
-  background: var(--overlay);
-  backdrop-filter: blur(2.5px);
+/* ── 检查器预览舞台（音频 / 字体 / 文档） ───────────────────────── */
+.mya-audio {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  height: 100%;
+  padding: 14px;
+  color: var(--tx2);
 }
-.mya-modal-card {
-  width: 320px;
+.mya-audio audio { width: 100%; height: 32px; }
+
+.mya-font {
+  width: 100%;
+  height: 100%;
   padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  background: var(--panel);
-  border: 1px solid var(--line2);
-  border-radius: var(--r-float);
-  box-shadow: var(--shadow-float);
-  animation: myaPop .18s var(--eo) both;
+  justify-content: center;
+  gap: 8px;
+  text-align: left;
 }
-.mya-modal-card h4 { margin: 0; font-size: 13px; font-weight: 650; }
-.mya-modal-card input {
-  height: 30px;
-  padding: 0 10px;
-  border: 1px solid var(--line2);
-  border-radius: var(--r-ctl);
-  background: var(--panel2);
-  color: var(--tx);
-  font: inherit;
-  font-size: 12.5px;
-  outline: 0;
-}
-.mya-modal-card input:focus { border-color: var(--acc); }
-.mya-modal-acts { display: flex; justify-content: flex-end; gap: 8px; }
-.mya-modal-acts button {
-  padding: 6px 12px;
-  border: 1px solid var(--line2);
-  border-radius: var(--r-ctl);
-  background: none;
+.mya-font-big { font-size: 23px; color: var(--tx); line-height: 1.25; }
+.mya-font-sm { font-size: 12px; color: var(--tx2); line-height: 1.45; }
+
+.mya-doc {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  height: 100%;
+  padding: 14px;
   color: var(--tx2);
-  font: inherit;
-  font-size: 11.5px;
-  cursor: pointer;
+  font-size: 12px;
 }
-.mya-modal-acts button:hover { color: var(--tx); border-color: var(--tx3); }
-.mya-modal-acts .mya-primary { border-color: transparent; background: var(--acc); color: var(--acc-ink); }
+.mya-doc-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: var(--r-pill);
+  border: 1px solid color-mix(in srgb, var(--acc) 42%, var(--line));
+  background: var(--sel);
+  color: var(--acc-tx);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+.mya-doc-title {
+  margin: 0;
+  max-width: 90%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--tx);
+  font-weight: 550;
+}
+.mya-doc-open {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: var(--r-ctl);
+  border: 1px solid var(--line2);
+  background: var(--panel2);
+  color: var(--acc-tx);
+  font-size: 11.5px;
+  text-decoration: none;
+}
+.mya-doc-open:hover { background: var(--hover); color: var(--tx); }
+.mya-doc-open .ui-icon { width: 12px; height: 12px; }

@@ -31,6 +31,8 @@ export interface Asset {
   durationMs?: number
   tags: string[]
   folderId: Id | null
+  /** 归属项目；null 为未归属。归属只有一个，「被哪些项目用到」看 refs。 */
+  projectId?: Id | null
   refs: ResourceRef[]
   /** 原始文件访问地址；需要鉴权时由后端签发短期 URL。 */
   fileUrl: string
@@ -39,6 +41,7 @@ export interface Asset {
   updatedAt: IsoDateTime
   lastUsedAt?: IsoDateTime
   etag: string
+  contentHash?: string
   demo?: DemoFlag
 }
 
@@ -57,6 +60,9 @@ export interface AssetFacets {
   reviewStatus: Record<string, number>
   availability: Record<string, number>
   licenseStatus: Record<string, number>
+  /** 归属项目 → 条数，只含至少有一条素材的项目。 */
+  projects?: Record<string, number>
+  unassigned?: number
 }
 
 export interface AssetFolder {
@@ -82,6 +88,8 @@ export interface AssetUpdateRequest {
   name?: string
   tags?: string[]
   folderId?: Id | null
+  /** 三态：省略不改；空串改为未归属；非空归属该项目。 */
+  projectId?: Id | null
   licenseStatus?: LicenseStatus
   licenseDetails?: string
   reviewStatus?: ResourceReviewStatus
@@ -93,9 +101,33 @@ export interface AssetListQuery extends PageQuery {
   mediaType?: MediaType
   sourceType?: ResourceSourceType
   folderId?: Id
+  /** 项目 ID；传 `unassigned` 只看未归属。 */
+  projectId?: string
   q?: string
   tags?: string[]
   sort?: 'recent' | 'name' | 'size' | 'created'
+  include?: 'refs'
+}
+
+export interface AssetBatchUpdateRequest {
+  ids: Id[]
+  /** 省略表示不改；空串表示移回根目录；非空表示移入目标文件夹 */
+  folderId?: Id | null
+  /** 省略表示不改；空串改为未归属；非空归属该项目 */
+  projectId?: Id | null
+  addTags?: string[]
+  removeTags?: string[]
+}
+
+export interface AssetBatchUpdateItemResult {
+  id: Id
+  ok: boolean
+  asset?: Asset | null
+  error?: string
+}
+
+export interface AssetBatchUpdateResult {
+  results: AssetBatchUpdateItemResult[]
 }
 
 export interface AssetImportRequest {

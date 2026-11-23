@@ -29,7 +29,27 @@ public record UpdateAssetRequest(
         AssetStates.Availability availability,
         AssetStates.ProcessingStatus processingStatus,
         String processingError,
-        boolean touchLastUsed) {
+        boolean touchLastUsed,
+        String projectId) {
+
+    /** 不改归属项目的请求（旧调用方沿用）。projectId 与 folderId 同为三态，见 {@link #movesProject()}。 */
+    public UpdateAssetRequest(String name, List<String> tags, String folderId,
+            AssetStates.LicenseStatus licenseStatus, String licenseDetails, AssetStates.ReviewStatus reviewStatus,
+            AssetStates.Availability availability, AssetStates.ProcessingStatus processingStatus,
+            String processingError, boolean touchLastUsed) {
+        this(name, tags, folderId, licenseStatus, licenseDetails, reviewStatus, availability, processingStatus,
+                processingError, touchLastUsed, null);
+    }
+
+    /** 是否要求改归属项目：null=不改，空串=改为未归属，非空=归属该项目。 */
+    public boolean movesProject() {
+        return projectId != null;
+    }
+
+    /** 目标项目；空串转成 null 表示未归属。 */
+    public String targetProjectId() {
+        return projectId == null || projectId.isBlank() ? null : projectId.strip();
+    }
 
     /** 是否要求移动文件夹（区分「不改」与「移回根」）。 */
     public boolean movesFolder() {

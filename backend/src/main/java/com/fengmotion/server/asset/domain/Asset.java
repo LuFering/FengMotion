@@ -34,6 +34,7 @@ import java.util.List;
  * @param lastUsedAt         最近使用时间
  * @param etag               条件更新用
  * @param demo               演示数据标记；与 sourceType 正交
+ * @param projectId          归属项目；null 表示未归属。归属只有一个，「被哪些项目用到」仍记在引用里
  */
 public record Asset(
         String id,
@@ -60,5 +61,19 @@ public record Asset(
         Instant updatedAt,
         Instant lastUsedAt,
         String etag,
-        boolean demo) {
+        boolean demo,
+        String projectId) {
+
+    /** 未归属项目的素材。保留旧的 25 参数写法，调用方不必为新字段逐处补 null。 */
+    public Asset(String id, String name, AssetStates.MediaType mediaType, String mimeType, long sizeBytes,
+            AssetStates.SourceType sourceType, AssetStates.ProcessingStatus processingStatus,
+            String processingError, AssetStates.ReviewStatus reviewStatus, AssetStates.Availability availability,
+            AssetStates.LicenseStatus licenseStatus, String licenseDetails, Integer width, Integer height,
+            Long durationMs, List<String> tags, String folderId, String fileUrl, String thumbnailUrl,
+            String contentHash, Instant createdAt, Instant updatedAt, Instant lastUsedAt, String etag,
+            boolean demo) {
+        this(id, name, mediaType, mimeType, sizeBytes, sourceType, processingStatus, processingError,
+                reviewStatus, availability, licenseStatus, licenseDetails, width, height, durationMs, tags,
+                folderId, fileUrl, thumbnailUrl, contentHash, createdAt, updatedAt, lastUsedAt, etag, demo, null);
+    }
 }

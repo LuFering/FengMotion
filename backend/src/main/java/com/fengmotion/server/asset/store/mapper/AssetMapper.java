@@ -27,12 +27,12 @@ public interface AssetMapper {
                 (id, name, media_type, mime_type, size_bytes, source_type, processing_status,
                  processing_error, review_status, availability, license_status, license_details,
                  width, height, duration_ms, tags_json, folder_id, storage_path, thumbnail_path,
-                 content_hash, created_at, updated_at, last_used_at, etag, demo)
+                 content_hash, created_at, updated_at, last_used_at, etag, demo, project_id)
             VALUES
                 (#{id}, #{name}, #{mediaType}, #{mimeType}, #{sizeBytes}, #{sourceType}, #{processingStatus},
                  #{processingError}, #{reviewStatus}, #{availability}, #{licenseStatus}, #{licenseDetails},
                  #{width}, #{height}, #{durationMs}, #{tagsJson}, #{folderId}, #{storagePath}, #{thumbnailPath},
-                 #{contentHash}, #{createdAt}, #{updatedAt}, #{lastUsedAt}, #{etag}, #{demo})
+                 #{contentHash}, #{createdAt}, #{updatedAt}, #{lastUsedAt}, #{etag}, #{demo}, #{projectId})
             """)
     void insert(AssetRow row);
 
@@ -69,7 +69,7 @@ public interface AssetMapper {
                 processing_error = #{row.processingError}, review_status = #{row.reviewStatus},
                 availability = #{row.availability}, license_status = #{row.licenseStatus},
                 license_details = #{row.licenseDetails}, last_used_at = #{row.lastUsedAt},
-                updated_at = #{row.updatedAt}, etag = #{row.etag}
+                updated_at = #{row.updatedAt}, etag = #{row.etag}, project_id = #{row.projectId}
             WHERE id = #{row.id} AND etag = #{expectedEtag}
             """)
     int updateWithEtag(@Param("row") AssetRow row, @Param("expectedEtag") String expectedEtag);
@@ -102,6 +102,8 @@ public interface AssetMapper {
               <if test="processingStatus != null">AND processing_status = #{processingStatus}</if>
               <if test="folderId != null">AND folder_id = #{folderId}</if>
               <if test="rootOnly">AND folder_id IS NULL</if>
+              <if test="projectId != null">AND project_id = #{projectId}</if>
+              <if test="unassignedOnly">AND project_id IS NULL</if>
               <if test="q != null">AND (name LIKE #{qLike} OR tags_json LIKE #{qLike})</if>
               <if test="tag != null">AND tags_json LIKE #{tagLike}</if>
             </where>
@@ -127,6 +129,8 @@ public interface AssetMapper {
             @Param("qLike") String qLike,
             @Param("tag") String tag,
             @Param("tagLike") String tagLike,
+            @Param("projectId") String projectId,
+            @Param("unassignedOnly") boolean unassignedOnly,
             @Param("sort") String sort,
             @Param("limit") int limit,
             @Param("offset") int offset);
@@ -144,6 +148,8 @@ public interface AssetMapper {
               <if test="processingStatus != null">AND processing_status = #{processingStatus}</if>
               <if test="folderId != null">AND folder_id = #{folderId}</if>
               <if test="rootOnly">AND folder_id IS NULL</if>
+              <if test="projectId != null">AND project_id = #{projectId}</if>
+              <if test="unassignedOnly">AND project_id IS NULL</if>
               <if test="q != null">AND (name LIKE #{qLike} OR tags_json LIKE #{qLike})</if>
               <if test="tag != null">AND tags_json LIKE #{tagLike}</if>
             </where>
@@ -160,7 +166,9 @@ public interface AssetMapper {
             @Param("q") String q,
             @Param("qLike") String qLike,
             @Param("tag") String tag,
-            @Param("tagLike") String tagLike);
+            @Param("tagLike") String tagLike,
+            @Param("projectId") String projectId,
+            @Param("unassignedOnly") boolean unassignedOnly);
 
     /**
      * 筛选面计数：不受当前筛选影响的全量计数（契约 library.md §2.2 对 facets 的口径）。
@@ -182,4 +190,20 @@ public interface AssetMapper {
 
     @Select("SELECT COUNT(*) FROM assets")
     int countAll();
+
+    /** 按归属项目计数；未归属的不在这里，见 {@link #countUnassigned()}。 */
+    @Select("SELECT project_id AS k, COUNT(*) AS c FROM assets WHERE project_id IS NOT NULL GROUP BY project_id")
+    List<java.util.Map<String, Object>> countByProject();
+
+    @Select("SELECT COUNT(*) FROM assets WHERE project_id IS NULL")
+    int countUnassigned();
+
+    /**
+     * 项目是否存在且未归档。
+     *
+     * <p>直接查 projects 表而不注入项目模块：素材归属只需要「这个 ID 是不是一个可用的项目」，
+     * 口径与项目列表一致（{@code archived = 0}），归档项目不能再收新素材。</p>
+     */
+    @Select("SELECT COUNT(*) FROM projects WHERE id = #{projectId} AND archived = 0")
+    int countActiveProject(@Param("projectId") String projectId);
 }

@@ -50,7 +50,9 @@ public class UploadSessionService {
             long receivedBytes,
             String status,
             Instant expiresAt,
-            String folderId) {
+            String folderId,
+            /** 完成上传后素材归属的项目；null 为未归属。 */
+            String projectId) {
     }
 
     private record Stored(
@@ -64,7 +66,8 @@ public class UploadSessionService {
             Instant expiresAt,
             /** 已确认连续收到的字节数；分片必须按序推进，避免空洞。 */
             long receivedBytes,
-            String status) {
+            String status,
+            String projectId) {
     }
 
     private final Map<String, Stored> sessions = new ConcurrentHashMap<>();
@@ -76,6 +79,11 @@ public class UploadSessionService {
     }
 
     public Session create(String fileName, String mimeType, long sizeBytes, String folderId) {
+        return create(fileName, mimeType, sizeBytes, folderId, null);
+    }
+
+    /** 带归属项目的会话；空串视为未归属。项目是否存在由调用方在建会话前校验。 */
+    public Session create(String fileName, String mimeType, long sizeBytes, String folderId, String projectId) {
         if (fileName == null || fileName.isBlank()) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "validation_error", "文件名不能为空");
         }
@@ -84,6 +92,9 @@ public class UploadSessionService {
         }
         if (folderId != null && folderId.isBlank()) {
             folderId = null;
+        }
+        if (projectId != null && projectId.isBlank()) {
+            projectId = null;
         }
         String uploadId = "upload_" + UUID.randomUUID();
         Path dir = chunkRoot.resolve(uploadId);
@@ -94,7 +105,7 @@ public class UploadSessionService {
         }
         Instant expiresAt = Instant.now().plusSeconds(SESSION_TTL_SECONDS);
         Stored stored = new Stored(uploadId, fileName, mimeType, sizeBytes, CHUNK_SIZE_BYTES, folderId, dir,
-                expiresAt, 0, "created");
+                expiresAt, 0, "created", projectId);
         sessions.put(uploadId, stored);
         return toSession(stored);
     }
@@ -136,7 +147,7 @@ public class UploadSessionService {
         long next = end + 1;
         Stored updated = new Stored(stored.uploadId(), stored.fileName(), stored.mimeType(), stored.sizeBytes(),
                 stored.chunkSizeBytes(), stored.folderId(), stored.chunkDir(), stored.expiresAt(), next,
-                "uploading");
+                "uploading", stored.projectId());
         sessions.put(uploadId, updated);
         return toSession(updated);
     }
@@ -173,7 +184,7 @@ public class UploadSessionService {
         }
         Stored done = new Stored(stored.uploadId(), stored.fileName(), stored.mimeType(), stored.sizeBytes(),
                 stored.chunkSizeBytes(), stored.folderId(), stored.chunkDir(), stored.expiresAt(),
-                stored.receivedBytes(), "completed");
+                stored.receivedBytes(), "completed", stored.projectId());
         sessions.put(uploadId, done);
         cleanup(uploadId);
         return toSession(done);
@@ -255,7 +266,7 @@ public class UploadSessionService {
     private static Session toSession(Stored stored) {
         return new Session(stored.uploadId(), stored.fileName(), stored.mimeType(), stored.sizeBytes(),
                 stored.chunkSizeBytes(), stored.receivedBytes(), stored.status(), stored.expiresAt(),
-                stored.folderId());
+                stored.folderId(), stored.projectId());
     }
 
     /** 供合并时让调用方拿到会话里的元数据。 */

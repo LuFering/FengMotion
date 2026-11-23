@@ -38,4 +38,6 @@ public class AssetRow {
     private String lastUsedAt;
     private String etag;
     private Integer demo;
+    /** 归属项目；null 表示未归属。 */
+    private String projectId;
 }

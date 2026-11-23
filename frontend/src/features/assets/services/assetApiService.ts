@@ -13,7 +13,16 @@
  */
 import { studioHttpApi } from '@/api'
 import type { Asset as ServerAsset, AssetUpdateRequest } from '@/api/contracts'
-import type { LicenseStatus, MediaType, MyAsset, ReviewStatus, SourceType } from '@/features/assets/model/myAssets'
+import type {
+  AssetRefKind,
+  AvailabilityStatus,
+  LicenseStatus,
+  MediaType,
+  MyAsset,
+  ProcessingStatus,
+  ReviewStatus,
+  SourceType,
+} from '@/features/assets/model/myAssets'
 
 /** 视图用的文件夹形状（与旧 IndexedDB 的 `FolderRow` 对齐，`createdAt` 仍是毫秒数）。 */
 export interface FolderRow {
@@ -34,6 +43,42 @@ function asReviewStatus(value: string): ReviewStatus {
     default:
       // 后端新增了本地还没跟上的取值：不猜，落在「未提审」而不是「已通过」。
       return 'none'
+  }
+}
+
+function asProcessingStatus(value?: string): ProcessingStatus {
+  switch (value) {
+    case 'pending':
+    case 'processing':
+    case 'ready':
+    case 'failed':
+      return value
+    default:
+      return 'ready'
+  }
+}
+
+function asAvailability(value?: string): AvailabilityStatus {
+  switch (value) {
+    case 'enabled':
+    case 'disabled':
+    case 'deprecated':
+      return value
+    default:
+      return 'enabled'
+  }
+}
+
+function asRefKind(value: string): AssetRefKind {
+  switch (value) {
+    case 'project':
+    case 'scene':
+    case 'workflow':
+    case 'reference':
+    case 'task':
+      return value
+    default:
+      return 'task'
   }
 }
 
@@ -80,9 +125,8 @@ function toMyAsset(asset: ServerAsset): MyAsset {
   return {
     id: asset.id,
     name: asset.name,
-    // 视图用 filePath 走「内置素材」的直接路径分支；导入素材必须走 fileUrl，
-    // 所以这里只在内置时填路径，导入时留空，由 getFileURL 提供真实地址。
-    filePath: asset.sourceType === 'builtin' ? asset.fileUrl : '',
+    // 保留服务端返回的真实 fileUrl（如 /api/assets/{id}/content），预览组件通过 getFileURL 转成带宿主机端口的完整 URL。
+    filePath: asset.fileUrl || `/api/assets/${asset.id}/content`,
     mimeType: asset.mimeType,
     sizeBytes: asset.sizeBytes,
     mediaType: asMediaType(asset.mediaType),
@@ -93,20 +137,27 @@ function toMyAsset(asset: ServerAsset): MyAsset {
     height: asset.height ?? undefined,
     tags: asset.tags ?? [],
     folderId: asset.folderId ?? null,
+    projectId: asset.projectId ?? null,
     sourceType: asSourceType(asset.sourceType),
+    processingStatus: asProcessingStatus(asset.processingStatus),
+    processingError: asset.processingError ?? undefined,
+    availability: asAvailability(asset.availability),
     licenseStatus: asLicenseStatus(asset.licenseStatus),
     licenseDetails: asset.licenseDetails ?? undefined,
     reviewStatus: asReviewStatus(asset.reviewStatus),
+    contentHash: asset.contentHash ?? undefined,
     createdAt: Date.parse(asset.createdAt),
+    updatedAt: asset.updatedAt ? Date.parse(asset.updatedAt) : undefined,
     lastUsedAt: asset.lastUsedAt == null ? undefined : Date.parse(asset.lastUsedAt),
     refs: (asset.refs ?? []).map((ref) => ({
-      kind: ref.kind === 'scene' ? 'project' : ref.kind,
+      kind: asRefKind(ref.kind),
       id: ref.id,
       label: ref.label,
     })),
     // 「内置」在视图里表示「种子素材，删除后不恢复」；服务端用 sourceType 表达来源，
     // 演示标记另有 demo 字段，这里按来源判断，不混同。
     builtin: asset.sourceType === 'builtin',
+    demo: Boolean(asset.demo),
   }
 }
 
@@ -120,18 +171,20 @@ export function assetThumbUrl(assetId: string): string {
   return studioHttpApi().assets.thumbnailUrl(assetId)
 }
 
-/** 列出全部素材（分页取完）。 */
+/** 列出全部素材（分页取完，附带引用关系）。 */
 export async function listAssets(): Promise<MyAsset[]> {
   const api = studioHttpApi().assets
   const all: MyAsset[] = []
   let cursor: string | null | undefined
-  // 逐页取完：素材库可能上百条，只取第一页会让界面少显示且没有任何提示。
+  // 逐页取完：素材库可能上百条，只取第一页会让界面少显示且没有任何提示；
+  // 带上 include: 'refs' 让左栏项目计数、未引用筛选与卡片引用徽标拿到真实引用。
   for (let guard = 0; guard < 100; guard += 1) {
-    const page = await api.list({ cursor: cursor ?? undefined, limit: 200 })
+    const page = await api.list({ cursor: cursor ?? undefined, limit: 200, include: 'refs' })
     for (const item of page.items) all.push(toMyAsset(item))
     cursor = page.nextCursor
     if (!cursor) break
   }
+  if (cursor) throw new Error('素材数量超出当前加载上限，无法显示完整素材库')
   return all
 }
 
@@ -152,14 +205,17 @@ export async function listFolders(): Promise<FolderRow[]> {
  * 这里翻译成契约请求。**注意 `folderId: null` 表示「移回根目录」，不是「不改」**，
  * 所以只有补丁里真的带了 folderId 才转发。
  */
-export async function updateAsset(id: string, patch: Partial<MyAsset>): Promise<void> {
+export async function updateAsset(id: string, patch: Partial<MyAsset>): Promise<MyAsset | null> {
   const body: Record<string, unknown> = {}
   if (patch.name !== undefined) body.name = patch.name
   if (patch.tags !== undefined) body.tags = patch.tags
   if (patch.folderId !== undefined) body.folderId = patch.folderId ?? ''
+  // 同为三态：null 表示改为未归属，所以转成空串而不是不发
+  if (patch.projectId !== undefined) body.projectId = patch.projectId ?? ''
   if (patch.licenseStatus !== undefined) body.licenseStatus = patch.licenseStatus
   if (patch.licenseDetails !== undefined) body.licenseDetails = patch.licenseDetails
   if (patch.reviewStatus !== undefined) body.reviewStatus = patch.reviewStatus
+  if (patch.availability !== undefined) body.availability = patch.availability
   // 处理状态正常由解析任务写；迁移场景需要把「旧版已解析完的素材」标为 ready，
   // 否则它的审核状态永远无法写入（契约要求先 ready 才能通过审核）。
   if ((patch as { processingStatus?: string }).processingStatus !== undefined) {
@@ -167,12 +223,59 @@ export async function updateAsset(id: string, patch: Partial<MyAsset>): Promise<
   }
   // 「最近使用」由服务端按 touchLastUsed 置为当前时间，不接受客户端指定时刻。
   if (patch.lastUsedAt !== undefined) body.touchLastUsed = true
-  if (Object.keys(body).length === 0) return
+  if (Object.keys(body).length === 0) return null
 
   const api = studioHttpApi().assets
   // 乐观锁必须带当前 etag：不带就会用旧状态覆盖别处的修改。
   const current = await api.get(id)
-  await api.update(id, body as AssetUpdateRequest, current.etag)
+  const updated = await api.update(id, body as AssetUpdateRequest, current.etag)
+  return updated ? toMyAsset(updated) : null
+}
+
+/** 批量移动文件夹或增删标签：优先调服务端 `/assets/batch-update`，返回更新成功的素材与失败原因。 */
+export async function batchUpdateAssets(
+  ids: string[],
+  spec: { folderId?: string | null; projectId?: string | null; addTags?: string[]; removeTags?: string[] },
+): Promise<{ updated: MyAsset[]; failed: { id: string; error: string }[] }> {
+  const api = studioHttpApi().assets
+  if (typeof api.batchUpdate === 'function') {
+    const res = await api.batchUpdate({ ids, ...spec })
+    const updated: MyAsset[] = []
+    const failed: { id: string; error: string }[] = []
+    for (const id of ids) {
+      const item = res.results?.find(result => result.id === id)
+      if (item?.ok && item.asset) updated.push(toMyAsset(item.asset))
+      else failed.push({ id, error: item?.error ?? '未收到更新确认，请刷新后重试' })
+    }
+    return { updated, failed }
+  }
+  const updated: MyAsset[] = []
+  const failed: { id: string; error: string }[] = []
+  for (const id of ids) {
+    try {
+      const next = await updateAsset(id, {
+        ...(spec.folderId !== undefined ? { folderId: spec.folderId } : {}),
+        ...(spec.projectId !== undefined ? { projectId: spec.projectId } : {}),
+      })
+      if (next) updated.push(next)
+    } catch (err) {
+      failed.push({ id, error: err instanceof Error ? err.message : '更新失败' })
+    }
+  }
+  return { updated, failed }
+}
+
+/** 把视频素材登记为参考片（复用同一 assetId，不重复上传文件）。 */
+export async function registerAssetAsReference(
+  assetId: string,
+  title?: string,
+): Promise<{ videoId: string; title: string; deduped: boolean }> {
+  const res = await studioHttpApi().library.reference.registerVideoFromAsset(assetId, title)
+  return {
+    videoId: String(res.video?.id ?? ''),
+    title: String(res.video?.title ?? title ?? ''),
+    deduped: Boolean(res.deduped),
+  }
 }
 
 /** 批量删除：逐项结果由服务端返回，这里只把失败的原因抛出给调用方展示。 */
@@ -211,7 +314,7 @@ export interface ImportFailure {
 export async function importFiles(
   files: File[],
   onEvent: (e: { phase: 'queued' | 'reading' | 'done' | 'error'; name: string; index: number; error?: string }) => void,
-  options: { keepSeparateRecord?: boolean } = {},
+  options: { keepSeparateRecord?: boolean; folderId?: string | null; projectId?: string | null } = {},
 ): Promise<{ created: MyAsset[]; failed: ImportFailure[] }> {
   const api = studioHttpApi().assets
   const created: MyAsset[] = []
@@ -226,7 +329,7 @@ export async function importFiles(
       const asset = options.keepSeparateRecord
         ? await api.uploadOne(file, { keepSeparateRecord: true })
         : await (async () => {
-            const result = await api.uploadFile(file)
+            const result = await api.uploadFile(file, { folderId: options.folderId, projectId: options.projectId })
             if (!result.assetId) {
               throw new Error('服务端未返回素材 ID')
             }

@@ -1,30 +1,11 @@
-/* ── 工具条（主列顶部：范围面包屑 + 类型/排序浮层，渐进披露）────── */
-.mya-toolbar {
-  position: relative;
-  z-index: 30;
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 46px;
-  min-width: 0;
-  padding: 6px 12px;
-  background: var(--panel);
-  border: 1px solid transparent;
-  border-radius: var(--r-panel);
-  box-shadow: var(--shadow-base);
-  animation: myaRise .5s var(--eo) .06s both;
-}
-.mya-crumb { font-size: 12.5px; color: var(--tx3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.mya-crumb b { color: var(--tx); font-weight: 600; }
-.mya-result-count { font-size: 12px; color: var(--tx3); white-space: nowrap; }
+/* ── 顶栏工具按钮、下拉浮层与画布容器 ─────────────────────────── */
 .mya-tool-wrap { position: relative; flex: 0 0 auto; }
 .mya-toolbtn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  height: 32px;
-  padding: 0 11px;
+  gap: 5px;
+  height: 30px;
+  padding: 0 10px;
   border: 1px solid var(--line);
   border-radius: var(--r-ctl);
   background: var(--panel2);
@@ -35,24 +16,33 @@
   cursor: pointer;
   transition: border-color .15s var(--eo), color .15s var(--eo), background-color .15s var(--eo);
 }
-.mya-toolbtn:hover { color: var(--tx); border-color: var(--line2); }
-.mya-toolbtn[data-on] { border-color: color-mix(in srgb, var(--acc) 45%, transparent); color: var(--tx); background: var(--sel); }
+.mya-toolbtn:hover { color: var(--tx); border-color: var(--line2); background: var(--hover); }
+.mya-toolbtn[data-on] {
+  border-color: color-mix(in srgb, var(--acc) 45%, transparent);
+  color: var(--tx);
+  background: var(--sel);
+}
 .mya-toolbtn .ui-icon { width: 13px; height: 13px; }
-.mya-toolbtn em { font-style: normal; color: var(--acc-tx); font-size: 11.5px; }
-.mya-clearbtn-sm { height: 32px; }
+.mya-toolbtn em {
+  font-style: normal;
+  color: var(--acc-tx);
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
 .mya-popshade { position: fixed; inset: 0; z-index: 40; }
 .mya-pop {
   position: absolute;
   top: calc(100% + 6px);
   right: 0;
   z-index: 60;
-  min-width: 188px;
+  min-width: 192px;
   padding: 5px;
   background: var(--panel);
   border: 1px solid var(--line2);
   border-radius: var(--r-float);
   box-shadow: var(--shadow-float);
-  animation: myaPop .16s var(--eo) both;
+  animation: myaPop .15s var(--eo) both;
 }
 .mya-poprow {
   display: flex;
@@ -66,86 +56,27 @@
   background: none;
   color: var(--tx2);
   font: inherit;
-  font-size: 12.5px;
+  font-size: 12px;
   text-align: left;
   cursor: pointer;
 }
 .mya-poprow:hover { background: var(--hover); color: var(--tx); }
-.mya-poprow[data-on] { color: var(--tx); font-weight: 600; }
-.mya-poprow .ui-icon { width: 13px; height: 13px; color: var(--tx3); }
+.mya-poprow[data-on] { color: var(--tx); font-weight: 600; background: var(--sel); }
+.mya-poprow .ui-icon { width: 13px; height: 13px; color: var(--tx2); }
 .mya-poprow .ui-icon:last-child { margin-left: auto; color: var(--acc-tx); }
 .mya-poprow span:first-of-type { flex: 0 1 auto; }
-.mya-pop-n { margin-left: auto; font-size: 11px; color: var(--tx3); }
+.mya-pop-n { margin-left: auto; font-size: 11px; color: var(--tx2); }
 .mya-pop-n + .ui-icon { margin-left: 6px; }
 
-/* 次动作描边按钮（清除筛选等次动作统一形态） */
-.mya-clearbtn {
-  display: inline-flex;
-  align-items: center;
-  height: 32px;
-  padding: 0 12px;
-  border: 1px solid var(--line2);
-  border-radius: var(--r-ctl);
-  background: none;
-  color: var(--tx2);
-  font: inherit;
-  font-size: 12px;
-  white-space: nowrap;
-  cursor: pointer;
-  transition: border-color .15s var(--eo), color .15s var(--eo), background-color .15s var(--eo);
-}
-.mya-clearbtn:hover { border-color: var(--acc); color: var(--tx); background: var(--hover); }
-
-/* 顶部搜索框（全宽命令条内） */
-.mya-search {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  width: 300px;
-  min-width: 0;
-  height: 30px;
-  padding: 0 10px;
-  background: var(--panel2);
-  border: 1px solid var(--line);
-  border-radius: var(--r-ctl);
-  color: var(--tx3);
-}
-.mya-search:focus-within { border-color: var(--acc); }
-.mya-search .ui-icon { width: 13px; height: 13px; }
-.mya-search input {
-  flex: 1;
-  min-width: 0;
-  border: 0;
-  outline: 0;
-  background: none;
-  color: var(--tx);
-  font: inherit;
-  font-size: 12.5px;
-}
-.mya-search input::placeholder { color: var(--tx3); }
-.mya-search-x {
-  display: grid;
-  place-items: center;
-  padding: 1px;
-  border: 0;
-  background: none;
-  color: var(--tx3);
-  cursor: pointer;
-}
-.mya-search-x:hover { color: var(--tx); }
-.mya-search-x .ui-icon { width: 12px; height: 12px; }
-
-/* drawer 内分区标题 */
+/* 检查器内分区标题（无英文大写装饰） */
 .mya-sec {
   display: flex;
   align-items: center;
   gap: 6px;
-  margin: 13px 0 8px;
-  font-size: 10.5px;
-  font-weight: 700;
-  letter-spacing: .08em;
-  text-transform: uppercase;
-  color: var(--tx3);
+  margin: 16px 0 8px;
+  font-size: 11.5px;
+  font-weight: 650;
+  color: var(--tx2);
 }
 
 /* 全宽素材画布 */
@@ -157,87 +88,27 @@
   min-height: 0;
   overflow: hidden;
   background: var(--panel);
-  border: 1px solid transparent;
+  border: 1px solid var(--line);
   border-radius: var(--r-panel);
   box-shadow: var(--shadow-mid);
-  animation: myaRise .55s var(--eo) .12s both;
 }
-.mya-link {
-  padding: 2px 4px;
-  border: 0;
-  border-radius: var(--fm-radius-ctl);
-  background: none;
-  color: var(--tx3);
-  font: inherit;
-  font-size: 11.5px;
-  cursor: pointer;
-}
-.mya-link:hover { background: var(--hover); color: var(--tx); }
-.mya-sort {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  color: var(--tx3);
-  white-space: nowrap;
-}
-.mya-sort select {
-  height: 32px;
-  padding: 0 8px;
-  border: 1px solid var(--line2);
-  border-radius: var(--r-ctl);
-  background: var(--panel2);
-  color: var(--tx);
-  font: inherit;
-  font-size: 12px;
-  outline: 0;
-  cursor: pointer;
-}
-.mya-sort select:focus { border-color: var(--acc); }
-.mya-sort select option { background: var(--panel); color: var(--tx); }
 
-/* 批量卡（V3 8.9：强调色边小卡 + riseIn） */
-.mya-batch {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin: 8px 10px 0;
-  padding: 8px 10px;
-  background: var(--panel2);
-  border: 1px solid color-mix(in srgb, var(--acc) 45%, transparent);
-  border-radius: var(--r-card);
-  animation: myaRise .3s var(--eo) both;
-}
-.mya-batch-n { margin-right: 4px; font-size: 12.5px; font-weight: 650; color: var(--acc-tx); }
-.mya-batch button {
-  display: inline-flex;
-  align-items: center;
-  height: 28px;
-  padding: 0 10px;
-  border: 1px solid var(--line2);
-  border-radius: var(--r-ctl);
-  background: none;
-  color: var(--tx2);
-  font: inherit;
-  font-size: 11.5px;
-  cursor: pointer;
-  transition: color .15s var(--eo), border-color .15s var(--eo), background-color .15s var(--eo);
-}
-.mya-batch button:hover { color: var(--tx); border-color: var(--tx3); background: var(--hover); }
-.mya-batch-sep { width: 1px; height: 14px; margin: 0 2px; background: var(--line); }
-.mya-toolbar .mya-batch { flex: 1; min-width: 0; margin: 0; padding: 2px 4px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; border: 0; background: none; animation: none; }
-.mya-toolbar .mya-batch::-webkit-scrollbar { display: none; }
 .mya-danger { color: var(--danger) !important; }
-.mya-batch button.mya-danger:hover { border-color: color-mix(in srgb, var(--danger) 55%, transparent); }
+.mya-danger-fill {
+  border-color: transparent !important;
+  background: var(--danger) !important;
+  color: #ffffff !important;
+  font-weight: 600;
+}
+.mya-danger-fill:hover { filter: brightness(1.08); }
 
 .mya-scroll {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 0 20px 20px;
+  padding: 0 18px 24px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line2) transparent;
 }
-.mya-grid { padding-top: 20px; }
-.mya-list { padding-top: 16px; }
-.mya-scroll, .mya-drawer-body { scrollbar-width: none; scrollbar-color: var(--line2) transparent; }
+.mya-grid { padding-top: 18px; }
+.mya-list { padding-top: 14px; }

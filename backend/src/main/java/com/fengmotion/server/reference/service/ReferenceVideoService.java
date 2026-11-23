@@ -66,7 +66,25 @@ public class ReferenceVideoService {
     public ImportResult importVideo(String fileName, String mimeType, String title, InputStream stream) {
         AssetService.ImportResult assetResult = assets.importFile(fileName, mimeType, null, fileName, stream);
         Asset asset = assetResult.asset();
+        return registerAssetAsVideo(asset, title == null || title.isBlank() ? fileName : title);
+    }
 
+    /**
+     * 把素材库里已有的视频素材直接登记为参考片（契约 library.md §4.3）。
+     *
+     * <p>复用同一 {@code assetId}，不重复存文件；该素材已登记过时直接返回已有参考片（{@code deduped=true}）。</p>
+     */
+    @Transactional
+    public ImportResult importFromAsset(String assetId, String title) {
+        if (assetId == null || assetId.isBlank()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "validation_error", "assetId 不能为空");
+        }
+        Asset asset = assets.require(assetId.strip());
+        String effectiveTitle = title == null || title.isBlank() ? asset.name() : title.strip();
+        return registerAssetAsVideo(asset, effectiveTitle);
+    }
+
+    private ImportResult registerAssetAsVideo(Asset asset, String title) {
         if (asset.mediaType() != AssetStates.MediaType.VIDEO) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "validation_error",
                     "参考片只接受视频文件；图片与音频请导入素材库");
@@ -80,7 +98,7 @@ public class ReferenceVideoService {
         Instant now = Instant.now();
         ReferenceVideo video = new ReferenceVideo(
                 "ref_" + UUID.randomUUID(),
-                title == null || title.isBlank() ? fileName : title,
+                title == null || title.isBlank() ? asset.name() : title,
                 asset.durationMs() == null ? 0L : asset.durationMs(),
                 // 来源如实记录：本机导入的文件，不编造「AI 生成」这类出处。
                 "本机导入",
