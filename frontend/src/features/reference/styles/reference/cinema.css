@@ -1,0 +1,144 @@
+/* ── 参考片库 · 影院精修 · 2026-11-23 ───────────────────────────────
+   依据 docs/design/参考片库打磨方案-2026-11-23.md §8。保留影院形态，只打磨浮层。
+   必须最后引入；选择器以 `.rfc .rfc-…`（0,2,0）起，需要压过 polish.css 的同权重规则时多一级。 */
+
+/* ═══ 画面：完整显示，两侧同帧模糊铺底 ═══ */
+.rfc .rfc-stage .rfc-frame { object-fit: contain; z-index: 1; }
+.rfc .rfc-stage .rfc-frame.is-playing { animation: none; }
+.rfc .rfc-stage-bg {
+  position: absolute; inset: -6%; z-index: 0; width: 112%; height: 112%;
+  object-fit: cover; filter: blur(42px) saturate(1.2) brightness(.55); pointer-events: none;
+}
+.rfc .rfc-scrim { z-index: 2; }
+.rfc .rfc-scrim-t { height: 150px; background: linear-gradient(180deg, rgb(4 6 10 / .55), transparent); }
+.rfc .rfc-scrim-b { height: 240px; background: linear-gradient(0deg, rgb(4 6 10 / .78), transparent); }
+
+/* ═══ 片名区：浮在画面上，固定白色系 ═══ */
+.rfc .rfc-head { padding: 22px 28px; }
+.rfc .rfc-eyebrow { color: rgb(255 255 255 / .6); }
+.rfc .rfc-title { color: #fff; font-size: 24px; font-weight: 600; letter-spacing: -.01em; text-shadow: 0 1px 12px rgb(0 0 0 / .45); }
+.rfc .rfc-meta-line { color: rgb(255 255 255 / .72); text-shadow: 0 1px 8px rgb(0 0 0 / .5); }
+
+/* ═══ 分析面板：三主题统一深色玻璃（在画面上读得清），右侧滑出 ═══ */
+.rfc .rfc-panel {
+  --tx: #eef0f4; --tx2: rgb(238 240 244 / .68); --tx3: rgb(238 240 244 / .46);
+  --line: rgb(255 255 255 / .08); --line2: rgb(255 255 255 / .16); --dash: rgb(255 255 255 / .08);
+  --chip-bg: rgb(255 255 255 / .06); --raised: rgb(255 255 255 / .07); --hover: rgb(255 255 255 / .08);
+  --tag-bg: rgb(255 255 255 / .06);
+  top: 74px; right: 16px; width: 340px; max-height: calc(100% - 232px);
+  color: var(--tx);
+  background: rgb(12 14 18 / .74); border: 1px solid rgb(255 255 255 / .12); border-radius: 14px;
+  backdrop-filter: blur(22px) saturate(1.3); -webkit-backdrop-filter: blur(22px) saturate(1.3);
+  box-shadow: 0 18px 48px rgb(0 0 0 / .42);
+  scrollbar-width: thin; scrollbar-color: rgb(255 255 255 / .18) transparent;
+  animation: rfc-slide-in .26s var(--eo);
+}
+@keyframes rfc-slide-in { from { opacity: 0; transform: translateX(18px); } to { opacity: 1; transform: none; } }
+.rfc .rfc-panel .rfc-pill { background: rgb(255 255 255 / .08); border-color: rgb(255 255 255 / .12); color: var(--tx); }
+.rfc .rfc-panel .rfc-btn.primary:disabled { background: rgb(255 255 255 / .1); color: var(--tx); }
+
+/* ═══ 顶部按钮：统一一套深色玻璃 ═══ */
+.rfc .rfc-actions { top: 22px; right: 16px; }
+.rfc .rfc-actions .rfc-gbtn:not(.rfc-gbtn-primary) { background: rgb(12 14 18 / .55); border-color: rgb(255 255 255 / .14); }
+.rfc .rfc-actions .rfc-gbtn.is-on:not(.rfc-gbtn-primary) { background: rgb(12 14 18 / .78); border-color: rgb(255 255 255 / .34); }
+
+/* ═══ 底部：播放条 + 悬浮时间轴 + 片单 ═══ */
+.rfc .rfc-dock { padding: 0 20px 14px; z-index: 3; }
+.rfc .rfc-dock .rfc-transport { margin-bottom: 4px; }
+.rfc .rfc-dock .rfc-play { width: 34px; height: 34px; background: rgb(255 255 255 / .14); border-color: rgb(255 255 255 / .18); }
+.rfc .rfc-dock .rfc-play:hover:not(:disabled) { background: #fff; color: #0b0c10; }
+
+/* 时间轴：平时一条 4px 细线，鼠标移入 / 聚焦 / 拖动时展开为 28px 轨道并显示刻度 */
+.rfc .rfc-tl { position: relative; padding: 8px 0 10px; user-select: none; }
+.rfc .rfc-tl-ruler { position: relative; height: 14px; margin-bottom: 4px; opacity: 0; transition: opacity .18s; }
+.rfc .rfc-tl-ruler span { position: absolute; top: 0; transform: translateX(-50%); font-size: 10.5px; line-height: 14px; color: rgb(255 255 255 / .55); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.rfc .rfc-tl-ruler span[data-edge='start'] { transform: none; }
+.rfc .rfc-tl-ruler span[data-edge='end'] { transform: translateX(-100%); }
+.rfc .rfc-tl-track {
+  position: relative; height: 4px; border-radius: 3px; cursor: pointer; touch-action: none;
+  background: rgb(255 255 255 / .18); transition: height .18s var(--eo), border-radius .18s;
+}
+.rfc .rfc-tl-track::before { content: ''; position: absolute; left: 0; right: 0; top: -10px; bottom: -10px; }
+.rfc .rfc-tl-played { position: absolute; left: 0; top: 0; bottom: 0; border-radius: inherit; background: rgb(255 255 255 / .38); pointer-events: none; }
+.rfc .rfc-tl-seg {
+  position: absolute; top: 0; bottom: 0; min-width: 4px; padding: 0; border: 0; border-radius: inherit;
+  overflow: hidden; container-type: inline-size; cursor: pointer;
+  background: color-mix(in srgb, var(--acc) 70%, transparent); transition: background .15s;
+}
+.rfc .rfc-tl-seg[data-on] { background: var(--acc); }
+.rfc .rfc-tl-lb { position: absolute; left: 8px; top: 50%; transform: translateY(-50%); font-size: 11px; font-weight: 600; color: var(--acc-ink); white-space: nowrap; opacity: 0; transition: opacity .15s; }
+@container (max-width: 72px) { .rfc .rfc-tl-word { display: none; } }
+@container (max-width: 30px) { .rfc .rfc-tl-lb { display: none; } }
+.rfc .rfc-tl-handle {
+  position: absolute; top: 50%; z-index: 3; width: 6px; height: 0; margin-left: -3px; transform: translateY(-50%);
+  border-radius: 3px; background: #fff; cursor: ew-resize; opacity: 0;
+  box-shadow: 0 0 0 1px rgb(0 0 0 / .35); transition: height .18s, opacity .18s;
+}
+.rfc .rfc-tl-handle:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
+.rfc .rfc-tl-hover { position: absolute; top: -4px; bottom: -4px; z-index: 2; width: 1px; background: rgb(255 255 255 / .6); pointer-events: none; }
+.rfc .rfc-tl-hover em {
+  position: absolute; bottom: calc(100% + 6px); left: 0; transform: translateX(-50%);
+  padding: 3px 7px; border-radius: 6px; white-space: nowrap;
+  background: rgb(12 14 18 / .86); border: 1px solid rgb(255 255 255 / .14);
+  font-style: normal; font-size: 11px; color: #fff; font-variant-numeric: tabular-nums;
+}
+.rfc .rfc-tl-head { position: absolute; top: 50%; z-index: 4; width: 10px; height: 10px; margin: -5px 0 0 -5px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 2px rgb(0 0 0 / .25); pointer-events: none; transition: width .18s, height .18s, margin .18s, border-radius .18s; }
+
+/* 展开态 */
+.rfc .rfc-dock:hover .rfc-tl-ruler, .rfc .rfc-dock:focus-within .rfc-tl-ruler, .rfc .rfc-tl[data-active] .rfc-tl-ruler { opacity: 1; }
+.rfc .rfc-dock:hover .rfc-tl-track, .rfc .rfc-dock:focus-within .rfc-tl-track, .rfc .rfc-tl[data-active] .rfc-tl-track { height: 28px; border-radius: 7px; background: rgb(10 12 16 / .55); }
+.rfc .rfc-dock:hover .rfc-tl-played, .rfc .rfc-dock:focus-within .rfc-tl-played, .rfc .rfc-tl[data-active] .rfc-tl-played { background: rgb(255 255 255 / .1); }
+.rfc .rfc-dock:hover .rfc-tl-seg, .rfc .rfc-dock:focus-within .rfc-tl-seg, .rfc .rfc-tl[data-active] .rfc-tl-seg { top: 3px; bottom: 3px; border-radius: 5px; background: color-mix(in srgb, var(--acc) 32%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--acc) 60%, transparent); }
+.rfc .rfc-dock:hover .rfc-tl-seg[data-on], .rfc .rfc-dock:focus-within .rfc-tl-seg[data-on], .rfc .rfc-tl[data-active] .rfc-tl-seg[data-on] { background: color-mix(in srgb, var(--acc) 55%, transparent); box-shadow: inset 0 0 0 1px var(--acc); }
+.rfc .rfc-dock:hover .rfc-tl-lb, .rfc .rfc-dock:focus-within .rfc-tl-lb, .rfc .rfc-tl[data-active] .rfc-tl-lb { opacity: 1; color: #fff; }
+.rfc .rfc-dock:hover .rfc-tl-handle, .rfc .rfc-dock:focus-within .rfc-tl-handle, .rfc .rfc-tl[data-active] .rfc-tl-handle { height: 22px; opacity: 1; }
+.rfc .rfc-dock:hover .rfc-tl-head, .rfc .rfc-dock:focus-within .rfc-tl-head, .rfc .rfc-tl[data-active] .rfc-tl-head { top: -4px; width: 2px; height: calc(100% + 8px); margin: 0 0 0 -1px; border-radius: 1px; }
+
+/* 片单：缩小，少占画面 */
+.rfc .rfc-dock .rfc-films { gap: 8px; }
+.rfc .rfc-dock .rfc-film { width: 132px; border-radius: 8px; border-color: rgb(255 255 255 / .12); }
+.rfc .rfc-dock .rfc-film-t { font-size: 12px; }
+
+@media (max-width: 900px) {
+  .rfc .rfc-panel { width: auto; max-height: 44%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rfc .rfc-panel { animation: none; }
+  .rfc .rfc-tl-track, .rfc .rfc-tl-head, .rfc .rfc-tl-handle, .rfc .rfc-tl-ruler { transition: none; }
+}
+
+/* 画面设了 z-index:1 后，未定层级的覆层（片名区等）会被压到画面下面；覆层整体抬到画面之上 */
+.rfc .rfc-stage > .rfc-overlays { z-index: 3; }
+
+/* 面板底边让出底部播放区（播放条 + 展开时间轴 + 片单约 200px），不压住右侧时间读数 */
+.rfc .rfc-overlays .rfc-panel { max-height: calc(100% - 74px - 214px); }
+@media (max-width: 900px) { .rfc .rfc-overlays .rfc-panel { max-height: 40%; } }
+
+/* ═══ 第三轮（方案 §9） ═══ */
+
+/* 模糊铺底压暗、降饱和：封面是第一帧，颜色常与当前画面不同，原先上下露出成色带 */
+.rfc .rfc-stage-bg { filter: blur(48px) saturate(.6) brightness(.32); }
+
+/* 面板底部渐隐：提示下面还能滚，不再把输入框硬切一半 */
+.rfc .rfc-overlays .rfc-panel {
+  -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 28px), transparent);
+          mask-image: linear-gradient(180deg, #000 calc(100% - 28px), transparent);
+  padding-bottom: 28px;
+}
+
+/* 六维全部待分析：一行维度签 */
+.rfc .rfc-dims-pending { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 0; padding: 0; list-style: none; }
+.rfc .rfc-dims-pending li {
+  padding: 3px 9px; border-radius: 999px; cursor: help;
+  border: 1px dashed rgb(255 255 255 / .18); color: var(--tx2); font-size: 11.5px;
+}
+
+/* 播放条：循环片段 + 速度 */
+.rfc .rfc-dock .rfc-tbtn.is-chip { border: 1px solid rgb(255 255 255 / .16); background: rgb(10 12 16 / .4); padding: 0 10px; }
+.rfc .rfc-dock .rfc-tbtn.is-chip[data-on] { border-color: var(--acc); background: color-mix(in srgb, var(--acc) 30%, rgb(10 12 16 / .5)); color: #fff; }
+.rfc .rfc-rate { display: inline-flex; align-items: center; height: 30px; padding: 2px; margin-left: 4px; border-radius: 8px; background: rgb(10 12 16 / .45); border: 1px solid rgb(255 255 255 / .14); }
+.rfc .rfc-rate button { height: 24px; min-width: 38px; padding: 0 7px; border-radius: 6px; color: rgb(255 255 255 / .7); font-size: 11.5px; font-variant-numeric: tabular-nums; transition: background .15s, color .15s; }
+.rfc .rfc-rate button:hover:not(:disabled) { color: #fff; }
+.rfc .rfc-rate button[data-on] { background: rgb(255 255 255 / .16); color: #fff; }
+.rfc .rfc-rate button:disabled { opacity: .4; cursor: default; }
+.rfc .rfc-rate button:focus-visible { outline: 2px solid var(--acc); outline-offset: 1px; }

@@ -99,24 +99,31 @@ export function RefAnalysisPanel({ addRefToPending, added, analyzeGate, current,
         {anyPending && !analyzeGate.enabled && (
           <p className="rfc-sec-note">{reason}，可在下方手动记录。</p>
         )}
-        <dl className="rfc-dims">
-          {DIMS.map((d) => {
-            const a = current.analysis[d.key]
-            const pending = !a || a.pending
-            const wide = !pending && a.value.length > 16
-            return (
-              <div key={d.key} className="rfc-dim" data-pending={pending || undefined} data-wide={wide || undefined}>
-                <dt title={d.hint}>{d.label}</dt>
-                <dd>
-                  {pending ? <span className="pend">待分析</span> : <span className="rfc-dim-v">{a.value}</span>}
-                  {!pending && a.source && (
-                    <span className="rfc-src" data-src={a.source}>{SOURCE_LABEL[a.source] ?? a.source}</span>
-                  )}
-                </dd>
-              </div>
-            )
-          })}
-        </dl>
+        {/* 六维全部待分析时不重复六行「待分析」，压成一行维度签 */}
+        {DIMS.every((d) => !current.analysis[d.key] || current.analysis[d.key].pending) ? (
+          <ul className="rfc-dims-pending" aria-label="待分析的维度">
+            {DIMS.map((d) => <li key={d.key} title={d.hint}>{d.label}</li>)}
+          </ul>
+        ) : (
+          <dl className="rfc-dims">
+            {DIMS.map((d) => {
+              const a = current.analysis[d.key]
+              const pending = !a || a.pending
+              const wide = !pending && a.value.length > 16
+              return (
+                <div key={d.key} className="rfc-dim" data-pending={pending || undefined} data-wide={wide || undefined}>
+                  <dt title={d.hint}>{d.label}</dt>
+                  <dd>
+                    {pending ? <span className="pend">待分析</span> : <span className="rfc-dim-v">{a.value}</span>}
+                    {!pending && a.source && (
+                      <span className="rfc-src" data-src={a.source}>{SOURCE_LABEL[a.source] ?? a.source}</span>
+                    )}
+                  </dd>
+                </div>
+              )
+            })}
+          </dl>
+        )}
       </section>
 
       {/* 观察与推断分区块（契约 §4.2 铁律）：观察、用法建议可编辑；模型推断只读，夹在中间并标「模型」 */}

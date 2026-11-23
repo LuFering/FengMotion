@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { type LocalSegment, type ServerVideo } from '@/features/reference/services/referenceApiService'
 import { usePendingAssets } from '@/features/assets/hooks/usePendingAssets'
 import { usePickMode } from '@/shared/pick-mode/usePickMode'
@@ -54,7 +54,21 @@ export function RefLibrary() {
   const [segmentId, setSegmentId] = useState('')
   const [pos, setPos] = useState(0)
   const [playing, setPlaying] = useState(true)
-  const [panelOpen, setPanelOpen] = useState(true)
+  /* 慢放与循环当前片段：研究参考片的两个基本动作（打磨方案 §9） */
+  const [rate, setRate] = useState(1)
+  const [loopSeg, setLoopSeg] = useState(false)
+  /* 切速度时直接设到视频上（换片时 onLoadedMetadata 会再补一次），不放进副作用 */
+  const changeRate = (r: number) => {
+    setRate(r)
+    if (videoRef.current) videoRef.current.playbackRate = r
+  }
+  /* 分析面板开关记在本机：关掉后下次进来画面不被挡（打磨方案 §8） */
+  const [panelOpen, setPanelOpen] = useState(() => {
+    try { return localStorage.getItem('fm-ref-panel-open') !== '0' } catch { return true }
+  })
+  useEffect(() => {
+    try { localStorage.setItem('fm-ref-panel-open', panelOpen ? '1' : '0') } catch { /* 存不下不影响使用 */ }
+  }, [panelOpen])
   const [browseOpen, setBrowseOpen] = useState(false)
   const [collMenuOpen, setCollMenuOpen] = useState(false)
   const [toast, setToast] = useState('')
@@ -176,6 +190,8 @@ export function RefLibrary() {
   return (
     <div className={idle && !browseOpen && playing && hasVideo ? 'rfc is-idle' : 'rfc'} data-previewing={hasVideo && playing && !browseOpen || undefined}>
       <div className="rfc-stage">
+        {/* 画面完整显示（contain），两侧用同一帧模糊铺底，不再裁边 */}
+        {film.thumbnailUrl && <img className="rfc-stage-bg" src={film.thumbnailUrl} alt="" aria-hidden="true" />}
         {hasVideo ? <video
           key={film.id}
           ref={videoRef}
@@ -185,11 +201,18 @@ export function RefLibrary() {
           muted loop={playableFilms.length === 1} playsInline preload="metadata" aria-label={`${film.title} 动态示例`}
           onEnded={advanceFilm}
           onLoadedMetadata={(e) => {
+            e.currentTarget.playbackRate = rate
             e.currentTarget.currentTime = Math.min(pos, Math.max(0, e.currentTarget.duration - 0.01))
             if (playing && !browseOpen && !document.hidden) void e.currentTarget.play().catch((error: unknown) => { if (!(error instanceof DOMException && error.name === 'AbortError')) setPlaying(false) })
           }}
           onTimeUpdate={(e) => {
             const time = e.currentTarget.currentTime
+            /* 循环当前片段：播过终点就回到起点 */
+            if (loopSeg && hasSegment && (time >= current.end || time < current.start - 0.25)) {
+              e.currentTarget.currentTime = current.start + 0.01
+              setPos(current.start)
+              return
+            }
             setPos(time)
             const cur = filmSegments.find((s) => time >= s.start && time < s.end)
             if (cur && cur.id !== segmentId) setSegmentId(cur.id)
@@ -266,6 +289,11 @@ export function RefLibrary() {
 
         <RefDock
           advanceFilm={advanceFilm}
+          onResize={(start, end) => saveSegmentEdits({ startSec: start, endSec: end })}
+          rate={rate}
+          setRate={changeRate}
+          loopSeg={loopSeg}
+          setLoopSeg={setLoopSeg}
           seekTo={seekTo}
           segmentIndex={hasSegment ? segmentIndex : -1}
           stepSegment={stepSegment}

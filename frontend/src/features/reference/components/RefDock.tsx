@@ -3,6 +3,7 @@ import { Icon } from '@/features/reference/components/RefIcon'
 import { formatClock, type ReferenceSegment } from '@/features/reference/model/referenceLibrary'
 import { segmentsOf } from '@/features/reference/model/refBrowse'
 import type { ServerVideo, LocalSegment } from '@/features/reference/services/referenceApiService'
+import { RefTimeline } from '@/features/reference/components/RefTimeline'
 
 export interface RefDockProps {
   advanceFilm: () => void
@@ -11,6 +12,14 @@ export interface RefDockProps {
   filmSegments: ReferenceSegment[]
   filmsRef: React.RefObject<HTMLDivElement | null>
   hasVideo: boolean
+  /** 播放速度 */
+  rate: number
+  setRate: (r: number) => void
+  /** 是否循环当前片段 */
+  loopSeg: boolean
+  setLoopSeg: React.Dispatch<React.SetStateAction<boolean>>
+  /** 拖动时间轴上当前片段的两端后保存 */
+  onResize: (start: number, end: number) => Promise<void>
   playableFilms: ServerVideo[]
   playing: boolean
   pos: number
@@ -36,9 +45,8 @@ export interface RefDockProps {
  * 原先片段条是按片段数均分的，一个 4 秒片段会铺满整条，看不出它在视频里的位置。
  * 上一/下一片段从画面两侧的大圆钮移到这里 —— 那两枚在分析面板打开时会被盖住。
  */
-export function RefDock({ advanceFilm, cutSegmentAt, film, filmSegments, filmsRef, hasVideo, playableFilms, playing, pos, seekTo, segment, segmentIndex, segments, selectFilm, selectSegment, setPlaying, setPos, stepSegment, videoRef, videos }: RefDockProps) {
+export function RefDock({ advanceFilm, cutSegmentAt, film, filmSegments, filmsRef, hasVideo, loopSeg, onResize, rate, setLoopSeg, setRate, playableFilms, playing, pos, seekTo, segment, segmentIndex, segments, selectFilm, selectSegment, setPlaying, setPos, stepSegment, videoRef, videos }: RefDockProps) {
   const total = film.durationMs / 1000
-  const pct = (sec: number) => (total > 0 ? Math.min(100, Math.max(0, (sec / total) * 100)) : 0)
   const hasSeg = segmentIndex >= 0
   return (
     <div className="rfc-dock">
@@ -76,43 +84,37 @@ export function RefDock({ advanceFilm, cutSegmentAt, film, filmSegments, filmsRe
           </button>
         )}
         <span className="rfc-spacer" />
+        {/* 循环当前片段 + 慢放：看清一个运镜往往要反复、放慢看 */}
+        <button type="button" className="rfc-tbtn is-chip" aria-pressed={loopSeg} data-on={loopSeg || undefined}
+                disabled={!hasSeg || !hasVideo} onClick={() => setLoopSeg((v) => !v)}
+                title={loopSeg ? '停止循环当前片段' : '循环播放当前片段'}>
+          <Icon name="refresh-cw" /> 循环片段
+        </button>
+        <div className="rfc-rate" role="radiogroup" aria-label="播放速度">
+          {[1, 0.5, 0.25].map((r) => (
+            <button key={r} type="button" role="radio" aria-checked={rate === r} data-on={rate === r || undefined}
+                    disabled={!hasVideo} onClick={() => setRate(r)} title={`${r}× 速度`}>
+              {r}×
+            </button>
+          ))}
+        </div>
+        <span className="rfc-tbar-sep" aria-hidden="true" />
         <span className="rfc-time">
           {formatClock(Math.floor(pos))}<i>/</i>{formatClock(Math.round(total))}
         </span>
       </div>
 
-      <div
-        className="rfc-segbar"
-        role="tablist"
-        aria-label="片段时间轴"
-        title="点击空白处跳到该时间"
-        onClick={(e) => {
-          if (e.target !== e.currentTarget || total <= 0) return
-          const r = e.currentTarget.getBoundingClientRect()
-          seekTo(((e.clientX - r.left) / r.width) * total)
-        }}
-      >
-        {filmSegments.map((s) => {
-          const on = s.id === segment?.id
-          return (
-            <button
-              key={s.id}
-              type="button"
-              role="tab"
-              aria-selected={on}
-              className={`rfc-seg${on ? ' is-on' : ''}`}
-              style={{ left: `${pct(s.start)}%`, width: `${pct(s.end) - pct(s.start)}%` }}
-              onClick={(e) => { e.stopPropagation(); selectSegment(s.id) }}
-              aria-label={`片段 ${s.index + 1}，${formatClock(s.start)} 到 ${formatClock(s.end)}`}
-              title={`片段 ${s.index + 1} · ${formatClock(s.start)} – ${formatClock(s.end)}`}
-            >
-              <span className="rfc-seg-lb"><span className="rfc-seg-word">片段 </span>{s.index + 1}</span>
-              <span className={`rfc-seg-dot st-${s.status}`} />
-            </button>
-          )
-        })}
-        {total > 0 && <span className="rfc-playhead" style={{ left: `${pct(pos)}%` }} aria-hidden="true" />}
-      </div>
+      <RefTimeline
+        total={total}
+        pos={pos}
+        segments={filmSegments}
+        currentId={segment?.id}
+        onSeek={seekTo}
+        onSelect={(id) => selectSegment(id)}
+        onResize={onResize}
+        mediaRef={videoRef}
+        playing={playing && hasVideo}
+      />
 
       <div className="rfc-films" ref={filmsRef}>
         {videos.map((v) => {
