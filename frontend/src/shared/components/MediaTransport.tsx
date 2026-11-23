@@ -152,7 +152,7 @@ export function MediaTransport({ mediaRef, mediaKey, fallbackDuration = 0, disab
         aria-valuemin={0}
         aria-valuemax={round1(total)}
         aria-valuenow={round1(pos)}
-        aria-valuetext={`${formatClock(pos)} / ${formatClock(Math.round(total))}`}
+        aria-valuetext={`${formatClock(pos)} / ${formatClock(total)}`}
         aria-disabled={off || undefined}
         data-active={scrubbing || undefined}
         onPointerDown={onDown}
@@ -171,7 +171,8 @@ export function MediaTransport({ mediaRef, mediaKey, fallbackDuration = 0, disab
         )}
       </div>
       <span className="fm-mt-time">
-        {formatClock(pos)}<i>/</i>{formatClock(Math.round(total))}
+        {/* 总时长不取整：与时间线读数同一写法（0:30.1），全页只有一个总时长 */}
+        {formatClock(pos)}<i>/</i>{formatClock(total)}
       </span>
       <button
         type="button"

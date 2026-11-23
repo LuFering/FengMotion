@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { UiIcon, SemIcons } from '@/shared/icons/UiIcon'
-import { MediaIcon } from '@/shared/icons/MediaIcon'
 import { FlipBackward } from '@untitledui/icons'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/ui/tooltip'
 import type { LivePreview } from '@/features/workbench/hooks/stage/useLivePreview'
@@ -35,7 +34,6 @@ export function LiveStage({ live, onAskAi, busy, onRender, renderBusy }: {
   const error = live.buildError ?? live.runtimeError
   const errorKind = live.buildError ? '编译失败' : '画面运行出错'
   const total = live.meta ? live.meta.durationInFrames : 0
-  const step = (delta: number) => { live.pause(); live.seekFrame(Math.max(0, Math.min(total - 1, live.frame + delta))) }
   const progress = total > 1 ? live.frame / (total - 1) : 0
 
   return (
@@ -95,23 +93,11 @@ export function LiveStage({ live, onAskAi, busy, onRender, renderBusy }: {
         </button>
       )}
 
-      {/* 播放条：与成片播放器同一形态的悬浮胶囊；悬停画面出现，暂停时常驻 */}
+      {/* 只留读数（打磨方案 §5 第 2 条）：播放、逐帧、定位都在时间线顶栏，这里是一根进度细线 + 右下角读数，不接收点击 */}
       {live.meta && (
-        <div className="fw-live-bar" data-paused={!live.playing || undefined}>
-          <button type="button" className="fw-live-play" aria-label={live.playing ? '暂停 (空格)' : '播放 (空格)'} onClick={live.toggle}>
-            <MediaIcon name={live.playing ? 'pause' : 'play'} size={18} />
-          </button>
-          <button type="button" className="fw-live-icon" aria-label="上一帧 (←)" title="上一帧 (←)" onClick={() => step(-1)}>
-            <MediaIcon name="chevronLeft" size={18} />
-          </button>
-          <button type="button" className="fw-live-icon" aria-label="下一帧 (→)" title="下一帧 (→)" onClick={() => step(1)}>
-            <MediaIcon name="chevronRight" size={18} />
-          </button>
-          <span className="fw-live-time num">{toTimecode(live.frame, live.fps)}</span>
-          <input type="range" className="fw-live-progress" aria-label="播放位置" min={0} max={Math.max(0, total - 1)} step={1} value={live.frame}
-                 style={{ '--fw-live-pct': `${progress * 100}%` } as React.CSSProperties}
-                 onChange={(e) => { live.pause(); live.seekFrame(Number(e.target.value)) }} />
-          <span className="fw-live-time fw-live-total num">{toTimecode(Math.max(0, total - 1), live.fps)}</span>
+        <div className="fw-live-readout" aria-hidden="true">
+          <span className="fw-live-line"><i style={{ width: `${progress * 100}%` }} /></span>
+          <span className="fw-live-time num">{toTimecode(live.frame, live.fps)}<em> / {toTimecode(Math.max(0, total - 1), live.fps)}</em></span>
         </div>
       )}
 

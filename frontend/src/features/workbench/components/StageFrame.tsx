@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Video, VideoPlayer, VideoSkin } from '@videojs/react/video'
+import { MediaTransport } from '@/shared/components/MediaTransport'
 import { type StageVisual } from '@/features/workbench/model/stageVisual'
 import { containedMediaRect } from '@/features/workbench/model/previewGeometry'
 
@@ -35,9 +35,10 @@ export function StageFrame({ visual, mediaRef, onTime, onDuration, location, cur
   const [failed, setFailed] = useState(false)
   const [aspectRatio, setAspectRatio] = useState(16 / 9)
   if (failed) return <div className="fw-mon-empty"><div className="fw-mon-empty-title">{visual.tierLabel}暂时无法播放</div><p className="fw-mon-empty-sub">文件可能已移动或连接中断。</p><button type="button" className="wb-media-retry" onClick={() => { setFailed(false); onFailed?.(false) }}>重新加载预览</button></div>
-  return <>{visual.media === 'video' ? <VideoPlayer>
-    <VideoSkin className="wb-videojs-skin" style={{ '--wb-video-ratio': aspectRatio } as React.CSSProperties}>
-      <Video ref={(el) => { mediaRef.current = el }} className="fw-stage-media" crossOrigin="anonymous" src={visual.file} playsInline onLoadedData={() => { onReady(true); onFailed?.(false) }} onTimeUpdate={(e) => { const media = e.currentTarget
+  return <>{visual.media === 'video' ? <div className="wb-videojs-skin wb-stage-film" style={{ '--wb-video-ratio': aspectRatio } as React.CSSProperties}>
+      {/* 原 Video.js 皮肤自带整套控件（与时间线顶栏、实时播放条并存三套），换共享播放条（打磨方案 §5 第 2 条）。
+          类名 wb-videojs-skin 保留：stage-card.css 靠它按视频比例定尺寸 */}
+      <video ref={(el) => { mediaRef.current = el }} className="fw-stage-media" crossOrigin="anonymous" src={visual.file} playsInline onLoadedData={() => { onReady(true); onFailed?.(false) }} onTimeUpdate={(e) => { const media = e.currentTarget
         /* timeupdate 作为后台节流时的补充，播放中的短选区由逐帧检查处理。 */
         if (loopSpan && loopSpan.end > loopSpan.start && media.currentTime >= loopSpan.end) {
           media.currentTime = loopSpan.start
@@ -46,8 +47,8 @@ export function StageFrame({ visual, mediaRef, onTime, onDuration, location, cur
         }
         onTime(media.currentTime) }} onLoadedMetadata={(e) => { const media = e.currentTarget; if (media.videoWidth && media.videoHeight) setAspectRatio(media.videoWidth / media.videoHeight); onDuration(media.duration); const seconds = location?.visualId === visual.id ? location.timeSeconds ?? 0 : 0; media.currentTime = Math.min(seconds, media.duration); onTime(media.currentTime) }} onError={() => { onReady(false); onDuration(0); setFailed(true); onFailed?.(true) }}/>
       <span className="wb-stage-label">画面预览</span>
-    </VideoSkin>
-  </VideoPlayer> : <img ref={(el) => { mediaRef.current = el }} className="fw-stage-media" crossOrigin="anonymous" src={visual.file} alt={visual.tierLabel} onLoad={() => { onReady(true); onFailed?.(false) }} onError={() => { onReady(false); onDuration(0); setFailed(true); onFailed?.(true) }}/>}{location?.visualId === visual.id && location.bbox && (visual.media === 'image' || location.timeSeconds === undefined || Math.abs(currentTime - location.timeSeconds) < 0.08) && <PreviewTargetHighlight mediaRef={mediaRef} bbox={location.bbox}/>}</>
+      <MediaTransport mediaRef={mediaRef as React.RefObject<HTMLMediaElement | null>} mediaKey={visual.file} className="wb-stage-transport" />
+    </div> : <img ref={(el) => { mediaRef.current = el }} className="fw-stage-media" crossOrigin="anonymous" src={visual.file} alt={visual.tierLabel} onLoad={() => { onReady(true); onFailed?.(false) }} onError={() => { onReady(false); onDuration(0); setFailed(true); onFailed?.(true) }}/>}{location?.visualId === visual.id && location.bbox && (visual.media === 'image' || location.timeSeconds === undefined || Math.abs(currentTime - location.timeSeconds) < 0.08) && <PreviewTargetHighlight mediaRef={mediaRef} bbox={location.bbox}/>}</>
 }
 
 export function PreviewTargetHighlight({ mediaRef, bbox }: { mediaRef: React.RefObject<HTMLVideoElement | HTMLImageElement | null>; bbox: { x: number; y: number; w: number; h: number } }) {

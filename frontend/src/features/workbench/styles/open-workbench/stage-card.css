@@ -193,3 +193,12 @@ html[data-theme="tactile"] #pane-flow .wb-a2.wb-studio .fw-mon-visual > .fw-mon-
 @media (prefers-reduced-motion: reduce) {
   #pane-flow .wb-a2.wb-studio .fw-mon-visual > .fw-mon-agent-result { animation: none; }
 }
+
+/* 成片画面：共享播放条浮在画面底部，悬停或键盘聚焦时出现（取代 Video.js 皮肤控件） */
+.wb-stage-film { position: relative; }
+.wb-stage-film > .wb-stage-transport {
+  position: absolute; right: 8px; bottom: 8px; left: 8px; z-index: 3;
+  opacity: 0; transition: opacity .18s var(--fm-ease, ease);
+}
+.wb-stage-film:hover > .wb-stage-transport,
+.wb-stage-film > .wb-stage-transport:focus-within { opacity: 1; }

@@ -10,7 +10,11 @@ import { SpanElements } from '@/features/workbench/components/timeline/SpanEleme
 import type { WorkbenchTimelineSpan } from '@/features/workbench/components/WorkbenchTimeline'
 import type { CapabilityResult } from '@/features/workbench/services/workbenchCapabilityEvaluator'
 
+/** 时间线顶栏的播放键：实时预览与成片共用这一个（打磨方案 §5 第 2 条） */
+export interface TimelinePlayback { playing: boolean; toggle: () => void }
+
 export interface TimelineHeadProps {
+  playback?: TimelinePlayback
   currentTime: number
   frameFps: number | undefined
   limit: number
@@ -48,12 +52,17 @@ export interface TimelineHeadProps {
 }
 
 /** 时间线的顶栏：时码读数、逐帧与选区起止标记，中间显示已选片段或选区（可引用给 AI、循环、清除），右侧是缩放控制。 */
-export function TimelineHead({ currentTime, frameFps, limit, looping, markBoundary, maxZoom, onClear, onClipReference, onToggleLoop, opsDisabledReason, picked, pickedTrack, setPickedId, setStart, setZoom, setZoomTo, span, stepFrame, trackClipCapability, tracksVerified, unavailable, zoom, search, searchInput, cut, spanElements, onSpanPick, onSpanAsk, askBusy, changes }: TimelineHeadProps) {
+export function TimelineHead({ playback, currentTime, frameFps, limit, looping, markBoundary, maxZoom, onClear, onClipReference, onToggleLoop, opsDisabledReason, picked, pickedTrack, setPickedId, setStart, setZoom, setZoomTo, span, stepFrame, trackClipCapability, tracksVerified, unavailable, zoom, search, searchInput, cut, spanElements, onSpanPick, onSpanAsk, askBusy, changes }: TimelineHeadProps) {
   return (
     <div className="wb-tl-head">
       {/* 左侧：时间线标题 + 时码读数 + 逐帧 + 选区（紧密靠拢，组间留 12-16px 呼吸间距，不加额外底框） */}
       <div className="wb-tl-head-left">
         <span className="wb-tl-title">时间线</span>
+        {playback && (
+          <button type="button" className="wb-tl-icon wb-tl-play" aria-label={playback.playing ? '暂停' : '播放'} onClick={playback.toggle}>
+            <MediaIcon name={playback.playing ? 'pause' : 'play'} size={16} />
+          </button>
+        )}
         <div className="wb-tl-readout">
           <span className="wb-tl-time-current">{clipTime(currentTime, frameFps)}</span>
           <span className="wb-tl-sep">/</span>

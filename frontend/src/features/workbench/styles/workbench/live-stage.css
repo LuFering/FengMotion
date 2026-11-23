@@ -120,90 +120,18 @@
   cursor: pointer;
 }
 
-/* 播放条：与成片播放器（Video.js 默认皮肤）同一形态 —— 底部悬浮胶囊，44px 高，白 10% 毛玻璃，
-   36px 圆钮、18px 白色图标、13px 等宽时间码、4px 进度轨。悬停画面出现，暂停时常驻。 */
-.fw-live-bar {
-  position: absolute;
-  right: 8px;
-  bottom: 8px;
-  left: 8px;
-  z-index: 3;
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  height: 44px;
-  padding: 4px 14px 4px 4px;
-  border-radius: 99px;
-  background: oklch(1 0 0 / .1);
-  box-shadow: 0 0 0 1px oklch(0 0 0 / .1), 0 1px 3px oklch(0 0 0 / .15), 0 4px 16px oklch(0 0 0 / .1);
-  color: #fff;
-  font-size: 13px;
-  opacity: 0;
-  transition: opacity 180ms var(--eo, ease-out);
-  backdrop-filter: blur(16px) saturate(1.25);
+/* 只留读数（打磨方案 §5 第 2 条）：底边 2px 进度细线 + 右下角深色玻璃读数，不接收点击。
+   播放 / 逐帧 / 拖动定位在时间线顶栏。 */
+.fw-live-readout { position: absolute; right: 0; bottom: 0; left: 0; z-index: 3; pointer-events: none; }
+.fw-live-line { display: block; height: 2px; background: oklch(1 0 0 / .18); }
+.fw-live-line > i { display: block; height: 100%; background: #fff; }
+.fw-live-readout .fw-live-time {
+  position: absolute; right: 8px; bottom: 8px;
+  padding: 2px 8px; border-radius: 99px;
+  background: rgb(12 14 18 / .62); color: #fff;
+  font-size: 11px; font-variant-numeric: tabular-nums;
 }
-.fw-live:hover .fw-live-bar,
-.fw-live-bar[data-paused],
-.fw-live-bar:focus-within { opacity: 1; }
-.fw-live-play,
-.fw-live-icon {
-  display: grid;
-  flex: none;
-  place-items: center;
-  width: 36px;
-  height: 36px;
-  padding: 0;
-  border: 0;
-  border-radius: 99px;
-  background: transparent;
-  color: #fff;
-  cursor: pointer;
-  transition: background-color 150ms var(--eo, ease-out), transform 150ms var(--eo, ease-out);
-}
-.fw-live-play:hover,
-.fw-live-icon:hover { background: oklch(1 0 0 / .12); }
-.fw-live-play:active,
-.fw-live-icon:active { transform: scale(.97); }
-.fw-live-play:focus-visible,
-.fw-live-icon:focus-visible { outline: 2px solid var(--acc, #3b8cf8); outline-offset: -2px; }
-.fw-live-time {
-  flex: none;
-  margin: 0 8px;
-  font-family: var(--font-mono, ui-monospace, monospace);
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: .02em;
-}
-.fw-live-total { margin-left: 4px; color: oklch(1 0 0 / .6); }
-/* 进度轨：4px，填充白色；逐帧拖动不加过渡 */
-.fw-live-progress {
-  flex: 1;
-  min-width: 40px;
-  height: 20px;
-  margin: 0;
-  background: transparent;
-  appearance: none;
-  cursor: pointer;
-}
-.fw-live-progress::-webkit-slider-runnable-track {
-  height: 4px;
-  border-radius: 99px;
-  background: linear-gradient(to right, #fff var(--fw-live-pct, 0%), oklch(1 0 0 / .25) var(--fw-live-pct, 0%));
-}
-.fw-live-progress::-webkit-slider-thumb {
-  width: 12px;
-  height: 12px;
-  margin-top: -4px;
-  border: 0;
-  border-radius: 99px;
-  background: #fff;
-  box-shadow: 0 1px 3px oklch(0 0 0 / .35);
-  appearance: none;
-}
-.fw-live-progress::-moz-range-track { height: 4px; border-radius: 99px; background: oklch(1 0 0 / .25); }
-.fw-live-progress::-moz-range-progress { height: 4px; border-radius: 99px; background: #fff; }
-.fw-live-progress::-moz-range-thumb { width: 12px; height: 12px; border: 0; border-radius: 99px; background: #fff; }
-.fw-live-progress:focus-visible { outline: none; }
+.fw-live-readout .fw-live-time em { font-style: normal; color: oklch(1 0 0 / .6); }
 
 /* 工作稿改动胶囊：右上角，黑底 45% 胶囊（规范 §8.3 角标），等宽数字 */
 .fw-live-edits {

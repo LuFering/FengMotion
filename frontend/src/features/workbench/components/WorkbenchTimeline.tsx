@@ -1,3 +1,4 @@
+import type { TimelinePlayback } from '@/features/workbench/components/timeline/TimelineHead'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties, KeyboardEvent, PointerEvent } from 'react'
 /* 时间轨道图标全部用 lucide（第三轮统一）：选区起止用 |< >|，与原 phosphor CaretLine 语义一致。 */
@@ -36,6 +37,8 @@ export interface WorkbenchTimelineProps {
   onSpanCommit: (span: WorkbenchTimelineSpan) => void
   onClear: () => void
   onToggleLoop: () => void
+  /** 播放 / 暂停；不给就不显示播放键 */
+  playback?: TimelinePlayback
   /** 刚拖动完、等待确认的调整。它浮在轨道区内部，不占布局高度。 */
   pending?: { brief: string; label?: string } | null
   onPendingAccept?: () => void
@@ -145,7 +148,7 @@ function Filmstrip({ src, duration, frames = 12 }: { src: string; duration: numb
 }
 
 export function WorkbenchTimeline({
-  videoUrl, duration, currentTime, fps, tracks: tracksProp = NO_TRACKS, span, disabled, looping, maxZoom,
+  playback, videoUrl, duration, currentTime, fps, tracks: tracksProp = NO_TRACKS, span, disabled, looping, maxZoom,
   onSeek, onSpanChange, onSpanCommit, onClear, onToggleLoop, pending, onPendingAccept, onPendingDrop, onClipReference, trackStatus, tracksVerified = false,
   timelineOpsCapability, trackClipCapability, marker, onClipPick, externalPick, note,
   persistKey, changed, onClearChanges, onSpanAsk, askBusy, previewNote,
@@ -544,6 +547,7 @@ export function WorkbenchTimeline({
     >
       {/* ── 1. 顶栏工具条（高 44px） ── */}
       <TimelineHead
+        playback={playback}
         currentTime={currentTime}
         frameFps={frameFps}
         limit={limit}

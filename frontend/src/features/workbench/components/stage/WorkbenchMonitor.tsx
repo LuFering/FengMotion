@@ -24,6 +24,7 @@ import type { ElementInspector } from '@/features/workbench/hooks/stage/useEleme
 import { LAYER_CLIP_PREFIX, layerClipFor, type LivePreview } from '@/features/workbench/hooks/stage/useLivePreview'
 import { sequenceClipKey } from '@/features/workbench/model/sequenceManifest'
 import { FILM_FPS } from '@/demo/timeline'
+import { useMediaPlaying } from '@/features/workbench/hooks/stage/useMediaPlaying'
 
 export interface WorkbenchMonitorProps {
   /** 时间线按项目记住抽屉收起状态 */
@@ -111,6 +112,9 @@ export interface WorkbenchMonitorProps {
  */
 export function WorkbenchMonitor({ projectId, inspector, live, askAiLive, workbenchBusy, agentReply, askFix, awaitingActive, backendCapability, chat, clearTimeRange, expandedProblemId, filmProject, filmRenderError, focusFeedback, liveTask, locateProblem, loopSpan, manifestStatus, monitorProblems, notice, openEdit, openReview, overlayGuides, previewDuration, previewLocation, previewMediaRef, previewReady, previewSource, previewTime, projectTask, range, realModifyBusy, realRenderBusy, referenceTimeline, remoteCreationBusy, retryBackendCapability, review, sceneFilmMeta, selectSideTab, selectTimeRange, selectedVisual, sequenceManifest, sequenceMovePending, setAgentReply, setBottomTab, setFilmRenderError, setFocusChatKey, setLoopSpan, setNotice, setPreviewDuration, setPreviewFailed, setPreviewReady, setPreviewTime, setSequenceMovePending, setTargetReference, setTrayOpen, setUsedResources, sourceCreationBusy, stage, stageLead, stageLive, stageRef, submit, submitProjectRender, submitRealModify, timelineFps, timelineManifest, timelineOpsCapability, toggleProblem, trackClipCapability, usedResources, viewedPreview, workflowRunning }: WorkbenchMonitorProps) {
   const { height: timelineHeight, containerRef: monitorRef, handle: splitHandle } = useTimelineSplit(projectId)
+  /* 成片的播放状态：时间线顶栏的播放键要跟着它变 */
+  /* 键里带上模式：实时 → 成片切换时片子 id 不变，但成片 <video> 这时才挂上，监听要重挂 */
+  const filmPlaying = useMediaPlaying(previewMediaRef, `${live?.meta ? 'live' : 'film'}:${viewedPreview?.id ?? ''}`)
   return (
     <div className="fw-monitor" ref={monitorRef}>
       <MonitorVisual
@@ -170,6 +174,17 @@ export function WorkbenchMonitor({ projectId, inspector, live, askAiLive, workbe
            data-sized={timelineHeight !== null || undefined} {...splitHandle} />
       <div className="fw-tl-slot" data-sized={timelineHeight !== null || undefined} style={timelineHeight !== null ? { height: timelineHeight } : undefined}>
       <WorkbenchTimeline
+        playback={live?.meta
+          ? { playing: live.playing, toggle: live.toggle }
+          : {
+              playing: filmPlaying,
+              toggle: () => {
+                const media = previewMediaRef.current
+                if (!(media instanceof HTMLVideoElement)) return
+                if (media.paused || media.ended) void media.play().catch(() => setNotice('无法播放'))
+                else media.pause()
+              },
+            }}
         key={viewedPreview.id} videoUrl={viewedPreview.file}
         duration={live?.meta ? live.duration : previewDuration} currentTime={live ? live.time : previewTime} span={range.span}
         fps={live?.meta ? live.fps : timelineFps}
