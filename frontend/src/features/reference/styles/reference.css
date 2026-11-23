@@ -7,3 +7,4 @@
 @import "./reference/analysis.css";/* 参考分析面板 */
 @import "./reference/import-empty.css";/* 导入视频、空状态 */
 @import "./reference/manual-notes.css";/* 片段的人工记录区 */
+@import "./reference/polish.css";      /* 2026-11-23 打磨：时间轴、分析面板、片库卡片（必须最后） */

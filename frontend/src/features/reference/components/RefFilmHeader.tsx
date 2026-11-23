@@ -1,36 +1,28 @@
-import { STATUS_META } from '@/features/reference/model/referenceLibrary'
-import { shortValue } from '@/features/reference/model/refBrowse'
+import { STATUS_META, formatDuration } from '@/features/reference/model/referenceLibrary'
 import { useCurrentSegment } from '@/features/reference/hooks/useCurrentSegment'
 
 export interface RefFilmHeaderProps {
-  current: ReturnType<typeof useCurrentSegment>['current']
-  film: ReturnType<typeof useCurrentSegment>['film']
+  film: NonNullable<ReturnType<typeof useCurrentSegment>['film']>
   filmSegments: ReturnType<typeof useCurrentSegment>['filmSegments']
-  hasSegment: ReturnType<typeof useCurrentSegment>['hasSegment']
-  pendingCount: number
 }
 
-/** 参考片库当前视频的标题区：片名、简介，以及来源、片段序号与分析状态等元信息。 */
-export function RefFilmHeader({ current, film, filmSegments, hasSegment, pendingCount }: RefFilmHeaderProps) {
+/**
+ * 当前参考片的标题区：片名、简介，以及一行元信息「来源 · 时长 · N 个片段 · 状态」。
+ * 状态只在这里写一次（原先「待分析」「6 项待分析」写两遍）；片段级信息归分析面板。
+ */
+export function RefFilmHeader({ film, filmSegments }: RefFilmHeaderProps) {
+  const meta = [
+    film.source,
+    film.durationMs > 0 ? formatDuration(film.durationMs / 1000) : '',
+    filmSegments.length > 0 ? `${filmSegments.length} 个片段` : '还没有片段',
+    STATUS_META[film.status]?.label ?? '',
+  ].filter(Boolean)
   return (
     <header className="rfc-head">
       <div className="rfc-eyebrow">参考片库</div>
       <h1 className="rfc-title">{film.title}</h1>
-      <p className="rfc-desc">{film.description}</p>
-      {/* 去 AI 味：来源 / 进度 / 状态不再做成 pill 标签云，压成一行普通元信息；
-          只留真正区分片段的属性（景别、运镜）作标签 */}
-      <div className="rfc-meta-line">
-        {/* 没有片段时不能显示「片段 1 / 0」—— 那个 1 是占位值，会让人以为已有片段。 */}
-        {film.source}
-        {hasSegment
-          ? ` · 片段 ${current.index + 1} / ${filmSegments.length} · ${STATUS_META[current.status].label}`
-          : ' · 还没有片段'}
-        {hasSegment && pendingCount > 0 && ` · ${pendingCount} 项待分析`}
-      </div>
-      <div className="rfc-chips">
-            
-        {!current.analysis.cameraMove.pending && <span className="rfc-glass">{shortValue(current.analysis.cameraMove.value)}</span>}
-      </div>
+      {film.description?.trim() && <p className="rfc-desc">{film.description}</p>}
+      <div className="rfc-meta-line">{meta.join(' · ')}</div>
     </header>
   )
 }

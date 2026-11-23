@@ -1,6 +1,6 @@
 import type * as React from 'react'
 import { setFavorite as apiSetFavorite, addSegment as apiAddSegment, type LocalSegment, type ServerVideo } from '@/features/reference/services/referenceApiService'
-import { formatTimecode } from '@/features/reference/model/referenceLibrary'
+import { formatClock } from '@/features/reference/model/referenceLibrary'
 import type { StoredLibrary } from '@/features/reference/model/refLibraryStore'
 
 export interface UseSegmentActionsArgs {
@@ -54,7 +54,7 @@ export function useSegmentActions({ setSegmentId, setSegments, setStored, showTo
       const created = await apiAddSegment(videoId, start, end)
       setSegments((prev) => [...prev, created].sort((a, b) => a.index - b.index))
       setSegmentId(created.id)
-      showToast(`已标记片段 ${formatTimecode(start)}–${formatTimecode(end)}`)
+      showToast(`已标记片段 ${formatClock(start)} – ${formatClock(end)}`)
     } catch (error) {
       showToast(error instanceof Error ? error.message : '标记片段失败')
     }

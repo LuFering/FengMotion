@@ -3,10 +3,10 @@ import { type LocalSegment, type ServerVideo } from '@/features/reference/servic
 import { usePendingAssets } from '@/features/assets/hooks/usePendingAssets'
 import { usePickMode } from '@/shared/pick-mode/usePickMode'
 import { PickBar } from '@/shared/pick-mode/PickModeUI'
-import { pendingFieldCount } from '@/features/reference/model/referenceLibrary'
-import { Icon } from '@/features/reference/components/RefIcon'
+import { analyzeVideo } from '@/features/reference/services/referenceApiService'
+import { useAnalysisGate } from '@/features/reference/hooks/useAnalysisGate'
 import { type BrowseTab, type SortKey } from '@/features/reference/model/refBrowse'
-import { RefBrowseDialog } from '@/features/reference/components/RefBrowseDialog'
+import { RefBrowseDialog, type RefCollection } from '@/features/reference/components/RefBrowseDialog'
 import { RefDock } from '@/features/reference/components/RefDock'
 import { RefAnalysisPanel } from '@/features/reference/components/RefAnalysisPanel'
 import { type Filters, type StoredLibrary, readStored, readOutbox } from '@/features/reference/model/refLibraryStore'
@@ -32,6 +32,8 @@ export function RefLibrary() {
   const pendingStore = usePendingAssets()
   const { addRef } = pendingStore
   const refInPending = (id: string) => pendingStore.has(id)
+  /* 「开始分析」闸门：读 /capabilities 的 referenceAnalysis，不可用时置灰并给出服务端原因 */
+  const analyzeGate = useAnalysisGate()
   const [stored, setStored] = useState<StoredLibrary>(readStored)
   const [outbox, setOutbox] = useState<string[]>(readOutbox)
   /* 视频与片段来自服务端。加载前为空数组，界面据此显示「正在读取」，
@@ -59,6 +61,8 @@ export function RefLibrary() {
   const [idle, setIdle] = useState(false)
   const [tab, setTab] = useState<BrowseTab>('all')
   const [collId, setCollId] = useState('')
+  /* 集合名单只来自服务端；原先读演示常量，空库也显示 9 个演示集合 */
+  const [collections, setCollections] = useState<RefCollection[]>([])
   const [query, setQuery] = useState('')
   const [filters, setFilters] = useState<Filters>({ cameraMove: 'all', transition: 'all', status: 'all' })
   const [sortKey, setSortKey] = useState<SortKey>('source')
@@ -77,7 +81,7 @@ export function RefLibrary() {
      旧版收藏与最近浏览在 localStorage 里，这里不再迁移 —— 参考片片段是
      服务端生成的 ID，旧演示片段的 ID 在新库里不存在，硬迁移只会产生一堆
      「收藏了但查不到」的孤儿记录。 */
-  useRefCatalogLoad({ setCatalogError, setCatalogLoading, setCollId, setFilmId, setSegmentId, setSegments, setStored, setVideos })
+  useRefCatalogLoad({ setCatalogError, setCatalogLoading, setCollId, setCollections, setFilmId, setSegmentId, setSegments, setStored, setVideos })
 
   /* 横向片条：鼠标落在上面时，上下滚轮就左右平移。
      必须用原生监听 —— React 的 onWheel 是 passive 的，preventDefault 会被忽略，
@@ -87,7 +91,7 @@ export function RefLibrary() {
 
   /* 当前视频与片段都从服务端数据里解析。
      没有数据时返回 undefined，界面按「空/加载中」处理，不假装有内容。 */
-  const { segment, film, filmSegments, hasVideo, segmentByIdMap, segmentIndex, current, hasSegment, videoOrder, reusable, filmOf } = useCurrentSegment({ filmId, mediaError, segmentId, segments, videos })
+  const { segment, film, filmSegments, hasVideo, segmentByIdMap, segmentIndex, current, hasSegment, videoOrder, filmOf } = useCurrentSegment({ filmId, mediaError, segmentId, segments, videos })
 
   useLibraryPersistence({ outbox, segment, setStored, stored })
 
@@ -151,10 +155,26 @@ export function RefLibrary() {
 
   const isFav = hasSegment && stored.favorites.includes(current.id)
   const inOutbox = hasSegment && outbox.includes(current.id)
-  const pendingCount = hasSegment ? pendingFieldCount(segment) : 0
+
+  /** 点时间轴空白处：跳到该时间，并选中覆盖这个时间点的片段 */
+  const seekTo = (sec: number) => {
+    const t = Math.max(0, Math.min(sec, film.durationMs / 1000))
+    if (videoRef.current) videoRef.current.currentTime = t
+    setPos(t)
+    const hit = filmSegments.find((s) => t >= s.start && t < s.end)
+    if (hit) setSegmentId(hit.id)
+  }
+
+  /* 开始分析：闸门不放行时按钮已置灰；放行了后端仍可能 422，如实提示，视频保持待分析 */
+  const onAnalyze = () => {
+    if (!analyzeGate.enabled) return
+    void analyzeVideo(film.id)
+      .then(() => showToast('已提交分析，完成后片段状态会更新'))
+      .catch((error: unknown) => showToast(error instanceof Error ? error.message : '发起分析失败'))
+  }
 
   return (
-    <div className={idle && !browseOpen ? 'rfc is-idle' : 'rfc'} data-previewing={hasVideo && playing && !browseOpen || undefined}>
+    <div className={idle && !browseOpen && playing && hasVideo ? 'rfc is-idle' : 'rfc'} data-previewing={hasVideo && playing && !browseOpen || undefined}>
       <div className="rfc-stage">
         {hasVideo ? <video
           key={film.id}
@@ -193,32 +213,16 @@ export function RefLibrary() {
           </div>
         )}
 
-        <RefFilmHeader current={current} film={film} filmSegments={filmSegments} hasSegment={hasSegment} pendingCount={pendingCount} />
+        <RefFilmHeader film={film} filmSegments={filmSegments} />
 
         <RefActions
-          current={current}
           fileInputRef={fileInputRef}
-          hasSegment={hasSegment}
-          isFav={isFav}
           panelOpen={panelOpen}
-          pick={pick}
           setBrowseOpen={setBrowseOpen}
           setPanelOpen={setPanelOpen}
-          toggleFavorite={toggleFavorite}
         />
 
-        <button type="button" className="rfc-nav prev" onClick={() => stepSegment(-1)} disabled={segmentIndex <= 0} aria-label="上一片段">
-          <Icon name="arrow-left" />
-        </button>
-        <button
-          type="button"
-          className="rfc-nav next"
-          onClick={() => stepSegment(1)}
-          disabled={segmentIndex >= filmSegments.length - 1}
-          aria-label="下一片段"
-        >
-          <Icon name="arrow-right" />
-        </button>
+        {/* 上一/下一片段移到底部播放条：画面两侧的大圆钮在分析面板打开时会被盖住 */}
 
         {panelOpen && !hasSegment && (
           /* 有视频但没有片段：这是刚导入后的正常状态，不是错误。
@@ -229,20 +233,25 @@ export function RefLibrary() {
               <h2>还没有片段</h2>
             </div>
             <p className="rfc-panel-empty">
-              播放到想借鉴的位置，点播放条上的 <b>+</b> 标记一个片段，
-              之后就能在这里记录你看到的画面、并存进参考集合。
+              播放到想借鉴的位置，点播放条上的 <b>标记片段</b>，
+              之后就能在这里记录观察、加入待发送。
             </p>
           </aside>
         )}
 
         {panelOpen && hasSegment && (
           <RefAnalysisPanel
+            addRefToPending={addRefToPending}
+            added={refInPending(current.id)}
+            analyzeGate={analyzeGate}
+            isFav={isFav}
+            onAnalyze={onAnalyze}
+            toggleFavorite={toggleFavorite}
             current={current}
             endDraft={endDraft}
             inOutbox={inOutbox}
             observationDraft={observationDraft}
             removeSegment={removeSegment}
-            reusable={reusable}
             saveSegmentEdits={saveSegmentEdits}
             segment={segment}
             setEndDraft={setEndDraft}
@@ -257,6 +266,9 @@ export function RefLibrary() {
 
         <RefDock
           advanceFilm={advanceFilm}
+          seekTo={seekTo}
+          segmentIndex={hasSegment ? segmentIndex : -1}
+          stepSegment={stepSegment}
           cutSegmentAt={cutSegmentAt}
           film={film}
           filmSegments={filmSegments}
@@ -278,6 +290,7 @@ export function RefLibrary() {
         {browseOpen && (
           <RefBrowseDialog
             addRefToPending={addRefToPending}
+            collections={collections}
             browseList={browseList}
             collId={collId}
             filmOf={filmOf}

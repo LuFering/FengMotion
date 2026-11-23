@@ -1,0 +1,219 @@
+/* ── 参考片库打磨 · 2026-11-23 ─────────────────────────────────────
+   依据 docs/design/参考片库打磨方案-2026-11-23.md §4 / §5。必须最后引入。
+   选择器一律以 `.rfc ` 开头：shell-themes.css 里 `.rfc button { background:none; border:0 }`
+   （0,1,1）会压掉单类名按钮样式；src/styles/card-details.css 的 `.rfc .rfc-card-*`（0,2,0）
+   由卡片规则多一级 `.rfc-grid` 压过。不用 !important。最小字号 10.5px。 */
+
+/* ═══ 片名区与顶部操作 ═══ */
+.rfc .rfc-head { padding: 22px 28px; }
+.rfc .rfc-eyebrow { font-size: 10.5px; font-weight: 600; letter-spacing: .14em; }
+.rfc .rfc-title { margin-top: 4px; font-size: 26px; font-weight: 600; letter-spacing: -.01em; }
+.rfc .rfc-desc { font-size: 13px; }
+.rfc .rfc-meta-line { margin-top: 6px; font-size: 12px; }
+
+.rfc .rfc-actions { top: 22px; gap: 6px; }
+.rfc .rfc-actions .rfc-gbtn { height: 32px; padding: 0 12px; border-radius: 8px; font-size: 12.5px; font-weight: 550; }
+.rfc .rfc-actions .rfc-gbtn:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
+/* 顶部按钮永远叠在画面上：固定深色玻璃 + 白字，三主题一致。
+   `.rfc button { background:none; border:0 }`（0,1,1）原先压掉了玻璃底，浅色/触感下成了画面上的深色字。 */
+.rfc .rfc-actions .rfc-gbtn {
+  background: rgb(10 12 16 / .58); border: 1px solid rgb(255 255 255 / .18); color: #fff;
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+}
+.rfc .rfc-actions .rfc-gbtn:hover { background: rgb(10 12 16 / .74); border-color: rgb(255 255 255 / .34); color: #fff; }
+.rfc .rfc-actions .rfc-gbtn.is-on { background: rgb(10 12 16 / .74); border-color: var(--acc); color: #fff; }
+.rfc .rfc-actions .rfc-gbtn.rfc-gbtn-primary { background: var(--acc); border-color: transparent; color: var(--acc-ink); }
+.rfc .rfc-actions .rfc-gbtn.rfc-gbtn-primary:hover { background: var(--acc); filter: brightness(1.08); }
+
+/* ═══ 分析面板 ═══ */
+.rfc .rfc-panel { top: 70px; width: 340px; max-height: calc(100% - 276px); padding: 16px 18px 12px; }
+.rfc .rfc-panel-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; row-gap: 3px; }
+.rfc .rfc-panel-titles { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.rfc .rfc-panel-head h2 { margin: 0; font-size: 16px; font-weight: 600; }
+.rfc .rfc-panel-tc { grid-column: 1 / -1; margin: 0; font-family: inherit; font-size: 12px; color: var(--tx2); font-variant-numeric: tabular-nums; }
+.rfc .rfc-panel-empty { margin: 10px 0 2px; font-size: 12.5px; line-height: 1.7; color: var(--tx2); }
+
+.rfc .rfc-iconbtn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; border-radius: 8px;
+  border: 1px solid var(--line2); color: var(--tx2);
+  transition: color .15s, background .15s, border-color .15s;
+}
+.rfc .rfc-iconbtn:hover { color: var(--tx); background: var(--hover); }
+.rfc .rfc-iconbtn[aria-pressed='true'] { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 45%, transparent); }
+.rfc .rfc-iconbtn[aria-pressed='true'] svg { fill: currentColor; }
+
+.rfc .rfc-panel-acts { display: flex; gap: 8px; margin: 14px 0 0; }
+.rfc .rfc-panel .rfc-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 32px; padding: 0 12px; border-radius: 8px;
+  border: 1px solid var(--line2); background: var(--raised); color: var(--tx);
+  font-size: 12.5px; font-weight: 550;
+  transition: background .15s, border-color .15s, color .15s;
+}
+.rfc .rfc-panel .rfc-btn:hover:not(:disabled) { border-color: var(--acc); }
+.rfc .rfc-panel .rfc-btn.primary { background: var(--acc); border-color: transparent; color: var(--acc-ink); }
+.rfc .rfc-panel .rfc-btn.primary:hover:not(:disabled) { filter: brightness(1.08); }
+.rfc .rfc-panel .rfc-btn.primary:disabled { background: var(--sel); color: var(--acc-tx); cursor: default; filter: none; }
+.rfc .rfc-panel .rfc-btn.is-done { color: var(--acc-tx); border-color: color-mix(in srgb, var(--acc) 50%, transparent); }
+.rfc .rfc-panel .rfc-btn:focus-visible { outline: 2px solid var(--acc); outline-offset: 1px; }
+
+/* 分节：小标题 11px 灰，节间 18px，不加框 */
+.rfc .rfc-sec { margin-top: 18px; }
+.rfc .rfc-sec h3 { margin: 0 0 8px; font-size: 11px; font-weight: 600; letter-spacing: .06em; color: var(--tx3); }
+.rfc .rfc-sec-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+.rfc .rfc-sec-head h3 { margin: 0; }
+.rfc .rfc-analyze { height: 24px; padding: 0 9px; border-radius: 6px; border: 1px solid var(--line2); color: var(--tx2); font-size: 11.5px; font-weight: 550; }
+.rfc .rfc-analyze:hover:not(:disabled) { color: var(--tx); border-color: var(--acc); }
+.rfc .rfc-analyze:disabled { opacity: .5; cursor: not-allowed; }
+.rfc .rfc-sec-note { margin: 0 0 6px; font-size: 11.5px; line-height: 1.55; color: var(--tx3); }
+
+/* 六维：两列定义列表；值较长的独占整行 */
+.rfc .rfc-dims { display: grid; grid-template-columns: 1fr 1fr; column-gap: 16px; margin: 0; }
+.rfc .rfc-dim { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 7px 0; border-top: 1px solid var(--dash); }
+.rfc .rfc-dim[data-wide] { grid-column: 1 / -1; }
+.rfc .rfc-dim dt { font-size: 11.5px; color: var(--tx3); cursor: help; width: fit-content; }
+.rfc .rfc-dim dd { display: flex; align-items: baseline; gap: 6px; min-width: 0; margin: 0; font-size: 12.5px; font-weight: 550; line-height: 1.5; color: var(--tx); }
+.rfc .rfc-dim dd .pend { color: var(--tx3); font-weight: 400; }
+.rfc .rfc-dim-v { min-width: 0; overflow-wrap: anywhere; }
+.rfc .rfc-dim .rfc-src { font-size: 10.5px; line-height: 1.5; padding: 0 5px; }
+
+/* 人工记录 */
+.rfc .rfc-sec .rfc-manual-field { display: flex; flex-direction: column; gap: 5px; }
+.rfc .rfc-sec .rfc-manual-field + .rfc-manual-field { margin-top: 12px; }
+.rfc .rfc-sec .rfc-manual-k { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--tx2); }
+.rfc .rfc-sec .rfc-manual-tag { font-style: normal; font-size: 10.5px; padding: 0 5px; border-radius: 4px; background: var(--chip-bg); color: var(--tx3); }
+.rfc .rfc-sec .rfc-manual-input {
+  min-height: 52px; padding: 7px 9px; border-radius: 8px;
+  border: 1px solid var(--line2); background: var(--chip-bg); color: var(--tx);
+  font-size: 12.5px; line-height: 1.55;
+  transition: border-color .15s;
+}
+.rfc .rfc-sec .rfc-manual-input::placeholder { color: var(--tx3); }
+.rfc .rfc-sec .rfc-manual-input:focus { outline: none; border-color: var(--acc); }
+.rfc .rfc-sec .rfc-manual-infer { margin: 0; padding: 7px 9px; border-radius: 8px; background: var(--chip-bg); color: var(--tx2); font-size: 12.5px; line-height: 1.6; }
+
+/* 片段范围 */
+.rfc .rfc-range-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.rfc .rfc-range-row label { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--tx2); }
+.rfc .rfc-range-row input {
+  width: 64px; height: 28px; padding: 0 8px; border-radius: 6px;
+  border: 1px solid var(--line2); background: var(--chip-bg); color: var(--tx);
+  font: inherit; font-size: 12.5px; font-variant-numeric: tabular-nums;
+}
+.rfc .rfc-range-row input:focus { outline: none; border-color: var(--acc); }
+.rfc .rfc-range-dash { color: var(--tx3); }
+.rfc .rfc-panel .rfc-tags { margin-top: 14px; }
+.rfc .rfc-panel .rfc-tag { font-size: 11.5px; }
+
+.rfc .rfc-panel-foot { display: flex; justify-content: flex-end; margin-top: 18px; padding-top: 10px; border-top: 1px solid var(--dash); }
+.rfc .rfc-panel-foot .rfc-manual-del { padding: 4px 8px; border-radius: 6px; background: none; color: var(--tx3); font-size: 12px; }
+.rfc .rfc-panel-foot .rfc-manual-del:hover { color: #e5534b; background: rgb(229 83 75 / .12); }
+
+/* ═══ 底部：播放条、时间轴、片单（叠在画面暗角上，固定白色系，三主题一致） ═══ */
+.rfc .rfc-transport { gap: 4px; margin-bottom: 8px; }
+.rfc .rfc-dock .rfc-play {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; border-radius: 50%;
+  background: var(--glass); border: 1px solid var(--glass-line); color: #fff;
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+}
+.rfc .rfc-dock .rfc-play .ui-icon { width: 15px; height: 15px; }
+.rfc .rfc-dock .rfc-play:hover:not(:disabled) { background: var(--acc); color: var(--acc-ink); }
+.rfc .rfc-dock .rfc-play:disabled { opacity: .4; cursor: default; }
+.rfc .rfc-tbar-sep { flex: none; width: 1px; height: 16px; margin: 0 6px; background: rgb(255 255 255 / .2); }
+.rfc .rfc-dock .rfc-tbtn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+  height: 30px; min-width: 30px; padding: 0 7px; border-radius: 7px;
+  color: rgb(255 255 255 / .85); font-size: 12px; font-weight: 550;
+  text-shadow: 0 1px 6px rgb(0 0 0 / .5);
+  transition: background .15s, color .15s;
+}
+.rfc .rfc-dock .rfc-tbtn:hover:not(:disabled) { background: rgb(10 12 16 / .55); color: #fff; }
+.rfc .rfc-dock .rfc-tbtn:disabled { opacity: .35; cursor: default; }
+.rfc .rfc-dock .rfc-tbtn.is-text {
+  margin-left: 4px; padding: 0 11px;
+  border: 1px solid rgb(255 255 255 / .2); background: rgb(10 12 16 / .45);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); text-shadow: none;
+}
+.rfc .rfc-dock .rfc-tbtn:focus-visible, .rfc .rfc-dock .rfc-play:focus-visible { outline: 2px solid var(--acc); outline-offset: 1px; }
+.rfc .rfc-dock .rfc-time { font-family: inherit; font-size: 12.5px; color: rgb(255 255 255 / .92); font-variant-numeric: tabular-nums; }
+.rfc .rfc-dock .rfc-time i { margin: 0 5px; font-style: normal; color: rgb(255 255 255 / .42); }
+
+/* 时间轴：轨道 = 整条视频；片段按起止定位；播放头 2px 白线 */
+.rfc .rfc-dock .rfc-segbar {
+  position: relative; display: block; height: 30px; margin-bottom: 10px;
+  border-radius: 6px; overflow: hidden; cursor: pointer;
+  background: rgb(10 12 16 / .55); border: 1px solid rgb(255 255 255 / .14);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+}
+.rfc .rfc-dock .rfc-segbar .rfc-seg {
+  position: absolute; top: 3px; bottom: 3px; height: auto; min-width: 6px; padding: 0;
+  border-radius: 4px; overflow: hidden; container-type: inline-size;
+  background: rgb(255 255 255 / .14); border: 1px solid rgb(255 255 255 / .22);
+  backdrop-filter: none; -webkit-backdrop-filter: none;
+  transition: background .15s, border-color .15s;
+}
+.rfc .rfc-dock .rfc-segbar .rfc-seg:hover { border-color: rgb(255 255 255 / .5); }
+.rfc .rfc-dock .rfc-segbar .rfc-seg.is-on { background: color-mix(in srgb, var(--acc) 40%, transparent); border-color: var(--acc); }
+.rfc .rfc-dock .rfc-segbar .rfc-seg:focus-visible { outline: 2px solid #fff; outline-offset: -2px; }
+.rfc .rfc-dock .rfc-seg-lb { left: 8px; font-size: 11.5px; font-weight: 600; }
+.rfc .rfc-dock .rfc-seg-dot { right: 6px; width: 6px; height: 6px; }
+@container (max-width: 72px) { .rfc .rfc-seg-word { display: none; } }
+@container (max-width: 34px) { .rfc .rfc-seg-lb, .rfc .rfc-seg-dot { display: none; } }
+.rfc .rfc-playhead {
+  position: absolute; top: 0; bottom: 0; z-index: 2; width: 2px; margin-left: -1px;
+  background: #fff; box-shadow: 0 0 0 1px rgb(0 0 0 / .25); pointer-events: none;
+}
+
+.rfc .rfc-dock .rfc-film { width: 160px; border-radius: 8px; }
+.rfc .rfc-dock .rfc-film.is-on { border-color: var(--acc); box-shadow: inset 0 0 0 1px var(--acc); }
+.rfc .rfc-dock .rfc-film:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
+.rfc .rfc-dock .rfc-film-m { font-variant-numeric: tabular-nums; }
+
+/* ═══ 片库覆层 ═══ */
+.rfc .rfc-browse-head { gap: 16px; padding: 16px 18px 12px; }
+.rfc .rfc-browse-title { margin: 0; font-size: 18px; font-weight: 600; }
+.rfc .rfc-browse .rfc-tabs { gap: 2px; padding: 0; background: none; border: 0; }
+.rfc .rfc-browse .rfc-tab { padding: 5px 10px; border-radius: 6px; font-size: 12.5px; font-weight: 550; color: var(--tx3); transition: color .15s, background .15s; }
+.rfc .rfc-browse .rfc-tab:hover { color: var(--tx); background: var(--hover); }
+.rfc .rfc-browse .rfc-tab.is-on { background: var(--sel); color: var(--acc-tx); }
+.rfc .rfc-browse-headacts { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+.rfc .rfc-browse-head .rfc-gbtn { margin-left: 0; height: 30px; padding: 0 11px; border-radius: 7px; font-size: 12.5px; font-weight: 550; }
+
+.rfc .rfc-browse-tools { gap: 8px; padding: 0 18px 12px; }
+/* 多一级 .rfc-browse-tools：src/styles/interface-polish.css 有同权重的 flex:1 1 220px，会把搜索拉满整行 */
+.rfc .rfc-browse .rfc-browse-tools .rfc-search { flex: 0 1 320px; min-width: 200px; height: 30px; padding: 0 10px; border-radius: 7px; border: 1px solid var(--line2); background: var(--panel); }
+.rfc .rfc-browse .rfc-search input { font-size: 12.5px; }
+.rfc .rfc-browse .rfc-search:focus-within { border-color: var(--acc); }
+.rfc .rfc-browse-count { margin-left: auto; font-family: inherit; font-size: 12px; color: var(--tx3); }
+
+.rfc .rfc-browse .rfc-grid { grid-template-columns: repeat(auto-fill, minmax(min(216px, 100%), 1fr)); gap: 14px; padding: 16px 18px 20px; }
+.rfc .rfc-grid .rfc-card { border-radius: 10px; }
+.rfc .rfc-grid .rfc-card::after { content: ''; position: absolute; inset: 0; z-index: 3; border-radius: inherit; box-shadow: inset 0 0 0 1px rgb(255 255 255 / .06); pointer-events: none; }
+.rfc .rfc-grid .rfc-card[data-on] { border-color: var(--acc); box-shadow: none; }
+.rfc .rfc-grid .rfc-card[data-on]::after, .rfc .rfc-grid .rfc-card:focus-visible::after { box-shadow: inset 0 0 0 2px var(--acc); }
+.rfc .rfc-grid .rfc-card:focus-visible { outline: none; }
+.rfc .rfc-grid .rfc-card-thumb img { transition: transform .5s var(--eo); }
+.rfc .rfc-grid .rfc-card:hover .rfc-card-thumb img { transform: scale(1.03); }
+.rfc .rfc-grid .rfc-card-marker { top: 10px; left: 11px; gap: 7px; font-size: 11px; font-weight: 600; color: rgb(255 255 255 / .92); text-shadow: 0 1px 6px rgb(0 0 0 / .55); }
+.rfc .rfc-grid .rfc-card-marker > span { color: rgb(255 255 255 / .62); font-weight: 400; }
+.rfc .rfc-grid .rfc-card-fav { top: 9px; right: 41px; width: 26px; height: 26px; padding: 0; align-items: center; justify-content: center; border-radius: 6px; }
+.rfc .rfc-grid .rfc-card[data-pickmode] .rfc-card-fav { right: 9px; }
+.rfc .rfc-grid .rfc-card-body { display: flex; flex-direction: column; gap: 3px; padding: 30px 12px 10px; }
+.rfc .rfc-grid .rfc-card:has(.rfc-card-status) .rfc-card-body { padding-right: 70px; }
+.rfc .rfc-grid .rfc-card-t { font-size: 13.5px; font-weight: 550; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rfc .rfc-grid .rfc-card-m { margin-top: 0; font-size: 11px; color: rgb(255 255 255 / .66); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
+.rfc .rfc-grid .rfc-card-status { position: absolute; right: 11px; bottom: 11px; z-index: 2; display: inline-flex; align-items: center; gap: 5px; font-size: 10.5px; color: rgb(255 255 255 / .72); pointer-events: none; }
+.rfc .rfc-grid .rfc-card-status i { width: 5px; height: 5px; border-radius: 50%; }
+
+.rfc .rfc-browse .rfc-empty { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 72px 0; color: var(--tx3); font-size: 13px; }
+.rfc .rfc-browse .rfc-empty p { margin: 0; }
+.rfc .rfc-browse .rfc-empty-clear { height: 30px; padding: 0 12px; border-radius: 7px; border: 1px solid var(--line2); color: var(--tx); font-size: 12.5px; }
+.rfc .rfc-browse .rfc-empty-clear:hover { background: var(--hover); }
+
+@media (max-width: 900px) {
+  .rfc .rfc-panel { width: auto; }
+  .rfc .rfc-head { padding: 16px; }
+  .rfc .rfc-title { font-size: 21px; }
+}

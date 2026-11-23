@@ -1,4 +1,4 @@
-import { REFERENCE_COLLECTIONS, type ReferenceStatus } from '@/features/reference/model/referenceLibrary'
+import { type ReferenceStatus } from '@/features/reference/model/referenceLibrary'
 
 export type StatusFilter = ReferenceStatus | 'all'
 
@@ -21,8 +21,10 @@ export const OUTBOX_KEY = 'fm-reference-outbox-v1'
 /** 拖拽时按片段 ID 暂存参数包（DataTransfer 只能传字符串） */
 export const REF_STASH_KEY = 'fm-ref-card-stash-v1'
 
+/* 集合成员只来自服务端（GET /reference-collections）。原先这里用演示常量
+   REFERENCE_COLLECTIONS 打底，空库也会显示 9 个演示集合。 */
 export function defaultMemberships(): Record<string, string[]> {
-  return Object.fromEntries(REFERENCE_COLLECTIONS.map((c) => [c.id, [...c.segmentIds]]))
+  return {}
 }
 
 export function defaultStored(): StoredLibrary {

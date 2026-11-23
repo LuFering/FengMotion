@@ -7,6 +7,8 @@ export interface UseRefCatalogLoadArgs {
   setCatalogError: React.Dispatch<React.SetStateAction<string | null>>
   setCatalogLoading: React.Dispatch<React.SetStateAction<boolean>>
   setCollId: React.Dispatch<React.SetStateAction<string>>
+  /** 集合名单只来自服务端；为空时「参考集合」页签不出现 */
+  setCollections: React.Dispatch<React.SetStateAction<Array<{ id: string; name: string; note: string; segmentIds: string[] }>>>
   setFilmId: React.Dispatch<React.SetStateAction<string>>
   setSegmentId: React.Dispatch<React.SetStateAction<string>>
   setSegments: React.Dispatch<React.SetStateAction<LocalSegment[]>>
@@ -15,7 +17,7 @@ export interface UseRefCatalogLoadArgs {
 }
 
 /** 进入参考片库时从服务端载入目录数据并设定默认选中项，同时维护加载中与读取失败状态。 */
-export function useRefCatalogLoad({ setCatalogError, setCatalogLoading, setCollId, setFilmId, setSegmentId, setSegments, setStored, setVideos }: UseRefCatalogLoadArgs) {
+export function useRefCatalogLoad({ setCatalogError, setCatalogLoading, setCollId, setCollections, setFilmId, setSegmentId, setSegments, setStored, setVideos }: UseRefCatalogLoadArgs) {
   /* 首次加载：视频、片段、偏好、集合全部从服务端读。
      旧版收藏与最近浏览在 localStorage 里，这里不再迁移 —— 参考片片段是
      服务端生成的 ID，旧演示片段的 ID 在新库里不存在，硬迁移只会产生一堆
@@ -33,6 +35,7 @@ export function useRefCatalogLoad({ setCatalogError, setCatalogLoading, setCollI
         if (!alive) return
         setVideos(vs)
         setSegments(segs)
+        setCollections(colls)
         setStored({
           favorites: prefs.favorites,
           recent: prefs.recent,

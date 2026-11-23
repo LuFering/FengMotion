@@ -82,7 +82,8 @@ export function usePlayerNavigation({ browseOpen, collMenuOpen, film, filmId, fi
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement
-      if (t.closest('input, select, textarea')) return
+      /* 下拉菜单打开时方向键与 Esc 归菜单，不切片段、不顺手关掉片库 */
+      if (t.closest('input, select, textarea, [role="menu"]')) return
       if (e.key === 'Escape') {
         if (browseOpen) setBrowseOpen(false)
         else if (collMenuOpen) setCollMenuOpen(false)
