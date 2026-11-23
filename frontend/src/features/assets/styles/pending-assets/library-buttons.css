@@ -32,7 +32,7 @@
 }
 .fmp-refparam i {
   font-style: normal;
-  font-size: 9.5px;
+  font-size: 10.5px; /* 9.5 → 10.5：全站下限（打磨方案 §3.11） */
   color: var(--hint);
 }
 

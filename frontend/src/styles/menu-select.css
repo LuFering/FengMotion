@@ -27,7 +27,9 @@
 .fm-menubtn.is-quiet .fm-menubtn-value { color: var(--tx2, var(--dim)); font-weight: 500; }
 .fm-menubtn.is-quiet:hover .fm-menubtn-value { color: var(--tx, var(--fg)); }
 
-.fm-menu { padding: 4px; border-radius: 10px; }
+/* 层级：组件库默认 z-50，会被待发送抽屉（遮罩 z-index 120）盖住。radix 把内容的 z-index 抄到外层定位容器上，
+   这里抬到 150 —— 高于抽屉、低于全局提示（200） */
+.fm-menu { z-index: 150; padding: 4px; border-radius: 10px; }
 .fm-menu .fm-menu-item { gap: 12px; min-height: 30px; padding: 0 30px 0 9px; font-size: 12.5px; border-radius: 6px; }
 .fm-menu .fm-menu-text { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fm-menu .fm-menu-count { flex: none; font-size: 11px; font-variant-numeric: tabular-nums; opacity: .55; }

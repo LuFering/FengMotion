@@ -210,6 +210,16 @@ export function usePendingAssets() {
     commit(read().filter((x) => !drop.has(x.assetId)))
   }, [commit])
 
+  /** 撤销移除：按原位置放回。已重新加入的、超出上限的跳过。 */
+  const restore = useCallback((entries: { item: PendingAsset; index: number }[]) => {
+    const next = [...read()]
+    for (const { item, index } of [...entries].sort((a, b) => a.index - b.index)) {
+      if (next.length >= MAX || next.some((x) => x.assetId === item.assetId)) continue
+      next.splice(Math.min(index, next.length), 0, item)
+    }
+    commit(next)
+  }, [commit])
+
   const clear = useCallback(() => commit([]), [commit])
 
   const patch = useCallback((assetId: string, next: Partial<Omit<PendingAsset, 'assetId' | 'addedAt'>>) => {
@@ -219,7 +229,7 @@ export function usePendingAssets() {
   const has = useCallback((assetId: string) => items.some((x) => x.assetId === assetId), [items])
 
   const retrySave=()=>{write(read());window.dispatchEvent(new CustomEvent('fm-pending-changed'))}
-  return { items, add, addRef, addFx, remove, removeMany, clear, patch, has, saveFailed:pendingSaveFailed, retrySave }
+  return { items, add, addRef, addFx, remove, removeMany, restore, clear, patch, has, saveFailed:pendingSaveFailed, retrySave }
 }
 
 /** 素材库/详情面板里做拖拽时写进 dataTransfer 的自定义类型。

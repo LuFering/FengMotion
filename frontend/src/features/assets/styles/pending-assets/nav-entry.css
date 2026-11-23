@@ -181,7 +181,7 @@ body:not(.hm-nav-expanded) .hm-pending {
    角标贴图标右上外侧，同样不能压在购物车上。 */
 body:not(.hm-nav-expanded) .hm-pending-badge { left: 50%; top: 0; transform: translateX(9px); }
 body.studio-shell:not(.hm-nav-expanded) .hm-pending .hm-nav-text {
-  display: block; max-width: 100%;
-  font-size: 9.5px; line-height: 1.2; font-weight: 500;
+  display: block; max-width: 64px;
+  font-size: 10.5px; line-height: 1.2; font-weight: 500;
   white-space: nowrap; overflow: hidden;
 }

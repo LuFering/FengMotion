@@ -10,7 +10,9 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { UiIcon, SemIcons } from '@/shared/icons/UiIcon'
-import { File01, Film01, Image01, MusicNote01, Package, Send01, ShoppingBag01, Type01 } from '@untitledui/icons'
+import { File01, Film01, Image01, MagicWand02, MusicNote01, Package, Send01, ShoppingBag01, Type01 } from '@untitledui/icons'
+import { MenuSelect } from '@/shared/components/MenuSelect'
+import { toast as emitToast } from '@/shared/lib/toast'
 import { MEDIA_LABEL, type MyAsset } from '@/features/assets/model/myAssets'
 import { formatBytes, formatDur, getThumbURL, listAssets } from '@/features/assets/services/assetApiService'
 import {
@@ -210,7 +212,17 @@ export function PendingAssetsDrawer({
   /** 交给对话输入框；返回 true 表示已放入，可以据此清理本次发送项 */
   onSend: (list: DeliverableAsset[]) => boolean
 }) {
-  const { items, remove, removeMany, clear, patch, saveFailed, retrySave } = usePendingAssets()
+  const { items, removeMany, restore, patch, saveFailed, retrySave } = usePendingAssets()
+
+  /* 移除 / 清空都可撤销：误点后不用再回各库重新找（打磨方案 §3.11）。
+     发送后的清理不走这里 —— 那是成功，不是误操作。 */
+  const removeWithUndo = (ids: string[], text: string) => {
+    const drop = new Set(ids)
+    const entries = items.map((item, index) => ({ item, index })).filter((e) => drop.has(e.item.assetId))
+    if (entries.length === 0) return
+    removeMany(ids)
+    emitToast(text, { action: { label: '撤销', run: () => restore(entries) } })
+  }
   const [assets, setAssets] = useState<MyAsset[]>([])
   const [thumbs, setThumbs] = useState<Record<string, string | null>>({})
   const [sending, setSending] = useState(false)
@@ -311,9 +323,13 @@ export function PendingAssetsDrawer({
                         e.dataTransfer.setData(PENDING_ITEM_DRAG, r.assetId)
                         e.dataTransfer.effectAllowed = 'copy'
                       }}>
+                  {/* 没有画面时按条目类型给图标；警告三角只留给「素材已被删除」，
+                      技法、片段没封面不是出错（原先一律三角，读起来像失败） */}
                   {r.thumb ? <img src={r.thumb} alt="" draggable={false} />
                     : r.asset
                       ? (() => { const I = MEDIA_ICON[r.asset.mediaType]; return <I size={16} /> })()
+                      : r.kind === 'fx' ? <MagicWand02 size={16} />
+                      : r.kind === 'ref' ? <Film01 size={16} />
                       : <UiIcon icon={SemIcons.warning} size="md" />}
                 </span>
 
@@ -365,11 +381,14 @@ export function PendingAssetsDrawer({
                   {!r.missing && (
                     <>
                       <div className="fmp-ctl">
-                        <select className="fmp-purpose" value={r.purpose}
-                                aria-label={`${r.asset!.name} 的用途`}
-                                onChange={(e) => patch(r.assetId, { purpose: e.target.value as AssetPurpose })}>
-                          {PURPOSES.map((p) => <option key={p} value={p}>{PURPOSE_LABEL[p]}</option>)}
-                        </select>
+                        <MenuSelect
+                          label=""
+                          className="fmp-purpose"
+                          ariaLabel={`${r.asset!.name} 的用途`}
+                          value={r.purpose}
+                          options={PURPOSES.map((p) => ({ value: p, label: PURPOSE_LABEL[p] }))}
+                          onChange={(v) => patch(r.assetId, { purpose: v as AssetPurpose })}
+                        />
                         <span className="fmp-purpose-hint">{PURPOSE_HINT[r.purpose]}</span>
                       </div>
                       <input className="fmp-note" type="text" value={r.note ?? ''}
@@ -382,7 +401,7 @@ export function PendingAssetsDrawer({
                 )}
 
                 <button type="button" className="fmp-rm" aria-label={`从待发送移除 ${r.ref?.title ?? r.asset?.name ?? r.assetId}`}
-                        onClick={() => remove(r.assetId)}><UiIcon icon={SemIcons.close} size="sm" /></button>
+                        onClick={() => removeWithUndo([r.assetId], `已移除「${r.ref?.title ?? r.fx?.name ?? r.asset?.name ?? '素材'}」`)}><UiIcon icon={SemIcons.close} size="sm" /></button>
               </li>
             ))}
           </ul>
@@ -390,7 +409,7 @@ export function PendingAssetsDrawer({
 
         <footer className="fmp-foot">
           <button type="button" className="fmp-clear" disabled={resolved.length === 0}
-                  onClick={() => clear()}>
+                  onClick={() => removeWithUndo(items.map((x) => x.assetId), `已清空待发送（${items.length} 项）`)}>
             <UiIcon icon={SemIcons.trash} size="sm" /> 清空
           </button>
           <span className="fmp-foot-note">

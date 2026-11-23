@@ -2,6 +2,7 @@ import type { FxTechnique } from '@/features/fx/model/fxTechniques'
 import { usePendingAssets, type PendingFxCard } from '@/features/assets/hooks/usePendingAssets'
 import { FX_STASH_KEY } from '@/features/fx/model/fxLibraryStore'
 import { toast as emitToast } from '@/shared/lib/toast'
+import { categoryLabel } from '@/features/fx/model/fxFilters'
 
 export interface UseFxPendingArgs {
   pendingStore: ReturnType<typeof usePendingAssets>
@@ -16,7 +17,9 @@ export function useFxPending({ pendingStore }: UseFxPendingArgs) {
     fxId: t.id,
     name: t.name,
     intent: t.intent,
-    categoryLabel: t.categoryLabel,
+    /* 用本站的中文分类；t.categoryLabel 是来源库的原始分类（camera、ThemeAnimations…），
+       放进待发送就显示成英文。见打磨方案 §3.11 */
+    categoryLabel: categoryLabel(t.category),
     execLabel: t.execLabel,
     complexity: t.complexity,
     impl: t.implLabel,

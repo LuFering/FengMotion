@@ -5,6 +5,7 @@ import {
   Film01,
   Home02,
   Image01,
+  MagicWand02,
   MessageCircle01,
   Settings01,
   Users03,
@@ -26,6 +27,7 @@ import { UiIcon, type UntIcon } from './UiIcon'
  *   工作流   Dataflow02         节点 + 连线，正是工作流画布的抽象
  *   社区     Users03            双人轮廓，明确是「人」而非「方框叠方框」
  *   更多     DotsHorizontal     横向三点，标准溢出菜单
+ *   特效库   MagicWand02        魔棒：一种做法 / 效果。原先误映射成与「我的创作」同一个对话气泡
  */
 const NAV_ICON: Record<string, UntIcon> = {
   house: Home02,
@@ -36,7 +38,7 @@ const NAV_ICON: Record<string, UntIcon> = {
   settings: Settings01,
   image: Image01,
   film: Film01,
-  'panels-top-left': MessageCircle01,
+  'panels-top-left': MagicWand02,
 }
 
 export function NavGlyph({ name, className = '' }: { name: string; className?: string }) {
