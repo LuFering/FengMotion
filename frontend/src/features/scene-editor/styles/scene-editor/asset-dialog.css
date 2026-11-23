@@ -125,7 +125,7 @@
   .se-header {
     gap: 8px;
   }
-  .se-header > select {
+  .se-header > .se-scene-menu {
     max-width: 180px;
   }
   .se-header-action {
@@ -157,7 +157,7 @@
   .se-title {
     flex: 1;
   }
-  .se-header > select {
+  .se-header > .se-scene-menu {
     max-width: 100%;
     flex: 1;
   }

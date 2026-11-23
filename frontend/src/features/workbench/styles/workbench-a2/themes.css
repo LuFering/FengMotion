@@ -71,13 +71,6 @@ html[data-theme="tactile"] #pane-flow {
   --shadow-control: 2px 2px 0 #22231f;
 }
 
-/* 主题切换的短暂过渡：只淡入颜色，不移动布局 */
-html.theme-switching #pane-flow,
-html.theme-switching #pane-flow .fw,
-html.theme-switching #pane-flow .fw-ing,
-html.theme-switching #pane-flow .fw-canvas,
-html.theme-switching #pane-flow .fw-panel {
-  transition: background-color .28s ease, color .28s ease, border-color .28s ease;
-}
+/* 主题切换不再单独淡入：全局在 styles/theme-v3.css 里禁用过渡，与其它区块同一帧换色。 */
 
 /* 窄屏适配已移除：顶栏只按桌面布局收拢省略号，不再为 640px 隐藏控件。 */

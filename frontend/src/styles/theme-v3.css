@@ -90,3 +90,10 @@ html[data-theme='tactile'] #pane-flow {
   --r-panel: 20px;
   --shadow-mid: 5px 5px 0 #22231f;
 }
+
+/* 切主题时同一帧全部换色（App.tsx changeTheme 加 / 去 .theme-switching）。
+   各区块过渡时长不同（侧栏 .15s、工作台 .28s…），不禁用就会看到先后变色。 */
+html.theme-switching,
+html.theme-switching *,
+html.theme-switching *::before,
+html.theme-switching *::after { transition: none !important; }

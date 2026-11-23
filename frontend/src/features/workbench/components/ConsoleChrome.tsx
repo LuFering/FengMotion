@@ -4,6 +4,7 @@ import { sessionDisplayTitle, sessionOptionLabel, sessionOptionText, sessionTime
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/ui/tooltip'
 import type { Session } from '@/features/chat/hooks/useSessions'
 import { type SideTab } from '@/features/workbench/model/workbenchConsole'
+import { MenuSelect } from '@/shared/components/MenuSelect'
 
 /* 控制台常驻五入口：图标 + 悬浮文字，全部直接平铺展示，无多余折叠箭头 */
 export const CONSOLE_TABS: { id: 'chat' | 'brief' | 'task' | 'versions' | 'review'; label: string; icon: UntIcon }[] = [
@@ -52,27 +53,20 @@ export function ConsoleChrome({
                 放进每个选项里会挤掉会话名和时间（下拉只有一百多像素）。 */}
             <span className="wb-console-session-label">当前对话</span>
             {sessions.length > 1 ? (
-              /* 关闭状态的选框也要能拿到当前会话的完整时间：
-                 原生 <option title> 在不同系统上的表现不一致，不能只靠它。
-                 这里把完整时间放在 select 自身的 title 上，键盘聚焦同样可读。 */
-              <select
+              /* 关闭状态的按钮也要能拿到当前会话的完整时间：完整时间放在按钮自身的 title 上，
+                 键盘聚焦同样可读。标题与时间来自 sessionDisplay —— 与对话区同一套规则；
+                 选项里不再重复项目名，宽度全部留给会话名与时间，悬停 title 仍给带项目的完整标识。 */
+              <MenuSelect
+                className="wb-console-session-select"
+                label=""
+                ariaLabel="选择对话"
                 value={activeSession?.id ?? ''}
-                onChange={(e) => onSelectSession?.(e.target.value)}
-                aria-label="选择对话"
+                onChange={(v) => onSelectSession?.(v)}
                 title={activeSession
                   ? `${sessionDisplayTitle(activeSession)} · ${sessionTimeFull(activeSession.updatedAt)}`
                   : undefined}
-                className="wb-console-session-select"
-              >
-                {/* 标题与时间来自 sessionDisplay —— 与对话区同一套规则。
-                    选项里不再重复项目名，宽度全部留给会话名与时间；
-                    悬停 title 仍给带项目的完整标识。 */}
-                {sessions.map((s) => (
-                  <option key={s.id} value={s.id} title={sessionOptionLabel(s, projectName)}>
-                    {sessionOptionText(s)}
-                  </option>
-                ))}
-              </select>
+                options={sessions.map((s) => ({ value: s.id, label: sessionOptionText(s), title: sessionOptionLabel(s, projectName) }))}
+              />
             ) : (
               <span className="wb-console-session-single"
                     title={activeSession

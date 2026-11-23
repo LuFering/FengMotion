@@ -759,7 +759,7 @@ html[data-theme='tactile'] .gi-dialog {
 }
 
 .gi-inputs li:has(> .gi-check input:checked) { grid-template-columns: 92px minmax(0, 1fr) auto 28px; }
-.gi-inputs li[data-invalid] :is(input:not([type='checkbox']), select) { border-color: color-mix(in srgb, var(--bad) 60%, transparent); }
+.gi-inputs li[data-invalid] :is(input:not([type='checkbox']), .fm-menubtn) { border-color: color-mix(in srgb, var(--bad) 60%, transparent); }
 
 .gi-steps { counter-reset: step; }
 
@@ -863,3 +863,7 @@ html[data-theme='tactile'] .gi-dialog {
 @media (prefers-reduced-motion: reduce) {
   .gi-overlay, .gi-dialog { animation: none; }
 }
+
+/* 共享字段下拉在导入审阅里：类型列占满格子，处理方式固定宽度靠右 */
+.gi-inputs .gi-kind-menu { height: 30px; }
+.gi-commands .gi-decision-menu { flex: none; width: 150px; height: 30px; margin-left: auto; }

@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from 'react'
 import { UiIcon, SemIcons } from '@/shared/icons/UiIcon'
+import { MenuSelect } from '@/shared/components/MenuSelect'
 import { Archive } from '@untitledui/icons'
 import { studioHttpApi } from '@/api'
 import { ApiError } from '@/api/errors'
@@ -192,9 +193,9 @@ export function PresetReview(props: {
           <label className="gi-field"><span>标识</span><input disabled={readOnly} value={draft.slug} onChange={(e) => update({ slug: e.target.value })} placeholder="小写字母、数字、连字符" spellCheck={false} /></label>
           <label className="gi-field"><span>默认时长</span><input disabled={readOnly} value={draft.defaults.duration ?? ''} placeholder="不指定" onChange={(e) => update({ defaults: { ...draft.defaults, duration: e.target.value || null } })} /></label>
           <label className="gi-field"><span>默认画幅</span>
-            <select disabled={readOnly} value={draft.defaults.ratio ?? ''} onChange={(e) => update({ defaults: { ...draft.defaults, ratio: e.target.value || null } })}>
-              <option value="">不指定</option>{['16:9', '9:16', '1:1', '4:5'].map((r) => <option key={r} value={r}>{r}</option>)}
-            </select>
+            <MenuSelect field label="" ariaLabel="默认画幅" disabled={readOnly} value={draft.defaults.ratio ?? '__none'}
+              onChange={(v) => update({ defaults: { ...draft.defaults, ratio: v === '__none' ? null : v } })}
+              options={[{ value: '__none', label: '不指定' }, ...['16:9', '9:16', '1:1', '4:5'].map((r) => ({ value: r, label: r }))]} />
           </label>
         </div>
         <label className="gi-field"><span>说明</span><textarea rows={2} disabled={readOnly} value={draft.description} maxLength={300} onChange={(e) => update({ description: e.target.value })} /></label>
@@ -211,9 +212,9 @@ export function PresetReview(props: {
           <ul className="gi-inputs">
             {draft.requiredInputs.map((req, idx) => (
               <li key={idx} data-invalid={bySection.get('inputs')?.some((p) => p.index === idx) || undefined}>
-                <select disabled={readOnly} value={req.kind} onChange={(e) => setInput(idx, { kind: e.target.value })} aria-label="类型">
-                  {Object.entries(INPUT_KIND_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-                </select>
+                <MenuSelect field className="gi-kind-menu" label="" ariaLabel="类型" disabled={readOnly} value={req.kind}
+                  onChange={(v) => setInput(idx, { kind: v })}
+                  options={Object.entries(INPUT_KIND_LABEL).map(([v, l]) => ({ value: v, label: l }))} />
                 <input disabled={readOnly} value={req.label} onChange={(e) => setInput(idx, { label: e.target.value })} placeholder="名称" aria-label="名称" />
                 <label className="gi-check"><input type="checkbox" disabled={readOnly} checked={req.required} onChange={(e) => setInput(idx, { required: e.target.checked, requiredWhen: null })} />每次都需要</label>
                 {!req.required && <input disabled={readOnly} value={req.requiredWhen ?? ''} maxLength={200} placeholder="什么情况下需要（可留空）" aria-label={`${req.label || '这一项'}的适用条件`} onChange={(e) => setInput(idx, { requiredWhen: e.target.value || null })} />}
@@ -283,10 +284,9 @@ export function PresetReview(props: {
               {draft.instructedCommands.map((cmd, idx) => (
                 <li key={idx}>
                   <span className="gi-step-text"><code>{cmd.command}</code>{cmd.note && <small>{cmd.note}</small>}</span>
-                  <select disabled={readOnly} aria-label={`处理方式：${cmd.command}`} value={cmd.decision}
-                          onChange={(e) => update({ instructedCommands: draft.instructedCommands.map((item, j) => (j === idx ? { ...item, decision: e.target.value as InstructedCommandDecision } : item)) })}>
-                    {INSTRUCTED_COMMAND_DECISION_OPTIONS.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-                  </select>
+                  <MenuSelect field className="gi-decision-menu" label="" align="end" ariaLabel={`处理方式：${cmd.command}`} disabled={readOnly} value={cmd.decision}
+                    onChange={(v) => update({ instructedCommands: draft.instructedCommands.map((item, j) => (j === idx ? { ...item, decision: v as InstructedCommandDecision } : item)) })}
+                    options={INSTRUCTED_COMMAND_DECISION_OPTIONS.map((opt) => ({ value: opt.value, label: opt.label }))} />
                 </li>
               ))}
             </ul>

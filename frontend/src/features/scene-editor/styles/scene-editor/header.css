@@ -58,7 +58,7 @@
   color: var(--acc-tx);
   background: var(--panel2);
 }
-.se-header > select {
+.se-header > .se-scene-menu {
   max-width: 230px;
   min-width: 80px;
   border: 1px solid var(--line2);

@@ -116,7 +116,6 @@
 .mya-library .mya-sec { margin: 24px 0 10px; font-size: 12px; font-weight: 600; color: var(--tx); }
 .mya-library .mya-kv-row { border: 0; min-height: 33px; }
 .mya-library .mya-kv-list { padding-top: 6px; }
-.mya-library .mya-kv-select { height: 30px; font-size: 12px; }
 .mya-library .mya-inspector-section { margin-top: 24px; border-top: 1px solid var(--line); padding-top: 16px; }
 .mya-library .mya-inspector-section summary { color: var(--tx); font-size: 12px; font-weight: 550; cursor: pointer; }
 .mya-library .mya-inspector-section summary span { color: var(--tx2); margin-left: 6px; font-weight: 400; }

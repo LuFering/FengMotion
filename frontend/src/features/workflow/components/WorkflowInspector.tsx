@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { UiIcon, SemIcons } from '@/shared/icons/UiIcon'
+import { MenuSelect } from '@/shared/components/MenuSelect'
 import { ARTIFACT_KIND_MAP, STRUCTURED_STAGES, defForNode } from '@/features/workflow/model/workflowTemplates'
 import { listAssets } from '@/features/assets/services/assetApiService'
 import type { MyAsset } from '@/features/assets/model/myAssets'
@@ -220,14 +221,15 @@ export function Inspector(props: {
         <p className="wfe-hint">{kind?.filename}。状态与摘要是本工作流内的真实记录，demo 不代生成。</p>
         <div className="wfe-sect3">
         <InspParamsHead runLabel="评估此节点" busy={props.busy} onRunNode={props.onRunNode} />
-        <label className="wfe-field"><span>状态</span>
-          <select value={String(p.status ?? 'missing')} onChange={(e) => onParams({ status: e.target.value })}>
-            <option value="missing">尚无产物</option>
-            <option value="draft">草稿</option>
-            <option value="candidate">待确认</option>
-            <option value="confirmed">已确认</option>
-          </select>
-        </label>
+        <div className="wfe-field"><span>状态</span>
+          <MenuSelect field label="" ariaLabel="产物状态" value={String(p.status ?? 'missing')} onChange={(v) => onParams({ status: v })}
+            options={[
+              { value: 'missing', label: '尚无产物' },
+              { value: 'draft', label: '草稿' },
+              { value: 'candidate', label: '待确认' },
+              { value: 'confirmed', label: '已确认' },
+            ]} />
+        </div>
         <label className="wfe-field"><span>版本</span>
           <input value={String(p.version ?? '')} onChange={(e) => onParams({ version: e.target.value })} placeholder="如 v1" />
         </label>
@@ -359,20 +361,22 @@ export function Inspector(props: {
 
       {node.data.defType === 'create' && (
         <>
-          <label className="wfe-field"><span>制作模式</span>
-            <select value={String(p.mode ?? 'sketch')} onChange={(e) => onParams({ mode: e.target.value })}>
-              <option value="sketch">快速试作</option>
-              <option value="prototype">原型</option>
-              <option value="production">正式制作</option>
-            </select>
-          </label>
-          <label className="wfe-field"><span>输出分辨率</span>
-            <select value={String(p.resolution ?? '1080p')} onChange={(e) => onParams({ resolution: e.target.value })}>
-              <option value="1080p">1080p（1920×1080）</option>
-              <option value="1440p">1440p（2560×1440）</option>
-              <option value="4k">4K（3840×2160）</option>
-            </select>
-          </label>
+          <div className="wfe-field"><span>制作模式</span>
+            <MenuSelect field label="" ariaLabel="制作模式" value={String(p.mode ?? 'sketch')} onChange={(v) => onParams({ mode: v })}
+              options={[
+                { value: 'sketch', label: '快速试作' },
+                { value: 'prototype', label: '原型' },
+                { value: 'production', label: '正式制作' },
+              ]} />
+          </div>
+          <div className="wfe-field"><span>输出分辨率</span>
+            <MenuSelect field label="" ariaLabel="输出分辨率" value={String(p.resolution ?? '1080p')} onChange={(v) => onParams({ resolution: v })}
+              options={[
+                { value: '1080p', label: '1080p（1920×1080）' },
+                { value: '1440p', label: '1440p（2560×1440）' },
+                { value: '4k', label: '4K（3840×2160）' },
+              ]} />
+          </div>
           <p className="wfe-hint">{props.workflow?.projectId ? '完整运行会在关联项目里制作并渲染；只运行这个节点时，只生成一份制作请求，不渲染。' : '还没关联项目，运行只演示流程，不会制作视频。'}</p>
         </>
       )}

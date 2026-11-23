@@ -27,6 +27,17 @@
 .fm-menubtn.is-quiet .fm-menubtn-value { color: var(--tx2, var(--dim)); font-weight: 500; }
 .fm-menubtn.is-quiet:hover .fm-menubtn-value { color: var(--tx, var(--fg)); }
 
+/* 表单字段：占满所在列，值靠左、箭头靠右，高度与同行输入框一致（检查器、导入审阅、项目选择） */
+.fm-menubtn.is-field {
+  display: flex; width: 100%; min-width: 0; height: 32px; padding: 0 9px 0 10px;
+  border-color: var(--line2, var(--line)); border-radius: var(--fm-radius-ctl, 6px);
+  background: var(--hole, transparent); color: var(--tx, var(--fg));
+}
+.fm-menubtn.is-field .fm-menubtn-value { flex: 1 1 auto; max-width: none; text-align: left; font-weight: 400; }
+.fm-menubtn.is-field .fm-menubtn-value[data-placeholder] { color: var(--tx3, var(--dim)); }
+.fm-menubtn.is-field:hover { border-color: color-mix(in srgb, var(--tx, var(--fg)) 22%, var(--line2, var(--line))); background: var(--hole, transparent); }
+.fm-menubtn.is-field[data-state='open'] { border-color: color-mix(in srgb, var(--acc) 65%, transparent); }
+
 /* 层级：组件库默认 z-50，会被待发送抽屉（遮罩 120）和创作启动层（遮罩 200）盖住。
    radix 把内容的 z-index 抄到外层定位容器上，这里抬到 210 */
 .fm-menu { z-index: 210; padding: 4px; border-radius: 10px; }
@@ -34,3 +45,8 @@
 .fm-menu .fm-menu-text { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fm-menu .fm-menu-count { flex: none; font-size: 11px; font-variant-numeric: tabular-nums; opacity: .55; }
 .fm-menu .fm-menu-item [data-slot='dropdown-menu-radio-item-indicator'] svg { width: 14px; height: 14px; }
+/* 分组小标题（替代原生 optgroup） */
+.fm-menu .fm-menu-group { padding: 8px 9px 4px; font-size: 11px; font-weight: 500; color: var(--tx3, var(--dim)); }
+.fm-menu .fm-menu-group:first-child { padding-top: 4px; }
+/* 字段型下拉：弹出层至少与按钮同宽 */
+.fm-menu.fm-menu-field { min-width: max(176px, var(--radix-dropdown-menu-trigger-width)); }

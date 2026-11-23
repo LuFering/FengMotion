@@ -1,5 +1,6 @@
 import type * as React from 'react'
 import { UiIcon, SemIcons } from '@/shared/icons/UiIcon'
+import { MenuSelect } from '@/shared/components/MenuSelect'
 import { createNativeDocument } from '@/features/scene-editor/model/document'
 import { HtmlScenePreview } from '@/features/scene-editor/components/HtmlScenePreview'
 import { NativeScenePreview } from '@/features/scene-editor/components/NativeScenePreview'
@@ -49,40 +50,27 @@ export function SceneMain({ busy, change, changeLayer, checkpoint, current, docu
             </small>
           </div>
         </div>
-        <select
-          aria-label="选择编辑场景"
+        <MenuSelect
+          className="se-scene-menu"
+          label=""
+          ariaLabel="选择编辑场景"
+          placeholder="选择源场景"
           disabled={busy}
           value={document?.id ?? ''}
-          onChange={(e) => {
-            const doc = [...locals, ...sourceDocs].find((d) => d.id === e.target.value)
+          onChange={(v) => {
+            const doc = [...locals, ...sourceDocs].find((d) => d.id === v)
             if (doc) load(doc)
           }}
-        >
-          <option value="" disabled>
-            选择源场景
-          </option>
-          {sourceDocs.length > 0 && (
-            <optgroup label="已绑定的 HTML 源工程">
-              {sourceDocs.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.name}
-                </option>
-              ))}
-            </optgroup>
-          )}
-          <optgroup label="本项目 Remotion 场景">
-            {[
+          options={[
+            ...sourceDocs.map((d) => ({ value: d.id, label: d.name, group: '已绑定的 HTML 源工程' })),
+            ...[
               ...nativeDocs,
               ...(document?.engine === 'remotion' && !nativeDocs.some((d) => d.id === document.id)
                 ? [document]
                 : []),
-            ].map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.name}
-              </option>
-            ))}
-          </optgroup>
-        </select>
+            ].map((d) => ({ value: d.id, label: d.name, group: '本项目 Remotion 场景' })),
+          ]}
+        />
         <button
           type="button"
           className="se-header-action"

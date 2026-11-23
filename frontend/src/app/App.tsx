@@ -239,7 +239,7 @@ function AppContent() {
     const hidden = document.body.classList.toggle('hm-nav-hidden')
     try { localStorage.setItem('fengmotion:nav-hidden', hidden ? '1' : '0') } catch { /* 隐私模式下忽略 */ }
   }
-  /** 切主题：加一个短暂的 theme-switching 类，让过渡不闪 */
+  /** 切主题：短暂加上 theme-switching，期间全局禁用过渡，各区块同一帧换色（样式见 styles/theme-v3.css） */
   const changeTheme = (theme: Settings['theme']) => {
     document.documentElement.classList.add('theme-switching')
     setSettings((prev) => ({ ...prev, theme }))

@@ -338,21 +338,18 @@ export function AssetInspector({
           </div>
         </div>
         {inPending && (
-          <label className="mya-use-purpose">
+          <div className="mya-use-purpose">
             <span>用途</span>
-            <select
-              className="mya-kv-select"
+            <MenuSelect
+              className="mya-field-menu"
+              field
+              label=""
+              ariaLabel="待发送素材用途"
               value={pendingEntry?.purpose ?? 'unspecified'}
-              aria-label="待发送素材用途"
-              onChange={(e) => pending.patch(detail.id, { purpose: e.target.value as AssetPurpose })}
-            >
-              {PURPOSES.map((p) => (
-                <option key={p} value={p}>
-                  {PURPOSE_LABEL[p]}
-                </option>
-              ))}
-            </select>
-          </label>
+              onChange={(v) => pending.patch(detail.id, { purpose: v as AssetPurpose })}
+              options={PURPOSES.map((p) => ({ value: p, label: PURPOSE_LABEL[p] }))}
+            />
+          </div>
         )}
 
         {confirmingDelete && (
@@ -520,20 +517,15 @@ export function AssetInspector({
 
           <div className="mya-compliance-row">
             <span className="mya-plabel">授权</span>
-            <select
-              className="mya-kv-select"
+            <MenuSelect
+              className="mya-field-menu"
+              field
+              label=""
+              ariaLabel="授权状态"
               value={detail.licenseStatus}
-              aria-label="授权状态"
-              onChange={(e) =>
-                applyPatch(detail.id, { licenseStatus: e.target.value as LicenseStatus })
-              }
-            >
-              {(Object.keys(LICENSE_LABEL) as LicenseStatus[]).map((k) => (
-                <option key={k} value={k}>
-                  {LICENSE_LABEL[k]}
-                </option>
-              ))}
-            </select>
+              onChange={(v) => applyPatch(detail.id, { licenseStatus: v as LicenseStatus })}
+              options={(Object.keys(LICENSE_LABEL) as LicenseStatus[]).map((k) => ({ value: k, label: LICENSE_LABEL[k] }))}
+            />
           </div>
           <input
             className="mya-license-input"

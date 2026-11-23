@@ -131,12 +131,11 @@ body.hm-nav-expanded .nav-library-cur {
   white-space: nowrap;
 }
 
-/* 占位项：降一档透明度，鼠标上给 not-allowed，明确"还不能用" */
+/* 占位项：降一档透明度，悬停不提亮，明确"还不能用" */
 .nav-placeholder { position: relative; cursor: default; }
-.nav-placeholder .ui-icon,
-.nav-placeholder .hm-nav-text { opacity: .55; }
-.nav-placeholder:hover .ui-icon,
-.nav-placeholder:hover .hm-nav-text { opacity: .8; }
+/* 选择器要压过 nav-tree.css 收起态的 `body.studio-shell:not(.hm-nav-expanded) .nav-leaf .hm-nav-text { opacity: 1 }`
+   （同权重，本文件加载更晚）；导航图标实际是 svg.ico，不是 .ui-icon。原来这条一直没生效。 */
+body.studio-shell .nav-leaf.nav-placeholder :is(.ico, .ui-icon, .hm-nav-text) { opacity: .55; }
 .nav-placeholder::after {
   content: '开发中';
   position: absolute;
