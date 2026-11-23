@@ -3,7 +3,7 @@ import { SearchField } from '@/shared/components/SearchField'
 import { UiIcon, SemIcons } from '@/shared/icons/UiIcon'
 import { CATEGORY_IDS, categoryLabel, EXEC_IDS, execLabel, IMPL_IDS, implLabel, INPUT_IDS, inputLabel, COMPLEXITY_STEPS } from '@/features/fx/model/fxFilters'
 import { SwitchVertical01 } from '@untitledui/icons'
-import { FxMenuSelect } from '@/features/fx/components/FxMenuSelect'
+import { MenuSelect } from '@/shared/components/MenuSelect'
 import type { Scope, SortKey } from '@/features/fx/model/fxLibraryStore'
 import type { FxCategory, FxTechnique, FxExecType, FxImpl, FxInputKind } from '@/features/fx/model/fxTechniques'
 
@@ -88,7 +88,7 @@ export function FxMetaBar({ SCOPES, activeCount, cat, clearFilters, counts, exec
         ))}
       </nav>
       <span className="fx-meta-sep" aria-hidden="true" />
-      <FxMenuSelect
+      <MenuSelect
         label="分类"
         ariaLabel="按分类筛选"
         value={cat}
@@ -96,7 +96,7 @@ export function FxMetaBar({ SCOPES, activeCount, cat, clearFilters, counts, exec
         options={catOptions}
         onChange={(v) => setCat(v as 'all' | FxCategory)}
       />
-      <FxMenuSelect
+      <MenuSelect
         label="来源"
         ariaLabel="按来源筛选"
         value={sourceFilter}
@@ -234,7 +234,7 @@ export function FxMetaBar({ SCOPES, activeCount, cat, clearFilters, counts, exec
           </p>
         )}
       </div>
-      <FxMenuSelect
+      <MenuSelect
         label=""
         quiet
         align="end"

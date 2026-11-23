@@ -1,0 +1,59 @@
+/* ═══════════════════════════════════════════════════════════════
+   共享播放条 MediaTransport（shared/components/MediaTransport.tsx）
+
+   取值来自参考片库影院时间轴（features/reference/styles/reference/cinema.css，2026-11-23）。
+   播放条压在画面上，按规范固定用深色玻璃 + 白字，三主题一致（打磨方案 §2.1）。
+   平时 4px 细线，悬停 / 聚焦 / 拖动时加粗到 6px 并出现时间气泡。
+   ═══════════════════════════════════════════════════════════════ */
+
+.fm-mt {
+  display: flex; align-items: center; gap: 10px;
+  height: 38px; padding: 0 8px;
+  border: 1px solid rgb(255 255 255 / .12); border-radius: 10px;
+  background: rgb(12 14 18 / .62); color: #fff;
+  user-select: none;
+}
+
+.fm-mt-btn {
+  display: inline-grid; place-items: center; flex: none;
+  width: 28px; height: 28px; padding: 0; border: 0; border-radius: 50%;
+  background: transparent; color: rgb(255 255 255 / .92); cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.fm-mt-btn:hover:not(:disabled) { background: rgb(255 255 255 / .14); color: #fff; }
+.fm-mt-btn[aria-pressed='true'] { color: rgb(255 255 255 / .6); }
+.fm-mt-btn:disabled { opacity: .4; cursor: default; }
+.fm-mt-btn:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
+
+.fm-mt-track {
+  position: relative; flex: 1 1 auto; min-width: 60px;
+  height: 4px; border-radius: 3px; cursor: pointer; touch-action: none;
+  background: rgb(255 255 255 / .18);
+  transition: height .15s var(--fm-ease);
+}
+/* 细线太难点中：上下各扩 10px 的热区 */
+.fm-mt-track::before { content: ''; position: absolute; left: 0; right: 0; top: -10px; bottom: -10px; }
+.fm-mt-track:hover, .fm-mt-track:focus-visible, .fm-mt-track[data-active] { height: 6px; }
+.fm-mt-track:focus-visible { outline: 2px solid var(--acc); outline-offset: 4px; }
+.fm-mt[data-disabled] .fm-mt-track { cursor: default; opacity: .5; }
+
+.fm-mt-played { position: absolute; left: 0; top: 0; bottom: 0; border-radius: inherit; background: rgb(255 255 255 / .62); pointer-events: none; }
+.fm-mt-head {
+  position: absolute; top: 50%; z-index: 2;
+  width: 10px; height: 10px; margin: -5px 0 0 -5px; border-radius: 50%;
+  background: #fff; box-shadow: 0 0 0 2px rgb(0 0 0 / .25); pointer-events: none;
+}
+.fm-mt-hover { position: absolute; top: -4px; bottom: -4px; z-index: 1; width: 1px; background: rgb(255 255 255 / .6); pointer-events: none; }
+.fm-mt-hover em {
+  position: absolute; bottom: calc(100% + 6px); left: 0; transform: translateX(-50%);
+  padding: 3px 7px; border-radius: 6px; white-space: nowrap;
+  background: rgb(12 14 18 / .86); border: 1px solid rgb(255 255 255 / .14);
+  font-style: normal; font-size: 11px; color: #fff; font-variant-numeric: tabular-nums;
+}
+
+.fm-mt-time { flex: none; font-size: 12px; color: rgb(255 255 255 / .92); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.fm-mt-time i { margin: 0 5px; font-style: normal; color: rgb(255 255 255 / .42); }
+
+@media (prefers-reduced-motion: reduce) {
+  .fm-mt-track { transition: none; }
+}

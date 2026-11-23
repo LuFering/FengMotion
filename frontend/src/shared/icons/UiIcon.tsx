@@ -49,6 +49,8 @@ import {
   Trash01,
   Play,
   PauseCircle,
+  VolumeMax,
+  VolumeX,
   Plus,
   RefreshCcw01,
   Scissors01,
@@ -170,6 +172,8 @@ export const SemIcons = {
   /* 播放控制 */
   play: Play,
   pause: PauseCircle,
+  volume: VolumeMax,
+  mute: VolumeX,
 
   /* 状态 */
   warning: AlertTriangle,

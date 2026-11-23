@@ -5,7 +5,7 @@ import { formatClock, formatDuration, STATUS_META, type ReferenceSegment, type R
 import { setAssetDragData } from '@/features/assets/hooks/usePendingAssets'
 import { setDragGhost, clearDragGhost } from '@/shared/pick-mode/dragGhost'
 import { PickButton, PickCheck } from '@/shared/pick-mode/PickModeUI'
-import { FxMenuSelect } from '@/features/fx/components/FxMenuSelect'
+import { MenuSelect } from '@/shared/components/MenuSelect'
 import type { LocalSegment, ServerVideo } from '@/features/reference/services/referenceApiService'
 import type { Filters, StoredLibrary, StatusFilter } from '@/features/reference/model/refLibraryStore'
 import type { PickMode } from '@/shared/pick-mode/usePickMode'
@@ -48,7 +48,7 @@ const STATUSES: ReferenceStatus[] = ['analyzed', 'partial', 'pending']
 
 /**
  * 片库覆层：按页签、搜索、筛选、排序浏览片段卡片；可选中播放、多选、拖拽或加入待发送。
- * 筛选下拉与特效库同款；没有可选值的筛选不出现（契约 §3）。
+ * 筛选下拉用全站共享的 MenuSelect；没有可选值的筛选不出现（契约 §3）。
  */
 export function RefBrowseDialog({ addRefToPending, browseList, collId, collections, filmOf, filters, pick, query, refInPending, segment, segments, selectSegment, setBrowseOpen, setCollId, setFilters, setQuery, setSortKey, setTab, sortKey, stashRefCard, stored, tab, videos }: RefBrowseDialogProps) {
   const tabs = TAB_ITEMS.filter((t) => t.id !== 'collections' || collections.length > 0 || tab === 'collections')
@@ -102,7 +102,7 @@ export function RefBrowseDialog({ addRefToPending, browseList, collId, collectio
           />
         </label>
         {(cameraOpts.length > 0 || filters.cameraMove !== 'all') && (
-          <FxMenuSelect
+          <MenuSelect
             label="运镜"
             ariaLabel="按运镜筛选"
             value={filters.cameraMove}
@@ -112,7 +112,7 @@ export function RefBrowseDialog({ addRefToPending, browseList, collId, collectio
           />
         )}
         {(transitionOpts.length > 0 || filters.transition !== 'all') && (
-          <FxMenuSelect
+          <MenuSelect
             label="转场"
             ariaLabel="按转场筛选"
             value={filters.transition}
@@ -122,7 +122,7 @@ export function RefBrowseDialog({ addRefToPending, browseList, collId, collectio
           />
         )}
         {(statusOpts.length > 1 || filters.status !== 'all') && (
-          <FxMenuSelect
+          <MenuSelect
             label="状态"
             ariaLabel="按分析状态筛选"
             value={filters.status}
@@ -135,7 +135,7 @@ export function RefBrowseDialog({ addRefToPending, browseList, collId, collectio
           />
         )}
         <span className="rfc-browse-count" role="status">{browseList.length} 个片段</span>
-        <FxMenuSelect
+        <MenuSelect
           label=""
           quiet
           align="end"

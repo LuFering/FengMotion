@@ -1337,25 +1337,10 @@ export function formatTimecode(seconds: number): string {
 }
 
 /**
- * 参考片库界面用的时间：`分:秒`，非整秒保留一位小数（`0:04`、`0:04.5`、`12:05`）。
- * 不用上面的「分:秒:帧」—— `00:04:00` 读起来像 4 分钟。见 reference-library-ui 契约 §3。
+ * 参考片库界面用的时间：`分:秒`，非整秒保留一位小数。已提到全站共享的 shared/lib/time.ts，
+ * 这里转出以保留原有引用。不用上面的「分:秒:帧」—— `00:04:00` 读起来像 4 分钟。见 reference-library-ui 契约 §3。
  */
-export function formatClock(seconds: number): string {
-  const tenths = Math.round(Math.max(0, seconds) * 10)
-  const m = Math.floor(tenths / 600)
-  const s = Math.floor((tenths % 600) / 10)
-  const t = tenths % 10
-  return `${m}:${String(s).padStart(2, '0')}${t === 0 ? '' : `.${t}`}`
-}
-
-/** 时长的人话写法：「4 秒」「4.5 秒」「1 分 5 秒」。 */
-export function formatDuration(seconds: number): string {
-  const tenths = Math.round(Math.max(0, seconds) * 10)
-  if (tenths < 600) return `${tenths % 10 === 0 ? tenths / 10 : (tenths / 10).toFixed(1)} 秒`
-  const m = Math.floor(tenths / 600)
-  const s = Math.round((tenths % 600) / 10)
-  return s === 0 ? `${m} 分` : `${m} 分 ${s} 秒`
-}
+export { formatClock, formatDuration } from '@/shared/lib/time'
 
 export function pendingFieldCount(segment: ReferenceSegment): number {
   return Object.values(segment.analysis).filter((a) => a.pending).length

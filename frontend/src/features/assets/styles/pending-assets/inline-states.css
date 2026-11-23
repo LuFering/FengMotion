@@ -72,6 +72,16 @@
   pointer-events: none;
 }
 @keyframes fm-toast-in { from { opacity: 0; transform: translate(-50%, 6px) } to { opacity: 1; transform: translate(-50%, 0) } }
+/* 带撤销等动作：可点击，动作与文字同一行，用竖线分开 */
+.fm-toast[data-action] { display: flex; align-items: center; gap: 12px; padding-right: 6px; pointer-events: auto; }
+.fm-toast-action {
+  height: 24px; padding: 0 10px; border: 0; border-radius: 999px;
+  background: color-mix(in srgb, var(--bg, #fff) 14%, transparent);
+  color: inherit; font: inherit; font-weight: 650; cursor: pointer;
+  transition: background .15s;
+}
+.fm-toast-action:hover { background: color-mix(in srgb, var(--bg, #fff) 24%, transparent); }
+.fm-toast-action:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
 
 /* 触感主题：纸片语法（墨线 + 硬偏移），与工作台卡片一致 */
 html[data-theme="tactile"] .fmp { border: 2px solid #22231f; box-shadow: 4px 4px 0 #22231f; }

@@ -3,7 +3,7 @@ import { SidebarNav, SidebarFooter } from '@/app/SidebarNav'
 import { PendingAssetsButton, PendingAssetsDrawer } from '@/features/assets/components/PendingAssets'
 import { LibraryDrawer } from '@/app/LibraryDrawer'
 import { deliverToComposer, usePendingAssets, type DeliverableAsset, type PendingFxCard, type PendingRefCard } from '@/features/assets/hooks/usePendingAssets'
-import { onToast, toast as emitToast } from '@/shared/lib/toast'
+import { onToast, toast as emitToast, toastDuration, type ToastMessage } from '@/shared/lib/toast'
 import type { ViewId } from '@/shared/navigation/views'
 
 /**
@@ -84,12 +84,13 @@ export function AppShell({
   const pending = usePendingAssets()
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [libOpen, setLibOpen] = useState(false)
-  const [toast, setToast] = useState<string | null>(null)
+  const [toast, setToast] = useState<ToastMessage | null>(null)
 
-  /* 唯一的 toast 渲染点：任何视图 emitToast(...) 都落到这里 */
-  useEffect(() => onToast((text) => {
-    setToast(text)
-    window.setTimeout(() => setToast((t) => (t === text ? null : t)), 2400)
+  /* 唯一的 toast 渲染点：任何视图 emitToast(...) 都落到这里。
+     按 id 清除：新提示顶掉旧提示后，旧提示的计时器不会误关新提示 */
+  useEffect(() => onToast((msg) => {
+    setToast(msg)
+    window.setTimeout(() => setToast((t) => (t?.id === msg.id ? null : t)), toastDuration(msg))
   }), [])
 
   return (
@@ -176,7 +177,17 @@ export function AppShell({
           return ok
         }} />
 
-      {toast && <div className="fm-toast" role="status">{toast}</div>}
+      {toast && (
+        <div className="fm-toast" role="status" data-action={toast.action ? '' : undefined}>
+          <span>{toast.text}</span>
+          {toast.action && (
+            <button type="button" className="fm-toast-action"
+                    onClick={() => { toast.action?.run(); setToast(null) }}>
+              {toast.action.label}
+            </button>
+          )}
+        </div>
+      )}
     </div>
   )
 }

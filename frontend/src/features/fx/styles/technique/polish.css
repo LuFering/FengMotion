@@ -116,34 +116,9 @@ html[data-theme='light'] [data-slot='dialog-overlay']:has(+ .fx-modal, + .fx-wf,
 /* src/styles/interface-polish.css 给搜索 order:1、旧 .fx-sort order:3；新排序按钮没有 .fx-sort，
    不补 order 会被排到左侧。顺序：范围 | 分类 来源 …… 搜索 筛选 排序 */
 .fxlib .fx-meta > .fx-filterwrap { order: 2; }
-.fxlib .fx-meta > .fx-menubtn.is-quiet { order: 3; }
+.fxlib .fx-meta > .fm-menubtn.is-quiet { order: 3; }
 .fxlib .fx-meta > .fx-result-summary { order: 0; }
-.fx-menubtn {
-  display: inline-flex; align-items: center; gap: 6px; flex: none;
-  height: 30px; padding: 0 9px 0 11px;
-  border: 1px solid var(--line2); border-radius: 7px;
-  background: transparent; color: var(--tx2);
-  font-size: 12px; font-weight: 500; white-space: nowrap;
-  transition: background .15s, color .15s, border-color .15s;
-}
-.fx-menubtn:hover { background: var(--hover); color: var(--tx); }
-.fx-menubtn:focus-visible { outline: 2px solid var(--acc); outline-offset: 1px; }
-.fx-menubtn-value { color: var(--tx); font-weight: 550; max-width: 140px; overflow: hidden; text-overflow: ellipsis; }
-.fx-menubtn-value[data-sep]::before { content: '·'; margin-right: 6px; color: var(--tx3); font-weight: 400; }
-.fx-menubtn[data-on] { border-color: color-mix(in srgb, var(--acc) 55%, transparent); background: var(--sel); color: var(--acc-tx); }
-.fx-menubtn[data-on] .fx-menubtn-value { color: var(--acc-tx); }
-.fx-menubtn-chev { opacity: .6; transition: transform .15s var(--eo); }
-.fx-menubtn[data-state='open'] .fx-menubtn-chev { transform: rotate(180deg); }
-.fx-menubtn.is-quiet { border-color: transparent; padding: 0 6px 0 8px; color: var(--tx3); }
-.fx-menubtn.is-quiet .fx-menubtn-value { color: var(--tx2); font-weight: 500; }
-.fx-menubtn.is-quiet:hover .fx-menubtn-value { color: var(--tx); }
-
-/* 下拉面板经 portal 渲染在 .fxlib 之外，用全局主题色 */
-.fx-menu { padding: 4px; border-radius: 10px; }
-.fx-menu .fx-menu-item { gap: 12px; min-height: 30px; padding: 0 30px 0 9px; font-size: 12.5px; border-radius: 6px; }
-.fx-menu .fx-menu-text { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.fx-menu .fx-menu-count { flex: none; font-size: 11px; font-variant-numeric: tabular-nums; opacity: .55; }
-.fx-menu .fx-menu-item [data-slot='dropdown-menu-radio-item-indicator'] svg { width: 14px; height: 14px; }
+/* 下拉按钮与面板的样式已提到 src/styles/menu-select.css（共享 MenuSelect，取值不变） */
 
 /* 按分类分段：段标题吸顶。.fx-content 顶部有 18px 内边距，用负 top 把标题贴到可视区顶端 */
 .fxlib .fx-group + .fx-group { margin-top: 26px; }
