@@ -411,8 +411,8 @@
 .fm-state-body {
   max-width: 420px;
   margin: var(--fm-space-2) 0 0;
-  font-size: var(--fm-text-sub);
-  line-height: var(--fm-leading-sub);
+  font-size: var(--fm-text-legacy-sub);
+  line-height: var(--fm-leading-legacy-sub);
   color: var(--dim);
   white-space: pre-line;
 }

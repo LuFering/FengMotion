@@ -42,14 +42,24 @@
   --fm-space-12: 48px;
   --fm-space-16: 64px;
 
-  /* ── 字阶（字号 / 行高成对，别单独用字号）─────────────────── */
-  --fm-text-meta: 11px;   --fm-leading-meta: 16px;   /* 元数据、时间码 */
-  --fm-text-label: 12px;  --fm-leading-label: 18px;  /* 标签 */
-  --fm-text-sub: 14px;    --fm-leading-sub: 20px;    /* 次级描述 */
-  --fm-text-body: 15px;   --fm-leading-body: 22px;   /* 默认正文 */
-  --fm-text-card: 16px;   --fm-leading-card: 24px;   /* 卡片标题 */
-  --fm-text-heading: 20px; --fm-leading-heading: 28px; /* 小标题 */
-  --fm-text-title: 24px;  --fm-leading-title: 32px;  /* 页面标题 */
+  /* ── 字阶（2026-11-23 按实际使用改写；字号 / 行高成对，别单独用字号）──
+     全站主力是 11 / 12 / 13，旧档（正文 15、次级 14）几乎没人用。
+     10.5 是下限：铭牌、角标、刻度、键帽都不再小于它。
+     数字用 font-variant-numeric: tabular-nums，不用等宽字体。 */
+  --fm-text-page: 25px;   --fm-leading-page: 32px;   --fm-weight-page: 550; /* 库级页面标题 */
+  --fm-text-view: 15px;   --fm-leading-view: 22px;   --fm-weight-view: 600; /* 面板、详情、弹窗标题 */
+  --fm-text-body: 13px;   --fm-leading-body: 20px;   /* 正文、名称 */
+  --fm-text-sub: 12px;    --fm-leading-sub: 18px;    /* 次要正文、列表值 */
+  --fm-text-meta: 11px;   --fm-leading-meta: 16px;   /* 元数据、时间码、计数 */
+  --fm-text-mini: 10.5px; --fm-leading-mini: 14px;   /* 下限：铭牌、角标、刻度、键帽 */
+
+  /* 旧档：仍被 fm-page / fm-components / 素材迁移条引用，取值不变。
+     各页那一批迁到上面六档后删除，新代码不要再用。 */
+  --fm-text-label: 12px;  --fm-leading-label: 18px;
+  --fm-text-card: 16px;   --fm-leading-card: 24px;
+  --fm-text-heading: 20px; --fm-leading-heading: 28px;
+  --fm-text-title: 24px;  --fm-leading-title: 32px;
+  --fm-text-legacy-sub: 14px; --fm-leading-legacy-sub: 20px; /* 只给 .fm-state-body，共享空状态那一批换掉 */
   --fm-text-hero: 40px;   --fm-leading-hero: 48px;   /* 首页主标题 */
 
   /* ── 状态语义别名（Round 2：跨页统一，禁止一色多义）──────────

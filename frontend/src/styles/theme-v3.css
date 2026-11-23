@@ -38,7 +38,8 @@
   --r-ctl: var(--fm-radius-ctl);
   --r-card: var(--fm-radius-card);
   --shadow-mid: 0 12px 32px rgba(0, 0, 0, .30);
-  --eo: cubic-bezier(.23, 1, .32, 1);
+  /* 旧名，指向 tokens.css 的 --fm-ease（同一条曲线）；新代码直接用 --fm-ease */
+  --eo: var(--fm-ease);
 }
 
 html[data-theme='light'] .mya,
