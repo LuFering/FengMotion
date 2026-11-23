@@ -26,22 +26,24 @@
 .hf-harnesswrap { position: relative; }
 /* 已接入引擎时，按钮外缘顺时针跑一圈品牌色光 */
 .hf-harnesswrap[data-connected]::before {
+  /* 光边跟主题强调色（触感为黄），不跟引擎品牌色：三主题下与页面其余强调一致（打磨方案 §3.2） */
+  --hf-glow: var(--hf-acc);
   content: ''; position: absolute; inset: -2px; border-radius: 999px;
   padding: 2px; pointer-events: none;
   background: conic-gradient(from var(--hf-spin),
     transparent 0deg, transparent 130deg,
-    color-mix(in srgb, var(--brand) 45%, transparent) 200deg,
-    var(--brand) 265deg,
+    color-mix(in srgb, var(--hf-glow) 45%, transparent) 200deg,
+    var(--hf-glow) 265deg,
     #fff 292deg,
-    var(--brand) 315deg,
-    color-mix(in srgb, var(--brand) 45%, transparent) 350deg,
+    var(--hf-glow) 315deg,
+    color-mix(in srgb, var(--hf-glow) 45%, transparent) 350deg,
     transparent 360deg);
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
   mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   mask-composite: exclude;
-  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--brand) 90%, transparent))
-          drop-shadow(0 0 11px color-mix(in srgb, var(--brand) 60%, transparent));
+  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--hf-glow) 90%, transparent))
+          drop-shadow(0 0 11px color-mix(in srgb, var(--hf-glow) 60%, transparent));
   animation: hf-spin-cw 2.8s linear infinite;
 }
 .hf-harness-pop {
@@ -134,5 +136,6 @@
 .hf-send:hover:not(:disabled) svg { transform: translateY(-1.5px); }
 .hf-send:active:not(:disabled) { transform: scale(.93); }
 .hf-send:disabled { opacity: .32; cursor: default; }
-.hf-sample-hint { margin-top: 13px; text-align: center; color: var(--hf-tx3); font: 12px var(--hf-sans); }
+/* 快捷键提示提一档对比：tx3 在浅色 / 触感底上接近看不见（打磨方案 §3.2） */
+.hf-sample-hint { margin-top: 13px; text-align: center; color: var(--hf-tx2); font: 12px var(--hf-sans); }
 .hf-sample-hint b { color: var(--hf-tx2); font-weight: 600; }

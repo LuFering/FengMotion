@@ -218,3 +218,12 @@
   color: var(--dim);
   opacity: 0.7;
 }
+
+/* 卡头的根目录：整批文件共同所在的目录只写一次，行内只留相对路径（打磨方案 §3.3） */
+.fc-root {
+  margin-left: 8px;
+  font-size: 11.5px;
+  font-weight: 400;
+  color: var(--ph);
+  overflow-wrap: anywhere;
+}

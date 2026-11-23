@@ -30,12 +30,13 @@ function baseName(p: string): string {
 }
 
 /**
- * 列表里显示的目录：去掉这批文件共同的上级目录，只留最后一级共同目录作锚点。
+ * 去掉这批文件共同的上级目录：最后一级共同目录（通常是项目目录）作为根，在卡头写一次；
+ * 行内只显示根以下的相对目录。
  *
- * <p>Agent 报的是绝对路径（/home/…/项目/src/a.ts），整串挤在一行里，文件名反而被截没了。
- * 去掉公共前缀后读作「项目/src/a.ts」，一眼能看出在哪；完整路径仍在悬停提示里。</p>
+ * <p>Agent 报的是绝对路径（/home/…/项目/src/a.ts）。原先每行都重复「项目/」，
+ * 文件一多就是一列相同的前缀（打磨方案 §3.3）。完整路径仍在悬停提示里。</p>
  */
-function shortDirs(paths: string[]): Map<string, string> {
+function splitDirs(paths: string[]): { root: string; rootFull: string; dirs: Map<string, string> } {
   const dirs = paths.map((p) => p.split(/[\\/]/).filter(Boolean).slice(0, -1))
   let common = dirs[0]?.length ?? 0
   for (const d of dirs) {
@@ -43,11 +44,15 @@ function shortDirs(paths: string[]): Map<string, string> {
     while (i < common && i < d.length && d[i] === dirs[0][i]) i++
     common = i
   }
-  const keepFrom = Math.max(0, common - 1)
-  return new Map(paths.map((p, i) => {
-    const rest = dirs[i].slice(keepFrom)
-    return [p, rest.length > 0 ? `${rest.join('/')}/` : '']
-  }))
+  return {
+    root: common > 0 ? dirs[0][common - 1] : '',
+    rootFull: common > 0 ? `/${dirs[0].slice(0, common).join('/')}` : '',
+    dirs: new Map(paths.map((p, i) => {
+      const rest = dirs[i].slice(common)
+      /* 末尾补 U+200E：.fc-dir 为从左省略用了 direction:rtl，结尾的「/」是中性字符会被排到最左（显示成「/src」） */
+      return [p, rest.length > 0 ? `${rest.join('/')}/‎` : '']
+    })),
+  }
 }
 
 /** 一行代码。`sign` 为 + / − 时走 diff 配色。 */
@@ -132,7 +137,7 @@ export function FileChanges({ changes }: { changes: FileChange[] }) {
   const totalAdded = changes.reduce((n, c) => n + c.added, 0)
   const totalDeleted = changes.reduce((n, c) => n + c.deleted, 0)
   const rows = showAll ? changes : changes.slice(0, COLLAPSED_ROWS)
-  const dirs = shortDirs(changes.map((c) => c.path))
+  const { root, rootFull, dirs } = splitDirs(changes.map((c) => c.path))
 
   return (
     <section className="fc" aria-label="文件改动">
@@ -142,7 +147,10 @@ export function FileChanges({ changes }: { changes: FileChange[] }) {
         </span>
         <span className="fc-summary-text">
           {/* 单个文件也写「1 个文件」：文件名在下面那一行里，头部再写一遍就重复了 */}
-          <span className="fc-title">已编辑 {changes.length} 个文件</span>
+          <span className="fc-title">
+            已编辑 {changes.length} 个文件
+            {root && <span className="fc-root" title={rootFull}>{root}/</span>}
+          </span>
           <span className="fc-total num">
             {totalAdded > 0 && <span className="fc-add">+{totalAdded}</span>}
             {totalDeleted > 0 && <span className="fc-del">−{totalDeleted}</span>}

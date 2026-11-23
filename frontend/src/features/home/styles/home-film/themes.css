@@ -47,8 +47,9 @@ html[data-theme="light"] .hf-page {
   --hf-acc-tint: rgba(47,111,228,.10);
   --hf-send-bg: #17181c;
   --hf-send-fg: #c9c2ff;
-  --hf-shadow: 0 24px 55px rgba(30,30,60,.13), 0 4px 14px rgba(30,30,60,.07);
-  --hf-shadow-focus: 0 28px 65px rgba(30,30,60,.17), 0 4px 16px rgba(30,30,60,.09);
+  /* 浅色底上 24/55 的投影像浮在半空，收小一档（打磨方案 §3.2） */
+  --hf-shadow: 0 12px 32px rgba(30,30,60,.10), 0 2px 8px rgba(30,30,60,.06);
+  --hf-shadow-focus: 0 16px 40px rgba(30,30,60,.14), 0 2px 10px rgba(30,30,60,.08);
 }
 html[data-theme="tactile"] .hf-page {
   --hf-bg: #e6e1d5;

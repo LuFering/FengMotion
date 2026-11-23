@@ -29,10 +29,11 @@ html[data-theme="tactile"] .hf-seal circle { stroke: currentColor; }
 
 /* 左右两块向中轴靠近：左侧右移，右侧左移 */
 .hf-sample { transform: translateX(40px); }
-.hf-copy { transform: translate(24px, 68px); }
+/* 只留横向靠拢；原纵向 +68px 让右栏重心比左栏低、底部超出视口（打磨方案 §3.2） */
+.hf-copy { transform: translateX(24px); }
 @media (max-width: 1400px) {
   .hf-sample { transform: translateX(16px); }
-  .hf-copy { transform: translate(8px, 28px); }
+  .hf-copy { transform: translateX(8px); }
 }
 @media (max-width: 1100px) {
   .hf-sample { transform: none; }

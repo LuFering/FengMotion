@@ -386,6 +386,7 @@
 /* 用量：跟在时间后面，最弱一档；悬停看输入 / 输出 / 缓存明细 */
 .cv3-usage-badge {
   margin-inline-start: 8px;
+  font-family: inherit; /* 正文字体，不用等宽体（打磨方案 §3.3） */
   color: var(--ph);
   font-size: 11px;
   line-height: 16px;

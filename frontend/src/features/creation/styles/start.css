@@ -37,11 +37,14 @@
 }
 .stc-chip[data-on] { border-color: var(--acc); color: var(--acc); background: color-mix(in srgb, var(--acc) 13%, transparent); font-weight: 600; }
 .stc-chip-note { font-size: 12px; color: var(--hint, var(--dim)); }
-.stc-select {
-  width: 100%; background: var(--hole, var(--soft)); color: var(--fg);
+/* 归属项目：共享 MenuSelect，这里铺满整行、保持原输入框尺寸 */
+.fm-menubtn.stc-select {
+  width: 100%; height: 36px; justify-content: space-between;
+  background: var(--hole, var(--soft)); color: var(--fg);
   border: 1px solid var(--line); border-radius: 6px;
-  padding: 8px 10px; font: inherit; font-size: 13.5px;
+  padding: 0 10px; font-size: 13.5px;
 }
+.fm-menubtn.stc-select .fm-menubtn-value { max-width: none; color: var(--fg); font-weight: 500; }
 .stc-primary {
   width: 100%; margin-top: 16px;
   background: var(--acc); color: #fff; border: 0; border-radius: 6px;

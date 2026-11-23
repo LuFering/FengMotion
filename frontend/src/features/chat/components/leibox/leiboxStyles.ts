@@ -114,7 +114,19 @@ export function composerThemeCss(showContextRing: boolean | undefined): string {
             color: #55534a !important;
           }
 
-          /* ── 主题模式 3：浅色模式（light）保持默认设计不用改 ── */
+          /* ── 主题模式 3：浅色模式（light） ──
+             原先「保持默认设计」，宿主传的 --lbx-surface* 在浅色下不生效（打磨方案 §2.1 / §3.3）。
+             回落值取组件默认浅色的实测计算值（白底、无边框、0 8px 24px 阴影，聚焦加深），
+             没传变量的页面外观不变 */
+          [data-theme="light"] [data-message-composer-surface] {
+            background: var(--lbx-surface, #ffffff) !important;
+            border: var(--lbx-surface-border, 0 solid #e5e7eb) !important;
+            box-shadow: var(--lbx-surface-shadow, 0 8px 24px rgba(31, 38, 48, 0.09)) !important;
+          }
+          [data-theme="light"] [data-message-composer-surface]:focus-within {
+            border-color: var(--lbx-surface-focus-line, #e5e7eb) !important;
+            box-shadow: var(--lbx-surface-shadow-focus, 0 10px 30px rgba(31, 38, 48, 0.13)) !important;
+          }
 
           /* ── 弹出菜单（权限菜单与添加菜单）在所有主题下均有实色背景 ── */
           .morph-menu-content {

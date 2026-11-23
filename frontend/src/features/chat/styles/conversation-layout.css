@@ -25,7 +25,8 @@
   --cv-page: var(--bg);
   /* 深色下阅读区是纯黑，卡片、气泡、浮起层各亮一档才分得出层次 */
   --cv-inset: color-mix(in srgb, var(--hole) 92%, var(--bg));
-  --cv-raised: color-mix(in srgb, var(--hole) 88%, #fff 5%);
+  /* 两项比例须加满 100%：原 88% + 5% 只到 93%，color-mix 会把缺的 7% 变成透明，输入框底色发虚 */
+  --cv-raised: color-mix(in srgb, var(--hole) 95%, #fff 5%);
   /* ── 细线 ── */
   --line: rgba(255, 255, 255, .07);
   --cv-line: rgba(255, 255, 255, .09);

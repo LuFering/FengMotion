@@ -6,6 +6,7 @@ import { studioHttpApi } from '@/api'
 import type { WorkflowPreset } from '@/api/skillPresets'
 import type { ProjectSummary } from '@/features/project/model/projects'
 import type { NewProjectInput } from '@/features/project/hooks/useProjects'
+import { MenuSelect } from '@/shared/components/MenuSelect'
 import './styles/start.css'
 
 /**
@@ -145,12 +146,17 @@ export function StartCreation(props: {
         </div>
 
         <label className="stc-label">归属项目</label>
-        <select className="stc-select" value={belong} onChange={(e) => setBelong(e.target.value)}>
-          <option value="auto">新建项目（按需求自动命名）</option>
-          {props.projects.map((p) => (
-            <option key={p.id} value={p.id}>{p.name}</option>
-          ))}
-        </select>
+        <MenuSelect
+          label=""
+          className="stc-select"
+          ariaLabel="归属项目"
+          value={belong}
+          options={[
+            { value: 'auto', label: '新建项目（按需求自动命名）' },
+            ...props.projects.map((p) => ({ value: p.id, label: p.name })),
+          ]}
+          onChange={setBelong}
+        />
 
         <button type="button" className="stc-primary" disabled={!canStart || pending} onClick={() => launch(true)}>
           开始制作

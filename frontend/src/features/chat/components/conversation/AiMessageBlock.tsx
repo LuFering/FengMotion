@@ -221,5 +221,5 @@ function usageBadge(usage: ChatMessage['usage']) {
     output !== undefined ? `输出 ${output.toLocaleString()}` : null,
     usage.cacheReadTokens ? `缓存命中 ${usage.cacheReadTokens.toLocaleString()}` : null,
   ].filter(Boolean).join(' · ')
-  return <span className="cv3-usage-badge num" title={detail || undefined}>用量 {compactTokens(total)} tok</span>
+  return <span className="cv3-usage-badge" title={detail || undefined}>用量 {compactTokens(total)} tok</span>
 }
