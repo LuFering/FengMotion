@@ -3,7 +3,7 @@ import { after, before, test } from 'node:test'
 import { createServer } from 'vite'
 import { fileURLToPath } from 'node:url'
 
-let server, apiMod, bindingMod, service, execMod, MappingEditor, renderToStaticMarkup
+let server, apiMod, bindingMod, service, execMod, PresetReview, renderToStaticMarkup
 const values = new Map()
 globalThis.localStorage = {
   getItem: (k) => values.get(k) ?? null,
@@ -28,7 +28,7 @@ before(async () => {
   bindingMod = await server.ssrLoadModule('/src/features/workflow/services/workflowPresetBinding.ts')
   service = (await server.ssrLoadModule('/src/features/workflow/services/workflowService.ts')).workflowService
   execMod = await server.ssrLoadModule('/src/features/workflow/services/workflowExecution.ts')
-  MappingEditor = (await server.ssrLoadModule('/src/features/workflow/components/SkillPresetMappingEditor.tsx')).SkillPresetMappingEditor
+  PresetReview = (await server.ssrLoadModule('/src/features/workflow/components/import/PresetReview.tsx')).PresetReview
   renderToStaticMarkup = (await import('react-dom/server')).renderToStaticMarkup
 })
 
@@ -204,31 +204,34 @@ test('F3 createFromSkillPreset keeps the scaffold as a hint only, and carries re
   ])
 })
 
-test('F2 mapping editor shows unmapped/truncation info, enables editing in draft, and locks inputs when active', async () => {
+test('F2 preset review shows unmapped/truncation info, enables editing in draft, and locks inputs when active', async () => {
   const { createElement } = await import('react')
   const draftMarkup = renderToStaticMarkup(
-    createElement(MappingEditor, {
+    createElement(PresetReview, {
       preset: samplePreset('draft'),
       onUpdated() {},
       onArchived() {},
+      onUse() {},
     }),
   )
-  assert.match(draftMarkup, /启用为视频类型/)
+  assert.match(draftMarkup, />启用</)
   assert.match(draftMarkup, /保存草稿/)
   assert.match(draftMarkup, /发布到社交媒体尺寸变体/)
   assert.match(draftMarkup, /EXTRA\.md/)
   assert.doesNotMatch(draftMarkup, /<option[^>]*>[^<]*自动运行/)
 
   const activeMarkup = renderToStaticMarkup(
-    createElement(MappingEditor, {
+    createElement(PresetReview, {
       preset: samplePreset('active'),
       onUpdated() {},
       onArchived() {},
+      onUse() {},
     }),
   )
-  assert.match(activeMarkup, /已启用 · 只读/)
+  assert.match(activeMarkup, /已启用/)
+  assert.match(activeMarkup, /用这个预设新建工作流/)
   assert.match(activeMarkup, /<input[^>]*disabled=""/)
-  assert.doesNotMatch(activeMarkup, /启用为视频类型/)
+  assert.doesNotMatch(activeMarkup, />启用</)
   assert.doesNotMatch(activeMarkup, /保存草稿/)
 })
 
@@ -347,9 +350,9 @@ test('archived preset: run warns and continues, and tells whether the project al
   const applied = await runWith({ presetId: 'preset_logo_1', name: 'Logo 动画' })
   assert.equal(applied.run.status, 'awaiting_info', '归档不应让运行失败，停在等待审片')
   assert.ok(applied.posts.includes('/projects/prj_archived/creation-jobs'), '要继续制作')
-  assert.ok(applied.events.some((m) => /已归档.*沿用项目里已有的 skill 指引/.test(m)), applied.events.join(' / '))
+  assert.ok(applied.events.some((m) => /已归档.*沿用项目里已有的 Skill 指引/.test(m)), applied.events.join(' / '))
 
   const never = await runWith(null)
   assert.ok(never.posts.includes('/projects/prj_archived/creation-jobs'))
-  assert.ok(never.events.some((m) => /已归档.*本次运行没有 skill 指引/.test(m)), never.events.join(' / '))
+  assert.ok(never.events.some((m) => /已归档.*本次运行没有 Skill 指引/.test(m)), never.events.join(' / '))
 })

@@ -3,6 +3,7 @@ import { GATE_DEFS } from '@/features/workflow/model/workflowTemplates'
 import { MarkerType, type Edge } from '@xyflow/react'
 import type { FmNodeData, FmNode } from '@/features/workflow/model/editorNodes'
 import { workflowArtifactMedia } from '@/features/workflow/services/workflowGraph'
+import { nodeCapability, type NodeCapability } from '@/features/workflow/services/workflowCapabilities'
 import type { WorkflowRun, WorkflowDef } from '@/features/workflow/services/workflowService'
 
 export interface UseDisplayedGraphArgs {
@@ -37,29 +38,38 @@ export function useDisplayedGraph({ activeStage, edges, lastRun, nodes, runMatch
         id: '__rework-hint__',
         source: reviewNode.id,
         target: createNode.id,
-        type: 'smoothstep',
+        type: 'rework',
         selectable: false,
         deletable: false,
         focusable: false,
-        label: reworkActive ? '返工（下次运行重跑）' : '返工',
-        style: {
-          strokeDasharray: '6 4',
-          stroke: reworkActive ? 'var(--warn)' : 'var(--dim)',
-          strokeWidth: reworkActive ? 2 : 1.3,
-          opacity: reworkActive ? 0.95 : 0.45,
-        },
-        labelStyle: { fill: reworkActive ? 'var(--warn)' : 'var(--dim)', fontSize: 10 },
-        labelBgStyle: { fill: 'var(--surf)', fillOpacity: 0.9 },
-        markerEnd: { type: MarkerType.ArrowClosed, color: reworkActive ? 'var(--warn)' : 'var(--dim)' },
+        data: { active: reworkActive },
+        markerEnd: { type: MarkerType.ArrowClosed, width: 14, height: 14, color: reworkActive ? 'var(--warn)' : 'color-mix(in srgb, var(--tx) 30%, transparent)' },
       })
     }
+    /* 能力按节点类型缓存：同类型节点共用一个对象，memo 的节点不会因为它重绘 */
+    const caps = new Map<string, NodeCapability>()
+    const capOf = (type: string) => {
+      let cap = caps.get(type)
+      if (!cap) { cap = nodeCapability(type, { path: workflow?.path ?? 'prompt-first', projectId: workflow?.projectId }); caps.set(type, cap) }
+      return cap
+    }
+    const statusOf = (id: string) => running ? nodes.find((n) => n.id === id)?.data.status : runMatches ? lastRun?.nodeStatus[id] : undefined
+    /* 连线：颜色沿用端口类型，加箭头；只有通往正在运行节点的那几条在流动 */
+    const styledEdges = baseEdges.map((e) => {
+      if (e.id === '__rework-hint__') return e
+      const color = typeof e.style?.stroke === 'string' ? e.style.stroke : undefined
+      const flowing = statusOf(e.target) === 'running'
+      return { ...e, animated: flowing, markerEnd: { type: MarkerType.ArrowClosed, width: 14, height: 14, color: color ?? 'var(--tx3)' } }
+    })
     return { displayedNodes: shown.map((n) => {
       const status = running ? n.data.status : runMatches ? lastRun?.nodeStatus[n.id] ?? 'idle' : 'idle'
-      const data = n.data.status === status ? n.data : { ...n.data, status: status as FmNodeData['status'] }
+      const capability = n.type === 'lane' ? undefined : capOf(n.data.defType)
+      const same = n.data.status === status && n.data.capability?.execution === capability?.execution && n.data.capability?.detail === capability?.detail
+      const data = same ? n.data : { ...n.data, status: status as FmNodeData['status'], capability }
       if (n.data.defType !== 'create') return data === n.data ? n : { ...n, data }
       const renderFile = !running && runMatches ? workflowArtifactMedia(lastRun?.artifacts.find((a) => a.nodeId === n.id && !a.demo)) ?? undefined : undefined
       return { ...n, data: { ...data, renderMode: workflow?.projectId ? 'real' as const : 'demo' as const, renderFile } }
-    }), visibleEdges: baseEdges }
+    }), visibleEdges: styledEdges }
   }, [nodes, edges, activeStage, workflow?.path, workflow?.projectId, lastRun, runMatches, running])
   return { displayedNodes, visibleEdges }
 }

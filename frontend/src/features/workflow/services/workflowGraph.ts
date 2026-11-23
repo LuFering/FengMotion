@@ -1,4 +1,6 @@
 import { LEGACY_NODE_TYPES, defForNode, type WfEdgeInstance, type WfNodeInstance } from '@/features/workflow/model/workflowTemplates'
+import { canvasLayout } from '@/features/workflow/model/graphLayout'
+export { layeredLayout } from '@/features/workflow/model/graphLayout'
 
 /** 逐行去掉首尾空白再比较：多一个空格或换行不算「填写过」。 */
 function normalizeLines(text: string): string {
@@ -26,11 +28,11 @@ export function workflowGraphProblems(nodes: WfNodeInstance[], edges: WfEdgeInst
     for (const port of def.inputs.filter((p) => p.required && options.validateInputs)) {
       if (!edges.some((e) => e.target === node.id && e.targetPort === port.id)) problems.push({ nodeId: node.id, message: `「${def.label}」缺少「${port.label}」输入，请连接上游节点。` })
     }
-    if (node.type === 'prompt' && !String(node.params.text ?? '').trim()) problems.push({ nodeId: node.id, message: '请在「创作需求」节点填写原始提示词。' })
+    if (node.type === 'prompt' && !String(node.params.text ?? '').trim()) problems.push({ nodeId: node.id, message: '请在「创作需求」节点写下需求。' })
     // 骨架原样不动就运行，没填的模板项会被当成用户原文写进 prompt.original.md
     else if (node.type === 'prompt' && typeof node.params.promptScaffold === 'string' && node.params.promptScaffold.trim()
       && normalizeLines(String(node.params.text)) === normalizeLines(node.params.promptScaffold)) {
-      problems.push({ nodeId: node.id, message: '「创作需求」还是视频类型的填写骨架，请先填写具体内容再运行。' })
+      problems.push({ nodeId: node.id, message: '「创作需求」还是预设的填写骨架，请先填写具体内容再运行。' })
     }
   }
   const occupied = new Set<string>()
@@ -114,4 +116,18 @@ export function upgradeLegacyStructuredLayout(nodes: WfNodeInstance[]): WfNodeIn
     }
     return n
   })
+}
+
+/**
+ * 旧版自由创作模板的默认位置（四个节点排成一长排：x = 60 / 430 / 800 / 1170，素材在第二行）
+ * 换成分层布局。只迁移完全没动过的默认几何；用户拖过的图原样保留，可以手动点「整理」。
+ */
+const LEGACY_PF_X = new Set([60, 430, 800, 1170])
+export function upgradeLegacyPromptLayout(nodes: WfNodeInstance[], edges: WfEdgeInstance[]): WfNodeInstance[] {
+  const items = nodes.filter((n) => n.type !== 'lane')
+  if (!items.length || nodes.length !== items.length) return nodes
+  const untouched = items.every((n) => LEGACY_PF_X.has(n.position.x) && (n.position.y === 150 || (n.position.y === 360 && n.position.x === 60)))
+  if (!untouched) return nodes
+  const positions = canvasLayout(items, edges)
+  return nodes.map((n) => ({ ...n, position: { x: 60 + positions[n.id].x, y: 120 + positions[n.id].y } }))
 }

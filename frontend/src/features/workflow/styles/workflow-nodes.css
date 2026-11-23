@@ -1,0 +1,330 @@
+/* ═══════════════════════════════════════════════════════════════
+   工作流节点卡片（WorkflowNodes.tsx · FmNodeView）
+   结构：头部（图标 · 标题 / 执行方式 · 状态）→ 画面窗口 → 端口行。没有色条、没有分隔线，
+   三段靠留白和窗口本身的明暗分开。
+   宽 240；圆角同心（卡 12 · 窗口 7 · 图标 6）；字阶 12.5/600 标题 · 11 端口与说明 · 10.5 小字。
+   类别色 --cat-* 定义在 workflow.css，只落在图标和窗口里的记号上，不铺满卡片。
+   ═══════════════════════════════════════════════════════════════ */
+
+.wfe .wfn {
+  --c: var(--cat-doc);
+  position: relative;
+  width: 240px;
+  padding: 0;
+  overflow: visible;
+  border: 1px solid color-mix(in srgb, var(--tx) 10%, transparent);
+  border-radius: 12px;
+  background: var(--raised);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06), 0 4px 14px rgba(0, 0, 0, 0.06);
+  color: var(--tx);
+  font-family: var(--font-sans);
+  transition: border-color 150ms var(--eo), box-shadow 150ms var(--eo);
+}
+
+html[data-theme='dark'] .wfe .wfn,
+html:not([data-theme]) .wfe .wfn {
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 6px 18px rgba(0, 0, 0, 0.35);
+}
+
+.wfe .wfn[data-cat='input'] { --c: var(--cat-input); }
+.wfe .wfn[data-cat='make'] { --c: var(--cat-make); }
+.wfe .wfn[data-cat='review'] { --c: var(--cat-review); }
+.wfe .wfn[data-cat='deliver'] { --c: var(--cat-deliver); }
+.wfe .wfn[data-cat='gate'] { --c: var(--cat-gate); }
+
+.wfe .wfn:hover { border-color: color-mix(in srgb, var(--tx) 24%, transparent); }
+
+.wfe .wfn[data-selected] {
+  border-color: var(--acc);
+  box-shadow: 0 0 0 1px var(--acc), 0 0 0 5px color-mix(in srgb, var(--acc) 16%, transparent), 0 10px 28px rgba(0, 0, 0, 0.18);
+}
+
+.wfe .wfn[data-status='running'] { border-color: color-mix(in srgb, var(--acc) 70%, transparent); }
+.wfe .wfn[data-status='failed'] { border-color: color-mix(in srgb, var(--bad) 70%, transparent); }
+.wfe .react-flow__node.dragging .wfn { box-shadow: 0 14px 34px rgba(0, 0, 0, 0.22); }
+.wfe .react-flow__node:focus-visible .wfn { outline: 2px solid var(--acc); outline-offset: 3px; }
+
+/* ── 头部 ── */
+.wfe .wfn-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 11px 12px 10px;
+}
+
+.wfn-mark {
+  --c: var(--cat-doc);
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--r-ctl);
+  background: color-mix(in srgb, var(--c) 14%, transparent);
+  color: var(--c);
+}
+
+.wfn-mark[data-cat='input'] { --c: var(--cat-input); }
+.wfn-mark[data-cat='make'] { --c: var(--cat-make); }
+.wfn-mark[data-cat='review'] { --c: var(--cat-review); }
+.wfn-mark[data-cat='deliver'] { --c: var(--cat-deliver); }
+.wfn-mark[data-cat='gate'] { --c: var(--cat-gate); }
+
+.wfn-heading {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.wfe .wfn-heading b {
+  overflow: hidden;
+  color: var(--tx);
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 17px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wfn-exec {
+  overflow: hidden;
+  color: var(--tx3);
+  font-size: 10.5px;
+  line-height: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wfn-exec[data-x='agent'] { color: var(--acc-tx); }
+
+/* 状态：圆点 + 文字；未运行只是淡淡一个点 */
+.wfn-state {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  align-self: flex-start;
+  gap: 5px;
+  margin-top: 2px;
+  color: var(--tx3);
+  font-size: 10.5px;
+  line-height: 14px;
+  white-space: nowrap;
+}
+
+.wfn-state .fm-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; opacity: 0.5; }
+.wfn-state:not([data-s='idle']) .fm-dot { opacity: 1; }
+.wfn-state[data-s='running'] { color: var(--acc-tx); }
+.wfn-state[data-s='running'] .fm-dot { animation: wfn-pulse 1.4s var(--eo) infinite; }
+.wfn-state[data-s='completed'] { color: var(--ok); }
+.wfn-state[data-s='failed'] { color: var(--bad); }
+.wfn-state[data-s='awaiting_info'] { color: var(--warn); }
+
+@keyframes wfn-pulse { 50% { opacity: 0.3; } }
+
+/* ── 端口行：输入左、输出右，圆点压在卡片边线上 ── */
+.wfe .wfn-ports {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 6px 0 7px;
+}
+
+.wfn-port-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 22px;
+}
+
+.wfe .wfn-port {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+  height: 22px;
+  color: var(--tx2);
+  font-size: 11px;
+  white-space: nowrap;
+  transition: opacity 150ms var(--eo);
+}
+
+.wfe .wfn-port.in { padding-left: 12px; }
+.wfe .wfn-port.out { margin-left: auto; padding-right: 12px; }
+.wfn-port-label { overflow: hidden; text-overflow: ellipsis; }
+.wfe .wfn-port em { color: var(--bad); font-size: 11px; font-style: normal; }
+
+.wfe .react-flow__handle.wfn-handle {
+  width: 10px;
+  height: 10px;
+  border: 2px solid var(--raised);
+  border-radius: 50%;
+  background: var(--port, var(--tx3));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--port, var(--tx3)) 40%, transparent);
+  transition: scale 150ms var(--eo), box-shadow 150ms var(--eo);
+}
+
+.wfe .wfn-port.in .wfn-handle { left: 0; }
+.wfe .wfn-port.out .wfn-handle { right: 0; left: auto; }
+.wfe .react-flow__handle.wfn-handle:hover,
+.wfe .react-flow__handle.wfn-handle.connectingfrom { scale: 1.3; }
+.wfe .react-flow__handle.wfn-handle.connectingto.valid { scale: 1.45; box-shadow: 0 0 0 4px color-mix(in srgb, var(--port) 30%, transparent); }
+.wfe .react-flow__handle::after { content: ''; position: absolute; inset: -7px; border-radius: 50%; }
+
+/* ── 画面窗口：节点产出物的样子。稿纸是浅一档的纸面，监看屏永远是一块深色屏幕 ── */
+.wfe .wfn-window {
+  position: relative;
+  margin: 0 10px;
+  overflow: hidden;
+  border-radius: 7px;
+}
+
+/* 稿纸：需求原文直接排在纸上，最多三行 */
+.wfe .wfn-paper {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 9px 10px 10px;
+  background: var(--panel2);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+.wfe .wfn-paper > p {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  color: var(--tx);
+  font-size: 11.5px;
+  line-height: 17px;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.wfe .wfn-paper > p[data-empty] { color: var(--tx3); }
+
+.wfn-facts { display: flex; flex-wrap: wrap; gap: 4px 10px; color: var(--tx3); font-size: 10.5px; line-height: 14px; font-variant-numeric: tabular-nums; }
+
+/* 参考：素材拼片；空的时候是一格虚线槽位 */
+.wfe .wfn-tiles { display: grid; grid-template-columns: repeat(2, 1fr); gap: 2px; aspect-ratio: 16 / 9; }
+.wfe .wfn-tiles[data-n='1'] { grid-template-columns: 1fr; }
+.wfe .wfn-tiles[data-n='3'] > img:first-child { grid-row: span 2; }
+.wfe .wfn-tiles img { width: 100%; height: 100%; min-height: 0; object-fit: cover; background: var(--panel2); }
+
+.wfe .wfn-slot {
+  display: grid;
+  place-items: center;
+  min-height: 56px;
+  padding: 10px;
+  border: 1px dashed color-mix(in srgb, var(--tx) 18%, transparent);
+  color: var(--tx3);
+  font-size: 11px;
+  line-height: 16px;
+  text-align: center;
+}
+
+/* 预设可能列很长的必需素材，最多两行 */
+.wfe .wfn-slot > span { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+
+/* 监看屏：制作 / 审片 / 交付共用。不跟主题变亮，浅色主题里也是一块屏幕 */
+.wfe .wfn-screen {
+  --screen: #101116;
+  --screen-tx: rgba(237, 238, 243, 0.86);
+  --screen-dim: rgba(237, 238, 243, 0.5);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  aspect-ratio: 16 / 9;
+  background: var(--screen);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+  color: var(--screen-tx);
+}
+
+.wfn-screen-glyph {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+
+.wfn-screen-glyph svg { width: 18px; height: 18px; fill: var(--screen-tx); }
+.wfe .wfn-delivery .wfn-screen-glyph svg { fill: none; stroke: var(--screen-tx); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.wfe .wfn-screen[data-done] .wfn-screen-glyph { background: color-mix(in srgb, var(--ok) 30%, transparent); box-shadow: none; }
+
+.wfn-screen-cap { color: var(--screen-dim); font-size: 10.5px; line-height: 14px; }
+.wfn-screen-cap .wfn-facts { color: inherit; }
+.wfe .wfn-screen-title { color: var(--screen-tx); font-size: 12px; font-weight: 600; line-height: 16px; }
+.wfe .wfn-screen-title small { color: var(--screen-dim); font-size: 10.5px; font-weight: 500; }
+
+/* 审片：取景框四角 + 底部一条检查进度 */
+.wfn-viewfinder { position: absolute; inset: 0; width: 100%; height: 100%; fill: none; stroke: color-mix(in srgb, var(--cat-review) 70%, transparent); stroke-width: 1.5; }
+.wfe .wfn-screen[data-review='ok'] .wfn-viewfinder { stroke: var(--ok); }
+.wfe .wfn-screen[data-review='ok'] .wfn-screen-title { color: var(--ok); }
+.wfe .wfn-screen[data-review='rework'] .wfn-screen-title { color: var(--cat-review); }
+.wfn-screen-meter { position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: rgba(255, 255, 255, 0.06); }
+.wfn-screen-meter::after { content: ''; position: absolute; inset: 0 auto 0 0; width: calc(var(--v) * 100%); background: var(--cat-review); }
+
+/* 制作中：屏幕上一道光从左扫到右，是画布上唯一的常驻动效 */
+.wfe .wfn-screen[data-running]::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--acc) 26%, transparent), transparent);
+  transform: translateX(-100%);
+  animation: wfn-scan 1.8s var(--eo) infinite;
+}
+
+@keyframes wfn-scan { to { transform: translateX(100%); } }
+
+.wfe .wfn-output-video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: #000;
+  object-fit: contain;
+}
+
+/* 分阶段工作流：产物 / 检查点卡略窄 */
+.wfe .wfn.is-doc,
+.wfe .wfn.is-gate { width: 224px; }
+.wfe .wfn-gate-chip { align-self: flex-start; border-radius: var(--fm-radius-mark, 4px); font-size: 10.5px; }
+.wfe .wfn-blocked { margin: 0; color: var(--bad); font-size: 11px; line-height: 1.55; }
+.wfe .wfn-gate .wfn-paper { gap: 6px; }
+
+/* 缩小到 55% 以下：只留头部和端口，画面窗口收起 */
+.wfe-canvas[data-compact] .wfn-window { display: none; }
+.wfe-canvas[data-compact] .wfn-ports { padding-top: 0; }
+
+/* ── Tactile：墨线卡片、硬阴影；选中整圈信号黄 ── */
+html[data-theme='tactile'] .wfe .wfn { border: 1.5px solid var(--line2); background: var(--raised); box-shadow: var(--shadow-base); }
+html[data-theme='tactile'] .wfe .wfn[data-selected] { box-shadow: 0 0 0 3px var(--acc), var(--shadow-mid); }
+html[data-theme='tactile'] .wfe .react-flow__handle.wfn-handle { border-color: var(--raised); box-shadow: 0 0 0 1.5px var(--line2); }
+html[data-theme='tactile'] .wfe .wfn-paper { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--line2) 35%, transparent); }
+html[data-theme='tactile'] .wfe .wfn-screen { --screen: #22231f; }
+
+/* ── 操作反馈：新加的节点轻轻放大出现，新接的线从起点画到终点。都只播一次 ──
+   动画放在 .wfn 上，不碰 React Flow 用来定位的外层 transform。 */
+.wfe .react-flow__node.is-new .wfn { animation: wfn-enter 240ms var(--eo) both; }
+@keyframes wfn-enter { from { opacity: 0; scale: 0.94; } }
+
+/* 不用 forwards：播完回到实线，长线也不会留下虚线缺口 */
+.wfe .react-flow__edge.is-new .react-flow__edge-path { animation: wfe-edge-draw 420ms var(--eo); }
+@keyframes wfe-edge-draw {
+  from { stroke-dasharray: 1600; stroke-dashoffset: 1600; }
+  to { stroke-dasharray: 1600; stroke-dashoffset: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wfn-state[data-s='running'] .fm-dot,
+  .wfe .wfn-screen[data-running]::after,
+  .wfe .react-flow__node.is-new .wfn,
+  .wfe .react-flow__edge.is-new .react-flow__edge-path { animation: none; }
+}
+@keyframes wfn-spin { to { transform: rotate(360deg); } }

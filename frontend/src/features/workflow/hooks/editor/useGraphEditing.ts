@@ -69,6 +69,8 @@ export function useGraphEditing({ edges, flow, focusRequest, markDirty, nodes, s
             target: c.target!,
             targetHandle: c.targetHandle ?? undefined,
             style: { stroke: out ? WF_PORT_COLORS[out.type] : undefined, strokeWidth: 1.5 },
+            /* 只在这次会话里画一遍接上的动画；保存时 snapshot 只取端点字段，不会存进去 */
+            className: 'is-new',
           } as Edge,
         ]
       })
@@ -99,6 +101,8 @@ export function useGraphEditing({ edges, flow, focusRequest, markDirty, nodes, s
         position: at ?? placement,
         data: { defType, params, status: 'idle' },
         selected: true,
+        /* 出现时轻轻缩放一次（workflow-nodes.css）；snapshot 不存 className，下次打开不会再播 */
+        className: 'is-new',
       } as FmNode
       if (!at) focusRequest.current = id
       setNodes((prev) => [...prev.map((n) => ({ ...n, selected: false })), node])
@@ -122,6 +126,7 @@ export function useGraphEditing({ edges, flow, focusRequest, markDirty, nodes, s
     flowPos: { x: number; y: number }
   }
   const [connectMenu, setConnectMenu] = useState<ConnectMenuState | null>(null)
+  const [linking, setLinking] = useState<{ portType: WfPortType; handleType: 'source' | 'target' } | null>(null)
   const pendingLink = useRef<PendingLink | null>(null)
 
   const onConnectStart = useCallback(
@@ -136,6 +141,7 @@ export function useGraphEditing({ edges, flow, focusRequest, markDirty, nodes, s
         : def?.inputs.find((p) => p.id === params.handleId)
       if (!port) return
       pendingLink.current = { nodeId: params.nodeId, handleId: params.handleId, handleType: params.handleType, portType: port.type }
+      setLinking({ portType: port.type, handleType: params.handleType })
     },
     [nodes],
   )
@@ -144,6 +150,7 @@ export function useGraphEditing({ edges, flow, focusRequest, markDirty, nodes, s
     (event: MouseEvent | TouchEvent) => {
       const link = pendingLink.current
       pendingLink.current = null
+      setLinking(null)
       if (!link) return
       const target = event.target as HTMLElement | null
       if (!target || !target.classList?.contains('react-flow__pane')) return
@@ -229,6 +236,7 @@ export function useGraphEditing({ edges, flow, focusRequest, markDirty, nodes, s
             target: conn.target!,
             targetHandle: conn.targetHandle ?? undefined,
             style: { stroke: WF_PORT_COLORS[connectMenu.portType], strokeWidth: 1.5 },
+            className: 'is-new',
           } as Edge,
         ]
       })
@@ -238,5 +246,5 @@ export function useGraphEditing({ edges, flow, focusRequest, markDirty, nodes, s
     },
     [connectMenu, addNode, markDirty],
   )
-  return { addNode, updateParams, onConnect, onConnectStart, onConnectEnd, isValidConnection, connectMenu, connectCandidates, pickConnectCandidate, setConnectMenu }
+  return { addNode, updateParams, onConnect, onConnectStart, onConnectEnd, isValidConnection, connectMenu, connectCandidates, pickConnectCandidate, setConnectMenu, linking }
 }

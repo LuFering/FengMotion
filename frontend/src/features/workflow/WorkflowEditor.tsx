@@ -8,7 +8,7 @@
  */
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { UiIcon, SemIcons } from '@/shared/icons/UiIcon'
-import { CheckCircle, Circle, Dataflow04, File01, Folder, Clock, Save01, SlashCircle01 } from '@untitledui/icons'
+import { Clock, SlashCircle01 } from '@untitledui/icons'
 import { ReactFlowProvider, useReactFlow, useNodesInitialized, type Edge } from '@xyflow/react'
 import { type FmNode, RUN_STATUS_TXT } from '@/features/workflow/model/editorNodes'
 import '@xyflow/react/dist/style.css'
@@ -22,11 +22,13 @@ import { WorkflowDraftsPanel } from '@/features/workflow/components/WorkflowDraf
 import { hasLegacyDrafts } from '@/features/workflow/services/workflowMigration'
 import { formatApplyPresetSummary } from '@/features/workflow/services/workflowPresetBinding'
 import { studioHttpApi } from '@/api'
-import { upgradeLegacyStructuredLayout } from '@/features/workflow/services/workflowGraph'
+import { upgradeLegacyPromptLayout, upgradeLegacyStructuredLayout } from '@/features/workflow/services/workflowGraph'
 import { useNavigationGuard } from '@/shared/navigation/navigationGuardContext'
 import { documentsStatus } from '@/shared/local-documents/localDocuments'
 import { workflowRunLabel } from '@/features/workflow/services/workflowPresentation'
-import { toRfEdge } from '@/features/workflow/model/editorStorage'
+import { nid, toRfEdge } from '@/features/workflow/model/editorStorage'
+import { runCapability } from '@/features/workflow/services/workflowCapabilities'
+import { EditorMoreMenu } from '@/features/workflow/components/editor/EditorMoreMenu'
 import { useDisplayedGraph } from '@/features/workflow/hooks/editor/useDisplayedGraph'
 import { useEditorArtifacts } from '@/features/workflow/hooks/editor/useEditorArtifacts'
 import { useEditorRun } from '@/features/workflow/hooks/editor/useEditorRun'
@@ -59,8 +61,9 @@ function EditorInner({ workflowId, onBack, autoRun }: EditorInnerProps) {
   )
   const [dirty, setDirty] = useState(false)
   const [runNotice, setRunNotice] = useState('')
-  const [leftTab, setLeftTab] = useState<'outline' | 'stages' | 'nodes' | 'pending'>(initial?.path === 'structured' ? 'stages' : 'outline')
-  const [panelOpen, setPanelOpen] = useState(() => window.innerWidth >= 760)
+  const [leftTab, setLeftTab] = useState<'stages' | 'nodes' | 'pending'>(initial?.path === 'structured' ? 'stages' : 'nodes')
+  /* 已有节点、窗口又不宽时先收起节点库，把宽度留给画布；空画布要靠节点库起步，照常打开 */
+  const [panelOpen, setPanelOpen] = useState(() => window.innerWidth >= 1280 || (window.innerWidth >= 760 && !(initial?.nodes.length)))
   const [activeStage, setActiveStage] = useState<number | null>(initial?.path === 'structured' ? 0 : null)
   const [zoom, setZoom] = useState(1)
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -87,7 +90,7 @@ function EditorInner({ workflowId, onBack, autoRun }: EditorInnerProps) {
 
   function mapNodes(wf: WorkflowDef | null): FmNode[] {
     if (!wf) return []
-    return (wf.path === 'structured' ? upgradeLegacyStructuredLayout(wf.nodes) : wf.nodes).map((n) => ({
+    return (wf.path === 'structured' ? upgradeLegacyStructuredLayout(wf.nodes) : upgradeLegacyPromptLayout(wf.nodes, wf.edges)).map((n) => ({
       id: n.id,
       type: n.type === 'lane' ? 'lane' : 'fm',
       position: n.position,
@@ -123,25 +126,69 @@ function EditorInner({ workflowId, onBack, autoRun }: EditorInnerProps) {
     return () => cancelAnimationFrame(frame)
   }, [selectionId, panelOpen, flow])
 
+  /* 选中的节点被检查器（窄窗时浮在画布上）或画布边缘挡住时，平移到刚好露出来，不改缩放 */
+  useEffect(() => {
+    if (!selectionId) return
+    let frame = requestAnimationFrame(() => {
+      frame = requestAnimationFrame(() => {
+        const node = flow.getInternalNode(selectionId)
+        const canvas = wrapRef.current?.getBoundingClientRect()
+        if (!node || !canvas) return
+        const insp = document.querySelector<HTMLElement>('.wfe-inspector:not([hidden])')?.getBoundingClientRect()
+        const right = insp && insp.left < canvas.right && insp.left > canvas.left ? insp.left : canvas.right
+        const margin = 24
+        const a = flow.flowToScreenPosition(node.internals.positionAbsolute)
+        const b = flow.flowToScreenPosition({ x: node.internals.positionAbsolute.x + (node.measured.width ?? 240), y: node.internals.positionAbsolute.y + (node.measured.height ?? 160) })
+        const dx = b.x > right - margin ? right - margin - b.x : a.x < canvas.left + margin ? canvas.left + margin - a.x : 0
+        const dy = b.y > canvas.bottom - 72 ? canvas.bottom - 72 - b.y : a.y < canvas.top + margin ? canvas.top + margin - a.y : 0
+        if (!dx && !dy) return
+        const { x, y, zoom } = flow.getViewport()
+        void flow.setViewport({ x: x + dx, y: y + dy, zoom }, { duration: 220 })
+      })
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [selectionId, flow])
+
   const { redo, undo, markDirty, snapshot, fxIntents, refIds, refConsumed, undoStack, redoStack } = useEditorHistory({ edges, legacyDrafts, mapNodes, name, nodes, setDirty, setEdges, setHistoryVersion, setName, setNodes, setWorkflow, workflow })
+  /* 画布快捷键（列表见 EditorMoreMenu）：输入框里打字时不拦截 */
   useEffect(() => {
     const handleKey = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement
       if (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName)) return
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') {
+      const mod = event.ctrlKey || event.metaKey
+      const key = event.key.toLowerCase()
+      if (mod && key === 'z') {
         event.preventDefault()
         if (event.shiftKey) redo(); else undo()
+      } else if (mod && key === 'd') {
+        const picked = nodes.find((n) => n.selected && n.type === 'fm')
+        if (!picked) return
+        event.preventDefault()
+        markDirty()
+        const id = nid()
+        setNodes((prev) => [...prev.map((n) => ({ ...n, selected: false })), { ...picked, id, selected: true, className: 'is-new', position: { x: picked.position.x + 36, y: picked.position.y + 36 }, data: { ...picked.data, params: structuredClone(picked.data.params), status: 'idle' } }])
+      } else if (!mod && !event.altKey && key === 'f') {
+        event.preventDefault()
+        void flow.fitView({ padding: 0.16, minZoom: 0.2, maxZoom: 1, duration: 200 })
+      } else if (!mod && event.key === '/') {
+        event.preventDefault()
+        setPanelOpen(true)
+        setLeftTab('nodes')
+        window.setTimeout(() => document.querySelector<HTMLInputElement>('.wfe-library-search input')?.focus(), 30)
+      } else if (event.key === 'Escape') {
+        setNodes((prev) => prev.some((n) => n.selected) ? prev.map((n) => ({ ...n, selected: false })) : prev)
+        setEdges((prev) => prev.some((e) => e.selected) ? prev.map((e) => ({ ...e, selected: false })) : prev)
       }
     }
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
-  }, [undo, redo])
+  }, [undo, redo, nodes, markDirty, flow])
   void historyVersion
 
   /* Gate 评估与泳道摘要注入节点数据（Gate 口径与首页一致，来自服务层 evaluateGate） */
   useEditorEffects({ edges, flow, initial, initialFramed, markDirty, nodes, nodesInitialized, setNodes, setPanelOpen, snapshot, wrapRef })
 
-  const { addNode, updateParams, onConnect, onConnectStart, onConnectEnd, isValidConnection, connectMenu, connectCandidates, pickConnectCandidate, setConnectMenu } = useGraphEditing({ edges, flow, focusRequest, markDirty, nodes, setActiveStage, setEdges, setNodes, workflow, wrapRef })
+  const { addNode, updateParams, onConnect, onConnectStart, onConnectEnd, isValidConnection, connectMenu, connectCandidates, pickConnectCandidate, setConnectMenu, linking } = useGraphEditing({ edges, flow, focusRequest, markDirty, nodes, setActiveStage, setEdges, setNodes, workflow, wrapRef })
 
   const { doSave, doRun, doRunNode, clearLegacyDraftKey } = useEditorRun({ autoRun, dirty, legacyDrafts, markDirty, name, runHandle, running, setActiveRunLabel, setDirty, setDrawerOpen, setDrawerTab, setIntegrityWarn, setLastRun, setLegacyDrafts, setLiveEvents, setNodes, setRunNotice, setRunning, setViewing, setWorkflow, snapshot, workflow })
 
@@ -162,6 +209,9 @@ function EditorInner({ workflowId, onBack, autoRun }: EditorInnerProps) {
   }
 
   const isStructured = workflow.path === 'structured'
+  const runCap = runCapability({ path: workflow.path, projectId: workflow.projectId })
+  const saveError = !!documentsStatus().error
+  const savePending = !!documentsStatus().pending
   const eventsToShow = running || liveEvents.length > 0 ? liveEvents : (lastRun?.events ?? [])
   const artifactsToShow = running ? [] : lastRun?.artifacts ?? []
   const selectedRunCaption = running ? activeRunLabel : lastRun ? `${workflowRunLabel(lastRun)} · 工作流 v${lastRun.revision} · ${RUN_STATUS_TXT[lastRun.status] ?? lastRun.status}` : ''
@@ -177,15 +227,22 @@ function EditorInner({ workflowId, onBack, autoRun }: EditorInnerProps) {
   return (
     <section className="wfe" aria-label="工作流编辑器" data-structured={workflow.path === 'structured' || undefined} data-stage-focused={isStructured && activeStage !== null || undefined} data-panel-open={panelOpen || undefined} data-inspecting={!!(selectedNode || selectedEdge) || undefined}>
       <div className="wfe-cmd">
-        <button type="button" className="wfe-iconbtn" onClick={() => navigation.request(onBack)} aria-label="返回工作流首页">
-          <UiIcon icon={SemIcons.back} size="md" />
-        </button>
-        <div className="wfe-titleblock"><input className="wfe-name" value={name} onChange={(e) => { setName(e.target.value); markDirty() }} aria-label="工作流名称" maxLength={120} /></div>
-
-        <span className="wfe-revision">v{workflow.revision}</span>
-        <span className="wfe-savestate">{dirty ? <UiIcon icon={Circle} size="xs" /> : <UiIcon icon={CheckCircle} size="xs" />}{dirty ? '未保存' : documentsStatus().error ? '本机保存失败' : documentsStatus().pending ? '正在保存到本机…' : '已保存'}</span>
+        {/* 面包屑：工作流 / 名称（可直接改）· 版本与保存状态 */}
+        <nav className="wfe-crumb" aria-label="位置">
+          <button type="button" className="wfe-crumb-back" onClick={() => navigation.request(onBack)} title="返回工作流首页"><UiIcon icon={SemIcons.back} size="sm" />工作流</button>
+          <span className="wfe-crumb-sep" aria-hidden="true">/</span>
+          <span className="wfe-titleblock"><input className="wfe-name" value={name} onChange={(e) => { setName(e.target.value); markDirty() }} aria-label="工作流名称" maxLength={120} size={Math.max(4, Math.min(28, name.length + 1))} /></span>
+          <span className="wfe-savestate" data-state={dirty ? 'dirty' : saveError ? 'error' : savePending ? 'pending' : 'saved'} title={dirty ? '有未保存的更改（Ctrl+S 保存）' : undefined}>
+            <span className="wfe-revision">v{workflow.revision}</span>
+            <i aria-hidden="true" />
+            {dirty ? '未保存' : saveError ? '本机保存失败' : savePending ? '正在保存…' : '已保存'}
+          </span>
+        </nav>
 
         <span className="wfe-spacer" />
+        {!running && lastRun?.definition && lastRun.projectId && lastRun.status === 'running' && <button type="button" className="wfe-btn" disabled={dirty} title={dirty ? '先保存工作流' : undefined} onClick={()=>resumeSavedRun()}>接回上次运行</button>}
+        {!running && lastRun?.definition && lastRun.projectId && lastRun.status === 'failed' && <button type="button" className="wfe-btn" disabled={dirty} title={dirty ? '先保存工作流' : undefined} onClick={()=>resumeSavedRun(true)}>重试失败节点</button>}
+        {!running && lastRun?.definition && lastRun.projectId && awaitingDelivery && <button type="button" className="wfe-btn" disabled={dirty} title={dirty ? '先保存工作流' : '读取最新审片结论，审片通过最新渲染时输出成片；不重新渲染'} onClick={deliverSavedRun}>按最新审片交付</button>}
         <WorkflowProjectPicker
           projectId={workflow.projectId}
           disabled={running}
@@ -196,39 +253,35 @@ function EditorInner({ workflowId, onBack, autoRun }: EditorInnerProps) {
               const presetLabel = workflow.skillPresetMeta?.name || workflow.presetId
               void studioHttpApi().skillPresets.applyPresetToProject(projectId, workflow.skillPresetId)
                 .then((res) => setRunNotice(formatApplyPresetSummary(presetLabel, res)))
-                .catch((err) => setRunNotice(`视频类型预设未能落地到项目：${err instanceof Error ? err.message : String(err)}`))
+                .catch((err) => setRunNotice(`预设没有写入项目：${err instanceof Error ? err.message : String(err)}`))
             }
           }}
         />
-        <button type="button" className="wfe-btn wfe-history-toggle" onClick={() => { setDrawerOpen(true); setDrawerTab('history') }}><UiIcon icon={Clock} size="sm" /> 运行记录</button>
-        {!running && lastRun?.definition && lastRun.projectId && lastRun.status === 'running' && <button type="button" className="wfe-btn" disabled={dirty} onClick={()=>resumeSavedRun()}>接回上次运行</button>}
-        {!running && lastRun?.definition && lastRun.projectId && lastRun.status === 'failed' && <button type="button" className="wfe-btn" disabled={dirty} onClick={()=>resumeSavedRun(true)}>重试失败节点</button>}
-        {!running && lastRun?.definition && lastRun.projectId && awaitingDelivery && <button type="button" className="wfe-btn" disabled={dirty} title={dirty ? '请先保存工作流' : '读取最新审片结论，审片通过最新渲染时输出成片；不重新渲染'} onClick={deliverSavedRun}>按最新审片继续交付</button>}
-        {running && (
-          <button type="button" className="wfe-btn" onClick={() => runHandle.current?.cancel()}>
-            <UiIcon icon={SlashCircle01} size="sm" /> 取消
+        <button type="button" className="wfe-iconbtn" aria-label="运行记录" title="运行记录" data-active={drawerOpen && drawerTab === 'history' || undefined} onClick={() => { setDrawerOpen(true); setDrawerTab('history') }}><UiIcon icon={Clock} size="md" /></button>
+        <EditorMoreMenu
+          showDrafts={!isStructured}
+          draftsNeedMigration={!isStructured && hasLegacyDrafts({ legacyDrafts })}
+          onOpenDrafts={() => setDraftsOpen(true)}
+          projectLinked={!!workflow.projectId}
+          onOpenWorkbench={goReview}
+        />
+        <i className="wfe-cmd-sep" aria-hidden="true" />
+        <button type="button" className="wfe-btn wfe-save" title="保存（Ctrl+S）" onClick={doSave} disabled={!dirty || running}>保存</button>
+        {running ? (
+          <button type="button" className="wfe-btn wfe-run is-running" onClick={() => runHandle.current?.cancel()} title="请求停止这次运行">
+            <UiIcon icon={SemIcons.loading} size="sm" className="wfe-spin" />运行中<span className="wfe-run-sep" />
+            <UiIcon icon={SlashCircle01} size="sm" />取消
           </button>
+        ) : (
+          <>
+            <span className="wfe-run-hint" data-real={runCap.real || undefined} title={runCap.detail}>{runCap.real ? <><i aria-hidden="true" />{runCap.label}</> : runCap.label}</span>
+            <button type="button" className="wfe-btn is-primary wfe-run" onClick={doRun} title={runCap.detail}>
+              <UiIcon icon={SemIcons.play} size="sm" />{isStructured ? '评估' : '运行'}
+            </button>
+          </>
         )}
-        <button type="button" className="wfe-btn" title="保存（Ctrl / ⌘ + S）" onClick={doSave} disabled={!dirty || running}>
-          <UiIcon icon={Save01} size="sm" /> 保存
-        </button>
-        <button type="button" className="wfe-btn is-primary" onClick={doRun} disabled={running}>
-          <UiIcon icon={SemIcons.play} size="sm" /> {running ? '运行中…' : isStructured ? '演示评估' : workflow.projectId ? '开始制作' : '演示运行'}
-        </button>
       </div>
 
-      <div className="wfe-context-bar">
-        <span><UiIcon icon={Dataflow04} size="xs" />{isStructured ? '分阶段评估' : '自由创作'}<i/> {nodes.filter((n) => n.type !== 'lane').length} 个节点 · {edges.length} 条连接</span>
-        <span>{isStructured ? '仅评估产物与检查点，不自动制作视频' : workflow.projectId ? '制作节点可真实渲染 · 交付需审片通过最新渲染' : '未关联项目 · 运行仅演示'}</span>
-        {!isStructured && (
-          <button type="button" className="wfe-context-drafts" onClick={() => setDraftsOpen(true)}>
-            <UiIcon icon={File01} size="sm" />
-            工作稿
-            {hasLegacyDrafts({ legacyDrafts }) && <em className="wfe-context-badge">待迁移</em>}
-          </button>
-        )}
-        {workflow.projectId && <button type="button" onClick={goReview}><UiIcon icon={Folder} size="sm" />进入工作台</button>}
-      </div>
       {integrityWarn && <div className="wfe-run-alert is-warn" role="alert"><span>原始需求（prompt.original.md）检测存疑：{integrityWarn}</span><button type="button" aria-label="关闭原文警告" onClick={() => setIntegrityWarn(null)}><UiIcon icon={SemIcons.close} size="sm" /></button></div>}
       {hasLegacyDrafts({ legacyDrafts }) && !isStructured && (
         <div className="wfe-legacy-banner" role="status">
@@ -243,7 +296,6 @@ function EditorInner({ workflowId, onBack, autoRun }: EditorInnerProps) {
           addFxIntent={addFxIntent}
           addNode={addNode}
           addRefSegment={addRefSegment}
-          focusRequest={focusRequest}
           focusStage={focusStage}
           fxIntents={fxIntents}
           isStructured={isStructured}
@@ -255,10 +307,8 @@ function EditorInner({ workflowId, onBack, autoRun }: EditorInnerProps) {
           refIds={refIds}
           setLeftTab={setLeftTab}
           setNodeQuery={setNodeQuery}
-          setNodes={setNodes}
           setPanelOpen={setPanelOpen}
           targetForRefs={targetForRefs}
-          workflow={workflow}
           workflowId={workflowId}
         />
 
@@ -266,6 +316,7 @@ function EditorInner({ workflowId, onBack, autoRun }: EditorInnerProps) {
           activeStage={activeStage}
           addNode={addNode}
           compact={compact}
+          linking={linking}
           connectCandidates={connectCandidates}
           connectMenu={connectMenu}
           displayedNodes={displayedNodes}
@@ -308,6 +359,7 @@ function EditorInner({ workflowId, onBack, autoRun }: EditorInnerProps) {
           latestRenderInfo={latestRenderInfo}
           markDirty={markDirty}
           nodes={nodes}
+          projectId={workflow.projectId}
           runMatches={runMatches}
           running={running}
           selectedEdge={selectedEdge}
@@ -332,6 +384,7 @@ function EditorInner({ workflowId, onBack, autoRun }: EditorInnerProps) {
         isStructured={isStructured}
         lastRun={lastRun}
         nodes={nodes}
+        onLocateNode={(id) => { focusRequest.current = id; setNodes((prev) => prev.map((n) => ({ ...n, selected: n.id === id }))) }}
         runMatches={runMatches}
         running={running}
         selectedRunCaption={selectedRunCaption}

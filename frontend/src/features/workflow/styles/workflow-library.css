@@ -1,5 +1,5 @@
-/* Workflow library and creation: inherit the application palette, show actual graphs. */
-.wfl { --wf-bg:var(--bg); --panel:var(--surf); --panel2:var(--hole); --raised:var(--surf); --tx:var(--fg); --tx2:var(--dim); --tx3:var(--dim); --line2:var(--line); --acc-ink:var(--on-accent,#fff); --acc-tx:var(--acc); --sel:var(--soft); background:var(--bg); font-family:var(--font-sans); height:100dvh; }
+/* 工作流首页与新建页：颜色取 workflow.css 里的 V3 token（与工作台同一套三主题值），卡面显示真实节点图。 */
+.wfl { background:var(--wf-bg); font-family:var(--font-sans); height:100dvh; }
 #pane-methods:has(.wfl),#pane-methods .hm-content:has(.wfl) { height:100dvh; min-height:0!important; overflow:hidden; }
 .wfl .wf-primary,.wfl .wf-secondary,.wfl .wf-danger { display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:36px; padding:8px 14px; border:1px solid var(--line); border-radius:6px; font-size:12px; font-weight:550; white-space:nowrap; transition:background .15s,border-color .15s; }
 .wfl .wf-primary { background:var(--acc); color:var(--on-accent,#fff); border-color:transparent; }
@@ -23,58 +23,8 @@
 .wf-library-search { width:232px; min-width:120px; margin-left:auto; }
 .wf-library-search .ui-search { width:100%; }
 .wf-sort select { max-width:125px; height:34px; border:1px solid var(--line); border-radius:6px; padding:0 8px; background:var(--surf); font-size:12px; }
-/* Poster cards: full-bleed saved canvas with a readable bottom overlay. */
-.wf-library-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:18px; align-content:start; }
-/* 文字层改为普通流：标题从固定位置起排，同一行卡片的标题对齐；缺了某一行（未关联项目、没有需求摘要）
-   时空白留在页脚上方，不再像固定 bottom 值那样在标题与摘要之间留出空洞。 */
-.wf-library-card { position:relative; display:flex; flex-direction:column; min-width:0; height:268px; border:1px solid var(--line); border-radius:10px; background:var(--surf); isolation:isolate; overflow:hidden; transition:border-color .18s,box-shadow .18s; }
-.wf-library-card:hover { border-color:var(--acc); box-shadow:0 6px 18px #00000018; }
-.wf-library-card:focus-within { border-color:var(--acc); }
-.wfl .wf-card-preview { position:absolute; inset:0; z-index:0; display:block; width:100%; height:100%; padding:18px 16px 132px; overflow:hidden; border:0; border-radius:inherit; background-color:color-mix(in srgb,var(--surf) 70%,var(--hole)); background-image:radial-gradient(circle,color-mix(in srgb,var(--fg) 13%,transparent) .7px,transparent .9px); background-size:18px 18px; }
-.wf-graph-preview { display:block; width:100%; height:100%; overflow:visible; }
-.wf-mini-node { fill:var(--surf); stroke:color-mix(in srgb,var(--fg) 20%,transparent); stroke-width:1; }
-.wf-mini-mark { fill:var(--acc); opacity:.7; }
-.wf-graph-preview text { fill:var(--fg); font-size:11px; font-weight:550; }
-.wf-graph-preview circle { fill:var(--acc); stroke:var(--surf); stroke-width:2; }
-.wf-mini-edge { fill:none; stroke:var(--acc); stroke-width:1.7; opacity:.65; }
-.wf-mini-line { fill:none; stroke:var(--dim); stroke-width:1.5; opacity:.25; stroke-linecap:round; }
-.wf-library-card .wf-mini-node { fill:var(--surf); stroke:color-mix(in srgb,var(--fg) 23%,transparent); }
-.wf-library-card .wf-mini-mark { fill:var(--acc); opacity:.8; }
-.wf-library-card .wf-graph-preview text { fill:var(--fg); }
-.wf-library-card .wf-mini-line { stroke:var(--dim); opacity:.3; }
-.wf-library-card .wf-mini-edge { stroke:var(--acc); opacity:.7; }
-.wf-library-card .wf-graph-preview circle { fill:var(--acc); stroke:var(--surf); }
-/* 卡片元信息已写「0 个节点」，空画布只留图形，不再叠一行「空白画布」压住元信息。 */
-.wf-library-card .wf-graph-empty { color:var(--dim); justify-content:flex-start; padding-top:10px; }
-.wf-library-card .wf-graph-empty span { display:none; }
-.wf-library-card .wf-graph-empty svg { fill:var(--surf); stroke:var(--line); }
-.wf-card-heading { position:relative; z-index:2; margin:130px 18px 0; display:flex; flex-direction:column; gap:4px; pointer-events:none; }
-.wf-card-heading button { pointer-events:auto; }
-.wfl .wf-card-name { display:block; width:100%; text-align:left; color:var(--fg); font-size:16px; line-height:1.5; font-weight:600; letter-spacing:-.015em; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.wf-card-type { order:-1; display:flex; align-items:center; color:var(--dim); font-size:11px; line-height:17px; }
-.wf-card-type>span+span::before { content:'·'; margin:0 7px; opacity:.6; }
-.wf-card-version { font-variant-numeric:tabular-nums; }
-.wf-card-enter { display:none; }
-.wf-card-content { position:relative; z-index:2; margin:4px 18px 0; min-height:4px; pointer-events:none; }
-.wf-card-content:empty { display:none; }
-.wf-card-content p { color:var(--dim); font-size:12px; line-height:20px; margin:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.wf-card-context { display:flex; align-items:center; gap:6px; margin-top:4px; color:var(--dim); font-size:11px; line-height:17px; }
-.wf-card-context span { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.wf-card-context svg { flex:none; opacity:.8; }
-.wf-card-footer { position:relative; z-index:2; margin:auto 12px 8px 18px; min-height:30px; display:flex; align-items:center; justify-content:space-between; gap:6px; color:var(--dim); font-size:10px; }
-.wf-card-footer time { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-/* 复制/删除是次要操作：悬停或键盘聚焦到卡片时出现，删除确认展开时保持可见。
-   用 opacity 而不是 display，按钮始终在 Tab 序列里，可发现性不变。 */
-.wf-card-footer>div { display:flex; gap:2px; flex:none; opacity:0; transition:opacity .15s; }
-.wf-library-card:hover .wf-card-footer>div,
-.wf-library-card:focus-within .wf-card-footer>div,
-.wf-card-footer[data-confirming]>div { opacity:1; }
-@media (hover:none) { .wf-card-footer>div { opacity:1; } }
 .wf-icon { display:grid; place-items:center; height:30px; width:30px; border-radius:6px; color:var(--dim); }
 .wf-icon:hover { background:var(--hole); color:var(--fg); }
-.wf-card-footer .wf-icon:last-child:hover { color:var(--bad,#c53b4d); }
-.wf-library-card button:focus-visible { outline:2px solid var(--acc); outline-offset:3px; border-radius:4px; }
-.wf-library-card .wf-card-preview:focus-visible { outline-offset:-3px; border-radius:inherit; }
 .wf-library-footnote { display:flex; align-items:flex-start; gap:7px; font-size:11px; color:var(--dim); padding-top:24px; line-height:1.7; }
 .wf-library-footnote svg { flex:none; margin-top:3px; }
 .wf-library-empty { min-height:340px; display:flex; align-items:center; justify-content:center; flex-direction:column; color:var(--dim); text-align:center; }
@@ -105,14 +55,130 @@
 .wf-preset-grid { display:grid; grid-template-columns:1fr 1fr; gap:18px; }
 .wfl .wf-preset { min-width:0; text-align:left; background:var(--surf); border:1px solid var(--line); border-radius:10px; overflow:hidden; }
 .wf-preset:hover { border-color:var(--acc); }
-.wf-preset-preview { height:150px; padding:20px; border-bottom:1px solid var(--line); background:color-mix(in srgb,var(--surf) 45%,var(--hole)); }
 .wf-preset-copy { padding:18px 20px; }
 .wf-preset-copy h3 { font-size:14px; font-weight:600; margin:0; }
 .wf-preset-copy p { font-size:12px; line-height:1.7; color:var(--dim); margin:8px 0 18px; }
 .wf-preset-copy>span { display:flex; align-items:center; gap:8px; font-size:12px; color:var(--acc); }
-.wf-graph-empty { height:100%; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:7px; font-size:11px; color:var(--dim); }
-.wf-graph-empty svg { height:60px; width:160px; fill:var(--surf); stroke:var(--line); }
-.wf-graph-empty path { stroke:var(--dim); stroke-width:1.5; }
 @media(max-width:1000px) { .wf-library { padding:28px 24px 20px; }.wf-library-grid { grid-template-columns:repeat(auto-fill,minmax(245px,1fr)); gap:16px; } }
 @media(max-width:650px) { .wf-library { padding:24px 16px; }.wf-library-header { align-items:flex-start; gap:14px; margin-bottom:24px; }.wf-library h1,.wf-new h1 { font-size:23px; }.wf-library-tools { flex-wrap:wrap; }.wf-library-search { order:3; width:100%; }.wf-sort { margin-left:auto; }.wf-new-header { padding:0 18px; }.wf-new-body { padding:28px 18px; }.wf-preset-grid { grid-template-columns:1fr; }.wf-preset-heading { align-items:flex-start; flex-direction:column; } }
 @media(prefers-reduced-motion:reduce) { .wfl *, .wfl *::before, .wfl *::after { animation:none!important; transition:none!important; scroll-behavior:auto!important; } }
+
+/* ── 首页打磨（2026-11-21）：顶栏两个按钮、卡片元信息里的来源与最近运行、Tactile 卡片 ── */
+.wf-library-actions { display:flex; align-items:center; gap:8px; }
+.wfl .wf-preset, .wfl .wf-blank-start { border-radius:var(--r-card); transition:border-color 150ms var(--eo), box-shadow 150ms var(--eo); }
+.wfl .wf-preset:hover:not(:disabled), .wfl .wf-blank-start:hover:not(:disabled) { border-color:color-mix(in srgb,var(--acc) 70%,transparent); box-shadow:var(--shadow-base); }
+.wf-preset-tag { color:var(--acc-tx); background:var(--sel); border-radius:var(--fm-radius-mark,4px); }
+html[data-theme='tactile'] .wfl .wf-preset,
+html[data-theme='tactile'] .wfl .wf-blank-start { border:1.5px solid var(--line2); box-shadow:var(--shadow-base); }
+html[data-theme='tactile'] .wfl .wf-preset:hover:not(:disabled),
+html[data-theme='tactile'] .wfl .wf-blank-start:hover:not(:disabled) { border-color:var(--line2); box-shadow:var(--shadow-mid); transform:translate(-1px,-1px); }
+
+
+
+/* ── 工作流卡片（2026-11-21 分镜板）：整张卡是一块画布，文字浮在底部 ──
+   比例与技法库海报卡一致（16:10）。画布上是这条工作流的「小分镜」；真实渲染过的换成成片海报，
+   悬停时分镜浮到海报上。字阶：名称 15/600 → 说明 12 → 元信息 11。 */
+.wf-library-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:16px; align-content:start; }
+.wf-library-card { position:relative; min-width:0; aspect-ratio:16 / 10; overflow:hidden; border:1px solid var(--line); border-radius:var(--r-card); background:var(--canvas); isolation:isolate; transition:border-color 150ms var(--eo); }
+.wf-library-card:hover { border-color:color-mix(in srgb,var(--tx) 20%,transparent); }
+.wf-library-card:has(.wf-card-hit:focus-visible) { outline:2px solid var(--acc); outline-offset:2px; }
+
+.wf-card-stage { position:absolute; inset:0; z-index:0; }
+.wf-card-poster { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; background:#000; }
+/* 分镜占上面约六成，给底部文字留出位置 */
+.wf-card-graph { position:absolute; inset:18px 20px 66px; transition:opacity 200ms var(--eo); }
+/* 有一行说明时分镜往上让一行，不压字 */
+.wf-library-card:has(.wf-card-brief) .wf-card-graph { bottom:90px; }
+.wf-graph-preview { position:absolute; inset:0; display:block; width:100%; height:100%; max-width:calc(var(--nw) * 1.7px); margin:auto; overflow:visible; }
+.wf-preset-preview { position:relative; }
+.wf-card-hit { position:absolute; inset:0; z-index:2; border-radius:inherit; }
+.wf-card-hit:focus-visible { outline:none; }
+
+/* ── 小分镜：画框画产出物，颜色只落在画框里的记号上 ── */
+.wf-sb { --c: var(--cat-doc); --screen:#16171d; }
+.wf-sb[data-cat='input'] { --c: var(--cat-input); }
+.wf-sb[data-cat='make'] { --c: var(--cat-make); }
+.wf-sb[data-cat='review'] { --c: var(--cat-review); }
+.wf-sb[data-cat='deliver'] { --c: var(--cat-deliver); }
+.wf-sb[data-cat='gate'] { --c: var(--cat-gate); }
+.wf-sb-frame { fill:var(--raised); stroke:color-mix(in srgb,var(--tx) 16%,transparent); stroke-width:1; }
+.wf-sb-ink { fill:none; stroke:color-mix(in srgb,var(--tx) 34%,transparent); stroke-width:2; stroke-linecap:round; }
+.wf-sb-tile { fill:color-mix(in srgb,var(--c) 30%,var(--raised)); }
+.wf-sb-tile[data-i='1'] { fill:color-mix(in srgb,var(--c) 16%,var(--raised)); }
+.wf-sb-tile[data-i='2'] { fill:color-mix(in srgb,var(--c) 22%,var(--raised)); }
+.wf-sb-tile[data-i='3'] { fill:color-mix(in srgb,var(--c) 40%,var(--raised)); }
+/* 监看画面不跟主题变亮：浅色主题里也是一块深色屏幕 */
+.wf-sb-screen { fill:var(--screen); stroke:color-mix(in srgb,var(--c) 45%,transparent); stroke-width:1; }
+.wf-sb-play { fill:#fff; opacity:.85; }
+.wf-sb-mark { fill:none; stroke:var(--c); stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round; }
+.wf-sb-done { fill:color-mix(in srgb,var(--c) 16%,var(--raised)); stroke:color-mix(in srgb,var(--c) 55%,transparent); stroke-width:1; }
+.wf-sb-gate { fill:color-mix(in srgb,var(--c) 14%,var(--raised)); stroke:var(--c); stroke-width:1.2; }
+.wf-sb-cell { fill:var(--raised); stroke:color-mix(in srgb,var(--c) 55%,transparent); stroke-width:1; }
+.wf-sb text { fill:var(--tx2); font-family:var(--font-sans); font-size:10px; font-weight:500; }
+.wf-sb-edge { fill:none; stroke:color-mix(in srgb,var(--tx) 26%,transparent); stroke-width:1.2; stroke-linecap:round; }
+.wf-graph-preview[data-compact] .wf-sb-edge { stroke-width:.8; }
+
+/* ── 悬停：连线从需求一路亮到交付（按列依次描一遍），是首页唯一的动效 ──
+   亮线叠在底线上：用 stroke-dasharray 从 0 描到 1（pathLength=1），停在亮的状态；移开就回去。 */
+.wf-sb-trace { fill:none; stroke:color-mix(in srgb,var(--acc) 80%,transparent); stroke-width:1.4; stroke-linecap:round; stroke-dasharray:1 1; stroke-dashoffset:1; }
+.wf-graph-preview[data-compact] .wf-sb-trace { stroke-width:1; }
+.wf-library-card:hover .wf-sb-trace { animation:wf-sb-trace 320ms var(--eo) forwards; animation-delay:calc(var(--col, 0) * 110ms); }
+.wf-library-card:hover .wf-sb-frame,
+.wf-library-card:hover .wf-sb-cell { transition:stroke 200ms var(--eo); transition-delay:calc(var(--col, 0) * 110ms); stroke:color-mix(in srgb,var(--tx) 30%,transparent); }
+@keyframes wf-sb-trace { to { stroke-dashoffset:0; } }
+@media (prefers-reduced-motion: reduce) { .wf-library-card:hover .wf-sb-trace { animation:none; stroke-dashoffset:0; } }
+.wf-graph-empty { display:flex; flex-direction:column; align-items:center; gap:6px; color:var(--tx3); font-size:11px; }
+.wf-graph-empty svg { width:56px; height:36px; overflow:visible; }
+.wf-graph-empty rect { fill:none; stroke:color-mix(in srgb,var(--tx) 22%,transparent); stroke-dasharray:3 3; }
+.wf-graph-empty path { stroke:var(--tx3); stroke-width:1.4; stroke-linecap:round; }
+
+/* ── 浮在底部的文字：画布色渐变托底，不另起一块白底 ── */
+.wf-card-body { position:absolute; inset:auto 0 0; z-index:1; display:flex; flex-direction:column; gap:3px; padding:22px 16px 13px; background:linear-gradient(180deg, transparent, color-mix(in srgb,var(--canvas) 92%,transparent) 42%); pointer-events:none; }
+.wf-card-brief[data-empty] { color:var(--tx3); }
+.wf-card-name { margin:0; overflow:hidden; color:var(--tx); font-size:15px; font-weight:600; line-height:21px; letter-spacing:-.01em; text-overflow:ellipsis; white-space:nowrap; }
+.wf-card-brief { margin:0; overflow:hidden; color:var(--tx2); font-size:12px; line-height:17px; text-overflow:ellipsis; white-space:nowrap; }
+.wf-card-meta { display:flex; align-items:baseline; justify-content:space-between; gap:12px; color:var(--tx3); font-size:11px; line-height:16px; }
+.wf-card-facts { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.wf-card-source { color:var(--acc-tx); }
+.wf-card-meta time { flex:none; font-variant-numeric:tabular-nums; }
+.wf-card-project { display:flex; flex:0 1 auto; align-items:center; gap:5px; min-width:0; color:inherit; font-size:11px; line-height:16px; }
+.wf-card-project svg { flex:none; color:var(--tx3); }
+.wf-card-project span { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+/* ── 角标：左上最近运行，右上复制 / 删除（悬停才出现，用 opacity，键盘仍能 Tab 到） ── */
+.wf-card-run, .wf-card-actions { position:absolute; top:10px; z-index:3; display:inline-flex; align-items:center; border-radius:999px; background:color-mix(in srgb,var(--raised) 82%,transparent); box-shadow:0 0 0 1px var(--line); backdrop-filter:blur(8px); }
+.wf-card-run { left:10px; gap:5px; height:22px; padding:0 9px 0 8px; color:var(--tx2); font-size:11px; font-weight:550; pointer-events:none; }
+.wf-card-run .fm-dot { width:6px; height:6px; border-radius:50%; background:var(--tx3); }
+.wf-card-run[data-s='done'] .fm-dot { background:var(--ok); }
+.wf-card-run[data-s='running'] .fm-dot { background:var(--acc); }
+.wf-card-run[data-s='waiting'] .fm-dot { background:var(--warn); }
+.wf-card-run[data-s='failed'] { color:var(--bad); }
+.wf-card-run[data-s='failed'] .fm-dot { background:var(--bad); }
+.wf-card-actions { right:10px; padding:2px; opacity:0; transition:opacity 150ms var(--eo); }
+.wf-card-actions button { display:grid; place-items:center; width:26px; height:26px; border-radius:999px; color:var(--tx2); }
+.wf-card-actions button:hover { background:var(--hover); color:var(--tx); }
+.wf-card-actions button:last-child:hover { color:var(--bad); }
+.wf-library-card:hover .wf-card-actions, .wf-library-card:focus-within .wf-card-actions, .wf-card-actions[data-confirming] { opacity:1; }
+@media (hover:none) { .wf-card-actions { opacity:1; } }
+.wf-library-card .wf-delete-confirm { z-index:4; }
+
+/* ── 有成片海报：画面铺满，文字换成白字压暗底；悬停时分镜浮上来 ── */
+.wf-library-card[data-poster] .wf-card-graph { opacity:0; }
+.wf-library-card[data-poster] .wf-card-stage::after { content:''; position:absolute; inset:0; background:rgba(6,7,10,.0); transition:background-color 200ms var(--eo); }
+.wf-library-card[data-poster]:hover .wf-card-stage::after { background:rgba(6,7,10,.62); }
+.wf-library-card[data-poster]:hover .wf-card-graph { z-index:1; opacity:1; }
+.wf-library-card[data-poster] .wf-card-graph { --tx:#edeef3; --tx2:#c9cbd3; --raised:#23242d; }
+.wf-library-card[data-poster] .wf-card-body { background:linear-gradient(180deg, rgba(8,9,11,0), rgba(8,9,11,.86) 55%); }
+.wf-library-card[data-poster] .wf-card-name { color:#fff; }
+.wf-library-card[data-poster] .wf-card-brief, .wf-library-card[data-poster] .wf-card-project { color:rgba(235,237,240,.82); }
+.wf-library-card[data-poster] .wf-card-meta, .wf-library-card[data-poster] .wf-card-project svg { color:rgba(235,237,240,.62); }
+
+html[data-theme='light'] .wf-sb { --screen:#2a2c35; }
+html[data-theme='tactile'] .wf-sb { --screen:#22231f; }
+html[data-theme='tactile'] .wfl .wf-library-card { border:1.5px solid var(--line2); box-shadow:var(--shadow-base); }
+html[data-theme='tactile'] .wfl .wf-library-card:hover { box-shadow:var(--shadow-mid); }
+html[data-theme='tactile'] .wf-sb-frame { stroke:var(--line2); }
+html[data-theme='tactile'] .wf-card-run, html[data-theme='tactile'] .wf-card-actions { background:var(--raised); box-shadow:0 0 0 1.5px var(--line2); backdrop-filter:none; }
+
+/* 新建页预设卡片的缩略图区与首页同一套画布 */
+.wf-preset-preview { display:grid; place-items:center; height:132px; padding:14px; border-bottom:1px solid var(--line); background:var(--canvas); }

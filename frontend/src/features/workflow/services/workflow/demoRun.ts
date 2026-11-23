@@ -412,8 +412,8 @@ export function startProjectGraph(wf:WorkflowDef,callbacks:Parameters<typeof sta
           if(!isPresetNotActiveError(error))throw error
           const current=await studioHttpApi().skillPresets.getProjectPreset(callbacks.projectId).catch(()=>null)
           presetMessage=current?.presetId===fixed.skillPresetId
-            ?`注意：视频类型「${presetLabel}」已归档，沿用项目里已有的 skill 指引继续运行。`
-            :`注意：视频类型「${presetLabel}」已归档，这个项目还没有落地过它的指引，本次运行没有 skill 指引。`
+            ?`注意：预设「${presetLabel}」已归档，沿用项目里已有的 Skill 指引继续运行。`
+            :`注意：预设「${presetLabel}」已归档，这个项目还没有写入过它的指引，本次运行没有 Skill 指引。`
         }
         const presetEvent:TaskEvent={id:uid('evt'),taskId:runId,kind:'progress',status:'running',mock:false,message:presetMessage,at:new Date().toISOString()}
         run.events.push(presetEvent);callbacks.onEvent(presetEvent)

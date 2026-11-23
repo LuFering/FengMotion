@@ -12,6 +12,7 @@
  *   工作稿（lookdev-brief.md · film-plan.md）落盘为项目文件，不在画布连线里。
  */
 import { STORYBOARD } from '@/demo/productionData'
+import { canvasLayout } from '@/features/workflow/model/graphLayout'
 import { BUILTIN_ASSETS } from '@/features/assets/model/myAssets'
 
 export const WORKFLOW_SCHEMA_VERSION = 2
@@ -355,6 +356,9 @@ export function promptFirstGraph(presetId: string): WfGraph {
     })
     edges.push({ id: 'e3', source: 'n-refs', sourcePort: 'refs', target: 'n-create', targetPort: 'refs' })
   }
+  /* 初始位置按连线分层排（输入一列 → 制作 → 审片 → 交付），四列在常用窗口里一屏放得下 */
+  const positions = canvasLayout(nodes, edges)
+  for (const n of nodes) n.position = { x: 60 + positions[n.id].x, y: 120 + positions[n.id].y }
   return { nodes, edges }
 }
 

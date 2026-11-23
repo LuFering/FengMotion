@@ -20,7 +20,7 @@ const edge = (id, source, target, sourcePort = 'doc', targetPort = 'prompt') => 
 
 test('actual graph validation rejects empty, missing inputs and missing prompts before execution', () => {
   assert.match(graph.workflowGraphProblems([], [])[0].message, /没有节点/)
-  assert.match(graph.workflowGraphProblems([node('p', 'prompt')], [])[0].message, /提示词/)
+  assert.match(graph.workflowGraphProblems([node('p', 'prompt')], [])[0].message, /写下需求/)
   assert.match(graph.workflowGraphProblems([node('c', 'create')], [])[0].message, /缺少/)
 })
 test('real preset graph validates after setting its actual prompt', () => {
@@ -67,7 +67,7 @@ test('preview renders real saved labels and connections without mounting React F
   const before = JSON.stringify(g)
   const markup = renderToStaticMarkup(createElement(Preview, g))
   assert.match(markup, /创作需求/)
-  assert.match(markup, /wf-mini-edge/)
+  assert.match(markup, /wf-sb-edge/)
   assert.doesNotMatch(markup, /react-flow|<video|<iframe/)
   assert.equal(JSON.stringify(g), before)
 })

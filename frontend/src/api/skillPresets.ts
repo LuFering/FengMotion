@@ -106,8 +106,8 @@ export const INSTRUCTED_COMMAND_DECISION_OPTIONS: ReadonlyArray<{
   value: InstructedCommandDecision
   label: string
 }> = [
-  { value: 'replace-with-builtin', label: '用本项目自己的检查替代' },
-  { value: 'manual-approval', label: '需人工批准' },
+  { value: 'replace-with-builtin', label: '用内置检查替代' },
+  { value: 'manual-approval', label: '需要你批准' },
   { value: 'ignore', label: '忽略' },
 ]
 
@@ -222,6 +222,31 @@ export interface ApplyPresetResult {
   componentsCopied: number
   drafts: ApplyPresetDraftAction[]
   warnings: string[]
+}
+
+/** 生成预设草稿的后台作业（契约 workflow-editor-ui.md §2，后端未实现时前端退回同步接口）。 */
+export type MappingJobStage = 'collecting' | 'calling_model' | 'validating' | 'saving'
+
+export interface MappingJob {
+  id: string
+  skillPackageId: string
+  skillPath: string
+  status: 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled'
+  stage: MappingJobStage | null
+  stageStartedAt: string | null
+  startedAt: string | null
+  finishedAt: string | null
+  context: { files: number; chars: number; truncatedSources: string[] } | null
+  presetId: string | null
+  error: { code: string; message: string; problems?: Array<{ field: string; message: string }> } | null
+}
+
+/**
+ * 端点还不存在：Spring 默认的 404/405 页面不带我们的错误体（没有 message、没有 details）。
+ * 后端自己报的 not_found 一定带中文 message，不会被当成「端点不存在」。
+ */
+export function isEndpointMissing(err: unknown): boolean {
+  return err instanceof ApiError && (err.httpStatus === 404 || err.httpStatus === 405) && !err.message && !err.details
 }
 
 const IMPORT_TIMEOUT_MS = 120_000
@@ -366,6 +391,35 @@ export function createSkillPresetsResource(http: HttpClient) {
         { timeoutMs: MAPPING_TIMEOUT_MS },
       )
       return normalizePreset(res)
+    },
+
+    /** 后台生成预设草稿；端点不存在时返回 null，调用方改用 generateMapping */
+    async startMappingJob(packageId: string, skillPath: string): Promise<MappingJob | null> {
+      try {
+        return await http.post<MappingJob>(`/skill-packages/${encodeURIComponent(packageId)}/mapping-jobs`, { skillPath })
+      } catch (err) {
+        if (isEndpointMissing(err)) return null
+        throw err
+      }
+    },
+
+    getMappingJob(jobId: string): Promise<MappingJob> {
+      return http.get<MappingJob>(`/mapping-jobs/${encodeURIComponent(jobId)}`)
+    },
+
+    cancelMappingJob(jobId: string): Promise<MappingJob> {
+      return http.post<MappingJob>(`/mapping-jobs/${encodeURIComponent(jobId)}/cancel`, {})
+    },
+
+    /** 这个包未结束的作业（刷新页面后接回）；端点不存在时返回空数组 */
+    async listActiveMappingJobs(packageId: string): Promise<MappingJob[]> {
+      try {
+        const list = await http.get<MappingJob[]>(`/skill-packages/${encodeURIComponent(packageId)}/mapping-jobs`, { query: { active: 'true' } })
+        return Array.isArray(list) ? list : []
+      } catch (err) {
+        if (isEndpointMissing(err)) return []
+        throw err
+      }
     },
 
     /** B3：列出工作流预设（默认返回 active，传 all 可返回全部） */

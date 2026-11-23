@@ -1,14 +1,13 @@
 import type * as React from 'react'
 import { UiIcon, SemIcons } from '@/shared/icons/UiIcon'
-import { Dataflow04, Menu01, Grid01, DotsGrid, Folder } from '@untitledui/icons'
+import { ChevronLeftDouble, Grid01, DotsGrid, Folder } from '@untitledui/icons'
 import { NodeMark } from '@/features/workflow/components/WorkflowNodes'
 import { NODE_COPY, type FmNode } from '@/features/workflow/model/editorNodes'
-import { defForNode, STRUCTURED_STAGES, GATE_DEFS, PF_NODE_DEFS, pfDefaultParams, ARTIFACT_KINDS } from '@/features/workflow/model/workflowTemplates'
+import { STRUCTURED_STAGES, GATE_DEFS, PF_NODE_DEFS, pfDefaultParams, ARTIFACT_KINDS } from '@/features/workflow/model/workflowTemplates'
 import { REFERENCE_SEGMENTS, REFERENCE_VIDEOS } from '@/features/reference/model/referenceLibrary'
 import { useEditorArtifacts } from '@/features/workflow/hooks/editor/useEditorArtifacts'
 import { useGraphEditing } from '@/features/workflow/hooks/editor/useGraphEditing'
 import { useEditorHistory } from '@/features/workflow/hooks/editor/useEditorHistory'
-import type { WorkflowDef } from '@/features/workflow/services/workflowService'
 import type { EditorInnerProps } from '@/features/workflow/WorkflowEditor'
 
 export interface EditorBuildPanelProps {
@@ -16,48 +15,44 @@ export interface EditorBuildPanelProps {
   addFxIntent: ReturnType<typeof useEditorArtifacts>['addFxIntent']
   addNode: ReturnType<typeof useGraphEditing>['addNode']
   addRefSegment: ReturnType<typeof useEditorArtifacts>['addRefSegment']
-  focusRequest: React.RefObject<string | null>
   focusStage: (index: number | null) => void
   fxIntents: ReturnType<typeof useEditorHistory>['fxIntents']
   isStructured: boolean
-  leftTab: 'nodes' | 'pending' | 'outline' | 'stages'
+  leftTab: 'nodes' | 'pending' | 'stages'
   nodeQuery: string
   nodes: FmNode[]
   panelOpen: boolean
   refConsumed: ReturnType<typeof useEditorHistory>['refConsumed']
   refIds: ReturnType<typeof useEditorHistory>['refIds']
-  setLeftTab: React.Dispatch<React.SetStateAction<'nodes' | 'pending' | 'outline' | 'stages'>>
+  setLeftTab: React.Dispatch<React.SetStateAction<'nodes' | 'pending' | 'stages'>>
   setNodeQuery: React.Dispatch<React.SetStateAction<string>>
-  setNodes: React.Dispatch<React.SetStateAction<FmNode[]>>
   setPanelOpen: React.Dispatch<React.SetStateAction<boolean>>
   targetForRefs: boolean
-  workflow: WorkflowDef
   workflowId: EditorInnerProps['workflowId']
 }
 
 /** 工作流编辑器左侧构建栏：流程大纲或制作阶段导航、可拖入画布的节点库，以及特效库与参考片库送来的待接入资源；侧栏收起时隐藏。 */
-export function EditorBuildPanel({ activeStage, addFxIntent, addNode, addRefSegment, focusRequest, focusStage, fxIntents, isStructured, leftTab, nodeQuery, nodes, panelOpen, refConsumed, refIds, setLeftTab, setNodeQuery, setNodes, setPanelOpen, targetForRefs, workflow, workflowId }: EditorBuildPanelProps) {
+/** 节点库分组顺序与 PF_NODE_DEFS 的 group 一致 */
+const LIB_GROUPS = ['输入', '制作循环', '交付']
+
+export function EditorBuildPanel({ activeStage, addFxIntent, addNode, addRefSegment, focusStage, fxIntents, isStructured, leftTab, nodeQuery, nodes, panelOpen, refConsumed, refIds, setLeftTab, setNodeQuery, setPanelOpen, targetForRefs, workflowId }: EditorBuildPanelProps) {
   return (
     <aside className="wfe-left" aria-label="构建栏" hidden={!panelOpen}>
-      <div className="wfe-panel-title"><span><UiIcon icon={Dataflow04} size="md" /> 构建工作流</span><button type="button" aria-label="收起侧栏" onClick={() => setPanelOpen(false)}><UiIcon icon={Menu01} size="md" /></button></div>
-      <div className="wfe-tabs" role="tablist" aria-label="构建栏页签">
-        {!isStructured && <button type="button" role="tab" aria-selected={leftTab === 'outline'} data-on={leftTab === 'outline' ? '' : undefined} onClick={() => setLeftTab('outline')}>流程</button>}
-        {isStructured && <button type="button" role="tab" aria-selected={leftTab === 'stages'} data-on={leftTab === 'stages' ? '' : undefined} onClick={() => setLeftTab('stages')}>阶段</button>}
-        <button type="button" role="tab" aria-selected={leftTab === 'nodes'} data-on={leftTab === 'nodes' ? '' : undefined} onClick={() => setLeftTab('nodes')}>
-          添加节点
-        </button>
-        <button type="button" role="tab" aria-selected={leftTab === 'pending'} data-on={leftTab === 'pending' ? '' : undefined} onClick={() => setLeftTab('pending')}>
-          资源
-          {(fxIntents.length + refIds.length) > 0 && <em className="num">{fxIntents.length + refIds.length}</em>}
-        </button>
+      {/* 页签就是标题：节点库 / 阶段（分阶段工作流）/ 资源；收起按钮在右侧 */}
+      <div className="wfe-panel-title">
+        <div className="wfe-tabs" role="tablist" aria-label="侧栏">
+          {isStructured && <button type="button" role="tab" aria-selected={leftTab === 'stages'} data-on={leftTab === 'stages' ? '' : undefined} onClick={() => setLeftTab('stages')}>阶段</button>}
+          <button type="button" role="tab" aria-selected={leftTab === 'nodes'} data-on={leftTab === 'nodes' ? '' : undefined} onClick={() => setLeftTab('nodes')}>
+            节点库
+          </button>
+          <button type="button" role="tab" aria-selected={leftTab === 'pending'} data-on={leftTab === 'pending' ? '' : undefined} onClick={() => setLeftTab('pending')}>
+            资源
+            {(fxIntents.length + refIds.length) > 0 && <em className="num">{fxIntents.length + refIds.length}</em>}
+          </button>
+        </div>
+        <button type="button" aria-label="收起侧栏" title="收起侧栏" onClick={() => setPanelOpen(false)}><UiIcon icon={ChevronLeftDouble} size="md" /></button>
       </div>
-      {leftTab === 'outline' ? <div className="wfe-outline">
-        <div className="wfe-outline-label">画布节点 <span>{nodes.filter((n) => n.type === 'fm').length}</span></div>
-        {nodes.filter((n) => n.type === 'fm').map((n) => <button type="button" className="wfe-outline-item" key={n.id} data-selected={n.selected || undefined} onClick={() => { focusRequest.current = n.id; setNodes((prev) => prev.map((item) => ({ ...item, selected: item.id === n.id }))) }}><NodeMark type={n.data.defType}/><span><b>{NODE_COPY[n.data.defType]?.title ?? defForNode({ type: n.data.defType, params: n.data.params })?.label}</b></span><UiIcon icon={SemIcons.expand} size="xs" /></button>)}
-        <button type="button" className="wfe-outline-add" onClick={() => setLeftTab('nodes')}><UiIcon icon={SemIcons.plus} size="sm" /> 添加创作环节</button>
-        {/* 只显示用户自己写的说明；没有时不再用一段通用介绍填空。节点用途在「添加节点」页签里有完整说明。 */}
-        {workflow.description && <div className="wfe-outline-note"><span>工作流说明</span><p>{workflow.description}</p></div>}
-      </div> : leftTab === 'stages' ? (
+      {leftTab === 'stages' ? (
         <div className="wfe-stage-nav">
           <div className="wfe-outline-label">制作阶段 <span>8</span></div><button type="button" className="wfe-stage-overview" data-on={activeStage === null || undefined} onClick={() => focusStage(null)}><UiIcon icon={Grid01} size="sm" /> 全流程概览</button>
           {STRUCTURED_STAGES.map((stage) => {
@@ -75,12 +70,26 @@ export function EditorBuildPanel({ activeStage, addFxIntent, addNode, addRefSegm
 
           <label className="wfe-library-search"><UiIcon icon={SemIcons.search} size="sm" /><input value={nodeQuery} onChange={(e) => setNodeQuery(e.target.value)} placeholder="搜索节点" aria-label="搜索节点库" /></label>
           {!isStructured && nodeQuery.trim() && !PF_NODE_DEFS.some((d) => `${d.label} ${d.description} ${NODE_COPY[d.type]?.title ?? ''}`.toLowerCase().includes(nodeQuery.trim().toLowerCase())) && <p className="wfe-search-empty">没有匹配节点，试试其他关键词。</p>}
-          {!isStructured &&
-            PF_NODE_DEFS.filter((d) => `${d.label} ${d.description} ${NODE_COPY[d.type]?.title ?? ''}`.toLowerCase().includes(nodeQuery.trim().toLowerCase())).map((d) => (
-              <button key={d.type} type="button" className="wfe-nodeitem" draggable onDragStart={(e) => { e.dataTransfer.setData('application/fengmotion-node', JSON.stringify({ type: d.type, params: pfDefaultParams(d.type) })); e.dataTransfer.effectAllowed = 'copy' }} onClick={() => addNode(d.type, pfDefaultParams(d.type))} title="拖到画布，或点击添加">
-                <NodeMark type={d.type}/><span className="wfe-nodeitem-copy"><b>{NODE_COPY[d.type]?.title ?? d.label}</b><small>{NODE_COPY[d.type]?.description ?? d.description}</small></span><UiIcon icon={DotsGrid} size="sm" />
-              </button>
-            ))}
+          {!isStructured && LIB_GROUPS.map((group) => {
+            const q = nodeQuery.trim().toLowerCase()
+            const defs = PF_NODE_DEFS.filter((d) => d.group === group && `${d.label} ${d.description} ${NODE_COPY[d.type]?.title ?? ''}`.toLowerCase().includes(q))
+            if (!defs.length) return null
+            return (
+              <section key={group} className="wfe-libgroup">
+                <h4>{group}</h4>
+                {defs.map((d) => {
+                  const count = nodes.filter((n) => n.data.defType === d.type).length
+                  return (
+                    <button key={d.type} type="button" className="wfe-nodeitem" draggable onDragStart={(e) => { e.dataTransfer.setData('application/fengmotion-node', JSON.stringify({ type: d.type, params: pfDefaultParams(d.type) })); e.dataTransfer.effectAllowed = 'copy' }} onClick={() => addNode(d.type, pfDefaultParams(d.type))} title="拖到画布，或点击添加">
+                      <NodeMark type={d.type}/>
+                      <span className="wfe-nodeitem-copy"><b>{NODE_COPY[d.type]?.title ?? d.label}{count > 0 && <em title={`画布上已有 ${count} 个`}>{count}</em>}</b><small>{NODE_COPY[d.type]?.description ?? d.description}</small></span>
+                      <UiIcon icon={DotsGrid} size="sm" className="wfe-nodeitem-grip" />
+                    </button>
+                  )
+                })}
+              </section>
+            )
+          })}
           {isStructured && (
             <>
               {STRUCTURED_STAGES.map((s) => (
@@ -132,7 +141,7 @@ export function EditorBuildPanel({ activeStage, addFxIntent, addNode, addRefSegm
                 <b>{it.techniqueName}</b>
                 <span>意向目标：{it.projectName}</span>
                 <button type="button" className="wfe-btn sm" disabled={added || isStructured} onClick={() => addFxIntent(it)}>
-                  {added ? '已加入本工作流（待保存）' : isStructured ? 'Structured 中经能力映射接入（待后续）' : '加入能力检索'}
+                  {added ? '已加入本工作流（待保存）' : isStructured ? '分阶段评估暂不接入技法检索' : '加入能力检索'}
                 </button>
               </div>
             )

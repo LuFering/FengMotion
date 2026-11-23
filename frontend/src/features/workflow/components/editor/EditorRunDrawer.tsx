@@ -20,6 +20,8 @@ export interface EditorRunDrawerProps {
   isStructured: boolean
   lastRun: WorkflowRun | null
   nodes: FmNode[]
+  /** 点「节点状态」里的一项：在画布上选中并定位那个节点 */
+  onLocateNode: (nodeId: string) => void
   runMatches: ReturnType<typeof useEditorArtifacts>['runMatches']
   running: boolean
   selectedRunCaption: string
@@ -33,23 +35,48 @@ export interface EditorRunDrawerProps {
 }
 
 /** 工作流编辑器底部的执行日志抽屉（Structured 下为评估日志）：展示所选运行的事件、节点状态、产物与运行记录，产物可查看和下载。 */
-export function EditorRunDrawer({ artifactsToShow, dirty, downloadArtifact, downloading, drawerOpen, drawerTab, eventsToShow, isStructured, lastRun, nodes, runMatches, running, selectedRunCaption, setDrawerOpen, setDrawerTab, setLastRun, setLiveEvents, setViewing, viewing, workflowId }: EditorRunDrawerProps) {
+export function EditorRunDrawer({ artifactsToShow, dirty, downloadArtifact, downloading, drawerOpen, drawerTab, eventsToShow, isStructured, lastRun, nodes, onLocateNode, runMatches, running, selectedRunCaption, setDrawerOpen, setDrawerTab, setLastRun, setLiveEvents, setViewing, viewing, workflowId }: EditorRunDrawerProps) {
   return (
+    /* 从没运行过、也没手动打开时不占一整条：顶栏的「运行记录」按钮可以随时打开 */
+    !running && !lastRun && !drawerOpen ? null :
     <div className="wfe-drawer" data-open={drawerOpen || undefined}>
-      <button type="button" className="wfe-drawer-head" onClick={() => setDrawerOpen((v) => !v)} aria-expanded={drawerOpen}>
-        <UiIcon icon={SemIcons.collapse} size="sm" className={drawerOpen ? 'wfe-chev is-open' : 'wfe-chev'} />
-        {isStructured ? '评估日志' : '执行日志'}
-        {selectedRunCaption && <span className="wfe-drawer-meta" title={selectedRunCaption}>{selectedRunCaption}{running ? ' · 进行中' : ` · ${lastRun?.artifacts.length ?? 0} 项产物`}</span>}
-      </button>
+      <div className="wfe-drawer-head">
+        <button type="button" className="wfe-drawer-toggle" onClick={() => setDrawerOpen((v) => !v)} aria-expanded={drawerOpen}>
+          <UiIcon icon={SemIcons.collapse} size="sm" className={drawerOpen ? 'wfe-chev is-open' : 'wfe-chev'} />
+          <b>{isStructured ? '评估记录' : '运行记录'}</b>
+          {running || lastRun ? (
+            <span className="wfe-drawer-meta" title={selectedRunCaption}>
+              {selectedRunCaption}{running ? '' : ` · ${lastRun?.artifacts.length ?? 0} 项产物`}
+            </span>
+          ) : <span className="wfe-drawer-meta">还没有运行过</span>}
+        </button>
+        {/* 节点进度：每个节点一个点，点一下在画布上定位 */}
+        {(running || (lastRun && runMatches)) && (
+          <ol className="wfe-progress" aria-label="节点进度">
+            {nodes.filter((n) => n.type === 'fm').map((n) => {
+              const st = running ? n.data.status : lastRun?.nodeStatus[n.id] ?? 'idle'
+              const label = defForNode({ type: n.data.defType, params: n.data.params })?.label ?? n.data.defType
+              return (
+                <li key={n.id}>
+                  <button type="button" data-s={st} onClick={() => onLocateNode(n.id)} title={`${label} · ${RUN_STATUS_TXT[st] ?? '未运行'}`}>
+                    <i aria-hidden="true" />{label}
+                  </button>
+                </li>
+              )
+            })}
+          </ol>
+        )}
+      </div>
       {drawerOpen && (
         <div className="wfe-drawer-body">
-          {selectedRunCaption && <p className="wfe-run-identity">{selectedRunCaption}
-            {!running && lastRun && <time dateTime={lastRun.startedAt}> · {new Date(lastRun.startedAt).toLocaleString('zh-CN')}</time>}
-            {!running && lastRun && !runMatches && <span> · {dirty ? '画布有未保存的更改' : lastRun.projectId === undefined ? '旧记录未保存项目身份' : '与当前版本或项目不同'}，结果仅供历史查看。</span>}
+          {/* 运行名称和状态已经在标题栏里；这里只补时间，以及「这条记录对不上当前画布」的提醒 */}
+          {!running && lastRun && <p className="wfe-run-identity">
+            <time dateTime={lastRun.startedAt}>{new Date(lastRun.startedAt).toLocaleString('zh-CN')}</time>
+            {!runMatches && <span> · {dirty ? '画布有未保存的更改' : lastRun.projectId === undefined ? '旧记录未保存项目身份' : '与当前版本或项目不同'}，结果仅供历史查看。</span>}
           </p>}
           {!running && lastRun?.nodeIO && <details className="wfe-node-io"><summary>实际节点输入与输出</summary><pre>{JSON.stringify(lastRun.nodeIO,null,2)}</pre></details>}
           <div className="wfe-tabs sm" role="tablist" aria-label="日志视图">
-            {([['events', '事件'], ['outputs', '节点状态'], ['artifacts', '产物'], ['history', '运行记录']] as const).map(([id, label]) => (
+            {([['outputs', '节点'], ['events', '事件'], ['artifacts', '产物'], ['history', '历史']] as const).map(([id, label]) => (
               <button key={id} type="button" role="tab" aria-selected={drawerTab === id} data-on={drawerTab === id ? '' : undefined} onClick={() => setDrawerTab(id)}>
                 {label}
               </button>
@@ -58,7 +85,7 @@ export function EditorRunDrawer({ artifactsToShow, dirty, downloadArtifact, down
           {drawerTab === 'history' && <div className="wfe-runhistory">{workflowService.listRuns(workflowId).length === 0 ? <p className="wfe-hint">尚无运行记录。</p> : workflowService.listRuns(workflowId).map((run) => <button type="button" key={run.id} disabled={running} data-selected={lastRun?.id === run.id || undefined} onClick={() => { setLastRun(run); setLiveEvents([]); setViewing(null); setDrawerTab('events') }}><b>{new Date(run.startedAt).toLocaleString('zh-CN')}</b><span>{workflowRunLabel(run)} · 工作流 v{run.revision} · {RUN_STATUS_TXT[run.status] ?? run.status} · {run.artifacts.length} 项产物</span></button>)}</div>}
           {drawerTab === 'events' && (
             <ul className="wfe-events">
-              {eventsToShow.length === 0 && <li className="wfe-hint">暂无事件。点击顶部「{isStructured ? '评估状态' : '运行'}」开始。</li>}
+              {eventsToShow.length === 0 && <li className="wfe-hint">还没有事件。点右上角「{isStructured ? '评估' : '运行'}」开始。</li>}
               {eventsToShow.map((e) => (
                 <li key={e.id} data-k={e.kind}>
                   <span className="num">{new Date(e.at).toLocaleTimeString('zh-CN')}</span> {e.message}
@@ -67,14 +94,18 @@ export function EditorRunDrawer({ artifactsToShow, dirty, downloadArtifact, down
             </ul>
           )}
           {drawerTab === 'outputs' && (
-            <ul className="wfe-events">
+            <ul className="wfe-events wfe-steps">
               {(running ? nodes.filter((n) => n.type === 'fm').map((n) => [n.id, n.data.status] as const) : Object.entries(lastRun?.nodeStatus ?? {})).map(([id, st], index) => {
                 const n = nodes.find((n) => n.id === id)
                 const label = !running ? lastRun?.nodeLabels?.[id] ?? `历史节点 ${index + 1}` : n ? defForNode({ type: n.data.defType, params: n.data.params })?.label : `节点 ${index + 1}`
+                const onCanvas = !!n
                 return (
                   <li key={id}>
-                    {label}：
-                    {RUN_STATUS_TXT[st] ?? '未运行'}
+                    <button type="button" className="wfe-step" disabled={!onCanvas} onClick={() => onLocateNode(id)} title={onCanvas ? '在画布上定位这个节点' : '这个节点已不在画布上'}>
+                      <i className="fm-dot" data-s={st === 'completed' ? 'done' : st === 'failed' ? 'failed' : st === 'running' ? 'running' : st === 'awaiting_info' ? 'waiting' : 'idle'} />
+                      <span>{label}</span>
+                      <em>{RUN_STATUS_TXT[st] ?? '未运行'}</em>
+                    </button>
                   </li>
                 )
               })}

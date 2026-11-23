@@ -78,14 +78,22 @@ export function InspInputs({ items, onSelectNode }: { items: InspInputItem[]; on
   )
 }
 
+/**
+ * 「设置」小标题 + 单独运行按钮。按钮渲染在检查器底部的固定栏里（.wfe-insp-foot），
+ * 滚到哪都能点到；这里只留标题。
+ */
 export function InspParamsHead({ runLabel, busy, onRunNode }: { runLabel: string; busy: boolean; onRunNode: () => void }) {
   return (
-    <div className="wfe-sect3-head is-row">
-      参数
-      <button type="button" className="wfe-btn sm is-primary" disabled={busy} onClick={onRunNode}>
-        <UiIcon icon={SemIcons.play} size="xs" /> {runLabel}
-      </button>
-    </div>
+    <>
+      {/* 页签已经写着「设置」，这里不再重复小标题 */}
+      {/* 次级按钮：顶栏「运行」才是这一屏唯一的主操作 */}
+      <div className="wfe-insp-foot">
+        <button type="button" className="wfe-btn" disabled={busy} onClick={onRunNode}>
+          <UiIcon icon={SemIcons.play} size="sm" />{runLabel}
+        </button>
+        <span>只跑这一个节点，用上游最近一次的结果</span>
+      </div>
+    </>
   )
 }
 
@@ -243,14 +251,15 @@ export function Inspector(props: {
         title={NODE_COPY[node.data.defType]?.title ?? def.label}
         chip={node.data.status !== 'idle' ? <span className="wfe-insp-run" data-s={node.data.status}>{RUN_STATUS_TXT[node.data.status] ?? ''}</span> : undefined}
       />
-      <p className="wfe-hint">{NODE_COPY[node.data.defType]?.description ?? def.description}</p>
+      {/* 节点用途在节点库里已经写过；这里的引导放进各字段的占位文字和说明里 */}
       <div className="wfe-sect3">
-      <InspParamsHead runLabel="只运行此节点" busy={props.busy} onRunNode={props.onRunNode} />
+      {/* 需求、参考、能力只是把材料交给下游，单独运行没有可看的结果，不给这个按钮 */}
+      {!['prompt', 'refs', 'capability'].includes(node.data.defType) && <InspParamsHead runLabel="只运行此节点" busy={props.busy} onRunNode={props.onRunNode} />}
 
       {node.data.defType === 'prompt' && (
         <>
-          <label className="wfe-field"><span>原始提示词</span>
-            <textarea rows={7} value={String(p.text ?? '')} onChange={(e) => onParams({ text: e.target.value })} placeholder={typeof p.promptScaffold === 'string' && p.promptScaffold.trim() ? p.promptScaffold : '直接写创作需求，不必先整理成结构化文档'} />
+          <label className="wfe-field"><span>需求</span>
+            <textarea rows={7} value={String(p.text ?? '')} onChange={(e) => onParams({ text: e.target.value })} placeholder={typeof p.promptScaffold === 'string' && p.promptScaffold.trim() ? p.promptScaffold : '想做一条什么样的片子？写下目标、要求和必须保留的细节，用你自己的话就行'} />
           </label>
           {/* 骨架只在用户主动点击时填入，并接在已写内容后面，不覆盖原话 */}
           {typeof p.promptScaffold === 'string' && p.promptScaffold.trim() && !String(p.text ?? '').includes(p.promptScaffold.trim()) && (
@@ -259,19 +268,21 @@ export function Inspector(props: {
               const scaffold = String(p.promptScaffold).trim()
               onParams({ text: current ? `${current}\n\n${scaffold}` : scaffold })
             }}>
-              填入视频类型需求骨架
+              填入预设的需求骨架
             </button>
           )}
-          <label className="wfe-field"><span>目标受众</span>
-            <input value={String(p.audience ?? '')} onChange={(e) => onParams({ audience: e.target.value })} />
+          <label className="wfe-field"><span>给谁看</span>
+            <input value={String(p.audience ?? '')} onChange={(e) => onParams({ audience: e.target.value })} placeholder="如 第一次接触产品的开发者" />
           </label>
-          <label className="wfe-field"><span>时长 / 比例</span>
+          <label className="wfe-field"><span>时长</span>
             <input value={String(p.duration ?? '')} onChange={(e) => onParams({ duration: e.target.value })} placeholder="如 约 3 分钟" />
           </label>
-          <div className="wfe-seg">
-            {['16:9', '9:16', '1:1'].map((r) => (
-              <button key={r} type="button" data-on={p.ratio === r ? '' : undefined} aria-pressed={p.ratio === r} onClick={() => onParams({ ratio: r })}>{r}</button>
-            ))}
+          <div className="wfe-field"><span>画面比例</span>
+            <div className="wfe-seg" role="group" aria-label="画面比例">
+              {['16:9', '9:16', '1:1'].map((r) => (
+                <button key={r} type="button" data-on={p.ratio === r ? '' : undefined} aria-pressed={p.ratio === r} onClick={() => onParams({ ratio: r })}>{r}</button>
+              ))}
+            </div>
           </div>
         </>
       )}
@@ -280,7 +291,7 @@ export function Inspector(props: {
         <>
           {Array.isArray(p.requiredInputs) && p.requiredInputs.length > 0 && (
             <div className="wfe-req-box">
-              <b>当前视频类型建议准备的素材</b>
+              <b>这个预设建议准备的素材</b>
               <ul>
                 {(p.requiredInputs as Array<{ kind?: unknown; label?: unknown; required?: unknown; requiredWhen?: unknown } | string>).map((item, idx) => {
                   const text = typeof item === 'string' ? item : String(item?.label ?? '')
@@ -291,7 +302,7 @@ export function Inspector(props: {
               </ul>
             </div>
           )}
-          <p className="wfe-hint">从本机素材库引用真实文件；用途和参考片区间会随本次请求传递。</p>
+          <p className="wfe-hint">从「我的素材」里选，运行时会和参考片段一起交给制作。</p>
           {assetError&&<p className="wfe-hint" role="alert">{assetError}</p>}
           {!assetError&&!tokenAssets.length&&<p className="wfe-hint">当前没有可选素材，可先在「我的素材」导入。</p>}
           <div className="wfe-checks">
@@ -328,7 +339,9 @@ export function Inspector(props: {
 
       {node.data.defType === 'capability' && (
         <>
-          <p className="wfe-hint">从能力注册表（本地特效技法库快照）勾选候选；运行只记录检索结果，不执行能力。</p>
+          <p className="wfe-hint">从技法库里勾选想用的手法，制作时作为参考，不会自动套用。</p>
+          {/* 本地静态列表目前是空的（技法库改为从后端读目录）；空着不能看起来像加载失败 */}
+          {!FX_TECHNIQUES.length && <p className="wfe-hint">这里还没有可选的技法。可以先在「特效技法库」里浏览，再回来选。</p>}
           <div className="wfe-checks">
             {FX_TECHNIQUES.map((t) => {
               const ids = (p.techniqueIds as string[] | undefined) ?? []
@@ -348,19 +361,19 @@ export function Inspector(props: {
         <>
           <label className="wfe-field"><span>制作模式</span>
             <select value={String(p.mode ?? 'sketch')} onChange={(e) => onParams({ mode: e.target.value })}>
-              <option value="sketch">sketch · 快速试作</option>
-              <option value="prototype">prototype · 原型</option>
-              <option value="production">production · 正式制作</option>
+              <option value="sketch">快速试作</option>
+              <option value="prototype">原型</option>
+              <option value="production">正式制作</option>
             </select>
           </label>
-          <label className="wfe-field"><span>目标规格</span>
+          <label className="wfe-field"><span>输出分辨率</span>
             <select value={String(p.resolution ?? '1080p')} onChange={(e) => onParams({ resolution: e.target.value })}>
-              <option value="1080p">1080p · 1920×1080</option>
-              <option value="1440p">1440p · 2560×1440</option>
-              <option value="4k">4k · 3840×2160</option>
+              <option value="1080p">1080p（1920×1080）</option>
+              <option value="1440p">1440p（2560×1440）</option>
+              <option value="4k">4K（3840×2160）</option>
             </select>
           </label>
-          <p className="wfe-hint">{props.workflow?.projectId ? '完整运行会在关联项目中调用 Agent 制作与渲染；单节点测试仅生成请求记录。' : '未关联项目，当前运行只生成演示记录，不会制作视频。'}</p>
+          <p className="wfe-hint">{props.workflow?.projectId ? '完整运行会在关联项目里制作并渲染；只运行这个节点时，只生成一份制作请求，不渲染。' : '还没关联项目，运行只演示流程，不会制作视频。'}</p>
         </>
       )}
 
@@ -408,15 +421,15 @@ export function Inspector(props: {
                   需要修改
                 </button>
               </div>
-              {!lr && <p className="wfe-hint">暂无匹配当前工作流版本的渲染产物；需先运行制作节点，才能标记「审片通过」。</p>}
+              {!lr && <p className="wfe-hint">这一版还没有渲染结果，先运行一次，才能标记「审片通过」。</p>}
               {verdict === 'done' && p.reviewedVersion != null && (
                 <p className="wfe-hint">已通过渲染版本 v{String(p.reviewedVersion)}。</p>
               )}
               {verdict === 'rework' && (
-                <p className="wfe-hint">已标记需要修改：下次运行将清理制作循环旧结果，并把下方修改意见作为 correction 写入 corrections.md。</p>
+                <p className="wfe-hint">下次运行会回到制作，清掉这一轮的结果，并把下面的修改意见一起交给制作。</p>
               )}
             </div>
-            <div className="wfe-field"><span>审片检查（查看画面后确认）</span>
+            <div className="wfe-field"><span>检查项</span>
               <div className="wfe-checks">
                 {Array.from(new Set([
                   ...(Array.isArray(p.customChecklist) ? p.customChecklist.map(String).filter(Boolean) : []),
@@ -430,8 +443,8 @@ export function Inspector(props: {
                 ))}
               </div>
             </div>
-            <label className="wfe-field"><span>问题与修改意图</span>
-              <textarea rows={6} value={String(p.issues ?? '')} onChange={(e) => onParams({ issues: e.target.value })} placeholder="对着真实预览记录：哪里不对、想怎么改" />
+            <label className="wfe-field"><span>修改意见</span>
+              <textarea rows={6} value={String(p.issues ?? '')} onChange={(e) => onParams({ issues: e.target.value })} placeholder="看着画面写：哪里不对、想改成什么样" />
             </label>
           </>
         )
@@ -446,7 +459,7 @@ export function Inspector(props: {
         const readyToDeliver = Boolean(lr && revDone && versionMatches)
         return (
           <>
-            <p className="wfe-hint">确定性交付节点（不调用 Agent）：只有审片通过，且通过的就是最新那次渲染时，才会输出本次渲染；否则停在「等待审片通过」。</p>
+            <p className="wfe-hint">不调用模型。审片通过、且通过的正是最新一次渲染时，才输出成片；否则停在「等待审片通过」。</p>
             <dl className="wfe-kv">
               <dt>当前状态</dt>
               <dd>{readyToDeliver ? '审片已通过最新渲染，可输出交付' : '等待审片通过'}</dd>

@@ -21,6 +21,7 @@
 | `workflow-project.md` | 项目创作上下文：工作稿文件读写、原文完整性 | `Draft` |
 | `skill-package.md` | GitHub skill 包导入（固定 commit、只读落盘、不执行）与静态清点 | `SkillPackage`、`SkillInventory` |
 | `workflow-preset.md` | 从 skill 生成视频类型：映射生成与校验、审阅启用、落地到项目 | `WorkflowPreset`、`PresetMapping` |
+| [workflow-editor-ui.md](workflow-editor-ui.md) | 工作流界面补充接口：生成预设草稿的后台作业、导入预检、节点执行能力；界面术语 | `MappingJob`、`NodeCapability` |
 | `check.md` | 检查运行、问题项、证据、处理状态、结论派生 | `CheckRun`、`CheckFinding` |
 | `render.md` | 渲染作业、产物、交付状态、验收 | `RenderJob`、`DeliveryState`、`AcceptanceRecord` |
 | `asset.md` | 素材、五维状态、文件夹、分片上传 | `Asset`、`AssetFolder`、`UploadSession` |

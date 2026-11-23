@@ -8,21 +8,25 @@
  */
 import { useEffect, useMemo, useState } from 'react'
 import { UiIcon, SemIcons } from '@/shared/icons/UiIcon'
-import { HardDrive } from '@untitledui/icons'
+import { Download01 } from '@untitledui/icons'
+import { RUN_STATUS_TXT } from './model/editorNodes'
 import { SearchField } from '@/shared/components/SearchField'
 import { WF_PRESETS, promptFirstGraph, structuredGraph, type WfPath } from './model/workflowTemplates'
 import { workflowService, type WorkflowDef, type WorkflowRun } from './services/workflowService'
 import { buildGraphFromSkillPreset } from './services/workflowPresetBinding'
+import { workflowArtifactMedia } from './services/workflowGraph'
 import { studioHttpApi } from '@/api'
 import type { WorkflowPreset } from '@/api/skillPresets'
 import { useProjects } from '@/features/project/hooks/useProjects'
 import { workflowBrief, workflowProjectLabel } from './services/workflowPresentation'
 import { WorkflowGraphPreview } from './components/WorkflowGraphPreview'
-import { SkillPresetStudio } from './components/SkillPresetStudio'
+import { GithubImportPanel } from './components/import/GithubImportPanel'
 import { WorkflowEditor } from './WorkflowEditor'
 import './styles/workflow.css'
 import './styles/workflow-editor.css'
 import './styles/workflow-library.css'
+import './styles/workflow-nodes.css'
+import './styles/workflow-controls.css'
 
 type Page = { kind: 'home' } | { kind: 'create' } | { kind: 'editor'; id: string }
 
@@ -62,6 +66,20 @@ export function Workflow() {
   const [presetsTick, setPresetsTick] = useState(0)
   const refresh = () => setLibrary({ workflows: workflowService.listWorkflows(), runs: workflowService.listRuns() })
   const { workflows, runs } = library
+  /* 导入面板里启用的预设可以直接拿来新建工作流，建好就进画布 */
+  const usePreset = (preset: WorkflowPreset) => {
+    const wf = workflowService.createFromSkillPreset(preset, `${preset.name || preset.mapping.name}工作流`)
+    setPresetStudioOpen(false)
+    setPage({ kind: 'editor', id: wf.id })
+  }
+  const importPanel = presetStudioOpen && (
+    <GithubImportPanel
+      open={presetStudioOpen}
+      onClose={() => setPresetStudioOpen(false)}
+      onPresetsChanged={() => setPresetsTick((n) => n + 1)}
+      onUsePreset={usePreset}
+    />
+  )
 
   if (page.kind === 'editor') {
     return (
@@ -80,11 +98,7 @@ export function Workflow() {
           onOpenPresets={() => setPresetStudioOpen(true)}
           onCreated={(id) => setPage({ kind: 'editor', id })}
         />
-        <SkillPresetStudio
-          open={presetStudioOpen}
-          onClose={() => setPresetStudioOpen(false)}
-          onPresetsChanged={() => setPresetsTick((n) => n + 1)}
-        />
+        {importPanel}
       </div>
     )
   }
@@ -99,11 +113,7 @@ export function Workflow() {
         onOpenPresets={() => setPresetStudioOpen(true)}
         onChanged={refresh}
       />
-      <SkillPresetStudio
-        open={presetStudioOpen}
-        onClose={() => setPresetStudioOpen(false)}
-        onPresetsChanged={() => setPresetsTick((n) => n + 1)}
-      />
+      {importPanel}
     </div>
   )
 }
@@ -127,6 +137,18 @@ function WorkflowHome(props: {
     for (const run of props.runs) if (!map.has(run.workflowId)) map.set(run.workflowId, run)
     return map
   }, [props.runs])
+  /* 真实渲染过的工作流：取最近一次成片当海报（runs 已按时间倒序） */
+  const posterById = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const run of props.runs) {
+      if (run.demo || map.has(run.workflowId)) continue
+      for (const artifact of run.artifacts) {
+        const file = workflowArtifactMedia(artifact)
+        if (file) { map.set(run.workflowId, file); break }
+      }
+    }
+    return map
+  }, [props.runs])
   const q = query.trim().toLocaleLowerCase()
   const filtered = props.workflows.filter((w) => `${w.name} ${workflowBrief(w)} ${projects.list.find((p) => p.id === w.projectId)?.name ?? ''}`.toLocaleLowerCase().includes(q)
     && (filter !== 'used' || recentById.has(w.id))).sort((a, b) => sort === 'name'
@@ -137,9 +159,9 @@ function WorkflowHome(props: {
   return <section className="wf-library" aria-label="工作流首页">
     <header className="wf-library-header">
       <h1>工作流</h1>
-      <div style={{ display: 'flex', gap: 10 }}>
-        <button className="wf-secondary" type="button" onClick={props.onOpenPresets}><UiIcon icon={SemIcons.plus} size="sm" />视频类型 / Skill 预设</button>
-        <button className="wf-primary" type="button" onClick={props.onCreate}><UiIcon icon={SemIcons.plus} size="md" />新建工作流</button>
+      <div className="wf-library-actions">
+        <button className="wf-secondary" type="button" onClick={props.onOpenPresets}><UiIcon icon={Download01} size="sm" />从 GitHub 导入</button>
+        <button className="wf-primary" type="button" onClick={props.onCreate}><UiIcon icon={SemIcons.plus} size="sm" />新建工作流</button>
       </div>
     </header>
     <div className="wf-library-tools">
@@ -155,26 +177,35 @@ function WorkflowHome(props: {
       <div className="wf-library-grid">{filtered.map((w) => {
         const last = recentById.get(w.id)
         const count = w.nodes.filter((n) => n.type !== 'lane').length
-        return <article className="wf-library-card" key={w.id}>
-          <div className="wf-card-heading">
-            <button type="button" className="wf-card-name" title={w.name} onClick={() => props.onOpen(w.id)}>{displayWorkflowName(w.name)}</button>
-            <UiIcon icon={SemIcons.forward} size="md" className="wf-card-enter" />
-            <div className="wf-card-type"><span>{w.path === 'structured' ? '分阶段评估' : '自由创作'}</span><span>{count} 个节点</span><span className="wf-card-version">v{w.revision}</span></div>
+        const brief = workflowBrief(w)
+        const runState = last ? (last.status === 'completed' ? 'done' : last.status === 'failed' ? 'failed' : last.status === 'running' ? 'running' : last.status === 'awaiting_info' ? 'waiting' : 'idle') : null
+        const projectLabel = w.projectId ? workflowProjectLabel(w.projectId, projects.list, projects.loading, Boolean(projects.error)) : ''
+        const poster = posterById.get(w.id)
+        const meta = [w.path === 'structured' ? '分阶段评估' : '自由创作', `${count} 个节点`, `v${w.revision}`]
+        return <article className="wf-library-card" key={w.id} data-poster={poster ? '' : undefined}>
+          <div className="wf-card-stage" aria-hidden="true">
+            {poster && <video className="wf-card-poster" src={`${poster}#t=0.1`} preload="metadata" muted playsInline tabIndex={-1} />}
+            <div className="wf-card-graph"><WorkflowGraphPreview nodes={w.nodes} edges={w.edges}/></div>
           </div>
-          <button type="button" className="wf-card-preview" onClick={() => props.onOpen(w.id)} aria-label={`打开工作流：${w.name}`}><WorkflowGraphPreview nodes={w.nodes} edges={w.edges}/></button>
-          <div className="wf-card-content">
-            {workflowBrief(w) && <p title={workflowBrief(w)}>{workflowBrief(w)}</p>}
-            {/* 未关联是多数卡片的默认状态，每张都写一遍只是噪声；演示限制在编辑器上下文栏里说明。
-                关联了项目（或关联读取异常）才需要在卡片上标出来。 */}
-            {w.projectId && <div className="wf-card-context"><UiIcon icon={SemIcons.folder} size="xs" /><span title={workflowProjectLabel(w.projectId, projects.list, projects.loading, Boolean(projects.error))}>{workflowProjectLabel(w.projectId, projects.list, projects.loading, Boolean(projects.error))}</span></div>}
+          <button type="button" className="wf-card-hit" onClick={() => props.onOpen(w.id)} aria-label={`打开工作流：${displayWorkflowName(w.name)}`} />
+          {last && runState && <span className="wf-card-run" data-s={runState}><i className="fm-dot" data-s={runState} />{last.demo ? '演示' : ''}{RUN_STATUS_TXT[last.status] ?? last.status}</span>}
+          <div className="wf-card-actions" data-confirming={deleting === w.id || undefined}><button type="button" title="复制工作流" aria-label={`复制 ${w.name}`} onClick={() => { try { workflowService.duplicateWorkflow(w.id); props.onChanged(); setNotice('已复制工作流') } catch (e) { setNotice(e instanceof Error ? e.message : '复制失败，请重试。') } }}><UiIcon icon={SemIcons.copy} size="sm" /></button><button type="button" title="删除工作流" aria-label={`删除 ${w.name}`} onClick={() => setDeleting(deleting === w.id ? null : w.id)}><UiIcon icon={SemIcons.trash} size="sm" /></button></div>
+          <div className="wf-card-body">
+            <h3 className="wf-card-name" title={w.name}>{displayWorkflowName(w.name)}</h3>
+            {/* 同名工作流靠需求原文区分；还没写需求就明说，不留空让卡片看起来都一样 */}
+            {brief ? <p className="wf-card-brief" title={brief}>{brief}</p>
+              : w.path !== 'structured' && <p className="wf-card-brief" data-empty="">还没写需求</p>}
+            {/* 节点数一眼能从分镜上数出来，元信息只留关联项目（或路径）和时间 */}
+            <div className="wf-card-meta">
+              {w.projectId
+                ? <span className="wf-card-project" title={projectLabel}><UiIcon icon={SemIcons.folder} size="xs" /><span>{projectLabel}</span></span>
+                : <span className="wf-card-facts" title={meta.join('，')}>{meta[0]}{w.skillPresetMeta && <span className="wf-card-source" title={w.skillPresetMeta.sourceRepo}>，来自 GitHub</span>}</span>}
+              <time dateTime={last?.startedAt ?? w.updatedAt} title={`${last ? '运行于' : '编辑于'} ${new Date(last?.startedAt ?? w.updatedAt).toLocaleString('zh-CN')}`}>{fmtTime(last?.startedAt ?? w.updatedAt)}</time>
+            </div>
           </div>
-          <footer className="wf-card-footer" data-confirming={deleting === w.id || undefined}><time dateTime={last?.startedAt ?? w.updatedAt} title={new Date(last?.startedAt ?? w.updatedAt).toLocaleString('zh-CN')}>{last ? '使用于' : '编辑于'} {fmtTime(last?.startedAt ?? w.updatedAt)}</time>
-            <div><button type="button" className="wf-icon" title="复制工作流" aria-label={`复制 ${w.name}`} onClick={() => { try { workflowService.duplicateWorkflow(w.id); props.onChanged(); setNotice('已复制工作流') } catch (e) { setNotice(e instanceof Error ? e.message : '复制失败，请重试。') } }}><UiIcon icon={SemIcons.copy} size="sm" /></button><button type="button" className="wf-icon" title="删除工作流" aria-label={`删除 ${w.name}`} onClick={() => setDeleting(deleting === w.id ? null : w.id)}><UiIcon icon={SemIcons.trash} size="sm" /></button></div>
-          </footer>
           {deleting === w.id && <div className="wf-delete-confirm"><p>删除「{displayWorkflowName(w.name)}」？此操作不可撤销。</p><div><button type="button" className="wf-secondary" onClick={() => setDeleting(null)}>取消</button><button type="button" className="wf-danger" onClick={() => { try { workflowService.deleteWorkflow(w.id); props.onChanged(); setDeleting(null); setNotice('已删除工作流') } catch (e) { setNotice(e instanceof Error ? e.message : '删除失败，请重试。') } }}>确认删除</button></div></div>}
         </article>
       })}</div>}
-    <footer className="wf-library-footnote"><UiIcon icon={HardDrive} size="xs" /><span>工作流与运行记录保存在本机</span></footer>
   </section>
 }
 
@@ -191,7 +222,7 @@ function CreatePage(props: { presetsTick: number; onBack: () => void; onOpenPres
     setPresetLoadWarn('')
     void studioHttpApi().skillPresets.listPresets('active')
       .then((list) => { if (alive) setSkillPresets(list) })
-      .catch(() => { if (alive) setPresetLoadWarn('后端启用中的 Skill 视频类型暂未加载（仍可使用内置预设）') })
+      .catch(() => { if (alive) setPresetLoadWarn('来自 GitHub 的预设暂时读不到，内置预设仍可使用') })
     return () => { alive = false }
   }, [props.presetsTick])
 
@@ -222,7 +253,7 @@ function CreatePage(props: { presetsTick: number; onBack: () => void; onOpenPres
       <div className="wf-preset-heading">
         <h2>从预设开始</h2>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-          <button type="button" className="wf-secondary" onClick={props.onOpenPresets}><UiIcon icon={SemIcons.plus} size="xs" /> 导入 / 管理 Skill 预设</button>
+          <button type="button" className="wf-secondary" onClick={props.onOpenPresets}><UiIcon icon={Download01} size="sm" />从 GitHub 导入</button>
           <div className="wf-view-tabs" aria-label="预设类型"><button type="button" aria-pressed={path === 'prompt-first'} onClick={() => setPath('prompt-first')}>自由创作</button><button type="button" aria-pressed={path === 'structured'} onClick={() => setPath('structured')}>分阶段评估</button></div>
         </div>
       </div>
@@ -241,7 +272,7 @@ function CreatePage(props: { presetsTick: number; onBack: () => void; onOpenPres
             <button type="button" className="wf-preset" key={preset.id} disabled={creating} onClick={() => createFromSkill(preset)}>
               <div className="wf-preset-preview"><WorkflowGraphPreview nodes={graph.nodes} edges={graph.edges}/></div>
               <div className="wf-preset-copy">
-                <h3>{title}<span className="wf-preset-tag">Skill 预设</span></h3>
+                <h3>{title}<span className="wf-preset-tag" title={`${preset.sourceRepo}@${preset.commitSha.slice(0, 7)}`}>来自 GitHub</span></h3>
                 <p>{preset.description || preset.mapping.description || `来自 ${preset.skillPath}`}</p>
                 <span>使用预设 <UiIcon icon={SemIcons.forward} size="sm" /></span>
               </div>

@@ -79,7 +79,7 @@ export function formatApplyPresetSummary(presetName: string, result: ApplyPreset
     result.guide === 'written' ? '已写入 skill-guide.md'
       : result.guide === 'replaced' ? '已更新 skill-guide.md'
         : 'skill-guide.md 未变化'
-  const parts: string[] = [`已将「${presetName}」预设落地到项目：${guideTxt}`]
+  const parts: string[] = [`预设「${presetName}」已写入项目：${guideTxt}`]
   if (result.componentsCopied > 0) parts.push(`复制参考组件 ${result.componentsCopied} 个`)
   const draftSummary = (result.drafts ?? []).map((d) => {
     const label = d.name === 'lookdev-brief' ? '视觉构想' : d.name === 'film-plan' ? '导演处理' : d.name

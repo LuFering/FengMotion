@@ -102,17 +102,29 @@ export function useEditorEffects({ edges, flow, initial, initialFramed, markDirt
     if (!nodesInitialized || initialFramed.current) return
     initialFramed.current = true
     const shown = flow.getNodes().filter((n) => n.type !== 'lane' && (!initial || initial.path !== 'structured' || n.parentId === 'lane-0'))
-    void flow.fitView({ nodes: shown.map((n) => ({ id: n.id })), padding: 0.22, minZoom: 0.2, maxZoom: 1 })
+    /* 首次打开：尽量按 100% 显示，太宽才缩小，最低 75%（再小端口字就读不清了；放不下的部分拖一下就能看到） */
+    void flow.fitView({ nodes: shown.map((n) => ({ id: n.id })), padding: 0.14, minZoom: initial?.path === 'structured' ? 0.2 : 0.75, maxZoom: 1 })
   }, [nodesInitialized, flow, initial])
 
   useEffect(() => {
     if (!nodesInitialized || !wrapRef.current) return
     let frame = 0
     let viewport = `${window.innerWidth}:${window.innerHeight}`
+    let width = wrapRef.current.clientWidth
     const observer = new ResizeObserver(() => {
       const next = `${window.innerWidth}:${window.innerHeight}`
-      if (next === viewport) return
+      const nextWidth = wrapRef.current?.clientWidth ?? width
+      if (next === viewport) {
+        /* 窗口没变、画布变窄或变宽（左栏 / 检查器开合）：平移半个差值，画面中心不跟着跑 */
+        if (nextWidth !== width) {
+          const { x, y, zoom } = flow.getViewport()
+          void flow.setViewport({ x: x + (nextWidth - width) / 2, y, zoom })
+          width = nextWidth
+        }
+        return
+      }
       viewport = next
+      width = nextWidth
       cancelAnimationFrame(frame)
       frame = requestAnimationFrame(() => {
         void flow.fitView({ nodes: flow.getNodes().filter((n) => n.type !== 'lane').map((n) => ({ id: n.id })), padding: 0.16, minZoom: 0.2, maxZoom: 1 })

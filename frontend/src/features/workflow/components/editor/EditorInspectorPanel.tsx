@@ -3,7 +3,9 @@ import { UiIcon, SemIcons } from '@/shared/icons/UiIcon'
 import { nid } from '@/features/workflow/model/editorStorage'
 import { Inspector } from '@/features/workflow/components/WorkflowInspector'
 import { defForNode, GATE_DEFS } from '@/features/workflow/model/workflowTemplates'
-import { pfSummary, type FmNode } from '@/features/workflow/model/editorNodes'
+import { NODE_COPY, pfSummary, type FmNode } from '@/features/workflow/model/editorNodes'
+import { NodeMark, NodeState } from '@/features/workflow/components/WorkflowNodes'
+import { nodeCapability } from '@/features/workflow/services/workflowCapabilities'
 import { useEditorRun } from '@/features/workflow/hooks/editor/useEditorRun'
 import { useEditorArtifacts } from '@/features/workflow/hooks/editor/useEditorArtifacts'
 import { useEditorHistory } from '@/features/workflow/hooks/editor/useEditorHistory'
@@ -21,6 +23,7 @@ export interface EditorInspectorPanelProps {
   latestRenderInfo: ReturnType<typeof useEditorArtifacts>['latestRenderInfo']
   markDirty: ReturnType<typeof useEditorHistory>['markDirty']
   nodes: FmNode[]
+  projectId: string | null | undefined
   runMatches: ReturnType<typeof useEditorArtifacts>['runMatches']
   running: boolean
   selectedEdge: Edge | undefined
@@ -34,11 +37,16 @@ export interface EditorInspectorPanelProps {
 }
 
 /** 工作流编辑器右侧检查器：选中节点时显示其设置、输入与输出并可单独运行，选中连线时显示连线设置；都没选中时隐藏。 */
-export function EditorInspectorPanel({ activeStage, doRunNode, edges, inspectorTab, isStructured, lastRun, latestRenderInfo, markDirty, nodes, runMatches, running, selectedEdge, selectedNode, setActiveStage, setEdges, setInspectorTab, setNodes, snapshot, updateParams }: EditorInspectorPanelProps) {
+export function EditorInspectorPanel({ activeStage, doRunNode, edges, inspectorTab, isStructured, lastRun, latestRenderInfo, markDirty, nodes, projectId, runMatches, running, selectedEdge, selectedNode, setActiveStage, setEdges, setInspectorTab, setNodes, snapshot, updateParams }: EditorInspectorPanelProps) {
   return (
     <aside className="wfe-inspector" aria-label="检查器" hidden={!selectedNode && !selectedEdge}>
       {selectedNode ? (<>
-        <div className="wfe-inspector-toolbar"><span>节点设置</span><div><button type="button" aria-label="关闭检查器" title="关闭检查器" onClick={() => setNodes((prev) => prev.map((n) => ({ ...n, selected: false })))}><UiIcon icon={SemIcons.close} size="md" /></button><button type="button" title="复制节点" aria-label="复制节点" onClick={() => { markDirty(); const id = nid(); setNodes((prev) => [...prev.map((n) => ({ ...n, selected: false })), { ...selectedNode, id, selected: true, position: { x: selectedNode.position.x + 35, y: selectedNode.position.y + 35 }, data: { ...selectedNode.data, params: structuredClone(selectedNode.data.params), status: 'idle' } }]) }}><UiIcon icon={SemIcons.copy} size="sm" /></button><button type="button" title="删除节点" aria-label="删除节点" onClick={() => { markDirty(); setNodes((prev) => prev.filter((n) => n.id !== selectedNode.id)); setEdges((prev) => prev.filter((e) => e.source !== selectedNode.id && e.target !== selectedNode.id)) }}><UiIcon icon={SemIcons.trash} size="sm" /></button></div></div>
+        <div className="wfe-inspector-toolbar"><span className="wfe-insp-type"><NodeMark type={selectedNode.data.defType} />{NODE_COPY[selectedNode.data.defType]?.title ?? defForNode({ type: selectedNode.data.defType, params: selectedNode.data.params })?.label ?? '节点'}</span>{(() => { const st = running ? selectedNode.data.status : runMatches ? lastRun?.nodeStatus[selectedNode.id] ?? 'idle' : 'idle'; return st !== 'idle' ? <NodeState status={st} /> : null })()}<div className="wfe-insp-tools"><button type="button" aria-label="关闭检查器" title="关闭检查器" onClick={() => setNodes((prev) => prev.map((n) => ({ ...n, selected: false })))}><UiIcon icon={SemIcons.close} size="md" /></button><button type="button" title="复制节点" aria-label="复制节点" onClick={() => { markDirty(); const id = nid(); setNodes((prev) => [...prev.map((n) => ({ ...n, selected: false })), { ...selectedNode, id, selected: true, className: 'is-new', position: { x: selectedNode.position.x + 35, y: selectedNode.position.y + 35 }, data: { ...selectedNode.data, params: structuredClone(selectedNode.data.params), status: 'idle' } }]) }}><UiIcon icon={SemIcons.copy} size="sm" /></button><button type="button" title="删除节点" aria-label="删除节点" onClick={() => { markDirty(); setNodes((prev) => prev.filter((n) => n.id !== selectedNode.id)); setEdges((prev) => prev.filter((e) => e.source !== selectedNode.id && e.target !== selectedNode.id)) }}><UiIcon icon={SemIcons.trash} size="sm" /></button></div></div>
+        {(() => {
+          const cap = nodeCapability(selectedNode.data.defType, { path: isStructured ? 'structured' : 'prompt-first', projectId })
+          /* 一行小字：圆点 + 执行方式 + 说明，不再是一整块色块 */
+          return <p className="wfe-insp-exec" data-x={cap.execution} title={cap.detail}><i aria-hidden="true" /><span>{cap.label}</span>{cap.detail}</p>
+        })()}
         <div className="wfe-inspector-tabs" role="tablist" aria-label="节点详情">{([['params', '设置'], ['inputs', '输入'], ['outputs', '输出']] as const).map(([id, label]) => <button type="button" key={id} role="tab" aria-selected={inspectorTab === id} onClick={() => setInspectorTab(id)}>{label}</button>)}</div>
         <Inspector
           tab={inspectorTab}
@@ -79,7 +87,7 @@ export function EditorInspectorPanel({ activeStage, doRunNode, edges, inspectorT
           }}
         />
       </>) : selectedEdge ? (
-        <div className="wfe-insp"><div className="wfe-inspector-toolbar"><span>连线设置</span><button type="button" aria-label="关闭连线检查器" onClick={() => setEdges((prev) => prev.map((e) => ({ ...e, selected: false })))}><UiIcon icon={SemIcons.close} size="md" /></button></div><h3>数据连接</h3><p className="wfe-hint">将上游节点的输出传递到下游输入。</p><button type="button" className="wfe-btn" onClick={() => { markDirty(); setEdges((prev) => prev.filter((e) => e.id !== selectedEdge.id)) }}><UiIcon icon={SemIcons.trash} size="sm" /> 删除连线</button></div>
+        <div className="wfe-insp"><div className="wfe-inspector-toolbar"><span className="wfe-insp-type">连线</span><button type="button" aria-label="关闭连线检查器" onClick={() => setEdges((prev) => prev.map((e) => ({ ...e, selected: false })))}><UiIcon icon={SemIcons.close} size="md" /></button></div><h3>数据连接</h3><p className="wfe-hint">把上游节点的输出交给下游节点的输入。</p><button type="button" className="wfe-btn" onClick={() => { markDirty(); setEdges((prev) => prev.filter((e) => e.id !== selectedEdge.id)) }}><UiIcon icon={SemIcons.trash} size="sm" /> 删除连线</button></div>
       ) : null}
     </aside>
   )

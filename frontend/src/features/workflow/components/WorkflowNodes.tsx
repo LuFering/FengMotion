@@ -1,4 +1,5 @@
 import { memo, useState } from 'react'
+import type * as React from 'react'
 import { UiIcon, SemIcons } from '@/shared/icons/UiIcon'
 import { CheckCircle, File01, Film01, Image01, Flag01, Package, Scan, Star01 } from '@untitledui/icons'
 import { Handle, Position } from '@xyflow/react'
@@ -7,43 +8,66 @@ import { BUILTIN_ASSETS } from '@/features/assets/model/myAssets'
 import { QUALITY_QUESTIONS } from '@/features/workflow/services/workflowService'
 import { statusOf } from '@/shared/lib/status'
 import { type FmNodeData, NODE_COPY, pfSummary, ARTIFACT_STATUS_LABEL } from '@/features/workflow/model/editorNodes'
+import { nodeCategory } from '@/features/workflow/model/nodeCategories'
 
+/**
+ * 端口：圆点贴在卡片左右边缘，标签在卡片里。颜色按数据类型（WF_PORT_COLORS），
+ * 拖线时画布按 data-type 把不能接的端口变暗（workflow-editor.css「连线」一节）。
+ */
 export function Ports({ node }: { node: { type: string; params: Record<string, unknown> } }) {
   const def = defForNode(node, { includeLegacy: true })
-  if (!def) return null
+  if (!def || (!def.inputs.length && !def.outputs.length)) return null
+  /* 输入在左、输出在右，按行配对：连线从对应那一行直接出来，不用在卡片底部另找端口栏 */
+  const rows = Math.max(def.inputs.length, def.outputs.length)
   return (
     <div className="wfn-ports">
-      <div className="wfn-col">
-        {def.inputs.map((p) => (
-          <span key={p.id} className="wfn-port in">
-            <Handle type="target" position={Position.Left} id={p.id} className="wfn-handle" style={{ background: WF_PORT_COLORS[p.type] }} />
-            <span className="wfn-port-label">{p.label}</span>
-            {p.required && <em>*</em>}
-          </span>
-        ))}
-      </div>
-      <div className="wfn-col out">
-        {def.outputs.map((p) => (
-          <span key={p.id} className="wfn-port out">
-            <span className="wfn-port-label">{p.label}</span>
-            <Handle type="source" position={Position.Right} id={p.id} className="wfn-handle" style={{ background: WF_PORT_COLORS[p.type] }} />
-          </span>
-        ))}
-      </div>
+      {Array.from({ length: rows }, (_, i) => {
+        const inp = def.inputs[i], out = def.outputs[i]
+        return (
+          <div className="wfn-port-row" key={i}>
+            {inp ? (
+              <span className="wfn-port in" data-type={inp.type} style={{ '--port': WF_PORT_COLORS[inp.type] } as React.CSSProperties}>
+                <Handle type="target" position={Position.Left} id={inp.id} className="wfn-handle" />
+                <span className="wfn-port-label">{inp.label}</span>
+                {inp.required && <em title="必须连接" aria-label="必须连接">*</em>}
+              </span>
+            ) : <span />}
+            {out && (
+              <span className="wfn-port out" data-type={out.type} style={{ '--port': WF_PORT_COLORS[out.type] } as React.CSSProperties}>
+                <span className="wfn-port-label">{out.label}</span>
+                <Handle type="source" position={Position.Right} id={out.id} className="wfn-handle" />
+              </span>
+            )}
+          </div>
+        )
+      })}
     </div>
   )
 }
 
 export function NodeMark({ type }: { type: string }) {
   const Icon = type === 'prompt' || type === 'artifact' ? File01 : type === 'refs' ? Image01 : type === 'create' ? Film01 : type === 'review' ? Scan : type === 'capability' ? Package : type === 'delivery' ? CheckCircle : type === 'gate' ? Flag01 : Star01
-  return <span className="wfn-mark" data-kind={type}><Icon size={16} /></span>
+  return <span className="wfn-mark" data-kind={type} data-cat={nodeCategory(type)}><Icon size={14} /></span>
 }
 
+const STATE_TEXT: Partial<Record<FmNodeData['status'], string>> = {
+  idle: '未运行', pending: '排队中', awaiting_info: '等你处理', completed: '已完成', skipped: '已跳过',
+}
+
+/** 状态：圆点 + 文字（不只靠颜色） */
 export function NodeState({ status }: { status: FmNodeData['status'] }) {
-  const state = statusOf(status === 'completed' ? 'done' : status === 'running' ? 'running' : status === 'failed' ? 'failed' : 'idle')
-  return <span className="wfn-state"><i className="fm-dot" data-s={state.s}/>{status === 'idle' ? '未运行' : status === 'pending' ? '待运行' : status === 'awaiting_info' ? '未生成新版本' : status === 'completed' ? '已完成' : status === 'skipped' ? '已跳过' : state.label}</span>
+  const state = statusOf(status === 'completed' ? 'done' : status === 'running' ? 'running' : status === 'failed' ? 'failed' : status === 'awaiting_info' ? 'waiting' : 'idle')
+  return <span className="wfn-state" data-s={status}><i className="fm-dot" data-s={state.s}/>{STATE_TEXT[status] ?? state.label}</span>
 }
 
+/* 审片取景框四角：画在 16:9 的 viewBox 里，跟着屏幕一起缩放 */
+const VIEWFINDER = 'M10 26V10h16M134 10h16v16M150 64v16h-16M26 80H10V64'
+
+/**
+ * 节点卡片：头部（类型图标 · 标题 · 执行方式 · 状态）→ 画面窗口 → 端口。
+ * 画面窗口画的是这个节点产出的东西：需求是一页稿纸，参考是素材拼片，
+ * 制作、审片、交付是一块 16:9 的监看屏（有真实成片就直接放成片）。长配置都在右侧检查器里。
+ */
 export const FmNodeView = memo(function FmNodeView({ data, selected }: { data: FmNodeData; selected?: boolean }) {
   const pseudoNode = { type: data.defType, params: data.params }
   const def = defForNode(pseudoNode, { includeLegacy: true })
@@ -54,38 +78,86 @@ export const FmNodeView = memo(function FmNodeView({ data, selected }: { data: F
   const title = copy?.title ?? kind?.label ?? def.label
   const ev = data.gateEval
   const decision = ev?.stale ? 'confirmed-stale' : (ev?.decision ?? 'not-started')
-  const assets = data.defType === 'refs' ? ((p.assetIds as string[] | undefined) ?? []).map((id) => BUILTIN_ASSETS.find((a) => a.id === id)).filter((a) => a?.thumbnailPath).slice(0, 3) : []
+  const assets = data.defType === 'refs' ? ((p.assetIds as string[] | undefined) ?? []).map((id) => BUILTIN_ASSETS.find((a) => a.id === id)).filter((a) => a?.thumbnailPath).slice(0, 4) : []
   const checks = (p.checks as Record<string, boolean> | undefined) ?? {}
   const customChecklist = Array.isArray(p.customChecklist) ? p.customChecklist.map(String).filter(Boolean) : []
   const allReviewQuestions = Array.from(new Set([...customChecklist, ...QUALITY_QUESTIONS]))
   const reviewDone = allReviewQuestions.filter((q) => checks[q]).length
-  const reviewApproved = !!checks.done && !checks.rework
-  const reviewRework = !!checks.rework && !checks.done
+  const reviewState = checks.done && !checks.rework ? 'ok' : checks.rework && !checks.done ? 'rework' : 'pending'
   const requiredInputs = data.defType === 'refs' && Array.isArray(p.requiredInputs)
     ? (p.requiredInputs as Array<{ label?: unknown; required?: unknown } | string>)
         .map((x) => (typeof x === 'string' ? x : String(x?.label ?? '')))
         .filter(Boolean)
     : []
+  const promptText = String(p.text ?? '').trim()
+  const cap = data.capability
+  const running = data.status === 'running'
+  const facts = (items: unknown[]) => {
+    const list = items.filter((x) => x !== undefined && x !== null && String(x).trim() !== '').map(String)
+    return list.length ? <span className="wfn-facts">{list.map((item, i) => <span key={i}>{item}</span>)}</span> : null
+  }
+  const paper = (text: string, empty: boolean, extra?: React.ReactNode) => (
+    <div className="wfn-window wfn-paper"><p data-empty={empty || undefined}>{text}</p>{extra}</div>
+  )
+  const stage = (() => {
+    switch (data.defType) {
+      case 'prompt':
+        return paper(promptText || (String(p.promptScaffold ?? '').trim() ? '按预设的需求骨架填写' : '还没有填写需求'), !promptText, facts([p.ratio, p.duration]))
+      case 'refs':
+        return assets.length
+          ? <div className="wfn-window wfn-tiles" data-n={assets.length}>{assets.map((asset) => <img key={asset!.id} src={asset!.thumbnailPath} alt={asset!.name}/>)}</div>
+          : <div className="wfn-window wfn-slot"><span>{requiredInputs.length ? `需要 ${requiredInputs.slice(0, 2).join('、')}${requiredInputs.length > 2 ? ` 等 ${requiredInputs.length} 项` : ''}` : '可留空，直接制作'}</span></div>
+      case 'capability':
+        return paper(pfSummary(data.defType, p), !((p.techniqueIds as string[] | undefined) ?? []).length)
+      case 'create':
+        return (
+          <div className="wfn-window wfn-screen" data-running={running || undefined}>
+            {data.renderFile
+              ? <video className="wfn-output-video nodrag nowheel" src={data.renderFile} controls preload="metadata" aria-label="这个节点最近一次真实渲染的成片"/>
+              : <>
+                  <span className="wfn-screen-glyph" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9.5 7.5v9l7-4.5z"/></svg></span>
+                  <span className="wfn-screen-cap">{running ? '正在制作' : <>{facts([p.resolution ?? '1080p', p.mode === 'sketch' ? '草稿' : p.mode === 'prototype' ? '原型' : '正式'])}</>}</span>
+                </>}
+          </div>
+        )
+      case 'review':
+        return (
+          <div className="wfn-window wfn-screen" data-review={reviewState}>
+            <svg className="wfn-viewfinder" viewBox="0 0 160 90" aria-hidden="true"><path d={VIEWFINDER}/></svg>
+            <b className="wfn-screen-title">{reviewState === 'ok' ? '通过' : reviewState === 'rework' ? '需要修改' : '待审片'}{p.reviewedVersion != null && <small> v{String(p.reviewedVersion)}</small>}</b>
+            <span className="wfn-screen-cap">检查项 {reviewDone}/{allReviewQuestions.length}</span>
+            <i className="wfn-screen-meter" style={{ '--v': allReviewQuestions.length ? reviewDone / allReviewQuestions.length : 0 } as React.CSSProperties} aria-hidden="true"/>
+          </div>
+        )
+      case 'delivery':
+        return (
+          <div className="wfn-window wfn-screen" data-done={data.status === 'completed' || undefined}>
+            <span className="wfn-screen-glyph" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7.5 12.5l3 3 6-7"/></svg></span>
+            <span className="wfn-screen-cap">{data.status === 'completed' ? '已输出本次成片' : '审片通过最新渲染后输出'}</span>
+          </div>
+        )
+      case 'artifact':
+        return paper(String(p.summary ?? '').trim() || '还没有阶段产物', !String(p.summary ?? '').trim(), facts([ARTIFACT_STATUS_LABEL[String(p.status ?? 'missing')] ?? String(p.status), p.version]))
+      case 'gate':
+        return paper(def.description, false, <>
+          <span className="wfn-gate-chip" data-d={decision}>{decision === 'confirmed' ? '已确认' : decision === 'confirmed-stale' ? '版本已变更' : decision === 'pending' ? '待确认' : '未开始'}</span>
+          {!!ev?.blocked.length && <span className="wfn-blocked">{ev.blocked[0]}</span>}
+        </>)
+      default:
+        return paper(String(p.summary ?? p.notes ?? '').trim() || copy?.description || def.description, false)
+    }
+  })()
   return (
-    <div className={`wfn wfn-${data.defType}${data.defType === 'artifact' ? ' is-doc' : ''}${data.defType === 'gate' ? ' is-gate' : ''}`} data-selected={selected || undefined} data-status={data.status} data-d={decision}>
-      <div className="wfn-head"><NodeMark type={data.defType}/><div className="wfn-heading"><b>{title}</b></div><NodeState status={data.status}/></div>
-      <div className="wfn-content">
-        {data.defType === 'prompt' ? <><p className="wfn-prompt-text">{String(p.text ?? '').trim() || '还没有创作需求'}</p><div className="wfn-specs">{[p.ratio, p.duration, p.audience].filter(Boolean).map((item, i) => <span key={i}>{String(item)}</span>)}</div></> :
-        data.defType === 'refs' ? <><div className="wfn-media-strip">{assets.length ? assets.map((asset) => <img key={asset!.id} src={asset!.thumbnailPath} alt={asset!.name}/>) : <span className="wfn-no-media"><UiIcon icon={SemIcons.image} size="lg" /><span>{requiredInputs.length ? `需：${requiredInputs[0]}` : '尚未选择素材'}</span></span>}</div><p className="wfn-caption">{pfSummary(data.defType, p)}</p></> :
-        data.defType === 'create' ? <>{data.renderFile ? <video className="wfn-output-video nodrag nowheel" src={data.renderFile} controls preload="metadata" aria-label="该节点最近一次真实渲染产物"/> : <div className="wfn-render-slot"><UiIcon icon={SemIcons.film} size="xl" /><span>{data.status === 'running' ? '正在制作与渲染' : data.renderMode === 'real' ? '可制作与渲染' : '流程演示'}</span></div>}<div className="wfn-specs"><span>{String(p.resolution ?? '1080p')}</span><span>{p.mode === 'sketch' ? '草稿制作' : p.mode === 'prototype' ? '原型制作' : '正式制作'}</span></div></> :
-        data.defType === 'review' ? <>
-          <div className="wfn-review-count"><UiIcon icon={Scan} size="xl" /><span><b>{reviewDone} / {allReviewQuestions.length}</b><small>{reviewApproved ? '审片通过' : reviewRework ? '需要修改 · 待返工' : '审片检查已确认'}</small></span></div>
-          <div className="wfn-specs"><span data-review={reviewApproved ? 'ok' : reviewRework ? 'rework' : 'pending'}>{reviewApproved ? '审片通过' : reviewRework ? '需要修改' : '待审片'}</span>{p.reviewedVersion != null && <span>针对 v{String(p.reviewedVersion)}</span>}</div>
-          <p className="wfn-caption">{String(p.issues ?? '').trim() || '等待预览与修改意见'}</p>
-        </> :
-        data.defType === 'delivery' ? <>
-          <p className="wfn-document-text">{data.status === 'completed' ? '审片已通过最新渲染，已输出本次成片' : data.status === 'awaiting_info' ? '等待审片通过最新渲染' : '确定性交付：需审片通过最新渲染'}</p>
-          <div className="wfn-specs"><span>{data.status === 'completed' ? '可交付成片' : '等待审片通过'}</span></div>
-        </> :
-        data.defType === 'artifact' ? <><p className="wfn-document-text">{String(p.summary ?? '').trim() || '尚未添加阶段产物'}</p><div className="wfn-specs"><span>{ARTIFACT_STATUS_LABEL[String(p.status ?? 'missing')] ?? String(p.status)}</span>{!!p.version && <span>{String(p.version)}</span>}</div></> :
-        data.defType === 'gate' ? <><p className="wfn-document-text">{def.description}</p><span className="wfn-gate-chip" data-d={decision}>{decision === 'confirmed' ? '已确认' : decision === 'confirmed-stale' ? '版本已变更' : decision === 'pending' ? '待确认' : '未开始'}</span>{!!ev?.blocked.length && <p className="wfn-blocked">{ev.blocked[0]}</p>}</> :
-        <p className="wfn-document-text">{String(p.summary ?? p.notes ?? '').trim() || copy?.description || def.description}</p>}
+    <div className={`wfn wfn-${data.defType}${data.defType === 'artifact' ? ' is-doc' : ''}${data.defType === 'gate' ? ' is-gate' : ''}`} data-selected={selected || undefined} data-status={data.status} data-d={decision} data-exec={cap?.execution} data-cat={nodeCategory(data.defType)}>
+      <div className="wfn-head">
+        <NodeMark type={data.defType}/>
+        <div className="wfn-heading">
+          <b>{title}</b>
+          {cap && <small className="wfn-exec" data-x={cap.execution} title={cap.detail}>{cap.label}</small>}
+        </div>
+        {data.status !== 'idle' && <NodeState status={data.status}/>}
       </div>
+      {stage}
       <Ports node={pseudoNode}/>
     </div>
   )

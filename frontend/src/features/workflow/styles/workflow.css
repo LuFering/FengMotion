@@ -22,14 +22,34 @@
   --hover: rgba(255, 255, 255, 0.04);
   --ok: #4caf7d;
   --warn: #f5b83d;
-  --danger: #e5534b;
+  --bad: #d0695f;
+  --danger: var(--bad);
   --canvas: #0a0b0e;
   --grid-dot: rgba(255, 255, 255, 0.13);
   --scrim: rgba(5, 5, 8, 0.42);
   --shadow-base: 0 3px 10px rgba(0, 0, 0, 0.18);
   --shadow-mid: 0 12px 32px rgba(0, 0, 0, 0.3);
+  --shadow-control: 0 1px 4px rgba(0, 0, 0, 0.25);
   --r-panel: var(--fm-radius-panel);
+  --r-ctl: var(--fm-radius-ctl);
+  --r-card: var(--fm-radius-card);
   --eo: cubic-bezier(0.23, 1, 0.32, 1);
+  /* 旧变量名 → V3 token：工作流样式里还有大量 --fg / --dim / --surf / --hole 的引用，
+     让它们指向同一套值（与工作台 #pane-flow 的做法相同），不再各自取应用调色板 */
+  --surf: var(--panel);
+  --hole: var(--panel2);
+  --fg: var(--tx);
+  --dim: var(--tx2);
+  --soft: var(--sel);
+  --on-accent: var(--acc-ink);
+  --acc-d: color-mix(in srgb, var(--acc) 86%, #000);
+  /* 节点类别色（model/nodeCategories.ts）：只用在色条、图标和缩略图上，不铺满卡片 */
+  --cat-input: #6ea8ff;
+  --cat-make: #a98bff;
+  --cat-review: #f0b54a;
+  --cat-deliver: #4fbf87;
+  --cat-doc: #9aa0ad;
+  --cat-gate: #f0b54a;
 }
 
 html[data-theme='light'] .wfl {
@@ -53,6 +73,16 @@ html[data-theme='light'] .wfl {
   --scrim: rgba(20, 20, 40, 0.3);
   --shadow-base: 0 3px 10px rgba(30, 30, 60, 0.08);
   --shadow-mid: 0 12px 30px rgba(30, 30, 60, 0.12);
+  --shadow-control: 0 1px 4px rgba(30, 30, 60, 0.10);
+  --ok: #2e7d32;
+  --warn: #b7791f;
+  --bad: #b4433e;
+  --cat-input: #2f6fe4;
+  --cat-make: #7650d6;
+  --cat-review: #c07f12;
+  --cat-deliver: #2e8a4f;
+  --cat-doc: #7d8290;
+  --cat-gate: #c07f12;
 }
 
 html[data-theme='tactile'] .wfl {
@@ -75,6 +105,15 @@ html[data-theme='tactile'] .wfl {
   --grid-dot: rgba(34, 35, 31, 0.22);
   --ok: #2e7d32;
   --warn: #8a5a00;
+  --bad: #a33d32;
+  --shadow-control: 2px 2px 0 #22231f;
+  --acc-d: #e3b32c;
+  --cat-input: #2c5fb8;
+  --cat-make: #6b3fa8;
+  --cat-review: #a56a00;
+  --cat-deliver: #2e7d32;
+  --cat-doc: #6f6b5d;
+  --cat-gate: #a56a00;
   --scrim: rgba(34, 35, 31, 0.22);
   --shadow-base: 2px 2px 0 #22231f;
   --shadow-mid: 5px 5px 0 #22231f;
@@ -233,40 +272,7 @@ html[data-theme='tactile'] .wfl {
 .wfe-reflist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .wfe-reflist li { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--tx2); font-weight: 400; }
 
-/* 节点 */
-.wfn {
-  position: relative;
-  width: 260px;
-  background: var(--panel);
-  border: 1px solid var(--line2);
-  border-radius: 10px;
-  box-shadow: var(--shadow-base);
-  padding: 12px;
-  color: var(--tx);
-  font-family: var(--font-sans);
-  transition: border-color 0.14s var(--eo);
-}
-.wfn.is-wide { width: 280px; }
-.wfn[data-selected] { border-color: var(--acc); box-shadow: 0 0 0 1px var(--acc), var(--shadow-mid); }
-.wfn[data-status='running'] { border-color: var(--acc); }
-.wfn[data-status='failed'] { border-color: var(--danger); }
-.wfn-head { display: flex; align-items: center; gap: 7px; }
-.wfn-group { font-size: 10px; font-weight: 800; letter-spacing: 0.06em; color: var(--tx3); }
-.wfn-head b { flex: 1; font-size: 13.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.wfn-status { flex: none; display: inline-flex; color: var(--tx3); }
-.wfn-status[data-s='running'] { color: var(--acc-tx); }
-.wfn-status[data-s='completed'] { color: var(--ok); }
-.wfn-status[data-s='failed'] { color: var(--danger); }
-.wfn-spin { animation: wfn-spin 1s linear infinite; }
-@keyframes wfn-spin { to { transform: rotate(360deg); } }
-.wfn-summary { margin: 6px 0 8px; font-size: 12.5px; line-height: 18px; color: var(--tx); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; white-space: normal; }
-.wfn-ports { display: flex; justify-content: space-between; gap: 10px; }
-.wfn-col { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
-.wfn-col.out { align-items: flex-end; text-align: right; }
-.wfn-port { position: relative; display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: var(--tx2); white-space: nowrap; }
-.wfn-port em { font-style: normal; color: var(--danger); }
-.wfn-port.in .wfn-handle { left: -18px; }
-.wfn-port.out .wfn-handle { right: -18px; }
+/* 节点卡片样式在 workflow-nodes.css */
 
 /* 执行抽屉 */
 .wfe-drawer { flex: none; border-top: 1px solid var(--line); background: var(--panel); }
@@ -338,14 +344,13 @@ html[data-theme='tactile'] .wfl {
 .wfe-blocklist { list-style: disc; margin: 0; padding-left: 16px; font-size: 12px; font-weight: 400; color: var(--danger); display: flex; flex-direction: column; gap: 3px; }
 
 /* 文档 / Gate 节点变体 */
-.wfn.is-doc { width: 260px; }
 .wfn-file { margin: 3px 0 0; font-size: 10.5px; color: var(--tx3); font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .wfn-gate-row { display: flex; flex-wrap: wrap; gap: 5px; margin: 2px 0 8px; }
 .wfn-artifact-chip { font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line2); color: var(--tx3); }
 .wfn-artifact-chip[data-s='draft'] { color: var(--warn); border-color: var(--warn); }
 .wfn-artifact-chip[data-s='candidate'] { color: var(--acc-tx); border-color: var(--acc); }
 .wfn-artifact-chip[data-s='confirmed'] { color: var(--ok); border-color: var(--ok); }
-.wfn.is-gate { width: 252px; border-style: solid; border-left: 3px solid var(--warn); background: color-mix(in srgb, var(--panel) 88%, var(--warn) 4%); }
+.wfn.is-gate { border-style: solid; border-left: 3px solid var(--warn); background: color-mix(in srgb, var(--panel) 88%, var(--warn) 4%); }
 .wfn.is-gate[data-d='pending'] { border-left-color: var(--acc); }
 .wfn.is-gate[data-d='confirmed'] { border-left-color: var(--ok); }
 .wfn.is-gate[data-d='confirmed-stale'] { border-left-color: var(--warn); }

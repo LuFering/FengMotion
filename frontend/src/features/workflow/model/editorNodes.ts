@@ -1,5 +1,6 @@
 import { type Node } from '@xyflow/react'
 import { QUALITY_QUESTIONS, type GateEval, type WfNodeStatus } from '@/features/workflow/services/workflowService'
+import type { NodeCapability } from '@/features/workflow/services/workflowCapabilities'
 
 export type FmNodeData = {
   defType: string
@@ -10,6 +11,8 @@ export type FmNodeData = {
   onToggleLane?: () => void
   renderMode?: 'real' | 'demo'
   renderFile?: string
+  /** 这个节点在当前条件下怎么执行（services/workflowCapabilities.ts） */
+  capability?: NodeCapability
 }
 
 export type FmNode = Node<FmNodeData, 'fm' | 'lane'>
@@ -56,7 +59,7 @@ export const NODE_COPY: Record<string, { title: string; description: string }> =
   capability: { title: '创作能力', description: '选取适合当前画面的技法与组件' },
   create: { title: '制作与渲染', description: '配置制作方式与输出规格' },
   review: { title: '审片与修改', description: '查看结果，选择通过或记录修改要求' },
-  delivery: { title: '交付', description: '确定性交付：审片通过且通过最新渲染时输出成片' },
+  delivery: { title: '交付', description: '审片通过最新一次渲染后输出成片' },
 }
 
 /* ── Inspector ───────────────────────────────────────────────────── */

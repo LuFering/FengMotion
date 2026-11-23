@@ -1,0 +1,231 @@
+/* ═══════════════════════════════════════════════════════════════
+   工作流 · 控件层（首页、新建页、编辑器、Skill 导入面板共用）
+   与工作台顶栏同一套规则：控件圆角 --r-ctl、悬停 150ms --eo、按下 scale(.97)、
+   键盘焦点 2px 强调色环；Tactile 主题改成墨线 + 硬阴影、按下有行程。
+   本文件最后引入，同名按钮类只在这里定外观，其余文件只管布局。
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── 文字按钮：主要 / 次要 / 危险，两档高度 32 · 26 ── */
+.wfl .wf-primary,
+.wfl .wf-secondary,
+.wfl .wf-danger,
+.wfl .wfe-btn,
+.wfl .wfh-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 32px;
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid color-mix(in srgb, var(--tx) 11%, transparent);
+  border-radius: var(--r-ctl);
+  background: var(--raised);
+  color: var(--tx);
+  font-size: 12px;
+  font-weight: 550;
+  line-height: 1;
+  white-space: nowrap;
+  box-shadow: none;
+  transition: background-color 150ms var(--eo), border-color 150ms var(--eo), color 150ms var(--eo), transform 150ms var(--eo), box-shadow 150ms var(--eo);
+}
+
+.wfl .wf-secondary:hover:not(:disabled),
+.wfl .wfe-btn:hover:not(:disabled),
+.wfl .wfh-btn:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--tx) 20%, transparent);
+  background: color-mix(in srgb, var(--tx) 5%, var(--raised));
+}
+
+.wfl .wf-primary,
+.wfl .wfe-btn.is-primary,
+.wfl .wfh-btn.is-primary {
+  border-color: transparent;
+  background: var(--acc);
+  color: var(--acc-ink);
+}
+
+.wfl .wf-primary:hover:not(:disabled),
+.wfl .wfe-btn.is-primary:hover:not(:disabled),
+.wfl .wfh-btn.is-primary:hover:not(:disabled) {
+  border-color: transparent;
+  background: var(--acc-d);
+  filter: none;
+}
+
+.wfl .wf-danger {
+  border-color: transparent;
+  background: var(--bad);
+  color: #fff;
+}
+
+.wfl .wf-danger:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--bad) 86%, #000);
+}
+
+.wfl .wfe-btn.sm,
+.wfl .wf-secondary.sm,
+.wfl .wf-primary.sm {
+  height: 26px;
+  min-height: 26px;
+  padding: 0 9px;
+  font-size: 11.5px;
+}
+
+/* 文字按钮里的图标统一 15px，不随按钮各自定 */
+.wfl :is(.wf-primary, .wf-secondary, .wf-danger, .wfe-btn, .wfh-btn) svg {
+  flex: none;
+  width: 15px;
+  height: 15px;
+}
+
+/* ── 图标按钮：28px 方块，平时透明，悬停浅底 ── */
+.wfl .wf-icon,
+.wfl .wfe-iconbtn,
+.wfl .wfh-iconbtn,
+/* 只管标题栏里的收起按钮：写成 .wfe-panel-title button 会把页签也压成 28px 方块、去掉选中底色 */
+.wfl .wfe-panel-title > button,
+.wfl .wfe-inspector-toolbar button {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--r-ctl);
+  background: transparent;
+  color: var(--tx2);
+  transition: background-color 150ms var(--eo), color 150ms var(--eo), transform 150ms var(--eo);
+}
+
+.wfl .wf-icon:hover:not(:disabled),
+.wfl .wfe-iconbtn:hover:not(:disabled),
+.wfl .wfh-iconbtn:hover:not(:disabled),
+.wfl .wfe-panel-title > button:hover:not(:disabled),
+.wfl .wfe-inspector-toolbar button:hover:not(:disabled) {
+  background: var(--hover);
+  color: var(--tx);
+}
+
+/* 编辑器顶栏的返回键不再带描边，和其他图标按钮一致 */
+.wfl .wfe-cmd > .wfe-iconbtn {
+  border-color: transparent;
+}
+
+/* ── 按下、焦点、禁用 ── */
+.wfl :is(.wf-primary, .wf-secondary, .wf-danger, .wfe-btn, .wfh-btn, .wf-icon, .wfe-iconbtn, .wfh-iconbtn):active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.wfl :is(button, input, select, textarea, a, [role='button'], [tabindex]):focus-visible {
+  outline: 2px solid var(--acc);
+  outline-offset: 2px;
+}
+
+.wfl :is(.wf-primary, .wf-secondary, .wf-danger, .wfe-btn, .wfh-btn, .wf-icon, .wfe-iconbtn, .wfh-iconbtn):disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* ── 分段控件（规范 §8.6）：凹槽底，选中项抬起、浅阴影、600 字重 ── */
+.wfl .wf-view-tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border-radius: calc(var(--r-ctl) + 2px);
+  background: var(--panel2);
+}
+
+.wfl .wf-view-tabs button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 11px;
+  border: 0;
+  border-radius: var(--r-ctl);
+  background: transparent;
+  color: var(--tx2);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: background-color 150ms var(--eo), color 150ms var(--eo), box-shadow 150ms var(--eo);
+}
+
+.wfl .wf-view-tabs button:hover:not([aria-pressed='true']) {
+  color: var(--tx);
+}
+
+.wfl .wf-view-tabs button[aria-pressed='true'] {
+  background: var(--raised);
+  color: var(--tx);
+  font-weight: 600;
+  box-shadow: var(--shadow-control);
+}
+
+.wfl .wf-view-tabs button span {
+  color: var(--tx3);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── 文本输入：统一高度、凹槽底，聚焦时强调色描边 ── */
+.wfl .wf-new-name input,
+.wfl .wf-sort select {
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid color-mix(in srgb, var(--tx) 11%, transparent);
+  border-radius: var(--r-ctl);
+  background: var(--panel2);
+  color: var(--tx);
+  font-size: 12.5px;
+  transition: border-color 150ms var(--eo), background-color 150ms var(--eo);
+}
+
+.wfl .wf-new-name input:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--acc) 65%, transparent);
+  background: var(--panel);
+}
+
+.wfl .wf-new-name input::placeholder {
+  color: var(--tx3);
+}
+
+/* ── Tactile：墨线描边、硬阴影，按下沉 1.5px（规范 §7 例外、§10） ── */
+html[data-theme='tactile'] .wfl :is(.wf-primary, .wf-secondary, .wf-danger, .wfe-btn, .wfh-btn) {
+  border: 1.5px solid var(--line2);
+  box-shadow: 0 2px 0 var(--line2);
+}
+
+html[data-theme='tactile'] .wfl :is(.wf-primary, .wf-secondary, .wf-danger, .wfe-btn, .wfh-btn):hover:not(:disabled) {
+  border-color: var(--line2);
+}
+
+html[data-theme='tactile'] .wfl :is(.wf-primary, .wf-secondary, .wf-danger, .wfe-btn, .wfh-btn):active:not(:disabled) {
+  transform: translateY(1.5px);
+  box-shadow: 0 0.5px 0 var(--line2);
+}
+
+html[data-theme='tactile'] .wfl :is(.wf-icon, .wfe-iconbtn, .wfh-iconbtn):active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+html[data-theme='tactile'] .wfl .wf-view-tabs button[aria-pressed='true'] {
+  background: var(--acc);
+  color: var(--acc-ink);
+  box-shadow: 0 1.5px 0 var(--line2);
+}
+
+html[data-theme='tactile'] .wfl :is(button, input, select, textarea, a, [role='button'], [tabindex]):focus-visible {
+  outline: 2.5px solid var(--line2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wfl :is(.wf-primary, .wf-secondary, .wf-danger, .wfe-btn, .wfh-btn, .wf-icon, .wfe-iconbtn, .wfh-iconbtn) {
+    transition: none;
+  }
+}
