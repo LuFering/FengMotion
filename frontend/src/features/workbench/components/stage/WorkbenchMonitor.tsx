@@ -185,6 +185,8 @@ export function WorkbenchMonitor({ projectId, inspector, live, askAiLive, workbe
                 else media.pause()
               },
             }}
+        filmMediaRef={live?.meta ? undefined : previewMediaRef}
+        filmPlaying={!live?.meta && filmPlaying}
         key={viewedPreview.id} videoUrl={viewedPreview.file}
         duration={live?.meta ? live.duration : previewDuration} currentTime={live ? live.time : previewTime} span={range.span}
         fps={live?.meta ? live.fps : timelineFps}

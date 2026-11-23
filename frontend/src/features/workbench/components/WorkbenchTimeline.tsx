@@ -39,6 +39,9 @@ export interface WorkbenchTimelineProps {
   onToggleLoop: () => void
   /** 播放 / 暂停；不给就不显示播放键 */
   playback?: TimelinePlayback
+  /** 成片播放时逐帧读它的时间画播放头（timeupdate 每秒只有约 4 次，播放头会一跳一跳）；实时模式不给 */
+  filmMediaRef?: React.RefObject<HTMLVideoElement | HTMLImageElement | null>
+  filmPlaying?: boolean
   /** 刚拖动完、等待确认的调整。它浮在轨道区内部，不占布局高度。 */
   pending?: { brief: string; label?: string } | null
   onPendingAccept?: () => void
@@ -148,7 +151,7 @@ function Filmstrip({ src, duration, frames = 12 }: { src: string; duration: numb
 }
 
 export function WorkbenchTimeline({
-  playback, videoUrl, duration, currentTime, fps, tracks: tracksProp = NO_TRACKS, span, disabled, looping, maxZoom,
+  playback, filmMediaRef, filmPlaying, videoUrl, duration, currentTime, fps, tracks: tracksProp = NO_TRACKS, span, disabled, looping, maxZoom,
   onSeek, onSpanChange, onSpanCommit, onClear, onToggleLoop, pending, onPendingAccept, onPendingDrop, onClipReference, trackStatus, tracksVerified = false,
   timelineOpsCapability, trackClipCapability, marker, onClipPick, externalPick, note,
   persistKey, changed, onClearChanges, onSpanAsk, askBusy, previewNote,
@@ -518,6 +521,21 @@ export function WorkbenchTimeline({
   const spanStart = span ? Math.max(viewStart, span.start) : 0
   const spanEnd = span ? Math.min(viewEnd, span.end) : 0
   const playheadVisible = currentTime >= viewStart && currentTime <= viewEnd
+  /* 成片播放中：逐帧把播放头（轨道竖线 + 刻度顶帽）挪到视频当前时间，直接写 DOM，不重渲染整条时间线。
+     暂停 / 拖动 / 跳转仍走 currentTime；播放中 React 偶尔按 timeupdate 写回的位置，下一帧即被纠正。 */
+  useEffect(() => {
+    const media = filmMediaRef?.current
+    const host = root.current
+    if (!filmPlaying || !(media instanceof HTMLVideoElement) || !host || width <= 0) return
+    let raf = 0
+    const tick = () => {
+      const left = `${((media.currentTime - viewStart) / width) * 100}%`
+      host.querySelectorAll<HTMLElement>('.wb-tl-playhead, .wb-tl-playhead-cap').forEach((el) => { el.style.left = left })
+      raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [filmMediaRef, filmPlaying, viewStart, width])
   const playhead = playheadVisible ? <span className="wb-tl-playhead" style={{ left: `${pct(currentTime)}%` }} aria-hidden="true" /> : null
 
   return (
