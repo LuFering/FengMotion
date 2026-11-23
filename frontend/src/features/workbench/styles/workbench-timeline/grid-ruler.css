@@ -79,7 +79,7 @@
   background: color-mix(in srgb, var(--tx) 4%, transparent);
   border: 1px solid color-mix(in srgb, var(--tx) 8%, transparent);
   color: var(--tx3);
-  font-size: 9px;
+  font-size: 10.5px;
   line-height: 1;
   cursor: help;
 }
@@ -87,7 +87,7 @@
 .wb-tl-fps-label {
   margin-left: auto;
   color: var(--tx3);
-  font-size: 9px;
+  font-size: 10.5px;
   font-variant-numeric: tabular-nums;
   opacity: 0.8;
   line-height: 1;
@@ -110,7 +110,7 @@
   padding-left: 5px;
   padding-top: 3px;
   color: var(--tx2);
-  font-size: 9.5px;
+  font-size: 10.5px;
   line-height: 1;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;

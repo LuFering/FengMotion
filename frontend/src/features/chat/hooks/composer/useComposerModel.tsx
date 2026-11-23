@@ -122,11 +122,11 @@ export function useComposerModel({ breakdown, contextUsed, contextWindow, harnes
    */
   const messageMeterKinds: Kind[] = composerBreakdown
     ? [
-        { id: 'sys', name: 'System', k: composerBreakdown.systemTokens / 1000 },
-        { id: 'tools', name: 'Tools', k: ((toolsTokens ?? 0) + composerBreakdown.resultsTokens) / 1000 },
-        { id: 'files', name: 'Files', k: composerBreakdown.filesTokens / 1000 },
-        { id: 'chat', name: 'Chat', k: composerBreakdown.chatTokens / 1000 },
-        { id: 'mem', name: 'Memory', k: composerBreakdown.memoryTokens / 1000 },
+        { id: 'sys', name: '系统', k: composerBreakdown.systemTokens / 1000 },
+        { id: 'tools', name: '工具', k: ((toolsTokens ?? 0) + composerBreakdown.resultsTokens) / 1000 },
+        { id: 'files', name: '文件', k: composerBreakdown.filesTokens / 1000 },
+        { id: 'chat', name: '对话', k: composerBreakdown.chatTokens / 1000 },
+        { id: 'mem', name: '记忆', k: composerBreakdown.memoryTokens / 1000 },
       ]
     : []
 

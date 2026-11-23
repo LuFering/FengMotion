@@ -11,11 +11,11 @@
   align-items: center;
   justify-content: space-between;
   padding: 11px 15px;
-  font-size: 10px;
+  font-size: 10.5px;
   color: var(--tx2);
 }
 .se-track-heading > small {
-  font-size: 9px;
+  font-size: 10.5px;
   color: var(--tx3);
 }
 .se-track-list {
@@ -45,7 +45,7 @@
 .se-track-type {
   font-family: var(--font-mono);
   color: var(--tx3);
-  font-size: 8px;
+  font-size: 10.5px;
   min-width: 26px;
 }
 .se-track-list b {
@@ -57,7 +57,7 @@
   white-space: nowrap;
 }
 .se-track-list small {
-  font-size: 9px;
+  font-size: 10.5px;
   max-width: 160px;
   overflow: hidden;
   text-overflow: ellipsis;

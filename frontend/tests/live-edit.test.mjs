@@ -107,6 +107,6 @@ test('units, colors and timecodes follow the workbench conventions', () => {
   assert.equal(m.joinUnit(96, '', 106), 96)
   assert.equal(m.hexOf('rgb(244, 238, 228)'), '#F4EEE4')
   assert.equal(m.hexOf('rgba(0, 0, 0, 0.5)'), null)
-  assert.equal(m.toTimecode(75, 30), '00:02:15')
+  assert.equal(m.toTimecode(75, 30), '0:02.5')
   assert.equal(m.shortSrc('src/Coffee.tsx:170:5'), 'Coffee.tsx:170')
 })

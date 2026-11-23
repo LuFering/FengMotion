@@ -52,11 +52,11 @@ export function useThreadMessages({ backendModels, chat, currentSession, effecti
   const lastWorkbenchUsage = [...messages].reverse().find((m) => m.role === 'ai' && m.usage)?.usage
   const workbenchMeterKinds: Kind[] = lastWorkbenchUsage?.breakdown
     ? [
-        { id: 'sys', name: 'System', k: lastWorkbenchUsage.breakdown.systemTokens / 1000 },
-        { id: 'tools', name: 'Tools', k: ((lastWorkbenchUsage.toolsTokens ?? 0) + lastWorkbenchUsage.breakdown.resultsTokens) / 1000 },
-        { id: 'files', name: 'Files', k: lastWorkbenchUsage.breakdown.filesTokens / 1000 },
-        { id: 'chat', name: 'Chat', k: lastWorkbenchUsage.breakdown.chatTokens / 1000 },
-        { id: 'mem', name: 'Memory', k: lastWorkbenchUsage.breakdown.memoryTokens / 1000 },
+        { id: 'sys', name: '系统', k: lastWorkbenchUsage.breakdown.systemTokens / 1000 },
+        { id: 'tools', name: '工具', k: ((lastWorkbenchUsage.toolsTokens ?? 0) + lastWorkbenchUsage.breakdown.resultsTokens) / 1000 },
+        { id: 'files', name: '文件', k: lastWorkbenchUsage.breakdown.filesTokens / 1000 },
+        { id: 'chat', name: '对话', k: lastWorkbenchUsage.breakdown.chatTokens / 1000 },
+        { id: 'mem', name: '记忆', k: lastWorkbenchUsage.breakdown.memoryTokens / 1000 },
       ]
     : []
   const workbenchMeterWindow =

@@ -1,3 +1,4 @@
+import { MenuSelect } from '@/shared/components/MenuSelect'
 import { Group, NumberField } from '@/features/scene-editor/components/inspector/InspectorFields'
 import type { EditorLayer, SceneDocument } from '@/features/scene-editor/model/types'
 
@@ -33,15 +34,9 @@ export function LayerTimingGroup({ document, layer, onLayer }: LayerTimingGroupP
         <>
           <label className="se-field">
             <span>入场方式</span>
-            <select
-              aria-label="入场方式"
-              value={layer.motion}
-              onChange={(e) => onLayer({ motion: e.target.value as EditorLayer['motion'] })}
-            >
-              <option value="none">无入退场动画</option>
-              <option value="rise">上浮进入</option>
-              <option value="scale">缩放进入</option>
-            </select>
+            <MenuSelect label="" className="se-menu" ariaLabel="入场方式" value={layer.motion}
+              options={[{ value: 'none', label: '无入退场动画' }, { value: 'rise', label: '上浮进入' }, { value: 'scale', label: '缩放进入' }]}
+              onChange={(v) => onLayer({ motion: v as EditorLayer['motion'] })} />
           </label>
           {layer.motion !== 'none' && (
             <>

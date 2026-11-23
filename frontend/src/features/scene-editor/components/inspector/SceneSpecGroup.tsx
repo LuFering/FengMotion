@@ -1,3 +1,4 @@
+import { MenuSelect } from '@/shared/components/MenuSelect'
 import { Group, NumberField } from '@/features/scene-editor/components/inspector/InspectorFields'
 import type { SceneDocument } from '@/features/scene-editor/model/types'
 
@@ -61,17 +62,9 @@ export function SceneSpecGroup({ document, native, onDocument }: SceneSpecGroupP
           </div>
           <label className="se-field">
             <span>帧率</span>
-            <select
-              aria-label="帧率"
-              value={document.fps}
-              onChange={(e) => onDocument({ fps: Number(e.target.value) })}
-            >
-              {[24, 25, 30, 60].map((v) => (
-                <option key={v} value={v}>
-                  {v} fps
-                </option>
-              ))}
-            </select>
+            <MenuSelect label="" className="se-menu" ariaLabel="帧率" value={String(document.fps)}
+              options={[24, 25, 30, 60].map((v) => ({ value: String(v), label: `${v} fps` }))}
+              onChange={(v) => onDocument({ fps: Number(v) })} />
           </label>
           <label className="se-field">
             <span>背景颜色</span>

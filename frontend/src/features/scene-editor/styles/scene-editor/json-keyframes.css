@@ -2,7 +2,7 @@
 .se-json-toggle {
   margin-left: 4px;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 10.5px;
   color: var(--tx2);
   padding: 3px 7px;
   border-radius: 4px;
@@ -58,7 +58,7 @@
 .se-keyframe-row > span { flex: 1; }
 .se-keyframe-row small {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 10.5px;
   color: var(--tx3);
 }
 .se-keyframe-row button {
@@ -77,7 +77,7 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 10px;
+  font-size: 10.5px;
   padding: 4px 7px;
   border: 1px solid var(--line);
   border-radius: 4px;

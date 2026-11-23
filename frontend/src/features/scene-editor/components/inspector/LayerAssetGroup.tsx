@@ -1,3 +1,4 @@
+import { MenuSelect } from '@/shared/components/MenuSelect'
 import { Group, NumberField } from '@/features/scene-editor/components/inspector/InspectorFields'
 import type { EditorLayer } from '@/features/scene-editor/model/types'
 
@@ -24,14 +25,9 @@ export function LayerAssetGroup({ layer, onChooseAsset, onLayer }: LayerAssetGro
       {layer.kind !== 'audio' && (
         <label className="se-field">
           <span>填充方式</span>
-          <select
-            aria-label="素材填充方式"
-            value={layer.fit}
-            onChange={(e) => onLayer({ fit: e.target.value as EditorLayer['fit'] })}
-          >
-            <option value="contain">完整显示</option>
-            <option value="cover">填满裁切</option>
-          </select>
+          <MenuSelect label="" className="se-menu" ariaLabel="素材填充方式" value={layer.fit}
+            options={[{ value: 'contain', label: '完整显示' }, { value: 'cover', label: '填满裁切' }]}
+            onChange={(v) => onLayer({ fit: v as EditorLayer['fit'] })} />
         </label>
       )}
       {layer.kind !== 'image' && (

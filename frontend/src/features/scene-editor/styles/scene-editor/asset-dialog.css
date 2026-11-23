@@ -110,7 +110,7 @@
   text-align: left;
 }
 .se-assets small {
-  font-size: 9px;
+  font-size: 10.5px;
   width: 100%;
   text-align: left;
   color: var(--tx3);
@@ -129,7 +129,7 @@
     max-width: 180px;
   }
   .se-header-action {
-    font-size: 9px;
+    font-size: 10.5px;
   }
   .se-transport > small {
     display: none;
@@ -165,7 +165,7 @@
     grid-template-columns: minmax(0, 1fr) 250px;
   }
   .se-add-tools > button {
-    font-size: 9px;
+    font-size: 10.5px;
     padding: 4px;
   }
   .se-tools {

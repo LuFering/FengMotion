@@ -1,3 +1,4 @@
+import { formatClock } from '@/shared/lib/time'
 /**
  * 选中时间段的纯函数层。
  *
@@ -23,18 +24,13 @@ export interface TimeSpan {
  * 多出两组零，反而更难扫。超过一小时才切到 h:mm:ss。</p>
  *
  * @param seconds 秒（负数按 0 处理）
- * @param withMillis 是否带千分位。拖动时带、静态展示不带 —— 静止时三位小数是无用精度
- * @returns 形如 0:03 / 3.5 / 1:02:03 的时间码
+ * @param withMillis 是否带小数。拖动时带一位、静态展示到整秒
+ * @returns 形如 0:03 / 0:03.5 / 75:02 的时间码
  */
 export function formatTimecode(seconds: number, withMillis = false): string {
+  /* 全站一套写法（shared/lib/time.ts）：拖动时一位小数，静止时到整秒（打磨方案 §2.5） */
   const safe = Number.isFinite(seconds) ? Math.max(0, seconds) : 0
-  const rounded = withMillis ? Math.round(safe * 1000) / 1000 : Math.round(safe)
-  const hours = Math.floor(rounded / 3600)
-  const minutes = Math.floor((rounded % 3600) / 60)
-  const rest = rounded % 60
-  const secondsText = withMillis ? rest.toFixed(3) : String(Math.floor(rest)).padStart(2, '0')
-  if (hours > 0) return `${hours}:${String(minutes).padStart(2, '0')}:${secondsText.padStart(withMillis ? 6 : 2, '0')}`
-  return `${minutes}:${secondsText.padStart(withMillis ? 6 : 2, '0')}`
+  return formatClock(withMillis ? safe : Math.round(safe))
 }
 
 /**

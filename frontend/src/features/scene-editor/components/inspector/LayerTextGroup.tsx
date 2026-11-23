@@ -1,3 +1,4 @@
+import { MenuSelect } from '@/shared/components/MenuSelect'
 import { Group, NumberField } from '@/features/scene-editor/components/inspector/InspectorFields'
 import type { EditorLayer } from '@/features/scene-editor/model/types'
 
@@ -49,15 +50,9 @@ export function LayerTextGroup({ layer, onLayer }: LayerTextGroupProps) {
         </label>
         <label className="se-field">
           <span>文字对齐</span>
-          <select
-            aria-label="文字对齐"
-            value={layer.align}
-            onChange={(e) => onLayer({ align: e.target.value as EditorLayer['align'] })}
-          >
-            <option value="left">左对齐</option>
-            <option value="center">居中</option>
-            <option value="right">右对齐</option>
-          </select>
+          <MenuSelect label="" className="se-menu" ariaLabel="文字对齐" value={layer.align}
+            options={[{ value: 'left', label: '左对齐' }, { value: 'center', label: '居中' }, { value: 'right', label: '右对齐' }]}
+            onChange={(v) => onLayer({ align: v as EditorLayer['align'] })} />
         </label>
       </div>
     </Group>

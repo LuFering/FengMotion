@@ -5,6 +5,7 @@
  * 样式写在组件链上第一层带 style 对象字面量的地方（例如 coffee 的标题，样式写在调用处
  * `<Chars style={{ fontSize: 106 }}>`，而不是 Chars 内部的 div）。</p>
  */
+import { formatClock } from '@/shared/lib/time'
 import type { LiveChainItem, LiveElementInfo, LiveSourceInfo, LiveSourceValue } from '@/features/workbench/model/livePreviewProtocol'
 
 export interface TextTarget {
@@ -138,15 +139,12 @@ export function hexOf(color: string): string | null {
   return `#${[m[1], m[2], m[3]].map((n) => Number(n).toString(16).padStart(2, '0')).join('')}`.toUpperCase()
 }
 
-/** 帧号 → MM:SS:FF（工作台规范的时间码） */
+/**
+ * 帧号 → 界面时间（打磨方案 §2.5）：`0:03.4`，不再写 MM:SS:FF —— `00:30:00` 读起来像 30 分钟。
+ * 需要帧精度的地方由调用方在旁边另写「第 N 帧」。
+ */
 export function toTimecode(frame: number, fps: number): string {
-  const f = Math.max(0, Math.round(frame))
-  const rate = Math.max(1, Math.round(fps))
-  const totalSeconds = Math.floor(f / rate)
-  const ff = f % rate
-  const mm = Math.floor(totalSeconds / 60)
-  const ss = totalSeconds % 60
-  return `${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}:${String(ff).padStart(2, '0')}`
+  return formatClock(Math.max(0, Math.round(frame)) / Math.max(1, Math.round(fps)))
 }
 
 /** 只管排版、分段的壳组件：当名字没有意义 */

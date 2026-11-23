@@ -185,7 +185,7 @@ html[data-theme="tactile"] #pane-flow .wb-tl-icon:active:not(:disabled) {
 
 .wb-tl-focus-label {
   color: var(--tx3);
-  font-size: 10px;
+  font-size: 10.5px;
   font-weight: 400;
   opacity: 0.75;
   flex: none;
@@ -206,7 +206,7 @@ html[data-theme="tactile"] #pane-flow .wb-tl-icon:active:not(:disabled) {
 .wb-tl-focus-range {
   color: var(--tx3);
   font-variant-numeric: tabular-nums;
-  font-size: 10px;
+  font-size: 10.5px;
   opacity: 0.9;
   flex: none;
 }
@@ -253,7 +253,7 @@ html[data-theme="tactile"] #pane-flow .wb-tl-action-btn.primary:active:not(:disa
   background: color-mix(in srgb, var(--tx) 4%, transparent);
   border: 1px solid color-mix(in srgb, var(--tx) 8%, transparent);
   color: var(--tx3);
-  font-size: 9px;
+  font-size: 10.5px;
   cursor: help;
   white-space: nowrap;
   flex: none;
