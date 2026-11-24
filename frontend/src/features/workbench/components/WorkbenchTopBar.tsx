@@ -238,7 +238,7 @@ export function WorkbenchTopBar({
 
   return (
     <header className="wb-topbar" ref={headerRef} data-compact={compact || undefined} aria-label="工作台画面控制">
-      {/* 一行：[版本 ▾] [实时|成片] │ 画面工具 ──────── [对比] [任务] [导出] [⋯] │ [对话|工作台] */}
+      {/* 一行：[版本 ▾] [实时|成片] │ 画面工具 ──────── [对比] [任务] │ [导出] [⋯] │ [对话|工作台] */}
       <div className="wb-topbar-row">
         <div className="wb-topbar-group wb-topbar-left">
           <TopBarVersionMenu
@@ -293,6 +293,8 @@ export function WorkbenchTopBar({
         <div className="wb-topbar-group wb-topbar-right">
           {!compact && compareButton}
           <TopBarTasksMenu activeTaskSummary={activeTaskSummary} isAnyMenuOpen={isAnyMenuOpen} isTaskRunning={isTaskRunning} onOpenTasks={onOpenTasks} setTasksMenuOpen={setTasksMenuOpen} tasksMenuOpen={tasksMenuOpen} />
+          {/* 版本（对比、渲染任务）与导出 · 更多分成两组（打磨方案 §3.4）；紧凑时对比和导出收进「更多」，不再分组 */}
+          {!compact && <span className="wb-topbar-divider" aria-hidden="true" />}
           {!compact && (
             <TopBarIconButton
               icon={<UiIcon icon={SemIcons.download} size="md" />}

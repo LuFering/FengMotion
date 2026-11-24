@@ -51,6 +51,16 @@ export const clipTime = (seconds: number, fps: number | undefined) =>
   fps ? toTimecode(seconds * fps, fps) : formatTimecode(seconds, true)
 
 /**
+ * 成片轨道采集不到组件名时，后端统一填「序列」（backend/remotion/timeline.mjs），
+ * 场景轨上就是一排同名的「序列」。场景轨按序号称呼成「场景 N」，只改显示：
+ * 元素匹配（WorkbenchTimeline）和交给 AI 的修改说明仍用原名。
+ */
+const GENERIC_CLIP_NAME = '序列'
+export function displayClip<T extends { name: string }>(clip: T, sceneIndex?: number): T {
+  return sceneIndex !== undefined && clip.name === GENERIC_CLIP_NAME ? { ...clip, name: `场景 ${sceneIndex}` } : clip
+}
+
+/**
  * 片段 / 元素怎么称呼：文字类先写画面上的字（「单份浓缩」比组件名「Chars」好认），组件名退成副标；
  * 名称本来就是文字截出来的（「每杯 95mg…」）就不再重复一遍文字。
  */

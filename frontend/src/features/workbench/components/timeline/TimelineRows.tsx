@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type * as React from 'react'
 import { createPortal } from 'react-dom'
-import { CATEGORY_ICON, KIND_ICON, clipLabel, clipTime } from '@/features/workbench/components/timeline/timelineDisplay'
+import { CATEGORY_ICON, KIND_ICON, clipLabel, clipTime, displayClip } from '@/features/workbench/components/timeline/timelineDisplay'
 import { sequenceClipKey as clipKey, type SequenceEntry, type SequenceTrack } from '@/features/workbench/model/sequenceManifest'
 import { densityBins, type TrackGroup } from '@/features/workbench/model/timelineGroups'
 import { shortSrc } from '@/features/workbench/model/liveEdit'
@@ -70,14 +70,17 @@ export function TimelineRows(props: TimelineRowsProps) {
     const tiny = widthPct < TINY_PCT
     const picked = pickedId === key
     const ClipIcon = KIND_ICON[clip.kind]
-    const { lead, sub } = clipLabel(clip)
+    /* 通用名「序列」显示成「场景 N」；名字里已经有序号，角标就不再重复 */
+    const shown = displayClip(clip, index)
+    const renamed = shown !== clip
+    const { lead, sub } = clipLabel(shown)
     return (
       <button
         key={clip.id}
         type="button"
         className="wb-tl-clip"
         style={{ left: `${pct(left)}%`, width: `max(3px, calc(${widthPct}% - ${CLIP_GAP}px))` }}
-        aria-label={`${clip.name} ${clipTime(clip.start, fps)}–${clipTime(clip.start + clip.duration, fps)}`}
+        aria-label={`${shown.name} ${clipTime(clip.start, fps)}–${clipTime(clip.start + clip.duration, fps)}`}
         disabled={unavailable}
         data-kind={clip.kind}
         data-tiny={tiny || undefined}
@@ -91,7 +94,7 @@ export function TimelineRows(props: TimelineRowsProps) {
         onPointerEnter={(e) => {
           const target = e.currentTarget
           window.clearTimeout(tipTimer.current)
-          tipTimer.current = window.setTimeout(() => setTip({ clip, track, rect: target.getBoundingClientRect() }), TIP_DELAY)
+          tipTimer.current = window.setTimeout(() => setTip({ clip: shown, track, rect: target.getBoundingClientRect() }), TIP_DELAY)
         }}
         onPointerLeave={hideTip}
         onPointerDown={hideTip}
@@ -101,7 +104,7 @@ export function TimelineRows(props: TimelineRowsProps) {
         {!tiny && (clip.kind === 'audio' || clip.kind === 'video' || clip.kind === 'image') && widthPct >= 8 && (
           <span className="wb-tl-clip-icon"><ClipIcon size={11} /></span>
         )}
-        {!tiny && index !== undefined && widthPct >= 5 && <span className="wb-tl-clip-tag" aria-hidden="true">{index}</span>}
+        {!tiny && index !== undefined && !renamed && widthPct >= 5 && <span className="wb-tl-clip-tag" aria-hidden="true">{index}</span>}
         {!tiny && <span className="wb-tl-clip-name">{lead}</span>}
         {!tiny && sub && widthPct >= 9 && <span className="wb-tl-clip-sub">{sub}</span>}
       </button>
