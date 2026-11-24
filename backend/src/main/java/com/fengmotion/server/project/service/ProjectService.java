@@ -51,7 +51,7 @@ public class ProjectService {
     public Project create(CreateProjectRequest request) {
 
         // 在操作文件系统之前校验请求，避免无效请求产生目录。
-        if (request.name() == null || request.name().isBlank()) {
+        if (request == null || request.name() == null || request.name().isBlank()) {
             throw new ApiException(
                     HttpStatus.BAD_REQUEST,
                     "validation_error",

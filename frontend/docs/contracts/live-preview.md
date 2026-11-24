@@ -6,7 +6,7 @@
 
 工作台不再只播放渲染好的 MP4，而是在隔离的预览窗口里实时运行项目的 Remotion 源码：画面里的文字、图形是真实页面元素，可以点选、读属性；AI 改了源码，画面热更新，不必等整片渲染。出片仍走现有工程渲染，生成新版本。
 
-实时预览只用于**当前工作稿**。历史版本、版本对比、时间线缩略图与导出继续使用版本登记的 MP4。
+默认实时预览用于**当前工作稿**；另提供版本快照的只读实时预览，接口见 [backend-source-tools.md](backend-source-tools.md)。版本对比、时间线缩略图与导出仍使用登记的MP4。普通源码和 `shot-timeline-v1` 均支持，后者的装配入口在内存生成。
 
 ## 分工
 
@@ -34,6 +34,8 @@ node <live-preview-dir>/server.mjs \
 - `--port 0` 由系统分配空闲端口。只监听 `127.0.0.1`。
 - 依赖（`esbuild`、`@babel/core`、`@babel/parser`、`remotion`、`@remotion/player`、`react`、`react-dom`）全部从 `--node-modules` 解析，与出片使用同一份 Remotion 与 React。打包态的 `resources/remotion/node_modules` 需包含上述依赖。
 - 脚本不写项目目录，打包结果只在内存里；监听项目 `src/` 与 `public/` 的变化自动重建。
+- 镜头装配使用后端指定的共享 `shot-assembly.mjs`，`film.config.json` 变化会重建；不会把生成入口保存进工程。
+- 历史预览传入 `--read-only true`，写回和撤销接口返回 `preview_read_only`。常规预览编辑和撤销必须经过共享源码锁及恢复日志检查。
 - **就绪信号**：标准输出的第一行是一条 JSON：
 
   ```json
@@ -73,6 +75,7 @@ node <live-preview-dir>/server.mjs \
 | 422 | `live_preview_unavailable` | 项目没有源码工程（缺 `film.config.json` 或入口），或脚本报 `entry_missing` / `dependency_missing`；`message` 说明原因 |
 | 503 | `live_preview_start_timeout` | 等不到就绪信号；进程已被清理 |
 | 503 | `live_preview_stopping` | 后端正在关闭，不再接受新启动；稍后重试 |
+| 409 | `source_recovery_required` | 工作稿有未收尾写入，须先核对恢复；历史快照预览不修改工作稿 |
 
 Agent 正在改这个项目时也允许预览：用户正需要看着画面跟着改动更新。
 
@@ -107,7 +110,7 @@ Agent 正在改这个项目时也允许预览：用户正需要看着画面跟�
 
 默认依赖配置为空，开发态从预览脚本所在的 `frontend/` 定位 `node_modules/`，可直接在 `backend/` 启动。显式环境变量/命令行配置仍优先并校验；桌面端继续传绝对路径。
 
-每次启动的 stdout/stderr 保存在 `${fengmotion.data-dir}/logs/live-preview/<启动UUID>.*.log`，只将 stdout 首行解释为协议，后续日志不解析。当前不自动轮转日志，排障后可在对应进程停止后清理。
+每次启动的 stdout/stderr 保存在 `${fengmotion.data-dir}/logs/live-preview/<启动UUID>.*.log`，只将 stdout 首行解释为协议，后续日志不解析。各路异步读取，单文件默认保留前8MiB（`fengmotion.live-preview.max-log-bytes`，有效范围16KiB–64MiB），达到上限继续读取并丢弃，避免堵住子进程；尾部可能不在日志中。启动和结束时清理非活动历史日志：最多40个文件、合计128MiB、最长7天；活动文件与非预览日志不清理。此为容量管理，不是敏感内容脱敏保证。
 
 当前支持 `film.config.json` 中有真实相对 `entry` 和 `compositionId` 的源码工程。入口越出项目（包括外指符号链接）会拒绝；`shot-timeline-v1` 只有后端生成入口，当前预览壳尚不接收此装配格式，返回 `422 live_preview_unavailable`。实时预览不创建版本、快照、渲染产物或源码声明，也不获取创作互斥锁。
 
@@ -129,3 +132,5 @@ Java 的职责是本机进程管理和入口校验。预览页面的来源隔离
 - `POST /api/state` → `{ edits }`，本次预览进程里可撤销的修改数。
 
 写回、撤销排队执行。只改项目自己的源码（不进 `node_modules`、不出项目目录）。写回只改工作稿，不创建版本；用户在工作台点「出片」时走现有工程渲染生成新版本。实现见 `frontend/live-preview/source-edit.mjs` 与 `server.mjs`，测试见 `frontend/tests/live-edit.test.mjs`。
+
+2026-11-21：工作稿状态、AI 精准目标与确认出片新增 [workbench-source.md](workbench-source.md)。手动写回/撤销与 Java 精准写回共用短期源码锁；工作台出片改走带基线的后台作业。预览进程的撤销步数不再代表工作稿与成片是否一致。

@@ -71,13 +71,13 @@ class AssetApiTest {
     }
 
     @Test
-    @DisplayName("按路径导入如实返回 422，不假装成功")
+    @DisplayName("按路径导入拒绝不存在的文件")
     void pathImportReportsUnavailable() throws Exception {
         mvc.perform(post("/api/assets/import")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"filePath\":\"/tmp/x.png\"}"))
-                .andExpect(status().isUnprocessableEntity())
-                .andExpect(jsonPath("$.error.code").value("capability_unavailable"));
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error.code").value("not_found"));
     }
 
     @Test

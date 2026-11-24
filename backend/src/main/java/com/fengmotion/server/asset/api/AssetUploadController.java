@@ -1,9 +1,5 @@
 package com.fengmotion.server.asset.api;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -39,11 +35,14 @@ public class AssetUploadController {
     private final UploadSessionService sessions;
     private final AssetService assets;
     private final AssetResponses responses;
+    private final com.fengmotion.server.common.ProjectActivityGate operations;
 
-    public AssetUploadController(UploadSessionService sessions, AssetService assets, AssetResponses responses) {
+    public AssetUploadController(UploadSessionService sessions, AssetService assets, AssetResponses responses,
+                                 com.fengmotion.server.common.ProjectActivityGate operations) {
         this.sessions = sessions;
         this.assets = assets;
         this.responses = responses;
+        this.operations=operations;
     }
 
     /** 建会话，返回权威的分片大小与过期时间。 */
@@ -54,10 +53,12 @@ public class AssetUploadController {
         }
         // 建会话时就校验项目：等到合并完成才报「项目不存在」，用户已经白传了整个文件。
         String projectId = request.projectId() == null || request.projectId().isBlank() ? null : request.projectId();
+        try(var activity=operations.participate(projectId)) {
         assets.requireProject(projectId);
         return ResponseEntity.status(HttpStatus.CREATED).body(
                 SessionResponse.of(sessions.create(request.fileName(), request.mimeType(),
                         request.sizeBytes() == null ? 0 : request.sizeBytes(), request.folderId(), projectId)));
+        }
     }
 
     /** 读会话；续传时客户端据此拿到已确认字节数。 */
@@ -88,30 +89,11 @@ public class AssetUploadController {
      */
     @PostMapping("/{uploadId}/complete")
     public ResponseEntity<AssetController.UploadResponse> complete(@PathVariable String uploadId) {
-        UploadSessionService.Session session = sessions.sessionOf(uploadId);
-        Path tmp;
-        try {
-            tmp = Files.createTempFile("fengmotion-assembled-", ".bin");
-        } catch (IOException ex) {
-            throw new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "internal_error", "无法创建临时文件");
-        }
-        try {
-            UploadSessionService.Session assembled = sessions.assemble(uploadId, tmp);
-            try (InputStream in = Files.newInputStream(tmp)) {
-                AssetService.ImportResult result = assets.importFile(session.fileName(), session.mimeType(),
-                        assembled.folderId(), null, in, false, assembled.projectId());
-                return ResponseEntity.status(HttpStatus.CREATED)
-                        .body(new AssetController.UploadResponse(responses.of(result.asset(), true),
-                                result.deduped()));
-            }
-        } catch (IOException ex) {
-            throw new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "internal_error", "读取合并结果失败");
-        } finally {
-            try {
-                Files.deleteIfExists(tmp);
-            } catch (IOException ignored) {
-                // 临时文件清理失败不影响上传结果。
-            }
+        var session=sessions.sessionOf(uploadId);
+        try(var activity=operations.participate(session.projectId())) {
+        assets.requireProject(session.projectId());
+        var result=sessions.complete(uploadId,assets);
+        return ResponseEntity.status(HttpStatus.CREATED).body(new AssetController.UploadResponse(responses.of(result.asset(),true),result.deduped()));
         }
     }
 

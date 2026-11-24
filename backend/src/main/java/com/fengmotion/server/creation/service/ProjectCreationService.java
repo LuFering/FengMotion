@@ -46,6 +46,8 @@ public class ProjectCreationService {
     private final ProjectOperationLock operations;
     private final ProjectFilmRenderService filmRenders;
     private final WorkflowProjectService workflowProject;
+    private final SourceTargetService sourceTargets;
+    private final SourceDraftService sourceDrafts;
 
     @org.springframework.beans.factory.annotation.Autowired
     public ProjectCreationService(
@@ -58,7 +60,9 @@ public class ProjectCreationService {
             CreationSessionAccess sessionAccess,
             ProjectOperationLock operations,
             ProjectFilmRenderService filmRenders,
-            WorkflowProjectService workflowProject) {
+            WorkflowProjectService workflowProject,
+            SourceTargetService sourceTargets,
+            SourceDraftService sourceDrafts) {
         this.projects = projects;
         this.scenes = scenes;
         this.agent = agent;
@@ -69,6 +73,24 @@ public class ProjectCreationService {
         this.operations = operations;
         this.filmRenders = filmRenders;
         this.workflowProject = workflowProject;
+        this.sourceTargets = sourceTargets;
+        this.sourceDrafts = sourceDrafts;
+    }
+
+    public ProjectCreationService(ProjectRepository projects, ProjectSceneRepository scenes, CreateAgentRunner agent,
+            ResourceContextBuilder resourceContexts, CreationStateStore creationStates, CreationTaskStore creationTasks,
+            CreationSessionAccess sessionAccess, ProjectOperationLock operations, ProjectFilmRenderService filmRenders,
+            WorkflowProjectService workflowProject, SourceTargetService sourceTargets) {
+        this(projects, scenes, agent, resourceContexts, creationStates, creationTasks, sessionAccess, operations,
+                filmRenders, workflowProject, sourceTargets, new SourceDraftService(new ProjectSourceSnapshots()));
+    }
+
+    public ProjectCreationService(ProjectRepository projects, ProjectSceneRepository scenes, CreateAgentRunner agent,
+            ResourceContextBuilder resourceContexts, CreationStateStore creationStates, CreationTaskStore creationTasks,
+            CreationSessionAccess sessionAccess, ProjectOperationLock operations, ProjectFilmRenderService filmRenders,
+            WorkflowProjectService workflowProject) {
+        this(projects, scenes, agent, resourceContexts, creationStates, creationTasks, sessionAccess, operations,
+                filmRenders, workflowProject, null);
     }
 
     public ProjectCreationService(
@@ -125,6 +147,24 @@ public class ProjectCreationService {
                 result.compositionId(), result.result(), result.renderMs());
     }
 
+    private RenderOutcome renderCreation(String projectId,String prompt,boolean shotTimeline,String requestId) {
+        var result=filmRenders.renderCreation(projectId,prompt,shotTimeline,requestId);
+        return new RenderOutcome(result.artifactPath(),result.version(),result.entry(),result.compositionId(),result.result(),result.renderMs());
+    }
+
+    public Optional<CreateOutcome> recoverRenderResult(String projectId,String requestId) {
+        if(requestId==null || requestId.isBlank()) return Optional.empty();
+        return scenes.findVersionByCreationRequest(projectId,requestId).map(version->{
+            String reply="已恢复此前完成的成片 v"+version.version();
+            if(creationTasks!=null) {
+                var task=creationTasks.findByRequestId(requestId).orElse(null);
+                if(task!=null && task.reply()!=null) reply=task.reply();
+                creationTasks.updateCompleted(requestId,CreateOutcome.RENDERED,"completed",reply,version.artifactPath(),version.version(),task!=null && task.sessionSaved());
+            }
+            return new CreateOutcome(CreateOutcome.RENDERED,reply,0,version.artifactPath(),version.version(),null,List.of());
+        });
+    }
+
     /**
      * 让 agent 改工程，然后渲染出新版本。
      *
@@ -176,15 +216,52 @@ public class ProjectCreationService {
                 request.userMessageId(), request.engineSelection(), true);
     }
 
+    public CreateOutcome createDraft(String projectId, CreateRequest request) {
+        request.validateOutputMode();
+        return createThenRender(projectId, request.intent(), request.references(), request.previewImage(),
+                request.baseVersion(), request.correction(), request.requestId(), request.sessionId(),
+                request.userMessageId(), request.engineSelection(), false, request);
+    }
+
+    private long currentVersion(String projectId) {
+        var current = scenes.find(projectId).orElse(null);
+        if (current != null && !current.present()) throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY,
+                "scene_corrupt", "当前场景记录损坏，未启动模型，请核对历史版本");
+        return current == null ? 0 : current.version();
+    }
+
+    public void validateDraftRequest(String projectId, CreateRequest request) {
+        request.validateOutputMode();
+        if (!request.draftOnly() || request.sourceHash() == null) return;
+        long actualVersion = currentVersion(projectId);
+        if (request.baseVersion() != actualVersion) throw new ApiException(HttpStatus.CONFLICT, "version_conflict", "项目版本已变化，请重新选择目标");
+        var project = projects.findById(projectId).orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "not_found", "项目不存在"));
+        Path root = com.fengmotion.server.project.service.ProjectWorktreeService.root(project);
+        if (!request.sourceHash().equals(com.fengmotion.server.project.service.ProjectWorktreeService.fingerprint(root))) {
+            throw new ApiException(HttpStatus.CONFLICT, "source_changed", "工作稿已变化，请重新读取目标后提交");
+        }
+        if (request.target() != null) sourceTargets.validate(root, request.target());
+    }
+
     private CreateOutcome createThenRender(String projectId, String intent, JsonNode references, String previewImage, Long expectedVersion,
             String correction, String requestId, String sessionId, String userMessageId,
             com.fengmotion.server.harness.client.NativeHarnesses.Selection selection, boolean shotTimeline) {
+        return createThenRender(projectId, intent, references, previewImage, expectedVersion, correction,
+                requestId, sessionId, userMessageId, selection, shotTimeline, null);
+    }
+
+    private CreateOutcome createThenRender(String projectId, String intent, JsonNode references, String previewImage, Long expectedVersion,
+            String correction, String requestId, String sessionId, String userMessageId,
+            com.fengmotion.server.harness.client.NativeHarnesses.Selection selection, boolean shotTimeline, CreateRequest draftRequest) {
+        boolean draftOnly = draftRequest != null;
         if (selection != null) agent.validateSelection(selection);
         operations.acquire(projectId);
         try {
             if (requestId != null && !requestId.isBlank()) {
                 String requestHash = computeFingerprint(projectId, intent, references, previewImage, expectedVersion, correction);
                 if (shotTimeline) requestHash += "|film=" + ShotTimeline.FORMAT;
+                if (draftOnly) requestHash += "|output=draft";
+                if (draftOnly) requestHash += "|source=" + draftRequest.sourceHash() + "|target=" + draftRequest.target();
                 if (selection != null) requestHash += "|engine=" + selection.harness() + "|model=" + selection.model() + "|effort=" + selection.reasoningEffort();
                 var existingTask = creationTasks.findByRequestId(requestId);
                 if (existingTask.isPresent()) {
@@ -193,7 +270,11 @@ public class ProjectCreationService {
                         throw new ApiException(HttpStatus.CONFLICT, "task_idempotency_conflict",
                                 "请求 ID 已用于不同创作任务");
                     }
-                    if (CreateOutcome.RENDERED.equals(task.status()) || CreateOutcome.AWAITING_INFO.equals(task.status())) {
+                    if(!draftOnly) {
+                        var recovered=recoverRenderResult(projectId,requestId);
+                        if(recovered.isPresent()) return recovered.get();
+                    }
+                    if (CreateOutcome.EDITED.equals(task.status()) || CreateOutcome.RENDERED.equals(task.status()) || CreateOutcome.AWAITING_INFO.equals(task.status())) {
                         log.info("创作请求 requestId={} 此前已完成，命中服务端任务幂等，直接返回已有结果", requestId);
                         return new CreateOutcome(task.status(), task.reply(), 0L,
                                 task.artifactPath(), task.version(), null, List.of());
@@ -225,7 +306,7 @@ public class ProjectCreationService {
                                 throw new ApiException(HttpStatus.CONFLICT, "task_already_running",
                                         "该创作任务正在执行中，请勿重复提交");
                             }
-                            if (CreateOutcome.RENDERED.equals(raceTask.status()) || CreateOutcome.AWAITING_INFO.equals(raceTask.status())) {
+                            if (CreateOutcome.EDITED.equals(raceTask.status()) || CreateOutcome.RENDERED.equals(raceTask.status()) || CreateOutcome.AWAITING_INFO.equals(raceTask.status())) {
                                 return new CreateOutcome(raceTask.status(), raceTask.reply(), 0L,
                                         raceTask.artifactPath(), raceTask.version(), null, List.of());
                             }
@@ -237,8 +318,8 @@ public class ProjectCreationService {
                 }
             }
             try {
+                long actualVersion = currentVersion(projectId);
                 if (expectedVersion != null || shotTimeline) {
-                    long actualVersion = scenes.find(projectId).filter(ProjectScene::present).map(ProjectScene::version).orElse(0L);
                     if (expectedVersion != null && actualVersion != expectedVersion) {
                         throw new ApiException(HttpStatus.CONFLICT, "version_conflict", "项目版本已变化，请刷新预览并重新选择修改目标。");
                     }
@@ -247,10 +328,11 @@ public class ProjectCreationService {
                     }
                 }
                 if (previewImage != null) CreateAgentRunner.previewImages(previewImage);
+                if (draftOnly) validateDraftRequest(projectId, draftRequest);
                 if (correction != null && !correction.isBlank()) workflowProject.recordCorrection(projectId, correction, requestId);
-                return createUnlocked(projectId, intent, references, previewImage, requestId, sessionId, userMessageId, selection, shotTimeline);
+                return createUnlocked(projectId, intent, references, previewImage, requestId, sessionId, userMessageId, selection, shotTimeline, draftRequest);
             } catch (RuntimeException failure) {
-                if (requestId != null && !requestId.isBlank()) {
+                if (requestId != null && !requestId.isBlank() && !com.fengmotion.server.project.service.SceneCommitVerifier.uncertain(failure)) {
                     creationTasks.updateFailed(requestId, failure.getMessage());
                 }
                 throw failure;
@@ -341,6 +423,14 @@ public class ProjectCreationService {
 
     private CreateOutcome createUnlocked(String projectId, String intent, JsonNode references, String previewImage, String requestId,
             String sessionId, String userMessageId, com.fengmotion.server.harness.client.NativeHarnesses.Selection selection, boolean shotTimeline) {
+        return createUnlocked(projectId, intent, references, previewImage, requestId, sessionId, userMessageId,
+                selection, shotTimeline, null);
+    }
+
+    private CreateOutcome createUnlocked(String projectId, String intent, JsonNode references, String previewImage, String requestId,
+            String sessionId, String userMessageId, com.fengmotion.server.harness.client.NativeHarnesses.Selection selection,
+            boolean shotTimeline, CreateRequest draftRequest) {
+        boolean draftOnly = draftRequest != null;
         Project project = projects.findById(projectId)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "not_found", "项目不存在"));
         String rootPath = project.rootPath();
@@ -365,15 +455,20 @@ public class ProjectCreationService {
                     + "\nAgent 上一轮的说明/问题：\n" + previous.reply()
                     + "\n用户本轮补充：\n" + (intent == null ? "按已有要求继续" : intent);
         }
+        if (draftOnly) instruction = (instruction == null ? "按已有要求修改工程" : instruction)
+                + "\n\n本轮仅修改工作稿。不要执行渲染、出片或登记版本；保存源码后说明改动，用户将通过实时预览审阅并显式出片。";
         creationStates.write(root, creationStates.state("running", intent, null, effectiveRefs, null, null, null, requestId, "analyzing"));
         if (requestId != null && !requestId.isBlank()) {
             creationTasks.updatePhase(requestId, "analyzing");
         }
         String reply = null;
         try {
-            var agentResult = shotTimeline
-                    ? agent.runShotFilm(root, instruction, resources, previewImage, projectId, sessionId, requestId, selection)
-                    : agent.run(root, instruction, resources, previewImage, projectId, sessionId, requestId, selection);
+            var sourceRequest = draftOnly ? draftRequest : new CreateRequest(intent, references, previewImage,
+                    null, null, requestId, sessionId, userMessageId, selection == null ? null : selection.harness(),
+                    selection == null ? null : selection.model(), selection == null ? null : selection.reasoningEffort());
+            var agentResult = draftOnly && draftRequest.target() != null
+                    ? sourceTargets.run(root, draftRequest, instruction, resources, agent, projectId)
+                    : sourceDrafts.run(root, sourceRequest, instruction, resources, agent, projectId, shotTimeline);
             reply = agentResult.reply();
             // 新项目尚无入口也能正常追问；先判断是否改动，再校验可渲染性。
             if (!agentResult.changed()) {
@@ -386,13 +481,24 @@ public class ProjectCreationService {
                 return CreateOutcome.awaitingInfo(reply, agentResult.elapsedMs(), resources.resolved());
             }
 
+            if (draftOnly) {
+                boolean saved = recordAssistantReplyToSession(sessionId, userMessageId, requestId, reply);
+                creationStates.write(root, creationStates.state(CreateOutcome.EDITED, intent, reply,
+                        effectiveRefs, null, null, null, requestId, "edited", saved));
+                if (requestId != null && !requestId.isBlank()) {
+                    creationTasks.updateCompleted(requestId, CreateOutcome.EDITED, "edited", reply, null, null, saved);
+                }
+                return new CreateOutcome(CreateOutcome.EDITED, reply, agentResult.elapsedMs(),
+                        null, null, null, resources.resolved());
+            }
+
             creationStates.write(root, creationStates.state("running", intent, reply, effectiveRefs, null, null, null, requestId, "rendering"));
             if (requestId != null && !requestId.isBlank()) {
                 creationTasks.updatePhase(requestId, "rendering");
             }
 
             if (!shotTimeline) filmRenders.validateConfig(root);
-            RenderOutcome rendered = renderUnlocked(projectId, intent, shotTimeline);
+            RenderOutcome rendered = renderCreation(projectId, intent, shotTimeline,requestId);
             boolean saved = recordAssistantReplyToSession(sessionId, userMessageId, requestId, reply);
             try {
                 creationStates.write(root, creationStates.state(CreateOutcome.RENDERED, intent, reply,
@@ -407,6 +513,15 @@ public class ProjectCreationService {
             return new CreateOutcome(CreateOutcome.RENDERED, reply, agentResult.elapsedMs(),
                     rendered.artifactPath(), rendered.version(), rendered.result(), resources.resolved());
         } catch (RuntimeException failure) {
+            if(!draftOnly) {
+                try {
+                    var recovered=recoverRenderResult(projectId,requestId);
+                    if(recovered.isPresent()) return recovered.get();
+                } catch(RuntimeException lookupFailure) {
+                    failure.addSuppressed(lookupFailure);
+                }
+            }
+            if(com.fengmotion.server.project.service.SceneCommitVerifier.uncertain(failure)) throw failure;
             try {
                 creationStates.write(root, creationStates.state("failed", intent, reply, effectiveRefs,
                         null, null, failure.getMessage(), requestId, "failed"));
@@ -437,6 +552,7 @@ public class ProjectCreationService {
 
         /** 已出新片。 */
         public static final String RENDERED = "rendered";
+        public static final String EDITED = "edited";
 
         /** agent 没有改动工程，通常在等用户补充信息。 */
         public static final String AWAITING_INFO = "awaiting_info";

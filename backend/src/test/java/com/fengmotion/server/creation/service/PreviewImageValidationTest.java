@@ -8,6 +8,7 @@ class PreviewImageValidationTest {
     @Test void acceptsJpegAndRejectsInvalidInput() {
         assertTrue(CreateAgentRunner.previewImages(null).isEmpty());
         assertEquals("image/jpeg", CreateAgentRunner.previewImages("data:image/jpeg;base64,/9j/").getFirst().mimeType());
+        assertEquals("image/png", CreateAgentRunner.previewImages("data:image/png;base64,iVBORw0KGgo=").getFirst().mimeType());
         assertThrows(ApiException.class, () -> CreateAgentRunner.previewImages("data:image/png;base64,/9j/"));
         assertThrows(ApiException.class, () -> CreateAgentRunner.previewImages("data:image/jpeg;base64,AAAA"));
         assertThrows(ApiException.class, () -> CreateAgentRunner.previewImages("data:image/jpeg;base64,!"));

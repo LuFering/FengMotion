@@ -1,6 +1,7 @@
 package com.fengmotion.server.artifact.api;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -28,6 +29,25 @@ class ArtifactControllerTest {
 
     @TempDir
     Path projectDir;
+
+    @Test void refusesFileAndDirectorySymlinksForReadAndUpload() throws Exception {
+        Path outside=Files.createTempDirectory("fm-artifact-outside-");
+        try {
+            Path secret=Files.writeString(outside.resolve("secret.txt"),"private");
+            Files.createSymbolicLink(projectDir.resolve("secret.txt"),secret);
+            Files.createSymbolicLink(projectDir.resolve("exports"),outside);
+            var controller=new ArtifactController(repoOf("p1",projectDir.toString()));
+            assertThrows(ApiException.class,()->controller.content("p1","secret.txt"));
+            assertTrue(controller.list("p1").items().isEmpty());
+            var file=new org.springframework.mock.web.MockMultipartFile("file","safe.txt","text/plain","upload".getBytes());
+            assertThrows(ApiException.class,()->controller.upload("p1",file,"exports"));
+            assertEquals("private",Files.readString(secret));
+            try(var files=Files.list(outside)) { assertEquals(1,files.count()); }
+        } finally {
+            Files.deleteIfExists(outside.resolve("secret.txt"));
+            Files.deleteIfExists(outside);
+        }
+    }
 
     /** 只实现 findById 的假仓储，避免引入完整持久化依赖。 */
     private ProjectRepository repoOf(String projectId, String rootPath) {
@@ -60,6 +80,22 @@ class ArtifactControllerTest {
         assertTrue(response.items().stream().anyMatch(a -> a.name().equals("logo.png")));
         // 相对路径带目录，便于界面显示层级
         assertTrue(response.items().stream().anyMatch(a -> a.path().equals("素材/logo.png")));
+    }
+
+    @Test void latestArtifactIsNotLostWhenTheDirectoryContainsMoreThanTheOldScanLimit() throws Exception {
+        for (int index = 0; index < 1000; index++) {
+            Path file = Files.writeString(projectDir.resolve("artifact-" + index + ".txt"), "fixture");
+            Files.setLastModifiedTime(file, java.nio.file.attribute.FileTime.fromMillis(1000L + index));
+        }
+        Path latest = Files.writeString(projectDir.resolve("latest.mp4"), "latest");
+        Files.setLastModifiedTime(latest, java.nio.file.attribute.FileTime.fromMillis(5000));
+        Path hidden = Files.createDirectories(projectDir.resolve("node_modules/nested"));
+        Files.writeString(hidden.resolve("not-an-artifact.txt"), "dependency");
+        var response = new ArtifactController(repoOf("p1", projectDir.toString())).list("p1");
+        assertEquals(200, response.items().size());
+        assertEquals("latest.mp4", response.items().getFirst().path());
+        assertFalse(response.items().stream().anyMatch(item -> item.path().startsWith("node_modules")));
+        assertEquals("artifact-801.txt", response.items().getLast().path());
     }
 
     @Test
@@ -123,6 +159,36 @@ class ArtifactControllerTest {
         assertTrue(second.path().startsWith("renders/"), "仍应在 renders 下");
         assertTrue(second.name().endsWith("out.mp4"));
         assertTrue(!second.name().equals("out.mp4"), "同名应加前缀而不是覆盖");
+    }
+
+    @Test void uploadingArtifactIsNotVisibleBeforeItsStreamCompletes() throws Exception {
+        var controller=new ArtifactController(repoOf("p1",projectDir.toString()));
+        var file=org.mockito.Mockito.mock(org.springframework.web.multipart.MultipartFile.class);
+        org.mockito.Mockito.when(file.isEmpty()).thenReturn(false);
+        org.mockito.Mockito.when(file.getOriginalFilename()).thenReturn("unfinished.mp4");
+        org.mockito.Mockito.when(file.getInputStream()).thenReturn(new java.io.InputStream() {
+            boolean first=true;
+            @Override public int read() throws java.io.IOException {
+                assertTrue(controller.list("p1").items().isEmpty());
+                if(first) {first=false;return 1;}
+                throw new java.io.IOException("upload interrupted");
+            }
+        });
+        assertThrows(ApiException.class,()->controller.upload("p1",file,"renders"));
+        assertTrue(controller.list("p1").items().isEmpty());
+        try(var files=Files.list(projectDir.resolve("renders"))) {assertEquals(0,files.count());}
+    }
+
+    @Test void internalTemporaryFilesCannotBeReadAsArtifacts() throws Exception {
+        Path hidden = Files.createDirectories(projectDir.resolve("renders"));
+        Files.writeString(hidden.resolve(".artifact-upload-private.tmp"), "partial");
+        var controller = new ArtifactController(repoOf("p1", projectDir.toString()));
+        assertEquals("not_found", assertThrows(ApiException.class,
+                () -> controller.content("p1", "renders/.artifact-upload-private.tmp")).getCode());
+        Path control = Files.createDirectory(projectDir.resolve(".fengmotion"));
+        Files.writeString(control.resolve("internal.json"), "private");
+        assertEquals("not_found", assertThrows(ApiException.class,
+                () -> controller.content("p1", ".fengmotion/internal.json")).getCode());
     }
 
     @Test

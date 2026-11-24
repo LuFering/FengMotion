@@ -62,4 +62,8 @@ jobs:
           node-version: 22
       - name: 安装媒体工具
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
-      - run: mvn --batch-mode test
+      - name: 安装共享预览运行时
+        run: npm --prefix ../frontend ci
+      - run: node --test src/test/*.test.mjs
+      - run: node --test ../frontend/tests/source-write-guard.test.mjs ../frontend/tests/live-edit.test.mjs ../frontend/tests/live-preview.test.mjs
+      - run: mvn --batch-mode -Dfengmotion.data-dir=./target/ci/data -Dfengmotion.workspace-root=./target/ci/projects -Dfengmotion.retrieval.enabled=false -Dfengmotion.retrieval.embedding.api-key= clean package

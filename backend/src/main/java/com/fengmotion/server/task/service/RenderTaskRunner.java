@@ -61,6 +61,8 @@ public class RenderTaskRunner {
         progress.report(10, "准备渲染");
 
         Path root = Path.of(rootPath).toAbsolutePath().normalize();
+        if (java.nio.file.Files.isSymbolicLink(root.resolve("renders"))) throw new ApiException(org.springframework.http.HttpStatus.UNPROCESSABLE_ENTITY,
+                "render_path_invalid", "渲染目录不能是符号链接");
         String fileName = "render-" + Instant.now().toEpochMilli() + "-" + java.util.UUID.randomUUID() + ".mp4";
         Path output = root.resolve("renders").resolve(fileName);
 

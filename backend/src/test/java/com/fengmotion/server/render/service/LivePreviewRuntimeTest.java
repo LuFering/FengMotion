@@ -17,11 +17,77 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fengmotion.server.project.service.ProjectFilmConfig;
+import com.fengmotion.server.project.service.SourceWriteGuard;
 
 class LivePreviewRuntimeTest {
     @TempDir Path temporary;
     private final HttpClient http = HttpClient.newHttpClient();
     private final ObjectMapper json = new ObjectMapper();
+
+    @Test void capabilityProbeIncludesTheActualBundlerDependencies() throws Exception {
+        Path script = Files.createDirectories(temporary.resolve("shell"));
+        Files.writeString(script.resolve("server.mjs"), "");
+        Path modules = Files.createDirectory(temporary.resolve("modules"));
+        for (String dependency : List.of("react", "react-dom", "remotion", "@remotion/player", "@babel/parser")) {
+            Files.createDirectories(modules.resolve(dependency));
+            Files.writeString(modules.resolve(dependency).resolve("package.json"), "{}");
+        }
+        var launcher = new LivePreviewLauncher(json, script.toString(), "", modules.toString(), "node", temporary.toString());
+        assertTrue(launcher.unavailableReason().contains("@babel/core"));
+        Files.createDirectories(modules.resolve("@babel/core"));
+        Files.writeString(modules.resolve("@babel/core/package.json"), "{}");
+        assertTrue(launcher.unavailableReason().contains("esbuild"));
+        Files.createDirectories(modules.resolve("esbuild"));
+        Files.writeString(modules.resolve("esbuild/package.json"), "{}");
+        assertNull(launcher.unavailableReason());
+    }
+
+    @Test void shotAssemblyPreviewUsesSharedAssemblerAndTracksConfigurationChanges() throws Exception {
+        Path frontend=Path.of("../frontend").toAbsolutePath().normalize();
+        Path modules=frontend.resolve("node_modules");
+        assumeTrue(Files.isDirectory(modules.resolve("@remotion/player")));
+        Path root=Files.createDirectories(temporary.resolve("shots"));
+        Files.createDirectories(root.resolve("src/shots"));
+        Files.writeString(root.resolve("src/shots/intro.tsx"),"import React from 'react';export const Shot=()=> <div>Shot original</div>;");
+        Files.writeString(root.resolve("film.config.json"),"{\"format\":\"shot-timeline-v1\",\"width\":640,\"height\":360,\"fps\":30,\"shots\":[{\"id\":\"intro\",\"sourceId\":\"intro\",\"label\":\"Intro\",\"frames\":60}]}");
+        var launcher=new LivePreviewLauncher(json,frontend.resolve("live-preview").toString(),Path.of("remotion").toAbsolutePath().toString(),modules.toString(),"node",temporary.resolve("data").toString());
+        var process=launcher.launch(root,new ProjectFilmConfig(json).read(root));
+        try {
+            String url=process.awaitReady(Duration.ofSeconds(30));
+            assertTrue(text(url+"bundle.js").contains("Shot original"));
+            Files.writeString(root.resolve("src/shots/intro.tsx"),"import React from 'react';export const Shot=()=> <div>Shot updated</div>;");
+            await(()->text(url+"bundle.js").contains("Shot updated"));
+            String config=Files.readString(root.resolve("film.config.json"));
+            Files.writeString(root.resolve("film.config.json"),config.replace("Intro","New shot label"));
+            await(()->text(url+"bundle.js").contains("New shot label"));
+            assertFalse(Files.exists(root.resolve(".fengmotion-shot-entry.tsx")));
+        } finally { process.stop(); }
+    }
+
+    @Test void historicalRuntimeRejectsEditsAndUndo() throws Exception {
+        Path frontend=Path.of("../frontend").toAbsolutePath().normalize();
+        Path modules=frontend.resolve("node_modules");
+        assumeTrue(Files.isDirectory(modules.resolve("@remotion/player")));
+        Path root=Files.createDirectories(temporary.resolve("history"));
+        Files.writeString(root.resolve("index.tsx"),"import React from 'react';import {Composition,registerRoot} from 'remotion';registerRoot(()=> <Composition id='Main' component={()=> <div>Original</div>} width={640} height={360} fps={30} durationInFrames={60}/>);");
+        String before=Files.readString(root.resolve("index.tsx"));
+        var launcher=new LivePreviewLauncher(json,frontend.resolve("live-preview").toString(),"",modules.toString(),"node",temporary.resolve("data").toString());
+        var process=launcher.launch(root,new ProjectFilmConfig.FilmConfig("index.tsx","Main",640,360,30),true);
+        try {
+            String url=process.awaitReady(Duration.ofSeconds(30));
+            String html=text(url);
+            var token=java.util.regex.Pattern.compile("window\\.__fmToken\\s*=\\s*\"([0-9a-f]+)\"").matcher(html);
+            assertTrue(token.find());
+            for(String route:List.of("edit","undo")) {
+                var response=http.send(HttpRequest.newBuilder(URI.create(url+"api/"+route))
+                        .header("Content-Type","application/json").header("x-fm-token",token.group(1))
+                        .POST(HttpRequest.BodyPublishers.ofString("{}")).build(),HttpResponse.BodyHandlers.ofString());
+                assertEquals(422,response.statusCode());
+                assertEquals("preview_read_only",json.readTree(response.body()).path("error").path("code").asText());
+            }
+            assertEquals(before,Files.readString(root.resolve("index.tsx")));
+        } finally { process.stop(); }
+    }
 
     @Test void packagedShellBuildsHotReloadsAndRecoversFromCompilationErrors() throws Exception {
         Path frontend = Path.of("../frontend").toAbsolutePath().normalize();
@@ -47,6 +113,9 @@ class LivePreviewRuntimeTest {
         var process = launcher.launch(root, config);
         try {
             String url = process.awaitReady(Duration.ofSeconds(30));
+            assertTrue(process.healthy(url));
+            var invalid=http.send(HttpRequest.newBuilder(URI.create(url+"%E0%A4%41")).GET().build(),HttpResponse.BodyHandlers.ofString());
+            assertEquals(400,invalid.statusCode());
             assertTrue(process.healthy(url));
             String original = text(url + "bundle.js");
             assertTrue(original.contains("Caffeine per serving"));
@@ -130,6 +199,68 @@ class LivePreviewRuntimeTest {
                 temporary.resolve("missing-dependencies").toString(), "node", temporary.resolve("data").toString());
         assertEquals("live_preview_unavailable", assertThrows(com.fengmotion.server.common.ApiException.class,
                 () -> invalid.launch(root, config)).getCode());
+    }
+
+    @Test void manualPreviewEditsAndJavaWritesShareTheSameGuard() throws Exception {
+        Path frontend = Path.of("../frontend").toAbsolutePath().normalize();
+        Path modules = frontend.resolve("node_modules");
+        assumeTrue(Files.isDirectory(modules.resolve("@remotion/player")));
+        Path root = Files.createDirectories(temporary.resolve("guarded"));
+        String source = "import React from 'react'; import {Composition,registerRoot} from 'remotion'; "
+                + "const Main=()=> <h1>Original</h1>; registerRoot(()=> <Composition id='Main' component={Main} width={960} height={540} fps={30} durationInFrames={60}/>);";
+        Files.writeString(root.resolve("index.tsx"), source);
+        Path logs = Files.createDirectories(temporary.resolve("data/logs/live-preview"));
+        for (int index = 0; index < 45; index++) Files.writeString(logs.resolve(java.util.UUID.randomUUID() + ".stderr.log"), "previous");
+        Path unrelated = Files.writeString(logs.resolve("notes.txt"), "keep");
+        var launcher = new LivePreviewLauncher(json, frontend.resolve("live-preview").toString(), "", modules.toString(), "node", temporary.resolve("data").toString());
+        var preview = launcher.launch(root, new ProjectFilmConfig.FilmConfig("index.tsx", "Main", 960, 540, 30));
+        try {
+            String url = preview.awaitReady(Duration.ofSeconds(30));
+            var match = java.util.regex.Pattern.compile("window\\.__fmToken\\s*=\\s*\"([0-9a-f]+)\"").matcher(text(url));
+            assertTrue(match.find());
+            String token = match.group(1);
+            var edit = json.createObjectNode().put("src", "index.tsx:1:" + (source.indexOf("<h1") + 1))
+                    .put("value", "Manual edit").put("expect", "Original");
+            edit.putArray("path").add("#children");
+            try (var guard = SourceWriteGuard.acquire(root)) {
+                assertEquals(409, previewApi(url, token, "edit", edit).statusCode());
+                assertEquals(source, Files.readString(root.resolve("index.tsx")));
+            }
+            assertEquals(200, previewApi(url, token, "edit", edit).statusCode());
+            assertTrue(Files.readString(root.resolve("index.tsx")).contains("Manual edit"));
+            try (var guard = SourceWriteGuard.acquire(root)) {
+                assertEquals(409, previewApi(url, token, "undo", json.createObjectNode()).statusCode());
+            }
+            assertEquals(200, previewApi(url, token, "undo", json.createObjectNode()).statusCode());
+            assertEquals(source, Files.readString(root.resolve("index.tsx")));
+            assertFalse(Files.exists(root.resolve(".fengmotion/source-write.lock")));
+            Files.createDirectory(root.resolve("untracked"));
+            Files.writeString(root.resolve("untracked/Other.tsx"), source);
+            for (String invalid : List.of("untracked/Other.tsx", root.resolve("index.tsx").toString(), "src/../index.tsx")) {
+                var rejected = edit.deepCopy().put("src", invalid + ":1:" + (source.indexOf("<h1") + 1));
+                assertEquals(422, previewApi(url, token, "edit", rejected).statusCode());
+            }
+            assertEquals(source, Files.readString(root.resolve("untracked/Other.tsx")));
+            Path outside=Files.writeString(temporary.resolve("outside.tsx"),"export const Outside=()=> <h1>Private</h1>;");
+            Files.createSymbolicLink(root.resolve("linked.tsx"),outside);
+            var escaped=edit.deepCopy().put("src","linked.tsx:1:27");
+            assertEquals(422,previewApi(url,token,"edit",escaped).statusCode());
+            assertTrue(Files.readString(outside).contains("Private"));
+            Files.createDirectories(root.resolve("public"));
+            Files.createSymbolicLink(root.resolve("public/private.txt"),outside);
+            var response=http.send(HttpRequest.newBuilder(URI.create(url+"public/private.txt")).GET().build(),HttpResponse.BodyHandlers.ofString());
+            assertEquals(404,response.statusCode());
+        } finally { preview.stop(); }
+        try (var entries = Files.list(logs)) { assertTrue(entries.filter(file -> file.toString().endsWith(".log")).count() <= 40); }
+        assertEquals("keep", Files.readString(unrelated));
+    }
+
+    private HttpResponse<String> previewApi(String url, String token, String route, Object payload) throws Exception {
+        var request = HttpRequest.newBuilder(URI.create(url + "api/" + route)).timeout(Duration.ofSeconds(5))
+                .header("Content-Type", "application/json").header("x-fm-token", token)
+                .header("Origin", url.substring(0, url.length() - 1))
+                .POST(HttpRequest.BodyPublishers.ofString(json.writeValueAsString(payload))).build();
+        return http.send(request, HttpResponse.BodyHandlers.ofString());
     }
 
     private String text(String url) {

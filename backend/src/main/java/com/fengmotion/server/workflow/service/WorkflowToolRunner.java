@@ -190,8 +190,8 @@ public class WorkflowToolRunner {
                 }
             }
 
-            String stdout = Files.readString(stdoutFile);
-            String stderr = Files.readString(stderrFile);
+            String stdout = com.fengmotion.server.common.ProcessOutput.read(stdoutFile, 2_097_152);
+            String stderr = com.fengmotion.server.common.ProcessOutput.tail(stderrFile, 16384);
             if (process.exitValue() != 0) {
                 log.warn("workflow 工具失败：{} exit={} stderr={}",
                         command.get(1), process.exitValue(), stderr.trim());

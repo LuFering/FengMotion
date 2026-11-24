@@ -83,6 +83,51 @@ class ProjectApiTest {
     @Autowired
     private com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
+    @Autowired
+    private com.fengmotion.server.project.store.ProjectSceneRepository scenes;
+
+    @Test
+    void detailsAndListReadCurrentRenderedSpecificationInsteadOfFixedDefaults() throws Exception {
+        String name = "summary-" + java.util.UUID.randomUUID();
+        String body = objectMapper.writeValueAsString(java.util.Map.of("name", name, "rootPath", tempDir.resolve(name).toString()));
+        String created = mvc.perform(post("/api/projects").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        String id = objectMapper.readTree(created).path("id").asText();
+        var film = objectMapper.readTree("""
+                {"kind":"project-render","compositionId":"Main",
+                 "output":{"durationInFrames":900,"fps":29.97,"width":960,"height":540},
+                 "shotTimeline":{"shots":[{"id":"first"},{"id":"second"}]}}
+                """);
+        scenes.commitWithSnapshot(id, 0, film, null, "", "", "renders/one.mp4", "task", null);
+        mvc.perform(get("/api/projects/{id}", id)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.durationMs").value(30030))
+                .andExpect(jsonPath("$.settings.width").value(960))
+                .andExpect(jsonPath("$.settings.fps").value(29.97))
+                .andExpect(jsonPath("$.counts.scenes").value(2))
+                .andExpect(jsonPath("$.counts.doneScenes").value(0));
+        mvc.perform(get("/api/projects").param("q", name)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].durationMs").value(30030))
+                .andExpect(jsonPath("$.items[0].settings.height").value(540));
+        scenes.commitWithSnapshot(id, 1, objectMapper.createObjectNode(), null, "", "", null, "restore", 1L);
+        mvc.perform(get("/api/projects/{id}", id)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.durationMs").value(0))
+                .andExpect(jsonPath("$.counts.scenes").value(0));
+    }
+
+    @Test void retryingADeletedCreationDoesNotResurrectTheProjectOrReturnInternalError() throws Exception {
+        String key = java.util.UUID.randomUUID().toString();
+        Path directory = tempDir.resolve("delete-and-retry");
+        String body = objectMapper.writeValueAsString(java.util.Map.of("name", "delete-and-retry", "rootPath", directory.toString()));
+        String created = mvc.perform(post("/api/projects").header("Idempotency-Key", key)
+                        .contentType(MediaType.APPLICATION_JSON).content(body)).andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        String id = objectMapper.readTree(created).path("id").asText();
+        mvc.perform(delete("/api/projects/{id}", id).param("purge", "true")).andExpect(status().isNoContent());
+        mvc.perform(post("/api/projects").header("Idempotency-Key", key).contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.error.code").value("idempotency_result_deleted"));
+        assertFalse(Files.exists(directory));
+    }
+
     /** 幂等重试返回同一个项目，列表和详情均可查询。 */
     @Test
     void createsIdempotentlyAndQueriesProject() throws Exception {

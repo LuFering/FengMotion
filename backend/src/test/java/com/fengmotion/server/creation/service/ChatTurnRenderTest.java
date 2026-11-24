@@ -9,6 +9,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import java.nio.file.Files;
@@ -46,6 +47,18 @@ class ChatTurnRenderTest {
 
     private void writeConfig() throws Exception {
         Files.writeString(root.resolve("film.config.json"), "{\"entry\":\"src/index.tsx\",\"compositionId\":\"Caffeine\"}");
+    }
+
+    @Test void liveWorkbenchChangesRemainDraftsWithoutAutomaticRender() throws Exception {
+        var previews = mock(com.fengmotion.server.render.service.LivePreviewService.class);
+        when(previews.isActive("p1")).thenReturn(true);
+        turnRender = new ChatTurnRender(renders, new ProjectFilmConfig(new ObjectMapper()), operations, jobs, previews);
+        String before = turnRender.before("p1", root);
+        writeConfig();
+        var result = turnRender.renderIfChanged("p1", root, before, "改标题", null).orElseThrow();
+        assertEquals("edited", result.state());
+        assertEquals(null, result.version());
+        verifyNoInteractions(renders);
     }
 
     @Test

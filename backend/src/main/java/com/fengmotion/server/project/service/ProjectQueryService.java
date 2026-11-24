@@ -26,6 +26,7 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class ProjectQueryService {
     private final ProjectDataRepository repository; // 项目数据访问接口，由 Spring 注入具体实现
+    private final com.fengmotion.server.project.store.ProjectSceneRepository scenes;
 
     /**
      * 查询单个未归档项目的详情。
@@ -36,8 +37,9 @@ public class ProjectQueryService {
      */
     public ProjectDetail get(String id) {
         // 有结果时转换为响应对象；没有结果时返回项目不存在。
-        return repository.findActiveById(id).map(this::map)
+        var data = repository.findActiveById(id)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "not_found", "项目不存在"));
+        return map(data, scenes.find(id).map(com.fengmotion.server.project.domain.ProjectScene::film).orElse(null));
     }
 
     /**
@@ -51,7 +53,6 @@ public class ProjectQueryService {
      * @return 当前页项目及下一页游标；没有下一页时游标为 null
      * @throws ApiException 查询参数无效时抛出 400
      */
-    // TODO:待仔细阅读
     public Page list(String stage, String q, String sort, String cursor, int limit) {
         Pagination.requireValidLimit(limit, "项目查询参数无效");
         // 只接受列出的排序方式，由 store 层转换成具体的数据库排序条件。
@@ -70,22 +71,23 @@ public class ProjectQueryService {
         int offset = Pagination.decodeOffsetCursor(cursor, "项目查询参数无效");
         // 空搜索词匹配所有项目；多取一条用于判断是否还有下一页。
         String keyword = q == null ? "" : q;
-        List<ProjectDetail> rows = repository.findActive(stage, keyword, order, limit + 1, offset)
-                .stream().map(this::map).toList();
+        var data = repository.findActive(stage, keyword, order, limit + 1, offset);
+        var films = scenes.findCurrentFilms(data.stream().map(ProjectData::id).toList());
+        List<ProjectDetail> rows = data.stream().map(item -> map(item, films.get(item.id()))).toList();
         // 有多取到的记录时，生成下一页偏移量，并从本页结果中去掉多取的记录。
         boolean more = rows.size() > limit;
         String next = more ? Pagination.encodeCursor(offset + limit) : null;
         return new Page(more ? rows.subList(0, limit) : rows, next);
     }
 
-    /** 将存储层数据转换为 API 详情；统计值和部分设置目前使用默认值。 */
-    private ProjectDetail map(ProjectData data) {
+    private ProjectDetail map(ProjectData data, com.fasterxml.jackson.databind.JsonNode film) {
         // 项目目标时长可为空；设置对象中的基本类型使用 0 表示尚未指定。
         Long target = data.targetDurationMs();
-        return new ProjectDetail(data.id(), data.name(), data.tagline(), data.stage(), data.genomeId(), 0, target,
-                new ProjectDetail.Counts(0, 0, 0, 0, 0), null, data.rootPath(),
+        var summary = ProjectContentSummary.from(film);
+        return new ProjectDetail(data.id(), data.name(), data.tagline(), data.stage(), data.genomeId(), summary.durationMs(), target,
+                summary.counts(), null, data.rootPath(),
                 data.createdAt(), data.updatedAt(), data.etag(),
-                new ProjectDetail.Settings(1920, 1080, 30, target == null ? 0 : target, data.genomeId()));
+                new ProjectDetail.Settings(summary.width(), summary.height(), summary.fps(), target == null ? 0 : target, data.genomeId()));
     }
 
     /** 创建统一的查询参数错误响应。 */

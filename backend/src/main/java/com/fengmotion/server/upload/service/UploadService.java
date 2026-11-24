@@ -6,7 +6,6 @@ import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
-import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
@@ -131,26 +130,40 @@ public class UploadService {
         }
 
         String sha256;
+        long size = 0;
+        Path temporary = null;
         try {
+            if (Files.isSymbolicLink(root)) throw new IOException("附件目录不能是符号链接");
             Files.createDirectories(root);
+            temporary = Files.createTempFile(root, ".upload-", ".tmp");
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             try (InputStream in = file.getInputStream();
-                 DigestInputStream digesting = new DigestInputStream(in, digest)) {
-                // 边读边算摘要，避免为了校验再读第二遍（大文件读两遍很贵）
-                Files.copy(digesting, target, StandardCopyOption.REPLACE_EXISTING);
+                 var output = Files.newOutputStream(temporary)) {
+                byte[] buffer = new byte[65536];
+                int count;
+                while ((count = in.read(buffer)) != -1) {
+                    size += count;
+                    if (size > MAX_BYTES) throw new ApiException(HttpStatus.PAYLOAD_TOO_LARGE, "file_too_large", "附件实际内容超过64MiB上限");
+                    digest.update(buffer, 0, count);
+                    output.write(buffer, 0, count);
+                }
             }
+            if (size == 0) throw new ApiException(HttpStatus.BAD_REQUEST, "validation_error", "上传的文件为空");
+            Files.move(temporary, target, StandardCopyOption.ATOMIC_MOVE);
             sha256 = HexFormat.of().formatHex(digest.digest());
         } catch (IOException failure) {
             throw new UncheckedIOException("附件落盘失败", failure);
         } catch (NoSuchAlgorithmException impossible) {
             // SHA-256 是 JDK 必须支持的算法，走到这里说明运行环境异常
             throw new IllegalStateException("运行环境缺少 SHA-256", impossible);
+        } finally {
+            if (temporary != null) try { Files.deleteIfExists(temporary); } catch (IOException ignored) { }
         }
 
         return new UploadedFile(
                 id,
                 displayName(file.getOriginalFilename(), id),
-                file.getSize(),
+                size,
                 mimeType,
                 kindOf(mimeType),
                 sha256,
@@ -170,16 +183,17 @@ public class UploadService {
         if (id == null || !id.matches("[0-9a-fA-F-]{36}")) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "validation_error", "附件标识格式不正确");
         }
+        if (Files.isSymbolicLink(root)) throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, "upload_path_invalid", "附件目录不能是符号链接");
         /* 落盘名带 MIME 推导的扩展名（id.png），所以不能直接 root.resolve(id)。
            这里按目录扫描匹配前缀：扩展名不可知时也能找回文件，且仍受 root 约束。
            一个目录里通常只有几十个附件，扫描成本可接受；真要变大再建索引表。 */
         Path direct = root.resolve(id);
-        if (Files.isRegularFile(direct)) {
+        if (Files.isRegularFile(direct,java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
             return direct;
         }
         try (var entries = Files.list(root)) {
             return entries
-                    .filter(Files::isRegularFile)
+                    .filter(path->Files.isRegularFile(path,java.nio.file.LinkOption.NOFOLLOW_LINKS))
                     .filter(p -> {
                         String name = p.getFileName().toString();
                         int dot = name.indexOf('.');
@@ -212,10 +226,11 @@ public class UploadService {
             return null;
         }
         Path path = resolve(id);
-        if (!Files.isRegularFile(path)) {
+        if (!Files.isRegularFile(path,java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
             return null;
         }
         try {
+            if(Files.size(path)>MAX_BYTES) return null;
             byte[] bytes = Files.readAllBytes(path);
             return new com.fengmotion.server.harness.client.DshSdkSession.InlineImage(
                     java.util.Base64.getEncoder().encodeToString(bytes), mimeType);

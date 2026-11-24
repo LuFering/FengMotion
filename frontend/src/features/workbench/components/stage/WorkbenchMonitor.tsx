@@ -1,4 +1,5 @@
 import type * as React from 'react'
+import type { LiveAiSubmit } from '@/api/sourceRender'
 import { MonitorProblemsCollapsed, type MonitorProblem } from '@/features/workbench/components/MonitorZones'
 import { UiIcon, SemIcons } from '@/shared/icons/UiIcon'
 import { WorkbenchTimeline } from '@/features/workbench/components/WorkbenchTimeline'
@@ -33,7 +34,7 @@ export interface WorkbenchMonitorProps {
   inspector: ElementInspector
   /** 实时画面（运行工程源码）；null = 放成片 */
   live: LivePreview | null
-  askAiLive: (prompt: string) => Promise<boolean>
+  askAiLive: LiveAiSubmit
   workbenchBusy: boolean
   agentReply: ReturnType<typeof useProjectRender>['agentReply']
   askFix: (p: MonitorProblem) => void

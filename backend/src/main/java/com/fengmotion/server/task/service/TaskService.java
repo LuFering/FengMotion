@@ -6,8 +6,8 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.springframework.http.HttpStatus;
@@ -49,14 +49,16 @@ public class TaskService {
     private final ProjectRepository projects;
     private final TransactionTemplate transactions;
     private final ObjectMapper json;
+    private final com.fengmotion.server.project.service.ProjectOperationLock operations;
     private final String executionOwner = ExecutionOwner.current().map(ExecutionOwner::encode).orElse(null);
 
     /** 执行线程池：渲染是 CPU 密集的，限制并发避免同时起多个 Chromium 打爆内存。 */
-    private final ExecutorService executor = Executors.newFixedThreadPool(2, runnable -> {
+    private final java.util.concurrent.ThreadPoolExecutor executor = new java.util.concurrent.ThreadPoolExecutor(2,2,30,TimeUnit.SECONDS,
+            new java.util.concurrent.ArrayBlockingQueue<>(20),runnable -> {
         Thread thread = new Thread(runnable, "task-worker");
         thread.setDaemon(true);
         return thread;
-    });
+    },new java.util.concurrent.ThreadPoolExecutor.AbortPolicy());
 
     /** 正在执行的任务：taskId → 控制句柄。 */
     private final Map<String, Running> running = new ConcurrentHashMap<>();
@@ -64,12 +66,20 @@ public class TaskService {
     /** 已产出但尚未成为当前版本的产物：taskId → 相对路径。失败时随任务落库。 */
     private final Map<String, String> pendingArtifact = new ConcurrentHashMap<>();
 
+    @org.springframework.beans.factory.annotation.Autowired
     public TaskService(TaskRepository tasks, ProjectRepository projects,
-                       TransactionTemplate transactions, ObjectMapper json) {
+                       TransactionTemplate transactions, ObjectMapper json,
+                       com.fengmotion.server.project.service.ProjectOperationLock operations) {
         this.tasks = tasks;
         this.projects = projects;
         this.transactions = transactions;
         this.json = json;
+        this.operations = operations;
+    }
+
+    public TaskService(TaskRepository tasks, ProjectRepository projects,
+                       TransactionTemplate transactions, ObjectMapper json) {
+        this(tasks, projects, transactions, json, new com.fengmotion.server.project.service.ProjectOperationLock());
     }
 
     /** 一个正在执行的任务的控制句柄。 */
@@ -77,6 +87,7 @@ public class TaskService {
         final AtomicBoolean cancelled = new AtomicBoolean(false);
         volatile Future<?> future;
         volatile Thread thread;
+        com.fengmotion.server.project.service.ProjectOperationLock.Lease activity;
     }
 
     /**
@@ -147,6 +158,9 @@ public class TaskService {
      */
     public Task submit(String projectId, String kind, String prompt, JsonNode request,
                        TaskRunner runner, List<String> warnings) {
+        var activity = operations.participate(projectId);
+        boolean submitted = false;
+        try {
         if (projects.findById(projectId).isEmpty()) {
             throw new ApiException(HttpStatus.NOT_FOUND, "not_found", "项目不存在");
         }
@@ -170,9 +184,21 @@ public class TaskService {
         });
 
         Running control = new Running();
+        control.activity = activity;
         running.put(task.id(), control);
-        control.future = executor.submit(() -> execute(task, runner, control));
+        try { control.future = executor.submit(() -> execute(task, runner, control)); }
+        catch (java.util.concurrent.RejectedExecutionException failure) {
+            running.remove(task.id());
+            var rejected = new ApiException(executor.isShutdown() ? HttpStatus.SERVICE_UNAVAILABLE : HttpStatus.TOO_MANY_REQUESTS,
+                    executor.isShutdown() ? "task_stopping" : "task_queue_full",
+                    executor.isShutdown() ? "任务服务正在关闭" : "任务队列已满，请稍后重试");
+            fail(task.id(), rejected);
+            throw rejected;
+        }
+        catch (RuntimeException failure) { running.remove(task.id()); fail(task.id(), failure); throw failure; }
+        submitted = true;
         return task;
+        } finally { if (!submitted) activity.close(); }
     }
 
     /**
@@ -196,7 +222,10 @@ public class TaskService {
      * @param control 控制句柄
      */
     private void execute(Task task, TaskRunner runner, Running control) {
-        control.thread = Thread.currentThread();
+        synchronized (control) {
+            if (control.cancelled.get()) return;
+            control.thread = Thread.currentThread();
+        }
         String taskId = task.id();
 
         Progress progress = new Progress() {
@@ -208,8 +237,8 @@ public class TaskService {
                 // 进度落库失败不该中断执行：产片比进度条重要
                 try {
                     transactions.executeWithoutResult(status -> {
-                        tasks.updateProgress(taskId, Task.STATUS_BUILDING,
-                                Math.max(0, Math.min(100, percent)), message, null, null, false);
+                        if(!tasks.updateProgress(taskId, Task.STATUS_BUILDING,
+                                Math.max(0, Math.min(100, percent)), message, null, null, false)) return;
                         ObjectNode data = json.createObjectNode().put("progress", percent);
                         tasks.appendEvent(new TaskEvent(UUID.randomUUID().toString(), taskId, 0,
                                 TaskEvent.KIND_PROGRESS, Task.STATUS_BUILDING, message, data, Instant.now()));
@@ -233,6 +262,7 @@ public class TaskService {
                 // 取消已经落库，这里不再改状态
                 return;
             }
+            registerArtifact(taskId, artifact);
             finish(taskId, artifact);
         } catch (Exception failure) {
             if (control.cancelled.get()) {
@@ -241,6 +271,8 @@ public class TaskService {
             fail(taskId, failure);
         } finally {
             running.remove(taskId);
+            pendingArtifact.remove(taskId);
+            control.activity.close();
         }
     }
 
@@ -268,8 +300,24 @@ public class TaskService {
      * @param artifact 产物相对路径
      */
     private void finish(String taskId, String artifact) {
+        try { finishOnce(taskId, artifact); }
+        catch (RuntimeException firstFailure) {
+            try { finishOnce(taskId, artifact); }
+            catch (RuntimeException retryFailure) {
+                firstFailure.addSuppressed(retryFailure);
+                log.error("任务已执行成功，但完成回执暂时无法保存 task={}", taskId, firstFailure);
+                try {
+                    if (tasks.findById(taskId).map(saved -> Task.STATUS_COMPLETED.equals(saved.status())).orElse(false)) return;
+                } catch (RuntimeException unreadable) { firstFailure.addSuppressed(unreadable); }
+                throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "task_completion_unknown",
+                        "任务执行已返回产物，但完成回执暂时无法确认；请核对历史版本和产物，不要自动重做");
+            }
+        }
+    }
+
+    private void finishOnce(String taskId, String artifact) {
         transactions.executeWithoutResult(status -> {
-            tasks.updateProgress(taskId, Task.STATUS_COMPLETED, 100, "已完成", artifact, null, true);
+            if(!tasks.updateProgress(taskId, Task.STATUS_COMPLETED, 100, "已完成", artifact, null, true)) return;
             ObjectNode data = json.createObjectNode();
             if (artifact != null) {
                 data.put("artifactPath", artifact);
@@ -296,11 +344,11 @@ public class TaskService {
         String artifact = pendingArtifact.get(taskId);
         try {
             transactions.executeWithoutResult(status -> {
-                tasks.updateProgress(taskId, Task.STATUS_FAILED, 0, message, artifact, code, true);
+                if(!tasks.updateProgress(taskId, Task.STATUS_FAILED, 0, message, artifact, code, true)) return;
                 ObjectNode data = json.createObjectNode().put("errorCode", code);
                 if (artifact != null) {
                     data.put("artifactPath", artifact);
-                    data.put("artifactApplied", false);
+                    if ("scene_version_conflict".equals(code) || "scene_history_conflict".equals(code)) data.put("artifactApplied", false);
                 }
                 tasks.appendEvent(new TaskEvent(UUID.randomUUID().toString(), taskId, 0,
                         TaskEvent.KIND_ERROR, Task.STATUS_FAILED, message, data, Instant.now()));
@@ -336,6 +384,13 @@ public class TaskService {
      */
     public Task cancel(String taskId) {
         Task task = requireTask(taskId);
+        try (var admission = operations.participate(task.projectId())) {
+            return cancelActive(taskId);
+        }
+    }
+
+    private Task cancelActive(String taskId) {
+        Task task = requireTask(taskId);
         if (task.isTerminal()) {
             // 已完成/已失败的任务不能再取消：把它改成「已取消」会让用户以为白做了
             throw new ApiException(HttpStatus.CONFLICT, "task_already_finished",
@@ -344,14 +399,17 @@ public class TaskService {
 
         Running control = running.get(taskId);
         if (control != null) {
+            synchronized (control) {
             control.cancelled.set(true);
             Future<?> future = control.future;
             if (future != null) {
                 future.cancel(true);
+                if (future instanceof Runnable queued) executor.remove(queued);
             }
             Thread thread = control.thread;
             if (thread != null) {
                 thread.interrupt();
+            }
             }
         }
 
@@ -361,6 +419,14 @@ public class TaskService {
                         TaskEvent.KIND_CANCELLED, Task.STATUS_CANCELLED, "用户取消", null, Instant.now()));
             }
         });
+        if (control != null) {
+            synchronized (control) {
+                if (control.thread == null) {
+                    running.remove(taskId, control);
+                    control.activity.close();
+                }
+            }
+        }
         return requireTask(taskId);
     }
 
@@ -381,7 +447,10 @@ public class TaskService {
      * @return 任务列表，最新在前
      */
     public List<Task> listByProject(String projectId) {
-        return tasks.listByProject(projectId, LIST_LIMIT);
+        try (var activity = operations.participate(projectId)) {
+            projects.findById(projectId).orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "not_found", "项目不存在"));
+            return tasks.listByProject(projectId, LIST_LIMIT);
+        }
     }
 
     /**
@@ -404,5 +473,22 @@ public class TaskService {
     private Task requireTask(String taskId) {
         return tasks.findById(taskId)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "not_found", "任务不存在"));
+    }
+
+    @jakarta.annotation.PreDestroy public void close() {
+        for(var entry:running.entrySet()) {
+            var control=entry.getValue();
+            synchronized(control) {
+                control.cancelled.set(true);
+                if(control.future!=null) control.future.cancel(true);
+                if(control.thread==null) { running.remove(entry.getKey(),control);control.activity.close(); }
+                else control.thread.interrupt();
+            }
+            try { fail(entry.getKey(),new ApiException(HttpStatus.SERVICE_UNAVAILABLE,"service_interrupted","服务关闭，任务已中断")); }
+            catch(RuntimeException failure) { log.warn("任务关闭状态写入失败：{}",entry.getKey(),failure); }
+        }
+        executor.shutdownNow();
+        try { executor.awaitTermination(5,TimeUnit.SECONDS); }
+        catch(InterruptedException interrupted) { Thread.currentThread().interrupt(); }
     }
 }

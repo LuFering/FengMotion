@@ -95,7 +95,7 @@ public class CreationTaskStore {
                     SELECT * FROM workflow_creation_tasks
                     WHERE project_id = ? AND session_id = ? AND session_saved = 0
                       AND reply IS NOT NULL AND reply != ''
-                      AND status IN ('rendered', 'completed', 'awaiting_info')
+                      AND status IN ('edited', 'rendered', 'completed', 'awaiting_info')
                     ORDER BY created_at ASC
                     """,
                     MAPPER,
@@ -107,7 +107,7 @@ public class CreationTaskStore {
                 SELECT * FROM workflow_creation_tasks
                 WHERE project_id = ? AND session_saved = 0
                   AND reply IS NOT NULL AND reply != ''
-                  AND status IN ('rendered', 'completed', 'awaiting_info')
+                  AND status IN ('edited', 'rendered', 'completed', 'awaiting_info')
                 ORDER BY created_at ASC
                 """,
                 MAPPER,

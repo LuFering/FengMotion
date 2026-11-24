@@ -44,9 +44,15 @@ public class ProjectDirectoryService {
      * @throws IOException 写入失败
      */
     public void writeIdentity(Path projectDir, String projectId, String name) throws IOException {
-        String json = "{\"id\":\"" + projectId + "\",\"name\":\"" + escapeJson(name) + "\"}\n";
-        Files.writeString(projectDir.resolve(IDENTITY_FILE), json,
-                java.nio.charset.StandardCharsets.UTF_8);
+        Path marker = projectDir.resolve(IDENTITY_FILE);
+        if (Files.isSymbolicLink(marker)) throw new IOException("项目身份标记不能是符号链接");
+        String json = new com.fasterxml.jackson.databind.ObjectMapper().createObjectNode()
+                .put("id", projectId).put("name", name == null ? "" : name).toString() + "\n";
+        Path temporary = Files.createTempFile(projectDir, ".project-identity-", ".tmp");
+        try {
+            Files.writeString(temporary, json);
+            Files.move(temporary, marker, java.nio.file.StandardCopyOption.ATOMIC_MOVE, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+        } finally { Files.deleteIfExists(temporary); }
     }
 
     /**
@@ -57,32 +63,21 @@ public class ProjectDirectoryService {
      */
     public java.util.Optional<String> readIdentity(Path projectDir) {
         Path marker = projectDir.resolve(IDENTITY_FILE);
-        if (!Files.isRegularFile(marker)) {
+        if (!Files.isRegularFile(marker, java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
             return java.util.Optional.empty();
         }
         try {
-            String text = Files.readString(marker, java.nio.charset.StandardCharsets.UTF_8);
-            int key = text.indexOf("\"id\"");
-            if (key < 0) {
-                return java.util.Optional.empty();
-            }
-            int from = text.indexOf('"', text.indexOf(':', key) + 1);
-            int to = from < 0 ? -1 : text.indexOf('"', from + 1);
-            if (from < 0 || to < 0) {
-                return java.util.Optional.empty();
-            }
-            return java.util.Optional.of(text.substring(from + 1, to));
+            if (Files.size(marker) > 65536) return java.util.Optional.empty();
+            var value = new com.fasterxml.jackson.databind.ObjectMapper().reader()
+                    .with(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_READING_DUP_TREE_KEY,
+                            com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+                    .readTree(com.fengmotion.server.common.ProcessOutput.read(marker, 65536));
+            if (value == null || !value.isObject() || !value.path("id").isTextual()) return java.util.Optional.empty();
+            String id = value.path("id").textValue();
+            return id.matches("[a-zA-Z0-9_-]{1,200}") ? java.util.Optional.of(id) : java.util.Optional.empty();
         } catch (IOException unreadable) {
             return java.util.Optional.empty();
         }
-    }
-
-    /** JSON 字符串里的引号与反斜杠要转义，否则项目名带引号就写坏文件。 */
-    private static String escapeJson(String value) {
-        if (value == null) {
-            return "";
-        }
-        return value.replace("\\", "\\\\").replace("\"", "\\\"");
     }
 
     /**

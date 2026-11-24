@@ -78,6 +78,7 @@ public class ProjectTimelineService {
                 frames = (int) Math.round(manifest.path("durationSeconds").asDouble() * fps);
             }
             probe.verify(video, frames, fps);
+            CreationCancellation.requireRunning();
             if (!videoHash.equals(VideoTimeline.videoHash(video))) {
                 throw new ApiException(HttpStatus.CONFLICT, "timeline_video_changed", "恢复期间视频文件发生变化，请重新打开预览");
             }

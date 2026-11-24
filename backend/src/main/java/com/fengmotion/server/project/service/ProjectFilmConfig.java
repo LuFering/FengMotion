@@ -92,12 +92,27 @@ public class ProjectFilmConfig {
 
         /* 入口必须在项目内：一份被篡改的配置不该让渲染去读任意路径的文件。
            这是执行边界的一环，不是保险丝。 */
-        Path resolved = projectRoot.resolve(entry).normalize();
-        if (!resolved.startsWith(projectRoot.normalize())) {
+        Path reference;
+        try { reference = Path.of(entry); }
+        catch (java.nio.file.InvalidPathException invalid) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "film_config_invalid", "entry 不是有效路径");
+        }
+        Path resolved = projectRoot.resolve(reference).normalize();
+        if (reference.isAbsolute() || !resolved.startsWith(projectRoot.normalize())) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "film_config_invalid",
                     "entry 越界：必须位于项目目录内（收到 " + entry + "）");
         }
-        if (!Files.isRegularFile(resolved)) {
+        if (entry.contains("\\") || !ProjectSourceLayout.contains(reference)) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "film_config_invalid", "entry 不在可备份的源码范围内，请使用根目录源码或 src/components/scenes 等工程目录");
+        }
+        Path current = projectRoot;
+        for (Path part : reference) {
+            current = current.resolve(part);
+            if (Files.isSymbolicLink(current)) {
+                throw new ApiException(HttpStatus.BAD_REQUEST, "film_config_invalid", "entry 不能使用符号链接");
+            }
+        }
+        if (!Files.isRegularFile(resolved, LinkOption.NOFOLLOW_LINKS)) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "film_entry_missing",
                     "entry 指向的文件不存在：" + entry);
         }

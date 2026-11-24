@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 import org.springframework.http.HttpStatus;
@@ -48,7 +48,12 @@ public class ChatTurns {
     public static final class Turn {
         private final String messageKey;
         private final List<String> frames = new ArrayList<>();
+        private int firstSequence;
+        private int retainedCharacters;
+        private static final int MAX_REPLAY_CHARACTERS=4_000_000;
+        private static final int MAX_REPLAY_FRAMES=20_000;
         private boolean done;
+        private long finishedAt;
 
         Turn(String messageKey) {
             this.messageKey = messageKey;
@@ -60,11 +65,17 @@ public class ChatTurns {
 
         synchronized void add(String frame) {
             frames.add(frame);
+            retainedCharacters+=frame.length();
+            while(frames.size()>1 && (retainedCharacters>MAX_REPLAY_CHARACTERS || frames.size()>MAX_REPLAY_FRAMES)) {
+                retainedCharacters-=frames.removeFirst().length();
+                firstSequence++;
+            }
             notifyAll();
         }
 
         synchronized void finish() {
             done = true;
+            finishedAt=System.nanoTime();
             notifyAll();
         }
 
@@ -72,14 +83,24 @@ public class ChatTurns {
             return done;
         }
 
+        synchronized long finishedAt() { return finishedAt; }
+        synchronized void expireReplay() {
+            if(!done) return;
+            firstSequence+=frames.size();
+            frames.clear();
+            retainedCharacters=0;
+        }
+
         synchronized int size() {
-            return frames.size();
+            return firstSequence+frames.size();
         }
 
         /** 取第 {@code from} 帧之后的帧；暂时没有就最多等 {@code waitMs}，期间一轮结束也会醒来。 */
         synchronized List<String> await(int from, long waitMs) throws InterruptedException {
-            if (frames.size() <= from && !done) wait(waitMs);
-            return frames.size() <= from ? List.of() : List.copyOf(frames.subList(from, frames.size()));
+            if(from<firstSequence) throw new ApiException(HttpStatus.CONFLICT,"turn_replay_expired","实时消息缓冲已过期，请从已保存的消息记录读取结果");
+            if (size() <= from && !done) wait(waitMs);
+            if(from<firstSequence) throw new ApiException(HttpStatus.CONFLICT,"turn_replay_expired","实时消息缓冲已过期，请从已保存的消息记录读取结果");
+            return size() <= from ? List.of() : List.copyOf(frames.subList(from-firstSequence,frames.size()));
         }
 
         /** agent 那边用它写帧：{@code writeFrame} 每写完一帧都会 flush，这里按空行切成一帧一条。 */
@@ -116,11 +137,12 @@ public class ChatTurns {
 
     private final ObjectMapper json;
     private final Map<String, Turn> latest = new ConcurrentHashMap<>();
-    private final ExecutorService runner = Executors.newCachedThreadPool(task -> {
+    private final ExecutorService runner = new java.util.concurrent.ThreadPoolExecutor(0,4,30,TimeUnit.SECONDS,
+            new java.util.concurrent.SynchronousQueue<>(),task -> {
         Thread thread = new Thread(task, "chat-turn");
         thread.setDaemon(true);
         return thread;
-    });
+    },new java.util.concurrent.ThreadPoolExecutor.AbortPolicy());
 
     /** 等新帧时的心跳间隔：要明显小于前端的空闲断线判断（45 秒）。测试里调短。 */
     long heartbeatMillis = 15_000;
@@ -138,6 +160,12 @@ public class ChatTurns {
      *                      409 {@code turn_not_running}：只订阅，但这条消息没有在跑或跑过的一轮
      */
     public synchronized Turn open(String sessionId, String messageKey, Mode mode, Consumer<PrintWriter> body) {
+        return open(sessionId, messageKey, mode, () -> null, body);
+    }
+
+    public synchronized Turn open(String sessionId, String messageKey, Mode mode,
+            java.util.function.Supplier<com.fengmotion.server.project.service.ProjectOperationLock.Lease> admission,
+            Consumer<PrintWriter> body) {
         Turn current = latest.get(sessionId);
         if (current != null && !current.isDone()) {
             if (current.messageKey().equals(messageKey)) return current;
@@ -149,8 +177,9 @@ public class ChatTurns {
                     "这一轮没有在运行（应用可能重启过），可以重新执行。");
         }
         Turn turn = new Turn(messageKey);
+        var activity = admission.get();
         latest.put(sessionId, turn);
-        runner.execute(() -> {
+        try { runner.execute(() -> {
             PrintWriter writer = turn.writer();
             try {
                 body.accept(writer);
@@ -162,9 +191,30 @@ public class ChatTurns {
             } finally {
                 writer.flush();
                 turn.finish();
+                if (activity != null) activity.close();
+                trimCompletedReplay();
             }
-        });
+        }); } catch (RuntimeException failure) {
+            if (activity != null) activity.close();
+            latest.remove(sessionId, turn);
+            if(failure instanceof java.util.concurrent.RejectedExecutionException) {
+                throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE,"chat_capacity_full","聊天执行已达并发上限或服务正在关闭，请稍后重试");
+            }
+            throw failure;
+        }
         return turn;
+    }
+
+    @jakarta.annotation.PreDestroy public void close() {
+        runner.shutdownNow();
+        try { runner.awaitTermination(5,TimeUnit.SECONDS); }
+        catch(InterruptedException interrupted) { Thread.currentThread().interrupt(); }
+    }
+
+    private synchronized void trimCompletedReplay() {
+        latest.values().stream().filter(Turn::isDone)
+                .sorted(java.util.Comparator.comparingLong(Turn::finishedAt).reversed()).skip(32)
+                .forEach(Turn::expireReplay);
     }
 
     /**
@@ -194,6 +244,10 @@ public class ChatTurns {
             }
         } catch (InterruptedException interrupted) {
             Thread.currentThread().interrupt();
+        } catch(ApiException expired) {
+            writeFrame(out,"error",errorFrame(expired));
+            writeFrame(out,"end",json.createObjectNode().put("type","end"));
+            if(flush!=null) flush.run();
         }
     }
 

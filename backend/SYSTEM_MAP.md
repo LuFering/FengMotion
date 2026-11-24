@@ -1,6 +1,6 @@
 # 后端体系地图
 
-核对日期：**2026-11-20**。基于当前工作区源码、Controller、存储实现及本轮测试。本文描述现状，待实现方案另列。
+核对日期：**2026-11-23**。基于当前工作区源码、Controller、存储实现及本轮测试。持续核验见 [后端补齐台账](docs/audits/2026-11-23-backend-completion.md)，未接入的新产品能力另列。
 
 [运行说明](README.md) · [目录架构](ARCHITECTURE.md) · [开发指南](DEVELOPMENT.md) · [本轮核对记录](docs/audits/2026-11-20-system-baseline.md) · [项目进度](../PROGRESS.md)
 
@@ -168,6 +168,24 @@ sequenceDiagram
 - `retrieval` 在 SQLite 保存文本与向量，应用内算相似度；HTTP 200 仍需读取 status/degraded/usable。字面降级需要可用索引原文。
 - `upload` 管对话附件；`asset/uploads` 管素材分片。分片会话元数据在内存、文件在磁盘，不能承诺服务重启后续传。
 
+### 3.7 实时工作稿与确认出片
+
+`GET /source/state` 读取当前工程指纹及已提交成片基线。实时工作台的 `creation-jobs` 请求携带 `outputMode: draft`；成功修改为 `edited`，不调用渲染器。选中元素时通过 `POST /source/target` 解析实际 JSX，并在制作请求中携带源码原文和文件指纹；精准 Agent 候选只允许修改目标 JSX，在副本验证后使用短期跨进程锁写回。
+
+确认出片通过 `POST /render-jobs` 受理，要求 `requestId`、`baseVersion` 和 `sourceHash`。后台冻结和复核快照，渲染期间后续修改继续留在工作稿。成片与轨道条件提交为新版本；请求重试、取消和服务重启的语义见 [workbench-source.md](../frontend/docs/contracts/workbench-source.md)。
+
+2026-11-23 续轮统一工作稿、旧制作、镜头首次制作及项目聊天的候选副本写回；精准JSX和旧文字接口也使用带恢复日志的写回。新增 `/source/frame`、`/source/recovery`、`/workbench-jobs` 和版本只读实时预览，详见 [源码工具契约](../frontend/docs/contracts/backend-source-tools.md)。轨道恢复、候选预览/提交可后台执行；已有产物和版本凭据用于重启回执恢复。普通与镜头装配工程均可实时预览，装配入口由共享脚本在内存生成。
+
+### 3.8 当前内容与封面
+
+`ProjectContentService`（creation）把当前版本对应的已验证视频轨道转成毫秒制Timeline及视觉场景条目；`/timeline`不带path走当前内容，带path保留原轨道接口。读取不自动恢复清单或渲染，审核未聚合时不标done。`ProjectPosterController`迁至render.api，HTTP路径不变；按视频SHA-256缓存、临时抽帧发布、ETag重验证及项目活动准入保护。项目列表/详情的时长与画布独立从数据库当前版本批量读取，不扫描全片。
+
+`StoryboardService`（workflow）读取根目录storyboard.json或现有shot-plan.json的实际规划文本，保留来源与文件哈希。不存在返回空、损坏返回明确错误；不从成片猜旁白、不把Markdown模板当用户规划。
+
+`VersionVerificationService`通过workbench-jobs的version_verify运行：视频摘要、媒体规格、轨道绑定和快照入口核对，报告绑定版本/视频哈希并持久化到作业；completed不等于passed，visualReview固定not_run，不替代内容审片或交付验收。
+
+`VersionReviewService`保存版本级本地审阅历史（内部version-review命名空间），新增决定只针对当前版本，批准需匹配技术核验；视频变更stale，新版不继承。接口不验证调用者是真人，recordedVia明确为local-review-api，尚非有身份保证的正式验收。
+
 ## 4. 当前接口索引
 
 以下均以 `/api` 为前缀，覆盖当前 Controller 路由族。请求字段以链接源码为准，前端契约可能包含尚未实现的设计。
@@ -180,7 +198,7 @@ sequenceDiagram
 | `/projects/{projectId}/scene`、`/scene/versions` | GET 当前/历史；GET `/versions/{version}`；POST `/versions/{version}/restore` | [project/api](src/main/java/com/fengmotion/server/project/api) |
 | `/projects/{projectId}/scene/versions/{version}/edit-metadata` | GET 版本绑定的元素声明或仅可预览原因 | [SceneVersionController](src/main/java/com/fengmotion/server/project/api/SceneVersionController.java) |
 | `/projects/{projectId}/scene/versions/{version}/edit` | POST 带 `baseVersion` / `sourceHash` 的文字元素修改，渲染并提交新版本 | [SceneElementEditController](src/main/java/com/fengmotion/server/creation/api/SceneElementEditController.java) |
-| `/projects/{projectId}/poster` | GET，指定 version | [ProjectPosterController](src/main/java/com/fengmotion/server/project/api/ProjectPosterController.java) |
+| `/projects/{projectId}/poster` | GET，指定 version；视频指纹缓存与ETag | [ProjectPosterController](src/main/java/com/fengmotion/server/render/api/ProjectPosterController.java) |
 | `/local-documents` | GET；PUT `/{namespace}/{id}` | [LocalStateController](src/main/java/com/fengmotion/server/project/api/LocalStateController.java) |
 | `/projects/{projectId}/chat-sessions` | GET / POST | [ChatSessionController](src/main/java/com/fengmotion/server/chat/api/ChatSessionController.java) |
 | `/chat-sessions/{sessionId}` | GET / DELETE；POST `/stop`；GET / POST `/messages`；GET `/stream` | [chat/api](src/main/java/com/fengmotion/server/chat/api) |
@@ -286,7 +304,7 @@ sequenceDiagram
 | 阶段正文 | `CreationProgressStore` | 丢失；项目/会话内实时投影，最多 12,000 字符 |
 | 场景任务句柄 | `TaskService` | 历史/事件仍在，已退出 owner 可被收尾 |
 | 项目锁 | `ProjectOperationLock` | 仅本 JVM 有效，外部编辑不受保护 |
-| 分片会话 | `UploadSessionService` | 分片可能仍在，内存会话不在 |
+| 分片会话 | `UploadSessionService` | 会话/分片/完成回执落盘；重启可续传和重放，过期清理 |
 | 探测缓存 | `HarnessService` | 可重新探测，不是业务结果 |
 
 DSH 的 provider 配置与外部会话属于本机引擎；只备份 SQLite 不能备份全部项目、模型配置和引擎会话。
@@ -295,10 +313,11 @@ DSH 的 provider 配置与外部会话属于本机引擎；只备份 SQLite 不�
 
 | 路径 | 调度 / 互斥 | 持久化与失败语义 |
 |---|---|---|
-| 对话 | cached thread pool；单会话轮次保护 | 消息事务；内存帧重连；停止不回滚源码 |
+| 对话 | 4并发；单会话轮次保护 | 消息事务；有限帧回放；失败候选不应用，已应用源码不因后续停止撤销 |
 | 创作作业 | 2 worker + 20 等待队列；在途项目登记；项目锁 | 请求文档/任务表；队列满保存 failed；取消中断线程 |
-| 场景任务 | 2 worker，fixed pool 默认无界等待队列 | 任务/事件事务、版本条件提交、独立取消与 owner 恢复 |
+| 场景任务 | 2 worker + 20等待队列 | 任务/事件事务、终态不可重开、独立取消与owner恢复 |
 | 同步渲染/轨道恢复 | 请求线程；源码路径使用项目锁 | 耗时可能超过普通客户端超时，不属于后台队列 |
+| 后台轨道/镜头操作 | WorkbenchJobs 2 worker + 20队列 | 独立轮询/取消；重启先核对实际结果凭据 |
 | 启动索引 | Spring @Async | 失败不阻塞应用，响应区分降级 |
 | 场景任务 SSE | 每订阅一个 scheduled pump | 数据库 seq 回放；断连释放 pump |
 
@@ -308,8 +327,8 @@ DSH 的 provider 配置与外部会话属于本机引擎；只备份 SQLite 不�
 2. 修改提交校验基线，版本单调递增，恢复也新增版本。
 3. 收到资源、执行工具、保存回复、渲染成功和提交版本分别是独立事实。
 4. 文件与数据库不共享事务；依赖备份、清理和状态回读。不要用长数据库事务包住模型/渲染调用。
-5. 项目锁不是跨进程锁，也未覆盖所有入口：对话 Agent 写文件阶段、旧场景任务等需单独分析。
-6. 项目清除的在途检查目前查询旧 tasks，尚未统一检查源码创作与对话执行。
+5. 项目活动准入为单JVM机制；Node/Java短期写回使用共享文件锁，同库新后端由OS租约限制。外部编辑器不遵守协议时不能承诺互斥。
+6. 项目清除通过 `ProjectOperationLock.beginDeletion` 与活动租约互斥，覆盖创作/出片队列、聊天、旧任务、同步渲染、预览及已接入的写操作；活动在受理前取得、执行和清理结束后释放。旧 tasks 持久化检查继续保留。该准入是单后端实例内机制，不是跨进程执行锁。
 
 ## 7. 配置与部署
 
@@ -317,7 +336,7 @@ DSH 的 provider 配置与外部会话属于本机引擎；只备份 SQLite 不�
 
 | 配置组 | 当前关键项 | 注意点 |
 |---|---|---|
-| 服务/目录 | loopback；data-dir、workspace-root、upload-root | 启动前目录准备只认 `--key=value` 和默认值，自定义覆盖需核对 |
+| 服务/目录 | loopback；data-dir、workspace-root、upload-root | 启动初始化读取Spring解析的目录与SQLite URL，创建目录并持数据库租约至Bean关闭结束 |
 | 渲染 | project-dir、node-modules、browser、node；场景 600 秒，源码 900 秒 | 源码超时默认在 Java；stdout 为结果 JSON，stderr 为诊断 |
 | 创作 | workflow.dir；agent-timeout-seconds 默认 1200 | 初始化工具的 node/timeout 另有默认值 |
 | 对话 | bin/profile/patch/provider/model、探测缓存 | 当前 ChatStreamService.turnBudget 为 6 小时，旧 turn-timeout/background-budget 配置不是该入口实际上限 |
@@ -325,7 +344,7 @@ DSH 的 provider 配置与外部会话属于本机引擎；只备份 SQLite 不�
 | 检索 | enabled、capabilities-dir、embedding key/endpoint/timeout | enabled 控制启动建索引；测试还需清空 key，避免继承环境调用外部服务 |
 | 素材 | library-root、ffmpeg、ffprobe | 路径与二进制来源要覆盖安装态 |
 | Skill | root、解压文件/字节上限 | 不执行包内脚本 |
-| 文档 | local-documents.max-bytes 默认 16,000,000 | 当前按 JSON 字符长度检查，不是严格字节计数 |
+| 文档 | local-documents.max-bytes 默认 16,000,000 | 按UTF-8字节检查，版本号不可为负 |
 | Web | cors.allowed-origins、fx.assets-dir | fengmotion://app 跨域与静态素材映射需同时核对 |
 
 必须分别记录“源码已改”“已安装桌面更新”“公开 Release”。`mvn test` 不打新 JAR，`deploy-desktop.mjs --dist` 不更新后端；运行中覆盖 JAR 不等于重启。渲染脚本部署须包含 timeline.mjs 和匹配版本的共享依赖。
@@ -336,12 +355,13 @@ DSH 的 provider 配置与外部会话属于本机引擎；只备份 SQLite 不�
 
 | 问题 | 当前依据 | 后续切入 |
 |---|---|---|
-| 任意源码元素编辑缺失 | 后端支持已声明文字的版本化读写；工作台仍播放 MP4，轨道只有时间信息 | 由独立前端实现拾取和属性面板，再扩展有明确绑定的元素类型 |
+| 编辑保护范围 | 工作稿、旧制作、项目聊天均经候选副本；精准和文字接口写回使用恢复日志 | 不把受控写回当作OS沙箱；异常外部修改需人工核对 |
 | 任务机制分散 | ChatTurns、CreationJobs、TaskService 和同步恢复分别处理 | 先定义共同状态语义，再抽复用；不直接合并历史表 |
-| 生命周期检查不完整 | purge 的在途检查只读 tasks；项目锁覆盖范围有限 | 覆盖对话、源码创作、渲染、恢复与删除的竞态测试 |
-| 路径规则不一致 | VideoTimeline 检查真实路径；ArtifactController.content 目前只 normalize/startsWith，未解析符号链接 | 统一文件边界和测试；不能声称所有文件接口同等保护 |
-| 列表加载成本 | LocalStateStore.list 读全量；CreationJobs.list 再过滤 | 测量数据规模，服务端过滤/分页；轨道版本查询已单独优化 |
-| 内存/线程边界 | 对话 cached pool、轮次帧数组、任务无界等待队列 | 建立并发/内存预算与背压验证 |
+| 生命周期覆盖边界 | purge 已与主要任务队列、聊天、预览和同步写操作共享准入 | 新增长操作必须持活动租约；继续核对其他短写接口与跨进程运行规则 |
+| 路径规则 | 产物、素材、附件、源码及预览写回拒绝链接逃逸；渲染输出目录拒绝链接 | 不支持敌意外部进程持续替换文件路径 |
+| 列表加载成本 | 创作/工作台任务定向限量；公共文档/page键集分页；项目摘要批量读取当前版本 | 旧文档数组接口为兼容仍全量，需要客户端迁移 |
+| 项目摘要 | 当前版本帧数/帧率/画布、场景与当前合成数已接入 | 审核、规划、轨道汇总及内容详情仍需完善 |
+| 内存/线程边界 | 聊天4并发；回放有单轮容量及已完成32轮保留；任务有队列上限 | 超限明确拒绝或过期，不能自动重跑 |
 | 配置/能力/注释漂移 | 固定能力声明、旧超时字段、过时流说明 | 校对实际行为、客户端消费和文档 |
 | 多资源一致性 | 文件、版本、任务、状态文件分开保存 | 故障注入、补偿与中断恢复，不用“有事务”概括全链路 |
 | 初始化分散 | schema、迁移、LocalStateStore 各有建表 | 在不破坏旧库的前提下统一迁移入口 |

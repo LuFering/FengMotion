@@ -26,6 +26,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class ShotCandidateController {
     private final ShotCandidateService candidates;
+    @org.springframework.web.bind.annotation.ModelAttribute public void noCache(jakarta.servlet.http.HttpServletResponse response) { response.setHeader("Cache-Control","no-store"); }
 
     @PostMapping
     public PreviewResponse preview(@PathVariable String projectId, @PathVariable long version,

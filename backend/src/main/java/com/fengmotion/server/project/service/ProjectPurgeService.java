@@ -37,6 +37,7 @@ public class ProjectPurgeService {
 
     private final ProjectPurgeRepository repository;
     private final ProjectDirectoryService directoryService;
+    private final ProjectOperationLock operations;
 
     /** 项目目录的根；项目目录必须在这个根下面。 */
     @Value("${fengmotion.workspace-root:${user.home}/FengMotion/projects}")
@@ -49,6 +50,13 @@ public class ProjectPurgeService {
      * @throws ApiException 项目不存在（404）、仍有任务在跑（409）、路径不安全或文件操作失败（500）
      */
     public void purge(String id) {
+        try (var deletion = operations.beginDeletion(id)) {
+            purgeExclusive(id);
+        }
+
+    }
+
+    private void purgeExclusive(String id) {
         String rootPath = repository.findRootPath(id)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "not_found", "项目不存在"));
 
@@ -63,7 +71,12 @@ public class ProjectPurgeService {
         }
 
         Path target = resolveProjectDir(rootPath, id);
+        try (var write = Files.isDirectory(target) ? SourceWriteGuard.acquire(target) : null) {
+            deleteProject(id, target);
+        }
+    }
 
+    private void deleteProject(String id, Path target) {
         /* 先清数据库并提交，再删目录。
            顺序反过来（先删目录）的话，数据库一旦失败回滚，就会留下
            「项目还在列表里、文件却没了」的状态 —— 用户看着自己的项目，
@@ -114,6 +127,7 @@ public class ProjectPurgeService {
             throw new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "source_unreadable",
                     "项目目录路径无效，未删除：" + invalid.getMessage());
         }
+        if (Files.isSymbolicLink(target)) throw new ApiException(HttpStatus.BAD_REQUEST, "validation_error", "项目根目录不能通过符号链接删除");
 
         /* 目录已经不在了（用户手工删过）：数据库那边照删，
            否则项目会永远卡在「删不掉」的状态。 */
@@ -131,18 +145,23 @@ public class ProjectPurgeService {
                     "无法读取项目目录，未删除：" + unreadable.getMessage());
         }
 
-        String markerId = directoryService.readIdentity(real).orElse(null);
-        if (id.equals(markerId)) {
-            return real;
-        }
-
         Path root;
         try {
             root = Path.of(workspaceRoot).toAbsolutePath().normalize();
-        } catch (RuntimeException invalidRoot) {
+            if (Files.exists(root)) root = root.toRealPath();
+        } catch (RuntimeException | IOException invalidRoot) {
             throw new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "source_unreadable",
                     "工作区路径无效，未删除");
         }
+        if (real.getParent() == null || root.equals(real) || root.startsWith(real)
+                || Path.of(System.getProperty("user.home")).toAbsolutePath().normalize().equals(real)) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "validation_error", "不能把工作区、其父目录或用户主目录作为项目删除");
+        }
+        Path marker = real.resolve(ProjectDirectoryService.IDENTITY_FILE);
+        String markerId = directoryService.readIdentity(real).orElse(null);
+        if (id.equals(markerId)) return real;
+        if (Files.exists(marker, java.nio.file.LinkOption.NOFOLLOW_LINKS)) throw new ApiException(HttpStatus.BAD_REQUEST,
+                "validation_error", "项目身份标记不匹配或损坏，已拒绝删除；请先核对并修复身份标记");
         if (real.startsWith(root) && !real.equals(root)) {
             return real;
         }

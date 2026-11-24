@@ -52,7 +52,7 @@ public class WebConfig implements WebMvcConfigurer {
         registry.addMapping("/api/**")
                 .allowedOrigins(allowedOrigins)
                 .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
-                .allowedHeaders("*");
+                .allowedHeaders("*").exposedHeaders("X-Request-Id", "ETag", "X-Storyboard-Source");
         /* 海报图走独立前缀而不是 /api/**：它们不是 API 数据，
            但跨域取图同样需要放行，否则 dev 模式下浏览器会拦掉。 */
         registry.addMapping(CAPABILITY_PREFIX + "**")

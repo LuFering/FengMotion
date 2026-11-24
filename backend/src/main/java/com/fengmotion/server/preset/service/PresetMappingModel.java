@@ -6,6 +6,7 @@ package com.fengmotion.server.preset.service;
  * <p>实现必须是没有工具权限的纯文本调用：skill 内容作为文本传入，模型不能读写文件或执行命令。</p>
  */
 public interface PresetMappingModel {
+    default boolean available() { return true; }
 
     /**
      * @param system 系统提示

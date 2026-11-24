@@ -97,7 +97,7 @@ public class ChatStreamController {
                这时让用户决定要不要重新执行，而不是悄悄把同一条消息再跑一遍。 */
             ChatTurns.Mode mode = lastEventId != null || attach ? ChatTurns.Mode.ATTACH
                     : rerun ? ChatTurns.Mode.RERUN : ChatTurns.Mode.START;
-            ChatTurns.Turn turn = turns.open(sessionId, resolved.key(), mode, writer ->
+            ChatTurns.Turn turn = turns.open(sessionId, resolved.key(), mode, () -> stream.participate(sessionId), writer ->
                     stream.stream(sessionId, writer, resolved.text(), resolved.attachments(), engine, model, reasoningEffort, null));
 
             // 校验全部通过后才切换到流式响应头：一旦写出 200，就无法再改状态码。

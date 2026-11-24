@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import type { SessionDraft } from '@/features/chat/hooks/useDraftStore'
+import type { LiveAiSubmit, SourceTargetContext } from '@/api/sourceRender'
 
 /**
  * 实时画面里的「交给 AI」：把带源码位置的要求按「修改工程」发出去。
@@ -11,10 +12,10 @@ import type { SessionDraft } from '@/features/chat/hooks/useDraftStore'
 export function useLiveAskAi({ draft, updateDraft, submit, onSent }: {
   draft: SessionDraft
   updateDraft: (patch: Partial<SessionDraft>) => unknown
-  submit: (prompt: string) => Promise<boolean>
+  submit: LiveAiSubmit
   onSent?: () => void
 }) {
-  const pending = useRef<{ prompt: string; resolve: (ok: boolean) => void } | null>(null)
+  const pending = useRef<{ prompt: string; target?: SourceTargetContext; resolve: (ok: boolean) => void } | null>(null)
   const submitRef = useRef(submit)
   useEffect(() => { submitRef.current = submit })
 
@@ -24,16 +25,16 @@ export function useLiveAskAi({ draft, updateDraft, submit, onSent }: {
     const p = pending.current
     if (!p || !ready(draft)) return
     pending.current = null
-    void submitRef.current(p.prompt).then((ok) => { if (ok) onSent?.(); p.resolve(ok) })
+    void submitRef.current(p.prompt, p.target).then((ok) => { if (ok) onSent?.(); p.resolve(ok) }).catch(() => p.resolve(false))
   }, [draft, onSent])
 
-  return (prompt: string) => new Promise<boolean>((resolve) => {
+  return (prompt: string, target?: SourceTargetContext) => new Promise<boolean>((resolve) => {
     if (ready(draft)) {
-      void submitRef.current(prompt).then((ok) => { if (ok) onSent?.(); resolve(ok) })
+      void submitRef.current(prompt, target).then((ok) => { if (ok) onSent?.(); resolve(ok) }).catch(() => resolve(false))
       return
     }
     pending.current?.resolve(false)
-    pending.current = { prompt, resolve }
+    pending.current = { prompt, target, resolve }
     updateDraft({
       intentAction: 'modify',
       targetSnapshot: null,

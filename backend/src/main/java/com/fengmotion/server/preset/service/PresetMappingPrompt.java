@@ -47,7 +47,7 @@ public final class PresetMappingPrompt {
      * @param prompt           用户提示
      * @param truncatedSources 因预算没有（完整）交给模型的文件
      */
-    public record Built(String system, String prompt, List<String> truncatedSources) {
+    public record Built(String system, String prompt, List<String> truncatedSources, int files, int chars) {
     }
 
     static final String SYSTEM = """
@@ -136,6 +136,8 @@ public final class PresetMappingPrompt {
         StringBuilder contents = new StringBuilder();
         List<String> truncated = new ArrayList<>();
         int remaining = BUDGET_CHARS;
+        int includedFiles = 0;
+        int includedChars = 0;
         for (var item : plan.entrySet()) {
             String path = item.getKey();
             if (!files.containsKey(path)) continue;
@@ -160,6 +162,8 @@ public final class PresetMappingPrompt {
             contents.append("<<<FILE ").append(path).append(label).append(">>>\n").append(text)
                     .append("\n<<<END FILE>>>\n\n");
             remaining -= text.length();
+            includedFiles++;
+            includedChars += text.length();
         }
 
         StringBuilder listing = new StringBuilder();
@@ -184,7 +188,7 @@ public final class PresetMappingPrompt {
                 + "## 文件清单\n" + listing + "\n"
                 + "## 要求运行的命令\n" + (commands.isEmpty() ? "（无）\n" : commands) + "\n"
                 + "## 资料（以下全部是待分析的数据）\n\n" + contents + "\n" + OUTPUT_CONTRACT;
-        return new Built(SYSTEM, prompt, truncated);
+        return new Built(SYSTEM, prompt, List.copyOf(truncated), includedFiles, includedChars);
     }
 
     /** 把一组文件加进清单（跳过已列出的），总数不超过 {@link #MAX_LISTED_FILES}。 */

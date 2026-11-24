@@ -2,6 +2,8 @@
 
 ## 当前入口
 
+- [后端持续开发台账](audits/2026-11-23-backend-completion.md)：单帧、源码隔离、强杀恢复、后台任务和完整核验进度；未最终完成。
+- [2026-11-23 工作台后端缺口](audits/2026-11-23-workbench-backend-gaps.md)：任务取消/关闭、历史恢复互斥修复，以及仍未打通的后端事项。
 - [后端体系地图](../SYSTEM_MAP.md)：执行链路、全部接口族、数据库/文件/内存边界及缺口。
 - [后端开发指南](../DEVELOPMENT.md)：功能、优化、修复、文档和测试的开发入口与回归矩阵。
 - [2026-11-20 体系基线](audits/2026-11-20-system-baseline.md)：本轮盘点口径和重新执行的测试结果。
@@ -14,6 +16,8 @@
 - [工程版本的元素声明](../../frontend/docs/contracts/scene-edit-metadata.md)：按版本读取声明、受控文字写回、快照校验与失败清理。
 
 ## 专题说明
+
+- [工作台源码编辑闭环](../../frontend/docs/contracts/workbench-source.md)：工作稿指纹、AI 不自动出片、精准 JSX 目标和幂等出片作业。
 
 - [源码实时预览](../../frontend/docs/contracts/live-preview.md)：Java 进程启动、复用、健康检查、空闲回收和桌面运行时配置。
 

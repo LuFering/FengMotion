@@ -11,7 +11,6 @@ import org.springframework.stereotype.Component;
 
 import com.fengmotion.server.common.ApiException;
 
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -25,13 +24,29 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class ChatTurnRender {
 
     private final ProjectCreationService renders;
     private final ProjectFilmConfig configs;
     private final ProjectOperationLock operations;
     private final CreationJobs jobs;
+    private final com.fengmotion.server.render.service.LivePreviewService previews;
+
+    public ChatTurnRender(ProjectCreationService renders, ProjectFilmConfig configs,
+                          ProjectOperationLock operations, CreationJobs jobs) {
+        this(renders, configs, operations, jobs, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public ChatTurnRender(ProjectCreationService renders, ProjectFilmConfig configs,
+                          ProjectOperationLock operations, CreationJobs jobs,
+                          com.fengmotion.server.render.service.LivePreviewService previews) {
+        this.renders = renders;
+        this.configs = configs;
+        this.operations = operations;
+        this.jobs = jobs;
+        this.previews = previews;
+    }
 
     /**
      * 一次自动渲染的结果。
@@ -70,6 +85,10 @@ public class ChatTurnRender {
         if (before == null || before.startsWith("error:")) return Optional.empty();
         String after = ProjectSourceFingerprint.compute(projectRoot);
         if (after.startsWith("error:") || after.equals(before)) return Optional.empty();
+
+        if (previews != null && previews.isActive(projectId)) {
+            return Optional.of(new Result("edited", null, null, "工作稿已修改，实时预览会更新；确认满意后再出片。"));
+        }
 
         if (configs.tryRead(projectRoot).isEmpty()) {
             return Optional.of(new Result(Result.SKIPPED, null, null,

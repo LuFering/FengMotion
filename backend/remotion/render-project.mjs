@@ -27,6 +27,7 @@ import {
   parseArgs,
   renderProject,
   resolveNodeModules,
+  runtimeVersions,
   stageWritableCopy,
 } from './render-shared.mjs'
 
@@ -64,6 +65,7 @@ async function main() {
   }
 
   const nodeModules = resolveNodeModules(import.meta.dirname)
+  const dependencies = await runtimeVersions(nodeModules)
   const props = args.props ? JSON.parse(await readFile(args.props, 'utf8')) : {}
 
   /* 复制整个项目到可写目录再渲染：
@@ -84,9 +86,10 @@ async function main() {
       out: args.out ? path.resolve(args.out) : null,
       browser: args.browser,
       timelineOnly,
+      stillFrame: args.frame === undefined ? undefined : Number(args.frame),
       assemblyTimeline: timeline ? shotTracks(timeline) : undefined,
     })
-    emitResult({ ok: true, output: args.out ?? null, ...result })
+    emitResult({ ok: true, output: args.out ?? null, ...result, dependencies })
   } finally {
     await cleanup(workDir)
   }

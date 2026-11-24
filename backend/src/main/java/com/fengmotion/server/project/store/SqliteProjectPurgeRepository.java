@@ -66,6 +66,8 @@ public class SqliteProjectPurgeRepository implements ProjectPurgeRepository {
     @Override
     @Transactional
     public int deleteProjectGraph(String projectId) {
+        jdbc.update("DELETE FROM chat_message_idempotency WHERE session_id IN "
+                + "(SELECT id FROM chat_sessions WHERE project_id = ?)", projectId);
         /* 消息挂在会话上，会话挂在项目上：先消息、再会话。 */
         jdbc.update("DELETE FROM chat_messages WHERE session_id IN "
                 + "(SELECT id FROM chat_sessions WHERE project_id = ?)", projectId);

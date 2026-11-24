@@ -4,11 +4,8 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
-import java.nio.file.StandardOpenOption;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Arrays;
 import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
@@ -27,6 +24,7 @@ import com.fengmotion.server.project.service.ProjectFilmConfig;
 import com.fengmotion.server.project.service.ProjectOperationLock;
 import com.fengmotion.server.project.service.ProjectSourceFingerprint;
 import com.fengmotion.server.project.service.ProjectSourceSnapshots;
+import com.fengmotion.server.project.service.SceneCommitVerifier;
 import com.fengmotion.server.project.service.SceneEditMetadataService;
 import com.fengmotion.server.project.store.ProjectRepository;
 import com.fengmotion.server.project.store.ProjectSceneRepository;
@@ -66,6 +64,9 @@ public class SceneElementEditService {
                 new ApiException(HttpStatus.NOT_FOUND, "not_found", "项目不存在"));
         ProjectScene current = scenes.find(projectId).filter(ProjectScene::present).orElseThrow(() ->
                 new ApiException(HttpStatus.CONFLICT, "scene_not_initialized", "项目还没有可编辑的当前场景"));
+        if(project.rootPath()!=null && Files.isSymbolicLink(Path.of(project.rootPath()).resolve("renders"))) {
+            throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY,"render_path_invalid","渲染目录不能是符号链接");
+        }
         if (current.version() != request.baseVersion()) {
             throw versionConflict(current.version(), request.baseVersion());
         }
@@ -139,6 +140,8 @@ public class SceneElementEditService {
                     .put("fps", result.fps())
                     .put("renderMs", elapsed);
             updatedFilm.set("sources", ProjectFilmRenderService.sourceEntries(json, captured));
+            updatedFilm.set("dependencies", result.dependencies() != null && result.dependencies().isObject()
+                    ? result.dependencies().deepCopy() : json.createObjectNode());
             VideoTimeline.write(json, output, artifactPath, result.sequences(),
                     result.durationInFrames(), result.fps(), sourceHash, false);
 
@@ -147,6 +150,9 @@ public class SceneElementEditService {
             committed = true;
             return new EditResult(projectId, committedVersion, artifactPath, sourceHash,
                     request.elementId(), text);
+        } catch(RuntimeException failure) {
+            if(SceneCommitVerifier.uncertain(failure)) committed=true;
+            throw failure;
         } finally {
             if (!committed && createdSnapshot != null) {
                 cleanup(output);
@@ -158,57 +164,30 @@ public class SceneElementEditService {
     private long writeBackAndCommit(Path root, Path edited, String baseHash, String editedHash,
                                     String projectId, SceneElementEditRequest request, ObjectNode film,
                                     String artifactPath) {
-        requireWorkingSource(root, baseHash);
-        Path manifest = root.resolve(SceneEditMetadataService.MANIFEST);
-        byte[] original;
-        byte[] replacement;
-        try {
-            original = readManifest(manifest);
-            replacement = readManifest(edited);
-            requireWorkingSource(root, baseHash);
-            if (!Arrays.equals(original, readManifest(manifest))) throw workingSourceConflict();
-            replaceManifest(manifest, replacement);
-        } catch (IOException failure) {
-            log.warn("元素声明写回失败：{}", projectId, failure);
-            throw new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "manifest_write_failed", "无法保存元素文字修改");
+        try (var write = com.fengmotion.server.project.service.SourceWriteGuard.acquire(root)) {
+            return writeBackLocked(root,edited,baseHash,editedHash,projectId,request,film,artifactPath);
         }
+    }
 
-        try {
+    private long writeBackLocked(Path root,Path edited,String baseHash,String editedHash,
+                                 String projectId,SceneElementEditRequest request,ObjectNode film,String artifactPath) {
+        requireWorkingSource(root, baseHash);
+        try (var recovery=snapshots.restore(root,film.path("sourceSnapshot").asText(),editedHash)) {
+            try {
             requireWorkingSource(root, editedHash);
             String summary = "修改元素 " + request.elementId() + " 的文字";
-            return scenes.commitWithSnapshot(projectId, request.baseVersion(), film, null,
+            long version=SceneCommitVerifier.commit(scenes,projectId,request.baseVersion(),film,artifactPath,()->scenes.commitWithSnapshot(projectId, request.baseVersion(), film, null,
                     request.prompt() == null || request.prompt().isBlank() ? summary : request.prompt(),
-                    summary, artifactPath, ProjectSceneVersion.SOURCE_ELEMENT_EDIT, null).orElseThrow(() ->
+                    summary, artifactPath, ProjectSceneVersion.SOURCE_ELEMENT_EDIT, null)).orElseThrow(() ->
                     new ApiException(HttpStatus.CONFLICT, "scene_version_conflict", "项目在元素修改期间被更新了，本次结果未提交"));
-        } catch (RuntimeException failure) {
-            try {
-                if (Files.isDirectory(manifest.getParent(), LinkOption.NOFOLLOW_LINKS)
-                        && Arrays.equals(replacement, readManifest(manifest))) {
-                    replaceManifest(manifest, original);
-                }
-            } catch (IOException rollback) {
-                log.error("元素文字回滚失败：{}", projectId, rollback);
-                throw new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "manifest_rollback_failed", "版本未提交，但无法恢复工作区中的元素声明");
+            recovery.commit();
+            return version;
+            } catch(RuntimeException failure) {
+                if(SceneCommitVerifier.uncertain(failure)) recovery.retainPending();
+                throw failure;
             }
-            throw failure;
-        }
-    }
-
-    private static byte[] readManifest(Path manifest) throws IOException {
-        try (var input = Files.newInputStream(manifest, LinkOption.NOFOLLOW_LINKS)) {
-            return input.readNBytes(65_537);
-        }
-    }
-
-    private static void replaceManifest(Path manifest, byte[] content) throws IOException {
-        Path staged = Files.createTempFile(manifest.getParent(), ".editable-elements-", ".tmp");
-        try {
-            Files.copy(manifest, staged, LinkOption.NOFOLLOW_LINKS, StandardCopyOption.COPY_ATTRIBUTES,
-                    StandardCopyOption.REPLACE_EXISTING);
-            Files.write(staged, content, LinkOption.NOFOLLOW_LINKS, StandardOpenOption.TRUNCATE_EXISTING);
-            Files.move(staged, manifest, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
-        } finally {
-            Files.deleteIfExists(staged);
+        } catch (IOException failure) {
+            throw new ApiException(HttpStatus.INTERNAL_SERVER_ERROR,"manifest_rollback_failed","无法完成元素修改恢复，请核对恢复日志");
         }
     }
 

@@ -44,11 +44,33 @@ public class ChatStreamService {
     private final ChatReplyStore replyStore;
     private final ChatSseWriter sse;
     private final ObjectMapper json;
+    private final com.fengmotion.server.project.service.ProjectOperationLock operations;
 
     private final com.fengmotion.server.creation.service.ChatTurnRender turnRender;
 
     private final ThreadLocal<Runnable> currentFlush = new ThreadLocal<>();
+    private final ThreadLocal<com.fengmotion.server.project.service.SourceEditSession> sourceEdit = new ThreadLocal<>();
 
+    private com.fengmotion.server.project.service.SourceEditSession openSourceEdit(String sessionId) {
+        var session = sessions.findById(sessionId).orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "not_found", "会话不存在"));
+        var root = projectRootFor(session);
+        if (root == null || !java.nio.file.Files.isDirectory(root)) return null;
+        var edit = com.fengmotion.server.project.service.SourceEditSession.open(new com.fengmotion.server.project.service.ProjectSourceSnapshots(), root, null);
+        sourceEdit.set(edit);
+        return edit;
+    }
+
+    private void applySourceEdit(String sessionId) {
+        var edit = sourceEdit.get();
+        if (edit != null) edit.apply(() -> wasStopped(sessionId));
+    }
+
+    private String sourceEditInstruction() {
+        return sourceEdit.get() == null ? "" : "\n本轮在独立源码副本执行，当前工作目录是唯一可写工程。历史记录中的绝对工程路径已过期，不要访问。"
+                + "允许修改 src/、public/、components/、scenes/、styles/、assets/ 及根目录源码/样式/JSON配置；项目身份、创作状态和说明资料不写回。后端校验后才应用源码并决定是否出片，不要自行渲染。";
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
     public ChatStreamService(HarnessService harness,
                              com.fengmotion.server.harness.client.NativeHarnesses nativeHarnesses,
                              com.fengmotion.server.upload.service.UploadService uploads,
@@ -56,7 +78,8 @@ public class ChatStreamService {
                              HarnessProperties properties, DshLauncher launcher,
                              ChatSessionRepository sessions, ChatMessageRepository messages,
                              TransactionTemplate transactions, ObjectMapper json,
-                             com.fengmotion.server.creation.service.ChatTurnRender turnRender) {
+                             com.fengmotion.server.creation.service.ChatTurnRender turnRender,
+                             com.fengmotion.server.project.service.ProjectOperationLock operations) {
         this.harness = harness;
         this.nativeHarnesses = nativeHarnesses;
         this.uploads = uploads;
@@ -67,8 +90,33 @@ public class ChatStreamService {
         this.messages = messages;
         this.json = json;
         this.turnRender = turnRender;
+        this.operations = operations;
         this.replyStore = new ChatReplyStore(messages, sessions, transactions);
         this.sse = new ChatSseWriter(json, currentFlush::get);
+    }
+
+    public ChatStreamService(HarnessService harness,
+                             com.fengmotion.server.harness.client.NativeHarnesses nativeHarnesses,
+                             com.fengmotion.server.upload.service.UploadService uploads,
+                             com.fengmotion.server.project.store.ProjectRepository projects,
+                             HarnessProperties properties, DshLauncher launcher,
+                             ChatSessionRepository sessions, ChatMessageRepository messages,
+                             TransactionTemplate transactions, ObjectMapper json,
+                             com.fengmotion.server.creation.service.ChatTurnRender turnRender) {
+        this(harness, nativeHarnesses, uploads, projects, properties, launcher, sessions, messages,
+                transactions, json, turnRender, new com.fengmotion.server.project.service.ProjectOperationLock());
+    }
+
+    public com.fengmotion.server.project.service.ProjectOperationLock.Lease participate(String sessionId) {
+        var session = sessions.findById(sessionId).orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "not_found", "会话不存在"));
+        var activity = operations.participate(session.projectId());
+        try {
+            sessions.findById(sessionId).orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "not_found", "会话不存在"));
+            if (session.projectId() != null && !session.projectId().isBlank()) {
+                projects.findById(session.projectId()).orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "not_found", "项目不存在"));
+            }
+            return activity;
+        } catch (RuntimeException failure) { activity.close(); throw failure; }
     }
 
     ChatReplyListener replyListener(PrintWriter out, String sessionId, boolean ordered) {
@@ -79,6 +127,13 @@ public class ChatStreamService {
 
     private final java.util.Map<String, DshProcess> runningTurns =
             new java.util.concurrent.ConcurrentHashMap<>();
+
+    @jakarta.annotation.PreDestroy public void close() {
+        for(var entry:runningTurns.entrySet()) {
+            stoppedTurns.put(entry.getKey(),System.currentTimeMillis());
+            entry.getValue().close();
+        }
+    }
 
     private final java.util.Map<String, Long> stoppedTurns =
             new java.util.concurrent.ConcurrentHashMap<>();
@@ -187,9 +242,10 @@ public class ChatStreamService {
     public void stream(String sessionId, PrintWriter writer, String userText,
                        JsonNode attachments, String model, String reasoningEffort, Runnable flush) {
         currentFlush.set(flush);
-        try {
+        try (var activity = participate(sessionId); var edit = openSourceEdit(sessionId)) {
             doStream(sessionId, writer, userText, attachments, model, reasoningEffort);
         } finally {
+            sourceEdit.remove();
             currentFlush.remove();
         }
     }
@@ -201,20 +257,23 @@ public class ChatStreamService {
         }
         currentFlush.set(flush);
         DshProcess[] active = {null};
-        try {
+        ChatReplyListener partial = null;
+        try (var activity = participate(sessionId); var edit = openSourceEdit(sessionId)) {
             ChatSession session = sessions.findById(sessionId).orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "not_found", "会话不存在"));
             StringBuilder history = new StringBuilder(conversationHistory(sessionId));
             history.append("本轮要求：\n").append(text).append("\n开始或切换主要方向前先简短说明接下来做什么，不要披露内部推理。");
             ChatReplyListener listener = replyListener(writer, sessionId, false);
+            partial = listener;
             String renderBefore = turnRender == null ? null : turnRender.before(session.projectId(), projectRootFor(session));
             String reply = nativeHarnesses.run(new com.fengmotion.server.harness.client.NativeHarnesses.Selection(engine, model, effort),
-                    java.nio.file.Path.of(workingDirectoryFor(session)), history.toString(), inlineImages(attachments), listener, turnBudget(), process -> {
+                    java.nio.file.Path.of(workingDirectoryFor(session)), history + sourceEditInstruction(), inlineImages(attachments), listener, turnBudget(), process -> {
                         active[0] = process;
                         if (runningTurns.putIfAbsent(sessionId, process) != null) throw new IllegalStateException("该会话已有正在执行的回复");
                         cleanupStopMark(sessionId);
                     });
             if (wasStopped(sessionId)) sse.writeStopped(writer);
             else {
+                applySourceEdit(sessionId);
                 var saved = replyStore.append(sessionId, reply, null, listener.collectedToolCalls(), listener.collectedTodos(), listener.collectedUsage(), listener.collectedDeliverables(), null);
                 sessions.bindHarnessSession(sessionId, "external:" + engine);
                 listener.emitPhase("done", null, null); sse.writeCompleted(writer, saved);
@@ -222,8 +281,12 @@ public class ChatStreamService {
             }
         } catch (Exception ex) {
             if (wasStopped(sessionId)) sse.writeStopped(writer);
-            else sse.writeError(writer, "agent_error", ex.getMessage() == null ? "引擎执行失败" : ex.getMessage());
+            else {
+                saveUnfinished(sessionId,partial,null,ex.getMessage()==null?"引擎执行失败":ex.getMessage(),writer);
+                sse.writeError(writer, ex instanceof ApiException api?api.getCode():"agent_error", ex.getMessage() == null ? "引擎执行失败" : ex.getMessage());
+            }
         } finally {
+            sourceEdit.remove();
             if (active[0] != null) runningTurns.remove(sessionId, active[0]);
             sse.writeEnd(writer); currentFlush.remove();
         }
@@ -244,8 +307,8 @@ public class ChatStreamService {
     }
 
     void saveUnfinished(String sessionId, ChatReplyListener listener, String reasoning, String reason, PrintWriter out) {
-        if (listener == null || listener.publicText == null) return;
-        String text = listener.publicText.text();
+        if (listener == null) return;
+        String text = listener.collectedText();
         var tools = listener.collectedToolCalls();
         if ((text == null || text.isBlank()) && tools.isEmpty()) return;
         String body = (text == null || text.isBlank() ? "" : text + "\n\n") + "> 这一轮没有完成：" + reason;
@@ -310,6 +373,7 @@ public class ChatStreamService {
     }
 
     private String workingDirectoryFor(ChatSession session) {
+        if (sourceEdit.get() != null) return sourceEdit.get().path().toString();
         String projectId = session.projectId();
         if (projectId != null && !projectId.isBlank()) {
             var project = projects.findById(projectId);
@@ -359,7 +423,7 @@ public class ChatStreamService {
         // 会话标识与「是否已在本引擎上创建过」是两件事：DSH 的会话是持久化的，
         // 子进程却是每次请求新起的。已存在的会话必须用 session/resume 续接，
         // 否则直接 prompt 会被 DSH 以「already exists」拒绝（实测）。
-        boolean importHistory = session.harnessSessionId() != null && session.harnessSessionId().startsWith("external:");
+        boolean importHistory = sourceEdit.get() != null || (session.harnessSessionId() != null && session.harnessSessionId().startsWith("external:"));
         boolean continuation = session.harnessSessionId() != null
                 && !session.harnessSessionId().isBlank() && !importHistory;
         String harnessSessionId = continuation
@@ -410,7 +474,7 @@ public class ChatStreamService {
                 driver.resume(harnessSessionId, Duration.ofSeconds(30));
             } else {
                 // 首次：绑定标识，后续轮次据此走续接分支。
-                sessions.bindHarnessSession(sessionId, harnessSessionId);
+                sessions.bindHarnessSession(sessionId, sourceEdit.get() == null ? harnessSessionId : "external:isolated");
             }
 
             final PrintWriter out = writer;
@@ -422,7 +486,7 @@ public class ChatStreamService {
                     attachments != null, images.size());
             DshSdkSession.Outcome outcome = driver.prompt(
                     harnessSessionId,
-                    (importHistory ? conversationHistory(sessionId) + "\n本轮要求：\n" : "") + userText + DshNarration.inlineFallback(java.nio.file.Path.of(workingDirectory)),
+                    (importHistory ? conversationHistory(sessionId) + "\n本轮要求：\n" : "") + userText + sourceEditInstruction() + DshNarration.inlineFallback(java.nio.file.Path.of(workingDirectory)),
                     images,
                     listener,
                     turnBudget());
@@ -436,11 +500,12 @@ public class ChatStreamService {
                 } else {
                     String reason = outcome.failure() == null ? "Agent 执行失败" : outcome.failure();
                     saveUnfinished(sessionId, listener, outcome.reasoning(), reason, out);
-                    renderAfterTurn(session, renderBefore, userText, out);
+                    if (sourceEdit.get() == null) renderAfterTurn(session, renderBefore, userText, out);
                     sse.writeError(out, "agent_error", reason);
                 }
                 sse.writeEnd(out);
             } else {
+                applySourceEdit(sessionId);
                 // 成功：先把助手消息落库，再发 completed。顺序很重要——先落库保证
                 // 前端拿到 completed 时，历史接口一定已经能读到这条消息。
                 ChatMessage saved = replyStore.append(
@@ -465,9 +530,15 @@ public class ChatStreamService {
                 // 进程/协议层失败：已经说的、做的照样存下来并出片，再发错误帧，不假装完成。
                 String reason = failure.getMessage() == null ? "与引擎通信失败" : failure.getMessage();
                 saveUnfinished(sessionId, listener, null, reason, writer);
-                renderAfterTurn(session, renderBefore, userText, writer);
+                if (sourceEdit.get() == null) renderAfterTurn(session, renderBefore, userText, writer);
                 sse.writeError(writer, "agent_unavailable", reason);
             }
+            sse.writeEnd(writer);
+            finished.set(true);
+        } catch (ApiException failure) {
+            saveUnfinished(sessionId, listener, null, failure.getMessage(), writer);
+            if (wasStopped(sessionId)) sse.writeStopped(writer);
+            else sse.writeError(writer, failure.getCode(), failure.getMessage());
             sse.writeEnd(writer);
             finished.set(true);
         } finally {

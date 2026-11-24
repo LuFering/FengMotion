@@ -1,5 +1,7 @@
 import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
+import type { LiveAiSubmit } from '@/api/sourceRender'
+import { resolveSourceTarget } from '@/features/workbench/services/worktreeClient'
 import { ArrowUp, ChevronDown, Code02, Copy01, DotsHorizontal, FlipBackward, LayersTwo01, Stars02, Type01, XClose } from '@untitledui/icons'
 import { UiIcon, SemIcons } from '@/shared/icons/UiIcon'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/ui/tooltip'
@@ -26,7 +28,7 @@ export function LiveEditBar({ live, drawer, setDrawer, onAskAi, busy }: {
   live: LivePreview
   drawer: DrawerId | null
   setDrawer: (d: DrawerId | null) => void
-  onAskAi: (prompt: string) => Promise<boolean>
+  onAskAi: LiveAiSubmit
   busy: boolean
 }) {
   const sel = live.selection
@@ -357,10 +359,11 @@ function ColorRow({ live, target, prop, label, computed, disabled, onAi }: { liv
 }
 
 /* ── 第二级：交给 AI ── */
-function AiDrawer({ live, onAskAi, busy }: { live: LivePreview; onAskAi: (prompt: string) => Promise<boolean>; busy: boolean }) {
+function AiDrawer({ live, onAskAi, busy }: { live: LivePreview; onAskAi: LiveAiSubmit; busy: boolean }) {
   const sel = live.selection!
   const [ask, setAsk] = useState('')
   const [sending, setSending] = useState(false)
+  const [error, setError] = useState('')
   const el = sel.kind === 'element' ? sel.element : null
   const fps = live.fps
   const pct = (n: number) => `${Math.round(n * 100)}%`
@@ -377,13 +380,23 @@ function AiDrawer({ live, onAskAi, busy }: { live: LivePreview; onAskAi: (prompt
     const text = ask.trim()
     if (!text || sending || busy) return
     setSending(true)
-    const ok = await onAskAi(`修改${where}。要求：${text}`)
-    setSending(false)
-    if (ok) live.clearSelection()
+    setError('')
+    try {
+      const selected = el?.chain[el.level]
+      const editable = textT ?? (el ? styleTarget(el) : null)
+      const src = editable?.src ?? selected?.src
+      const fileHash = editable?.fileHash ?? selected?.source?.fileHash
+      if (el && (!src || !fileHash)) throw new Error('源码位置尚未读取完整，请重新选择该元素')
+      const target = src && fileHash ? await resolveSourceTarget(live.projectId, src, fileHash) : undefined
+      const ok = await onAskAi(`修改${where}。要求：${text}`, target)
+      if (ok) live.clearSelection()
+    } catch (failure) { setError(failure instanceof Error ? failure.message : '无法确认源码目标，请重新选择') }
+    finally { setSending(false) }
   }
   return (
     <>
       <div className="lve-head">交给 AI <span>{el ? `${levelName(el.chain, el.level, el.text)} · ${shortSrc(el.chain[el.level]?.src)}` : '框选区域'}</span></div>
+      {error && <p className="lve-hint" role="alert">{error}</p>}
       <div className="lve-ask">
         <textarea value={ask} rows={2} placeholder="告诉 AI 怎么改…" autoFocus disabled={sending}
                   onChange={(e) => setAsk(e.target.value)}

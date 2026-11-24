@@ -75,4 +75,21 @@ class ProjectDirectoryServiceTest {
         assertFalse(Files.exists(projectPath));
     }
 
+    @Test void identityJsonEscapesControlCharactersAndRejectsMalformedOrLinkedMarkers() throws Exception {
+        directoryService.writeIdentity(TempDir, "project-id", "line\nbreak\t\"quote\"");
+        var value = new com.fasterxml.jackson.databind.ObjectMapper().readTree(Files.readString(TempDir.resolve("project.json")));
+        assertEquals("line\nbreak\t\"quote\"", value.path("name").asText());
+        assertEquals("project-id", directoryService.readIdentity(TempDir).orElseThrow());
+        for (String text : java.util.List.of("garbage \"id\":\"project-id\"", "{\"id\":\"project-id\",\"id\":\"other\"}", "{\"nested\":{\"id\":\"project-id\"}}")) {
+            Files.writeString(TempDir.resolve("project.json"), text);
+            assertTrue(directoryService.readIdentity(TempDir).isEmpty());
+        }
+        Files.delete(TempDir.resolve("project.json"));
+        Path external = Files.writeString(TempDir.resolve("external.json"), "{\"id\":\"project-id\"}");
+        Files.createSymbolicLink(TempDir.resolve("project.json"), external);
+        assertTrue(directoryService.readIdentity(TempDir).isEmpty());
+        assertThrows(IOException.class, () -> directoryService.writeIdentity(TempDir, "new", "name"));
+        assertEquals("{\"id\":\"project-id\"}", Files.readString(external));
+    }
+
 }

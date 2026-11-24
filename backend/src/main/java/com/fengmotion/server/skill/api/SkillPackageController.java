@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -41,6 +42,17 @@ public class SkillPackageController {
     @GetMapping
     public List<SkillPackage> list() {
         return service.list();
+    }
+
+    /**
+     * 导入前预检：参数与导入请求体相同，只把 ref 解析成 commit，不下载、不落盘。
+     * 每次调用消耗一次 GitHub 额度，前端负责防抖。
+     */
+    @GetMapping("/resolve")
+    public SkillPackageService.Resolution resolve(@RequestParam(required = false) String repository,
+                                                  @RequestParam(required = false) String ref,
+                                                  @RequestParam(required = false) String path) {
+        return service.resolve(repository, ref, path);
     }
 
     @GetMapping("/{id}")

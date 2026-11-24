@@ -35,6 +35,7 @@ import com.fengmotion.server.project.service.ProjectFilmConfig;
 import com.fengmotion.server.project.service.ProjectOperationLock;
 import com.fengmotion.server.project.service.ProjectSourceFingerprint;
 import com.fengmotion.server.project.service.ProjectSourceSnapshots;
+import com.fengmotion.server.project.service.SceneCommitVerifier;
 import com.fengmotion.server.project.store.ProjectRepository;
 import com.fengmotion.server.project.store.ProjectSceneRepository;
 import com.fengmotion.server.render.service.ProjectFilmRenderer;
@@ -139,6 +140,7 @@ public class ShotCandidateService {
                         previewTimeline.height(), previewTimeline.fps(), previewTimeline);
                 Path previewPath = candidateDirectory.resolve("preview.mp4");
                 ProjectFilmRenderer.Result rendered = renderer.render(workspace.path(), previewConfig, previewPath);
+                CreationCancellation.requireRunning();
                 verifyRender(previewTimeline, rendered, "镜头预览渲染规格与候选槽位不一致");
                 String relativePreview = root.relativize(previewPath).toString().replace('\\', '/');
                 VideoTimeline.write(json, previewPath, relativePreview, rendered.sequences(),
@@ -164,6 +166,7 @@ public class ShotCandidateService {
                         .put("hasVoiceover", previewVoice != null)
                         .put("createdAt", Instant.now().toString());
                 writeSource(candidateDirectory, request.componentSource());
+                CreationCancellation.requireRunning();
                 writeMetadata(candidateDirectory, metadata);
                 return previewResult(metadata);
             }
@@ -200,6 +203,39 @@ public class ShotCandidateService {
         }
     }
 
+    public Optional<PreviewResult> existingPreview(String projectId,ShotCandidateRequest request) {
+        validateRequest(request);
+        Path root=projectRoot(project(projectId));
+        ObjectNode metadata=readCandidate(candidateDirectory(root,request.requestId()),projectId,request.requestId(),request.baseVersion());
+        if(metadata==null) return Optional.empty();
+        if(!requestHash(request).equals(metadata.path("requestHash").asText())) throw conflict("task_idempotency_conflict","候选身份与请求不一致");
+        previewFile(projectId,request.baseVersion(),request.requestId());
+        return Optional.of(previewResult(metadata));
+    }
+
+    public Optional<CommitResult> existingCommit(String projectId,long version,String candidateId) {
+        validateCandidateId(candidateId);
+        var stored=scenes.findVersionByShotCandidate(projectId,candidateId);
+        if(stored.isEmpty()) return Optional.empty();
+        var film=stored.get().film();
+        var shot=film.path("shotEdit");
+        var output=film.path("output");
+        Path root=projectRoot(project(projectId));
+        var metadata=readCandidate(candidateDirectory(root,candidateId),projectId,candidateId,version);
+        long recordedBase=shot.path("baseVersion").asLong(-1);
+        if(recordedBase>=0 && (!shot.path("baseVersion").isIntegralNumber() || recordedBase!=version)) throw conflict("task_idempotency_conflict","候选提交记录不属于请求的基础版本");
+        if(recordedBase<0 && metadata==null) return Optional.empty();
+        if(!candidateId.equals(shot.path("candidateId").asText()) || !sourceId(candidateId).equals(shot.path("sourceId").asText())
+                || !shot.path("shotId").asText().matches("[a-z][a-z0-9_-]{0,63}")
+                || !validSourceHash(film.path("sourceHash").asText()) || stored.get().artifactPath()==null
+                || output.path("durationInFrames").asInt()<1 || output.path("width").asInt()<1 || output.path("height").asInt()<1
+                || output.path("fps").asDouble()<1) {
+            throw conflict("shot_candidate_invalid","候选提交凭据无效");
+        }
+        return Optional.of(new CommitResult(projectId,candidateId,stored.get().version(),stored.get().artifactPath(),film.path("sourceHash").asText(),
+                shot.path("shotId").asText(),shot.path("sourceId").asText(),output.path("durationInFrames").asInt(),output.path("width").asInt(),output.path("height").asInt(),output.path("fps").asDouble()));
+    }
+
     public CommitResult commit(String projectId, long version, String candidateId) {
         validateCandidateId(candidateId);
         operations.acquire(projectId);
@@ -214,32 +250,13 @@ public class ShotCandidateService {
         Project project = project(projectId);
         Path root = projectRoot(project);
         Path candidateDirectory = candidateDirectory(root, candidateId);
+        var authoritative = existingCommit(projectId, version, candidateId);
+        if (authoritative.isPresent()) return authoritative.get();
         ObjectNode candidate = readCandidate(candidateDirectory, projectId, candidateId, version);
         if (candidate == null) throw new ApiException(HttpStatus.NOT_FOUND, "shot_candidate_not_found", "镜头候选稿不存在");
 
         if ("committed".equals(candidate.path("status").asText())) {
-            return committedResult(candidate);
-        }
-        JsonNode currentFilm = scenes.find(projectId).filter(ProjectScene::present).orElseThrow(() ->
-                new ApiException(HttpStatus.CONFLICT, "scene_not_initialized", "项目当前没有已提交的场景版本"))
-                .film();
-        JsonNode alreadyApplied = currentFilm == null ? json.nullNode() : currentFilm.path("shotEdit");
-        if (candidateId.equals(alreadyApplied.path("candidateId").asText())) {
-            long currentVersion = scenes.find(projectId).orElseThrow().version();
-            ProjectSceneVersion committedVersion = scenes.findVersion(projectId, currentVersion).orElseThrow(() ->
-                    new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "internal_error", "已提交的镜头版本无法读取"));
-            ObjectNode recovered = candidate.deepCopy().put("status", "committed")
-                    .put("committedVersion", currentVersion)
-                    .put("artifactPath", committedVersion.artifactPath())
-                    .put("sourceHash", committedVersion.film().path("sourceHash").asText())
-                    .put("durationInFrames", committedVersion.film().path("output").path("durationInFrames").asInt())
-                    .put("width", committedVersion.film().path("output").path("width").asInt())
-                    .put("height", committedVersion.film().path("output").path("height").asInt())
-                    .put("fps", committedVersion.film().path("output").path("fps").asDouble());
-            try { writeMetadata(candidateDirectory, recovered); } catch (IOException error) {
-                log.warn("候选稿已提交，但幂等元数据未写入：{}", candidateId, error);
-            }
-            return committedResult(recovered);
+            throw conflict("shot_candidate_commit_missing", "候选标记已提交但数据库没有对应版本，未重复制作，请核对历史");
         }
         ProjectSceneVersion base = requireCurrentVersion(projectId, version, candidate.path("baseSourceHash").asText());
 
@@ -290,19 +307,25 @@ public class ShotCandidateService {
                     .put("sourceHash", newHash);
             updatedFilm.set("shotTimeline", json.valueToTree(capturedConfig.shotTimeline()));
             updatedFilm.set("sources", ProjectFilmRenderService.sourceEntries(json, captured));
+            updatedFilm.set("dependencies", rendered.dependencies() != null && rendered.dependencies().isObject()
+                    ? rendered.dependencies().deepCopy() : json.createObjectNode());
             ObjectNode outputMetadata = updatedFilm.path("output").isObject()
                     ? (ObjectNode) updatedFilm.path("output") : updatedFilm.putObject("output");
             outputMetadata.put("durationInFrames", rendered.durationInFrames())
                     .put("width", rendered.width()).put("height", rendered.height())
                     .put("fps", rendered.fps()).put("renderMs", renderMs);
             updatedFilm.putObject("shotEdit").put("candidateId", candidateId)
-                    .put("shotId", target.id()).put("sourceId", sourceId);
+                    .put("shotId", target.id()).put("sourceId", sourceId).put("baseVersion", version);
 
+            CreationCancellation.requireRunning();
+            try (var write = com.fengmotion.server.project.service.SourceWriteGuard.acquire(root)) {
             requireWorkingSource(root, baseHash);
             try (ProjectSourceSnapshots.Recovery recovery = snapshots.restore(root, newSnapshot, newHash)) {
-                Optional<Long> nextVersion = scenes.commitWithSnapshot(projectId, version, updatedFilm, null,
+                try {
+                CreationCancellation.requireRunning();
+                Optional<Long> nextVersion = SceneCommitVerifier.commit(scenes,projectId,version,updatedFilm,artifactPath,()->scenes.commitWithSnapshot(projectId, version, updatedFilm, null,
                         candidate.path("prompt").asText(""), "替换镜头 " + target.id(), artifactPath,
-                        ProjectSceneVersion.SOURCE_SHOT_EDIT, null);
+                        ProjectSceneVersion.SOURCE_SHOT_EDIT, null));
                 if (nextVersion.isEmpty()) throw new ApiException(HttpStatus.CONFLICT, "scene_version_conflict",
                         "项目在提交镜头候选期间已更新，本次结果未提交");
                 recovery.commit();
@@ -315,9 +338,14 @@ public class ShotCandidateService {
                 }
                 committed = true;
                 return committedResult(saved);
+                } catch(RuntimeException failure) {
+                    if(SceneCommitVerifier.uncertain(failure)) { recovery.retainPending();committed=true; }
+                    throw failure;
+                }
             } catch (IOException failure) {
                 throw new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "shot_candidate_rollback_failed",
                         "镜头候选提交失败，工作区恢复未完成");
+            }
             }
         } finally {
             if (!committed) {
@@ -332,9 +360,12 @@ public class ShotCandidateService {
         operations.acquire(projectId);
         try {
             Path directory = candidateDirectory(projectRoot(project(projectId)), candidateId);
+            if (scenes.findVersionByShotCandidate(projectId,candidateId).isPresent()) {
+                throw conflict("shot_candidate_already_committed", "已提交的镜头版本不能作为候选放弃");
+            }
             ObjectNode candidate = readCandidate(directory, projectId, candidateId, version);
             if (candidate == null) return;
-            if ("committed".equals(candidate.path("status").asText())) {
+            if ("committed".equals(candidate.path("status").asText()) || scenes.findVersionByShotCandidate(projectId,candidateId).isPresent()) {
                 throw conflict("shot_candidate_already_committed", "已提交的镜头版本不能作为候选放弃");
             }
             deleteTree(directory);

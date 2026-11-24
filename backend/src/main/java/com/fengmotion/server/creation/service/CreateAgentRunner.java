@@ -171,7 +171,7 @@ public class CreateAgentRunner {
            注意：不能只看 src/index.tsx 和 film.config.json 是否存在 ——
            对已有工程，这两个文件本来就在，agent 什么都不做也会「存在」，
            于是旧工程被重渲一遍，用户却以为改好了。所以比内容指纹。 */
-        boolean hasEntry = Files.isRegularFile(projectRoot.resolve("src").resolve("index.tsx"));
+        boolean hasEntry = new ProjectFilmConfig(json).tryRead(projectRoot).isPresent();
         boolean hasConfig = Files.isRegularFile(projectRoot.resolve(ProjectFilmConfig.FILE_NAME));
         String afterHash = ProjectSourceFingerprint.compute(projectRoot);
         if (afterHash.startsWith("error:")) {
@@ -325,18 +325,21 @@ public class CreateAgentRunner {
      */
     static java.util.List<DshSdkSession.InlineImage> previewImages(String image) {
         if (image == null) return java.util.List.of();
-        if (image.length() > 5_000_000 || !image.startsWith("data:image/jpeg;base64,")) {
+        boolean png = image.startsWith("data:image/png;base64,");
+        if (image.length() > 5_000_000 || (!png && !image.startsWith("data:image/jpeg;base64,"))) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "validation_error", "画面图片格式无效或超过大小限制");
         }
-        String data = image.substring("data:image/jpeg;base64,".length());
+        String data = image.substring((png ? "data:image/png;base64," : "data:image/jpeg;base64,").length());
         try {
             byte[] bytes = java.util.Base64.getDecoder().decode(data);
-            if (bytes.length < 3 || (bytes[0] & 255) != 255 || (bytes[1] & 255) != 216 || (bytes[2] & 255) != 255)
+            boolean valid = png ? bytes.length >= 8 && java.util.Arrays.equals(java.util.Arrays.copyOf(bytes,8),new byte[]{(byte)137,80,78,71,13,10,26,10})
+                    : bytes.length >= 3 && (bytes[0] & 255) == 255 && (bytes[1] & 255) == 216 && (bytes[2] & 255) == 255;
+            if (!valid)
                 throw new IllegalArgumentException();
         } catch (IllegalArgumentException failure) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "validation_error", "画面图片数据无效");
         }
-        return java.util.List.of(new DshSdkSession.InlineImage(data, "image/jpeg"));
+        return java.util.List.of(new DshSdkSession.InlineImage(data, png ? "image/png" : "image/jpeg"));
     }
 
     private String ask(Path workdir, String instruction, java.util.List<DshSdkSession.InlineImage> images,
@@ -387,7 +390,7 @@ public class CreateAgentRunner {
      *
      * @param reply        agent 的说明
      * @param elapsedMs    耗时
-     * @param hasEntry     是否产出 src/index.tsx
+     * @param hasEntry     是否具有有效工程入口或镜头装配配置
      * @param hasConfig    是否产出 film.config.json
      */
     /**

@@ -20,13 +20,20 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class CreationStateStore {
     private static final String FILE = "creation-state.json";
+    private static final int MAX_BYTES = 16_000_000;
     private final ObjectMapper json;
 
     public State read(Path root) {
         Path file = root.resolve(FILE);
-        if (!Files.isRegularFile(file)) return null;
+        if(Files.isSymbolicLink(file)) throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY,"creation_state_unreadable","创作记录不能是符号链接");
+        if (!Files.isRegularFile(file,java.nio.file.LinkOption.NOFOLLOW_LINKS)) return null;
         try {
-            return json.readValue(file.toFile(), State.class);
+            if (Files.size(file) > MAX_BYTES) throw new IOException("创作记录超过大小限制");
+            String content = com.fengmotion.server.common.ProcessOutput.read(file, MAX_BYTES);
+            var document = json.reader().with(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_READING_DUP_TREE_KEY,
+                    com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_TRAILING_TOKENS).readTree(content);
+            if (document == null || !document.isObject()) throw new IOException("创作记录必须是JSON对象");
+            return json.treeToValue(document, State.class);
         } catch (IOException failure) {
             throw new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "creation_state_unreadable",
                     "无法读取上轮创作记录：" + failure.getMessage());
@@ -34,13 +41,20 @@ public class CreationStateStore {
     }
 
     public void write(Path root, State state) {
-        Path temporary = root.resolve(FILE + ".tmp");
+        Path temporary = null;
         try {
-            json.writerWithDefaultPrettyPrinter().writeValue(temporary.toFile(), state);
-            Files.move(temporary, root.resolve(FILE), StandardCopyOption.REPLACE_EXISTING);
+            if(Files.isSymbolicLink(root.resolve(FILE))) throw new IOException("创作记录不能是符号链接");
+            if (state == null) throw new IOException("创作记录不能为空");
+            byte[] content = json.writerWithDefaultPrettyPrinter().writeValueAsBytes(state);
+            if (content.length > MAX_BYTES) throw new IOException("创作记录超过大小限制");
+            temporary=Files.createTempFile(root,".creation-state-",".tmp");
+            Files.write(temporary, content);
+            Files.move(temporary, root.resolve(FILE), StandardCopyOption.ATOMIC_MOVE,StandardCopyOption.REPLACE_EXISTING);
         } catch (IOException failure) {
             throw new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "creation_state_write_failed",
                     "无法保存创作记录：" + failure.getMessage());
+        } finally {
+            try { if(temporary!=null) Files.deleteIfExists(temporary); } catch(IOException ignored) { }
         }
     }
 

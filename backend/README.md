@@ -37,9 +37,16 @@ mvn test
 
 ## 源码实时预览
 
+新增后端工具见 [backend-source-tools.md](../frontend/docs/contracts/backend-source-tools.md)：按源码基线单帧取图、后台轨道/镜头作业、写入中断检查与恢复。同一SQLite的新后端实例通过操作系统文件锁互斥；旧版本不参与该协议，升级时仍须先停止旧实例。开发与自审记录见 [持续开发台账](docs/audits/2026-11-23-backend-completion.md)。
+工作台的工作稿状态、精准目标和确认出片接口见 [workbench-source.md](../frontend/docs/contracts/workbench-source.md)。`outputMode: draft` 的 AI 请求只修改工作稿；`GET /source/state` 按真实指纹识别未出片改动；确认出片使用 `/render-jobs` 的基线校验、后台执行和请求幂等。精准修改在独立副本中完成，只允许写回经过复核的 JSX 范围。
+
 `POST /api/projects/{id}/live-preview` 启动或复用本机 Node 预览，`GET` 查询，`DELETE` 停止。响应字段、错误和前端心跳约定见 [实时预览契约](../frontend/docs/contracts/live-preview.md)。稳定状态最多三个就绪预览，切换时允许一个临时启动进程；新进程就绪后才淘汰最久未心跳的旧预览，失败则保留旧预览。空闲超过十分钟自动回收。Agent 创作期间允许预览，预览不登记成片版本。
 
-脚本与共享依赖由上面的环境变量定位，日志在数据目录的 `logs/live-preview/`。当前预览壳需要真实工程入口，镜头装配格式暂返回不可用。`LivePreviewServiceTest` 验证生命周期，`LivePreviewApiTest` 使用真实 Node 协议夹具，`LivePreviewRuntimeTest` 验证实际预览壳打包和热更新（缺少前端依赖时跳过）。
+脚本与共享依赖由上面的环境变量定位，日志在数据目录的 `logs/live-preview/`。普通入口与镜头装配均可预览，后者使用与出片相同的装配函数生成内存入口，清单和源码变更会热更新。版本只读预览使用独立源码快照副本，禁止修改和撤销。`LivePreviewServiceTest` 验证生命周期，`LivePreviewApiTest` 使用真实Node协议夹具，`LivePreviewRuntimeTest` 验证打包、热更新、只读和写入保护（缺依赖时跳过）。
+
+长期预览stdout/stderr每路默认最多保留8MiB，超出继续读取丢弃以免阻塞；非活动日志按40文件/128MiB/7天收尾。`fengmotion.live-preview.max-log-bytes` 可调单文件上限，详细边界见契约。缺依赖探测包含esbuild/Babel，文件存在不等于实际启动成功。
+
+当前内容接口：`GET /projects/{id}/timeline`（不带path）与`/scenes`、`/scenes/{sceneId}`读取已验证成片轨道；带path保持既有视频清单格式。`/storyboard`读取实际规划JSON，`/poster?version=N`按视频内容缓存；项目列表真实时长与画布来自已提交版本，不执行模型或渲染。审核结论尚未聚合时明确不标通过。
 
 依赖目录默认配置为空，开发态从 `frontend/live-preview/` 的同级 `node_modules/` 定位，不依赖启动命令的相对路径。查询时临时 HTTP 失败保留仍存活的进程；启动失败由握手流程返回原因，回收任务不抢先覆盖它。停止等待在共享锁外执行；关闭期间启动返回 `503 live_preview_stopping`，成功和业务错误响应均不缓存。
 

@@ -29,6 +29,11 @@ export function shotTracks(timeline) {
         id: shot.id, name: shot.label, kind: 'video',
         start: shot.startFrame / timeline.fps, duration: shot.frames / timeline.fps,
       })),
-    }],
+    }, ...(timeline.voiceover ? [{
+      id: 'voiceover', name: '独立配音', clips: [{
+        id: 'voiceover', name: timeline.voiceover, kind: 'audio', start: 0,
+        duration: timeline.durationInFrames / timeline.fps,
+      }],
+    }] : [])],
   }
 }

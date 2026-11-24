@@ -360,7 +360,7 @@ function verify() {
 
   console.log('  JRE 体积:', (dirSizeBytes(jreDir) / 1024 / 1024).toFixed(1) + ' MB')
 
-  for (const file of ['render.mjs', 'render-shared.mjs', 'render-project.mjs', 'timeline.mjs']) {
+  for (const file of ['render.mjs', 'render-shared.mjs', 'render-project.mjs', 'timeline.mjs', 'shot-assembly.mjs', 'inspect-source-target.mjs']) {
     if (!existsSync(path.join(remotionOut, file))) {
       throw new Error(`缺少渲染脚本：${file}（项目工程渲染会失败）`)
     }
@@ -382,7 +382,7 @@ function verify() {
     }
   }
   console.log('  Remotion 工程与依赖: 就绪')
-  for (const file of ['server.mjs', 'annotate.mjs', 'source-edit.mjs', 'harness/entry.tsx']) {
+  for (const file of ['server.mjs', 'annotate.mjs', 'source-edit.mjs', 'source-write-guard.mjs', 'harness/entry.tsx']) {
     if (!existsSync(path.join(livePreviewOut, file))) throw new Error(`缺少实时预览文件：${file}`)
   }
 

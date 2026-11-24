@@ -85,6 +85,15 @@ public class ProjectFilmRenderer {
     }
 
     private Result run(Path projectRoot, ProjectFilmConfig.FilmConfig config, Path output) {
+        return run(projectRoot, config, output, null);
+    }
+
+    public Result renderStill(Path root, ProjectFilmConfig.FilmConfig config, Path output, int frame) {
+        if (frame < 0) throw new ApiException(HttpStatus.BAD_REQUEST, "frame_out_of_range", "帧号不能为负数");
+        return run(root, config, output, frame);
+    }
+
+    private Result run(Path projectRoot, ProjectFilmConfig.FilmConfig config, Path output, Integer frame) {
         Path script = resolveScript();
 
         List<String> command = new ArrayList<>();
@@ -96,6 +105,7 @@ public class ProjectFilmRenderer {
         command.add(config.entry());
         command.add("--composition");
         command.add(config.compositionId());
+        if (frame != null) { command.add("--frame"); command.add(frame.toString()); }
         if (config.shotTimeline() != null) {
             command.add("--shot-timeline");
             command.add(json.valueToTree(config.shotTimeline()).toString());
@@ -150,8 +160,8 @@ public class ProjectFilmRenderer {
                                 + "fengmotion.remotion.project-timeout-seconds 后重试。");
             }
 
-            String stdout = Files.readString(stdoutFile, StandardCharsets.UTF_8).trim();
-            String stderr = Files.readString(stderrFile, StandardCharsets.UTF_8);
+            String stdout = com.fengmotion.server.common.ProcessOutput.read(stdoutFile, 2_097_152).trim();
+            String stderr = com.fengmotion.server.common.ProcessOutput.tail(stderrFile, 16384);
             return parse(stdout, stderr, process.exitValue(), output);
         } catch (IOException failure) {
             throw new ApiException(HttpStatus.BAD_GATEWAY, "renderer_unavailable",
@@ -192,15 +202,15 @@ public class ProjectFilmRenderer {
         if (exitCode != 0 || node == null || !node.path("ok").asBoolean(false)) {
             String reason = node != null ? node.path("error").asText("") : "";
             if (reason.isBlank()) reason = readTailFrom(stderr);
+            if (reason.startsWith("frame_out_of_range:")) {
+                throw new ApiException(HttpStatus.BAD_REQUEST, "frame_out_of_range", reason);
+            }
             log.warn("项目工程渲染失败 exit={} 原因={}", exitCode, reason);
             throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, "render_failed",
                     "渲染失败：" + (reason.isBlank() ? "未得到可解析的输出" : reason));
         }
 
-        if (output != null && !Files.isRegularFile(output)) {
-            throw new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "render_failed",
-                    "渲染脚本报告成功，但没有生成文件：" + output);
-        }
+        RenderResultValidation.require(node, output);
 
         return new Result(
                 output,
@@ -208,7 +218,8 @@ public class ProjectFilmRenderer {
                 node.path("width").asInt(0),
                 node.path("height").asInt(0),
                 node.path("fps").asDouble(0),
-                node.path("sequences"));
+                node.path("sequences"),
+                node.path("dependencies"));
     }
 
     /**
@@ -217,20 +228,7 @@ public class ProjectFilmRenderer {
      * @return 脚本路径
      */
     private Path resolveScript() {
-        List<Path> candidates = new ArrayList<>();
-        if (remotionDir != null && !remotionDir.isBlank()) {
-            candidates.add(Path.of(remotionDir).toAbsolutePath().normalize().resolve("render-project.mjs"));
-        }
-        Path cwd = Path.of(System.getProperty("user.dir")).toAbsolutePath().normalize();
-        candidates.add(cwd.resolve("remotion").resolve("render-project.mjs"));
-
-        for (Path candidate : candidates) {
-            if (Files.isRegularFile(candidate)) {
-                return candidate.toAbsolutePath().normalize();
-            }
-        }
-        throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "renderer_unavailable",
-                "找不到项目工程渲染脚本（配置项 fengmotion.remotion.project-dir）");
+        return RenderRuntimePaths.script(remotionDir,"render-project.mjs");
     }
 
     /**
@@ -252,7 +250,7 @@ public class ProjectFilmRenderer {
      */
     private String readTail(Path file) {
         try {
-            return readTailFrom(Files.readString(file, StandardCharsets.UTF_8));
+            return readTailFrom(com.fengmotion.server.common.ProcessOutput.tail(file, 4096));
         } catch (IOException unreadable) {
             return "";
         }
@@ -292,9 +290,12 @@ public class ProjectFilmRenderer {
      * @param height           高
      * @param fps              帧率
      */
-    public record Result(Path output, int durationInFrames, int width, int height, double fps, JsonNode sequences) {
+    public record Result(Path output, int durationInFrames, int width, int height, double fps, JsonNode sequences, JsonNode dependencies) {
+        public Result(Path output, int durationInFrames, int width, int height, double fps, JsonNode sequences) {
+            this(output, durationInFrames, width, height, fps, sequences, null);
+        }
         public Result(Path output, int durationInFrames, int width, int height, int fps) {
-            this(output, durationInFrames, width, height, fps, null);
+            this(output, durationInFrames, width, height, fps, null, null);
         }
     }
 }

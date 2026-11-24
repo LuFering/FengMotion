@@ -34,3 +34,7 @@ __pycache__/
 .claude/
 backend/_wip/
 
+# 本地缓存与历史备份（不进版本控制）
+.vite/
+frontend-vue/
+frontend-vue.zip

@@ -1,4 +1,5 @@
 import type * as React from 'react'
+import type { SourceTargetContext } from '@/api/sourceRender'
 import { timeSpanBrief, type TimeSpan } from '@/features/workbench/model/timeRange'
 import { studioHttpApi } from '@/api'
 import { ApiError } from '@/api/errors'
@@ -18,9 +19,11 @@ export interface RealModifyInput {
   prompt: string
   span?: TimeSpan
   previewImage?: string
+  target?: SourceTargetContext
 }
 
 export interface UseRealModifyArgs {
+  draftOnly?: boolean
   buildRequest: (prompt: string, kind: TaskRequest['kind'], useConstraints: ModificationConstraints) => TaskRequest
   capturedPreview: React.RefObject<{ id: string; image: string } | null>
   chat: WorkbenchProps['chat']
@@ -85,7 +88,7 @@ export function useRealModify(args: UseRealModifyArgs) {
    * @param span   只看这几秒（「按时间段修改」入口传进来）；不传就是整条片子的意见
    * @returns 是否已成功提交
    */
-  const submitRealModify = async (prompt: string, span?: TimeSpan, previewImage?: string): Promise<boolean> => {
+  const submitRealModify = async (prompt: string, span?: TimeSpan, previewImage?: string, target?: SourceTargetContext): Promise<boolean> => {
     if (!prompt.trim()) { setRealModifyError('请先写下制作要求'); focusFeedback(); return false }
     /* 时间段修改的基准是**当前工程版本**，不是画面列表首项：
        首项可能是编辑器试片，拿它比会把「看着当前工程版本」误判成历史。 */
@@ -133,7 +136,7 @@ export function useRealModify(args: UseRealModifyArgs) {
         throw new Error(baseline.failure.message || '无法读取项目当前版本')
       }
       if (filmProject?.ready || context.initialized || !baseline.scene?.initialized) {
-        return await submitFilmCorrection(args, { prompt, span, previewImage, context, baseline, correctionText })
+        return await submitFilmCorrection(args, { prompt, span, previewImage, target, context, baseline, correctionText })
       }
 
       return await submitSceneModify(args, { prompt, span })

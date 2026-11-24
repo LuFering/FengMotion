@@ -119,7 +119,7 @@ public interface ProjectDataMapper {
      * 归档未归档的项目；重复归档不改变已有归档时间。
      *
      * <p>归档不是删除：项目行与目录都保留，只是不再出现在查询结果中。
-     * 契约 project.md §3.5 的删除默认走这里，{@code purge=true} 的物理删除尚未接入。</p>
+     * 契约 project.md §3.5 的删除默认走这里；物理删除走独立的项目清理事务。</p>
      *
      * @param id         项目 ID
      * @param archivedAt ISO-8601 格式的归档时间

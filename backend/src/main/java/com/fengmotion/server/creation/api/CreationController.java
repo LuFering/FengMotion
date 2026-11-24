@@ -191,7 +191,8 @@ public class CreationController {
         }
         String intent = request == null ? null : request.intent();
         var references = request == null ? null : request.references();
-        var outcome = projectRender.createThenRender(
+        if (request != null) request.validateOutputMode();
+        var outcome = request != null && request.draftOnly() ? projectRender.createDraft(projectId, request) : projectRender.createThenRender(
                 projectId, intent, references,
                 request == null ? null : request.previewImage(),
                 request == null ? null : request.baseVersion(),

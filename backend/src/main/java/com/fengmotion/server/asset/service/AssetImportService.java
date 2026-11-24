@@ -62,16 +62,10 @@ public class AssetImportService {
             throw new ApiException(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "unsupported_media_type",
                     "暂不支持这种文件类型：" + fileName);
         }
-        if (folderId != null && assets.findFolder(folderId).isEmpty()) {
-            throw new ApiException(HttpStatus.NOT_FOUND, "not_found", "文件夹不存在");
-        }
-        if (projectId != null && !assets.projectExists(projectId)) {
-            throw new ApiException(HttpStatus.NOT_FOUND, "not_found", "项目不存在或已归档");
-        }
-
+        Path tmp = null;
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            Path tmp = Files.createTempFile("fengmotion-upload-", ".bin");
+            tmp = Files.createTempFile("fengmotion-upload-", ".bin");
             long size;
             String hash;
             try {
@@ -82,11 +76,19 @@ public class AssetImportService {
                 throw failure;
             }
 
+            assets.acquireWriteLock();
+            if (folderId != null && assets.findFolder(folderId).isEmpty()) {
+                throw new ApiException(HttpStatus.NOT_FOUND, "not_found", "文件夹不存在");
+            }
+            if (projectId != null && !assets.projectExists(projectId)) {
+                throw new ApiException(HttpStatus.NOT_FOUND, "not_found", "项目不存在或已归档");
+            }
+
             Optional<Asset> existing = assets.findByHash(hash);
-            boolean canReuse = existing.isPresent() && fileUsable(existing.get());
+            boolean canReuse = existing.isPresent() && fileUsable(existing.get(), hash, size);
             if (existing.isPresent() && !canReuse) {
-                log.warn("命中已有记录但文件不可用，将重新落盘：{}（哈希 {}）", fileName, hash);
-                existing = Optional.empty();
+                repairOriginal(tmp, existing.get(), hash);
+                log.info("已恢复素材原文件并保留记录身份：{}", existing.get().id());
             }
             if (existing.isPresent() && !keepSeparateRecord) {
                 Files.deleteIfExists(tmp);
@@ -110,23 +112,52 @@ public class AssetImportService {
             throw new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "internal_error", "文件保存失败");
         } catch (NoSuchAlgorithmException failure) {
             throw new IllegalStateException("运行环境缺少 SHA-256", failure);
+        } finally {
+            if (tmp != null) try { Files.deleteIfExists(tmp); }
+            catch (IOException failure) { log.warn("素材导入临时文件清理失败：{}", tmp, failure); }
         }
     }
 
-    private boolean fileUsable(Asset asset) {
+    private boolean fileUsable(Asset asset, String hash, long size) {
         String url = asset.fileUrl();
         if (url == null || url.isBlank()) {
             return false;
         }
         try {
             Path file = storage.resolve(url);
-            return Files.isRegularFile(file) && Files.size(file) > 0;
+            if (!Files.isRegularFile(file, java.nio.file.LinkOption.NOFOLLOW_LINKS) || Files.size(file) != size || size == 0) return false;
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            try (var input = new DigestInputStream(Files.newInputStream(file, java.nio.file.LinkOption.NOFOLLOW_LINKS), digest)) {
+                input.transferTo(java.io.OutputStream.nullOutputStream());
+            }
+            return hash.equals(HexFormat.of().formatHex(digest.digest()));
         } catch (IllegalArgumentException failure) {
             log.warn("素材文件路径无效：{}", url, failure);
             return false;
         } catch (IOException failure) {
             log.warn("检查素材文件失败：{}", url, failure);
             return false;
+        } catch (NoSuchAlgorithmException impossible) { throw new IllegalStateException(impossible); }
+    }
+
+    private void repairOriginal(Path temporary, Asset asset, String hash) throws IOException {
+        Path target;
+        try {
+            target = storage.resolve(asset.fileUrl());
+            Path expectedDirectory = storage.resolve(storage.relativeDirFor(hash));
+            if (!expectedDirectory.equals(target.getParent()) || !target.getFileName().toString().startsWith("original")) {
+                throw new IllegalArgumentException("素材记录的文件路径与内容哈希不一致");
+            }
+        } catch (IllegalArgumentException invalid) {
+            throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, "asset_storage_invalid", "已有素材路径无效，未覆盖文件或新建重复记录");
+        }
+        Files.createDirectories(target.getParent());
+        Path staged = Files.createTempFile(target.getParent(), ".repair-", ".tmp");
+        try {
+            Files.copy(temporary, staged, StandardCopyOption.REPLACE_EXISTING);
+            Files.move(staged, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+        } finally {
+            Files.deleteIfExists(staged);
         }
     }
 

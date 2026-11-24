@@ -212,6 +212,40 @@ class ProjectSceneSnapshotTest {
         assertTrue(scenes.findLatestVersionByArtifact(projectId, " ").isEmpty());
     }
 
+    @Test void candidateReceiptSurvivesLaterVersionsAndRemainsProjectScoped() {
+        String projectId=newProject();
+        var candidate=json.createObjectNode().put("sourceHash","candidate");
+        candidate.putObject("shotEdit").put("candidateId","candidate-one");
+        scenes.commitWithSnapshot(projectId,0,candidate,null,"","","renders/first.mp4",ProjectSceneVersion.SOURCE_SHOT_EDIT,null);
+        scenes.commitWithSnapshot(projectId,1,film("later"),null,"","","renders/later.mp4",ProjectSceneVersion.SOURCE_TASK,null);
+        assertEquals(1,scenes.findVersionByShotCandidate(projectId,"candidate-one").orElseThrow().version());
+        assertTrue(scenes.findVersionByShotCandidate(newProject(),"candidate-one").isEmpty());
+    }
+
+    @Test void creationReceiptCanBeFoundAfterLaterVersions() {
+        String projectId=newProject();
+        var created=json.createObjectNode().put("creationRequestId","creation-one");
+        scenes.commitWithSnapshot(projectId,0,created,null,"","","renders/created.mp4",ProjectSceneVersion.SOURCE_TASK,null);
+        scenes.commitWithSnapshot(projectId,1,film("later"),null,"","","renders/later.mp4",ProjectSceneVersion.SOURCE_TASK,null);
+        assertEquals(1,scenes.findVersionByCreationRequest(projectId,"creation-one").orElseThrow().version());
+        assertTrue(scenes.findVersionByCreationRequest(newProject(),"creation-one").isEmpty());
+    }
+
+    @Test void copiedReceiptMetadataInRestoreOrElementEditDoesNotInventOriginalCompletion() {
+        String projectId = newProject();
+        var copied = json.createObjectNode().put("creationRequestId", "creation-one");
+        copied.putObject("shotEdit").put("candidateId", "candidate-one");
+        copied.putObject("sourceRenderRequest").put("requestId", "render-one");
+        scenes.commitWithSnapshot(projectId, 0, copied, null, "", "", "renders/restore.mp4", ProjectSceneVersion.SOURCE_RESTORE, 1L);
+        scenes.commitWithSnapshot(projectId, 1, copied, null, "", "", "renders/edit.mp4", ProjectSceneVersion.SOURCE_ELEMENT_EDIT, null);
+        assertTrue(scenes.findVersionByCreationRequest(projectId, "creation-one").isEmpty());
+        assertTrue(scenes.findVersionByRenderRequest(projectId, "render-one").isEmpty());
+        assertTrue(scenes.findVersionByShotCandidate(projectId, "candidate-one").isEmpty());
+        scenes.commitWithSnapshot(projectId, 2, copied, null, "", "", "renders/task.mp4", ProjectSceneVersion.SOURCE_TASK, null);
+        assertEquals(3, scenes.findVersionByCreationRequest(projectId, "creation-one").orElseThrow().version());
+        assertEquals(3, scenes.findVersionByRenderRequest(projectId, "render-one").orElseThrow().version());
+    }
+
     @Test
     void artifactLookupDoesNotDeserializeUnrelatedBrokenSnapshots() {
         String projectId = newProject();

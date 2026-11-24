@@ -51,9 +51,10 @@ public class ProjectSceneController {
             throw new ApiException(HttpStatus.NOT_FOUND, "not_found", "项目不存在");
         }
         Optional<ProjectScene> stored = scenes.find(projectId);
-        if (stored.isEmpty() || !stored.get().present()) {
+        if (stored.isEmpty()) {
             return new SceneResponse(projectId, false, 0, null, null, null);
         }
+        if (!stored.get().present()) throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, "scene_corrupt", "当前场景记录损坏，不能当作新项目继续制作");
         ProjectScene scene = stored.get();
         return new SceneResponse(projectId, true, scene.version(), scene.film(),
                 scene.taskId(), scene.updatedAt());

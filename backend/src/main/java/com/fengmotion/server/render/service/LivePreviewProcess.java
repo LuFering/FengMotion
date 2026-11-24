@@ -24,13 +24,23 @@ class LivePreviewProcess {
     private final Path stdout;
     private final Path stderr;
     private final ObjectMapper json;
+    private final java.util.List<PreviewLogSink> logSinks;
     private final AtomicBoolean stopped = new AtomicBoolean();
+    private final AtomicBoolean logsClosed = new AtomicBoolean();
+    private final Runnable afterLogsClosed;
+    private java.util.List<ProcessHandle> stoppingChildren = java.util.List.of();
 
     LivePreviewProcess(Process process, Path stdout, Path stderr, ObjectMapper json) {
+        this(process, stdout, stderr, json, java.util.List.of(), () -> { });
+    }
+
+    LivePreviewProcess(Process process, Path stdout, Path stderr, ObjectMapper json, java.util.List<PreviewLogSink> logSinks, Runnable afterLogsClosed) {
         this.process = process;
         this.stdout = stdout;
         this.stderr = stderr;
         this.json = json;
+        this.logSinks = logSinks;
+        this.afterLogsClosed = afterLogsClosed;
     }
 
     String awaitReady(Duration timeout) {
@@ -92,9 +102,9 @@ class LivePreviewProcess {
         }
     }
 
-    void stop() {
-        if (!stopped.compareAndSet(false, true)) return;
-        var children = process.descendants().toList();
+    synchronized void stop() {
+        if (stopped.compareAndSet(false, true)) stoppingChildren=process.descendants().toList();
+        var children = stoppingChildren;
         children.forEach(ProcessHandle::destroy);
         process.destroy();
         try {
@@ -104,6 +114,18 @@ class LivePreviewProcess {
         } finally {
             children.stream().filter(ProcessHandle::isAlive).forEach(ProcessHandle::destroyForcibly);
             if (process.isAlive()) process.destroyForcibly();
+            boolean interrupted=Thread.interrupted();
+            long deadline=System.nanoTime()+TimeUnit.SECONDS.toNanos(2);
+            while(System.nanoTime()<deadline && (process.isAlive() || children.stream().anyMatch(ProcessHandle::isAlive))) {
+                try { Thread.sleep(10); }
+                catch(InterruptedException failure) { interrupted=true; }
+            }
+            if(interrupted) Thread.currentThread().interrupt();
+            if(process.isAlive() || children.stream().anyMatch(ProcessHandle::isAlive)) {
+                throw unavailable("预览进程尚未完全退出，项目继续保持占用，请检查进程后重试");
+            }
+            logSinks.forEach(PreviewLogSink::close);
+            if (logsClosed.compareAndSet(false, true)) afterLogsClosed.run();
         }
     }
 

@@ -1,4 +1,5 @@
 import type * as React from 'react'
+import type { SourceTargetContext } from '@/api/sourceRender'
 import { resolveSendPlanFromDraft } from '@/features/chat/model/sendPlan'
 import { studioHttpApi } from '@/api'
 import { notifyProjectRendered } from '@/features/project/services/projectRenderEvents'
@@ -41,7 +42,7 @@ export interface UseWorkbenchSubmitArgs {
   spanModifyCapability: CapabilityResult
   startNow: (item: { prompt: string; request: TaskRequest; messageId?: string }) => string
   submissionEngine: { model: string; harness: string; reasoningEffort?: string }
-  submitRealModify: (prompt: string, span?: TimeSpan, previewImage?: string) => Promise<boolean>
+  submitRealModify: (prompt: string, span?: TimeSpan, previewImage?: string, target?: SourceTargetContext) => Promise<boolean>
   submitTimeSpan: (span: TimeSpan, requirement: string) => Promise<boolean>
   targetEvaluation: ExecutableLocalTargetResult
   tasks: WorkbenchProps['tasks']
@@ -59,7 +60,7 @@ export function useWorkbenchSubmit({ adjustPendingConfirm, aiModifyTargetCapabil
    * <p>此前所有提交都进演示路径，界面看起来「能用」，实际什么都没改。
    * 现在默认打真实接口；演示入口保留为独立按钮，标注清楚。</p>
    */
-  const submit = async (prompt: string): Promise<boolean> => {
+  const submit = async (prompt: string, sourceTarget?: SourceTargetContext): Promise<boolean> => {
     /* 去向由唯一判定函数决定 —— 与对话区发送、与胶囊显示共用同一份结果。
        这里不再自己读一遍意图：两套顺序一旦分叉，界面就会说谎。 */
     const plan = resolveSendPlanFromDraft(sessionDraft.draft, Boolean(projectId))
@@ -68,6 +69,11 @@ export function useWorkbenchSubmit({ adjustPendingConfirm, aiModifyTargetCapabil
     if (plan.kind === 'blocked') {
       setRealModifyError('继续调整已清空上一轮目标。请在播放器中框选画面或选择时间段；若确需调整整片工程，请点击【确认整片修改】后再提交。')
       return false
+    }
+
+    if (sourceTarget) {
+      if (sourceTarget.projectId !== projectId) { setRealModifyError('源码目标不属于当前项目，请重新选择'); return false }
+      return submitRealModify(prompt, undefined, undefined, sourceTarget)
     }
 
     /* 明确提问意图：仅作为会话对话发送并启动真实 AI 回复，绝不触发视频修改 */

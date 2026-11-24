@@ -50,12 +50,14 @@
 
 ## 3. 按需求定位源码与测试
 
+2026-11-23续轮入口：当前时间线/场景读模型在`creation/ProjectContentService`，分镜文件读取在`workflow/StoryboardService`，封面缓存在`render/api/ProjectPosterController`；项目摘要批量读取在`project/ProjectQueryService`。文件范围统一经`ProjectSourceLayout`，恢复和回滚必须保留外部后改/后删。HTTP JSON整数/重复字段由`JsonInputConfig`约束。新增逻辑需同时更新确定性测试及`backend/src/test/workbench-source/acceptance.mjs`，不可只依据旧报告声明完成。
+
 下表测试名用于 `mvn -Dtest=... test`，并非要求每次全部运行。
 
 | 需求 | 主要修改位置 | 优先回归 |
 |---|---|---|
 | 项目创建/幂等/目录 | project service/store/api | `ProjectApiTest,ProjectServiceTest,ProjectIdempotencyRepositoryTest,ProjectDirectoryCollisionTest` |
-| 项目清除/资源关系 | ProjectPurgeService、SqliteProjectPurgeRepository、ResourceRefService | `ProjectPurgeServiceTest,ReferenceAssetProtectionTest`，另补活动创作/对话边界 |
+| 项目清除/资源关系 | ProjectPurgeService、ProjectOperationLock、SqliteProjectPurgeRepository、ResourceRefService | `ProjectPurgeServiceTest,ProjectDeletionAdmissionTest,ProjectDeletionApiTest,ReferenceAssetProtectionTest`；执行入口同时回归队列取消与租约释放 |
 | 版本提交/恢复/查产物 | SceneVersionService、ProjectSourceSnapshots、ProjectSceneRepository | `ProjectSceneSnapshotTest,SceneVersionServiceTest,ProjectFilmRenderServiceTest,ProjectRenderVersionGuardTest` |
 | 按工程版本读元素声明 | SceneEditMetadataService、ProjectSourceSnapshots、[元素声明契约](../frontend/docs/contracts/scene-edit-metadata.md) | `SceneEditMetadataApiTest,SceneVersionServiceTest,ProjectFilmRenderServiceTest,ProjectTimelineServiceTest` |
 | 版本化文字元素写回 | creation.SceneElementEditService、SceneEditMetadataService、ProjectSourceSnapshots、ProjectFilmRenderer、VideoTimeline | `SceneElementEditApiTest,SceneEditMetadataApiTest,ModuleLayoutTest` |
@@ -111,7 +113,7 @@ node --test src/test/*.test.mjs
 
 需要部署 JAR 或调整了包路径时，将 Maven 末尾 `test` 换成 `clean package`。数据库固定为 `target/fengmotion-test.db` 的测试不能在同一 checkout 并发开多个 Maven 实例；Node 和独立读取可并行。
 
-当前 CI 的 [checks.yml](../.github/workflows/checks.yml) 跑 Java 测试、前端测试/构建和桌面壳编译；尚未单独运行 `backend/src/test/*.test.mjs` 或真实 Remotion 端到端渲染，不能把 CI 绿灯等同于这些检查通过。
+当前 CI 的 [checks.yml](../.github/workflows/checks.yml) 跑 Java clean package、后端Node测试、预览/编辑/写入锁Node测试、前端测试/构建和桌面壳编译；会安装共享预览依赖与ffmpeg。真实模型与完整Remotion出片验收仍需隔离执行，不能把 CI 绿灯等同于真实模型出片或多平台安装通过。
 
 ### C. API 联调与真实渲染
 

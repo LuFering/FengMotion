@@ -10,11 +10,12 @@
  * <p>所以这里只管共用流程，两个入口脚本各自决定 sourceRoot 与 compositionId。</p>
  */
 
-import { copyFile, mkdir, readdir, rm } from 'node:fs/promises'
+import { copyFile, mkdir, readdir, readFile, rm } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { createRequire } from 'node:module'
+import { pathToFileURL } from 'node:url'
 import { createTimelineCollector, timelineAdapter } from './timeline.mjs'
 
 /**
@@ -102,7 +103,17 @@ export async function loadFrom(nodeModules, specifier) {
  * @returns URL
  */
 export function pathToFileUrl(p) {
-  return new URL(`file://${p.startsWith('/') ? '' : '/'}${p.replace(/\\/g, '/')}`).href
+  return pathToFileURL(p).href
+}
+
+export async function runtimeVersions(nodeModules) {
+  const versions = {}
+  for (const name of ['remotion', '@remotion/renderer', '@remotion/bundler', 'react']) {
+    const manifest = JSON.parse(await readFile(path.join(nodeModules, name, 'package.json'), 'utf8'))
+    if (typeof manifest.version !== 'string' || !manifest.version.trim()) throw new Error(`渲染依赖缺少版本：${name}`)
+    versions[name] = manifest.version
+  }
+  return versions
 }
 
 /**
@@ -175,7 +186,7 @@ export function emitResult(payload) {
  */
 export async function renderProject(options) {
   const { bundle } = await loadFrom(options.nodeModules, '@remotion/bundler')
-  const { renderMedia, renderFrames, selectComposition } = await loadFrom(options.nodeModules, '@remotion/renderer')
+  const { renderMedia, renderFrames, renderStill, selectComposition } = await loadFrom(options.nodeModules, '@remotion/renderer')
 
   /* chdir 到可写目录：Remotion 把 .remotion（Chrome 下载）与 .cache（webpack）
      写到「当前工作目录」，只读镜像下直接 EACCES。仅复制源码不够。
@@ -217,7 +228,12 @@ export async function renderProject(options) {
     browserExecutable,
     onArtifact: collector.onArtifact,
   }
-  if (options.timelineOnly) {
+  if (options.stillFrame !== undefined) {
+    if (!Number.isInteger(options.stillFrame) || options.stillFrame < 0 || options.stillFrame >= composition.durationInFrames) {
+      throw new Error(`frame_out_of_range: frame must be between 0 and ${composition.durationInFrames - 1}`)
+    }
+    await renderStill({ ...shared, frame: options.stillFrame, imageFormat: 'png', output: options.out })
+  } else if (options.timelineOnly) {
     if (!options.assemblyTimeline) await renderFrames({...shared, imageFormat: 'none', outputDir: null,
       concurrency: 1, onStart: () => {}, onFrameUpdate: () => {}})
   } else await renderMedia({

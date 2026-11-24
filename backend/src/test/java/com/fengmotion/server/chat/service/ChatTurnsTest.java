@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -25,6 +26,64 @@ import com.fengmotion.server.common.ApiException;
 class ChatTurnsTest {
 
     private final ChatTurns turns = new ChatTurns(new ObjectMapper());
+
+    @org.junit.jupiter.api.AfterEach void close() { turns.close(); }
+
+    @Test void expiredReplayDoesNotRenumberNewFramesOrRestartTheAgent() {
+        var turn=new ChatTurns.Turn("message");
+        turn.add("event: delta\ndata: "+"x".repeat(2_100_000));
+        turn.add("event: delta\ndata: "+"y".repeat(2_100_000));
+        turn.finish();
+        assertEquals(2,turn.size());
+        var expired=new StringWriter();
+        turns.follow(turn,0,new PrintWriter(expired),null);
+        assertTrue(expired.toString().contains("turn_replay_expired"));
+        var current=new StringWriter();
+        turns.follow(turn,1,new PrintWriter(current),null);
+        assertTrue(current.toString().startsWith("id: 2\n"));
+        assertTrue(!current.toString().contains("turn_replay_expired"));
+    }
+
+    @Test void rejectsExcessConcurrencyWithoutLeakingTheProjectLease() throws Exception {
+        var operations=new com.fengmotion.server.project.service.ProjectOperationLock();
+        var entered=new CountDownLatch(4);
+        var finish=new CountDownLatch(1);
+        try {
+            for(int index=0;index<4;index++) turns.open("session-"+index,"message",ChatTurns.Mode.START,writer->{
+                entered.countDown();
+                try { finish.await(5,TimeUnit.SECONDS); }
+                catch(InterruptedException interrupted) { Thread.currentThread().interrupt(); }
+            });
+            assertTrue(entered.await(3,TimeUnit.SECONDS));
+            assertEquals("chat_capacity_full",assertThrows(ApiException.class,()->turns.open("extra","message",ChatTurns.Mode.START,
+                    ()->operations.participate("extra-project"),writer->{})).getCode());
+            try(var deletion=operations.beginDeletion("extra-project")) { assertNotNull(deletion); }
+        } finally { finish.countDown(); }
+    }
+
+    @Test void projectLeaseOutlivesSubscriptionAndIsReleasedOnFailure() throws Exception {
+        var operations = new com.fengmotion.server.project.service.ProjectOperationLock();
+        var entered = new CountDownLatch(1);
+        var finish = new CountDownLatch(1);
+        var turn = turns.open("session", "message", ChatTurns.Mode.START, () -> operations.participate("project"), writer -> {
+            entered.countDown();
+            try { assertTrue(finish.await(3, TimeUnit.SECONDS)); }
+            catch (InterruptedException failure) { throw new RuntimeException(failure); }
+            throw new IllegalStateException("agent failed");
+        });
+        try {
+            assertTrue(entered.await(2, TimeUnit.SECONDS));
+            assertEquals("project_busy", assertThrows(ApiException.class, () -> operations.beginDeletion("project")).getCode());
+            assertSame(turn, turns.open("session", "message", ChatTurns.Mode.ATTACH,
+                    () -> { throw new AssertionError("attach must not acquire another activity"); }, writer -> { }));
+        } finally { finish.countDown(); }
+        turns.follow(turn, 0, new PrintWriter(new StringWriter()), null);
+        for (int attempt = 0; attempt < 100; attempt++) {
+            try (var deletion = operations.beginDeletion("project")) { return; }
+            catch (ApiException busy) { Thread.sleep(5); }
+        }
+        throw new AssertionError("chat lease was not released");
+    }
 
     private static void frame(PrintWriter out, String event, String data) {
         out.write("event: " + event + "\n");

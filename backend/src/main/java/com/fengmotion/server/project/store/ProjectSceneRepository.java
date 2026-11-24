@@ -23,6 +23,8 @@ public interface ProjectSceneRepository {
      */
     Optional<ProjectScene> find(String projectId);
 
+    java.util.Map<String, JsonNode> findCurrentFilms(List<String> projectIds);
+
     /**
      * 条件写入新场景。
      *
@@ -79,4 +81,16 @@ public interface ProjectSceneRepository {
     Optional<ProjectSceneVersion> findVersion(String projectId, long version);
 
     Optional<ProjectSceneVersion> findLatestVersionByArtifact(String projectId, String artifactPath);
+
+    Optional<ProjectSceneVersion> findVersionByRenderRequest(String projectId, String requestId);
+    default Optional<ProjectSceneVersion> findVersionByShotCandidate(String projectId,String candidateId) {
+        return listVersions(projectId).stream().filter(version -> ProjectSceneVersion.SOURCE_SHOT_EDIT.equals(version.source()) && version.film()!=null
+                        && candidateId.equals(version.film().path("shotEdit").path("candidateId").asText()))
+                .min(java.util.Comparator.comparingLong(ProjectSceneVersion::version));
+    }
+    default Optional<ProjectSceneVersion> findVersionByCreationRequest(String projectId,String requestId) {
+        return listVersions(projectId).stream().filter(version->ProjectSceneVersion.SOURCE_TASK.equals(version.source()) && version.film()!=null
+                        && requestId.equals(version.film().path("creationRequestId").asText()))
+                .min(java.util.Comparator.comparingLong(ProjectSceneVersion::version));
+    }
 }

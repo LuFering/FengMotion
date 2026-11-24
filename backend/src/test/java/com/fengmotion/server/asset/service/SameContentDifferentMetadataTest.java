@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.util.List;
 
 import org.junit.jupiter.api.DisplayName;
@@ -158,7 +159,25 @@ class SameContentDifferentMetadataTest {
 
         assertTrue(java.nio.file.Files.exists(stored), "再次导入后文件必须重新落盘");
         assertTrue(java.nio.file.Files.size(stored) > 0, "重新落盘的文件不能是空壳");
+        assertEquals(first.id(), again.asset().id(), "恢复原文件不能生成新素材身份");
+        assertEquals(first.name(), again.asset().name(), "修复文件不能重写用户元数据");
         assertEquals(first.fileUrl(), again.asset().fileUrl(), "仍是同一条记录、同一份路径");
+    }
+
+    @Test void reimportRepairsSameLengthCorruptionAndKeepsOriginalPathAcrossExtensions() throws Exception {
+        String unique = java.util.UUID.randomUUID().toString();
+        byte[] bytes = unique.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        Asset first = service.importFile("original.txt", "text/plain", null, "保留名称",
+                new java.io.ByteArrayInputStream(bytes), false).asset();
+        Path stored = storage.resolve(first.fileUrl());
+        java.nio.file.Files.write(stored, new byte[bytes.length]);
+        var repaired = service.importFile("different.md", "text/markdown", null, "不要替换",
+                new java.io.ByteArrayInputStream(bytes), false);
+        assertEquals(first.id(), repaired.asset().id());
+        assertEquals(first.fileUrl(), repaired.asset().fileUrl());
+        assertEquals(first.name(), repaired.asset().name());
+        org.junit.jupiter.api.Assertions.assertArrayEquals(bytes, java.nio.file.Files.readAllBytes(stored));
+        assertTrue(repaired.deduped());
     }
 
     @Test
@@ -172,6 +191,9 @@ class SameContentDifferentMetadataTest {
         assertTrue(java.nio.file.Files.exists(shared), "还有共用者时不该删文件");
 
         service.delete(b.id());
+        assertTrue(java.nio.file.Files.exists(shared), "事务提交前不能删除文件");
+        org.springframework.test.context.transaction.TestTransaction.flagForCommit();
+        org.springframework.test.context.transaction.TestTransaction.end();
         assertFalse(java.nio.file.Files.exists(shared), "最后一个使用者删除后应清理文件，不留孤儿目录");
     }
 }

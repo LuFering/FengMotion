@@ -103,6 +103,22 @@ class ProjectFilmConfigTest {
     }
 
     @Test
+    void rejectsLocalAbsoluteUntrackedAndLinkedEntriesBeforeRendering() throws Exception {
+        Files.writeString(root.resolve("index.tsx"), "export {}");
+        Files.createDirectory(root.resolve("untracked"));
+        Files.writeString(root.resolve("untracked/index.tsx"), "export {}");
+        Files.createSymbolicLink(root.resolve("link.tsx"), root.resolve("index.tsx"));
+        Files.createSymbolicLink(root.resolve("components"), root.resolve("untracked"));
+        for (String entry : java.util.List.of(root.resolve("index.tsx").toString(),
+                "untracked/index.tsx", "link.tsx", "components/index.tsx", "src/../index.tsx", "src\\index.tsx")) {
+            writeConfig(new ObjectMapper().createObjectNode().put("entry", entry).put("compositionId", "Main").toString());
+            assertEquals("film_config_invalid", assertThrows(ApiException.class, () -> configs.read(root), entry).getCode());
+        }
+        writeConfig("{\"entry\":\"index.tsx\",\"compositionId\":\"Main\"}");
+        assertEquals("index.tsx", configs.read(root).entry());
+    }
+
+    @Test
     @DisplayName("没有配置时明确报错，不猜默认入口")
     void rejectsMissingConfig() {
         var e = assertThrows(ApiException.class, () -> configs.read(root));

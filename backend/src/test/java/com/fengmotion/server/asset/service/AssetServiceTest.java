@@ -178,6 +178,9 @@ class AssetServiceTest {
         service.delete(asset.id());
 
         assertTrue(repository.findById(asset.id()).isEmpty());
+        assertTrue(Files.exists(stored), "事务提交前不能删除文件");
+        org.springframework.test.context.transaction.TestTransaction.flagForCommit();
+        org.springframework.test.context.transaction.TestTransaction.end();
         assertFalse(Files.exists(stored), "文件本体也应清理，不留孤儿文件");
     }
 

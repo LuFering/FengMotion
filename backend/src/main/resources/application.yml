@@ -65,7 +65,7 @@ fengmotion:
     plan-timeout-seconds: ${FENGMOTION_MODIFY_PLAN_TIMEOUT:90}
   remotion:
     # 工程目录：含 render.mjs 与 src/。留空时按 user.dir/remotion 推断（开发态）
-    project-dir: ${FENGMOTION_REMOTION_DIR:FengMotion-desktop/backend/remotion}
+    project-dir: ${FENGMOTION_REMOTION_DIR:}
     # 依赖目录：复用桌面端已装的 node_modules，不再单独装几百 MB
     node-modules: ${FENGMOTION_NODE_MODULES:}
     # Chromium 路径：留空则由 Remotion 自行下载 chrome-headless-shell

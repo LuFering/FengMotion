@@ -24,6 +24,7 @@ final class ChatReplyListener implements DshSdkSession.Listener {
     private final String pendingMessageId = "pending-" + UUID.randomUUID();
 
     private final StringBuilder reasoningStreamed = new StringBuilder();
+    private final StringBuilder plainText = new StringBuilder();
 
     private final List<ObjectNode> toolCalls = new java.util.ArrayList<>();
 
@@ -99,8 +100,13 @@ final class ChatReplyListener implements DshSdkSession.Listener {
 
     @Override
     public void onTextDelta(String text) {
-        if (publicText == null) sse.writeDelta(out, pendingMessageId, text, null);
+        if (publicText == null) {
+            plainText.append(text);
+            sse.writeDelta(out, pendingMessageId, text, null);
+        }
     }
+
+    String collectedText() { return publicText==null?plainText.toString():publicText.text(); }
 
     @Override public void onTextDelta(int turn, int step, String attempt, String text) {
         publicText.delta(turn, step, attempt, text);

@@ -45,6 +45,8 @@ public class AssetService {
     private final AssetStorage storage;
     private final ResourceRefService refs;
     private final AssetImportService importer;
+    @Autowired
+    private AssetFileCleanup fileCleanup;
 
     @Autowired
     public AssetService(AssetRepository assets, AssetStorage storage, ResourceRefService refs,
@@ -200,6 +202,7 @@ public class AssetService {
      */
     @Transactional
     public void delete(String id) {
+        assets.acquireWriteLock();
         Asset current = assets.findById(id)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "not_found", "素材不存在"));
         List<RefRow> references = refs.find(ResourceRefService.KIND_ASSET, id);
@@ -219,13 +222,18 @@ public class AssetService {
             log.info("删除素材记录但保留文件：仍有其他记录共用内容哈希 {}", current.contentHash());
             return;
         }
-        try {
-            Path dir = storage.resolve(storage.relativeDirFor(current.contentHash() == null
-                    ? id : current.contentHash()));
-            deleteRecursively(dir);
-        } catch (IOException | IllegalArgumentException ex) {
-            log.warn("删除素材文件失败（索引已删）：{}", id, ex);
+        if (!org.springframework.transaction.support.TransactionSynchronizationManager.isSynchronizationActive()) {
+            log.warn("素材删除没有事务收尾上下文，保留文件待核对：{}", id);
+            return;
         }
+        org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+                new org.springframework.transaction.support.TransactionSynchronization() {
+                    @Override public void afterCompletion(int status) {
+                        if (status != STATUS_COMMITTED) return;
+                        try { fileCleanup.removeUnreferenced(current.contentHash()); }
+                        catch (Exception failure) { log.warn("素材记录已删除，文件清理失败并保留：{}", id, failure); }
+                    }
+                });
     }
 
     /** 批量删除：逐项报告成功或失败，不因一条失败而整体回滚。 */
@@ -359,18 +367,6 @@ public class AssetService {
 
     public AssetCounts counts() {
         return assets.counts();
-    }
-
-    private static void deleteRecursively(Path dir) throws IOException {
-        if (!Files.exists(dir)) {
-            return;
-        }
-        try (var walk = Files.walk(dir)) {
-            List<Path> paths = walk.sorted(java.util.Comparator.reverseOrder()).toList();
-            for (Path path : paths) {
-                Files.deleteIfExists(path);
-            }
-        }
     }
 
     static String effectiveMimeType(String fileName, String mimeType, AssetStates.MediaType mediaType) {

@@ -70,7 +70,6 @@ public class ModifyTaskRunner {
         if (rootPath == null || rootPath.isBlank()) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "validation_error", "项目还没有目录，不能修改");
         }
-
         JsonNode request = task.request();
         if (request == null) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "validation_error", "任务缺少请求体");
@@ -79,6 +78,8 @@ public class ModifyTaskRunner {
         // ① 读取当前场景（服务端权威）
         progress.report(5, "正在读取当前场景");
         Optional<ProjectScene> stored = scenes.find(task.projectId());
+        if (stored.isPresent() && !stored.get().present()) throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY,
+                "scene_corrupt", "当前场景记录损坏，未调用模型，请核对历史版本");
         JsonNode film;
         long baseVersion;
         if (stored.isPresent() && stored.get().present()) {
@@ -96,6 +97,9 @@ public class ModifyTaskRunner {
             film = fromRequest;
             baseVersion = 0;
         }
+        TaskRequestGuard.checkBaseVersion(request, baseVersion);
+        if (!film.path("scenes").isArray()) throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY,
+                "unsupported_source", "当前项目使用源码工程，请使用源码工作稿修改入口");
         // 记录「这次基于哪一版」，便于事后追溯
         tasks.updateVersions(task.id(), baseVersion, null);
         if (progress.isCancelled()) {
@@ -132,6 +136,8 @@ public class ModifyTaskRunner {
 
         // 渲染：交给统一工程
         Path root = Path.of(rootPath).toAbsolutePath().normalize();
+        if (java.nio.file.Files.isSymbolicLink(root.resolve("renders"))) throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY,
+                "render_path_invalid", "渲染目录不能是符号链接");
         String fileName = "modify-" + Instant.now().toEpochMilli() + "-" + java.util.UUID.randomUUID() + ".mp4";
         Path output = root.resolve("renders").resolve(fileName);
         renderer.render(modified, output, "renders/" + fileName);
@@ -147,10 +153,16 @@ public class ModifyTaskRunner {
 
         // ⑤ 条件提交：渲染成功之后才更新当前场景
         progress.report(90, "渲染完成，正在提交场景版本");
-        Optional<Long> committed = scenes.commitWithSnapshot(
+        if (progress.isCancelled()) {
+            VideoTimeline.discard(output);
+            return null;
+        }
+        taskService.registerArtifact(task.id(), "renders/" + fileName);
+        Optional<Long> committed = com.fengmotion.server.project.service.SceneCommitVerifier.commit(scenes,
+                task.projectId(), baseVersion, modified, "renders/" + fileName, () -> scenes.commitWithSnapshot(
                 task.projectId(), baseVersion, modified, task.id(),
                 task.prompt(), summarizePlan(plan), "renders/" + fileName,
-                ProjectSceneVersion.SOURCE_TASK, null);
+                ProjectSceneVersion.SOURCE_TASK, null));
         if (committed.isEmpty()) {
             /* 版本已变：说明期间有别的修改提交了。
                本次产物保留（用户可能要），但明确标记未成为当前版本，
@@ -165,7 +177,10 @@ public class ModifyTaskRunner {
                             + "，已放弃提交；视频文件保留在 renders/" + fileName + "，但未成为当前场景");
         }
 
-        tasks.updateVersions(task.id(), baseVersion, committed.get());
+        try { tasks.updateVersions(task.id(), baseVersion, committed.get()); }
+        catch (RuntimeException receiptFailure) {
+            log.warn("场景版本已提交，但任务版本回执写入失败 task={} version={}", task.id(), committed.get(), receiptFailure);
+        }
         progress.report(95, "已提交为版本 " + committed.get());
         return "renders/" + fileName;
     }

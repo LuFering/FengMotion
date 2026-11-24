@@ -51,7 +51,7 @@ class ProjectPurgeServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new ProjectPurgeService(repository, directoryService);
+        service = new ProjectPurgeService(repository, directoryService, new ProjectOperationLock());
         ReflectionTestUtils.setField(service, "workspaceRoot", workspace.toString());
     }
 
@@ -141,6 +141,30 @@ class ProjectPurgeServiceTest {
 
         assertEquals(HttpStatus.BAD_REQUEST, error.getStatus());
         assertTrue(Files.isDirectory(workspace), "工作区根不能被当成项目目录删掉");
+        verify(repository, never()).deleteProjectGraph(anyString());
+    }
+
+    @Test void matchingMarkerCannotAuthorizeDeletingWorkspaceOrAncestor() throws Exception {
+        directoryService.writeIdentity(workspace, "p1", "not a project");
+        when(repository.findRootPath("p1")).thenReturn(Optional.of(workspace.toString()));
+        assertThrows(ApiException.class, () -> service.purge("p1"));
+        Path childWorkspace = Files.createDirectory(workspace.resolve("nested-workspace"));
+        ReflectionTestUtils.setField(service, "workspaceRoot", childWorkspace.toString());
+        assertThrows(ApiException.class, () -> service.purge("p1"));
+        verify(repository, never()).deleteProjectGraph(anyString());
+    }
+
+    @Test void differentIdentityInsideWorkspaceAndLinkedRootsAreRejected() throws Exception {
+        Path dir = seedProject("other-project");
+        directoryService.writeIdentity(dir, "other-id", "other");
+        when(repository.findRootPath("p1")).thenReturn(Optional.of(dir.toString()));
+        assertThrows(ApiException.class, () -> service.purge("p1"));
+        Files.writeString(dir.resolve("project.json"), "garbage \"id\":\"p1\"");
+        assertThrows(ApiException.class, () -> service.purge("p1"));
+        Path link = Files.createSymbolicLink(workspace.resolve("linked"), dir);
+        when(repository.findRootPath("p1")).thenReturn(Optional.of(link.toString()));
+        assertThrows(ApiException.class, () -> service.purge("p1"));
+        assertTrue(Files.exists(dir.resolve("renders/out.mp4")));
         verify(repository, never()).deleteProjectGraph(anyString());
     }
 

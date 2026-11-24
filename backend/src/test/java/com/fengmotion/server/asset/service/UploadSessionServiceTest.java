@@ -104,7 +104,7 @@ class UploadSessionServiceTest {
     @DisplayName("未收完整就完成上传会被拒绝")
     void incompleteCannotComplete() {
         var session = sessions.create("partial.bin", "application/octet-stream", 100, null);
-        sessions.writeChunk(session.uploadId(), 0, "bytes 0-9/100", new byte[10]);
+        assertThrows(ApiException.class,()->sessions.writeChunk(session.uploadId(), 0, "bytes 0-9/100", new byte[10]));
 
         Path target = Path.of("target", "should-not-exist.bin");
         ApiException ex = assertThrows(ApiException.class, () -> sessions.assemble(session.uploadId(), target));

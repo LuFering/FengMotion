@@ -123,7 +123,7 @@ public interface TaskMapper {
                 error_code = #{errorCode},
                 updated_at = #{updatedAt},
                 finished_at = #{finishedAt}
-            WHERE id = #{id} AND status <> 'cancelled'
+            WHERE id = #{id} AND status IN ('queued','running','building')
             """)
     int updateProgress(@Param("id") String id,
                        @Param("status") String status,

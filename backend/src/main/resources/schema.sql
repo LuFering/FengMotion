@@ -536,3 +536,15 @@ CREATE TABLE IF NOT EXISTS workflow_presets (
 );
 
 CREATE INDEX IF NOT EXISTS idx_workflow_presets_status ON workflow_presets(status);
+CREATE TABLE IF NOT EXISTS preset_mapping_jobs (
+    id TEXT PRIMARY KEY,
+    skill_package_id TEXT NOT NULL,
+    skill_path TEXT NOT NULL,
+    status TEXT NOT NULL,
+    job_json TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS preset_mapping_jobs_active_skill
+    ON preset_mapping_jobs(skill_package_id, skill_path)
+    WHERE status IN ('queued', 'running');
+

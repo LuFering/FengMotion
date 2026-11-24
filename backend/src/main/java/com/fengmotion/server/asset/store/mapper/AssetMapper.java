@@ -21,6 +21,8 @@ import org.apache.ibatis.annotations.Update;
  */
 @Mapper
 public interface AssetMapper {
+    @Update("UPDATE assets SET id=id WHERE 0")
+    int acquireWriteLock();
 
     @Insert("""
             INSERT INTO assets

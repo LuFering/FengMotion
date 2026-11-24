@@ -96,6 +96,8 @@ backend/
 
 ## 聊天回复与 DSH 事件流
 
+工作台源码编辑新增：`project.service.ProjectWorktreeService` 按工作区和当前版本指纹返回 dirty 状态；`creation.service.SourceRenderJobs` 持久化显式出片请求，调用 `ProjectFilmRenderService.renderGuarded` 冻结并复核源码快照；版本中的请求凭据用于回执恢复。`SourceTargetService` 通过 `render.service.SourceTargetInspector` 的共享 Babel 解析器定位 JSX，运行副本并校验写回范围。`SourceWriteGuard` 与预览服务的同协议锁协调短期写入。类型和错误见 [工作台源码契约](../frontend/docs/contracts/workbench-source.md)。
+
 `chat.service.ChatStreamService` 保留一轮回复的编排：引擎和模型选择、会话续接、执行中进程登记、停止、失败收尾与自动渲染。流式输出和保存由同包内的组件承担：
 
 | 组件 | 职责 |
@@ -116,6 +118,8 @@ backend/
 上下文分档累加器仍由 `DshSdkSession` 持有并跨轮复用；单轮事件状态随每次 `prompt` 新建。进程和输入输出流仍由 `DshProcess` 统一管理，回复结束由原编排方关闭进程。取消登记、后台收集、正文与工具的阶段顺序、历史回放字段及未完成回复的保存语义保持原样。
 
 ## 验证和后续边界
+
+2026-11-23后端续轮新增边界组件：`ProjectSourceLayout`统一源码范围，`SourceEditSession`与恢复日志负责候选应用及异常保护；`ProjectContentService`读取已验证成片内容，`StoryboardService`读取规划，`ProjectPosterController`位于render避免项目与渲染循环依赖。`PreviewLogSink`为常驻预览有界读取输出；`ProcessOutput`约束短命工具结果读取；`JsonInputConfig`限制隐式整数截断和重复JSON字段。`AssetFileCleanup`仅在删除事务提交后取得新写事务、复核共用者并清理文件，导入在内容复制/哈希之后取得相同数据库写入资格。最新范围和证据见持续台账，不能把这些组件视为完整审核/交付产品的替代品。
 
 目录修改后运行 `mvn clean package`，以避免旧包编译产物造成重复 Bean；再用独立数据库做启动和路由检查。测试覆盖原有 API、会话归属、幂等、取消、草稿冲突、渲染超时及版本恢复，以及工程渲染的快照、提交与冲突清理、创作检索状态和证据日志；回执间通知不丢失、跨会话隔离、后台交接、推理去重、回复字段往返与事务回滚。
 

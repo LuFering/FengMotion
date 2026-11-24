@@ -41,11 +41,29 @@ public class WorkflowPresetService {
      * @throws MappingInvalidException 模型输出不合法或没通过校验（422），不保存
      */
     public WorkflowPreset generate(String skillPackageId, String skillPath) {
+        return generate(skillPackageId, skillPath, new GenerationProgress() { });
+    }
+
+    public SkillPackage requireSkill(String skillPackageId, String skillPath) {
         SkillPackage pkg = packages.findById(skillPackageId)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "not_found", "skill 包不存在"));
         if (skillPath == null || pkg.report().skills().stream().noneMatch(s -> s.path().equals(skillPath))) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "validation_error", "这个 skill 包里没有 " + skillPath);
         }
+        return pkg;
+    }
+
+    public boolean modelAvailable() { return model.available(); }
+
+    public interface GenerationProgress {
+        default void stage(String stage) { }
+        default void collected(PresetMappingPrompt.Built built) { }
+        default void save(WorkflowPreset preset, Runnable persist) { persist.run(); }
+    }
+
+    public WorkflowPreset generate(String skillPackageId, String skillPath, GenerationProgress progress) {
+        SkillPackage pkg = requireSkill(skillPackageId, skillPath);
+        progress.stage("collecting");
 
         PresetMappingPrompt.Built built;
         try {
@@ -53,7 +71,11 @@ public class WorkflowPresetService {
         } catch (IOException unreadable) {
             throw new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "skill_unreadable", "skill 包文件读取失败，请重新导入");
         }
-        PresetMapping parsed = PresetMappingPrompt.parse(model.generate(built.system(), built.prompt()));
+        progress.collected(built);
+        progress.stage("calling_model");
+        String output = model.generate(built.system(), built.prompt());
+        progress.stage("validating");
+        PresetMapping parsed = PresetMappingPrompt.parse(output);
         // truncatedSources 由后端填写，模型给的值一律不采信
         PresetMapping mapping = withTruncated(parsed, built.truncatedSources());
 
@@ -67,7 +89,9 @@ public class WorkflowPresetService {
         WorkflowPreset preset = new WorkflowPreset(UUID.randomUUID().toString(), mapping.name(), mapping.description(),
                 WorkflowPreset.DRAFT, pkg.id(), pkg.owner() + "/" + pkg.repo(), skillPath, pkg.commitSha(), mapping,
                 PresetMapping.VERSION, now, now, null);
-        presets.save(preset);
+        progress.stage("saving");
+        requireSkill(skillPackageId, skillPath);
+        progress.save(preset, () -> presets.save(preset));
         return preset;
     }
 

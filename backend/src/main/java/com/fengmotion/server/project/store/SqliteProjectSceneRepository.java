@@ -45,6 +45,20 @@ public class SqliteProjectSceneRepository implements ProjectSceneRepository {
     }
 
     @Override
+    public java.util.Map<String, JsonNode> findCurrentFilms(List<String> projectIds) {
+        if (projectIds.isEmpty()) return java.util.Map.of();
+        if (projectIds.size() > 201) throw new IllegalArgumentException("项目摘要批量查询最多201项");
+        String placeholders = String.join(",", java.util.Collections.nCopies(projectIds.size(), "?"));
+        java.util.Map<String, JsonNode> films = new java.util.HashMap<>();
+        jdbc.query("SELECT project_id, film_json FROM project_scenes WHERE project_id IN (" + placeholders + ")",
+                (org.springframework.jdbc.core.RowCallbackHandler) row -> {
+                    JsonNode film = readJson(row.getString("film_json"));
+                    if (film != null) films.put(row.getString("project_id"), film);
+                }, projectIds.toArray());
+        return java.util.Map.copyOf(films);
+    }
+
+    @Override
     public Optional<Long> updateIfVersionMatches(String projectId, long expectedVersion,
                                                  JsonNode film, String taskId) {
         return writeCurrentScene(projectId, expectedVersion, film, taskId);
@@ -73,15 +87,12 @@ public class SqliteProjectSceneRepository implements ProjectSceneRepository {
             return Optional.empty();
         }
         long version = committed.get();
-        /* 用 INSERT OR REPLACE 而非普通 INSERT：
-           同一版本被写入两次说明上游逻辑有问题，但历史表不该因此让整个任务失败。
-           覆盖成最新内容至少保持「历史与当前一致」，比抛异常留一个半截事务要好。
-           真正的不变量由 (project_id, version) 主键保证 —— 不会出现两行同号版本。 */
-        jdbc.update("""
-                INSERT OR REPLACE INTO project_scene_versions
+        int inserted = jdbc.update("""
+                INSERT INTO project_scene_versions
                     (project_id, version, film_json, task_id, prompt, edit_summary,
                      artifact_path, source, from_version, created_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(project_id, version) DO NOTHING
                 """,
                 projectId, version, film == null ? "{}" : film.toString(), taskId,
                 prompt == null ? "" : prompt,
@@ -90,6 +101,8 @@ public class SqliteProjectSceneRepository implements ProjectSceneRepository {
                 source == null ? ProjectSceneVersion.SOURCE_TASK : source,
                 fromVersion,
                 Instant.now().toString());
+        if (inserted != 1) throw new com.fengmotion.server.common.ApiException(org.springframework.http.HttpStatus.CONFLICT,
+                "scene_history_conflict", "该版本历史已存在，当前版本与历史均未覆盖；请核对项目版本记录");
         return committed;
     }
 
@@ -154,6 +167,31 @@ public class SqliteProjectSceneRepository implements ProjectSceneRepository {
                 rs.getString("source"),
                 fromVersionNull ? null : fromVersionRaw,
                 Instant.parse(rs.getString("created_at")));
+    }
+
+    @Override
+    public Optional<ProjectSceneVersion> findVersionByRenderRequest(String projectId, String requestId) {
+        return jdbc.query("""
+                SELECT * FROM project_scene_versions WHERE project_id = ? AND source = 'task'
+                AND CASE WHEN json_valid(film_json) THEN json_extract(film_json, '$.sourceRenderRequest.requestId') END = ?
+                ORDER BY version ASC LIMIT 1
+                """, (row, index) -> mapVersion(row), projectId, requestId).stream().findFirst();
+    }
+
+    @Override public Optional<ProjectSceneVersion> findVersionByShotCandidate(String projectId,String candidateId) {
+        return jdbc.query("""
+                SELECT * FROM project_scene_versions WHERE project_id = ? AND source = 'shot_edit'
+                AND CASE WHEN json_valid(film_json) THEN json_extract(film_json, '$.shotEdit.candidateId') END = ?
+                ORDER BY version ASC LIMIT 1
+                """,(row,index)->mapVersion(row),projectId,candidateId).stream().findFirst();
+    }
+
+    @Override public Optional<ProjectSceneVersion> findVersionByCreationRequest(String projectId,String requestId) {
+        return jdbc.query("""
+                SELECT * FROM project_scene_versions WHERE project_id = ? AND source = 'task'
+                AND CASE WHEN json_valid(film_json) THEN json_extract(film_json, '$.creationRequestId') END = ?
+                ORDER BY version ASC LIMIT 1
+                """,(row,index)->mapVersion(row),projectId,requestId).stream().findFirst();
     }
 
     /**

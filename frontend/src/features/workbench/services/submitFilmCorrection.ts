@@ -1,4 +1,5 @@
 import { timeSpanBrief } from '@/features/workbench/model/timeRange'
+import { readWorktreeState } from './worktreeClient'
 import { studioHttpApi } from '@/api'
 import { formatMediaTime } from '@/features/workbench/model/previewGeometry'
 import type { ChatMessage as ContractMessage } from '@/api/contracts'
@@ -23,10 +24,14 @@ export interface FilmCorrectionBase {
  * <p>从 submitRealModify 原样拆出：每条分支都会返回，异常在这里就地处理。</p>
  */
 export async function submitFilmCorrection(
-  { buildRequest, capturedPreview, chat, constraints, correctionAttempt, currentSceneState, ensureBoundSession, pendingSubmissionRef, projectId, rereadRuns, review, sceneVersions, setAgentReply, setAwaitingActive, setComparison, setCurrentSceneState, setExecutionPhase, setNotice, setPendingPlayback, setRealModifyError, setSelectedArtifactId, setSelectedVisual, setUnsavedReplies, setUsedResources, submissionEngine, tasks, threads, updatePendingSubmission, viewedPreview }: UseRealModifyArgs,
-  { prompt, span, previewImage, context, baseline, correctionText }: RealModifyInput & FilmCorrectionBase,
+  { draftOnly: liveDraft, buildRequest, capturedPreview, chat, constraints, correctionAttempt, currentSceneState, ensureBoundSession, pendingSubmissionRef, projectId, rereadRuns, review, sceneVersions, setAgentReply, setAwaitingActive, setComparison, setCurrentSceneState, setExecutionPhase, setNotice, setPendingPlayback, setRealModifyError, setSelectedArtifactId, setSelectedVisual, setUnsavedReplies, setUsedResources, submissionEngine, tasks, threads, updatePendingSubmission, viewedPreview }: UseRealModifyArgs,
+  { prompt, span, previewImage, target, context, baseline, correctionText }: RealModifyInput & FilmCorrectionBase,
 ): Promise<boolean> {
   try {
+    const draftOnly = Boolean(liveDraft || target)
+    const state = draftOnly && !target ? await readWorktreeState(projectId) : null
+    const draftBaseline = target ?? (state ? { projectId, baseVersion: state.version, sourceHash: state.sourceHash } : null)
+    if (draftBaseline && draftBaseline.projectId !== projectId) throw new Error('源码目标不属于当前项目')
     // 确保有绑定的服务端会话，若无则自动为当前项目创建；失败则明确报错阻断
     const sessionResult = await ensureBoundSession(prompt)
     if (sessionResult.error || !sessionResult.sessionId) {
@@ -34,7 +39,7 @@ export async function submitFilmCorrection(
       return false
     }
     const effectiveSid = sessionResult.sessionId
-    const targetedCorrection = Boolean(span || previewImage)
+    const targetedCorrection = Boolean(span || previewImage || draftOnly)
     const userPromptText = span ? `${prompt}\n（${formatMediaTime(span.start)}–${formatMediaTime(span.end)}）` : prompt
 
     /* 提前构建请求引用，确保服务端持久化明确的创作目标引用与 workflow_modify 类型标记，
@@ -51,7 +56,7 @@ export async function submitFilmCorrection(
     const creationReferences: NonNullable<ContractMessage['references']> = [targetRef,...libraryReferences(request.references ?? [])] as NonNullable<ContractMessage['references']>
 
     // 核心点 1 & 2：真实持久化写入服务端会话，解耦幂等键与任务状态，重试时复用已落库消息
-    const promptKey = JSON.stringify([effectiveSid,projectId,userPromptText,request.references,request.constraints,previewImage,baseline.scene?.version,submissionEngine])
+    const promptKey = JSON.stringify([effectiveSid,projectId,userPromptText,request.references,request.constraints,previewImage,baseline.scene?.version,submissionEngine,draftOnly,draftBaseline,target?.target])
     const isRetrySamePrompt = pendingSubmissionRef.current?.promptKey === promptKey
     let userMessageId = isRetrySamePrompt && pendingSubmissionRef.current?.userMessageId ? pendingSubmissionRef.current.userMessageId : null
     const idempotencyKey = isRetrySamePrompt && pendingSubmissionRef.current?.idempotencyKey ? pendingSubmissionRef.current.idempotencyKey : crypto.randomUUID()
@@ -118,7 +123,7 @@ export async function submitFilmCorrection(
     const intent = span ? `${baseIntent}\n\n${timeSpanBrief(span, prompt, { version: viewedPreview?.origin === 'scene' ? viewedPreview.revision : currentSceneState?.version ?? null, file: previewPath?.split('/').pop() ?? null })}` : previewImage
       ? `${baseIntent}\n\n随本次请求附带的是用户选择时的完整画面；如目标包含 bbox，请按归一化坐标定位该区域，无法识别时先询问。`
       : baseIntent
-    const attemptKey = JSON.stringify([projectId, baseline.scene?.version, intent, capturedPreview.current?.id, request.references, constraints, submissionEngine])
+    const attemptKey = JSON.stringify([projectId, baseline.scene?.version, intent, capturedPreview.current?.id, request.references, constraints, submissionEngine,draftBaseline,target?.target])
     if (targetedCorrection && correctionAttempt.current?.key !== attemptKey) {
       correctionAttempt.current = { key: attemptKey, id: crypto.randomUUID() }
       try { sessionStorage.setItem(`fm-correction-attempt:${projectId}`, JSON.stringify(correctionAttempt.current)) } catch { /* 保留本页的重试标识 */ }
@@ -149,10 +154,13 @@ export async function submitFilmCorrection(
     try {
       result = await submitCreation({
         projectId, intent, references:libraryReferences(request.references ?? []), previewImage,
-        baseVersion:targetedCorrection ? baseline.scene?.version : undefined,
+        baseVersion:draftBaseline?.baseVersion ?? (targetedCorrection ? baseline.scene?.version : undefined),
         correction:targetedCorrection ? correctionText : undefined,
         requestId:currentTaskId!, sessionId:effectiveSid, userMessageId,
         selection:submissionEngine,
+        ...(draftOnly ? { outputMode: 'draft' as const } : {}),
+        ...(draftBaseline ? { sourceHash:draftBaseline.sourceHash } : {}),
+        ...(target ? { target:target.target } : {}),
       }, (job)=>setExecutionPhase(job.phase))
     } finally {
       window.clearInterval(phasePollTimer)
@@ -227,6 +235,17 @@ export async function submitFilmCorrection(
       threads?.appendExtraMessage(effectiveSid, aiItem)
     }
     setUsedResources(result.resources ?? [])
+
+    if (result.state === 'edited') {
+      setAwaitingActive(false)
+      setRealModifyError('')
+      setNotice('工作稿已修改，实时画面将自动更新；满意后点击出片。')
+      review.record(request, { baseVersion: baseline.scene?.version, resultSummary: result.reply })
+      invalidateBackfill(projectId, effectiveSid)
+      updatePendingSubmission(null)
+      rereadRuns()
+      return true
+    }
 
     /* agent 只提问、没有改动工程：没有产物也没有新版本。
        这时绝不能提示「已渲染出版本 vN」—— 旧工程本来就能渲，

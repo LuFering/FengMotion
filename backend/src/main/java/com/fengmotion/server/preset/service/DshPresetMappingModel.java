@@ -38,6 +38,18 @@ public class DshPresetMappingModel implements PresetMappingModel {
     }
 
     @Override
+    public boolean available() {
+        if (!properties.isEnabled() || provider == null || provider.isBlank() || modelId == null || modelId.isBlank()) return false;
+        String binary = properties.getBin();
+        if (binary == null || binary.isBlank()) return false;
+        java.nio.file.Path executable = java.nio.file.Path.of(binary);
+        if (executable.isAbsolute() || binary.contains("/") || binary.contains("\\")) return java.nio.file.Files.isExecutable(executable);
+        return java.util.Arrays.stream(System.getenv().getOrDefault("PATH", "").split(java.io.File.pathSeparator))
+                .filter(part -> !part.isBlank()).map(part -> java.nio.file.Path.of(part).resolve(binary))
+                .anyMatch(java.nio.file.Files::isExecutable);
+    }
+
+    @Override
     public String generate(String system, String prompt) {
         try {
             return model.generate(new DshDirectTextModel.Request(provider, modelId,

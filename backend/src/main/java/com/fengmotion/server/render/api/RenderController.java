@@ -18,7 +18,7 @@ import com.fengmotion.server.common.ApiException;
 import com.fengmotion.server.project.domain.Project;
 import com.fengmotion.server.project.store.ProjectRepository;
 
-import lombok.RequiredArgsConstructor;
+import com.fengmotion.server.project.service.ProjectOperationLock;
 
 /**
  * 渲染端点：把 AI 产出的场景数据渲染成项目里的 mp4。
@@ -28,12 +28,24 @@ import lombok.RequiredArgsConstructor;
  */
 @RestController
 @RequestMapping("/api/projects/{projectId}/renders")
-@RequiredArgsConstructor
 public class RenderController {
 
     private final ProjectRepository projects;
     private final RemotionRenderer renderer;
     private final ObjectMapper json;
+    private final ProjectOperationLock operations;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public RenderController(ProjectRepository projects, RemotionRenderer renderer, ObjectMapper json, ProjectOperationLock operations) {
+        this.projects = projects;
+        this.renderer = renderer;
+        this.json = json;
+        this.operations = operations;
+    }
+
+    public RenderController(ProjectRepository projects, RemotionRenderer renderer, ObjectMapper json) {
+        this(projects, renderer, json, new ProjectOperationLock());
+    }
 
     /**
      * 渲染一部影片。
@@ -48,6 +60,12 @@ public class RenderController {
      */
     @PostMapping
     public RenderResponse render(@PathVariable String projectId, @RequestBody JsonNode film) {
+        try (var activity = operations.participate(projectId)) {
+            return renderActive(projectId, film);
+        }
+    }
+
+    private RenderResponse renderActive(String projectId, JsonNode film) {
         Project project = projects.findById(projectId)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "not_found", "项目不存在"));
 
@@ -62,6 +80,9 @@ public class RenderController {
         }
 
         Path root = Path.of(rootPath).toAbsolutePath().normalize();
+        if(java.nio.file.Files.isSymbolicLink(root.resolve("renders"))) {
+            throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY,"render_path_invalid","渲染目录不能是符号链接");
+        }
         // 产物落在项目的 renders/ 子目录：与用户素材分开，也方便整体清理
         String fileName = "render-" + Instant.now().toEpochMilli() + "-" + java.util.UUID.randomUUID() + ".mp4";
         Path output = root.resolve("renders").resolve(fileName);

@@ -23,25 +23,34 @@ public class VideoTimelineProbe {
     }
 
     public void verify(Path video, int frames, double fps) {
+        verify(video, frames, fps, null, null);
+    }
+
+    public void verify(Path video, int frames, double fps, Integer width, Integer height) {
         Path output = null;
         Process process = null;
         try {
             output = Files.createTempFile("fm-timeline-probe-", ".json");
             process = new ProcessBuilder(binary, "-v", "error", "-select_streams", "v:0",
-                    "-show_entries", "stream=avg_frame_rate,duration,nb_frames", "-of", "json", video.toString())
+                    "-show_entries", "stream=avg_frame_rate,duration,nb_frames,width,height", "-of", "json", video.toString())
                     .redirectOutput(output.toFile()).redirectError(ProcessBuilder.Redirect.DISCARD).start();
             if (!process.waitFor(30, TimeUnit.SECONDS) || process.exitValue() != 0) throw unavailable();
-            var stream = json.readTree(output.toFile()).path("streams").path(0);
+            var document = json.readTree(com.fengmotion.server.common.ProcessOutput.read(output, 65536));
+            if (document == null) throw unavailable();
+            var stream = document.path("streams").path(0);
             String[] ratio = stream.path("avg_frame_rate").asText("").split("/");
             double actualFps = ratio.length == 2 ? Double.parseDouble(ratio[0]) / Double.parseDouble(ratio[1]) : 0;
             double seconds = stream.path("duration").asDouble(0);
             long actualFrames = stream.path("nb_frames").asLong(0);
-            if (!Double.isFinite(actualFps) || actualFps <= 0 || seconds <= 0) throw unavailable();
+            if (!Double.isFinite(actualFps) || actualFps <= 0 || !Double.isFinite(seconds) || seconds <= 0) throw unavailable();
+            if ((width != null || height != null) && actualFrames <= 0) throw unavailable();
             if (frames < 1 || !Double.isFinite(fps) || fps <= 0 || Math.abs(actualFps - fps) > 0.001
                     || Math.abs(seconds - frames / fps) > 0.5 / fps
+                    || width != null && stream.path("width").asInt() != width
+                    || height != null && stream.path("height").asInt() != height
                     || (actualFrames > 0 && actualFrames != frames)) {
                 throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, "timeline_video_mismatch",
-                        "历史工程的时长或帧率与视频不一致，不能恢复片段轨道");
+                        "版本记录的时长、帧率或画布与实际视频不一致");
             }
         } catch (IOException | NumberFormatException failure) {
             throw unavailable();

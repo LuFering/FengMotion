@@ -13,6 +13,7 @@ import com.fengmotion.server.asset.domain.AssetFolder;
  * 集中在服务层，换存储实现不会牵动业务规则。</p>
  */
 public interface AssetRepository {
+    void acquireWriteLock();
 
     Asset save(Asset asset);
 

@@ -3,6 +3,7 @@ package com.fengmotion.server.artifact.api;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.LinkOption;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -28,7 +29,7 @@ import com.fengmotion.server.common.ApiException;
 import com.fengmotion.server.project.domain.Project;
 import com.fengmotion.server.project.store.ProjectRepository;
 
-import lombok.RequiredArgsConstructor;
+import com.fengmotion.server.project.service.ProjectOperationLock;
 
 /**
  * 产物列表：列出某个项目目录下实际存在的文件。
@@ -44,13 +45,20 @@ import lombok.RequiredArgsConstructor;
  */
 @RestController
 @RequestMapping("/api/projects/{projectId}/artifacts")
-@RequiredArgsConstructor
 public class ArtifactController {
 
     /** 单次最多返回的条目数：目录可能被 AI 写进大量文件，避免一次刷满界面。 */
     private static final int MAX_ENTRIES = 200;
 
     private final ProjectRepository projects;
+    private final ProjectOperationLock operations;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public ArtifactController(ProjectRepository projects,ProjectOperationLock operations) {
+        this.projects=projects;
+        this.operations=operations;
+    }
+    public ArtifactController(ProjectRepository projects) { this(projects,new ProjectOperationLock()); }
 
     /**
      * 列出项目的产物文件。
@@ -74,21 +82,32 @@ public class ArtifactController {
             return new ArtifactListResponse(List.of(), rootPath);
         }
 
-        List<Artifact> items = new ArrayList<>();
-        try (Stream<Path> walk = Files.walk(root, 4)) {
-            walk.filter(Files::isRegularFile)
-                    // 跳过隐藏文件与常见构建产物目录：它们不是「作品」
-                    .filter(p -> !isIgnored(root, p))
-                    .limit(MAX_ENTRIES * 4L)
-                    .forEach(p -> items.add(toArtifact(root, p)));
+        Comparator<Artifact> newestFirst = Comparator.comparing(Artifact::modifiedAt).reversed().thenComparing(Artifact::path);
+        var latest = new java.util.PriorityQueue<Artifact>(MAX_ENTRIES + 1, newestFirst.reversed());
+        try {
+            Files.walkFileTree(root, java.util.EnumSet.noneOf(java.nio.file.FileVisitOption.class), 4,
+                    new java.nio.file.SimpleFileVisitor<>() {
+                        @Override public java.nio.file.FileVisitResult preVisitDirectory(Path directory, java.nio.file.attribute.BasicFileAttributes attributes) {
+                            return !directory.equals(root) && isIgnored(root, directory)
+                                    ? java.nio.file.FileVisitResult.SKIP_SUBTREE : java.nio.file.FileVisitResult.CONTINUE;
+                        }
+
+                        @Override public java.nio.file.FileVisitResult visitFile(Path file, java.nio.file.attribute.BasicFileAttributes attributes) {
+                            if (attributes.isRegularFile() && !isIgnored(root, file)) {
+                                latest.add(toArtifact(root, file));
+                                if (latest.size() > MAX_ENTRIES) latest.poll();
+                            }
+                            return java.nio.file.FileVisitResult.CONTINUE;
+                        }
+                    });
         } catch (IOException unreadable) {
             throw new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "internal_error",
                     "读取项目目录失败");
         }
 
-        items.sort(Comparator.comparing(Artifact::modifiedAt).reversed());
-        List<Artifact> limited = items.size() > MAX_ENTRIES ? items.subList(0, MAX_ENTRIES) : items;
-        return new ArtifactListResponse(limited, rootPath);
+        var items = new ArrayList<>(latest);
+        items.sort(newestFirst);
+        return new ArtifactListResponse(List.copyOf(items), rootPath);
     }
 
     /**
@@ -187,6 +206,10 @@ public class ArtifactController {
     public Artifact upload(@PathVariable String projectId,
                            @RequestParam("file") MultipartFile file,
                            @RequestParam(value = "subdir", defaultValue = "renders") String subdir) {
+        try (var activity=operations.participate(projectId)) { return uploadActive(projectId,file,subdir); }
+    }
+
+    private Artifact uploadActive(String projectId,MultipartFile file,String subdir) {
         Project project = projects.findById(projectId)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "not_found", "项目不存在"));
 
@@ -205,6 +228,7 @@ public class ArtifactController {
 
         Path root = Path.of(rootPath).toAbsolutePath().normalize();
         Path dir = root.resolve(subdir).normalize();
+        validateLocal(root,dir);
         if (!dir.startsWith(root)) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "validation_error", "非法的目标目录");
         }
@@ -221,21 +245,48 @@ public class ArtifactController {
         if (safeName.isEmpty()) {
             safeName = "artifact";
         }
+        if (safeName.equals(".") || safeName.equals("..")) safeName="artifact";
         if (safeName.length() > 160) {
             safeName = safeName.substring(safeName.length() - 160);
         }
         // 同名不覆盖：加时间戳前缀，保留历史版本（编辑器可能重复导出同一个场景）
         Path target = dir.resolve(safeName);
-        if (Files.exists(target)) {
-            target = dir.resolve(Instant.now().toEpochMilli() + "-" + safeName);
-        }
+        if (Files.exists(target,LinkOption.NOFOLLOW_LINKS)) target=dir.resolve(java.util.UUID.randomUUID()+"-"+safeName);
 
+        boolean created=false;
+        Path staged=null;
         try {
             Files.createDirectories(dir);
-            file.transferTo(target);
+            validateLocal(root,target);
+            staged=Files.createTempFile(dir,".artifact-upload-",".tmp");
+            try(var input=file.getInputStream();var output=Files.newOutputStream(staged)) {
+                byte[] buffer=new byte[65536];
+                long size=0;
+                int count;
+                while((count=input.read(buffer))!=-1) {
+                    size+=count;
+                    if(size>64L*1024*1024) throw new ApiException(HttpStatus.PAYLOAD_TOO_LARGE,"file_too_large","单个上传产物超过64MiB，请使用工程出片或分片素材接口");
+                    output.write(buffer,0,count);
+                }
+                if(size==0) throw new ApiException(HttpStatus.BAD_REQUEST,"validation_error","上传产物内容为空");
+            }
+            boolean written=false;
+            while(!written) {
+                try {
+                    validateLocal(root,target);
+                    Files.createLink(target,staged);
+                    created=true;
+                    written=true;
+                } catch(java.nio.file.FileAlreadyExistsException collision) {
+                    target=dir.resolve(java.util.UUID.randomUUID()+"-"+safeName);
+                }
+            }
         } catch (IOException failure) {
+            try { if(created) Files.deleteIfExists(target); } catch (IOException ignored) { }
             throw new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "internal_error",
                     "保存产物失败：" + failure.getMessage());
+        } finally {
+            try { if(staged!=null) Files.deleteIfExists(staged); } catch(IOException ignored) { }
         }
 
         String relative = root.relativize(target).toString().replace('\\', '/');
@@ -270,6 +321,8 @@ public class ArtifactController {
 
         Path root = Path.of(rootPath).toAbsolutePath().normalize();
         Path target = root.resolve(path).normalize();
+        validateLocal(root,target);
+        if (isIgnored(root, target)) throw new ApiException(HttpStatus.NOT_FOUND, "not_found", "内部暂存文件不是可访问产物");
 
         // 关键：解析之后必须仍在 root 之下。符号链接也会被 toRealPath 暴露出来
         if (!target.startsWith(root)) {
@@ -284,7 +337,19 @@ public class ArtifactController {
                 .contentType(mediaTypeOf(path))
                 // inline：图片/视频直接在浏览器里显示，不触发下载
                 .header(HttpHeaders.CONTENT_DISPOSITION, "inline")
+                .header("X-Content-Type-Options","nosniff")
+                .header("Content-Security-Policy","sandbox")
                 .body(resource);
+    }
+
+    private static void validateLocal(Path root,Path target) {
+        if (Files.isSymbolicLink(root)) throw new ApiException(HttpStatus.BAD_REQUEST,"validation_error","项目根目录不能是符号链接");
+        if (!target.startsWith(root) || target.equals(root)) throw new ApiException(HttpStatus.BAD_REQUEST,"validation_error","非法的产物路径");
+        Path current=root;
+        for (Path part:root.relativize(target)) {
+            current=current.resolve(part);
+            if (Files.isSymbolicLink(current)) throw new ApiException(HttpStatus.BAD_REQUEST,"validation_error","产物路径不能经过符号链接");
+        }
     }
 
     /**

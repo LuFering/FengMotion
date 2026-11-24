@@ -3,6 +3,7 @@ import { studioHttpApi } from '@/api'
 import { ApiError } from '@/api/errors'
 import type { SequenceEntry, SequenceTrack, TrackCategory } from '@/features/workbench/model/sequenceManifest'
 import { diffLayers } from '@/features/workbench/model/layerChanges'
+import { useWorktreeState } from './useWorktreeState'
 import {
   isLiveEvent, type LiveCommand, type LiveCompositionMeta, type LiveElementInfo, type LiveLayerItem, type LiveRect, type LiveSequence,
 } from '@/features/workbench/model/livePreviewProtocol'
@@ -101,6 +102,7 @@ export function layerClipFor(tracks: SequenceTrack[], chainSrcs: (string | null)
  * <p>只负责连接与状态；画面、小窗怎么画在组件里。</p>
  */
 export function useLivePreview({ projectId, enabled }: { projectId: string; enabled: boolean }) {
+  const worktree = useWorktreeState(projectId, enabled)
   const devUrl = (import.meta.env.VITE_FENGMOTION_LIVE_PREVIEW_URL as string | undefined)?.trim() || null
 
   /* ── 连接：按项目记账，换项目时旧结果自然作废 ── */
@@ -199,6 +201,7 @@ export function useLivePreview({ projectId, enabled }: { projectId: string; enab
         }
         case 'selection-box': setSelection((prev) => (prev ? { ...prev, box: boxToPage(ev.box) } : prev)); break
         case 'commit-result':
+          if (ev.ok) void worktree.refresh().catch(() => undefined)
           setCommit({ pending: false, error: ev.ok ? null : { code: ev.code, message: ev.message || '没有写成' } })
           if (ev.ok && committing.current) {
             const src = committing.current
@@ -210,7 +213,7 @@ export function useLivePreview({ projectId, enabled }: { projectId: string; enab
         case 'edits': setEdits(ev.edits); break
         case 'deselect': case 'escape': setSelection(null); break
         /* 刷新期间工具条留着（置灰），等选回来；改一下字号不该让工具条闪没再出现 */
-        case 'reloading': setReloading(true); setLayersPending(true); setSelection((prev) => (prev ? { ...prev, stale: true } : prev)); break
+        case 'reloading': void worktree.refresh().catch(() => undefined); setReloading(true); setLayersPending(true); setSelection((prev) => (prev ? { ...prev, stale: true } : prev)); break
         case 'build-error': setBuildError(ev.message); break
         case 'runtime-error': setRuntimeError(ev.message); break
         case 'no-composition': setMissing(ev.available); break
@@ -218,7 +221,7 @@ export function useLivePreview({ projectId, enabled }: { projectId: string; enab
     }
     window.addEventListener('message', onMessage)
     return () => window.removeEventListener('message', onMessage)
-  }, [url, toPage, boxToPage])
+  }, [url, toPage, boxToPage, worktree.refresh])
 
   const send = useCallback((cmd: LiveCommand extends infer C ? (C extends { fm: 'live' } ? Omit<C, 'fm'> : never) : never) => {
     if (!origin) return
@@ -232,7 +235,7 @@ export function useLivePreview({ projectId, enabled }: { projectId: string; enab
   const tracks = useMemo(() => liveTracks(sequences, fps, layers), [sequences, fps, layers])
 
   return {
-    status, url, message: current?.message ?? '', active: status === 'ready',
+    projectId, status, url, message: current?.message ?? '', active: status === 'ready',
     bindFrame, meta, frame,
     /** 实时画面（iframe）在页面上的位置：工具条不出这个框 */
     frameRect: () => iframeRef.current?.getBoundingClientRect() ?? null, playing, tracks, sequences, layers, layersPending, buildError, runtimeError, reloading, selection, missing,
@@ -246,7 +249,7 @@ export function useLivePreview({ projectId, enabled }: { projectId: string; enab
     /** 从元素轨选元素：跳到这一帧并在画面里选中它 */
     selectSource: (src: string, atFrame: number) => send({ type: 'select-src', src, frame: atFrame }),
     clearSelection: () => { setSelection(null); send({ type: 'clear-selection' }) },
-    edits, commit,
+    edits, commit, worktree: worktree.state, refreshWorktree: worktree.refresh,
     /** 这次打开以来改过的元素（源码位置）：我手改的和 AI 改的都算，清掉之前一直标着 */
     changed: layerState.changed,
     clearChanges: () => setLayerState((prev) => ({ ...prev, changed: new Set() })),

@@ -25,6 +25,7 @@ import com.fengmotion.server.asset.store.mapper.AssetRow;
  */
 @Repository
 public class SqliteAssetRepository implements AssetRepository {
+    @Override public void acquireWriteLock() { assets.acquireWriteLock(); }
 
     private static final TypeReference<List<String>> STRING_LIST = new TypeReference<>() {
     };

@@ -145,8 +145,10 @@ public class RemotionRenderer {
                     process.destroyForcibly();
                 }
             }
-            String stdout = Files.readString(stdoutFile, StandardCharsets.UTF_8).trim();
-            String stderr = Files.readString(stderrFile, StandardCharsets.UTF_8).trim();
+            String stdout = com.fengmotion.server.common.ProcessOutput.read(stdoutFile, 2_097_152).trim();
+            String stderr = com.fengmotion.server.common.ProcessOutput.tail(stderrFile, 16384).trim();
+            if (process.exitValue() != 0) throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY,
+                    "render_failed", "渲染进程异常退出：" + tail(stderr, 400));
             log.info("render：node={} project={} stdout长度={} stderr长度={}",
                     nodeBinary, project, stdout.length(), stderr.length());
             return parseResult(stdout, stderr, outputFile);
@@ -192,16 +194,12 @@ public class RemotionRenderer {
                     "渲染脚本输出不是合法 JSON：" + tail(stderr, 400));
         }
 
-        if (!result.path("ok").asBoolean(false)) {
-            String reason = result.path("error").asText(tail(stderr, 400));
+        if (result == null || !result.isObject() || !result.path("ok").asBoolean(false)) {
+            String reason = result == null ? tail(stderr, 400) : result.path("error").asText(tail(stderr, 400));
             throw new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "render_failed",
                     "渲染失败：" + reason);
         }
-        if (!Files.isRegularFile(outputFile)) {
-            // 脚本说成功但没有文件：不能当成功返回，否则前端会拿到一个打不开的地址
-            throw new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "render_failed",
-                    "渲染报告成功但没有产出文件");
-        }
+        RenderResultValidation.require(result, outputFile);
 
         return new RenderResult(
                 outputFile.toString(),
@@ -231,21 +229,6 @@ public class RemotionRenderer {
      * @return 工程绝对路径
      */
     private Path resolveProjectDir() {
-        String configured = projectDir == null ? "" : projectDir.trim();
-        if (!configured.isEmpty()) {
-            Path path = Path.of(configured).toAbsolutePath().normalize();
-            if (Files.isRegularFile(path.resolve("render.mjs"))) {
-                return path;
-            }
-            throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "renderer_unavailable",
-                    "配置的渲染工程缺少 render.mjs：" + path);
-        }
-        // 开发态默认：后端仓库下的 remotion/
-        Path fallback = Path.of(System.getProperty("user.dir")).resolve("remotion").toAbsolutePath().normalize();
-        if (Files.isRegularFile(fallback.resolve("render.mjs"))) {
-            return fallback;
-        }
-        throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "renderer_unavailable",
-                "找不到 Remotion 渲染工程（配置项 fengmotion.remotion.project-dir）");
+        return RenderRuntimePaths.script(projectDir,"render.mjs").getParent();
     }
 }

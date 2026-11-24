@@ -44,10 +44,8 @@ public class ProjectUpdateService {
     /**
      * 归档项目：项目行与目录都保留，只是不再出现在查询与列表里。
      *
-     * <p>契约 project.md §3.5 要求删除前检查未完成任务；任务域尚未接入，无法证明
-     * 「没有任务在跑」，因此这里没有静默放行，也没有假装检查过——调用方
-     * {@code ProjectController} 在物理删除（{@code purge=true}）时仍然返回
-     * {@code capability_unavailable}，归档则只处理项目本身。</p>
+     * <p>归档只隐藏项目，不终止执行。物理删除由 ProjectPurgeService 在独占准入、
+     * 未完成任务检查和源码写入锁保护下处理，不经过本方法。</p>
      *
      * @param id 项目 ID
      * @throws ApiException 项目不存在或已归档时抛出 404

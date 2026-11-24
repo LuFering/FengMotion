@@ -40,9 +40,8 @@ import com.fengmotion.server.common.Pagination;
  * 后端监听端口由桌面壳在启动时决定（8080 被占用会换端口），任何写进数据的绝对地址
  * 在换端口后都会失效。</p>
  *
- * <p>本阶段刻意<strong>不提供</strong> {@code POST /assets/import}（按绝对路径导入），
- * 路径导入恒返回 422 {@code capability_unavailable} 并在错误里说明原因。
- * 文件选择器与拖拽导入走 {@code POST /assets} 上传，不受影响。</p>
+ * <p>路径导入只接受本机来源及配置白名单内的普通文件，复制入库；
+ * 文件选择器与拖拽上传继续使用 {@code POST /assets}。</p>
  */
 @RestController
 @RequestMapping("/api/assets")
@@ -51,11 +50,17 @@ public class AssetController {
     private final AssetService assets;
     private final AssetStorage storage;
     private final AssetResponses responses;
+    private final com.fengmotion.server.common.ProjectActivityGate operations;
+    private final com.fengmotion.server.asset.service.AssetPathImportService pathImports;
 
-    public AssetController(AssetService assets, AssetStorage storage, AssetResponses responses) {
+    public AssetController(AssetService assets, AssetStorage storage, AssetResponses responses,
+                           com.fengmotion.server.common.ProjectActivityGate operations,
+                           com.fengmotion.server.asset.service.AssetPathImportService pathImports) {
         this.assets = assets;
         this.storage = storage;
         this.responses = responses;
+        this.operations=operations;
+        this.pathImports=pathImports;
     }
 
     /**
@@ -163,7 +168,7 @@ public class AssetController {
             throw new ApiException(HttpStatus.BAD_REQUEST, "validation_error", "文件内容为空");
         }
         AssetService.ImportResult result;
-        try (InputStream in = file.getInputStream()) {
+        try (var activity=operations.participate(blankToNull(projectId)); InputStream in = file.getInputStream()) {
             result = assets.importFile(file.getOriginalFilename(), file.getContentType(), folderId, name,
                     in, keepSeparateRecord, blankToNull(projectId));
         } catch (IOException ex) {
@@ -174,16 +179,20 @@ public class AssetController {
     }
 
     /**
-     * 按绝对路径导入 —— 本阶段不提供。
+     * 按白名单内的绝对路径复制入素材库。
      *
-     * <p>契约 asset.md §3.3 的路径导入语义是「通过路径选择后复制入库」。本阶段文件选择与
-     * 拖拽已可用（{@link #upload}），路径字符串直传尚未实现，因此如实返回不可用，
-     * 而不是假装成功或退化成空结果。</p>
+     * <p>只接受本机请求及配置允许的目录；复用上传的类型、去重与项目归属校验，
+     * 原文件不移动也不删除。</p>
      */
     @PostMapping("/import")
-    public ResponseEntity<Void> importByPath() {
-        throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, "capability_unavailable",
-                "按路径导入尚未接入，请用文件选择或拖拽导入");
+    public ResponseEntity<UploadResponse> importByPath(@RequestBody com.fengmotion.server.asset.service.AssetPathImportService.Request body,
+                                                       jakarta.servlet.http.HttpServletRequest request) {
+        try {
+            if(!java.net.InetAddress.getByName(request.getRemoteAddr()).isLoopbackAddress()) throw new ApiException(HttpStatus.FORBIDDEN,"path_not_allowed","按路径导入只接受本机请求");
+        } catch(java.net.UnknownHostException invalid) { throw new ApiException(HttpStatus.FORBIDDEN,"path_not_allowed","无法确认本机请求来源"); }
+        var result=pathImports.copy(body);
+        return ResponseEntity.status(result.deduped()?HttpStatus.OK:HttpStatus.CREATED)
+                .body(new UploadResponse(responses.of(result.asset(),true),result.deduped()));
     }
 
     /** 素材详情。 */
@@ -197,7 +206,11 @@ public class AssetController {
     public AssetResponse update(@PathVariable String assetId,
             @RequestBody UpdateAssetRequest request,
             @RequestHeader(required = false) String ifMatch) {
-        return responses.of(assets.update(assetId, request, ifMatch), true);
+        var current = assets.require(assetId);
+        try (var previousActivity = operations.participate(current.projectId());
+             var nextActivity = operations.participate(request != null && request.movesProject() ? request.targetProjectId() : null)) {
+            return responses.of(assets.update(assetId, request, ifMatch), true);
+        }
     }
 
     /** 删除素材；被引用时 409 并列出引用方。 */
@@ -222,9 +235,20 @@ public class AssetController {
     /** 批量更新文件夹与标签：全部成功返回 200，部分失败返回 207 与逐项结果。 */
     @PostMapping("/batch-update")
     public ResponseEntity<BatchUpdateResponse> batchUpdate(@RequestBody(required = false) BatchUpdateRequest request) {
-        if (request == null || request.ids() == null || request.ids().isEmpty()) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "validation_error", "ids 不能为空");
+        if (request == null || request.ids() == null || request.ids().isEmpty() || request.ids().size() > 200
+                || request.ids().stream().anyMatch(id -> id == null || id.isBlank())) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "validation_error", "ids 需要1至200个有效素材ID");
         }
+        var sourceActivities = new java.util.ArrayList<com.fengmotion.server.common.ProjectActivityGate.Scope>();
+        try {
+            var owners = new java.util.HashSet<String>();
+            for (String id : request.ids()) {
+                String owner;
+                try { owner = assets.require(id).projectId(); }
+                catch (ApiException missing) { if (missing.getStatus() == HttpStatus.NOT_FOUND) continue; throw missing; }
+                if (owner != null && owners.add(owner)) sourceActivities.add(operations.participate(owner));
+            }
+        try(var activity=operations.participate(blankToNull(request.projectId()))) {
         List<AssetService.UpdateItemResult> raw = assets.updateMany(new AssetService.BatchUpdateSpec(
                 request.ids(), request.folderId(), request.addTags(), request.removeTags(), request.projectId()));
         List<BatchUpdateItem> items = raw.stream()
@@ -233,6 +257,8 @@ public class AssetController {
         boolean anyFailed = items.stream().anyMatch(item -> !item.ok());
         return ResponseEntity.status(anyFailed ? HttpStatus.MULTI_STATUS : HttpStatus.OK)
                 .body(new BatchUpdateResponse(items));
+        }
+        } finally { for (var activity : sourceActivities.reversed()) activity.close(); }
     }
 
     /**

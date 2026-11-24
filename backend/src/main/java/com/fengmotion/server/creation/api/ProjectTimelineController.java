@@ -14,8 +14,9 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class ProjectTimelineController {
     private final ProjectTimelineService timelines;
+    @ModelAttribute public void noCache(jakarta.servlet.http.HttpServletResponse response) { response.setHeader("Cache-Control","no-store"); }
 
-    @GetMapping
+    @GetMapping(params = "path")
     public ResponseEntity<JsonNode> read(@PathVariable String projectId, @RequestParam String path) {
         return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(timelines.read(projectId, path));
     }

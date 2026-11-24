@@ -172,6 +172,14 @@ class TaskRequestGuardTest {
         assertEquals("validation_error", e.getCode());
     }
 
+    @Test void rejectsFractionalNegativeAndOverflowedBaseVersions() {
+        for (String version : List.of("1.5", "-1", "9223372036854775808")) {
+            var request = body("{\"baseVersion\":" + version + "}");
+            assertEquals("validation_error", assertThrows(ApiException.class,
+                    () -> TaskRequestGuard.checkBaseVersion(request, 1)).getCode());
+        }
+    }
+
     @Test
     @DisplayName("未生效约束被识别出来，不会静默")
     void unenforcedConstraints() {

@@ -70,7 +70,7 @@ public class ProjectCreationCoordinator {
                             }
                             // 返回数据库中当前的项目数据，不会再次创建目录。
                             return repository.findById(stored.projectId()).orElseThrow(() ->
-                                    new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "internal_error", "幂等记录关联的项目不存在"));
+                                    new ApiException(HttpStatus.CONFLICT, "idempotency_result_deleted", "该创建请求对应的项目已删除；不会重新创建，请使用新的幂等键"));
                         }
                         idempotencyRepository.delete(key);
                     }

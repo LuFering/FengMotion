@@ -221,7 +221,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
         const stored = pendingSubmissionRef.current
         const queryId = stored?.taskId || stored?.userMessageId
         const creation = await studioHttpApi().workflowContext.creation(projectId, queryId)
-        if (creation && (creation.state === 'rendered' || creation.state === 'awaiting_info')) {
+        if (creation && (creation.state === 'edited' || creation.state === 'rendered' || creation.state === 'awaiting_info')) {
           if (creation.reply) {
             setAgentReply(creation.reply)
           }
@@ -387,7 +387,7 @@ export function Workbench({ chat, tasks, onNavigate, projectId, projects, onBack
    * @param span   只看这几秒（「按时间段修改」入口传进来）；不传就是整条片子的意见
    * @returns 是否已成功提交
    */
-  const { submitRealModify, submitTimeSpan } = useRealModify({ buildRequest, capturedPreview, chat, constraints, correctionAttempt, currentSceneState, ensureBoundSession, filmProject, focusFeedback, pendingSubmissionRef, previewDuration, previewMediaRef, projectId, projectVersionLead, realModifyBusy, realRenderBusy, refreshCurrentScene, remoteCreationBusy, rereadRuns, review, sceneVersions, setAgentReply, setAwaitingActive, setBottomTab, setComparison, setCurrentSceneState, setExecutionPhase, setNotice, setPendingPlayback, setRealModifyBusy, setRealModifyError, setSelectedArtifactId, setSelectedVisual, setSourceCreationBusy, setUnsavedReplies, setUsedResources, sourceOperation, submissionEngine, tasks, threads, updatePendingSubmission, viewedPreview, workflowRunning })
+  const { submitRealModify, submitTimeSpan } = useRealModify({ draftOnly: liveMode && liveEligible, buildRequest, capturedPreview, chat, constraints, correctionAttempt, currentSceneState, ensureBoundSession, filmProject, focusFeedback, pendingSubmissionRef, previewDuration, previewMediaRef, projectId, projectVersionLead, realModifyBusy, realRenderBusy, refreshCurrentScene, remoteCreationBusy, rereadRuns, review, sceneVersions, setAgentReply, setAwaitingActive, setBottomTab, setComparison, setCurrentSceneState, setExecutionPhase, setNotice, setPendingPlayback, setRealModifyBusy, setRealModifyError, setSelectedArtifactId, setSelectedVisual, setSourceCreationBusy, setUnsavedReplies, setUsedResources, sourceOperation, submissionEngine, tasks, threads, updatePendingSubmission, viewedPreview, workflowRunning })
 
   /**
    * 提交修改：优先真实后端，只有用户显式选择演示才走 Mock。

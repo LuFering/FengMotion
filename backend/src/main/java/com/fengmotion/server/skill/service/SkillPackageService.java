@@ -145,6 +145,40 @@ public class SkillPackageService {
         return repository.findAll();
     }
 
+    /**
+     * 导入前预检结果（契约 workflow-editor-ui.md §3）。
+     *
+     * @param owner             统一小写
+     * @param repo              统一小写
+     * @param ref               解析出的分支 / 标签 / commit；null 表示默认分支
+     * @param commitSha         将要固定的 40 位 commit
+     * @param subPath           只导入的子目录；空串表示整个仓库
+     * @param existingPackageId 同一 owner/repo/commit/子目录已导入且文件还在时为包 ID
+     */
+    public record Resolution(String owner, String repo, String ref, String commitSha, String subPath,
+                             String existingPackageId) {
+    }
+
+    /**
+     * 导入前预检：只请求 GitHub 把 ref 解析成 commit，不下载压缩包、不落盘、不登记。
+     *
+     * <p>不加导入的全局锁：只读登记表，不会和导入互相覆盖；加锁会让预检被一次正在进行的导入卡住最长 60 秒。
+     * 登记还在但落盘目录已被删除的包按「未导入」处理，与 {@link #importPackage} 遇到它时会重新导入一致。</p>
+     *
+     * @param repository 与 {@link #importPackage} 相同
+     * @param ref        与 {@link #importPackage} 相同
+     * @param path       与 {@link #importPackage} 相同
+     */
+    public Resolution resolve(String repository, String ref, String path) {
+        Source source = parseSource(repository, ref, path);
+        String commit = github.resolveCommit(source.owner(), source.repo(), source.ref());
+        String existing = this.repository.findByIdentity(source.owner(), source.repo(), commit, source.path())
+                .filter(pkg -> Files.isDirectory(Path.of(pkg.rootDir())))
+                .map(SkillPackage::id)
+                .orElse(null);
+        return new Resolution(source.owner(), source.repo(), source.ref(), commit, source.path(), existing);
+    }
+
     public SkillPackage get(String id) {
         return repository.findById(id)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "not_found", "skill 包不存在"));

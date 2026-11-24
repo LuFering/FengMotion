@@ -18,13 +18,14 @@
  */
 import http from 'node:http'
 import { createHash, randomBytes } from 'node:crypto'
-import { createReadStream, existsSync, statSync, watch } from 'node:fs'
-import { readFile, rename, writeFile } from 'node:fs/promises'
+import { createReadStream, existsSync, statSync, lstatSync, watch } from 'node:fs'
+import { readFile, rename, writeFile, unlink } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import annotateSource from './annotate.mjs'
 import { applyEdit, EditError, inspect } from './source-edit.mjs'
+import { withSourceWriteGuard } from './source-write-guard.mjs'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 
@@ -52,6 +53,8 @@ function fail(code, message) {
 const log = (...parts) => process.stderr.write(`[live-preview] ${parts.join(' ')}\n`)
 
 const opts = args()
+const readOnly = opts['read-only'] === 'true'
+const assembly = opts['shot-assembly'] ? await import(pathToFileURL(path.resolve(opts['shot-assembly'])).href) : null
 const projectRoot = path.resolve(opts.project ?? '')
 const entryRel = opts.entry ?? 'src/index.tsx'
 const entry = path.resolve(projectRoot, entryRel)
@@ -61,7 +64,7 @@ const host = opts.host ?? '127.0.0.1'
 const port = Number(opts.port ?? 0)
 
 if (!opts.project || !existsSync(projectRoot)) fail('entry_missing', `项目目录不存在：${projectRoot}`)
-if (!existsSync(entry)) fail('entry_missing', `工程入口不存在：${entryRel}`)
+if (!assembly && !existsSync(entry)) fail('entry_missing', `工程入口不存在：${entryRel}`)
 
 const requireFrom = createRequire(path.join(nodeModules, 'noop.js'))
 const need = ['esbuild', '@babel/core', '@babel/parser', 'remotion', '@remotion/player', 'react', 'react-dom']
@@ -95,7 +98,24 @@ const remotionShim = {
       const real = await build.resolve('remotion', { kind: 'import-statement', resolveDir: here, pluginData: { real: true } })
       return { path: real.path }
     })
-    build.onResolve({ filter: /^fm-project-entry$/ }, () => ({ path: entry }))
+    build.onResolve({ filter: /^fm-project-entry$/ }, () => assembly ? ({ path: 'fm:shot-entry', namespace: 'fm' }) : ({ path: entry }))
+    if (assembly) build.onLoad({ filter: /^fm:shot-entry$/, namespace: 'fm' }, async () => {
+      const configFile = path.join(projectRoot, 'film.config.json')
+      const config = JSON.parse(await readFile(configFile, 'utf8'))
+      if (config.format !== 'shot-timeline-v1' || !Array.isArray(config.shots) || config.shots.length < 1 || config.shots.length > 60) throw new Error('镜头装配清单无效')
+      if (![config.width, config.height, config.fps].every(Number.isInteger) || config.width < 2 || config.width > 3840 || config.height < 2 || config.height > 3840 || config.fps < 1 || config.fps > 60) throw new Error('镜头规格无效')
+      let cursor = 0
+      const ids = new Set()
+      const shots = config.shots.map(shot => {
+        if (!/^[a-z][a-z0-9_-]{0,63}$/.test(shot.id) || ids.has(shot.id) || !Number.isInteger(shot.frames) || shot.frames < 1 || typeof shot.label !== 'string' || !shot.label.trim()) throw new Error('镜头定义无效')
+        ids.add(shot.id)
+        const result = { ...shot, startFrame: cursor }
+        cursor += shot.frames
+        return result
+      })
+      if (cursor > config.fps * 600 || (config.voiceover && !/^voiceover\.(wav|mp3|m4a)$/.test(config.voiceover))) throw new Error('镜头时长或配音路径无效')
+      return { resolveDir: projectRoot, loader: 'tsx', contents: assembly.shotAssembly({ ...config, shots, durationInFrames: cursor }), watchFiles: [configFile] }
+    })
     build.onLoad({ filter: /^fm:remotion-shim$/, namespace: 'fm' }, () => ({
       resolveDir: here,
       loader: 'tsx',
@@ -239,7 +259,7 @@ function page() {
 
 function servePublic(req, res, rel) {
   const file = path.resolve(publicDir, rel)
-  if (!file.startsWith(`${publicDir}${path.sep}`) || !existsSync(file) || !statSync(file).isFile()) {
+  if (!file.startsWith(`${publicDir}${path.sep}`) || !localFile(file) || !statSync(file).isFile()) {
     res.writeHead(404).end(); return
   }
   const size = statSync(file).size
@@ -249,23 +269,42 @@ function servePublic(req, res, rel) {
     const end = range[2] ? Math.min(Number(range[2]), size - 1) : size - 1
     if (start > end || start >= size) { res.writeHead(416, { 'Content-Range': `bytes */${size}` }).end(); return }
     res.writeHead(206, { 'Content-Type': typeOf(file), 'Content-Length': end - start + 1, 'Content-Range': `bytes ${start}-${end}/${size}`, 'Accept-Ranges': 'bytes' })
-    createReadStream(file, { start, end }).pipe(res)
+    createReadStream(file, { start, end }).on('error', () => res.destroy()).pipe(res)
     return
   }
   res.writeHead(200, { 'Content-Type': typeOf(file), 'Content-Length': size, 'Accept-Ranges': 'bytes' })
-  createReadStream(file).pipe(res)
+  createReadStream(file).on('error', () => res.destroy()).pipe(res)
 }
 
 /* ── 写回源码 ─────────────────────────────────────────────── */
 
-const sha1 = (text) => createHash('sha1').update(text).digest('hex').slice(0, 16)
+const sourceFileHash = (text) => createHash('sha256').update(text).digest('hex')
+
+function localFile(file) {
+  if (!file.startsWith(`${projectRoot}${path.sep}`)) return false
+  let current = projectRoot
+  for (const part of path.relative(projectRoot, file).split(path.sep)) {
+    current = path.join(current, part)
+    try { if (lstatSync(current).isSymbolicLink()) return false } catch { return false }
+  }
+  return true
+}
+
+async function readSource(file) {
+  if (!localFile(file) || !lstatSync(file).isFile() || lstatSync(file).size > 1_048_576) throw new EditError('invalid_src', '源码不是可读的项目文件，或超过1MiB')
+  return readFile(file, 'utf8')
+}
 
 /** src 形如 src/Coffee.tsx:171:6；文件必须在项目目录里 */
 function parseSrc(src) {
   const m = /^(.+):(\d+):(\d+)$/.exec(String(src ?? ''))
   if (!m) throw new EditError('invalid_src', '源码位置格式不对')
   const file = path.resolve(projectRoot, m[1])
-  if (!file.startsWith(`${projectRoot}${path.sep}`) || file.includes(`${path.sep}node_modules${path.sep}`)) throw new EditError('invalid_src', '只能改项目自己的源码')
+  const relative = path.relative(projectRoot, file)
+  const parts = relative.split(path.sep)
+  const tracked = parts.length === 1 || ['src', 'public', 'components', 'scenes', 'styles', 'assets'].includes(parts[0])
+  if (!tracked || path.isAbsolute(m[1]) || m[1].includes('\\') || path.normalize(m[1]) !== m[1]) throw new EditError('invalid_src', '源码位置必须在可备份的工程范围内')
+  if (!localFile(file) || !/\.(tsx|jsx)$/.test(file) || path.relative(projectRoot, file).split(path.sep).some(part => part.startsWith('.') || part === 'node_modules')) throw new EditError('invalid_src', '只能改项目自己的源码')
   return { file, rel: m[1], line: Number(m[2]), column: Number(m[3]) }
 }
 
@@ -274,9 +313,15 @@ const undoStack = []
 const UNDO_LIMIT = 100
 
 async function writeAtomic(file, content) {
-  const tmp = `${file}.fm-tmp-${process.pid}`
-  await writeFile(tmp, content, 'utf8')
-  await rename(tmp, file)
+  if (!localFile(file)) throw new EditError('invalid_src', '源码路径已变化')
+  const tmp = `${file}.fm-tmp-${randomBytes(12).toString('hex')}`
+  let created = false
+  try {
+    await writeFile(tmp, content, { encoding: 'utf8', flag: 'wx' })
+    created = true
+    if (!localFile(file)) throw new EditError('invalid_src', '源码路径已变化')
+    await rename(tmp, file)
+  } finally { if (created) await unlink(tmp).catch(() => undefined) }
 }
 
 /* 写回与撤销排队执行：两个请求同时读到旧文件再各写一遍，会让撤销栈记错 */
@@ -288,43 +333,44 @@ function serial(task) {
 }
 
 async function api(route, body) {
-  if (route === 'edit' || route === 'undo') return serial(() => apiNow(route, body))
+  if (readOnly && (route === 'edit' || route === 'undo')) throw new EditError('preview_read_only', '历史版本预览不能修改源码，请先恢复版本')
+  if (route === 'edit' || route === 'undo') return serial(() => withSourceWriteGuard(projectRoot, () => apiNow(route, body)))
   return apiNow(route, body)
 }
 
 async function apiNow(route, body) {
-  if (route === 'state') return { edits: undoStack.length }
+  if (route === 'state') return { edits: undoStack.length, readOnly }
   if (route === 'inspect') {
     const out = {}
     const files = new Map()
     for (const src of Array.isArray(body.srcs) ? body.srcs.slice(0, 40) : []) {
       try {
         const at = parseSrc(src)
-        if (!files.has(at.file)) files.set(at.file, existsSync(at.file) ? await readFile(at.file, 'utf8') : null)
+        if (!files.has(at.file)) files.set(at.file, await readSource(at.file))
         const code = files.get(at.file)
         if (code == null) { out[src] = null; continue }
         const info = inspect(parser, code, at.line, at.column)
-        out[src] = info && { ...info, file: at.rel, fileHash: sha1(code) }
+        out[src] = info && { ...info, file: at.rel, fileHash: sourceFileHash(code) }
       } catch { out[src] = null }
     }
     return { elements: out }
   }
   if (route === 'edit') {
     const at = parseSrc(body.src)
-    const before = await readFile(at.file, 'utf8')
-    if (body.fileHash && body.fileHash !== sha1(before)) throw new EditError('source_changed', '源码已经变化，请重新读取')
+    const before = await readSource(at.file)
+    if (body.fileHash && body.fileHash !== sourceFileHash(before)) throw new EditError('source_changed', '源码已经变化，请重新读取')
     const after = applyEdit(parser, before, { line: at.line, column: at.column, path: body.path, value: body.value, expect: body.expect ?? null, expectCode: body.expectCode ?? null })
-    if (after === before) return { edits: undoStack.length, fileHash: sha1(before), changed: false }
+    if (after === before) return { edits: undoStack.length, fileHash: sourceFileHash(before), changed: false }
     await writeAtomic(at.file, after)
     undoStack.push({ file: at.file, before, after, src: body.src })
     if (undoStack.length > UNDO_LIMIT) undoStack.shift()
     log('写回', `${at.rel}:${at.line}`, JSON.stringify(body.path))
-    return { edits: undoStack.length, fileHash: sha1(after), changed: true }
+    return { edits: undoStack.length, fileHash: sourceFileHash(after), changed: true }
   }
   if (route === 'undo') {
     const last = undoStack[undoStack.length - 1]
     if (!last) throw new EditError('nothing_to_undo', '没有可以撤销的修改')
-    const current = await readFile(last.file, 'utf8')
+    const current = await readSource(last.file)
     if (current !== last.after) { undoStack.length = 0; throw new EditError('source_changed', '源码在这之后被别处改过，不能再撤销') }
     await writeAtomic(last.file, last.before)
     undoStack.pop()
@@ -345,8 +391,9 @@ function readJson(req) {
 }
 
 const server = http.createServer((req, res) => {
-  const url = new URL(req.url ?? '/', 'http://localhost')
-  const pathname = decodeURIComponent(url.pathname)
+  let pathname
+  try { pathname = decodeURIComponent(new URL(req.url ?? '/', 'http://localhost').pathname) }
+  catch { res.writeHead(400).end(); return }
   /* 不发任何跨域许可：预览页、打包结果、静态文件都只给 iframe 里这个同源页面用。
      别的网页即使能嵌入预览页，也读不到页面内容，拿不到写回令牌。 */
   res.setHeader('Cache-Control', 'no-store')
@@ -360,7 +407,7 @@ const server = http.createServer((req, res) => {
       res.writeHead(200, { 'Content-Type': TYPES['.json'] }).end(JSON.stringify(result))
     }).catch((error) => {
       const known = error instanceof EditError
-      const status = !known ? 500 : error.code === 'source_changed' ? 409 : error.code === 'not_found' || error.code === 'element_not_found' ? 404 : 422
+      const status = !known ? 500 : ['source_changed', 'source_busy', 'source_recovery_required'].includes(error.code) ? 409 : error.code === 'not_found' || error.code === 'element_not_found' ? 404 : 422
       res.writeHead(status, { 'Content-Type': TYPES['.json'] }).end(JSON.stringify({ error: { code: known ? error.code : 'internal', message: error.message } }))
     })
     return
@@ -375,7 +422,11 @@ const server = http.createServer((req, res) => {
     req.on('close', () => clients.delete(res))
     return
   }
-  if (pathname.startsWith('/public/')) { servePublic(req, res, pathname.slice('/public/'.length)); return }
+  if (pathname.startsWith('/public/')) {
+    try { servePublic(req, res, pathname.slice('/public/'.length)) }
+    catch { if (!res.headersSent) res.writeHead(404); res.end() }
+    return
+  }
   const body = outputs.get(pathname)
   if (body) { res.writeHead(200, { 'Content-Type': typeOf(pathname), 'Content-Length': body.byteLength }).end(Buffer.from(body)); return }
   res.writeHead(404).end()

@@ -10,9 +10,9 @@ import com.fasterxml.jackson.annotation.JsonInclude;
  * @param tagline 项目的一句话简介，可为空字符串
  * @param stage 项目阶段：idea、draft、editing、rendering 或 done
  * @param genomeId 片型画像标识；未选择片型时为 null
- * @param durationMs 当前成片时长，单位为毫秒；当前尚未接入时间线，返回初始值 0
+ * @param durationMs 当前版本的帧数与帧率派生时长；无有效数据时为 0
  * @param targetDurationMs 目标时长，单位为毫秒；未设置时不出现在 JSON 中
- * @param counts 项目内容统计；当前尚未接入真实统计，返回初始值
+ * @param counts 当前版本中有记录的内容统计；未接入的审核与规划统计不推测
  * @param coverUrl 封面地址；没有封面时为 null
  * @param rootPath 项目根目录的绝对路径
  * @param createdAt 创建时间，ISO 8601 格式
@@ -37,7 +37,7 @@ public record ProjectDetail(
         Settings settings
 ) {
     /**
-     * 项目内容统计；这些字段目前均返回初始值 0，等待相应模块接入。
+     * 当前版本的场景与合成数量；审核、分镜规划和轨道数量尚未聚合，保持 0。
      *
      * @param scenes 场景数量
      * @param doneScenes 已定稿的场景数量
@@ -54,7 +54,7 @@ public record ProjectDetail(
     ) {}
 
     /**
-     * 项目画布和目标设置。画布尺寸、帧率目前使用固定初始值。
+     * 项目当前版本的画布和目标设置；缺失时使用初始画布值。
      *
      * @param width 画布宽度，单位为像素；当前初始值为 1920
      * @param height 画布高度，单位为像素；当前初始值为 1080
@@ -65,7 +65,7 @@ public record ProjectDetail(
     public record Settings(
             int width,
             int height,
-            int fps,
+            double fps,
             long targetDurationMs,
             String genomeId
     ) {}

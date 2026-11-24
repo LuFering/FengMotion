@@ -122,6 +122,12 @@ public class PresetApplyService {
      * @throws ApiException 视频类型未启用（409 preset_not_active）、项目正在制作（409 project_busy）
      */
     public synchronized ApplyResult apply(String projectId, String presetId) {
+        try (var activity = operations.participate(projectId)) {
+            return applyActive(projectId, presetId);
+        }
+    }
+
+    private ApplyResult applyActive(String projectId, String presetId) {
         Path root = requireRoot(projectId);
         WorkflowPreset preset = presets.findById(presetId)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "not_found", "视频类型不存在"));

@@ -14,7 +14,9 @@
 | `README.md`（本文） | 通用约定、错误、分页、SSE、端点总表、跨域状态机 | `Page`、`ApiErrorDetail`、`Capabilities` |
 | `project.md` | 项目、设置、时间线、场景、分镜、镜头参数、产物、版本 | `ProjectSummary`、`Scene`、`Timeline`、`WorkbenchArtifact` |
 | [scene-edit-metadata.md](scene-edit-metadata.md) | 已实现的版本元素声明读取与文字写回，路径前缀为 `/api`；前端点选面板未限定实现 | `SceneEditMetadata` |
-| [live-preview.md](live-preview.md) | 工程源码实时预览：预览服务脚本、后端进程管理接口（草案） | `LivePreviewStatus` |
+| [live-preview.md](live-preview.md) | 工程源码实时预览：预览服务脚本、已实现的后端进程管理接口 | `LivePreviewStatus` |
+| [workbench-source.md](workbench-source.md) | 工作稿状态、AI 只改稿、源码目标校验和幂等确认出片 | `SourceState`、`SourceTarget`、`SourceRenderJob` |
+| [backend-source-tools.md](backend-source-tools.md) | 单帧、恢复日志、历史只读预览、后台轨道和候选操作 | `SourceFrame`、`SourceRecovery`、`WorkbenchJob` |
 | [shot-candidates.md](shot-candidates.md) | 镜头候选稿隔离预览、显式确认提交与放弃 | `ShotCandidatePreview` |
 | `task.md` | 任务请求、任务实体、事件流、变更集、取消/重试 | `TaskRequest`、`AgentTask`、`TaskEvent` |
 | `workflow.md` | 工作流定义与版本、运行、模板 | `WorkflowDefinition`、`WorkflowRun` |

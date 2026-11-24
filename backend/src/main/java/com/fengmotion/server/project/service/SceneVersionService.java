@@ -97,11 +97,13 @@ public class SceneVersionService {
                         "版本 " + targetVersion + " 不存在，无法回退"));
 
         Optional<ProjectScene> current = scenes.find(projectId);
-        if (current.isEmpty() || !current.get().present()) {
+        if (current.isEmpty()) {
             throw new ApiException(HttpStatus.CONFLICT, "scene_not_initialized",
                     "项目还没有当前场景，无需回退");
         }
         long baseVersion = current.get().version();
+        if (!current.get().present() && expectedVersion == null) throw new ApiException(HttpStatus.CONFLICT,
+                "scene_corrupt", "当前记录损坏；请核对历史并携带expectedVersion明确恢复基线");
 
         /* 调用方可以带上它看到的当前版本。带了就必须对上 ——
            对不上说明这期间别人改过，用户看到的历史已经过期，
@@ -126,10 +128,12 @@ public class SceneVersionService {
             }
             var project = projects.findById(projectId).orElseThrow();
             java.nio.file.Path root = java.nio.file.Path.of(project.rootPath()).toAbsolutePath().normalize();
-            try (var recovery = sourceSnapshots.restore(root, snapshot, film.path("sourceHash").asText(null))) {
-                Optional<Long> committed = scenes.commitWithSnapshot(projectId, baseVersion, film, null,
+            try (var write = SourceWriteGuard.acquire(root);
+                 var recovery = sourceSnapshots.restore(root, snapshot, film.path("sourceHash").asText(null))) {
+                try {
+                Optional<Long> committed = SceneCommitVerifier.commit(scenes,projectId,baseVersion,film,target.artifactPath(),()->scenes.commitWithSnapshot(projectId, baseVersion, film, null,
                         "恢复工程到版本 " + targetVersion, "恢复工程及素材到版本 " + targetVersion,
-                        target.artifactPath(), ProjectSceneVersion.SOURCE_RESTORE, targetVersion);
+                        target.artifactPath(), ProjectSceneVersion.SOURCE_RESTORE, targetVersion));
                 if (committed.isEmpty()) throw new ApiException(HttpStatus.CONFLICT, "scene_version_conflict",
                         "项目在恢复期间被更新，已保留恢复前工程，请刷新后重试");
                 recovery.commit();
@@ -141,12 +145,16 @@ public class SceneVersionService {
                     log.warn("工程已恢复，但创作状态写入失败：{}", projectId, statusFailure);
                 }
                 return scenes.findVersion(projectId, committed.get()).orElseThrow();
+                } catch(RuntimeException failure) {
+                    if(SceneCommitVerifier.uncertain(failure)) recovery.retainPending();
+                    throw failure;
+                }
             } catch (java.io.IOException failure) {
                 throw new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "source_restore_failed",
                         "恢复未完成，请检查项目中的 .fengmotion/restore-backups：" + failure.getMessage());
             }
         }
-        if ("project-render".equals(current.get().film().path("kind").asText())) {
+        if (current.get().present() && "project-render".equals(current.get().film().path("kind").asText())) {
             throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, "source_snapshot_unavailable",
                     "当前项目已使用源码工程，不能用旧场景数据覆盖；可预览旧版视频");
         }

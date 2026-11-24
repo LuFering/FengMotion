@@ -263,6 +263,31 @@ class ShotCandidateApiTest {
         return project;
     }
 
+    @Test void committedCandidateCannotBeDiscardedWhenMetadataReceiptWasLost() throws Exception {
+        Project project=newShotProject();
+        ObjectNode film=saveVersion(project,0);
+        String candidateId=UUID.randomUUID().toString();
+        mockSuccessfulRender();
+        mvc.perform(post(PREVIEW,project.id(),1).contentType(MediaType.APPLICATION_JSON)
+                .content(request(film.path("sourceHash").asText(),"chart",candidateId,COMPONENT))).andExpect(status().isOk());
+        Path metadata=Path.of(project.rootPath()).resolve(".fengmotion/shot-candidates/"+candidateId+"/candidate.json");
+        String before=Files.readString(metadata);
+        mvc.perform(post(PREVIEW+"/{candidateId}/commit",project.id(),1,candidateId)).andExpect(status().isOk());
+        Files.writeString(metadata,before);
+        mvc.perform(delete(PREVIEW+"/{candidateId}",project.id(),1,candidateId)).andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error.code").value("shot_candidate_already_committed"));
+        assertTrue(Files.exists(metadata));
+        mvc.perform(post(PREVIEW+"/{candidateId}/commit",project.id(),1,candidateId)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.version").value(2));
+        assertEquals(2,scenes.listVersions(project.id()).size());
+        Files.delete(metadata);
+        mvc.perform(post(PREVIEW+"/{candidateId}/commit",project.id(),1,candidateId)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.version").value(2));
+        mvc.perform(delete(PREVIEW+"/{candidateId}",project.id(),1,candidateId)).andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error.code").value("shot_candidate_already_committed"));
+        mvc.perform(post(PREVIEW+"/{candidateId}/commit",project.id(),2,candidateId)).andExpect(status().isConflict());
+    }
+
     private ObjectNode saveVersion(Project project, long baseVersion) {
         Path root = Path.of(project.rootPath());
         String snapshot = snapshots.capture(root);

@@ -24,6 +24,7 @@ import lombok.RequiredArgsConstructor;
 public class SystemController {
 
     private final HarnessService harness;
+    private final com.fengmotion.server.render.service.LivePreviewLauncher previews;
 
     private final long startedAt = System.nanoTime();
 
@@ -43,13 +44,18 @@ public class SystemController {
     public Map<String, Capability> capabilities() {
         return Map.of(
                 "agent", agentCapability(),
-                "remotionEditor", unavailable("服务端编辑器未接入"),
-                "previewVideo", unavailable("服务端视频预览未接入"),
+                "remotionEditor", previewCapability(),
+                "previewVideo", new Capability("available", "已登记的本机成片可预览；实时预览依赖以 remotionEditor 为准"),
                 "cloudRender", unavailable("云渲染未接入"),
                 "referenceAnalysis", unavailable("参考片解析未接入"),
                 "asr", unavailable("语音识别未接入"),
                 "checkExecution", unavailable("检查执行未接入")
         );
+    }
+
+    private Capability previewCapability() {
+        String reason=previews.unavailableReason();
+        return reason==null ? new Capability("available", "已检查预览脚本和共享依赖；运行环境由启动接口校验") : unavailable(reason);
     }
 
     /** Agent 能力：按真实探测结果声明，探测不到时说明原因而不是假装可用。 */

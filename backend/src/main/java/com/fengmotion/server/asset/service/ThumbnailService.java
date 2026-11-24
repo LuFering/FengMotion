@@ -221,11 +221,12 @@ public class ThumbnailService {
     private String run(List<String> command) throws IOException, InterruptedException {
         Path out = Files.createTempFile("fengmotion-probe-", ".txt");
         Path err = Files.createTempFile("fengmotion-probe-err-", ".txt");
+        Process process=null;
         try {
             ProcessBuilder builder = new ProcessBuilder(command)
                     .redirectOutput(out.toFile())
                     .redirectError(err.toFile());
-            Process process = builder.start();
+            process = builder.start();
             if (!process.waitFor(FFMPEG_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
                 process.descendants().forEach(ProcessHandle::destroyForcibly);
                 process.destroyForcibly();
@@ -233,12 +234,17 @@ public class ThumbnailService {
                 return null;
             }
             if (process.exitValue() != 0) {
-                String error = Files.readString(err, StandardCharsets.UTF_8);
+                String error = com.fengmotion.server.common.ProcessOutput.tail(err, 16384);
                 log.debug("外部命令失败（{}）：{}", process.exitValue(), error.strip());
                 return null;
             }
-            return Files.readString(out, StandardCharsets.UTF_8);
+            if (Files.size(out) > 65536) return null;
+            return com.fengmotion.server.common.ProcessOutput.read(out, 65536);
         } finally {
+            if(process!=null && process.isAlive()) {
+                process.descendants().forEach(ProcessHandle::destroyForcibly);
+                process.destroyForcibly();
+            }
             Files.deleteIfExists(out);
             Files.deleteIfExists(err);
         }

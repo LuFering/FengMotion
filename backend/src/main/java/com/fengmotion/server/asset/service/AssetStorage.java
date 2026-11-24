@@ -41,8 +41,8 @@ public class AssetStorage {
 
     /** 某一内容哈希对应的素材目录，相对存储根的路径。 */
     public String relativeDirFor(String contentHash) {
-        if (contentHash == null || contentHash.length() < 3) {
-            throw new IllegalArgumentException("contentHash 过短，无法分桶：" + contentHash);
+        if (contentHash == null || !contentHash.matches("[0-9a-f]{64}")) {
+            throw new IllegalArgumentException("contentHash 必须是SHA-256，无法安全定位素材目录");
         }
         return Path.of("assets", contentHash.substring(0, 2), contentHash).toString();
     }
@@ -58,9 +58,16 @@ public class AssetStorage {
      * @throws IllegalArgumentException 路径越出存储根
      */
     public Path resolve(String relative) {
+        if (java.nio.file.Files.isSymbolicLink(root)) throw new IllegalArgumentException("素材库根目录不能是符号链接");
+        if(relative==null || relative.isBlank() || Path.of(relative).isAbsolute()) throw new IllegalArgumentException("素材路径必须是相对路径");
         Path resolved = root.resolve(relative).normalize();
-        if (!resolved.startsWith(root)) {
+        if (!resolved.startsWith(root) || resolved.equals(root)) {
             throw new IllegalArgumentException("素材路径越出存储根：" + relative);
+        }
+        Path current=root;
+        for(Path part:root.relativize(resolved)) {
+            current=current.resolve(part);
+            if(java.nio.file.Files.isSymbolicLink(current)) throw new IllegalArgumentException("素材路径不能经过符号链接");
         }
         return resolved;
     }
@@ -70,6 +77,7 @@ public class AssetStorage {
         if (relative == null || relative.isBlank()) {
             return false;
         }
-        return root.resolve(relative).normalize().startsWith(root);
+        try { resolve(relative);return true; }
+        catch(IllegalArgumentException failure) { return false; }
     }
 }

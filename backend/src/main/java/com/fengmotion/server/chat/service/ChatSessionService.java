@@ -13,16 +13,27 @@ import com.fengmotion.server.common.ApiException;
 import com.fengmotion.server.common.Pagination;
 import com.fengmotion.server.project.store.ProjectDataRepository;
 
-import lombok.RequiredArgsConstructor;
+import com.fengmotion.server.project.service.ProjectOperationLock;
 
 /**
  * 对话会话业务服务。
  */
 @Service
-@RequiredArgsConstructor
 public class ChatSessionService {
     private final ChatSessionRepository sessions;
     private final ProjectDataRepository projects;
+    private final ProjectOperationLock operations;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public ChatSessionService(ChatSessionRepository sessions, ProjectDataRepository projects, ProjectOperationLock operations) {
+        this.sessions = sessions;
+        this.projects = projects;
+        this.operations = operations;
+    }
+
+    public ChatSessionService(ChatSessionRepository sessions, ProjectDataRepository projects) {
+        this(sessions, projects, new ProjectOperationLock());
+    }
 
     /**
      * 在指定项目下创建会话。
@@ -32,6 +43,12 @@ public class ChatSessionService {
      * @return 新创建的会话
      */
     public ChatSession create(String projectId, String title) {
+        try (var activity = operations.participate(projectId)) {
+            return createActive(projectId, title);
+        }
+    }
+
+    private ChatSession createActive(String projectId, String title) {
         // 不允许为不存在或已归档的项目创建会话。
         requireActiveProject(projectId);
 

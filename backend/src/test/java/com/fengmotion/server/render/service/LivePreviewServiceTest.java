@@ -33,6 +33,7 @@ class LivePreviewServiceTest {
     private final LivePreviewLauncher launcher = mock(LivePreviewLauncher.class);
     private final AtomicReference<Instant> now = new AtomicReference<>(Instant.parse("2026-11-20T00:00:00Z"));
     private LivePreviewService service;
+    private final com.fengmotion.server.project.service.ProjectOperationLock operations = new com.fengmotion.server.project.service.ProjectOperationLock();
 
     @BeforeEach void setup() throws Exception {
         Files.createDirectories(root.resolve("src"));
@@ -41,10 +42,90 @@ class LivePreviewServiceTest {
         Clock clock = mock(Clock.class);
         when(clock.instant()).thenAnswer(invocation -> now.get());
         service = new LivePreviewService(projects, new ProjectFilmConfig(new ObjectMapper()), launcher,
-                Duration.ofSeconds(1), Duration.ofMinutes(10), clock);
+                Duration.ofSeconds(1), Duration.ofMinutes(10), clock, operations);
     }
 
     @AfterEach void close() { service.close(); }
+
+    @Test void historicalPreviewUsesVerifiedSnapshotAndDisposesItsCopy() throws Exception {
+        project("first");
+        var scenes=mock(com.fengmotion.server.project.store.ProjectSceneRepository.class);
+        var snapshots=new com.fengmotion.server.project.service.ProjectSourceSnapshots();
+        String hash=com.fengmotion.server.project.service.ProjectSourceFingerprint.compute(root);
+        String reference=snapshots.capture(root);
+        var film=new ObjectMapper().createObjectNode().put("kind","project-render").put("sourceSnapshot",reference).put("sourceHash",hash);
+        when(scenes.findVersion("first",1L)).thenReturn(Optional.of(new com.fengmotion.server.project.domain.ProjectSceneVersion("first",1,film,null,"","","renders/first.mp4","task",null,now.get())));
+        org.springframework.test.util.ReflectionTestUtils.setField(service,"scenes",scenes);
+        org.springframework.test.util.ReflectionTestUtils.setField(service,"snapshots",snapshots);
+        Files.writeString(root.resolve("src/index.tsx"),"new working source");
+        var process=process(43120);
+        var copy=new AtomicReference<Path>();
+        when(launcher.launch(any(),any(),eq(true))).thenAnswer(call->{
+            Path workspace=call.getArgument(0);copy.set(workspace);
+            assertEquals("export const Main = () => null;",Files.readString(workspace.resolve("src/index.tsx")));
+            return process;
+        });
+        assertEquals("ready",service.start("first",1L).status());
+        assertEquals("ready",service.get("first",1L).status());
+        assertEquals("stopped",service.get("first").status());
+        service.stop("first",1L);
+        assertFalse(Files.exists(copy.get()));
+        assertEquals("new working source",Files.readString(root.resolve("src/index.tsx")));
+    }
+
+    @Test void previewOccupiesProjectUntilProcessStopFinishes() throws Exception {
+        project("first");
+        var process = process(43120);
+        when(launcher.launch(any(), any())).thenReturn(process);
+        service.start("first");
+        assertEquals("project_busy", assertThrows(ApiException.class, () -> operations.beginDeletion("first")).getCode());
+        doAnswer(invocation -> {
+            assertEquals("project_busy", assertThrows(ApiException.class, () -> operations.beginDeletion("first")).getCode());
+            return null;
+        }).when(process).stop();
+        service.stop("first");
+        try (var deletion = operations.beginDeletion("first")) {
+            assertEquals("project_deleting", assertThrows(ApiException.class, () -> service.start("first")).getCode());
+        }
+        verify(launcher, times(1)).launch(any(), any());
+    }
+
+    @Test void failedStartupReleasesTheProjectAdmission() {
+        project("first");
+        when(launcher.launch(any(), any())).thenThrow(LivePreviewProcess.unavailable("missing dependency"));
+        assertThrows(ApiException.class, () -> service.start("first"));
+        try (var deletion = operations.beginDeletion("first")) { assertNotNull(deletion); }
+    }
+
+    @Test void configurationChangeReplacesOnlyAfterNewPreviewIsReadyAndKeepsOldOnFailure() throws Exception {
+        project("first");
+        var original=process(43120);
+        var failed=process(43121);
+        var replacement=process(43122);
+        when(failed.awaitReady(any())).thenThrow(LivePreviewProcess.unavailable("compile failed"));
+        when(launcher.launch(any(),any())).thenReturn(original,failed,replacement);
+        var first=service.start("first");
+        Files.writeString(root.resolve("film.config.json"),"{\"entry\":\"src/index.tsx\",\"compositionId\":\"Other\"}");
+        assertThrows(ApiException.class,()->service.start("first"));
+        assertEquals(first,service.get("first"));
+        verify(original,never()).stop();
+        when(replacement.awaitReady(any())).thenAnswer(call->{verify(original,never()).stop();return "http://127.0.0.1:43122/";});
+        assertEquals("Other",service.start("first").compositionId());
+        verify(original).stop();
+    }
+
+    @Test void failedProcessStopKeepsAdmissionUntilReaperActuallyStopsIt() {
+        project("first");
+        var process=process(43120);
+        when(launcher.launch(any(),any())).thenReturn(process);
+        service.start("first");
+        doThrow(LivePreviewProcess.unavailable("still running")).doNothing().when(process).stop();
+        assertThrows(ApiException.class,()->service.stop("first"));
+        assertEquals("project_busy",assertThrows(ApiException.class,()->operations.beginDeletion("first")).getCode());
+        service.reap();
+        try(var deletion=operations.beginDeletion("first")) { assertNotNull(deletion); }
+        verify(process,times(2)).stop();
+    }
 
     private void project(String id) {
         when(projects.findById(id)).thenReturn(Optional.of(new Project(id, id, null, null, root.toString(), now.get())));

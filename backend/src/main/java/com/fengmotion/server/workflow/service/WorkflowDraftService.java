@@ -93,6 +93,12 @@ public class WorkflowDraftService {
      * @return 写入后的工作稿
      */
     public synchronized Draft put(String projectId, String name, String content, String baseSha256) {
+        try (var activity = operations.participate(projectId)) {
+            return putActive(projectId, name, content, baseSha256);
+        }
+    }
+
+    private Draft putActive(String projectId, String name, String content, String baseSha256) {
         requireKnown(name);
         if (content == null) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "validation_error", "工作稿内容缺失");

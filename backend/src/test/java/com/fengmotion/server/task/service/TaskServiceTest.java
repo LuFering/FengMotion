@@ -39,6 +39,100 @@ class TaskServiceTest {
 
     private final ObjectMapper json = new ObjectMapper();
 
+    @Test void completionReceiptFailureRetriesWithoutMarkingSuccessfulWorkAsFailed() throws Exception {
+        var repo = org.mockito.Mockito.spy(new MemoryRepo());
+        var remaining = new java.util.concurrent.atomic.AtomicInteger(1);
+        org.mockito.Mockito.doAnswer(call -> {
+            if (Task.STATUS_COMPLETED.equals(call.getArgument(1)) && remaining.getAndDecrement() > 0) throw new IllegalStateException("lost completion");
+            return call.callRealMethod();
+        }).when(repo).updateProgress(org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.anyInt(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyBoolean());
+        var service = new TaskService(repo, projectRepo("p1"), directTx(), json);
+        try {
+            Task task = service.submit("p1", "render", "", json.createObjectNode(), (current, progress) -> "renders/result.mp4");
+            for (int attempt = 0; attempt < 100 && !service.get(task.id()).isTerminal(); attempt++) Thread.sleep(10);
+            assertEquals(Task.STATUS_COMPLETED, service.get(task.id()).status());
+            assertEquals("renders/result.mp4", service.get(task.id()).artifactPath());
+            assertTrue(service.eventsAfter(task.id(), 0).stream().noneMatch(event -> TaskEvent.KIND_ERROR.equals(event.kind())));
+        } finally { service.close(); }
+    }
+
+    @Test void persistentReceiptFailurePreservesArtifactAndReportsUnknownCompletion() throws Exception {
+        var repo = org.mockito.Mockito.spy(new MemoryRepo());
+        org.mockito.Mockito.doAnswer(call -> {
+            if (Task.STATUS_COMPLETED.equals(call.getArgument(1))) throw new IllegalStateException("completion storage unavailable");
+            return call.callRealMethod();
+        }).when(repo).updateProgress(org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.anyInt(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyBoolean());
+        var service = new TaskService(repo, projectRepo("p1"), directTx(), json);
+        try {
+            Task task = service.submit("p1", "render", "", json.createObjectNode(), (current, progress) -> "renders/result.mp4");
+            for (int attempt = 0; attempt < 100 && !service.get(task.id()).isTerminal(); attempt++) Thread.sleep(10);
+            assertEquals("task_completion_unknown", service.get(task.id()).errorCode());
+            assertEquals("renders/result.mp4", service.get(task.id()).artifactPath());
+            var error = service.eventsAfter(task.id(), 0).stream().filter(event -> TaskEvent.KIND_ERROR.equals(event.kind())).findFirst().orElseThrow();
+            assertTrue(!error.data().has("artifactApplied"));
+        } finally { service.close(); }
+    }
+
+    @Test void cancellingQueuedTasksImmediatelyFreesExecutorCapacity() throws Exception {
+        var repo = new MemoryRepo();
+        var service = new TaskService(repo, projectRepo("p1"), directTx(), json);
+        var entered = new CountDownLatch(2);
+        var release = new CountDownLatch(1);
+        try {
+            for (int index = 0; index < 2; index++) service.submit("p1", "render", "", json.createObjectNode(), (task, progress) -> {
+                entered.countDown();
+                release.await(10, TimeUnit.SECONDS);
+                return null;
+            });
+            assertTrue(entered.await(3, TimeUnit.SECONDS));
+            var queued = new java.util.ArrayList<Task>();
+            for (int index = 0; index < 20; index++) queued.add(service.submit("p1", "render", "", json.createObjectNode(), (task, progress) -> null));
+            assertEquals("task_queue_full", assertThrows(ApiException.class, () -> service.submit("p1", "render", "", json.createObjectNode(), (task, progress) -> null)).getCode());
+            for (Task task : queued) service.cancel(task.id());
+            var replacement = service.submit("p1", "render", "", json.createObjectNode(), (task, progress) -> null);
+            assertEquals(Task.STATUS_QUEUED, service.get(replacement.id()).status());
+            service.cancel(replacement.id());
+        } finally { release.countDown(); service.close(); }
+    }
+
+    @Test void cancelledTaskProtectsProjectUntilItsWorkerActuallyExits() throws Exception {
+        var repo = new MemoryRepo();
+        var operations = new com.fengmotion.server.project.service.ProjectOperationLock();
+        var service = new TaskService(repo, projectRepo("p1"), directTx(), json, operations);
+        var entered = new CountDownLatch(1);
+        var cancellationSeen = new CountDownLatch(1);
+        var finish = new CountDownLatch(1);
+        Task task = service.submit("p1", "render", "", json.createObjectNode(), (running, progress) -> {
+            entered.countDown();
+            try { Thread.sleep(10_000); }
+            catch (InterruptedException interrupted) { cancellationSeen.countDown(); }
+            while (finish.getCount() > 0) {
+                try { finish.await(100, TimeUnit.MILLISECONDS); }
+                catch (InterruptedException ignored) { }
+            }
+            return null;
+        });
+        try {
+            assertTrue(entered.await(3, TimeUnit.SECONDS));
+            service.cancel(task.id());
+            assertTrue(cancellationSeen.await(3, TimeUnit.SECONDS));
+            assertEquals(Task.STATUS_CANCELLED, service.get(task.id()).status());
+            assertEquals("project_busy", assertThrows(ApiException.class, () -> operations.beginDeletion("p1")).getCode());
+        } finally { finish.countDown(); }
+        for (int attempt = 0; attempt < 100; attempt++) {
+            try (var deletion = operations.beginDeletion("p1")) {
+                assertEquals("project_deleting", assertThrows(ApiException.class,
+                        () -> service.submit("p1", "render", "", json.createObjectNode(), (running, progress) -> null)).getCode());
+                return;
+            } catch (ApiException busy) { Thread.sleep(5); }
+        }
+        throw new AssertionError("task lease was not released");
+    }
+
     /**
      * 内存仓储：只实现被任务服务用到的部分。
      */

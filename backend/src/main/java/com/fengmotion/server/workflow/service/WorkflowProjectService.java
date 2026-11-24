@@ -13,7 +13,7 @@ import com.fengmotion.server.common.ApiException;
 import com.fengmotion.server.project.domain.Project;
 import com.fengmotion.server.project.store.ProjectRepository;
 
-import lombok.RequiredArgsConstructor;
+import com.fengmotion.server.project.service.ProjectOperationLock;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -30,11 +30,22 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class WorkflowProjectService {
 
     private final ProjectRepository projects;
     private final WorkflowToolRunner tools;
+    private final ProjectOperationLock operations;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public WorkflowProjectService(ProjectRepository projects, WorkflowToolRunner tools, ProjectOperationLock operations) {
+        this.projects = projects;
+        this.tools = tools;
+        this.operations = operations;
+    }
+
+    public WorkflowProjectService(ProjectRepository projects, WorkflowToolRunner tools) {
+        this(projects, tools, new ProjectOperationLock());
+    }
 
     /** 一个 Prompt-first 项目应当存在的文件。 */
     private static final List<String> PROMPT_FIRST_FILES = List.of(
@@ -57,6 +68,12 @@ public class WorkflowProjectService {
      * @return 目录状态
      */
     public WorkflowProjectService.InitOutcome init(String projectId, String prompt) {
+        try (var activity = operations.participate(projectId)) {
+            return initActive(projectId, prompt);
+        }
+    }
+
+    private InitOutcome initActive(String projectId, String prompt) {
         Project project = requireProject(projectId);
         Path root = requireRoot(project);
 
@@ -115,6 +132,12 @@ public class WorkflowProjectService {
     }
 
     public WorkflowProjectState recordCorrection(String projectId, String text, String requestId) {
+        try (var activity = operations.participate(projectId)) {
+            return recordActiveCorrection(projectId, text, requestId);
+        }
+    }
+
+    private WorkflowProjectState recordActiveCorrection(String projectId, String text, String requestId) {
         Project project = requireProject(projectId);
         Path root = requireRoot(project);
         if (text == null || text.isBlank()) {

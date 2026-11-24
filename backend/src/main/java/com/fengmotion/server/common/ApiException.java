@@ -12,11 +12,17 @@ public class ApiException extends RuntimeException {
 
     private final HttpStatus status;
     private final String code;
+    private final java.util.Map<String, Object> details;
 
     public ApiException(HttpStatus status, String code, String message) {
+        this(status, code, message, java.util.Map.of());
+    }
+
+    public ApiException(HttpStatus status, String code, String message, java.util.Map<String, Object> details) {
         super(message);
         this.status = status;
         this.code = code;
+        this.details = java.util.Map.copyOf(details);
     }
 
     /** HTTP 状态：404 找不到、409 状态冲突、400 参数不合法。 */
@@ -28,4 +34,6 @@ public class ApiException extends RuntimeException {
     public String getCode() {
         return code;
     }
+
+    public java.util.Map<String, Object> getDetails() { return details; }
 }

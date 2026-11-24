@@ -165,7 +165,7 @@ public final class TaskRequestGuard {
         if (node == null || node.isNull()) {
             return;
         }
-        if (!node.canConvertToLong()) {
+        if (!node.isIntegralNumber() || !node.canConvertToLong() || node.longValue() < 0) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "validation_error",
                     "baseVersion 必须是整数");
         }

@@ -26,4 +26,8 @@ test('track clips expose stable slot IDs rather than render-generated sequence I
   assert.deepEqual(manifest.tracks[0].clips.map(({ id, start, duration }) => [id, start, duration]), [
     ['chart', 0, 4], ['outro', 4, 3],
   ])
+  assert.deepEqual(manifest.tracks[1], { id: 'voiceover', name: '独立配音', clips: [
+    { id: 'voiceover', name: 'voiceover.m4a', kind: 'audio', start: 0, duration: 7 },
+  ] })
+  assert.equal(shotTracks({ ...timeline, voiceover: null }).tracks.length, 1)
 })

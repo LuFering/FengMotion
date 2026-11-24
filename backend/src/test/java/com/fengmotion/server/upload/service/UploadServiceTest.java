@@ -38,6 +38,50 @@ class UploadServiceTest {
     }
 
     @Test
+    void failedStreamsAndFalselyDeclaredSizesDoNotLeavePartialAttachments() throws Exception {
+        var file = org.mockito.Mockito.mock(org.springframework.web.multipart.MultipartFile.class);
+        org.mockito.Mockito.when(file.isEmpty()).thenReturn(false);
+        org.mockito.Mockito.when(file.getSize()).thenReturn(1L);
+        org.mockito.Mockito.when(file.getOriginalFilename()).thenReturn("stream.txt");
+        org.mockito.Mockito.when(file.getContentType()).thenReturn("text/plain");
+        org.mockito.Mockito.when(file.getInputStream()).thenReturn(new java.io.InputStream() {
+            int read;
+            @Override public int read() throws java.io.IOException {
+                if (read++ < 3) return 1;
+                throw new java.io.IOException("stream interrupted");
+            }
+        });
+        assertThrows(java.io.UncheckedIOException.class, () -> service().store(file));
+        try (var entries = Files.list(tempDir)) { assertEquals(0, entries.count()); }
+        org.mockito.Mockito.when(file.getInputStream()).thenReturn(new java.io.InputStream() {
+            long remaining = 64L * 1024 * 1024 + 1;
+            @Override public int read() { return remaining-- > 0 ? 0 : -1; }
+            @Override public int read(byte[] buffer, int offset, int length) {
+                if (remaining <= 0) return -1;
+                int count = (int) Math.min(length, remaining);
+                remaining -= count;
+                return count;
+            }
+        });
+        assertEquals("file_too_large", assertThrows(ApiException.class, () -> service().store(file)).getCode());
+        try (var entries = Files.list(tempDir)) { assertEquals(0, entries.count()); }
+        org.mockito.Mockito.when(file.getInputStream()).thenReturn(new java.io.ByteArrayInputStream(new byte[]{1, 2, 3}));
+        assertEquals(3, service().store(file).sizeBytes());
+    }
+
+    @Test
+    void linkedUploadRootCannotBeUsedForWritingOrReading() throws Exception {
+        Path outside = Files.createDirectory(tempDir.resolve("outside"));
+        Path link = Files.createSymbolicLink(tempDir.resolve("linked"), outside);
+        var uploads = new UploadService(link.toString());
+        assertThrows(java.io.UncheckedIOException.class, () -> uploads.store(
+                new MockMultipartFile("file", "title.txt", "text/plain", new byte[]{1})));
+        assertEquals("upload_path_invalid", assertThrows(ApiException.class,
+                () -> uploads.resolve(java.util.UUID.randomUUID().toString())).getCode());
+        try (var entries = Files.list(outside)) { assertEquals(0, entries.count()); }
+    }
+
+    @Test
     @DisplayName("保存后产物在根目录下，且文件名不含用户提供的名字")
     void storesUnderRootWithGeneratedName() throws Exception {
         UploadService uploads = service();

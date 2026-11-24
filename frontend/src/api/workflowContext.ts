@@ -11,6 +11,7 @@
  * 而这些此前从来没有落到项目目录里 —— 那套流程因此无法真正启动。</p>
  */
 import type { HttpClient } from './http'
+import { renderWorktree } from './sourceRender'
 import type { AgentReference } from './studioApi'
 
 export interface UnsavedReplyItem {
@@ -39,7 +40,7 @@ export interface CreationRoundItem {
 }
 
 export interface CreationState {
-  state: 'running' | 'rendered' | 'awaiting_info' | 'failed' | 'interrupted'
+  state: 'running' | 'edited' | 'rendered' | 'awaiting_info' | 'failed' | 'interrupted'
   phase?: 'analyzing' | 'rendering' | 'completed' | 'awaiting_info' | 'failed' | 'interrupted' | string | null
   intent: string | null
   reply: string | null
@@ -127,7 +128,6 @@ export interface WorkflowContextInitResult {
    这两个操作背后是 agent 创作与 Chromium 渲染，不是普通请求；
    用统一默认值会把「正在正常工作」误判成「请求超时」。
    数值与后端 fengmotion.remotion.project-timeout-seconds 对齐并留出余量。 */
-const RENDER_TIMEOUT_MS = 20 * 60 * 1000
 const CREATE_TIMEOUT_MS = 25 * 60 * 1000
 
 /** 项目工程配置状态。 */
@@ -178,7 +178,7 @@ export interface FilmCreateResult {
    * `awaiting_info` = agent 只提问、没有改动工程，此时没有产物也没有新版本 ——
    * 界面必须显示「等待补充信息」，不能把旧工程重渲出来的片子当成修改成功。</p>
    */
-  state: 'rendered' | 'awaiting_info' | 'failed'
+  state: 'edited' | 'rendered' | 'awaiting_info' | 'failed'
   /** agent 对这次改动的说明 */
   reply: string
   /** agent 耗时 */
@@ -355,10 +355,7 @@ export function createWorkflowContextResource(http: HttpClient): WorkflowContext
     },
 
     renderFilm(projectId, prompt) {
-      /* 渲染通常 30 秒起，首次还要下载浏览器。默认 15 秒超时必然掐断，
-         而掐断后用户看到的是「请求超时」——完全看不出是在渲染。 */
-      return http.post<FilmRenderResult>(`${base(projectId)}/render`,
-        { prompt: prompt ?? '' }, { timeoutMs: RENDER_TIMEOUT_MS })
+      return renderWorktree(http, projectId, prompt ?? '')
     },
 
     recordCorrection(projectId, text) {

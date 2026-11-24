@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import type { LiveAiSubmit } from '@/api/sourceRender'
 import { UiIcon, SemIcons } from '@/shared/icons/UiIcon'
 import { FlipBackward } from '@untitledui/icons'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/ui/tooltip'
@@ -17,7 +18,7 @@ import '@/features/workbench/styles/workbench/live-stage.css'
 export function LiveStage({ live, onAskAi, busy, onRender, renderBusy }: {
   live: LivePreview
   /** 交给 AI：工作台的提交入口；返回是否已提交 */
-  onAskAi: (prompt: string) => Promise<boolean>
+  onAskAi: LiveAiSubmit
   busy: boolean
   /** 出片：渲染当前工作稿，生成新版本 */
   onRender: () => void
@@ -53,19 +54,19 @@ export function LiveStage({ live, onAskAi, busy, onRender, renderBusy }: {
       {live.missing && <div className="fw-live-veil" role="alert">找不到要预览的画面；工程里只有 {live.missing.join('、') || '（无）'}</div>}
 
       {/* 工作稿改动：写回过源码就出现；出片才生成新版本 */}
-      {live.edits > 0 && (
+      {(live.worktree?.dirty ?? live.edits > 0) && (
         <div className="fw-live-edits" role="status">
           <span className="fw-live-edits-dot" aria-hidden="true" />
-          <span>工作稿 · 已改 <b className="num">{live.edits}</b> 处</span>
+          <span>工作稿 · 有未出片的改动</span>
           <Tooltip delayDuration={350}>
             <TooltipTrigger asChild>
-              <button type="button" className="fw-live-edits-btn" aria-label="撤销" disabled={live.commit.pending} onClick={live.undo}>
+              <button type="button" className="fw-live-edits-btn" aria-label="撤销" disabled={live.commit.pending || live.edits === 0} onClick={live.undo}>
                 <UiIcon icon={FlipBackward} size="xs" />
               </button>
             </TooltipTrigger>
             <TooltipContent side="bottom" sideOffset={6}>撤销上一处修改（⌘Z）</TooltipContent>
           </Tooltip>
-          <button type="button" className="fw-live-edits-render" disabled={renderBusy} onClick={onRender}>
+          <button type="button" className="fw-live-edits-render" disabled={renderBusy || live.commit.pending} onClick={onRender}>
             {renderBusy ? '出片中…' : '出片'}
           </button>
         </div>

@@ -19,7 +19,7 @@ class RemotionRendererTimeoutTest {
     @Test
     void capturesLargeStderrWithoutBlockingSuccessfulRender() throws Exception {
         Files.writeString(project.resolve("render.mjs"),
-                "head -c 131072 /dev/zero >&2\ntouch \"$4\"\nprintf '{\"ok\":true,\"fps\":30}'\n");
+                "head -c 131072 /dev/zero >&2\nprintf fixture > \"$4\"\nprintf '{\"ok\":true,\"fps\":30,\"width\":640,\"height\":360,\"durationInFrames\":60}'\n");
         var mapper = new ObjectMapper();
         var renderer = new RemotionRenderer(mapper);
         ReflectionTestUtils.setField(renderer, "projectDir", project.toString());
