@@ -9,7 +9,7 @@
 用自然语言创作视频，在画面中提出修改，让每一轮结果都有迹可循。
 
 <p>
-  <img alt="开发版本 0.1.2" src="https://img.shields.io/badge/version-0.1.2-2463EB?style=flat-square" />
+  <img alt="开发版本 0.1.3" src="https://img.shields.io/badge/version-0.1.3-2463EB?style=flat-square" />
   <img alt="持续开发中" src="https://img.shields.io/badge/status-in_development-64748B?style=flat-square" />
   <img alt="Electron 桌面应用" src="https://img.shields.io/badge/desktop-Electron-1E293B?style=flat-square" />
   <img alt="Remotion 视频渲染" src="https://img.shields.io/badge/video-Remotion-1E293B?style=flat-square" />
@@ -43,7 +43,7 @@ FengMotion 是一款本地运行的 AI 视频创作桌面应用。你描述内�
 
 ## 当前能做到哪里
 
-当前源码版本为 **0.1.2**，持续开发中。下表描述截至 **2026-11-20** 的实现；本地开发进展与公开安装包的发布时间分别记录。
+当前源码版本为 **0.1.3**，持续开发中。下表描述截至 **2026-11-20** 的实现；本地开发进展与公开安装包的发布时间分别记录。
 
 | 能力 | 当前状态 |
 | :--- | :--- |

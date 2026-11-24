@@ -1,6 +1,23 @@
 # 版本记录
 
-这里分开记录未发布工作与已发布版本。当前源码版本为 0.1.2；本地实现和验收状态见 [项目进度](PROGRESS.md)，计划见 [路线图](ROADMAP.md)。发布资产以 GitHub Releases 为准。
+这里分开记录未发布工作与已发布版本。当前源码版本为 0.1.3；本地实现和验收状态见 [项目进度](PROGRESS.md)，计划见 [路线图](ROADMAP.md)。发布资产以 GitHub Releases 为准。
+
+## 0.1.3
+
+发布日期：2026-11-24。
+
+### 后端
+- 单帧 PNG 真实解码、素材删除事务保护、损坏场景拒绝与显式历史恢复；后台版本技术核验与版本审阅记录；带独立音轨的镜头候选预览/提交。
+- 新增 `GET /api/projects/{id}/content-counts` 聚合当前版本镜头/合成数、磁盘分镜段数与轨道片段数；detail 接口读文件，list 批量接口保持 0 避免 N+1 文件 IO。
+- 任务取消/队列容量收尾、恢复日志容量统一 1MiB、共享写入锁与产物边界、严格 JSON 输入校验。
+- 全量打包 **910 项 Java 测试零失败、1 跳过**。
+
+### 前端
+- 工作台源码编辑闭环配套接线：worktree 客户端、工作稿状态 hook、source-render API 与预览写入锁。
+- `node --test frontend/tests` 154 项通过。
+
+### 桌面发行
+- 三端打包资源补齐 `shot-assembly.mjs`/`inspect-source-target.mjs`/`source-write-guard.mjs`；CI 后端步骤补 Node 测试与 ffmpeg。
 
 ## 未发布
 
