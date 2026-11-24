@@ -128,6 +128,7 @@
 .set-refined .set-agent-who small { font-size:10.5px; line-height:1.6; }
 .set-refined .set-hcard .set-agent-pick { width:100%; min-width:0; height:30px; justify-content:flex-start; }
 .set-refined .set-hcard .set-agent-pick .v { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; text-align:left; }
+html[data-theme="tactile"] .set-refined .set-default-engine { color: var(--acc-tx); }
 .set-refined .set-hcard .set-default-engine { position:absolute; top:18px; right:12px; margin:0; }
 @media(max-width:900px) { .set-refined .set-hcards { grid-template-columns:repeat(2,minmax(0,1fr)); } }
 @media(max-width:650px) { .set-refined .set-hcards { grid-template-columns:minmax(0,1fr); } }

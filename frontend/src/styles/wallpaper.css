@@ -159,6 +159,8 @@ html[data-theme="dark"] .fm-wall[data-wall="paper"] { filter: brightness(.62) sa
   text-overflow: ellipsis;
 }
 .set-wall[data-on] .set-wall-name { color: var(--acc); font-weight: 600; }
+/* 触感的强调色是黄，做文字在米底上只有 1.1:1；选中已有黄框和勾，名字用正文色 */
+html[data-theme="tactile"] .set-wall[data-on] .set-wall-name { color: var(--fg); }
 /* 选中角标：白勾在深底上，跨主题都看得清 */
 .set-wall-ck {
   position: absolute;

@@ -113,6 +113,7 @@
   color: var(--acc);
   background: color-mix(in srgb, var(--acc) 16%, transparent);
 }
+html[data-theme="tactile"] .libd-item-cur { color: var(--acc-tx); }
 
 /* ═══ 侧栏里的「更多」与「社区」 ═══════════════════════════════ */
 /* 库入口：当前在任一库内时高亮；收起态只显示图标 */

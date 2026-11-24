@@ -75,9 +75,10 @@ html:not([data-theme]) .wfe .wfn {
   white-space: nowrap;
 }
 
+/* 节点卡是 --raised 浮起底，--tx3 在上面深色只有 2.6:1；往二级字靠一点，仍比标题弱 */
 .wfn-exec {
   overflow: hidden;
-  color: var(--tx3);
+  color: color-mix(in srgb, var(--tx3) 55%, var(--tx2));
   font-size: 10.5px;
   line-height: 14px;
   text-overflow: ellipsis;

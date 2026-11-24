@@ -155,6 +155,8 @@ html[data-theme="tactile"] {
   --hint: #6f6b5f;
   --acc: #f7c948;
   --acc-d: #d9a92b;
+  /* 强调黄做文字在米底上只有 1.1:1；文字用这一档（与 theme-v3 页面层 --acc-tx 同值） */
+  --acc-tx: #7a5b00;
   --on-accent: #22231f;
   --soft: rgba(247, 201, 72, .40);
   --ok: #2e7d32;
@@ -201,6 +203,8 @@ html[data-theme="tactile"] body.studio-shell.studio-shell {
   --hint: #6f6b5f;
   --acc: #f7c948;
   --acc-d: #d9a92b;
+  /* 强调黄做文字在米底上只有 1.1:1；文字用这一档（与 theme-v3 页面层 --acc-tx 同值） */
+  --acc-tx: #7a5b00;
   --on-accent: #22231f;
   --soft: rgba(247, 201, 72, .40);
   --ht-edge: #22231f;

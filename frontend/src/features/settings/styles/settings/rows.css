@@ -161,3 +161,7 @@ html[data-motion="reduce"] *::after {
 /* 壁纸预览格子：浅色主题下白底/浅底格子会和弹窗底色糊在一起，补一圈内描边 */
 .set-wall-prev { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fg) 12%, transparent); }
 .set-wall[data-on] .set-wall-prev { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--acc) 30%, transparent); }
+
+/* 「关于」里的外链：触感主题的强调黄做文字读不清，用 --acc-tx */
+.set-link { color: var(--acc); }
+html[data-theme="tactile"] .set-link { color: var(--acc-tx); }

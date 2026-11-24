@@ -406,12 +406,12 @@ export function SettingsScreen({
                 </div>
                 <Row label="邮箱"><span className="num">{FEEDBACK.email}</span></Row>
                 <Row label="仓库">
-                  <a href={FEEDBACK.repoUrl} target="_blank" rel="noreferrer" style={{ color: 'var(--acc)' }}>
+                  <a href={FEEDBACK.repoUrl} target="_blank" rel="noreferrer" className="set-link">
                     {FEEDBACK.repoUrl.replace('https://', '')}
                   </a>
                 </Row>
                 <Row label="已有问题">
-                  <a href={FEEDBACK.issuesListUrl} target="_blank" rel="noreferrer" style={{ color: 'var(--acc)' }}>
+                  <a href={FEEDBACK.issuesListUrl} target="_blank" rel="noreferrer" className="set-link">
                     查看 Issues
                   </a>
                 </Row>
