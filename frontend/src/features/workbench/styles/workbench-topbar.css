@@ -23,7 +23,7 @@ html[data-theme="light"] {
   --portal-menu-line: #cdcdd6;
   --portal-menu-tx: #191a20;
   --portal-menu-tx2: #5b5e66;
-  --portal-menu-tx3: #94969e;
+  --portal-menu-tx3: #7a7d86;
   --portal-menu-hover: rgba(25, 25, 50, 0.05);
   --portal-menu-active: rgba(47, 111, 228, 0.10);
   --portal-menu-shadow: 0 16px 36px rgba(30, 30, 60, 0.16), 0 0 0 1px rgba(25, 25, 50, 0.06);
@@ -34,7 +34,7 @@ html[data-theme="tactile"] {
   --portal-menu-line: #22231f;
   --portal-menu-tx: #22231f;
   --portal-menu-tx2: #55534a;
-  --portal-menu-tx3: #8a8676;
+  --portal-menu-tx3: #7a7666;
   --portal-menu-hover: rgba(34, 35, 31, 0.07);
   --portal-menu-active: rgba(247, 201, 72, 0.40);
   --portal-menu-shadow: 6px 6px 0 #22231f, 0 0 0 2px #22231f;

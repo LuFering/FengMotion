@@ -103,7 +103,6 @@
 .dlv-ext {
   flex: none;
   color: var(--ph);
-  font-family: var(--font-mono, ui-monospace, monospace);
   font-size: 11px;
   letter-spacing: 0.04em;
 }

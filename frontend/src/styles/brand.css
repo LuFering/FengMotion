@@ -151,7 +151,7 @@ html[data-theme="tactile"] {
   --line: rgba(34, 35, 31, .18);
   --fg: #22231f;
   --dim: #55534a;
-  --ph: #8a8676;
+  --ph: #7a7666;
   --hint: #6f6b5f;
   --acc: #f7c948;
   --acc-d: #d9a92b;
@@ -170,7 +170,7 @@ html[data-theme="light"] body.studio-shell.studio-shell {
   --line: #cdcdd6;
   --fg: #191a20;
   --dim: #5b5e66;
-  --ph: #94969e;
+  --ph: #7a7d86;
   --hint: #6c6e78;
   --acc: #2F6FE4;
   --acc-d: #1E5BBF;
@@ -197,7 +197,7 @@ html[data-theme="tactile"] body.studio-shell.studio-shell {
   --line: rgba(34, 35, 31, .18);
   --fg: #22231f;
   --dim: #55534a;
-  --ph: #8a8676;
+  --ph: #7a7666;
   --hint: #6f6b5f;
   --acc: #f7c948;
   --acc-d: #d9a92b;

@@ -108,5 +108,5 @@ html[data-theme='tactile'] .rfc {
 .rfc select { font: inherit; color: inherit; }
 .rfc button { cursor: pointer; background: none; border: 0; }
 .rfc .ui-icon { width: 14px; height: 14px; flex: none; }
-.rfc .num { font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace; font-variant-numeric: tabular-nums; }
+.rfc .num { font-variant-numeric: tabular-nums; }
 .rfc-spacer { flex: 1; }

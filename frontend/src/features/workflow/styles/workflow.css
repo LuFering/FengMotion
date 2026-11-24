@@ -62,7 +62,7 @@ html[data-theme='light'] .wfl {
   --line2: #cdcdd6;
   --tx: #191a20;
   --tx2: #5b5e66;
-  --tx3: #94969e;
+  --tx3: #7a7d86;
   --acc: #2F6FE4;
   --acc-ink: #ffffff;
   --acc-tx: #1E5BBF;
@@ -95,7 +95,7 @@ html[data-theme='tactile'] .wfl {
   --line2: #22231f;
   --tx: #22231f;
   --tx2: #55534a;
-  --tx3: #8a8676;
+  --tx3: #7a7666;
   --acc: #f7c948;
   --acc-ink: #22231f;
   --acc-tx: #7a5b00;

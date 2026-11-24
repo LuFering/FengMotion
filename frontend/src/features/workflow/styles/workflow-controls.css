@@ -171,6 +171,8 @@
   font-size: 11px;
   font-variant-numeric: tabular-nums;
 }
+/* 选中页签是 --raised 浮起底，--tx3 在上面对比不足（深色 2.6:1），提一档 */
+.wfl .wf-view-tabs button[aria-pressed='true'] span { color: var(--tx2); }
 
 /* ── 文本输入：统一高度、凹槽底，聚焦时强调色描边 ── */
 .wfl .wf-new-name input,

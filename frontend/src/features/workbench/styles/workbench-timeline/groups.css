@@ -272,7 +272,6 @@ html[data-theme="light"] #pane-flow .wb-tl {
   align-self: flex-end;
   margin-bottom: 4px;
   color: color-mix(in srgb, var(--c) 55%, var(--tx2));
-  font-family: var(--font-mono);
   font-size: 10.5px;
   font-variant-numeric: tabular-nums;
   line-height: 1;
@@ -344,6 +343,8 @@ html[data-theme="tactile"] #pane-flow .wb-tl-group .wb-tl-clip:active:not(:disab
   box-shadow: 0.5px 0.5px 0 var(--line2);
 }
 
+/* 触感米底片段上，序号按片段色混出来只有 2.4:1，改用二级字 */
+html[data-theme="tactile"] #pane-flow .wb-tl-group .wb-tl-clip:not([data-picked]) .wb-tl-clip-tag { color: var(--tx2); }
 html[data-theme="tactile"] #pane-flow .wb-tl-group .wb-tl-clip[data-picked] {
   background: var(--acc);
   color: var(--acc-ink);
@@ -443,7 +444,6 @@ html[data-theme="tactile"] #pane-flow .wb-tl-playhead-cap {
   display: flex;
   gap: 8px;
   color: var(--tx);
-  font-family: var(--font-mono);
   font-size: 11px;
   font-variant-numeric: tabular-nums;
 }
@@ -512,7 +512,6 @@ html[data-theme="tactile"] #pane-flow .wb-tl-playhead-cap {
   background: var(--raised);
   box-shadow: var(--shadow-control);
   color: var(--tx);
-  font-family: var(--font-mono);
   font-size: 11px;
   font-variant-numeric: tabular-nums;
 }
@@ -610,7 +609,6 @@ html[data-theme="tactile"] #pane-flow .wb-tl-search[data-active] {
   align-items: baseline;
   justify-content: space-between;
   padding: 0 2px 8px;
-  font-family: var(--font-mono);
   font-size: 11.5px;
   font-variant-numeric: tabular-nums;
 }

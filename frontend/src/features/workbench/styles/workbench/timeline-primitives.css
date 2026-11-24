@@ -77,14 +77,13 @@
 .dot.bad  { background: var(--bad) }
 .dot.acc  { background: var(--acc) }
 
-/* ── 等宽数字（时间码 / 编号 / 时长）────────────────────────
-   paba 里数字都走等宽 + tabular-nums，保证跳动时不抖。
-   ⚠️ 这个类之前没有任何定义 —— 工作台所有时间码都落在系统字体上。 */
+/* ── 数字（时间码 / 编号 / 时长）────────────────────────────
+   只用 tabular-nums 让数字等宽、跳动时不抖，字体跟随正文（design-system §二：
+   数字不用等宽字体，等宽只给代码与文件路径）。这条不带作用域、全站生效，
+   原先写的等宽字体会漏到对话、工作流等页面。 */
 .num {
-  font-family: var(--font-mono);
   font-size: 11.5px;
   font-variant-numeric: tabular-nums;
-  letter-spacing: .01em;
 }
 
 /* ── 工具条主标题 ────────────────────────────────────────────
